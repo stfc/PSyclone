@@ -46,18 +46,18 @@
 
 '''
 
-from __future__ import absolute_import, print_function
-
 import argparse
 import io
 import sys
 import traceback
 
-from psyclone import alg_gen, gen_kernel_stub
+from psyclone import gen_kernel_stub
+from psyclone.domain.lfric.algorithm import LFRicAlg
 from psyclone.configuration import Config, ConfigurationError
 from psyclone.errors import GenerationError, InternalError
 from psyclone.line_length import FortLineLength
 from psyclone.parse.utils import ParseError
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.version import __VERSION__
 
 # Dictionary of supported generation modes where values are a brief
@@ -161,8 +161,15 @@ def run(args):
 
     try:
         if args.gen == "alg":
-            # Generate algorithm
-            code = alg_gen.generate(args.filename, api=api)
+            # Generate algorithm code.
+            if api == "dynamo0.3":
+                alg_psyir = LFRicAlg().create_from_kernel("test_alg",
+                                                          args.filename)
+                code = FortranWriter()(alg_psyir)
+            else:
+                print(f"Algorithm generation from kernel metadata is "
+                      f"not yet implemented for API '{api}'", file=sys.stderr)
+                sys.exit(1)
         elif args.gen == "stub":
             # Generate kernel stub
             code = gen_kernel_stub.generate(args.filename, api=api)

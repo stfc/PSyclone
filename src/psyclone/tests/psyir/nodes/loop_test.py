@@ -49,7 +49,7 @@ from psyclone.psyir.nodes import Loop, Literal, Schedule, Return, Assignment, \
 from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, \
     INTEGER_SINGLE_TYPE, INTEGER_TYPE, ArrayType, REAL_TYPE, \
     SymbolTable
-from psyclone.tests.utilities import get_invoke, check_links
+from psyclone.tests.utilities import check_links
 
 
 def test_loop_init():
@@ -59,15 +59,7 @@ def test_loop_init():
     '''
     loop = Loop()
     assert loop.parent is None
-    assert loop._valid_loop_types == []
     assert loop.annotations == []
-    assert loop._loop_type is None
-    assert loop._field is None
-    assert loop._field_name is None
-    assert loop._field_space is None
-    assert loop._iteration_space is None
-    assert loop._kern is None
-    assert loop._iterates_over == "unknown"
     assert loop._variable is None
 
     # valid variable
@@ -81,11 +73,6 @@ def test_loop_init():
         _ = Loop(variable="hello")
     assert ("variable property in Loop class should be a DataSymbol but "
             "found 'str'.") in str(excinfo.value)
-
-    # valid_loop_types. Note, there is no error checking for this
-    # variable in the Loop class.
-    loop = Loop(valid_loop_types=["a"])
-    assert loop.valid_loop_types == ["a"]
 
     parent = Schedule()
     loop = Loop(parent=parent)
@@ -154,19 +141,6 @@ def test_loop_navigation_properties():
     assert loop.start_expr.value == "newstart"
     assert loop.stop_expr.value == "newstop"
     assert loop.step_expr.value == "newstep"
-
-
-def test_loop_invalid_type():
-    ''' Tests assigning an invalid type to a Loop object. '''
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0,
-                           dist_mem=False)
-    sched = invoke.schedule
-    loop = sched.children[0].loop_body[0]
-    assert isinstance(loop, Loop)
-    with pytest.raises(GenerationError) as err:
-        loop.loop_type = "not_a_valid_type"
-    assert ("loop_type value (not_a_valid_type) is invalid. Must be one of "
-            "['inner', 'outer']" in str(err.value))
 
 
 def test_loop_gen_code():
@@ -396,15 +370,6 @@ def test_variable_getter():
             "found 'NoneType'.") in str(excinfo.value)
 
 
-def test_halo_read_access_is_abstract():
-    '''Check that the generic _halo_read_access method is abstract'''
-    loop = Loop()
-    with pytest.raises(NotImplementedError) as excinfo:
-        _ = loop._halo_read_access(None)
-    assert ("This method needs to be implemented by the APIs that support "
-            "distributed memory.") in str(excinfo.value)
-
-
 def test_loop_equality():
     '''Test the __eq__ method of Loop'''
     # We need to manually set the same SymbolTable instance in both directives
@@ -431,7 +396,10 @@ def test_loop_equality():
     start2 = start.copy()
     stop2 = stop.copy()
     step2 = step.copy()
-    sched2 = Schedule(symbol_table=symboltable)
+    sched2 = Schedule()
+    # Make sure it has the same ST instance, providing it as a constructor
+    # parameter would create a copy and not use the same instance.
+    sched2._symbol_table = symboltable
     child_node2 = Assignment.create(
         Reference(tmp),
         Reference(i_sym))
@@ -442,44 +410,6 @@ def test_loop_equality():
     loop2.addchild(sched2, 3)
     assert loop1 == loop2
 
-    # Set loop type for loop2
-    loop2._valid_loop_types.append("fake")
-    loop2.loop_type = "fake"
-    assert loop1 != loop2
-
-    # Set different field and reset loop2
-    sched2.detach()
-    step2.detach()
-    stop2.detach()
-    start2.detach()
-    loop2 = Loop.create(loop_sym,
-                        start2, stop2, step2, [])
-    loop2.children[3].detach()
-    loop2.addchild(sched2, 3)
-    loop2._field = "a"
-    assert loop1 != loop2
-
-    # Set different field name
-    loop2._field = None
-    loop2._field_name = "a"
-    assert loop1 != loop2
-
-    # Set different field space
-    loop2._field_name = None
-    loop2.field_space = "v0"
-    assert loop1 != loop2
-
-    # Set different iteration spaces
-    loop2.field_space = loop1.field_space
-    loop2.iteration_space = "z"
-    assert loop1 != loop2
-
-    # Set different kernels
-    loop2.iteration_space = loop1.iteration_space
-    loop2.kernel = "z"
-    assert loop1 != loop2
-
     # Set different variables
-    loop2.kernel = loop1.kernel
     loop2.variable = DataSymbol("k", INTEGER_SINGLE_TYPE)
     assert loop1 != loop2

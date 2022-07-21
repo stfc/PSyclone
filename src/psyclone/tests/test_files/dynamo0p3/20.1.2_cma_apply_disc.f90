@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2022, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,20 +31,20 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified I. Kavcic, Met Office
+! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified: I. Kavcic, Met Office
 
 program single_invokes_cma_discontinuous
 
   ! Description: two single invokes containing multiple CMA-related kernels
   ! on discontinuous spaces ANY_DISCONTINUOUS_SPACE_1 and W2V
 
-  use field_mod,    only: field_type
-  use operator_mod, only: columnwise_operator_type
+  use field_mod,               only: field_type
+  use columnwise_operator_mod, only: columnwise_operator_type
   use columnwise_op_app_anydspace_kernel_mod, &
-                    only: columnwise_op_app_anydspace_kernel_type
+                               only: columnwise_op_app_anydspace_kernel_type
   use columnwise_op_app_w2v_kernel_mod,       &
-                    only: columnwise_op_app_w2v_kernel_type
+                               only: columnwise_op_app_w2v_kernel_type
 
   implicit none
 

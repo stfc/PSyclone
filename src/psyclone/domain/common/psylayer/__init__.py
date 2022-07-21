@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council
+# Copyright (c) 2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,28 +31,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Laboratory
+# Authors S. Siso, STFC Daresbury Lab
 
+'''A package module for psyclone.domain.common.psylayer'''
 
-'''File containing a PSyclone transformation script for the Dynamo0p3
-API to apply OpenACC Kernels directives generically. This can be
-applied via the -s option in the psyclone script.
+from psyclone.domain.common.psylayer.psyloop import PSyLoop
 
-'''
-from __future__ import print_function
-from psyclone.transformations import ACCKernelsTrans
-
-
-def trans(psy):
-    ''' PSyclone transformation script for the dynamo0p3 api to apply
-    OpenACC Kernels directives generically.'''
-    kernels_trans = ACCKernelsTrans()
-
-    # Loop over all of the Invokes in the PSy object
-    for invoke in psy.invokes.invoke_list:
-
-        print("Transforming invoke '"+invoke.name+"'...")
-        schedule = invoke.schedule
-        kernels_trans.apply(schedule)
-
-    return psy
+__all__ = ["PSyLoop"]

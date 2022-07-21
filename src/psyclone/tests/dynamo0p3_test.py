@@ -1945,7 +1945,7 @@ def test_dynkernelargument_idtp_columnwise_operator():
     assert operator_argument._data_type == "columnwise_operator_type"
     assert (operator_argument._proxy_data_type ==
             "columnwise_operator_proxy_type")
-    assert operator_argument._module_name == "operator_mod"
+    assert operator_argument._module_name == "columnwise_operator_mod"
 
     # No algorithm information - use default
     operator_argument._init_data_type_properties(None)
@@ -1953,7 +1953,7 @@ def test_dynkernelargument_idtp_columnwise_operator():
     assert operator_argument._data_type == "columnwise_operator_type"
     assert (operator_argument._proxy_data_type ==
             "columnwise_operator_proxy_type")
-    assert operator_argument._module_name == "operator_mod"
+    assert operator_argument._module_name == "columnwise_operator_mod"
 
     # Algorithm information - same as default
     arg = Arg("variable", None, None, ("columnwise_operator_type", None))
@@ -1962,7 +1962,7 @@ def test_dynkernelargument_idtp_columnwise_operator():
     assert operator_argument._data_type == "columnwise_operator_type"
     assert (operator_argument._proxy_data_type ==
             "columnwise_operator_proxy_type")
-    assert operator_argument._module_name == "operator_mod"
+    assert operator_argument._module_name == "columnwise_operator_mod"
 
     # Inconsistent datatype
     arg = Arg("variable", None, None, ("operator_type", None))
@@ -2347,9 +2347,12 @@ def test_halo_dirty_2(tmpdir):
         "      ! Set halos dirty/clean for fields modified in the above loop\n"
         "      !\n"
         "      CALL f1_proxy%set_dirty()\n"
+        "      CALL f1_proxy%set_clean(1)\n"
         "      CALL f3_proxy%set_dirty()\n"
         "      CALL f5_proxy%set_dirty()\n"
+        "      CALL f5_proxy%set_clean(1)\n"
         "      CALL f6_proxy%set_dirty()\n"
+        "      CALL f6_proxy%set_clean(1)\n"
         "      CALL f7_proxy%set_dirty()\n"
         "      CALL f8_proxy%set_dirty()\n")
 
@@ -3747,7 +3750,7 @@ def test_dynkernelarguments_acc_args_1():
     kern_args = kern.arguments
     acc_args = kern_args.acc_args
     assert acc_args == [
-        'nlayers', 'a', 'f1_proxy', 'f1_proxy%data', 'f2_proxy',
+        'nlayers', 'f1_proxy', 'f1_proxy%data', 'f2_proxy',
         'f2_proxy%data', 'm1_proxy', 'm1_proxy%data', 'm2_proxy',
         'm2_proxy%data', 'ndf_w1', 'undf_w1', 'map_w1', 'ndf_w2', 'undf_w2',
         'map_w2', 'ndf_w3', 'undf_w3', 'map_w3']
@@ -3832,7 +3835,7 @@ def test_dynkernelarguments_acc_args_5():
         'cell', 'nlayers', 'mm_w0_proxy', 'mm_w0_proxy%ncell_3d',
         'mm_w0_proxy%local_stencil', 'coord_proxy(1)', 'coord_proxy(2)',
         'coord_proxy(3)', 'coord_proxy(1)%data', 'coord_proxy(2)%data',
-        'coord_proxy(3)%data', 'a', 'ndf_w0', 'undf_w0', 'map_w0',
+        'coord_proxy(3)%data', 'ndf_w0', 'undf_w0', 'map_w0',
         'basis_w0_qr', 'diff_basis_w0_qr', 'np_xy_qr', 'np_z_qr',
         'weights_xy_qr', 'weights_z_qr']
 

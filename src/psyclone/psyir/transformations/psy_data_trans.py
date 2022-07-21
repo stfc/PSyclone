@@ -32,12 +32,10 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: A. R. Porter and S. Siso, STFC Daresbury Laboratory
+# Modified: A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''Contains the PSyData transformation.
 '''
-
-import six
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
@@ -96,8 +94,8 @@ class PSyDataTrans(RegionTrans):
 
     # ------------------------------------------------------------------------
     def __str__(self):
-        return ("Create a sub-tree of the PSyIR that has a node of type "
-                "{0} at its root.").format(self._node_class.__name__)
+        return (f"Create a sub-tree of the PSyIR that has a node of type "
+                f"{self._node_class.__name__} at its root.")
 
     # ------------------------------------------------------------------------
     @property
@@ -160,14 +158,14 @@ class PSyDataTrans(RegionTrans):
         if len(kerns) == 1:
             # This PSyData region only has one kernel within it,
             # so append the kernel name.
-            region_name += ":{0}".format(kerns[0].name)
+            region_name += f":{kerns[0].name}"
 
         # Add a region index to ensure uniqueness when there are
         # multiple regions in an invoke.
         key = module_name + "|" + region_name
         idx = PSyDataTrans._used_kernel_names.get(key, 0)
         PSyDataTrans._used_kernel_names[key] = idx + 1
-        region_name += ":r{0}".format(idx)
+        region_name += f":r{idx}"
         return (module_name, region_name)
 
     # ------------------------------------------------------------------------
@@ -232,18 +230,16 @@ class PSyDataTrans(RegionTrans):
                    not name[0] or not isinstance(name[0], str) or \
                    not name[1] or not isinstance(name[1], str):
                     raise TransformationError(
-                        "Error in {0}. User-supplied region name must be a "
-                        "tuple containing two non-empty strings."
-                        "".format(self.name))
+                        f"Error in {self.name}. User-supplied region name "
+                        f"must be a tuple containing two non-empty strings.")
                 # pylint: enable=too-many-boolean-expressions
             if "prefix" in options:
                 prefix = options["prefix"]
                 if prefix not in Config.get().valid_psy_data_prefixes:
                     raise TransformationError(
-                        "Error in 'prefix' parameter: found '{0}', expected "
-                        "one of {1} as defined in {2}"
-                        .format(prefix, Config.get().valid_psy_data_prefixes,
-                                Config.get().filename))
+                        f"Error in 'prefix' parameter: found '{prefix}', while"
+                        f" one of {Config.get().valid_psy_data_prefixes} was "
+                        f"expected as defined in {Config.get().filename}")
 
         # We have to create an instance of the node that will be inserted in
         # order to find out what module name it will use.
@@ -259,11 +255,10 @@ class PSyDataTrans(RegionTrans):
                 # for any clashes with existing symbols.
                 try:
                     _ = table.lookup(name)
-                    raise six.raise_from(TransformationError(
-                        "Cannot add PSyData calls because there is already a "
-                        "symbol named '{0}' which clashes with one of those "
-                        "used by the PSyclone PSyData API. ".format(name)),
-                        err)
+                    raise TransformationError(
+                        f"Cannot add PSyData calls because there is already a "
+                        f"symbol named '{name}' which clashes with one of "
+                        f"those used by the PSyclone PSyData API. ") from err
                 except KeyError:
                     pass
 

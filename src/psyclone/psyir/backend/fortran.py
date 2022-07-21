@@ -42,6 +42,7 @@ from a PSyIR tree. '''
 # pylint: disable=too-many-lines
 from fparser.two import Fortran2003
 
+from psyclone.core import Signature
 from psyclone.errors import InternalError
 from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import VisitorError
@@ -50,8 +51,10 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
 from psyclone.psyir.nodes import BinaryOperation, Call, CodeBlock, DataNode, \
     Literal, Operation, Range, Routine, Schedule, UnaryOperation
 from psyclone.psyir.symbols import ArgumentInterface, ArrayType, \
-    ContainerSymbol, DataSymbol, DataTypeSymbol, RoutineSymbol, ScalarType, \
-    Symbol, SymbolTable, UnknownFortranType, UnknownType, UnresolvedInterface
+    ContainerSymbol, DataSymbol, DataTypeSymbol, DeferredType, RoutineSymbol, \
+    ScalarType, Symbol, SymbolTable, UnknownFortranType, UnknownType, \
+    UnresolvedInterface
+
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -352,10 +355,10 @@ class FortranWriter(LanguageWriter):
                  initial_indent_depth=0, check_global_constraints=True):
         # Construct the base class using () as array parenthesis, and
         # % as structure access symbol
-        super(FortranWriter, self).__init__(("(", ")"), "%", skip_nodes,
-                                            indent_string,
-                                            initial_indent_depth,
-                                            check_global_constraints)
+        super().__init__(("(", ")"), "%", skip_nodes,
+                         indent_string,
+                         initial_indent_depth,
+                         check_global_constraints)
         # Reverse the Fparser2Reader maps that are used to convert from
         # Fortran operator names to PSyIR operator names.
         self._operator_2_str = {}
@@ -365,6 +368,13 @@ class FortranWriter(LanguageWriter):
                           Fparser2Reader.binary_operators)
         self._reverse_map(self._operator_2_str,
                           Fparser2Reader.nary_operators)
+
+        # Create and store a DependencyTools instance for use when ordering
+        # parameter declarations. Have to import it here as DependencyTools
+        # also uses this Fortran backend.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools import DependencyTools
+        self._dep_tools = DependencyTools(language_writer=self)
 
     @staticmethod
     def _reverse_map(reverse_dict, op_map):
@@ -652,6 +662,7 @@ class FortranWriter(LanguageWriter):
             but is not of UnknownFortranType.
         :raises InternalError: if include_visibility is True and the \
             visibility of the symbol is not of the correct type.
+        :raises VisitorError: if the supplied symbol is of DeferredType.
 
         '''
         if not isinstance(symbol, DataTypeSymbol):
@@ -687,11 +698,20 @@ class FortranWriter(LanguageWriter):
                     f"type '{type(symbol.visibility).__name__}'")
         result += f" :: {symbol.name}\n"
 
+        if isinstance(symbol.datatype, DeferredType):
+            raise VisitorError(
+                f"Local Symbol '{symbol.name}' is of DeferredType and "
+                f"therefore no declaration can be created for it. Should it "
+                f"have an ImportInterface?")
+
         self._depth += 1
+
         for member in symbol.datatype.components.values():
-            # We always want to specify the visibility of components within
-            # a derived type.
-            result += self.gen_vardecl(member, include_visibility=True)
+            # We can only specify the visibility of components within
+            # a derived type if the declaration is within the specification
+            # part of a module.
+            result += self.gen_vardecl(member,
+                                       include_visibility=include_visibility)
         self._depth -= 1
 
         result += f"{self._nindent}end type {symbol.name}\n"
@@ -788,6 +808,72 @@ class FortranWriter(LanguageWriter):
             return result
         return ""
 
+    def _gen_parameter_decls(self, symbol_table, is_module_scope=False):
+        ''' Create the declarations of all parameters present in the supplied
+        symbol table. Declarations are ordered so as to satisfy any inter-
+        dependencies between them.
+
+        :param symbol_table: the SymbolTable instance.
+        :type symbol: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param bool is_module_scope: whether or not the declarations are in \
+                                     a module scoping unit. Default is False.
+
+        :returns: Fortran code declaring all parameters.
+        :rtype: str
+
+        :raises VisitorError: if there is no way of resolving \
+                              interdependencies between parameter declarations.
+
+        '''
+        declarations = ""
+        local_constants = [sym for sym in symbol_table.local_datasymbols if
+                           sym.is_constant]
+        if not local_constants:
+            return declarations
+
+        # There may be dependencies between these constants so setup a dict
+        # listing the required inputs for each one.
+        decln_inputs = {}
+        for symbol in local_constants:
+            decln_inputs[symbol.name] = set()
+            input_sigs = self._dep_tools.get_input_parameters(
+                symbol.constant_value)
+            # The dependence analysis tools do not include symbols used to
+            # define precision so check for those here.
+            for lit in symbol.constant_value.walk(Literal):
+                if isinstance(lit.datatype.precision, DataSymbol):
+                    input_sigs.append(Signature(lit.datatype.precision.name))
+            # If the precision of the Symbol being declared is itself defined
+            # by a Symbol then include that as an 'input'.
+            if isinstance(symbol.datatype.precision, DataSymbol):
+                input_sigs.append(Signature(symbol.datatype.precision.name))
+            # Remove any 'inputs' that are not local since these do not affect
+            # the ordering of local declarations.
+            for sig in input_sigs:
+                if symbol_table.lookup(sig.var_name) in local_constants:
+                    decln_inputs[symbol.name].add(sig)
+        # We now iterate over the declarations, declaring those that have their
+        # inputs satisfied. Creating a declaration for a given symbol removes
+        # that symbol as a dependence from any outstanding declarations.
+        declared = set()
+        while local_constants:
+            for symbol in local_constants[:]:
+                inputs = decln_inputs[symbol.name]
+                if inputs.issubset(declared):
+                    # All inputs are satisfied so this declaration can be added
+                    declared.add(Signature(symbol.name))
+                    local_constants.remove(symbol)
+                    declarations += self.gen_vardecl(
+                        symbol, include_visibility=is_module_scope)
+                    break
+            else:
+                # We looped through all of the variables remaining to be
+                # declared and none had their dependencies satisfied.
+                raise VisitorError(
+                    f"Unable to satisfy dependencies for the declarations of "
+                    f"{[sym.name for sym in local_constants]}")
+        return declarations
+
     def gen_decls(self, symbol_table, is_module_scope=False):
         '''Create and return the Fortran declarations for the supplied
         SymbolTable.
@@ -797,7 +883,7 @@ class FortranWriter(LanguageWriter):
         :param bool is_module_scope: whether or not the declarations are in \
                                      a module scoping unit. Default is False.
 
-        :returns: the Fortran declarations as a string.
+        :returns: the Fortran declarations for the table.
         :rtype: str
 
         :raises VisitorError: if one of the symbols is a RoutineSymbol \
@@ -826,6 +912,10 @@ class FortranWriter(LanguageWriter):
                     has_wildcard_import = symbol_table.has_wildcard_imports()
                     wildcard_imports_checked = True
                 if not has_wildcard_import:
+                    if "%" in sym.name:
+                        # TODO #1495 - calls to type-bound procedures are not
+                        # yet supported in the PSyIR.
+                        continue
                     raise VisitorError(
                         f"Routine symbol '{sym.name}' does not have an "
                         f"ImportInterface or LocalInterface, is not a Fortran "
@@ -867,7 +957,11 @@ class FortranWriter(LanguageWriter):
         # variable declarations. As a convention, this method also
         # declares any argument variables before local variables.
 
-        # 1: Argument variable declarations
+        # 1: Local constants.
+        declarations += self._gen_parameter_decls(symbol_table,
+                                                  is_module_scope)
+
+        # 2: Argument variable declarations
         if symbol_table.argument_datasymbols and is_module_scope:
             raise VisitorError(
                 f"Arguments are not allowed in this context but this symbol "
@@ -875,13 +969,6 @@ class FortranWriter(LanguageWriter):
                 f"'{[sym.name for sym in symbol_table.argument_datasymbols]}'."
                 )
         for symbol in symbol_table.argument_datasymbols:
-            declarations += self.gen_vardecl(
-                symbol, include_visibility=is_module_scope)
-
-        # 2: Local constants.
-        local_constants = [sym for sym in symbol_table.local_datasymbols if
-                           sym.is_constant]
-        for symbol in local_constants:
             declarations += self.gen_vardecl(
                 symbol, include_visibility=is_module_scope)
 
@@ -1042,10 +1129,18 @@ class FortranWriter(LanguageWriter):
         # variables at the routine level scope. For this reason, at this
         # point we have to unify all declarations and resolve possible name
         # clashes that appear when merging the scopes.
-        whole_routine_scope = SymbolTable(node)
+        whole_routine_scope = SymbolTable()
 
+        own_symbol = node.symbol_table.lookup_with_tag("own_routine_symbol")
         for schedule in node.walk(Schedule):
             for symbol in schedule.symbol_table.symbols[:]:
+
+                # We don't need to add the Symbol representing this Routine to
+                # the top level symbol table because in Fortran it is already
+                # implicitly declared by the subroutine statement.
+                if symbol is own_symbol and isinstance(symbol, RoutineSymbol):
+                    continue
+
                 try:
                     whole_routine_scope.add(symbol)
                 except KeyError:
@@ -1053,6 +1148,10 @@ class FortranWriter(LanguageWriter):
                         symbol.name, other_table=schedule.symbol_table)
                     schedule.symbol_table.rename_symbol(symbol, new_name)
                     whole_routine_scope.add(symbol)
+
+        # Replace the symbol table
+        node.symbol_table.detach()
+        whole_routine_scope.attach(node)
 
         # Generate module imports
         imports = ""
@@ -1557,7 +1656,7 @@ class FortranWriter(LanguageWriter):
         :param node: a Call PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Call`
 
-        :returns: the Fortran code as a string.
+        :returns: the equivalent Fortran code.
         :rtype: str
 
         '''
@@ -1575,3 +1674,20 @@ class FortranWriter(LanguageWriter):
             return f"{self._nindent}call {node.routine.name}({args})\n"
         # Otherwise it is inside-expression function call
         return f"{node.routine.name}({args})"
+
+    def kernelfunctor_node(self, node):
+        '''
+        Translate the Kernel functor into Fortran.
+
+        :param node: the PSyIR node to translate.
+        :type node: :py:class:`psyclone.domain.common.algorithm.KernelFunctor`
+
+        :returns: the equivalent Fortran code.
+        :rtype: str
+
+        '''
+        result_list = []
+        for child in node.children:
+            result_list.append(self._visit(child))
+        args = ", ".join(result_list)
+        return f"{node.name}({args})"

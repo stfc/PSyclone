@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         A. B. G. Chalk, STFC Daresbury Lab
 #         I. Kavcic,    Met Office
 #         C.M. Maynard, Met Office / University of Reading
@@ -518,9 +518,9 @@ class OMPParallelDirective(OMPRegionDirective):
             name = call.reduction_arg.name
             if name in names:
                 raise GenerationError(
-                    "Reduction variables can only be used once in an invoke. "
-                    "'{0}' is used multiple times, please use a different "
-                    "reduction variable".format(name))
+                    f"Reduction variables can only be used once in an invoke. "
+                    f"'{name}' is used multiple times, please use a different "
+                    f"reduction variable")
             else:
                 names.append(name)
 
@@ -531,8 +531,8 @@ class OMPParallelDirective(OMPRegionDirective):
         for child in self.children[2].children:
             private_list.append(child.symbol.name)
         private_str = "private(" + ",".join(private_list) + ")"
-        parent.add(DirectiveGen(parent, "omp", "begin", "parallel", default_str
-                                + " " + private_str))
+        parent.add(DirectiveGen(parent, "omp", "begin", "parallel",
+                                f"{default_str}, private({private_str})"))
 
 
         if reprod_red_call_list:
@@ -560,6 +560,8 @@ class OMPParallelDirective(OMPRegionDirective):
             parent.add(CommentGen(parent, ""))
             for call in reprod_red_call_list:
                 call.reduction_sum_loop(parent)
+
+        self.gen_post_region_code(parent)
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
@@ -618,8 +620,8 @@ class OMPParallelDirective(OMPRegionDirective):
             for variable_name in call.local_vars():
                 if variable_name == "":
                     raise InternalError(
-                        "call '{0}' has a local variable but its "
-                        "name is not set.".format(call.name))
+                        f"call '{call.name}' has a local variable but its "
+                        f"name is not set.")
                 result.add(variable_name.lower())
 
         # Now determine scalar variables that must be private:
@@ -1726,9 +1728,8 @@ class OMPTaskloopDirective(OMPRegionDirective):
         '''
         # It is only at the point of code generation that we can check for
         # correctness (given that we don't mandate the order that a user
-        # can apply transformations to the code). A taskloop
-        # directive, we must have an OMPSerialDirective as an
-        # ancestor back up the tree.
+        # can apply transformations to the code). A taskloop directive, we must
+        # have an OMPSerialDirective as an ancestor back up the tree.
         if not self.ancestor(OMPSerialDirective):
             raise GenerationError(
                 "OMPTaskloopDirective must be inside an OMP Serial region "
@@ -1763,9 +1764,9 @@ class OMPTaskloopDirective(OMPRegionDirective):
         # Find the specified clauses
         clause_list = []
         if self._grainsize is not None:
-            clause_list.append("grainsize({0})".format(self._grainsize))
+            clause_list.append(f"grainsize({self._grainsize})")
         if self._num_tasks is not None:
-            clause_list.append("num_tasks({0})".format(self._num_tasks))
+            clause_list.append(f"num_tasks({self._num_tasks})")
         if self._nogroup:
             clause_list.append("nogroup")
         # Generate the string containing the required clauses
@@ -1861,10 +1862,10 @@ class OMPDoDirective(OMPRegionDirective):
         :rtype: str
         '''
         if self.reductions():
-            reprod = "reprod={0}".format(self._reprod)
+            reprod = f"reprod={self._reprod}"
         else:
             reprod = ""
-        return "{0}[{1}]".format(self.coloured_name(colour), reprod)
+        return f"{self.coloured_name(colour)}[{reprod}]"
 
     def _reduction_string(self):
         ''' Return the OMP reduction information as a string '''
@@ -1872,8 +1873,9 @@ class OMPDoDirective(OMPRegionDirective):
         for reduction_type in AccessType.get_valid_reduction_modes():
             reductions = self._get_reductions_list(reduction_type)
             for reduction in reductions:
-                reduction_str += ", reduction({0}:{1})".format(
-                    OMP_OPERATOR_MAPPING[reduction_type], reduction)
+                reduction_str += (f", reduction("
+                                  f"{OMP_OPERATOR_MAPPING[reduction_type]}:"
+                                  f"{reduction})")
         return reduction_str
 
     @property
@@ -1922,16 +1924,15 @@ class OMPDoDirective(OMPRegionDirective):
         '''
         if len(self.dir_body.children) != 1:
             raise GenerationError(
-                "An {0} can only be applied to a single loop "
-                "but this Node has {1} children: {2}".
-                format(type(self).__name__, len(self.dir_body.children),
-                       self.dir_body.children))
+                f"An {type(self).__name__} can only be applied to a single "
+                f"loop but this Node has {len(self.dir_body.children)} "
+                f"children: {self.dir_body.children}")
 
         if not isinstance(self.dir_body[0], Loop):
             raise GenerationError(
-                "An {0} can only be applied to a loop "
-                "but this Node has a child of type '{1}'".format(
-                    type(self).__name__, type(self.dir_body[0]).__name__))
+                f"An {type(self).__name__} can only be applied to a loop but "
+                f"this Node has a child of type "
+                f"'{type(self.dir_body[0]).__name__}'")
 
     def gen_code(self, parent):
         '''
@@ -1955,8 +1956,7 @@ class OMPDoDirective(OMPRegionDirective):
         # As we're a loop we don't specify the scope
         # of any variables so we don't have to generate the
         # list of private variables
-        options = "schedule({0})".format(self._omp_schedule) + \
-                  local_reduction_string
+        options = f"schedule({self._omp_schedule}){local_reduction_string}"
         parent.add(DirectiveGen(parent, "omp", "begin", "do", options))
 
         for child in self.children:
@@ -1976,7 +1976,7 @@ class OMPDoDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        return "omp do schedule({0})".format(self._omp_schedule)
+        return f"omp do schedule({self._omp_schedule})"
 
     def end_string(self):
         '''Returns the end (or closing) statement of this directive, i.e.
@@ -2054,10 +2054,9 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
             private_list.append(child.symbol.name)
         private_str = "private(" + ",".join(private_list) + ")"
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel do",
-                                default_str + ", " + private_str + 
-                                ", schedule({0})".
-                                format(self._omp_schedule) +
-                                self._reduction_string()))
+                                f"{default_str}, {private_str}, schedule"
+                                f"({self._omp_schedule}) "
+                                f"{self._reduction_string()}"))
 
         for child in self.dir_body:
             child.gen_code(parent)
@@ -2066,6 +2065,8 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         position = parent.previous_loop()
         parent.add(DirectiveGen(parent, *self.end_string().split()),
                    position=["after", position])
+
+        self.gen_post_region_code(parent)
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
@@ -2187,15 +2188,13 @@ class OMPLoopDirective(OMPRegionDirective):
         '''
         if value is not None and not isinstance(value, int):
             raise TypeError(
-                "The OMPLoopDirective collapse clause must be a positive "
-                "integer or None, but value '{0}' has been given."
-                "".format(value))
+                f"The OMPLoopDirective collapse clause must be a positive "
+                f"integer or None, but value '{value}' has been given.")
 
         if value is not None and value <= 0:
             raise ValueError(
-                "The OMPLoopDirective collapse clause must be a positive "
-                "integer or None, but value '{0}' has been given."
-                "".format(value))
+                f"The OMPLoopDirective collapse clause must be a positive "
+                f"integer or None, but value '{value}' has been given.")
 
         self._collapse = value
 
@@ -2210,7 +2209,7 @@ class OMPLoopDirective(OMPRegionDirective):
         '''
         text = self.coloured_name(colour)
         if self._collapse:
-            text += "[collapse={0}]".format(str(self._collapse))
+            text += f"[collapse={self._collapse}]"
         else:
             text += "[]"
         return text
@@ -2226,7 +2225,7 @@ class OMPLoopDirective(OMPRegionDirective):
         '''
         string = "omp loop"
         if self._collapse:
-            string += " collapse({0})".format(str(self._collapse))
+            string += f" collapse({self._collapse})"
         return string
 
     def end_string(self):
@@ -2257,14 +2256,13 @@ class OMPLoopDirective(OMPRegionDirective):
         '''
         if len(self.dir_body.children) != 1:
             raise GenerationError(
-                "OMPLoopDirective must have exactly one child in its "
-                "associated schedule but found {0}.".format(
-                    self.dir_body.children))
+                f"OMPLoopDirective must have exactly one child in its "
+                f"associated schedule but found {self.dir_body.children}.")
 
         if not isinstance(self.dir_body.children[0], Loop):
             raise GenerationError(
-                "OMPLoopDirective must have a Loop as child of its associated "
-                "schedule but found '{0}'.".format(self.dir_body.children[0]))
+                f"OMPLoopDirective must have a Loop as child of its associated"
+                f" schedule but found '{self.dir_body.children[0]}'.")
 
         if not self.ancestor((OMPTargetDirective, OMPParallelDirective)):
             # Also omp teams or omp threads regions but these are not supported
@@ -2280,12 +2278,11 @@ class OMPLoopDirective(OMPRegionDirective):
             for depth in range(self._collapse):
                 if not isinstance(cursor, Loop):
                     raise GenerationError(
-                        "OMPLoopDirective must have as many immediately nested"
-                        " loops as the collapse clause specifies but '{0}' "
-                        "has a collpase={1} and the nested statement at depth "
-                        "{2} is a {3} rather than a Loop."
-                        "".format(self, self._collapse, depth,
-                                  type(cursor).__name__))
+                        f"OMPLoopDirective must have as many immediately "
+                        f"nested loops as the collapse clause specifies but "
+                        f"'{self}' has a collapse={self._collapse} and the "
+                        f"nested statement at depth {depth} is a "
+                        f"{type(cursor).__name__} rather than a Loop.")
                 cursor = cursor.loop_body.children[0]
 
         super(OMPLoopDirective, self).validate_global_constraints()

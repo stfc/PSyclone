@@ -1,3 +1,57 @@
+	1) PR #1758 for #1741. Splits the PSyData read functionality into a
+	standalone module to remove dependence on infrastructure for
+	driver code.
+
+	2) PR #1766 FOR #1764. Fixes various syntax errors in some of the
+	Fortran test files.
+
+	3) PR #1759 for #1752. Updates to GOcean examples so that F90FLAGS
+	is used consistently and is also used when linking.
+
+	4) PR #1700. Various improvements to the example NEMO processing
+	scripts.
+
+	5) PR #1762 for #1743. Ensures declaration of precision variables
+	in PSyAD test harness.
+
+	6) PR #1774 for #1773. Fixes syntax error in test Fortran file.
+
+	7) PR #1620 for #1555. Create Algorithm Layer for a Kernel.
+
+	8) PR #1767 for #1739. Fixes dep-analysis bug whereby CMA operator
+	arguments to LFRic kernels were not given correct access value.
+
+	9) PR #1763 for #1717. Fixes invalid adjoint names for subroutine
+	and module.
+
+	10) PR #1776 for #1775. Fixes post_region_code_gen and improves
+	test fixtures.
+
+	11) PR #1784 towards #1779. Removes the use of config-provided bounds
+	from the NemoRange2Loop Transformation.
+
+	12) PR #1765 for #1724. Remove kernel use statements from
+	processed algorithm layer code.
+
+	13) PR #1785 for #1771. Refactor algorithm-creation functionality.
+
+	14) PR #1769 for #1721. Fixes bugs in use of sympy simplify() and
+	expand().
+
+	15) PR #1791 for #1780. Add setval_random built-in in LFRic API.
+
+release 2.3.1 17th of June 2022
+
+        1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
+
+	2) PR #1669 for #450. Remove set_dirty/clean from ACC regions
+
+	3) PR #1745 towards #1731. Split PSyLoop class from Loop node.
+
+	4) PR #1761 for #1760. Create release 2.3.1
+
+release 2.3.0 9th June 2022
+
 	1) PR #1672. Fixes BOZ literal standard incompatibility in the
 	nvidia profiling wrapper code.
 
@@ -47,6 +101,49 @@
 	15) PR #1699. Fix failing dynamopsy test by specifying dm=true
 	explicitly
 
+	16) PR #1684 for #1683. Adds support for MIN and MAX LFRic Built-ins.
+
+	17) PR #1702 for #1695. Correction to LFRic infrastructure ('emdi') to
+	bring up-to-date with current LFRic usage.
+
+	18) PR #1705. Corrections for the NEMO tutorial. 
+
+	19) PR #1692 for #1688. Prevents scoping regions from sharing symbol
+	tables. Adds attach() and detach() methods to SymbolTable for
+	managing this connection.
+
+	20) PR #1703 for #1689. Fix stencil depth bug in LFRic halo exchange
+	when a discontinuous writer follows a discontinuous stencil reader.
+
+	21) PR #1608 towards #1542. Allow GH_WRITE access for fields on
+	continuous function spaces in LFRic API.
+
+	22) PR #1722. Changes all PSyIR code over to using f-strings.
+
+	23) PR #1725. Allows parsing an empty Fortran file.
+
+	24) PR #1716 for #1713. Fix bug in matmul transformation. 
+
+	25) PR #1693 for #1661. Improve dependency analysis tools.
+
+	26) PR #1347 for #1730. The Fortran backend now generates declarations with
+	dependencies in the appropriate order.
+
+	27) PR #1729. Minor fixes for MarkDown link checker and path to
+	test file.
+
+	28) PR #1733 for #1707. Update PSyclone master to the latest version of
+	fparser to enable running of PSyclone tests.
+
+	29) PR #1679. Add a limit parameter to the PSyIR node ancestor method.
+
+	30) PR #1749 for #1748. Updates version of fparser specified in setup.py
+	to 0.0.15.
+
+	31) PR #1740 for #1738. Update the operator implementation in the 
+	cut-down LFRic infrastructure and change the USE statements generated
+	for CMA operators.
+ 
 release 2.2.0 17th March 2022
 
 	1) PR #1439 for #1074. Adds a GOcean example for the use of the NaN-
@@ -79,7 +176,7 @@ release 2.2.0 17th March 2022
 	11) PR #1482 for #1481. Renames symbol_from_tag->find_or_create_tag
 	and tidies its use.
 
-	12) PR #1521 for #1193. Update python 3.5 to 3.6 in the GitHubActions CI.
+	12) PR #1521 for #1193. Update Python 3.5 to 3.6 in the GitHubActions CI.
 
 	13) PR #1512 for #1511 and #1516. Fix silent compilation test failures,
 	and make sure all files are compiled in tmpdir.
@@ -691,7 +788,7 @@ release 2.0.0 28th April 2021
 	node as input as well as a list of nodes.
 
 	63) PR #965. Add github actions for CI - runs flake8, pytest,
-	codecov and examples for python 2.7, 3.5 and 3.8.
+	codecov and examples for Python 2.7, 3.5 and 3.8.
 
 	64) PR #975 for #972 - correct use of str(err) with str(err.value)
 	in a couple of recently-added tests.
@@ -738,7 +835,7 @@ release 2.0.0 28th April 2021
 	77) PR #1000 for #988. Add missing dependencies in gungho_lib/Makefile
 	in LFRic building_code tutorials 3 and 4.
 
-	78) PR #1012 for #1001. Adds a wrapper script to find a python
+	78) PR #1012 for #1001. Adds a wrapper script to find a Python
 	executable when building any of the PSyData wrapper libraries. (Required
 	because some distributions now only ship with 'python3').
 
@@ -1785,7 +1882,7 @@ release 1.5.0 3rd October 2017
 	setval_{c,X}, X_minus_bY etc.). See psyclone.pdf for the full list.
 
 	9) #32 and PR #39 Adds the ability to build the generated code
-	when performing python tests. Generated code can now be checked
+	when performing Python tests. Generated code can now be checked
 	that it compiles as part of the development process helping avoid
 	making releases with errors in them. Note, existing tests still
 	need to be updated.
@@ -2019,7 +2116,7 @@ release 1.2.0
 	1) #415 Support for parsing stencil information supplied in
 	Dynamo 0.3 kernel meta-data.
 
-	2) #367 Make gocean python conform to pep8
+	2) #367 Make gocean Python conform to pep8
 
 	3) #230 Add documentation for the GOcean1.0 API
 

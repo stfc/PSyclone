@@ -33,28 +33,27 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 # Modified: I. Kavcic, Met Office
-# Modified: R. W. Ford, STFC Daresbury Lab
+#           A. R. Porter, STFC Daresbury Laboratory
+#           R. W. Ford, STFC Daresbury Laboratory
 
 '''
 This module provides a class with all LFRic related constants.
 '''
 
-# Imports
-from __future__ import print_function, absolute_import
-
 from collections import OrderedDict
 
 from psyclone.configuration import Config
+from psyclone.errors import InternalError
 
 
 # pylint: disable=too-few-public-methods
-class LFRicConstants(object):
+class LFRicConstants():
     '''This class stores all LFRic constants. Note that some constants
     depend on values in the config file, so this class can only be
     used after the config file has been read.
     It stores all values in class variables (to avoid re-evaluating them).
-    '''
 
+    '''
     HAS_BEEN_INITIALISED = False
 
     def __init__(self):
@@ -329,7 +328,7 @@ class LFRicConstants(object):
                 "kind": "r_solver"},
             # 'real'-valued columnwise operator with data of kind 'r_solver'
             "columnwise_operator": {
-                "module": "operator_mod",
+                "module": "columnwise_operator_mod",
                 "type": "columnwise_operator_type",
                 "proxy_type": "columnwise_operator_proxy_type",
                 "intrinsic": "real",
@@ -400,6 +399,45 @@ class LFRicConstants(object):
             "constants": {"module": "constants_mod"},
             # Logging module (used for runtime checks)
             "logging": {"module": "log_mod"}}
+
+    @staticmethod
+    def specific_function_space(name):
+        '''
+        Maps from a valid kernel metadata function-space name to one
+        that exists within the LFRic infrastructure. This is necessary
+        because meta-data can contain 'generic' names such as 'any_w2' but,
+        when generating code, we need the name of a specific function space
+        that is recognised by the LFRic infrastructure.
+
+        :param str name: the name of the function space in metadata.
+
+        :returns: the name of a specific function space.
+        :rtype: str
+
+        :raises ValueError: if the supplied name is not a valid LFRic \
+                            function-space name.
+        :raises InternalError: if an unrecognised wildcard function-space \
+                               name is supplied.
+        '''
+        space = name.lower()
+        if space not in LFRicConstants.VALID_FUNCTION_SPACE_NAMES:
+            raise ValueError(
+                f"'{space}' is not a recognised LFRic function space (one of "
+                f"{LFRicConstants.VALID_FUNCTION_SPACE_NAMES}).")
+
+        # TODO #1709 - make this mapping configurable rather than
+        # hardwiring it here.
+        if not space.startswith("any_"):
+            return space
+        if space == "any_w2":
+            return "w2"
+        if space.startswith("any_space_"):
+            return LFRicConstants.CONTINUOUS_FUNCTION_SPACES[0]
+        if space.startswith("any_discontinuous_space_"):
+            return LFRicConstants.DISCONTINUOUS_FUNCTION_SPACES[0]
+
+        raise InternalError(f"Error mapping from meta-data function space "
+                            f"to actual space: cannot handle '{space}'")
 
 
 # =============================================================================

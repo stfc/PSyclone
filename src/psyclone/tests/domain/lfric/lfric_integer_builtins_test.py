@@ -37,10 +37,12 @@
 
 ''' This module tests the support for integer built-in operations in the
     LFRic API using pytest. Currently all built-in operations are 'pointwise'
-    in that they iterate over DOFs. However this may change in the future. '''
+    in that they iterate over DOFs. However this may change in the future.
 
-# imports
-from __future__ import absolute_import, print_function
+    TODO #1796 - break the tests for each built-in into separate files under
+                 the 'builtins' directory.
+'''
+
 import os
 import pytest
 
@@ -57,14 +59,6 @@ BASE_PATH = os.path.join(
     "test_files", "dynamo0p3")
 # The PSyclone API under test
 API = "dynamo0.3"
-
-
-@pytest.fixture(scope="module", autouse=True)
-def setup():
-    '''Make sure that all tests here use LFRic (Dynamo0.3) as API.'''
-    Config.get().api = "dynamo0.3"
-    yield()
-    Config._instance = None
 
 
 # ------------- Adding integer fields --------------------------------------- #
@@ -564,6 +558,116 @@ def test_int_inc_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm in code
 
 
+def test_int_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of LFRicIntXMinusAKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Y = X - a where 'a' is an integer scalar and X and Y
+    are integer-valued fields. Test with and without annexed dofs being
+    computed as this affects the generated code.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.22.5_int_X_minus_a_builtin.f90"),
+                           api=API)
+
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    # Test string method
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule[0].loop_body[0]
+    assert str(kern) == "Built-in: int_X_minus_a (integer-valued fields)"
+    # Test code generation
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if not dist_mem:
+        output = (
+            "      loop0_stop = undf_aspc1_f2\n"
+            "      !\n"
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO df=loop0_start,loop0_stop\n"
+            "        f2_proxy%data(df) = f1_proxy%data(df) - a\n"
+            "      END DO\n"
+            "      !\n"
+            "    END SUBROUTINE invoke_0\n")
+        assert output in code
+    else:
+        output_dm = (
+            "      loop0_stop = f2_proxy%vspace%get_last_dof_annexed()\n"
+            "      !\n"
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      DO df=loop0_start,loop0_stop\n"
+            "        f2_proxy%data(df) = f1_proxy%data(df) - a\n"
+            "      END DO\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f2_proxy%set_dirty()\n"
+            "      !\n")
+        if not annexed:
+            output_dm = output_dm.replace("dof_annexed", "dof_owned")
+        assert output_dm in code
+
+
+def test_int_inc_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of LFRicIntIncXMinusAKern returns
+    the expected string and 2) we generate correct code for the
+    built-in operation X = X - a where 'a' is an integer scalar and
+    X is an integer-valued field. Test with and without annexed dofs
+    being computed as this affects the generated code.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "15.22.6_int_inc_X_minus_a_builtin.f90"), api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    # Test string method
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
+    assert str(kern) == "Built-in: int_inc_X_minus_a (integer-valued field)"
+    # Test code generation
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if not dist_mem:
+        output = (
+            "      loop0_stop = undf_aspc1_f1\n"
+            "      !\n"
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO df=loop0_start,loop0_stop\n"
+            "        f1_proxy%data(df) = f1_proxy%data(df) - a\n"
+            "      END DO\n"
+            "      !\n"
+            "    END SUBROUTINE invoke_0")
+        assert output in code
+    else:
+        output_dm = (
+            "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
+            "      !\n"
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      DO df=loop0_start,loop0_stop\n"
+            "        f1_proxy%data(df) = f1_proxy%data(df) - a\n"
+            "      END DO\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f1_proxy%set_dirty()\n"
+            "      !\n")
+        if not annexed:
+            output_dm = output_dm.replace("dof_annexed", "dof_owned")
+        assert output_dm in code
+
+
 # ------------- Multiplying integer fields ---------------------------------- #
 
 
@@ -1048,6 +1152,252 @@ def test_int_sign_X(tmpdir, monkeypatch, annexed, dist_mem):
             "above loop\n"
             "      !\n"
             "      CALL f2_proxy%set_dirty()\n"
+            "      !\n")
+        if not annexed:
+            output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
+        assert output_dm_2 in code
+
+
+# ------------- Maximum of (integer scalar, integer field elements) --------- #
+
+
+def test_int_max_aX(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of LFRicIntMaxAXKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Y = max(a, X) where 'a' is an integer scalar and Y and X
+    are integer-valued fields. Test with and without annexed dofs
+    being computed as this affects the generated code.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.28.3_int_max_aX_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    # Test string method
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
+    assert str(kern) == "Built-in: int_max_aX (integer-valued fields)"
+    # Test code generation
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    # Check for the correct field and scalar type declarations
+    output = (
+        "      INTEGER(KIND=i_def), intent(in) :: a\n"
+        "      TYPE(integer_field_type), intent(in) :: f2, f1\n"
+        "      INTEGER df\n"
+        "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+        "      TYPE(integer_field_proxy_type) f2_proxy, f1_proxy\n")
+    assert output in code
+
+    if not dist_mem:
+        assert "INTEGER(KIND=i_def) undf_aspc1_f2\n" in code
+        output = (
+            "      loop0_stop = undf_aspc1_f2\n"
+            "      !\n"
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO df=loop0_start,loop0_stop\n"
+            "        f2_proxy%data(df) = MAX(a, f1_proxy%data(df))\n"
+            "      END DO\n"
+            "      !\n"
+            "    END SUBROUTINE invoke_0\n")
+        assert output in code
+    else:
+        assert "INTEGER(KIND=i_def) max_halo_depth_mesh\n" in code
+        output_dm_2 = (
+            "      loop0_stop = f2_proxy%vspace%get_last_dof_annexed()\n"
+            "      !\n"
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      DO df=loop0_start,loop0_stop\n"
+            "        f2_proxy%data(df) = MAX(a, f1_proxy%data(df))\n"
+            "      END DO\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f2_proxy%set_dirty()\n"
+            "      !\n")
+        if not annexed:
+            output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
+        assert output_dm_2 in code
+
+
+def test_int_inc_max_aX(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of LFRicIntIncMaxAXKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = max(a, X) where 'a' is an integer scalar and X is an
+    integer-valued field. Test with and without annexed dofs being
+    computed as this affects the generated code.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.28.4_int_inc_max_aX_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    # Test string method
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
+    assert str(kern) == "Built-in: int_inc_max_aX (integer-valued field)"
+    # Test code generation
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    # Check for the correct field and scalar type declarations
+    output = (
+        "      INTEGER(KIND=i_def), intent(in) :: a\n"
+        "      TYPE(integer_field_type), intent(in) :: f1\n"
+        "      INTEGER df\n"
+        "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+        "      TYPE(integer_field_proxy_type) f1_proxy\n")
+    assert output in code
+
+    if not dist_mem:
+        output = (
+            "      loop0_stop = undf_aspc1_f1\n"
+            "      !\n"
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO df=loop0_start,loop0_stop\n"
+            "        f1_proxy%data(df) = MAX(a, f1_proxy%data(df))\n"
+            "      END DO\n"
+            "      !\n"
+            "    END SUBROUTINE invoke_0\n")
+        assert output in code
+    else:
+        output_dm_2 = (
+            "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
+            "      !\n"
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      DO df=loop0_start,loop0_stop\n"
+            "        f1_proxy%data(df) = MAX(a, f1_proxy%data(df))\n"
+            "      END DO\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f1_proxy%set_dirty()\n"
+            "      !\n")
+        if not annexed:
+            output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
+        assert output_dm_2 in code
+
+
+# ------------- Minimum of (integer scalar, integer field elements) --------- #
+
+
+def test_int_min_aX(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of LFRicIntMinAXKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Y = min(a, X) where 'a' is an integer scalar and Y and X
+    are integer-valued fields. Test with and without annexed dofs
+    being computed as this affects the generated code.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.28.5_int_min_aX_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    # Test string method
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
+    assert str(kern) == "Built-in: int_min_aX (integer-valued fields)"
+    # Test code generation
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if not dist_mem:
+        output = (
+            "      loop0_stop = undf_aspc1_f2\n"
+            "      !\n"
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO df=loop0_start,loop0_stop\n"
+            "        f2_proxy%data(df) = MIN(a, f1_proxy%data(df))\n"
+            "      END DO\n"
+            "      !\n"
+            "    END SUBROUTINE invoke_0\n")
+        assert output in code
+    else:
+        output_dm_2 = (
+            "      loop0_stop = f2_proxy%vspace%get_last_dof_annexed()\n"
+            "      !\n"
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      DO df=loop0_start,loop0_stop\n"
+            "        f2_proxy%data(df) = MIN(a, f1_proxy%data(df))\n"
+            "      END DO\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f2_proxy%set_dirty()\n"
+            "      !\n")
+        if not annexed:
+            output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
+        assert output_dm_2 in code
+
+
+def test_int_inc_min_aX(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of LFRicIntIncMinAXKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = min(a, X) where 'a' is an integer scalar and X is an
+    integer-valued field. Test with and without annexed dofs being computed
+    as this affects the generated code.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.28.6_int_inc_min_aX_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    # Test string method
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
+    assert str(kern) == "Built-in: int_inc_min_aX (integer-valued field)"
+    # Test code generation
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if not dist_mem:
+        output = (
+            "      loop0_stop = undf_aspc1_f1\n"
+            "      !\n"
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO df=loop0_start,loop0_stop\n"
+            "        f1_proxy%data(df) = MIN(a, f1_proxy%data(df))\n"
+            "      END DO\n"
+            "      !\n"
+            "    END SUBROUTINE invoke_0\n")
+        assert output in code
+    else:
+        output_dm_2 = (
+            "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
+            "      !\n"
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      DO df=loop0_start,loop0_stop\n"
+            "        f1_proxy%data(df) = MIN(a, f1_proxy%data(df))\n"
+            "      END DO\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f1_proxy%set_dirty()\n"
             "      !\n")
         if not annexed:
             output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")

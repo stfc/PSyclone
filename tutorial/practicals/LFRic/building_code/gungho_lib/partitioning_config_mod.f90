@@ -85,7 +85,7 @@ contains
   !>
   integer(i_native) function panel_decomposition_from_key( key )
 
-    use constants_mod, only: emdi, imdi
+    use constants_mod, only: unset_key, imdi
 
     implicit none
 
@@ -93,7 +93,7 @@ contains
 
     integer(i_native) :: key_index
 
-    if (key == emdi) then
+    if (key == unset_key) then
       write( log_scratch_space, '(A)') &
           'Missing key for panel_decomposition enumeration in partitioning namelist.'
       panel_decomposition_from_key = int(imdi,i_native)
@@ -126,7 +126,7 @@ contains
   !>
   character(str_def) function key_from_panel_decomposition( value )
 
-    use constants_mod, only: emdi, imdi
+    use constants_mod, only: unset_key, imdi
 
     implicit none
 
@@ -137,7 +137,7 @@ contains
     value_index = 1
     do
       if (panel_decomposition_value(value_index) == int(imdi,i_native)) then
-        key_from_panel_decomposition = emdi
+        key_from_panel_decomposition = unset_key
         return
       else if (panel_decomposition_value(value_index) == value) then
         key_from_panel_decomposition = panel_decomposition_key(value_index)
@@ -178,7 +178,7 @@ contains
   subroutine read_namelist( file_unit, local_rank, &
                             dummy_panel_decomposition )
 
-    use constants_mod, only: cmdi, emdi, imdi, rmdi
+    use constants_mod, only: cmdi, unset_key, imdi, rmdi
 
     implicit none
 
@@ -197,7 +197,7 @@ contains
 
     integer(i_native) :: condition
 
-    panel_decomposition = emdi
+    panel_decomposition = unset_key
     panel_xproc = imdi
     panel_yproc = imdi
 

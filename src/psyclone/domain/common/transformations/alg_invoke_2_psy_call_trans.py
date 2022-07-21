@@ -42,7 +42,8 @@ from psyclone.core import SymbolicMaths
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall
 from psyclone.errors import InternalError
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import ArrayReference, Call, Literal, Reference
+from psyclone.psyir.nodes import ArrayReference, Call, Literal, Reference, \
+    Routine
 from psyclone.psyir.symbols import (ContainerSymbol,
                                     ImportInterface, RoutineSymbol)
 from psyclone.psyir.transformations import TransformationError
@@ -118,7 +119,7 @@ class AlgInvoke2PSyCallTrans(Transformation):
                         f"a literal, reference or array reference, but "
                         f"found '{type(arg).__name__}'.")
 
-        symbol_table = node.scope.symbol_table
+        symbol_table = node.ancestor(Routine).symbol_table
 
         # TODO #753. At the moment the container and routine names
         # produced here will differ from the PSy-layer routine name if

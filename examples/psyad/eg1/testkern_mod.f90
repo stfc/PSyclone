@@ -63,7 +63,12 @@ contains
        field2(i) = field2(i) + field1(i)/tmp2
     end do
     field2(npts) = field2(npts) + field1(1)
-    field2(:) = field1(:) - tmp*field3(:)
+    ! The transformation from array notation to loops triggers the
+    ! unary minus error captured in issue #1583. This is because the
+    ! simplify method reorders the statements and turns the minus into
+    ! a unary operator.
+    ! field2(:) = field1(:) - tmp*field3(:)
+    field2(:) = field1(:) + tmp*field3(:)
 
   end subroutine testkern_code
   

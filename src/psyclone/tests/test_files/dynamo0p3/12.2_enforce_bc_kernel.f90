@@ -42,9 +42,8 @@ program enforce_bc_kernel_example
   ! in the API. Therefore, for the moment, users can add this kernel
   ! when they want to enforce boundary conditions
   use field_mod, only : field_type
-  type(field_type) :: a
-
   use enforce_bc_kernel_mod, only : enforce_bc_kernel_type
+  type(field_type) :: a
 
   call invoke(enforce_bc_kernel_type(a))
 

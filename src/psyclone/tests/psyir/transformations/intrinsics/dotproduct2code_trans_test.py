@@ -354,9 +354,6 @@ def test_apply_unknown_dims(tmpdir, fortran_reader, fortran_writer):
     check that the correct precision is used.
 
     '''
-    if Compile.TEST_COMPILE:
-        pytest.skip("issue #1347, type declaration is being written in the "
-                    "wrong order causing compilation failure.")
     code = (
         "subroutine dot_product_test(v1,v2)\n"
         "integer, parameter :: r_def=4\n"
@@ -365,6 +362,7 @@ def test_apply_unknown_dims(tmpdir, fortran_reader, fortran_writer):
         "result = dot_product(v1,v2)\n"
         "end subroutine\n")
     expected = (
+        "  real(kind=r_def) :: result\n"
         "  integer :: i\n"
         "  real(kind=r_def) :: res_dot_product\n\n"
         "  res_dot_product = 0.0\n"

@@ -40,23 +40,19 @@
 transformations and base classes.
 '''
 
+from psyclone.psyir.transformations.arrayrange2loop_trans import \
+    ArrayRange2LoopTrans
 from psyclone.psyir.transformations.chunk_loop_trans import ChunkLoopTrans
 from psyclone.psyir.transformations.extract_trans import ExtractTrans
-from psyclone.psyir.transformations.hoist_trans import HoistTrans
+from psyclone.psyir.transformations.fold_conditional_return_expressions_trans \
+    import FoldConditionalReturnExpressionsTrans
 from psyclone.psyir.transformations.hoist_local_arrays_trans import (
     HoistLocalArraysTrans)
-from psyclone.psyir.transformations.loop_trans import LoopTrans
-from psyclone.psyir.transformations.loop_fuse_trans import LoopFuseTrans
-from psyclone.psyir.transformations.nan_test_trans import NanTestTrans
-from psyclone.psyir.transformations.parallel_loop_trans import \
-    ParallelLoopTrans
-from psyclone.psyir.transformations.profile_trans import ProfileTrans
-from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
-from psyclone.psyir.transformations.read_only_verify_trans \
-    import ReadOnlyVerifyTrans
-from psyclone.psyir.transformations.region_trans import RegionTrans
+from psyclone.psyir.transformations.hoist_trans import HoistTrans
 from psyclone.psyir.transformations.intrinsics.abs2code_trans import \
     Abs2CodeTrans
+from psyclone.psyir.transformations.intrinsics.dotproduct2code_trans import \
+    DotProduct2CodeTrans
 from psyclone.psyir.transformations.intrinsics.matmul2code_trans import \
     Matmul2CodeTrans
 from psyclone.psyir.transformations.intrinsics.max2code_trans import \
@@ -65,43 +61,50 @@ from psyclone.psyir.transformations.intrinsics.min2code_trans import \
     Min2CodeTrans
 from psyclone.psyir.transformations.intrinsics.sign2code_trans import \
     Sign2CodeTrans
-from psyclone.psyir.transformations.arrayrange2loop_trans import \
-    ArrayRange2LoopTrans
-from psyclone.psyir.transformations.fold_conditional_return_expressions_trans \
-    import FoldConditionalReturnExpressionsTrans
+from psyclone.psyir.transformations.loop_fuse_trans import LoopFuseTrans
+from psyclone.psyir.transformations.loop_swap_trans import LoopSwapTrans
 from psyclone.psyir.transformations.loop_tiling_2d_trans \
     import LoopTiling2DTrans
-from psyclone.psyir.transformations.transformation_error \
-    import TransformationError
+from psyclone.psyir.transformations.loop_trans import LoopTrans
+from psyclone.psyir.transformations.nan_test_trans import NanTestTrans
 from psyclone.psyir.transformations.omp_task_trans import OMPTaskTrans
 from psyclone.psyir.transformations.omp_taskwait_trans import OMPTaskwaitTrans
-from psyclone.psyir.transformations.loop_swap_trans import LoopSwapTrans
-from psyclone.psyir.transformations.intrinsics.dotproduct2code_trans import \
-    DotProduct2CodeTrans
+from psyclone.psyir.transformations.parallel_loop_trans import \
+    ParallelLoopTrans
+from psyclone.psyir.transformations.profile_trans import ProfileTrans
+from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
+from psyclone.psyir.transformations.read_only_verify_trans \
+    import ReadOnlyVerifyTrans
+from psyclone.psyir.transformations.region_trans import RegionTrans
+from psyclone.psyir.transformations.transformation_error \
+    import TransformationError
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:
 # from psyclone.psyir.transformations import ExtractTrans
 
-__all__ = ['ChunkLoopTrans',
+__all__ = ['ArrayRange2LoopTrans',
+           'ChunkLoopTrans',
            'ExtractTrans',
+           'FoldConditionalReturnExpressionsTrans',
+           'HoistLocalArraysTrans',
+           'HoistTrans',
+           'Abs2CodeTrans',
+           'DotProduct2CodeTrans',
+           'Matmul2CodeTrans',
+           'Max2CodeTrans',
+           'Min2CodeTrans',
+           'Sign2CodeTrans',
+           'LoopFuseTrans',
+           'LoopSwapTrans',
+           'LoopTiling2DTrans',
+           'LoopTrans',
            'NanTestTrans',
+           'OMPTaskTrans'
+           'OMPTaskwaitTrans',
+           'ParallelLoopTrans',
            'ProfileTrans',
            'PSyDataTrans',
            'ReadOnlyVerifyTrans',
            'RegionTrans',
-           'Abs2CodeTrans',
-           'LoopSwapTrans',
-           'LoopTrans',
-           'LoopFuseTrans',
-           'Matmul2CodeTrans',
-           'Min2CodeTrans',
-           'Sign2CodeTrans',
-           'TransformationError',
-           'ArrayRange2LoopTrans',
-           'FoldConditionalReturnExpressionsTrans',
-           'HoistTrans',
-           'OMPTaskwaitTrans',
-           'LoopTiling2DTrans',
-           'ParallelLoopTrans',
-           'OMPTaskTrans']
+           'TransformationError']

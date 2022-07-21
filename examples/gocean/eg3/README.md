@@ -48,6 +48,9 @@ the distributions, e.g. POCL, which in Ubuntu 20.04 can be installed with:
 sudo apt-get install opencl-headers ocl-icd-opencl-dev pocl-opencl-icd
 ```
 
+You have to specify the required compiler, compiler flags, and linker flags
+using the environment variables `F90`, `F90FLAGS`, and `LDFLAGS`.
+
 To run the application, the `FORTCL_KERNELS_FILE` environment variable needs
 to provide the OpenCl kernels. These can be in source-code format (for JIT
 compilation) or compiled ahead-of-time. The Makefile compile-ocl target already
@@ -64,7 +67,7 @@ make compile-mpi-ocl
 ```
 
 In addition to the details above, the distributed memory target needs an mpi
-compiler specified by the F90 environment variable and that the libraries have
+compiler specified by the `F90` environment variable and that the libraries have
 been compiled with that compiler. The example can be compiled and executed
 across 2 nodes with the following commands:
 
@@ -97,7 +100,7 @@ FORTCL_KERNELS_FILE=allkernels.cl mpirun -n 4 -ppn 2 ./alg_dm_opencl.exe
 
 BSD 3-Clause License
 
-Copyright (c) 2018-2021, Science and Technology Facilities Council
+Copyright (c) 2018-2022, Science and Technology Facilities Council
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

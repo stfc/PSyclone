@@ -42,17 +42,17 @@
     The LFRicBuiltInCallFactory creates the Python object required for
     a given built-in call. '''
 
-from __future__ import absolute_import
 import abc
 from psyclone.core.access_type import AccessType
-from psyclone.errors import InternalError
-from psyclone.psyGen import BuiltIn
-from psyclone.psyir.symbols import DataSymbol, INTEGER_SINGLE_TYPE
-from psyclone.psyir.nodes import Assignment, Reference, StructureReference, \
-    BinaryOperation
-from psyclone.parse.utils import ParseError
 from psyclone.domain.lfric import LFRicConstants
+from psyclone.errors import InternalError
 from psyclone.f2pygen import AssignGen, PSyIRGen
+from psyclone.parse.utils import ParseError
+from psyclone.psyGen import BuiltIn
+from psyclone.psyir.nodes import (Assignment, BinaryOperation, Call, Reference,
+                                  StructureReference)
+from psyclone.psyir.symbols import (DataSymbol, INTEGER_SINGLE_TYPE,
+                                    RoutineSymbol)
 
 # The name of the file containing the meta-data describing the
 # built-in operations for this API
@@ -108,6 +108,7 @@ class LFRicBuiltInCallFactory(object):
 
         :raises ParseError: if the name of the function being called is \
                             not a recognised built-in.
+        :raises InternalError: if the built-in does not iterate over DoFs.
 
         '''
         if call.func_name not in BUILTIN_MAP:
@@ -120,13 +121,19 @@ class LFRicBuiltInCallFactory(object):
         # this built-in.
         builtin = BUILTIN_MAP[call.func_name]()
 
-        # Create the loop over DoFs
+        # Create the loop over the appropriate entity.
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynLoop
-        const = LFRicConstants()
-        dofloop = DynLoop(parent=parent,
-                          loop_type=const.BUILTIN_ITERATION_SPACES[0])
+
+        if call.ktype.iterates_over == "dof":
+            loop_type = "dof"
+        else:
+            raise InternalError(
+                f"An LFRic built-in must iterate over DoFs but kernel "
+                f"'{call.func_name}' iterates over "
+                f"'{call.ktype.iterates_over}'")
+        dofloop = DynLoop(parent=parent, loop_type=loop_type)
 
         # Use the call object (created by the parser) to set-up the state
         # of the infrastructure kernel
@@ -204,9 +211,9 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         # Check that our assumption that we're looping over DoFs is valid
         if self.iterates_over not in const.BUILTIN_ITERATION_SPACES:
             raise ParseError(
-                "In the LFRic API built-in calls must operate on "
-                "DoFs but found '{0}' for {1}.".
-                format(self.iterates_over, str(self)))
+                f"In the LFRic API built-in calls must operate on one of "
+                f"{const.BUILTIN_ITERATION_SPACES} but found "
+                f"'{self.iterates_over}' for {self}.")
         # Check write count, field arguments and spaces
         write_count = 0  # Only one argument must be written to
         field_count = 0  # We must have one or more fields as arguments
@@ -822,8 +829,8 @@ class LFRicIncXMinusYKern(LFRicBuiltIn):
 
 
 class LFRicAMinusXKern(LFRicBuiltIn):
-    ''' `Y = a - X` where `a` is a real scalar and `X` and `Y` are
-    real-valued fields (DoF-wise subtraction of a scalar value).
+    ''' `Y = a - X` where `a` is a real scalar and `X` and `Y` are real-valued
+    fields (DoF-wise subtraction of field elements from a scalar value).
 
     '''
     def __str__(self):
@@ -851,7 +858,7 @@ class LFRicAMinusXKern(LFRicBuiltIn):
 
 class LFRicIncAMinusXKern(LFRicBuiltIn):
     ''' `X = a - X` where `a` is a real scalar and `X` is a real-valued
-    field (DoF-wise subtraction of a scalar value).
+    field (DoF-wise subtraction of field elements from a scalar value).
 
     '''
     def __str__(self):
@@ -873,6 +880,63 @@ class LFRicIncAMinusXKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                      scalar_args[0], lhs.copy())
+        assign = Assignment.create(lhs, rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+
+
+class LFRicXMinusAKern(LFRicBuiltIn):
+    ''' `Y = X - a` where `a` is a real scalar and `X` and `Y` are real-valued
+    fields (DoF-wise subtraction of a scalar value from field elements).
+
+    '''
+    def __str__(self):
+        return "Built-in: X_minus_a (real-valued fields)"
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = proxy1%data(df) - ascalar
+        rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
+                                     arg_refs[1], scalar_args[0])
+        assign = Assignment.create(arg_refs[0], rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+
+
+class LFRicIncXMinusAKern(LFRicBuiltIn):
+    ''' `X = X - a` where `a` is a real scalar and `X` is a real-valued
+    field (DoF-wise subtraction of a scalar value from field elements).
+
+    '''
+    def __str__(self):
+        return "Built-in: inc_X_minus_a (real-valued field)"
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = proxy0%data(df) - ascalar
+        lhs = arg_refs[0]
+        rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
+                                     lhs.copy(), scalar_args[0])
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
@@ -1208,6 +1272,64 @@ class LFRicIncXDividebyYKern(LFRicBuiltIn):
         self.replace_with(assign)
 
 
+class LFRicXDividebyAKern(LFRicBuiltIn):
+    ''' Divide a real-valued field by a real scalar and return the
+    result in another, real-valued, field.
+
+    '''
+    def __str__(self):
+        return ("Built-in: Divide a real-valued field by a real scalar "
+                "(Y = X/a)")
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = proxy1%data(df) / ascalar
+        rhs = BinaryOperation.create(BinaryOperation.Operator.DIV,
+                                     arg_refs[1], scalar_args[0])
+        assign = Assignment.create(arg_refs[0], rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+
+
+class LFRicIncXDividebyAKern(LFRicBuiltIn):
+    ''' Divide a real-valued field by a real scalar and return it.
+
+    '''
+    def __str__(self):
+        return ("Built-in: Divide a real-valued field by a real scalar "
+                "(X = X/a)")
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = proxy0%data(df) / ascalar
+        lhs = arg_refs[0]
+        rhs = BinaryOperation.create(BinaryOperation.Operator.DIV,
+                                     lhs.copy(), scalar_args[0])
+        assign = Assignment.create(lhs, rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+
+
 # ------------------------------------------------------------------- #
 # ============== Inverse scaling of real fields ===================== #
 # ------------------------------------------------------------------- #
@@ -1382,6 +1504,34 @@ class LFRicSetvalXKern(LFRicBuiltIn):
         self.replace_with(assign)
 
 
+class LFRicSetvalRandomKern(LFRicBuiltIn):
+    ''' Fill a real-valued field with pseudo-random numbers.
+
+    '''
+    def __str__(self):
+        return "Built-in: Fill a real-valued field with pseudo-random numbers"
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by a Call node.
+
+        '''
+        # Get indexed refs for the field (proxy) argument.
+        arg_refs = self.get_indexed_field_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      call random_number(proxy0%data(df))
+
+        # TODO #1366 - currently we have to create a Symbol for the intrinsic
+        # but *not* add it to the symbol table (since there's no import for
+        # it). This can be removed once we have proper support for intrinsics
+        # that are not operators.
+        routine = RoutineSymbol("random_number")
+        call = Call.create(routine, arg_refs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(call)
+
 # ------------------------------------------------------------------- #
 # ============== Inner product of real fields ======================= #
 # ------------------------------------------------------------------- #
@@ -1441,7 +1591,7 @@ class LFRicXInnerproductXKern(LFRicBuiltIn):
 
 
 # ------------------------------------------------------------------- #
-# ============== Sum real field elements ============================ #
+# ============== Sum of real field elements ========================= #
 # ------------------------------------------------------------------- #
 
 
@@ -1500,6 +1650,135 @@ class LFRicSignXKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+
+
+# ------------------------------------------------------------------- #
+# ============== Maximum of (real scalar, real field elements) ====== #
+# ------------------------------------------------------------------- #
+
+
+class LFRicMaxAXKern(LFRicBuiltIn):
+    ''' Returns the maximum of a real scalar and real-valued field
+    elements. The result is stored as another, real-valued, field:
+    `Y = max(a, X)`.
+
+    '''
+    def __str__(self):
+        return "Built-in: max_aX (real-valued fields)"
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = MAX(ascalar, proxy1%data)
+        rhs = BinaryOperation.create(BinaryOperation.Operator.MAX,
+                                     scalar_args[0], arg_refs[1])
+        assign = Assignment.create(arg_refs[0], rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+
+
+class LFRicIncMaxAXKern(LFRicBuiltIn):
+    ''' Returns the maximum of a real scalar and real-valued field
+    elements. The result is stored in the same, real-valued, field:
+    `X = max(a, X)`.
+
+    '''
+    def __str__(self):
+        return "Built-in: inc_max_aX (real-valued field)"
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = MAX(ascalar, proxy0%data)
+        lhs = arg_refs[0]
+        rhs = BinaryOperation.create(BinaryOperation.Operator.MAX,
+                                     scalar_args[0], lhs.copy())
+        assign = Assignment.create(lhs, rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+
+
+# ------------------------------------------------------------------- #
+# ============== Minimum of (real scalar, real field elements) ====== #
+# ------------------------------------------------------------------- #
+
+
+class LFRicMinAXKern(LFRicBuiltIn):
+    ''' Returns the minimum of a real scalar and real-valued field
+    elements. The result is stored as another, real-valued, field:
+    `Y = min(a, X)`.
+
+    '''
+    def __str__(self):
+        return "Built-in: min_aX (real-valued fields)"
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = MIN(ascalar, proxy1%data)
+        rhs = BinaryOperation.create(BinaryOperation.Operator.MIN,
+                                     scalar_args[0], arg_refs[1])
+        assign = Assignment.create(arg_refs[0], rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+
+
+class LFRicIncMinAXKern(LFRicBuiltIn):
+    ''' Returns the minimum of a real scalar and real-valued field
+    elements. The result is stored in the same, real-valued, field:
+    `X = min(a, X)`.
+
+    '''
+    def __str__(self):
+        return "Built-in: inc_min_aX (real-valued field)"
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = MIN(ascalar, proxy0%data)
+        lhs = arg_refs[0]
+        rhs = BinaryOperation.create(BinaryOperation.Operator.MIN,
+                                     scalar_args[0], lhs.copy())
+        assign = Assignment.create(lhs, rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+
 
 # ------------------------------------------------------------------- #
 # ============== Converting real to integer field elements ========== #
@@ -1627,6 +1906,29 @@ class LFRicIntIncAMinusXKern(LFRicIncAMinusXKern):
         return "Built-in: int_inc_a_minus_X (integer-valued field)"
 
 
+class LFRicIntXMinusAKern(LFRicXMinusAKern):
+    ''' Subtract an integer scalar value, `a`, from each element of an
+    integer-valued field, `X`, and return the result as a second,
+    integer-valued, field, `Y`.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicXMinusAKern`.
+
+    '''
+    def __str__(self):
+        return "Built-in: int_X_minus_a (integer-valued fields)"
+
+
+class LFRicIntIncXMinusAKern(LFRicIncXMinusAKern):
+    ''' Subtract an integer scalar value, `a`, from each element of an
+    integer-valued field, `X`, and return the result in the same field.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicIncXMinusAKern`.
+
+    '''
+    def __str__(self):
+        return "Built-in: int_inc_X_minus_a (integer-valued field)"
+
+
 # ------------------------------------------------------------------- #
 # ============== Multiplying integer fields ========================= #
 # ------------------------------------------------------------------- #
@@ -1731,6 +2033,62 @@ class LFRicIntSignXKern(LFRicSignXKern):
 
 
 # ------------------------------------------------------------------- #
+# ======== Maximum of (integer scalar, integer field elements) ====== #
+# ------------------------------------------------------------------- #
+
+
+class LFRicIntMaxAXKern(LFRicMaxAXKern):
+    ''' Returns the maximum of an integer scalar and integer-valued
+    field elements. The result is stored as another, integer-valued,
+    field: `Y = max(a, X)`.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicMaxAXKern`.
+    '''
+    def __str__(self):
+        return "Built-in: int_max_aX (integer-valued fields)"
+
+
+class LFRicIntIncMaxAXKern(LFRicIncMaxAXKern):
+    ''' Returns the maximum of an integer scalar and integer-valued
+    field elements. The result is stored in the same, integer-valued,
+    field: `X = max(a, X)`.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicIncMaxAXKern`.
+    '''
+    def __str__(self):
+        return "Built-in: int_inc_max_aX (integer-valued field)"
+
+
+# ------------------------------------------------------------------- #
+# ======== Minimum of (integer scalar, integer field elements) ====== #
+# ------------------------------------------------------------------- #
+
+
+class LFRicIntMinAXKern(LFRicMinAXKern):
+    ''' Returns the minimum of an integer scalar and integer-valued
+    field elements. The result is stored as another, integer-valued,
+    field: `Y = min(a, X)`.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicMinAXKern`.
+
+    '''
+    def __str__(self):
+        return "Built-in: int_min_aX (integer-valued fields)"
+
+
+class LFRicIntIncMinAXKern(LFRicIncMinAXKern):
+    ''' Returns the minimum of an integer scalar and integer-valued
+    field elements. The result is stored in the same, integer-valued,
+    field: `X = min(a, X)`.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicIncMinAXKern`.
+
+    '''
+    def __str__(self):
+        return "Built-in: int_inc_min_aX (integer-valued field)"
+
+
+# ------------------------------------------------------------------- #
 # ============== Converting integer to real field elements ========== #
 # ------------------------------------------------------------------- #
 
@@ -1770,6 +2128,8 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     "inc_X_minus_Y": LFRicIncXMinusYKern,
     "a_minus_X": LFRicAMinusXKern,
     "inc_a_minus_X": LFRicIncAMinusXKern,
+    "X_minus_a": LFRicXMinusAKern,
+    "inc_X_minus_a": LFRicIncXMinusAKern,
     "aX_minus_Y": LFRicAXMinusYKern,
     "X_minus_bY": LFRicXMinusBYKern,
     "inc_X_minus_bY": LFRicIncXMinusBYKern,
@@ -1784,6 +2144,8 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     # Dividing real fields
     "X_divideby_Y": LFRicXDividebyYKern,
     "inc_X_divideby_Y": LFRicIncXDividebyYKern,
+    "X_divideby_a": LFRicXDividebyAKern,
+    "inc_X_divideby_a": LFRicIncXDividebyAKern,
     # Dividing a real scalar by elements of a real field
     # (inverse scaling of fields)
     "a_divideby_X": LFRicADividebyXKern,
@@ -1795,6 +2157,7 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     # real field's values
     "setval_c": LFRicSetvalCKern,
     "setval_X": LFRicSetvalXKern,
+    "setval_random": LFRicSetvalRandomKern,
     # Inner product of real fields
     "X_innerproduct_Y": LFRicXInnerproductYKern,
     "X_innerproduct_X": LFRicXInnerproductXKern,
@@ -1802,6 +2165,12 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     "sum_X": LFRicSumXKern,
     # Sign of real field elements applied to a scalar value
     "sign_X": LFRicSignXKern,
+    # Maximum of a real scalar value and real field elements
+    "max_aX": LFRicMaxAXKern,
+    "inc_max_aX": LFRicIncMaxAXKern,
+    # Minimum of a real scalar value and real field elements
+    "min_aX": LFRicMinAXKern,
+    "inc_min_aX": LFRicIncMinAXKern,
     # Converting real to integer field elements
     "int_X": LFRicIntXKern}
 
@@ -1817,6 +2186,8 @@ INT_BUILTIN_MAP_CAPITALISED = {
     "int_inc_X_minus_Y": LFRicIntIncXMinusYKern,
     "int_a_minus_X": LFRicIntAMinusXKern,
     "int_inc_a_minus_X": LFRicIntIncAMinusXKern,
+    "int_X_minus_a": LFRicIntXMinusAKern,
+    "int_inc_X_minus_a": LFRicIntIncXMinusAKern,
     # Multiplying (scaled) real fields
     "int_X_times_Y": LFRicIntXTimesYKern,
     "int_inc_X_times_Y": LFRicIntIncXTimesYKern,
@@ -1829,6 +2200,12 @@ INT_BUILTIN_MAP_CAPITALISED = {
     "int_setval_X": LFRicIntSetvalXKern,
     # Sign of integer field elements applied to a scalar value
     "int_sign_X": LFRicIntSignXKern,
+    # Maximum of an integer scalar value and integer field elements
+    "int_max_aX": LFRicIntMaxAXKern,
+    "int_inc_max_aX": LFRicIntIncMaxAXKern,
+    # Minimum of an integer scalar value and integer field elements
+    "int_min_aX": LFRicIntMinAXKern,
+    "int_inc_min_aX": LFRicIntIncMinAXKern,
     # Converting integer to real field elements
     "real_X": LFRicRealXKern}
 
@@ -1859,6 +2236,8 @@ __all__ = ['LFRicBuiltInCallFactory',
            'LFRicIncXMinusYKern',
            'LFRicAMinusXKern',
            'LFRicIncAMinusXKern',
+           'LFRicXMinusAKern',
+           'LFRicIncXMinusAKern',
            'LFRicAXMinusYKern',
            'LFRicXMinusBYKern',
            'LFRicIncXMinusBYKern',
@@ -1870,16 +2249,23 @@ __all__ = ['LFRicBuiltInCallFactory',
            'LFRicIncATimesXKern',
            'LFRicXDividebyYKern',
            'LFRicIncXDividebyYKern',
+           'LFRicXDividebyAKern',
+           'LFRicIncXDividebyAKern',
            'LFRicADividebyXKern',
            'LFRicIncADividebyXKern',
            'LFRicIncXPowrealAKern',
            'LFRicIncXPowintNKern',
            'LFRicSetvalCKern',
            'LFRicSetvalXKern',
+           'LFRicSetvalRandomKern',
            'LFRicXInnerproductYKern',
            'LFRicXInnerproductXKern',
            'LFRicSumXKern',
            'LFRicSignXKern',
+           'LFRicMaxAXKern',
+           'LFRicIncMaxAXKern',
+           'LFRicMinAXKern',
+           'LFRicIncMinAXKern',
            'LFRicIntXKern',
            'LFRicIntXPlusYKern',
            'LFRicIntIncXPlusYKern',
@@ -1889,6 +2275,8 @@ __all__ = ['LFRicBuiltInCallFactory',
            'LFRicIntIncXMinusYKern',
            'LFRicIntAMinusXKern',
            'LFRicIntIncAMinusXKern',
+           'LFRicIntXMinusAKern',
+           'LFRicIntIncXMinusAKern',
            'LFRicIntXTimesYKern',
            'LFRicIntIncXTimesYKern',
            'LFRicIntATimesXKern',
@@ -1896,4 +2284,8 @@ __all__ = ['LFRicBuiltInCallFactory',
            'LFRicIntSetvalCKern',
            'LFRicIntSetvalXKern',
            'LFRicIntSignXKern',
+           'LFRicIntMaxAXKern',
+           'LFRicIntIncMaxAXKern',
+           'LFRicIntMinAXKern',
+           'LFRicIntIncMinAXKern',
            'LFRicRealXKern']

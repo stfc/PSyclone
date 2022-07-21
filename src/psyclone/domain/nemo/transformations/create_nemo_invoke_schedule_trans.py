@@ -68,7 +68,7 @@ class CreateNemoInvokeScheduleTrans(Transformation):
     >>> print(psyir.view(colour=False))
     FileContainer[]
         NemoInvokeSchedule[invoke='sub']
-            0: Loop[type='None', field_space='None', it_space='None']
+            0: Loop[variable='ji']
                 Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
                 Literal[value:'10', Scalar<INTEGER, UNDEFINED>]
                 Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
@@ -120,15 +120,15 @@ class CreateNemoInvokeScheduleTrans(Transformation):
                 "should be a PSyIR Routine but found '{0}'".format(
                     type(node).__name__))
 
-    def apply(self, routine, options=None):
+    def apply(self, node, options=None):
         '''
         Takes a generic PSyIR Routine and replaces it with a
         NemoInvokeSchedule (in-place). Note that this may mean replacing
         the top-level node itself and therefore this routine returns the
         root of the modified tree.
 
-        :param routine: the routine node to be transformed.
-        :type routine: :py:class:`psyclone.psyir.nodes.Routine`
+        :param node: the routine node to be transformed.
+        :type node: :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for \
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
@@ -136,16 +136,23 @@ class CreateNemoInvokeScheduleTrans(Transformation):
         :type options: dict of str:values or None
 
         '''
-        self.validate(routine, options=options)
+        self.validate(node, options=options)
+
+        # If it's a function we need to provide the return_symbol_name to the
+        # create method
+        return_symbol_name = None
+        if node.return_symbol:
+            return_symbol_name = node.return_symbol.name
 
         new_node = NemoInvokeSchedule.create(
-            routine.name, routine.symbol_table, routine.pop_all_children(),
-            is_program=routine.is_program, return_symbol=routine.return_symbol)
+            node.name, node.symbol_table.detach(), node.pop_all_children(),
+            is_program=node.is_program,
+            return_symbol_name=return_symbol_name)
 
         # We need to replace the top node in the (possibly sub-) PSyIR
         # tree that we've been passed.
-        if routine.parent:
-            routine.replace_with(new_node)
+        if node.parent:
+            node.replace_with(new_node)
 
 
 # For AutoAPI documentation generation
