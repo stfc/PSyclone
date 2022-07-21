@@ -111,6 +111,15 @@ def generate_adjoint_str(tl_fortran_str, active_variables, create_test=False):
     reader = FortranReader()
     tl_psyir = reader.psyir_from_source(tl_fortran_str)
 
+    # Check there is only one routine (program or subroutine) and that
+    # this routine is not a function,as functions are not supported.
+    routines = tl_psyir.walk(Routine)
+    for routine in routines:
+        if routine.return_symbol:
+            raise NotImplementedError(
+                "PSyAD does not support tangent-linear code written as a "
+                "function. Please re-write as a subroutine.")
+
     logger.debug("PSyIR\n%s", tl_psyir.view(colour=False))
 
     # Apply any required transformations to the TL PSyIR
