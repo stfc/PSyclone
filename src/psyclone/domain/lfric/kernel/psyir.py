@@ -46,8 +46,12 @@ from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
 from fparser.two.utils import walk, get_child
 
+from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric.kernel.field_arg import FieldArg
+
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.nodes import Container
+
 
 class LFRicContainer(Container):
     '''An LFRic-specific Container. This specialises the generic Container
@@ -428,19 +432,23 @@ class LFRicKernelMetadata():
 
         kernel_metadata.meta_args = []
         for meta_arg in args[0].children:
-            arg_string = meta_arg.children[1].children[0].tostr()
-            if arg_string == "GH_FIELD":
+            form = meta_arg.children[1].children[0].tostr()
+            print(type(meta_arg))
+            print(meta_arg)
+
+            exit(1)
+            if form == "GH_FIELD":
+                field_arg = FieldArg.create_from_psyir(meta_arg)
+                kernel_metadata.meta_args.append(field_arg)
+            elif "GH_FIELD" in form and "*" in form:
                 kernel_metadata.meta_args.append(
-                    LFRicKernelMetadata.FieldArg(arg_string, kernel_metadata))
-            elif "GH_FIELD" in arg_string and "*" in arg_string:
+                    LFRicKernelMetadata.FieldVectorArg(form, form.split("*")[1].strip()))                
+            elif form == "GH_SCALAR":
                 kernel_metadata.meta_args.append(
-                    LFRicKernelMetadata.FieldVectorArg(arg_string, arg_string.split("*")[1].strip(), kernel_metadata))                
-            elif arg_string == "GH_SCALAR":
+                    LFRicKernelMetadata.ScalarArg(form))
+            elif form == "GH_OPERATOR":
                 kernel_metadata.meta_args.append(
-                    LFRicKernelMetadata.ScalarArg(arg_string, kernel_metadata))
-            elif arg_string == "GH_OPERATOR":
-                kernel_metadata.meta_args.append(
-                    LFRicKernelMetadata.OperatorArg(arg_string, kernel_metadata))
+                    LFRicKernelMetadata.OperatorArg(form))
             else:
                 raise ParseError(
                     f"Expected a 'meta_arg' entry with to "
@@ -475,15 +483,18 @@ class LFRicKernelMetadata():
 
         # meta_mesh contains arguments which have
         # properties.
-        meta_mesh = LFRicKernelMetadata._get_property(
-            spec_part, "meta_mesh")
-        args = walk(meta_args, Fortran2003.Ac_Value_List)
-        if not args:
+        try:
+            meta_mesh = LFRicKernelMetadata._get_property(
+                spec_part, "meta_mesh")
+        except ParseError:
+            # meta_mesh is not specified in the metadata
             LFRicKernelMetadata.meta_mesh = []
-            #raise ParseError(
-            #    f"meta_mesh should be a list, but found "
-            #    f"'{str(meta_mesh)}' in '{spec_part}'.")
-
+        finally:
+            args = walk(meta_args, Fortran2003.Ac_Value_List)
+            if not args:
+                raise ParseError(
+                    f"meta_mesh should be a list, but found "
+                    f"'{str(meta_mesh)}' in '{spec_part}'.")
         return kernel_metadata
 
     @staticmethod
@@ -562,33 +573,47 @@ class LFRicKernelMetadata():
         :returns: the metadata represented by this instance as Fortran.
         :rtype: str
         '''
-        go_args = []
-        for go_arg in self.meta_args:
-            go_args.append(go_arg.fortran_string())
-        go_args_str = ", &\n".join(go_args)
+        lfric_args = []
+        for lfric_arg in self.meta_args:
+            lfric_args.append(lfric_arg.fortran_string())
+        lfric_args_str = ", &\n".join(lfric_args)
         result = (
-            f"TYPE, EXTENDS(kernel_type) :: {self.name}\n"
-            f"  TYPE(go_arg), DIMENSION({len(self.meta_args)}) :: "
-            f"meta_args = (/ &\n{go_args_str}/)\n"
-            f"  INTEGER :: ITERATES_OVER = {self.iterates_over}\n"
-            f"  INTEGER :: INDEX_OFFSET = {self.index_offset}\n"
+            f"TYPE, PUBLIC, EXTENDS(kernel_type) :: {self.name}\n"
+            f"  TYPE(arg_type) :: meta_args({len(self.meta_args)}) = "
+            f"(/ &\n{lfric_args_str}/)\n"
+            f"  TYPE(func_type) :: meta_funcs(x) = xxx\n"
+            f"  TYPE(ref_type) :: meta_ref(x) = xxx\n"
+            f"  TYPE(grid_type) :: meta_grid(x) = xxx\n"
+            f"  INTEGER :: OPERATES_ON = {self.operates_on}\n"
+            f"  INTEGER :: GH_SHAPE = {self.gh_shape}\n"
             f"  CONTAINS\n"
-            f"    PROCEDURE, NOPASS :: code => {self.procedure_name}\n"
+            f"    PROCEDURE, NOPASS :: {self.procedure_name}\n"
             f"END TYPE {self.name}\n")
         return result
 
-    class FieldArg():
-        def __init__(self, arg_string, kernel_Metadata):
-            pass
-
     class FieldVectorArg():
-        def __init__(self, arg_string, vector_size, kernel_Metadata):
-            pass
+        def __init__(self, arg_string, vector_size, kernel_metadata):
+            self.form = "GH_FIELD"
+            self.vector_size = vector_size
+
+        def fortran_string(self):
+            ''' xxx '''
+            return f"arg_type({self.form}*{self.vector_size}, ...)"
 
     class ScalarArg():
-        def __init__(self, arg_string, kernel_Metadata):
-            pass
+        def __init__(self, arg_string, kernel_metadata):
+            self.form = "GH_SCALAR"
+
+        def fortran_string(self):
+            ''' xxx '''
+            return f"arg_type({self.form}, ...)"
 
     class OperatorArg():
-        def __init__(arg_string, kernel_Metadata):
-            pass
+        def __init__(arg_string, kernel_metadata):
+            self.form = "GH_OPERATOR"
+
+        def fortran_string(self):
+            ''' xxx '''
+            return f"arg_type({self.form}, ...)"
+
+    # class ColumnwiseOperatorArg():

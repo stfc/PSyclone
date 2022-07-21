@@ -99,6 +99,8 @@ def test_lfriccontainer_create():
     metadata = LFRicKernelMetadata.create_from_fortran_string(METADATA)
     container = LFRicContainer.create("name", metadata, SymbolTable(), [])
     assert container.name == "name"
+    print(METADATA)
+    print(container.metadata.fortran_string())
     assert container.metadata.fortran_string() == METADATA
     assert container.children == []
     with pytest.raises(ValueError) as info:
