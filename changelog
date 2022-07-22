@@ -40,6 +40,8 @@
 
 	15) PR #1791 for #1780. Add setval_random built-in in LFRic API.
 
+	16) PR #1778 for #1751. Add ReplaceInductionVariableTrans transformation.
+
 release 2.3.1 17th of June 2022
 
         1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
