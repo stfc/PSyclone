@@ -59,7 +59,7 @@ from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, SymbolTable, \
 from psyclone.errors import InternalError, GenerationError
 from psyclone.transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans, \
     OMPParallelLoopTrans, DynamoOMPParallelLoopTrans, OMPSingleTrans, \
-    OMPMasterTrans, OMPTaskloopTrans
+    OMPMasterTrans, OMPTaskloopTrans, OMPLoopTrans
 from psyclone.tests.utilities import get_invoke
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -2737,5 +2737,108 @@ def test_omp_task_directive_24(fortran_reader, fortran_writer):
   !$omp end parallel
 
 end subroutine my_subroutine\n'''
-    print(fortran_writer(tree))
     assert fortran_writer(tree) == correct
+
+
+def test_omp_task_directive_25(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly generates the correct clauses
+    when we have access to a first private constant in '''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(320, 10) :: A
+        integer :: i,ii
+        integer :: j
+        integer :: k
+        do i = 1, 32
+          k = 1
+        end do
+        k = 32
+        do i = 1, 320, 32
+          do ii = i, i + 32
+            j = k
+            A(ii,k) = 20
+          end do
+        end do
+    end subroutine
+    '''
+    tree =  fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    ltrans = OMPLoopTrans()
+    tdir = OMPTaskDirective()
+    loops = tree.walk(Loop)
+    ltrans.apply(loops[0])
+    loop = loops[1].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(tree.children[0].children[:])
+    ptrans.apply(tree.children[0].children[0])
+    correct = '''subroutine my_subroutine()
+  integer, dimension(320,10) :: a
+  integer :: i
+  integer :: ii
+  integer :: j
+  integer :: k
+  integer :: th_idx
+  integer :: nthreads
+
+  !$omp parallel default(shared) private(i,ii,k)
+  !$omp single
+  !$omp do schedule(static)
+  do i = 1, 32, 1
+    k = 1
+  enddo
+  !$omp end do
+  k = 32
+  do i = 1, 320, 32
+    !$omp task private(ii) firstprivate(i,k) shared(j,a) depend(out: j,a(i,k))
+    do ii = i, i + 32, 1
+      j = k
+      a(ii,k) = 20
+    enddo
+    !$omp end task
+  enddo
+  !$omp end single
+  !$omp end parallel
+
+end subroutine my_subroutine\n'''
+    assert fortran_writer(tree) == correct
+
+
+def test_omp_task_directive_26(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly throws an error if an
+    index is a shared non-array variable.'''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(321, 10) :: A
+        integer, dimension(32, 10) :: B
+        integer :: i, ii
+        integer :: j
+
+        j = 32
+        do i = 1, 320, 32
+            do ii=i, i+32
+                A(ii, 1) = B(ii, j) + 1
+            end do
+        end do
+    end subroutine
+    '''
+    tree =  fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = OMPTaskDirective()
+    loops = tree.walk(Loop, stop_type=Loop)
+    loop = loops[0].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(tree.children[0].children[:])
+    with pytest.raises(GenerationError) as excinfo:
+        fortran_writer(tree)
+    assert ("Shared variable access used as an index inside an "
+            "OMPTaskDirective which is not supported. Variable "
+            "name is Reference[name:'j']" in str(excinfo.value))
