@@ -202,11 +202,11 @@ class ACCUpdateTrans(Transformation):
         for idx, cpu_sig in enumerate((inputs, outputs)):
             if not cpu_sig:
                 continue
-            if idx == IN:   # inputs
+            if idx == IN:     # inputs
                 node_index = 0
                 node_offset = 0
                 direction = "host"
-            elif idx == OUT: # outputs
+            elif idx == OUT:  # outputs
                 node_index = -1
                 node_offset = 1
                 direction = "device"
@@ -238,8 +238,8 @@ class ACCUpdateTrans(Transformation):
                 loop_sync = set()
 
                 for dep_stmts, sig, sync in [
-                    (text_dep_stmts, text_sig, text_sync), 
-                    (loop_dep_stmts, loop_sig, loop_sync)]:
+                     (text_dep_stmts, text_sig, text_sync),
+                     (loop_dep_stmts, loop_sig, loop_sync)]:
                     for stmt in dep_stmts:
                         for acc in stmt.walk(self._acc_regions):
                             # Workaround for lack of precise access
@@ -247,7 +247,7 @@ class ACCUpdateTrans(Transformation):
                             if idx == IN or idx == OUT:
                                 sig.update(acc.out_kernel_references)
                             if idx == OUT:
-                                sig.update( acc.in_kernel_references)
+                                sig.update(acc.in_kernel_references)
                     # If there are data dependencies or there is a statement
                     # (e.g a call) that requires synchronisation.
                     sync.update(cpu_sig.intersection(sig))
@@ -272,7 +272,7 @@ class ACCUpdateTrans(Transformation):
                 # variable which would appear in loop_sync as part of the
                 # inputs of all textually preceding kernels.
                 if isinstance(sched.parent, Loop) or \
-                    isinstance(sched.parent, IfBlock) and idx == OUT:
+                   isinstance(sched.parent, IfBlock) and idx == OUT:
                     self._place_update(sched, update_pos, loop_sync, direction)
                     cpu_sig.difference_update(loop_sync)
 

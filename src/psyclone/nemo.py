@@ -348,6 +348,7 @@ class NemoACCEnterDataDirective(ACCEnterDataDirective):
         loop_var = Config.get().api_conf("nemo").get_loop_type_mapping().keys()
         self._sig_set.difference_update({Signature(var) for var in loop_var})
 
+
 class NemoACCUpdateDirective(ACCUpdateDirective):
     '''
     NEMO-specific support for the OpenACC update directive.

@@ -122,7 +122,7 @@ class ACCRegionDirective(ACCDirective, RegionDirective):
 
     @property
     def in_kernel_references(self):
-         # pylint: disable=import-outside-toplevel
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.tools import DependencyTools
 
         inputs, _ = DependencyTools().get_in_out_parameters(self.children)
@@ -130,7 +130,7 @@ class ACCRegionDirective(ACCDirective, RegionDirective):
 
     @property
     def out_kernel_references(self):
-         # pylint: disable=import-outside-toplevel
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.tools import DependencyTools
 
         _, outputs = DependencyTools().get_in_out_parameters(self.children)
@@ -873,6 +873,7 @@ class ACCUpdateDirective(ACCStandaloneDirective):
         sym_list = _sig_set_to_string(self._sig_set)
 
         return f"acc update {condition}{self._direction}({sym_list})"
+
 
 def _sig_set_to_string(sig_set):
     # TODO this is Fortran specific

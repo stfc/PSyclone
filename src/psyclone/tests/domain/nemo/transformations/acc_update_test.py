@@ -331,6 +331,7 @@ end subroutine lbc_update
     assert isinstance(schedule[0], CodeBlock)
     assert isinstance(schedule[0].get_ast_nodes[0], Fortran2003.Open_Stmt)
 
+
 def test_loop_host_overwriting(parser):
     ''' Test the application of ACCUpdateTrans to host code containing a
     loop which contains a kernel such that, until we move variables instead of
@@ -374,6 +375,7 @@ end SUBROUTINE tra_ldf_iso
             "  enddo\n"
             "  !$acc update if_present device(zftv)\n" in gen_code)
 
+
 def test_if_host_overwriting(parser):
     ''' Test the placement of update host directives when an IfBlock contains
      a host statement writing the same variable as a previous host statement
@@ -408,6 +410,7 @@ end SUBROUTINE tra_ldf_iso
             "    zftv(1,:,:) = 1.0d0\n"
             "  end if\n"
             "  !$acc update if_present device(zftv)") in gen_code
+
 
 def test_if_update_device(parser):
     ''' Test the placement of update device directives when an IfBlock contains
