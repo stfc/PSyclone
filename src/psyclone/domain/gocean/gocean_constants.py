@@ -63,7 +63,7 @@ class GOceanConstants(object):
 
         # Valid access types (GO_READ etc)
         GOceanConstants.VALID_ACCESS_TYPES = [
-            "GO_READ", "GO_WRITE", "GO_READWRITE"]
+            "go_read", "go_write", "go_readwrite"]
 
         # psyGen argument types.
         GOceanConstants.VALID_ARG_TYPE_NAMES = []
