@@ -52,7 +52,7 @@ from psyclone.psyir.symbols import (RoutineSymbol, DataTypeSymbol,
 
 
 def test_lfrickernelfunctor():
-    '''test that an instance of LFRicKernelFunctor class can be created.
+    '''Test that an instance of LFRicKernelFunctor class can be created.
 
     '''
     routine = DataTypeSymbol("hello", StructureType())
@@ -62,7 +62,7 @@ def test_lfrickernelfunctor():
 
 
 def test_lfricbuiltinfunctor():
-    '''test that an instance of LFRicBuiltinFunctor class can be created.
+    '''Test that an instance of LFRicBuiltinFunctor class can be created.
 
     '''
     routine = DataTypeSymbol("hello", StructureType())
@@ -107,7 +107,7 @@ def test_functor_factory_get_builtin_class():
 
 @pytest.mark.parametrize("name", list(BUILTIN_MAP.keys()))
 def test_lfric_functor_factory(name):
-    ''' Test that the LFricBuiltinFunctorFactory can create a class for
+    '''Test that the LFricBuiltinFunctorFactory can create a class for
     every supported builtin. These that instances of those classes
     can be lowered and that an appropriate symbol is added
     to/removed from the supplied table. '''
@@ -131,9 +131,8 @@ def test_lfric_functor_factory(name):
 
 
 def test_lfricbuiltinfunctor_sym_specialise():
-    '''
-    Test that creating an LFRicBuiltinFunctor specialises any existing generic
-    symbol that has the name of the builtin.
+    '''Test that creating an LFRicBuiltinFunctor specialises any
+    existing generic symbol that has the name of the builtin.
     '''
     factory = LFRicBuiltinFunctorFactory.get()
     sched = Routine("my_prog", is_program=True)
