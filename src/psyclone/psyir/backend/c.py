@@ -484,7 +484,7 @@ class CWriter(LanguageWriter):
 
         '''
         # Note that {{ is replaced with a single { in the format call
-        result_list = [f"{self._nindent}#pragma {node.begin_string()}\n{{\n"]
+        result_list = [f"{self._nindent}#pragma {node.begin_string()}"]
 
         clause_list = []
         for clause in node.clauses:

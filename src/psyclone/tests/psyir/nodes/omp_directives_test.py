@@ -2188,7 +2188,7 @@ def test_omp_task_directive_19(fortran_reader, fortran_writer):
     ptrans.apply(loops[0].parent.parent)
     correct = '''subroutine my_subroutine()
   type :: x
-    integer, public :: jp
+    integer :: jp
   end type x
   integer :: i
   integer :: ii

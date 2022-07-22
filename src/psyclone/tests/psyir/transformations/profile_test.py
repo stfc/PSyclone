@@ -623,8 +623,6 @@ def test_omp_transform():
                            name="invoke_loop1", dist_mem=False)
     schedule = invoke.schedule
 
-    print(str(invoke.gen()))
-
     prt = ProfileTrans()
     omp_loop = GOceanOMPLoopTrans()
     omp_par = OMPParallelTrans()
@@ -648,6 +646,7 @@ def test_omp_transform():
         "      !$omp end parallel\n"
         "      CALL profile_psy_data%PostEnd")
     code = str(invoke.gen())
+    print(code)
     assert correct in code
 
     # Now add another profile node between the omp parallel and omp do

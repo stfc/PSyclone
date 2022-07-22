@@ -41,6 +41,7 @@
 import abc
 
 from psyclone import psyGen
+from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.errors import InternalError
 from psyclone.psyir import nodes
 from psyclone.psyir.nodes import Loop
@@ -108,10 +109,10 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
 
         # Check we are not a sequential loop
         # TODO add a list of loop types that are sequential
-        if node.loop_type == 'colours':
-            raise TransformationError("Error in "+self.name+" transformation. "
-                                      "The target loop is over colours and "
-                                      "must be computed serially.")
+        if isinstance(node, PSyLoop) and node.loop_type == 'colours':
+            raise TransformationError(f"Error in {self.name} transformation. "
+                                      f"The target loop is over colours and "
+                                      f"must be computed serially.")
 
         if not options:
             options = {}
