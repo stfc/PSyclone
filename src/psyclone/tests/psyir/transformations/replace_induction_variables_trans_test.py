@@ -33,14 +33,14 @@
 # ----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-'''This module tests the ReplaceInductionVariables transformation.
+'''This module tests the ReplaceInductionVariablesTrans transformation.
 '''
 
 import pytest
 
 from psyclone.psyir.nodes import Call, Literal
 from psyclone.psyir.symbols import INTEGER_TYPE, RoutineSymbol
-from psyclone.psyir.transformations import (ReplaceInductionVariables,
+from psyclone.psyir.transformations import (ReplaceInductionVariablesTrans,
                                             TransformationError)
 
 
@@ -48,22 +48,22 @@ from psyclone.psyir.transformations import (ReplaceInductionVariables,
 def test_riv_general():
     '''Test general functionality of the transformation. '''
 
-    riv = ReplaceInductionVariables()
+    riv = ReplaceInductionVariablesTrans()
 
     assert str(riv) == "Replaces all induction variables in a loop."
-    assert riv.name == "ReplaceInductionVariables"
+    assert riv.name == "ReplaceInductionVariablesTrans"
 
 
 # ----------------------------------------------------------------------------
 def test_riv_errors():
     '''Test errors that should be thrown. '''
 
-    riv = ReplaceInductionVariables()
+    riv = ReplaceInductionVariablesTrans()
     lit = Literal("1", INTEGER_TYPE)
     with pytest.raises(TransformationError) as err:
         riv.apply(lit)
 
-    assert ("Error in ReplaceInductionVariables transformation. The "
+    assert ("Error in ReplaceInductionVariablesTrans transformation. The "
             "supplied node argument should be a PSyIR Loop, but found "
             "'Literal'" in str(err.value))
 
@@ -99,7 +99,7 @@ def test_riv_working(fortran_reader, fortran_writer):
     # The first child is the assignment to 'invariant'
     loop = psyir.children[0].children[1]
 
-    riv = ReplaceInductionVariables()
+    riv = ReplaceInductionVariablesTrans()
     riv.apply(loop)
     out_all = fortran_writer(psyir)
     out_loop = fortran_writer(loop)
@@ -167,7 +167,7 @@ def test_riv_not_movable(fortran_reader, fortran_writer):
     # None of the statements can be moved, so the output
     # before and after the transformation should be identical:
     out_before = fortran_writer(loop)
-    riv = ReplaceInductionVariables()
+    riv = ReplaceInductionVariablesTrans()
     riv.apply(loop)
     out_after = fortran_writer(loop)
     assert out_before == out_after
@@ -190,7 +190,7 @@ def test_riv_other_step_size(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(source)
     loop = psyir.children[0].children[0]
 
-    riv = ReplaceInductionVariables()
+    riv = ReplaceInductionVariablesTrans()
     riv.apply(loop)
     out = fortran_writer(psyir)
     assert "a(i + 1) = 1 + (i + 1 + 1) * (i + 1)" in out
@@ -224,7 +224,7 @@ def test_riv_no_arrays(array_expr, fortran_reader, fortran_writer):
     # None of the statements can be moved, so the output
     # before and after the transformation should be identical:
     out_before = fortran_writer(loop)
-    riv = ReplaceInductionVariables()
+    riv = ReplaceInductionVariablesTrans()
     riv.apply(loop)
     out_after = fortran_writer(loop)
     assert out_before == out_after
@@ -259,7 +259,7 @@ def test_riv_function_calls(fortran_reader, fortran_writer):
     # Make sure that we indeed have a call in the rhs now:
     assert isinstance(rhs.children[0], Call)
 
-    riv = ReplaceInductionVariables()
+    riv = ReplaceInductionVariablesTrans()
     riv.apply(loop)
 
     # Only convert the loop - the moved assignment to ic1 will

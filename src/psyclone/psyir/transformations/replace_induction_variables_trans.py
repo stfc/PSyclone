@@ -44,13 +44,14 @@ from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 
 
-class ReplaceInductionVariables(Transformation):
+class ReplaceInductionVariablesTrans(Transformation):
     '''Move all supported induction variables out of the loop, and replace
     their usage inside the loop. For example:
 
     >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.psyir.nodes import Loop
-    >>> from psyclone.psyir.transformations import ReplaceInductionVariables
+    >>> from psyclone.psyir.transformations import \
+            ReplaceInductionVariablesTrans
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> psyir = FortranReader().psyir_from_source("""
     ... subroutine sub()
@@ -62,7 +63,7 @@ class ReplaceInductionVariables(Transformation):
     ...     enddo
     ... end subroutine sub""")
     >>> loop = psyir.walk(Loop)[0]
-    >>> ReplaceInductionVariables().apply(loop)
+    >>> ReplaceInductionVariablesTrans().apply(loop)
     >>> print(FortranWriter()(psyir))
     subroutine sub()
       integer :: i
@@ -193,7 +194,7 @@ class ReplaceInductionVariables(Transformation):
 
     # ------------------------------------------------------------------------
     def apply(self, node, options=None):
-        '''Apply the ReplaceInductionVariables transformation to the
+        '''Apply the ReplaceInductionVariablesTrans transformation to the
         specified node. The node must be a loop. In case of nested
         loops, the transformation might need to be applied several
         times, from the inner-most loop outwards.
@@ -260,7 +261,8 @@ class ReplaceInductionVariables(Transformation):
     # ------------------------------------------------------------------------
     def validate(self, node, options=None):
         '''Perform various checks to ensure that it is valid to apply the
-        ReplaceInductionVariables transformation to the supplied PSyIR Node.
+        ReplaceInductionVariablesTrans transformation to the supplied PSyIR
+        Node.
 
         :param node: the node that is being checked.
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`
@@ -277,4 +279,4 @@ class ReplaceInductionVariables(Transformation):
 
 
 __all__ = [
-    'ReplaceInductionVariables']
+    'ReplaceInductionVariablesTrans']
