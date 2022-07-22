@@ -1435,7 +1435,9 @@ class OMPTaskDirective(OMPRegionDirective):
         # Throw exception if shared
         loop_var_ref = Reference(loop_var)
         if loop_var_ref not in self._parallel_private:
-            assert False #FIXME Throw exception, loop variable should not be shared
+            raise GenerationError("Found shared loop variable which is"
+                    "not allowed in OpenMP Task directive. Variable name is "
+                    f"{loop_var_ref.name}")
         if loop_var_ref not in firstprivate_list:
             if loop_var_ref not in private_list:
                 private_list.append(loop_var_ref)

@@ -2841,3 +2841,38 @@ def test_omp_task_directive_26(fortran_reader, fortran_writer):
         fortran_writer(tree)
     assert ("Shared variable access used as an index inside an "
             "OMPTaskDirective which is not supported." in str(excinfo.value))
+
+def test_omp_task_directive_27(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly throws an error if an
+    index is a shared non-array variable.'''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(321, 10) :: A
+        integer, dimension(32, 10) :: B
+        integer :: i, ii
+        integer :: j
+
+        j = 32
+        do i = 1, 320, 32
+            do j=i, i+32
+                A(ii, 1) = B(ii, 1) + 1
+            end do
+        end do
+    end subroutine
+    '''
+    tree =  fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = OMPTaskDirective()
+    loops = tree.walk(Loop, stop_type=Loop)
+    loop = loops[0].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(tree.children[0].children[:])
+    with pytest.raises(GenerationError) as excinfo:
+        fortran_writer(tree)
+    assert ("Found shared loop variable which isnot allowed in OpenMP Task "
+           "directive. Variable name is j" in str(excinfo.value))
