@@ -1,0 +1,259 @@
+{# Added this as jinja code so that it is understood that the
+   comment does not apply to THIS file. #}
+{{ "! ================================================== !" }}
+{{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE  !" }}
+{{ "! DO NOT MODIFY DIRECTLY                             !" }}
+{{ "! ================================================== !" }}
+
+{# This jinja template file creates a base class for variable
+   tracing libraries. It produces the required ProvideVariable()
+   functions for the specified Fortran basic types. Any library
+   using this base class can provide the required Fortran basic
+   types (see ALL_TYPES below) and the list of array dimensions
+   (see ALL_DIMS) that need to be supported when processing this
+   template.
+
+   This Tracing base class depends on the PSyData base
+   class, which will provide the other Fortran-type-specific
+   functions for PreDeclarVariable(). Any function can obviously
+   be overwritten by a derived class.
+#}
+
+{% if ALL_DIMS is not defined -%}
+   {# Support 1 to 4 dimensional arrays if not specified #}
+   {% set ALL_DIMS = [1, 2, 3, 4] -%}
+{% endif -%}
+
+{# The types that are supported. The first entry of each tuple
+   is the name used when naming subroutines and in user messages.
+   The second entry is the Fortran declaration. #}
+
+{% if ALL_TYPES is not defined -%}
+   {% set ALL_TYPES = [ ("Double",  "real(kind=real64)"  ),
+                        ("Real",    "real(kind=real32)"  ),
+                        ("Logical", "real(kind=4)"       ),
+                        ("Int",     "integer(kind=int32)") ] %}
+{% endif -%}
+
+
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Copyright (c) 2022, Science and Technology Facilities Council.
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+! FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+! COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+! INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+! BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+! LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+! POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Author: J. Henrichs, Bureau of Meteorology
+
+!> This module implements a simple Tracing writer using the PSyData
+!! interface. A Fortran code instrumented with corresponding calls
+!! to the PSyData API and linked in with this library will write
+!! information about written and read fields to stderr. This can
+!! be used to trace where e.g. invalid values in a field were written.
+!! Note that this only supports array, not scalar variables.
+
+module tracing_base_mod
+
+    use psy_data_base_mod, only : PSyDataBaseType, is_enabled
+
+    use, intrinsic :: iso_fortran_env, only : int64, int32,   &
+                                              real32, real64, &
+                                              stderr => Error_Unit
+
+    implicit none
+
+    !> This is the data type that manages the information required
+    !! to trace variable accesses. A static instance of this type
+    !! is created for each instrumented region with PSyclone.
+    type, extends(PSyDataBaseType), public :: TracingBaseType
+        !> This variable is used to indicate if the functions are
+        !! called before the kernel (which means all variables)
+        !! are read), or after the kernel (which includes only
+        !! variables written)
+        logical :: is_write_phase
+
+    contains
+
+        ! The various procedures used
+        procedure :: PreStart
+        procedure :: PostStart
+
+        {# Collect and declare the various procedures for the same generic interface -#}
+        {# ------------------------------------------------------------------------- -#}
+        {% set all_declares=[] -%}
+        {% set all_provides=[] -%}
+        {% for name, type, bits in ALL_TYPES %}
+        procedure :: ProvideScalar{{name}}
+        {{- all_provides.append("ProvideScalar"~name) or "" }}
+
+          {% for dim in ALL_DIMS %}
+        procedure :: ProvideArray{{dim}}d{{name}}
+            {{- all_provides.append("ProvideArray"~dim~"d"~name) or "" }}
+          {% endfor %}
+        {% endfor %}
+
+        {% set indent="            " %}
+        {% if GENERIC_PROVIDE %}
+        !> The generic interface for providing the value of variables:
+        generic, public :: ProvideVariable => &
+            {{all_provides|join(", &\n"+indent) }}
+        {% endif %}
+
+    end type TracingBaseType
+
+contains
+
+    ! -------------------------------------------------------------------------
+    !> This subroutine is the first function called in an instrumented region.
+    !! It sets the mode to not writing (i.e. reading), since first all
+    !! variables read will be provided.
+    !! @param[in,out] this The instance of the TracingBaseType.
+    !! @param[in] module_name The name of the module of the instrumented
+    !!            region.
+    !! @param[in] region_name The name of the instrumented region.
+    !! @param[in] num_pre_vars The number of variables that are declared and
+    !!            written before the instrumented region.
+    !! @param[in] num_post_vars The number of variables that are also declared
+    !!            before an instrumented region of code, but are written after
+    !!            this region.
+    subroutine PreStart(this, module_name, region_name, num_pre_vars, &
+                        num_post_vars)
+
+        implicit none
+
+        class(TracingBaseType), intent(inout), target :: this
+        character(*), intent(in)                      :: module_name, &
+                                                         region_name
+        integer, intent(in)                           :: num_pre_vars, &
+                                                         num_post_vars
+
+        this%is_write_phase = .false.
+        call this%PSyDataBaseType%PreStart(module_name, region_name, &
+                                           num_pre_vars, num_post_vars)
+
+    end subroutine PreStart
+
+    ! -------------------------------------------------------------------------
+    !> This subroutine is called after executing the kernel. This switches to
+    !! 'write' mode, i.e. all variables provided from now on were written.
+    !! @param[in,out] this The instance of the TracingBaseType.
+    subroutine PostStart(this)
+
+        implicit none
+
+        class(TracingBaseType), intent(inout), target :: this
+
+        this%is_write_phase = .true.
+        call this%PSyDataBaseType%PostStart()
+
+    end subroutine PostStart
+
+    ! -------------------------------------------------------------------------
+
+{% for name, type, bits in ALL_TYPES %}
+    ! -------------------------------------------------------------------------
+    !> This subroutine provides a scalar {{type}} value. While this
+    !! implementation does nothing except calling the base class, it's easier
+    !! to implement this function compared with having to declare the generic
+    !! interfaces for ProvideVariable in the base class for scalars, and
+    !! for arrays here.
+    !! @param[in,out] this The instance of the PSyDataBaseType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine ProvideScalar{{name}}(this, name, value)
+
+        implicit none
+
+        class(TracingBaseType), intent(inout), target :: this
+        character(*), intent(in) :: name
+        {{type}}, intent(in) :: value
+
+        call this%PSyDataBaseType%ProvideScalar{{name}}(name, value)
+
+
+    end subroutine ProvideScalar{{name}}
+
+
+  {# We can't trace scalars, so only provide implementations for arrays #}
+  {# Now provide the array implementations #}
+  {# ------------------------------------- #}
+  {% for dim in ALL_DIMS %}
+    {# Create the ':,:,:,:' string for declarations
+       We repeat the list [":"] DIM-times, which is then joined #}
+    {% set DIMENSION=([":"]*dim)|join(",") %}
+    {# Create a string that addresses the first element, i,e. 1,1,... #}
+    {% set FIRST_ELEM=(["1"]*dim)|join(",") %}
+
+    ! -------------------------------------------------------------------------
+    !> This function returns a unique id for an array. For now use the
+    !! address of the first element (which could be lead to incorrect results
+    !! if the array memory is released and then reused for a different array.
+    function get_unique_id_{{dim}}d{{name}}(array)
+        implicit none
+        {{type}}, dimension({{DIMENSION}}), intent(in)      :: array
+        integer(kind=int64) :: get_unique_id_{{dim}}d{{name}}
+        
+        get_unique_id_{{dim}}d{{name}} = LOC(array({{FIRST_ELEM}}))
+    end function get_unique_id_{{dim}}d{{name}}
+
+    ! -------------------------------------------------------------------------
+    !> This subroutine provides a {{dim}}d-array of {{type}}.
+    !! @param[in,out] this The instance of the tracing_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine ProvideArray{{dim}}d{{name}}(this, name, value)
+
+        implicit none
+
+        class(TracingBaseType), intent(inout), target :: this
+        character(*), intent(in)                            :: name
+        {{type}}, dimension({{DIMENSION}}), intent(in)      :: value
+        character(6) :: mode
+
+        if (.not. is_enabled) return
+        if (this%is_write_phase) then
+            mode = "write:"
+        else
+            mode = "read :"
+        endif
+        write(stderr, *) "Tracing ", mode,trim(name),  &
+                         get_unique_id_{{dim}}d{{name}}(value), &
+                         " module ", trim(this%module_name), &
+                         " region ", trim(this%region_name)
+
+        call this%PSyDataBaseType%ProvideArray{{dim}}d{{name}}(name, value)
+
+    end subroutine ProvideArray{{dim}}d{{name}}
+
+
+    {% endfor -%}  {# for dim in ALL_DIMS #}
+
+{%- endfor -%}  {# for name, type in ALL_TYPES #}
+
+end module tracing_base_mod

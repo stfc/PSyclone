@@ -65,6 +65,7 @@ from psyclone.psyir.nodes.nan_test_node import NanTestNode
 from psyclone.psyir.nodes.profile_node import ProfileNode
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.read_only_verify_node import ReadOnlyVerifyNode
+from psyclone.psyir.nodes.tracing_node import TracingNode
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.datanode import DataNode
@@ -130,6 +131,7 @@ __all__ = [
         'ProfileNode',
         'NanTestNode',
         'ReadOnlyVerifyNode',
+        'TracingNode',
         # Directive Nodes
         'Directive',
         'RegionDirective',

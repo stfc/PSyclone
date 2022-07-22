@@ -31,6 +31,7 @@ The examples in this subdirectory show:
   in a mesh.
 - [Extraction](./full_example_extract) of input and output parameters
   of a kernel to a NetCDF file.
+- [Tracing](./full_example_tracing) of read and write accesses to fields.
 
 Detailed instructions are in the ``README.md`` files in the corresponding
 subdirectories.

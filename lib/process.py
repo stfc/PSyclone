@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -105,6 +105,7 @@ args = parser.parse_args()
 TYPE_DATA = {"real": ("Real", "real(kind=real32)", 32),
              "double": ("Double", "real(kind=real64)", 64),
              "int": ("Int", "integer(kind=int32)", 32),
+             "logical": ("Logical", "logical(kind=4)", 32),
              "long": ("Long", "integer(kind=int64)", 64)}
 
 # ---------------------------------------------------------
