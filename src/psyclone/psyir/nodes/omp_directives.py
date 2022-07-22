@@ -1080,7 +1080,7 @@ class OMPTaskDirective(OMPRegionDirective):
                     # private). Just has to be a firstprivate constant, which
                     # we can just use the reference to for now. Not 100% on
                     # this as the value is modifiable.
-                    index_list.append(ref.copy())
+                    index_list.append(node.copy())
         else:
             # Have a shared variable, which we're not currently supporting
             raise GenerationError(

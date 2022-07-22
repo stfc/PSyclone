@@ -2756,7 +2756,7 @@ def test_omp_task_directive_25(fortran_reader, fortran_writer):
         do i = 1, 320, 32
           do ii = i, i + 32
             j = k
-            A(ii,k) = 20
+            A(ii,k+1) = 20
           end do
         end do
     end subroutine
@@ -2793,10 +2793,10 @@ def test_omp_task_directive_25(fortran_reader, fortran_writer):
   !$omp end do
   k = 32
   do i = 1, 320, 32
-    !$omp task private(ii) firstprivate(i,k) shared(j,a) depend(out: j,a(i,k+1))
+    !$omp task private(ii) firstprivate(i,k) shared(j,a) depend(out: j,a(i,k + 1))
     do ii = i, i + 32, 1
       j = k
-      a(ii,k+1) = 20
+      a(ii,k + 1) = 20
     enddo
     !$omp end task
   enddo
@@ -2840,5 +2840,4 @@ def test_omp_task_directive_26(fortran_reader, fortran_writer):
     with pytest.raises(GenerationError) as excinfo:
         fortran_writer(tree)
     assert ("Shared variable access used as an index inside an "
-            "OMPTaskDirective which is not supported. Variable "
-            "name is Reference[name:'j']" in str(excinfo.value))
+            "OMPTaskDirective which is not supported." in str(excinfo.value))
