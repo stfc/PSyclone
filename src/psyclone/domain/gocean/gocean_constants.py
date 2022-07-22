@@ -61,9 +61,9 @@ class GOceanConstants(object):
         # Valid intrinsic types of kernel argument metadata.
         GOceanConstants.VALID_INTRINSIC_TYPES = []
 
-        # Valid access types (GO_READ etc) from the config file
-        GOceanConstants.VALID_ACCESS_TYPES = \
-            list(api_config.get_access_mapping().keys())
+        # Valid access types (GO_READ etc)
+        GOceanConstants.VALID_ACCESS_TYPES = [
+            "GO_READ", "GO_WRITE", "GO_READWRITE"]
 
         # psyGen argument types.
         GOceanConstants.VALID_ARG_TYPE_NAMES = []
