@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council
+# Copyright (c) 2020-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -55,7 +55,7 @@ class ReadOnlyVerifyNode(PSyDataNode):
     '''
     This class can be inserted into a Schedule to mark Nodes for
     read-only-verification. By applying the ReadOnlyVerifyTrans
-    transformation, the Nodes marked for extraction become
+    transformation, the Nodes marked for read-only-verification become
     children of (the Schedule of) a ReadOnlyVerifyNode.
 
     '''
@@ -67,11 +67,11 @@ class ReadOnlyVerifyNode(PSyDataNode):
     @property
     def read_only_verify_body(self):
         '''
-        :returns: the Schedule associated with this ExtractNode.
+        :returns: the Schedule associated with this ReadOnlyVerifyNode.
         :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
 
         '''
-        return super(ReadOnlyVerifyNode, self).psy_data_body
+        return super().psy_data_body
 
     def gen_code(self, parent):
         # pylint: disable=arguments-differ
@@ -98,12 +98,13 @@ class ReadOnlyVerifyNode(PSyDataNode):
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ReadOnlyVerifyStart"))
         parent.add(CommentGen(parent, ""))
-        super(ReadOnlyVerifyNode, self).gen_code(parent, options)
+        super().gen_code(parent, options)
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ReadOnlyVerifyEnd"))
         parent.add(CommentGen(parent, ""))
 
     def lower_to_language_level(self):
+        # pylint: disable=arguments-differ
         '''
         Lowers this node (and all children) to language-level PSyIR. The
         PSyIR tree is modified in-place.
@@ -118,7 +119,7 @@ class ReadOnlyVerifyNode(PSyDataNode):
         options = {'pre_var_list': read_only,
                    'post_var_list': read_only}
 
-        super(ReadOnlyVerifyNode, self).lower_to_language_level(options)
+        super().lower_to_language_level(options)
 
 
 # ============================================================================
