@@ -100,7 +100,8 @@ class TracingNode(PSyDataNode):
         parent.add(CommentGen(parent, " TracingEnd"))
         parent.add(CommentGen(parent, ""))
 
-    def lower_to_language_level(self, options=None):
+    def lower_to_language_level(self):
+        # pylint: disable=arguments-differ
         '''
         Lowers this node (and all children) to language-level PSyIR. The
         PSyIR tree is modified in-place.
@@ -113,12 +114,8 @@ class TracingNode(PSyDataNode):
         dep = DependencyTools()
         # Determine the variables to validate:
         input_list, output_list = dep.get_in_out_parameters(self)
-        if not options:
-            options = {}
-        if "pre_Var_list" not in options:
-            options["pre_var_list"] = input_list
-        if "post_var_list" not in options:
-            options["post_var_list"] = output_list
+        options = {"pre_var_list":  input_list,
+                   "post_var_list": output_list}
 
         super().lower_to_language_level(options)
 
