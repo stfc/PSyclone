@@ -1704,7 +1704,7 @@ def test_builtin_single_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
         else:
             assert ("loop0_stop = f2_proxy%vspace%get_last_dof_owned()"
                     in result)
-        code = (
+        assert (
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static)\n"
             "      DO df=loop0_start,loop0_stop\n"
@@ -1717,9 +1717,7 @@ def test_builtin_single_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
             "above loop(s)\n"
             "      !\n"
             "      CALL f2_proxy%set_dirty()\n"
-            "      !\n"
-)
-        assert code in result
+            "      !\n") in result
     else:  # distmem is False. annexed can be True or False
         assert "loop0_stop = undf_aspc1_f2" in result
         assert (
