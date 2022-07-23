@@ -789,7 +789,7 @@ class ACCUpdateDirective(ACCStandaloneDirective):
 
     :raises ValueError: if the direction argument is not a string with \
                         value 'self', 'host' or 'device'.
-    :raises TypeError: if signatures is not a list of access signatures.
+    :raises TypeError: if signatures is not a set of access signatures.
 
     '''
 
@@ -808,8 +808,8 @@ class ACCUpdateDirective(ACCStandaloneDirective):
         if not all(isinstance(sig, Signature) for sig in signatures):
             raise TypeError(
                 f"The ACCUpdateDirective signatures argument must be a "
-                f"list of signatures but got "
-                f"{[type(sig).__name__ for sig in signatures]}")
+                f"set of signatures but got "
+                f"{ {type(sig).__name__ for sig in signatures} }")
 
         self._sig_set = signatures
         self._direction = direction
