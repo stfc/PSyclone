@@ -98,6 +98,47 @@ class InlineTrans(Transformation):
                     precision_map[name].append(lit)
 
         # Deal with any Container symbols first.
+        self._inline_container_symbols(table, routine_table)
+
+        # Copy each Symbol from the Routine into the symbol table associated
+        # with the call site, excluding those that represent dummy arguments
+        # or containers.
+        self._inline_local_symbols(table, routine_table, precision_map)
+
+        # Replace any references to dummy arguments with copies of the
+        # actual arguments.
+        dummy_args = routine_table.argument_list
+        for ref in refs:
+            if ref.symbol in dummy_args:
+                ref.replace_with(
+                    node.children[dummy_args.index(ref.symbol)].copy())
+
+        # Copy the nodes from the Routine into the call site.
+        if isinstance(new_stmts[-1], Return):
+            # If the final statement of the routine is a return then
+            # remove it from the list.
+            del new_stmts[-1]
+
+        parent = node.parent
+        idx = node.position
+
+        node.replace_with(new_stmts[0])
+        for child in new_stmts[1:]:
+            idx += 1
+            parent.addchild(child, idx)
+
+    def _inline_container_symbols(self, table, routine_table):
+        '''
+        Takes container symbols from the symbol table of the routine being
+        inlined and adds them to the table of the call site. All references
+        to each container symbol are also updated.
+
+        :param table: the symbol table at the call site.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param routine_table: the symbol table of the routine being inlined.
+        :type routine_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
         for csym in routine_table.containersymbols:
             if csym.name in table:
                 # We have a clash with another symbol at the call site.
@@ -126,16 +167,10 @@ class InlineTrans(Transformation):
                     # We have a potential clash with a symbol imported
                     # into the routine.
                     callsite_sym = table.lookup(isym.name)
-                    if callsite_sym.is_import:
-                        if (callsite_sym.interface.container_symbol.name !=
-                                csym.name):
-                            raise NotImplementedError(
-                                f"Routine '{routine.name}' imports '{isym.name}' "
-                                f"from '{csym.name}' but another symbol of that "
-                                f"name is imported from "
-                                f"'{callsite_sym.interface.container_symbol.name}' in"
-                                f" the calling scope.")
-                    else:
+                    if not callsite_sym.is_import:
+                        # The validate() method has already checked that we
+                        # don't have a clash between symbols of the same name
+                        # imported from different containers.
                         # We don't support renaming an imported symbol but the
                         # symbol at the call site can be renamed so we do that.
                         table.rename_symbol(
@@ -145,21 +180,39 @@ class InlineTrans(Transformation):
                 # TODO currently interface is immutable?
                 isym.interface._container_symbol = table.lookup(csym.name)
 
-        # Copy each Symbol from the Routine into the symbol table associated
-        # with the call site, excluding those that represent dummy arguments
-        # or containers.
+    def _inline_local_symbols(self, table, routine_table, precision_map):
+        '''
+        Takes local symbols from the symbol table of the routine and adds
+        them to the table of the call site.
+
+        :param table: the symbol table at the call site.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param routine_table: the symbol table of the routine being inlined.
+        :type routine_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param precision_map: Lists of literals, indexed by the name of the \
+            precision symbol that they use.
+        :type precision_map: Dict[str, \
+            List[:py:class:`psyclone.psyir.nodes.Literal`]]
+
+        :raises InternalError: if an imported symbol is found that has not \
+            been updated to refer to a Container at the call site.
+
+        '''
         dummy_args = routine_table.argument_list
 
-        for old_sym in routine.symbol_table.symbols:
+        for old_sym in routine_table.symbols:
+
             if old_sym in dummy_args or isinstance(old_sym, ContainerSymbol):
+                # We've already dealt with Container symbols and
+                # we deal with dummy arguments after this loop.
                 continue
 
             old_name = old_sym.name
             try:
                 table.add(old_sym)
+
             except KeyError:
                 # We have a clash with a symbol at the call site.
-
                 if old_sym.is_import:
                     # This symbol is imported from a Container so should
                     # already have been updated so as to be imported from the
@@ -167,13 +220,16 @@ class InlineTrans(Transformation):
                     callsite_csym = table.lookup(
                         old_sym.interface.container_symbol.name)
                     if old_sym.interface.container_symbol is not callsite_csym:
-                        raise InternalError("huh")
+                        raise InternalError(
+                            f"Symbol '{old_sym.name}' imported from "
+                            f"'{callsite_csym.name}' has not been updated to "
+                            f"refer to that container at the call site.")
                 else:
                     # A Symbol with the same name already exists so we rename
                     # the one that we are adding.
                     new_name = table.next_available_name(
-                        old_sym.name, other_table=routine.symbol_table)
-                    routine.symbol_table.rename_symbol(old_sym, new_name)
+                        old_sym.name, other_table=routine_table)
+                    routine_table.rename_symbol(old_sym, new_name)
                     table.add(old_sym)
 
             if old_name in precision_map:
@@ -181,27 +237,6 @@ class InlineTrans(Transformation):
                     # TODO should we make the precision of a
                     # DataType mutable?
                     lit.datatype._precision = old_sym
-
-        if isinstance(new_stmts[-1], Return):
-            # If the final statement of the routine is a return then
-            # remove it from the list.
-            del new_stmts[-1]
-
-        # Replace any references to dummy arguments with copies of the
-        # actual arguments.
-        for ref in refs:
-            if ref.symbol in dummy_args:
-                ref.replace_with(
-                    node.children[dummy_args.index(ref.symbol)].copy())
-
-        # Copy the nodes from the Routine into the call site.
-        parent = node.parent
-        idx = node.position
-
-        node.replace_with(new_stmts[0])
-        for child in new_stmts[1:]:
-            idx += 1
-            parent.addchild(child, idx)
 
     def validate(self, node, options=None):
         '''
