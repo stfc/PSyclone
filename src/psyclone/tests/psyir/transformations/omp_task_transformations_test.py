@@ -139,7 +139,7 @@ def test_omptaskloop_apply(monkeypatch):
 
     clauses = " nogroup"
     assert (
-        "    !$omp parallel default(shared) private(i,j)\n" +
+        "    !$omp parallel default(shared), private(i,j)\n" +
         "      !$omp master\n" +
         "      !$omp taskloop{0}\n".format(clauses) +
         "      DO" in code)
@@ -919,12 +919,10 @@ def test_omptask_apply():
     parallel.apply(schedule.children[0])
 
     code = str(psy.gen)
-    print(code)
-    clauses = " nogroup"
     assert (
-        "    !$omp parallel default(shared) private(i,j)\n" +
+        "    !$omp parallel default(shared), private(i,j)\n" +
         "      !$omp master\n" +
-        "      !$omp task private(j,i) firstprivate(cu_fld%internal%ystart,cu_fld%internal%ystop,cu_fld%internal%xstart,cu_fld%internal%xstop)\n" +
+        "      !$omp task private(j,i), firstprivate(cu_fld%internal%ystart,cu_fld%internal%ystop,cu_fld%internal%xstart,cu_fld%internal%xstop)\n" +
         "      DO" in code)
     assert (
         "      END DO\n" +

@@ -76,7 +76,7 @@ def test_omp_explicit_gen():
         "  real :: r\n"
         "  real, dimension(jpi,jpj,jpk) :: umask\n"
         "\n"
-        "  !$omp parallel do default(shared) private(ji,jj,jk) "
+        "  !$omp parallel do default(shared), private(ji,jj,jk), "
         "schedule(static)\n"
         "  do jk = 1, jpk, 1\n"
         "    do jj = 1, jpj, 1\n"
@@ -97,7 +97,7 @@ def test_omp_explicit_gen():
 def test_omp_private_declaration():
     ''' Check code generation and private/shared declaration when
     an assignment is parallelised. In this case the code is like:
-    !$omp parallel default(shared) private()
+    !$omp parallel default(shared), private()
     jpk = 100
     do k=1, jpk ...
     enddo
@@ -116,7 +116,7 @@ def test_omp_private_declaration():
     # assignment statement is not allowed by default, so we need to disable
     # the node type check in order to apply the omp parallel transform.
     omp_parallel.apply(schedule.children[0:2], {'node-type-check': False})
-    expected = "!$omp parallel default(shared) private(ji,jj,jk)"
+    expected = "!$omp parallel default(shared), private(ji,jj,jk)"
 
     gen_code = str(psy.gen).lower()
     assert expected in gen_code
@@ -130,7 +130,7 @@ def test_omp_parallel():
     schedule = invoke_info.schedule
     otrans.apply([schedule[0]])
     gen_code = str(psy.gen).lower()
-    assert ("  !$omp parallel default(shared) private(ji,jj,jk)\n"
+    assert ("  !$omp parallel default(shared), private(ji,jj,jk)\n"
             "  do jk = 1, jpk, 1\n"
             "    do jj = 1, jpj, 1\n"
             "      do ji = 1, jpi, 1\n"
@@ -153,7 +153,7 @@ def test_omp_parallel_multi():
     # gives elements 2-3).
     otrans.apply(schedule[0].loop_body[2:4])
     gen_code = str(psy.gen).lower()
-    assert ("    !$omp parallel default(shared) private(ji,jj,zabe1,zcof1,"
+    assert ("    !$omp parallel default(shared), private(ji,jj,zabe1,zcof1,"
             "zmsku)\n"
             "    do jj = 1, jpjm1, 1\n"
             "      do ji = 1, jpim1, 1\n"
@@ -205,7 +205,7 @@ def test_omp_do_code_gen():
     loop_trans.apply(schedule[0].loop_body[1]
                      .else_body[0].else_body[0].dir_body[0])
     gen_code = str(psy.gen).lower()
-    correct = '''        !$omp parallel default(shared) private(ji,jj)
+    correct = '''        !$omp parallel default(shared), private(ji,jj)
         !$omp do schedule(static)
         do jj = 1, jpj, 1
           do ji = 1, jpi, 1
@@ -232,7 +232,7 @@ def test_omp_do_within_if():
     gen = str(psy.gen).lower()
     expected = (
         "      else\n"
-        "        !$omp parallel do default(shared) private(ji,jj) "
+        "        !$omp parallel do default(shared), private(ji,jj), "
         "schedule(static)\n"
         "        do jj = 1, jpj, 1\n"
         "          do ji = 1, jpi, 1\n"

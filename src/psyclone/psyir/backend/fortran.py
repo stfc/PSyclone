@@ -1612,7 +1612,7 @@ class FortranWriter(LanguageWriter):
         # Add a space only if there are clauses
         if len(clause_list) > 0:
             result = result + " "
-        result = result + " ".join(clause_list)
+        result = result + ", ".join(clause_list)
         result = result + "\n"
 
         for child in node.dir_body:
@@ -1645,7 +1645,7 @@ class FortranWriter(LanguageWriter):
         # Add a space only if there are clauses
         # if len(clause_list) > 0:
         #     result = result + " "
-        result = result + " ".join(clause_list)
+        result = result + ", ".join(clause_list)
         result = result + "\n"
 
         return result

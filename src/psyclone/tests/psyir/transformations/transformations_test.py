@@ -210,7 +210,7 @@ def test_omptaskloop_apply(monkeypatch):
 
     clauses = " nogroup"
     assert (
-        f"    !$omp parallel default(shared) private(i,j)\n"
+        f"    !$omp parallel default(shared), private(i,j)\n"
         f"      !$omp master\n"
         f"      !$omp taskloop{clauses}\n"
         f"      DO" in code)
@@ -514,7 +514,7 @@ def test_omplooptrans_apply(sample_psyir, fortran_writer):
 
     # Check that the full resulting code looks like this
     expected = '''
-  !$omp parallel default(shared) private(i,j)
+  !$omp parallel default(shared), private(i,j)
   !$omp do schedule(dynamic,2)
   do i = 1, 10, 1
     do j = 1, 10, 1
@@ -523,7 +523,7 @@ def test_omplooptrans_apply(sample_psyir, fortran_writer):
   enddo
   !$omp end do
   !$omp end parallel
-  !$omp parallel default(shared) private(i,j)
+  !$omp parallel default(shared), private(i,j)
   !$omp loop collapse(2)
   do i = 1, 10, 1
     do j = 1, 10, 1

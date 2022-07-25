@@ -559,7 +559,7 @@ def test_profile_nemo_openmp(parser):
     assert ("  type(profile_psydatatype), save, target :: profile_psy_data\n"
             "\n"
             "  call profile_psy_data % prestart(\"do_loop\", \"r0\", 0, 0)\n"
-            "  !$omp parallel do default(shared) private(ji,jj) "
+            "  !$omp parallel do default(shared), private(ji,jj), "
             "schedule(static)\n"
             "  do jj = 1, jpj, 1" in code)
 

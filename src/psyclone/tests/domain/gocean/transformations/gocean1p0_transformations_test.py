@@ -120,7 +120,7 @@ def test_omp_parallel_loop(tmpdir, fortran_writer):
 
     gen = fortran_writer(psy.container)
     expected = (
-        "    !$omp parallel do default(shared) private(i,j) "
+        "    !$omp parallel do default(shared), private(i,j), "
         "schedule(static)\n"
         "    do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
         "      do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1\n"
@@ -133,7 +133,7 @@ def test_omp_parallel_loop(tmpdir, fortran_writer):
 
     cbtrans.apply(schedule)
     gen = fortran_writer(psy.container)
-    expected = ("!$omp parallel do default(shared) private(i,j) "
+    expected = ("!$omp parallel do default(shared), private(i,j), "
                 "schedule(static)\n"
                 "    do j = 2, jstop, 1\n"
                 "      do i = 2, istop + 1, 1\n"

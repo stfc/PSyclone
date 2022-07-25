@@ -946,9 +946,9 @@ def test_omp_task_directive_1(fortran_reader, fortran_writer):
   integer :: i
   integer :: j
 
-  !$omp parallel default(shared) private(i,j)
+  !$omp parallel default(shared), private(i,j)
   !$omp single
-  !$omp task private(i,j) shared(a,b) depend(in: b(:,:)) depend(out: a(:,:))
+  !$omp task private(i,j), shared(a,b), depend(in: b(:,:)), depend(out: a(:,:))
   do i = 1, 10, 1
     do j = 1, 10, 1
       a(i,j) = b(i,j) + 1
@@ -1045,12 +1045,12 @@ def test_omp_task_directive_3(fortran_reader, fortran_writer):
   integer :: j
   integer :: k
 
-  !$omp parallel default(shared) private(i,j,k)
+  !$omp parallel default(shared), private(i,j,k)
   do i = 1, 10, 1
     k = i
   enddo
   !$omp single
-  !$omp task private(i,j) firstprivate(k) shared(a,b) depend(in: b(:,:)) depend(out: a(:,:))
+  !$omp task private(i,j), firstprivate(k), shared(a,b), depend(in: b(:,:)), depend(out: a(:,:))
   do i = 1, 10, 1
     do j = 1, 10, 1
       a(i,j) = k
@@ -1102,10 +1102,10 @@ def test_omp_task_directive_4(fortran_reader, fortran_writer):
   integer :: j
   integer :: k
 
-  !$omp parallel default(shared) private(i,j)
+  !$omp parallel default(shared), private(i,j)
   !$omp single
   do i = 1, 10, 1
-    !$omp task private(j) firstprivate(i) shared(a,b) depend(in: k,b(i + 1,:)) depend(out: a(i,:))
+    !$omp task private(j), firstprivate(i), shared(a,b), depend(in: k,b(i + 1,:)), depend(out: a(i,:))
     do j = 1, 10, 1
       a(i,j) = k
       a(i,j) = b(i + 1,j) + k
@@ -1158,10 +1158,10 @@ def test_omp_task_directive_5(fortran_reader, fortran_writer):
   integer :: j
   integer :: k
 
-  !$omp parallel default(shared) private(i,j)
+  !$omp parallel default(shared), private(i,j)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j) firstprivate(i) shared(a,b) depend(in: k,b(i + 32,:),b(i,:)) depend(out: a(i,:))
+    !$omp task private(j), firstprivate(i), shared(a,b), depend(in: k,b(i + 32,:),b(i,:)), depend(out: a(i,:))
     do j = 1, 32, 1
       a(i,j) = k
       a(i,j) = b(i + 1,j) + k
@@ -1215,10 +1215,10 @@ def test_omp_task_directive_6(fortran_reader, fortran_writer):
   integer :: j
   integer :: k
 
-  !$omp parallel default(shared) private(i,ii,j)
+  !$omp parallel default(shared), private(i,ii,j)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(ii,j) firstprivate(i) shared(a,b) depend(in: b(i + 32,:),b(i,:),k) depend(out: a(i,:))
+    !$omp task private(ii,j), firstprivate(i), shared(a,b), depend(in: b(i + 32,:),b(i,:),k), depend(out: a(i,:))
     do ii = i, i + 32, 1
       do j = 1, 32, 1
         a(ii,j) = b(ii + 1,j) + k
@@ -1276,11 +1276,11 @@ def test_omp_task_directive_7(fortran_reader, fortran_writer):
   integer :: jj
   integer :: k
 
-  !$omp parallel default(shared) private(i,ii,j,jj)
+  !$omp parallel default(shared), private(i,ii,j,jj)
   !$omp single
   do i = 1, 320, 32
     do j = 1, 320, 32
-      !$omp task private(ii,jj) firstprivate(i,j) shared(a,b) depend(in: b(i + 32,j + 32),b(i + 32,j),b(i,j + 32),b(i,j),k) depend(out: a(i,j))
+      !$omp task private(ii,jj), firstprivate(i,j), shared(a,b), depend(in: b(i + 32,j + 32),b(i + 32,j),b(i,j + 32),b(i,j),k), depend(out: a(i,j))
       do ii = i, i + 32, 1
         do jj = j, j + 32, 1
           a(ii,jj) = b(ii + 1,jj + 1) * k
@@ -1340,11 +1340,11 @@ def test_omp_task_directive_8(fortran_reader, fortran_writer):
   integer :: jj
   integer :: k
 
-  !$omp parallel default(shared) private(i,ii,j,jj)
+  !$omp parallel default(shared), private(i,ii,j,jj)
   !$omp single
   do i = 1, 320, 32
     do j = 1, 320, 32
-      !$omp task private(ii,jj) firstprivate(i,j) shared(a,b) depend(in: b(i + 32,j + 2 * 32),b(i + 32,j + 32),b(i,j + 2 * 32),b(i,j + 32),k) depend(out: a(i,j))
+      !$omp task private(ii,jj), firstprivate(i,j), shared(a,b), depend(in: b(i + 32,j + 2 * 32),b(i + 32,j + 32),b(i,j + 2 * 32),b(i,j + 32),k), depend(out: a(i,j))
       do ii = i, i + 32, 1
         do jj = j, j + 32, 1
           a(ii,jj) = b(ii + 1,jj + 33) * k
@@ -1399,10 +1399,10 @@ def test_omp_task_directive_9(fortran_reader, fortran_writer):
   integer :: j
   integer :: k
 
-  !$omp parallel default(shared) private(i,ii,j)
+  !$omp parallel default(shared), private(i,ii,j)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(ii,j) firstprivate(i) shared(a,b) depend(in: b(i,:),k) depend(out: a(i + 32,:),a(i,:))
+    !$omp task private(ii,j), firstprivate(i), shared(a,b), depend(in: b(i,:),k), depend(out: a(i + 32,:),a(i,:))
     do ii = i, i + 32, 1
       do j = 1, 32, 1
         a(ii + 1,j) = b(ii,j) + k
@@ -1461,11 +1461,11 @@ def test_omp_task_directive_10(fortran_reader, fortran_writer):
   integer :: jj
   integer :: k
 
-  !$omp parallel default(shared) private(i,ii,j,jj)
+  !$omp parallel default(shared), private(i,ii,j,jj)
   !$omp single
   do i = 1, 320, 32
     do j = 1, 320, 32
-      !$omp task private(ii,jj) firstprivate(i,j) shared(a,b) depend(in: b(i,j),k) depend(out: a(i + 32,j + 32),a(i + 32,j),a(i,j + 32),a(i,j))
+      !$omp task private(ii,jj), firstprivate(i,j), shared(a,b), depend(in: b(i,j),k), depend(out: a(i + 32,j + 32),a(i + 32,j),a(i,j + 32),a(i,j))
       do ii = i, i + 32, 1
         do jj = j, j + 32, 1
           a(ii + 1,jj + 1) = b(ii,jj) * k
@@ -1526,11 +1526,11 @@ def test_omp_task_directive_11(fortran_reader, fortran_writer):
   integer :: jj
   integer :: k
 
-  !$omp parallel default(shared) private(i,ii,j,jj)
+  !$omp parallel default(shared), private(i,ii,j,jj)
   !$omp single
   do i = 1, 320, 32
     do j = 1, 320, 32
-      !$omp task private(ii,jj) firstprivate(i,j) shared(a,b) depend(in: b(i,j),k) depend(out: a(i + 32,j + 2 * 32),a(i + 32,j + 32),a(i,j + 2 * 32),a(i,j + 32),a(i + 32,j + 3 * 32),a(i,j + 3 * 32))
+      !$omp task private(ii,jj), firstprivate(i,j), shared(a,b), depend(in: b(i,j),k), depend(out: a(i + 32,j + 2 * 32),a(i + 32,j + 32),a(i,j + 2 * 32),a(i,j + 32),a(i + 32,j + 3 * 32),a(i,j + 3 * 32))
       do ii = i, i + 32, 1
         do jj = j, j + 32, 1
           a(ii + 1,jj + 33) = b(ii,jj) * k
@@ -1591,11 +1591,11 @@ def test_omp_task_directive_12(fortran_reader, fortran_writer):
   integer :: jj
   integer :: k
 
-  !$omp parallel default(shared) private(i,ii,j,jj)
+  !$omp parallel default(shared), private(i,ii,j,jj)
   !$omp single
   do i = 1, 320, 32
     do j = 1, 320, 32
-      !$omp task private(ii,jj) firstprivate(i,j) shared(a,b) depend(in: a(i,j),b(i,j),k) depend(out: a(i + 32,j),a(i,j))
+      !$omp task private(ii,jj), firstprivate(i,j), shared(a,b), depend(in: a(i,j),b(i,j),k), depend(out: a(i + 32,j),a(i,j))
       do ii = i, i + 32, 1
         do jj = j, j + 32, 1
           if (a(ii,jj) > 0.0) then
@@ -1735,10 +1735,10 @@ def test_omp_task_directive_13(fortran_reader, fortran_writer):
   integer :: j
   integer :: k
 
-  !$omp parallel default(shared) private(i,j)
+  !$omp parallel default(shared), private(i,j)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j) firstprivate(i) shared(a,b) depend(in: k,b(32 + i,:),b(i,:),b(2 * 32 + i,:)) depend(out: a(i,:))
+    !$omp task private(j), firstprivate(i), shared(a,b), depend(in: k,b(32 + i,:),b(i,:),b(2 * 32 + i,:)), depend(out: a(i,:))
     do j = 1, 32, 1
       a(i,j) = k
       a(i,j) = b(1 + i,j) + k
@@ -1878,11 +1878,11 @@ def test_omp_task_directive_14(fortran_reader, fortran_writer):
   integer :: j
   integer :: k
 
-  !$omp parallel default(shared) private(i,ii,j,k)
+  !$omp parallel default(shared), private(i,ii,j,k)
   !$omp single
   do i = 1, 320, 32
     k = 9
-    !$omp task private(ii,j) firstprivate(i,k) shared(a,b) depend(in: b(i + 32,k),b(i,k)) depend(out: a(i,:))
+    !$omp task private(ii,j), firstprivate(i,k), shared(a,b), depend(in: b(i + 32,k),b(i,k)), depend(out: a(i,:))
     do ii = i, i + 32, 1
       do j = 1, 32, 1
         a(ii,j) = b(ii + 1,k) + k
@@ -1940,12 +1940,12 @@ def test_omp_task_directive_15(fortran_reader, fortran_writer):
   integer :: j
   integer :: k
 
-  !$omp parallel default(shared) private(i,ii,j)
+  !$omp parallel default(shared), private(i,ii,j)
   k = 0
   !$omp single
   do i = 1, 320, 32
     k = k + i
-    !$omp task private(ii,j) firstprivate(i) shared(k,b) depend(in: k,b(i + 32,:),b(i,:)) depend(out: k)
+    !$omp task private(ii,j), firstprivate(i), shared(k,b), depend(in: k,b(i + 32,:),b(i,:)), depend(out: k)
     do ii = i, i + 32, 1
       do j = 1, 32, 1
         k = k + b(ii + 1,j) + 1
@@ -2006,11 +2006,11 @@ def test_omp_task_directive_16(fortran_reader, fortran_writer):
   integer :: jj
   integer :: k
 
-  !$omp parallel default(shared) private(i,ii,j,jj)
+  !$omp parallel default(shared), private(i,ii,j,jj)
   !$omp single
   do i = 1, 320, 32
     do j = 1, 320, 32
-      !$omp task private(ii,jj) firstprivate(i,j) shared(a,b) depend(in: a(i,j),b(i,j),k) depend(out: a(i + 32,j),a(i,j),a(i - 32,j))
+      !$omp task private(ii,jj), firstprivate(i,j), shared(a,b), depend(in: a(i,j),b(i,j),k), depend(out: a(i + 32,j),a(i,j),a(i - 32,j))
       do ii = i, i + 32, 1
         do jj = j, j + 32, 1
           if (a(ii,jj) > 0.0) then
@@ -2069,11 +2069,11 @@ def test_omp_task_directive_17(fortran_reader, fortran_writer):
   integer :: jj
   integer :: k
 
-  !$omp parallel default(shared) private(i,ii,j,jj)
+  !$omp parallel default(shared), private(i,ii,j,jj)
   !$omp single
   do i = 1, 320, 32
     do j = 1, 320, 32
-      !$omp task private(ii,jj) firstprivate(i,j) shared(k) depend(in: k) depend(out: k)
+      !$omp task private(ii,jj), firstprivate(i,j), shared(k), depend(in: k), depend(out: k)
       do ii = i, i + 32, 1
         do jj = j, j + 32, 1
           k = k + ii
@@ -2130,11 +2130,11 @@ def test_omp_task_directive_18(fortran_reader, fortran_writer):
   integer :: kk
 
   kk = 2
-  !$omp parallel default(shared) private(i,ii,j,jj)
+  !$omp parallel default(shared), private(i,ii,j,jj)
   !$omp single
   do i = 1, 320, 32
     do j = 1, 320, 32
-      !$omp task private(ii,jj) firstprivate(i,kk,j) shared(k) depend(in: k) depend(out: k)
+      !$omp task private(ii,jj), firstprivate(i,kk,j), shared(k), depend(in: k), depend(out: k)
       do ii = i, i + 32, kk
         do jj = j, j + 32, 1
           k = k + ii
@@ -2197,11 +2197,11 @@ def test_omp_task_directive_19(fortran_reader, fortran_writer):
   integer :: k
   type(x) :: ty
 
-  !$omp parallel default(shared) private(i,ii,j,jj)
+  !$omp parallel default(shared), private(i,ii,j,jj)
   !$omp single
   do i = 1, 320, 32
     do j = 1, 320, 32
-      !$omp task private(ii,jj) firstprivate(i,j) shared(k,ty) depend(in: ty) depend(out: k,ty)
+      !$omp task private(ii,jj), firstprivate(i,j), shared(k,ty), depend(in: ty), depend(out: k,ty)
       do ii = i, i + 32, 1
         do jj = j, j + 32, 1
           k = ty%jp + ii
@@ -2256,10 +2256,10 @@ def test_omp_task_directive_20(fortran_reader, fortran_writer):
   integer :: ii
   integer :: j
 
-  !$omp parallel default(shared) private(i,ii,j)
+  !$omp parallel default(shared), private(i,ii,j)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(ii,j) firstprivate(i) shared(a,b) depend(in: b(1,:)) depend(out: a(i,:))
+    !$omp task private(ii,j), firstprivate(i), shared(a,b), depend(in: b(1,:)), depend(out: a(i,:))
     do ii = i, i + 32, 1
       do j = 1, 32, 1
         a(ii,j) = b(1,j) + 1
@@ -2312,10 +2312,10 @@ def test_omp_task_directive_21(fortran_reader, fortran_writer):
   integer :: ii
   integer :: j
 
-  !$omp parallel default(shared) private(i,ii,j)
+  !$omp parallel default(shared), private(i,ii,j)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(ii,j) firstprivate(i) shared(a,b) depend(in: b(i,:)) depend(out: a(i,1))
+    !$omp task private(ii,j), firstprivate(i), shared(a,b), depend(in: b(i,:)), depend(out: a(i,1))
     do ii = i, i + 32, 1
       do j = 1, 32, 1
         a(ii,1) = b(ii,j) + 1
@@ -2599,10 +2599,10 @@ def test_omp_task_directive_22(fortran_reader, fortran_writer):
   integer :: j
   integer :: k
 
-  !$omp parallel default(shared) private(i,ii,j)
+  !$omp parallel default(shared), private(i,ii,j)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(ii,j) firstprivate(i) shared(a,b) depend(in: k,b(32 + i,:),b(i,:),b(2 * 32 + i,:)) depend(out: a(i,:))
+    !$omp task private(ii,j), firstprivate(i), shared(a,b), depend(in: k,b(32 + i,:),b(i,:),b(2 * 32 + i,:)), depend(out: a(i,:))
     do ii = i, i + 32, 1
       do j = 1, 32, 1
         a(i,j) = k
@@ -2662,10 +2662,10 @@ def test_omp_task_directive_23(fortran_reader, fortran_writer):
   integer :: j
   integer :: k
 
-  !$omp parallel default(shared) private(i,ii,j,k)
+  !$omp parallel default(shared), private(i,ii,j,k)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(ii,k,j) firstprivate(i) shared(a) depend(out: a(i,:))
+    !$omp task private(ii,k,j), firstprivate(i), shared(a), depend(out: a(i,:))
     do ii = i, i + 32, 1
       k = 3
       do j = 1, 32, 1
@@ -2722,11 +2722,11 @@ def test_omp_task_directive_24(fortran_reader, fortran_writer):
   integer :: j
   integer :: k
 
-  !$omp parallel default(shared) private(i,ii,j)
+  !$omp parallel default(shared), private(i,ii,j)
   !$omp single
   do j = 1, 320, 32
     do i = 1, 320, 32
-      !$omp task private(ii) firstprivate(i,j) shared(a) depend(in: k) depend(out: a(i,j + 3 * 32),a(i,j + 2 * 32))
+      !$omp task private(ii), firstprivate(i,j), shared(a), depend(in: k), depend(out: a(i,j + 3 * 32),a(i,j + 2 * 32))
       do ii = i, i + 32, 1
         a(i,j + 65) = k
       enddo
@@ -2784,7 +2784,7 @@ def test_omp_task_directive_25(fortran_reader, fortran_writer):
   integer :: th_idx
   integer :: nthreads
 
-  !$omp parallel default(shared) private(i,ii,k)
+  !$omp parallel default(shared), private(i,ii,k)
   !$omp single
   !$omp do schedule(static)
   do i = 1, 32, 1
@@ -2793,7 +2793,7 @@ def test_omp_task_directive_25(fortran_reader, fortran_writer):
   !$omp end do
   k = 32
   do i = 1, 320, 32
-    !$omp task private(ii) firstprivate(i,k) shared(j,a) depend(out: j,a(i,k + 1))
+    !$omp task private(ii), firstprivate(i,k), shared(j,a), depend(out: j,a(i,k + 1))
     do ii = i, i + 32, 1
       j = k
       a(ii,k + 1) = 20

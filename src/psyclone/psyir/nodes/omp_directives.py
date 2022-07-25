@@ -532,7 +532,7 @@ class OMPParallelDirective(OMPRegionDirective):
             private_list.append(child.symbol.name)
         private_str = "private(" + ",".join(private_list) + ")"
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel",
-                                f"{default_str} {private_str}"))
+                                f"{default_str}, {private_str}"))
 
 
         if reprod_red_call_list:
@@ -1875,7 +1875,7 @@ class OMPDoDirective(OMPRegionDirective):
         for reduction_type in AccessType.get_valid_reduction_modes():
             reductions = self._get_reductions_list(reduction_type)
             for reduction in reductions:
-                reduction_str += (f" reduction("
+                reduction_str += (f", reduction("
                                   f"{OMP_OPERATOR_MAPPING[reduction_type]}:"
                                   f"{reduction})")
         return reduction_str
@@ -2056,7 +2056,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
             private_list.append(child.symbol.name)
         private_str = "private(" + ",".join(private_list) + ")"
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel do",
-                                f"{default_str} {private_str} schedule"
+                                f"{default_str}, {private_str}, schedule"
                                 f"({self._omp_schedule})"
                                 f"{self._reduction_string()}"))
 

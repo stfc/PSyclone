@@ -635,7 +635,7 @@ def test_omp_transform():
     correct = (
         "      CALL profile_psy_data%PreStart(\"psy_test27_loop_swap\", "
         "\"invoke_loop1:bc_ssh_code:r0\", 0, 0)\n"
-        "      !$omp parallel default(shared) private(i,j)\n"
+        "      !$omp parallel default(shared), private(i,j)\n"
         "      !$omp do schedule(static)\n"
         "      DO j=t%internal%ystart,t%internal%ystop\n"
         "        DO i=t%internal%xstart,t%internal%xstop\n"
@@ -646,7 +646,6 @@ def test_omp_transform():
         "      !$omp end parallel\n"
         "      CALL profile_psy_data%PostEnd")
     code = str(invoke.gen())
-    print(code)
     assert correct in code
 
     # Now add another profile node between the omp parallel and omp do
@@ -658,7 +657,7 @@ def test_omp_transform():
     correct = \
         "CALL profile_psy_data%PreStart(\"psy_test27_loop_swap\", " + \
         '''"invoke_loop1:bc_ssh_code:r0", 0, 0)
-      !$omp parallel default(shared) private(i,j)
+      !$omp parallel default(shared), private(i,j)
       CALL profile_psy_data_1%PreStart("psy_test27_loop_swap", ''' + \
         '''"invoke_loop1:bc_ssh_code:r1", 0, 0)
       !$omp do schedule(static)

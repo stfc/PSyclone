@@ -496,7 +496,7 @@ class CWriter(LanguageWriter):
         # Add a space only if there are clauses
         if len(clause_list) > 0:
             result_list.append(" ")
-        result_list.append(" ".join(clause_list))
+        result_list.append(", ".join(clause_list))
         result_list.append("\n{\n")
 
 
