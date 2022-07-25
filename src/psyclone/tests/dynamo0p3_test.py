@@ -1846,7 +1846,8 @@ def test_dynkernelargument_idtp_abstract_vector_field():
 
 
 def test_dynkernelargument_idtp_r_solver_operator():
-    '''Test the _init_data_type_properties method in the DynKernelArgument
+    '''
+    Test the _init_data_type_properties method in the DynKernelArgument
     class for an r_solver_operator.
 
     '''
@@ -1860,7 +1861,7 @@ def test_dynkernelargument_idtp_r_solver_operator():
     assert operator_argument._precision == "r_solver"
     assert operator_argument._data_type == "r_solver_operator_type"
     assert operator_argument._proxy_data_type == "r_solver_operator_proxy_type"
-    assert operator_argument._module_name == "operator_mod"
+    assert operator_argument._module_name == "r_solver_operator_mod"
 
     # No algorithm information - raise exception
     with pytest.raises(GenerationError) as info:
@@ -4309,9 +4310,12 @@ def test_read_only_fields_hex(tmpdir):
 
 
 def test_mixed_precision_args(tmpdir):
-    '''Test that correct code is generated for the PSy-layer when there
+    '''
+    Test that correct code is generated for the PSy-layer when there
     are scalars, fields and operators with different precision
-    declared in the algorithm layer.'''
+    declared in the algorithm layer.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "26.8_mixed_precision_args.f90"),
         api=TEST_API)
@@ -4324,8 +4328,9 @@ def test_mixed_precision_args(tmpdir):
         "r_solver_field_proxy_type\n"
         "    USE r_tran_field_mod, ONLY: r_tran_field_type, "
         "r_tran_field_proxy_type\n"
-        "    USE operator_mod, ONLY: r_solver_operator_type, "
-        "r_solver_operator_proxy_type, operator_type, operator_proxy_type\n"
+        "    USE operator_mod, ONLY: operator_type, operator_proxy_type\n"
+        "    USE r_solver_operator_mod, ONLY: r_solver_operator_type, "
+        "r_solver_operator_proxy_type\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0(scalar_r_def, field_r_def, operator_r_def, "
