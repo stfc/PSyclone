@@ -100,7 +100,100 @@ def _compute_lfric_inner_products(prog, scalars, field_sums, sum_sym):
                 prog.addchild(Assignment.create(Reference(sum_sym), add_op))
 
 
+def _compute_field_inner_products(routine, field_pairs):
+    '''
+    Constructs the assignments and kernel functors needed to compute the
+    inner products of the supplied list of fields.
+
+    :param routine:
+    :type routine:
+    :param field_pairs:
+    :type field_pairs:
+
+    :returns: the symbols containing the inner products and the list of \
+              kernel functors that computes them.
+    :rtype: Tuple[List[:py:class:`psyclone.psyir.symbols.DataSymbol`], \
+              List[:py:class:`psyclone.domain.lfric.algorithm.KernelFunctor`]]
+    '''
+    table = routine.symbol_table
+    rdef_sym = psyir.add_lfric_precision_symbol(table, "r_def")
+    rdef_type = ScalarType(ScalarType.Intrinsic.REAL, rdef_sym)
+
+    # Create symbols for the various Builtins that we will use.
+    # TODO #1645 these symbols are not added to the SymbolTable because they
+    # only exist as part of the DSL.
+    x_innerprod_x = DataTypeSymbol("x_innerproduct_x", DeferredType())
+    x_innerprod_y = DataTypeSymbol("x_innerproduct_y", DeferredType())
+
+    field_ip_symbols = []
+    kernel_list = []
+    for sym1, sym2 in field_pairs:
+        inner_prod_name = sym1.name + "_inner_prod"
+        if isinstance(sym1.datatype, DataTypeSymbol):
+            ip_sym = table.find_or_create(inner_prod_name,
+                                          symbol_type=DataSymbol,
+                                          datatype=rdef_type)
+            routine.addchild(Assignment.create(Reference(ip_sym),
+                                               Literal("0.0", rdef_type)))
+            if sym2 is sym1:
+                kernel_list.append(
+                    LFRicBuiltinFunctor.create(x_innerprod_x,
+                                               [Reference(ip_sym),
+                                                Reference(sym1)]))
+            else:
+                kernel_list.append(
+                    LFRicBuiltinFunctor.create(
+                        x_innerprod_y, [Reference(ip_sym), Reference(sym1),
+                                        Reference(sym2)]))
+
+        elif isinstance(sym1.datatype, ArrayType):
+            dtype = ArrayType(rdef_type, sym1.datatype.shape)
+            ip_sym = table.find_or_create(inner_prod_name,
+                                          symbol_type=DataSymbol,
+                                          datatype=dtype)
+            for dim in range(int(sym1.datatype.shape[0].lower.value),
+                             int(sym1.datatype.shape[0].upper.value)+1):
+                lit = Literal(str(dim), INTEGER_TYPE)
+                routine.addchild(Assignment.create(
+                    ArrayReference.create(ip_sym,
+                                          [lit]), Literal("0.0", rdef_type)))
+                if sym2 is sym1:
+                    kernel_list.append(
+                        LFRicBuiltinFunctor.create(
+                            x_innerprod_x,
+                            [ArrayReference.create(ip_sym, [lit.copy()]),
+                             ArrayReference.create(sym1, [lit.copy()])]))
+                else:
+                    kernel_list.append(
+                        LFRicBuiltinFunctor.create(
+                            x_innerprod_y,
+                            [ArrayReference.create(ip_sym, [lit.copy()]),
+                             ArrayReference.create(sym1, [lit.copy()]),
+                             ArrayReference.create(sym2, [lit.copy()])]))
+        else:
+            raise InternalError(
+                f"Expected a field symbol to either be of ArrayType or have "
+                f"a type specified by a DataTypeSymbol but found "
+                f"{sym1.datatype} for field '{sym1.name}'")
+        field_ip_symbols.append(ip_sym)
+
+    return field_ip_symbols, kernel_list
+
+
 def _init_fields_random(fields, input_symbols):
+    '''
+    Creates a suitable kernel functor for each field that requires
+    initialising with pseudo-random data.
+
+    :param fields: those fields requiring initialisation.
+    :type fields: List[:py:class:`psyclone....`]
+    :param input_symbols: map from field name to corresponding field copy.
+    :type input_symbols: Dict[str, xxx]
+
+    :returns: the required kernel calls.
+    :rtype: List[:py:class:`psyclone.domain.common.algorithm.Functor`]
+
+    '''
     # We use the setval_random builtin to initialise all fields.
     # Create symbols for the various Builtins that we will use.
     # TODO #1645 these symbols are not added to the SymbolTable because they
@@ -111,8 +204,10 @@ def _init_fields_random(fields, input_symbols):
     for sym, space in fields:
         input_sym = input_symbols[sym.name]
         if isinstance(sym.datatype, DataTypeSymbol):
+            # Initialise the field with pseudo-random numbers.
             kernel_list.append(LFRicBuiltinFunctor.create(setval_rand,
                                                           [Reference(sym)]))
+            # Keep a copy of the values in the associated 'input' field.
             kernel_list.append(LFRicBuiltinFunctor.create(
                 setval_x, [Reference(input_sym), Reference(sym)]))
         elif isinstance(sym.datatype, ArrayType):
@@ -205,12 +300,6 @@ def generate_lfric_adjoint_test(tl_source):
     for sym, space in kern_args.fields:
         lfalg.initialise_field(routine, input_symbols[sym.name], space)
 
-    # Create symbols for the various Builtins that we will use.
-    # TODO #1645 these symbols are not added to the SymbolTable because they
-    # only exist as part of the DSL.
-    x_innerprod_x = DataTypeSymbol("x_innerproduct_x", DeferredType())
-    x_innerprod_y = DataTypeSymbol("x_innerproduct_y", DeferredType())
-
     # Initialise argument values and keep copies. For scalars we use the
     # Fortran 'random_number' intrinsic directly.
     # TODO this is Fortran specific.
@@ -236,42 +325,13 @@ def generate_lfric_adjoint_test(tl_source):
     kern = LFRicKernelFunctor.create(kernel_routine, arg_nodes)
     kernel_list.append(kern)
 
-    rdef_sym = psyir.add_lfric_precision_symbol(table, "r_def")
-    rdef_type = ScalarType(ScalarType.Intrinsic.REAL, rdef_sym)
-
     # Compute the inner products of the results of the TL kernel.
-    field_ip_symbols = []
-    for sym, space in kern_args.fields:
-        inner_prod_name = sym.name+"_inner_prod"
-        if isinstance(sym.datatype, DataTypeSymbol):
-            ip_sym = table.new_symbol(inner_prod_name, symbol_type=DataSymbol,
-                                      datatype=rdef_type)
-            routine.addchild(Assignment.create(Reference(ip_sym),
-                                               Literal("0.0", rdef_type)))
-            kernel_list.append(
-                LFRicBuiltinFunctor.create(x_innerprod_x, [Reference(ip_sym),
-                                                           Reference(sym)]))
-        elif isinstance(sym.datatype, ArrayType):
-            dtype = ArrayType(rdef_type, sym.datatype.shape)
-            ip_sym = table.new_symbol(inner_prod_name, symbol_type=DataSymbol,
-                                      datatype=dtype)
-            for dim in range(int(sym.datatype.shape[0].lower.value),
-                             int(sym.datatype.shape[0].upper.value)+1):
-                lit = Literal(str(dim), INTEGER_TYPE)
-                routine.addchild(Assignment.create(
-                    ArrayReference.create(ip_sym,
-                                          [lit]), Literal("0.0", rdef_type)))
-                kernel_list.append(
-                    LFRicBuiltinFunctor.create(
-                        x_innerprod_x,
-                        [ArrayReference.create(ip_sym, [lit.copy()]),
-                         ArrayReference.create(sym, [lit.copy()])]))
-        else:
-            raise InternalError(
-                f"Expected a field symbol to either be of ArrayType or have "
-                f"a type specified by a DataTypeSymbol but found "
-                f"{sym.datatype} for field '{sym.name}'")
-        field_ip_symbols.append(ip_sym)
+    fld_pairs = []
+    for sym, _ in kern_args.fields:
+        fld_pairs.append((sym, sym))
+    field_ip_symbols, ip_kernels = _compute_field_inner_products(routine,
+                                                                 fld_pairs)
+    kernel_list.extend(ip_kernels)
 
     # Create the 'call invoke(...)' for the list of kernels.
     invoke_sym = table.new_symbol("invoke", symbol_type=RoutineSymbol)
@@ -280,6 +340,9 @@ def generate_lfric_adjoint_test(tl_source):
     inv_call.preceding_comment = (
         "Initialise arguments and call the tangent-linear kernel.")
     routine.addchild(inv_call)
+
+    rdef_sym = psyir.add_lfric_precision_symbol(table, "r_def")
+    rdef_type = ScalarType(ScalarType.Intrinsic.REAL, rdef_sym)
 
     # Compute the first inner products.
     inner1_sym = table.new_symbol("inner1", symbol_type=DataSymbol,
@@ -293,44 +356,14 @@ def generate_lfric_adjoint_test(tl_source):
     # arguments as the TL kernel.
     adj_kern = LFRicKernelFunctor.create(adj_routine,
                                          [arg.copy() for arg in arg_nodes])
-    kernel_list = [adj_kern]
     # Compute the inner product of its outputs
     # with the original inputs.
-    field_ip_symbols = []
-    for sym, space in kern_args.fields:
-        inner_prod_name = sym.name+"_inner_prod"
-        ip_sym = table.lookup(inner_prod_name)
-        input_sym = input_symbols[sym.name]
-        if isinstance(sym.datatype, DataTypeSymbol):
-            routine.addchild(Assignment.create(Reference(ip_sym),
-                                               Literal("0.0", rdef_type)))
-            kernel_list.append(
-                LFRicBuiltinFunctor.create(
-                    x_innerprod_y, [Reference(ip_sym), Reference(sym),
-                                    Reference(input_sym)]))
-        elif isinstance(sym.datatype, ArrayType):
-            dtype = ArrayType(rdef_type, sym.datatype.shape)
-
-            for dim in range(int(sym.datatype.shape[0].lower.value),
-                             int(sym.datatype.shape[0].upper.value)+1):
-                lit = Literal(str(dim), INTEGER_TYPE)
-                routine.addchild(Assignment.create(
-                    ArrayReference.create(ip_sym, [lit]),
-                    Literal("0.0", rdef_type)))
-                kernel_list.append(
-                    LFRicBuiltinFunctor.create(
-                        x_innerprod_y, [ArrayReference.create(ip_sym,
-                                                              [lit.copy()]),
-                                        ArrayReference.create(sym,
-                                                              [lit.copy()]),
-                                        ArrayReference.create(input_sym,
-                                                              [lit.copy()])]))
-        else:
-            raise InternalError(
-                f"Expected a field symbol to either be of ArrayType or have "
-                f"a type specified by a DataTypeSymbol but found "
-                f"{sym.datatype} for field '{sym.name}'")
-        field_ip_symbols.append(ip_sym)
+    fld_pairs = []
+    for sym, _ in kern_args.fields:
+        fld_pairs.append((sym, input_symbols[sym.name]))
+    field_ip_symbols, kernel_list = _compute_field_inner_products(routine,
+                                                                  fld_pairs)
+    kernel_list = [adj_kern] + kernel_list
 
     # Create the 'call invoke(...)' for the list of kernels.
     routine.addchild(LFRicAlgorithmInvokeCall.create(

@@ -36,12 +36,16 @@
 '''Provides py.test tests of LFRic-specific PSyclone adjoint functionality.'''
 
 import pytest
+from psyclone.domain.lfric import KernCallInvokeArgList
+from psyclone.domain.lfric.algorithm import LFRicBuiltinFunctor
+from psyclone.errors import InternalError
 from psyclone.psyad.domain.lfric.tl2ad import (_compute_lfric_inner_products,
                                                _init_fields_random,
                                                generate_lfric_adjoint_test)
-from psyclone.psyir.nodes import Routine
+from psyclone.psyir.nodes import Routine, Literal
 from psyclone.psyir.symbols import (SymbolTable, DataSymbol, REAL_TYPE,
-                                    ArrayType, DataTypeSymbol, DeferredType)
+                                    ArrayType, DataTypeSymbol, DeferredType,
+                                    INTEGER_TYPE)
 
 
 # _compute_lfric_inner_products
@@ -89,6 +93,15 @@ def test_compute_inner_products_fields(fortran_writer):
             "  my_sum = my_sum + ip3(3)\n" in gen)
 
 
+# _compute_field_inner_products
+
+def test_compute_field_inner_products():
+    ''' '''
+    table = SymbolTable()
+    prog = Routine.create("test_prog", table, [], is_program=True)
+    _compute_field_inner_products(prog, pairs)
+
+
 # _init_fields_random
 
 def test_init_fields_random(fortran_writer):
@@ -99,8 +112,57 @@ def test_init_fields_random(fortran_writer):
     fld1_input = DataSymbol("field1_input", datatype=fld_type)
     input_syms = {"field1": fld1_input}
     kernels = _init_fields_random(fields, input_syms)
-    assert not kernels
+    assert len(kernels) == 2
+    assert isinstance(kernels[0], LFRicBuiltinFunctor)
+    assert kernels[0].symbol.name == "setval_random"
+    assert kernels[0].children[0].symbol.name == "field1"
+    assert isinstance(kernels[1], LFRicBuiltinFunctor)
+    assert kernels[1].symbol.name == "setval_x"
+    assert kernels[1].children[1].symbol.name == "field1"
+    assert kernels[1].children[0].symbol.name == "field1_input"
 
+
+def test_init_fields_random_vector(fortran_writer):
+    '''Check that the _init_fields_random() routine works as expected for
+    a field vector.
+
+    '''
+    fld_type = DataTypeSymbol("field_type", datatype=DeferredType())
+    fld1 = DataSymbol("field1", datatype=ArrayType(fld_type, [3]))
+    fields = [(fld1, "w1")]
+    fld1_input = DataSymbol("field1_input", datatype=ArrayType(fld_type, [3]))
+    input_syms = {"field1": fld1_input}
+    kernels = _init_fields_random(fields, input_syms)
+    assert len(kernels) == 6
+    for idx in range(3):
+        kidx = 2*idx
+        lit = Literal(f"{idx+1}", INTEGER_TYPE)
+        assert isinstance(kernels[kidx], LFRicBuiltinFunctor)
+        assert kernels[kidx].symbol.name == "setval_random"
+        assert kernels[kidx].children[0].symbol.name == "field1"
+        assert kernels[kidx].children[0].indices == [lit]
+        kidx += 1
+        assert isinstance(kernels[kidx], LFRicBuiltinFunctor)
+        assert kernels[kidx].symbol.name == "setval_x"
+        assert kernels[kidx].children[1].symbol.name == "field1"
+        assert kernels[kidx].children[1].indices == [lit]
+        assert kernels[kidx].children[0].symbol.name == "field1_input"
+        assert kernels[kidx].children[0].indices == [lit]
+
+
+def test_init_fields_random_error():
+    '''Check that _init_fields_random raises the expected error if the supplied
+    field is not of the correct type.
+
+    '''
+    fld1 = DataSymbol("field1", datatype=INTEGER_TYPE)
+    fields = [(fld1, "w1")]
+    inputs = {"field1": fld1}
+    with pytest.raises(InternalError) as err:
+        _init_fields_random(fields, inputs)
+    assert ("Expected a field symbol to either be of ArrayType or have a type "
+            "specified by a DataTypeSymbol but found Scalar<INTEGER, "
+            "UNDEFINED> for field 'field1'" in str(err.value))
 
 # generate_lfric_adjoint_test
 
@@ -193,3 +255,23 @@ def test_generate_lfric_adjoint_test(fortran_writer):
     assert ("    inner2 = 0.0_r_def\n"
             "    inner2 = inner2 + rscalar_1 * rscalar_1_input\n"
             "    inner2 = inner2 + field_2_inner_prod\n" in gen)
+
+
+def test_generate_lfric_adjoint_test_no_operators(monkeypatch):
+    '''Check that a kernel that has an operator as argument raises the
+    expected error.
+
+    '''
+    code = TL_CODE.replace("arg_type(gh_field,  gh_real, gh_write,  w3)",
+                           "arg_type(gh_operator,gh_real,gh_write,w0,w0)")
+    # We have to monkeypatch KernCallInvokeArgList as that too doesn't yet
+    # support operators.
+    monkeypatch.setattr(KernCallInvokeArgList, "operator",
+                        lambda _1, _2, var_accesses=None: None)
+    monkeypatch.setattr(KernCallInvokeArgList, "operators",
+                        lambda: [1])
+    with pytest.raises(NotImplementedError) as err:
+        _ = generate_lfric_adjoint_test(code)
+    assert ("Kernel testkern_type has one or more operator arguments. Test "
+            "harness creation for such a kernel is not yet supported." in
+            str(err.value))
