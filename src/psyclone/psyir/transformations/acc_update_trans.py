@@ -206,10 +206,12 @@ class ACCUpdateTrans(Transformation):
                 node_index = 0
                 node_offset = 0
                 direction = "host"
+                tentative_update_pos = "beg"
             elif idx == OUT:  # outputs
                 node_index = -1
                 node_offset = 1
                 direction = "device"
+                tentative_update_pos = "end"
 
             # Since the supplied nodes may be the children of an IfBlock or
             # Loop, we have to search up to find the ancestor that *is* a
@@ -224,18 +226,14 @@ class ACCUpdateTrans(Transformation):
 
                 if idx == IN:
                     beg, end = None, update_pos
-                    tentative_update_pos = 0
                 elif idx == OUT:
                     beg, end = update_pos, None
-                    tentative_update_pos = len(sched.children)
 
                 text_dep_stmts = sched.children[beg:end]
-                text_sig = set()
-                text_sync = set()
+                text_sig, text_sync = set(), set()
 
                 loop_dep_stmts = sched.children[end:beg]
-                loop_sig = set()
-                loop_sync = set()
+                loop_sig, loop_sync = set(), set()
 
                 for dep_stmts, sig, sync in [
                      (text_dep_stmts, text_sig, text_sync),
@@ -309,6 +307,11 @@ class ACCUpdateTrans(Transformation):
                 ACCUpdateDirective
 
         cpu_sig = cpu_sig.copy()
+
+        if update_pos == "beg":
+            update_pos = 0
+        elif update_pos == "end":
+            update_pos = len(sched.children)
 
         for update_offset in (-1, 0):
             try:
