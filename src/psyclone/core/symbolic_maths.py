@@ -266,7 +266,7 @@ class SymbolicMaths:
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.backend.sympy_writer import SymPyWriter
         from psyclone.psyir.frontend.fortran import FortranReader
-        from psyclone.psyir.nodes import Reference, Literal, Routine
+        from psyclone.psyir.nodes import Reference, Literal
 
         # variables and literals do not require expansion
         if isinstance(expr, (Reference, Literal)):
@@ -275,15 +275,15 @@ class SymbolicMaths:
         sympy_expression = SymPyWriter.convert_to_sympy_expressions([expr])
         # Expand the expression
         result = expand(sympy_expression[0])
-        # If the expanded result is the same as the original then
-        # nothing needs to be done.
-        if result == sympy_expression[0]:
-            return
         # Find the required symbol table in the original PSyIR
-        symbol_table = expr.ancestor(Routine).symbol_table
+        symbol_table = expr.scope.symbol_table
         # Convert the new sympy expression to PSyIR
         reader = FortranReader()
         new_expr = reader.psyir_from_expression(str(result), symbol_table)
+        # If the expanded result is the same as the original then
+        # nothing needs to be done.
+        if new_expr == expr:
+            return
         # Replace the old PSyIR expression with the new expanded PSyIR
         # expression
         expr.replace_with(new_expr)
