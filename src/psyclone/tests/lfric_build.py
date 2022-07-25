@@ -108,6 +108,7 @@ class LFRicBuild(Compile):
                               "quadrature_face_mod",
                               "operator_parent_mod",
                               "operator_mod",
+                              "r_solver_operator_mod",
                               "columnwise_operator_mod",
                               "flux_direction_mod"
                               ]
@@ -120,7 +121,7 @@ class LFRicBuild(Compile):
         :param tmpdir: Temporary directory to be used for output files.
         :type tmpdir: :py:class:`LocalPath`
         '''
-        super(LFRicBuild, self).__init__(tmpdir)
+        super().__init__(tmpdir)
 
         base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3")
@@ -160,8 +161,8 @@ class LFRicBuild(Compile):
         except (CompileError, IOError) as err:
             # Failed to compile one of the files
             LFRicBuild._infrastructure_built = False
-            raise CompileError("Could not compile LFRic wrapper. "
-                               "Error: {0}".format(str(err.value)))
+            raise CompileError(f"Could not compile LFRic wrapper. "
+                               f"Error: {str(err.value)}") from err
 
         finally:
             old_pwd.chdir()
