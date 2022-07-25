@@ -100,16 +100,22 @@ class InlineTrans(Transformation):
         # Deal with any Container symbols first.
         for csym in routine_table.containersymbols:
             if csym.name in table:
+                # We have a clash with another symbol at the call site.
                 other_csym = table.lookup(csym.name)
                 if not isinstance(other_csym, ContainerSymbol):
-                    raise NotImplementedError(
-                        f"Routine '{routine.name}' has an import from "
-                        f"Container '{csym.name}' but the call site has a "
-                        f"different symbol with the same name: {other_csym}")
-                # If there is a wildcard import from this container in the
-                # routine then we'll need that at the call site.
-                if csym.wildcard_import:
-                    other_csym.wildcard_import = True
+                    # The symbol at the call site is not a Container so we
+                    # can rename it.
+                    table.rename_symbol(
+                            other_csym,
+                            table.next_available_name(
+                                csym.name, other_table=routine_table))
+                    # We can then add an import from the Container.
+                    table.add(csym)
+                else:
+                    # If there is a wildcard import from this container in the
+                    # routine then we'll need that at the call site.
+                    if csym.wildcard_import:
+                        other_csym.wildcard_import = True
             else:
                 table.add(csym)
             # We must update all references to this ContainerSymbol

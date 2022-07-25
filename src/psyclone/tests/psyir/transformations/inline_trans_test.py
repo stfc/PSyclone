@@ -415,6 +415,43 @@ def test_apply_callsite_rename(fortran_reader, fortran_writer):
             "    i = i * a_clash_1\n" in output)
 
 
+def test_apply_callsite_rename_container(fortran_reader, fortran_writer):
+    '''Check that an import from a container in the routine causes a
+    rename of a symbol that is local to the *calling* scope.'''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "  use kinds_mod, only: r_def\n"
+        "  integer :: i, a_mod\n"
+        "  a_mod = 2\n"
+        "  i = 10.0_r_def\n"
+        "  call sub(i)\n"
+        "  i = i * a_mod\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(idx)\n"
+        "    use a_mod, only: a_clash\n"
+        "    use kinds_mod, only: i_def\n"
+        "    integer, intent(inout) :: idx\n"
+        "    idx = idx + 5_i_def + a_clash\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(call)
+    output = fortran_writer(psyir)
+    assert ("  subroutine run_it()\n"
+            "    use kinds_mod, only : i_def, r_def\n"
+            "    use a_mod, only : a_clash\n"
+            "    integer :: i\n"
+            "    integer :: a_mod_1\n\n"
+            "    a_mod_1 = 2\n"
+            "    i = 10.0_r_def\n"
+            "    i = i + 5_i_def + a_clash\n"
+            "    i = i * a_mod_1\n" in output)
+
+
 def test_apply_validate():
     '''Test the apply method calls the validate method.'''
     hoist_trans = InlineTrans()
