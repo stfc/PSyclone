@@ -86,6 +86,10 @@ def test_schedule_clause():
     assert sched._clause_string == "schedule(static)"
     sched.set_schedule("test")
     assert sched._clause_string == "schedule(test)"
+    sched2 = OMPScheduleClause()
+    assert sched != sched2
+    sched2.set_schedule("test")
+    assert sched == sched2
 
 def test_default_clause():
     ''' Test the OMPDefaultClause functionality. '''

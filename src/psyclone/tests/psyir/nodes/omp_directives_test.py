@@ -53,7 +53,7 @@ from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, \
     OMPGrainsizeClause, OMPNumTasksClause, OMPNogroupClause, \
     Reference, OMPTaskDirective, OMPPrivateClause, OMPDefaultClause,\
     OMPReductionClause, OMPFirstprivateClause, OMPSharedClause, \
-    OMPDependClause
+    OMPDependClause, OMPScheduleClause
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, SymbolTable, \
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE
 from psyclone.errors import InternalError, GenerationError
@@ -119,7 +119,7 @@ def test_ompparallel_changes_begin_string(fortran_reader, fortran_writer):
 
 def test_ompparallel_changes_gen_code():
     ''' Check that when the code inside an OMP Parallel region changes, the
-    parallel clause changes appropriately. '''
+    private clause changes appropriately. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
@@ -164,6 +164,87 @@ def test_ompparallel_changes_gen_code():
     assert isinstance(pdir.children[2], OMPPrivateClause)
 
 
+def test_omp_pdo_changes_gen_code():
+    ''' Check that when the code inside an OMP Parallel Do region changes, the
+    private clause changes appropriately. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    tree = psy.invokes.invoke_list[0].schedule
+    ptrans = OMPParallelLoopTrans()
+    loops = tree.walk(Loop)
+    loop = loops[0]
+    ptrans.apply(loops[0])
+
+    assert type(tree.children[0]) is OMPParallelDoDirective
+    pdir = tree.children[0]
+    psy.gen
+    assert len(pdir.children) == 4
+    assert isinstance(pdir.children[2], OMPPrivateClause)
+    priv_clause = pdir.children[2]
+    sched_clause = pdir.children[3]
+
+    # Make acopy of the loop
+    routine = pdir.ancestor(Routine)
+    routine.symbol_table.add(DataSymbol("k", INTEGER_SINGLE_TYPE))
+    # Change the loop variable to j
+    jvar = DataSymbol("k", INTEGER_SINGLE_TYPE)
+    pdir.children[0].children[0].variable = jvar
+    # Change the schedule
+    pdir._omp_schedule = "dynamic"
+
+    psy.gen
+    assert pdir.children[2] != priv_clause
+    assert isinstance(pdir.children[2], OMPPrivateClause)
+    assert pdir.children[3] != sched_clause
+    assert isinstance(pdir.children[3], OMPScheduleClause)
+
+def test_omp_pdo_changes_begin_str(fortran_reader, fortran_writer):
+    ''' Check that when the code inside an OMP Parallel Do region changes, the
+    private clause changes appropriately. '''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(321, 10) :: A
+        integer, dimension(32, 10) :: B
+        integer :: i, ii
+        integer :: j
+
+        do i = 1, 320, 32
+            A(i, 1) = B(i, 1) + 1
+        end do
+    end subroutine
+    '''
+    tree =  fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelLoopTrans()
+    loops = tree.walk(Loop)
+    loop = loops[0]
+    loop.loop_type = None
+    ptrans.apply(loops[0])
+
+    assert type(tree.children[0].children[0]) is OMPParallelDoDirective
+    pdir = tree.children[0].children[0]
+    pdir.begin_string()
+    assert len(pdir.children) == 4
+    assert isinstance(pdir.children[2], OMPPrivateClause)
+    priv_clause = pdir.children[2]
+    sched_clause = pdir.children[3]
+
+    # Make acopy of the loop
+    routine = pdir.ancestor(Routine)
+    routine.symbol_table.add(DataSymbol("k", INTEGER_SINGLE_TYPE))
+    # Change the loop variable to j
+    jvar = DataSymbol("k", INTEGER_SINGLE_TYPE)
+    pdir.children[0].children[0].variable = jvar
+
+    # Change the schedule
+    pdir._omp_schedule = "dynamic"
+
+    pdir.begin_string()
+    assert pdir.children[2] != priv_clause
+    assert isinstance(pdir.children[2], OMPPrivateClause)
+    assert pdir.children[3] != sched_clause
+    assert isinstance(pdir.children[3], OMPScheduleClause)
+
 def test_ompdo_constructor():
     ''' Check that we can make an OMPDoDirective with and without
     children '''
@@ -188,6 +269,27 @@ def test_ompdo_constructor():
     ompdo = OMPDoDirective(parent=schedule, children=[child])
     assert len(ompdo.dir_body.children) == 1
 
+def test_omp_pdo_validate_child():
+    ''' Test the _validate_child method for OMPParallelDoDirective'''
+    sched = Schedule()
+    declause = OMPDefaultClause()
+    prclause = OMPPrivateClause()
+    scclause = OMPScheduleClause()
+    reclause = OMPReductionClause()
+
+    assert OMPParallelDoDirective._validate_child(0, sched) is True
+    assert OMPParallelDoDirective._validate_child(1, declause) is True
+    assert OMPParallelDoDirective._validate_child(2, prclause) is True
+    assert OMPParallelDoDirective._validate_child(3, scclause) is True
+    assert OMPParallelDoDirective._validate_child(4, reclause) is True
+    assert OMPParallelDoDirective._validate_child(5, reclause) is True
+
+    assert OMPParallelDoDirective._validate_child(0, "abc") is False
+    assert OMPParallelDoDirective._validate_child(1, "abc") is False
+    assert OMPParallelDoDirective._validate_child(2, "abc") is False
+    assert OMPParallelDoDirective._validate_child(3, "abc") is False
+    assert OMPParallelDoDirective._validate_child(4, "abc") is False
+    assert OMPParallelDoDirective._validate_child(5, "abc") is False
 
 def test_ompdo_equality():
     ''' Test the __eq__ method of OMPDoDirective. '''
@@ -655,9 +757,11 @@ def test_omp_taskloop_validate_child():
     assert OMPTaskloopDirective._validate_child(1, ngclause) is True
     assert OMPTaskloopDirective._validate_child(2, ngclause) is True
     assert OMPTaskloopDirective._validate_child(3, ngclause) is False
+    assert OMPTaskloopDirective._validate_child(4, ngclause) is False
     assert OMPTaskloopDirective._validate_child(0, lit) is False
     assert OMPTaskloopDirective._validate_child(1, lit) is False
     assert OMPTaskloopDirective._validate_child(2, lit) is False
+    assert OMPTaskloopDirective._validate_child(3, lit) is False
 
 
 def test_omp_taskloop_validate_global_constraints():

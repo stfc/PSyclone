@@ -263,6 +263,17 @@ class OMPScheduleClause(Clause):
         self._schedule = schedule
         super(OMPScheduleClause, self).__init__()
 
+    @property
+    def schedule(self):
+        return self._schedule
+
+    def __eq__(self, other):
+        '''Two OMPScheduleClause are equal if they have the same schedule
+        '''
+        is_eq = super().__eq__(other)
+        is_eq = is_eq and (self.schedule == other.schedule)
+        return is_eq
+
 class OMPDependClause(OperandClause):
     '''
     OpenMP Depend clause used for OpenMP Task directives.

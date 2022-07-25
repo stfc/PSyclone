@@ -2044,20 +2044,24 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         zero_reduction_variables(calls, parent)
         private_clause = self._get_private_clause()
         if len(self._children) >= 3 and private_clause != self._children[2]:
-            if isinstance(self._children[2], OMPPrivateClause):
-                self._children[2] = private_clause
-            else:
-                self.addchild(private_clause, index=2)
-        else:
+            # Replace the current private clause.
+            self._children[2] = private_clause
+        elif len(self._children) < 3:
             self.addchild(private_clause, index=2)
         default_str = self.children[1]._clause_string
         private_list = []
         for child in self.children[2].children:
             private_list.append(child.symbol.name)
         private_str = "private(" + ",".join(private_list) + ")"
+
+        sched_clause = OMPScheduleClause(self._omp_schedule)
+        if len(self._children) >= 4 and sched_clause != self._children[3]:
+            self._children[3] = sched_clause
+        elif len(self._children) < 4:
+            self.addchild(sched_clause, index=3)
+        schedule_str = f"schedule({sched_clause.schedule})"
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel do",
-                                f"{default_str}, {private_str}, schedule"
-                                f"({self._omp_schedule})"
+                                f"{default_str}, {private_str}, {schedule_str}"
                                 f"{self._reduction_string()}"))
 
         for child in self.dir_body:
@@ -2081,14 +2085,14 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         '''
         private_clause = self._get_private_clause()
         if len(self._children) >= 3 and private_clause != self._children[2]:
-            if isinstance(self._children[2], OMPPrivateClause):
-                self._children[2] = private_clause
-            else:
-                self.addchild(private_clause, index=2)
-        else:
+            self._children[2] = private_clause
+        elif len(self._children) < 3:
             self.addchild(private_clause, index=2)
         sched_clause = OMPScheduleClause(self._omp_schedule)
-        self.addchild(sched_clause, index=3)
+        if len(self._children) >= 4 and sched_clause != self._children[3]:
+            self._children[3] = sched_clause
+        elif len(self._children) < 4:
+            self.addchild(sched_clause, index=3)
         return ("omp parallel do" + self._reduction_string())
 
     def end_string(self):
