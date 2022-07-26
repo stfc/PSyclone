@@ -73,6 +73,8 @@ from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 from psyclone.psyir.transformations.read_only_verify_trans \
     import ReadOnlyVerifyTrans
 from psyclone.psyir.transformations.region_trans import RegionTrans
+from psyclone.psyir.transformations.replace_induction_variables_trans import \
+     ReplaceInductionVariablesTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 
@@ -102,4 +104,5 @@ __all__ = ['ArrayRange2LoopTrans',
            'PSyDataTrans',
            'ReadOnlyVerifyTrans',
            'RegionTrans',
+           'ReplaceInductionVariablesTrans',
            'TransformationError']

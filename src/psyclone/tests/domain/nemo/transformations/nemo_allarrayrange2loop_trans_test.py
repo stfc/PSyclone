@@ -154,7 +154,8 @@ def test_apply_with_structures(fortran_reader, fortran_writer):
     assignment = psyir.walk(Assignment)[0]
     trans.apply(assignment)
     result = fortran_writer(assignment)
-    assert "ptab(jf)%pt2d(jpi,idx_1,idx) = ptab(jf)%pt2d(jpim1,idx_1,idx)" in result
+    assert ("ptab(jf)%pt2d(jpi,idx_1,idx) = "
+            "ptab(jf)%pt2d(jpim1,idx_1,idx)") in result
 
 
 def test_apply_calls_validate():
