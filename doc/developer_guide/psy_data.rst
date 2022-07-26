@@ -606,10 +606,10 @@ Jinja Support in the Base Class
 +++++++++++++++++++++++++++++++
 Code written for a PSyData library is often very repetitive. For example, an
 implementation of ``PreDeclareVariable`` must be provided for each data type.
-For LFRic that can easily result in over 10 very similar subroutines (3 basic
-types integer, 4- and 8-byte reals; and 4- and 8-byte arrays of one to four
-dimensions). In order to simplify the creation of these subroutines the templating
-language Jinja is being used. Jinja creates code based on an template,
+For LFRic that can easily result in over 10 very similar subroutines (4 basic
+types integer, logical, 4- and 8-byte reals; and 4- and 8-byte arrays of one to
+four dimensions). In order to simplify the creation of these subroutines the
+templating language Jinja is being used. Jinja creates code based on an template,
 which makes it possible to maintain just one template implementation of a subroutine,
 from which the various Fortran-type specific implementation will be generated.
 
@@ -646,6 +646,8 @@ takes the following parameters:
         32-bit integer value
     ``long``:
         64-bit integer value
+    ``logical``:
+        32-bit logical value
 
     Default value is ``real,double,int``.
 
@@ -761,9 +763,10 @@ parameters in ``lib/read_only/read_only_base.jinja``:
        bits when mould is larger than value.) #}
 
     {% if ALL_TYPES is not defined %}
-       {% set ALL_TYPES = [ ("Double", "real(kind=real64)",   64),
-                            ("Real",   "real(kind=real32)",   32),
-                            ("Int",    "integer(kind=int32)", 32) ] %}
+       {% set ALL_TYPES = [ ("Double",  "real(kind=real64)",   64),
+                            ("Real",    "real(kind=real32)",   32),
+                            ("Logical", "logical(kind=4)",     32),
+                            ("Int",     "integer(kind=int32)", 32) ] %}
     {% endif %}
     ...
     {% for name, type, bits in ALL_TYPES %}
