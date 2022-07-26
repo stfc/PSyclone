@@ -135,7 +135,7 @@ can be found in the API-specific sections).
           KernelImportsToArguments transformations for the GOcean 1.0
           API, the OpenACC Data transformation is limited to
           the NEMO and GOcean 1.0 APIs and the OpenACC Kernels
-          transformation is limited to the NEMO and Dynamo0.3 APIs.
+          transformation is limited to the NEMO and LFRic (Dynamo0.3) APIs.
 
 .. note:: The directory layout of PSyclone is currently being restructured.
           As a result of this some transformations are already in the new
@@ -221,6 +221,12 @@ can be found in the API-specific sections).
 ####
 
 .. autoclass:: psyclone.psyir.transformations.HoistTrans
+      :members: apply
+      :noindex:
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.InlineTrans
       :members: apply
       :noindex:
 

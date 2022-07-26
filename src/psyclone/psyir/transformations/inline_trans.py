@@ -50,18 +50,44 @@ from psyclone.psyir.transformations.transformation_error import (
 class InlineTrans(Transformation):
     '''
     This transformation takes a Call and replaces it with the body of the
-    target routine.
+    target routine. It is used as follows:
+
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> from psyclone.psyir.nodes import Call, Routine
+    >>> from psyclone.psyir.transformations import InlineTrans
+    >>> code = ("""
+    ... module test_mod
+    ... contains
+    ...   subroutine run_it()
+    ...   integer :: i
+    ...   real :: a(10)
+    ...   do i=1,10
+    ...     a(i) = 1.0
+    ...     call sub(a(i))
+    ...   end do
+    ...   end subroutine run_it
+    ...   subroutine sub(x)
+    ...     real, intent(inout) :: x
+    ...     x = 2.0*x
+    ...   end subroutine sub
+    ... end module test_mod"""
+    >>> psyir = FortranReader().psyir_from_source(code)
+    >>> call = psyir.walk(Call)[0]
+    >>> inline_trans = InlineTrans()
+    >>> inline_trans.apply(call)
+    >>> # Uncomment the following line to see a text view of the schedule
+    >>> # print(psyir.walk(Routine)[0].view())
 
     '''
     def apply(self, node, options=None):
         '''
-        Inlines the body of the routine that is the target of the supplied
-        call.
+        Takes the body of the routine that is the target of the supplied
+        call and replaces the call with it.
 
         :param node: target PSyIR node.
         :type node: subclass of :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
-        :type options: dict of str:values or None
+        :type options: Optional[Dict[str, str]]
 
         '''
         self.validate(node, options)
@@ -359,3 +385,7 @@ class InlineTrans(Transformation):
             raise InternalError(
                 f"Failed to find the source for routine '{name}' and "
                 f"therefore cannot inline it.")
+
+
+# For AutoAPI auto-documentation generation.
+__all__ = ["InlineTrans"]
