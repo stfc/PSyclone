@@ -275,8 +275,10 @@ contains
 {# This defines a mapping of the 'userfriendly' names to the NetCDF data types. #}
 {% set NCDF_TYPE_MAPPING = { "Double": "NF90_DOUBLE",
                              "Real":   "NF90_REAL",
+                             "Logical":"NF90_INT",
                              "Int":    "NF90_INT"} -%}
 
+{% set indent="        " %}
 {% for name, type, bits in ALL_TYPES %}
     {% set NETCDF_TYPE = NCDF_TYPE_MAPPING[name] %}
     ! -------------------------------------------------------------------------
@@ -332,9 +334,22 @@ contains
         character(*), intent(in)                            :: name
         {{type}}, intent(in)                                :: value
         integer                                             :: retval
+        {% if name == "Logical" %}
+        integer                                             :: tmp
+        {% endif -%}
 
+        {% if name == "Logical" %}
+        if (value) then
+            tmp = 1
+        else
+            tmp = 0
+        endif
+        retval = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index), &
+                                         tmp))
+        {% else -%}
         retval = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index), &
                                          value))
+        {% endif -%}
         call this%PSyDataBaseType%ProvideScalar{{name}}(name, value)
 
     end subroutine WriteScalar{{name}}
@@ -343,8 +358,12 @@ contains
   {# ------------------------------------- #}
   {% for dim in ALL_DIMS %}
     {# Create the ':,:,:,:' string
-       We repeat the list [":"] DIM-times, which is then joined #}
+       We repeat the list [":"] DIM-times, which is then joined  #}
     {% set DIMENSION=([":"]*dim)|join(",") %}
+    {# Create a string "size(value,1), size(value,2)...", which  #}
+    {# will be used to declare a temporary array when converting #}
+    {# logical to integer values before writing them out.        #}
+    {% set SIZES = "size(value,"~range(1,dim+1)|join("), size(value,")~")" %}
 
     {# Create list of variables: "dimid1, dimid2, dimid3, dimid4" #}
     {% set vars = "dimid"~range(1,dim+1)|join(", dimid") %}
@@ -412,10 +431,23 @@ contains
         {{type}}, dimension({{DIMENSION}}), intent(in)      :: value
 
         integer :: retval
+        {% if name == "Logical" %}
+        integer, dimension({{SIZES}}) :: tmp
 
+        {% endif %}
         if (.not. is_enabled) return
+        {% if name == "Logical" %}
+        where(value)
+            tmp = 1
+        elsewhere
+            tmp = 0
+        endwhere
+        retval = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index), &
+                                         tmp({{DIMENSION}})))
+        {% else -%}
         retval = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index), &
                                          value({{DIMENSION}})))
+        {% endif %}
         call this%PSyDataBaseType%ProvideArray{{dim}}d{{name}}(name, value)
 
     end subroutine WriteArray{{dim}}d{{name}}
