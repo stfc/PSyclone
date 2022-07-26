@@ -806,9 +806,30 @@ class OMPTaskDirective(OMPRegionDirective):
         self._parallel_private = anc._get_private_clause().children
 
     def _evaluate_readonly_baseref(self, ref, private_list, firstprivate_list,
-                                   shared_list, in_list, out_list):
+                                   in_list):
         '''
-        TODO: docstring
+        Evaluates any read-only References to variables inside the OpenMP task
+        region and adds a copy of the Reference to the appropriate data-sharing
+        list used to construct the clauses for this task region.
+
+        The basic rules for this are:
+        1. If the Reference is private in the parallel region containing this
+        task, the Reference will be added to the list of firstprivate
+        References unless it has already been added to either the list of
+        private or firstprivate References for this task.
+        2. If the Reference is shared, then the Reference will be added to the
+        input list of References unless it is already present in that list.
+
+        :param ref: The reference to be evaluated.
+        :type ref: :py:class:`psyclone.psyir.nodes.Reference`
+        :param private_list: The list of private References for this task.
+        :type private_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param firstprivate_list: The list of firstprivate References for this
+                                  task.
+        :type firstprivate_list: List of 
+                                 :py:class:`psyclone.psyir.nodes.Reference`
+        :param in_list: The list of input References for this task.
+        :type in_list: List of :py:class:`psyclone.psyir.nodes.Reference`
         '''
         is_private = (ref in self._parallel_private)
         if is_private:
@@ -830,7 +851,44 @@ class OMPTaskDirective(OMPRegionDirective):
     def _handle_index_binop(self, node, index_list,
                             firstprivate_list, private_list):
         '''
-        TODO: docstring
+        Evaluates a binary operation index used to access an array
+        within this OpenMP task.
+
+        For each index, the code checks that the index matches the expected
+        format, which is [Reference] [ADD/SUB] [Literal] (or the opposite
+        ordering). PSyclone does not currently support other binary operation
+        indexing inside an OpenMP task.
+
+        Once this is confirmed, PSyclone builds the appropriate list of
+        References to correctly express the dependencies of this array access,
+        and appends them to the `index_list` input argument. This can depend on
+        the structure of the Loop inside the task, and any parent Loops.
+
+        The Reference inside the binary operation must be a private or
+        firstprivate variable inside the task region, else PSyclone does not
+        support using it as an array index.
+
+        :param node: The BinaryOperation to be evaluated.
+        :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
+        :param index_list: A list of Nodes used to handle the dependencies
+                           for this array access. This may be reused over
+                           multiple calls to this function to avoid duplicating
+                           Nodes.
+        :type index_list: List of :py:class:`psyclone.psyir.nodes.Node`
+        :param firstprivate_list: The list of firstprivate References used in
+                                  this task region.
+        :type firstprivate_list: List of
+                                 :py:class:`psyclone.psyir.nodes.Reference`
+        :param private_list: The list of private References used in
+                             this task region.
+        :type private_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+
+        :raises GenerationError: if this BinaryOperation is not an addition or
+                                 subtraction.
+        :raises GenerationError: if this BinaryOperation does not contain both
+                                 a Reference and a Literal.
+        :raises GenerationError: if this BinaryOperation contains a Reference
+                                 to a shared variable.
         '''
 
         # Binary Operation check
@@ -1093,7 +1151,42 @@ class OMPTaskDirective(OMPRegionDirective):
     def _evaluate_readonly_arrayref(self, ref, private_list, firstprivate_list,
                                     shared_list, in_list, out_list):
         '''
-        TODO: docstring
+        Evaluates a read-only access to an Array inside the task region, and 
+        computes any data-sharing clauses and dependency clauses based upon the
+        access.
+
+        This is done by evaluating each of the array indices, and determining
+        whether they are:
+        1. A Literal index, in which case we need a dependency to that
+           specific section of the array.
+        2. A Reference index, in which case we need a dependency to the section
+           of the array represented by that Reference.
+        3. A Binary Operation, in which case the code calls
+          `_handle_index_binop` to evaluate any additional dependencies.
+
+        Once these have been computed, any new dependencies are added into the
+        in_list, and the array reference itself will be added to the
+        shared_list if not already present.
+
+        :param node: The Reference to be evaluated.
+        :type node: :py:class:`psyclone.psyir.nodes.Reference`
+        :param private_list: The list of private References used in this task
+                             region.
+        :type private_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param firstprivate_list: The list of firstprivate References used in
+                                  this task region.
+        :type firstprivate_list: List of
+                                 :py:class:`psyclone.psyir.nodes.Reference`
+        :param shared_list: The list of shared References for this task.
+        :type shared_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param in_list: The list of input References for this task.
+        :type in_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param out_list: The list of output References for this task.
+        :type out_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+
+        :raises GenerationError: If an array index is a shared variable.
+        :raises GenerationError: If an array index is not a Reference, Literal
+                                 or BinaryOperation.
         '''
         index_list = []
 
@@ -1198,19 +1291,6 @@ class OMPTaskDirective(OMPRegionDirective):
             dclause = ArrayReference.create(ref.symbol,
                                             list(final_list))
             # Add dclause into the in_list if required
-            #for x in in_list:
-            #    if dclause.children and len(dclause.children) > 0 and x.children and len(x.children) > 0 and len(dclause.children) == len(x.children) and type(dclause.children[0]) is BinaryOperation:
-            #        print("----START----")
-            #        print("clause: ", dclause)
-            #        print("clause_children: ", dclause.children)
-            #        print("x_children: ", x.children)
-            #        print("x: ", x)
-            #        print("\n")
-            #        print("child: ", dclause.children[0])
-            #        print("\n")
-            #        print("x child: ", x.children[0])
-            #        print(x == dclause)
-            #        print("-----END-----")
             if dclause not in in_list:
                 in_list.append(dclause)
         # Add to shared_list (for explicity)
@@ -1222,7 +1302,25 @@ class OMPTaskDirective(OMPRegionDirective):
                                      firstprivate_list, shared_list, in_list,
                                      out_list):
         '''
-        TODO: docstring
+        Evaluates any Reference used in a read context. This is done by
+        calling the appropriate helper functions for ArrayReferences,
+        StructureReferences or other References as appropriate.
+
+        :param node: The Reference to be evaluated.
+        :type node: :py:class:`psyclone.psyir.nodes.Reference`
+        :param private_list: The list of private References used in this task
+                             region.
+        :type private_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param firstprivate_list: The list of firstprivate References used in
+                                  this task region.
+        :type firstprivate_list: List of
+                                 :py:class:`psyclone.psyir.nodes.Reference`
+        :param shared_list: The list of shared References for this task.
+        :type shared_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param in_list: The list of input References for this task.
+        :type in_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param out_list: The list of output References for this task.
+        :type out_list: List of :py:class:`psyclone.psyir.nodes.Reference`
         '''
         if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
             # Resolve ArrayReference (AOSReference)
@@ -1234,17 +1332,50 @@ class OMPTaskDirective(OMPRegionDirective):
             # create a Reference to the symbol to handle.
             base_ref = Reference(ref.symbol)
             self._evaluate_readonly_baseref(base_ref, private_list,
-                                            firstprivate_list, shared_list,
-                                            in_list, out_list)
+                                            firstprivate_list,
+                                            in_list)
         elif isinstance(ref, Reference):
             self._evaluate_readonly_baseref(ref, private_list,
-                                            firstprivate_list, shared_list,
-                                            in_list, out_list)
+                                            firstprivate_list,
+                                            in_list)
 
     def _evaluate_write_arrayref(self, ref, private_list, firstprivate_list,
                                  shared_list, in_list, out_list):
         '''
-        TODO: docstring
+        Evaluates a write access to an Array inside the task region, and 
+        computes any data-sharing clauses and dependency clauses based upon the
+        access.
+
+        This is done by evaluating each of the array indices, and determining
+        whether they are:
+        1. A Literal index, in which case we need a dependency to that
+           specific section of the array.
+        2. A Reference index, in which case we need a dependency to the section
+           of the array represented by that Reference.
+        3. A Binary Operation, in which case the code calls
+          `_handle_index_binop` to evaluate any additional dependencies.
+
+        Once these have been computed, any new dependencies are added into the
+        out_list, and the array reference itself will be added to the
+        shared_list if not already present.
+
+        :param ref: The Reference to be evaluated.
+        :type ref: :py:class:`psyclone.psyir.nodes.Reference`
+        :param private_list: The list of private References used in this task
+                             region.
+        :type private_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param firstprivate_list: The list of firstprivate References used in
+                                  this task region.
+        :type firstprivate_list: List of
+                                 :py:class:`psyclone.psyir.nodes.Reference`
+        :param shared_list: The list of shared References for this task.
+        :type shared_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param in_list: The list of input References for this task.
+        :type in_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param out_list: The list of output References for this task.
+        :type out_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+
+        :raises GenerationError: If an array index is a shared variable.
         '''
         # We write to this arrayref, so its shared and depend out on
         # the array.
@@ -1342,7 +1473,28 @@ class OMPTaskDirective(OMPRegionDirective):
     def _evaluate_write_baseref(self, ref, private_list, firstprivate_list,
                                 shared_list, in_list, out_list):
         '''
-        TODO: docstring
+        Evaluates a write to a non-ArrayReference reference. If the variable
+        is declared private in the parent parallel region, then the variable
+        is added to the private clause for this task.
+
+        If the variable is not private (therefore is shared), it is added to
+        the shared and output dependence lists for this task region.
+
+        :param ref: The Reference to be evaluated.
+        :type ref: :py:class:`psyclone.psyir.nodes.Reference`
+        :param private_list: The list of private References used in this task
+                             region.
+        :type private_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param firstprivate_list: The list of firstprivate References used in
+                                  this task region.
+        :type firstprivate_list: List of
+                                 :py:class:`psyclone.psyir.nodes.Reference`
+        :param shared_list: The list of shared References for this task.
+        :type shared_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param in_list: The list of input References for this task.
+        :type in_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param out_list: The list of output References for this task.
+        :type out_list: List of :py:class:`psyclone.psyir.nodes.Reference`
         '''
         # Check if its a private variable
         is_private = ref in self._parallel_private
@@ -1359,7 +1511,25 @@ class OMPTaskDirective(OMPRegionDirective):
     def _evaluate_write_reference(self, ref, private_list, firstprivate_list,
                                   shared_list, in_list, out_list):
         '''
-        TODO: docstring
+        Evaluates a write to any Reference in the task region. This is done by
+        calling the appropriate subfunction depending on the type of the
+        Reference.
+
+        :param ref: The Reference to be evaluated.
+        :type ref: :py:class:`psyclone.psyir.nodes.Reference`
+        :param private_list: The list of private References used in this task
+                             region.
+        :type private_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param firstprivate_list: The list of firstprivate References used in
+                                  this task region.
+        :type firstprivate_list: List of
+                                 :py:class:`psyclone.psyir.nodes.Reference`
+        :param shared_list: The list of shared References for this task.
+        :type shared_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param in_list: The list of input References for this task.
+        :type in_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param out_list: The list of output References for this task.
+        :type out_list: List of :py:class:`psyclone.psyir.nodes.Reference`
         '''
         if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
             # Resoolve ArrayReference (AOSRef)
@@ -1381,7 +1551,25 @@ class OMPTaskDirective(OMPRegionDirective):
     def _evaluate_assignment(self, node, private_list, firstprivate_list,
                              shared_list, in_list, out_list):
         '''
-        TODO: docstring
+        Evaluates an Assignment node within this task region. This is done
+        by calling the appropriate subfunction on each reference on the 
+        LHS and RHS of the Assignment.
+
+        :param ref: The Assignment to be evaluated.
+        :type ref: :py:class:`psyclone.psyir.nodes.Assignment`
+        :param private_list: The list of private References used in this task
+                             region.
+        :type private_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param firstprivate_list: The list of firstprivate References used in
+                                  this task region.
+        :type firstprivate_list: List of
+                                 :py:class:`psyclone.psyir.nodes.Reference`
+        :param shared_list: The list of shared References for this task.
+        :type shared_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param in_list: The list of input References for this task.
+        :type in_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param out_list: The list of output References for this task.
+        :type out_list: List of :py:class:`psyclone.psyir.nodes.Reference`
         '''
         lhs = node.children[0]
         rhs = node.children[1]
@@ -1400,8 +1588,37 @@ class OMPTaskDirective(OMPRegionDirective):
     def _evaluate_loop(self, node, private_list, firstprivate_list,
                        shared_list, in_list, out_list):
         '''
-        TODO: docstring
-        TENTATIVE COMPLETE
+        Evaluates a Loop node within this task Region. This is done in several
+        steps:
+        1. Check the loop variable, start/stop/step values, and ensure that
+           they are valid. The loop variable must not be shared and the start,
+           stop, and step variables are not ArrayReferences. It also detects if
+           the loop variable is a "proxy", i.e. it represents a parent loop's
+           variable as a chunked loop variable. Any variables that are not yet
+           private, firstprivate or shared will be declared as firstprivate (as
+           they are read before being accessed elsewhere).
+        2. Loop through each of the nodes in the Loop's Schedule child, and
+           evaluate them through the _evaluate_node call.
+
+        :param node: The Loop to be evaluated.
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
+        :param private_list: The list of private References used in this task
+                             region.
+        :type private_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param firstprivate_list: The list of firstprivate References used in
+                                  this task region.
+        :type firstprivate_list: List of
+                                 :py:class:`psyclone.psyir.nodes.Reference`
+        :param shared_list: The list of shared References for this task.
+        :type shared_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param in_list: The list of input References for this task.
+        :type in_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param out_list: The list of output References for this task.
+        :type out_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+
+        :raises GenerationError: If the loop variable is a shared variable.
+        :raises GenerationError: If the loop start, stop or step expression
+                                 contains an ArrayReference.
         '''
         # Look at loop bounds etc first.
         # Find our loop initialisation, variable and bounds
@@ -1498,9 +1715,27 @@ class OMPTaskDirective(OMPRegionDirective):
     def _evaluate_ifblock(self, node, private_list, firstprivate_list,
                           shared_list, in_list, out_list):
         '''
-        TODO: docstring
+        Evaluates an ifblock inside a task region. This is done by calling
+        _evaluate_readonly_reference on each Reference inside the if condition,
+        and by calling _evaluate_node on each Node inside the if_body and
+        else_body.
+
+        :param node: The IfBlock to be evaluated.
+        :type node: :py:class:`psyclone.psyir.nodes.IfBlock`
+        :param private_list: The list of private References used in this task
+                             region.
+        :type private_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param firstprivate_list: The list of firstprivate References used in
+                                  this task region.
+        :type firstprivate_list: List of
+                                 :py:class:`psyclone.psyir.nodes.Reference`
+        :param shared_list: The list of shared References for this task.
+        :type shared_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param in_list: The list of input References for this task.
+        :type in_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param out_list: The list of output References for this task.
+        :type out_list: List of :py:class:`psyclone.psyir.nodes.Reference`
         '''
-        # TODO: Look at the ifblock itself first.
         for ref in node.condition.walk(Reference):
             self._evaluate_readonly_reference(ref, private_list,
                                               firstprivate_list, shared_list,
@@ -1520,7 +1755,24 @@ class OMPTaskDirective(OMPRegionDirective):
     def _evaluate_node(self, node, private_list, firstprivate_list,
                        shared_list, in_list, out_list):
         '''
-        TODO: docstring
+        Evaluates a generic Node inside the task region. Calls the appropriate
+        call depending on whether the node is an Assignment, Loop or IfBlock.
+
+        :param node: The Node to be evaluated.
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
+        :param private_list: The list of private References used in this task
+                             region.
+        :type private_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param firstprivate_list: The list of firstprivate References used in
+                                  this task region.
+        :type firstprivate_list: List of
+                                 :py:class:`psyclone.psyir.nodes.Reference`
+        :param shared_list: The list of shared References for this task.
+        :type shared_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param in_list: The list of input References for this task.
+        :type in_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param out_list: The list of output References for this task.
+        :type out_list: List of :py:class:`psyclone.psyir.nodes.Reference`
         '''
         # For the node, check if it is Loop, Assignment or IfBlock
         if isinstance(node, Assignment):
@@ -1537,11 +1789,24 @@ class OMPTaskDirective(OMPRegionDirective):
                                    shared_list, in_list, out_list)
 
         # All other node types are ignored (for now, maybe some error
-        # checking might be useful).
+        # checking might be useful, though I don't have rules on what isn't
+        # allowed).
 
     def _compute_clauses(self):
         '''
-        TODO: docstring
+        Computes the clauses for this OMPTaskDirective.
+
+        The OMPTaskDirective must have exactly 1 child, which must be a Loop.
+        Upon confirming this, the function calls _evaluate_node to compute all
+        data-sharing attributes and dependencies.
+        The clauses are then built up from those, and returned.
+
+        :raises GenerationError: If the OMPTaskDirective has multiple children.
+        :raises GenerationError: If the OMPTaskDirective's child is not a Loop.
+
+        :returns: The clauses computed for this OMPTaskDirective.
+        :rtype: List of [OMPPrivateClause, OMPFirstprivateClause,
+                         OMPSharedClause, OMPDependClause, OMPDependClause]
         '''
         private_list = []
         firstprivate_list = []
@@ -1564,8 +1829,6 @@ class OMPTaskDirective(OMPRegionDirective):
         self._evaluate_node(self.children[0].children[0], private_list,
                             firstprivate_list, shared_list, in_list,
                             out_list)
-        #Maybe finished?
-#        assert False
 
         # Make the clauses to return.
         private_clause = OMPPrivateClause()
