@@ -665,6 +665,32 @@ def test_validate_non_local_symbol(fortran_reader):
             "'trouble' from its parent container" in str(err.value))
 
 
+def test_validate_unresolved_import(fortran_reader):
+    '''Test that validate rejects a routine that accesses a symbol which
+    is unresolved.'''
+    code = (
+        "module test_mod\n"
+        "  use some_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "    integer :: i\n"
+        "    i = 10\n"
+        "    call sub(i)\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(idx)\n"
+        "    integer :: idx\n"
+        "    idx = idx + trouble\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(call)
+    assert ("Routine 'sub' cannot be inlined because it accesses an "
+            "un-resolved variable 'trouble'" in str(err.value))
+
+
 # _find_routine
 
 def test_find_routine_missing(fortran_reader):
