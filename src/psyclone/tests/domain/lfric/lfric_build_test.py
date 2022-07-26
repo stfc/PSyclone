@@ -35,7 +35,7 @@
 
 
 '''
-Module containing tests relating to building code generated for
+Module containing tests related to building generated code for
 the LFRic domain.
 '''
 
@@ -57,8 +57,10 @@ API = "dynamo0.3"
 
 
 def test_infrastructure_build_error(tmpdir, monkeypatch):
-    '''Check the mechanism by which we ensure that the repository config
-    file is picked up by the test suite.
+    '''
+    Check the mechanism by which we ensure that the LFRic wrapper
+    infrastructure files for compilation tests are actually compiled.
+
     '''
 
     fake_modules = ["moomintroll_mod",
