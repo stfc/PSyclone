@@ -168,7 +168,7 @@ __all__ = [
         'OMPNogroupClause',
         'OMPNowaitClause',
         'OMPNumTasksClause',
-        'OMPPrivateClause'
+        'OMPPrivateClause',
         'OMPDefaultClause',
         'OMPReductionClause',
         'OMPScheduleClause',

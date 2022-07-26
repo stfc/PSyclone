@@ -141,7 +141,7 @@ def test_omptaskloop_apply(monkeypatch):
     assert (
         "    !$omp parallel default(shared), private(i,j)\n" +
         "      !$omp master\n" +
-        "      !$omp taskloop{0}\n".format(clauses) +
+        f"      !$omp taskloop{clauses}\n" +
         "      DO" in code)
     assert (
         "      END DO\n" +
@@ -170,7 +170,7 @@ def test_omptaskloop_apply(monkeypatch):
 def test_omptaskwait_trans_str():
     '''Test the __str__ method of the OMPTaskwaitTrans'''
     trans = OMPTaskwaitTrans()
-    assert trans.__str__() == ("Adds 'OpenMP TASKWAIT' directives to an OpenMP"
+    assert str(trans) == ("Adds 'OpenMP TASKWAIT' directives to an OpenMP"
                                " parallel region to satisfy 'OpenMP TASKLOOP' "
                                "dependencies")
 
@@ -867,8 +867,9 @@ def test_omptaskwait_ignore_nogroup_clause():
 def test_omptask_trans_str():
     '''Test the __str__ and name method of the OMPTaskTrans'''
     trans = OMPTaskTrans()
-    assert trans.__str__ == "Adds an 'OMP TASK' directive to a statement"
+    assert str(trans) == "Adds an 'OMP TASK' directive to a statement"
     assert trans.name == "OMPTaskTrans"
+
 
 def test_omptask_directive_fails():
     ''' Test the _directive method of the OMPTaskTrans fails if a collapse
@@ -878,6 +879,7 @@ def test_omptask_directive_fails():
         trans._directive([], True)
     assert ("Collapse attribute should not be set for OMPTaskTrans" in
             str(excinfo.value))
+
 
 def test_omptask_validate(fortran_reader):
     '''Test the validate method of the OMPTaskTrans fails when supplied
@@ -903,6 +905,7 @@ def test_omptask_validate(fortran_reader):
     assert ("OMPTaskDirective cannot be applied to a region containing "
             "a code block" in str(excinfo.value))
 
+
 def test_omptask_apply():
     ''' Test the apply method of the OMPTaskTrans. '''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
@@ -922,11 +925,11 @@ def test_omptask_apply():
     assert (
         "    !$omp parallel default(shared), private(i,j)\n" +
         "      !$omp master\n" +
-        "      !$omp task private(j,i), firstprivate(cu_fld%internal%ystart,cu_fld%internal%ystop,cu_fld%internal%xstart,cu_fld%internal%xstop)\n" +
-        "      DO" in code)
+        "      !$omp task private(j,i), firstprivate(cu_fld%internal%ystart," +
+        "cu_fld%internal%ystop,cu_fld%internal%xstart,cu_fld%internal%xstop)" +
+        "\n" + "      DO" in code)
     assert (
         "      END DO\n" +
         "      !$omp end task\n" +
         "      !$omp end master\n" +
         "      !$omp end parallel" in code)
-

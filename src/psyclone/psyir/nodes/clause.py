@@ -59,6 +59,7 @@ class Clause(Node, metaclass=abc.ABCMeta):
         '''
         return self._clause_string
 
+
 class OperandClause(Clause, metaclass=abc.ABCMeta):
     '''
     Base abstract class for all clauses that have an operand

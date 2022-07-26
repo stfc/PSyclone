@@ -50,6 +50,7 @@ from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
 
+
 class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
     '''
     Adds an abstract directive (it needs to be specified by sub-classing this

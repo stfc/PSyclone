@@ -80,6 +80,7 @@ def test_nogroup_clause():
     assert nowait.clause_string == "nogroup"
     assert OMPNogroupClause._validate_child(0, nowait) is False
 
+
 def test_schedule_clause():
     ''' Test the OMPScheduleClause functionality. '''
     sched = OMPScheduleClause()
@@ -90,6 +91,7 @@ def test_schedule_clause():
     assert sched != sched2
     sched2.set_schedule("test")
     assert sched == sched2
+
 
 def test_default_clause():
     ''' Test the OMPDefaultClause functionality. '''
@@ -105,8 +107,9 @@ def test_default_clause():
     with pytest.raises(TypeError) as excinfo:
         OMPDefaultClause(clause_type="String")
     assert ("OMPDefaultClause expected 'clause_type' argument of type "
-            "OMPDefaultClause.DefaultClauseTypes but found 'str'" in 
+            "OMPDefaultClause.DefaultClauseTypes but found 'str'" in
             str(excinfo.value))
+
 
 def test_shared_clause():
     ''' Test the OMPSharedClause functionality. '''
@@ -117,6 +120,7 @@ def test_shared_clause():
     shared.addchild(ref1)
     assert shared.clause_string == "shared"
 
+
 def test_private_clause():
     ''' Test the OMPPrivateClause functionality. '''
     private = OMPPrivateClause()
@@ -126,14 +130,16 @@ def test_private_clause():
     private.addchild(ref1)
     assert private.clause_string == "private"
 
+
 def test_firstprivate_clause():
     ''' Test the OMPFirstprivateClause functionality. '''
-    fp = OMPFirstprivateClause()
-    assert fp.clause_string == ""
+    firp = OMPFirstprivateClause()
+    assert firp.clause_string == ""
     tmp = DataSymbol("tmp", INTEGER_TYPE)
     ref1 = Reference(tmp)
-    fp.addchild(ref1)
-    assert fp.clause_string == "firstprivate"
+    firp.addchild(ref1)
+    assert firp.clause_string == "firstprivate"
+
 
 def test_depend_clause():
     ''' Test the OMPDependClause functionality. '''
@@ -147,14 +153,11 @@ def test_depend_clause():
 
     depend2 = OMPDependClause()
     assert depend1 == depend2
-    dependin = OMPDependClause(depend_type=
-                               OMPDependClause.DependClauseTypes.IN)
-    dependin2 = OMPDependClause(depend_type=
-                                OMPDependClause.DependClauseTypes.IN)
-    dependout = OMPDependClause(depend_type=
-                                OMPDependClause.DependClauseTypes.OUT)
+    dependin = OMPDependClause(
+                depend_type=OMPDependClause.DependClauseTypes.IN)
+    dependout = OMPDependClause(
+                    depend_type=OMPDependClause.DependClauseTypes.OUT)
     assert dependin != dependout
-    
     # Check operand
     assert dependin.operand == "in"
     assert dependout.operand == "out"

@@ -1564,7 +1564,6 @@ class FortranWriter(LanguageWriter):
 
         return result
 
-
     def clause_node(self, node):
         '''This method is called when a Clause instance is found in the
         PSyIR tree. It returns the clause and its children as a string.

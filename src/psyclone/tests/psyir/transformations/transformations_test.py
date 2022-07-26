@@ -53,7 +53,7 @@ from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE, \
     ImportInterface, ContainerSymbol
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
-    TransformationError, ParallelLoopTrans
+    TransformationError
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
     ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans, OMPParallelTrans, \
@@ -533,7 +533,6 @@ def test_omplooptrans_apply(sample_psyir, fortran_writer):
   !$omp end loop
   !$omp end parallel\n'''
 
-    print(fortran_writer(tree))
     assert expected in fortran_writer(tree)
 
 

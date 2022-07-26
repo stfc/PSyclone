@@ -133,7 +133,6 @@ class OMPSharedClause(Clause):
             return "shared"
         return ""
 
-
     @staticmethod
     def _validate_child(position, child):
         '''
@@ -222,9 +221,9 @@ class OMPDefaultClause(Clause):
     class DefaultClauseTypes(Enum):
         '''Enumeration of the different types of OMPDefaultClause supported
         in PSyclone'''
-        SHARED=0
-        NONE=1
-        FIRSTPRIVATE=2
+        SHARED = 0
+        NONE = 1
+        FIRSTPRIVATE = 2
 
     _children_valid_format = None
     _text_name = "OMPDefaultClause"
@@ -234,15 +233,15 @@ class OMPDefaultClause(Clause):
         clause_string = "default(" + str(self._clause_type.name).lower() + ")"
         return clause_string
 
-
     def __init__(self, clause_type=DefaultClauseTypes.SHARED):
         if not isinstance(clause_type, OMPDefaultClause.DefaultClauseTypes):
             raise TypeError(
                     "OMPDefaultClause expected 'clause_type' argument of type "
-                    "OMPDefaultClause.DefaultClauseTypes but found '{0}'"
-                    .format(type(clause_type).__name__))
+                    "OMPDefaultClause.DefaultClauseTypes but found "
+                    f"'{type(clause_type).__name__}'")
         self._clause_type = clause_type
         super(OMPDefaultClause, self).__init__()
+
 
 class OMPScheduleClause(Clause):
     '''
@@ -257,6 +256,11 @@ class OMPScheduleClause(Clause):
         return f"schedule({self._schedule})"
 
     def set_schedule(self, schedule):
+        '''
+        Set the schedule for this OMPScheduleClause
+
+        :param str schedule: The schedule to use for this clause.
+        '''
         self._schedule = schedule
 
     def __init__(self, schedule="static"):
@@ -265,6 +269,12 @@ class OMPScheduleClause(Clause):
 
     @property
     def schedule(self):
+        '''
+        Gets the schedule of this OMPScheduleClause
+
+        :returns: The schedule for this OMPScheduleClause.
+        :rtype: str
+        '''
         return self._schedule
 
     def __eq__(self, other):
@@ -273,6 +283,7 @@ class OMPScheduleClause(Clause):
         is_eq = super().__eq__(other)
         is_eq = is_eq and (self.schedule == other.schedule)
         return is_eq
+
 
 class OMPDependClause(OperandClause):
     '''
@@ -285,16 +296,16 @@ class OMPDependClause(OperandClause):
     class DependClauseTypes(Enum):
         '''Enumeration of the different types of OMPDependClause supported
         in PSyclone'''
-        IN=0
-        OUT=1
-        INOUT=2
+        IN = 0
+        OUT = 1
+        INOUT = 2
 
     def __init__(self, depend_type=DependClauseTypes.INOUT):
         if not isinstance(depend_type, OMPDependClause.DependClauseTypes):
             raise TypeError(
                     "OMPDependClause expected 'depend_type' argument of type "
-                    "OMPDependClause.DependClauseTypes but found '{0}'"
-                    .format(type(depend_type).__name__))
+                    "OMPDependClause.DependClauseTypes but found "
+                    f"'{type(depend_type).__name__}'")
         self._operand = depend_type
         super(OMPDependClause, self).__init__()
 
@@ -329,10 +340,11 @@ class OMPDependClause(OperandClause):
         is_eq = is_eq and (self.operand == other.operand)
         return is_eq
 
+
 class OMPReductionClause(OperandClause):
     '''
     OpenMP Reduction clause. Not yet used
     '''
     _children_valid_format = "[Reference]+"
     _text_name = "OMPReductionClause"
-    # FIXME Reduction string and operator 
+    # TODO: #1812 Reduction string and operator

@@ -27,7 +27,8 @@
 # BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
 # LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 # CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN                                                                                                        # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors A. B. G. Chalk, STFC Daresbury Lab
@@ -37,14 +38,15 @@
 
 from psyclone.psyir.nodes.clause import OperandClause
 
+
 def test_operand_clause(fortran_writer):
     '''
     Test the operand method of the operand clause.
     '''
     # Create a instanstiable class
-    class op_test(OperandClause):
-        pass
+    class OpTest(OperandClause):
+        ''' Temporary class for testing'''
 
-    op = op_test()
-    assert op.operand is None
-    assert fortran_writer(op) == ""
+    opt = OpTest()
+    assert opt.operand is None
+    assert fortran_writer(opt) == ""

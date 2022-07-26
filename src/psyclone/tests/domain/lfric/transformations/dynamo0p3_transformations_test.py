@@ -534,8 +534,6 @@ def test_omp_colour_trans(tmpdir, dist_mem):
         f"        !$omp parallel do default(shared), private(cell), "
         f"schedule(static)\n"
         f"        DO cell=loop1_start,{lookup}\n")
-    print(code)
-    print(output)
     assert output in code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -1719,7 +1717,7 @@ def test_builtin_single_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      CALL f2_proxy%set_dirty()\n"
             "      !\n"
-)
+        )
         assert code in result
     else:  # distmem is False. annexed can be True or False
         assert "loop0_stop = undf_aspc1_f2" in result
@@ -3737,7 +3735,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " sum_x(bsum,f2)\n" +
-            2*indent + ompdefault + "[]\n" + 
+            2*indent + ompdefault + "[]\n" +
             indent + "4: " + gsum + "[scalar='bsum']\n")
         if not annexed:
             expected = expected.replace("nannexed", "ndofs")
@@ -3756,7 +3754,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " x_innerproduct_y(asum,f1,f2)\n" +
-            2*indent + ompdefault + "[]\n" + 
+            2*indent + ompdefault + "[]\n" +
             indent + "1: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
             3*indent + "0: " + ompdo + "[]\n" +
@@ -3769,7 +3767,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " inc_a_times_x(asum,f1)\n" +
-            2*indent + ompdefault + "[]\n" + 
+            2*indent + ompdefault + "[]\n" +
             indent + "2: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
             3*indent + "0: " + ompdo + "[reprod=True]\n" +
@@ -3782,7 +3780,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " sum_x(bsum,f2)\n" +
-            2*indent + ompdefault + "[]" )
+            2*indent + ompdefault + "[]")
     if expected not in result:
         print("Expected ...")
         print(expected)
@@ -6311,7 +6309,6 @@ def test_intergrid_omp_parado(dist_mem, tmpdir):
     otrans.apply(loops[5])
     gen = str(psy.gen)
     assert "loop4_stop = ncolour_fld_c" in gen
-    print(gen)
     assert ("      DO colour=loop4_start,loop4_stop\n"
             "        !$omp parallel do default(shared), private(cell), "
             "schedule(static)\n" in gen)

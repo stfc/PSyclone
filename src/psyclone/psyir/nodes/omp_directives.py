@@ -44,15 +44,15 @@ nodes.'''
 
 from __future__ import absolute_import
 import abc
-import six
-import math
 import itertools
+import math
+import six
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import (AssignGen, UseGen, DeclGen, DirectiveGen,
-                              CommentGen, PSyIRGen)
+                              CommentGen)
 from psyclone.psyir.nodes import Reference, Assignment, IfBlock, Loop, \
                                  ArrayReference, ArrayOfStructuresReference, \
                                  StructureReference, Literal
@@ -444,13 +444,14 @@ class OMPMasterDirective(OMPSerialDirective):
 class OMPParallelDirective(OMPRegionDirective):
     ''' Class representing an OpenMP Parallel directive. '''
 
-    _children_valid_format = ("Schedule, OMPDefaultClause, [OMPPrivateClause], "
-                              "[OMPReductionClause]*")
+    _children_valid_format = ("Schedule, OMPDefaultClause, [OMPPrivateClause],"
+                              " [OMPReductionClause]*")
 
     def __init__(self, children=None, parent=None):
-       super(OMPParallelDirective, self).__init__(children=children, parent=parent)
-       self.addchild(OMPDefaultClause(clause_type=
-           OMPDefaultClause.DefaultClauseTypes.SHARED))
+        super(OMPParallelDirective, self).__init__(children=children,
+                                                   parent=parent)
+        self.addchild(OMPDefaultClause(clause_type=OMPDefaultClause.
+                                       DefaultClauseTypes.SHARED))
 
     @staticmethod
     def _validate_child(position, child):
@@ -467,7 +468,8 @@ class OMPParallelDirective(OMPRegionDirective):
             return True
         if position == 1 and isinstance(child, OMPDefaultClause):
             return True
-        if position == 2 and isinstance(child, (OMPPrivateClause, OMPReductionClause)):
+        if position == 2 and isinstance(child, (OMPPrivateClause,
+                                                OMPReductionClause)):
             return True
         if position >= 3 and isinstance(child, OMPReductionClause):
             return True
@@ -521,8 +523,7 @@ class OMPParallelDirective(OMPRegionDirective):
                     f"Reduction variables can only be used once in an invoke. "
                     f"'{name}' is used multiple times, please use a different "
                     f"reduction variable")
-            else:
-                names.append(name)
+            names.append(name)
 
         zero_reduction_variables(calls, parent)
 
@@ -533,7 +534,6 @@ class OMPParallelDirective(OMPRegionDirective):
         private_str = "private(" + ",".join(private_list) + ")"
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel",
                                 f"{default_str}, {private_str}"))
-
 
         if reprod_red_call_list:
             # add in a local thread index
@@ -705,6 +705,7 @@ class OMPParallelDirective(OMPRegionDirective):
             #                       "any OpenMP directives. This is probably "
             #                       "not what you want.")
 
+
 class OMPTaskDirective(OMPRegionDirective):
     '''
     Class representing an OpenMP TASK directive in the PSyIR.
@@ -719,7 +720,7 @@ class OMPTaskDirective(OMPRegionDirective):
 
     def __init__(self, children=None, parent=None):
         super(OMPTaskDirective, self).__init__(children=children,
-                                                   parent=parent)
+                                               parent=parent)
         # We don't know if we have a parent OMPParallelClause at initialisation
         # so we can only create dummy clauses for now.
         self.children.append(OMPPrivateClause())
@@ -764,7 +765,7 @@ class OMPTaskDirective(OMPRegionDirective):
             return isinstance(child, OMPFirstprivateClause)
         if position == 3:
             return isinstance(child, OMPSharedClause)
-        if position == 4 or position == 5:
+        if position in (4, 5):
             return isinstance(child, OMPDependClause)
         return False
 
@@ -826,7 +827,7 @@ class OMPTaskDirective(OMPRegionDirective):
         :type private_list: List of :py:class:`psyclone.psyir.nodes.Reference`
         :param firstprivate_list: The list of firstprivate References for this
                                   task.
-        :type firstprivate_list: List of 
+        :type firstprivate_list: List of
                                  :py:class:`psyclone.psyir.nodes.Reference`
         :param in_list: The list of input References for this task.
         :type in_list: List of :py:class:`psyclone.psyir.nodes.Reference`
@@ -897,27 +898,23 @@ class OMPTaskDirective(OMPRegionDirective):
            node.operator is not \
            BinaryOperation.Operator.SUB:
             raise GenerationError(
-                "Binary Operator of type {0} used "
+                f"Binary Operator of type {node.operator} used "
                 "as in index inside an "
                 "OMPTaskDirective which is not "
-                "supported".format(
-                    node.operator))
+                "supported")
         # We have ADD or SUB BinaryOperation
         # It must be either Ref OP Lit or Lit OP Ref
-        if not( (type(node.children[0]) is \
-           Reference and type(node.children[1]) is\
-           Literal) or (type(node.children[0])\
-           is Literal and type(node.children[1])\
-           is Reference)):
+        if not((isinstance(node.children[0], Reference)
+                and isinstance(node.children[1], Literal))
+                or (isinstance(node.children[0], Literal)
+                    and isinstance(node.children[1], Reference))):
             raise GenerationError(
                 "Children of BinaryOperation are of "
-                "types {0} and {1}, expected one "
+                f"types {type(node.children[0]).__name__} and "
+                f"{type(node.children[1]).__name__}, expected one "
                 "Reference and one Literal when"
                 " used as an index inside an "
-                "OMPTaskDirective.".format(
-                    type(node.children[0]).
-                    __name__, type(node.children[1]).
-                __name__))
+                "OMPTaskDirective.")
 
         # Have Reference +/- Literal, analyse
         # and create clause appropriately
@@ -926,17 +923,17 @@ class OMPTaskDirective(OMPRegionDirective):
         ref = None
         literal = None
         ref_index = None
-        if type(node.children[0]) is Reference:
+        if isinstance(node.children[0], Reference):
             index_symbol = node.children[0].symbol
             index_private = (node.children[0] in self._parallel_private)
-            is_proxy = (index_symbol in self._proxy_loop_vars) 
+            is_proxy = (index_symbol in self._proxy_loop_vars)
             ref = node.children[0]
             ref_index = 0
             literal = node.children[1]
-        if type(node.children[1]) is Reference:
+        if isinstance(node.children[1], Reference):
             index_symbol = node.children[1].symbol
             index_private = (node.children[1] in self._parallel_private)
-            is_proxy = (index_symbol in self._proxy_loop_vars) 
+            is_proxy = (index_symbol in self._proxy_loop_vars)
             ref = node.children[1]
             ref_index = 1
             literal = node.children[0]
@@ -947,8 +944,8 @@ class OMPTaskDirective(OMPRegionDirective):
         # the Reference with the proxy variable instead. This is the most
         # important case.
         # If the task contains Loops, and the Reference is to one of the
-        # Loop variables, then we create a Range object for : for that dimension.
-        # All other situations are treated as a constant.
+        # Loop variables, then we create a Range object for : for that
+        # dimension. All other situations are treated as a constant.
 
         # Find the child loops that are not proxies.
         child_loop_vars = []
@@ -959,7 +956,6 @@ class OMPTaskDirective(OMPRegionDirective):
         # Handle the proxy_loop case
         if is_proxy:
             # Treat it as though we came across the parent loop variable.
-            symbols_loop = self._proxy_loop_vars[index_symbol]['loop']
             parent_loop = self._proxy_loop_vars[index_symbol]['parent_loop']
             real_var = self._proxy_loop_vars[index_symbol]['parent_var']
 
@@ -1026,7 +1022,6 @@ class OMPTaskDirective(OMPRegionDirective):
                 index_list.append(binop)
 
         # Proxy use case handled.
-        
         # If the variable is private:
         elif index_private:
             # If the variable is in our private list
@@ -1070,7 +1065,7 @@ class OMPTaskDirective(OMPRegionDirective):
                     # Non-proxy access to a parent loop variable.
                     # In this case we have to do similar to when accessing a
                     # proxy loop variable.
-                    
+
                     # Find index of parent loop var
                     ind = self._parent_loop_vars.index(ref.symbol)
                     parent_loop = self._parent_loops[ind]
@@ -1147,11 +1142,10 @@ class OMPTaskDirective(OMPRegionDirective):
                     "OMPTaskDirective which is not "
                     "supported.")
 
-
     def _evaluate_readonly_arrayref(self, ref, private_list, firstprivate_list,
-                                    shared_list, in_list, out_list):
+                                    shared_list, in_list):
         '''
-        Evaluates a read-only access to an Array inside the task region, and 
+        Evaluates a read-only access to an Array inside the task region, and
         computes any data-sharing clauses and dependency clauses based upon the
         access.
 
@@ -1181,8 +1175,6 @@ class OMPTaskDirective(OMPRegionDirective):
         :type shared_list: List of :py:class:`psyclone.psyir.nodes.Reference`
         :param in_list: The list of input References for this task.
         :type in_list: List of :py:class:`psyclone.psyir.nodes.Reference`
-        :param out_list: The list of output References for this task.
-        :type out_list: List of :py:class:`psyclone.psyir.nodes.Reference`
 
         :raises GenerationError: If an array index is a shared variable.
         :raises GenerationError: If an array index is not a Reference, Literal
@@ -1204,6 +1196,7 @@ class OMPTaskDirective(OMPRegionDirective):
         # Reference to a firstprivate variable and a
         # Literal, with operator of ADD or SUB
         for dim, index in enumerate(ref.indices):
+            # pylint: disable=unidiomatic-typecheck
             if type(index) is Reference:
                 # Check whether the Reference is private
                 index_private = (index in
@@ -1213,10 +1206,10 @@ class OMPTaskDirective(OMPRegionDirective):
                 for child_loop in self.walk(Loop):
                     if child_loop.variable not in self._proxy_loop_vars:
                         child_loop_vars.append(child_loop.variable)
-                
+
                 if index_private:
                     if (index not in private_list and
-                        index not in firstprivate_list):
+                            index not in firstprivate_list):
                         firstprivate_list.append(index.copy())
                     # Special case 1. If index belongs to a child loop
                     # that is NOT a proxy for a parent loop, then we
@@ -1237,7 +1230,8 @@ class OMPTaskDirective(OMPRegionDirective):
                         # Special case 2. the index is a proxy for a parent
                         # loop's variable. In this case, we add a reference to
                         # the parent loop's value.
-                        parent_var = self._proxy_loop_vars[index.symbol]['parent_var']
+                        parent_var =\
+                            self._proxy_loop_vars[index.symbol]['parent_var']
                         parent_ref = Reference(parent_var)
                         index_list.append(parent_ref)
                     else:
@@ -1249,26 +1243,24 @@ class OMPTaskDirective(OMPRegionDirective):
                             "Shared variable access used "
                             "as an index inside an "
                             "OMPTaskDirective which is not "
-                            "supported. Variable name is {0}".
-                            format(index))
-            elif type(index) is BinaryOperation:
+                            f"supported. Variable name is {index}")
+            elif isinstance(index, BinaryOperation):
                 # Binary Operation check
                 # A single binary operation, e.g. a(i+1) can require
                 # multiple clauses to correctly handle.
                 self._handle_index_binop(index, index_list,
-                                                  firstprivate_list,
-                                                  private_list)
-            elif type(index) is Literal:
+                                         firstprivate_list,
+                                         private_list)
+            elif isinstance(index, Literal):
                 # Just place literal directly into the dependency clause.
                 index_list.append(index.copy())
             else:
                 # Not allowed type appears
                 raise GenerationError(
-                        "{0} object is not allowed to "
+                        f"{type(index).__name__} object is not allowed to "
                         "appear in an Array Index "
                         "expression inside an "
-                        "OMPTaskDirective.".format(
-                            type(index).__name__))
+                        "OMPTaskDirective.")
         # So we have a list of (lists of) indices
         # [ [index1, index4], index2, index3] so convert these
         # to an ArrayReference again.
@@ -1299,8 +1291,7 @@ class OMPTaskDirective(OMPRegionDirective):
             shared_list.append(sclause)
 
     def _evaluate_readonly_reference(self, ref, private_list,
-                                     firstprivate_list, shared_list, in_list,
-                                     out_list):
+                                     firstprivate_list, shared_list, in_list):
         '''
         Evaluates any Reference used in a read context. This is done by
         calling the appropriate helper functions for ArrayReferences,
@@ -1319,14 +1310,12 @@ class OMPTaskDirective(OMPRegionDirective):
         :type shared_list: List of :py:class:`psyclone.psyir.nodes.Reference`
         :param in_list: The list of input References for this task.
         :type in_list: List of :py:class:`psyclone.psyir.nodes.Reference`
-        :param out_list: The list of output References for this task.
-        :type out_list: List of :py:class:`psyclone.psyir.nodes.Reference`
         '''
         if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
             # Resolve ArrayReference (AOSReference)
             self._evaluate_readonly_arrayref(ref, private_list,
                                              firstprivate_list, shared_list,
-                                             in_list, out_list)
+                                             in_list)
         elif isinstance(ref, StructureReference):
             # This is treated the same as a Reference, except we have to
             # create a Reference to the symbol to handle.
@@ -1340,9 +1329,9 @@ class OMPTaskDirective(OMPRegionDirective):
                                             in_list)
 
     def _evaluate_write_arrayref(self, ref, private_list, firstprivate_list,
-                                 shared_list, in_list, out_list):
+                                 shared_list, out_list):
         '''
-        Evaluates a write access to an Array inside the task region, and 
+        Evaluates a write access to an Array inside the task region, and
         computes any data-sharing clauses and dependency clauses based upon the
         access.
 
@@ -1370,8 +1359,6 @@ class OMPTaskDirective(OMPRegionDirective):
                                  :py:class:`psyclone.psyir.nodes.Reference`
         :param shared_list: The list of shared References for this task.
         :type shared_list: List of :py:class:`psyclone.psyir.nodes.Reference`
-        :param in_list: The list of input References for this task.
-        :type in_list: List of :py:class:`psyclone.psyir.nodes.Reference`
         :param out_list: The list of output References for this task.
         :type out_list: List of :py:class:`psyclone.psyir.nodes.Reference`
 
@@ -1397,10 +1384,10 @@ class OMPTaskDirective(OMPRegionDirective):
                 for child_loop in self.walk(Loop):
                     if child_loop.variable not in self._proxy_loop_vars:
                         child_loop_vars.append(child_loop.variable)
-                
+
                 if index_private:
                     if (index not in private_list and
-                        index not in firstprivate_list):
+                            index not in firstprivate_list):
                         firstprivate_list.append(index.copy())
                     # Special case 1. If index belongs to a child loop
                     # that is NOT a proxy for a parent loop, then we
@@ -1421,7 +1408,8 @@ class OMPTaskDirective(OMPRegionDirective):
                         # Special case 2. the index is a proxy for a parent
                         # loop's variable. In this case, we add a reference to
                         # the parent loop's value.
-                        parent_var = self._proxy_loop_vars[index.symbol]['parent_var']
+                        parent_var =\
+                            self._proxy_loop_vars[index.symbol]['parent_var']
                         parent_ref = Reference(parent_var)
                         index_list.append(parent_ref)
                     else:
@@ -1433,12 +1421,11 @@ class OMPTaskDirective(OMPRegionDirective):
                             "Shared variable access used "
                             "as an index inside an "
                             "OMPTaskDirective which is not "
-                            "supported. Variable name is {0}".
-                            format(index))
+                            f"supported. Variable name is {index}")
             elif isinstance(index, BinaryOperation):
                 self._handle_index_binop(index, index_list,
-                                               firstprivate_list,
-                                               private_list)
+                                         firstprivate_list,
+                                         private_list)
 
         # So we have a list of (lists of) indices
         # [ [index1, index4], index2, index3] so convert these
@@ -1468,10 +1455,9 @@ class OMPTaskDirective(OMPRegionDirective):
         sclause = Reference(ref.symbol)
         if sclause not in shared_list:
             shared_list.append(sclause)
-                
 
-    def _evaluate_write_baseref(self, ref, private_list, firstprivate_list,
-                                shared_list, in_list, out_list):
+    def _evaluate_write_baseref(self, ref, private_list,
+                                shared_list, out_list):
         '''
         Evaluates a write to a non-ArrayReference reference. If the variable
         is declared private in the parent parallel region, then the variable
@@ -1485,14 +1471,8 @@ class OMPTaskDirective(OMPRegionDirective):
         :param private_list: The list of private References used in this task
                              region.
         :type private_list: List of :py:class:`psyclone.psyir.nodes.Reference`
-        :param firstprivate_list: The list of firstprivate References used in
-                                  this task region.
-        :type firstprivate_list: List of
-                                 :py:class:`psyclone.psyir.nodes.Reference`
         :param shared_list: The list of shared References for this task.
         :type shared_list: List of :py:class:`psyclone.psyir.nodes.Reference`
-        :param in_list: The list of input References for this task.
-        :type in_list: List of :py:class:`psyclone.psyir.nodes.Reference`
         :param out_list: The list of output References for this task.
         :type out_list: List of :py:class:`psyclone.psyir.nodes.Reference`
         '''
@@ -1509,7 +1489,7 @@ class OMPTaskDirective(OMPRegionDirective):
                 out_list.append(ref.copy())
 
     def _evaluate_write_reference(self, ref, private_list, firstprivate_list,
-                                  shared_list, in_list, out_list):
+                                  shared_list, out_list):
         '''
         Evaluates a write to any Reference in the task region. This is done by
         calling the appropriate subfunction depending on the type of the
@@ -1526,33 +1506,28 @@ class OMPTaskDirective(OMPRegionDirective):
                                  :py:class:`psyclone.psyir.nodes.Reference`
         :param shared_list: The list of shared References for this task.
         :type shared_list: List of :py:class:`psyclone.psyir.nodes.Reference`
-        :param in_list: The list of input References for this task.
-        :type in_list: List of :py:class:`psyclone.psyir.nodes.Reference`
         :param out_list: The list of output References for this task.
         :type out_list: List of :py:class:`psyclone.psyir.nodes.Reference`
         '''
         if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
             # Resoolve ArrayReference (AOSRef)
             self._evaluate_write_arrayref(ref, private_list, firstprivate_list,
-                                          shared_list, in_list, out_list)
+                                          shared_list, out_list)
         elif isinstance(ref, StructureReference):
             # This is treated the same as a Reference, but we create a
             # Reference to the symbol to handle.
             base_ref = Reference(ref.symbol)
             self._evaluate_write_baseref(base_ref, private_list,
-                                         firstprivate_list, shared_list,
-                                         in_list, out_list)
+                                         shared_list, out_list)
         elif isinstance(ref, Reference):
             self._evaluate_write_baseref(ref, private_list,
-                                         firstprivate_list, shared_list,
-                                         in_list, out_list)
-            
+                                         shared_list, out_list)
 
     def _evaluate_assignment(self, node, private_list, firstprivate_list,
                              shared_list, in_list, out_list):
         '''
         Evaluates an Assignment node within this task region. This is done
-        by calling the appropriate subfunction on each reference on the 
+        by calling the appropriate subfunction on each reference on the
         LHS and RHS of the Assignment.
 
         :param ref: The Assignment to be evaluated.
@@ -1575,15 +1550,14 @@ class OMPTaskDirective(OMPRegionDirective):
         rhs = node.children[1]
         # Evaluate LHS
         self._evaluate_write_reference(lhs, private_list, firstprivate_list,
-                                       shared_list, in_list, out_list)
+                                       shared_list, out_list)
 
         # Evaluate RHS
         references = rhs.walk(Reference)
         for ref in references:
             self._evaluate_readonly_reference(ref, private_list,
                                               firstprivate_list, shared_list,
-                                              in_list, out_list)
-
+                                              in_list)
 
     def _evaluate_loop(self, node, private_list, firstprivate_list,
                        shared_list, in_list, out_list):
@@ -1632,7 +1606,8 @@ class OMPTaskDirective(OMPRegionDirective):
         # Check if we have a loop of type do ii = i where i is a parent loop
         # variable.
         start_val_refs = start_val.walk(Reference)
-        if len(start_val_refs) == 1 and type(start_val_refs[0]) is Reference:
+        if (len(start_val_refs) == 1 and 
+                isinstance(start_val_refs[0], Reference)):
             # Loop through the parent loop variables
             for index, parent_var in enumerate(self._parent_loop_vars):
                 # If its a parent loop variable, we need to make it a proxy
@@ -1653,16 +1628,17 @@ class OMPTaskDirective(OMPRegionDirective):
         loop_var_ref = Reference(loop_var)
         if loop_var_ref not in self._parallel_private:
             raise GenerationError("Found shared loop variable which is"
-                    "not allowed in OpenMP Task directive. Variable name is "
-                    f"{loop_var_ref.name}")
+                                  "not allowed in OpenMP Task directive. "
+                                  f"Variable name is {loop_var_ref.name}")
         if loop_var_ref not in firstprivate_list:
             if loop_var_ref not in private_list:
                 private_list.append(loop_var_ref)
 
-        # If we have a proxy variable, the parent loop variable has to be 
+        # If we have a proxy variable, the parent loop variable has to be
         # firstprivate
         if to_remove is not None:
-            parent_var_ref = Reference(self._proxy_loop_vars[to_remove]['parent_var'])
+            parent_var_ref =\
+                Reference(self._proxy_loop_vars[to_remove]['parent_var'])
             if parent_var_ref not in firstprivate_list:
                 firstprivate_list.append(parent_var_ref.copy())
 
@@ -1670,35 +1646,31 @@ class OMPTaskDirective(OMPRegionDirective):
         # are already declared as something else
         for ref in start_val_refs:
             if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
-                raise GenerationError("{0} not supported in the start "
-                                      "variable of a Loop in a "
-                                      "OMPTaskDirective node.".format(
-                    type(ref).__name__))
+                raise GenerationError(f"{type(ref).__name__} not supported in "
+                                      "the start variable of a Loop in a "
+                                      "OMPTaskDirective node.")
             if (ref not in firstprivate_list and ref not in private_list and
-                ref not in shared_list):
+                    ref not in shared_list):
                 firstprivate_list.append(ref.copy())
 
         stop_val_refs = stop_val.walk(Reference)
         for ref in stop_val_refs:
             if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
-                raise GenerationError("{0} not supported in the stop "
-                                      "variable of a Loop in a "
-                                      "OMPTaskDirective node.".format(
-                    type(ref).__name__))
+                raise GenerationError(f"{type(ref).__name__} not supported in "
+                                      "the stop variable of a Loop in a "
+                                      "OMPTaskDirective node.")
             if (ref not in firstprivate_list and ref not in private_list and
-                ref not in shared_list):
+                    ref not in shared_list):
                 firstprivate_list.append(ref.copy())
 
-        
         step_val_refs = step_val.walk(Reference)
         for ref in step_val_refs:
             if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
-                raise GenerationError("{0} not supported in the step "
-                                      "variable of a Loop in a "
-                                      "OMPTaskDirective node.".format(
-                    type(ref).__name__))
+                raise GenerationError(f"{type(ref).__name__} not supported in "
+                                      "the step variable of a Loop in a "
+                                      "OMPTaskDirective node.")
             if (ref not in firstprivate_list and ref not in private_list and
-                ref not in shared_list):
+                    ref not in shared_list):
                 firstprivate_list.append(ref.copy())
 
         # Finished handling the loop bounds now
@@ -1739,7 +1711,7 @@ class OMPTaskDirective(OMPRegionDirective):
         for ref in node.condition.walk(Reference):
             self._evaluate_readonly_reference(ref, private_list,
                                               firstprivate_list, shared_list,
-                                              in_list, out_list)
+                                              in_list)
 
         # Recurse to the children
         # If block
@@ -1748,9 +1720,10 @@ class OMPTaskDirective(OMPRegionDirective):
                                 shared_list, in_list, out_list)
         # Else block if present
         if node.else_body is not None:
-           for child_node in node.else_body.children:
-               self._evaluate_node(child_node, private_list, firstprivate_list,
-                                   shared_list, in_list, out_list)
+            for child_node in node.else_body.children:
+                self._evaluate_node(child_node, private_list,
+                                    firstprivate_list, shared_list,
+                                    in_list, out_list)
 
     def _evaluate_node(self, node, private_list, firstprivate_list,
                        shared_list, in_list, out_list):
@@ -1821,11 +1794,13 @@ class OMPTaskDirective(OMPRegionDirective):
         # loop for now.
         if len(self.children[0].children) != 1:
             raise GenerationError("OMPTaskDirective must have exactly one Loop"
-                    f" child. Found {len(self.children[0].children)} "
-                    "children.")
+                                  f" child. Found "
+                                  f"{len(self.children[0].children)} "
+                                  "children.")
         if not isinstance(self.children[0].children[0], Loop):
             raise GenerationError("OMPTaskDirective must have exactly one Loop"
-                    f" child. Found {type(self.children[0].children[0])}")
+                                  " child. Found "
+                                  f"{type(self.children[0].children[0])}")
         self._evaluate_node(self.children[0].children[0], private_list,
                             firstprivate_list, shared_list, in_list,
                             out_list)
@@ -1840,17 +1815,19 @@ class OMPTaskDirective(OMPRegionDirective):
         shared_clause = OMPSharedClause()
         for ref in shared_list:
             shared_clause.addchild(ref)
-        
-        in_clause = OMPDependClause(depend_type=OMPDependClause.DependClauseTypes.IN)
+
+        in_clause = OMPDependClause(
+                        depend_type=OMPDependClause.DependClauseTypes.IN)
         for ref in in_list:
             in_clause.addchild(ref)
-        out_clause = OMPDependClause(depend_type=OMPDependClause.DependClauseTypes.OUT)
+        out_clause = OMPDependClause(
+                        depend_type=OMPDependClause.DependClauseTypes.OUT)
         for ref in out_list:
             out_clause.addchild(ref)
 
         return (private_clause, firstprivate_clause, shared_clause, in_clause,
                 out_clause)
-        
+
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
         "omp task ...". The visitor is responsible for adding the
@@ -1860,9 +1837,8 @@ class OMPTaskDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        clause_list = []
-        private_clause, firstprivate_clause, shared_clause, in_clause, out_clause = \
-                self._compute_clauses()
+        private_clause, firstprivate_clause, shared_clause, in_clause,\
+            out_clause = self._compute_clauses()
 
         if len(self.children) < 2 or private_clause != self.children[1]:
             self.children[1] = private_clause
@@ -1889,6 +1865,7 @@ class OMPTaskDirective(OMPRegionDirective):
         '''
         # pylint: disable=no-self-use
         return "omp end task"
+
 
 class OMPTaskloopDirective(OMPRegionDirective):
     '''
@@ -2270,8 +2247,8 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
                                 children=children,
                                 parent=parent,
                                 omp_schedule=omp_schedule)
-        self.addchild(OMPDefaultClause(clause_type=
-           OMPDefaultClause.DefaultClauseTypes.SHARED))
+        self.addchild(OMPDefaultClause(
+            clause_type=OMPDefaultClause.DefaultClauseTypes.SHARED))
 
     @staticmethod
     def _validate_child(position, child):

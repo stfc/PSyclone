@@ -499,7 +499,6 @@ class CWriter(LanguageWriter):
         result_list.append(", ".join(clause_list))
         result_list.append("\n{\n")
 
-
         self._depth += 1
         for child in node.dir_body:
             result_list.append(self._visit(child))

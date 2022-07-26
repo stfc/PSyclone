@@ -33,22 +33,23 @@
 # -----------------------------------------------------------------------------
 # Author A. B. G. Chalk STFC Daresbury Lab
 ''' This module provides the OMPTaskTrans transformation.'''
-from psyclone.core import VariablesAccessInfo
-from psyclone.errors import LazyString, InternalError, GenerationError
-from psyclone.psyir.transformations.parallel_loop_trans import ParallelLoopTrans
-from psyclone.psyir import nodes
+from psyclone.errors import GenerationError
+from psyclone.psyir.transformations.parallel_loop_trans import\
+    ParallelLoopTrans
 from psyclone.psyir.nodes import CodeBlock
-from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import Loop, Schedule, \
-    OMPDoDirective, OMPTaskDirective, OMPSerialDirective, \
-    OMPSingleDirective, OMPParallelDirective
+from psyclone.psyir.nodes import OMPTaskDirective
 from psyclone.psyir.transformations.transformation_error import \
         TransformationError
 
-class OMPTaskTrans(ParallelLoopTrans):
-    ''' TODO: Documentation'''
 
-    @property
+class OMPTaskTrans(ParallelLoopTrans):
+    ''' Apply an OpenMP Task Transformation to a Loop. The Loop must
+    be within an OpenMP Serial region (Single or Master) at codegen time.
+
+    Note: At the moment it is up to the user to ensure their OMPTaskTrans
+    use generates correct code. We will implement a check into
+    OMPSerialDirective soon to validate this. '''
+
     def __str__(self):
         return "Adds an 'OMP TASK' directive to a statement"
 
@@ -70,7 +71,7 @@ class OMPTaskTrans(ParallelLoopTrans):
         :type options: dict of string:values or None
         '''
         # Disallow CodeBlocks inside the region
-        if len(node.walk(CodeBlock)) > 0: 
+        if len(node.walk(CodeBlock)) > 0:
             raise GenerationError(
                 "OMPTaskDirective cannot be applied to a region containing "
                 "a code block")
@@ -104,7 +105,7 @@ class OMPTaskTrans(ParallelLoopTrans):
     def apply(self, node, options=None):
         '''Apply the OMPTaskTrans to the specified node in a Schedule.
 
-        TODO: What types of node can this be applied to
+        Can only be applied to a Loop.
 
         The specified node is wrapped by directives during code generation
         like so:
@@ -115,13 +116,13 @@ class OMPTaskTrans(ParallelLoopTrans):
           ...
           !$OMP END TASK
 
-        At code-generation time (when 
+        At code-generation time (when
         :py:meth:`OMPTaskDirective.gen_code` is called), this node must be
         within (i.e. a child of) an OpenMP Serial region (OpenMP Single or
         OpenMP Master)
         :param node: the supplied node to which we will apply the \
                      OMPTaskTrans transformation
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations\
                         and validation.
         :type options: dictionary of string:values or None
