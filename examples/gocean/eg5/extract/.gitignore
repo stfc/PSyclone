@@ -1,5 +1,6 @@
 alg.f90
 psy.f90
 extract_test
-*nc
+*.nc
+*.binary
 driver-main*
