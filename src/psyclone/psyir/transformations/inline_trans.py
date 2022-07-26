@@ -78,6 +78,10 @@ class InlineTrans(Transformation):
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # print(psyir.walk(Routine)[0].view())
 
+    The routine to be inlined must not contain any un-resolved symbols or
+    access any symbols that are defined in the parent container. Currently,
+    (#924) the routine must also be in the same source file as the call.
+
     '''
     def apply(self, node, options=None):
         '''
