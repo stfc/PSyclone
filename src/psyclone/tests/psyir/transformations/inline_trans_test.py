@@ -485,6 +485,34 @@ def test_inline_local_symbols_check(fortran_reader):
             "refer to that container at the call site." in str(err.value))
 
 
+def test_inline_non_local_import(fortran_reader, fortran_writer):
+    '''Test that we correctly handle the case where the routine to be
+    inlined accesses a symbol from an import in its parent container.'''
+    code = (
+        "module test_mod\n"
+        "  use some_mod, only: trouble\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "    integer :: i\n"
+        "    i = 10\n"
+        "    call sub(i)\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(idx)\n"
+        "    integer :: idx\n"
+        "    idx = idx + trouble\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(call)
+    output = fortran_writer(psyir)
+    assert ("  subroutine run_it()\n"
+            "    integer :: i\n\n"
+            "    i = 10\n"
+            "    i = i + trouble\n" in output)
+
+
 def test_apply_validate():
     '''Test the apply method calls the validate method.'''
     hoist_trans = InlineTrans()
@@ -609,6 +637,32 @@ def test_validate_import_clash(fortran_reader):
     assert ("Routine 'sub' imports 'trouble' from Container 'other_mod' but "
             "the call site has an import of a symbol with the same name from "
             "Container 'some_mod'" in str(err.value))
+
+
+def test_validate_non_local_symbol(fortran_reader):
+    '''Test that validate() raises the expected error when the routine to be
+    inlined accesses a symbol from its parent container.'''
+    code = (
+        "module test_mod\n"
+        "  integer :: trouble\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "    integer :: i\n"
+        "    i = 10\n"
+        "    call sub(i)\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(idx)\n"
+        "    integer :: idx\n"
+        "    idx = idx + trouble\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(call)
+    assert ("Routine 'sub' cannot be inlined because it accesses variable "
+            "'trouble' from its parent container" in str(err.value))
 
 
 # _find_routine

@@ -253,6 +253,8 @@ class InlineTrans(Transformation):
         :raises TransformationError: if the routine body contains a CodeBlock.
         :raises TransformationError: if a symbol of a given name is imported \
             from different containers at the call site and within the routine.
+        :raises TransformationError: if a symbol declared in the parent \
+            container is accessed in the target routine.
 
         '''
         super().validate(node, options=options)
@@ -308,6 +310,18 @@ class InlineTrans(Transformation):
                         f"the call site has an import of a symbol with the "
                         f"same name from Container "
                         f"'{sym.interface.container_symbol.name}'.")
+
+        # Check for symbols accessed from the Container containing the target
+        # routine.
+        refs = routine.walk(Reference)
+        for ref in refs:
+            if ref.symbol.name not in routine_table:
+                sym = routine_table.lookup(ref.symbol.name)
+                if not sym.is_import:
+                    raise TransformationError(
+                        f"Routine '{routine.name}' cannot be inlined because "
+                        f"it accesses variable '{ref.symbol.name}' from its "
+                        f"parent container.")
 
     def _find_routine(self, call_node):
         '''
