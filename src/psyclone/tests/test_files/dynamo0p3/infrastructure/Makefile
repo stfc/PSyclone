@@ -121,6 +121,7 @@ function_space_constructor_helper_functions_mod.o: mesh_mod.o
 operator_mod.o:	operator_parent_mod.o function_space_mod.o
 r_solver_operator_mod.o:	operator_parent_mod.o function_space_mod.o
 columnwise_operator_mod.o:	operator_parent_mod.o function_space_mod.o
+operator_parent_mod.o: function_space_mod.o
 reference_element_mod.o: constants_mod.o
 mesh_colouring_mod.o: reference_element_mod.o
 matrix_invert_mod.o: constants_mod.o
