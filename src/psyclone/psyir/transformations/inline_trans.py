@@ -251,6 +251,8 @@ class InlineTrans(Transformation):
         :raises TransformationError: if the routine body contains a Return \
             that is not the first or last statement.
         :raises TransformationError: if the routine body contains a CodeBlock.
+        :raises TransformationError: if a symbol of a given name is imported \
+            from different containers at the call site and within the routine.
 
         '''
         super().validate(node, options=options)
