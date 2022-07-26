@@ -219,7 +219,11 @@ contains
         ! even though e.g. boundary areas or so might not be set at all.
         ! The compiler will convert the double precision value to the right
         ! type (e.g. int or single precision).
+        {% if name == "Logical" %}
+        value = .false.
+        {% else %}
         value = 0.0d0
+        {% endif %}
         read(this%unit_number) value
 
     end subroutine ReadArray{{dim}}d{{name}}
