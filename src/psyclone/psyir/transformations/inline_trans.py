@@ -159,7 +159,8 @@ class InlineTrans(Transformation):
             idx += 1
             parent.addchild(child, idx)
 
-    def _inline_container_symbols(self, table, routine_table):
+    @staticmethod
+    def _inline_container_symbols(table, routine_table):
         '''
         Takes container symbols from the symbol table of the routine being
         inlined and adds them to the table of the call site. All references
@@ -211,7 +212,8 @@ class InlineTrans(Transformation):
                                 callsite_sym.name, other_table=routine_table))
                 isym.interface = ImportInterface(table.lookup(csym.name))
 
-    def _inline_symbols(self, table, routine_table, precision_map):
+    @staticmethod
+    def _inline_symbols(table, routine_table, precision_map):
         '''
         Takes symbols from the symbol table of the routine and adds
         them to the table of the call site. Any literals that refer to
@@ -254,6 +256,7 @@ class InlineTrans(Transformation):
                     callsite_csym = table.lookup(
                         old_sym.interface.container_symbol.name)
                     if old_sym.interface.container_symbol is not callsite_csym:
+                        # pylint: disable=raise-missing-from
                         raise InternalError(
                             f"Symbol '{old_sym.name}' imported from "
                             f"'{callsite_csym.name}' has not been updated to "
@@ -367,7 +370,8 @@ class InlineTrans(Transformation):
                         f"it accesses variable '{ref.symbol.name}' from its "
                         f"parent container.")
 
-    def _find_routine(self, call_node):
+    @staticmethod
+    def _find_routine(call_node):
         '''
         Searches for the definition of the routine that is being called by
         the supplied Call.
@@ -392,10 +396,10 @@ class InlineTrans(Transformation):
         for routine in table.node.walk(Routine):
             if routine.name == name:
                 return routine
-        else:
-            raise InternalError(
-                f"Failed to find the source for routine '{name}' and "
-                f"therefore cannot inline it.")
+
+        raise InternalError(
+            f"Failed to find the source for routine '{name}' and "
+            f"therefore cannot inline it.")
 
 
 # For AutoAPI auto-documentation generation.
