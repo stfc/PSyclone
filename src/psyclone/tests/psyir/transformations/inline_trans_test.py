@@ -452,8 +452,8 @@ def test_apply_callsite_rename_container(fortran_reader, fortran_writer):
             "    i = i * a_mod_1\n" in output)
 
 
-def test_inline_local_symbols_check(fortran_reader):
-    '''Test the internal consistency check within _inline_local_symbols.'''
+def test_inline_symbols_check(fortran_reader):
+    '''Test the internal consistency check within _inline_symbols.'''
     code = (
         "module test_mod\n"
         "contains\n"
@@ -479,8 +479,8 @@ def test_inline_local_symbols_check(fortran_reader):
     callee = routines[1]
     inline_trans = InlineTrans()
     with pytest.raises(InternalError) as err:
-        inline_trans._inline_local_symbols(caller.symbol_table,
-                                           callee.symbol_table, {})
+        inline_trans._inline_symbols(caller.symbol_table,
+                                     callee.symbol_table, {})
     assert ("Symbol 'a_clash' imported from 'a_mod' has not been updated to "
             "refer to that container at the call site." in str(err.value))
 

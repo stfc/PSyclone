@@ -42,7 +42,8 @@ from psyclone.errors import InternalError
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     Call, Routine, Reference, CodeBlock, Return, Literal)
-from psyclone.psyir.symbols import ContainerSymbol, DataSymbol
+from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol, ScalarType,
+                                    ImportInterface)
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 
@@ -116,6 +117,7 @@ class InlineTrans(Transformation):
         # References that they contain.
         new_stmts = []
         refs = []
+        # Map from name of precision symbol to those Literals that use it.
         precision_map = {}
         for child in routine.children:
             new_stmts.append(child.copy())
@@ -133,7 +135,7 @@ class InlineTrans(Transformation):
         # Copy each Symbol from the Routine into the symbol table associated
         # with the call site, excluding those that represent dummy arguments
         # or containers.
-        self._inline_local_symbols(table, routine_table, precision_map)
+        self._inline_symbols(table, routine_table, precision_map)
 
         # Replace any references to dummy arguments with copies of the
         # actual arguments.
@@ -207,13 +209,14 @@ class InlineTrans(Transformation):
                             callsite_sym,
                             table.next_available_name(
                                 callsite_sym.name, other_table=routine_table))
-                # TODO currently interface is immutable?
-                isym.interface._container_symbol = table.lookup(csym.name)
+                isym.interface = ImportInterface(table.lookup(csym.name))
 
-    def _inline_local_symbols(self, table, routine_table, precision_map):
+    def _inline_symbols(self, table, routine_table, precision_map):
         '''
-        Takes local symbols from the symbol table of the routine and adds
-        them to the table of the call site.
+        Takes symbols from the symbol table of the routine and adds
+        them to the table of the call site. Any literals that refer to
+        precision symbols are updated to refer to the appropriate symbol in
+        the table at the call site.
 
         :param table: the symbol table at the call site.
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
@@ -233,8 +236,9 @@ class InlineTrans(Transformation):
         for old_sym in routine_table.symbols:
 
             if old_sym in dummy_args or isinstance(old_sym, ContainerSymbol):
-                # We've already dealt with Container symbols and
-                # we deal with dummy arguments after this loop.
+                # We've dealt with Container symbols in
+                # _inline_container_symbols() and we deal with dummy arguments
+                # in apply().
                 continue
 
             old_name = old_sym.name
@@ -262,11 +266,14 @@ class InlineTrans(Transformation):
                     routine_table.rename_symbol(old_sym, new_name)
                     table.add(old_sym)
 
+            # Check whether this symbol is used to specify the precision of
+            # any literals.
             if old_name in precision_map:
                 for lit in precision_map[old_name]:
-                    # TODO should we make the precision of a
-                    # DataType mutable?
-                    lit.datatype._precision = old_sym
+                    # A literal is immutable so create a new one with the
+                    # updated symbol as its precision.
+                    dtype = ScalarType(lit.datatype.intrinsic, old_sym)
+                    lit.replace_with(Literal(lit.value, dtype))
 
     def validate(self, node, options=None):
         '''
