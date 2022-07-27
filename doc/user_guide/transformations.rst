@@ -400,6 +400,14 @@ can be found in the API-specific sections).
 
 ####
 
+.. _replace_induction_variable_trans:
+
+.. autoclass:: psyclone.psyir.transformations.ReplaceInductionVariablesTrans
+      :members: apply
+      :noindex:
+
+####
+
 .. autoclass:: psyclone.psyir.transformations.Sign2CodeTrans
       :members: apply
       :noindex:

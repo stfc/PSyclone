@@ -38,13 +38,11 @@
 Algorithm PSyIR.
 
 '''
-from __future__ import absolute_import
-
 from psyclone.psyir.nodes import Call
-from psyclone.domain.lfric.algorithm import \
-    LFRicAlgorithmInvokeCall, LFRicKernelFunctor, LFRicBuiltinFunctor
-from psyclone.domain.lfric.transformations import LFRicAlgTrans, \
-    LFRicRaiseCall2InvokeTrans
+from psyclone.domain.lfric.algorithm.psyir import (
+    LFRicAlgorithmInvokeCall, LFRicKernelFunctor, LFRicBuiltinFunctor)
+from psyclone.domain.lfric.transformations import (
+    LFRicAlgTrans, LFRicRaiseCall2InvokeTrans)
 
 
 def test_init():
