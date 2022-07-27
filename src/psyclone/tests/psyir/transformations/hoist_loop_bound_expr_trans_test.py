@@ -42,6 +42,7 @@ from psyclone.psyir.nodes import Literal, Loop, Routine
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations import HoistLoopBoundExprTrans, \
     TransformationError
+from psyclone.transformations import OMPParallelLoopTrans
 
 
 def test_str():
@@ -74,7 +75,6 @@ def test_apply(fortran_reader, fortran_writer):
     loop = psyir.walk(Loop)[0]
     trans = HoistLoopBoundExprTrans()
     trans.apply(loop)
-    print(fortran_writer(psyir))
     # Start expression is not hoisted because it is a literal
     expected = """
     loop_step = mytype%step
@@ -110,7 +110,6 @@ def test_apply_nested(fortran_reader, fortran_writer):
     trans = HoistLoopBoundExprTrans()
     for loop in psyir.walk(Loop):
         trans.apply(loop)
-    print(fortran_writer(psyir))
     # Start expression is not hoisted because it is a simple scalar reference
     expected = """
     loop_stop = UBOUND(a, 2)
@@ -129,9 +128,42 @@ def test_apply_nested(fortran_reader, fortran_writer):
     assert "loop_stop_1" in routine_symtab
 
 
+def test_apply_loop_with_directive(fortran_reader):
+    '''Test the apply method moves the complex loop bounds out of
+    the loop construct and places them immediately before the loop,
+    when the loop has a parent directive.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        module test_mod
+            contains
+            subroutine test(A)
+                real, dimension(:), intent(inout) :: A
+                integer :: i
+                do i=LBOUND(a,1), UBOUND(a,1)
+                    A(i) = 1
+                enddo
+            end subroutine test
+        end module test_mod
+    ''')
+    loop = psyir.walk(Loop)[0]
+    # Currently OMPLoops cannot be applied to generic Loops, we bypass this
+    # limitation by giving it a loop_type attribute.
+    loop.loop_type = None
+    omplooptrans = OMPParallelLoopTrans()
+    hoist_trans = HoistLoopBoundExprTrans()
+    omplooptrans.apply(loop)
+    with pytest.raises(TransformationError) as err:
+        hoist_trans.apply(loop)
+    assert ("The loop provided to HoistLoopBoundExprTrans must not be directly"
+            " inside a Directive as its Schedule does not support multiple "
+            "statements, but found 'OMPParallelDoDirective[]'."
+            in str(err.value))
+
+
 def test_validate():
-    '''Test the apply method call the validation and this checks that the
-    hoist is invoked to a loop which has an ancestor Routine node.
+    '''Test the apply method call the validation and that this checks that the
+    hoist is applied to a loop which has an ancestor Routine node.
 
     '''
     trans = HoistLoopBoundExprTrans()

@@ -40,7 +40,7 @@ places them in integer scalar assignments before the loop.
 '''
 
 from psyclone.psyir.nodes import Routine, Literal, Reference, \
-    StructureReference, Assignment
+    StructureReference, Assignment, Directive
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations.loop_trans import LoopTrans, \
     TransformationError
@@ -132,6 +132,8 @@ class HoistLoopBoundExprTrans(LoopTrans):
 
         :raises TransformationError: if the supplied node does not have an \
             ancestor Routine.
+        :raises TransformationError: if the supplied node is directly inside \
+            a Directive Schedule.
 
         '''
         super().validate(node)
@@ -141,6 +143,15 @@ class HoistLoopBoundExprTrans(LoopTrans):
             raise TransformationError(
                 "The loop provided to HoistLoopBoundExprTrans must belong to"
                 " a Routine into which the hoisted expressions can be placed.")
+
+        # TODO #1817: We can remove this restriction if we get rid of the
+        # special Schedule that some directives have.
+        # The node should not be directly inside a directive
+        if node.parent.parent and isinstance(node.parent.parent, Directive):
+            raise TransformationError(
+                f"The loop provided to HoistLoopBoundExprTrans must not be "
+                f"directly inside a Directive as its Schedule does not support"
+                f" multiple statements, but found '{node.parent.parent}'.")
 
     def __str__(self):
         return ("Hoist complex loop bound expressions outside the loop "
