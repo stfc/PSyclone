@@ -77,9 +77,9 @@ def test_apply(fortran_reader, fortran_writer):
     print(fortran_writer(psyir))
     # Start expression is not hoisted because it is a literal
     expected = """
-    loop_bound_1 = mytype%step
-    loop_bound = UBOUND(a, 1)
-    do i = 1, loop_bound, loop_bound_1
+    loop_step = mytype%step
+    loop_stop = UBOUND(a, 1)
+    do i = 1, loop_stop, loop_step
       a(i) = 1
     enddo\n"""
     assert expected in fortran_writer(psyir)
@@ -113,20 +113,20 @@ def test_apply_nested(fortran_reader, fortran_writer):
     print(fortran_writer(psyir))
     # Start expression is not hoisted because it is a simple scalar reference
     expected = """
-    loop_bound = UBOUND(a, 2)
-    do i = start, loop_bound, 1
-      loop_bound_2 = UBOUND(a, 1)
-      loop_bound_1 = LBOUND(a, 1)
-      do j = loop_bound_1, loop_bound_2, 1
+    loop_stop = UBOUND(a, 2)
+    do i = start, loop_stop, 1
+      loop_stop_1 = UBOUND(a, 1)
+      loop_start = LBOUND(a, 1)
+      do j = loop_start, loop_stop_1, 1
         a(j,i) = 1
       enddo
     enddo\n"""
     assert expected in fortran_writer(psyir)
     routine_symtab = psyir.walk(Routine)[0].symbol_table
     # Check that all the new symbols are in the routine scope
-    assert "loop_bound" in routine_symtab
-    assert "loop_bound_1" in routine_symtab
-    assert "loop_bound_2" in routine_symtab
+    assert "loop_start" in routine_symtab
+    assert "loop_stop" in routine_symtab
+    assert "loop_stop_1" in routine_symtab
 
 
 def test_validate():
@@ -144,5 +144,5 @@ def test_validate():
             DataSymbol("i", INTEGER_TYPE), Literal("1", INTEGER_TYPE),
             Literal("10", INTEGER_TYPE), Literal("1", INTEGER_TYPE), []))
     assert ("The loop provided to HoistLoopBoundExprTrans must belong to a "
-            "Routine where to place the hoisted expressions."
+            "Routine into which the hoisted expressions can be placed."
             in str(err.value))
