@@ -1,6 +1,6 @@
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2021, Science and Technology Facilities Council
+! Copyright (c) 2017-2022, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -46,9 +46,10 @@ module testkern_w0_kernel_mod
 
   type, public, extends(kernel_type) :: testkern_w0_kernel_type
      private
-     type(arg_type), dimension(2) :: meta_args =       &
+     type(arg_type), dimension(3) :: meta_args =       &
           (/ arg_type(gh_field, gh_real, gh_inc,  w0), &
-             arg_type(gh_field, gh_real, gh_read, w0)  &
+             arg_type(gh_field, gh_real, gh_read, w0), &
+             arg_type(gh_scalar, gh_logical, gh_read)  &
            /)
      integer :: operates_on = cell_column
    contains
@@ -59,7 +60,8 @@ module testkern_w0_kernel_mod
 
 contains
 
-  subroutine testkern_w0_code(nlayers, fld1, fld2, ndf_w0, undf_w0, map_w0)
+  subroutine testkern_w0_code(nlayers, fld1, fld2, some_logical, &
+                              ndf_w0, undf_w0, map_w0)
 
     implicit none
 
@@ -67,6 +69,7 @@ contains
     integer(kind=i_def)                                 :: ndf_w0, undf_w0
     real(kind=r_def), dimension(undf_w0), intent(inout) :: fld1
     real(kind=r_def), dimension(undf_w0), intent(in)    :: fld2
+    logical(kind=l_def), intent(in)                     :: some_logical
     integer(kind=i_def), dimension(ndf_w0)              :: map_w0
 
     integer(kind=i_def)                                 :: i, k
@@ -74,6 +77,9 @@ contains
     do k=0, nlayers-1
       do i=1, ndf_w0
         fld1(map_w0(i)+k) = fld1(map_w0(i)+k) + fld2(map_w0(i)+k)
+        if (some_logical) then
+          fld1(map_w0(i)+k) = fld1(map_w0(i)+k) + 1
+        endif
       end do
     end do
 
