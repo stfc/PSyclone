@@ -515,17 +515,6 @@ class OMPParallelDirective(OMPRegionDirective):
         code'''
         from psyclone.psyGen import zero_reduction_variables
 
-        reprod_red_call_list = self.reductions(reprod=True)
-        if reprod_red_call_list:
-            # we will use a private thread index variable
-            thread_idx = self.scope.symbol_table.\
-                lookup_with_tag("omp_thread_index")
-            private_clause.addchild(Reference(thread_idx))
-            thread_idx = thread_idx.name
-            # declare the variable
-            parent.add(DeclGen(parent, datatype="integer",
-                               entity_decls=[thread_idx]))
-
         # We're not doing nested parallelism so make sure that this
         # omp parallel region is not already within some parallel region
         self.validate_global_constraints()
@@ -539,6 +528,17 @@ class OMPParallelDirective(OMPRegionDirective):
         private_clause = self._get_private_clause()
         if private_clause != self.private_clause:
             self._children[2] = private_clause
+
+        reprod_red_call_list = self.reductions(reprod=True)
+        if reprod_red_call_list:
+            # we will use a private thread index variable
+            thread_idx = self.scope.symbol_table.\
+                lookup_with_tag("omp_thread_index")
+            private_clause.addchild(Reference(thread_idx))
+            thread_idx = thread_idx.name
+            # declare the variable
+            parent.add(DeclGen(parent, datatype="integer",
+                               entity_decls=[thread_idx]))
 
         calls = self.reductions()
 

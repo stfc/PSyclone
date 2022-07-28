@@ -70,7 +70,7 @@ PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 # and double, and for 1-, 2-, 3-, and 4-dimensional arrays. These arguments
 # are used for both base classes: PSyDataBase and NANTestBase to ensure
 # consistent code creation.
-PROCESS_ARGS = -prefix=nan_test_ -types=real,int,double \
+PROCESS_ARGS = -prefix=nan_test_ -types=real,int,logical,double \
 		       -dims=1,2,3,4
 PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 

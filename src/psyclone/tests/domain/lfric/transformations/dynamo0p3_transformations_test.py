@@ -1703,7 +1703,7 @@ def test_builtin_single_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
         else:
             assert ("loop0_stop = f2_proxy%vspace%get_last_dof_owned()"
                     in result)
-        code = (
+        assert (
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static)\n"
             "      DO df=loop0_start,loop0_stop\n"
@@ -1716,9 +1716,7 @@ def test_builtin_single_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
             "above loop(s)\n"
             "      !\n"
             "      CALL f2_proxy%set_dirty()\n"
-            "      !\n"
-        )
-        assert code in result
+            "      !\n") in result
     else:  # distmem is False. annexed can be True or False
         assert "loop0_stop = undf_aspc1_f2" in result
         assert (
@@ -3671,6 +3669,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
     ompparallel = colored("OMPParallelDirective", Directive._colour)
     ompdo = colored("OMPDoDirective", Directive._colour)
     ompdefault = colored("OMPDefaultClause", Directive._colour)
+    ompprivate = colored("PrivateClause", Directive._colour)
     gsum = colored("GlobalSum", GlobalSum._colour)
     loop = colored("Loop", Loop._colour)
     call = colored("BuiltIn", BuiltIn._colour)
@@ -3708,7 +3707,8 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " x_innerproduct_y(asum,f1,f2)\n" +
-            2*indent + ompdefault + "[]\n" +
+            2*indent + ompdefault + "[default=DefaultClauseTypes.SHARED]\n" +
+            2*indent + ompprivate + "[]\n" +
             indent + "1: " + gsum + "[scalar='asum']\n" +
             indent + "2: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
@@ -3722,7 +3722,8 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " inc_a_times_x(asum,f1)\n" +
-            2*indent + ompdefault + "[]\n" +
+            2*indent + ompdefault + "[default=DefaultClauseTypes.SHARED]\n" +
+            2*indent + ompprivate + "[]\n" +
             indent + "3: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
             3*indent + "0: " + ompdo + "[reprod=True]\n" +
@@ -3735,7 +3736,8 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " sum_x(bsum,f2)\n" +
-            2*indent + ompdefault + "[]\n" +
+            2*indent + ompdefault + "[default=DefaultClauseTypes.SHARED]\n" +
+            2*indent + ompprivate + "[]\n" +
             indent + "4: " + gsum + "[scalar='bsum']\n")
         if not annexed:
             expected = expected.replace("nannexed", "ndofs")
@@ -3754,7 +3756,8 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " x_innerproduct_y(asum,f1,f2)\n" +
-            2*indent + ompdefault + "[]\n" +
+            2*indent + ompdefault + "[default=DefaultClauseTypes.SHARED]\n" +
+            2*indent + ompprivate + "[]\n" +
             indent + "1: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
             3*indent + "0: " + ompdo + "[]\n" +
@@ -3767,7 +3770,8 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " inc_a_times_x(asum,f1)\n" +
-            2*indent + ompdefault + "[]\n" +
+            2*indent + ompdefault + "[default=DefaultClauseTypes.SHARED]\n" +
+            2*indent + ompprivate + "[]\n" +
             indent + "2: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
             3*indent + "0: " + ompdo + "[reprod=True]\n" +
@@ -3780,7 +3784,8 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " sum_x(bsum,f2)\n" +
-            2*indent + ompdefault + "[]")
+            2*indent + ompdefault + "[default=DefaultClauseTypes.SHARED]\n" +
+            2*indent + ompprivate + "[]")
     if expected not in result:
         print("Expected ...")
         print(expected)
