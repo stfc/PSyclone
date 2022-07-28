@@ -252,6 +252,16 @@ class OMPDefaultClause(Clause):
         clause_string = "default(" + str(self._clause_type.name).lower() + ")"
         return clause_string
 
+    def node_str(self, colour=True):
+        '''
+        :param bool colour: whether or not to include control codes for \
+                            coloured text.
+
+        :returns: a text description of this node.
+        :rtype: str
+        '''
+        return self.coloured_name(colour) + f"[default={self._clause_type}]"
+
 
 class OMPScheduleClause(Clause):
     '''
@@ -305,6 +315,16 @@ class OMPScheduleClause(Clause):
         is_eq = super().__eq__(other)
         is_eq = is_eq and (self.schedule == other.schedule)
         return is_eq
+
+    def node_str(self, colour=True):
+        '''
+        :param bool colour: whether or not to include control codes for \
+                            coloured text.
+
+        :returns: a text description of this node.
+        :rtype: str
+        '''
+        return self.coloured_name(colour) + f"[schedule={self._schedule}]"
 
 
 class OMPDependClause(OperandClause):
@@ -375,6 +395,16 @@ class OMPDependClause(OperandClause):
         is_eq = super().__eq__(other)
         is_eq = is_eq and (self.operand == other.operand)
         return is_eq
+
+    def node_str(self, colour=True):
+        '''
+        :param bool colour: whether or not to include control codes for \
+                            coloured text.
+
+        :returns: a text description of this node.
+        :rtype: str
+        '''
+        return self.coloured_name(colour) + f"[operand={self._operand}]"
 
 
 class OMPReductionClause(OperandClause):

@@ -109,13 +109,6 @@ def test_ompparallel_changes_begin_string(fortran_reader):
 
     pdir.begin_string()
     assert pdir.children[2] != priv_clause
-    pdir.children[2].detach()
-
-    reduc = OMPReductionClause()
-    pdir.addchild(reduc)
-    # Check we correctly place the private clause again
-    pdir.begin_string()
-    assert isinstance(pdir.children[2], OMPPrivateClause)
 
 
 def test_ompparallel_changes_gen_code():
@@ -156,13 +149,6 @@ def test_ompparallel_changes_gen_code():
 
     psy.gen
     assert pdir.children[2] != priv_clause
-    pdir.children[2].detach()
-
-    reduc = OMPReductionClause()
-    pdir.addchild(reduc)
-    # Check we correctly place the private clause again
-    psy.gen
-    assert isinstance(pdir.children[2], OMPPrivateClause)
 
 
 def test_omp_pdo_changes_gen_code():
@@ -414,8 +400,10 @@ def test_omp_private_validate_child():
     assert OMPParallelDirective._validate_child(1, OMPDefaultClause()) is True
     assert OMPParallelDirective._validate_child(2, OMPPrivateClause()) is True
     assert OMPParallelDirective._validate_child(2, OMPReductionClause())\
-           is True
+           is False
     assert OMPParallelDirective._validate_child(3, OMPReductionClause())\
+           is True
+    assert OMPParallelDirective._validate_child(4, OMPReductionClause())\
            is True
     assert OMPParallelDirective._validate_child(0, OMPDefaultClause()) is False
     assert OMPParallelDirective._validate_child(6, "test") is False
@@ -558,7 +546,7 @@ def test_omp_single_gencode(nowait):
     '''
     subroutine = Routine("testsub")
     temporary_module = ModuleGen("test")
-    parallel = OMPParallelDirective()
+    parallel = OMPParallelDirective.create()
     single = OMPSingleDirective(nowait=nowait)
     parallel.dir_body.addchild(single)
     subroutine.addchild(parallel)
@@ -587,7 +575,7 @@ def test_omp_master_gencode():
     '''
     subroutine = Routine("testsub")
     temporary_module = ModuleGen("test")
-    parallel = OMPParallelDirective()
+    parallel = OMPParallelDirective.create()
     master = OMPMasterDirective()
     parallel.dir_body.addchild(master)
     subroutine.addchild(parallel)
@@ -653,7 +641,7 @@ def test_omptaskwait_gencode():
     '''
     subroutine = Routine("testsub")
     temporary_module = ModuleGen("test")
-    parallel = OMPParallelDirective()
+    parallel = OMPParallelDirective.create()
     directive = OMPTaskwaitDirective()
     parallel.dir_body.addchild(directive)
     subroutine.addchild(parallel)
@@ -718,7 +706,7 @@ def test_omp_taskloop_gencode(grainsize, num_tasks, nogroup, clauses):
     '''
     temporary_module = ModuleGen("test")
     subroutine = Routine("testsub")
-    parallel = OMPParallelDirective()
+    parallel = OMPParallelDirective.create()
     single = OMPSingleDirective()
     directive = OMPTaskloopDirective(grainsize=grainsize, num_tasks=num_tasks,
                                      nogroup=nogroup)

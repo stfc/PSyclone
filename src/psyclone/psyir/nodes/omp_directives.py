@@ -445,11 +445,11 @@ class OMPParallelDirective(OMPRegionDirective):
     ''' Class representing an OpenMP Parallel directive.
     '''
 
-    _children_valid_format = ("Schedule, OMPDefaultClause, [OMPPrivateClause],"
+    _children_valid_format = ("Schedule, OMPDefaultClause, OMPPrivateClause,"
                               " [OMPReductionClause]*")
 
     @staticmethod
-    def create(children):
+    def create(children=None):
         '''
         Create an OMPParallelDirective.
 
@@ -487,19 +487,33 @@ class OMPParallelDirective(OMPRegionDirective):
             return True
         if position == 1 and isinstance(child, OMPDefaultClause):
             return True
-        if position == 2 and isinstance(child, (OMPPrivateClause,
-                                                OMPReductionClause)):
+        if position == 2 and isinstance(child, OMPPrivateClause):
             return True
         if position >= 3 and isinstance(child, OMPReductionClause):
             return True
         return False
 
+    @property
+    def default_clause(self):
+        ''' 
+        :returns: The OMPDefaultClause associated with this Directive.
+        :rtype: :py:class:`psyclone.psyir.nodes.OMPDefaultClause`
+        '''
+        return self.children[1]
+
+    @property
+    def private_clause(self):
+        '''
+        :returns: The current OMPPrivateClause associated with this Directive.
+        :rtype: :py:class:`psyclone.psyir.nodes.OMPPrivateClause`
+        '''
+        return self.children[2]
+
+
     def gen_code(self, parent):
         '''Generate the fortran OMP Parallel Directive and any associated
         code'''
         from psyclone.psyGen import zero_reduction_variables
-
-        private_clause = self._get_private_clause()
 
         reprod_red_call_list = self.reductions(reprod=True)
         if reprod_red_call_list:
@@ -511,14 +525,6 @@ class OMPParallelDirective(OMPRegionDirective):
             # declare the variable
             parent.add(DeclGen(parent, datatype="integer",
                                entity_decls=[thread_idx]))
-        if len(self._children) >= 3:
-            if private_clause != self._children[2]:
-                if isinstance(self._children[2], OMPPrivateClause):
-                    self._children[2] = private_clause
-                else:
-                    self.addchild(private_clause, index=2)
-        else:
-            self.addchild(private_clause, index=2)
 
         # We're not doing nested parallelism so make sure that this
         # omp parallel region is not already within some parallel region
@@ -528,6 +534,11 @@ class OMPParallelDirective(OMPRegionDirective):
         # OpenMP directives. Although it is valid OpenMP if it doesn't,
         # this almost certainly indicates a user error.
         self._encloses_omp_directive()
+
+        # Update/generate the private clause if the code has changed.
+        private_clause = self._get_private_clause()
+        if private_clause != self.private_clause:
+            self._children[2] = private_clause
 
         calls = self.reductions()
 
@@ -546,9 +557,9 @@ class OMPParallelDirective(OMPRegionDirective):
 
         zero_reduction_variables(calls, parent)
 
-        default_str = self.children[1]._clause_string
+        default_str = self.default_clause._clause_string
         private_list = []
-        for child in self.children[2].children:
+        for child in self.private_clause.children:
             private_list.append(child.symbol.name)
         private_str = "private(" + ",".join(private_list) + ")"
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel",
@@ -596,14 +607,8 @@ class OMPParallelDirective(OMPRegionDirective):
         # if not self._reprod:
         #     result += self._reduction_string()
         private_clause = self._get_private_clause()
-        if len(self._children) >= 3:
-            if private_clause != self._children[2]:
-                if isinstance(self._children[2], OMPPrivateClause):
-                    self._children[2] = private_clause
-                else:
-                    self.addchild(private_clause, index=2)
-        else:
-            self.addchild(private_clause, index=2)
+        if private_clause != self.private_clause:
+            self._children[2] = private_clause
 
         return result
 
