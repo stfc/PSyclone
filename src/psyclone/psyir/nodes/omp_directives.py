@@ -55,7 +55,8 @@ from psyclone.f2pygen import (AssignGen, UseGen, DeclGen, DirectiveGen,
                               CommentGen)
 from psyclone.psyir.nodes import Reference, Assignment, IfBlock, Loop, \
                                  ArrayReference, ArrayOfStructuresReference, \
-                                 StructureReference, Literal
+                                 StructureReference, Literal, Call, \
+                                 CodeBlock, Node
 from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.directive import StandaloneDirective, \
     RegionDirective
@@ -243,6 +244,416 @@ class OMPSerialDirective(OMPRegionDirective):
 
     '''
 
+    def _validate_satisfiable_task_dependencies(self):
+        '''
+        Perform validation on all child OMPTaskDirectives to ensure that 
+        all of their dependencies are satisfiable under OpenMP 5.0's task
+        dependency rules.
+
+        :raises GenerationError: if unsatisfiable task dependencies exist.
+        '''
+        # Avoid circular dependency
+        from psyclone.psyGen import CodedKern
+        # Find all of the task children of this node.
+        tasks = self.walk(OMPTaskDirective)
+        if len(tasks) == 0:
+            return
+      
+        # Setup a dict to store the abs positions of nodes so we don't
+        # recompute them every time we need to check them.
+        self._node_abs_positions = {}
+        self._this_nodes_position = self.abs_position
+
+        # Store a list of all nodes in the region. We store all (as opposed to
+        # only Loop/Assignment nodes as it is difficult to start the walk
+        # from a specific point without all nodes.
+        self._nodes_in_region = self.walk(Node)
+
+        var_info = VariablesAccessInfo(self)
+
+
+        # Find all the combinations of tasks
+        task_pairs = itertools.combinations(tasks, 2)
+
+        for task_pair in task_pairs:
+            task1 = task_pair[0]
+            task2 = task_pair[1]
+            task1_ins = task1.children[4]
+            task2_ins = task2.children[4]
+            task1_outs = task1.children[5]
+            task2_outs = task2.children[5]
+
+            # For each input symbol to task 1, check whether its used in task 2
+            for invar in task1_ins.children:
+                for var2 in zip(task2_ins.children, task2_outs.children):
+                    if invar.symbol == var2.symbol:
+                        # Only an issue for Array[OfStructure]Reference so skip
+                        # other types
+                        if not isinstance(invar, ArrayMixin):
+                            continue
+                        # Have an array, need to compare indices to check if
+                        # they are compatible.
+                        for count, index1 in enumerate(invar.indices):
+                            index2 = var2.indices[count]
+                            if (isinstance(index1, Literal) and 
+                                index1 != index2):
+                                # This condition is actually overly tight.
+                                # A reference to a constant can validly
+                                # be equivalent to a Literal if we know
+                                # the value of that constant.
+                                assert False # Throw exception
+                            if isinstance(index1, Reference):
+                                # For now we reject Reference vs Literal
+                                if isinstance(index2, Literal):
+                                    assert False # Throw exception
+
+                                # Once we have a reference or Binary Operation
+                                # we need to compute the possible values it
+                                # might take.
+                                
+                                # Find the previous access to this
+                                # Start walking backwards from this node's position
+                                last_write_1 = None
+                                task1_position = self._node_abs_positions.get(task1.id)
+                                if task1_position is None:
+                                    task1_position = task1.abs_position - self._this_nodes_position
+                                    self._node_abs_positions[task1.id] = task1_position
+
+                                # Walk backwards
+                                for reverse_index in range(task1_position-1, -1, -1):
+                                    prev_node = self._nodes_in_region[reverse_index]
+                                    # Only specific node types can write to variables.
+                                    # These are Assignment, Loop, Call and CodeBlock
+                                    if isinstance(prev_node, Assignment):
+                                        # If it is an Assignment, check whether the
+                                        # LHS reference is this Reference, which
+                                        # we can do with equality check.
+                                        if prev_node.lhs == index1:
+                                            last_write_1 = prev_node
+                                            break
+                                    if isinstance(prev_node, Loop):
+                                        # If it is a Loop, check whether the
+                                        # loop variable is this Reference's symbol
+                                        if prev_node.variable == index1.symbol:
+                                            last_write_1 = prev_node
+                                            break
+                                    if isinstance(prev_node, CodeBlock):
+                                        # Dissallow codeblocks
+                                        assert False #TODO Error
+                                    if isinstance(prev_node, Call):
+                                        # Disallow Calls unless they are CodedKern
+                                        if not isinstance(prev_node, CodedKern):
+                                            assert False #TODO Error
+                                        # If its a codedKern, then we will need to do
+                                        # smarter analysis later, but for now
+                                        # we will assume the value is a constant.
+                                        last_write_1 = prev_node
+                                        break
+
+
+                                # If previous access was a loop variable, compute the
+                                # range of starting values (or if stop_val is not a
+                                # Literal, compute the first 5). If step_val is not a
+                                # Literal, then compare first value and if step_val == step_val
+
+                                # If the previous access is a write of a Reference, we'll have 
+                                # to do something smart to guess.
+
+
+                                # Find the prevoius access to index2
+                                # Start walking backwards from this node's position
+                                last_write_2 = None
+                                task2_position = self._node_abs_positions.get(task2.id)
+                                if task2_position is None:
+                                    task2_position = task2.abs_position - self._this_nodes_position
+                                    self._node_abs_positions[task2.id] = task2_position
+                                
+                                # Walk backwards
+                                for reverse_index in range(task2_position-1, -1, -1):
+                                    prev_node = self._nodes_in_region[reverse_index]
+                                    # Only specific node types can write to variables.
+                                    # These are Assignment, Loop, Call and CodeBlock
+                                    if isinstance(prev_node, Assignment):
+                                        # If it is an Assignment, check whether the
+                                        # LHS reference is this Reference, which
+                                        # we can do with equality check.
+                                        if prev_node.lhs == index2:
+                                            last_write_2 = prev_node
+                                            break
+                                    if isinstance(prev_node, Loop):
+                                        # If it is a Loop, check whether the
+                                        # loop variable is this Reference's symbol
+                                        if prev_node.variable == index2.symbol:
+                                            last_write_2 = prev_node
+                                            break
+                                    if isinstance(prev_node, CodeBlock):
+                                        # Dissallow codeblocks
+                                        assert False #TODO Error
+                                    if isinstance(prev_node, Call):
+                                        # Disallow Calls unless they are CodedKern
+                                        if not isinstance(prev_node, CodedKern):
+                                            assert False #TODO Error
+                                        # If its a codedKern, then we will need to do
+                                        # smarter analysis later, but for now
+                                        # we will assume the value is a constant.
+                                        last_write_2 = prev_node
+                                        break
+
+                                # If either last_write_1 or last_write_2 is None, then
+                                # the last write was outside of this serial region, which
+                                # means that this vairable is a constant, so both References
+                                # must be to the same variable
+                                if (last_write_1 is None or last_write_2 is None):
+                                    if index1 != index2:
+                                       assert False #TODO Error code
+                                    # Otherwise this pair of indices is ok so move to the next
+                                    continue
+
+                                # Compute the (first 5) possible values of each index.
+                                possible_index_1 = []
+                                possible_index_2 = []
+
+                                # For assignments, last_write_1 and last_write_2 must be the same assignment unless
+                                # both are assignments to the same literal.
+                                if isinstance(last_write_1, Assignment) or isinstance(last_write_2, Assignment):
+                                    # If only one is an assignment then its no good.
+                                    if not isinstance(last_write_1, Assignment) or not isinstance(last_write_2, Assignment):
+                                        assert False # TODO
+                                    if len(last_write_1.rhs.walk(Reference)) != 0 or len(last_write_2.rhs.walk(Reference)) != 0:
+                                        # Need to check it is the same Assignment, not just equal as x = a and x = a are not necessarily equivalent
+                                        # (a can change between)
+                                        if last_write_1 is not last_write_2: 
+                                            assert False # TODO
+                                        # This is fine so we can move on to the next index
+                                        continue
+                                    else:
+                                        # The rhs of both only contains Literals, so we can compute the value of the RHS and compare.
+                                        # For now we will just check the RHS are equivalent (using ==) but 3 == 1+2 is something
+                                        # we should check in future.
+                                        if last_write_1.rhs != last_write_2.rhs:
+                                            assert False # TODO
+                                        # Otherwise the assignment is to the same value so we can move on to the next index
+                                        continue
+
+                                        # FIXME At some point we should compute the value of this RHS, and use it to compare to
+                                        # possible values of the other index later, since the correct dependency will be found if
+                                        # X is in [V,W,X,Y,Z] etc.
+
+                                # If either is a CodedKern access then the Reference needs to be to the same
+                                # variable and the CodedKern needs to be the same instance.
+                                if isinstance(last_write_1, CodedKern) or isinstance(last_write_2, CodedKern):
+                                    if index != index2 or last_write_1 is not last_write_2:
+                                        assert False # TODO
+                                    # Both indices are to the same symbol and are updated at the same CodedKern
+                                    continue
+
+
+                                # Left with only loops remaining, so need to do some analysis
+                                
+                                # If the start value of either loop is not a Literal we cannot compute it for now.
+                                # FIXME: we could in principle allow BinaryOperations containing no References here as well.
+                                if not isinstance(last_write_1.children[0], Literal) or not isinstance(last_write_2.children[0], Literal):
+                                    assert False # TODO
+
+                                # If the step value of either loop is not a Literal we cannot compute it for now.
+                                if not isinstance(last_write.children[2], Literal) or not isinstance(last_write_3.children[2], Literal):
+                                    assert False # TODO
+
+                                # In the case that start and step are both Literals, we can compare them to check validity
+                                if last_write_1.children[0] != last_write_2.children[0]:
+                                    assert False # TODO
+
+                                if last_write_2.children[2] != last_write_2.children[2]:
+                                    assert False # TODO
+
+            # For each output symbol to task 1, check whether its used in task 2
+            for outvar in task1_outs.children:
+                for var2 in zip(task2_ins.children, task2_outs.children):
+                    if outvar.symbol == var2.symbol:
+                        # Only an issue for Array[OfStructure]Reference so skip
+                        # other types
+                        if not isinstance(invar, ArrayMixin):
+                            continue
+                        # Check if bad collision. This is same check as above
+                        # so I should extract it into a function.
+                        # Have an array, need to compare indices to check if
+                        # they are compatible.
+                        for count, index1 in enumerate(outvar.indices):
+                            index2 = var2.indices[count]
+                            if (isinstance(index1, Literal) and 
+                                index1 != index2):
+                                # This condition is actually overly tight.
+                                # A reference to a constant can validly
+                                # be equivalent to a Literal if we know
+                                # the value of that constant.
+                                assert False # Throw exception
+                            if isinstance(index1, Reference):
+                                # For now we reject Reference vs Literal
+                                if isinstance(index2, Literal):
+                                    assert False # Throw exception
+
+                                # Once we have a reference or Binary Operation
+                                # we need to compute the possible values it
+                                # might take.
+                                
+                                # Find the previous access to this
+                                # Start walking backwards from this node's position
+                                last_write_1 = None
+                                task1_position = self._node_abs_positions.get(task1.id)
+                                if task1_position is None:
+                                    task1_position = task1.abs_position - self._this_nodes_position
+                                    self._node_abs_positions[task1.id] = task1_position
+
+                                # Walk backwards
+                                for reverse_index in range(task1_position-1, -1, -1):
+                                    prev_node = self._nodes_in_region[reverse_index]
+                                    # Only specific node types can write to variables.
+                                    # These are Assignment, Loop, Call and CodeBlock
+                                    if isinstance(prev_node, Assignment):
+                                        # If it is an Assignment, check whether the
+                                        # LHS reference is this Reference, which
+                                        # we can do with equality check.
+                                        if prev_node.lhs == index1:
+                                            last_write_1 = prev_node
+                                            break
+                                    if isinstance(prev_node, Loop):
+                                        # If it is a Loop, check whether the
+                                        # loop variable is this Reference's symbol
+                                        if prev_node.variable == index1.symbol:
+                                            last_write_1 = prev_node
+                                            break
+                                    if isinstance(prev_node, CodeBlock):
+                                        # Dissallow codeblocks
+                                        assert False #TODO Error
+                                    if isinstance(prev_node, Call):
+                                        # Disallow Calls unless they are CodedKern
+                                        if not isinstance(prev_node, CodedKern):
+                                            assert False #TODO Error
+                                        # If its a codedKern, then we will need to do
+                                        # smarter analysis later, but for now
+                                        # we will assume the value is a constant.
+                                        last_write_1 = prev_node
+                                        break
+
+
+                                # If previous access was a loop variable, compute the
+                                # range of starting values (or if stop_val is not a
+                                # Literal, compute the first 5). If step_val is not a
+                                # Literal, then compare first value and if step_val == step_val
+
+                                # If the previous access is a write of a Reference, we'll have 
+                                # to do something smart to guess.
+
+
+                                # Find the prevoius access to index2
+                                # Start walking backwards from this node's position
+                                last_write_2 = None
+                                task2_position = self._node_abs_positions.get(task2.id)
+                                if task2_position is None:
+                                    task2_position = task2.abs_position - self._this_nodes_position
+                                    self._node_abs_positions[task2.id] = task2_position
+                                
+                                # Walk backwards
+                                for reverse_index in range(task2_position-1, -1, -1):
+                                    prev_node = self._nodes_in_region[reverse_index]
+                                    # Only specific node types can write to variables.
+                                    # These are Assignment, Loop, Call and CodeBlock
+                                    if isinstance(prev_node, Assignment):
+                                        # If it is an Assignment, check whether the
+                                        # LHS reference is this Reference, which
+                                        # we can do with equality check.
+                                        if prev_node.lhs == index2:
+                                            last_write_2 = prev_node
+                                            break
+                                    if isinstance(prev_node, Loop):
+                                        # If it is a Loop, check whether the
+                                        # loop variable is this Reference's symbol
+                                        if prev_node.variable == index2.symbol:
+                                            last_write_2 = prev_node
+                                            break
+                                    if isinstance(prev_node, CodeBlock):
+                                        # Dissallow codeblocks
+                                        assert False #TODO Error
+                                    if isinstance(prev_node, Call):
+                                        # Disallow Calls unless they are CodedKern
+                                        if not isinstance(prev_node, CodedKern):
+                                            assert False #TODO Error
+                                        # If its a codedKern, then we will need to do
+                                        # smarter analysis later, but for now
+                                        # we will assume the value is a constant.
+                                        last_write_2 = prev_node
+                                        break
+
+                                # If either last_write_1 or last_write_2 is None, then
+                                # the last write was outside of this serial region, which
+                                # means that this vairable is a constant, so both References
+                                # must be to the same variable
+                                if (last_write_1 is None or last_write_2 is None):
+                                    if index1 != index2:
+                                       assert False #TODO Error code
+                                    # Otherwise this pair of indices is ok so move to the next
+                                    continue
+
+                                # Compute the (first 5) possible values of each index.
+                                possible_index_1 = []
+                                possible_index_2 = []
+
+                                # For assignments, last_write_1 and last_write_2 must be the same assignment unless
+                                # both are assignments to the same literal.
+                                if isinstance(last_write_1, Assignment) or isinstance(last_write_2, Assignment):
+                                    # If only one is an assignment then its no good.
+                                    if not isinstance(last_write_1, Assignment) or not isinstance(last_write_2, Assignment):
+                                        assert False # TODO
+                                    if len(last_write_1.rhs.walk(Reference)) != 0 or len(last_write_2.rhs.walk(Reference)) != 0:
+                                        # Need to check it is the same Assignment, not just equal as x = a and x = a are not necessarily equivalent
+                                        # (a can change between)
+                                        if last_write_1 is not last_write_2: 
+                                            assert False # TODO
+                                        # This is fine so we can move on to the next index
+                                        continue
+                                    else:
+                                        # The rhs of both only contains Literals, so we can compute the value of the RHS and compare.
+                                        # For now we will just check the RHS are equivalent (using ==) but 3 == 1+2 is something
+                                        # we should check in future.
+                                        if last_write_1.rhs != last_write_2.rhs:
+                                            assert False # TODO
+                                        # Otherwise the assignment is to the same value so we can move on to the next index
+                                        continue
+
+                                        # FIXME At some point we should compute the value of this RHS, and use it to compare to
+                                        # possible values of the other index later, since the correct dependency will be found if
+                                        # X is in [V,W,X,Y,Z] etc.
+
+                                # If either is a CodedKern access then the Reference needs to be to the same
+                                # variable and the CodedKern needs to be the same instance.
+                                if isinstance(last_write_1, CodedKern) or isinstance(last_write_2, CodedKern):
+                                    if index != index2 or last_write_1 is not last_write_2:
+                                        assert False # TODO
+                                    # Both indices are to the same symbol and are updated at the same CodedKern
+                                    continue
+
+
+                                # Left with only loops remaining, so need to do some analysis
+                                
+                                # If the start value of either loop is not a Literal we cannot compute it for now.
+                                # FIXME: we could in principle allow BinaryOperations containing no References here as well.
+                                if not isinstance(last_write_1.children[0], Literal) or not isinstance(last_write_2.children[0], Literal):
+                                    assert False # TODO
+
+                                # If the step value of either loop is not a Literal we cannot compute it for now.
+                                if not isinstance(last_write.children[2], Literal) or not isinstance(last_write_3.children[2], Literal):
+                                    assert False # TODO
+
+                                # In the case that start and step are both Literals, we can compare them to check validity
+                                if last_write_1.children[0] != last_write_2.children[0]:
+                                    assert False # TODO
+
+                                if last_write_2.children[2] != last_write_2.children[2]:
+                                    assert False # TODO
+
+    # No issues detected so we carry on.
+
+
     def validate_global_constraints(self):
         '''
         Perform validation checks that can only be done at code-generation
@@ -275,6 +686,8 @@ class OMPSerialDirective(OMPRegionDirective):
             raise GenerationError(
                     "{} must not be inside another OpenMP "
                     "serial region".format(self._text_name))
+
+        self._validate_satisfiable_task_dependencies()
 
         super(OMPSerialDirective, self).validate_global_constraints()
 
