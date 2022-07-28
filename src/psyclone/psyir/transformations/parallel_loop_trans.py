@@ -64,10 +64,6 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
     excluded_node_types = (nodes.Return, psyGen.HaloExchange, nodes.CodeBlock)
 
     @abc.abstractmethod
-    def __str__(self):
-        return  # pragma: no cover
-
-    @abc.abstractmethod
     def _directive(self, children, collapse=None):
         '''
         Returns the directive object to insert into the Schedule.

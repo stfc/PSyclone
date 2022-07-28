@@ -442,16 +442,35 @@ class OMPMasterDirective(OMPSerialDirective):
 
 
 class OMPParallelDirective(OMPRegionDirective):
-    ''' Class representing an OpenMP Parallel directive. '''
+    ''' Class representing an OpenMP Parallel directive.
+    '''
 
     _children_valid_format = ("Schedule, OMPDefaultClause, [OMPPrivateClause],"
                               " [OMPReductionClause]*")
 
-    def __init__(self, children=None, parent=None):
-        super(OMPParallelDirective, self).__init__(children=children,
-                                                   parent=parent)
-        self.addchild(OMPDefaultClause(clause_type=OMPDefaultClause.
-                                       DefaultClauseTypes.SHARED))
+    @staticmethod
+    def create(children):
+        '''
+        Create an OMPParallelDirective.
+
+        :param children: The child nodes of the new directive.
+        :type children: List of :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: A new OMPParallelDirective.
+        :rtype: :py:class:`psyclone.psyir.nodes.OMPParallelDirective`
+        '''
+
+        instance = OMPParallelDirective(children=children)
+
+        # An OMPParallelDirective must have 3 children.
+        # Child 0 is a Schedule, create in the constructor.
+        # The create function adds the other two children, and OMPDefaultClause
+        # and an OMPPrivateClause.
+        instance.addchild(OMPDefaultClause(clause_type=OMPDefaultClause.
+                                           DefaultClauseTypes.SHARED))
+        instance.addchild(OMPPrivateClause())
+
+        return instance
 
     @staticmethod
     def _validate_child(position, child):
@@ -1606,7 +1625,7 @@ class OMPTaskDirective(OMPRegionDirective):
         # Check if we have a loop of type do ii = i where i is a parent loop
         # variable.
         start_val_refs = start_val.walk(Reference)
-        if (len(start_val_refs) == 1 and 
+        if (len(start_val_refs) == 1 and
                 isinstance(start_val_refs[0], Reference)):
             # Loop through the parent loop variables
             for index, parent_var in enumerate(self._parent_loop_vars):

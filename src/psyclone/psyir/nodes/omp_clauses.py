@@ -34,7 +34,7 @@
 # Authors A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' This module contains the implementations of the various OpenMP Directive
+''' This module contains the implementations of the various OpenMP Clause
 nodes.'''
 
 from enum import Enum
@@ -122,7 +122,7 @@ class OMPNogroupClause(Clause):
 class OMPSharedClause(Clause):
     '''
     OpenMP shared clause. This is used to declare variables as shared in an
-    OpenMP region
+    OpenMP region.
     '''
     _children_valid_format = "[Reference]*"
     _text_name = "SharedClause"
@@ -216,11 +216,21 @@ class OMPDefaultClause(Clause):
     '''
     OpenMP Default clause. Used to determine the default declaration for
     variables used in an OpenMP region.
+
+    :param clause_type: The default data-sharing attribute to be described
+                        by this clause. The default value is
+                        OMPDefaultClause.DefaultClauseTypes.SHARED.
+    :type clause_type: \
+        :py:class:`psyclone.psyir.nodes.OMPDefaultClause.DefaultClauseTypes`
+    :param kwargs: additional keyword arguments provided to the PSyIR node.
+    :type kwargs: unwrapped dict.
+
+    :raises TypeError: If the supplied clause_type is not the correct type.
     '''
 
     class DefaultClauseTypes(Enum):
         '''Enumeration of the different types of OMPDefaultClause supported
-        in PSyclone'''
+        in PSyclone.'''
         SHARED = 0
         NONE = 1
         FIRSTPRIVATE = 2
@@ -228,57 +238,69 @@ class OMPDefaultClause(Clause):
     _children_valid_format = None
     _text_name = "OMPDefaultClause"
 
-    @property
-    def _clause_string(self):
-        clause_string = "default(" + str(self._clause_type.name).lower() + ")"
-        return clause_string
-
-    def __init__(self, clause_type=DefaultClauseTypes.SHARED):
+    def __init__(self, clause_type=DefaultClauseTypes.SHARED, **kwargs):
         if not isinstance(clause_type, OMPDefaultClause.DefaultClauseTypes):
             raise TypeError(
                     "OMPDefaultClause expected 'clause_type' argument of type "
                     "OMPDefaultClause.DefaultClauseTypes but found "
                     f"'{type(clause_type).__name__}'")
         self._clause_type = clause_type
-        super(OMPDefaultClause, self).__init__()
+        super().__init__(**kwargs)
+
+    @property
+    def _clause_string(self):
+        clause_string = "default(" + str(self._clause_type.name).lower() + ")"
+        return clause_string
 
 
 class OMPScheduleClause(Clause):
     '''
     OpenMP Schedule clause used for OMP Do Directives.
+
+    :param str schedule: The OpenMP schedule to use with this directive.
+                         The default value is "static".
+    :param kwargs: additional keyword arguments provided to the PSyIR node.
+    :type kwargs: unwrapped dict.
     '''
     _children_valid_format = "None"
     _text_name = "OMPScheduleClause"
     _schedule = ""
 
+    def __init__(self, schedule="static", **kwargs):
+        self._schedule = schedule
+        super().__init__(**kwargs)
+
     @property
     def _clause_string(self):
         return f"schedule({self._schedule})"
 
-    def set_schedule(self, schedule):
-        '''
-        Set the schedule for this OMPScheduleClause
-
-        :param str schedule: The schedule to use for this clause.
-        '''
-        self._schedule = schedule
-
-    def __init__(self, schedule="static"):
-        self._schedule = schedule
-        super(OMPScheduleClause, self).__init__()
-
     @property
     def schedule(self):
         '''
-        Gets the schedule of this OMPScheduleClause
+        Gets the schedule of this OMPScheduleClause.
 
         :returns: The schedule for this OMPScheduleClause.
         :rtype: str
         '''
         return self._schedule
 
+    @schedule.setter
+    def schedule(self, schedule):
+        '''
+        Set the schedule for this OMPScheduleClause.
+
+        :param str schedule: The schedule to use for this clause.
+        '''
+        self._schedule = schedule
+
     def __eq__(self, other):
-        '''Two OMPScheduleClause are equal if they have the same schedule
+        '''
+        Two OMPScheduleClause are equal if they have the same schedule.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
         '''
         is_eq = super().__eq__(other)
         is_eq = is_eq and (self.schedule == other.schedule)
@@ -288,6 +310,15 @@ class OMPScheduleClause(Clause):
 class OMPDependClause(OperandClause):
     '''
     OpenMP Depend clause used for OpenMP Task directives.
+
+    :param depend_type: The dependency type to use for this clause. The default
+                        value is OMPDependClause.DependClauseTypes.INOUT.
+    :type depend_type: \
+            :py:class:`psyclone.psyir.nodes.OMPDependClause.DependClauseTypes`
+    :param kwargs: additional keyword arguments provided to the PSyIR node.
+    :type kwargs: unwrapped dict.
+
+    :raises TypeError: If the supplied depend_type argument is the wrong type.
     '''
     _children_valid_format = "[Reference]*"
     _text_name = "OMPDependClause"
@@ -295,19 +326,19 @@ class OMPDependClause(OperandClause):
 
     class DependClauseTypes(Enum):
         '''Enumeration of the different types of OMPDependClause supported
-        in PSyclone'''
+        in PSyclone.'''
         IN = 0
         OUT = 1
         INOUT = 2
 
-    def __init__(self, depend_type=DependClauseTypes.INOUT):
+    def __init__(self, depend_type=DependClauseTypes.INOUT, **kwargs):
         if not isinstance(depend_type, OMPDependClause.DependClauseTypes):
             raise TypeError(
                     "OMPDependClause expected 'depend_type' argument of type "
                     "OMPDependClause.DependClauseTypes but found "
                     f"'{type(depend_type).__name__}'")
         self._operand = depend_type
-        super(OMPDependClause, self).__init__()
+        super().__init__(**kwargs)
 
     @staticmethod
     def _validate_child(position, child):
@@ -335,6 +366,11 @@ class OMPDependClause(OperandClause):
         2. Same Operand
         3. Same number of children.
         4. Their children are equal.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
         '''
         is_eq = super().__eq__(other)
         is_eq = is_eq and (self.operand == other.operand)
@@ -343,7 +379,7 @@ class OMPDependClause(OperandClause):
 
 class OMPReductionClause(OperandClause):
     '''
-    OpenMP Reduction clause. Not yet used
+    OpenMP Reduction clause.
     '''
     _children_valid_format = "[Reference]+"
     _text_name = "OMPReductionClause"

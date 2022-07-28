@@ -62,7 +62,7 @@ class Clause(Node, metaclass=abc.ABCMeta):
 
 class OperandClause(Clause, metaclass=abc.ABCMeta):
     '''
-    Base abstract class for all clauses that have an operand
+    Base abstract class for all clauses that have an operand.
     '''
 
     _operand = None
@@ -70,7 +70,7 @@ class OperandClause(Clause, metaclass=abc.ABCMeta):
     @property
     def operand(self):
         '''
-        Returns the operand string for this Clause
+        Returns the operand string for this Clause.
 
         :rtype: str
         '''

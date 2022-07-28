@@ -1790,7 +1790,7 @@ class OMPParallelTrans(ParallelRegionTrans):
     def __init__(self):
         super().__init__()
         # Set the type of directive that the base class will use
-        self._pdirective = OMPParallelDirective
+        self._pdirective = OMPParallelDirective.create
 
     def __str__(self):
         return "Insert an OpenMP Parallel region"

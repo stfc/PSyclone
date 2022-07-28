@@ -85,11 +85,11 @@ def test_schedule_clause():
     ''' Test the OMPScheduleClause functionality. '''
     sched = OMPScheduleClause()
     assert sched._clause_string == "schedule(static)"
-    sched.set_schedule("test")
+    sched.schedule = "test"
     assert sched._clause_string == "schedule(test)"
     sched2 = OMPScheduleClause()
     assert sched != sched2
-    sched2.set_schedule("test")
+    sched2.schedule = "test"
     assert sched == sched2
 
 

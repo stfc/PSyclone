@@ -448,29 +448,6 @@ class CWriter(LanguageWriter):
                f"{variable_name}<={stop}; {variable_name}+={step})\n"\
                f"{self._nindent}{{\n{body}{self._nindent}}}\n"
 
-    def clause_node(self, node):
-        '''This method is called when a Clause instance is found in the
-        PSyIR tree. It returns the clause and its children as a string.
-
-        :param node: a Clause PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.Clause`
-
-        :returns: the Fortran code for this node.
-        :rtype: str
-
-        '''
-        result = node.clause_string
-
-        if len(node.children) > 0:
-            result = result + "("
-            child_list = []
-            for child in node.children:
-                child_list.append(self._visit(child))
-            result = result + ",".join(child_list)
-            result = result + ")"
-
-        return result
-
     def regiondirective_node(self, node):
         '''This method is called when an RegionDirective instance is found in
         the PSyIR tree. It returns the opening and closing directives, and
@@ -491,7 +468,7 @@ class CWriter(LanguageWriter):
             val = self._visit(clause)
             # Some clauses return empty strings if they should not
             # generate any output (e.g. private clause with no children).
-            if not (val.isspace() or val == ""):
+            if val != "":
                 clause_list.append(val)
         # Add a space only if there are clauses
         if len(clause_list) > 0:
