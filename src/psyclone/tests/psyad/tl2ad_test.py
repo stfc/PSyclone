@@ -376,16 +376,14 @@ def test_generate_adjoint_errors():
     assert ("The supplied PSyIR does not contain any routines." in
             str(err.value))
     # Multiple routines
-    symbol_table = SymbolTable()
-    symbol = symbol_table.new_symbol(
-        symbol_type=DataSymbol, datatype=REAL_TYPE)
-    assignment = Assignment.create(
-        Reference(symbol), Literal("0.0", REAL_TYPE))
-    routine1 = Routine.create("my_kern1", symbol_table, [assignment])
-    routine2 = routine1.copy()
-    routine2.name = "my_kern2"
-    cont.addchild(routine1)
-    cont.addchild(routine2)
+    for name in ["my_kern1", "my_kern2"]:
+        symbol_table = SymbolTable()
+        symbol = symbol_table.new_symbol(
+            symbol_type=DataSymbol, datatype=REAL_TYPE)
+        assignment = Assignment.create(
+            Reference(symbol), Literal("0.0", REAL_TYPE))
+        routine = Routine.create(name, symbol_table, [assignment])
+        cont.addchild(routine)
     with pytest.raises(NotImplementedError) as err:
         generate_adjoint(cont, [symbol.name])
     assert ("The supplied Fortran must contain one and only one routine but "
