@@ -50,20 +50,34 @@ class GOceanConstants(object):
     '''
     HAS_BEEN_INITIALISED = False
 
+    @staticmethod
+    def get_valid_access_types():
+        '''Return the valid access types for the GOcean API. Reads the values
+            from the config file the first time the method is called.
+
+            :returns: valid access types for the GOcean API.
+            :rtype: list[str]
+
+        '''
+        if not GOceanConstants._VALID_ACCESS_TYPES:
+            conf = Config.get().api_conf("gocean1.0")
+            GOceanConstants._VALID_ACCESS_TYPES = \
+                list(conf.get_access_mapping().keys())
+        return GOceanConstants._VALID_ACCESS_TYPES
+
     def __init__(self):
         if GOceanConstants.HAS_BEEN_INITIALISED:
             return
-
-        api_config = Config.get().api_conf("gocean1.0")
 
         GOceanConstants.HAS_BEEN_INITIALISED = True
 
         # Valid intrinsic types of kernel argument metadata.
         GOceanConstants.VALID_INTRINSIC_TYPES = []
 
-        # Valid access types (GO_READ etc)
-        GOceanConstants.VALID_ACCESS_TYPES = [
-            "go_read", "go_write", "go_readwrite"]
+        # Valid access types (GO_READ etc). These are accessed via the
+        # get_valid_access_types() method as they are read from the
+        # config file rather than being fixed constant values.
+        GOceanConstants._VALID_ACCESS_TYPES = []
 
         # psyGen argument types.
         GOceanConstants.VALID_ARG_TYPE_NAMES = []

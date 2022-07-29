@@ -530,7 +530,7 @@ def test_gridarg_access():
         grid_arg.access = "hello"
     config = Config.get()
     constants = config.api_conf("gocean1.0").get_constants()
-    access_types = constants.VALID_ACCESS_TYPES
+    access_types = constants.get_valid_access_types()
     assert (f"The first metadata entry for a grid property argument should "
             f"be a valid access descriptor (one of {access_types}), but "
             f"found 'hello'." in str(info.value))
@@ -610,7 +610,7 @@ def test_fieldarg_access():
         field_arg.access = "hello"
     config = Config.get()
     constants = config.api_conf("gocean1.0").get_constants()
-    access_types = constants.VALID_ACCESS_TYPES
+    access_types = constants.get_valid_access_types()
     assert (f"The first metadata entry for a field argument should be a "
             f"recognised access descriptor (one of {access_types}), but "
             f"found 'hello'." in str(info.value))
@@ -738,7 +738,7 @@ def test_scalararg_access():
         scalar_arg.access = "hello"
     config = Config.get()
     constants = config.api_conf("gocean1.0").get_constants()
-    access_types = constants.VALID_ACCESS_TYPES
+    access_types = constants.get_valid_access_types()
     assert (f"The first metadata entry for a scalar argument should be a "
             f"recognised access descriptor (one of {access_types}), but "
             f"found 'hello'." in str(info.value))

@@ -587,11 +587,11 @@ class GOceanKernelMetadata():
 
             '''
             const = GOceanConstants()
-            if value.lower() not in const.VALID_ACCESS_TYPES:
+            if value.lower() not in const.get_valid_access_types():
                 raise ValueError(
                     f"The first metadata entry for a grid property argument "
                     f"should be a valid access descriptor (one of "
-                    f"{const.VALID_ACCESS_TYPES}), but found '{value}'.")
+                    f"{const.get_valid_access_types()}), but found '{value}'.")
 
         @property
         def access(self):
@@ -719,11 +719,11 @@ class GOceanKernelMetadata():
 
             '''
             const = GOceanConstants()
-            if value.lower() not in const.VALID_ACCESS_TYPES:
+            if value.lower() not in const.get_valid_access_types():
                 raise ValueError(
                     f"The first metadata entry for a field argument should "
                     f"be a recognised access descriptor (one of "
-                    f"{const.VALID_ACCESS_TYPES}), but found '{value}'.")
+                    f"{const.get_valid_access_types()}), but found '{value}'.")
 
         @property
         def access(self):
@@ -957,11 +957,11 @@ stable/gocean1p0.html#argument-metadata-meta-args>` \
 
             '''
             const = GOceanConstants()
-            if value.lower() not in const.VALID_ACCESS_TYPES:
+            if value.lower() not in const.get_valid_access_types():
                 raise ValueError(
                     f"The first metadata entry for a scalar argument should "
                     f"be a recognised access descriptor (one of "
-                    f"{const.VALID_ACCESS_TYPES}), but found '{value}'.")
+                    f"{const.get_valid_access_types()}), but found '{value}'.")
 
         @property
         def access(self):
