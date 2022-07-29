@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,8 +38,6 @@ This module provides the ACCUpdateTrans transformation that ensures that
 data is kept up-to-date on the host.
 '''
 
-from __future__ import absolute_import
-from fparser.two import Fortran2003
 from psyclone.core import Signature
 from psyclone.psyGen import InvokeSchedule, Transformation
 from psyclone.psyir.nodes import (Call, CodeBlock, IfBlock, Loop, Routine,
@@ -72,16 +70,13 @@ class ACCUpdateTrans(Transformation):
         :param node: the Schedule that is to be transformed.
         :type node: :py:class:`psyclone.psyir.nodes.Schedule`
         :param options: any options to this transformation.
-        :type options: dict
+        :type options: Optional[Dict[str, str]]
 
         :raises TransformationError: if the supplied node is not a Schedule.
         :raises TransformationError: if the supplied node is already within \
             an OpenACC region.
-        :raises TransformationError: if the supplied Schedule contains any \
-            CodeBlocks and the 'allow-codeblocks' option is False.
         '''
-        # transformations module file needs moving into the psyir
-        # hierarchy.
+        # transformations module file needs moving into the psyir hierarchy.
         # pylint: disable=import-outside-toplevel
         from psyclone.transformations import TransformationError
 
@@ -106,7 +101,7 @@ class ACCUpdateTrans(Transformation):
         :param node: the Schedule that is to be transformed.
         :type node: :py:class:`psyclone.psyir.nodes.Schedule`
         :param options: any options to this transformation.
-        :type options: dict
+        :type options: Optional[Dict[str, str]]
 
         '''
         self.validate(node, options)

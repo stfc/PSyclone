@@ -781,10 +781,11 @@ class ACCUpdateDirective(ACCStandaloneDirective):
     :param parent: the node in the InvokeSchedule to which to add this \
                    directive as a child.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
-    :param bool conditional: whether or not to include the 'if_present' clause
-                             on the update directive (this instructs the
-                             directive to silently ignore any variables that
-                             are not on the device).
+    :param conditional: whether or not to include the 'if_present' clause on
+                        the update directive (this instructs the directive to
+                        silently ignore any variables that are not on the
+                        device).
+    :type conditional: Optional[bool]
 
 
     :raises ValueError: if the direction argument is not a string with \
@@ -846,8 +847,8 @@ class ACCUpdateDirective(ACCStandaloneDirective):
         '''
         Returns the set of symbols to synchronise with the accelerator.
 
-        :returns: the symbol to synchronise with the accelerator.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :returns: the set of symbols to synchronise with the accelerator.
+        :rtype: Set[:py:class:`psyclone.core.Signature`]
         '''
         return self._sig_set
 

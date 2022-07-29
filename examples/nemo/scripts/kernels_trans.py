@@ -491,7 +491,7 @@ def trans(psy):
 
         if ACC_DATA:
             print(f"Transforming {invoke.name} with acc update")
-            ACC_UPDATE_TRANS.apply(sched, options={"allow-codeblocks": True})
+            ACC_UPDATE_TRANS.apply(sched)
 
         # Add profiling instrumentation
         if PROFILE_NONACC:

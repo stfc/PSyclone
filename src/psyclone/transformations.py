@@ -2812,7 +2812,7 @@ class ACCEnterDataTrans(Transformation):
         :param sched: schedule to which to add an "enter data" directive.
         :type sched: sub-class of :py:class:`psyclone.psyir.nodes.Schedule`
         :param options: a dictionary with options for transformations.
-        :type options: dict of str:values or None
+        :type options: Optional[Dict[str, str]]
 
         '''
         # Ensure that the proposed transformation is valid
@@ -2834,7 +2834,8 @@ class ACCEnterDataTrans(Transformation):
                 f"ACCEnterDataTrans.validate() has not rejected an "
                 f"(unsupported) schedule of type {type(sched)}")
 
-        # Determine where to place the directive
+        # Find the position of the first child statement of the current
+        # schedule which contains an OpenACC compute construct.
         posn = 0
         directive_cls = (ACCParallelDirective, ACCKernelsDirective)
         directive = sched.walk(directive_cls, stop_type=directive_cls)
@@ -2844,7 +2845,8 @@ class ACCEnterDataTrans(Transformation):
                 current = current.parent
             posn = sched.children.index(current)
 
-        # Add the directive
+        # Add the directive at the position determined above, i.e. just before
+        # the first statemement containing an OpenACC compute construct.
         data_dir = AccEnterDataDir(parent=sched, children=[])
         sched.addchild(data_dir, index=posn)
 
@@ -2857,7 +2859,7 @@ class ACCEnterDataTrans(Transformation):
         :param sched: Schedule to which to add an "enter data" directive.
         :type sched: sub-class of :py:class:`psyclone.psyir.nodes.Schedule`
         :param options: a dictionary with options for transformations.
-        :type options: dict of str:values or None
+        :type options: Optional[Dict[str, str]]
 
         :raises TransformationError: if passed something that is not a \
             (subclass of) :py:class:`psyclone.psyir.nodes.Schedule`.

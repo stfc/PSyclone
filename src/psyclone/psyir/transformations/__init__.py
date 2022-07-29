@@ -79,10 +79,8 @@ from psyclone.psyir.transformations.replace_induction_variables_trans import \
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g.:
-# from psyclone.psyir.transformations import ExtractTrans
 
+# For AutoAPI documentation generation
 __all__ = ['ACCUpdateTrans',
            'ArrayRange2LoopTrans',
            'ChunkLoopTrans',
