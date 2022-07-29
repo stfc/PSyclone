@@ -38,15 +38,14 @@
 Algorithm PSyIR.
 
 '''
-from __future__ import absolute_import
 import pytest
 
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.nodes import CodeBlock, Literal, Reference
 
 from psyclone.domain.lfric.transformations import LFRicRaiseCall2InvokeTrans
-from psyclone.domain.lfric.algorithm import LFRicAlgorithmInvokeCall, \
-    LFRicKernelFunctor, LFRicBuiltinFunctor
+from psyclone.domain.lfric.algorithm.psyir import (
+    LFRicAlgorithmInvokeCall, LFRicKernelFunctor, LFRicBuiltinFunctor)
 
 
 def check_invoke(call, kern_info, description=None):

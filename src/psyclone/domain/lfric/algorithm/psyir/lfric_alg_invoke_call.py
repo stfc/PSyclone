@@ -31,19 +31,20 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab.
 
-'''This module contains LFRic Algorithm-layer-specific PSyIR classes.
+'''This module contains the LFRic Algorithm Invoke-call class.
 
 '''
-from psyclone.domain.common.algorithm import (AlgorithmInvokeCall,
-                                              KernelFunctor)
+from psyclone.domain.common.algorithm import AlgorithmInvokeCall
+from psyclone.domain.lfric.algorithm.psyir.lfric_kernel_functor import (
+    LFRicFunctor)
 
 
 class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
     '''An invoke call from the LFRic Algorithm layer.'''
 
-    _children_valid_format = "[LFRicKernelFunctor|LFRicBuiltinFunctor]*"
+    _children_valid_format = "[LFRicFunctor]*"
     _text_name = "LFRicAlgorithmInvokeCall"
 
     @staticmethod
@@ -57,7 +58,7 @@ class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
         :rtype: bool
 
         '''
-        return isinstance(child, (LFRicKernelFunctor, LFRicBuiltinFunctor))
+        return isinstance(child, LFRicFunctor)
 
     @staticmethod
     def _def_container_root_name(node):
@@ -68,17 +69,5 @@ class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
         return f"{node.name}_psy"
 
 
-class LFRicBuiltinFunctor(KernelFunctor):
-    '''Object containing an LFRic builtin call, a description of its
-    required interface and the arguments to be passed to it.
-
-    '''
-    _text_name = "LFRicBuiltinFunctor"
-
-
-class LFRicKernelFunctor(KernelFunctor):
-    '''Object containing an LFRic kernel call, a description of its
-    required interface and the arguments to be passed to it.
-
-    '''
-    _text_name = "LFRicKernelFunctor"
+# For AutoAPI documentation generation.
+__all__ = ['LFRicAlgorithmInvokeCall']
