@@ -527,6 +527,24 @@ def test_multi_increment(tmpdir, index_str):
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
+def test_unary_minus(tmpdir):
+    '''Test that the transformation works when there is a unary minus on
+    the lhs of a rhs expression.
+
+    '''
+    tl_fortran = (
+        "  real :: x, a, b\n"
+        "  a = -x * b\n")
+    active_variables = ["a", "b"]
+    ad_fortran = (
+        "  real :: x\n"
+        "  real :: a\n"
+        "  real :: b\n\n"
+        "  b = b + (-x * a)\n"
+        "  a = 0.0\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
+
+
 def test_single_valued_sub(tmpdir):
     '''Test the transformation works when there is one active variable on
     the rhs (B) that is negated, with the active variable on the lhs
@@ -1156,6 +1174,30 @@ def test_validate_rhs_active_multi_divisor():
         BinaryOperation.Operator.DIV, Reference(rhs_symbol2), divide1)
     # a = x/(y/b)
     assignment = Assignment.create(Reference(lhs_symbol), divide2)
+    trans = AssignmentTrans(active_variables=[lhs_symbol, rhs_symbol1])
+    trans.validate(assignment)
+
+
+def test_validate_rhs_active_unary_minus():
+    '''Test that the validation works when there is a unary minus on
+    the lhs of a rhs expression.
+
+    active vars ["a", "b"]
+    a = -x*b
+
+    '''
+    lhs_symbol = DataSymbol("a", REAL_TYPE)
+    rhs_symbol1 = DataSymbol("b", REAL_TYPE)
+    rhs_symbol2 = DataSymbol("x", REAL_TYPE)
+    # x*b
+    mult = BinaryOperation.create(
+        BinaryOperation.Operator.MUL, Reference(
+            rhs_symbol2), Reference(rhs_symbol1))
+    # -x*b
+    minus = UnaryOperation.create(
+        UnaryOperation.Operator.MINUS, mult)
+    # a = -x*b
+    assignment = Assignment.create(Reference(lhs_symbol), minus)
     trans = AssignmentTrans(active_variables=[lhs_symbol, rhs_symbol1])
     trans.validate(assignment)
 
