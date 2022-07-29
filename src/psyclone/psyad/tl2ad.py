@@ -262,17 +262,36 @@ def generate_adjoint(tl_psyir, active_variables):
         raise InternalError("The supplied PSyIR does not contain any "
                             "routines.")
 
-    #if len(routines) != 1:
-    #    raise NotImplementedError(
-    #        f"The supplied Fortran must contain one and only one routine "
-    #        f"but found: {[sub.name for sub in routines]}")
-    #TODO issue yyy support LFRic-specific implementation and generic implementation
-    #TODO issue XXX if LFRic-specific implementation and metadata code points to interface then adjoint all routines specified in the interface. If points to routine then only translate that routine. If generic implementation then only allow one routine as we don't know which one to support.
-    #TODO issue ZZZ if multiple modules/subroutine/program implementations then raise exception unless particular name is specified (by e.g. command line -kernel_name=xyz?. The name can be for a routine or an interface.)
+    # TODO issue #1820 support separate LFRic-specific and generic
+    # implementations as they would have different solutions here.
 
-    # Until we know whether this is meant to be a generic or LFRic-specific kernel and, for LFRic, can specify the particular kernel metadata if multiple versions exist and then read kernel metadata to determine whether it points to a kernel or interface, we simply assume that we should allow multiple routine as they imply an interface. We further assume that the implementation of the routines
-    # in the interface use the same variable names which allows us to
-    # continue to use a single command line list of active variables. This is the case for the implementations we care about but in general may not be the case. Issue AAA should help fix this problem as it would only be argumenents that would need to have the same names.
+    # TODO issue #1820 if this is an LFRic-specific implementation and
+    # the metadata code points to an interface then adjoint all
+    # routines specified in the interface. If it points to a routine
+    # then only translate that routine. If this is a generic
+    # implementation then only support one routine as we don't know
+    # which one to support.
+
+    # TODO issue #1800 if there are multiple
+    # modules/subroutines/program implementations in the file then
+    # raise an exception unless a particular name is specified (by
+    # e.g. command line -kernel_name=xyz. The name can be for a routine
+    # or an interface.)
+
+    # Until we know whether this is meant to be a generic or
+    # LFRic-specific kernel (issue #1820) and, for LFRic, can specify
+    # the particular kernel metadata if multiple versions exist and
+    # then read kernel metadata to determine whether it points to a
+    # kernel or interface (issue #1807), we simply assume that we
+    # should allow multiple routines as they imply an interface. We
+    # further assume that the implementation of the routines in the
+    # interface use the same variable names which allows us to
+    # continue to use a single command line list of active
+    # variables. This is the case for the implementations we care
+    # about but in general may not be the case. Issue #1595 should
+    # help fix this problem as it would only be arguments that would
+    # need to have the same names.
+
     for routine in routines:
 
         # We need to re-name the kernel routines. We have to take care

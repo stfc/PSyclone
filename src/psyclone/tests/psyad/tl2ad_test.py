@@ -51,7 +51,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Container, FileContainer, Return, Routine, Assignment, BinaryOperation,
-    Reference, Literal)
+    Reference)
 from psyclone.psyir.symbols import (
     DataSymbol, SymbolTable, REAL_DOUBLE_TYPE, INTEGER_TYPE, REAL_TYPE,
     ArrayType, RoutineSymbol, ImportInterface, ScalarType, ContainerSymbol,
@@ -355,6 +355,60 @@ def test_generate_adjoint_kind(fortran_reader):
     assert ad_fortran_str in expected_ad_fortran_str
 
 
+def test_generate_adjoint_multi_kernel(fortran_writer):
+    '''Check that generate_adjoint creates the expected code when there
+    are multiple kernels in a module.
+
+    '''
+    expected = (
+        "module test_mod\n"
+        "  implicit none\n"
+        "  public\n\n"
+        "  contains\n"
+        "  subroutine adj_kern1()\n"
+        "    real :: psyir_tmp\n"
+        "    real :: psyir_tmp_1\n\n"
+        "    psyir_tmp = 0.0\n"
+        "    psyir_tmp_1 = 0.0\n"
+        "    psyir_tmp_1 = psyir_tmp_1 + psyir_tmp\n"
+        "    psyir_tmp = 0.0\n\n"
+        "  end subroutine adj_kern1\n"
+        "  subroutine adj_kern2()\n"
+        "    real :: psyir_tmp\n"
+        "    real :: psyir_tmp_1\n\n"
+        "    psyir_tmp = 0.0\n"
+        "    psyir_tmp_1 = 0.0\n"
+        "    psyir_tmp_1 = psyir_tmp_1 + psyir_tmp\n"
+        "    psyir_tmp = 0.0\n\n"
+        "  end subroutine adj_kern2\n"
+        "  subroutine adj_kern3()\n"
+        "    real :: psyir_tmp\n"
+        "    real :: psyir_tmp_1\n\n"
+        "    psyir_tmp = 0.0\n"
+        "    psyir_tmp_1 = 0.0\n"
+        "    psyir_tmp_1 = psyir_tmp_1 + psyir_tmp\n"
+        "    psyir_tmp = 0.0\n\n"
+        "  end subroutine adj_kern3\n\n"
+        "end module test_mod\n")
+    psyir = FileContainer("test_file")
+    kern_list = []
+    for name in ["kern1", "kern2", "kern3"]:
+        routine_symbol_table = SymbolTable()
+        symbol = routine_symbol_table.new_symbol(
+            symbol_type=DataSymbol, datatype=REAL_TYPE)
+        symbol2 = routine_symbol_table.new_symbol(
+            symbol_type=DataSymbol, datatype=REAL_TYPE)
+        assignment = Assignment.create(
+            Reference(symbol), Reference(symbol2))
+        routine = Routine.create(name, routine_symbol_table, [assignment])
+        ad_routine = generate_adjoint(routine, [symbol.name, symbol2.name])
+        kern_list.append(ad_routine)
+    container = Container.create("test_mod", SymbolTable(), kern_list)
+    psyir.children.append(container)
+    ad_fortran_str = fortran_writer(psyir)
+    assert ad_fortran_str == expected
+
+
 def test_generate_adjoint_errors():
     ''' Check that generate_adjoint() raises the expected exceptions when
     given invalid input. '''
@@ -375,19 +429,6 @@ def test_generate_adjoint_errors():
         generate_adjoint(cont, ["dummy"])
     assert ("The supplied PSyIR does not contain any routines." in
             str(err.value))
-    # Multiple routines
-    for name in ["my_kern1", "my_kern2"]:
-        symbol_table = SymbolTable()
-        symbol = symbol_table.new_symbol(
-            symbol_type=DataSymbol, datatype=REAL_TYPE)
-        assignment = Assignment.create(
-            Reference(symbol), Literal("0.0", REAL_TYPE))
-        routine = Routine.create(name, symbol_table, [assignment])
-        cont.addchild(routine)
-    with pytest.raises(NotImplementedError) as err:
-        generate_adjoint(cont, [symbol.name])
-    assert ("The supplied Fortran must contain one and only one routine but "
-            "found: ['my_kern1', 'my_kern2']" in str(err.value))
 
 
 @pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
