@@ -48,7 +48,8 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import CodeBlock, IfBlock, Literal, Loop, Node, \
     Reference, Schedule, Statement, ACCLoopDirective, OMPMasterDirective, \
-    OMPDoDirective, OMPLoopDirective, OMPTargetDirective, Routine
+    OMPDoDirective, OMPLoopDirective, OMPTargetDirective, Routine, \
+    BinaryOperation, Assignment
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE, \
     ImportInterface, ContainerSymbol
 from psyclone.psyir.tools import DependencyTools
@@ -274,6 +275,49 @@ def test_omptargettrans(sample_psyir):
     assert isinstance(loops[1].parent.parent, OMPTargetDirective)
     assert len(tree.walk(Routine)[0].children) == 1
     assert loops[0].parent.parent is loops[1].parent.parent
+
+
+def test_omptargettrans_validate(sample_psyir):
+    ''' Test that OMPTargetTrans validation fails if it contains non-allowed
+    constructs. '''
+
+    omptargettrans = OMPTargetTrans()
+    tree = sample_psyir.copy()
+    loops = tree.walk(Loop, stop_type=Loop)
+
+    # Valid loop
+    omptargettrans.validate(loops[0])
+
+    # With a CodeBlock it should fail
+    loops[0].loop_body.addchild(CodeBlock([], CodeBlock.Structure.STATEMENT))
+    with pytest.raises(TransformationError) as err:
+        omptargettrans.validate(loops[0])
+    assert ("Nodes of type 'CodeBlock' cannot be enclosed by a OMPTargetTrans "
+            "transformation" in str(err.value))
+
+    # With a LBOUND it should fail
+    symbol = DataSymbol("dummy", INTEGER_TYPE)
+    loops[0].loop_body[-1].replace_with(
+            Assignment.create(
+                Reference(symbol),
+                BinaryOperation(BinaryOperation.Operator.LBOUND)))
+    with pytest.raises(TransformationError) as err:
+        omptargettrans.validate(loops[0])
+    assert ("The OMPTargetDirective can not be inserted as an ancestor of "
+            "LBOUND operations, but found: 'BinaryOperation[operator:"
+            "'LBOUND']'." in str(err.value))
+
+    # With a UBOUND it should fail
+    symbol = DataSymbol("dummy", INTEGER_TYPE)
+    loops[0].loop_body[-1].replace_with(
+            Assignment.create(
+                Reference(symbol),
+                BinaryOperation(BinaryOperation.Operator.UBOUND)))
+    with pytest.raises(TransformationError) as err:
+        omptargettrans.validate(loops[0])
+    assert ("The OMPTargetDirective can not be inserted as an ancestor of "
+            "UBOUND operations, but found: 'BinaryOperation[operator:"
+            "'UBOUND']'." in str(err.value))
 
 
 def test_ompdeclaretargettrans(sample_psyir, fortran_writer):

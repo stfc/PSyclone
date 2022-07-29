@@ -59,6 +59,8 @@ from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
     OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause
 from psyclone.psyir.nodes.schedule import Schedule
+from psyclone.psyir.nodes.codeblock import CodeBlock
+from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.symbols import INTEGER_TYPE
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
@@ -1101,6 +1103,32 @@ class OMPTargetDirective(OMPRegionDirective):
         '''
         # pylint: disable=no-self-use
         return "omp end target"
+
+    def validate_global_constraints(self):
+        '''
+        Perform validation checks that can only be done at code-generation
+        time.
+
+        :raises GenerationError: if this OMPTargetDirective does not allow \
+            CodeBlocks, LBOUND and UBOUND instrinsics in its body.
+        '''
+        super().validate_global_constraints()
+
+        cbs = self.walk(CodeBlock)
+        if cbs:
+            raise GenerationError(
+                f"The OMPTargetDirective must not have "
+                f"CodeBlocks inside, but found: '{cbs}'.")
+
+        for bop in self.walk(BinaryOperation):
+            if bop.operator == BinaryOperation.Operator.LBOUND:
+                raise GenerationError(
+                    f"The OMPTargetDirective must not have "
+                    f"LBOUND operations inside, but found: '{bop}'.")
+            if bop.operator == BinaryOperation.Operator.UBOUND:
+                raise GenerationError(
+                    f"The OMPTargetDirective must not have "
+                    f"UBOUND operations inside, but found: '{bop}'.")
 
 
 class OMPLoopDirective(OMPRegionDirective):

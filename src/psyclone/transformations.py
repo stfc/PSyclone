@@ -63,7 +63,7 @@ from psyclone.psyir.nodes import ACCDataDirective, ACCDirective, \
     OMPDirective, OMPDoDirective, OMPLoopDirective, OMPMasterDirective, \
     OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective, \
     OMPSingleDirective, OMPTargetDirective, OMPTaskloopDirective, \
-    PSyDataNode, Reference, Return, Routine, Schedule
+    PSyDataNode, Reference, Return, Routine, Schedule, BinaryOperation
 from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, \
     DeferredType, INTEGER_TYPE, ScalarType, Symbol, SymbolError
 from psyclone.psyir.tools import DTCode, DependencyTools
@@ -618,6 +618,9 @@ class OMPTargetTrans(RegionTrans):
         end subroutine
 
     '''
+
+    excluded_node_types = (CodeBlock, )
+
     def apply(self, node, options=None):
         ''' Insert an OMPTargetDirective before the provided node or list
         of nodes.
@@ -642,6 +645,37 @@ class OMPTargetTrans(RegionTrans):
             parent=parent, children=[node.detach() for node in node_list])
 
         parent.children.insert(start_index, directive)
+
+    def validate(self, nodes, options=None):
+        ''' Check that an OMPTargetDirective can be inserted.
+
+        :param nodes: can be a single node, a schedule or a list of nodes.
+        :type nodes: Union[:py:obj:`psyclone.psyir.nodes.Node`,
+                           :py:obj:`psyclone.psyir.nodes.Schedule`,
+                           List[:py:obj:`psyclone.psyir.nodes.Node`]
+        :param options: a dictionary with options for transformations.
+        :type options: Optional[Dict[str,Any]]
+
+        :raises TransformationError: the node contains structures that \
+            are not allowed inside an OMPTargetDirective.
+
+        '''
+        super().validate(nodes, options=options)
+
+        node_list = self.get_node_list(nodes)
+
+        for node in node_list:
+            for bop in node.walk(BinaryOperation):
+                if bop.operator == BinaryOperation.Operator.LBOUND:
+                    raise TransformationError(
+                        f"The OMPTargetDirective can not be inserted as "
+                        f"an ancestor of LBOUND operations, but found: "
+                        f"'{bop}'.")
+                if bop.operator == BinaryOperation.Operator.UBOUND:
+                    raise TransformationError(
+                        f"The OMPTargetDirective can not be inserted as "
+                        f"an ancestor of UBOUND operations, but found: "
+                        f"'{bop}'.")
 
 
 class OMPDeclareTargetTrans(Transformation):

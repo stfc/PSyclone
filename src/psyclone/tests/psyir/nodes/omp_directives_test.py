@@ -50,7 +50,8 @@ from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, \
     OMPTaskwaitDirective, OMPTargetDirective, OMPLoopDirective, Schedule, \
     Return, OMPSingleDirective, Loop, Literal, Routine, Assignment, \
     Reference, OMPDeclareTargetDirective, OMPNowaitClause, \
-    OMPGrainsizeClause, OMPNumTasksClause, OMPNogroupClause
+    OMPGrainsizeClause, OMPNumTasksClause, OMPNogroupClause, CodeBlock, \
+    BinaryOperation, Assignment
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, SymbolTable, \
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE
 from psyclone.errors import InternalError, GenerationError
@@ -579,6 +580,42 @@ def test_omp_target_directive_constructor_and_strings():
     assert target.begin_string() == "omp target"
     assert target.end_string() == "omp end target"
     assert str(target) == "OMPTargetDirective[]"
+
+
+def test_omp_target_directive_validate_global_constraints():
+    ''' Test the OMPTargetDirective prevents the generation of target
+    directives with non-allowed nodes inside.'''
+    target = OMPTargetDirective()
+    # If no condition is broken, it should succeed
+    target.validate_global_constraints()
+
+    # With a Codeblock, it should fail
+    target.children[0].addchild(CodeBlock([], CodeBlock.Structure.STATEMENT))
+    with pytest.raises(GenerationError) as err:
+        target.validate_global_constraints()
+    assert ("The OMPTargetDirective must not have CodeBlocks inside, but "
+            "found:" in str(err.value))
+
+    # With a LBOUND, it should fail
+    symbol = DataSymbol("dummy", INTEGER_TYPE)
+    target.children[0][0].replace_with(
+            Assignment.create(
+                Reference(symbol),
+                BinaryOperation(BinaryOperation.Operator.LBOUND)))
+    with pytest.raises(GenerationError) as err:
+        target.validate_global_constraints()
+    assert ("The OMPTargetDirective must not have LBOUND operations inside,"
+            " but found:" in str(err.value))
+
+    # With a UBOUND, it should fail
+    target.children[0][0].replace_with(
+            Assignment.create(
+                Reference(symbol),
+                BinaryOperation(BinaryOperation.Operator.UBOUND)))
+    with pytest.raises(GenerationError) as err:
+        target.validate_global_constraints()
+    assert ("The OMPTargetDirective must not have UBOUND operations inside,"
+            " but found:" in str(err.value))
 
 
 # Test OMPDeclareTargetDirective
