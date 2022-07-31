@@ -1,6 +1,6 @@
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2020-2021, Science and Technology Facilities Council
+! Modifications copyright (c) 2020-2022, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@ program main
     use fs_continuity_mod,      only: W0, W1, W2, W2V, W2H
     use field_mod,              only: field_type
     use testkern_w0_kernel_mod, only: testkern_w0_kernel_type
-    use constants_mod,          only: r_def, i_def
+    use constants_mod,          only: r_def, i_def, l_def
     use log_mod,                only: LOG_LEVEL_ALWAYS
 
 
@@ -61,6 +61,7 @@ program main
     integer(kind=i_def)                        :: element_order = 1
     integer(kind=i_def)                        :: ndata_sz
     real(kind=r_def)                           :: one
+    logical(kind=l_def)                        :: some_logical
 
     ! Use the unit-testing constructor:
     global_mesh = global_mesh_base_type()
@@ -95,7 +96,9 @@ program main
                  setval_c( field1,     0.0_r_def ), &
                  setval_c( field2,     one       )  &
                  )
-    call invoke( name = 'testkern_w0', testkern_w0_kernel_type(field1, field2) )
+    some_logical = .false.
+    call invoke( name = 'testkern_w0', testkern_w0_kernel_type(field1, field2, &
+                                                               some_logical) )
 
     call field1%log_minmax(LOG_LEVEL_ALWAYS, "minmax of field1")
 

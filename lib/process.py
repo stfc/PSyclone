@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -105,6 +105,7 @@ args = parser.parse_args()
 TYPE_DATA = {"real": ("Real", "real(kind=real32)", 32),
              "double": ("Double", "real(kind=real64)", 64),
              "int": ("Int", "integer(kind=int32)", 32),
+             "logical": ("Logical", "Logical(kind=4)", 4),
              "long": ("Long", "integer(kind=int64)", 64)}
 
 # ---------------------------------------------------------
@@ -118,9 +119,9 @@ if types == ['']:
 
 for my_type in types:
     if my_type not in TYPE_DATA:
-        print("Type '{0}' is not supported.".format(my_type), file=sys.stderr)
-        print("Use one or more of {0}"
-              .format(",".join(list(TYPE_DATA.keys()))), file=sys.stderr)
+        print(f"Type '{my_type}' is not supported.", file=sys.stderr)
+        valid_str = ",".join(list(TYPE_DATA.keys()))
+        print(f"Use one or more of {valid_str}", file=sys.stderr)
         sys.exit(-1)
 all_types = [TYPE_DATA[my_type] for my_type in types]
 
@@ -136,17 +137,17 @@ for dim in dims:
     try:
         int_dim = int(dim)
     except ValueError:
-        print("Dimension value '{0}' is not valid.".format(dim),
+        print(f"Dimension value '{dim}' is not valid.",
               file=sys.stderr)
         sys.exit(-1)
     if int_dim < 1 or int_dim > 7:
-        print("Dimension value '{0}' is not between 1 and 7.".format(dim),
+        print(f"Dimension value '{dim}' is not between 1 and 7.",
               file=sys.stderr)
         sys.exit(-1)
 
 dims = [int(dim) for dim in dims]
 # ---------------------------------------------------------
-with open(args.template_name, "r") as file:
+with open(args.template_name, "r", encoding='utf-8') as file:
     template_string = "".join(file.readlines())
 
 env = Environment(trim_blocks=True, lstrip_blocks=True)

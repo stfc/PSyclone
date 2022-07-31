@@ -145,7 +145,7 @@ contains
         character(*), intent(in)                      :: name
         {{type}}, intent(in)                          :: value
 
-        {% if name != "Int" %}
+        {% if name not in ["Int", "Logical"] %}
         if (.not. is_enabled) return
 
         if (IEEE_SUPPORT_DATATYPE(value)) then
@@ -192,7 +192,7 @@ contains
         {{type}}, dimension({{DIMENSION}}), intent(in) :: value
 
         {# IEEE_SUPPORT_DATATYPE does not even compile for int data types #}
-        {% if name != "Int" %}
+        {% if name not in ["Int", "Logical"] %}
         integer :: {{vars}}
 
         if (.not. is_enabled) return

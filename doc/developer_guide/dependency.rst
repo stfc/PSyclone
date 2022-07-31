@@ -590,13 +590,21 @@ Dependency Tools
 ================
 
 PSyclone contains a class that builds upon the data-dependency functionality
-to provide useful tools for dependency analaysis. It especially provides
+to provide useful tools for dependency analysis. It especially provides
 messages for the user to indicate why parallelisation was not possible. It
 uses `SymPy` internally to compare expressions symbolically.
 
 .. autoclass:: psyclone.psyir.tools.dependency_tools.DependencyTools
     :members:
 
+
+.. note:: PSyclone provides :ref:`user_guide:replace_induction_variable_trans`,
+          a transformation that can be very useful to improve the ability of
+          the dependency analysis to provide useful information. It is
+          recommended to run this transformation on a copy of the tree, since
+          the transformation might prevent other optimisations. For example,
+          it will set the values of removed variables at the end of the loop,
+          which can prevent loop fusion etc to work as expected.
 
 An example of how to use this class is shown below. It takes a list of statements
 (i.e. nodes in the PSyIR), and adds 'OMP DO' directives around loops that
