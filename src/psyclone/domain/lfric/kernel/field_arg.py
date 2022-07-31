@@ -35,7 +35,7 @@
 
 '''Module containing the FieldArg class which captures the metadata
 associated with a field argument. Supports the creation, modification
-and Fortran output of the a Field argument.
+and Fortran output of a Field argument.
 
 '''
 from fparser.common.readfortran import FortranStringReader
@@ -73,14 +73,17 @@ class FieldArg():
             self.function_space = function_space
 
     @staticmethod
-    def create_from_fortran_string(fortran_string):
-        '''Create an instance of this class from a Fortran string.
+    def create_part_ref(fortran_string):
+        '''Creates an fparser tree from a Fortran string. Expects the parent
+        node of the tree to be a Part_Ref object (as it represents a field
+        argument).
 
         :param str fortran_string: a string containing the metadata in \
-            Fortran.
+           Fortran.
 
-        :returns: an instance of FieldArg.
-        :rtype: :py:class:`psyclone.domain.lfric.kernel.FieldArg`
+        :returns: an fparser2 tree containing the PSyIR for a field \
+            argument.
+        :rtype: :py:class:`fparser.two.Fortran2003.Part_Ref`
 
         :raises ValueError: if the Fortran string is not in the \
             expected form.
@@ -93,16 +96,36 @@ class FieldArg():
             raise ValueError(
                 f"Expected kernel metadata to be a Fortran part reference, "
                 f"with the form 'arg_type(...)' but found '{fortran_string}'.")
+        return part_ref
+
+    @staticmethod
+    def create_from_fortran_string(fortran_string):
+        '''Create an instance of this class from a Fortran string.
+
+        :param str fortran_string: a string containing the metadata in \
+            Fortran.
+
+        :returns: an instance of FieldArg.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.FieldArg`
+
+        '''
+        part_ref = FieldArg.create_part_ref(fortran_string)
         return FieldArg.create_from_psyir(part_ref)
 
     @staticmethod
-    def create_from_psyir(psyir):
-        '''Create an instance of this class from generic PSyIR. At this moment
-        this information is captured in an fparser2 tree.
+    def check_psyir(psyir):
+        '''Checks that the psyir argument is valid.
 
         :param psyir: fparser2 tree containing the PSyIR for a field \
             argument.
         :type psyir: :py:class:`fparser.two.Fortran2003.Part_Ref`
+
+        :raises TypeError: if the psyir argument is not an fparser2 \
+            Part_Ref object.
+        :raises ValueError: if the field arg kernel metadata is not in \
+            the form arg_type(...).
+        :raises ValueError: if the field arg kernel metadata does not \
+            contain 4 arguments.
 
         '''
         if not isinstance(psyir, Fortran2003.Part_Ref):
@@ -121,6 +144,20 @@ class FieldArg():
                 f"but found {len(psyir.children[1].children)} in "
                 f"'{str(psyir)}'.")
 
+    @staticmethod
+    def create_from_psyir(psyir):
+        '''Create an instance of this class from generic PSyIR. At this moment
+        this information is captured in an fparser2 tree.
+
+        :param psyir: fparser2 tree containing the PSyIR for a field \
+            argument.
+        :type psyir: :py:class:`fparser.two.Fortran2003.Part_Ref`
+
+        :returns: an instance of FieldArg.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.FieldArg`
+
+        '''
+        FieldArg.check_psyir(psyir)
         datatype = psyir.children[1].children[1].tostr()
         access = psyir.children[1].children[2].tostr()
         function_space = psyir.children[1].children[3].tostr()
@@ -132,8 +169,11 @@ class FieldArg():
             Fortran string.
         :rtype: str
 
+        raises ValueError: if one or more of the datatype, access or \
+            function_space values have not been set.
+
         '''
-        if not self.datatype or not self.access or not self.function_space:
+        if not (self.datatype and self.access and self.function_space):
             raise ValueError(
                 f"Values for datatype, access and function_space must be "
                 f"provided before calling the fortran_string method, but "
@@ -166,6 +206,10 @@ class FieldArg():
         '''
         :param str value: set the datatype to the \
             specified value.
+
+        :raises ValueError: if the provided value is not a valid \
+            datatype descriptor.
+
         '''
         const = LFRicConstants()
         if not value or value.lower() not in const.VALID_FIELD_DATA_TYPES:
@@ -189,6 +233,10 @@ class FieldArg():
         '''
         :param str value: set the access descriptor to the \
             specified value.
+
+        :raises ValueError: if the provided value is not a valid \
+            access type.
+
         '''
         const = LFRicConstants()
         if not value or value.lower() not in const.VALID_ACCESS_TYPES:
@@ -212,6 +260,10 @@ class FieldArg():
         '''
         :param str value: set the access descriptor to the \
             specified value.
+
+        raises ValueError: if the provided value is not a valid \
+            function space.
+
         '''
         const = LFRicConstants()
         if not value or value.lower() not in const.VALID_FUNCTION_SPACES:

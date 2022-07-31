@@ -591,14 +591,14 @@ class LFRicKernelMetadata():
             f"END TYPE {self.name}\n")
         return result
 
-    class FieldVectorArg():
-        def __init__(self, arg_string, vector_size, kernel_metadata):
-            self.form = "GH_FIELD"
-            self.vector_size = vector_size
-
-        def fortran_string(self):
-            ''' xxx '''
-            return f"arg_type({self.form}*{self.vector_size}, ...)"
+    #class FieldVectorArg():
+    #    def __init__(self, arg_string, vector_size, kernel_metadata):
+    #        self.form = "GH_FIELD"
+    #        self.vector_size = vector_size
+    #
+    #    def fortran_string(self):
+    #        ''' xxx '''
+    #        return f"arg_type({self.form}*{self.vector_size}, ...)"
 
     class ScalarArg():
         def __init__(self, arg_string, kernel_metadata):
