@@ -44,7 +44,6 @@ program main
     use constants_mod,          only: r_def, i_def, l_def
     use log_mod,                only: LOG_LEVEL_ALWAYS
 
-
     implicit none
 
     type(global_mesh_base_type), target        :: global_mesh

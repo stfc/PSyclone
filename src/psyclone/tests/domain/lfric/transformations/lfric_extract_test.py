@@ -374,8 +374,6 @@ def test_node_list_dynamo0p3():
 
     etrans.apply(schedule.children[0:3])
     code = str(psy.gen)
-    # This output is affected by #637 (builtin support), and needs to be
-    # adjusted once this is fixed.
     output = """! ExtractStart
       !
       CALL extract_psy_data%PreStart("single_invoke_builtin_then_kernel_psy", \
