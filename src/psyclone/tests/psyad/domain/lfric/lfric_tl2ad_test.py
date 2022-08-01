@@ -40,9 +40,10 @@ from psyclone.domain.lfric import KernCallInvokeArgList
 from psyclone.domain.lfric.algorithm import LFRicBuiltinFunctor
 from psyclone.errors import InternalError
 from psyclone.psyad.domain.lfric.tl2ad import (_compute_lfric_inner_products,
+                                               _compute_field_inner_products,
                                                _init_fields_random,
                                                generate_lfric_adjoint_test)
-from psyclone.psyir.nodes import Routine, Literal
+from psyclone.psyir.nodes import Routine, Literal, Assignment
 from psyclone.psyir.symbols import (SymbolTable, DataSymbol, REAL_TYPE,
                                     ArrayType, DataTypeSymbol, DeferredType,
                                     INTEGER_TYPE)
@@ -95,23 +96,43 @@ def test_compute_inner_products_fields(fortran_writer):
 
 # _compute_field_inner_products
 
-def test_compute_field_inner_products():
-    ''' '''
+def test_compute_field_inner_products(fortran_writer):
+    '''Check that _compute_field_inner_products generates the expected symbols,
+    assignments and functors.'''
     table = SymbolTable()
     prog = Routine.create("test_prog", table, [], is_program=True)
-    _compute_field_inner_products(prog, pairs)
+    fld_type = DataTypeSymbol("field_type", datatype=DeferredType())
+    table.add(fld_type)
+    fld1 = DataSymbol("field1", datatype=fld_type)
+    fld2 = DataSymbol("field2", datatype=fld_type)
+    table.add(fld1)
+    table.add(fld2)
+    sums, functors = _compute_field_inner_products(prog, [(fld1, fld2)])
+    assert len(sums) == 1
+    assert isinstance(sums[0], DataSymbol)
+    assert sums[0].name.endswith("_inner_prod")
+    assert sums[0].name in table
+    assert len(functors) == 1
+    assert isinstance(functors[0], LFRicBuiltinFunctor)
+    assert isinstance(prog.children[0], Assignment)
+    code = fortran_writer(prog)
+    assert "hello" in code
 
 
 # _init_fields_random
 
 def test_init_fields_random(fortran_writer):
     '''Check that the _init_fields_random() routine works as expected.'''
+    table = SymbolTable()
     fld_type = DataTypeSymbol("field_type", datatype=DeferredType())
+    table.add(fld_type)
     fld1 = DataSymbol("field1", datatype=fld_type)
     fields = [(fld1, "w1")]
     fld1_input = DataSymbol("field1_input", datatype=fld_type)
     input_syms = {"field1": fld1_input}
-    kernels = _init_fields_random(fields, input_syms)
+    table.add(fld1)
+    table.add(fld1_input)
+    kernels = _init_fields_random(fields, input_syms, table)
     assert len(kernels) == 2
     assert isinstance(kernels[0], LFRicBuiltinFunctor)
     assert kernels[0].symbol.name == "setval_random"
@@ -127,12 +148,16 @@ def test_init_fields_random_vector(fortran_writer):
     a field vector.
 
     '''
+    table = SymbolTable()
     fld_type = DataTypeSymbol("field_type", datatype=DeferredType())
+    table.add(fld_type)
     fld1 = DataSymbol("field1", datatype=ArrayType(fld_type, [3]))
     fields = [(fld1, "w1")]
     fld1_input = DataSymbol("field1_input", datatype=ArrayType(fld_type, [3]))
+    table.add(fld1)
+    table.add(fld1_input)
     input_syms = {"field1": fld1_input}
-    kernels = _init_fields_random(fields, input_syms)
+    kernels = _init_fields_random(fields, input_syms, table)
     assert len(kernels) == 6
     for idx in range(3):
         kidx = 2*idx
@@ -159,7 +184,7 @@ def test_init_fields_random_error():
     fields = [(fld1, "w1")]
     inputs = {"field1": fld1}
     with pytest.raises(InternalError) as err:
-        _init_fields_random(fields, inputs)
+        _init_fields_random(fields, inputs, SymbolTable())
     assert ("Expected a field symbol to either be of ArrayType or have a type "
             "specified by a DataTypeSymbol but found Scalar<INTEGER, "
             "UNDEFINED> for field 'field1'" in str(err.value))
