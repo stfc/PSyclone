@@ -328,14 +328,13 @@ The generated code is now:
 .. code-block:: fortran
 
       ! ExtractStart
-      CALL extract_psy_data%PreStart("unknown-module", "setval_c", 1, 3)
-      CALL extract_psy_data%PreDeclareVariable("f2", f2)
+      CALL extract_psy_data%PreStart("unknown-module", "setval_c", 0, 4)
       CALL extract_psy_data%PreDeclareVariable("cell_post", cell)
       CALL extract_psy_data%PreDeclareVariable("df_post", df)
+      CALL extract_psy_data%PreDeclareVariable("f2_post", f2)
       CALL extract_psy_data%PreDeclareVariable("f3_post", f3)
       ...
       CALL extract_psy_data%PreEndDeclaration
-      CALL extract_psy_data%ProvideVariable("f2", f2)
       ...
       CALL extract_psy_data%PreEnd
       !
@@ -353,21 +352,17 @@ The generated code is now:
       CALL extract_psy_data%PostStart
       CALL extract_psy_data%ProvideVariable("cell_post", cell)
       CALL extract_psy_data%ProvideVariable("df_post", df)
+      CALL extract_psy_data%ProvideVariable("f2_post", f2)
       CALL extract_psy_data%ProvideVariable("f3_post", f3)
       CALL extract_psy_data%PostEnd
       !
       ! ExtractEnd
 
-.. note::
-
-    At this stage Built-Ins are not fully supported, resulting in ``f2``
-    being incorrectly detected as an input parameter, and not as an
-    output parameter. This issue is tracked in #637.
-
-
 Examples in ``examples/lfric/eg12`` directory demonstrate how to
 apply code extraction by utilising PSyclone transformation scripts
-(see :ref:`examples` section for more information).
+(see :ref:`examples` section for more information). The code
+in ``examples/lfric/eg17/full_example_extract`` can be compiled and
+run, and it will create two kernel data files.
 
 .. _psyke_netcdf:
 
