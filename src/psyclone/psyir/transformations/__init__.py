@@ -104,7 +104,7 @@ __all__ = ['ArrayRange2LoopTrans',
            'LoopTiling2DTrans',
            'LoopTrans',
            'NanTestTrans',
-           'OMPTaskTrans',
+           'OMPTaskTrans'
            'OMPTaskwaitTrans',
            'ParallelLoopTrans',
            'ProfileTrans',
