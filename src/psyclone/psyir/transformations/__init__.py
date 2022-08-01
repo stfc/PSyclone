@@ -67,7 +67,6 @@ from psyclone.psyir.transformations.loop_tiling_2d_trans \
     import LoopTiling2DTrans
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.nan_test_trans import NanTestTrans
-from psyclone.psyir.transformations.omp_task_trans import OMPTaskTrans
 from psyclone.psyir.transformations.omp_taskwait_trans import OMPTaskwaitTrans
 from psyclone.psyir.transformations.parallel_loop_trans import \
     ParallelLoopTrans
