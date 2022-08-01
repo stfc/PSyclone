@@ -37,6 +37,7 @@
 ''' Performs py.test tests on the OpenMP PSyIR Clause nodes. '''
 
 import pytest
+from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause,\
     OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause, OMPSharedClause,\
     OMPDependClause, OMPPrivateClause, OMPFirstprivateClause,\
@@ -91,6 +92,8 @@ def test_schedule_clause():
     assert sched != sched2
     sched2.schedule = "test"
     assert sched == sched2
+    coloredtext = colored("OMPScheduleClause", OMPScheduleClause._colour)
+    assert coloredtext+"[schedule=test]" in sched.node_str()
 
 
 def test_default_clause():
@@ -162,3 +165,15 @@ def test_depend_clause():
     assert dependin.operand == "in"
     assert dependout.operand == "out"
     assert depend1.operand == "inout"
+    coloredtext = colored("OMPDependClause", OMPDependClause._colour)
+    assert (coloredtext+"[operand=DependClauseTypes.INOUT]"
+            in depend1.node_str())
+
+
+def test_depend_validate_child():
+    ''' Test the validate_child function of the OMPDependClause. '''
+    tmp = DataSymbol("tmp", INTEGER_TYPE)
+    ref1 = Reference(tmp)
+    assert OMPDependClause._validate_child(0, ref1) is True
+    assert OMPDependClause._validate_child(110, ref1) is True
+    assert OMPDependClause._validate_child(0, "test") is False
