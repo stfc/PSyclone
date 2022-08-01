@@ -37,7 +37,8 @@
 
 import pytest
 from psyclone.domain.lfric import KernCallInvokeArgList
-from psyclone.domain.lfric.algorithm import LFRicBuiltinFunctor
+from psyclone.domain.lfric.algorithm import (LFRicBuiltinFunctor,
+                                             LFRicBuiltinFunctorFactory)
 from psyclone.errors import InternalError
 from psyclone.psyad.domain.lfric.tl2ad import (_compute_lfric_inner_products,
                                                _compute_field_inner_products,
@@ -46,7 +47,8 @@ from psyclone.psyad.domain.lfric.tl2ad import (_compute_lfric_inner_products,
 from psyclone.psyir.nodes import Routine, Literal, Assignment
 from psyclone.psyir.symbols import (SymbolTable, DataSymbol, REAL_TYPE,
                                     ArrayType, DataTypeSymbol, DeferredType,
-                                    INTEGER_TYPE)
+                                    INTEGER_TYPE, ContainerSymbol,
+                                    ImportInterface)
 
 
 # _compute_lfric_inner_products
@@ -98,25 +100,99 @@ def test_compute_inner_products_fields(fortran_writer):
 
 def test_compute_field_inner_products(fortran_writer):
     '''Check that _compute_field_inner_products generates the expected symbols,
-    assignments and functors.'''
+    assignments and functors for fields.'''
+    bin_factory = LFRicBuiltinFunctorFactory.get()
     table = SymbolTable()
     prog = Routine.create("test_prog", table, [], is_program=True)
-    fld_type = DataTypeSymbol("field_type", datatype=DeferredType())
-    table.add(fld_type)
-    fld1 = DataSymbol("field1", datatype=fld_type)
-    fld2 = DataSymbol("field2", datatype=fld_type)
-    table.add(fld1)
-    table.add(fld2)
-    sums, functors = _compute_field_inner_products(prog, [(fld1, fld2)])
-    assert len(sums) == 1
+    csym = table.new_symbol("field_mod", symbol_type=ContainerSymbol)
+    fld_type = table.new_symbol("field_type", symbol_type=DataTypeSymbol,
+                                datatype=DeferredType(),
+                                interface=ImportInterface(csym))
+    fld1 = table.new_symbol("field1", symbol_type=DataSymbol,
+                            datatype=fld_type)
+    fld2 = table.new_symbol("field2", symbol_type=DataSymbol,
+                            datatype=fld_type)
+    sums, functors = _compute_field_inner_products(prog, [(fld1, fld1),
+                                                          (fld1, fld2)])
+    assert len(sums) == 2
     assert isinstance(sums[0], DataSymbol)
     assert sums[0].name.endswith("_inner_prod")
     assert sums[0].name in table
-    assert len(functors) == 1
-    assert isinstance(functors[0], LFRicBuiltinFunctor)
+    assert len(functors) == 2
+    assert isinstance(functors[0],
+                      bin_factory._get_builtin_class("x_innerproduct_x"))
+    assert isinstance(functors[1],
+                      bin_factory._get_builtin_class("x_innerproduct_y"))
     assert isinstance(prog.children[0], Assignment)
     code = fortran_writer(prog)
-    assert "hello" in code
+    assert "field1_inner_prod = 0.0_r_def" in code
+    assert "field1_field2_inner_prod = 0.0_r_def" in code
+
+
+def test_compute_field_vector_inner_products(fortran_writer):
+    '''Check that _compute_field_inner_products generates the expected symbols,
+    assignments and functors for field vectors.'''
+    bin_factory = LFRicBuiltinFunctorFactory.get()
+    table = SymbolTable()
+    prog = Routine.create("test_prog", table, [], is_program=True)
+    csym = table.new_symbol("field_mod", symbol_type=ContainerSymbol)
+    fld_type = table.new_symbol("field_type", symbol_type=DataTypeSymbol,
+                                datatype=DeferredType(),
+                                interface=ImportInterface(csym))
+    fld1 = table.new_symbol("field1", symbol_type=DataSymbol,
+                            datatype=ArrayType(fld_type, [3]))
+    fld2 = table.new_symbol("field2", symbol_type=DataSymbol,
+                            datatype=ArrayType(fld_type, [3]))
+    fld3 = table.new_symbol("field3", symbol_type=DataSymbol,
+                            datatype=fld_type)
+    sums, functors = _compute_field_inner_products(prog, [(fld1, fld1),
+                                                          (fld3, fld3),
+                                                          (fld2, fld1)])
+    assert len(sums) == 3
+    assert sums[0].is_array
+    assert not sums[1].is_array
+    assert sums[2].is_array
+    assert len(functors) == 7
+    for dim in range(4):
+        assert isinstance(functors[dim],
+                          bin_factory._get_builtin_class("x_innerproduct_x"))
+    code = fortran_writer(prog)
+    for dim in range(1, 4):
+        assert f"field1_inner_prod({dim}) = 0.0_r_def" in code
+        assert f"field2_field1_inner_prod({dim}) = 0.0_r_def" in code
+
+
+def test_compute_field_inner_products_errors(fortran_writer):
+    '''Check that _compute_field_inner_products raises the expected errors
+    when passed incorrect arguments.'''
+    table = SymbolTable()
+    prog = Routine.create("test_prog", table, [], is_program=True)
+    csym = table.new_symbol("field_mod", symbol_type=ContainerSymbol)
+    fld_type = table.new_symbol("field_type", symbol_type=DataTypeSymbol,
+                                datatype=DeferredType(),
+                                interface=ImportInterface(csym))
+    fld1 = table.new_symbol("field1", symbol_type=DataSymbol,
+                            datatype=ArrayType(fld_type, [3]))
+    fld3 = table.new_symbol("field3", symbol_type=DataSymbol,
+                            datatype=fld_type)
+    # Check that an inner product of a field vector with a field is rejected.
+    with pytest.raises(InternalError) as err:
+        _compute_field_inner_products(prog, [(fld1, fld3)])
+    assert ("Cannot compute the inner product of fields 'field1' and 'field3' "
+            "because they are of different types: Array<field_type: "
+            "DataTypeSymbol, shape=[3]> and field_type: DataTypeSymbol" in
+            str(err.value))
+    with pytest.raises(TypeError) as err:
+        _compute_field_inner_products(prog, [(fld1, "hello")])
+    assert ("Each pair of fields/field-vectors must be supplied as "
+            "DataSymbols but got:" in str(err.value))
+    # Break the datatype of one of the fields
+    fld1.datatype = INTEGER_TYPE
+    with pytest.raises(InternalError) as err:
+        _compute_field_inner_products(prog, [(fld1, fld1)])
+    assert ("Expected a field symbol to either be of ArrayType or have a type "
+            "specified by a DataTypeSymbol but found Scalar<INTEGER, "
+            "UNDEFINED> for field 'field1'" in str(err.value))
 
 
 # _init_fields_random
@@ -271,15 +347,16 @@ def test_generate_lfric_adjoint_test(fortran_writer):
     assert ("    inner1 = 0.0_r_def\n"
             "    inner1 = inner1 + rscalar_1 * rscalar_1\n"
             "    inner1 = inner1 + field_2_inner_prod\n"
-            "    field_2_inner_prod = 0.0_r_def\n" in gen)
+            "    field_2_field_2_input_inner_prod = 0.0_r_def\n" in gen)
     # Run the adjoint of the kernel and compute the inner products of its
     # outputs with the inputs to the TL kernel.
     assert ("call invoke(adj_testkern_type(rscalar_1, field_2), "
-            "x_innerproduct_y(field_2_inner_prod, field_2, field_2_input))"
+            "x_innerproduct_y(field_2_field_2_input_inner_prod, field_2, "
+            "field_2_input))"
             in gen)
     assert ("    inner2 = 0.0_r_def\n"
             "    inner2 = inner2 + rscalar_1 * rscalar_1_input\n"
-            "    inner2 = inner2 + field_2_inner_prod\n" in gen)
+            "    inner2 = inner2 + field_2_field_2_input_inner_prod\n" in gen)
 
 
 def test_generate_lfric_adjoint_test_no_operators(monkeypatch):

@@ -105,6 +105,9 @@ def _compute_field_inner_products(routine, field_pairs):
     Constructs the assignments and kernel functors needed to compute the
     inner products of the supplied list of fields.
 
+    TODO #1799: the error checking is currently limited to ensuring that an
+    inner product of a field vector with a field is rejected.
+
     :param routine: the routine to which to add the assignments.
     :type routine: :py:class:`psyclone.psyir.nodes.Routine`
     :param field_pairs: the pairs of fields for which we need to compute the \
@@ -117,6 +120,12 @@ def _compute_field_inner_products(routine, field_pairs):
               kernel functors that computes them.
     :rtype: Tuple[List[:py:class:`psyclone.psyir.symbols.DataSymbol`], \
               List[:py:class:`psyclone.domain.lfric.algorithm.KernelFunctor`]]
+
+    :raises TypeError: if any of the supplied symbols are not DataSymbols.
+    :raises InternalError: if any of the supplied pairs of symbols do not \
+                           have matching types.
+    :raises InternalError: if any of the supplied symbols are not of the \
+                           correct type for an LFRic field.
     '''
     table = routine.symbol_table
     rdef_sym = psyir.add_lfric_precision_symbol(table, "r_def")
@@ -127,11 +136,29 @@ def _compute_field_inner_products(routine, field_pairs):
     field_ip_symbols = []
     kernel_list = []
     for sym1, sym2 in field_pairs:
-        inner_prod_name = sym1.name + "_inner_prod"
+
+        if not (isinstance(sym1, DataSymbol) and isinstance(sym2, DataSymbol)):
+            raise TypeError(
+                f"Each pair of fields/field-vectors must be supplied as "
+                f"DataSymbols but got: {type(sym1)}, {type(sym2)}")
+
+        # TODO #1799: requires support for comparison of types.
+        # if sym1.datatype != sym2.datatype:
+        if sym1.is_array != sym2.is_array:
+            raise InternalError(
+                f"Cannot compute the inner product of fields '{sym1.name}' "
+                f"and '{sym2.name}' because they are of different types: "
+                f"{sym1.datatype} and {sym2.datatype}")
+
+        if sym1 is sym2:
+            inner_prod_name = f"{sym1.name}_inner_prod"
+        else:
+            inner_prod_name = f"{sym1.name}_{sym2.name}_inner_prod"
+
         if isinstance(sym1.datatype, DataTypeSymbol):
-            ip_sym = table.find_or_create(inner_prod_name,
-                                          symbol_type=DataSymbol,
-                                          datatype=rdef_type)
+            ip_sym = table.new_symbol(inner_prod_name,
+                                      symbol_type=DataSymbol,
+                                      datatype=rdef_type)
             routine.addchild(Assignment.create(Reference(ip_sym),
                                                Literal("0.0", rdef_type)))
             if sym2 is sym1:
@@ -147,9 +174,9 @@ def _compute_field_inner_products(routine, field_pairs):
 
         elif isinstance(sym1.datatype, ArrayType):
             dtype = ArrayType(rdef_type, sym1.datatype.shape)
-            ip_sym = table.find_or_create(inner_prod_name,
-                                          symbol_type=DataSymbol,
-                                          datatype=dtype)
+            ip_sym = table.new_symbol(inner_prod_name,
+                                      symbol_type=DataSymbol,
+                                      datatype=dtype)
             for dim in range(int(sym1.datatype.shape[0].lower.value),
                              int(sym1.datatype.shape[0].upper.value)+1):
                 lit = Literal(str(dim), INTEGER_TYPE)
