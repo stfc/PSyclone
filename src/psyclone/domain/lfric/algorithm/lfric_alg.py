@@ -40,7 +40,7 @@
 
 from psyclone.domain.lfric import KernCallInvokeArgList, LFRicConstants, psyir
 from psyclone.domain.lfric.algorithm.psyir import (
-    LFRicAlgorithmInvokeCall, LFRicBuiltinFunctor, LFRicKernelFunctor)
+    LFRicAlgorithmInvokeCall, LFRicBuiltinFunctorFactory, LFRicKernelFunctor)
 from psyclone.dynamo0p3 import DynKern
 from psyclone.errors import InternalError
 from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
@@ -136,25 +136,20 @@ class LFRicAlg:
                 Literal("1", psyir.LfricIntegerScalarDataType())))
 
         # We use the setval_c builtin to initialise all fields to unity.
-        # Currently we have to create a symbol for this builtin in order to
-        # create the appropriate functor.
-        # TODO #1645 - we do *not* put this symbol in the table as otherwise
-        # the backend will currently fail because it is undefined.
-        setval_c = DataTypeSymbol("setval_c", DeferredType())
-
         # As with the scalar initialisation, we don't worry about precision
         # here since we are just setting the field values to unity. If the
         # field itself is of a precision other than r_def (or is perhaps
         # integer rather than real) we rely on type casting by the
         # compiler/run-time.
+        factory = LFRicBuiltinFunctorFactory.get()
         psyir.add_lfric_precision_symbol(table, "r_def")
         kernel_list = []
         for sym, _ in kern_args.fields:
             kernel_list.append(
-                LFRicBuiltinFunctor.create(
-                    setval_c, [Reference(sym),
-                               Literal("1.0",
-                                       psyir.LfricRealScalarDataType())]))
+                factory.create(
+                    "setval_c", table,
+                    [Reference(sym),
+                     Literal("1.0", psyir.LfricRealScalarDataType())]))
 
         # Finally, add the kernel itself to the list for the invoke().
         arg_nodes = []

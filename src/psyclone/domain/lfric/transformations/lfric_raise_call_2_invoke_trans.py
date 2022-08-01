@@ -38,12 +38,10 @@ algorithm layer to an LFRic algorithm-layer-specific invoke call which
 uses specialised classes.
 
 '''
-from psyclone.psyir.nodes import ArrayReference
-
 from psyclone.domain.common.transformations import RaiseCall2InvokeTrans
-from psyclone.domain.lfric.algorithm import LFRicBuiltinFunctor, \
-    LFRicKernelFunctor, LFRicAlgorithmInvokeCall
-from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP as builtins
+from psyclone.domain.lfric.algorithm.psyir import (
+    LFRicBuiltinFunctorFactory, LFRicKernelFunctor, LFRicAlgorithmInvokeCall)
+from psyclone.psyir.nodes import ArrayReference
 
 
 class LFRicRaiseCall2InvokeTrans(RaiseCall2InvokeTrans):
@@ -68,39 +66,41 @@ class LFRicRaiseCall2InvokeTrans(RaiseCall2InvokeTrans):
 
         call_name = None
         calls = []
+        table = call.scope.symbol_table
+
+        factory = LFRicBuiltinFunctorFactory.get()
+
         for idx, call_arg in enumerate(call.children):
 
-            arg_info = []
             if call.argument_names[idx]:
                 call_name = f"'{call_arg.value}'"
             elif isinstance(call_arg, ArrayReference):
                 # kernel or builtin misrepresented as ArrayReference
                 args = call_arg.pop_all_children()
-                name = call_arg.name
-                if name in builtins:
-                    node_type = LFRicBuiltinFunctor
-                    type_symbol = call.scope.symbol_table.lookup(name)
-                else:
-                    node_type = LFRicKernelFunctor
-                    type_symbol = call_arg.symbol
-                arg_info.append((node_type, type_symbol, args))
+                try:
+                    calls.append(factory.create(call_arg.name, table, args))
+                except KeyError:
+                    # No match for a builtin so create a user-defined kernel.
+                    self._specialise_symbol(call_arg.symbol)
+                    calls.append(LFRicKernelFunctor.create(call_arg.symbol,
+                                                           args))
             else:
                 for fp2_node in call_arg.get_ast_nodes:
                     # This child is a kernel or builtin
                     name = fp2_node.children[0].string
-                    if name in builtins:
-                        node_type = LFRicBuiltinFunctor
-                    else:
-                        node_type = LFRicKernelFunctor
-                    type_symbol = RaiseCall2InvokeTrans._get_symbol(
-                        call, fp2_node)
-                    args = RaiseCall2InvokeTrans._parse_args(
-                        call_arg, fp2_node)
-                    arg_info.append((node_type, type_symbol, args))
-
-            for (node_type, type_symbol, args) in arg_info:
-                self._specialise_symbol(type_symbol)
-                calls.append(node_type.create(type_symbol, args))
+                    args = RaiseCall2InvokeTrans._parse_args(call_arg,
+                                                             fp2_node)
+                    name = fp2_node.children[0].string
+                    try:
+                        calls.append(factory.create(name, table, args))
+                    except KeyError:
+                        # No match for a builtin so create a user-defined
+                        # kernel.
+                        type_symbol = RaiseCall2InvokeTrans._get_symbol(
+                            call, fp2_node)
+                        self._specialise_symbol(type_symbol)
+                        calls.append(LFRicKernelFunctor.create(type_symbol,
+                                                               args))
 
         invoke_call = LFRicAlgorithmInvokeCall.create(
             call.routine, calls, index, name=call_name)

@@ -317,6 +317,7 @@ class NemoArrayRange2LoopTrans(Transformation):
                     "transformation can only be applied to the outermost "
                     "Range.")
 
+
 # For automatic document generation
 __all__ = [
     'NemoArrayRange2LoopTrans']
