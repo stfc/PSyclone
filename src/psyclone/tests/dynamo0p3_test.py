@@ -3247,7 +3247,7 @@ def test_halo_exch_1_back_dep(monkeypatch):
     schedule = psy.invokes.invoke_list[0].schedule
     halo_exchange = schedule.children[0]
     field = halo_exchange.field
-    #
+
     monkeypatch.setattr(field, "backward_write_dependencies",
                         lambda ignore_halos=False: [1, 1])
     with pytest.raises(GenerationError) as excinfo:
@@ -3255,7 +3255,7 @@ def test_halo_exch_1_back_dep(monkeypatch):
     assert ("Internal logic error. There should be at most one "
             "write dependence for a halo exchange. Found "
             "'2'") in str(excinfo.value)
-    #
+
     monkeypatch.setattr(field, "backward_write_dependencies",
                         lambda ignore_halos=False: [])
     assert not halo_exchange._compute_halo_write_info()
@@ -3273,18 +3273,12 @@ def test_halo_ex_back_dep_no_call(monkeypatch):
     field = halo_exchange.field
     write_dependencies = field.backward_write_dependencies()
     write_dependency = write_dependencies[0]
-    monkeypatch.setattr(write_dependency, "_call",
-                        lambda: halo_exchange)
+    monkeypatch.setattr(write_dependency, "_call", halo_exchange)
+
     with pytest.raises(GenerationError) as excinfo:
         halo_exchange._compute_halo_write_info()
-    # Note, we would expect the call type returned from HaloInfo to be
-    # DynHaloExchange as that is the type of the halo_exchange
-    # variable but lambda seems to result in the returning object
-    # being of type 'function'. I'm not sure why. However, this does
-    # not matter in practice as we are just trying to get PSyclone to
-    # raise the appropriate exception.
-    assert (f"Generation Error: In HaloInfo class, field 'f2' should be from "
-            f"a call but found {str(type(lambda: halo_exchange))}"
+    assert (f"Generation Error: In HaloInfo class, field 'f2' should be "
+            f"from a call but found {type(halo_exchange)}"
             in str(excinfo.value))
 
 
@@ -3298,7 +3292,7 @@ def test_HaloReadAccess_input_field():
     assert (
         f"Generation Error: HaloInfo class expects an argument of type "
         f"DynArgument, or equivalent, on initialisation, but found, "
-        f"'{str(type(None))}'" in str(excinfo.value))
+        f"'{type(None)}'" in str(excinfo.value))
 
 
 def test_HaloReadAccess_field_in_call():

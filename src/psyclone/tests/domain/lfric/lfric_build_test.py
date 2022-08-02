@@ -52,9 +52,6 @@ BASE_PATH = os.path.join(
         os.path.abspath(__file__)))),
     "test_files", "dynamo0p3")
 
-# The PSyclone API under test
-API = "dynamo0.3"
-
 
 def test_infrastructure_build_error(tmpdir, monkeypatch):
     '''
