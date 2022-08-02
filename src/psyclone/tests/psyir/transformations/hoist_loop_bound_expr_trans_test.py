@@ -128,10 +128,12 @@ def test_apply_nested(fortran_reader, fortran_writer):
     assert "loop_stop_1" in routine_symtab
 
 
-def test_apply_loop_with_directive(fortran_reader):
-    '''Test the apply method moves the complex loop bounds out of
-    the loop construct and places them immediately before the loop,
-    when the loop has a parent directive.
+def test_validate_loop_with_directive(fortran_reader):
+    '''Test that the validate method rejects bound expression hoisting when
+    the loop construct has a parent schedule belonging to a directive.
+
+    TODO #1817: This behaviour could change if loop directives get rid
+    of the schedule.
 
     '''
     psyir = fortran_reader.psyir_from_source('''
@@ -154,7 +156,7 @@ def test_apply_loop_with_directive(fortran_reader):
     hoist_trans = HoistLoopBoundExprTrans()
     omplooptrans.apply(loop)
     with pytest.raises(TransformationError) as err:
-        hoist_trans.apply(loop)
+        hoist_trans.validate(loop)
     assert ("The loop provided to HoistLoopBoundExprTrans must not be directly"
             " inside a Directive as its Schedule does not support multiple "
             "statements, but found 'OMPParallelDoDirective[]'."

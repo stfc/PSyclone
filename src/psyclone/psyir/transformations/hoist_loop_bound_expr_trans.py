@@ -92,7 +92,7 @@ class HoistLoopBoundExprTrans(LoopTrans):
         :param node: target PSyIR loop.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations.
-        :type options: dict[str, str]
+        :type options: Dict[str, Any]
 
         '''
         self.validate(node, options)
@@ -128,7 +128,7 @@ class HoistLoopBoundExprTrans(LoopTrans):
         :param node: target PSyIR loop.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations.
-        :type options: dict[str, str]
+        :type options: Dict[str, Any]
 
         :raises TransformationError: if the supplied node does not have an \
             ancestor Routine.
