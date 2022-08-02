@@ -189,7 +189,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
                                             arg.access, self)
         # Now merge the write access to the end of all other accesses:
         var_accesses.merge(written)
-        # Forwart location pointer to next index, since this builtin kernel
+        # Forward location pointer to next index, since this builtin kernel
         # finishes a statement
         var_accesses.next_location()
 
