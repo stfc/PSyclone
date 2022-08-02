@@ -94,7 +94,7 @@ class FieldVectorArg(FieldArg):
             the form datatype*vector_length.
 
         '''
-        FieldArg.check_psyir(psyir)
+        FieldVectorArg.check_psyir(psyir, nargs=4)
         vector_datatype = psyir.children[1].children[0].tostr()
         components = vector_datatype.split("*")
         if not len(components) == 2:
