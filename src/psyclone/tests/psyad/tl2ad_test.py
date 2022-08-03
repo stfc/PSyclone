@@ -133,7 +133,8 @@ def test_generate_adjoint_str_function():
     with pytest.raises(NotImplementedError) as info:
         _, _ = generate_adjoint_str(tl_code, ["a", "test"])
     assert ("PSyAD does not support tangent-linear code written as a "
-            "function. Please re-write as a subroutine." in str(info.value))
+            "function. Please re-write 'test' as a subroutine."
+            in str(info.value))
 
 
 def test_generate_adjoint_str_trans():
