@@ -189,7 +189,7 @@ def test_omp_task_directive_2(fortran_reader, fortran_writer):
     strans.apply(parent.children)
     ptrans.apply(parent.children)
     with pytest.raises(GenerationError) as excinfo:
-        fortran_writer(tree)
+        tree.lower_to_language_level()
     assert ("ArrayReference object is not allowed to appear in an Array Index "
             "expression inside an OMPTaskDirective.") in str(excinfo.value)
 
@@ -854,7 +854,7 @@ def test_omp_task_directive_mul_index_fail(fortran_reader, fortran_writer):
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
     with pytest.raises(GenerationError) as excinfo:
-        fortran_writer(tree)
+        tree.lower_to_language_level()
     assert ("Binary Operator of type Operator.MUL used as in index inside an "
             "OMPTaskDirective which is not supported" in str(excinfo.value))
 
@@ -895,7 +895,7 @@ def test_omp_task_directive_refref_index_fail(fortran_reader, fortran_writer):
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
     with pytest.raises(GenerationError) as excinfo:
-        fortran_writer(tree)
+        tree.lower_to_language_level()
     assert ("Children of BinaryOperation are of types Reference and Reference,"
             " expected one Reference and one Literal when used as an index "
             "inside an OMPTaskDirective." in str(excinfo.value))
@@ -995,7 +995,7 @@ def test_omp_task_directive_write_index_shared(fortran_reader, fortran_writer):
     ptrans.apply(loops[0].parent.parent)
 
     with pytest.raises(GenerationError) as excinfo:
-        fortran_writer(tree)
+        tree.lower_to_language_level()
     assert ("Shared variable access used as an index inside an "
             "OMPTaskDirective which is not supported. Variable name is "
             "Reference[name:'k']" in str(excinfo.value))
@@ -1036,7 +1036,7 @@ def test_omp_task_directive_read_index_shared(fortran_reader, fortran_writer):
     ptrans.apply(loops[0].parent.parent)
 
     with pytest.raises(GenerationError) as excinfo:
-        fortran_writer(tree)
+        tree.lower_to_language_level()
     assert ("Shared variable access used as an index inside an "
             "OMPTaskDirective which is not supported. Variable name is "
             "Reference[name:'k']" in str(excinfo.value))
@@ -1428,6 +1428,7 @@ depend(in: ty), depend(out: k,ty)
   !$omp end parallel
 
 end subroutine my_subroutine\n'''
+    print(fortran_writer(tree))
     assert fortran_writer(tree) == correct
 
 
@@ -1580,7 +1581,7 @@ def test_omp_task_directive_shared_index(fortran_reader, fortran_writer):
     strans.apply(loops[0])
     ptrans.apply(tree.children[0].children[:])
     with pytest.raises(GenerationError) as excinfo:
-        fortran_writer(tree)
+        tree.lower_to_language_level()
     assert ("Shared variable access used as an index inside an "
             "OMPTaskDirective which is not supported. Variable name is "
             "Reference[name:'k']" in str(excinfo.value))
@@ -1615,7 +1616,7 @@ def test_omp_task_directive_non_loop(fortran_reader, fortran_writer):
     strans.apply(loops[0])
     ptrans.apply(tree.children[0].children[:])
     with pytest.raises(GenerationError) as excinfo:
-        fortran_writer(tree)
+        tree.lower_to_language_level()
     assert ("OMPTaskDirective must have exactly one Loop child. Found <class "
             "'psyclone.psyir.nodes.assignment.Assignment'>" in
             str(excinfo.value))
@@ -1658,7 +1659,7 @@ def test_omp_task_directive_multichild(fortran_reader, fortran_writer):
     strans.apply(loops[0])
     ptrans.apply(tree.children[0].children[:])
     with pytest.raises(GenerationError) as excinfo:
-        fortran_writer(tree)
+        tree.lower_to_language_level()
     assert ("OMPTaskDirective must have exactly one Loop child. Found 2 "
             "children." in str(excinfo.value))
 
@@ -1695,7 +1696,7 @@ def test_omp_task_directive_loop_start_array(fortran_reader, fortran_writer):
     strans.apply(loops[0])
     ptrans.apply(tree.children[0].children[:])
     with pytest.raises(GenerationError) as excinfo:
-        fortran_writer(tree)
+        tree.lower_to_language_level()
     assert ("ArrayReference not supported in the start variable of a Loop "
             "in a OMPTaskDirective node." in str(excinfo.value))
 
@@ -1732,7 +1733,7 @@ def test_omp_task_directive_loop_stop_array(fortran_reader, fortran_writer):
     strans.apply(loops[0])
     ptrans.apply(tree.children[0].children[:])
     with pytest.raises(GenerationError) as excinfo:
-        fortran_writer(tree)
+        tree.lower_to_language_level()
     assert ("ArrayReference not supported in the stop variable of a Loop "
             "in a OMPTaskDirective node." in str(excinfo.value))
 
@@ -1769,7 +1770,7 @@ def test_omp_task_directive_loop_step_array(fortran_reader, fortran_writer):
     strans.apply(loops[0])
     ptrans.apply(tree.children[0].children[:])
     with pytest.raises(GenerationError) as excinfo:
-        fortran_writer(tree)
+        tree.lower_to_language_level()
     assert ("ArrayReference not supported in the step variable of a Loop "
             "in a OMPTaskDirective node." in str(excinfo.value))
 
@@ -2058,7 +2059,7 @@ def test_omp_task_directive_26(fortran_reader, fortran_writer):
     strans.apply(loops[0])
     ptrans.apply(tree.children[0].children[:])
     with pytest.raises(GenerationError) as excinfo:
-        fortran_writer(tree)
+        tree.lower_to_language_level()
     assert ("Shared variable access used as an index inside an "
             "OMPTaskDirective which is not supported." in str(excinfo.value))
 
@@ -2094,6 +2095,65 @@ def test_omp_task_directive_27(fortran_reader, fortran_writer):
     strans.apply(loops[0])
     ptrans.apply(tree.children[0].children[:])
     with pytest.raises(GenerationError) as excinfo:
-        fortran_writer(tree)
+        tree.lower_to_language_level()
     assert ("Found shared loop variable which isnot allowed in OpenMP Task "
            "directive. Variable name is j" in str(excinfo.value))
+
+def test_omp_task_directive_28(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly makes the depend clause when
+    accessing an input array shifted by the step size of the outer loop,
+    but the shift is hidden in a temporary variable.'''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(10, 10) :: A
+        integer, dimension(11, 10) :: B
+        integer :: i
+        integer :: j
+        integer :: k
+        integer :: iu
+        do i = 1, 10
+            do j = 1, 10
+                iu = i + 1
+                A(i, j) = k
+                A(i, j) = B(iu, j) + k
+            end do
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = OMPTaskDirective()
+    loops = tree.walk(Loop, stop_type=Loop)
+    loop = loops[0].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(loops[0].parent.parent)
+    correct = '''subroutine my_subroutine()
+  integer, dimension(10,10) :: a
+  integer, dimension(11,10) :: b
+  integer :: i
+  integer :: j
+  integer :: k
+  integer :: iu
+
+  !$omp parallel default(shared), private(i,iu,j)
+  !$omp single
+  do i = 1, 10, 1
+    !$omp task private(j,iu), firstprivate(i), shared(a,b), \
+depend(in: k,b(i + 1,:)), depend(out: a(i,:))
+    do j = 1, 10, 1
+      iu = i + 1 
+      a(i,j) = k
+      a(i,j) = b(iu,j) + k
+    enddo
+    !$omp end task
+  enddo
+  !$omp end single
+  !$omp end parallel
+
+end subroutine my_subroutine\n'''
+    assert fortran_writer(tree) == correct

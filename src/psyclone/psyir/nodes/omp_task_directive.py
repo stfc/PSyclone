@@ -156,6 +156,16 @@ class OMPTaskDirective(OMPRegionDirective):
         self._parent_parallel = anc
         self._parallel_private = anc._get_private_clause().children
 
+    def _is_reference_private(self, ref):
+        '''TODO
+        '''
+        for parent_ref in self._parallel_private:
+            if (ref.symbol.name == parent_ref.symbol.name and 
+                ref.symbol.datatype.intrinsic == parent_ref.symbol.datatype.intrinsic
+                and ref.symbol.datatype.precision ==  parent_ref.symbol.datatype.precision):
+                return True
+        return False
+
     def _evaluate_readonly_baseref(self, ref, private_list, firstprivate_list,
                                    in_list):
         '''
@@ -275,14 +285,14 @@ class OMPTaskDirective(OMPRegionDirective):
         ref_index = None
         if isinstance(node.children[0], Reference):
             index_symbol = node.children[0].symbol
-            index_private = (node.children[0] in self._parallel_private)
+            index_private = self._is_reference_private(node.children[0])
             is_proxy = (index_symbol in self._proxy_loop_vars)
             ref = node.children[0]
             ref_index = 0
             literal = node.children[1]
         if isinstance(node.children[1], Reference):
             index_symbol = node.children[1].symbol
-            index_private = (node.children[1] in self._parallel_private)
+            index_private = self._is_reference_private(node.children[1])
             is_proxy = (index_symbol in self._proxy_loop_vars)
             ref = node.children[1]
             ref_index = 1
@@ -549,8 +559,7 @@ class OMPTaskDirective(OMPRegionDirective):
             # pylint: disable=unidiomatic-typecheck
             if type(index) is Reference:
                 # Check whether the Reference is private
-                index_private = (index in
-                                 self._parallel_private)
+                index_private = self._is_reference_private(index)
                 # Check whether the reference is to a child loop variable.
                 child_loop_vars = []
                 for child_loop in self.walk(Loop):
@@ -727,8 +736,7 @@ class OMPTaskDirective(OMPRegionDirective):
                 # Literals are just a value, just use the value.
                 index_list.append(index.copy())
             elif isinstance(index, Reference):
-                index_private = (index in
-                                 self._parallel_private)
+                index_private = self._is_reference_private(index)
                 # Check whether the reference is to a child loop variable.
                 child_loop_vars = []
                 for child_loop in self.walk(Loop):
@@ -827,7 +835,7 @@ class OMPTaskDirective(OMPRegionDirective):
         :type out_list: List of :py:class:`psyclone.psyir.nodes.Reference`
         '''
         # Check if its a private variable
-        is_private = ref in self._parallel_private
+        is_private = self._is_reference_private(ref)
         # If its private should add it to private list if not already present
         if is_private and ref not in private_list:
             private_list.append(ref.copy())
@@ -999,6 +1007,10 @@ class OMPTaskDirective(OMPRegionDirective):
                 raise GenerationError(f"{type(ref).__name__} not supported in "
                                       "the start variable of a Loop in a "
                                       "OMPTaskDirective node.")
+            # If we have a StructureReference, then we need to only add the
+            # base symbol to the lists
+            if isinstance(ref, StructureReference):
+                ref = Reference(ref.symbol)
             if (ref not in firstprivate_list and ref not in private_list and
                     ref not in shared_list):
                 firstprivate_list.append(ref.copy())
@@ -1009,6 +1021,10 @@ class OMPTaskDirective(OMPRegionDirective):
                 raise GenerationError(f"{type(ref).__name__} not supported in "
                                       "the stop variable of a Loop in a "
                                       "OMPTaskDirective node.")
+            # If we have a StructureReference, then we need to only add the
+            # base symbol to the lists
+            if isinstance(ref, StructureReference):
+                ref = Reference(ref.symbol)
             if (ref not in firstprivate_list and ref not in private_list and
                     ref not in shared_list):
                 firstprivate_list.append(ref.copy())
@@ -1019,6 +1035,10 @@ class OMPTaskDirective(OMPRegionDirective):
                 raise GenerationError(f"{type(ref).__name__} not supported in "
                                       "the step variable of a Loop in a "
                                       "OMPTaskDirective node.")
+            # If we have a StructureReference, then we need to only add the
+            # base symbol to the lists
+            if isinstance(ref, StructureReference):
+                ref = Reference(ref.symbol)
             if (ref not in firstprivate_list and ref not in private_list and
                     ref not in shared_list):
                 firstprivate_list.append(ref.copy())
@@ -1075,6 +1095,31 @@ class OMPTaskDirective(OMPRegionDirective):
                                     firstprivate_list, shared_list,
                                     in_list, out_list)
 
+    def _evaluate_kern(self, node, private_list, firstprivate_list,
+                       shared_list, in_list, out_list):
+        
+        # Get a copy of the kernel's schedule
+        subroutine = node.get_kernel_schedule().copy()
+        print(node.name)
+        print(node.arguments.psyir_expressions())
+        for expr in node.arguments.psyir_expressions():
+            print(expr)
+        print(node.arguments.find_grid_access())
+        print(node.reference_accesses())
+
+        # Get the input arguments
+        input_args = node.arguments.raw_arg_list()
+        for index, symbol in enumerate(subroutine.symbol_table.argument_list):
+            # Rename the symbol to match the main arguments
+            if symbol.name is not input_args[index]:
+                subroutine.symbol_table.rename_symbol(symbol, input_args[index])
+
+        # Evaluate the kernel the same as any other part of the code
+        node_list = subroutine.walk((Assignment, Loop, IfBlock))
+        for child in node_list:
+            self._evaluate_node(child, private_list, firstprivate_list, shared_list,
+                                in_list, out_list)
+
     def _evaluate_node(self, node, private_list, firstprivate_list,
                        shared_list, in_list, out_list):
         '''
@@ -1097,6 +1142,8 @@ class OMPTaskDirective(OMPRegionDirective):
         :param out_list: The list of output References for this task.
         :type out_list: List of :py:class:`psyclone.psyir.nodes.Reference`
         '''
+        from psyclone.psyGen import Kern
+
         # For the node, check if it is Loop, Assignment or IfBlock
         if isinstance(node, Assignment):
             # Resolve assignment
@@ -1110,6 +1157,10 @@ class OMPTaskDirective(OMPRegionDirective):
             # Resolve IfBlock
             self._evaluate_ifblock(node, private_list, firstprivate_list,
                                    shared_list, in_list, out_list)
+        elif isinstance(node, Kern):
+            pass
+            self._evaluate_kern(node, private_list, firstprivate_list,
+                                shared_list, in_list, out_list)
 
         # All other node types are ignored (for now, maybe some error
         # checking might be useful, though I don't have rules on what isn't
@@ -1178,15 +1229,12 @@ class OMPTaskDirective(OMPRegionDirective):
         return (private_clause, firstprivate_clause, shared_clause, in_clause,
                 out_clause)
 
-    def begin_string(self):
-        '''Returns the beginning statement of this directive, i.e.
-        "omp task ...". The visitor is responsible for adding the
-        correct directive beginning (e.g. "!$").
-
-        :returns: the beginning statement for this directive.
-        :rtype: str
-
+    def lower_to_language_level(self):
         '''
+        Lowers the structure of the PSyIR tree inside the Directive
+        to generate the Clauses that are required for this Directive.
+        '''
+        # Create the clauses
         private_clause, firstprivate_clause, shared_clause, in_clause,\
             out_clause = self._compute_clauses()
 
@@ -1201,6 +1249,17 @@ class OMPTaskDirective(OMPRegionDirective):
         if len(self.children) < 6 or out_clause != self.children[5]:
             self.children[5] = out_clause
 
+        super().lower_to_language_level()
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "omp task ...". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the beginning statement for this directive.
+        :rtype: str
+
+        '''
         # Generate the string containing the required clauses
         return "omp task"
 
