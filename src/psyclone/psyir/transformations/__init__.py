@@ -46,8 +46,10 @@ from psyclone.psyir.transformations.chunk_loop_trans import ChunkLoopTrans
 from psyclone.psyir.transformations.extract_trans import ExtractTrans
 from psyclone.psyir.transformations.fold_conditional_return_expressions_trans \
     import FoldConditionalReturnExpressionsTrans
-from psyclone.psyir.transformations.hoist_local_arrays_trans import (
-    HoistLocalArraysTrans)
+from psyclone.psyir.transformations.hoist_local_arrays_trans import \
+    HoistLocalArraysTrans
+from psyclone.psyir.transformations.hoist_loop_bound_expr_trans import \
+    HoistLoopBoundExprTrans
 from psyclone.psyir.transformations.hoist_trans import HoistTrans
 from psyclone.psyir.transformations.intrinsics.abs2code_trans import \
     Abs2CodeTrans
@@ -73,6 +75,8 @@ from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 from psyclone.psyir.transformations.read_only_verify_trans \
     import ReadOnlyVerifyTrans
 from psyclone.psyir.transformations.region_trans import RegionTrans
+from psyclone.psyir.transformations.replace_induction_variables_trans import \
+     ReplaceInductionVariablesTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 
@@ -85,6 +89,7 @@ __all__ = ['ArrayRange2LoopTrans',
            'ExtractTrans',
            'FoldConditionalReturnExpressionsTrans',
            'HoistLocalArraysTrans',
+           'HoistLoopBoundExprTrans',
            'HoistTrans',
            'Abs2CodeTrans',
            'DotProduct2CodeTrans',
@@ -102,4 +107,5 @@ __all__ = ['ArrayRange2LoopTrans',
            'PSyDataTrans',
            'ReadOnlyVerifyTrans',
            'RegionTrans',
+           'ReplaceInductionVariablesTrans',
            'TransformationError']

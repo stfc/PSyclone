@@ -47,7 +47,8 @@ OBJ = global_mesh_base_mod.o mesh_mod.o linked_list_data_mod.o \
 		field_mod.o integer_field_mod.o r_solver_field_mod.o r_tran_field_mod.o \
 		function_space_constructor_helper_functions_mod.o polynomial_mod.o \
 		field_parent_mod.o pure_abstract_field_mod.o scalar_mod.o count_mod.o \
-		operator_mod.o columnwise_operator_mod.o operator_parent_mod.o \
+		operator_mod.o r_solver_operator_mod.o columnwise_operator_mod.o \
+		operator_parent_mod.o \
 		argument_mod.o kernel_mod.o constants_mod.o \
 		mesh_map_mod.o stencil_dofmap_helper_functions_mod.o stencil_2D_dofmap_mod.o \
 		timer_mod.o io_utility_mod.o
@@ -118,7 +119,9 @@ function_space_mod.o: mesh_mod.o master_dofmap_mod.o stencil_dofmap_mod.o \
 	polynomial_mod.o stencil_2D_dofmap_mod.o
 function_space_constructor_helper_functions_mod.o: mesh_mod.o
 operator_mod.o:	operator_parent_mod.o function_space_mod.o
+r_solver_operator_mod.o:	operator_parent_mod.o function_space_mod.o
 columnwise_operator_mod.o:	operator_parent_mod.o function_space_mod.o
+operator_parent_mod.o: function_space_mod.o
 reference_element_mod.o: constants_mod.o
 mesh_colouring_mod.o: reference_element_mod.o
 matrix_invert_mod.o: constants_mod.o

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,53 +31,44 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
-# Modified: R. W. Ford, STFC Daresbury Lab
+# Author: I. Kavcic, Met Office
 
-'''Python script intended to be passed to PSyclone via the -s option.
-It adds kernel extraction code to
-the invokes. When the transformed program is compiled and run, it
-will create one NetCDF file for each of the two invokes. A separate
-driver program is also created for each invoke which can read the
-created NetCDF files, execute the invokes and then compare the results.
-At this stage it does not compile (TODO: #644), and the comparison is
-missing (TODO: #647)
+
+'''
+Module containing tests related to building generated code for
+the LFRic domain.
 '''
 
-from __future__ import print_function
+import os
+import pytest
 
-from psyclone.psyir.transformations import ExtractTrans
+from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import CompileError
 
 
-def trans(psy):
+# Constants
+BASE_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__)))),
+    "test_files", "dynamo0p3")
+
+
+def test_infrastructure_build_error(tmpdir, monkeypatch):
     '''
-    Take the supplied psy object, and add kernel extraction code.
-
-    :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
-
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
+    Check the mechanism by which we ensure that the LFRic wrapper
+    infrastructure files for compilation tests are actually compiled.
 
     '''
-    extract = ExtractTrans()
 
-    # Show that it works on a builtin:
-    invoke = psy.invokes.get("invoke_initialise_fields")
-    schedule = invoke.schedule
-    extract.apply(schedule.children,
-                  {"create_driver": False,
-                   "region_name": ("main", "init")})
+    fake_modules = ["moomintroll_mod",
+                    "moominmamma_mod",
+                    "moominpappa_mod"]
 
-    invoke = psy.invokes.get("invoke_testkern_w0")
-    schedule = invoke.schedule
+    monkeypatch.setattr(LFRicBuild, "INFRASTRUCTURE_MODULES",
+                        fake_modules)
 
-    # TODO #1392: ATM driver creation in LFRic is broken due to
-    # the changes in driver creation in #1288.
-    # Enclose everything in a extract region
-    extract.apply(schedule.children,
-                  {"create_driver": True,
-                   "region_name": ("main", "update")})
-
-    print(schedule.view())
-    return psy
+    with pytest.raises(CompileError) as excinfo:
+        LFRicBuild(tmpdir)._build_infrastructure()
+    assert ("Could not compile LFRic wrapper. Error: Cannot find a Fortran "
+            "file 'moomintroll_mod' with suffix in ['f90', 'F90', 'x90']"
+            in str(excinfo.value))

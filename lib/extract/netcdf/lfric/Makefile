@@ -60,7 +60,7 @@ F90FLAGS += $$(nf-config --fflags) -I$(INF_INC)
 PSYDATA_LIB_NAME = _kernel_data_netcdf
 PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 
-PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
+PROCESS_ARGS = -prefix=extract_ -types=int,logical,real,double \
                        -dims=1,2,3,4
 PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 

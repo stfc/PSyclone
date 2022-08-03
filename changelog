@@ -40,6 +40,27 @@
 
 	15) PR #1791 for #1780. Add setval_random built-in in LFRic API.
 
+	16) PR #1778 for #1751. Add ReplaceInductionVariableTrans transformation.
+
+	17) PR #1652 for #1645. Symbols representing LFRic BuiltIn Functors
+
+	18) PR #1795 for #1583. Bug fix for PSyAD for expressions involving
+	a unary minus.
+
+	19) PR #1809. A few fixes for code style issues.
+
+	20) PR #1803 for #1797. Adds support for logical variables to the
+ 	PSyData	API.
+
+	21) PR #1804 for #637. Extends the dependence analysis to support
+	LFRic built-in kernels.
+
+	22) PR #1790 for #1787. Adds HoistLoopBoundsExprTrans transformation
+	which hoists complex loop-bound expressions out of loops.
+
+	23) PR #1811 for #1810. Separate LFRic LMA Operator infrastructure
+	into its own file.
+
 release 2.3.1 17th of June 2022
 
         1) PR #1747 for #1720. Adds support for If blocks to PSyAD.

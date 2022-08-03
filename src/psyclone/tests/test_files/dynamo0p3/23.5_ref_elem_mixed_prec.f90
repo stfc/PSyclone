@@ -31,14 +31,15 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. W. Ford, STFC Daresbury Lab
+! Author: R. W. Ford, STFC Daresbury Lab
+! Modified: I. Kavcic, Met Office
 
 ! Description: Declare field data as r_solver to check that r_def is
 ! declared for the reference element arrays in the psy-layer.
 
 program ref_element_mixed_precision
 
-  use field_mod,             only: r_solver_field_type
+  use r_solver_field_mod,       only: r_solver_field_type
   use testkern_ref_elem_mp_mod, only: testkern_ref_elem_mp_type
 
   implicit none

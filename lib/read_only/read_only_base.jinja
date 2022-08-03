@@ -300,6 +300,12 @@ contains
         checksum = int_32
         {% elif bits == 64 %}
         checksum = transfer(value, int_64)
+        {% elif name == "Logical" %}
+        if (value) then
+            checksum = 1
+        else
+            checksum = 0
+        endif
         {% else %}
         ERROR - UNSUPPORTED BIT SIZE {{bits}}!
         {% endif %}
@@ -316,6 +322,8 @@ contains
                 orig_value = transfer(int_32, orig_value)
                 {% elif bits == 64 %}
                 orig_value = transfer(this%checksums(this%next_var_index), orig_value)
+                {% elif name == "Logical" %}
+                orig_value = this%checksums(this%next_var_index) .eq. 1
                 {% else %}
                 ERROR - UNSUPPORTED BIT SIZE {{bits}}!
                 {% endif %}
@@ -409,6 +417,12 @@ contains
         {{indent}}int_64 = int_32
         {% elif bits == 64 %}
         {{indent}}int_64 = transfer(field({{vars}}), checksum)
+        {% elif name == "Logical" %}
+        {{indent}}if (field({{vars}})) then
+        {{indent}}    int_64 = 1
+        {{indent}}else
+        {{indent}}    int_64 = 0
+        {{indent}}endif
         {% else %}
         ERROR - UNSUPPORTED BIT SIZE {{bits}}!
         {% endif %}
