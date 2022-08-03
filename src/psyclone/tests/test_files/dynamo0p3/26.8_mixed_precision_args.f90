@@ -32,6 +32,7 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: R. W. Ford, STFC Daresbury Laboratory
+! Modified: I. Kavcic, Met Office
 
 ! Example of calling the same kernel with data in the algorithm layer
 ! that might use different precision. Scalars, fields and operators
@@ -40,8 +41,13 @@
 
 program mixed_precision
 
-  use constants_mod, only : r_def, r_solver, r_tran
-  use mixed_mod, only : mixed_type
+  use constants_mod,         only : r_def, r_solver, r_tran
+  use field_mod,             only : field_type
+  use r_solver_field_mod,    only : r_solver_field_type
+  use r_tran_field_mod,      only : r_tran_field_type
+  use operator_mod,          only : operator_type
+  use r_solver_operator_mod, only : r_solver_operator_type
+  use mixed_mod,             only : mixed_type
 
   real(r_def)                  :: Scalar_r_def
   real(r_solver)               :: sCalar_r_solver

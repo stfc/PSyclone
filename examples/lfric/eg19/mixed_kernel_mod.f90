@@ -32,6 +32,7 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: R. W. Ford, STFC Daresbury Laboratory
+! Modified: I. Kavcic, Met Office
 
 ! Example mixed precision kernel supporting 32- and 64- bit
 ! implementations.
@@ -43,16 +44,16 @@ module mixed_kernel_mod
                                 GH_REAL, GH_READ, GH_READWRITE,   &
                                 CELL_COLUMN
   use fs_continuity_mod, only : W3, W0
-  use constants_mod,     only : r_def, i_def
+  use constants_mod,     only : i_def
   use kernel_mod,        only : kernel_type
 
   implicit none
 
   type, extends(kernel_type) :: mixed_kernel_type
      type(arg_type), dimension(3) :: meta_args =               &
-          (/ arg_type(gh_scalar,   gh_real, gh_read),          &
-             arg_type(gh_field,    gh_real, gh_readwrite, w3), &
-             arg_type(gh_operator, gh_real, gh_read, w0, w0)   &
+          (/ arg_type(GH_SCALAR,   GH_REAL, GH_READ),          &
+             arg_type(GH_FIELD,    GH_REAL, GH_READWRITE, W3), &
+             arg_type(GH_OPERATOR, GH_REAL, GH_READ, W0, W0)   &
           /)
      integer :: operates_on = cell_column
   end type mixed_kernel_type
@@ -67,36 +68,40 @@ module mixed_kernel_mod
 
 contains
 
-  subroutine mixed_kernel_code_32(cell, nlayers, rscalar, field_w3, op_ncell_3d, op,  &
+  subroutine mixed_kernel_code_32(cell, nlayers, rscalar, field_w3, op_ncell_3d, op, &
                            ndf_w3, undf_w3, map_w3, ndf_w0)
-    USE constants_mod, ONLY: i_def
-    IMPLICIT NONE
-    INTEGER(KIND=i_def), intent(in) :: nlayers
-    INTEGER(KIND=i_def), intent(in) :: ndf_w3
-    INTEGER(KIND=i_def), intent(in), dimension(ndf_w3) :: map_w3
-    INTEGER(KIND=i_def), intent(in) :: undf_w3, ndf_w0
-    REAL*4,              intent(in) :: rscalar
-    REAL*4,              intent(inout), dimension(undf_w3) :: field_w3
-    INTEGER(KIND=i_def), intent(in) :: cell
-    INTEGER(KIND=i_def), intent(in) :: op_ncell_3d
-    REAL*4,              intent(in), dimension(ndf_w0,ndf_w0,op_ncell_3d) :: op
-    print *, "32-bit example called"
+
+    implicit none
+
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_w3
+    integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3
+    integer(kind=i_def), intent(in) :: undf_w3, ndf_w0
+    real*4,              intent(in) :: rscalar
+    real*4,              intent(inout), dimension(undf_w3) :: field_w3
+    integer(kind=i_def), intent(in) :: cell
+    integer(kind=i_def), intent(in) :: op_ncell_3d
+    real*4,              intent(in), dimension(ndf_w0,ndf_w0,op_ncell_3d) :: op
+    write(*,*)  "32-bit example called"
+
   end subroutine mixed_kernel_code_32
 
   subroutine mixed_kernel_code_64(cell, nlayers, rscalar, field_w3, op_ncell_3d, op,  &
                            ndf_w3, undf_w3, map_w3, ndf_w0)
-    USE constants_mod, ONLY: i_def
-    IMPLICIT NONE
-    INTEGER(KIND=i_def), intent(in) :: nlayers
-    INTEGER(KIND=i_def), intent(in) :: ndf_w3
-    INTEGER(KIND=i_def), intent(in), dimension(ndf_w3) :: map_w3
-    INTEGER(KIND=i_def), intent(in) :: undf_w3, ndf_w0
-    REAL*8,              intent(in) :: rscalar
-    REAL*8,              intent(inout), dimension(undf_w3) :: field_w3
-    INTEGER(KIND=i_def), intent(in) :: cell
-    INTEGER(KIND=i_def), intent(in) :: op_ncell_3d
-    REAL*8,              intent(in), dimension(ndf_w0,ndf_w0,op_ncell_3d) :: op
-    print *, "64-bit example called"
+
+
+    implicit none
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_w3
+    integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3
+    integer(kind=i_def), intent(in) :: undf_w3, ndf_w0
+    real*8,              intent(in) :: rscalar
+    real*8,              intent(inout), dimension(undf_w3) :: field_w3
+    integer(kind=i_def), intent(in) :: cell
+    integer(kind=i_def), intent(in) :: op_ncell_3d
+    real*8,              intent(in), dimension(ndf_w0,ndf_w0,op_ncell_3d) :: op
+    write(*,*) "64-bit example called"
+
   end subroutine mixed_kernel_code_64
 
 end module mixed_kernel_mod
