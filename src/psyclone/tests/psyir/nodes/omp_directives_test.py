@@ -58,7 +58,7 @@ from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, SymbolTable, \
 from psyclone.errors import InternalError, GenerationError
 from psyclone.transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans, \
     OMPParallelLoopTrans, DynamoOMPParallelLoopTrans, OMPSingleTrans, \
-    OMPMasterTrans, OMPTaskloopTrans, OMPLoopTrans
+    OMPMasterTrans, OMPTaskloopTrans
 from psyclone.tests.utilities import get_invoke
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -93,6 +93,7 @@ def test_ompparallel_changes_begin_string(fortran_reader):
     ptrans.apply(loops[0].parent.parent)
     assert isinstance(tree.children[0].children[0], OMPParallelDirective)
     pdir = tree.children[0].children[0]
+    pdir.lower_to_language_level()
     assert pdir.begin_string() == "omp parallel"
     assert len(pdir.children) == 3
     assert isinstance(pdir.children[2], OMPPrivateClause)
@@ -106,7 +107,7 @@ def test_ompparallel_changes_begin_string(fortran_reader):
     # Add loop
     pdir.children[0].addchild(new_loop)
 
-    pdir.begin_string()
+    pdir.lower_to_language_level()
     assert pdir.children[2] != priv_clause
 
 
@@ -209,7 +210,7 @@ def test_omp_pdo_changes_begin_str(fortran_reader):
 
     assert isinstance(tree.children[0].children[0], OMPParallelDoDirective)
     pdir = tree.children[0].children[0]
-    pdir.begin_string()
+    pdir.lower_to_language_level()
     assert len(pdir.children) == 4
     assert isinstance(pdir.children[2], OMPPrivateClause)
     priv_clause = pdir.children[2]
@@ -225,7 +226,7 @@ def test_omp_pdo_changes_begin_str(fortran_reader):
     # Change the schedule
     pdir._omp_schedule = "dynamic"
 
-    pdir.begin_string()
+    pdir.lower_to_language_level()
     assert pdir.children[2] != priv_clause
     assert isinstance(pdir.children[2], OMPPrivateClause)
     assert pdir.children[3] != sched_clause
@@ -394,7 +395,8 @@ def test_directive_get_private(monkeypatch):
             "not set" in str(err.value))
 
 
-def test_omp_private_validate_child():
+def test_omp_parallel_validate_child():
+    ''' Test the validate_child method of OMPParallelDirective'''
     assert OMPParallelDirective._validate_child(0, Schedule()) is True
     assert OMPParallelDirective._validate_child(1, OMPDefaultClause()) is True
     assert OMPParallelDirective._validate_child(2, OMPPrivateClause()) is True

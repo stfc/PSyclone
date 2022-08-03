@@ -44,8 +44,6 @@ nodes.'''
 
 from __future__ import absolute_import
 import abc
-import itertools
-import math
 import six
 
 from psyclone.configuration import Config
@@ -53,20 +51,15 @@ from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import (AssignGen, UseGen, DeclGen, DirectiveGen,
                               CommentGen)
-from psyclone.psyir.nodes import Reference, Assignment, IfBlock, Loop, \
-                                 ArrayReference, ArrayOfStructuresReference, \
-                                 StructureReference, Literal
-from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.directive import StandaloneDirective, \
     RegionDirective
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.literal import Literal
-from psyclone.psyir.nodes.ranges import Range
-from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
     OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause, OMPPrivateClause,\
-    OMPDefaultClause, OMPReductionClause, OMPScheduleClause,\
-    OMPFirstprivateClause, OMPDependClause, OMPSharedClause
+    OMPDefaultClause, OMPReductionClause, OMPScheduleClause
+from psyclone.psyir.nodes.reference import Reference
+from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.symbols import INTEGER_TYPE
 
@@ -592,6 +585,12 @@ class OMPParallelDirective(OMPRegionDirective):
 
         self.gen_post_region_code(parent)
 
+    def lower_to_language_level(self):
+        ''' In-place construction of clauses as PSyIR constructs.'''
+        private_clause = self._get_private_clause()
+        if private_clause != self.private_clause:
+            self._children[2] = private_clause
+
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
         "omp parallel". The visitor is responsible for adding the
@@ -605,9 +604,6 @@ class OMPParallelDirective(OMPRegionDirective):
         # TODO #514: not yet working with NEMO, so commented out for now
         # if not self._reprod:
         #     result += self._reduction_string()
-        private_clause = self._get_private_clause()
-        if private_clause != self.private_clause:
-            self._children[2] = private_clause
 
         return result
 
@@ -1176,15 +1172,8 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
         self.gen_post_region_code(parent)
 
-    def begin_string(self):
-        '''Returns the beginning statement of this directive, i.e.
-        "omp do ...". The visitor is responsible for adding the
-        correct directive beginning (e.g. "!$").
-
-        :returns: the beginning statement for this directive.
-        :rtype: str
-
-        '''
+    def lower_to_language_level(self):
+        ''' In-place construction of clauses as PSyIR constructs.'''
         private_clause = self._get_private_clause()
         if len(self._children) >= 3 and private_clause != self._children[2]:
             self._children[2] = private_clause
@@ -1195,6 +1184,16 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
             self._children[3] = sched_clause
         elif len(self._children) < 4:
             self.addchild(sched_clause, index=3)
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "omp do ...". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the beginning statement for this directive.
+        :rtype: str
+
+        '''
         return ("omp parallel do" + self._reduction_string())
 
     def end_string(self):
