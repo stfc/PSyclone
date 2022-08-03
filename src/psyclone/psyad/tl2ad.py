@@ -262,10 +262,10 @@ def generate_adjoint(tl_psyir, active_variables):
         raise InternalError("The supplied PSyIR does not contain any "
                             "routines.")
 
-    # TODO issue #1820 support separate LFRic-specific and generic
+    # TODO issue #1782 support separate LFRic-specific and generic
     # implementations as they would have different solutions here.
 
-    # TODO issue #1820 if this is an LFRic-specific implementation and
+    # TODO issue #1782 if this is an LFRic-specific implementation and
     # the metadata code points to an interface then adjoint all
     # routines specified in the interface. If it points to a routine
     # then only translate that routine. If this is a generic
@@ -279,7 +279,7 @@ def generate_adjoint(tl_psyir, active_variables):
     # or an interface.)
 
     # Until we know whether this is meant to be a generic or
-    # LFRic-specific kernel (issue #1820) and, for LFRic, can specify
+    # LFRic-specific kernel (issue #1782) and, for LFRic, can specify
     # the particular kernel metadata if multiple versions exist and
     # then read kernel metadata to determine whether it points to a
     # kernel or interface (issue #1807), we simply assume that we
@@ -311,7 +311,7 @@ def generate_adjoint(tl_psyir, active_variables):
             routine.name = routine.symbol_table.next_available_name(
                 _create_adjoint_name(routine.name))
 
-            logger.debug("AD kernel will be named '%s'", routine.name)
+        logger.debug("AD kernel will be named '%s'", routine.name)
 
     return ad_psyir
 

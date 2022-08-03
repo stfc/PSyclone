@@ -50,8 +50,7 @@ from psyclone.psyad.tl2ad import (
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
-    Container, FileContainer, Return, Routine, Assignment, BinaryOperation,
-    Reference)
+    Container, FileContainer, Return, Routine, Assignment, BinaryOperation)
 from psyclone.psyir.symbols import (
     DataSymbol, SymbolTable, REAL_DOUBLE_TYPE, INTEGER_TYPE, REAL_TYPE,
     ArrayType, RoutineSymbol, ImportInterface, ScalarType, ContainerSymbol,
@@ -355,15 +354,32 @@ def test_generate_adjoint_kind(fortran_reader):
     assert ad_fortran_str in expected_ad_fortran_str
 
 
-def test_generate_adjoint_multi_kernel(fortran_writer):
+def test_generate_adjoint_multi_kernel(fortran_reader, fortran_writer):
     '''Check that generate_adjoint creates the expected code when there
     are multiple kernels in a module.
 
     '''
-    expected = (
+    tl_fortran_str = (
         "module test_mod\n"
+        "  contains\n"
+        "  subroutine kern1()\n"
+        "    real :: psyir_tmp, psyir_tmp_1\n"
+        "    psyir_tmp = psyir_tmp_1\n"
+        "  end subroutine kern1\n"
+        "  subroutine kern2()\n"
+        "    real :: psyir_tmp, psyir_tmp_1\n"
+        "    psyir_tmp = psyir_tmp_1\n"
+        "  end subroutine kern2\n"
+        "  subroutine kern3()\n"
+        "    real :: psyir_tmp, psyir_tmp_1\n"
+        "    psyir_tmp = psyir_tmp_1\n"
+        "  end subroutine kern3\n"
+        "end module test_mod\n")
+    expected = (
+        "module adj_test_mod\n"
         "  implicit none\n"
         "  public\n\n"
+        "  public :: adj_kern1, adj_kern2, adj_kern3\n\n"
         "  contains\n"
         "  subroutine adj_kern1()\n"
         "    real :: psyir_tmp\n"
@@ -389,23 +405,11 @@ def test_generate_adjoint_multi_kernel(fortran_writer):
         "    psyir_tmp_1 = psyir_tmp_1 + psyir_tmp\n"
         "    psyir_tmp = 0.0\n\n"
         "  end subroutine adj_kern3\n\n"
-        "end module test_mod\n")
-    psyir = FileContainer("test_file")
-    kern_list = []
-    for name in ["kern1", "kern2", "kern3"]:
-        routine_symbol_table = SymbolTable()
-        symbol = routine_symbol_table.new_symbol(
-            symbol_type=DataSymbol, datatype=REAL_TYPE)
-        symbol2 = routine_symbol_table.new_symbol(
-            symbol_type=DataSymbol, datatype=REAL_TYPE)
-        assignment = Assignment.create(
-            Reference(symbol), Reference(symbol2))
-        routine = Routine.create(name, routine_symbol_table, [assignment])
-        ad_routine = generate_adjoint(routine, [symbol.name, symbol2.name])
-        kern_list.append(ad_routine)
-    container = Container.create("test_mod", SymbolTable(), kern_list)
-    psyir.children.append(container)
-    ad_fortran_str = fortran_writer(psyir)
+        "end module adj_test_mod\n")
+    psyir = fortran_reader.psyir_from_source(tl_fortran_str)
+    ad_psyir = generate_adjoint(psyir, ["psyir_tmp", "psyir_tmp_1"])
+    ad_fortran_str = fortran_writer(ad_psyir)
+    print(ad_fortran_str)
     assert ad_fortran_str == expected
 
 
