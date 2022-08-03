@@ -591,6 +591,8 @@ class OMPParallelDirective(OMPRegionDirective):
         if private_clause != self.private_clause:
             self._children[2] = private_clause
 
+        super().lower_to_language_level()
+
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
         "omp parallel". The visitor is responsible for adding the
@@ -1184,6 +1186,8 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
             self._children[3] = sched_clause
         elif len(self._children) < 4:
             self.addchild(sched_clause, index=3)
+
+        super().lower_to_language_level()
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
