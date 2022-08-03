@@ -37,20 +37,29 @@
 
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g -fcheck=bound
+BUILD ?= build
+
+FIELD_SRC = argument_mod.F90 field_mod.F90 field_parent_mod.f90             \
+	integer_field_mod.F90 master_dofmap_mod.F90 polynomial_mod.F90          \
+	pure_abstract_field_mod.f90 r_solver_field_mod.F90 r_tran_field_mod.F90 \
+	stencil_2d_dofmap_mod.f90 stencil_dofmap_helper_functions_mod.f90       \
+	stencil_dofmap_mod.F90
+TMP = $(patsubst %.F90,field/%.o,$(FIELD_SRC))
+FIELD_OBJ = $(patsubst %.f90,field/%.o,$(TMP))
 
 OBJ = global_mesh_base_mod.o mesh_mod.o linked_list_data_mod.o \
 		extrusion_mod.o mesh_colouring_mod.o mesh_constructor_helper_functions_mod.o \
 		domain_size_config_mod.o coord_transform_mod.o matrix_invert_mod.o \
 		cross_product_mod.o partition_mod.o mpi_mod.o linked_list_int_mod.o \
 		log_mod.o linked_list_mod.o reference_element_mod.o function_space_mod.o \
-		master_dofmap_mod.o stencil_dofmap_mod.o fs_continuity_mod.o \
-		field_mod.o integer_field_mod.o r_solver_field_mod.o r_tran_field_mod.o \
-		function_space_constructor_helper_functions_mod.o polynomial_mod.o \
-		field_parent_mod.o pure_abstract_field_mod.o scalar_mod.o count_mod.o \
+		fs_continuity_mod.o \
+		function_space_constructor_helper_functions_mod.o  \
+		scalar_mod.o count_mod.o \
 		operator_mod.o columnwise_operator_mod.o operator_parent_mod.o \
-		argument_mod.o kernel_mod.o constants_mod.o \
-		mesh_map_mod.o stencil_dofmap_helper_functions_mod.o stencil_2D_dofmap_mod.o \
-		timer_mod.o io_utility_mod.o
+		kernel_mod.o constants_mod.o \
+		mesh_map_mod.o  \
+		timer_mod.o io_utility_mod.o \
+		$(FIELD_OBJ)
 
 # Additional object files required for netcdf support
 OBJ_NETCDF = global_mesh_netcdf_mod.o ugrid_2d_mod.o ugrid_file_mod.o file_mod.o \
@@ -66,7 +75,17 @@ OBJ_NETCDF = global_mesh_netcdf_mod.o ugrid_2d_mod.o ugrid_file_mod.o file_mod.o
 
 .PHONY: standalone netcdf default
 
-default: standalone
+# MAKEFILE_LIST is a Gnu-make variable that contains all of the
+# arguments passed to the first invocation of Make. The last entry
+# in this list is the current file.
+this_file := $(abspath $(lastword $(MAKEFILE_LIST)))
+# PSyclone directory is up two from this file
+INFRASTRUCTURE_DIR := $(dir $(this_file))
+
+default:
+	cd $(BUILD)
+	mkdir -p field
+	bash -c "cd $(BUILD); make -f $(INFRASTRUCTURE_DIR)/Makefile standalone"
 
 # Standalone target, no netcdf dependency:
 # ----------------------------------------
@@ -85,66 +104,28 @@ liblfric_netcdf.a: $(OBJ) $(OBJ_NETCDF)
 
 # Dependencies
 # ------------
-global_mesh_base_mod.o:	linked_list_data_mod.o log_mod.o reference_element_mod.o
-global_mesh_netcdf_mod.o: ugrid_2d_mod.o ncdf_quad_mod.o global_mesh_base_mod.o
-ugrid_2d_mod.o: ugrid_file_mod.o ugrid_generator_mod.o
-ugrid_generator_mod.o: constants_mod.o
-ugrid_file_mod.o: file_mod.o
-file_mod.o:	constants_mod.o linked_list_data_mod.o
-ncdf_quad_mod.o: log_mod.o ugrid_file_mod.o
-linked_list_data_mod.o: constants_mod.o
-mesh_map_mod.o: linked_list_data_mod.o
-mesh_mod.o: mesh_map_mod.o extrusion_mod.o linked_list_mod.o mesh_colouring_mod.o \
-	mesh_constructor_helper_functions_mod.o partition_mod.o
-mesh_constructor_helper_functions_mod.o: coord_transform_mod.o \
-	domain_size_config_mod.o 
-domain_size_config_mod.o: mpi_mod.o
-log_mod.o:	constants_mod.o
-field_mod.o: field_parent_mod.o scalar_mod.o count_mod.o
-integer_field_mod.o: field_parent_mod.o mpi_mod.o count_mod.o
-r_solver_field_mod.o: constants_mod.o fs_continuity_mod.o function_space_mod.o mesh_mod.o field_parent_mod.o pure_abstract_field_mod.o log_mod.o mpi_mod.o count_mod.o
-r_tran_field_mod.o: constants_mod.o fs_continuity_mod.o function_space_mod.o mesh_mod.o field_parent_mod.o pure_abstract_field_mod.o log_mod.o mpi_mod.o count_mod.o
-field_parent_mod.o: pure_abstract_field_mod.o function_space_mod.o
-extrusion_mod.o:	global_mesh_base_mod.o
-coord_transform_mod.o: matrix_invert_mod.o cross_product_mod.o
-partition_mod.o:	mpi_mod.o linked_list_int_mod.o global_mesh_base_mod.o
-linked_list_mod.o: linked_list_data_mod.o
-stencil_dofmap_mod.o: master_dofmap_mod.o mesh_mod.o stencil_dofmap_helper_functions_mod.o
-stencil_dofmap_helper_functions_mod.o: constants_mod.o mesh_mod.o
-stencil_2D_dofmap_mod.o: master_dofmap_mod.o mesh_mod.o \
-	stencil_dofmap_helper_functions_mod.o
-function_space_mod.o: mesh_mod.o master_dofmap_mod.o stencil_dofmap_mod.o \
-	fs_continuity_mod.o function_space_constructor_helper_functions_mod.o \
-	polynomial_mod.o stencil_2D_dofmap_mod.o
-function_space_constructor_helper_functions_mod.o: mesh_mod.o
-operator_mod.o:	operator_parent_mod.o function_space_mod.o
-columnwise_operator_mod.o:	operator_parent_mod.o function_space_mod.o
-operator_parent_mod.o: function_space_mod.o
-reference_element_mod.o: constants_mod.o
-mesh_colouring_mod.o: reference_element_mod.o
-matrix_invert_mod.o: constants_mod.o
-cross_product_mod.o: constants_mod.o
-mpi_mod.o: log_mod.o
-linked_list_int_mod.o: linked_list_data_mod.o
-fs_continuity_mod.o: log_mod.o
-pure_abstract_field_mod.o: linked_list_data_mod.o
-scalar_mod.o: mpi_mod.o
-polynomial_mod.o: constants_mod.o
-count_mod.o: log_mod.o mpi_mod.o
-master_dofmap_mod.o: constants_mod.o
-io_utility_mod.o: constants_mod.o log_mod.o
-timer_mod.o: constants_mod.o io_utility_mod.o log_mod.o mpi_mod.o scalar_mod.o
+include $(INFRASTRUCTURE_DIR)/dependency
 
-%.o: %.F90
-	$(F90) $(F90FLAGS) -c $<
+%.o: ../%.F90
+	$(F90) $(F90FLAGS) -c $< -o $@
 
-%.o: %.f90
-	$(F90) $(F90FLAGS) -c $<
+%.o: ../%.f90
+	$(F90) $(F90FLAGS) -c $< -o $@
+
+field/%.o: ../field/%.F90
+	$(F90) $(F90FLAGS) -c $< -o $@
+
+field/%.o: ../field/%.f90
+	$(F90) $(F90FLAGS) -c $< -o $@
+
+
 
 %_psy.f90:	%.x90
 	psyclone --config ../../../config/psyclone.cfg -opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
 clean:
-	rm -f *.o *.mod  $(LIB) liblfric.a liblfric_netcdf.a
+	rm -f $(BUILD)/*.o $(BUILD)/*.mod
+	rm -f $(BUILD)/field/*.o $(BUILD)/field/*.mod
+	rm -f $(LIB) liblfric.a liblfric_netcdf.a
 
 allclean: clean
