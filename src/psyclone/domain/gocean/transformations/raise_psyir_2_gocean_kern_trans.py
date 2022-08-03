@@ -76,28 +76,28 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
     symbols. This is currently limited to the specialisation of kernel
     metadata.
 
-    >>> from psyclone.domain.gocean.transformations import kern_trans
+    >>> from psyclone.domain.gocean.transformations import RaisePSyIR2GOceanKernTrans
     >>> from psyclone.psyir.frontend.fortran import FortranReader
-    >>> CODE = (
-    ...     "MODULE example\n"
-    ...     "  TYPE, EXTENDS(kernel_type) :: compute_cu\n"
-    ...     "    TYPE(go_arg), DIMENSION(4) :: meta_args = (          &\n"
-    ...     "      go_arg(GO_WRITE, GO_CU, GO_POINTWISE),             &\n"
-    ...     "      go_arg(GO_READ, GO_CT, GO_STENCIL(000, 011, 000)), &\n"
-    ...     "      go_arg(GO_READ, GO_GRID_AREA_T),                   &\n"
-    ...     "      go_arg(GO_READ, GO_R_SCALAR, GO_POINTWISE)/)\n"
-    ...     "    INTEGER :: ITERATES_OVER = GO_ALL_PTS\n"
-    ...     "    INTEGER :: index_offset = GO_OFFSET_SW\n"
-    ...     "    CONTAINS\n"
-    ...     "      PROCEDURE, NOPASS :: code => compute_cu_code\n"
-    ...     "  END TYPE compute_cu\n"
-    ...     "contains\n"
-    ...     "  subroutine compute_cu_code()\n"
-    ...     "  end subroutine\n"
-    ...     "end module\n")
+    >>> CODE = ("""
+    ... MODULE example
+    ... TYPE, EXTENDS(kernel_type) :: compute_cu
+    ...   TYPE(go_arg), DIMENSION(4) :: meta_args = (/         &
+    ...     go_arg(GO_WRITE, GO_CU, GO_POINTWISE),             &
+    ...     go_arg(GO_READ, GO_CT, GO_STENCIL(000, 011, 000)), &
+    ...     go_arg(GO_READ, GO_GRID_AREA_T),                   &
+    ...     go_arg(GO_READ, GO_R_SCALAR, GO_POINTWISE)/)
+    ...   INTEGER :: ITERATES_OVER = GO_ALL_PTS
+    ...   INTEGER :: index_offset = GO_OFFSET_SW
+    ... CONTAINS
+    ...   PROCEDURE, NOPASS :: code => compute_cu_code
+    ... END TYPE compute_cu
+    ... contains
+    ...   subroutine compute_cu_code()
+    ...   end subroutine
+    ... end module""")
     >>> fortran_reader = FortranReader()
     >>> kernel_container = fortran_reader.psyir_from_source(CODE)
-    >>> trans = kern_trans("compute_cu")
+    >>> trans = RaisePSyIR2GOceanKernTrans("compute_cu")
     >>> trans.apply(kernel_container)
 
     :param str metadata_name: the name of the symbol containing the \

@@ -43,7 +43,7 @@ from psyclone.configuration import Config
 
 
 # pylint: disable=too-few-public-methods
-class GOceanConstants(object):
+class GOceanConstants():
     '''This class stores all GOcean constants. It stores all values in
     class variables (to avoid re-evaluating them).
 
@@ -53,10 +53,10 @@ class GOceanConstants(object):
     @staticmethod
     def get_valid_access_types():
         '''Return the valid access types for the GOcean API. Reads the values
-            from the config file the first time the method is called.
+        from the config file the first time the method is called.
 
-            :returns: valid access types for the GOcean API.
-            :rtype: list[str]
+        :returns: valid access types for the GOcean API.
+        :rtype: list[str]
 
         '''
         if not GOceanConstants._VALID_ACCESS_TYPES:
