@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,6 @@
 
 '''Performs pytest tests on the psyclone.psyir.backend.sir module'''
 
-from __future__ import absolute_import
 import pytest
 
 from psyclone.nemo import NemoKern
@@ -177,7 +176,7 @@ def test_gen_stencil_1(parser):
                            (" i + 1 , j , k - 1 ", "[1, 0, -1]"),
                            ("i+1,j-2,k+3,l-4", "[1, -2, 3, -4]"),
                            ("i+(1), j-(2)", "[1, -2]")]:
-        code = CODE.replace("a(i,j,k)", "a({0})".format(form))
+        code = CODE.replace("a(i,j,k)", f"a({form})")
         lhs = get_lhs(parser, code)
         result = gen_stencil(lhs)
         assert result == expected
@@ -204,7 +203,7 @@ def test_gen_stencil_3(parser):
 
     '''
     for form in ["1", "1+i", "-1+i", "i+j", "i+1+1", "i+(1+1)", "i*2"]:
-        code = CODE.replace("a(i,j,k)", "a({0},j,k)".format(form))
+        code = CODE.replace("a(i,j,k)", f"a({form},j,k)")
         lhs = get_lhs(parser, code)
         with pytest.raises(VisitorError) as excinfo:
             _ = gen_stencil(lhs)
@@ -520,15 +519,15 @@ def test_sirwriter_binaryoperation_node_1(parser, sir_writer, oper):
     code = CODE.replace("\n    integer ::",
                         "\n    real :: b, c\n    integer ::")
     code = code.replace(
-        "a(i,j,k) = 1.0", "a(i,j,k) = b {0} c".format(oper))
+        "a(i,j,k) = 1.0", f"a(i,j,k) = b {oper} c")
     rhs = get_rhs(parser, code)
     result = sir_writer.binaryoperation_node(rhs)
     assert (
-        "make_binary_operator(\n"
-        "  make_field_access_expr(\"b\"),\n"
-        "  \"{0}\",\n"
-        "  make_field_access_expr(\"c\")\n"
-        "  )\n".format(oper) in result)
+        f"make_binary_operator(\n"
+        f"  make_field_access_expr(\"b\"),\n"
+        f"  \"{oper}\",\n"
+        f"  make_field_access_expr(\"c\")\n"
+        f"  )\n" in result)
 
 
 # (2/4) Method binaryoperation_node
@@ -545,19 +544,18 @@ def test_sirwriter_binaryoperation_node_2(parser, sir_writer, foper, soper):
     code = CODE.replace("\n    integer ::",
                         "\n    real :: b, c\n    integer ::")
     code = code.replace(
-        "a(i,j,k) = 1.0", "if (b {0} c) then\na(i,j,k) = 1.0\nend if"
-        "".format(foper))
+        "a(i,j,k) = 1.0", f"if (b {foper} c) then\na(i,j,k) = 1.0\nend if")
     kernel = get_kernel(parser, code)
     kernel_schedule = kernel.get_kernel_schedule()
     if_statement = kernel_schedule.children[0]
     if_condition = if_statement.condition
     result = sir_writer.binaryoperation_node(if_condition)
     assert (
-        "make_binary_operator(\n"
-        "  make_field_access_expr(\"b\"),\n"
-        "  \"{0}\",\n"
-        "  make_field_access_expr(\"c\")\n"
-        "  )\n".format(soper) in result)
+        f"make_binary_operator(\n"
+        f"  make_field_access_expr(\"b\"),\n"
+        f"  \"{soper}\",\n"
+        f"  make_field_access_expr(\"c\")\n"
+        f"  )\n" in result)
 
 
 # (3/4) Method binaryoperation_node
@@ -595,13 +593,13 @@ def test_sirwriter_binaryoperation_node_4(parser, sir_writer):
     '''
     code = CODE.replace("\n    integer ::",
                         "\n    real :: b, c\n    integer ::")
-    # Choose the sign function as there is no direct support for it in
+    # Choose the matmul function as there is no direct support for it in
     # in the SIR and no mapping is currently provided.
-    code = code.replace("a(i,j,k) = 1.0", "a(i,j,k) = sign(b, c)")
+    code = code.replace("a(i,j,k) = 1.0", "a(i,j,k) = matmul(b, c)")
     rhs = get_rhs(parser, code)
     with pytest.raises(VisitorError) as excinfo:
         _ = sir_writer.binaryoperation_node(rhs)
-    assert "unsupported operator 'Operator.SIGN' found" in str(excinfo.value)
+    assert "unsupported operator 'Operator.MATMUL' found" in str(excinfo.value)
 
 
 # (1/2) Method reference_node
@@ -682,8 +680,8 @@ def test_sirwriter_literal_node_error(parser, sir_writer, value, datatype):
     with pytest.raises(VisitorError) as excinfo:
         sir_writer.literal_node(rhs)
     assert (
-        "PSyIR type 'Scalar<{0}, UNDEFINED>' has no representation in "
-        "the SIR backend.".format(datatype) in str(excinfo.value))
+        f"PSyIR type 'Scalar<{datatype}, UNDEFINED>' has no representation in "
+        f"the SIR backend." in str(excinfo.value))
 
 
 # (1/5) Method unaryoperation_node
@@ -694,7 +692,7 @@ def test_sirwriter_unaryoperation_node_1(parser, sir_writer):
 
     '''
     for oper in ["-"]:  # Currently only one supported mapping
-        code = CODE.replace("1.0", "{0}1.0".format(oper))
+        code = CODE.replace("1.0", f"{oper}1.0")
         rhs = get_rhs(parser, code)
         result = sir_writer.unaryoperation_node(rhs)
         assert ("make_literal_access_expr(\"-1.0\", BuiltinType.Float)"
@@ -728,8 +726,8 @@ def test_sirwriter_unary_node_3(parser, sir_writer, value, datatype):
     code = CODE.replace("1.0", value)
     rhs = get_rhs(parser, code)
     result = sir_writer.unaryoperation_node(rhs)
-    assert ("make_literal_access_expr(\"{0}\", BuiltinType.{1})"
-            "".format(value, datatype) in result)
+    assert (f"make_literal_access_expr(\"{value}\", BuiltinType.{datatype})"
+            in result)
 
 
 # (4/5) Method unaryoperation_node
@@ -941,5 +939,69 @@ def test_sirwriter_schedule_node_1(parser, sir_writer):
         "  make_field_access_expr(\"a\", [0, 0, 0]),\n"
         "  make_literal_access_expr(\"1.0\", BuiltinType.Float),\n"
         "  \"=\")," in schedule_result)
+
+
+def test_sirwriter_unaryoperation_intrinsic_node(parser, sir_writer):
+    '''Check the unaryoperation_node method of the SIRWriter class
+    outputs the expected SIR code when the unaryoperation is an
+    intrinsic.
+
+    '''
+    code = CODE.replace("1.0", "abs(1.0)")
+    rhs = get_rhs(parser, code)
+    result = sir_writer.unaryoperation_node(rhs)
+    assert ("make_fun_call_expr(\"math:abs\", [make_literal_access_expr("
+            "\"1.0\", BuiltinType.Float)])" in result)
+
+
+@pytest.mark.parametrize("operation", ["min", "max"])
+def test_sirwriter_binaryoperation_intrinsic_node(parser, sir_writer,
+                                                  operation):
+    '''Check the binaryoperation_node method of the SIRWriter class
+    outputs the expected SIR code when the binaryoperation is an
+    intrinsic.
+
+    '''
+    code = CODE.replace("1.0", f"{operation}(1.0, 2.0)")
+    rhs = get_rhs(parser, code)
+    result = sir_writer.binaryoperation_node(rhs)
+    assert (f"make_fun_call_expr(\"math::{operation}\", ["
+            f"make_literal_access_expr(\"1.0\", BuiltinType.Float)], "
+            f"[make_literal_access_expr(\"2.0\", BuiltinType.Float)])"
+            in result)
+
+
+def test_sirwriter_binaryoperation_sign_node(parser, sir_writer):
+    '''Check the binaryoperation_node method of the SIRWriter class
+    outputs the expected SIR code when the binaryoperation is sign
+    intrinsic. This is a special case as the sign intrinsic is
+    implemented differently in Fortran and C.
+
+    '''
+    code = CODE.replace("1.0", "sign(1.0, 2.0)")
+    rhs = get_rhs(parser, code)
+    result = sir_writer.binaryoperation_node(rhs)
+    assert ("make_binary_operator(make_fun_call_expr(\"math:abs\", "
+            "[make_literal_access_expr(\"1.0\", BuiltinType.Float)]), "
+            "\"*\", make_fun_call_expr(\"math:sign\", "
+            "[make_literal_access_expr(\"2.0\", BuiltinType.Float)]))"
+            in result)
+
+
+@pytest.mark.parametrize("operation", ["min", "max"])
+def test_sirwriter_naryoperation_intrinsic_node(parser, sir_writer, operation):
+    '''Check the naryoperation_node method of the SIRWriter class
+    outputs the expected SIR code when the naryoperation is an
+    intrinsic.
+
+    '''
+    code = CODE.replace("1.0", f"{operation}(1.0, 2.0, 3.0)")
+    rhs = get_rhs(parser, code)
+    result = sir_writer.naryoperation_node(rhs)
+    assert (f"make_fun_call_expr(\"math::{operation}\", "
+            f"[make_literal_access_expr(\"1.0\", BuiltinType.Float)], "
+            f"[make_literal_access_expr(\"2.0\", BuiltinType.Float)], "
+            f"[make_literal_access_expr(\"3.0\", BuiltinType.Float)])"
+            in result)
 
 # Class SIRWriter end
