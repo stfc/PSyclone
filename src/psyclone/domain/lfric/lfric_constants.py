@@ -289,6 +289,20 @@ class LFRicConstants():
                           "proxy_type": None,
                           "intrinsic": "real",
                           "kind": "r_def"},
+            # 'real'-valued scalar reduction of kind 'r_solver' (used for
+            # global reductions of "r_solver_field_type" data)
+            "r_solver_reduction": {"module": "r_solver_scalar_mod",
+                                   "type": "r_solver_scalar_type",
+                                   "proxy_type": None,
+                                   "intrinsic": "real",
+                                   "kind": "r_solver"},
+            # 'real'-valued scalar reduction of kind 'r_tran' (used for
+            # global reductions of "r_tran_field_type" data)
+            "r_tran_reduction": {"module": "r_tran_scalar_mod",
+                                 "type": "r_tran_scalar_type",
+                                 "proxy_type": None,
+                                 "intrinsic": "real",
+                                 "kind": "r_tran"},
             # 'real'-valued field with data of kind 'r_def'
             "field": {"module": "field_mod",
                       "type": "field_type",
