@@ -151,9 +151,6 @@ endef
 # Define the required rules for each subdirectory.
 $(foreach dir,$(DIRS),$(eval $(call compile_rule_template,$(dir))))
 
-%_psy.f90:	%.x90
-	psyclone --config ../../../config/psyclone.cfg -opsy $*_psy.f90 -oalg $*_alg.f90 $<
-
 clean:
 	rm -f */*.o */*.mod
 	rm -f liblfric.a liblfric_netcdf.a
