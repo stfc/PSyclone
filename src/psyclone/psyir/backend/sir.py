@@ -354,9 +354,9 @@ class SIRWriter(PSyIRVisitor):
                 # is different to that in SIR (which uses the C
                 # implementation).
                 # [F] SIGN(A,B) == [C] ABS(A)*SIGN(B)
-                c_abs_fun = (f"make_fun_call_expr(\"math:abs\", "
+                c_abs_fun = (f"make_fun_call_expr(\"math::abs\", "
                              f"[{lhs.strip()}])")
-                c_sign_fun = (f"make_fun_call_expr(\"math:sign\", "
+                c_sign_fun = (f"make_fun_call_expr(\"math::sign\", "
                               f"[{rhs.strip()}])")
                 result = (f"make_binary_operator({c_abs_fun}, "
                           f"\"*\", {c_sign_fun})")
@@ -460,7 +460,7 @@ class SIRWriter(PSyIRVisitor):
 
         unary_operators = {
             UnaryOperation.Operator.MINUS: '-',
-            UnaryOperation.Operator.ABS: 'math:abs'}
+            UnaryOperation.Operator.ABS: 'math::abs'}
         try:
             oper = unary_operators[node.operator]
         except KeyError as err:

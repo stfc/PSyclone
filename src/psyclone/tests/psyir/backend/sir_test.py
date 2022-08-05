@@ -950,7 +950,7 @@ def test_sirwriter_unaryoperation_intrinsic_node(parser, sir_writer):
     code = CODE.replace("1.0", "abs(1.0)")
     rhs = get_rhs(parser, code)
     result = sir_writer.unaryoperation_node(rhs)
-    assert ("make_fun_call_expr(\"math:abs\", [make_literal_access_expr("
+    assert ("make_fun_call_expr(\"math::abs\", [make_literal_access_expr("
             "\"1.0\", BuiltinType.Float)])" in result)
 
 
@@ -981,9 +981,9 @@ def test_sirwriter_binaryoperation_sign_node(parser, sir_writer):
     code = CODE.replace("1.0", "sign(1.0, 2.0)")
     rhs = get_rhs(parser, code)
     result = sir_writer.binaryoperation_node(rhs)
-    assert ("make_binary_operator(make_fun_call_expr(\"math:abs\", "
+    assert ("make_binary_operator(make_fun_call_expr(\"math::abs\", "
             "[make_literal_access_expr(\"1.0\", BuiltinType.Float)]), "
-            "\"*\", make_fun_call_expr(\"math:sign\", "
+            "\"*\", make_fun_call_expr(\"math::sign\", "
             "[make_literal_access_expr(\"2.0\", BuiltinType.Float)]))"
             in result)
 
