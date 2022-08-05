@@ -57,7 +57,9 @@ LFRIC_PATH = $(PSYROOT)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME=lfric_netcdf
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
-F90FLAGS += $$(nf-config --fflags) -I$(LFRIC_PATH)
+F90FLAGS += $$(nf-config --fflags) -I$(LFRIC_PATH)/field     \
+	-I$(LFRIC_PATH)/function_space -I$(LFRIC_PATH)/utilities \
+	-I$(LFRIC_PATH)/mesh
 
 run: compile
 	./example
