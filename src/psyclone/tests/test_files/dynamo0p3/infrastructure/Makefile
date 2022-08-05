@@ -37,7 +37,6 @@
 
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g -fcheck=bound
-BUILD ?= build
 
 # MAKEFILE_LIST is a Gnu-make variable that contains all of the
 # arguments passed to the first invocation of Make. The last entry
@@ -48,7 +47,7 @@ INFRASTRUCTURE_DIR := $(dir $(this_file))
 
 
 CONFIGURATION_SRC = domain_size_config_mod.f90
-FIELD_SRC = argument_mod.F90 field_mod.F90 field_parent_mod.f90             \
+FIELD_SRC = argument_mod.F90 field_mod.F90 field_parent_mod.f90 kernel_mod.o\
 	integer_field_mod.F90 master_dofmap_mod.F90 polynomial_mod.F90          \
 	pure_abstract_field_mod.f90 r_solver_field_mod.F90 r_tran_field_mod.F90 \
 	stencil_2d_dofmap_mod.f90 stencil_dofmap_helper_functions_mod.f90       \
@@ -92,7 +91,7 @@ ALL_SRC = $(CONFIGURATION_PATH_SRC) $(FIELD_PATH_SRC)                    \
 OBJ = $(patsubst %.f90,%.o,$(patsubst %.F90,%.o,$(ALL_SRC)))
 
 # Additional object files required for netcdf support
-OBJ_NETCDF = io/global_mesh_netcdf_mod.o io/ugrid_2d_mod.o     \
+OBJ_NETCDF = mesh/global_mesh_netcdf_mod.o io/ugrid_2d_mod.o     \
 	io/ugrid_file_mod.o io/file_mod.o io/ugrid_generator_mod.o \
 	io/ncdf_quad_mod.o
 
@@ -106,13 +105,6 @@ OBJ_NETCDF = io/global_mesh_netcdf_mod.o io/ugrid_2d_mod.o     \
 
 .PHONY: standalone netcdf default dirs
 
-default:
-	mkdir -p $(BUILD)
-	# We need to force to re-read the dependency file from the build
-	# directory ... just calling make does not do this
-	$(MAKE) -C $(BUILD) -f $(INFRASTRUCTURE_DIR)/Makefile standalone
-	#bash -c "cd $(BUILD); make -f $(INFRASTRUCTURE_DIR)/Makefile standalone"
-
 # Standalone target, no netcdf dependency:
 # ----------------------------------------
 standalone: liblfric.a
@@ -125,6 +117,7 @@ dirs:
 # Netcdf target, like standalone but with support for netcdf files:
 # -----------------------------------------------------------------
 netcdf: F90FLAGS += $$(nf-config --fflags)
+netcdf: OBJ += $(OBJ_NETCDF)
 netcdf: liblfric_netcdf.a
 liblfric_netcdf.a: $(OBJ) $(OBJ_NETCDF)
 	$(AR) $(ARFLAGS) $@ $(OBJ) $(OBJ_NETCDF)
@@ -145,9 +138,7 @@ include $(INFRASTRUCTURE_DIR)/dependency
 # be stored. This avoids the hassle of handling compiler specific flags.
 # An example for the rule created:
 # field/%.o: $(INFRASTRUCTURE)/field/%.f90
-#field/%.o: /home/joerg/work/psyclone/src/psyclone/tests/test_files/dynamo0p3/infrastructure//field/%.f90
-#cd field; $(F90) $(F90FLAGS) -c $< -o $(notdir $@)
-
+#     cd field; $(F90) $(F90FLAGS) -c $< -o $(notdir $@)
 
 define compile_rule_template =
 $(1)/%.o:	$$(INFRASTRUCTURE_DIR)/$(1)/%.f90
@@ -157,17 +148,14 @@ $(1)/%.o:	$$(INFRASTRUCTURE_DIR)/$(1)/%.F90
 	cd $(1); $$(F90) $$(F90FLAGS) -c $$< -o $$(notdir $$@)
 endef
 
-xx:
-	echo $(call compile_rule_template,field)
-
+# Define the required rules for each subdirectory.
 $(foreach dir,$(DIRS),$(eval $(call compile_rule_template,$(dir))))
 
 %_psy.f90:	%.x90
 	psyclone --config ../../../config/psyclone.cfg -opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
 clean:
-	rm -f $(BUILD)/*.o $(BUILD)/*.mod
-	rm -f $(BUILD)/*/*.o $(BUILD)/*/*.mod
-	rm -f $(BUILD)/liblfric.a $(BUILD)/liblfric_netcdf.a
+	rm -f */*.o */*.mod
+	rm -f liblfric.a liblfric_netcdf.a
 
 allclean: clean
