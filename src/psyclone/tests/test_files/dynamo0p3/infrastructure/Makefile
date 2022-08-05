@@ -45,50 +45,46 @@ this_file := $(abspath $(lastword $(MAKEFILE_LIST)))
 # PSyclone directory is up two from this file
 INFRASTRUCTURE_DIR := $(dir $(this_file))
 
-
-CONFIGURATION_SRC = domain_size_config_mod.f90
-FIELD_SRC = argument_mod.F90 field_mod.F90 field_parent_mod.f90 kernel_mod.o\
-	integer_field_mod.F90 master_dofmap_mod.F90 polynomial_mod.F90          \
-	pure_abstract_field_mod.f90 r_solver_field_mod.F90 r_tran_field_mod.F90 \
-	stencil_2d_dofmap_mod.f90 stencil_dofmap_helper_functions_mod.f90       \
-	stencil_dofmap_mod.F90
-FUNCTION_SPACE_SRC = fs_continuity_mod.F90 function_space_mod.F90           \
-    function_space_constructor_helper_functions_mod.F90
-INITIALISTATION_SRC = flux_direction_mod.f90
-IO_SRC = file_mod.F90 io_utility_mod.f90
-MESH_SRC = extrusion_mod.f90 mesh_constructor_helper_functions_mod.F90      \
-	mesh_mod.F90 reference_element_mod.F90 global_mesh_base_mod.F90         \
-	mesh_colouring_mod.F90 mesh_map_mod.F90 partition_mod.F90
-OPERATOR_SRC = columnwise_operator_mod.f90 operator_mod.F90                 \
-	operator_parent_mod.f90
-SCALAR_SRC = scalar_mod.F90
-UTILITIES_SRC = constants_mod.F90 count_mod.f90 linked_list_data_mod.F90    \
-	linked_list_mod.F90 matrix_invert_mod.F90 timer_mod.F90                 \
-	coord_transform_mod.F90 cross_product_mod.F90 linked_list_int_mod.F90   \
-	log_mod.F90 mpi_mod.f90
+CONFIGURATION_OBJ = domain_size_config_mod.o
+FIELD_OBJ = argument_mod.o field_mod.o field_parent_mod.o kernel_mod.o\
+	integer_field_mod.o master_dofmap_mod.o polynomial_mod.o          \
+	pure_abstract_field_mod.o r_solver_field_mod.o r_tran_field_mod.o \
+	stencil_2d_dofmap_mod.o stencil_dofmap_helper_functions_mod.o       \
+	stencil_dofmap_mod.o
+FUNCTION_SPACE_OBJ = fs_continuity_mod.o function_space_mod.o           \
+    function_space_constructor_helper_functions_mod.o
+INITIALISTATION_OBJ = flux_direction_mod.o
+IO_OBJ = file_mod.o io_utility_mod.o
+MESH_OBJ = extrusion_mod.o mesh_constructor_helper_functions_mod.o      \
+	mesh_mod.o reference_element_mod.o global_mesh_base_mod.o         \
+	mesh_colouring_mod.o mesh_map_mod.o partition_mod.o
+OPERATOR_OBJ = columnwise_operator_mod.o operator_mod.o                 \
+	operator_parent_mod.o
+SCALAR_OBJ = scalar_mod.o
+UTILITIES_OBJ = constants_mod.o count_mod.o linked_list_data_mod.o    \
+	linked_list_mod.o matrix_invert_mod.o timer_mod.o                 \
+	coord_transform_mod.o cross_product_mod.o linked_list_int_mod.o   \
+	log_mod.o mpi_mod.o
 
 DIRS = configuration field function_space initialisation io mesh operator \
 	scalar utilities
 
 F90FLAGS += $(foreach dir,$(DIRS),-I ../$(dir))
 
-CONFIGURATION_PATH_SRC = $(addprefix configuration/,$(CONFIGURATION_SRC))
-FIELD_PATH_SRC = $(addprefix field/,$(FIELD_SRC))
-FUNCTION_SPACE_PATH_SRC = $(addprefix function_space/,$(FUNCTION_SPACE_SRC))
-INITIALISATION_PATH_SRC = $(addprefix initialisation/,$(INITIALISATION_SRC))
-IO_PATH_SRC = $(addprefix io/,$(IO_SRC))
-MESH_PATH_SRC = $(addprefix mesh/,$(MESH_SRC))
-OPERATOR_PATH_SRC = $(addprefix operator/,$(OPERATOR_SRC))
-SCALAR_PATH_SRC = $(addprefix scalar/,$(SCALAR_SRC))
-UTILITIES_PATH_SRC = $(addprefix utilities/,$(UTILITIES_SRC))
+CONFIGURATION_PATH_OBJ = $(addprefix configuration/,$(CONFIGURATION_OBJ))
+FIELD_PATH_OBJ = $(addprefix field/,$(FIELD_OBJ))
+FUNCTION_SPACE_PATH_OBJ = $(addprefix function_space/,$(FUNCTION_SPACE_OBJ))
+INITIALISATION_PATH_OBJ = $(addprefix initialisation/,$(INITIALISATION_OBJ))
+IO_PATH_OBJ = $(addprefix io/,$(IO_OBJ))
+MESH_PATH_OBJ = $(addprefix mesh/,$(MESH_OBJ))
+OPERATOR_PATH_OBJ = $(addprefix operator/,$(OPERATOR_OBJ))
+SCALAR_PATH_OBJ = $(addprefix scalar/,$(SCALAR_OBJ))
+UTILITIES_PATH_OBJ = $(addprefix utilities/,$(UTILITIES_OBJ))
 
-ALL_SRC = $(CONFIGURATION_PATH_SRC) $(FIELD_PATH_SRC)                    \
-	$(FUNCTION_SPACE_PATH_SRC) $(INITIALISATION_PATH_SRC) $(IO_PATH_SRC) \
-	$(MESH_PATH_SRC) $(OPERATOR_PATH_SRC) $(SCALAR_PATH_SRC)             \
-	$(UTILITIES_PATH_SRC)
-
-# Replace all *.F90 and *.f90 with .o to get a list of all object files.
-OBJ = $(patsubst %.f90,%.o,$(patsubst %.F90,%.o,$(ALL_SRC)))
+OBJ = $(CONFIGURATION_PATH_OBJ) $(FIELD_PATH_OBJ)                    \
+	$(FUNCTION_SPACE_PATH_OBJ) $(INITIALISATION_PATH_OBJ) $(IO_PATH_OBJ) \
+	$(MESH_PATH_OBJ) $(OPERATOR_PATH_OBJ) $(SCALAR_PATH_OBJ)             \
+	$(UTILITIES_PATH_OBJ)
 
 # Additional object files required for netcdf support
 OBJ_NETCDF = mesh/global_mesh_netcdf_mod.o io/ugrid_2d_mod.o     \
