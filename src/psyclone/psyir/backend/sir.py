@@ -353,8 +353,8 @@ class SIRWriter(PSyIRVisitor):
                 # in the PSyIR (which uses the Fortran implementation)
                 # is different to that in SIR (which uses the C
                 # implementation).
-                # [F] SIGN(A,B) == [C] ABS(A)*SIGN(B)
-                c_abs_fun = (f"make_fun_call_expr(\"math::abs\", "
+                # [F] SIGN(A,B) == [C] FABS(A)*SIGN(B)
+                c_abs_fun = (f"make_fun_call_expr(\"math::fabs\", "
                              f"[{lhs.strip()}])")
                 c_sign_fun = (f"make_fun_call_expr(\"math::sign\", "
                               f"[{rhs.strip()}])")
@@ -460,7 +460,7 @@ class SIRWriter(PSyIRVisitor):
 
         unary_operators = {
             UnaryOperation.Operator.MINUS: '-',
-            UnaryOperation.Operator.ABS: 'math::abs'}
+            UnaryOperation.Operator.ABS: 'math::fabs'}
         try:
             oper = unary_operators[node.operator]
         except KeyError as err:
