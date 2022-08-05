@@ -45,51 +45,28 @@ this_file := $(abspath $(lastword $(MAKEFILE_LIST)))
 # PSyclone directory is up two from this file
 INFRASTRUCTURE_DIR := $(dir $(this_file))
 
-CONFIGURATION_OBJ = domain_size_config_mod.o
-FIELD_OBJ = argument_mod.o field_mod.o field_parent_mod.o kernel_mod.o\
-	integer_field_mod.o master_dofmap_mod.o polynomial_mod.o          \
-	pure_abstract_field_mod.o r_solver_field_mod.o r_tran_field_mod.o \
-	stencil_2d_dofmap_mod.o stencil_dofmap_helper_functions_mod.o       \
-	stencil_dofmap_mod.o
-FUNCTION_SPACE_OBJ = fs_continuity_mod.o function_space_mod.o           \
-    function_space_constructor_helper_functions_mod.o
-INITIALISTATION_OBJ = flux_direction_mod.o
-IO_OBJ = file_mod.o io_utility_mod.o
-MESH_OBJ = extrusion_mod.o mesh_constructor_helper_functions_mod.o      \
-	mesh_mod.o reference_element_mod.o global_mesh_base_mod.o         \
-	mesh_colouring_mod.o mesh_map_mod.o partition_mod.o
-OPERATOR_OBJ = columnwise_operator_mod.o operator_mod.o                 \
-	operator_parent_mod.o
-SCALAR_OBJ = scalar_mod.o
-UTILITIES_OBJ = constants_mod.o count_mod.o linked_list_data_mod.o    \
-	linked_list_mod.o matrix_invert_mod.o timer_mod.o                 \
-	coord_transform_mod.o cross_product_mod.o linked_list_int_mod.o   \
-	log_mod.o mpi_mod.o
-
-DIRS = configuration field function_space initialisation io mesh operator \
-	scalar utilities
-
-F90FLAGS += $(foreach dir,$(DIRS),-I ../$(dir))
-
-CONFIGURATION_PATH_OBJ = $(addprefix configuration/,$(CONFIGURATION_OBJ))
-FIELD_PATH_OBJ = $(addprefix field/,$(FIELD_OBJ))
-FUNCTION_SPACE_PATH_OBJ = $(addprefix function_space/,$(FUNCTION_SPACE_OBJ))
-INITIALISATION_PATH_OBJ = $(addprefix initialisation/,$(INITIALISATION_OBJ))
-IO_PATH_OBJ = $(addprefix io/,$(IO_OBJ))
-MESH_PATH_OBJ = $(addprefix mesh/,$(MESH_OBJ))
-OPERATOR_PATH_OBJ = $(addprefix operator/,$(OPERATOR_OBJ))
-SCALAR_PATH_OBJ = $(addprefix scalar/,$(SCALAR_OBJ))
-UTILITIES_PATH_OBJ = $(addprefix utilities/,$(UTILITIES_OBJ))
-
-OBJ = $(CONFIGURATION_PATH_OBJ) $(FIELD_PATH_OBJ)                    \
-	$(FUNCTION_SPACE_PATH_OBJ) $(INITIALISATION_PATH_OBJ) $(IO_PATH_OBJ) \
-	$(MESH_PATH_OBJ) $(OPERATOR_PATH_OBJ) $(SCALAR_PATH_OBJ)             \
-	$(UTILITIES_PATH_OBJ)
+ALL_SRC := $(subst $(INFRASTRUCTURE_DIR),,\
+		    $(shell find $(INFRASTRUCTURE_DIR) -name '*.[Ff]90' -print))
+ALL_OBJ = $(subst .F90,.o,$(subst .f90,.o,$(ALL_SRC)))
 
 # Additional object files required for netcdf support
 OBJ_NETCDF = mesh/global_mesh_netcdf_mod.o io/ugrid_2d_mod.o     \
 	io/ugrid_file_mod.o io/file_mod.o io/ugrid_generator_mod.o \
 	io/ncdf_quad_mod.o
+
+# We need to remove the objects only required for NetCDF from the
+# list of all objects (since we don't want to require NetCDF for
+# most compilation tests):
+OBJ := $(filter-out $(OBJ_NETCDF),$(ALL_OBJ))
+
+# Get all directories and remove the trailing '/':
+DIRS = $(subst /,,$(dir $(OBJ)))
+# This function returns each element in the list only once.
+uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
+# Remove duplicated entries in the list of directories.
+DIRS := $(call uniq,$(DIRS))
+
+F90FLAGS += $(foreach dir,$(DIRS),-I ../$(dir))
 
 # Note that the files
 # quadrature_edge_mod.F90 quadrature_face_mod.F90 quadrature_mod.F90
@@ -115,7 +92,7 @@ dirs:
 netcdf: F90FLAGS += $$(nf-config --fflags)
 netcdf: OBJ += $(OBJ_NETCDF)
 netcdf: liblfric_netcdf.a
-liblfric_netcdf.a: $(OBJ) $(OBJ_NETCDF)
+liblfric_netcdf.a: dirs $(OBJ) $(OBJ_NETCDF)
 	$(AR) $(ARFLAGS) $@ $(OBJ) $(OBJ_NETCDF)
 
 
