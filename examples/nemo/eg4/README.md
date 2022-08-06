@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2021, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2022, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -66,9 +66,7 @@ intrinsics to equivalent PSyIR code before translating to SIR (as SIR
 does not support intrinsics).
 
 A third additional example (`tra_adv_compute.F90`) is the
-computational part of the tracer advection benchmark and this shows
-how much of the code can currently be translated (with the parts that
-can't be translated being modified or commented out).
+computational part of the tracer advection benchmark.
 
 To test the `copy_stencil.f90`, `hori_diff.f90`,
 `tridiagonal_solve.f90` and `if_example.f90` examples run:
@@ -77,7 +75,20 @@ To test the `copy_stencil.f90`, `hori_diff.f90`,
 > psyclone -s ./sir_trans.py -api nemo <filename> -opsy /dev/null
 ```
 
-To test the `intrinsic_example.f90` and `tra_adv_compute.F90` examples run:
+To test the `intrinsic_example.f90` example run:
+
+```sh
+> psyclone -s ./sir_trans_all.py -api nemo <filename> -opsy /dev/null
+```
+
+To test the `tra_adv_compute.F90` example run:
+
+```sh
+> psyclone -s ./sir_trans_loop.py -api nemo <filename> -opsy /dev/null
+```
+
+The above example will keep the intrinsics in the generated sir
+code. Tp remove these intrinsics you can aternatively run:
 
 ```sh
 > psyclone -s ./sir_trans_all.py -api nemo <filename> -opsy /dev/null
@@ -128,5 +139,4 @@ To build Dawn with Python support:
    offset and loop ordering for the vertical.
 2. There are no checks that the loops conform to the NEMO lat.lon.levs
    convention.
-3. The only unary operator currently supported is '-'.
-4. Loops must be triply nested.
+3. Loops must be triply nested.

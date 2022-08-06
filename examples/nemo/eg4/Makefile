@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,13 +45,13 @@ transform: ${FORTRAN_FILES} intrinsic tra_adv
 ${FORTRAN_FILES}:
 	${PSYCLONE} -s ./sir_trans.py -api nemo $@ -opsy /dev/null
 
-# intrinsic_example.f90 and tracer_advection.f90 make use of a
-# different transformation script
+# intrinsic_example.f90 and tracer_advection.f90 make use of
+# different transformation scripts
 intrinsic:
 	${PSYCLONE} -s ./sir_trans_all.py -api nemo intrinsic_example.f90 \
 -opsy /dev/null
 tra_adv:
-	${PSYCLONE} -s ./sir_trans_all.py -api nemo tra_adv_compute.F90 \
+	${PSYCLONE} -s ./sir_trans_loop.py -api nemo tra_adv_compute.F90 \
 -opsy /dev/null
 
 # We don't do any compilation for this example
