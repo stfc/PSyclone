@@ -988,6 +988,21 @@ def test_sirwriter_binaryoperation_sign_node(parser, sir_writer):
             in result)
 
 
+def test_sirwriter_naryoperation_error(parser, sir_writer):
+    '''Check the naryoperation_node method of the SIRWriter class
+    raises the expected exception when the naryoperation is an
+    unsupported operator.
+
+    '''
+    # nary SUM is not currently supported in the SIR backend.
+    code = CODE.replace("1.0", "SUM(1.0, 2.0, 3.0)")
+    rhs = get_rhs(parser, code)
+    with pytest.raises(VisitorError) as info:
+        _ = sir_writer.naryoperation_node(rhs)
+    assert ("Method naryoperation_node in class SIRWriter, unsupported "
+            "operator 'Operator.SUM' found." in str(info.value))
+
+
 @pytest.mark.parametrize("operation", ["min", "max"])
 def test_sirwriter_naryoperation_intrinsic_node(parser, sir_writer, operation):
     '''Check the naryoperation_node method of the SIRWriter class

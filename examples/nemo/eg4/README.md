@@ -69,26 +69,22 @@ A third additional example (`tra_adv_compute.F90`) is the
 computational part of the tracer advection benchmark.
 
 To test the `copy_stencil.f90`, `hori_diff.f90`,
-`tridiagonal_solve.f90` and `if_example.f90` examples run:
+`tridiagonal_solve.f90`, `if_example.f90` and `intrinsic_example.f90`
+examples run:
 
 ```sh
 > psyclone -s ./sir_trans.py -api nemo <filename> -opsy /dev/null
 ```
 
-To test the `intrinsic_example.f90` example run:
-
-```sh
-> psyclone -s ./sir_trans_all.py -api nemo <filename> -opsy /dev/null
-```
-
 To test the `tra_adv_compute.F90` example run:
 
 ```sh
-> psyclone -s ./sir_trans_loop.py -api nemo <filename> -opsy /dev/null
+> psyclone -s ./sir_trans_loop.py -api nemo tra_adv_compute.F90 -opsy /dev/null
 ```
 
-The above example will keep the intrinsics in the generated sir
-code. Tp remove these intrinsics you can aternatively run:
+The above examples will keep any intrinsics in the generated SIR
+output. To remove these intrinsics in the `intrinsic_example.f90` and
+`tra_adv_compute.F90` examples you can run:
 
 ```sh
 > psyclone -s ./sir_trans_all.py -api nemo <filename> -opsy /dev/null

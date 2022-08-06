@@ -1036,9 +1036,16 @@ SIR
 ---
 
 It is currently not possible for PSyclone to output SIR code without
-using a script. Two examples of such scripts are given in example 4
-for the NEMO API, one of which includes transformations to remove
-PSyIR intrinsics, hoist code out of a loop, translate array-index
-notation into explicit loops and translate a single access to an array
-dimension to a one-trip loop (to make the code suitable for the SIR
-backend).
+using a script. Three examples of such scripts are given in example 4
+for the NEMO API. The first `sir_trans.py` simply outputs SIR. This
+will raise an exception if used with the `tracer advection` example as
+the example contains array-index notation which is not supported by
+the SIR backend, but will generate code for the other examples. The
+second, `sir_trans_loop.py` includes transformations to hoist code out
+of a loop, translate array-index notation into explicit loops and
+translate a single access to an array dimension to a one-trip loop (to
+make the code suitable for the SIR backend). This works with the
+`tracer-advection` example. The third script `sir_trans_all.py`
+additionally additionally replaces any intrinsics with equivalent code
+and can also be used with the `tracer-advection` example (and the
+`intrinsic_example.f90` example).
