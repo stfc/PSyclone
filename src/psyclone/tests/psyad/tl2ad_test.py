@@ -122,9 +122,23 @@ def test_generate_adjoint_str(caplog):
     assert test_harness == ""
 
 
+def test_generate_adjoint_str_function():
+    '''Test that an exception is raised if a function is found.'''
+    tl_code = (
+        "real function test(a)\n"
+        "  real :: a\n"
+        "  test = a\n"
+        "end function test\n")
+    with pytest.raises(NotImplementedError) as info:
+        _, _ = generate_adjoint_str(tl_code, ["a", "test"])
+    assert ("PSyAD does not support tangent-linear code written as a "
+            "function. Please re-write 'test' as a subroutine."
+            in str(info.value))
+
+
 def test_generate_adjoint_str_trans():
     '''Test that the generate_adjoint_str() function successfully calls
-    the kern_trans() function.
+    the preprocess_trans() function.
 
     '''
     tl_code = (

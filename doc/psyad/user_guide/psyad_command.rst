@@ -103,6 +103,12 @@ by another optional argument [see the next section])
    
    > psyad tl_kern.f90 -a var1 var2
 
+.. note:: PSyAD does not support tangent-linear code written as a
+          function and will raise an exception if a function is
+          found. The suggested solution is to re-write the code as a
+          subroutine. The reason for this limitation is that there is
+          no natural way to translate such code to its adjoint form
+          without making the adjoint a subroutine.
 
 File Output
 -----------
