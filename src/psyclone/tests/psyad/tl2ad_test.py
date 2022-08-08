@@ -423,7 +423,6 @@ def test_generate_adjoint_multi_kernel(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(tl_fortran_str)
     ad_psyir = generate_adjoint(psyir, ["psyir_tmp", "psyir_tmp_1"])
     ad_fortran_str = fortran_writer(ad_psyir)
-    print(ad_fortran_str)
     assert ad_fortran_str == expected
 
 
