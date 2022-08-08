@@ -1807,6 +1807,10 @@ def test_all_go_loop_trans_base_validate(monkeypatch):
     monkeypatch.setattr(LoopTrans, "validate", fake_validate)
 
     for name, cls_type in all_trans_classes:
+        if name in ["RaisePSyIR2GOceanKernTrans"]:
+            # This transformation requires an argument to the
+            # constructor and is not a subclass of LoopTrans so skip.
+            continue
         trans = cls_type()
         if isinstance(trans, LoopTrans):
             with pytest.raises(NotImplementedError) as err:

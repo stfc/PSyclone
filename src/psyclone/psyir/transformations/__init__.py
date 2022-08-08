@@ -47,8 +47,10 @@ from psyclone.psyir.transformations.chunk_loop_trans import ChunkLoopTrans
 from psyclone.psyir.transformations.extract_trans import ExtractTrans
 from psyclone.psyir.transformations.fold_conditional_return_expressions_trans \
     import FoldConditionalReturnExpressionsTrans
-from psyclone.psyir.transformations.hoist_local_arrays_trans import (
-    HoistLocalArraysTrans)
+from psyclone.psyir.transformations.hoist_local_arrays_trans import \
+    HoistLocalArraysTrans
+from psyclone.psyir.transformations.hoist_loop_bound_expr_trans import \
+    HoistLoopBoundExprTrans
 from psyclone.psyir.transformations.hoist_trans import HoistTrans
 from psyclone.psyir.transformations.intrinsics.abs2code_trans import \
     Abs2CodeTrans
@@ -87,6 +89,7 @@ __all__ = ['ACCUpdateTrans',
            'ExtractTrans',
            'FoldConditionalReturnExpressionsTrans',
            'HoistLocalArraysTrans',
+           'HoistLoopBoundExprTrans',
            'HoistTrans',
            'Abs2CodeTrans',
            'DotProduct2CodeTrans',
