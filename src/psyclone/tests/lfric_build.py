@@ -61,6 +61,10 @@ class LFRicBuild(Compile):
     # (.o and .mod) are stored for this process.
     _compilation_path = ""
 
+    # Define the 'make' command to use. Having this as an attribute
+    # allows testing to modify this to trigger exceptions.
+    _make_command = "make"
+
     def __init__(self, tmpdir):
         '''Constructor for the LFRic-specific compilation class.
         The very first time the constructor is called it will compile
@@ -105,11 +109,13 @@ class LFRicBuild(Compile):
         # Store the temporary path so that the compiled infrastructure
         # files can be used by all test compilations later.
         LFRicBuild._compilation_path = str(self._tmpdir)
-        arg_list = ["make", "-f", f"{self._infrastructure_path}/Makefile"]
+        arg_list = [LFRicBuild._make_command, "-f",
+                    f"{self._infrastructure_path}/Makefile"]
         try:
             with subprocess.Popen(arg_list, stdout=subprocess.PIPE,
                                   stderr=subprocess.STDOUT) as build:
-                (output, error) = build.communicate()
+                # stderr = stdout, so ignore stderr result:
+                (output, _) = build.communicate()
         except OSError as err:
             print(f"Failed to run: {' '.join(arg_list)}: ", file=sys.stderr)
             raise CompileError(str(err)) from err
@@ -118,11 +124,8 @@ class LFRicBuild(Compile):
         # Check the return code
         stat = build.returncode
         if stat != 0:
-            print(f"Compiling: {' '.join(arg_list)}", file=sys.stderr)
+            print(f"Build command: {' '.join(arg_list)}", file=sys.stderr)
             print(output.decode("utf-8"), file=sys.stderr)
-            if error:
-                print("=========", file=sys.stderr)
-                print(error.decode("utf-8"), file=sys.stderr)
-            raise CompileError(output)
+            raise CompileError(output.decode("utf-8"))
 
         LFRicBuild._infrastructure_built = True

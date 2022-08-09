@@ -39,36 +39,61 @@ Module containing tests related to building generated code for
 the LFRic domain.
 '''
 
-import os
 import pytest
 
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.tests.utilities import CompileError
+from psyclone.tests.utilities import Compile, CompileError
 
 
-# Constants
-BASE_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__)))),
-    "test_files", "dynamo0p3")
-
-
-def test_infrastructure_build_error(tmpdir, monkeypatch):
-    '''
-    Check the mechanism by which we ensure that the LFRic wrapper
-    infrastructure files for compilation tests are actually compiled.
+def test_make_flags(tmpdir):
+    '''Test that the compiler flags consists of a list with "-I"
+    in every second position: `-I operator -I field -I mesh`
 
     '''
+    flags = LFRicBuild(tmpdir).get_infrastructure_flags()
+    i = 0
+    while i < len(flags):
+        assert flags[i] == "-I"
+        i += 2
 
-    fake_modules = ["moomintroll_mod",
-                    "moominmamma_mod",
-                    "moominpappa_mod"]
 
-    monkeypatch.setattr(LFRicBuild, "INFRASTRUCTURE_MODULES",
-                        fake_modules)
+def test_make_fail(tmpdir, monkeypatch):
+    '''Test that compilation fails as expected if there is no `make`
+    installed. This is simulated by replacing the 'make' command
+    with a non-existing command.
+
+    '''
+    monkeypatch.setattr(Compile, "TEST_COMPILE", True)
+    monkeypatch.setattr(LFRicBuild, "_make_command", "make_does_not_exist")
 
     with pytest.raises(CompileError) as excinfo:
         LFRicBuild(tmpdir)._build_infrastructure()
-    assert ("Could not compile LFRic wrapper. Error: Cannot find a Fortran "
-            "file 'moomintroll_mod' with suffix in ['f90', 'F90', 'x90']"
+    assert ("No such file or directory: 'make_does_not_exist'"
             in str(excinfo.value))
+
+
+def test_make_error_code(tmpdir, monkeypatch):
+    '''Test that a non-zero return code from the build command is
+    handled correctly.
+
+    '''
+    monkeypatch.setattr(Compile, "TEST_COMPILE", True)
+    monkeypatch.setattr(LFRicBuild, "_make_command", "false")
+
+    with pytest.raises(CompileError) as excinfo:
+        LFRicBuild(tmpdir)._build_infrastructure()
+    assert ("Compile error: "
+            in str(excinfo.value))
+
+
+def test_make_works(tmpdir, monkeypatch):
+    '''Tests that no error is raised if the build process worked.
+    This done by using `true` as build command.
+
+    '''
+    assert LFRicBuild._infrastructure_built is False
+    monkeypatch.setattr(Compile, "TEST_COMPILE", True)
+    monkeypatch.setattr(LFRicBuild, "_make_command", "true")
+
+    LFRicBuild(tmpdir)._build_infrastructure()
+    assert LFRicBuild._infrastructure_built is True
