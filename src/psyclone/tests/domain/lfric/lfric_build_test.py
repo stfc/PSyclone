@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,23 +31,44 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors J. Henrichs, Bureau of Meteorology
-#         S. Siso, STFC Daresbury Lab
-# Modified: R. W. Ford, STFC Daresbury Lab
+# Author: I. Kavcic, Met Office
 
-'''This module contains the transformations for GOcean.
+
+'''
+Module containing tests related to building generated code for
+the LFRic domain.
 '''
 
-from psyclone.domain.gocean.transformations.gocean_extract_trans \
-    import GOceanExtractTrans
-from psyclone.domain.gocean.transformations.gocean_opencl_trans \
-    import GOOpenCLTrans
-from psyclone.domain.gocean.transformations. \
-    gocean_move_iteration_boundaries_inside_kernel_trans import \
-    GOMoveIterationBoundariesInsideKernelTrans
-from psyclone.domain.gocean.transformations.gocean_loop_fuse_trans \
-    import GOceanLoopFuseTrans
-from psyclone.domain.gocean.transformations.gocean_const_loop_bounds_trans \
-    import GOConstLoopBoundsTrans
-from psyclone.domain.gocean.transformations.raise_psyir_2_gocean_kern_trans \
-    import RaisePSyIR2GOceanKernTrans
+import os
+import pytest
+
+from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import CompileError
+
+
+# Constants
+BASE_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__)))),
+    "test_files", "dynamo0p3")
+
+
+def test_infrastructure_build_error(tmpdir, monkeypatch):
+    '''
+    Check the mechanism by which we ensure that the LFRic wrapper
+    infrastructure files for compilation tests are actually compiled.
+
+    '''
+
+    fake_modules = ["moomintroll_mod",
+                    "moominmamma_mod",
+                    "moominpappa_mod"]
+
+    monkeypatch.setattr(LFRicBuild, "INFRASTRUCTURE_MODULES",
+                        fake_modules)
+
+    with pytest.raises(CompileError) as excinfo:
+        LFRicBuild(tmpdir)._build_infrastructure()
+    assert ("Could not compile LFRic wrapper. Error: Cannot find a Fortran "
+            "file 'moomintroll_mod' with suffix in ['f90', 'F90', 'x90']"
+            in str(excinfo.value))

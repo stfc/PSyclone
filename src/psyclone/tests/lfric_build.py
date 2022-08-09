@@ -61,6 +61,64 @@ class LFRicBuild(Compile):
     # (.o and .mod) are stored for this process.
     _compilation_path = ""
 
+<<<<<<< HEAD
+=======
+    # The list of infrastructure files that must be compiled. The
+    # order can be important, they will be compiled in the order
+    # specified here.
+    INFRASTRUCTURE_MODULES = ["constants_mod",
+                              "log_mod",
+                              "fs_continuity_mod",
+                              "linked_list_data_mod",
+                              "argument_mod",
+                              "reference_element_mod",
+                              "global_mesh_base_mod",
+                              "kernel_mod",
+                              "mpi_mod",
+                              "linked_list_int_mod",
+                              "linked_list_mod",
+                              "partition_mod",
+                              "reference_element_mod",
+                              "mesh_map_mod",
+                              "extrusion_mod",
+                              "mesh_colouring_mod",
+                              "domain_size_config_mod",
+                              "matrix_invert_mod",
+                              "cross_product_mod",
+                              "coord_transform_mod",
+                              "mesh_constructor_helper_functions_mod",
+                              "mesh_mod",
+                              "master_dofmap_mod",
+                              "stencil_dofmap_helper_functions_mod",
+                              "stencil_dofmap_mod",
+                              "stencil_2D_dofmap_mod",
+                              "function_space_constructor_helper_"
+                              "functions_mod",
+                              "polynomial_mod",
+                              "function_space_mod",
+                              "scalar_mod",
+                              "pure_abstract_field_mod",
+                              "field_parent_mod",
+                              "count_mod",
+                              "field_mod",
+                              "integer_field_mod",
+                              "r_solver_field_mod",
+                              "r_tran_field_mod",
+                              "quadrature_rule_mod",
+                              "quadrature_mod",
+                              "quadrature_xyz_mod",
+                              "quadrature_xyoz_mod",
+                              "quadrature_xoyoz_mod",
+                              "quadrature_edge_mod",
+                              "quadrature_face_mod",
+                              "operator_parent_mod",
+                              "operator_mod",
+                              "r_solver_operator_mod",
+                              "columnwise_operator_mod",
+                              "flux_direction_mod"
+                              ]
+
+>>>>>>> origin/master
     def __init__(self, tmpdir):
         '''Constructor for the LFRic-specific compilation class.
         The very first time the constructor is called it will compile

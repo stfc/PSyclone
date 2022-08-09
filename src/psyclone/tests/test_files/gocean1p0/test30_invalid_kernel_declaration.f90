@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2021-2022, Science and Technology Facilities Council.
+! Copyright (c) 2022, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,21 +31,21 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author: R. W. Ford, STFC Daresbury Lab
-! Modified: I. Kavcic, Met Office
+! Author R. W. Ford, STFC Daresbury Lab
 
-! Description: Declare field data as r_solver to check that r_def is
-! declared for the reference element arrays in the psy-layer.
+PROGRAM kernel_invalid_declaration_prog
 
-program ref_element_mixed_precision
-
-  use r_solver_field_mod,       only: r_solver_field_type
-  use testkern_ref_elem_mp_mod, only: testkern_ref_elem_mp_type
-
+  ! Calls kernel_invalid_declaration which is an invalid kernel as it
+  ! does not declare one of the variables that are passed into the
+  ! kernel subroutine.
+  use kind_params_mod
+  use grid_mod
+  use field_mod
+  use kernel_invalid_declaration,  only: compute
   implicit none
 
-  type(r_solver_field_type) :: f1
+  type(r2d_field) :: p_fld, u_fld, cu_fld
 
-  call invoke( testkern_ref_elem_mp_type(f1) )
+  call invoke( compute(cu_fld, p_fld, u_fld) )
 
-end program ref_element_mixed_precision
+END PROGRAM kernel_invalid_declaration_prog
