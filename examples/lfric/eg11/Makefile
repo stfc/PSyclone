@@ -53,8 +53,8 @@ EXEC = will_not_run.exe
 LFRIC_PATH = ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME=lfric
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
-
-F90FLAGS += -I$(LFRIC_PATH)
+LFRIC_INCLUDE_FLAGS:=$(shell $(MAKE) -s -C $(LFRIC_PATH) get_include_flags)
+F90FLAGS += $(LFRIC_INCLUDE_FLAGS)
 
 # This example will not run as no mesh is set up and the data is not
 # initialised in the algorithm layer. The example was simply designed
