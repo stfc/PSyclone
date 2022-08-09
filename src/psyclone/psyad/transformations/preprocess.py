@@ -40,11 +40,9 @@ translated to adjoint PSyIR.
 '''
 from psyclone.core import SymbolicMaths
 from psyclone.psyad.utils import node_is_active, node_is_passive
-from psyclone.psyir.nodes import BinaryOperation, Assignment, Range, \
-    Reference
+from psyclone.psyir.nodes import BinaryOperation, Assignment, Range
 from psyclone.psyir.transformations import DotProduct2CodeTrans, \
-    Matmul2CodeTrans, ArrayRange2LoopTrans, TransformationError, \
-    ArrayNotation2ArrayRangeTrans
+    Matmul2CodeTrans, ArrayRange2LoopTrans, TransformationError
 
 
 def preprocess_trans(kernel_psyir, active_variable_names):
@@ -65,14 +63,6 @@ def preprocess_trans(kernel_psyir, active_variable_names):
     dot_product_trans = DotProduct2CodeTrans()
     matmul_trans = Matmul2CodeTrans()
     arrayrange2loop_trans = ArrayRange2LoopTrans()
-    arraynotation2arrayrange_trans = ArrayNotation2ArrayRangeTrans()
-
-    # Replace any array notation with array-ranges
-    for reference in kernel_psyir.walk(Reference):
-        try:
-            arraynotation2arrayrange_trans.apply(reference)
-        except TransformationError:
-            pass
 
     # Replace array-ranges with explicit loops
     for assignment in kernel_psyir.walk(Assignment):
