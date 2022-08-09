@@ -34,16 +34,15 @@
 # Author R. W. Ford
 
 '''Module providing a transformation from PSyIR Array notation to an
-array range.  This can be useful to determine when we have array
+array range. This can be useful to determine when we have array
 accesses (as it is not clear with array notation) and can allow
 further optimisations such as transforming to explicit loops.
 
 '''
-
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Range, Reference, ArrayReference, Literal, \
     BinaryOperation
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.symbols import INTEGER_TYPE, ArrayType
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 
@@ -52,9 +51,69 @@ class ArrayNotation2ArrayRangeTrans(Transformation):
     '''Provides a transformation from PSyIR Array Notation to a PSyIR
     Range. For example:
 
-    xxx
+    >>> from psyclone.psyir.backend.fortran import FortranWriter
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> from psyclone.psyir.nodes import Reference
+    >>> from psyclone.psyir.transformations import TransformationError
+    >>> CODE = ("program example\\n"
+    ...         "real :: a(:)\\n"
+    ...         "a = 0.0\\n"
+    ...         "end program\\n")
+    >>> trans = ArrayNotation2ArrayRangeTrans()
+    >>> psyir = FortranReader().psyir_from_source(CODE)
+    >>> for reference in psyir.walk(Reference):
+    ...    try:
+    ...        trans.apply(reference)
+    ...    except TransformationError:
+    ...        pass
+    >>> print(FortranWriter()(psyir))
+    program example
+      real, dimension(:) :: a
+    <BLANKLINE>
+      a(:) = 0.0
+    <BLANKLINE>
+    end program example
+    <BLANKLINE>
 
     '''
+    def _get_array_bound(symbol, index):
+        '''A utility function that returns the appropriate loop bounds (lower,
+        upper and step) for an array dimension.  If the array
+        dimension is declared with known bounds (an integer or a
+        symbol) then these bound values are used. If the size is
+        unknown (a deferred or attribute type) then the LBOUND and
+        UBOUND PSyIR nodes are used.
+
+        :param symbol: the symbol that we are interested in.
+        :type symbol: :py:class:`psyir.symbols.DataSymbol`
+        :param int index: the (array) reference index that we are \
+            interested in.
+
+        :returns: the loop bounds for this array index.
+        :rtype: (Literal, Literal, Literal) or \
+            (BinaryOperation, BinaryOperation, Literal)
+
+        '''
+        # Look for explicit bounds in the array declaration.
+        my_dim = symbol.shape[index]
+        if isinstance(my_dim, ArrayType.ArrayBounds):
+            lower_bound = my_dim.lower.copy()
+            upper_bound = my_dim.upper.copy()
+            step = Literal("1", INTEGER_TYPE)
+            return (lower_bound, upper_bound, step)
+
+        # No explicit array bound information could be found so use the
+        # LBOUND and UBOUND intrinsics.
+        lower_bound = BinaryOperation.create(
+            BinaryOperation.Operator.LBOUND, Reference(symbol),
+            Literal(str(index+1), INTEGER_TYPE))
+        upper_bound = BinaryOperation.create(
+            BinaryOperation.Operator.UBOUND, Reference(symbol),
+            Literal(str(index+1), INTEGER_TYPE))
+        step = Literal("1", INTEGER_TYPE)
+        return (lower_bound, upper_bound, step)
+
+
     def validate(self, node, options=None):
         '''Check that the node is a Reference node and that the symbol it
         references is an array.
@@ -77,7 +136,7 @@ class ArrayNotation2ArrayRangeTrans(Transformation):
             raise TransformationError(
                 f"The supplied node should be a Reference that references a "
                 f"symbol that is an array, but '{node.symbol.name}' is not.")
-
+        
     def apply(self, node, options=None):
         '''Apply the ArrayNotation2ArrayRangeTrans transformation to the
         specified node. The node must be a Reference. If the Reference
@@ -96,13 +155,9 @@ class ArrayNotation2ArrayRangeTrans(Transformation):
         symbol = node.symbol
         indices = []
         for idx, _ in enumerate(symbol.shape):
-            lbound = BinaryOperation.create(
-                BinaryOperation.Operator.LBOUND, Reference(symbol),
-                Literal(str(idx+1), INTEGER_TYPE))
-            ubound = BinaryOperation.create(
-                BinaryOperation.Operator.UBOUND, Reference(symbol),
-                Literal(str(idx+1), INTEGER_TYPE))
-            indices.append(Range.create(lbound, ubound))
+            lbound, ubound, step = \
+                ArrayNotation2ArrayRangeTrans._get_array_bound(symbol, idx)
+            indices.append(Range.create(lbound, ubound, step))
 
         array_ref = ArrayReference.create(symbol, indices)
         node.replace_with(array_ref)
