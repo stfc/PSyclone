@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,24 +30,34 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors J. Henrichs, Bureau of Meteorology
-#         S. Siso, STFC Daresbury Lab
+# ----------------------------------------------------------------------------
+# Author: J. Henrichs, Bureau of Meteorology
+# Modified: I. Kavcic, Met Office
 # Modified: R. W. Ford, STFC Daresbury Lab
 
-'''This module contains the transformations for GOcean.
-'''
+'''Tests for GOceanConstants API-specific constants.'''
 
-from psyclone.domain.gocean.transformations.gocean_extract_trans \
-    import GOceanExtractTrans
-from psyclone.domain.gocean.transformations.gocean_opencl_trans \
-    import GOOpenCLTrans
-from psyclone.domain.gocean.transformations. \
-    gocean_move_iteration_boundaries_inside_kernel_trans import \
-    GOMoveIterationBoundariesInsideKernelTrans
-from psyclone.domain.gocean.transformations.gocean_loop_fuse_trans \
-    import GOceanLoopFuseTrans
-from psyclone.domain.gocean.transformations.gocean_const_loop_bounds_trans \
-    import GOConstLoopBoundsTrans
-from psyclone.domain.gocean.transformations.raise_psyir_2_gocean_kern_trans \
-    import RaisePSyIR2GOceanKernTrans
+from psyclone.configuration import Config
+from psyclone.domain.gocean import GOceanConstants
+
+
+def test_gocean_const(monkeypatch):
+    '''Tests the GOcean constant object.
+    '''
+    # This guarantees that the first time we use the constant object,
+    # we read it from the config file.
+    monkeypatch.setattr(GOceanConstants, "HAS_BEEN_INITIALISED", False)
+    config = Config.get()
+
+    gocean_const = config.api_conf("gocean1.0").get_constants()
+    assert gocean_const.VALID_ARG_TYPE_NAMES == []
+    assert gocean_const.VALID_SCALAR_NAMES == ["rscalar", "iscalar"]
+
+    assert GOceanConstants.HAS_BEEN_INITIALISED
+    # Test that we don't re-evalue the constants, i.e. if
+    # we modify them, the modified value will not be overwritten.
+    GOceanConstants.VALID_INTRINSIC_TYPES = "INVALID"
+    gocean_const = GOceanConstants()
+    assert gocean_const.VALID_INTRINSIC_TYPES == "INVALID"
+    assert gocean_const.VALID_ARG_TYPE_NAMES == []
+    assert gocean_const.VALID_SCALAR_NAMES == ["rscalar", "iscalar"]

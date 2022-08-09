@@ -30,6 +30,7 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: R. W. Ford, STFC Daresbury Lab
+! Modified: I. Kavcic, Met Office
 
 ! Kernel containing an operator, real field (vector), real scalar and
 ! requires a quadrature argument to be passed from the algorithm
@@ -75,13 +76,13 @@ contains
     integer(kind=i_def), intent(in) :: ncell_3d
     integer(kind=i_def), intent(in) :: ndf_w0
     integer(kind=i_def), intent(in) :: undf_w0
-    integer(kind=r_solver_def), intent(in) :: a
+    real(kind=r_solver), intent(in) :: a
     integer(kind=i_def), intent(in) :: np_xy, np_z
     integer(kind=i_def), intent(in), dimension(ndf_w0) :: map_w0
-    real(kind=r_solver_def), intent(in), dimension(undf_w0) :: xdata
-    real(kind=r_solver_def), intent(in), dimension(undf_w0) :: ydata
-    real(kind=r_solver_def), intent(in), dimension(undf_w0) :: zdata
-    real(kind=r_solver_def), intent(inout), dimension(ndf_w0,ndf_w0,ncell_3d) :: local_stencil
+    real(kind=r_solver), intent(in), dimension(undf_w0) :: xdata
+    real(kind=r_solver), intent(in), dimension(undf_w0) :: ydata
+    real(kind=r_solver), intent(in), dimension(undf_w0) :: zdata
+    real(kind=r_solver), intent(inout), dimension(ndf_w0,ndf_w0,ncell_3d) :: local_stencil
     real(kind=r_def), intent(in), dimension(1,ndf_w0,np_xy,np_z) :: basis_w0
     real(kind=r_def), intent(in), dimension(3,ndf_w0,np_xy,np_z) :: diff_basis_w0
     real(kind=r_def), intent(in), dimension(np_xy) :: weights_xy
