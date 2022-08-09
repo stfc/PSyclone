@@ -61,6 +61,14 @@
 	23) PR #1811 for #1810. Separate LFRic LMA Operator infrastructure
 	into its own file.
 
+	24) PR #1808 for #1681. Extends PSyAD to reject functions.
+
+	25) PR #1633 towards #1631. New implementation of kernel meta-data
+	parser for GOcean API.
+
+	26) PR #1821 for #1557. Extends PSyAD to support LFRic mixed-
+	precision kernels.
+
 release 2.3.1 17th of June 2022
 
         1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
