@@ -56,12 +56,15 @@ from psyclone.transformations import ACCEnterDataTrans, ACCParallelTrans, \
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
 
+# Protected access is permitted for testing
+# pylint: disable=protected-access
+
 
 @pytest.fixture(scope="module", autouse=True)
 def setup():
     '''Make sure that all tests here use a new Config instance.'''
     Config._instance = None
-    yield()
+    yield
     Config._instance = None
 
 
@@ -174,7 +177,6 @@ def test_accenterdatadirective_gencode_4(trans1, trans2):
 
 # Class ACCLoopDirective start
 
-# (1/1) Method node_str
 def test_accloopdirective_node_str(monkeypatch):
     ''' Test the node_str() method of ACCLoopDirective node '''
     directive = ACCLoopDirective()
@@ -197,6 +199,26 @@ def test_accloopdirective_node_str(monkeypatch):
                 "independent=False]")
     assert directive.node_str() == expected
     assert str(directive) == expected
+
+
+def test_accloopdirective_collapse_getter_and_setter():
+    ''' Test the ACCLoopDirective collapse property setter and getter.'''
+    target = ACCLoopDirective()
+    assert target.collapse is None
+    target.collapse = 3
+    assert target.collapse == 3
+    target.collapse = None
+    assert target.collapse is None
+
+    with pytest.raises(ValueError) as err:
+        target.collapse = 0
+    assert ("The ACCLoopDirective collapse clause must be a positive integer "
+            "or None, but value '0' has been given." in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        target.collapse = 'a'
+    assert ("The ACCLoopDirective collapse clause must be a positive integer "
+            "or None, but value 'a' has been given." in str(err.value))
 
 
 def test_accloopdirective_equality():
