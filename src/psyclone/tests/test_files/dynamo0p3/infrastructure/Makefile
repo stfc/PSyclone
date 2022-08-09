@@ -73,19 +73,16 @@ F90FLAGS += $(foreach dir,$(DIRS),-I ../$(dir))
 # quadrature_rule_mod.F90 quadrature_xoyoz_mod.F90 quadrature_xyoz_mod.F90
 # quadrature_xyz_mod.F90
 # are required for some compilation tests only, they are not required for
-# a stand-alone LFRic example, and as such are not compiled when creating
-# an infrastructure library.
+# a stand-alone LFRic example.
 
-.PHONY: standalone netcdf default dirs
+.PHONY: standalone netcdf dirs
 
 # Standalone target, no netcdf dependency:
 # ----------------------------------------
 standalone: liblfric.a
+
 liblfric.a: dirs $(OBJ)
 	$(AR) $(ARFLAGS) $@ $(OBJ)
-
-dirs:
-	 mkdir -p $(DIRS)
 
 # Netcdf target, like standalone but with support for netcdf files:
 # -----------------------------------------------------------------
@@ -95,6 +92,10 @@ netcdf: liblfric_netcdf.a
 liblfric_netcdf.a: dirs $(OBJ) $(OBJ_NETCDF)
 	$(AR) $(ARFLAGS) $@ $(OBJ) $(OBJ_NETCDF)
 
+# Other rules
+dirs:
+	# Create the required build directories
+	mkdir -p $(DIRS)
 
 # Dependencies
 # ------------
