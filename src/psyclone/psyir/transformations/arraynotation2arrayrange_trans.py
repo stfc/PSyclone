@@ -76,6 +76,7 @@ class ArrayNotation2ArrayRangeTrans(Transformation):
     <BLANKLINE>
 
     '''
+    @staticmethod
     def _get_array_bound(symbol, index):
         '''A utility function that returns the appropriate loop bounds (lower,
         upper and step) for an array dimension.  If the array
@@ -113,7 +114,6 @@ class ArrayNotation2ArrayRangeTrans(Transformation):
         step = Literal("1", INTEGER_TYPE)
         return (lower_bound, upper_bound, step)
 
-
     def validate(self, node, options=None):
         '''Check that the node is a Reference node and that the symbol it
         references is an array.
@@ -128,6 +128,7 @@ class ArrayNotation2ArrayRangeTrans(Transformation):
             symbol.
 
         '''
+        # pylint: disable=unidiomatic-typecheck
         if not type(node) is Reference:
             raise TransformationError(
                 f"The supplied node should be a Reference but found "
@@ -136,7 +137,7 @@ class ArrayNotation2ArrayRangeTrans(Transformation):
             raise TransformationError(
                 f"The supplied node should be a Reference that references a "
                 f"symbol that is an array, but '{node.symbol.name}' is not.")
-        
+
     def apply(self, node, options=None):
         '''Apply the ArrayNotation2ArrayRangeTrans transformation to the
         specified node. The node must be a Reference. If the Reference

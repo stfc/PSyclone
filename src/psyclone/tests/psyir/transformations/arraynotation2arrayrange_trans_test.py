@@ -38,15 +38,11 @@ transformation.'''
 
 import pytest
 
-from psyclone.psyir.nodes import Literal, BinaryOperation, Reference, \
-    Range, ArrayReference, Assignment, Node, DataNode, KernelSchedule
+from psyclone.psyir.nodes import Reference
 from psyclone.psyGen import Transformation
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, ArrayType, \
-    INTEGER_TYPE, REAL_TYPE
+from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.transformations import ArrayNotation2ArrayRangeTrans, \
     TransformationError
-from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.tests.utilities import Compile
 
 
 CODE = (
@@ -79,8 +75,38 @@ def apply_trans(fortran_reader, fortran_writer, code):
             trans.apply(reference)
         except TransformationError:
             pass
-    return (fortran_writer(psyir))
-    
+    return fortran_writer(psyir)
+
+
+def test_get_array_bound(fortran_reader):
+    ''' Test that the get_array_bound utility works as expected '''
+    # known bounds
+    psyir = fortran_reader.psyir_from_source(CODE)
+    node = psyir.walk(Reference)[0]
+    symbol = node.symbol
+    lower_bound, upper_bound, step = \
+        ArrayNotation2ArrayRangeTrans._get_array_bound(symbol, 0)
+    from psyclone.psyir.nodes import Literal, BinaryOperation
+    assert isinstance(lower_bound, Literal)
+    assert lower_bound.value == "1"
+    assert isinstance(upper_bound, Literal)
+    assert upper_bound.value == "10"
+    assert isinstance(step, Literal)
+    assert step.value == "1"
+    # unknown bounds
+    psyir = fortran_reader.psyir_from_source(
+        CODE.replace("dimension(10)", "dimension(:)"))
+    node = psyir.walk(Reference)[0]
+    symbol = node.symbol
+    lower_bound, upper_bound, step = \
+        ArrayNotation2ArrayRangeTrans._get_array_bound(symbol, 0)
+    assert isinstance(lower_bound, BinaryOperation)
+    assert lower_bound.operator == BinaryOperation.Operator.LBOUND
+    assert isinstance(upper_bound, BinaryOperation)
+    assert upper_bound.operator == BinaryOperation.Operator.UBOUND
+    assert isinstance(step, Literal)
+    assert step.value == "1"
+
 
 def test_transform():
     '''Check that it is possible to create an instance of
@@ -97,7 +123,7 @@ def test_notation(fortran_reader, fortran_writer):
 
     '''
     result = apply_trans(fortran_reader, fortran_writer, CODE)
-    assert ("a(1:10) = b\n" in result)
+    assert "a(1:10) = b\n" in result
 
 
 def test_dimension(fortran_reader, fortran_writer):
@@ -107,17 +133,7 @@ def test_dimension(fortran_reader, fortran_writer):
     '''
     code = CODE.replace("dimension(10)", "dimension(:)")
     result = apply_trans(fortran_reader, fortran_writer, code)
-    assert ("a(:) = b\n" in result)
-
-
-def test_dimension(fortran_reader, fortran_writer):
-    '''Test that array notation gets replaced with an array range when the
-    size of the array dimension is unknown.
-
-    '''
-    code = CODE.replace("dimension(10)", "dimension(:)")
-    result = apply_trans(fortran_reader, fortran_writer, code)
-    assert ("a(:) = b\n" in result)
+    assert "a(:) = b\n" in result
 
 
 def test_variable(fortran_reader, fortran_writer):
@@ -128,7 +144,7 @@ def test_variable(fortran_reader, fortran_writer):
     code = CODE.replace("  real, dimension(10) :: a\n",
                         "  integer :: n\n  real, dimension(n) :: a\n")
     result = apply_trans(fortran_reader, fortran_writer, code)
-    assert ("a(1:n) = b\n" in result)
+    assert "a(1:n) = b\n" in result
 
 
 def test_range(fortran_reader, fortran_writer):
@@ -144,7 +160,7 @@ def test_rhs(fortran_reader, fortran_writer):
     code = code.replace(":: a", ":: a, b, c")
     code = code.replace("  real :: b\n\n", "")
     result = apply_trans(fortran_reader, fortran_writer, code)
-    assert ("a(1:10) = b(1:10) * c(1:10)\n" in result)
+    assert "a(1:10) = b(1:10) * c(1:10)\n" in result
 
 
 def test_multid(fortran_reader, fortran_writer):
@@ -155,7 +171,7 @@ def test_multid(fortran_reader, fortran_writer):
     code = code.replace("a = b", "a = b * c\n")
     code = code.replace("  real :: b\n\n", "")
     result = apply_trans(fortran_reader, fortran_writer, code)
-    assert ("a(1:n,1:m,1:10) = b(1:n,1:m,1:10) * c(1:n,1:m,1:10)\n" in result)
+    assert "a(1:n,1:m,1:10) = b(1:n,1:m,1:10) * c(1:n,1:m,1:10)\n" in result
 
 
 def test_validate():
