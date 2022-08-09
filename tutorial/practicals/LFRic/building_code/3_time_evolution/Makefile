@@ -33,6 +33,7 @@
 # ------------------------------------------------------------------------------
 # Author: I. Kavcic, Met Office
 # Modified by D. Sergeev, University of Exeter
+# Modified J. Henrichs, Bureau of Meteorology
 
 # Compiler settings
 F90 ?= gfortran
@@ -56,7 +57,8 @@ PSYCLONE_RELPATH = ../../../../..
 LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME = lfric_netcdf
 LFRIC_LIB = $(LFRIC_PATH)/lib$(LFRIC_NAME).a
-F90FLAGS += $$(nf-config --fflags) -I$(LFRIC_PATH)
+LFRIC_INCLUDE_FLAGS:=$(shell $(MAKE) -s -C $(LFRIC_PATH) get_include_flags)
+F90FLAGS += $(LFRIC_INCLUDE_FLAGS)
 
 # GungHo auxiliary libraries
 GHLIB_PATH = ../gungho_lib

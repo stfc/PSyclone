@@ -75,7 +75,7 @@ F90FLAGS += $(foreach dir,$(DIRS),-I ../$(dir))
 # are required for some compilation tests only, they are not required for
 # a stand-alone LFRic example.
 
-.PHONY: standalone netcdf dirs
+.PHONY: standalone netcdf dirs get_include_flags
 
 # Standalone target, no netcdf dependency:
 # ----------------------------------------
@@ -96,6 +96,12 @@ liblfric_netcdf.a: dirs $(OBJ) $(OBJ_NETCDF)
 dirs:
 	# Create the required build directories
 	mkdir -p $(DIRS)
+
+# A simple rule that echos all directories. This can be used
+# by other scripts to create the list of include paths to be used
+LFRIC_INCLUDE_FLAGS = $(patsubst %,-I $(INFRASTRUCTURE_DIR)/%,$(DIRS))
+get_include_flags:
+	@echo $(LFRIC_INCLUDE_FLAGS)
 
 # Dependencies
 # ------------

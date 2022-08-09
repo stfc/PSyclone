@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -65,7 +65,8 @@ PSYCLONE_RELPATH = ../../../../..
 LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME = lfric_netcdf
 LFRIC_LIB = $(LFRIC_PATH)/lib$(LFRIC_NAME).a
-F90FLAGS += -I$(LFRIC_PATH) $$(nf-config --fflags)
+LFRIC_INCLUDE_FLAGS:=$(shell $(MAKE) -s -C $(LFRIC_PATH) get_include_flags)
+F90FLAGS += $(LFRIC_INCLUDE_FLAGS) $$(nf-config --fflags)
 
 # GungHo auxiliary libraries
 GHLIB_PATH = ../gungho_lib
