@@ -2320,7 +2320,7 @@ def test_fw_clause(fortran_writer):
 
 
 def test_fw_operand_clause(fortran_writer):
-    '''Test that a PSyIR operand clause is translate to the correct Fortran
+    '''Test that a PSyIR operand clause is translated to the correct Fortran
     code.'''
     op_clause = OMPDependClause()
     symbol_table = SymbolTable()

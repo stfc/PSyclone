@@ -586,7 +586,14 @@ class OMPParallelDirective(OMPRegionDirective):
         self.gen_post_region_code(parent)
 
     def lower_to_language_level(self):
-        ''' In-place construction of clauses as PSyIR constructs.'''
+        '''
+        In-place construction of clauses as PSyIR constructs.
+        At the higher level these clauses rely on dynamic variable dependence
+        logic to decide what is private and what is shared, so we use this
+        lowering step to find out which References are private, and place them
+        explicitly in the lower-level tree to be processed by the backend
+        visitor.
+        '''
         private_clause = self._get_private_clause()
         if private_clause != self.private_clause:
             self._children[2] = private_clause
@@ -627,7 +634,7 @@ class OMPParallelDirective(OMPRegionDirective):
         and any variables that have been declared private by a Kernel
         within the directive.
 
-        :returns: A private clause containing the variables that need to be
+        :returns: a private clause containing the variables that need to be \
                   private for this directive.
         :rtype: :py:class:`psyclone.psyir.nodes.omp_clauses.OMPPrivateClause`
 
@@ -1175,7 +1182,11 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         self.gen_post_region_code(parent)
 
     def lower_to_language_level(self):
-        ''' In-place construction of clauses as PSyIR constructs.'''
+        '''
+        In-place construction of clauses as PSyIR constructs.
+        The clauses here may need to be updated if code has changed, or be
+        added if not yet present.
+        '''
         private_clause = self._get_private_clause()
         if len(self._children) >= 3 and private_clause != self._children[2]:
             self._children[2] = private_clause

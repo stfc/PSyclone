@@ -474,7 +474,7 @@ class CWriter(LanguageWriter):
         if len(clause_list) > 0:
             result_list.append(" ")
         result_list.append(", ".join(clause_list))
-        result_list.append("\n{\n")
+        result_list.append(f"\n{self._nindent}{{\n")
 
         self._depth += 1
         for child in node.dir_body:

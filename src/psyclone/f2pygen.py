@@ -141,7 +141,7 @@ class OMPDirective(Directive):
     '''
     def __init__(self, root, line, position, dir_type):
         self._types = ["parallel do", "parallel", "do", "master", "single",
-                       "taskloop", "taskwait", "task", "declare"]
+                       "taskloop", "taskwait", "declare"]
         self._positions = ["begin", "end"]
 
         super(OMPDirective, self).__init__(root, line, position, dir_type)

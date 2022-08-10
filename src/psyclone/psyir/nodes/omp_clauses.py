@@ -49,7 +49,6 @@ class OMPNowaitClause(Clause):
     associated directive.
     '''
     _children_valid_format = None
-    _text_name = "NowaitClause"
     _clause_string = "nowait"
 
 
@@ -59,7 +58,6 @@ class OMPGrainsizeClause(Clause):
     grainsize of the associated directive.
     '''
     _children_valid_format = "Literal"
-    _text_name = "GrainsizeClause"
     _clause_string = "grainsize"
 
     @staticmethod
@@ -87,7 +85,6 @@ class OMPNumTasksClause(Clause):
     of tasks created by OpenMP for the associated directive.
     '''
     _children_valid_format = "Literal"
-    _text_name = "NumTasksClause"
     _clause_string = "num_tasks"
 
     @staticmethod
@@ -115,7 +112,6 @@ class OMPNogroupClause(Clause):
     implicit Taskgroup associated with a Taskloop.
     '''
     _children_valid_format = None
-    _text_name = "NogroupClause"
     _clause_string = "nogroup"
 
 
@@ -124,11 +120,16 @@ class OMPSharedClause(Clause):
     OpenMP shared clause. This is used to declare variables as shared in an
     OpenMP region.
     '''
-    _children_valid_format = "[Reference]*"
-    _text_name = "SharedClause"
+    _children_valid_format = "Reference*"
 
     @property
     def _clause_string(self):
+        '''
+        :returns: the string that represents this clause in OpenMP (i.e.\
+                "shared"). Returns an empty string to avoid generation of code\
+                if this clause has no children.
+        :rtype: str
+        '''
         if len(self.children) > 0:
             return "shared"
         return ""
@@ -155,11 +156,16 @@ class OMPPrivateClause(Clause):
     OpenMP private clause. This is used to declare variables as private
     to an OpenMP region.
     '''
-    _children_valid_format = "[Reference]*"
-    _text_name = "PrivateClause"
+    _children_valid_format = "Reference*"
 
     @property
     def _clause_string(self):
+        '''
+        :returns: the string that represents this clause in OpenMP (i.e.\
+                "private"). Returns an empty string to avoid generation of\
+                code if this clause has no children.
+        :rtype: str
+        '''
         if len(self.children) > 0:
             return "private"
         return ""
@@ -186,11 +192,16 @@ class OMPFirstprivateClause(Clause):
     OpenMP firstprivate clause. This is used to declare variables as
     firstprivate to an OpenMP region.
     '''
-    _children_valid_format = "[Reference]*"
-    _text_name = "FirstprivateClause"
+    _children_valid_format = "Reference*"
 
     @property
     def _clause_string(self):
+        '''
+        :returns: the string that represents this clause in OpenMP (i.e.\
+                "firstprivate"). Returns an empty string to avoid generation\
+                of code if this clause has no children.
+        :rtype: str
+        '''
         if len(self.children) > 0:
             return "firstprivate"
         return ""
@@ -217,15 +228,15 @@ class OMPDefaultClause(Clause):
     OpenMP Default clause. Used to determine the default declaration for
     variables used in an OpenMP region.
 
-    :param clause_type: The default data-sharing attribute to be described
-                        by this clause. The default value is
+    :param clause_type: The default data-sharing attribute to be described\
+                        by this clause. The default value is\
                         OMPDefaultClause.DefaultClauseTypes.SHARED.
     :type clause_type: \
         :py:class:`psyclone.psyir.nodes.OMPDefaultClause.DefaultClauseTypes`
     :param kwargs: additional keyword arguments provided to the PSyIR node.
     :type kwargs: unwrapped dict.
 
-    :raises TypeError: If the supplied clause_type is not the correct type.
+    :raises TypeError: if the supplied clause_type is not the correct type.
     '''
 
     class DefaultClauseTypes(Enum):
@@ -236,7 +247,6 @@ class OMPDefaultClause(Clause):
         FIRSTPRIVATE = 2
 
     _children_valid_format = None
-    _text_name = "OMPDefaultClause"
 
     def __init__(self, clause_type=DefaultClauseTypes.SHARED, **kwargs):
         if not isinstance(clause_type, OMPDefaultClause.DefaultClauseTypes):
@@ -249,6 +259,12 @@ class OMPDefaultClause(Clause):
 
     @property
     def _clause_string(self):
+        '''
+        :returns: the string that represents this clause in OpenMP (e.g.\
+                "default(shared)"). The value in parentheses is dependent on\
+                the DefaultClauseTypes value in _clause_type.
+        :rtype: str
+        '''
         clause_string = "default(" + str(self._clause_type.name).lower() + ")"
         return clause_string
 
@@ -267,29 +283,32 @@ class OMPScheduleClause(Clause):
     '''
     OpenMP Schedule clause used for OMP Do Directives.
 
-    :param str schedule: The OpenMP schedule to use with this directive.
+    :param str schedule: The OpenMP schedule to use with this directive.\
                          The default value is "static".
     :param kwargs: additional keyword arguments provided to the PSyIR node.
     :type kwargs: unwrapped dict.
     '''
     _children_valid_format = "None"
-    _text_name = "OMPScheduleClause"
     _schedule = ""
 
     def __init__(self, schedule="static", **kwargs):
-        self._schedule = schedule
+        self.schedule = schedule
         super().__init__(**kwargs)
 
     @property
     def _clause_string(self):
+        '''
+        :returns: the string that represents this clause in OpenMP (e.g.\
+                "schedule(static)"). The value inside parentheses is\
+                set to the value of the schedule of this clause.
+        :rtype: str
+        '''
         return f"schedule({self._schedule})"
 
     @property
     def schedule(self):
         '''
-        Gets the schedule of this OMPScheduleClause.
-
-        :returns: The schedule for this OMPScheduleClause.
+        :returns: the schedule for this OMPScheduleClause.
         :rtype: str
         '''
         return self._schedule
@@ -297,10 +316,11 @@ class OMPScheduleClause(Clause):
     @schedule.setter
     def schedule(self, schedule):
         '''
-        Set the schedule for this OMPScheduleClause.
-
         :param str schedule: The schedule to use for this clause.
         '''
+        if schedule not in ("runtime", "static", "dynamic", "guided", "auto"):
+            raise ValueError("Schedule must be one of runtime, static, "
+                             f"dynamic, guided or auto. Found {schedule}.")
         self._schedule = schedule
 
     def __eq__(self, other):
@@ -331,17 +351,17 @@ class OMPDependClause(OperandClause):
     '''
     OpenMP Depend clause used for OpenMP Task directives.
 
-    :param depend_type: The dependency type to use for this clause. The default
-                        value is OMPDependClause.DependClauseTypes.INOUT.
+    :param depend_type: The dependency type to use for this clause. The\
+                        default value is\
+                        OMPDependClause.DependClauseTypes.INOUT.
     :type depend_type: \
             :py:class:`psyclone.psyir.nodes.OMPDependClause.DependClauseTypes`
     :param kwargs: additional keyword arguments provided to the PSyIR node.
     :type kwargs: unwrapped dict.
 
-    :raises TypeError: If the supplied depend_type argument is the wrong type.
+    :raises TypeError: if the supplied depend_type argument is the wrong type.
     '''
-    _children_valid_format = "[Reference]*"
-    _text_name = "OMPDependClause"
+    _children_valid_format = "Reference*"
     _clause_string = "depend"
 
     class DependClauseTypes(Enum):
@@ -378,6 +398,10 @@ class OMPDependClause(OperandClause):
 
     @property
     def operand(self):
+        '''
+        :returns: The string representation of the operand of this clause.
+        :rtype: str
+        '''
         return str(self._operand.name).lower()
 
     def __eq__(self, other):
@@ -411,6 +435,5 @@ class OMPReductionClause(OperandClause):
     '''
     OpenMP Reduction clause.
     '''
-    _children_valid_format = "[Reference]+"
-    _text_name = "OMPReductionClause"
+    _children_valid_format = "Reference+"
     # TODO: #1812 Reduction string and operator

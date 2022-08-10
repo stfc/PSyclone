@@ -1468,9 +1468,9 @@ class ParallelRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
     excluded_node_types = (CodeBlock, Return, psyGen.HaloExchange)
 
     def __init__(self):
-        # Holds the class instance for the type of parallel region
-        # to generate
-        self._pdirective = None
+        # Holds the class instance or create call for the type of
+        # parallel region to generate
+        self._directive_factory = None
         super().__init__()
 
     @abc.abstractmethod
@@ -1550,7 +1550,7 @@ class ParallelRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
         # parent of the nodes being enclosed and with those nodes
         # as its children.
         # pylint: disable=not-callable
-        directive = self._pdirective(
+        directive = self._directive_factory(
             children=[node.detach() for node in node_list])
 
         # Add the region directive as a child of the parent
@@ -1603,7 +1603,7 @@ class OMPSingleTrans(ParallelRegionTrans):
     def __init__(self, nowait=False):
         super().__init__()
         # Set the type of directive that the base class will use
-        self._pdirective = self._directive
+        self._directive_factory = self._directive
         # Store whether this single directive has a barrier or not
         self._omp_nowait = nowait
 
@@ -1735,7 +1735,7 @@ class OMPMasterTrans(ParallelRegionTrans):
     def __init__(self):
         super().__init__()
         # Set the type of directive that the base class will use
-        self._pdirective = OMPMasterDirective
+        self._directive_factory = OMPMasterDirective
 
     def __str__(self):
         return "Insert an OpenMP Master region"
@@ -1790,7 +1790,7 @@ class OMPParallelTrans(ParallelRegionTrans):
     def __init__(self):
         super().__init__()
         # Set the type of directive that the base class will use
-        self._pdirective = OMPParallelDirective.create
+        self._directive_factory = OMPParallelDirective.create
 
     def __str__(self):
         return "Insert an OpenMP Parallel region"
@@ -1863,7 +1863,7 @@ class ACCParallelTrans(ParallelRegionTrans):
     def __init__(self):
         super().__init__()
         # Set the type of directive that the base class will use
-        self._pdirective = ACCParallelDirective
+        self._directive_factory = ACCParallelDirective
 
     def __str__(self):
         return "Insert an OpenACC Parallel region"

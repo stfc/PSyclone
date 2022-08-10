@@ -523,13 +523,12 @@ def test_cw_directive_with_clause(fortran_reader):
     master = OMPMasterDirective(children=[directive])
     parallel = OMPParallelDirective.create(children=[master])
     schedule.addchild(parallel, 0)
-    print(cwriter(schedule.children[0]))
     assert '''#pragma omp parallel default(shared), private(i)
 {
   #pragma omp master
-{
+  {
     #pragma omp taskloop num_tasks(32), nogroup
-{
+    {
       for(i=1; i<=n; i+=1)
       {
         a[i] = 0.0;
