@@ -8,7 +8,7 @@
 !-------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2020-2022, Science and Technology Facilities Council
+! Modifications copyright (c) 2022, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -36,17 +36,17 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified by: J. Henrichs, Bureau of Meteorology,
-!              I. Kavcic, Met Office.
+! Modified by: I. Kavcic, Met Office.
 !
-!> @brief A module providing operator-related classes.
+!> @brief A module providing r_solver_operator-related classes.
 !>
-!> @details Implements the locally assembled operator (i.e. the stencil is
-!!          assembled in each cell of the 3D grid).
+!> @details Implements the locally assembled r_solver_operator (i.e. the
+!!          stencil is assembled in each cell of the 3D grid) that has
+!!          r_solver precision.
 
-module operator_mod
+module r_solver_operator_mod
 
-  use constants_mod,            only : i_def, r_def, l_def
+  use constants_mod,            only : i_def, r_solver, l_def
   use function_space_mod,       only : function_space_type
   use mesh_mod,                 only : mesh_type
   use log_mod,                  only : log_event, LOG_LEVEL_ERROR
@@ -55,58 +55,59 @@ module operator_mod
   implicit none
   private
 
-  !> Algorithm-layer representation of an operator type
+  !> Algorithm-layer representation of an r_solver_operator type
   !>
-   type, public, extends(operator_parent_type) :: operator_type
+   type, public, extends(operator_parent_type) :: r_solver_operator_type
     private
-    !> Allocatable array of type 'real' which holds the values of the operator
-    real(kind=r_def), allocatable :: local_stencil( :, :, : )
+    !> Allocatable array of type 'real' which holds the values of
+    !! the r_solver_operator
+    real(kind=r_solver), allocatable :: local_stencil( :, :, : )
     !> Size of the outermost dimemsion of the local_stencil array, equal to
     !! ncell*nlayers
     integer(kind=i_def) :: ncell_3d
   contains
-    !> Initialise an operator object
-    procedure, public :: initialise => operator_initialiser
+    !> Initialise an r_solver_operator object
+    procedure, public :: initialise => r_solver_operator_initialiser
     !> Function to get a proxy with public pointers to the data in a
-    !! operator_type
-    procedure, public :: get_proxy => get_proxy_operator
+    !! r_solver_operator_type
+    procedure, public :: get_proxy => get_proxy_r_solver_operator
     !> Deep copy methods
-    procedure, private :: operator_type_deep_copy
-    procedure, public  :: deep_copy => operator_type_deep_copy
-    !> Checks if operator is initialised
+    procedure, private :: r_solver_operator_type_deep_copy
+    procedure, public  :: deep_copy => r_solver_operator_type_deep_copy
+    !> Checks if r_solver_operator is initialised
     procedure, public :: is_initialised
     !> Destroys object
-    procedure, public :: operator_final
+    procedure, public :: r_solver_operator_final
     ! Finalizer for the object
-    final :: operator_destructor
- end type operator_type
+    final :: r_solver_operator_destructor
+ end type r_solver_operator_type
 
- !> PSy-layer representation of an operator
+ !> PSy-layer representation of an r_solver_operator
  !>
- !> This is an accessor class that allows access to the actual operator
+ !> This is an accessor class that allows access to the actual r_solver_operator
  !! information with each element accessed via a public pointer.
  !>
- type, public, extends(operator_parent_proxy_type) :: operator_proxy_type
+ type, public, extends(operator_parent_proxy_type) :: r_solver_operator_proxy_type
     private
-    !> Allocatable array of type real which holds the values of the operator
-    real(kind=r_def), public, pointer :: local_stencil( :, :, : )
+    !> Allocatable array of type real which holds the values of the r_solver_operator
+    real(kind=r_solver), public, pointer :: local_stencil( :, :, : )
     !> Size of the outermost dimension
     integer(kind=i_def), public :: ncell_3d
     integer(kind=i_def), allocatable :: gnu_dummy(:)
   contains
-    final :: operator_proxy_destructor
- end type operator_proxy_type
+    final :: r_solver_operator_proxy_destructor
+ end type r_solver_operator_proxy_type
 
 contains
 
-  !> @brief Initialise an <code>operator_type</code> object.
+  !> @brief Initialise an <code>r_solver_operator_type</code> object.
   !>
-  !> @param[in] fs_from  The function space that the operator maps from
-  !> @param[in] fs_to    The function space that the operator maps to
+  !> @param[in] fs_from  The function space that the r_solver_operator maps from
+  !> @param[in] fs_to    The function space that the r_solver_operator maps to
   !>
-  subroutine operator_initialiser( self, fs_to, fs_from )
+  subroutine r_solver_operator_initialiser( self, fs_to, fs_from )
     implicit none
-    class(operator_type),   target, intent(inout) :: self
+    class(r_solver_operator_type),   target, intent(inout) :: self
     class(function_space_type), target, intent(in)    :: fs_to
     class(function_space_type), target, intent(in)    :: fs_from
 
@@ -118,31 +119,31 @@ contains
     if(allocated(self%local_stencil))deallocate(self%local_stencil)
     allocate(self%local_stencil( fs_to%get_ndf(),fs_from%get_ndf(), self%ncell_3d ) )
 
-  end subroutine operator_initialiser
+  end subroutine r_solver_operator_initialiser
 
   !> @brief Function to create a proxy with access to the data in
-  !!        the operator_type.
+  !!        the r_solver_operator_type.
   !>
   !> @return The proxy type with public pointers to the elements of
-  !!         operator_type
-  type(operator_proxy_type ) function get_proxy_operator(self)
+  !!         r_solver_operator_type
+  type(r_solver_operator_proxy_type ) function get_proxy_r_solver_operator(self)
     implicit none
-    class(operator_type), target, intent(in)  :: self
+    class(r_solver_operator_type), target, intent(in)  :: self
 
     ! Call the routine that initialises the proxy for data held in the parent
-    call self%operator_parent_proxy_initialiser(get_proxy_operator)
+    call self%operator_parent_proxy_initialiser(get_proxy_r_solver_operator)
 
-    get_proxy_operator % local_stencil           => self % local_stencil
-    get_proxy_operator % ncell_3d                =  self%ncell_3d
-  end function get_proxy_operator
+    get_proxy_r_solver_operator % local_stencil => self % local_stencil
+    get_proxy_r_solver_operator % ncell_3d      =  self%ncell_3d
+  end function get_proxy_r_solver_operator
 
-  !> @brief Copies the current operator into a new returned object.
+  !> @brief Copies the current r_solver_operator into a new returned object.
   !>
-  !> @return The copies of operator type
-  function operator_type_deep_copy(self) result(other)
+  !> @return The copies of r_solver_operator type
+  function r_solver_operator_type_deep_copy(self) result(other)
     implicit none
-    class(operator_type), intent(inout) :: self
-    type(operator_type) :: other
+    class(r_solver_operator_type), intent(inout) :: self
+    type(r_solver_operator_type) :: other
     ! Make field_vector
     type( function_space_type ), pointer :: fs_to => null( )
     type( function_space_type ), pointer :: fs_from => null( )
@@ -151,39 +152,39 @@ contains
 
     call other%initialise( fs_to, fs_from )
     other%local_stencil(:,:,:) = self%local_stencil(:,:,:)
-  end function operator_type_deep_copy
+  end function r_solver_operator_type_deep_copy
 
-  !> @brief Return logical desribing whether operator has been initialised.
+  !> @brief Return logical desribing whether r_solver_operator has been initialised.
   function is_initialised(self) result(initialised)
     implicit none
-    class(operator_type), intent(in) :: self
+    class(r_solver_operator_type), intent(in) :: self
     logical(kind=l_def) :: initialised
     initialised = allocated(self%local_stencil)
   end function is_initialised
 
-  !> @brief Destroys the operator type.
-  subroutine operator_final(self)
+  !> @brief Destroys the r_solver_operator type.
+  subroutine r_solver_operator_final(self)
     implicit none
-    class(operator_type), intent(inout) :: self
+    class(r_solver_operator_type), intent(inout) :: self
     if(allocated(self%local_stencil)) then
        deallocate(self%local_stencil)
     end if
-  end subroutine operator_final
+  end subroutine r_solver_operator_final
 
   !> @brief Finalizer for the object type.
-  subroutine operator_destructor(self)
+  subroutine r_solver_operator_destructor(self)
     implicit none
-    type(operator_type), intent(inout) :: self
+    type(r_solver_operator_type), intent(inout) :: self
     call self%destroy_operator_parent()
-    call self%operator_final()
-  end subroutine operator_destructor
+    call self%r_solver_operator_final()
+  end subroutine r_solver_operator_destructor
 
-  !> @brief Destroy the operator proxy.
-  subroutine operator_proxy_destructor(self)
+  !> @brief Destroy the r_solver_operator proxy.
+  subroutine r_solver_operator_proxy_destructor(self)
     implicit none
-    type(operator_proxy_type) :: self
+    type(r_solver_operator_proxy_type) :: self
     call self%destroy_operator_parent_proxy()
     nullify(self%local_stencil)
-  end subroutine operator_proxy_destructor
+  end subroutine r_solver_operator_proxy_destructor
 
-end module operator_mod
+end module r_solver_operator_mod
