@@ -586,10 +586,10 @@ member. See the full API in the :ref_guide:`Directive reference guide
 psyclone.psyir.nodes.html#psyclone.psyir.nodes.Directive`.
 
 .. warning::
-Some parts of some Clauses are still under development, and not all clauses
-are encoded in Clauses classes yet (for example OpenACC clauses). These
-clause strings are instead generated inside the ``begin_string`` or
-``gen_code`` methods during code generation.
+    Some parts of some Clauses are still under development, and not all clauses
+    are encoded in Clauses classes yet (for example OpenACC clauses). These
+    clause strings are instead generated inside the ``begin_string`` or
+    ``gen_code`` methods during code generation.
 
 .. _named_arguments-label:
 
