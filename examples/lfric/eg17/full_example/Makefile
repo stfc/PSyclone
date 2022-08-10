@@ -53,8 +53,9 @@ EXEC = example
 LFRIC_PATH = ../../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME=lfric
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
-LFRIC_INCLUDE_FLAGS:=$(shell $(MAKE) -s -C $(LFRIC_PATH) get_include_flags)
-F90FLAGS += $(LFRIC_INCLUDE_FLAGS)
+
+# This will add the required include flags to F90FLAGS
+include $(LFRIC_PATH)/lfric_include_flags.inc
 
 run: compile
 	./example

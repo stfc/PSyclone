@@ -43,10 +43,12 @@ F90FLAGS ?= -Wall -g -fcheck=bound
 # in this list is the current file.
 this_file := $(abspath $(lastword $(MAKEFILE_LIST)))
 # PSyclone directory is up two from this file
-INFRASTRUCTURE_DIR := $(dir $(this_file))
+LFRIC_PATH := $(dir $(this_file))
 
-ALL_SRC := $(subst $(INFRASTRUCTURE_DIR),,\
-		    $(shell find $(INFRASTRUCTURE_DIR) -name '*.[Ff]90' -print))
+include $(LFRIC_PATH)/lfric_include_flags.inc
+
+ALL_SRC := $(subst $(LFRIC_PATH),,\
+		    $(shell find $(LFRIC_PATH) -name '*.[Ff]90' -print))
 ALL_OBJ = $(subst .F90,.o,$(subst .f90,.o,$(ALL_SRC)))
 
 # Additional object files required for netcdf support
@@ -58,22 +60,6 @@ OBJ_NETCDF = mesh/global_mesh_netcdf_mod.o io/ugrid_2d_mod.o     \
 # list of all objects (since we don't want to require NetCDF for
 # most compilation tests):
 OBJ := $(filter-out $(OBJ_NETCDF),$(ALL_OBJ))
-
-# Get all directories and remove the trailing '/':
-DIRS = $(subst /,,$(dir $(OBJ)))
-# This function returns each element in the list only once.
-uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
-# Remove duplicated entries in the list of directories.
-DIRS := $(call uniq,$(DIRS))
-
-F90FLAGS += $(foreach dir,$(DIRS),-I ../$(dir))
-
-# Note that the files
-# quadrature_edge_mod.F90 quadrature_face_mod.F90 quadrature_mod.F90
-# quadrature_rule_mod.F90 quadrature_xoyoz_mod.F90 quadrature_xyoz_mod.F90
-# quadrature_xyz_mod.F90
-# are required for some compilation tests only, they are not required for
-# a stand-alone LFRic example.
 
 .PHONY: standalone netcdf dirs get_include_flags
 
@@ -97,15 +83,9 @@ dirs:
 	# Create the required build directories
 	mkdir -p $(DIRS)
 
-# A simple rule that echos all directories. This can be used
-# by other scripts to create the list of include paths to be used
-LFRIC_INCLUDE_FLAGS = $(patsubst %,-I $(INFRASTRUCTURE_DIR)/%,$(DIRS))
-get_include_flags:
-	@echo $(LFRIC_INCLUDE_FLAGS)
-
 # Dependencies
 # ------------
-include $(INFRASTRUCTURE_DIR)/dependency
+include $(LFRIC_PATH)/dependency
 
 # Compilation rules
 # -----------------
@@ -121,10 +101,10 @@ include $(INFRASTRUCTURE_DIR)/dependency
 #     cd field; $(F90) $(F90FLAGS) -c $< -o $(notdir $@)
 
 define compile_rule_template =
-$(1)/%.o:	$$(INFRASTRUCTURE_DIR)/$(1)/%.f90
+$(1)/%.o:	$$(LFRIC_PATH)/$(1)/%.f90
 	cd $(1); $$(F90) $$(F90FLAGS) -c $$< -o $$(notdir $$@)
 
-$(1)/%.o:	$$(INFRASTRUCTURE_DIR)/$(1)/%.F90
+$(1)/%.o:	$$(LFRIC_PATH)/$(1)/%.F90
 	cd $(1); $$(F90) $$(F90FLAGS) -c $$< -o $$(notdir $$@)
 endef
 

@@ -57,9 +57,9 @@ EXTRACT_LIB = $(EXTRACT_DIR)/lib$(EXTRACT_NAME).a
 LFRIC_DIR ?= $(PSYROOT)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME=lfric
 LFRIC_LIB=$(LFRIC_DIR)/lib$(LFRIC_NAME).a
-LFRIC_INCLUDE_FLAGS:=$(shell $(MAKE) -s -C $(LFRIC_DIR) get_include_flags)
-F90FLAGS += $(LFRIC_INCLUDE_FLAGS) -I$(EXTRACT_DIR)
 
+# This will add the required include flags to F90FLAGS
+include $(LFRIC_PATH)/lfric_include_flags.inc
 
 transform: main_psy.f90 main_alg.f90
 
