@@ -38,8 +38,6 @@
 
 ''' This module contains the implementation of the abstract ArrayMixin. '''
 
-from __future__ import absolute_import
-
 import abc
 import six
 
@@ -50,7 +48,7 @@ from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols.datatypes import ScalarType
+from psyclone.psyir.symbols.datatypes import ScalarType, ArrayType
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -127,6 +125,8 @@ class ArrayMixin(object):
         'index' matches the specified array index. Otherwise False is
         returned.
 
+        **** RF: Or if the starting value of the range node is an integer that matches the starting value of the declaration. ***
+
         For example, if a Fortran array A was declared as
         A(10) then the starting value is 1 and LBOUND(A,1) would
         return that value.
@@ -140,11 +140,26 @@ class ArrayMixin(object):
         '''
         self._validate_index(index)
 
+
         array_dimension = self.indices[index]
         if not isinstance(array_dimension, Range):
             return False
 
         lower = array_dimension.start
+
+        if isinstance(lower, Literal):
+            try:
+                symbol = self.scope.symbol_table.lookup(self.name)
+                datatype = symbol.datatype
+                shape = datatype.shape
+                array_bounds = shape[index]
+                if isinstance(array_bounds, ArrayType.ArrayBounds):
+                    if lower.value == array_bounds.lower.value:
+                        return True
+            except KeyError:
+                # Can't find symbol declaration
+                pass
+
         if not (isinstance(lower, BinaryOperation) and
                 lower.operator == BinaryOperation.Operator.LBOUND):
             return False
@@ -187,6 +202,20 @@ class ArrayMixin(object):
             return False
 
         upper = array_dimension.stop
+
+        if isinstance(upper, Literal):
+            try:
+                symbol = self.scope.symbol_table.lookup(self.name)
+                datatype = symbol.datatype
+                shape = datatype.shape
+                array_bounds = shape[index]
+                if isinstance(array_bounds, ArrayType.ArrayBounds):
+                    if upper.value == array_bounds.upper.value:
+                        return True
+            except KeyError:
+                # Can't find symbol declaration
+                pass
+
         if not (isinstance(upper, BinaryOperation) and
                 upper.operator == BinaryOperation.Operator.UBOUND):
             return False
