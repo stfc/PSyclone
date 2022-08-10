@@ -45,6 +45,20 @@ from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import Compile, CompileError
 
 
+@pytest.fixture(scope="function", autouse=True)
+def reset_infrastructure_compiled_flag():
+    '''During testing the compilation path will be modified. Make sure
+    we restore the original path (which actualy contains the compiled
+    files) after each test. Also set the built flag to false to always
+    trigger a fresh building of the infrastructure.
+
+    '''
+    LFRicBuild._infrastructure_built = False
+    saved_orig_path = LFRicBuild._compilation_path
+    yield()
+    LFRicBuild._compilation_path = saved_orig_path
+
+
 def test_make_flags(tmpdir):
     '''Test that the compiler flags consists of a list with "-I"
     in every second position: `-I operator -I field -I mesh`
