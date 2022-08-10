@@ -48,6 +48,7 @@ from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
+from psyclone.psyir.symbols import SymbolError
 from psyclone.psyir.symbols.datatypes import ScalarType, ArrayType
 
 
@@ -153,10 +154,11 @@ class ArrayMixin(object):
                 datatype = symbol.datatype
                 shape = datatype.shape
                 array_bounds = shape[index]
-                if isinstance(array_bounds, ArrayType.ArrayBounds):
+                if isinstance(array_bounds.lower, Literal) and \
+                   isinstance(array_bounds, ArrayType.ArrayBounds):
                     if lower.value == array_bounds.lower.value:
                         return True
-            except KeyError:
+            except (KeyError, SymbolError):
                 # Can't find symbol declaration
                 pass
 
@@ -209,10 +211,11 @@ class ArrayMixin(object):
                 datatype = symbol.datatype
                 shape = datatype.shape
                 array_bounds = shape[index]
-                if isinstance(array_bounds, ArrayType.ArrayBounds):
+                if isinstance(array_bounds.upper, Literal) and \
+                   isinstance(array_bounds, ArrayType.ArrayBounds):
                     if upper.value == array_bounds.upper.value:
                         return True
-            except KeyError:
+            except (KeyError, SymbolError):
                 # Can't find symbol declaration
                 pass
 
