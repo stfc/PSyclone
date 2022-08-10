@@ -154,8 +154,8 @@ class ArrayMixin(object):
                 datatype = symbol.datatype
                 shape = datatype.shape
                 array_bounds = shape[index]
-                if isinstance(array_bounds.lower, Literal) and \
-                   isinstance(array_bounds, ArrayType.ArrayBounds):
+                if isinstance(array_bounds, ArrayType.ArrayBounds) \
+                   and isinstance(array_bounds.lower, Literal):
                     if lower.value == array_bounds.lower.value:
                         return True
             except (KeyError, SymbolError):
@@ -211,8 +211,8 @@ class ArrayMixin(object):
                 datatype = symbol.datatype
                 shape = datatype.shape
                 array_bounds = shape[index]
-                if isinstance(array_bounds.upper, Literal) and \
-                   isinstance(array_bounds, ArrayType.ArrayBounds):
+                if isinstance(array_bounds, ArrayType.ArrayBounds) and \
+                   isinstance(array_bounds.upper, Literal):
                     if upper.value == array_bounds.upper.value:
                         return True
             except (KeyError, SymbolError):
