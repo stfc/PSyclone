@@ -3669,7 +3669,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
     ompparallel = colored("OMPParallelDirective", Directive._colour)
     ompdo = colored("OMPDoDirective", Directive._colour)
     ompdefault = colored("OMPDefaultClause", Directive._colour)
-    ompprivate = colored("PrivateClause", Directive._colour)
+    ompprivate = colored("OMPPrivateClause", Directive._colour)
     gsum = colored("GlobalSum", GlobalSum._colour)
     loop = colored("Loop", Loop._colour)
     call = colored("BuiltIn", BuiltIn._colour)
