@@ -40,7 +40,9 @@
     to transform each node into the equivalent PSyIR representation.'''
 
 from collections import OrderedDict
+import os
 import six
+
 from fparser.two import Fortran2003
 from fparser.two.utils import walk, BlockBase, StmtBase
 from psyclone.errors import InternalError, GenerationError
@@ -2111,10 +2113,14 @@ class Fparser2Reader(object):
             # Now that we've updated the Symbols themselves, set the
             # argument list
             parent.symbol_table.specify_argument_list(arg_symbols)
-        except KeyError:
-            raise InternalError(f"The kernel argument list '{arg_list}' does "
-                                f"not match the variable declarations for "
-                                f"fparser nodes {nodes}.")
+        except KeyError as info:
+            decls_str_list = [str(node) for node in nodes]
+            arg_str_list = [arg.string.lower() for arg in arg_list]
+            raise InternalError(
+                f"The kernel argument list:\n'{arg_str_list}'\n"
+                f"does not match the variable declarations:\n"
+                f"{os.linesep.join(decls_str_list)}\n"
+                f"Specific PSyIR error is {str(info)}.")
 
         # fparser2 does not always handle Statement Functions correctly, this
         # loop checks for Stmt_Functions that should be an array statement
