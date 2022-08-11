@@ -380,7 +380,7 @@ class ACCLoopDirective(ACCRegionDirective):
         '''
         :param value: optional number of nested loop to collapse into a \
             single iteration space to parallelise. Defaults to None.
-        :type value: int or NoneType.
+        :type value: Optional[int]
 
         :raises TypeError: if the collapse value given is not an integer \
             or NoneType.

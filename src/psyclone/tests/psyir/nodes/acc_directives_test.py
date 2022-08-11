@@ -56,9 +56,6 @@ from psyclone.transformations import ACCEnterDataTrans, ACCParallelTrans, \
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
 
-# Protected access is permitted for testing
-# pylint: disable=protected-access
-
 
 @pytest.fixture(scope="module", autouse=True)
 def setup():
