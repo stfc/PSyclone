@@ -45,7 +45,8 @@ from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import ArrayReference, Assignment, BinaryOperation, \
     CodeBlock, IfBlock, Literal, Node, Reference, Return, Schedule, \
-    UnaryOperation
+    UnaryOperation, Loop, OMPTaskloopDirective, OMPMasterDirective, \
+    OMPParallelDirective
 from psyclone.psyir.symbols import ArgumentInterface, ArrayType, \
     BOOLEAN_TYPE, CHARACTER_TYPE, DataSymbol, INTEGER_TYPE, REAL_TYPE
 
@@ -495,3 +496,44 @@ def test_cw_arraystructureref(fortran_reader):
         _ = cwriter._visit(array_ref)
     assert "An ArrayOfStructuresReference must have a Member as its first " \
            "child but found 'Literal'" in str(err.value)
+
+
+def test_cw_directive_with_clause(fortran_reader):
+    '''Test that a PSyIR directive with clauses is translated to
+    the required C code.
+
+    '''
+    cwriter = CWriter()
+    # Generate PSyIR from Fortran code.
+    code = (
+        "program test\n"
+        "  integer, parameter :: n=20\n"
+        "  integer :: i\n"
+        "  real :: a(n)\n"
+        "  do i=1,n\n"
+        "    a(i) = 0.0\n"
+        "  end do\n"
+        "end program test")
+    container = fortran_reader.psyir_from_source(code)
+    schedule = container.children[0]
+    loops = schedule.walk(Loop)
+    loop = loops[0].detach()
+    directive = OMPTaskloopDirective(children=[loop], num_tasks=32,
+                                     nogroup=True)
+    master = OMPMasterDirective(children=[directive])
+    parallel = OMPParallelDirective.create(children=[master])
+    schedule.addchild(parallel, 0)
+    assert '''#pragma omp parallel default(shared), private(i)
+{
+  #pragma omp master
+  {
+    #pragma omp taskloop num_tasks(32), nogroup
+    {
+      for(i=1; i<=n; i+=1)
+      {
+        a[i] = 0.0;
+      }
+    }
+  }
+}
+''' in cwriter(schedule.children[0])

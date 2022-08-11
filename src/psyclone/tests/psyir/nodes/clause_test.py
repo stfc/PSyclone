@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,46 +31,22 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. B. G. Chalk, STFC Daresbury Lab
+# Authors A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' This module contains the Clause abstract node implementation '''
+''' Performs py.test tests on the PSyIR Clause nodes. '''
 
-import abc
-from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.clause import OperandClause
 
 
-class Clause(Node, metaclass=abc.ABCMeta):
+def test_operand_clause(fortran_writer):
     '''
-    Base abstract class for all clauses.
+    Test the operand method of the operand clause.
     '''
-    _children_valid_format = None
-    _colour = "green"
-    # The base string for this clause, e.g. nowait or private
-    _clause_string = None
+    # Create a instanstiable class
+    class OpTest(OperandClause):
+        ''' Temporary class for testing'''
 
-    @property
-    def clause_string(self):
-        '''
-        Returns the clause string for this Clause
-
-        :rtype: str
-        '''
-        return self._clause_string
-
-
-class OperandClause(Clause, metaclass=abc.ABCMeta):
-    '''
-    Base abstract class for all clauses that have an operand.
-    '''
-
-    _operand = None
-
-    @property
-    def operand(self):
-        '''
-        Returns the operand string for this Clause.
-
-        :rtype: str
-        '''
-        return self._operand
+    opt = OpTest()
+    assert opt.operand is None
+    assert fortran_writer(opt) == ""
