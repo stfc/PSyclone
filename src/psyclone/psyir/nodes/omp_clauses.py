@@ -125,9 +125,9 @@ class OMPSharedClause(Clause):
     @property
     def _clause_string(self):
         '''
-        :returns: the string that represents this clause in OpenMP (i.e.\
-                "shared"). Returns an empty string to avoid generation of code\
-                if this clause has no children.
+        :returns: the string that represents this clause in OpenMP (i.e. \
+                "shared"). Returns an empty string to avoid generation of \
+                code if this clause has no children.
         :rtype: str
         '''
         if len(self.children) > 0:
@@ -328,10 +328,10 @@ class OMPScheduleClause(Clause):
     @schedule.setter
     def schedule(self, schedule):
         '''
-        :param str schedule: The schedule to use for this clause.
+        :param str schedule: the schedule to use for this clause.
         '''
         if schedule not in ("runtime", "static", "dynamic", "guided", "auto"):
-            raise ValueError("Schedule must be one of runtime, static, "
+            raise ValueError(f"Schedule must be one of runtime, static, "
                              f"dynamic, guided or auto. Found {schedule}.")
         self._schedule = schedule
 
@@ -363,8 +363,8 @@ class OMPDependClause(OperandClause):
     '''
     OpenMP Depend clause used for OpenMP Task directives.
 
-    :param depend_type: The dependency type to use for this clause. The\
-                        default value is\
+    :param depend_type: The dependency type to use for this clause. The \
+                        default value is \
                         OMPDependClause.DependClauseTypes.INOUT.
     :type depend_type: \
             :py:class:`psyclone.psyir.nodes.OMPDependClause.DependClauseTypes`
@@ -411,7 +411,7 @@ class OMPDependClause(OperandClause):
     @property
     def operand(self):
         '''
-        :returns: The string representation of the operand of this clause.
+        :returns: the string representation of the operand of this clause.
         :rtype: str
         '''
         return str(self._operand.name).lower()

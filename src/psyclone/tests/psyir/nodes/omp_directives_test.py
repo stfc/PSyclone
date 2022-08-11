@@ -130,7 +130,7 @@ def test_ompparallel_changes_gen_code():
 
     assert isinstance(tree.children[0], OMPParallelDirective)
     pdir = tree.children[0]
-    psy.gen
+    _ = psy.gen
     assert len(pdir.children) == 3
     assert isinstance(pdir.children[2], OMPPrivateClause)
     priv_clause = pdir.children[2]
@@ -147,11 +147,11 @@ def test_ompparallel_changes_gen_code():
     # Add loop
     pdir.children[0].addchild(tdir2)
 
-    psy.gen
+    _ = psy.gen
     assert pdir.children[2] != priv_clause
 
 
-def test_omp_pdo_changes_gen_code():
+def test_omp_paraleldo_changes_gen_code():
     ''' Check that when the code inside an OMP Parallel Do region changes, the
     private clause changes appropriately. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
@@ -164,7 +164,7 @@ def test_omp_pdo_changes_gen_code():
 
     assert isinstance(tree.children[0], OMPParallelDoDirective)
     pdir = tree.children[0]
-    psy.gen
+    _ = psy.gen
     assert len(pdir.children) == 4
     assert isinstance(pdir.children[2], OMPPrivateClause)
     priv_clause = pdir.children[2]
@@ -179,14 +179,14 @@ def test_omp_pdo_changes_gen_code():
     # Change the schedule
     pdir._omp_schedule = "dynamic"
 
-    psy.gen
+    _ = psy.gen
     assert pdir.children[2] != priv_clause
     assert isinstance(pdir.children[2], OMPPrivateClause)
     assert pdir.children[3] != sched_clause
     assert isinstance(pdir.children[3], OMPScheduleClause)
 
 
-def test_omp_pdo_changes_begin_str(fortran_reader):
+def test_omp_parallel_do_changes_begin_str(fortran_reader):
     ''' Check that when the code inside an OMP Parallel Do region changes, the
     private clause changes appropriately. '''
     code = '''
