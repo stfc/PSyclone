@@ -53,19 +53,20 @@ class InlineTrans(Transformation):
     This transformation takes a Call and replaces it with the body of the
     target routine. It is used as follows:
 
+    >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.psyir.nodes import Call, Routine
     >>> from psyclone.psyir.transformations import InlineTrans
-    >>> code = ("""
+    >>> code = """
     ... module test_mod
     ... contains
     ...   subroutine run_it()
-    ...   integer :: i
-    ...   real :: a(10)
-    ...   do i=1,10
-    ...     a(i) = 1.0
-    ...     call sub(a(i))
-    ...   end do
+    ...     integer :: i
+    ...     real :: a(10)
+    ...     do i=1,10
+    ...       a(i) = 1.0
+    ...       call sub(a(i))
+    ...     end do
     ...   end subroutine run_it
     ...   subroutine sub(x)
     ...     real, intent(inout) :: x
@@ -78,6 +79,18 @@ class InlineTrans(Transformation):
     >>> inline_trans.apply(call)
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # print(psyir.walk(Routine)[0].view())
+    >>> print(FortranWriter()(psyir.walk(Routine)[0]))
+    subroutine run_it()
+      integer :: i
+      real, dimension(10) :: a
+    <BLANKLINE>
+      do i = 1, 10, 1
+        a(i) = 1.0
+        a(i) = 2.0 * a(i)
+      enddo
+    <BLANKLINE>
+    end subroutine run_it
+    <BLANKLINE>
 
     The routine to be inlined must not contain any un-resolved symbols or
     access any symbols that are defined in the parent container. Currently,
@@ -90,9 +103,9 @@ class InlineTrans(Transformation):
         call and replaces the call with it.
 
         :param node: target PSyIR node.
-        :type node: subclass of :py:class:`psyclone.psyir.nodes.Routine`
+        :type node: :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, str]]
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(node, options)
@@ -282,12 +295,16 @@ class InlineTrans(Transformation):
         '''
         Checks that the supplied node is a valid target for inlining.
 
+        Routines with a return value (AKA functions in Fortran) are currently
+        rejected: TODO #924.
+
         :param node: target PSyIR node.
         :type node: subclass of :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
         :type options: dict of str:values or None
 
         :raises TransformationError: if the supplied node is not a Call.
+        :raises TransformationError: if the routine has a return value.
         :raises TransformationError: if the routine body contains a Return \
             that is not the first or last statement.
         :raises TransformationError: if the routine body contains a CodeBlock.
@@ -315,6 +332,11 @@ class InlineTrans(Transformation):
         if not routine.children or isinstance(routine.children[0], Return):
             # An empty routine is fine.
             return
+
+        if routine.return_symbol:
+            raise TransformationError(
+                f"Cannot inline routine '{routine.name}' as it has a return "
+                f"value ('{routine.return_symbol.name}') - TODO #924.")
 
         return_stmts = routine.walk(Return)
         if return_stmts:

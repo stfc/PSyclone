@@ -39,7 +39,7 @@
 import pytest
 
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Call, Routine
+from psyclone.psyir.nodes import Assignment, Call, Reference, Routine
 from psyclone.psyir.transformations import (InlineTrans,
                                             TransformationError)
 from psyclone.tests.utilities import Compile
@@ -689,6 +689,43 @@ def test_validate_unresolved_import(fortran_reader):
         inline_trans.validate(call)
     assert ("Routine 'sub' cannot be inlined because it accesses an "
             "un-resolved variable 'trouble'" in str(err.value))
+
+
+def test_validate_function(fortran_reader, fortran_writer):
+    '''Test that the validate method rejects an attempt to inline a
+    function.
+
+    TODO #924: add support for function inlining.
+    '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "  integer :: i\n"
+        "  real :: a(10)\n"
+        "  do i=1,10\n"
+        "    a(i) = my_func(i)\n"
+        "  end do\n"
+        "  end subroutine run_it\n"
+        "  function my_func(idx)\n"
+        "    integer :: my_func\n"
+        "    integer, intent(in) :: idx\n"
+        "    my_func = 3*idx\n"
+        "  end function my_func\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    # Currently the call to my_func() is identified as an array reference
+    # so we have to fix it before we can apply the transformation.
+    isym = routine.symbol_table.lookup("i")
+    func = psyir.children[0].symbol_table.lookup("my_func")
+    assign = routine.walk(Assignment)[0]
+    assign.rhs.replace_with(Call.create(func, [Reference(isym)]))
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.apply(assign.rhs)
+    assert ("Cannot inline routine 'my_func' as it has a return value "
+            "('my_func') - TODO #924." in str(err.value))
 
 
 # _find_routine
