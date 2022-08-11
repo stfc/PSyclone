@@ -155,10 +155,10 @@ class Sum2CodeTrans(Operator2CodeTrans):
                     raise Exception("ERROR")
         else:
             # This is an array reference
+            loop_bounds = []
             ndims = len(array_ref.children)
             for shape in array_ref.children:
-                print(type(shape))
-                exit(1)
+                loop_bounds.append((shape.start.copy(), shape.stop.copy()))
 
         # Determine the datatype of the array's values and create a
         # scalar of that type
@@ -176,7 +176,12 @@ class Sum2CodeTrans(Operator2CodeTrans):
         if dimension_ref and ndims>1:
             array_reduction = True
             # We are reducing from one array to another
-            shape = [Literal("1", INTEGER_TYPE) for dim in range(ndims-1)]
+            shape = []
+            for idx, bounds in enumerate(loop_bounds):
+                if int(dimension_literal.value)-1 == idx:
+                    pass
+                else:
+                    shape.append(bounds)
             datatype = ArrayType(scalar_type, shape)
 
         # Create temporary sum variable (sum_var)
@@ -225,6 +230,12 @@ class Sum2CodeTrans(Operator2CodeTrans):
         statement = Assignment.create(lhs, rhs)
         if mask_ref:
             # A mask argument has been provided
+            for ref in mask_ref.walk(Reference):
+                if ref.name == array_ref.name:
+                    # The array needs indexing
+                    shape = [Reference(obj) for obj in loop_iterators]
+                    reference = ArrayReference.create(ref.symbol, shape)
+                    ref.replace_with(reference)
             statement = IfBlock.create(mask_ref.detach(), [statement])
 
         array_indices = []

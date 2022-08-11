@@ -197,7 +197,7 @@ def test_apply_dimension_multid(fortran_reader, fortran_writer):
         "  real, dimension(n,m,p) :: array\n"
         "  real :: value1\n  real :: value2\n"
         "  real, dimension(n,p) :: result\n"
-        "  real, dimension(1,1) :: sum_var\n"
+        "  real, dimension(n,p) :: sum_var\n"
         "  integer :: i_0\n  integer :: i_1\n  integer :: i_2\n\n"
         "  sum_var = 0.0\n"
         "  do i_2 = 1, p, 1\n"
@@ -217,7 +217,50 @@ def test_apply_dimension_multid(fortran_reader, fortran_writer):
     trans = Sum2CodeTrans()
     trans.apply(sum_node)
     result = fortran_writer(psyir)
-    print(result)
+    assert result == expected
+
+
+def test_apply_dimension_multid_unknown(fortran_reader, fortran_writer):
+    '''Test that lbound and ubound are used if the bounds of the array are
+    not known.
+
+    '''
+    code = (
+        "subroutine sum_test(array,value1,value2,result)\n"
+        "  real :: array(:,:,:)\n"
+        "  real :: value1, value2\n"
+        "  real :: result(:,:)\n"
+        "  result(:,:) = value1 + sum(array,dimension=2) * value2\n"
+        "end subroutine\n")
+    expected = (
+        "subroutine sum_test(array, value1, value2, result)\n"
+        "  real, dimension(:,:,:) :: array\n"
+        "  real :: value1\n"
+        "  real :: value2\n"
+        "  real, dimension(:,:) :: result\n"
+        "  real, dimension(LBOUND(array, 1):UBOUND(array, 1),LBOUND(array, 3):"
+        "UBOUND(array, 3)) :: sum_var\n"
+        "  integer :: i_0\n"
+        "  integer :: i_1\n"
+        "  integer :: i_2\n\n"
+        "  sum_var = 0.0\n"
+        "  do i_2 = LBOUND(array, 3), UBOUND(array, 3), 1\n"
+        "    do i_1 = LBOUND(array, 2), UBOUND(array, 2), 1\n"
+        "      do i_0 = LBOUND(array, 1), UBOUND(array, 1), 1\n"
+        "        sum_var(i_0,i_2) = sum_var(i_0,i_2) + array(i_0,i_1,i_2)\n"
+        "      enddo\n"
+        "    enddo\n"
+        "  enddo\n"
+        "  result(:,:) = value1 + sum_var * value2\n\n"
+        "end subroutine sum_test\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    # FileContainer/Routine/Assignment/BinaryOperation(ADD)/
+    # BinaryOperation(MUL)/UnaryOperation
+    sum_node = psyir.children[0].children[0].children[1].children[1]. \
+        children[0]
+    trans = Sum2CodeTrans()
+    trans.apply(sum_node)
+    result = fortran_writer(psyir)
     assert result == expected
 
 
@@ -239,14 +282,14 @@ def test_apply_dimension_multid_range(fortran_reader, fortran_writer):
     expected = (
         "subroutine sum_test(array, value1, value2, n, m, p)\n"
         "  integer :: n\n  integer :: m\n  integer :: p\n"
-        "  real, dimension(n,m,p) :: array\n"
+        "  real, dimension(:,:,:) :: array\n"
         "  real :: value1\n  real :: value2\n"
         "  real, dimension(n,p) :: result\n"
-        "  real, dimension(1,1) :: sum_var\n"
+        "  real, dimension(n,p) :: sum_var\n"
         "  integer :: i_0\n  integer :: i_1\n  integer :: i_2\n\n"
-        "  sum_var(:,:) = 0.0\n"
+        "  sum_var = 0.0\n"
         "  do i_2 = 1, p, 1\n"
-        "    do i_1 = 1, m, 1\n"
+        "    do i_1 = m - 1, m, 1\n"
         "      do i_0 = 1, n, 1\n"
         "        sum_var(i_0,i_2) = sum_var(i_0,i_2) + array(i_0,i_1,i_2)\n"
         "      enddo\n"
@@ -262,24 +305,37 @@ def test_apply_dimension_multid_range(fortran_reader, fortran_writer):
     trans = Sum2CodeTrans()
     trans.apply(sum_node)
     result = fortran_writer(psyir)
-    print(result)
     assert result == expected
 
-# specified value (not range) e.g. array(2,m,4)??? Gives lower bounds?
 
-# unknown array dimension (:,:)
+def test_mask():
+    '''Test that the sum transformation works when there is a mask
+    specified.
 
-# TBD mask (with and without dimension?)
-
-def test_args():
-    ''' xxx '''
+    '''
     code = (
         "program sum_test\n"
         "  real :: array(10,10)\n"
         "  real :: result\n"
-        "  integer, parameter :: dimension=2\n"
-        "  result = sum(array, dimension, mask=MOD(array, 2)==1)\n"
+        "  result = sum(array, mask=MOD(array, 2.0)==1)\n"
         "end program\n")
+    expected = (
+        "program sum_test\n"
+        "  real, dimension(10,10) :: array\n"
+        "  real :: result\n"
+        "  real :: sum_var\n"
+        "  integer :: i_0\n"
+        "  integer :: i_1\n\n"
+        "  sum_var = 0.0\n"
+        "  do i_1 = 1, 10, 1\n"
+        "    do i_0 = 1, 10, 1\n"
+        "      if (MOD(array(i_0,i_1), 2.0) == 1) then\n"
+        "        sum_var = sum_var + array(i_0,i_1)\n"
+        "      end if\n"
+        "    enddo\n"
+        "  enddo\n"
+        "  result = sum_var\n\n"
+        "end program sum_test")
     reader = FortranReader()
     psyir = reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/UnaryOperation
@@ -288,5 +344,50 @@ def test_args():
     trans.apply(sum_node)
     writer = FortranWriter()
     result = writer(psyir)
-    print(result)
-    exit(1)
+    assert expected in result
+
+
+def test_mask_dimension():
+    '''Test that the sum transformation works when there is a mask and a
+    dimension specified.
+
+    '''
+    code = (
+        "program sum_test\n"
+        "  real :: array(10,10)\n"
+        "  real :: result(10)\n"
+        "  integer, parameter :: dimension=2\n"
+        "  result = sum(array, dimension, mask=MOD(array, 2.0)==1)\n"
+        "end program\n")
+    expected = (
+        "program sum_test\n"
+        "  integer, parameter :: dimension = 2\n"
+        "  real, dimension(10,10) :: array\n"
+        "  real, dimension(10) :: result\n"
+        "  real, dimension(10) :: sum_var\n"
+        "  integer :: i_0\n"
+        "  integer :: i_1\n\n"
+        "  sum_var = 0.0\n"
+        "  do i_1 = 1, 10, 1\n"
+        "    do i_0 = 1, 10, 1\n"
+        "      if (MOD(array(i_0,i_1), 2.0) == 1) then\n"
+        "        sum_var(i_0) = sum_var(i_0) + array(i_0,i_1)\n"
+        "      end if\n"
+        "    enddo\n"
+        "  enddo\n"
+        "  result = sum_var\n\n"
+        "end program sum_test")
+    reader = FortranReader()
+    psyir = reader.psyir_from_source(code)
+    # FileContainer/Routine/Assignment/UnaryOperation
+    sum_node = psyir.children[0].children[0].children[1]
+    trans = Sum2CodeTrans()
+    trans.apply(sum_node)
+    writer = FortranWriter()
+    result = writer(psyir)
+    assert expected in result
+
+
+# test specified value (not range) e.g. array(2,m,4)??? Gives lower bounds?
+# todo array mask given indices
+# todo var with : notation?
