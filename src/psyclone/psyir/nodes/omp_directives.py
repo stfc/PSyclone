@@ -1109,8 +1109,11 @@ class OMPTargetDirective(OMPRegionDirective):
         Perform validation checks that can only be done at code-generation
         time.
 
-        :raises GenerationError: if this OMPTargetDirective does not allow \
-            CodeBlocks, LBOUND and UBOUND instrinsics in its body.
+        TODO #1837. This should be expanded to all intrinsics not supported
+        on GPUs. But it may be implementation-dependent!
+
+        :raises GenerationError: if this OMPTargetDirective contains \
+            CodeBlocks, LBOUND and UBOUND intrinsics in its body.
         '''
         super().validate_global_constraints()
 

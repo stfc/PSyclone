@@ -48,8 +48,7 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import CodeBlock, IfBlock, Literal, Loop, Node, \
     Reference, Schedule, Statement, ACCLoopDirective, OMPMasterDirective, \
-    OMPDoDirective, OMPLoopDirective, OMPTargetDirective, Routine, \
-    BinaryOperation, Assignment
+    OMPDoDirective, OMPLoopDirective, Routine
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE, \
     ImportInterface, ContainerSymbol
 from psyclone.psyir.tools import DependencyTools
@@ -58,8 +57,7 @@ from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
     ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans, OMPParallelTrans, \
-    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans, OMPTargetTrans, \
-    OMPDeclareTargetTrans
+    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans, OMPDeclareTargetTrans
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 
@@ -237,87 +235,6 @@ def test_omptaskloop_apply(monkeypatch):
         taskloop.apply(schedule[0], {"nogroup": True})
     assert "Fake error" in str(excinfo.value)
     assert taskloop._nogroup is False
-
-
-def test_omptargettrans(sample_psyir):
-    ''' Test OMPTargetTrans works as expected with the different options. '''
-
-    # Insert a OMPTarget just on the first loop
-    omptargettrans = OMPTargetTrans()
-    tree = sample_psyir.copy()
-    loops = tree.walk(Loop, stop_type=Loop)
-    omptargettrans.apply(loops[0])
-    assert isinstance(loops[0].parent, Schedule)
-    assert isinstance(loops[0].parent.parent, OMPTargetDirective)
-    assert isinstance(tree.children[0].children[0], OMPTargetDirective)
-    assert tree.children[0].children[0] is loops[0].parent.parent
-    assert not isinstance(loops[1].parent.parent, OMPTargetDirective)
-    assert len(tree.walk(Routine)[0].children) == 2
-
-    # Insert a combined OMPTarget in both loops (providing a list of nodes)
-    tree = sample_psyir.copy()
-    loops = tree.walk(Loop, stop_type=Loop)
-    omptargettrans.apply(tree.children[0].children)
-    assert isinstance(loops[0].parent, Schedule)
-    assert isinstance(loops[0].parent.parent, OMPTargetDirective)
-    assert isinstance(loops[1].parent, Schedule)
-    assert isinstance(loops[1].parent.parent, OMPTargetDirective)
-    assert len(tree.walk(Routine)[0].children) == 1
-    assert loops[0].parent.parent is loops[1].parent.parent
-
-    # Insert a combined OMPTarget in both loops (now providing a Schedule)
-    tree = sample_psyir.copy()
-    loops = tree.walk(Loop, stop_type=Loop)
-    omptargettrans.apply(tree.children[0])
-    assert isinstance(loops[0].parent, Schedule)
-    assert isinstance(loops[0].parent.parent, OMPTargetDirective)
-    assert isinstance(loops[1].parent, Schedule)
-    assert isinstance(loops[1].parent.parent, OMPTargetDirective)
-    assert len(tree.walk(Routine)[0].children) == 1
-    assert loops[0].parent.parent is loops[1].parent.parent
-
-
-def test_omptargettrans_validate(sample_psyir):
-    ''' Test that OMPTargetTrans validation fails if it contains non-allowed
-    constructs. '''
-
-    omptargettrans = OMPTargetTrans()
-    tree = sample_psyir.copy()
-    loops = tree.walk(Loop, stop_type=Loop)
-
-    # Valid loop
-    omptargettrans.validate(loops[0])
-
-    # With a CodeBlock it should fail
-    loops[0].loop_body.addchild(CodeBlock([], CodeBlock.Structure.STATEMENT))
-    with pytest.raises(TransformationError) as err:
-        omptargettrans.validate(loops[0])
-    assert ("Nodes of type 'CodeBlock' cannot be enclosed by a OMPTargetTrans "
-            "transformation" in str(err.value))
-
-    # With a LBOUND it should fail
-    symbol = DataSymbol("dummy", INTEGER_TYPE)
-    loops[0].loop_body[-1].replace_with(
-            Assignment.create(
-                Reference(symbol),
-                BinaryOperation(BinaryOperation.Operator.LBOUND)))
-    with pytest.raises(TransformationError) as err:
-        omptargettrans.validate(loops[0])
-    assert ("The OMPTargetDirective can not be inserted as an ancestor of "
-            "LBOUND operations, but found: 'BinaryOperation[operator:"
-            "'LBOUND']'." in str(err.value))
-
-    # With a UBOUND it should fail
-    symbol = DataSymbol("dummy", INTEGER_TYPE)
-    loops[0].loop_body[-1].replace_with(
-            Assignment.create(
-                Reference(symbol),
-                BinaryOperation(BinaryOperation.Operator.UBOUND)))
-    with pytest.raises(TransformationError) as err:
-        omptargettrans.validate(loops[0])
-    assert ("The OMPTargetDirective can not be inserted as an ancestor of "
-            "UBOUND operations, but found: 'BinaryOperation[operator:"
-            "'UBOUND']'." in str(err.value))
 
 
 def test_ompdeclaretargettrans(sample_psyir, fortran_writer):
