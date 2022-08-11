@@ -638,10 +638,20 @@ class OMPParallelDirective(OMPRegionDirective):
                   private for this directive.
         :rtype: :py:class:`psyclone.psyir.nodes.omp_clauses.OMPPrivateClause`
 
+        :raises GenerationError: if the DefaultClauseType associated with \
+                                 this OMPParallelDirective is not shared.
         :raises InternalError: if a Kernel has local variable(s) but they \
                                aren't named.
         '''
         from psyclone.psyGen import InvokeSchedule
+
+        if (self.default_clause.clause_type !=
+                OMPDefaultClause.DefaultClauseTypes.SHARED):
+            raise GenerationError("OMPParallelClause cannot correctly generate"
+                                  " the private clause when its default "
+                                  "data sharing attribute in its default "
+                                  "clause is not shared.")
+
         result = set()
         # get variable names from all calls that are a child of this node
         for call in self.kernels():

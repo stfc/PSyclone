@@ -258,6 +258,18 @@ class OMPDefaultClause(Clause):
         super().__init__(**kwargs)
 
     @property
+    def clause_type(self):
+        '''
+        Gets the clause type value of this OMPDefaultClause
+
+        :returns: the clause type for this OMPDefaultClause.
+        :rtype: \
+            :py:class:`psyclone.psyir.nodes.OMPDefaultClause.\
+                       DefaultClauseTypes`
+        '''
+        return self._clause_type
+
+    @property
     def _clause_string(self):
         '''
         :returns: the string that represents this clause in OpenMP (e.g.\

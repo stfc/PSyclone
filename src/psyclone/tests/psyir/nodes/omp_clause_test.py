@@ -110,12 +110,16 @@ def test_default_clause():
     ''' Test the OMPDefaultClause functionality. '''
     default = OMPDefaultClause()
     assert default._clause_string == "default(shared)"
+    assert default.clause_type == OMPDefaultClause.DefaultClauseTypes.SHARED
     default = OMPDefaultClause(
             clause_type=OMPDefaultClause.DefaultClauseTypes.NONE)
     assert default._clause_string == "default(none)"
+    assert default.clause_type == OMPDefaultClause.DefaultClauseTypes.NONE
     default = OMPDefaultClause(
             clause_type=OMPDefaultClause.DefaultClauseTypes.FIRSTPRIVATE)
     assert default._clause_string == "default(firstprivate)"
+    assert (default.clause_type ==
+            OMPDefaultClause.DefaultClauseTypes.FIRSTPRIVATE)
 
     with pytest.raises(TypeError) as excinfo:
         OMPDefaultClause(clause_type="String")

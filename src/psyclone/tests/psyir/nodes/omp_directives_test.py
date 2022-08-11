@@ -394,6 +394,14 @@ def test_directive_get_private(monkeypatch):
     assert ("call 'testkern_w3_code' has a local variable but its name is "
             "not set" in str(err.value))
 
+    directive.children[1] = OMPDefaultClause(
+            clause_type=OMPDefaultClause.DefaultClauseTypes.NONE)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = directive._get_private_clause()
+    assert ("OMPParallelClause cannot correctly generate the private clause "
+            "when its default data sharing attribute in its default clause is "
+            "not shared." in str(excinfo.value))
+
 
 def test_omp_parallel_validate_child():
     ''' Test the validate_child method of OMPParallelDirective'''
