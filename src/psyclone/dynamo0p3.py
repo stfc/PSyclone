@@ -8445,7 +8445,7 @@ class DynKern(CodedKern):
 
             # Before transforming, check the validity of the kernel
             # arguments
-            self.validate_kernel_code_args()
+            # self.validate_kernel_code_args()
 
             # TODO replace the PSyIR argument data symbols with LFRic
             # data symbols, see issue #935. For the moment we simply

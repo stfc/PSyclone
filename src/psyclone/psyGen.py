@@ -52,6 +52,7 @@ from psyclone.f2pygen import CommentGen, CallGen, PSyIRGen, UseGen
 from psyclone.parse.algorithm import BuiltInCall
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import PSyIRVisitor
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, Container, \
     Routine, Call, OMPDoDirective
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, Symbol, \
@@ -1346,6 +1347,7 @@ class CodedKern(Kern):
     # Textual description of the node.
     _text_name = "CodedKern"
     _colour = "magenta"
+    _kernel_reader = Fparser2Reader
 
     def __init__(self, KernelArguments, call, parent=None, check=True):
         # Set module_name first in case there is an error when
@@ -1376,10 +1378,8 @@ class CodedKern(Kern):
         :returns: Schedule representing the kernel code.
         :rtype: :py:class:`psyclone.psyir.nodes.KernelSchedule`
         '''
-        from psyclone.psyir.frontend.fparser2 import Fparser2Reader
         if self._kern_schedule is None:
-            astp = Fparser2Reader()
-            self._kern_schedule = astp.generate_schedule(self.name, self.ast)
+            self._kern_schedule = self._kernel_reader().generate_schedule(self.name, self.ast)
             # TODO: Validate kernel with metadata (issue #288).
         return self._kern_schedule
 

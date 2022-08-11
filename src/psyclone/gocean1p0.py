@@ -1035,6 +1035,23 @@ class GOKernCallFactory():
         return outer_loop
 
 
+class GOFparser2Reader(Fparser2Reader):
+    '''
+    Sub-classes the Fparser2Reader with GOcean 1.0 specific
+    functionality.
+    '''
+    @staticmethod
+    def _create_schedule(name):
+        '''
+        Create an empty KernelSchedule.
+
+        :param str name: Name of the subroutine represented by the kernel.
+        :returns: New GOKernelSchedule empty object.
+        :rtype: py:class:`psyclone.gocean1p0.GOKernelSchedule`
+        '''
+        return GOKernelSchedule(name)
+
+
 class GOKern(CodedKern):
     '''
     Stores information about GOcean Kernels as specified by the Kernel
@@ -1049,6 +1066,8 @@ class GOKern(CodedKern):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
+    _kernel_reader = GOFparser2Reader
+
     def __init__(self, call, parent=None):
         super(GOKern, self).__init__(GOKernelArguments, call, parent,
                                      check=False)
@@ -1179,36 +1198,6 @@ class GOKern(CodedKern):
     def index_offset(self):
         ''' The grid index-offset convention that this kernel expects '''
         return self._index_offset
-
-    def get_kernel_schedule(self):
-        '''
-        Returns a PSyIR Schedule representing the GOcean kernel code.
-
-        :return: Schedule representing the kernel code.
-        :rtype: :py:class:`psyclone.gocean1p0.GOKernelSchedule`
-        '''
-        if self._kern_schedule is None:
-            astp = GOFparser2Reader()
-            self._kern_schedule = astp.generate_schedule(self.name, self.ast)
-            # TODO: Validate kernel with metadata (issue #288).
-        return self._kern_schedule
-
-
-class GOFparser2Reader(Fparser2Reader):
-    '''
-    Sub-classes the Fparser2Reader with GOcean 1.0 specific
-    functionality.
-    '''
-    @staticmethod
-    def _create_schedule(name):
-        '''
-        Create an empty KernelSchedule.
-
-        :param str name: Name of the subroutine represented by the kernel.
-        :returns: New GOKernelSchedule empty object.
-        :rtype: py:class:`psyclone.gocean1p0.GOKernelSchedule`
-        '''
-        return GOKernelSchedule(name)
 
 
 class GOKernelArguments(Arguments):

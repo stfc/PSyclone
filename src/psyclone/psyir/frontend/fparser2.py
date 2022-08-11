@@ -1107,19 +1107,22 @@ class Fparser2Reader(object):
         routines = walk(module_ast, (Fortran2003.Subroutine_Subprogram,
                                      Fortran2003.Main_Program,
                                      Fortran2003.Function_Subprogram))
+        tried_names = []
         for routine in routines:
-            if isinstance(routine, Fortran2003.Function_Subprogram):
-                # TODO fparser/#225 Function_Stmt does not have a get_name()
-                # method. Once it does we can remove this branch.
-                routine_name = str(routine.children[0].children[1])
-            else:
-                routine_name = str(routine.children[0].get_name())
-            if routine_name == name:
+            routine_name = str(routine.children[0].get_name())
+            if routine_name in (name, name+'_r_double'):
                 subroutine = routine
                 break
+            tried_names.append(routine_name)
         else:
+            for interface in walk(module_ast, Fortran2003.Interface_Stmt):
+                interface_name = str(interface.children[0])
+                if interface_name == name:
+                    GenerationError(f"{name} is an interface and we can not "
+                                    f"disambiguate the implementation.")
             raise GenerationError(f"Unexpected kernel AST. Could not find "
-                                  f"subroutine: {name}")
+                                  f"subroutine: {name}, available "
+                                  f"subroutines are {tried_names}")
 
         # Check whether or not we need to create a Container for this schedule
         # TODO #737 this routine should just be creating a Subroutine, not
