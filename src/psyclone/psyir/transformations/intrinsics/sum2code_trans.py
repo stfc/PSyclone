@@ -102,30 +102,54 @@ class Sum2CodeTrans(Operator2CodeTrans):
         self._operators = (UnaryOperation.Operator.SUM, BinaryOperation.Operator.SUM, NaryOperation.Operator.SUM)
 
     def validate(self, node, options=None):
-        ''' xxx '''
+        ''' Check that the input node is valid before applying the transformation.
+
+        :param node: xxx
+        :type node: yyy
+        :param options: xxx
+        :type options: yyy
+
+        :raises TransformationError: xxxx
+
+        '''
+        # Avoid circular import error
+        from psyclone.psyir.transformations import TransformationError
+
         super(Sum2CodeTrans, self).validate(node, options)
 
         array_ref, dim_ref, mask_ref = get_args(node)
         if dim_ref and not isinstance(dim_ref, (Literal, Reference)):
             raise TransformationError(
-                "Can't find the value of the dimension argument.")
+                f"Can't find the value of the dimension argument. Expected "
+                f"it to be a literal or a reference but found "
+                f"'{self._writer(dim_ref)}' which is a "
+                f"'{type(dim_ref).__name__}'.")
 
         if len(array_ref.children) == 0:
             if not array_ref.symbol.is_array:
-                raise TransformationError("Expected an array")
+                raise TransformationError(f"Expected '{array_ref.name}' to be an array.")
 
         for idx, shape in enumerate(array_ref.symbol.shape):
-            if not (shape in [ArrayType.Extent.DEFERRED, ArrayType.Extent.ATTRIBUTE] or isinstance(shape, ArrayType.ArrayBounds)):
-                raise TransformationError("ERROR")
+            if not (shape in [
+                    ArrayType.Extent.DEFERRED, ArrayType.Extent.ATTRIBUTE]
+                    or isinstance(shape, ArrayType.ArrayBounds)):
+                raise TransformationError(
+                    f"Unexpected shape for array. Expecting one of Deferred, "
+                    f"Attribute or Bounds but found '{shape}'.")
 
         array_intrinsic = array_ref.symbol.datatype.intrinsic
-        if array_intrinsic not in [ScalarType.Intrinsic.REAL, ScalarType.Intrinsic.INTEGER]:
-            raise TransformationError("Only real and integer types supported")
+        if array_intrinsic not in [ScalarType.Intrinsic.REAL,
+                                   ScalarType.Intrinsic.INTEGER]:
+            raise TransformationError(
+                f"Only real and integer types supported for array "
+                f"'{array_ref.name}', but found '{array_intrinsic.name}'.")
 
 
     def apply(self, node, options=None):
         '''Apply the SUM intrinsic conversion transformation to the specified
-        node. This node must be a SUM Operation which is converted to equivalent inline code.
+        node. This node must be a SUM Operation which is converted to
+        equivalent inline code.
+
         '''
         self.validate(node)
 

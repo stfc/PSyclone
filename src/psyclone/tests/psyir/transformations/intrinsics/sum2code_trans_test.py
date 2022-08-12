@@ -73,9 +73,100 @@ def test_validate_node():
 
 
 # Literal value of dimension argument
-# def test_dimension_arg():
-#    ''' xxx '''
-#    array_ref, dim_ref, mask_ref = get_args(node)
+def test_dimension_arg(fortran_reader):
+    '''Test that the expected exception is raised if the dimension arg is
+    not a literal or a variable.
+
+    '''
+    code = (
+        f"subroutine sum_test(array,n,m)\n"
+        f"  integer :: n, m\n"
+        f"  real :: array(10,10)\n"
+        f"  real :: result\n"
+        f"  integer :: dimension\n"
+        f"  result = sum(array,dimension*2)\n"
+        f"end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    # FileContainer/Routine/Assignment/UnaryOperation
+    sum_node = psyir.children[0].children[0].children[1]
+    trans = Sum2CodeTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(sum_node)
+    assert ("Can't find the value of the dimension argument. Expected it to "
+            "be a literal or a reference but found 'dimension * 2' which is "
+            "a 'BinaryOperation'." in str(info.value))
+    
+
+def test_array_arg(fortran_reader):
+    '''Test that the expected exception is raised if the array argument is
+    not an array.
+
+    '''
+    code = (
+        f"subroutine sum_test(array,n,m)\n"
+        f"  integer :: n, m\n"
+        f"  real :: array\n"
+        f"  real :: result\n"
+        f"  result = sum(array)\n"
+        f"end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    # FileContainer/Routine/Assignment/UnaryOperation
+    sum_node = psyir.children[0].children[0].children[1]
+    trans = Sum2CodeTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(sum_node)
+    assert ("Expected 'array' to be an array." in str(info.value))
+
+
+def test_aray_shape(fortran_reader, monkeypatch):
+    '''Tests that the expected exception is raised if the array shape is
+    not a valid value. Requires monkeypatching.
+
+    '''
+    code = (
+        f"subroutine sum_test(array,n,m)\n"
+        f"  integer :: n, m\n"
+        f"  real :: array(1)\n"
+        f"  real :: result\n"
+        f"  result = sum(array)\n"
+        f"end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    # FileContainer/Routine/Assignment/UnaryOperation
+    sum_node = psyir.children[0].children[0].children[1]
+
+    # Modify array shape from sum_node to create exception
+    array_ref = sum_node.children[0]
+    array_symbol = array_ref.symbol
+    monkeypatch.setattr(array_symbol._datatype, "_shape", [None])
+
+    trans = Sum2CodeTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(sum_node)
+    assert ("Unexpected shape for array. Expecting one of Deferred, "
+            "Attribute or Bounds but found 'None'." in str(info.value))
+
+
+def test_array_type_arg(fortran_reader):
+    '''Test that the expected exception is raised if the array is an
+    unsupported datatype.
+
+    '''
+    code = (
+        f"subroutine sum_test(array,n,m)\n"
+        f"  integer :: n, m\n"
+        f"  logical :: array(10)\n"
+        f"  real :: result\n"
+        f"  result = sum(array)\n"
+        f"end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    # FileContainer/Routine/Assignment/UnaryOperation
+    sum_node = psyir.children[0].children[0].children[1]
+    trans = Sum2CodeTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(sum_node)
+    assert ("Only real and integer types supported for array 'array', "
+            "but found 'BOOLEAN'." in str(info.value))
+
 
 # apply tests
 
