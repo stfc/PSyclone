@@ -1349,7 +1349,8 @@ class Node(object):
                 f"Node class should be None but found "
                 f"'{type(node.parent).__name__}'.")
 
-        if keep_name_in_context and hasattr(self.parent, "argument_names"):
+        if keep_name_in_context and hasattr(self.parent, "argument_names") \
+                and self.parent.argument_names[self.position] is not None:
             # If it is a named context it will have a specific method for
             # replacing the node while keeping the name
             name = self.parent.argument_names[self.position]
