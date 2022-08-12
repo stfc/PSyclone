@@ -370,7 +370,7 @@ def test_generate_adjoint_kind(fortran_reader):
 
 
 def test_generate_adjoint_multi_kernel(fortran_reader, fortran_writer):
-    '''Check that generate_adjoint creates the expected code when there
+    '''Check that generate_adjoint raises the expected error when there
     are multiple kernels in a module.
 
     '''
@@ -390,41 +390,11 @@ def test_generate_adjoint_multi_kernel(fortran_reader, fortran_writer):
         "    psyir_tmp = psyir_tmp_1\n"
         "  end subroutine kern3\n"
         "end module test_mod\n")
-    expected = (
-        "module adj_test_mod\n"
-        "  implicit none\n"
-        "  public\n\n"
-        "  public :: adj_kern1, adj_kern2, adj_kern3\n\n"
-        "  contains\n"
-        "  subroutine adj_kern1()\n"
-        "    real :: psyir_tmp\n"
-        "    real :: psyir_tmp_1\n\n"
-        "    psyir_tmp = 0.0\n"
-        "    psyir_tmp_1 = 0.0\n"
-        "    psyir_tmp_1 = psyir_tmp_1 + psyir_tmp\n"
-        "    psyir_tmp = 0.0\n\n"
-        "  end subroutine adj_kern1\n"
-        "  subroutine adj_kern2()\n"
-        "    real :: psyir_tmp\n"
-        "    real :: psyir_tmp_1\n\n"
-        "    psyir_tmp = 0.0\n"
-        "    psyir_tmp_1 = 0.0\n"
-        "    psyir_tmp_1 = psyir_tmp_1 + psyir_tmp\n"
-        "    psyir_tmp = 0.0\n\n"
-        "  end subroutine adj_kern2\n"
-        "  subroutine adj_kern3()\n"
-        "    real :: psyir_tmp\n"
-        "    real :: psyir_tmp_1\n\n"
-        "    psyir_tmp = 0.0\n"
-        "    psyir_tmp_1 = 0.0\n"
-        "    psyir_tmp_1 = psyir_tmp_1 + psyir_tmp\n"
-        "    psyir_tmp = 0.0\n\n"
-        "  end subroutine adj_kern3\n\n"
-        "end module adj_test_mod\n")
     psyir = fortran_reader.psyir_from_source(tl_fortran_str)
-    ad_psyir = generate_adjoint(psyir, ["psyir_tmp", "psyir_tmp_1"])
-    ad_fortran_str = fortran_writer(ad_psyir)
-    assert ad_fortran_str == expected
+    with pytest.raises(NotImplementedError) as err:
+        generate_adjoint(psyir, ["psyir_tmp", "psyir_tmp_1"])
+    assert ("The supplied Fortran must contain one and only one routine but "
+            "found: ['kern1', 'kern2', 'kern3']" in str(err.value))
 
 
 def test_generate_adjoint_errors():
