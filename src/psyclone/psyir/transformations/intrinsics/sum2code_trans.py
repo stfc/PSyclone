@@ -49,6 +49,25 @@ from psyclone.psyir.transformations.intrinsics.operator2code_trans import (
     Operator2CodeTrans)
 
 
+def get_args(node):
+    ''' xxx '''
+    # Determine the arguments to sum
+    args = [None, None, None]
+    arg_names_map = {"array": 0, "dimension": 1, "mask": 2}
+    for idx in range(len(node.children)):
+        if not node.argument_names[idx]:
+            # positional arg
+            args[idx] = node.children[idx]
+        else:
+            # named arg
+            name = node.argument_names[idx].lower()
+            args[arg_names_map[name]] = node.children[idx]
+    array_ref = args[0]
+    dimension_ref = args[1]
+    mask_ref = args[2]
+    return (array_ref, dimension_ref, mask_ref)
+
+
 class Sum2CodeTrans(Operator2CodeTrans):
     '''Provides a transformation from a PSyIR SUM Operator node to
     equivalent code in a PSyIR tree. Validity checks are also
@@ -86,13 +105,23 @@ class Sum2CodeTrans(Operator2CodeTrans):
         ''' xxx '''
         super(Sum2CodeTrans, self).validate(node, options)
 
-        # Is this really a constraint for us (no, I don't think so).
-        ## Check the sum is the only code on the rhs of an assignment i.e. ... = sum(a)
-        #if not isinstance(node.parent, Assignment):
-        #    raise TransformationError(
-        #        "Sum2CodeTrans only supports the transformation of a "
-        #        "SUM operation when it is the sole operation on the rhs "
-        #        "of an assignment.")
+        array_ref, dim_ref, mask_ref = get_args(node)
+        if dim_ref and not isinstance(dim_ref, (Literal, Reference)):
+            raise TransformationError(
+                "Can't find the value of the dimension argument.")
+
+        if len(array_ref.children) == 0:
+            if not array_ref.symbol.is_array:
+                raise TransformationError("Expected an array")
+
+        for idx, shape in enumerate(array_ref.symbol.shape):
+            if not (shape in [ArrayType.Extent.DEFERRED, ArrayType.Extent.ATTRIBUTE] or isinstance(shape, ArrayType.ArrayBounds)):
+                raise TransformationError("ERROR")
+
+        array_intrinsic = array_ref.symbol.datatype.intrinsic
+        if array_intrinsic not in [ScalarType.Intrinsic.REAL, ScalarType.Intrinsic.INTEGER]:
+            raise TransformationError("Only real and integer types supported")
+
 
     def apply(self, node, options=None):
         '''Apply the SUM intrinsic conversion transformation to the specified
@@ -100,20 +129,7 @@ class Sum2CodeTrans(Operator2CodeTrans):
         '''
         self.validate(node)
 
-        # Determine the arguments to sum
-        args = [None, None, None]
-        arg_names_map = {"array": 0, "dimension": 1, "mask": 2}
-        for idx in range(len(node.children)):
-            if not node.argument_names[idx]:
-                # positional arg
-                args[idx] = node.children[idx]
-            else:
-                # named arg
-                name = node.argument_names[idx].lower()
-                args[arg_names_map[name]] = node.children[idx]
-        array_ref = args[0]
-        dimension_ref = args[1]
-        mask_ref = args[2]
+        array_ref, dimension_ref, mask_ref = get_args(node)
 
         # Determine the literal value of the dimension argument
         dimension_literal = None
@@ -125,14 +141,14 @@ class Sum2CodeTrans(Operator2CodeTrans):
         elif (isinstance(dimension_ref, Reference) and
               dimension_ref.symbol.is_constant):
             dimension_literal = dimension_ref.symbol.constant_value
-        else:
-            raise Exception("Can't find the literal value of the dimension argument.")
+        # else exception is handled by the validate method.
 
         # Determine the dimension and extent of the array
         ndims = None
         if len(array_ref.children) == 0:
             if not array_ref.symbol.is_array:
-                raise Exception("Expected an array")
+                # Exception handled by validate method
+                pass
             ndims = len(array_ref.symbol.shape)
 
             loop_bounds = []
@@ -152,7 +168,8 @@ class Sum2CodeTrans(Operator2CodeTrans):
                     # array extent is defined in the array declaration
                     loop_bounds.append(shape)
                 else:
-                    raise Exception("ERROR")
+                    # Exception handled by validate method
+                    pass
         else:
             # This is an array reference
             loop_bounds = []
@@ -165,8 +182,6 @@ class Sum2CodeTrans(Operator2CodeTrans):
         array_intrinsic = array_ref.symbol.datatype.intrinsic
         array_precision =  array_ref.symbol.datatype.precision
         scalar_type = ScalarType(array_intrinsic, array_precision)
-
-        # TODO Try to determine the bounds of the array dimensions
 
         symbol_table = node.scope.symbol_table
         assignment = node.ancestor(Assignment)
@@ -198,7 +213,8 @@ class Sum2CodeTrans(Operator2CodeTrans):
         elif scalar_type.intrinsic == scalar_type.Intrinsic.INTEGER:
             rhs = Literal("0", scalar_type)
         else:
-            raise Exception("Only real and integer types supported")
+            # exception handled by validate method
+            pass
 
         new_assignment = Assignment.create(lhs, rhs)
         assignment.parent.children.insert(assignment.position, new_assignment)
@@ -240,8 +256,11 @@ class Sum2CodeTrans(Operator2CodeTrans):
 
         array_indices = []
         for idx in range(ndims):
-            statement = Loop.create(loop_iterators[idx], loop_bounds[idx][0], loop_bounds[idx][1], Literal("1", INTEGER_TYPE), [statement])
+            statement = Loop.create(
+                loop_iterators[idx], loop_bounds[idx][0], loop_bounds[idx][1],
+                Literal("1", INTEGER_TYPE), [statement])
             array_indices.append(Reference(loop_iterators[idx]))
 
         assignment.parent.children.insert(assignment.position, statement)
-        rhs_child2.replace_with(ArrayReference.create(rhs_child2.symbol, array_indices))
+        rhs_child2.replace_with(
+            ArrayReference.create(rhs_child2.symbol, array_indices))

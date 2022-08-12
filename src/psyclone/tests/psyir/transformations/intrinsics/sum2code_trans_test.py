@@ -39,7 +39,9 @@ import pytest
 
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.transformations import Sum2CodeTrans
+from psyclone.psyir.nodes import BinaryOperation, Literal
+from psyclone.psyir.symbols import REAL_TYPE
+from psyclone.psyir.transformations import Sum2CodeTrans, TransformationError
 
 
 def test_initialise():
@@ -51,6 +53,29 @@ def test_initialise():
     assert trans.name == "Sum2CodeTrans"
 
 # TBD validate tests
+
+def test_validate_node():
+    '''Check that an incorrect node raises the expected exception.'''
+    trans = Sum2CodeTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(None)
+    assert ("Error in Sum2CodeTrans transformation. The supplied node "
+            "argument is not a SUM operator, found 'NoneType'."
+            in str(info.value))
+
+    bin_op = BinaryOperation.create(
+        BinaryOperation.Operator.MUL, Literal("1.0", REAL_TYPE),
+        Literal("1.0", REAL_TYPE))
+    with pytest.raises(TransformationError) as info:
+        trans.validate(bin_op)
+    assert ("Error in Sum2CodeTrans transformation. The supplied node "
+            "operator is invalid, found 'Operator.MUL'." in str(info.value))
+
+
+# Literal value of dimension argument
+# def test_dimension_arg():
+#    ''' xxx '''
+#    array_ref, dim_ref, mask_ref = get_args(node)
 
 # apply tests
 
@@ -388,6 +413,4 @@ def test_mask_dimension():
     assert expected in result
 
 
-# test specified value (not range) e.g. array(2,m,4)??? Gives lower bounds?
-# todo array mask given indices
 # todo var with : notation?
