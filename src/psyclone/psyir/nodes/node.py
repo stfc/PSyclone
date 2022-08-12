@@ -1313,7 +1313,7 @@ class Node(object):
             f"Unable to find the scope of node '{self}' as none of its "
             f"ancestors are Container or Schedule nodes.")
 
-    def replace_with(self, node):
+    def replace_with(self, node, keep_name_in_context=True):
         '''Removes self, and its descendants, from the PSyIR tree to which it
         is connected, and replaces it with the supplied node (and its
         descendants).
@@ -1321,8 +1321,11 @@ class Node(object):
         :param node: the node that will replace self in the PSyIR \
             tree.
         :type node: :py:class:`psyclone.psyir.nodes.node`
+        :param bool keep_name_in_context: whether to conserve the name \
+            referencing this node when it is within a parent with named nodes.
 
         :raises TypeError: if the argument 'node' is not a Node.
+        :raises TypeError: if the argument 'keep_name_in_context' is not bool.
         :raises GenerationError: if this node does not have a parent.
         :raises GenerationError: if the argument 'node' has a parent.
 
@@ -1331,6 +1334,11 @@ class Node(object):
             raise TypeError(
                 f"The argument node in method replace_with in the Node class "
                 f"should be a Node but found '{type(node).__name__}'.")
+        if not isinstance(keep_name_in_context, bool):
+            raise TypeError(
+                f"The argument keep_name_in_context in method replace_with in "
+                f"the Node class should be a bool but found "
+                f"'{type(keep_name_in_context).__name__}'.")
         if not self.parent:
             raise GenerationError(
                 "This node should have a parent if its replace_with method "
@@ -1341,7 +1349,13 @@ class Node(object):
                 f"Node class should be None but found "
                 f"'{type(node.parent).__name__}'.")
 
-        self.parent.children[self.position] = node
+        if keep_name_in_context and hasattr(self.parent, "argument_names"):
+            # If it is a named context it will have a specific method for
+            # replacing the node while keeping the name
+            name = self.parent.argument_names[self.position]
+            self.parent.replace_named_arg(name, node)
+        else:
+            self.parent.children[self.position] = node
 
     def pop_all_children(self):
         ''' Remove all children of this node and return them as a list.

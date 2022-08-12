@@ -726,9 +726,11 @@ methods.
 
 If an argument is inserted directly (via the children list) then it is
 assumed that this is not a named argument. If the top node of an
-argument is replaced then it is assumed that this argument is no
-longer a named argument. If arguments are re-ordered then the names
-follow the re-ordering.
+argument is replaced by removing and inserting a new node then it is
+assumed that this argument is no longer a named argument. If it is
+replaced with the `replace_with` method, it has a `keep_name_in_context`
+argument to chose the desired behaviour (defaults to True).
+If arguments are re-ordered then the names follow the re-ordering.
 
 The names of named arguments can be accessed via the `argument_names`
 property. This list has an entry for each argument and either contains

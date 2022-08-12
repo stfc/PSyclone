@@ -300,17 +300,7 @@ class Call(Statement, DataNode):
                     new_argument_names.append(arg)
                     break
             else:
-                # This argument did not exist before:
-                # If in its position there was a named argument that has lost
-                # its associated id, keep the name:
-                # if (child.position <= len(self._argument_names) and
-                #        self._argument_names[child.position] in not None:
-                previous_id = self._argument_names[child.position]
-                if not any(id(c) == previous_id for c in self.children):
-                    new_argument_names.append((id(child),
-                        self._argument_names[child.position][1]))
-                else:
-                    new_argument_names.append((id(child), None))
+                new_argument_names.append((id(child), None))
         self._argument_names = new_argument_names
 
     def node_str(self, colour=True):
