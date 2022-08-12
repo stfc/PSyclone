@@ -38,6 +38,7 @@ within the psyad directory.
 
 '''
 import logging
+import os
 import pytest
 
 from psyclone.errors import InternalError
@@ -53,6 +54,9 @@ from psyclone.psyir.symbols import (
     ArrayType, RoutineSymbol, ImportInterface, ScalarType, ContainerSymbol,
     ArgumentInterface, UnknownFortranType, DeferredType)
 
+
+TESTS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+LFRIC_TEST_FILES_DIR = os.path.join(TESTS_DIR, "test_files", "dynamo0p3")
 
 # generate_adjoint_str function
 
@@ -106,6 +110,40 @@ def test_generate_adjoint_str(caplog):
     assert test_harness == ""
 
 
+def test_generate_adjoint_str_lfric_api(fortran_reader):
+    '''
+    Check that specifying the LFRic (dynamo0p3) API to the generate_adjoint_str
+    routine works as expected.
+
+    '''
+    testkern = os.path.join(LFRIC_TEST_FILES_DIR, "tl_testkern_mod.F90")
+    with open(testkern, mode="r", encoding="utf-8") as kfile:
+        tl_code = kfile.read()
+    result, _ = generate_adjoint_str(tl_code,
+                                     ["xi", "u", "res_dot_product", "curl_u"],
+                                     api="dynamo0.3")
+    assert "subroutine adj_testkern_code" in result.lower()
+
+
+def test_generate_adjoint_str_lfric_no_harness():
+    '''
+    Check that generate_adjoint_str() raises the expected error if a test
+    harness is requested for the adjoint of an LFRic kernel.
+
+    TODO #1782 will remove this test.
+    '''
+    testkern = os.path.join(LFRIC_TEST_FILES_DIR, "tl_testkern_mod.F90")
+    with open(testkern, mode="r", encoding="utf-8") as kfile:
+        tl_code = kfile.read()
+    with pytest.raises(NotImplementedError) as err:
+        generate_adjoint_str(tl_code,
+                             ["xi", "u", "res_dot_product", "curl_u"],
+                             api="dynamo0.3", create_test=True)
+    assert ("The generation of a test harness for an adjoint kernel "
+            "conforming to the 'dynamo0.3' API is not yet implemented." in
+            str(err.value))
+
+
 def test_generate_adjoint_str_function():
     '''Test that an exception is raised if a function is found.'''
     tl_code = (
@@ -128,7 +166,7 @@ def test_generate_adjoint_str_wrong_api():
         "a = b\n"
         "end program test\n")
     with pytest.raises(NotImplementedError) as err:
-        generate_adjoint_str(tl_code, ["a", "b"], api="gocean1.0")        
+        generate_adjoint_str(tl_code, ["a", "b"], api="gocean1.0")
     assert ("PSyAD only supports generic routines/programs or LFRic "
             "(dynamo0.3) kernels but got API 'gocean1.0'" in str(err.value))
 

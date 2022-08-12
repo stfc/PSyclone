@@ -84,8 +84,10 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
         harness for the adjoint kernel.
     :rtype: Tuple[str, str]
 
+    :raises NotImplementedError: if the tangent-linear code is a function.
     :raises NotImplementedError: if an unsupported API is specified.
-
+    :raises NotImplementedError: if test-harness generation is requested for \
+                                 the LFRic API.
     '''
     logger = logging.getLogger(__name__)
     logger.debug(tl_fortran_str)
@@ -130,6 +132,11 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
     # Create test harness if requested
     test_fortran_str = ""
     if create_test:
+        if api:
+            # Support for the dynamo0.3 API is in progress: TODO #1782.
+            raise NotImplementedError(
+                f"The generation of a test harness for an adjoint kernel "
+                f"conforming to the '{api}' API is not yet implemented.")
         test_psyir = generate_adjoint_test(tl_psyir, ad_psyir,
                                            active_variables)
         test_fortran_str = writer(test_psyir)
