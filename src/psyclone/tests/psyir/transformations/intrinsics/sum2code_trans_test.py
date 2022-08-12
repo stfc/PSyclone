@@ -502,6 +502,3 @@ def test_mask_dimension():
     writer = FortranWriter()
     result = writer(psyir)
     assert expected in result
-
-
-# todo var with : notation?
