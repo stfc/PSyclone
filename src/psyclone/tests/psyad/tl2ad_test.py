@@ -43,8 +43,9 @@ import pytest
 from psyclone.errors import InternalError
 from psyclone.psyad import (
     generate_adjoint_str, generate_adjoint, generate_adjoint_test)
+from psyclone.psyad.domain.common import create_adjoint_name, find_container
 from psyclone.psyad.tl2ad import (
-    _create_adjoint_name, _find_container, _create_inner_product,
+    _create_inner_product,
     _create_array_inner_product, _get_active_variables_datatype,
     _add_precision_symbol)
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -64,10 +65,10 @@ def test_generate_adjoint_name():
     expected.
 
     '''
-    assert _create_adjoint_name("name") == "adj_name"
-    assert _create_adjoint_name("NAME") == "adj_name"
-    assert _create_adjoint_name("tl_name") == "adj_name"
-    assert _create_adjoint_name("Tl_NaMe") == "adj_name"
+    assert create_adjoint_name("name") == "adj_name"
+    assert create_adjoint_name("NAME") == "adj_name"
+    assert create_adjoint_name("tl_name") == "adj_name"
+    assert create_adjoint_name("Tl_NaMe") == "adj_name"
 
 
 # generate_adjoint_str function
@@ -216,32 +217,32 @@ def test_generate_adjoint_str_generate_harness_logging(caplog):
     assert harness in caplog.text
 
 
-#  _find_container function
+#  find_container function
 
 def test_find_container():
     ''' Tests for the internal, helper function _find_container(). '''
-    assert _find_container(Return()) is None
-    assert _find_container(FileContainer("test")) is None
+    assert find_container(Return()) is None
+    assert find_container(FileContainer("test")) is None
     cont = Container("my_mod")
-    assert _find_container(cont) is cont
+    assert find_container(cont) is cont
     cont.addchild(FileContainer("test"))
     with pytest.raises(InternalError) as err:
-        _find_container(cont)
+        find_container(cont)
     assert ("The supplied PSyIR contains two Containers but the innermost is "
             "a FileContainer. This should not be possible" in str(err.value))
     cont = Container("my_mod")
     cont.addchild(Container("another_mod"))
     with pytest.raises(NotImplementedError) as err:
-        _find_container(cont)
+        find_container(cont)
     assert ("supplied PSyIR contains two Containers and the outermost one is "
             "not a FileContainer. This is not supported." in str(err.value))
     file_cont = FileContainer("test")
     cont = Container("my_mod")
     file_cont.addchild(cont)
-    assert _find_container(file_cont) is cont
+    assert find_container(file_cont) is cont
     file_cont.addchild(cont.copy())
     with pytest.raises(NotImplementedError) as err:
-        _find_container(file_cont)
+        find_container(file_cont)
     assert ("The supplied PSyIR contains more than two Containers. This is "
             "not supported." in str(err.value))
 
