@@ -40,13 +40,14 @@ psyad/domain/common/adjoint_utils.py file.
 '''
 import pytest
 
+from psyclone.errors import InternalError
 from psyclone.psyad.domain.common import create_adjoint_name, find_container
+from psyclone.psyir.nodes import Container, FileContainer, Return
 
 # create_adjoint_name function
 
 def test_create_adjoint_name():
-    '''Test that the create_adjoint_name() function works as
-    expected.
+    '''Test that the create_adjoint_name() function works as expected.
 
     '''
     assert create_adjoint_name("name") == "adj_name"
@@ -58,7 +59,7 @@ def test_create_adjoint_name():
 #  find_container function
 
 def test_find_container():
-    ''' Tests for the internal, helper function _find_container(). '''
+    ''' Tests for the helper function find_container(). '''
     assert find_container(Return()) is None
     assert find_container(FileContainer("test")) is None
     cont = Container("my_mod")
