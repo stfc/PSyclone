@@ -728,6 +728,28 @@ def test_validate_function(fortran_reader, fortran_writer):
             "('my_func') - TODO #924." in str(err.value))
 
 
+def test_validate_assumed_shape(fortran_reader, fortran_writer, tmpdir):
+    '''Test that the validate method rejects an attempt to inline a routine
+    if any of its dummy arguments are declared to be a different shape from
+    those at the call site.'''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "subroutine main\n"
+        "  REAL A(100, 100)\n"
+        "  CALL S(A(26:,2:),10)\n"
+        "end subroutine\n"
+        "SUBROUTINE S(X,M)\n"
+        "  REAL X(M)\n"
+        "  DO I = 1, M\n"
+        "     X(I) = X(I) + M\n"
+        "  ENDDO\n"
+        "end subroutine\n"
+        "end module\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    assert Compile(tmpdir).string_compiles(fortran_writer(psyir))
+
+
 # _find_routine
 
 def test_find_routine_missing(fortran_reader):
