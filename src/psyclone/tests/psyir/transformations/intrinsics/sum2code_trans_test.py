@@ -118,7 +118,7 @@ def test_array_arg(fortran_reader):
     assert ("Expected 'array' to be an array." in str(info.value))
 
 
-def test_aray_shape(fortran_reader, monkeypatch):
+def test_array_shape(fortran_reader, monkeypatch):
     '''Tests that the expected exception is raised if the array shape is
     not a valid value. Requires monkeypatching.
 

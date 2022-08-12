@@ -50,7 +50,15 @@ from psyclone.psyir.transformations.intrinsics.operator2code_trans import (
 
 
 def get_args(node):
-    ''' xxx '''
+    '''Utility method that returns the sum arguments.
+
+    :param node:
+    :type node:
+
+    returns: a tuple containing the ...
+    rtype: Tuple[a,b,c]].
+
+    '''
     # Determine the arguments to sum
     args = [None, None, None]
     arg_names_map = {"array": 0, "dimension": 1, "mask": 2}
@@ -91,8 +99,40 @@ class Sum2CodeTrans(Operator2CodeTrans):
           DO I=LBOUND(A,1),UBOUND(A,1)
             R += A(I,J)
 
-    TODO ADD dimension example
-    TODO ADD mask example
+    If the dimension argument is provided then only that dimension is
+    summed:
+
+    .. code-block:: python
+
+        R = SUM(ARRAY, dimension=2)
+
+    If the array is two dimensional, the equivalent code
+    for real data is:
+
+    .. code-block:: python
+
+        R(:) = 0.0
+        DO J=LBOUND(A,2),UBOUND(A,2)
+          DO I=LBOUND(A,1),UBOUND(A,1)
+            R(I) += R(I) + A(I,J)
+
+    If the mask argument is provided then the mask is used to
+    determine whether the sum is applied:
+
+    .. code-block:: python
+
+        R = SUM(ARRAY, mask=MOD(array, 2.0)==1)
+
+    If the array is two dimensional, the equivalent code
+    for real data is:
+
+    .. code-block:: python
+
+        R = 0.0
+        DO J=LBOUND(A,2),UBOUND(A,2)
+          DO I=LBOUND(A,1),UBOUND(A,1)
+            if (MOD(array(I,J), 2.0)==1):
+              R += R + A(I,J)
 
     '''
     def __init__(self):
@@ -191,9 +231,7 @@ class Sum2CodeTrans(Operator2CodeTrans):
                 elif isinstance(shape, ArrayType.ArrayBounds):
                     # array extent is defined in the array declaration
                     loop_bounds.append(shape)
-                else:
-                    # Exception handled by validate method
-                    pass
+                #  else: Exception is handled by validate method
         else:
             # This is an array reference
             loop_bounds = []
