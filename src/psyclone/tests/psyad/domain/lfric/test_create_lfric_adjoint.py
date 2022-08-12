@@ -35,10 +35,49 @@
 
 '''
 A module to perform pytest tests on the
-psyad/domain/lfric/create_lfric_adjoint.py file.
+psyad/domain/lfric/generate_lfric_adjoint.py file.
 
 '''
+import pytest
+
+from psyclone.errors import InternalError
 from psyclone.psyad.domain.lfric import generate_lfric_adjoint
+
+
+def test_generate_lfric_adjoint_no_container_error(fortran_reader):
+    '''
+    Check that generate_lfric_adjoint raises the expected error when
+    provided PSyIR that does not have a Container.
+
+    '''
+    psyir = fortran_reader.psyir_from_source("""\
+program test
+  implicit none
+  integer :: var1, var2
+  var1 = var2
+end program test
+""")
+    with pytest.raises(InternalError) as err:
+        generate_lfric_adjoint(psyir, ["var1", "var2"])
+    assert ("An LFRic kernel must be within a Container but the supplied "
+            "PSyIR does not contain one." in str(err.value))
+
+
+def test_generate_lfric_adjoint_no_routines_error(fortran_reader):
+    '''
+    Check that generate_lfric_adjoint raises the expected error when
+    provided PSyIR that does not contain any Routines.
+
+    '''
+    psyir = fortran_reader.psyir_from_source("""\
+module test
+  implicit none
+  integer :: var1
+end module test
+""")
+    with pytest.raises(InternalError) as err:
+        generate_lfric_adjoint(psyir, ["var1", "var2"])
+    assert "The supplied PSyIR does not contain any routines" in str(err.value)
 
 
 def test_generate_lfric_adjoint_multi_kernel(fortran_reader, fortran_writer):

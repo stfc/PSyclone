@@ -78,6 +78,6 @@ def generate_lfric_adjoint(tl_psyir, active_variables):
         container.symbol_table.remove(kernel_sym)
         routine.name = adj_kernel_sym.name
 
-        logger.debug("AD kernel will be named '%s'", routine.name)
+        logger.debug("AD LFRic kernel will be named '%s'", routine.name)
 
     return ad_psyir

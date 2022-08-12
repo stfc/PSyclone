@@ -58,10 +58,10 @@ from psyclone.psyir.symbols import (
     ArgumentInterface, UnknownFortranType, DeferredType)
 
 
-# _generate_adjoint_name function
+# create_adjoint_name function
 
-def test_generate_adjoint_name():
-    '''Test that the _generate_adjoint_name() function works as
+def test_create_adjoint_name():
+    '''Test that the create_adjoint_name() function works as
     expected.
 
     '''
