@@ -44,7 +44,7 @@ from psyclone.psyir.nodes import (
     UnaryOperation, BinaryOperation, NaryOperation, Assignment, Reference,
     Literal, Loop, ArrayReference, IfBlock)
 from psyclone.psyir.symbols import (
-    DataSymbol, REAL_TYPE, INTEGER_TYPE, ScalarType, ArrayType)
+    DataSymbol, INTEGER_TYPE, ScalarType, ArrayType)
 from psyclone.psyir.transformations.intrinsics.operator2code_trans import (
     Operator2CodeTrans)
 
@@ -52,24 +52,30 @@ from psyclone.psyir.transformations.intrinsics.operator2code_trans import (
 def get_args(node):
     '''Utility method that returns the sum arguments.
 
-    :param node:
-    :type node:
+    :param node: a Sum Operation. This could be a UnaryOperation, \
+        BinaryOperation or NaryOperation depending on how many arguments \
+        it has.
+    :type node: :py:test:`psyclone.psyir.nodes.operation.UnaryOperation` | \
+        :py:test:`psyclone.psyir.nodes.operation.BinaryOperation` | \
+        :py:test:`psyclone.psyir.nodes.operation.NaryOperation`
 
-    returns: a tuple containing the ...
-    rtype: Tuple[a,b,c]].
-
+    returns: a tuple containing the 3 sum arguments.
+    rtype: Tuple[py:class:`psyclone.psyir.nodes.reference.Reference`, \
+                 py:class:`psyclone.psyir.nodes.Literal` | \
+                 :py:class:`psyclone.psyir.nodes.Reference`, \
+                 Optional[:py:class:`psyclone.psyir.nodes.node`]]
     '''
     # Determine the arguments to sum
     args = [None, None, None]
     arg_names_map = {"array": 0, "dimension": 1, "mask": 2}
-    for idx in range(len(node.children)):
+    for idx, child in node.children:
         if not node.argument_names[idx]:
             # positional arg
-            args[idx] = node.children[idx]
+            args[idx] = child
         else:
             # named arg
             name = node.argument_names[idx].lower()
-            args[arg_names_map[name]] = node.children[idx]
+            args[arg_names_map[name]] = child
     array_ref = args[0]
     dimension_ref = args[1]
     mask_ref = args[2]
@@ -136,28 +142,43 @@ class Sum2CodeTrans(Operator2CodeTrans):
 
     '''
     def __init__(self):
-        super(Sum2CodeTrans, self).__init__()
+        super().__init__()
         self._operator_name = "SUM"
         self._classes = (UnaryOperation, BinaryOperation, NaryOperation)
-        self._operators = (UnaryOperation.Operator.SUM, BinaryOperation.Operator.SUM, NaryOperation.Operator.SUM)
+        self._operators = (UnaryOperation.Operator.SUM,
+                           BinaryOperation.Operator.SUM,
+                           NaryOperation.Operator.SUM)
 
     def validate(self, node, options=None):
-        ''' Check that the input node is valid before applying the transformation.
+        '''Check that the input node is valid before applying the
+        transformation.
 
-        :param node: xxx
-        :type node: yyy
-        :param options: xxx
-        :type options: yyy
+        :param node: a Sum Operation. This could be a UnaryOperation, \
+            BinaryOperation or NaryOperation depending on how many \
+            arguments it has.
+        :type node: :py:test:`psyclone.psyir.nodes.operation.UnaryOperation` \
+            | :py:test:`psyclone.psyir.nodes.operation.BinaryOperation` | \
+            :py:test:`psyclone.psyir.nodes.operation.NaryOperation`
+        :param options: options for the transformation.
+        :type options: Optional[Dict[str,str]]
 
-        :raises TransformationError: xxxx
+        :raises TransformationError: if a valid value for the \
+            dimension argument can't be determined.
+        :raises TransformationError: if the array argument is not an array.
+        :raises TransformationError: if the array argument is not an array.
+        :raises TransformationError: if the shape of the array is not \
+            supported.
+        :raises TransformationError: if the array datatype is not \
+            supported.
 
         '''
         # Avoid circular import error
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.transformations import TransformationError
 
-        super(Sum2CodeTrans, self).validate(node, options)
+        super().validate(node, options)
 
-        array_ref, dim_ref, mask_ref = get_args(node)
+        array_ref, dim_ref, _ = get_args(node)
         if dim_ref and not isinstance(dim_ref, (Literal, Reference)):
             raise TransformationError(
                 f"Can't find the value of the dimension argument. Expected "
@@ -167,9 +188,10 @@ class Sum2CodeTrans(Operator2CodeTrans):
 
         if len(array_ref.children) == 0:
             if not array_ref.symbol.is_array:
-                raise TransformationError(f"Expected '{array_ref.name}' to be an array.")
+                raise TransformationError(
+                    f"Expected '{array_ref.name}' to be an array.")
 
-        for idx, shape in enumerate(array_ref.symbol.shape):
+        for shape in array_ref.symbol.shape:
             if not (shape in [
                     ArrayType.Extent.DEFERRED, ArrayType.Extent.ATTRIBUTE]
                     or isinstance(shape, ArrayType.ArrayBounds)):
@@ -184,11 +206,19 @@ class Sum2CodeTrans(Operator2CodeTrans):
                 f"Only real and integer types supported for array "
                 f"'{array_ref.name}', but found '{array_intrinsic.name}'.")
 
-
     def apply(self, node, options=None):
         '''Apply the SUM intrinsic conversion transformation to the specified
         node. This node must be a SUM Operation which is converted to
         equivalent inline code.
+
+        :param node: a Sum Operation. This could be a UnaryOperation, \
+            BinaryOperation or NaryOperation depending on how many \
+            arguments it has.
+        :type node: :py:test:`psyclone.psyir.nodes.operation.UnaryOperation` \
+            | :py:test:`psyclone.psyir.nodes.operation.BinaryOperation` | \
+            :py:test:`psyclone.psyir.nodes.operation.NaryOperation`
+        :param options: options for the transformation.
+        :type options: Optional[Dict[str,str]]
 
         '''
         self.validate(node)
@@ -217,7 +247,8 @@ class Sum2CodeTrans(Operator2CodeTrans):
 
             loop_bounds = []
             for idx, shape in enumerate(array_ref.symbol.shape):
-                if shape in [ArrayType.Extent.DEFERRED, ArrayType.Extent.ATTRIBUTE]:
+                if shape in [ArrayType.Extent.DEFERRED,
+                             ArrayType.Extent.ATTRIBUTE]:
                     # runtime extent using LBOUND and UBOUND required
                     lbound = BinaryOperation.create(
                         BinaryOperation.Operator.LBOUND,
@@ -242,7 +273,7 @@ class Sum2CodeTrans(Operator2CodeTrans):
         # Determine the datatype of the array's values and create a
         # scalar of that type
         array_intrinsic = array_ref.symbol.datatype.intrinsic
-        array_precision =  array_ref.symbol.datatype.precision
+        array_precision = array_ref.symbol.datatype.precision
         scalar_type = ScalarType(array_intrinsic, array_precision)
 
         symbol_table = node.scope.symbol_table
@@ -250,7 +281,7 @@ class Sum2CodeTrans(Operator2CodeTrans):
 
         datatype = scalar_type
         array_reduction = False
-        if dimension_ref and ndims>1:
+        if dimension_ref and ndims > 1:
             array_reduction = True
             # We are reducing from one array to another
             shape = []
@@ -293,9 +324,11 @@ class Sum2CodeTrans(Operator2CodeTrans):
 
         if array_reduction:
             # sum_var(i,...) = sum_var(i,...) + array(i,...)
-            array_indices = [Reference(iterator) for iterator in array_iterators]
+            array_indices = [Reference(iterator)
+                             for iterator in array_iterators]
             lhs = ArrayReference.create(symbol_sum_var, array_indices)
-            array_indices = [Reference(iterator) for iterator in array_iterators]                
+            array_indices = [Reference(iterator)
+                             for iterator in array_iterators]
             rhs_child1 = ArrayReference.create(symbol_sum_var, array_indices)
         else:
             # sum_var = sum_var + array(i,...)

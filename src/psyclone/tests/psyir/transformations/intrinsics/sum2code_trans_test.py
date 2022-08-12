@@ -52,7 +52,6 @@ def test_initialise():
             "PSyIR code.")
     assert trans.name == "Sum2CodeTrans"
 
-# TBD validate tests
 
 def test_validate_node():
     '''Check that an incorrect node raises the expected exception.'''
@@ -79,13 +78,13 @@ def test_dimension_arg(fortran_reader):
 
     '''
     code = (
-        f"subroutine sum_test(array,n,m)\n"
-        f"  integer :: n, m\n"
-        f"  real :: array(10,10)\n"
-        f"  real :: result\n"
-        f"  integer :: dimension\n"
-        f"  result = sum(array,dimension*2)\n"
-        f"end subroutine\n")
+        "subroutine sum_test(array,n,m)\n"
+        "  integer :: n, m\n"
+        "  real :: array(10,10)\n"
+        "  real :: result\n"
+        "  integer :: dimension\n"
+        "  result = sum(array,dimension*2)\n"
+        "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/UnaryOperation
     sum_node = psyir.children[0].children[0].children[1]
@@ -95,7 +94,7 @@ def test_dimension_arg(fortran_reader):
     assert ("Can't find the value of the dimension argument. Expected it to "
             "be a literal or a reference but found 'dimension * 2' which is "
             "a 'BinaryOperation'." in str(info.value))
-    
+
 
 def test_array_arg(fortran_reader):
     '''Test that the expected exception is raised if the array argument is
@@ -103,19 +102,19 @@ def test_array_arg(fortran_reader):
 
     '''
     code = (
-        f"subroutine sum_test(array,n,m)\n"
-        f"  integer :: n, m\n"
-        f"  real :: array\n"
-        f"  real :: result\n"
-        f"  result = sum(array)\n"
-        f"end subroutine\n")
+        "subroutine sum_test(array,n,m)\n"
+        "  integer :: n, m\n"
+        "  real :: array\n"
+        "  real :: result\n"
+        "  result = sum(array)\n"
+        "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/UnaryOperation
     sum_node = psyir.children[0].children[0].children[1]
     trans = Sum2CodeTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(sum_node)
-    assert ("Expected 'array' to be an array." in str(info.value))
+    assert "Expected 'array' to be an array." in str(info.value)
 
 
 def test_array_shape(fortran_reader, monkeypatch):
@@ -124,12 +123,12 @@ def test_array_shape(fortran_reader, monkeypatch):
 
     '''
     code = (
-        f"subroutine sum_test(array,n,m)\n"
-        f"  integer :: n, m\n"
-        f"  real :: array(1)\n"
-        f"  real :: result\n"
-        f"  result = sum(array)\n"
-        f"end subroutine\n")
+        "subroutine sum_test(array,n,m)\n"
+        "  integer :: n, m\n"
+        "  real :: array(1)\n"
+        "  real :: result\n"
+        "  result = sum(array)\n"
+        "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/UnaryOperation
     sum_node = psyir.children[0].children[0].children[1]
@@ -152,12 +151,12 @@ def test_array_type_arg(fortran_reader):
 
     '''
     code = (
-        f"subroutine sum_test(array,n,m)\n"
-        f"  integer :: n, m\n"
-        f"  logical :: array(10)\n"
-        f"  real :: result\n"
-        f"  result = sum(array)\n"
-        f"end subroutine\n")
+        "subroutine sum_test(array,n,m)\n"
+        "  integer :: n, m\n"
+        "  logical :: array(10)\n"
+        "  real :: result\n"
+        "  result = sum(array)\n"
+        "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/UnaryOperation
     sum_node = psyir.children[0].children[0].children[1]
@@ -172,7 +171,7 @@ def test_array_type_arg(fortran_reader):
 
 @pytest.mark.parametrize("idim1,idim2,rdim11,rdim12,rdim21,rdim22",
                          [("10", "20", "1", "10", "1", "20"),
-                          ("n", "m", "1","n", "1", "m"),
+                          ("n", "m", "1", "n", "1", "m"),
                           ("0:n", "2:m", "0", "n", "2", "m"),
                           (":", ":", "LBOUND(array, 1)", "UBOUND(array, 1)",
                            "LBOUND(array, 2)", "UBOUND(array, 2)")])
@@ -393,7 +392,8 @@ def test_apply_dimension_multid_range(fortran_reader, fortran_writer):
         "  real :: array(:,:,:)\n"
         "  real :: value1, value2\n"
         "  real :: result(n,p)\n"
-        "  result(:,:) = value1 + sum(array(1:n,m-1:m,1:p),dimension=2) * value2\n"
+        "  result(:,:) = value1 + sum(array(1:n,m-1:m,1:p),dimension=2) * "
+        "value2\n"
         "end subroutine\n")
     expected = (
         "subroutine sum_test(array, value1, value2, n, m, p)\n"
