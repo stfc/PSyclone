@@ -1049,8 +1049,8 @@ For example::
              data is read. To avoid this potential problem in user
              code it is recommended that a redundant computation
              :ref:`transformation <dynamo0.3-api-transformations>`
-             is added to compute all ``setval_c`` and
-             ``setval_x`` Built-in calls (see :ref:`lfric-built-ins`)
+             is added to compute all ``setval_c``, ``setval_x`` and
+	     ``setval_random`` Built-in calls (see :ref:`lfric-built-ins`)
              to the same halo depth as the associated ``GH_INC``
              access - which is level-1 without any redundant
              computation transformations being applied to the
@@ -2997,6 +2997,26 @@ Sets a field *field2* equal (DoF per DoF) to another field
 *field1* (``Y = X``)::
 
   field2(:) = field1(:)
+
+setval_random
+^^^^^^^^^^^^^
+
+**setval_random** (**field**)
+
+Fills all elements of a field *field* using a sequence of ``real``,
+pseudo-random numbers in the interval ``0 <= x < 1``::
+
+  do df = 1, ndofs
+    field(df) = RAND()
+  end do
+
+where ``RAND()`` is some function that returns a new pseudo-random number
+each time it is called.
+
+.. warning:: This Built-in is implemented using the Fortran ``random_number``
+	     intrinsic. Therefore no guarantee is made as to the quality of
+	     the sequence of pseudo-random numbers, especially when running
+	     in parallel.
 
 Raising to power
 ################

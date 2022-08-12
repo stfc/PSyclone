@@ -40,7 +40,7 @@ places them in integer scalar assignments before the loop.
 '''
 
 from psyclone.psyir.nodes import Routine, Literal, Reference, \
-    StructureReference, Assignment
+    StructureReference, Assignment, Directive
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations.loop_trans import LoopTrans, \
     TransformationError
@@ -67,17 +67,18 @@ class HoistLoopBoundExprTrans(LoopTrans):
     >>> hoist.apply(psyir.walk(Loop)[0])
     >>> print(FortranWriter()(psyir))
     program test
+      use mymod, only : mytype
       integer :: i
       integer :: j
       integer :: n
-      real, dimension(n,n) :: a
-      real :: value
+      real, dimension(n) :: a
+      integer :: loop_bound
+      integer :: loop_bound_1
     <BLANKLINE>
-      value = 1.0
-      do i = 1, n, 1
-        do j = 1, n, 1
-          a(i,j) = value
-        enddo
+      loop_bound_1 = UBOUND(a, 1)
+      loop_bound = mytype%start
+      do i = loop_bound, loop_bound_1, 1
+        a(i) = 1.0
       enddo
     <BLANKLINE>
     end program test
@@ -91,7 +92,7 @@ class HoistLoopBoundExprTrans(LoopTrans):
         :param node: target PSyIR loop.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Dict[str, Any]
 
         '''
         self.validate(node, options)
@@ -99,7 +100,9 @@ class HoistLoopBoundExprTrans(LoopTrans):
         parent = node.parent
         position = node.position
 
-        for bound in node.children[0:2]:
+        for name, bound in [("start", node.start_expr),
+                            ("stop", node.stop_expr),
+                            ("step", node.step_expr)]:
 
             # Skip Literals and non-structure references. Maybe it could be
             # more selective by allowing arithmetic expressions
@@ -110,8 +113,8 @@ class HoistLoopBoundExprTrans(LoopTrans):
                 continue
 
             # Create new symbol
-            symbol = parent.scope.symbol_table.new_symbol(
-                "loop_bound", symbol_type=DataSymbol, datatype=INTEGER_TYPE
+            symbol = node.ancestor(Routine).symbol_table.new_symbol(
+                f"loop_{name}", symbol_type=DataSymbol, datatype=INTEGER_TYPE
             )
             # Move bound expression to an assignment preceding the loop
             bound.replace_with(Reference(symbol))
@@ -125,10 +128,12 @@ class HoistLoopBoundExprTrans(LoopTrans):
         :param node: target PSyIR loop.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations.
-        :type options: dict of str:values or None
+        :type options: Dict[str, Any]
 
         :raises TransformationError: if the supplied node does not have an \
-            ancestor Routine where to hoist the bound expressions to.
+            ancestor Routine.
+        :raises TransformationError: if the supplied node is directly inside \
+            a Directive Schedule.
 
         '''
         super().validate(node)
@@ -137,7 +142,16 @@ class HoistLoopBoundExprTrans(LoopTrans):
         if not node.ancestor(Routine):
             raise TransformationError(
                 "The loop provided to HoistLoopBoundExprTrans must belong to"
-                " a Routine where to place the hoisted expressions.")
+                " a Routine into which the hoisted expressions can be placed.")
+
+        # TODO #1817: We can remove this restriction if we get rid of the
+        # special Schedule that some directives have.
+        # The node should not be directly inside a directive
+        if node.parent.parent and isinstance(node.parent.parent, Directive):
+            raise TransformationError(
+                f"The loop provided to HoistLoopBoundExprTrans must not be "
+                f"directly inside a Directive as its Schedule does not support"
+                f" multiple statements, but found '{node.parent.parent}'.")
 
     def __str__(self):
         return ("Hoist complex loop bound expressions outside the loop "

@@ -27,7 +27,52 @@
 	10) PR #1776 for #1775. Fixes post_region_code_gen and improves
 	test fixtures.
 
-release 2.3.1 17th of June 2022	
+	11) PR #1784 towards #1779. Removes the use of config-provided bounds
+	from the NemoRange2Loop Transformation.
+
+	12) PR #1765 for #1724. Remove kernel use statements from
+	processed algorithm layer code.
+
+	13) PR #1785 for #1771. Refactor algorithm-creation functionality.
+
+	14) PR #1769 for #1721. Fixes bugs in use of sympy simplify() and
+	expand().
+
+	15) PR #1791 for #1780. Add setval_random built-in in LFRic API.
+
+	16) PR #1778 for #1751. Add ReplaceInductionVariableTrans transformation.
+
+	17) PR #1652 for #1645. Symbols representing LFRic BuiltIn Functors
+
+	18) PR #1795 for #1583. Bug fix for PSyAD for expressions involving
+	a unary minus.
+
+	19) PR #1809. A few fixes for code style issues.
+
+	20) PR #1803 for #1797. Adds support for logical variables to the
+ 	PSyData	API.
+
+	21) PR #1804 for #637. Extends the dependence analysis to support
+	LFRic built-in kernels.
+
+	22) PR #1790 for #1787. Adds HoistLoopBoundsExprTrans transformation
+	which hoists complex loop-bound expressions out of loops.
+
+	23) PR #1811 for #1810. Separate LFRic LMA Operator infrastructure
+	into its own file.
+
+	24) PR #1808 for #1681. Extends PSyAD to reject functions.
+
+	25) PR #1633 towards #1631. New implementation of kernel meta-data
+	parser for GOcean API.
+
+	26) PR #1821 for #1557. Extends PSyAD to support LFRic mixed-
+	precision kernels.
+
+	27) PR #1551 towards #1338. Add OpenMP Clauses and its referenced
+	variables as part of the PSyIR tree.
+
+release 2.3.1 17th of June 2022
 
         1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
 

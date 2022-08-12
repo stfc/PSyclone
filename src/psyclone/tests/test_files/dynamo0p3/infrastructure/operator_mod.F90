@@ -39,12 +39,10 @@
 ! Modified by: J. Henrichs, Bureau of Meteorology,
 !              I. Kavcic, Met Office.
 !
-!> @brief A module providing operator related classes.
+!> @brief A module providing operator-related classes.
 !>
-!> @details Implements the following types:
-!!         * abstract operator base type;
-!!         * locally assembled operator (i.e. the stencil is assembled in
-!!           each cell of the 3D grid).
+!> @details Implements the locally assembled operator (i.e. the stencil is
+!!          assembled in each cell of the 3D grid).
 
 module operator_mod
 
@@ -57,11 +55,11 @@ module operator_mod
   implicit none
   private
 
-  !> Algorithm layer representation of an operator type
+  !> Algorithm-layer representation of an operator type
   !>
    type, public, extends(operator_parent_type) :: operator_type
     private
-    !> Allocatable array of type real which holds the values of the operator
+    !> Allocatable array of type 'real' which holds the values of the operator
     real(kind=r_def), allocatable :: local_stencil( :, :, : )
     !> Size of the outermost dimemsion of the local_stencil array, equal to
     !! ncell*nlayers
@@ -83,7 +81,7 @@ module operator_mod
     final :: operator_destructor
  end type operator_type
 
- !> PSy layer representation of an operator
+ !> PSy-layer representation of an operator
  !>
  !> This is an accessor class that allows access to the actual operator
  !! information with each element accessed via a public pointer.
@@ -159,7 +157,7 @@ contains
   function is_initialised(self) result(initialised)
     implicit none
     class(operator_type), intent(in) :: self
-    logical(kind=l_def)              :: initialised
+    logical(kind=l_def) :: initialised
     initialised = allocated(self%local_stencil)
   end function is_initialised
 

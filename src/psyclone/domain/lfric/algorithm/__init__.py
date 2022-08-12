@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,20 +31,19 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-'''Module to capture LFRic-specific PSyIR for the Algorithm layer, the
-transformation from PSyIR to LFRic-specific PSyIR and transformations
-on LFRic-specific PSyIR.
+'''Module to capture LFRic-specific classes for the Algorithm layer.
 
 '''
-from psyclone.domain.lfric.algorithm.psyir import \
-    LFRicAlgorithmInvokeCall, LFRicKernelFunctor, LFRicBuiltinFunctor
+from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
+from psyclone.domain.lfric.algorithm.psyir import (
+    LFRicAlgorithmInvokeCall, LFRicKernelFunctor, LFRicBuiltinFunctor)
 
-# The entities in the __all__ list are made available to import directly from
-# this package
 
+# For AutoAPI documentation generation.
 __all__ = [
+    'LFRicAlg',
     'LFRicAlgorithmInvokeCall',
     'LFRicKernelFunctor',
     'LFRicBuiltinFunctor']

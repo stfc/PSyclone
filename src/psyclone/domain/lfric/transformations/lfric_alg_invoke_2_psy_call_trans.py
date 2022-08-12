@@ -39,8 +39,8 @@ to the corresponding PSy-layer routine.
 '''
 
 from psyclone.domain.common.transformations import AlgInvoke2PSyCallTrans
-from psyclone.domain.lfric.algorithm import (LFRicAlgorithmInvokeCall,
-                                             LFRicBuiltinFunctor)
+from psyclone.domain.lfric.algorithm.psyir import (LFRicAlgorithmInvokeCall,
+                                                   LFRicBuiltinFunctor)
 from psyclone.psyir.transformations import TransformationError
 
 
@@ -55,7 +55,7 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
 
         :param node: a PSyIR node capturing an LFRicinvoke call.
         :type node: \
-        :py:class:`psyclone.domain.lfric.algorithm.LFRicAlgorithmInvokeCall`
+          :py:class:`psyclone.domain.lfric.algorithm.LFRicAlgorithmInvokeCall`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, str]]
 
