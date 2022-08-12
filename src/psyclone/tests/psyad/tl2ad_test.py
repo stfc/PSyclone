@@ -43,32 +43,15 @@ import pytest
 from psyclone.errors import InternalError
 from psyclone.psyad import (
     generate_adjoint_str, generate_adjoint, generate_adjoint_test)
-from psyclone.psyad.domain.common import create_adjoint_name, find_container
 from psyclone.psyad.tl2ad import (
-    _create_inner_product,
-    _create_array_inner_product, _get_active_variables_datatype,
-    _add_precision_symbol)
-from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.frontend.fortran import FortranReader
+    _create_inner_product, _create_array_inner_product,
+    _get_active_variables_datatype, _add_precision_symbol)
 from psyclone.psyir.nodes import (
     Container, FileContainer, Return, Routine, Assignment, BinaryOperation)
 from psyclone.psyir.symbols import (
     DataSymbol, SymbolTable, REAL_DOUBLE_TYPE, INTEGER_TYPE, REAL_TYPE,
     ArrayType, RoutineSymbol, ImportInterface, ScalarType, ContainerSymbol,
     ArgumentInterface, UnknownFortranType, DeferredType)
-
-
-# create_adjoint_name function
-
-def test_create_adjoint_name():
-    '''Test that the create_adjoint_name() function works as
-    expected.
-
-    '''
-    assert create_adjoint_name("name") == "adj_name"
-    assert create_adjoint_name("NAME") == "adj_name"
-    assert create_adjoint_name("tl_name") == "adj_name"
-    assert create_adjoint_name("Tl_NaMe") == "adj_name"
 
 
 # generate_adjoint_str function
@@ -135,6 +118,19 @@ def test_generate_adjoint_str_function():
     assert ("PSyAD does not support tangent-linear code written as a "
             "function. Please re-write 'test' as a subroutine."
             in str(info.value))
+
+
+def test_generate_adjoint_str_wrong_api():
+    '''Test that an exception is raised for an unsupported API.'''
+    tl_code = (
+        "program test\n"
+        "integer :: a,b\n"
+        "a = b\n"
+        "end program test\n")
+    with pytest.raises(NotImplementedError) as err:
+        generate_adjoint_str(tl_code, ["a", "b"], api="gocean1.0")        
+    assert ("PSyAD only supports generic routines/programs or LFRic "
+            "(dynamo0.3) kernels but got API 'gocean1.0'" in str(err.value))
 
 
 def test_generate_adjoint_str_trans():
@@ -217,36 +213,6 @@ def test_generate_adjoint_str_generate_harness_logging(caplog):
     assert harness in caplog.text
 
 
-#  find_container function
-
-def test_find_container():
-    ''' Tests for the internal, helper function _find_container(). '''
-    assert find_container(Return()) is None
-    assert find_container(FileContainer("test")) is None
-    cont = Container("my_mod")
-    assert find_container(cont) is cont
-    cont.addchild(FileContainer("test"))
-    with pytest.raises(InternalError) as err:
-        find_container(cont)
-    assert ("The supplied PSyIR contains two Containers but the innermost is "
-            "a FileContainer. This should not be possible" in str(err.value))
-    cont = Container("my_mod")
-    cont.addchild(Container("another_mod"))
-    with pytest.raises(NotImplementedError) as err:
-        find_container(cont)
-    assert ("supplied PSyIR contains two Containers and the outermost one is "
-            "not a FileContainer. This is not supported." in str(err.value))
-    file_cont = FileContainer("test")
-    cont = Container("my_mod")
-    file_cont.addchild(cont)
-    assert find_container(file_cont) is cont
-    file_cont.addchild(cont.copy())
-    with pytest.raises(NotImplementedError) as err:
-        find_container(file_cont)
-    assert ("The supplied PSyIR contains more than two Containers. This is "
-            "not supported." in str(err.value))
-
-
 # _get_active_variables_datatype function
 
 def test_get_active_variables_datatype_error(fortran_reader):
@@ -315,7 +281,7 @@ def test_get_active_variables_datatype(fortran_reader):
 
 # generate_adjoint function
 
-def test_generate_adjoint(fortran_reader):
+def test_generate_adjoint(fortran_reader, fortran_writer):
     '''Test that the generate_adjoint() function works as expected.'''
 
     tl_fortran_str = (
@@ -335,12 +301,11 @@ def test_generate_adjoint(fortran_reader):
 
     ad_psyir = generate_adjoint(tl_psyir, ["a", "b", "c"])
 
-    writer = FortranWriter()
-    ad_fortran_str = writer(ad_psyir)
+    ad_fortran_str = fortran_writer(ad_psyir)
     assert ad_fortran_str in expected_ad_fortran_str
 
 
-def test_generate_adjoint_kind(fortran_reader):
+def test_generate_adjoint_kind(fortran_reader, fortran_writer):
     '''Test that the generate_adjoint() function works as expected when
     the active variables have a kind.'''
 
@@ -364,8 +329,7 @@ def test_generate_adjoint_kind(fortran_reader):
 
     ad_psyir = generate_adjoint(tl_psyir, ["a", "b", "c"])
 
-    writer = FortranWriter()
-    ad_fortran_str = writer(ad_psyir)
+    ad_fortran_str = fortran_writer(ad_psyir)
     assert ad_fortran_str in expected_ad_fortran_str
 
 
@@ -421,7 +385,7 @@ def test_generate_adjoint_errors():
 
 @pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
                    "github actions.", strict=False)
-def test_generate_adjoint_logging(caplog):
+def test_generate_adjoint_logging(caplog, fortran_reader, fortran_writer):
     '''Test that logging works as expected in the generate_adjoint()
     function.
 
@@ -436,15 +400,13 @@ def test_generate_adjoint_logging(caplog):
         "  real :: a\n\n"
         "  a = 0.0\n\n"
         "end program test_adj\n")
-    reader = FortranReader()
-    tl_psyir = reader.psyir_from_source(tl_fortran_str)
+    tl_psyir = fortran_reader.psyir_from_source(tl_fortran_str)
 
     with caplog.at_level(logging.INFO):
         ad_psyir = generate_adjoint(tl_psyir, ["a"])
     assert caplog.text == ""
 
-    writer = FortranWriter()
-    ad_fortran_str = writer(ad_psyir)
+    ad_fortran_str = fortran_writer(ad_psyir)
     assert ad_fortran_str in expected_ad_fortran_str
 
     with caplog.at_level(logging.DEBUG):
@@ -452,7 +414,7 @@ def test_generate_adjoint_logging(caplog):
     assert "Translating from TL to AD." in caplog.text
     assert "AD kernel will be named 'test_adj'" in caplog.text
 
-    ad_fortran_str = writer(ad_psyir)
+    ad_fortran_str = fortran_writer(ad_psyir)
     assert expected_ad_fortran_str in ad_fortran_str
 
 

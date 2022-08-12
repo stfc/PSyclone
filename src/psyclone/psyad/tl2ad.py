@@ -49,7 +49,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
     Call, Container, BinaryOperation, UnaryOperation, IfBlock, \
-    CodeBlock, FileContainer, ArrayReference, Range
+    CodeBlock, ArrayReference, Range
 from psyclone.psyir.symbols import SymbolTable, ImportInterface, Symbol, \
     ContainerSymbol, ScalarType, ArrayType, RoutineSymbol, DataSymbol, \
     INTEGER_TYPE, DeferredType, UnknownType
@@ -59,11 +59,6 @@ from psyclone.psyir.symbols import SymbolTable, ImportInterface, Symbol, \
 #: the generated test-harness code.
 #: TODO #1346 this tolerance should be user configurable.
 INNER_PRODUCT_TOLERANCE = 1500.0
-#: The prefix we will prepend to a routine, container and metadata
-#: names when generating the adjoint. If the original name contains
-#: the tl prefix, then this is removed.
-ADJOINT_NAME_PREFIX = "adj_"
-TL_NAME_PREFIX = "tl_"
 #: The extent we will allocate to each dimension of arrays used in the
 #: generated test-harness code.
 #: TODO #1331 provide some way of configuring the extent of the test arrays
@@ -78,7 +73,7 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
 
     :param str tl_fortran_str: Fortran implementation of a tangent-linear \
         kernel.
-    :param list of str active_variables: list of active variable names.
+    :param List[str] active_variables: list of active variable names.
     :param Optional[str] api: The PSyclone API in use, if any.
     :param Optional[bool] create_test: whether or not to create test code for \
         the adjoint kernel.
@@ -87,7 +82,9 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
         implementation of the supplied tangent-linear kernel and (if \
         requested) a string containing the Fortran implementation of a test \
         harness for the adjoint kernel.
-    :rtype: 2-tuple of str
+    :rtype: Tuple[str, str]
+
+    :raises NotImplementedError: if an unsupported API is specified.
 
     '''
     logger = logging.getLogger(__name__)
@@ -121,7 +118,9 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
     elif api == "dynamo0.3":
         ad_psyir = generate_lfric_adjoint(tl_psyir, active_variables)
     else:
-        raise InternalError("XXX")
+        raise NotImplementedError(
+            f"PSyAD only supports generic routines/programs or LFRic "
+            f"(dynamo0.3) kernels but got API '{api}'")
 
     # AD Fortran code
     writer = FortranWriter()
