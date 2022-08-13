@@ -33,9 +33,9 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing the FieldArg class which captures the metadata
-associated with a field argument. Supports the creation, modification
-and Fortran output of a Field argument.
+'''Module containing the OperatorArg class which captures the metadata
+associated with an operator argument. Supports the creation, modification
+and Fortran output of a Operator argument.
 
 '''
 from fparser.common.readfortran import FortranStringReader
@@ -43,47 +43,55 @@ from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
 
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.lfric.kernel.common_arg import CommonArg
+from psyclone.domain.lfric.kernel.field_arg import FieldArg
 
 
-class FieldArg(CommonArg):
-    '''Class to capture LFRic kernel metadata information for a field
+class OperatorArg(FieldArg):
+    '''Class to capture LFRic kernel metadata information for an operator
     argument.
 
     :param Optional[str] datatype: the datatype of this field \
         (GH_INTEGER, ...).
     :param Optional[str] access: the way the kernel accesses this \
         field (GH_WRITE, ...).
-    :param Optional[str] function_space: the function space that this \
-        field is on (W0, ...).
+    :param Optional[str] function_space1: the function space that this \
+        field maps from (W0, ...).
+    :param Optional[str] function_space2: the function space that this \
+        field maps to (W0, ...).
 
     '''
-    def __init__(self, datatype=None, access=None, function_space=None):
+    def __init__(self, datatype=None, access=None, function_space1=None,
+                 function_space2=None):
         super().__init__(datatype, access)
-        self._form = "GH_FIELD"
-        if function_space is None:
-            self._function_space = function_space
+        self._form = "GH_OPERATOR"
+        if function_space1 is None:
+            self._function_space1 = function_space1
         else:
-            self.function_space = function_space
+            self.function_space1 = function_space1
+        if function_space2 is None:
+            self._function_space2 = function_space2
+        else:
+            self.function_space2 = function_space2
 
     @staticmethod
     def create_from_psyir(psyir):
         '''Create an instance of this class from generic PSyIR. At this moment
         this information is captured in an fparser2 tree.
 
-        :param psyir: fparser2 tree containing the PSyIR for a field \
+        :param psyir: fparser2 tree containing the PSyIR for an operator \
             argument.
         :type psyir: :py:class:`fparser.two.Fortran2003.Part_Ref`
 
-        :returns: an instance of FieldArg.
-        :rtype: :py:class:`psyclone.domain.lfric.kernel.FieldArg`
+        :returns: an instance of OperatorArg.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.OperatorArg`
 
         '''
-        FieldArg.check_psyir(psyir, nargs=4)
+        OperatorArg.check_psyir(psyir, nargs=5)
         datatype = psyir.children[1].children[1].tostr()
         access = psyir.children[1].children[2].tostr()
-        function_space = psyir.children[1].children[3].tostr()
-        return FieldArg(datatype, access, function_space)
+        function_space1 = psyir.children[1].children[3].tostr()
+        function_space2 = psyir.children[1].children[4].tostr()
+        return OperatorArg(datatype, access, function_space1, function_space2)
 
     @classmethod
     def create_from_fortran_string(cls, fortran_string):
@@ -109,15 +117,31 @@ class FieldArg(CommonArg):
             function_space values have not been set.
 
         '''
-        if not (self.datatype and self.access and self.function_space):
+        if not (self.datatype and self.access and self.function_space1 and
+                self.function_space2):
             raise ValueError(
-                f"Values for datatype, access and function_space must be "
-                f"provided before calling the fortran_string method, but "
-                f"found '{self.datatype}', '{self.access}' and "
-                f"'{self.function_space}'.")
+                f"Values for datatype, access, function_space1 and "
+                f"function_space2 must be provided before calling the "
+                f"fortran_string method, but found '{self.datatype}', "
+                f"'{self.access}', '{self.function_space1}' and "
+                f"'{self.function_space2}'.")
 
         return (f"arg_type({self.form}, {self.datatype}, {self.access}, "
-                f"{self.function_space})")
+                f"{self.function_space1}, {self.function_space2})")
+
+    @staticmethod
+    def check_access(value):
+        '''
+        :raises ValueError: if the provided value is not a valid \
+            access type.
+        '''
+
+        const = LFRicConstants()
+        if not value or value.lower() not in const.VALID_OPERATOR_ACCESS_TYPES:
+            raise ValueError(
+                f"The third metadata entry for an argument should "
+                f"be a recognised datatype descriptor (one of "
+                f"{const.VALID_OPERATOR_ACCESS_TYPES}), but found '{value}'.")
 
     @staticmethod
     def check_datatype(value):
@@ -130,40 +154,23 @@ class FieldArg(CommonArg):
 
         '''
         const = LFRicConstants()
-        if not value or value.lower() not in const.VALID_FIELD_DATA_TYPES:
+        if not value or value.lower() not in const.VALID_OPERATOR_DATA_TYPES:
             raise ValueError(
                 f"The second metadata entry for an argument should "
                 f"be a recognised datatype descriptor (one of "
-                f"{const.VALID_FIELD_DATA_TYPES}), but found '{value}'.")
-
-    @staticmethod
-    def check_access(value):
-        '''
-        :param str value: set the access descriptor to the \
-            specified value.
-
-        :raises ValueError: if the provided value is not a valid \
-            access type.
-
-        '''
-        const = LFRicConstants()
-        if not value or value.lower() not in const.VALID_FIELD_ACCESS_TYPES:
-            raise ValueError(
-                f"The third metadata entry for an argument should "
-                f"be a recognised datatype descriptor (one of "
-                f"{const.VALID_FIELD_ACCESS_TYPES}), but found '{value}'.")
+                f"{const.VALID_OPERATOR_DATA_TYPES}), but found '{value}'.")
 
     @property
-    def function_space(self):
+    def function_space1(self):
         '''
-        :returns: the function space for this field \
+        :returns: the first function space for this operator \
             argument.
         :rtype: str
         '''
-        return self._function_space
+        return self._function_space1
 
-    @function_space.setter
-    def function_space(self, value):
+    @function_space1.setter
+    def function_space1(self, value):
         '''
         :param str value: set the access descriptor to the \
             specified value.
@@ -176,6 +183,33 @@ class FieldArg(CommonArg):
         if not value or value.lower() not in const.VALID_FUNCTION_SPACES:
             raise ValueError(
                 f"The fourth metadata entry for an argument should "
-                f"be a recognised datatype descriptor (one of "
+                f"be a recognised function space (one of "
                 f"{const.VALID_FUNCTION_SPACES}), but found '{value}'.")
-        self._function_space = value
+        self._function_space1 = value
+
+    @property
+    def function_space2(self):
+        '''
+        :returns: the second function space for this operator \
+            argument.
+        :rtype: str
+        '''
+        return self._function_space2
+
+    @function_space2.setter
+    def function_space2(self, value):
+        '''
+        :param str value: set the access descriptor to the \
+            specified value.
+
+        raises ValueError: if the provided value is not a valid \
+            function space.
+
+        '''
+        const = LFRicConstants()
+        if not value or value.lower() not in const.VALID_FUNCTION_SPACES:
+            raise ValueError(
+                f"The fifth metadata entry for an argument should "
+                f"be a recognised function space (one of "
+                f"{const.VALID_FUNCTION_SPACES}), but found '{value}'.")
+        self._function_space2 = value

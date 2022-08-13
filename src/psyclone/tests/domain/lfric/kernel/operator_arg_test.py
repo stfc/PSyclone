@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing tests for the FieldArg class.
+'''Module containing tests for the OperatorArg class.
 
 '''
 import pytest
@@ -43,44 +43,54 @@ from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
 
 from psyclone.domain.lfric.kernel.field_arg import FieldArg
+from psyclone.domain.lfric.kernel.operator_arg import OperatorArg
 
 
 def test_init_noargs():
-    '''Test that a FieldArg instance can be created successfully when no
+    '''Test that an OperatorArg instance can be created successfully when no
     arguments are provided.
 
     '''
-    field_arg = FieldArg()
-    assert isinstance(field_arg, FieldArg)
-    assert field_arg._form == "GH_FIELD"
-    assert field_arg._datatype is None
-    assert field_arg._access is None
-    assert field_arg._function_space is None
+    operator_arg = OperatorArg()
+    assert isinstance(operator_arg, OperatorArg)
+    assert operator_arg._form == "GH_OPERATOR"
+    assert operator_arg._datatype is None
+    assert operator_arg._access is None
+    assert operator_arg._function_space1 is None
+    assert operator_arg._function_space2 is None
 
 
 def test_init_invalid():
     '''Test that appropriate exceptions are raised if invalid initial
-    values are provided when constructing an instance of the FieldArg
-    class.
+    values are provided when constructing an instance of the
+    OperatorArg class.
 
     '''
     with pytest.raises(ValueError) as info:
-        _ = FieldArg(datatype="invalid")
+        _ = OperatorArg(datatype="invalid")
     assert ("The second metadata entry for an argument should be a "
-            "recognised datatype descriptor (one of ['gh_real', "
-            "'gh_integer']), but found 'invalid'." in str(info.value))
+            "recognised datatype descriptor (one of ['gh_real']), but "
+            "found 'invalid'." in str(info.value))
 
     with pytest.raises(ValueError) as info:
-        _ = FieldArg(access="invalid")
+        _ = OperatorArg(access="invalid")
     assert ("The third metadata entry for an argument should be a "
             "recognised datatype descriptor (one of ['gh_read', 'gh_write', "
-            "'gh_inc', 'gh_readinc']), but found 'invalid'."
+            "'gh_readwrite']), but found 'invalid'."
             in str(info.value))
 
     with pytest.raises(ValueError) as info:
-        _ = FieldArg(function_space="invalid")
+        _ = OperatorArg(function_space1="invalid")
     assert ("The fourth metadata entry for an argument should be a "
-            "recognised datatype descriptor (one of ['w3', 'wtheta', 'w2v', "
+            "recognised function space (one of ['w3', 'wtheta', 'w2v', "
+            "'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', 'w2h', "
+            "'w2htrace', 'any_w2', 'wchi']), but found 'invalid'."
+            in str(info.value))
+
+    with pytest.raises(ValueError) as info:
+        _ = OperatorArg(function_space2="invalid")
+    assert ("The fifth metadata entry for an argument should be a "
+            "recognised function space (one of ['w3', 'wtheta', 'w2v', "
             "'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', 'w2h', "
             "'w2htrace', 'any_w2', 'wchi']), but found 'invalid'."
             in str(info.value))
@@ -88,14 +98,15 @@ def test_init_invalid():
 
 def test_init_args():
     '''Test that valid initial values provided when constructing an
-    instance of FieldArg are stored as expected.
+    instance of OperatorArg are stored as expected.
 
     '''
-    field_arg = FieldArg("GH_REAL", "GH_READ", "W0")
-    assert field_arg._form == "GH_FIELD"
-    assert field_arg._datatype == "GH_REAL"
-    assert field_arg._access == "GH_READ"
-    assert field_arg._function_space == "W0"
+    operator_arg = OperatorArg("GH_REAL", "GH_READ", "W0", "W1")
+    assert operator_arg._form == "GH_OPERATOR"
+    assert operator_arg._datatype == "GH_REAL"
+    assert operator_arg._access == "GH_READ"
+    assert operator_arg._function_space1 == "W0"
+    assert operator_arg._function_space2 == "W1"
 
 
 def test_create_from_fortran_string():
@@ -104,17 +115,18 @@ def test_create_from_fortran_string():
 
     '''
     with pytest.raises(ValueError) as info:
-        _ = FieldArg.create_from_fortran_string("not valid")
+        _ = OperatorArg.create_from_fortran_string("not valid")
     assert ("Expected kernel metadata to be a Fortran part reference, with "
             "the form 'arg_type(...)' but found 'not valid'."
             in str(info.value))
 
-    fortran_string = "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)"
-    field_arg = FieldArg.create_from_fortran_string(fortran_string)
-    assert field_arg._form == "GH_FIELD"
-    assert field_arg._datatype == "GH_REAL"
-    assert field_arg._access == "GH_READ"
-    assert field_arg._function_space == "W0"
+    fortran_string = "arg_type(GH_OPERATOR, GH_REAL, GH_READ, W0, W1)"
+    operator_arg = OperatorArg.create_from_fortran_string(fortran_string)
+    assert operator_arg._form == "GH_OPERATOR"
+    assert operator_arg._datatype == "GH_REAL"
+    assert operator_arg._access == "GH_READ"
+    assert operator_arg._function_space1 == "W0"
+    assert operator_arg._function_space2 == "W1"
 
 
 def create_part_ref(fortran_string):
@@ -138,90 +150,106 @@ def test_create_from_psyir():
 
     '''
     with pytest.raises(TypeError) as info:
-        _ = FieldArg.create_from_psyir("hello")
+        _ = OperatorArg.create_from_psyir("hello")
     assert ("Expected kernel metadata to be encoded as a Fortran "
             "Part_Ref object but found type 'str' with value 'hello'."
             in str(info.value))
 
     part_ref = create_part_ref("hello(x)")
     with pytest.raises(ValueError) as info:
-        _ = FieldArg.create_from_psyir(part_ref)
+        _ = OperatorArg.create_from_psyir(part_ref)
     assert ("Expected kernel metadata to have the name 'arg_type' "
             "and be in the form 'arg_type(...)', but found 'hello(x)'."
             in str(info.value))
 
     part_ref = create_part_ref("arg_type(x)")
     with pytest.raises(ValueError) as info:
-        _ = FieldArg.create_from_psyir(part_ref)
-    assert ("Expected kernel metadata to have 4 arguments, but "
+        _ = OperatorArg.create_from_psyir(part_ref)
+    assert ("Expected kernel metadata to have 5 arguments, but "
             "found 1 in 'arg_type(x)'." in str(info.value))
 
-    part_ref = create_part_ref("arg_type(GH_FIELD, GH_REAL, GH_READ, W0)")
-    field_arg = FieldArg.create_from_psyir(part_ref)
-    assert field_arg._form == "GH_FIELD"
-    assert field_arg._datatype == "GH_REAL"
-    assert field_arg._access == "GH_READ"
-    assert field_arg._function_space == "W0"
+    part_ref = create_part_ref(
+        "arg_type(GH_OPERATOR, GH_REAL, GH_READ, W0, W1)")
+    operator_arg = OperatorArg.create_from_psyir(part_ref)
+    assert operator_arg._form == "GH_OPERATOR"
+    assert operator_arg._datatype == "GH_REAL"
+    assert operator_arg._access == "GH_READ"
+    assert operator_arg._function_space1 == "W0"
+    assert operator_arg._function_space2 == "W1"
 
 
 def test_fortran_string():
     '''Test that the fortran_string method works as expected, including
-    raise an exception if all of the required properties have not been
-    set '''
-    fortran_string = "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)"
-    field_arg = FieldArg.create_from_fortran_string(fortran_string)
-    result = field_arg.fortran_string()
+    raising an exception if all of the required properties have not been
+    set. '''
+    fortran_string = "arg_type(GH_OPERATOR, GH_REAL, GH_READ, W0, W1)"
+    operator_arg = OperatorArg.create_from_fortran_string(fortran_string)
+    result = operator_arg.fortran_string()
     assert result == fortran_string
 
-    field_arg = FieldArg()
+    operator_arg = OperatorArg()
     with pytest.raises(ValueError) as info:
-        _ = field_arg.fortran_string()
-    assert ("Values for datatype, access and function_space must be provided "
-            "before calling the fortran_string method, but found 'None', "
-            "'None' and 'None'." in str(info.value))
+        _ = operator_arg.fortran_string()
+    assert ("Values for datatype, access, function_space1 and function_space2 "
+            "must be provided before calling the fortran_string method, but "
+            "found 'None', 'None', 'None' and 'None'." in str(info.value))
 
 
 def test_setter_getter():
     '''Test that the setters and getters work as expected, including
     raising exceptions if values are invalid. '''
-    field_arg = FieldArg()
-    assert field_arg.form == "GH_FIELD"
+    operator_arg = OperatorArg()
+    assert operator_arg.form == "GH_OPERATOR"
 
-    assert field_arg.datatype is None
+    assert operator_arg.datatype is None
     with pytest.raises(ValueError) as info:
-        field_arg.datatype = "invalid"
+        operator_arg.datatype = "invalid"
     assert ("The second metadata entry for an argument should be a "
-            "recognised datatype descriptor (one of ['gh_real', "
-            "'gh_integer']), but found 'invalid'." in str(info.value))
+            "recognised datatype descriptor (one of ['gh_real']), but "
+            "found 'invalid'." in str(info.value))
 
-    field_arg.datatype = "gh_integer"
-    assert field_arg.datatype == "gh_integer"
-    field_arg.datatype = "GH_INTEGER"
-    assert field_arg.datatype == "GH_INTEGER"
+    operator_arg.datatype = "gh_real"
+    assert operator_arg.datatype == "gh_real"
+    operator_arg.datatype = "GH_REAL"
+    assert operator_arg.datatype == "GH_REAL"
 
-    assert field_arg.access is None
+    assert operator_arg.access is None
     with pytest.raises(ValueError) as info:
-        field_arg.access = "invalid"
+        operator_arg.access = "invalid"
     assert ("The third metadata entry for an argument should be a "
             "recognised datatype descriptor (one of ['gh_read', 'gh_write', "
-            "'gh_inc', 'gh_readinc']), but found 'invalid'."
+            "'gh_readwrite']), but found 'invalid'."
             in str(info.value))
 
-    field_arg.access = "gh_read"
-    assert field_arg.access == "gh_read"
-    field_arg.access = "GH_READ"
-    assert field_arg.access == "GH_READ"
+    operator_arg.access = "gh_read"
+    assert operator_arg.access == "gh_read"
+    operator_arg.access = "GH_READ"
+    assert operator_arg.access == "GH_READ"
 
-    assert field_arg.function_space is None
+    assert operator_arg.function_space1 is None
     with pytest.raises(ValueError) as info:
-        field_arg.function_space = "invalid"
+        operator_arg.function_space1 = "invalid"
     assert ("The fourth metadata entry for an argument should be a "
-            "recognised datatype descriptor (one of ['w3', 'wtheta', 'w2v', "
+            "recognised function space (one of ['w3', 'wtheta', 'w2v', "
             "'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', 'w2h', "
             "'w2htrace', 'any_w2', 'wchi']), but found 'invalid'."
             in str(info.value))
 
-    field_arg.function_space = "w0"
-    assert field_arg.function_space == "w0"
-    field_arg.function_space = "W0"
-    assert field_arg.function_space == "W0"
+    operator_arg.function_space1 = "w0"
+    assert operator_arg.function_space1 == "w0"
+    operator_arg.function_space1 = "W0"
+    assert operator_arg.function_space1 == "W0"
+
+    assert operator_arg.function_space2 is None
+    with pytest.raises(ValueError) as info:
+        operator_arg.function_space2 = "invalid"
+    assert ("The fifth metadata entry for an argument should be a "
+            "recognised function space (one of ['w3', 'wtheta', 'w2v', "
+            "'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', 'w2h', "
+            "'w2htrace', 'any_w2', 'wchi']), but found 'invalid'."
+            in str(info.value))
+
+    operator_arg.function_space2 = "w1"
+    assert operator_arg.function_space2 == "w1"
+    operator_arg.function_space2 = "W1"
+    assert operator_arg.function_space2 == "W1"

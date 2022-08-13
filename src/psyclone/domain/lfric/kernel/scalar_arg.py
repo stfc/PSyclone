@@ -226,11 +226,11 @@ class ScalarArg(CommonArg):
         '''
 
         const = LFRicConstants()
-        if not value or value.lower() not in const.VALID_ACCESS_TYPES:
+        if not value or value.lower() not in const.VALID_SCALAR_ACCESS_TYPES:
             raise ValueError(
                 f"The third metadata entry for a scalar argument should "
                 f"be a recognised datatype descriptor (one of "
-                f"{const.VALID_ACCESS_TYPES}), but found '{value}'.")
+                f"{const.VALID_SCALAR_ACCESS_TYPES}), but found '{value}'.")
 
     @access.setter
     def access(self, value):

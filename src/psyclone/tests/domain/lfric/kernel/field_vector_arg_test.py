@@ -45,6 +45,21 @@ from fparser.two.parser import ParserFactory
 from psyclone.domain.lfric.kernel.field_vector_arg import FieldVectorArg
 
 
+def create_part_ref(fortran_string):
+    '''Utility method to create an fparser2 Part_Ref instance from a
+    Fortran string.
+
+    :param str fortran_string: the Fortran string to convert.
+
+    :returns: the fparser2 Part_Ref representation of the Fortran string.
+    :rtype: :py:class:`fparser.two.Fortran2003.Part_Ref`
+
+    '''
+    _ = ParserFactory().create(std="f2003")
+    reader = FortranStringReader(fortran_string)
+    return Fortran2003.Part_Ref(reader)
+
+
 def test_init_noargs():
     '''Test that a FieldVectorArg instance can be created successfully when no
     arguments are provided.
@@ -67,7 +82,7 @@ def test_init_invalid():
     '''
     with pytest.raises(ValueError) as info:
         _ = FieldVectorArg(datatype="invalid")
-    assert ("The second metadata entry for a field argument should be a "
+    assert ("The second metadata entry for an argument should be a "
             "recognised datatype descriptor (one of ['gh_real', "
             "'gh_integer']), but found 'invalid'." in str(info.value))
 
@@ -118,21 +133,6 @@ def test_create_from_fortran_string():
     assert field_arg._access == "GH_READ"
     assert field_arg._function_space == "W0"
     assert field_arg._vector_length == "3"
-
-
-def create_part_ref(fortran_string):
-    '''Utility method to create an fparser2 Part_Ref instance from a
-    Fortran string.
-
-    :param str fortran_string: the Fortran string to convert.
-
-    :returns: the fparser2 Part_Ref representation of the Fortran string.
-    :rtype: :py:class:`fparser.two.Fortran2003.Part_Ref`
-
-    '''
-    _ = ParserFactory().create(std="f2003")
-    reader = FortranStringReader(fortran_string)
-    return Fortran2003.Part_Ref(reader)
 
 
 def test_create_from_psyir():
@@ -191,7 +191,7 @@ def test_setter_getter():
     assert field_arg.datatype is None
     with pytest.raises(ValueError) as info:
         field_arg.datatype = "invalid"
-    assert ("The second metadata entry for a field argument should be a "
+    assert ("The second metadata entry for an argument should be a "
             "recognised datatype descriptor (one of ['gh_real', "
             "'gh_integer']), but found 'invalid'." in str(info.value))
 
