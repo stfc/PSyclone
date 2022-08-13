@@ -131,13 +131,22 @@ class CommonArg():
         '''
         return self._datatype
 
+    @staticmethod
+    def check_datatype(value):
+        raise NotImplementedError("Error")
+
     @datatype.setter
     def datatype(self, value):
         '''
         :param str value: set the datatype to the \
             specified value.
         '''
+        self.check_datatype(value)
         self._datatype = value
+
+    @staticmethod
+    def check_access(value):
+        raise NotImplementedError("Error")
 
     @property
     def access(self):
@@ -155,6 +164,7 @@ class CommonArg():
             specified value.
 
         '''
+        self.check_access(value)
         self._access = value
 
     @property

@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing tests for the FieldVectorArg class.
+'''Module containing tests for the ScalarArg class.
 
 '''
 import pytest
@@ -42,62 +42,52 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
 
-from psyclone.domain.lfric.kernel.field_vector_arg import FieldVectorArg
+from psyclone.domain.lfric.kernel.scalar_arg import ScalarArg
 
 
 def test_init_noargs():
-    '''Test that a FieldVectorArg instance can be created successfully when no
+    '''Test that a ScalarArg instance can be created successfully when no
     arguments are provided.
 
     '''
-    field_vector_arg = FieldVectorArg()
-    assert isinstance(field_vector_arg, FieldVectorArg)
-    assert field_vector_arg._form == "GH_FIELD"
-    assert field_vector_arg._datatype is None
-    assert field_vector_arg._access is None
-    assert field_vector_arg._function_space is None
-    assert field_vector_arg._vector_length is None
+    field_arg = ScalarArg()
+    assert isinstance(field_arg, ScalarArg)
+    assert field_arg._form == "GH_SCALAR"
+    assert field_arg._datatype is None
+    assert field_arg._access is None
 
 
 def test_init_invalid():
     '''Test that appropriate exceptions are raised if invalid initial
-    values are provided when constructing an instance of the FieldVectorArg
-    class. Only test one of the arguments for the base class.
+    values are provided when constructing an instance of the ScalarArg
+    class.
 
     '''
     with pytest.raises(ValueError) as info:
-        _ = FieldVectorArg(datatype="invalid")
-    assert ("The second metadata entry for a field argument should be a "
+        _ = ScalarArg(datatype="invalid")
+    print(info.value)
+    assert ("The second metadata entry for a scalar argument should be a "
             "recognised datatype descriptor (one of ['gh_real', "
-            "'gh_integer']), but found 'invalid'." in str(info.value))
-
-    with pytest.raises(TypeError) as info:
-        _ = FieldVectorArg(vector_length=1)
-    assert ("The vector size should be a string but found int."
+            "'gh_integer', 'gh_logical']), but found 'invalid'."
             in str(info.value))
 
     with pytest.raises(ValueError) as info:
-        _ = FieldVectorArg(vector_length="invalid")
-    assert ("invalid literal for int() with base 10: 'invalid'"
-            in str(info.value))
-
-    with pytest.raises(ValueError) as info:
-        _ = FieldVectorArg(vector_length="0")
-    assert ("The vector size should be an integer greater than 1 but found 0."
+        _ = ScalarArg(access="invalid")
+    assert ("The third metadata entry for a scalar argument should be a "
+            "recognised datatype descriptor (one of ['gh_read', 'gh_write', "
+            "'gh_readwrite', 'gh_inc', 'gh_readinc']), but found 'invalid'."
             in str(info.value))
 
 
 def test_init_args():
     '''Test that valid initial values provided when constructing an
-    instance of FieldArg are stored as expected.
+    instance of ScalarArg are stored as expected.
 
     '''
-    field_vector_arg = FieldVectorArg("GH_REAL", "GH_READ", "W0", "2")
-    assert field_vector_arg._form == "GH_FIELD"
-    assert field_vector_arg._datatype == "GH_REAL"
-    assert field_vector_arg._access == "GH_READ"
-    assert field_vector_arg._function_space == "W0"
-    assert field_vector_arg._vector_length == "2"
+    field_arg = ScalarArg("GH_REAL", "GH_READ")
+    assert field_arg._form == "GH_SCALAR"
+    assert field_arg._datatype == "GH_REAL"
+    assert field_arg._access == "GH_READ"
 
 
 def test_create_from_fortran_string():
@@ -106,18 +96,16 @@ def test_create_from_fortran_string():
 
     '''
     with pytest.raises(ValueError) as info:
-        _ = FieldVectorArg.create_from_fortran_string("not valid")
+        _ = ScalarArg.create_from_fortran_string("not valid")
     assert ("Expected kernel metadata to be a Fortran part reference, with "
             "the form 'arg_type(...)' but found 'not valid'."
             in str(info.value))
 
-    fortran_string = "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)"
-    field_arg = FieldVectorArg.create_from_fortran_string(fortran_string)
-    assert field_arg._form == "GH_FIELD"
+    fortran_string = "arg_type(GH_FIELD, GH_REAL, GH_READ)"
+    field_arg = ScalarArg.create_from_fortran_string(fortran_string)
+    assert field_arg._form == "GH_SCALAR"
     assert field_arg._datatype == "GH_REAL"
     assert field_arg._access == "GH_READ"
-    assert field_arg._function_space == "W0"
-    assert field_arg._vector_length == "3"
 
 
 def create_part_ref(fortran_string):
@@ -141,75 +129,77 @@ def test_create_from_psyir():
 
     '''
     with pytest.raises(TypeError) as info:
-        _ = FieldVectorArg.create_from_psyir("hello")
-    assert ("Expected kernel metadata to be encoded as a Fortran "
+        _ = ScalarArg.create_from_psyir("hello")
+    assert ("Expected scalar arg kernel metadata to be encoded as a Fortran "
             "Part_Ref object but found type 'str' with value 'hello'."
             in str(info.value))
 
-    part_ref = create_part_ref("arg_type(GH_FIELD, GH_REAL, GH_READ, W0)")
-    with pytest.raises(TypeError) as info:
-        _ = FieldVectorArg.create_from_psyir(part_ref)
-    assert("Expecting the first argument to be in the form "
-           "'form*vector_length' but found 'GH_FIELD'." in str(info.value))
+    part_ref = create_part_ref("hello(x)")
+    with pytest.raises(ValueError) as info:
+        _ = ScalarArg.create_from_psyir(part_ref)
+    assert ("Expected scalar arg kernel metadata to have the name 'arg_type' "
+            "and be in the form 'arg_type(...)', but found 'hello(x)'."
+            in str(info.value))
 
-    part_ref = create_part_ref("arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)")
-    field_vector_arg = FieldVectorArg.create_from_psyir(part_ref)
-    assert field_vector_arg._form == "GH_FIELD"
-    assert field_vector_arg._datatype == "GH_REAL"
-    assert field_vector_arg._access == "GH_READ"
-    assert field_vector_arg._function_space == "W0"
-    assert field_vector_arg._vector_length == "3"
+    part_ref = create_part_ref("arg_type(x)")
+    with pytest.raises(ValueError) as info:
+        _ = ScalarArg.create_from_psyir(part_ref)
+    assert ("Expected scalar arg kernel metadata to have 3 arguments, but "
+            "found 1 in 'arg_type(x)'." in str(info.value))
+
+    part_ref = create_part_ref("arg_type(GH_FIELD, GH_REAL, GH_READ)")
+    field_arg = ScalarArg.create_from_psyir(part_ref)
+    assert field_arg._form == "GH_SCALAR"
+    assert field_arg._datatype == "GH_REAL"
+    assert field_arg._access == "GH_READ"
 
 
 def test_fortran_string():
     '''Test that the fortran_string method works as expected, including
     raise an exception if all of the required properties have not been
     set '''
-    fortran_string = "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)"
-    field_vector_arg = FieldVectorArg.create_from_fortran_string(
-        fortran_string)
-    result = field_vector_arg.fortran_string()
+    fortran_string = "arg_type(GH_SCALAR, GH_REAL, GH_READ)"
+    field_arg = ScalarArg.create_from_fortran_string(fortran_string)
+    result = field_arg.fortran_string()
     assert result == fortran_string
 
-    field_vector_arg = FieldVectorArg()
+    field_arg = ScalarArg()
     with pytest.raises(ValueError) as info:
-        _ = field_vector_arg.fortran_string()
-    assert ("Values for datatype, access, function_space and vector_length "
-            "must be provided before calling the fortran_string method, but "
-            "found 'None', 'None', 'None' and 'None'." in str(info.value))
+        _ = field_arg.fortran_string()
+    assert ("Values for datatype and access must be provided "
+            "before calling the fortran_string method, but found 'None' "
+            "and 'None'." in str(info.value))
 
 
 def test_setter_getter():
     '''Test that the setters and getters work as expected, including
-    raising exceptions if values are invalid. Only test some of the
-    base class values.
-
-    '''
-    field_arg = FieldVectorArg()
-    assert field_arg.form == "GH_FIELD"
+    raising exceptions if values are invalid. '''
+    field_arg = ScalarArg()
+    assert field_arg.form == "GH_SCALAR"
 
     assert field_arg.datatype is None
     with pytest.raises(ValueError) as info:
         field_arg.datatype = "invalid"
-    assert ("The second metadata entry for a field argument should be a "
+    print(info.value)
+    assert ("The second metadata entry for a scalar argument should be a "
             "recognised datatype descriptor (one of ['gh_real', "
-            "'gh_integer']), but found 'invalid'." in str(info.value))
+            "'gh_integer', 'gh_logical']), but found 'invalid'."
+            in str(info.value))
 
     field_arg.datatype = "gh_integer"
     assert field_arg.datatype == "gh_integer"
     field_arg.datatype = "GH_INTEGER"
     assert field_arg.datatype == "GH_INTEGER"
 
-    assert field_arg.vector_length is None
+    assert field_arg.access is None
     with pytest.raises(ValueError) as info:
-        field_arg.vector_length = "invalid"
-    assert ("invalid literal for int() with base 10: 'invalid'"
+        field_arg.access = "invalid"
+    assert ("The third metadata entry for a scalar argument should be a "
+            "recognised datatype descriptor (one of ['gh_read', 'gh_write', "
+            "'gh_readwrite', 'gh_inc', 'gh_readinc']), but found 'invalid'."
             in str(info.value))
 
-    with pytest.raises(ValueError) as info:
-        field_arg.vector_length = "1"
-    assert ("The vector size should be an integer greater than 1 but found 1."
-            in str(info.value))
-
-    field_arg.vector_length = "3"
-    assert field_arg.vector_length == "3"
+    field_arg.access = "gh_read"
+    assert field_arg.access == "gh_read"
+    field_arg.access = "GH_READ"
+    assert field_arg.access == "GH_READ"
