@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,23 +31,22 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors J. Henrichs, Bureau of Meteorology
-#         S. Siso, STFC Daresbury Lab
-# Modified: R. W. Ford, STFC Daresbury Lab
+# Authors A. B. G. Chalk, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
-'''This module contains the transformations for GOcean.
-'''
+''' Performs py.test tests on the PSyIR Clause nodes. '''
 
-from psyclone.domain.gocean.transformations.gocean_extract_trans \
-    import GOceanExtractTrans
-from psyclone.domain.gocean.transformations.gocean_opencl_trans \
-    import GOOpenCLTrans
-from psyclone.domain.gocean.transformations. \
-    gocean_move_iteration_boundaries_inside_kernel_trans import \
-    GOMoveIterationBoundariesInsideKernelTrans
-from psyclone.domain.gocean.transformations.gocean_loop_fuse_trans \
-    import GOceanLoopFuseTrans
-from psyclone.domain.gocean.transformations.gocean_const_loop_bounds_trans \
-    import GOConstLoopBoundsTrans
-from psyclone.domain.gocean.transformations.raise_psyir_2_gocean_kern_trans \
-    import RaisePSyIR2GOceanKernTrans
+from psyclone.psyir.nodes.clause import OperandClause
+
+
+def test_operand_clause(fortran_writer):
+    '''
+    Test the operand method of the operand clause.
+    '''
+    # Create a instanstiable class
+    class OpTest(OperandClause):
+        ''' Temporary class for testing'''
+
+    opt = OpTest()
+    assert opt.operand is None
+    assert fortran_writer(opt) == ""

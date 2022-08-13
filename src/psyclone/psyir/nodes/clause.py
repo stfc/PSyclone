@@ -45,7 +45,7 @@ class Clause(Node, metaclass=abc.ABCMeta):
     Base abstract class for all clauses.
     '''
     _children_valid_format = None
-    _text_name = "Clause"
+    _colour = "green"
     # The base string for this clause, e.g. nowait or private
     _clause_string = None
 
@@ -57,3 +57,20 @@ class Clause(Node, metaclass=abc.ABCMeta):
         :rtype: str
         '''
         return self._clause_string
+
+
+class OperandClause(Clause, metaclass=abc.ABCMeta):
+    '''
+    Base abstract class for all clauses that have an operand.
+    '''
+
+    _operand = None
+
+    @property
+    def operand(self):
+        '''
+        Returns the operand string for this Clause.
+
+        :rtype: str
+        '''
+        return self._operand

@@ -325,7 +325,7 @@ class LFRicConstants():
                          "kind": "r_def"},
             # 'real'-valued operator with data of kind 'r_solver'
             "r_solver_operator": {
-                "module": "operator_mod",
+                "module": "r_solver_operator_mod",
                 "type": "r_solver_operator_type",
                 "proxy_type": "r_solver_operator_proxy_type",
                 "intrinsic": "real",
