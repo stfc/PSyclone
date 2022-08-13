@@ -68,7 +68,7 @@ def get_args(node):
     # Determine the arguments to sum
     args = [None, None, None]
     arg_names_map = {"array": 0, "dimension": 1, "mask": 2}
-    for idx, child in node.children:
+    for idx, child in enumerate(node.children):
         if not node.argument_names[idx]:
             # positional arg
             args[idx] = child
