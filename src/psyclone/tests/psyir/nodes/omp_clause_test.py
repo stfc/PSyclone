@@ -36,10 +36,15 @@
 
 ''' Performs py.test tests on the OpenMP PSyIR Clause nodes. '''
 
+import pytest
+from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause,\
-    OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause
+    OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause, OMPSharedClause,\
+    OMPDependClause, OMPPrivateClause, OMPFirstprivateClause,\
+    OMPDefaultClause, OMPScheduleClause
 from psyclone.psyir.nodes.literal import Literal
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.nodes.reference import Reference
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 
 
 def test_nowait_clause():
@@ -75,3 +80,114 @@ def test_nogroup_clause():
     nowait = OMPNogroupClause()
     assert nowait.clause_string == "nogroup"
     assert OMPNogroupClause._validate_child(0, nowait) is False
+
+
+def test_schedule_clause():
+    ''' Test the OMPScheduleClause functionality. '''
+    sched = OMPScheduleClause()
+    assert sched._clause_string == "schedule(static)"
+    sched.schedule = "auto"
+    assert sched._clause_string == "schedule(auto)"
+    sched2 = OMPScheduleClause()
+    assert sched != sched2
+    sched2.schedule = "auto"
+    assert sched == sched2
+    coloredtext = colored("OMPScheduleClause", OMPScheduleClause._colour)
+    assert coloredtext+"[schedule=auto]" in sched.node_str()
+
+
+def test_invalid_schedule_clause():
+    ''' Test that OMPScheduleClause throws an error when given an invalid
+    schedule.'''
+    sched = OMPScheduleClause()
+    with pytest.raises(ValueError) as excinfo:
+        sched.schedule = "test"
+    assert ("Schedule must be one of runtime, static, dynamic, guided or auto."
+            " Found test." in str(excinfo.value))
+
+
+def test_default_clause():
+    ''' Test the OMPDefaultClause functionality. '''
+    default = OMPDefaultClause()
+    assert default._clause_string == "default(shared)"
+    assert default.clause_type == OMPDefaultClause.DefaultClauseTypes.SHARED
+    default = OMPDefaultClause(
+            clause_type=OMPDefaultClause.DefaultClauseTypes.NONE)
+    assert default._clause_string == "default(none)"
+    assert default.clause_type == OMPDefaultClause.DefaultClauseTypes.NONE
+    default = OMPDefaultClause(
+            clause_type=OMPDefaultClause.DefaultClauseTypes.FIRSTPRIVATE)
+    assert default._clause_string == "default(firstprivate)"
+    assert (default.clause_type ==
+            OMPDefaultClause.DefaultClauseTypes.FIRSTPRIVATE)
+
+    with pytest.raises(TypeError) as excinfo:
+        OMPDefaultClause(clause_type="String")
+    assert ("OMPDefaultClause expected 'clause_type' argument of type "
+            "OMPDefaultClause.DefaultClauseTypes but found 'str'" in
+            str(excinfo.value))
+
+
+def test_shared_clause():
+    ''' Test the OMPSharedClause functionality. '''
+    shared = OMPSharedClause()
+    assert shared.clause_string == ""
+    tmp = DataSymbol("tmp", INTEGER_TYPE)
+    ref1 = Reference(tmp)
+    shared.addchild(ref1)
+    assert shared.clause_string == "shared"
+
+
+def test_private_clause():
+    ''' Test the OMPPrivateClause functionality. '''
+    private = OMPPrivateClause()
+    assert private.clause_string == ""
+    tmp = DataSymbol("tmp", INTEGER_TYPE)
+    ref1 = Reference(tmp)
+    private.addchild(ref1)
+    assert private.clause_string == "private"
+
+
+def test_firstprivate_clause():
+    ''' Test the OMPFirstprivateClause functionality. '''
+    firp = OMPFirstprivateClause()
+    assert firp.clause_string == ""
+    tmp = DataSymbol("tmp", INTEGER_TYPE)
+    ref1 = Reference(tmp)
+    firp.addchild(ref1)
+    assert firp.clause_string == "firstprivate"
+
+
+def test_depend_clause():
+    ''' Test the OMPDependClause functionality. '''
+    depend1 = OMPDependClause()
+
+    with pytest.raises(TypeError) as excinfo:
+        OMPDependClause(depend_type="badstring")
+    assert ("OMPDependClause expected 'depend_type' argument of type "
+            "OMPDependClause.DependClauseTypes but found 'str'" in
+            str(excinfo.value))
+
+    depend2 = OMPDependClause()
+    assert depend1 == depend2
+    dependin = OMPDependClause(
+                depend_type=OMPDependClause.DependClauseTypes.IN)
+    dependout = OMPDependClause(
+                    depend_type=OMPDependClause.DependClauseTypes.OUT)
+    assert dependin != dependout
+    # Check operand
+    assert dependin.operand == "in"
+    assert dependout.operand == "out"
+    assert depend1.operand == "inout"
+    coloredtext = colored("OMPDependClause", OMPDependClause._colour)
+    assert (coloredtext+"[operand=DependClauseTypes.INOUT]"
+            in depend1.node_str())
+
+
+def test_depend_validate_child():
+    ''' Test the validate_child function of the OMPDependClause. '''
+    tmp = DataSymbol("tmp", INTEGER_TYPE)
+    ref1 = Reference(tmp)
+    assert OMPDependClause._validate_child(0, ref1) is True
+    assert OMPDependClause._validate_child(110, ref1) is True
+    assert OMPDependClause._validate_child(0, "test") is False

@@ -69,6 +69,9 @@
 	26) PR #1821 for #1557. Extends PSyAD to support LFRic mixed-
 	precision kernels.
 
+	27) PR #1551 towards #1338. Add OpenMP Clauses and its referenced
+	variables as part of the PSyIR tree.
+
 release 2.3.1 17th of June 2022
 
         1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
