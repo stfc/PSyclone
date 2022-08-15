@@ -70,6 +70,8 @@ from psyclone.psyir.transformations.loop_tiling_2d_trans \
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.nan_test_trans import NanTestTrans
 from psyclone.psyir.transformations.omp_taskwait_trans import OMPTaskwaitTrans
+from psyclone.psyir.transformations.parallel_loop_trans import \
+    ParallelLoopTrans
 from psyclone.psyir.transformations.profile_trans import ProfileTrans
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 from psyclone.psyir.transformations.read_only_verify_trans \
@@ -102,7 +104,9 @@ __all__ = ['ArrayRange2LoopTrans',
            'LoopTiling2DTrans',
            'LoopTrans',
            'NanTestTrans',
+           'OMPTaskTrans',
            'OMPTaskwaitTrans',
+           'ParallelLoopTrans',
            'ProfileTrans',
            'PSyDataTrans',
            'ReadOnlyVerifyTrans',
