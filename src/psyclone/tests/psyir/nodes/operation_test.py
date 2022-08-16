@@ -182,7 +182,7 @@ def test_operation_replacenamedarg():
     with pytest.raises(ValueError) as info:
         binary_operation.replace_named_arg("new_name", op3)
     assert ("The value of the existing_name argument (new_name) in "
-            "'replace_named_arg' in the 'Operation' node is not found in the "
+            "'replace_named_arg' in the 'Operation' node was not found in the "
             "existing arguments." in str(info.value))
     # ok
     assert binary_operation.children == [op1, op2]
