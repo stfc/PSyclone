@@ -1,3 +1,15 @@
+# This file is automatically created using the fparser script
+# create_dependencies.py.
+#
+# $ create_dependencies.py */*.f90 */*.F90 > dependency
+#
+# It stores all dependencies between the F90/f90 files in the infrastructure
+# directory, and it is included by the Makefile to make sure files are
+# compiled in the proper order.
+# TODO #1842: Once PSyclone is updated to use the latest fparser version,
+# this script can be auto-generated as part of the makefile.
+
+
 configuration/domain_size_config_mod.o: utilities/constants_mod.o \
 	utilities/log_mod.o
 field/field_mod.o: field/field_parent_mod.o field/pure_abstract_field_mod.o \

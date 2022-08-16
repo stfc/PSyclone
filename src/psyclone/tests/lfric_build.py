@@ -38,7 +38,6 @@
 ''' Module containing configuration required to build code generated
 for the LFRic domain. '''
 
-from __future__ import absolute_import
 import os
 import subprocess
 import sys
@@ -88,14 +87,16 @@ class LFRicBuild(Compile):
         '''Returns the required flag to use the infrastructure wrapper
         files for dynamo0p3. Each parameter must be a separate entry
         in the list, e.g.: ["-I", "/some/path"] and not ["-I /some/path"].
+
         :returns: A list of strings with the compiler flags required.
-        :rtpe: list
+        :rtype: List[str]
+
         '''
         all_flags = []
         for entry in os.scandir(self._infrastructure_path):
             if not entry.name.startswith('.') and entry.is_dir():
-                all_flags.extend(["-I", f"{LFRicBuild._compilation_path}"
-                                        f"/{entry.name}"])
+                path = os.path.join(LFRicBuild._compilation_path, entry.name)
+                all_flags.extend(["-I", path])
         return all_flags
 
     def _build_infrastructure(self):
@@ -109,8 +110,8 @@ class LFRicBuild(Compile):
         # Store the temporary path so that the compiled infrastructure
         # files can be used by all test compilations later.
         LFRicBuild._compilation_path = str(self._tmpdir)
-        arg_list = [LFRicBuild._make_command, "-f",
-                    f"{self._infrastructure_path}/Makefile"]
+        makefile = os.path.join(self._infrastructure_path, "Makefile")
+        arg_list = [LFRicBuild._make_command, "-f", makefile]
         try:
             with subprocess.Popen(arg_list, stdout=subprocess.PIPE,
                                   stderr=subprocess.STDOUT) as build:

@@ -80,7 +80,8 @@ liblfric_netcdf.a: dirs $(OBJ) $(OBJ_NETCDF)
 
 # Other rules
 dirs:
-	# Create the required build directories
+	# Create all required build directories. $(DIRS) is defined by the
+	# included makefile `lfric_include_flags.inc` above.
 	mkdir -p $(DIRS)
 
 # Dependencies
@@ -108,7 +109,8 @@ $(1)/%.o:	$$(LFRIC_PATH)/$(1)/%.F90
 	cd $(1); $$(F90) $$(F90FLAGS) -c $$< -o $$(notdir $$@)
 endef
 
-# Define the required rules for each subdirectory.
+# Define the required rules for each subdirectory. DIRS is defined
+# by the included file `lfric_include_flags.inc`
 $(foreach dir,$(DIRS),$(eval $(call compile_rule_template,$(dir))))
 
 clean:

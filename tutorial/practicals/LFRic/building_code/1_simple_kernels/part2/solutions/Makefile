@@ -33,7 +33,6 @@
 # ------------------------------------------------------------------------------
 # Author: I. Kavcic, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
-# Modified J. Henrichs, Bureau of Meteorology
 
 # Compiler settings
 F90 ?= gfortran

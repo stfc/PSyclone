@@ -233,7 +233,7 @@ def test_new_kern_single_error(kernel_outputdir, monkeypatch):
     with pytest.raises(GenerationError) as err:
         kern.rename_and_write()
     assert (f"transformed version of this Kernel 'testkern_0_mod.f90' already "
-            f"exists in the kernel-output directory ({str(kernel_outputdir)}) "
+            f"exists in the kernel-output directory ({kernel_outputdir}) "
             f"but is not the same as the current, transformed kernel and the "
             f"kernel-renaming scheme is set to 'single'" in str(err.value))
 
