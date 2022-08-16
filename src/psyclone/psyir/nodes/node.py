@@ -1322,7 +1322,7 @@ class Node(object):
             tree.
         :type node: :py:class:`psyclone.psyir.nodes.node`
         :param bool keep_name_in_context: whether to conserve the name \
-            referencing this node when it is within a parent with named nodes.
+            referencing this node.
 
         :raises TypeError: if the argument 'node' is not a Node.
         :raises TypeError: if the argument 'keep_name_in_context' is not bool.
