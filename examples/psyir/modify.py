@@ -51,8 +51,8 @@ representation.
 # Different pylint configurations don't agree in the order of this imports
 # pylint: disable=wrong-import-order
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.symbols import Symbol, RoutineSymbol, NoType
-from psyclone.psyir.nodes import Reference
+from psyclone.psyir.symbols import Symbol, RoutineSymbol, NoType, INTEGER_TYPE
+from psyclone.psyir.nodes import Reference, Literal
 from create import create_psyir_tree
 
 
@@ -91,6 +91,13 @@ def modify_psyir_tree():
     assignment = subroutine.children[2]
     assignment_rhs = assignment.rhs
     assignment_rhs.replace_with(Reference(tmp_symbol))
+
+    # By default `replace_with` will conserve a node name in its context, but
+    # this can be disabled with the `keep_name_in_context` parameter.
+    sum_3rd_arg = subroutine[5].rhs.children[2]
+    sum_3rd_arg.replace_with(
+        Literal('2', INTEGER_TYPE),
+        keep_name_in_context=False)
 
     return file_container
 

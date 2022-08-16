@@ -695,7 +695,7 @@ Operations) the name of the argument is conserved by default. For example
 
 .. code-block:: python
 
-    call.children[0].replace_with(Literal(2, INTEGER_TYPE))
+    call.children[0].replace_with(Literal('2', INTEGER_TYPE))
 
 will become:
 
@@ -708,7 +708,7 @@ This behaviour can be changed with the `keep_name_in_context` parameter.
 .. code-block:: python
 
     call.children[0].replace_with(
-        Literal(3, INTEGER_TYPE),
+        Literal('3', INTEGER_TYPE),
         keep_name_in_context=False
     )
 
