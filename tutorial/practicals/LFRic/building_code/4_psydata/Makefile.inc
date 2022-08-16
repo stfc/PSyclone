@@ -106,6 +106,8 @@ time_evolution_alg_mod.o: init_perturbation_kernel_mod.o \
 time_evolution_alg_mod_psy.o: init_perturbation_kernel_mod.o \
 	prop_perturbation_kernel_mod.o
 
+%.o: %.mod
+
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
