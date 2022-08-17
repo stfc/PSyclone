@@ -531,6 +531,11 @@ def test_codedkern_module_inline_gen_code(tmpdir):
     assert "USE ru_kernel_mod, ONLY: ru_code" not in gen
     assert "SUBROUTINE ru_code(" in gen
     assert gen.count("SUBROUTINE ru_code(") == 1
+    # Do a psy.gen again because this resets the modulegen, but the inlined
+    # kernel should now be inserted, but again, only once
+    gen = str(psy.gen)
+    assert gen.count("SUBROUTINE ru_code(") == 1
+
     # And the generated code is valid
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
