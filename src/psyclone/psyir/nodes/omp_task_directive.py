@@ -1101,11 +1101,13 @@ class OMPTaskDirective(OMPRegionDirective):
         # Get a copy of the kernel's schedule
         subroutine = node.get_kernel_schedule().copy()
         print(node.name)
-        print(node.arguments.psyir_expressions())
-        for expr in node.arguments.psyir_expressions():
-            print(expr)
-        print(node.arguments.find_grid_access())
-        print(node.reference_accesses())
+        #print(node.arguments.psyir_expressions())
+        #for expr in node.arguments.psyir_expressions():
+        #    print(expr)
+        #print(node.arguments.find_grid_access())
+        #print(node.reference_accesses())
+        #print(len(subroutine.children))
+        #print(len(node.get_kernel_schedule().children))
 
         # Get the input arguments
         input_args = node.arguments.raw_arg_list()
@@ -1114,11 +1116,73 @@ class OMPTaskDirective(OMPRegionDirective):
             if symbol.name is not input_args[index]:
                 subroutine.symbol_table.rename_symbol(symbol, input_args[index])
 
+        all_refs = subroutine.walk(Reference)
+        for assign in subroutine.walk(Assignment):
+            # If we assign to a local variable we need to do something.
+            if assign.lhs.symbol not in subroutine.symbol_table.argument_list:
+                # Find all future reads
+                for ref in all_refs:
+                    if ref.abs_position <= assign.lhs.abs_position:
+                        continue
+                    if ref.symbol != assign.lhs.symbol:
+                        continue
+                    # If another assignment to this variable we stop.
+                    if isinstance(ref.parent, Assignment) and ref.parent.lhs == ref:
+                        break
+                    # Otherwise, we replace this node with the rhs of the assignment
+                    rhs_copy = assign.rhs.copy()
+                    ref.replace_with(rhs_copy)
+            # This assignment is "removed", so we need to remove from the tree
+            # to prevent creation of data clauses based on it.
+            assign.detach()
+
+            
         # Evaluate the kernel the same as any other part of the code
         node_list = subroutine.walk((Assignment, Loop, IfBlock))
         for child in node_list:
             self._evaluate_node(child, private_list, firstprivate_list, shared_list,
                                 in_list, out_list)
+
+        # Check all the reference point to the base symbols and not our temporary symbols
+        # and remove the then-duplicated references.
+        from psyclone.psyir.nodes.routine import Routine
+        for list_id in (private_list, firstprivate_list, shared_list, in_list, out_list):
+            for index, ref in enumerate(list_id):
+                if ref.symbol in subroutine.symbol_table.argument_list:
+                    for name in input_args:
+                        split = name.split("%")
+                        ref_split = ref.symbol.name.split("%")
+                        sym = self.ancestor(Routine).symbol_table.lookup(split[0])
+                        if sym.name == ref_split[0] and ref.symbol != sym:
+                            ref.symbol = sym
+#                if ref.symbol not in self.ancestor(Routine).symbol_table._symbols.values():
+#                    print(ref, ref.symbol)
+#                    for symname in self.ancestor(Routine).symbol_table._symbols:
+#                        sym = self.ancestor(Routine).symbol_table._symbols[symname]
+#                        if ref.symbol.name.split("%")[0] == sym.name:
+#                            print("Found a mathcing named symbol")
+#                    print(self.ancestor(Routine).symbol_table._symbols.keys())
+#                assert ref.symbol in self.ancestor(Routine).symbol_table._symbols.values()
+#                        if sym.name == ref.symbol.name and ref.symbol != sym:
+#                            ref.symbol = sym
+                # TODO If its a structure reference/AoS reference do we need to do something special?
+                if isinstance(ref, ArrayReference):
+                    for ind in ref.indices:
+                        for subind in ref.walk(Reference):
+                            # Skip self
+                            if subind is ind:
+                                continue
+                            if subind.symbol in subroutine.symbol_table.argument_list:
+                                for name in input_args:
+                                    split = name.split("%")
+                                    sym = self.scope.symbol_table.lookup(split[0])
+                                    if sym.name == subind.symbol.name and subind.symbol != sym:
+                                        subind.symbol = sym
+                # Check still unique
+                for x in range(index, 0, -1):
+                    if ref == list_id[x] and ref is not list_id[x]:
+                        list_id.pop(index)
+                        break
 
     def _evaluate_node(self, node, private_list, firstprivate_list,
                        shared_list, in_list, out_list):
@@ -1246,6 +1310,12 @@ class OMPTaskDirective(OMPRegionDirective):
             self.children[3] = shared_clause
         if len(self.children) < 5 or in_clause != self.children[4]:
             self.children[4] = in_clause
+            print(f"Task child 4 has {len(self.children[4].children)} children.")
+            from psyclone.psyGen import Kern
+            print(f"Task has {len(self.walk(Kern))} codedkerns")
+            from psyclone.psyir.nodes.call import Call
+            print(f"Task with id {id(self)} has {len(self.walk(Call))} calls")
+            print(self.view())
         if len(self.children) < 6 or out_clause != self.children[5]:
             self.children[5] = out_clause
 
@@ -1261,6 +1331,7 @@ class OMPTaskDirective(OMPRegionDirective):
 
         '''
         # Generate the string containing the required clauses
+        print(f"Task child 4 has {len(self.children[4].children)} children")
         return "omp task"
 
     def end_string(self):
