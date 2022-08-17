@@ -757,25 +757,8 @@ class InvokeSchedule(Routine):
         :param parent: the parent Node (i.e. the enclosing subroutine) to \
                        which to add content.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
         '''
-        from psyclone.f2pygen import DeclGen, AssignGen, IfThenGen
-
-        # The gen_code methods may generate new Symbol names, however, we want
-        # subsequent calls to invoke.gen_code() to produce the exact same code,
-        # including symbol names, and therefore new symbols should not be kept
-        # permanently outside the hierarchic gen_code call-chain.
-        # To make this possible we create here a duplicate of the symbol table.
-        # This duplicate will be used by all recursive gen_code() methods
-        # called below this one and thus maintaining a consistent Symbol Table
-        # during the whole gen_code() chain, but at the end of this method the
-        # original symbol table is restored.
-        symbol_table_before_gen = self.symbol_table
-        psy_symbol_table_before_gen = self.parent.symbol_table
-        # pylint: disable=protected-access
-        self._symbol_table = self.symbol_table.shallow_copy()
-        self.parent._symbol_table = self.parent.symbol_table.shallow_copy()
-        # pylint: enable=protected-access
-
         # Imported symbols promoted from Kernel imports are in the SymbolTable.
         # First aggregate all variables imported from the same module in a map.
         module_map = {}
@@ -793,12 +776,6 @@ class InvokeSchedule(Routine):
 
         for entity in self._children:
             entity.gen_code(parent)
-
-        # Restore symbol table (with a protected access attribute change)
-        # pylint: disable=protected-access
-        self._symbol_table = symbol_table_before_gen
-        self.parent._symbol_table = psy_symbol_table_before_gen
-        # pylint: enable=protected-access
 
 
 class GlobalSum(Statement):
@@ -1564,10 +1541,10 @@ class CodedKern(Kern):
             # to the exact same subroutine.
             if not isinstance(existing_symbol, RoutineSymbol):
                 raise NotImplementedError(
-                    "Can not module-inline subroutine '{0}' because symbol"
-                    "'{1}' with the same name already exists and changing"
-                    " names of module-inlined subroutines is not "
-                    "implemented yet.".format(self._name, existing_symbol))
+                    f"Can not module-inline subroutine '{self._name}' because "
+                    f"symbol '{existing_symbol}' with the same name already "
+                    f"exists and changing names of module-inlined subroutines "
+                    f"is not implemented yet.")
 
             # Make sure the generated code is an exact match by creating
             # the f2pygen node (which in turn creates the fparser1) of the
@@ -1579,17 +1556,24 @@ class CodedKern(Kern):
                     module = module.parent
                 search = PSyIRGen(module, self.get_kernel_schedule()).root
                 for child in module.children:
-                    if isinstance(child, PSyIRGen):
-                        if child.root == search:
-                            # If there is an exact match (the implementation is
-                            # the same), it is safe to continue.
-                            break
+                    if isinstance(child, PSyIRGen) \
+                            and child.root.name == search.name:
+                        if child.root != search:
+                            raise NotImplementedError(
+                                f"Can not inline subroutine '{self._name}' "
+                                f"because another, different, subroutine with "
+                                f"the same name already exists and versioning "
+                                f"of module-inlined subroutines is not "
+                                f"implemented yet.")
+                        else:
+                            # Found and matches expected routine
+                            return
                 else:
-                    raise NotImplementedError(
-                        "Can not inline subroutine '{0}' because another, "
-                        "different, subroutine with the same name already "
-                        "exists and versioning of module-inlined subroutines "
-                        "is not implemented yet.".format(self._name))
+                    # Not found, but the symbol already existed, this means it
+                    # is a second psy.gen call with starts the module_gen from
+                    # scratch, we need to re-introduce the PSyIRGen containing
+                    # the kernel code.
+                    module.add(PSyIRGen(module, self.get_kernel_schedule()))
 
     def gen_code(self, parent):
         '''
