@@ -63,7 +63,7 @@ class OMPTaskDirective(OMPRegionDirective):
 
     def __init__(self, children=None, parent=None):
         sched_childs=None
-        if children != none:
+        if children != None:
             sched_childs = children[0].pop_all_children()
         super(OMPTaskDirective, self).__init__(children=sched_childs, parent=parent)
 
