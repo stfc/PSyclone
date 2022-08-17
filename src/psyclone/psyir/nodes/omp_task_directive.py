@@ -58,6 +58,44 @@ from psyclone.psyir.symbols import INTEGER_TYPE
 
 class OMPTaskDirective(OMPRegionDirective):
     '''
+    TODO
+    '''
+
+    def __init__(self, children=None, parent=None):
+        sched_childs=None
+        if children != none:
+            sched_childs = children[0].pop_all_children()
+        super(OMPTaskDirective, self).__init__(children=sched_childs, parent=parent)
+
+        for child in children[1:]:
+            self.addchild(child)
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "omp task ...". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the beginning statement for this directive.
+        :rtype: str
+
+        '''
+        # Generate the string containing the required clauses
+        return "omp task"
+
+    def end_string(self):
+        '''Returns the end (or closing) statement of this directive, i.e.
+        "omp end task". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the end statement for this directive.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        return "omp end task"
+
+class DynamicOMPTaskDirective(OMPTaskDirective):
+    '''
     Class representing an OpenMP TASK directive in the PSyIR.
 
     :param list children: list of Nodes that are children of this Node.
@@ -69,8 +107,8 @@ class OMPTaskDirective(OMPRegionDirective):
                               "OMPDependClause, OMPDependClause")
 
     def __init__(self, children=None, parent=None):
-        super(OMPTaskDirective, self).__init__(children=children,
-                                               parent=parent)
+        super(DynamicOMPTaskDirective, self).__init__(children=children,
+                                                      parent=parent)
         # We don't know if we have a parent OMPParallelClause at initialisation
         # so we can only create dummy clauses for now.
         self.children.append(OMPPrivateClause())
@@ -1302,6 +1340,8 @@ class OMPTaskDirective(OMPRegionDirective):
         private_clause, firstprivate_clause, shared_clause, in_clause,\
             out_clause = self._compute_clauses()
 
+        print(f"Lowering {id(self)}")
+
         if len(self.children) < 2 or private_clause != self.children[1]:
             self.children[1] = private_clause
         if len(self.children) < 3 or firstprivate_clause != self.children[2]:
@@ -1309,6 +1349,7 @@ class OMPTaskDirective(OMPRegionDirective):
         if len(self.children) < 4 or shared_clause != self.children[3]:
             self.children[3] = shared_clause
         if len(self.children) < 5 or in_clause != self.children[4]:
+            print(f"Task previous child 4 has {len(self.children[4].children)} children.")
             self.children[4] = in_clause
             print(f"Task child 4 has {len(self.children[4].children)} children.")
             from psyclone.psyGen import Kern
@@ -1321,27 +1362,7 @@ class OMPTaskDirective(OMPRegionDirective):
 
         super().lower_to_language_level()
 
-    def begin_string(self):
-        '''Returns the beginning statement of this directive, i.e.
-        "omp task ...". The visitor is responsible for adding the
-        correct directive beginning (e.g. "!$").
-
-        :returns: the beginning statement for this directive.
-        :rtype: str
-
-        '''
-        # Generate the string containing the required clauses
-        print(f"Task child 4 has {len(self.children[4].children)} children")
-        return "omp task"
-
-    def end_string(self):
-        '''Returns the end (or closing) statement of this directive, i.e.
-        "omp end task". The visitor is responsible for adding the
-        correct directive beginning (e.g. "!$").
-
-        :returns: the end statement for this directive.
-        :rtype: str
-
-        '''
-        # pylint: disable=no-self-use
-        return "omp end task"
+        #TODO Replace this node with an OMPTaskDirective
+        childs = self.pop_all_children()
+        replacement = OMPTaskDirective(children=childs)
+        self.replace_with(replacement)

@@ -37,7 +37,7 @@ from psyclone.errors import GenerationError
 from psyclone.psyir.transformations.parallel_loop_trans import\
     ParallelLoopTrans
 from psyclone.psyir.nodes import CodeBlock
-from psyclone.psyir.nodes import OMPTaskDirective
+from psyclone.psyir.nodes import DynamicOMPTaskDirective
 from psyclone.psyir.transformations.transformation_error import \
         TransformationError
 
@@ -73,8 +73,8 @@ class OMPTaskTrans(ParallelLoopTrans):
         # Disallow CodeBlocks inside the region
         if len(node.walk(CodeBlock)) > 0:
             raise GenerationError(
-                "OMPTaskDirective cannot be applied to a region containing "
-                "a code block")
+                "OMPTaskTransformation cannot be applied to a region "
+                "containing a code block")
         super().validate(node, options)
 
     def _directive(self, children, collapse=None):
@@ -92,14 +92,14 @@ class OMPTaskTrans(ParallelLoopTrans):
         :raises TransformationError: if the collapse attribute is set.
 
         :returns: The directive created for the OpenMP Task Directive
-        :rtype: :py:class:`psyclone.psyGen.OMPTaskDirective`
+        :rtype: :py:class:`psyclone.psyGen.DynamicOMPTaskDirective`
 
         '''
         if collapse is not None:
             raise TransformationError("Collapse attribute should not be set "
                                       "for OMPTaskTrans")
 
-        _directive = OMPTaskDirective(children=children)
+        _directive = DynamicOMPTaskDirective(children=children)
         return _directive
 
     def apply(self, node, options=None):
