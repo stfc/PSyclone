@@ -1537,26 +1537,30 @@ class FortranWriter(LanguageWriter):
             result += self._visit(child)
         return result
 
-    def clause_node(self, node):
-        '''This method is called when a Clause instance is found in the
-        PSyIR tree. It returns the clause and its children as a string.
+    def operandclause_node(self, node):
+        '''This method is called when a OperandClause is
+        found in the PSyIR tree. It returns the clause and its children
+        as a string.
 
-        :param node: a Clause PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.Clause`
+        :param node: an OperandClause PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.OperandClause`
 
         :returns: the Fortran code for this node.
         :rtype: str
 
         '''
+        if len(node.children) == 0:
+            return ""
+
         result = node.clause_string
 
-        if len(node.children) > 0:
-            result = result + "("
-            child_list = []
-            for child in node.children:
-                child_list.append(self._visit(child))
-            result = result + ", ".join(child_list)
-            result = result + ")"
+        result = result + "(" + node.operand + ": "
+
+        child_list = []
+        for child in node.children:
+            child_list.append(self._visit(child))
+
+        result = result + ",".join(child_list) + ")"
 
         return result
 
@@ -1576,11 +1580,15 @@ class FortranWriter(LanguageWriter):
 
         clause_list = []
         for clause in node.clauses:
-            clause_list.append(self._visit(clause))
+            val = self._visit(clause)
+            # Some clauses return empty strings if they should not
+            # generate any output (e.g. private clause with no children).
+            if not val == "":
+                clause_list.append(val)
         # Add a space only if there are clauses
         if len(clause_list) > 0:
             result = result + " "
-        result = result + " ".join(clause_list)
+        result = result + ", ".join(clause_list)
         result = result + "\n"
 
         for child in node.dir_body:
@@ -1613,7 +1621,7 @@ class FortranWriter(LanguageWriter):
         # Add a space only if there are clauses
         # if len(clause_list) > 0:
         #     result = result + " "
-        result = result + " ".join(clause_list)
+        result = result + ", ".join(clause_list)
         result = result + "\n"
 
         return result

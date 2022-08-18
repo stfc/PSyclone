@@ -296,7 +296,7 @@ def test_call_replacenamedarg():
     with pytest.raises(ValueError) as info:
         call.replace_named_arg("new_name", op3)
     assert ("The value of the existing_name argument (new_name) in "
-            "'insert_named_arg' in the 'Call' node was not found in the "
+            "'replace_named_arg' in the 'Call' node was not found in the "
             "existing arguments." in str(info.value))
     # ok
     assert call.children == [op1, op2]
