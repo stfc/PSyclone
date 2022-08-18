@@ -192,6 +192,43 @@ def test_apply_ptr_arg(fortran_reader, fortran_writer):
             "  end subroutine main\n" in output)
 
 
+def test_apply_saved_var(fortran_reader, fortran_writer):
+    '''
+    Test that a subroutine with a 'save'd variable is inlined correctly.
+    '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "  integer :: i\n"
+        "  real :: a(10)\n"
+        "  do i=1,10\n"
+        "    a(i) = 1.0\n"
+        "    call sub(a(i))\n"
+        "  end do\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(x)\n"
+        "    real, intent(inout) :: x\n"
+        "    real, save :: state = 0.0\n"
+        "    state = state + x\n"
+        "    x = 2.0*x + state\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(routine)
+    output = fortran_writer(psyir).lower()
+    assert ("  subroutine run_it()\n"
+            "    integer :: i\n"
+            "    real, dimension(10) :: a\n"
+            "    real, save :: state = 0.0\n" in output)
+    assert ("      a(i) = 1.0\n"
+            "      state = state + a(i)\n"
+            "      a(i) = 2.0 * a(i) + state\n"
+            "    enddo\n" in output)
+
+
 def test_apply_name_clash(fortran_reader, fortran_writer, tmpdir):
     ''' Check that apply() correctly handles the case where a symbol
     in the routine to be in-lined clashes with an existing symbol. '''
