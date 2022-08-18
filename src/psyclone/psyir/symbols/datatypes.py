@@ -36,7 +36,6 @@
 
 ''' This module contains the datatype definitions.'''
 
-from __future__ import absolute_import
 import abc
 from collections import OrderedDict, namedtuple
 from enum import Enum
@@ -229,6 +228,14 @@ class ScalarType(DataType):
         else:
             precision_str = str(self.precision)
         return f"Scalar<{self.intrinsic.name}, {precision_str}>"
+
+    def __eq__(self, other):
+        '''
+        :returns: whether this scalar type is equal to the 'other' scalar type.
+        :rtype: bool
+        '''
+        return (self.precision == other.precision and
+                self.intrinsic == other.intrinsic)
 
 
 class ArrayType(DataType):
