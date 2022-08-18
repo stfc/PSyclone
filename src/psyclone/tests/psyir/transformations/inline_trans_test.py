@@ -164,6 +164,34 @@ def test_apply_array_arg(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(output)
 
 
+def test_apply_ptr_arg(fortran_reader, fortran_writer):
+    '''Check that apply works correctly when the routine has a pointer
+    argument (which is captured as an UnknownFortranType). '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "subroutine main\n"
+        "  real, target :: var = 0.0\n"
+        "  real, pointer :: ptr => null()\n"
+        "  ptr => var\n"
+        "  call sub(ptr)\n"
+        "end subroutine main\n"
+        "subroutine sub(x)\n"
+        "  real, pointer, intent(inout) :: x\n"
+        "  x = x + 1.0\n"
+        "end subroutine sub\n"
+        "end module test_mod\n"
+    )
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(call)
+    output = fortran_writer(psyir)
+    assert ("    ptr => var\n"
+            "    ptr = ptr + 1.0\n\n"
+            "  end subroutine main\n" in output)
+
+
 def test_apply_name_clash(fortran_reader, fortran_writer, tmpdir):
     ''' Check that apply() correctly handles the case where a symbol
     in the routine to be in-lined clashes with an existing symbol. '''
@@ -691,7 +719,7 @@ def test_validate_unresolved_import(fortran_reader):
             "un-resolved variable 'trouble'" in str(err.value))
 
 
-def test_validate_function(fortran_reader, fortran_writer):
+def test_validate_function(fortran_reader):
     '''Test that the validate method rejects an attempt to inline a
     function.
 
@@ -728,7 +756,31 @@ def test_validate_function(fortran_reader, fortran_writer):
             "('my_func') - TODO #924." in str(err.value))
 
 
-def test_validate_assumed_shape(fortran_reader, fortran_writer, tmpdir):
+def test_validate_array_subsection(fortran_reader):
+    '''Test that the validate method rejects an attempt to inline a routine
+    if any of its arguments are array subsections.'''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "subroutine main\n"
+        "  REAL A(100, 100)\n"
+        "  CALL S(A(26:,2:))\n"
+        "end subroutine\n"
+        "subroutine s(x)\n"
+        "  real :: x(:, :)\n"
+        "  x(:,:) = 0.0\n"
+        "end subroutine\n"
+        "end module\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.apply(call)
+    assert ("Cannot inline routine 's' because argument 'a(26:,2:)' is an "
+            "array subsection (TODO #924)" in str(err.value))
+
+
+def test_validate_assumed_shape(fortran_reader):
     '''Test that the validate method rejects an attempt to inline a routine
     if any of its dummy arguments are declared to be a different shape from
     those at the call site.'''
@@ -737,17 +789,57 @@ def test_validate_assumed_shape(fortran_reader, fortran_writer, tmpdir):
         "contains\n"
         "subroutine main\n"
         "  REAL A(100, 100)\n"
-        "  CALL S(A(26:,2:),10)\n"
+        "  CALL S(A(:,:),10)\n"
         "end subroutine\n"
-        "SUBROUTINE S(X,M)\n"
-        "  REAL X(M)\n"
-        "  DO I = 1, M\n"
-        "     X(I) = X(I) + M\n"
-        "  ENDDO\n"
+        "subroutine s(x,m)\n"
+        "  integer, intent(in) :: m\n"
+        "  real :: x(m)\n"
+        "  integer :: i\n"
+        "  do i = 1, m\n"
+        "     x(i) = x(i) + m\n"
+        "  enddo\n"
         "end subroutine\n"
         "end module\n")
     psyir = fortran_reader.psyir_from_source(code)
-    assert Compile(tmpdir).string_compiles(fortran_writer(psyir))
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.apply(call)
+    assert ("Cannot inline routine 's' because it reshapes an argument: actual"
+            " argument 'a(:,:)' has rank 2 but the corresponding dummy "
+            "argument, 'x', has rank 1" in str(err.value))
+
+
+def test_validate_named_arg(fortran_reader):
+    '''Test that the validate method rejects an attempt to inline a routine
+    that has a named argument.'''
+    # In reality, the routine with a named argument would almost certainly
+    # use the 'present' intrinsic but, since that gives a CodeBlock that itself
+    # prevents inlining, out test example omits it.
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "subroutine main\n"
+        "  real :: var = 0.0\n"
+        "  call sub(var, opt=1.0)\n"
+        "end subroutine main\n"
+        "subroutine sub(x, opt)\n"
+        "  real, intent(inout) :: x\n"
+        "  real, optional :: opt\n"
+        "  !if( present(opt) )then\n"
+        "  !  x = x + opt\n"
+        "  !end if\n"
+        "  x = x + 1.0\n"
+        "end subroutine sub\n"
+        "end module test_mod\n"
+    )
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.apply(call)
+    assert ("Routine 'sub' cannot be inlined because it has a named argument "
+            "'opt' (TODO #924)" in str(err.value))
 
 
 # _find_routine

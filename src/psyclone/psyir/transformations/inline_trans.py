@@ -38,10 +38,12 @@ This module contains the InlineTrans transformation.
 
 '''
 
-from psyclone.errors import InternalError
+from psyclone.errors import InternalError, LazyString
 from psyclone.psyGen import Transformation
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
-    Call, Routine, Reference, CodeBlock, Return, Literal)
+    ArrayReference, Call, Range, Routine, Reference, CodeBlock,
+    Return, Literal)
 from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol, ScalarType,
                                     ImportInterface)
 from psyclone.psyir.transformations.transformation_error import (
@@ -308,12 +310,18 @@ class InlineTrans(Transformation):
         :raises TransformationError: if the routine body contains a Return \
             that is not the first or last statement.
         :raises TransformationError: if the routine body contains a CodeBlock.
+        :raises TransformationError: if the called routine has a named \
+            argument.
         :raises TransformationError: if a symbol of a given name is imported \
             from different containers at the call site and within the routine.
         :raises TransformationError: if the routine accesses an un-resolved \
             symbol.
         :raises TransformationError: if a symbol declared in the parent \
             container is accessed in the target routine.
+        :raises TransformationError: if any of the actual arguments represent \
+            an array subsection.
+        :raises TransformationError: if the shape of an array dummy argument \
+            does not match that of the corresponding actual argument.
 
         '''
         super().validate(node, options=options)
@@ -353,6 +361,14 @@ class InlineTrans(Transformation):
                 f"Routine '{name}' contains one or more "
                 f"CodeBlocks and therefore cannot be inlined.")
 
+        # Support for routines with named arguments is not yet implemented.
+        # TODO #924.
+        for arg in node.argument_names:
+            if arg:
+                raise TransformationError(
+                    f"Routine '{routine.name}' cannot be inlined because it "
+                    f"has a named argument '{arg}' (TODO #924).")
+
         # Check for symbol-naming clashes that we can't handle.
         table = node.scope.symbol_table
         routine_table = routine.symbol_table
@@ -391,6 +407,40 @@ class InlineTrans(Transformation):
                         f"Routine '{routine.name}' cannot be inlined because "
                         f"it accesses variable '{ref.symbol.name}' from its "
                         f"parent container.")
+
+        # Check that the shape of any dummy array arguments are the same as
+        # those at the call site.
+        visitor = FortranWriter()
+        for dummy_arg, actual_arg in zip(routine_table.argument_list,
+                                         node.children):
+            # TODO #1799 this really needs the `datatype` method that is
+            # planned for all reference nodes.
+            if isinstance(actual_arg, ArrayReference):
+                rank = 0
+                for idx, expr in enumerate(actual_arg.indices):
+                    if isinstance(expr, Range):
+                        rank += 1
+                        # TODO #924 add a method to Range that returns the
+                        # PSyIR expression for the number of elements it
+                        # contains. This can then be compared with the shape of
+                        # the dummy argument.
+                        if not actual_arg.is_full_range(idx):
+                            raise TransformationError(LazyString(
+                                lambda: f"Cannot inline routine "
+                                f"'{routine.name}' because argument "
+                                f"'{visitor(actual_arg)}' is "
+                                f"an array subsection (TODO #924)."))
+                if isinstance(dummy_arg.datatype, ScalarType):
+                    dummy_rank = 0
+                else:
+                    dummy_rank = len(dummy_arg.datatype.shape)
+                if rank != dummy_rank:
+                    raise TransformationError(LazyString(
+                        lambda: f"Cannot inline routine '{routine.name}' "
+                        f"because it reshapes an argument: actual argument "
+                        f"'{visitor(actual_arg)}' has rank {rank} but the "
+                        f"corresponding dummy argument, '{dummy_arg.name}', "
+                        f"has rank {len(dummy_arg.datatype.shape)}"))
 
     @staticmethod
     def _find_routine(call_node):
