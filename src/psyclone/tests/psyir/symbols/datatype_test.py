@@ -152,7 +152,9 @@ def test_scalartype_datasymbol_precision(intrinsic):
 def test_scalartype_not_equal():
     '''
     Check that ScalarType instances with different precision or intrinsic type
-    are recognised as being different.
+    are recognised as being different. Also check that an ArrayType is !=
+    to a ScalarType.
+
     '''
     intrinsic = ScalarType.Intrinsic.INTEGER
     data_type = ScalarType(ScalarType.Intrinsic.INTEGER,
@@ -169,6 +171,9 @@ def test_scalartype_not_equal():
     # Same intrinsic type but different precision
     scalar_type4 = ScalarType(intrinsic, ScalarType.Precision.SINGLE)
     assert scalar_type4 != scalar_type
+    # A ScalarType is not equal to an ArrayType
+    atype = ArrayType(scalar_type4, [10])
+    assert atype != scalar_type4
 
 
 def test_scalartype_invalid_intrinsic_type():
