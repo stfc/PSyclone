@@ -164,7 +164,44 @@ def test_apply_array_arg(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(output)
 
 
-def test_apply_ptr_arg(fortran_reader, fortran_writer):
+def test_apply_struct_array_arg(fortran_reader, fortran_writer, tmpdir):
+    '''Check that apply works correctly when the actual argument is an
+    array within a structure.'''
+    code = (
+        "module test_mod\n"
+        "  type my_type\n"
+        "    integer :: idx\n"
+        "    real, dimension(10) :: data\n"
+        "  end type my_type\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "  integer :: i\n"
+        "  real :: a(10)\n"
+        "  type(my_type) :: grid\n"
+        "  grid%data(:) = 1.0\n"
+        "  do i=1,10\n"
+        "    a(i) = 1.0\n"
+        "    call sub(grid%data(i))\n"
+        "  end do\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(x)\n"
+        "    real, intent(inout) :: x\n"
+        "    x = 2.0*x\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(routine)
+    output = fortran_writer(psyir)
+    assert ("    do i = 1, 10, 1\n"
+            "      a(i) = 1.0\n"
+            "      grid%data(i) = 2.0 * grid%data(i)\n"
+            "    enddo\n" in output)
+    assert Compile(tmpdir).string_compiles(output)
+
+
+def test_apply_ptr_arg(fortran_reader, fortran_writer, tmpdir):
     '''Check that apply works correctly when the routine has a pointer
     argument (which is captured as an UnknownFortranType). '''
     code = (
@@ -190,9 +227,10 @@ def test_apply_ptr_arg(fortran_reader, fortran_writer):
     assert ("    ptr => var\n"
             "    ptr = ptr + 1.0\n\n"
             "  end subroutine main\n" in output)
+    assert Compile(tmpdir).string_compiles(output)
 
 
-def test_apply_saved_var(fortran_reader, fortran_writer):
+def test_apply_saved_var(fortran_reader, fortran_writer, tmpdir):
     '''
     Test that a subroutine with a 'save'd variable is inlined correctly.
     '''
@@ -227,6 +265,7 @@ def test_apply_saved_var(fortran_reader, fortran_writer):
             "      state = state + a(i)\n"
             "      a(i) = 2.0 * a(i) + state\n"
             "    enddo\n" in output)
+    assert Compile(tmpdir).string_compiles(output)
 
 
 def test_apply_name_clash(fortran_reader, fortran_writer, tmpdir):
