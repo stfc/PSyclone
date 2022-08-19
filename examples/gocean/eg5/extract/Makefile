@@ -123,6 +123,9 @@ $(DRIVER_UPDATE): $(KERNELS) $(DRIVER_UPDATE).o $(READ_KERNEL_DATA)
 $(INF_LIB):
 	$(MAKE) -C $(INF_DIR) F90=$(F90)
 
+$(EXTRACT_DIR)/$(LIB_NAME):
+	$(MAKE) -C $(EXTRACT_DIR)
+
 alg.o:	psy.o
 
 psy.o:	$(KERNELS)
