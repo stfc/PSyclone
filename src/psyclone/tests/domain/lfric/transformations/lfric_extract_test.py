@@ -374,13 +374,10 @@ def test_node_list_dynamo0p3():
 
     etrans.apply(schedule.children[0:3])
     code = str(psy.gen)
-    # This output is affected by #637 (builtin support), and needs to be
-    # adjusted once this is fixed.
     output = """! ExtractStart
       !
       CALL extract_psy_data%PreStart("single_invoke_builtin_then_kernel_psy", \
-"invoke_0:r0", 12, 3)
-      CALL extract_psy_data%PreDeclareVariable("f2", f2)
+"invoke_0:r0", 11, 5)
       CALL extract_psy_data%PreDeclareVariable("f3", f3)
       CALL extract_psy_data%PreDeclareVariable("loop0_start", loop0_start)
       CALL extract_psy_data%PreDeclareVariable("loop0_stop", loop0_stop)
@@ -394,9 +391,10 @@ def test_node_list_dynamo0p3():
       CALL extract_psy_data%PreDeclareVariable("undf_w2", undf_w2)
       CALL extract_psy_data%PreDeclareVariable("cell_post", cell)
       CALL extract_psy_data%PreDeclareVariable("df_post", df)
+      CALL extract_psy_data%PreDeclareVariable("f2_post", f2)
       CALL extract_psy_data%PreDeclareVariable("f3_post", f3)
+      CALL extract_psy_data%PreDeclareVariable("f5_post", f5)
       CALL extract_psy_data%PreEndDeclaration
-      CALL extract_psy_data%ProvideVariable("f2", f2)
       CALL extract_psy_data%ProvideVariable("f3", f3)
       CALL extract_psy_data%ProvideVariable("loop0_start", loop0_start)
       CALL extract_psy_data%ProvideVariable("loop0_stop", loop0_stop)
@@ -423,14 +421,16 @@ def test_node_list_dynamo0p3():
       CALL extract_psy_data%PostStart
       CALL extract_psy_data%ProvideVariable("cell_post", cell)
       CALL extract_psy_data%ProvideVariable("df_post", df)
+      CALL extract_psy_data%ProvideVariable("f2_post", f2)
       CALL extract_psy_data%ProvideVariable("f3_post", f3)
+      CALL extract_psy_data%ProvideVariable("f5_post", f5)
       CALL extract_psy_data%PostEnd
       !
       ! ExtractEnd"""
+
     assert output in code
 
 
-@pytest.mark.xfail(reason="Builtins not working (#637)")
 def test_dynamo0p3_builtin():
     ''' Tests the handling of builtins.
 
@@ -443,10 +443,11 @@ def test_dynamo0p3_builtin():
     etrans.apply(schedule.children[0:3])
     code = str(psy.gen)
 
-    output = """! ExtractStart
-      !
-      CALL extract_psy_data%PreStart("single_invoke_builtin_then_kernel_psy", """ \
-      """"invoke_0:setval_c:r0", 4, 5)
+    output = """CALL extract_psy_data%PreDeclareVariable("loop1_start", """\
+             """loop1_start)
+      CALL extract_psy_data%PreDeclareVariable("loop1_stop", loop1_stop)
+      CALL extract_psy_data%PreDeclareVariable("loop2_start", loop2_start)
+      CALL extract_psy_data%PreDeclareVariable("loop2_stop", loop2_stop)
       CALL extract_psy_data%PreDeclareVariable("map_w2", map_w2)
       CALL extract_psy_data%PreDeclareVariable("ndf_w2", ndf_w2)
       CALL extract_psy_data%PreDeclareVariable("nlayers", nlayers)
@@ -457,6 +458,13 @@ def test_dynamo0p3_builtin():
       CALL extract_psy_data%PreDeclareVariable("f3_post", f3)
       CALL extract_psy_data%PreDeclareVariable("f5_post", f5)
       CALL extract_psy_data%PreEndDeclaration
+      CALL extract_psy_data%ProvideVariable("f3", f3)
+      CALL extract_psy_data%ProvideVariable("loop0_start", loop0_start)
+      CALL extract_psy_data%ProvideVariable("loop0_stop", loop0_stop)
+      CALL extract_psy_data%ProvideVariable("loop1_start", loop1_start)
+      CALL extract_psy_data%ProvideVariable("loop1_stop", loop1_stop)
+      CALL extract_psy_data%ProvideVariable("loop2_start", loop2_start)
+      CALL extract_psy_data%ProvideVariable("loop2_stop", loop2_stop)
       CALL extract_psy_data%ProvideVariable("map_w2", map_w2)
       CALL extract_psy_data%ProvideVariable("ndf_w2", ndf_w2)
       CALL extract_psy_data%ProvideVariable("nlayers", nlayers)
@@ -470,8 +478,8 @@ def test_dynamo0p3_builtin():
       END DO
       DO cell=loop2_start,loop2_stop
         !
-        CALL testkern_w2_only_code(nlayers, f3_proxy%data, """ + \
-        """f2_proxy%data, ndf_w2, undf_w2, map_w2(:,cell))
+        CALL testkern_w2_only_code(nlayers, f3_proxy%data, f2_proxy%data, """\
+        """ndf_w2, undf_w2, map_w2(:,cell))
       END DO
       CALL extract_psy_data%PostStart
       CALL extract_psy_data%ProvideVariable("cell_post", cell)
@@ -503,10 +511,11 @@ def test_extract_single_builtin_dynamo0p3():
     output = """! ExtractStart
       !
       CALL extract_psy_data%PreStart("single_invoke_builtin_then_kernel_psy", """ \
-      """"invoke_0:setval_c:r0", 2, 1)
+      """"invoke_0:setval_c:r0", 2, 2)
       CALL extract_psy_data%PreDeclareVariable("loop1_start", loop1_start)
       CALL extract_psy_data%PreDeclareVariable("loop1_stop", loop1_stop)
       CALL extract_psy_data%PreDeclareVariable("df_post", df)
+      CALL extract_psy_data%PreDeclareVariable("f2_post", f2)
       CALL extract_psy_data%PreEndDeclaration
       CALL extract_psy_data%ProvideVariable("loop1_start", loop1_start)
       CALL extract_psy_data%ProvideVariable("loop1_stop", loop1_stop)
@@ -516,10 +525,10 @@ def test_extract_single_builtin_dynamo0p3():
       END DO
       CALL extract_psy_data%PostStart
       CALL extract_psy_data%ProvideVariable("df_post", df)
+      CALL extract_psy_data%ProvideVariable("f2_post", f2)
       CALL extract_psy_data%PostEnd
       !
       ! ExtractEnd"""
-
     assert output in code
 
     # Test extract with OMP Parallel optimisation
@@ -534,11 +543,16 @@ def test_extract_single_builtin_dynamo0p3():
       ! ExtractStart
       !
       CALL extract_psy_data%PreStart("single_invoke_psy", """ \
-      """"invoke_0:inc_ax_plus_y:r0", 2, 1)
+      """"invoke_0:inc_ax_plus_y:r0", 4, 2)
+      CALL extract_psy_data%PreDeclareVariable("f1", f1)
+      CALL extract_psy_data%PreDeclareVariable("f2", f2)
       CALL extract_psy_data%PreDeclareVariable("loop1_start", loop1_start)
       CALL extract_psy_data%PreDeclareVariable("loop1_stop", loop1_stop)
       CALL extract_psy_data%PreDeclareVariable("df_post", df)
+      CALL extract_psy_data%PreDeclareVariable("f1_post", f1)
       CALL extract_psy_data%PreEndDeclaration
+      CALL extract_psy_data%ProvideVariable("f1", f1)
+      CALL extract_psy_data%ProvideVariable("f2", f2)
       CALL extract_psy_data%ProvideVariable("loop1_start", loop1_start)
       CALL extract_psy_data%ProvideVariable("loop1_stop", loop1_stop)
       CALL extract_psy_data%PreEnd
@@ -549,22 +563,11 @@ def test_extract_single_builtin_dynamo0p3():
       !$omp end parallel do
       CALL extract_psy_data%PostStart
       CALL extract_psy_data%ProvideVariable("df_post", df)
+      CALL extract_psy_data%ProvideVariable("f1_post", f1)
       CALL extract_psy_data%PostEnd
       !
       ! ExtractEnd"""
     assert output in code_omp
-
-    # TODO #637 (no builtin support)
-    # Builtins are not yet support, so some arguments are missing. This
-    # is an excerpt of missing lines, which will cause this test to x-fail
-    not_yet_working = ['CALL extract_psy_data%ProvideVariable("f1", f1)',
-                       'CALL extract_psy_data%ProvideVariable("f2", f2)']
-    for line in not_yet_working:
-        if line not in code:
-            pytest.xfail("#637 LFRic builtins are not supported yet.")
-        if line not in code_omp:
-            pytest.xfail("#637 LFRic builtins are not supported yet.")
-    assert False, "X-failing test suddenly working: #637 lfric builtins."
 
 
 def test_extract_kernel_and_builtin_dynamo0p3():
@@ -584,8 +587,7 @@ def test_extract_kernel_and_builtin_dynamo0p3():
       ! ExtractStart
       !
       CALL extract_psy_data%PreStart("single_invoke_builtin_then_kernel_psy", """ \
-      """"invoke_0:r0", 10, 3)
-      CALL extract_psy_data%PreDeclareVariable("f2", f2)
+      """"invoke_0:r0", 9, 4)
       CALL extract_psy_data%PreDeclareVariable("f3", f3)
       CALL extract_psy_data%PreDeclareVariable("loop1_start", loop1_start)
       CALL extract_psy_data%PreDeclareVariable("loop1_stop", loop1_stop)
@@ -597,9 +599,9 @@ def test_extract_kernel_and_builtin_dynamo0p3():
       CALL extract_psy_data%PreDeclareVariable("undf_w2", undf_w2)
       CALL extract_psy_data%PreDeclareVariable("cell_post", cell)
       CALL extract_psy_data%PreDeclareVariable("df_post", df)
+      CALL extract_psy_data%PreDeclareVariable("f2_post", f2)
       CALL extract_psy_data%PreDeclareVariable("f3_post", f3)
       CALL extract_psy_data%PreEndDeclaration
-      CALL extract_psy_data%ProvideVariable("f2", f2)
       CALL extract_psy_data%ProvideVariable("f3", f3)
       CALL extract_psy_data%ProvideVariable("loop1_start", loop1_start)
       CALL extract_psy_data%ProvideVariable("loop1_stop", loop1_stop)
@@ -621,6 +623,7 @@ def test_extract_kernel_and_builtin_dynamo0p3():
       CALL extract_psy_data%PostStart
       CALL extract_psy_data%ProvideVariable("cell_post", cell)
       CALL extract_psy_data%ProvideVariable("df_post", df)
+      CALL extract_psy_data%ProvideVariable("f2_post", f2)
       CALL extract_psy_data%ProvideVariable("f3_post", f3)
       CALL extract_psy_data%PostEnd
       !
@@ -630,16 +633,6 @@ def test_extract_kernel_and_builtin_dynamo0p3():
 
     # TODO #706: Compilation for LFRic extraction not supported yet.
     # assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    # TODO #637 (no builtin support)
-    # This is an excerpt of missing lines, which will cause this test to x-fail
-    not_yet_working = ['CALL extract_psy_data%PreDeclareVariable("f2_post", '
-                       'f2)',
-                       'CALL extract_psy_data%ProvideVariable("f2_post", f2)']
-    for line in not_yet_working:
-        if line not in code:
-            pytest.xfail("#637 LFRic builtin not supported yet.")
-    assert False, "X-failing test suddenly working: #637 LFRic builtin."
 
 
 def test_extract_colouring_omp_dynamo0p3():
