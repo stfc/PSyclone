@@ -57,7 +57,7 @@ INF_LIB_NAME = lfric_netcdf
 INF_LIB = $(LFRIC_INF_DIR)/lib$(INF_LIB_NAME).a
 
 F90FLAGS += $$(nf-config --fflags) -I$(INF_INC)
-PSYDATA_LIB_NAME = _kernel_data_netcdf
+PSYDATA_LIB_NAME = _extract
 PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 
 PROCESS_ARGS = -prefix=extract_ -types=int,logical,real,double \

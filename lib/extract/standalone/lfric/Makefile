@@ -51,11 +51,11 @@ LIB_TMPLT_DIR ?= ./..
 # -----------------------------------------------------------------------------
 
 INF_INC = $(LFRIC_INF_DIR)
-INF_LIB_NAME = lfric_netcdf
+INF_LIB_NAME = lfric
 INF_LIB = $(LFRIC_INF_DIR)/lib$(INF_LIB_NAME).a
 
 F90FLAGS += -I$(INF_INC)
-PSYDATA_LIB_NAME = _kernel_data_standalone
+PSYDATA_LIB_NAME = _extract
 PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 
 PROCESS_ARGS = -prefix=extract_ -types=int,logical,real,double \
