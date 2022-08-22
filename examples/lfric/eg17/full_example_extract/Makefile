@@ -46,11 +46,10 @@ TYPE?=standalone
 
 include $(PSYROOT)/examples/common.mk
 
-GENERATED_FILES = *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90
 ifeq ($(TYPE), netcdf)
-	GENERATED_FILES += main-update.nc
+	GENERATED_FILES += main-update.nc main-init.nc
 else
-	GENERATED_FILES += main-update.binary
+	GENERATED_FILES += main-update.binary main-init.binary
 endif
 
 F90 ?= gfortran
@@ -58,15 +57,16 @@ F90FLAGS ?= -Wall -g
 
 OBJ = main_psy.o main_alg.o testkern_w0_kernel_mod.o
 
-EXEC = extract
 ifeq ($(TYPE), netcdf)
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/netcdf/lfric
-	EXTRACT_NAME =_kernel_data_netcdf
 	LDFLAGS += $$(nf-config --flibs)
 else
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/standalone/lfric
-	EXTRACT_NAME =_kernel_data_standalone
 endif
+
+EXEC = extract.$(TYPE)
+GENERATED_FILES = *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90
+EXTRACT_NAME ?= _extract
 EXTRACT_LIB = $(EXTRACT_DIR)/lib$(EXTRACT_NAME).a
 F90FLAGS += -I$(LFRIC_DIR) -I$(EXTRACT_DIR)
 
