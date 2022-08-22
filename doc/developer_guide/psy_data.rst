@@ -999,6 +999,11 @@ format supports special characters (e.g. NetCDF does allow the use of
    ``_post1``. The same postfix will be applied to all variables,
    not only to variables that have a name clash.
 
+.. note::
+   The stand-alone version of the extraction libraries does not store
+   the actual variable names in the output files, it relies on a strict
+   ordering of the values in the binary output file.
+
 An excerpt of the created code (based on ``examples/gocean/eg5/extract``):
 
 .. code-block:: Fortran
@@ -1045,6 +1050,11 @@ not depend on any infrastructure library (like 'dl_esm_inf`'), it
 only needs the PSyData ReadKernelData library (ie.
 ``lib/extract/netcdf/read_kernel_data_mod``), plus any libraries
 the wrapper depends on (e.g. NetCDF).
+
+.. note:: Due to issue #1757 the infrastructure is required at compile
+    and linke time for now, since the kernel contains metadata. If
+    the metadata is manually removed from the kernel, the infrastructure
+    is not required anymore.
 
 The following changes are applied by the ``ExtractionDriverCreator``
 in order to generate stand-alone code for GOcean:
