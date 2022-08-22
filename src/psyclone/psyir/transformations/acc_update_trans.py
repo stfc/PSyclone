@@ -49,8 +49,29 @@ from psyclone.psyir.tools import DependencyTools
 
 class ACCUpdateTrans(Transformation):
     '''
-    Examines the supplied Schedule and adds "acc update" directives
+    Examines the supplied Schedule and adds OpenACC "update" directives
     for any data accessed outside of a kernels or parallel region.
+    For example:
+
+    >>> from psyclone.parse.algorithm import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>> from psyclone.psyir.transformations import ACCUpdateTrans
+    >>>
+    >>> api = "nemo"
+    >>> filename = "tra_adv.F90"
+    >>> ast, invokeInfo = parse(filename, api=api)
+    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>> schedule = psy.invokes.get('tra_adv').schedule
+    >>>
+    >>> # Uncomment the following line to see a text view of the schedule
+    >>> # print(schedule.view())
+    >>>
+    >>> # Add update directives
+    >>> uptrans = ACCUpdateTrans()
+    >>> uptrans.apply(schedule)
+    >>>
+    >>> # Uncomment the following line to see a text view of the schedule
+    >>> # print(schedule.view())
 
     '''
     def __init__(self):
