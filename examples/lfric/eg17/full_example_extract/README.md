@@ -4,19 +4,31 @@ This directory contains a runnable example of kernel extraction
 with LFRic. The main code is explained in more details in the
 directory ``../full_example``.
 
-It applies the PSyData extraction transformations to the
-user-supplied kernels (due to #637 we cannot instrument builtins
-at the moment). See the [PSyKE](https://psyclone.readthedocs.io/en/stable/psyke.html)
+This example applies the PSyData extraction transformations to the
+two invoke statements, the first initialising two fields, the second
+doing some computations.
+See the [PSyKE](https://psyclone.readthedocs.io/en/stable/psyke.html)
 chapter of the PSyclone documentation for details about this transformation.
 
 ## Compilation
 
-A simple makefile is provided to compile the example. It needs:
+A simple makefile is provided to compile the example. It can use one of
+two extraction libraries: the stand-alone one, which only uses Fortran IO
+to create binary files with the kernel parameters, or the NetCDF version, which
+creates NetCDF files. By default, the stand-alone version will be used,
+but you can set the ``TYPE`` environment variable to ``netcdf`` when building to
+use the NetCDF library::
+
+    $ TYPE=netcdf make
+
+ To compile the example, the following dependencies are needed:
 - the infrastructure library ``liblfric.a`` provided in
   ``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``
-- the LFRic PSyData wrapper library ``lib_kernel_data_netcdf`` from
-  ``<PSYCLONEHOME>/lib/extract/netcdf/lfric``, and
-- NetCDF
+- one of the LFRic PSyData wrapper libraries, either:
+    - ``lib_kernel_data_netcdf`` from
+      ``<PSYCLONEHOME>/lib/extract/netcdf/lfric`` and NetCDF, or
+    - ``lib_kernel_data_standalone`` from
+      ``<PSYCLONEHOME>/lib/extract/standalone/lfric``
 
 The infrastructure and PSyData wrapper libraries will be compiled
 if they are not available.
@@ -26,24 +38,28 @@ you want to use:
 ```shell
 export F90=gfortran
 export F90FLAGS="-Wall -g -fcheck=bound"
-make
 ```
 
 The location of the PSyData wrapper library can be set with
-the environment variable ``EXTRACT_DIR``, and the location
-of the LFRic infrastructure libraries is set using
-``LFRIC_DIR`` - both defaulting to the versions included in
+the environment variable ``EXTRACT_DIR`` specifying the location of the
+extraction library. The location of the LFRic infrastructure files is set
+using ``LFRIC_DIR`` - both defaulting to the versions included in
 PSyclone.
 
 ## Running
 
-The binary can be executed using ``extract`` without additional parameters:
+The binary can be executed using ``extract.standalone`` (or ``extract.netcdf``)
+ without additional parameters:
 ```shell
-./extract 
+./extract.standalone
  Mesh has           5 layers.
 20210318131720.135+1100:INFO : Min/max minmax of field1 =   0.10000000E+01  0.80000000E+01
 ```
-This will produce a NetCDF file called ``main-update.nc``:
+This will produce two binary files ``main-update.binary`` and ``main-init.binary``.
+If you are using the NetCDF-based extraction library, instead two NetCDF files
+called ``main-update.nc`` and ``main-init.nc`` will be created, which can be
+analysed using ``ncdump``:
+
 ```shell
 ncdump main-update.nc | less
 netcdf main-update {
