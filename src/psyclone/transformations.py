@@ -2624,6 +2624,7 @@ class ACCEnterDataTrans(Transformation):
     >>>
     >>> # Add an enter-data directive
     >>> dtrans.apply(schedule)
+    >>>
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # print(schedule.view())
 
@@ -2836,9 +2837,9 @@ class ACCKernelsTrans(RegionTrans):
 
     For example:
 
-    >>> from psyclone.parse import parse
+    >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api = "NEMO"
+    >>> api = "nemo"
     >>> filename = "tra_adv.F90"
     >>> ast, invokeInfo = parse(filename, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
@@ -2846,7 +2847,7 @@ class ACCKernelsTrans(RegionTrans):
     >>> from psyclone.transformations import ACCKernelsTrans
     >>> ktrans = ACCKernelsTrans()
     >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule = psy.invokes.get('tra_adv').schedule
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # print(schedule.view())
     >>> kernels = schedule.children[0].children[0].children[0:-1]
@@ -2950,9 +2951,9 @@ class ACCDataTrans(RegionTrans):
 
     For example:
 
-    >>> from psyclone.parse import parse
+    >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api = "NEMO"
+    >>> api = "nemo"
     >>> filename = "tra_adv.F90"
     >>> ast, invokeInfo = parse(filename, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
@@ -2960,7 +2961,7 @@ class ACCDataTrans(RegionTrans):
     >>> from psyclone.transformations import ACCDataTrans
     >>> dtrans = ACCDataTrans()
     >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule = psy.invokes.get('tra_adv').schedule
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # print(schedule.view())
     >>> kernels = schedule.children[0].children[0].children[0:-1]
