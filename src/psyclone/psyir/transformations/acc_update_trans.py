@@ -182,9 +182,9 @@ class ACCUpdateTrans(Transformation):
         # As a workaround for the lack of precise access descriptions, we
         # currently overapproximate dependencies by adding any variables being
         # written to the input set (in addition to the output set). The aim is
-        # to avoid situations where the host writes an array slice and a later
-        # update device directive would then incorrectly overwrite the entire
-        # array on the device, including the data outside said slice.
+        # to avoid situations where the host only writes an array slice and the
+        # respective update device directive would then incorrectly overwrite
+        # the entire array on the device, including the data outside the slice.
         inputs.update(outputs)
 
         # For CodeBlock nodes, until we have semantic information on the
@@ -233,8 +233,9 @@ class ACCUpdateTrans(Transformation):
                 # dependencies. It is also the position for the update
                 # directive used by those variables with textual dependencies.
                 # Perhaps, eventually, specially if we adopt the async clause,
-                # it may be benefecial to move up update host directives within
-                # the schedule as much as possible.
+                # it may be benefecial to textually move update host directives
+                # earlier within the schedule as much as legally possible to
+                # leverage overlapping communication and computation.
                 update_pos = sched.children.index(child) + node_offset
 
                 if idx == IN:
@@ -255,8 +256,9 @@ class ACCUpdateTrans(Transformation):
                         for acc in stmt.walk(self._acc_regions):
                             # Kernel outputs are potential both input and
                             # output dependencies. The latter is because we
-                            # must guarantee any kernel write is not
-                            # overwritten by an earlier host write.
+                            # must guarantee no kernel write is overwritten by
+                            # an earlier host write whose respective update
+                            # device directive could appear later.
                             kern_sig.update(acc.out_kernel_references)
                             if idx == OUT:
                                 kern_sig.update(acc.in_kernel_references)
@@ -277,7 +279,10 @@ class ACCUpdateTrans(Transformation):
                 loop_sync.difference_update(text_sync)
 
                 # If textual synchronisation is required, those variables need
-                # to be updated straight away.
+                # to be updated straight away. Indeed, for update device
+                # directives, but not quite for update host directives, where
+                # placing the directive earlier and adding the async clause
+                # might perform better.
                 self._place_update(sched, update_pos, text_sync, direction)
                 host_sig.difference_update(text_sync)
 
