@@ -117,7 +117,7 @@ class CommonArg():
                 f"Expected kernel metadata to have the name "
                 f"'arg_type' and be in the form 'arg_type(...)', but found "
                 f"'{str(psyir)}'.")
-        if not len(psyir.children[1].children) == nargs:
+        if len(psyir.children[1].children) != nargs:
             raise ValueError(
                 f"Expected kernel metadata to have {nargs} "
                 f"arguments, but found {len(psyir.children[1].children)} in "

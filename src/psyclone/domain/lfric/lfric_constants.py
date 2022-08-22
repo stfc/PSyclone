@@ -111,6 +111,8 @@ class LFRicConstants():
         LFRicConstants.VALID_STENCIL_DIRECTIONS = ["x_direction",
                                                    "y_direction"]
 
+        LFRicConstants.VALID_MESH_TYPES = ['gh_coarse', 'gh_fine']
+
         # Note, xory1d does not have a direct mapping in STENCIL_MAPPING as it
         # indicates either x1d or y1d.
         LFRicConstants.STENCIL_MAPPING = \

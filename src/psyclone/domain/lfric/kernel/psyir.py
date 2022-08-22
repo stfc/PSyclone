@@ -233,10 +233,15 @@ class LFRicKernelMetadata():
         # Extract and store the required 'operates_on', 'gh_shape' and
         # 'procedure_name' properties from the parse tree
 
-        # the value of gh_shape (gh_quadrature_XYoZ, ...))
-        value = LFRicKernelMetadata._get_property(
-            spec_part, "gh_shape").string
-        kernel_metadata.gh_shape = value
+        # the value of gh_shape (gh_quadrature_XYoZ, ...)) This is an
+        # optional property.
+        try:
+            value = LFRicKernelMetadata._get_property(
+                spec_part, "gh_shape").string
+            kernel_metadata.gh_shape = value
+        except ParseError:
+            # There is no gh_shape property
+            kernel_metadata.gh_shape = None
 
         # the value of operates_on (cell_column, ...)
         value = LFRicKernelMetadata._get_property(
@@ -257,34 +262,6 @@ class LFRicKernelMetadata():
             raise ParseError(
                 f"meta_args should be a list, but found "
                 f"'{str(meta_args)}' in '{spec_part}'.")
-
-        for meta_arg in args[0].children:
-            print( meta_arg.children[1].children[0])
-            exit(1)
-            #GOceanKernelMetadata.GridArg(meta_arg, kernel_metadata))
-            #elif len(meta_arg.children[1].children) == 3:
-            #    # scalar and field args have 3 arguments
-            #    arg2 = meta_arg.children[1].children[1].string.lower()
-            #    if arg2 in const.VALID_FIELD_GRID_TYPES:
-            #        kernel_metadata.meta_args.append(
-            #            GOceanKernelMetadata.FieldArg(
-            #                meta_arg, kernel_metadata))
-            #    elif arg2 in const.VALID_SCALAR_TYPES:
-            #        kernel_metadata.meta_args.append(
-            #            GOceanKernelMetadata.ScalarArg(
-            #                meta_arg, kernel_metadata))
-            #    else:
-            #        raise ParseError(
-            #            f"Expected a 'meta_arg' entry with 3 arguments to "
-            #            f"either be a field or a scalar, but found '{arg2}' "
-            #            f"as the second argument instead of "
-            #            f"'{const.VALID_FIELD_GRID_TYPES}' (fields) or "
-            #            f"'{const.VALID_SCALAR_TYPES}' (scalars).")
-            #else:
-            #    raise ParseError(
-            #        f"'meta_args' should have either 2 or 3 arguments, but "
-            #        f"found {len(meta_arg.children[1].children)} in "
-            #        f"{str(meta_arg)}.")
 
         return kernel_metadata
 
@@ -390,6 +367,15 @@ class LFRicKernelMetadata():
             derived type.
         :raises ParseError: if the metadata has an unexpected format.
         '''
+
+        from psyclone.domain.lfric.kernel.scalar_arg import ScalarArg
+        from psyclone.domain.lfric.kernel.field_arg import FieldArg
+        from psyclone.domain.lfric.kernel.field_vector_arg import FieldVectorArg
+        from psyclone.domain.lfric.kernel.inter_grid_arg import InterGridArg
+        from psyclone.domain.lfric.kernel.inter_grid_vector_arg import InterGridVectorArg
+        from psyclone.domain.lfric.kernel.operator_arg import OperatorArg
+        from psyclone.domain.lfric.kernel.columnwise_operator_arg import ColumnwiseOperatorArg
+        
         kernel_metadata = LFRicKernelMetadata()
 
         # Ensure the Fortran2003 parser is initialised.
@@ -411,9 +397,12 @@ class LFRicKernelMetadata():
         kernel_metadata.operates_on = value
 
         # the value of index offset (NE, ...)
-        value = LFRicKernelMetadata._get_property(
-            spec_part, "gh_shape").string
-        kernel_metadata.gh_shape = value
+        try:
+            value = LFRicKernelMetadata._get_property(
+                spec_part, "gh_shape").string
+            kernel_metadata.gh_shape = value
+        except ParseError:
+            kernel_metadata.gh_shape = None
 
         # the name of the procedure that this metadata refers to.
         kernel_metadata.procedure_name = LFRicKernelMetadata._get_property(
@@ -432,39 +421,48 @@ class LFRicKernelMetadata():
 
         kernel_metadata.meta_args = []
         for meta_arg in args[0].children:
-            form = meta_arg.children[1].children[0].tostr()
             print(type(meta_arg))
-            print(meta_arg)
+            form = meta_arg.children[1].children[0].tostr()
+            if form == "gh_scalar":
+                arg = ScalarArg.create_from_psyir(meta_arg)
+            elif form == "gh_operator":
+                arg = OperatorArg.create_from_psyir(meta_arg)
+            elif form == "gh_columnwise_operator":
+                arg = ColumnwiseOperatorArg.create_from_psyir(meta_arg)
+            elif "gh_field" in form:
+                vector_arg = "gh_field" in form and "*" in form
+                nargs = len(meta_arg.children[1].children)
+                intergrid_arg = False
+                if nargs==5:
+                    fifth_arg = meta_arg.children[1].children[4]
+                    if fifth_arg.children[0].string == "mesh_arg":
+                        intergrid_arg = True
 
-            exit(1)
-            if form == "GH_FIELD":
-                field_arg = FieldArg.create_from_psyir(meta_arg)
-                kernel_metadata.meta_args.append(field_arg)
-            elif "GH_FIELD" in form and "*" in form:
-                kernel_metadata.meta_args.append(
-                    LFRicKernelMetadata.FieldVectorArg(form, form.split("*")[1].strip()))                
-            elif form == "GH_SCALAR":
-                kernel_metadata.meta_args.append(
-                    LFRicKernelMetadata.ScalarArg(form))
-            elif form == "GH_OPERATOR":
-                kernel_metadata.meta_args.append(
-                    LFRicKernelMetadata.OperatorArg(form))
+                if intergrid_arg and vector_arg:
+                    arg = InterGridVectorArg.create_from_psyir(meta_arg)
+                elif intergrid_arg and not vector_arg:
+                    arg = InterGridArg.create_from_psyir(meta_arg)
+                elif vector_arg and not intergrid_arg:
+                    arg = FieldVectorArg.create_from_psyir(meta_arg)
+                else:
+                    arg = FieldArg.create_from_psyir(meta_arg)
             else:
                 raise ParseError(
                     f"Expected a 'meta_arg' entry with to "
                     f"either be a field, a scalar or an operator, but found "
                     f"'{meta_arg}'.")
+            kernel_metadata.meta_args.append(arg)
 
-        # meta_args contains arguments which have
-        # properties. Therefore create appropriate (GridArg, ScalarArg
-        # or FieldArg) instances to capture this information.
-        meta_args = LFRicKernelMetadata._get_property(
-            spec_part, "meta_funcs")
-        args = walk(meta_args, Fortran2003.Ac_Value_List)
-        if not args:
-            raise ParseError(
-                f"meta_funcs should be a list, but found "
-                f"'{str(meta_funcs)}' in '{spec_part}'.")
+        try:
+            meta_args = LFRicKernelMetadata._get_property(
+                spec_part, "meta_funcs")
+            args = walk(meta_args, Fortran2003.Ac_Value_List)
+            if not args:
+                raise ParseError(
+                    f"meta_funcs should be a list, but found "
+                    f"'{str(meta_funcs)}' in '{spec_part}'.")
+        except ParseError:
+            meta_args = []
 
         # meta_args contains arguments which have
         # properties.
@@ -488,13 +486,13 @@ class LFRicKernelMetadata():
                 spec_part, "meta_mesh")
         except ParseError:
             # meta_mesh is not specified in the metadata
-            LFRicKernelMetadata.meta_mesh = []
-        finally:
-            args = walk(meta_args, Fortran2003.Ac_Value_List)
-            if not args:
-                raise ParseError(
-                    f"meta_mesh should be a list, but found "
-                    f"'{str(meta_mesh)}' in '{spec_part}'.")
+            meta_mesh = []
+        #finally:
+        #    args = walk(meta_args, Fortran2003.Ac_Value_List)
+        #    if not args:
+        #        raise ParseError(
+        #            f"meta_mesh should be a list, but found "
+        #            f"'{str(meta_mesh)}' in '{spec_part}'.")
         return kernel_metadata
 
     @staticmethod

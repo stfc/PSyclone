@@ -33,17 +33,22 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing the FieldVector Arg class which captures the metadata
-associated with a field vector argument. Supports the creation, modification
-and Fortran output of a Field Vector argument.
+'''Module containing the FieldArg class which captures the metadata
+associated with a field argument. Supports the creation, modification
+and Fortran output of a Field argument.
 
 '''
-from psyclone.domain.lfric.kernel.field_arg import FieldArg
+from fparser.common.readfortran import FortranStringReader
+from fparser.two import Fortran2003
+from fparser.two.parser import ParserFactory
+
+from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric.kernel.inter_grid_arg import InterGridArg
 
 
-class FieldVectorArg(FieldArg):
+class InterGridVectorArg(InterGridArg):
     '''Class to capture LFRic kernel metadata information for a field
-    vector argument.
+    argument.
 
     :param Optional[str] datatype: the datatype of this field \
         (GH_INTEGER, ...).
@@ -51,50 +56,33 @@ class FieldVectorArg(FieldArg):
         field (GH_WRITE, ...).
     :param Optional[str] function_space: the function space that this \
         field is on (W0, ...).
-    :param Optional[str] vector_length: the size of the vector.
 
     '''
     def __init__(self, datatype=None, access=None, function_space=None,
-                 vector_length=None):
-        super().__init__(
-            datatype=datatype, access=access, function_space=function_space)
-
+                 mesh_arg=None, vector_length=None):
+        super().__init__(datatype, access, function_space, mesh_arg)
+        
         if vector_length is None:
             self._vector_length = vector_length
         else:
             self.vector_length = vector_length
 
     @staticmethod
-    def create_from_fortran_string(fortran_string):
-        '''Create an instance of this class from a Fortran string.
-
-        :param str fortran_string: a string containing the metadata in \
-            Fortran.
-
-        :returns: an instance of FieldVectorArg.
-        :rtype: :py:class:`psyclone.domain.lfric.kernel.FieldVectorArg`
-
-        '''
-        part_ref = FieldArg.create_part_ref(fortran_string)
-        return FieldVectorArg.create_from_psyir(part_ref)
-
-    @staticmethod
     def create_from_psyir(psyir):
         '''Create an instance of this class from generic PSyIR. At this moment
         this information is captured in an fparser2 tree.
 
-        :param psyir: fparser2 tree containing the PSyIR for a field \
+        :param psyir: fparser2 tree containing the PSyIR for an InterGrid \
             vector argument.
         :type psyir: :py:class:`fparser.two.Fortran2003.Part_Ref`
 
-        :returns: an instance of this class.
-        :rtype: :py:class:`psyclone.domain.lfric.kernel.FieldVectorArg`
-
-        :raises TypeError: if the first metadata argument is not in \
-            the form datatype*vector_length.
+        :returns: an instance of InterGridVectorArg.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.InterGridArg`
 
         '''
-        FieldVectorArg.check_psyir(psyir, nargs=4)
+        # FieldArg.check_psyir(psyir, nargs=5) - how to validate?
+
+        # TODO utility as a duplicate of code in field_vector_arg.py?
         vector_datatype = psyir.children[1].children[0].tostr()
         components = vector_datatype.split("*")
         if len(components) != 2:
@@ -102,10 +90,27 @@ class FieldVectorArg(FieldArg):
                 f"Expecting the first argument to be in the form "
                 f"'form*vector_length' but found '{vector_datatype}'.")
         vector_length = components[1].strip()
+
         datatype = psyir.children[1].children[1].tostr()
         access = psyir.children[1].children[2].tostr()
         function_space = psyir.children[1].children[3].tostr()
-        return FieldVectorArg(datatype, access, function_space, vector_length)
+        mesh_arg = psyir.children[1].children[4].children[1].tostr
+        return InterGridVectorArg(
+            datatype, access, function_space, mesh_arg, vector_length)
+
+    @classmethod
+    def create_from_fortran_string(cls, fortran_string):
+        '''Create an instance of this class from a Fortran string.
+
+        :param str fortran_string: a string containing the metadata in \
+            Fortran.
+
+        :returns: an instance of cls.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.cls`
+ 
+        '''
+        part_ref = cls.create_part_ref(fortran_string)
+        return cls.create_from_psyir(part_ref)
 
     def fortran_string(self):
         '''
@@ -113,23 +118,27 @@ class FieldVectorArg(FieldArg):
             Fortran string.
         :rtype: str
 
+        raises ValueError: if one or more of the datatype, access or \
+            function_space values have not been set.
+
         '''
         if not (self.datatype and self.access and self.function_space and
-                self.vector_length):
+                self.mesh_arg and self.vector_length):
             raise ValueError(
-                f"Values for datatype, access, function_space and "
-                f"vector_length must be provided before calling the "
-                f"fortran_string method, but found '{self.datatype}', "
-                f"'{self.access}', '{self.function_space}' and "
+                f"Values for datatype, access, function_space and mesh_arg "
+                f"must be provided before calling the fortran_string method, "
+                f"but found '{self.datatype}', '{self.access}', "
+                f"'{self.function_space}', '{self.mesh_arg}' and "
                 f"'{self.vector_length}'.")
 
-        return (f"arg_type({self.form}*{self.vector_length}, {self.datatype}, "
-                f"{self.access}, {self.function_space})")
+        return (f"arg_type({self.form}*{self.vector_length}, "
+                f"{self.datatype}, {self.access}, {self.function_space}, "
+                f"mesh_arg={self.mesh_arg})")
 
     @property
     def vector_length(self):
         '''
-        :returns: the vector length of this field vector \
+        :returns: the vector length of this intergrid vector \
             argument.
         :rtype: str
         '''
@@ -138,7 +147,8 @@ class FieldVectorArg(FieldArg):
     @vector_length.setter
     def vector_length(self, value):
         '''
-        :param str value: set the field vector length to the specified \
+
+        :param str value: set the intergrid vector length to the specified \
             value.
 
         :raises TypeError: if the provided value is not of type str.
