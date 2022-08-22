@@ -70,8 +70,8 @@ the [``lib/extract/netcdf``](./../) and top-level [``lib``](./../../../)
 directories.
 
 The compilation process will create the wrapper library
-``lib_kernel_data_netcdf.a``. The ``Makefile`` will compile the LFRic
-infrastructure library, ``liblfric_netcdf.a``, if required, with the
+``lib_extract.a``. The ``Makefile`` will compile the LFRic
+infrastructure library, ``liblfric.a``, if required, with the
 previously selected compiler flags.
 
 Similar to compilation of the [examples](
@@ -108,7 +108,7 @@ or you have to explicitly provide the required paths and options).
 
 BSD 3-Clause License
 
-Copyright (c) 2020-2021, Science and Technology Facilities Council.
+Copyright (c) 2020-2022, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
