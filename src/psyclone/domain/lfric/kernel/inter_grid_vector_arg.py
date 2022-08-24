@@ -81,6 +81,22 @@ class InterGridVectorArg(InterGridArg):
 
         '''
         # FieldArg.check_psyir(psyir, nargs=5) - how to validate?
+        if not isinstance(psyir, Fortran2003.Structure_Constructor):
+            raise TypeError(
+                f"Expected kernel metadata to be encoded as a Fortran "
+                f"Structure_Constructor object but found type "
+                f"'{type(psyir).__name__}' with value '{psyir}'.")
+        if not psyir.children[0].tostr().lower() == "arg_type":
+            raise ValueError(
+                f"Expected kernel metadata to have the name "
+                f"'arg_type' and be in the form 'arg_type(...)', but found "
+                f"'{str(psyir)}'.")
+        nargs = 5
+        if len(psyir.children[1].children) != nargs:
+            raise ValueError(
+                f"Expected kernel metadata to have {nargs} "
+                f"arguments, but found {len(psyir.children[1].children)} in "
+                f"'{str(psyir)}'.")
 
         # TODO utility as a duplicate of code in field_vector_arg.py?
         vector_datatype = psyir.children[1].children[0].tostr()
@@ -94,23 +110,23 @@ class InterGridVectorArg(InterGridArg):
         datatype = psyir.children[1].children[1].tostr()
         access = psyir.children[1].children[2].tostr()
         function_space = psyir.children[1].children[3].tostr()
-        mesh_arg = psyir.children[1].children[4].children[1].tostr
+        mesh_arg = psyir.children[1].children[4].children[1].tostr()
         return InterGridVectorArg(
             datatype, access, function_space, mesh_arg, vector_length)
 
-    @classmethod
-    def create_from_fortran_string(cls, fortran_string):
-        '''Create an instance of this class from a Fortran string.
-
-        :param str fortran_string: a string containing the metadata in \
-            Fortran.
-
-        :returns: an instance of cls.
-        :rtype: :py:class:`psyclone.domain.lfric.kernel.cls`
- 
-        '''
-        part_ref = cls.create_part_ref(fortran_string)
-        return cls.create_from_psyir(part_ref)
+    #@classmethod
+    #def create_from_fortran_string(cls, fortran_string):
+    #    '''Create an instance of this class from a Fortran string.
+    #
+    #    :param str fortran_string: a string containing the metadata in \
+    #        Fortran.
+    #
+    #    :returns: an instance of cls.
+    #    :rtype: :py:class:`psyclone.domain.lfric.kernel.cls`
+    #
+    #    '''
+    #    part_ref = cls.create_part_ref(fortran_string)
+    #    return cls.create_from_psyir(part_ref)
 
     def fortran_string(self):
         '''

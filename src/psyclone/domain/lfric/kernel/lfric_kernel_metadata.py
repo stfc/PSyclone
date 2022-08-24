@@ -33,10 +33,8 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing tests for the KernelMetadataSymbol
-kernel-layer-specific symbol. The tests include translation of
-language-level PSyIR to PSyclone LFRic Kernel PSyIR and PSyclone LFRic
-Kernel PSyIR to language-level PSyIR.
+'''Module containing the KernelMetadataSymbol
+kernel-layer-specific class that captures the LFRic kernel metadata.
 
 '''
 import re
@@ -47,10 +45,19 @@ from fparser.two.parser import ParserFactory
 from fparser.two.utils import walk, get_child
 
 from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric.kernel.common_arg import CommonArg
+from psyclone.domain.lfric.kernel.scalar_arg import ScalarArg
 from psyclone.domain.lfric.kernel.field_arg import FieldArg
+from psyclone.domain.lfric.kernel.field_vector_arg import FieldVectorArg
+from psyclone.domain.lfric.kernel.inter_grid_arg import InterGridArg
+from psyclone.domain.lfric.kernel.inter_grid_vector_arg import InterGridVectorArg
+from psyclone.domain.lfric.kernel.operator_arg import OperatorArg
+from psyclone.domain.lfric.kernel.columnwise_operator_arg import ColumnwiseOperatorArg
 
+from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.nodes import Container
+from psyclone.psyir.symbols import DataTypeSymbol, UnknownFortranType
 
 
 class LFRicKernelMetadata():
@@ -96,6 +103,55 @@ class LFRicKernelMetadata():
     :type name: Optional[str]
 
     '''
+    #general purpose kernel operates_on=CELL_COLUMN (no CMA)
+    #general purpose kernel operates_on=DOMAIN
+    #CMA construction kernel
+    #CMA application kernel
+    #CMA matrix-matrix kernel
+    #inter-grid kernel
+
+    VALID_NAME = re.compile(r'[a-zA-Z_][\w]*')
+
+    def __init__(self, operates_on=None, gh_shape=None, meta_args=None,
+                 meta_funcs=None, meta_reference_element=None,
+                 meta_mesh=None, procedure_name=None, name=None):
+        # Validate values using setters if they are not None
+        self._operates_on = None
+        if operates_on is not None:
+            self.operates_on = operates_on
+        self._gh_shape = None
+        if gh_shape is not None:
+            self.gh_shape = gh_shape
+            # TBD
+        if meta_args is None:
+            self._meta_args = []
+        else:
+            if not isinstance(meta_args, list):
+                raise TypeError(f"meta_args should be a list but found "
+                                f"{type(meta_args).__name__}.")
+            for entry in meta_args:
+                if not isinstance(entry, CommonArg):
+                    raise TypeError(
+                        f"meta_args should be a list of argument objects, "
+                        f"but found {type(entry).__name__}.")
+            self._meta_args = meta_args
+        if meta_funcs is None:
+            self._meta_funcs = []
+            # TBD
+        if meta_reference_element is None:
+            self._meta_reference_element = []
+            # TBD
+        if meta_mesh is None:
+            self._meta_mesh = []
+            # TBD
+
+        self._procedure_name = None
+        if procedure_name is not None:
+            self.procedure_name = procedure_name
+        self._name = None
+        if name is not None:
+            self.name = name
+
     @staticmethod
     def create_from_psyir(symbol):
         '''Create a new instance of LFRicKernelMetadata populated with
@@ -130,163 +186,6 @@ class LFRicKernelMetadata():
         return LFRicKernelMetadata.create_from_fortran_string(
             datatype.declaration)
 
-
-    @staticmethod
-    def create_from_fortran_string(fortran_string):
-        '''Create a new instance of GOceanKernelMetadata populated with
-        metadata stored in a fortran string.
-        :param str fortran_string: the metadata stored as Fortran.
-        :returns: an instance of GOceanKernelMetadata.
-        :rtype: :py:class:`psyclone.domain.gocean.kernel.psyir.\
-            GOceanKernelMetadata`
-        :raises ValueError: if the string does not contain a fortran \
-            derived type.
-        :raises ParseError: if the metadata has an unexpected format.
-
-        meta_args
-        meta_funcs
-        meta_reference_element
-        meta_mesh
-
-        '''
-        # Ensure the Fortran2003 parser is initialised.
-        _ = ParserFactory().create(std="f2003")
-        reader = FortranStringReader(fortran_string)
-        try:
-            spec_part = Fortran2003.Derived_Type_Def(reader)
-        except Fortran2003.NoMatchError:
-            # pylint: disable=raise-missing-from
-            raise ValueError(
-                f"Expected kernel metadata to be a Fortran derived type, but "
-                f"found '{fortran_string}'.")
-
-        kernel_metadata.name = spec_part.children[0].children[1].tostr()
-
-        # Extract and store the required 'operates_on', 'gh_shape' and
-        # 'procedure_name' properties from the parse tree
-
-        # the value of gh_shape (gh_quadrature_XYoZ, ...)) This is an
-        # optional property.
-        try:
-            value = LFRicKernelMetadata._get_property(
-                spec_part, "gh_shape").string
-            kernel_metadata.gh_shape = value
-        except ParseError:
-            # There is no gh_shape property
-            kernel_metadata.gh_shape = None
-
-        # the value of operates_on (cell_column, ...)
-        value = LFRicKernelMetadata._get_property(
-            spec_part, "operates_on").string
-        kernel_metadata.operates_on = value
-
-        # the name of the procedure that this metadata refers to.
-        kernel_metadata.procedure_name = LFRicKernelMetadata._get_property(
-            spec_part, "code").string
-
-        # meta_args contains arguments which have
-        # properties. Therefore create appropriate
-        # instances to capture this information.
-        meta_args = LFRicMetadata._get_property(
-            spec_part, "meta_args")
-        args = walk(meta_args, Fortran2003.Ac_Value_List)
-        if not args:
-            raise ParseError(
-                f"meta_args should be a list, but found "
-                f"'{str(meta_args)}' in '{spec_part}'.")
-
-        return kernel_metadata
-
-    #general purpose kernel operates_on=CELL_COLUMN (no CMA)
-    #general purpose kernel operates_on=DOMAIN
-    #CMA construction kernel
-    #CMA application kernel
-    #CMA matrix-matrix kernel
-    #inter-grid kernel
-
-    VALID_NAME = re.compile(r'[a-zA-Z_][\w]*')
-
-    def __init__(self, operates_on=None, gh_shape=None, meta_args=None,
-                 meta_funcs=None, meta_reference_element=None,
-                 meta_mesh=None, procedure_name=None, name=None):
-        # Validate values using setters if they are not None
-        self._operates_on = None
-        if operates_on is not None:
-            self.operates_on = operates_on
-        self._gh_shape = None
-        if gh_shape is not None:
-            self.gh_shape = gh_shape
-        if meta_args is None:
-            self._meta_args = []
-        else:
-            if not isinstance(meta_args, list):
-                raise TypeError(f"meta_args should be a list but found "
-                                f"{type(meta_args).__name__}.")
-            for entry in meta_args:
-                if not isinstance(entry,
-                                  (GOceanKernelMetadata.FieldArg,
-                                   GOceanKernelMetadata.GridArg,
-                                   GOceanKernelMetadata.ScalarArg)):
-                    raise TypeError(
-                        f"meta_args should be a list of FieldArg, GridArg or "
-                        f"ScalarArg objects, but found "
-                        f"{type(entry).__name__}.")
-            self._meta_args = meta_args
-        if meta_funcs is None:
-            self._meta_funcs = []
-        if meta_reference_element is None:
-            self._meta_reference_element = []
-        if meta_mesh is None:
-            self._meta_mesh = []
-
-        self._procedure_name = None
-        if procedure_name is not None:
-            self.procedure_name = procedure_name
-        self._name = None
-        if name is not None:
-            self.name = name
-
-    def lower_to_psyir(self):
-        ''' Lower the metadata to language-level PSyIR.
-        :returns: metadata as stored in language-level PSyIR.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
-        '''
-        return DataTypeSymbol(
-            str(self.name), UnknownFortranType(self.fortran_string()))
-
-    @staticmethod
-    def create_from_psyir(symbol):
-        '''Create a new instance of GOceanKernelMetadata populated with
-        metadata from a kernel in language-level PSyIR.
-        :param symbol: the symbol in which the metadata is stored \
-            in language-level PSyIR.
-        :type symbol: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
-        :returns: an instance of GOceanKernelMetadata.
-        :rtype: :py:class:`psyclone.domain.gocean.kernel.psyir.\
-            GOceanKernelMetadata`
-        :raises TypeError: if the symbol argument is not the expected \
-            type.
-        :raises InternalError: if the datatype of the provided symbol \
-            is not the expected type.
-        '''
-        if not isinstance(symbol, DataTypeSymbol):
-            raise TypeError(
-                f"Expected a DataTypeSymbol but found a "
-                f"{type(symbol).__name__}.")
-
-        datatype = symbol.datatype
-
-        if not isinstance(datatype, UnknownFortranType):
-            raise InternalError(
-                f"Expected kernel metadata to be stored in the PSyIR as "
-                f"an UnknownFortranType, but found "
-                f"{type(datatype).__name__}.")
-
-        # In an UnknownFortranType, the declaration is stored as a
-        # string, so use create_from_fortran_string()
-        return LFRicKernelMetadata.create_from_fortran_string(
-            datatype.declaration)
-
     @staticmethod
     def create_from_fortran_string(fortran_string):
         '''Create a new instance of GOceanKernelMetadata populated with
@@ -299,15 +198,6 @@ class LFRicKernelMetadata():
             derived type.
         :raises ParseError: if the metadata has an unexpected format.
         '''
-
-        from psyclone.domain.lfric.kernel.scalar_arg import ScalarArg
-        from psyclone.domain.lfric.kernel.field_arg import FieldArg
-        from psyclone.domain.lfric.kernel.field_vector_arg import FieldVectorArg
-        from psyclone.domain.lfric.kernel.inter_grid_arg import InterGridArg
-        from psyclone.domain.lfric.kernel.inter_grid_vector_arg import InterGridVectorArg
-        from psyclone.domain.lfric.kernel.operator_arg import OperatorArg
-        from psyclone.domain.lfric.kernel.columnwise_operator_arg import ColumnwiseOperatorArg
-        
         kernel_metadata = LFRicKernelMetadata()
 
         # Ensure the Fortran2003 parser is initialised.
@@ -341,19 +231,18 @@ class LFRicKernelMetadata():
             spec_part, "code").string
 
         # meta_args contains arguments which have
-        # properties. Therefore create appropriate (OperatorArg, ScalarArg
-        # or FieldArg) instances to capture this information.
-        kernel_metadata.meta_args = LFRicKernelMetadata._get_property(
+        # properties. Therefore create appropriate (ScalarArg, 
+        # FieldArg, ...) instances to capture this information.
+        kernel_metadata._meta_args = LFRicKernelMetadata._get_property(
             spec_part, "meta_args")
         args = walk(kernel_metadata.meta_args, Fortran2003.Ac_Value_List)
         if not args:
             raise ParseError(
                 f"meta_args should be a list, but found "
-                f"'{str(meta_args)}' in '{spec_part}'.")
+                f"'{str(kernel_metadata.meta_args)}' in '{spec_part}'.")
 
-        kernel_metadata.meta_args = []
+        kernel_metadata._meta_args = []
         for meta_arg in args[0].children:
-            print(type(meta_arg))
             form = meta_arg.children[1].children[0].tostr()
             if form == "gh_scalar":
                 arg = ScalarArg.create_from_psyir(meta_arg)
@@ -386,7 +275,7 @@ class LFRicKernelMetadata():
             kernel_metadata.meta_args.append(arg)
 
         try:
-            meta_args = LFRicKernelMetadata._get_property(
+            meta_funcs = LFRicKernelMetadata._get_property(
                 spec_part, "meta_funcs")
             args = walk(meta_args, Fortran2003.Ac_Value_List)
             if not args:
@@ -394,10 +283,8 @@ class LFRicKernelMetadata():
                     f"meta_funcs should be a list, but found "
                     f"'{str(meta_funcs)}' in '{spec_part}'.")
         except ParseError:
-            meta_args = []
+            meta_funcs = []
 
-        # meta_args contains arguments which have
-        # properties.
         LFRicKernelMetadata.meta_reference_element = []
         try:
             LFRicKernelMetadata.meta_reference_element = LFRicKernelMetadata._get_property(
@@ -426,6 +313,14 @@ class LFRicKernelMetadata():
         #            f"meta_mesh should be a list, but found "
         #            f"'{str(meta_mesh)}' in '{spec_part}'.")
         return kernel_metadata
+
+    def lower_to_psyir(self):
+        ''' Lower the metadata to language-level PSyIR.
+        :returns: metadata as stored in language-level PSyIR.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
+        '''
+        return DataTypeSymbol(
+            str(self.name), UnknownFortranType(self.fortran_string()))
 
     @staticmethod
     def _get_property(spec_part, property_name):
@@ -503,6 +398,9 @@ class LFRicKernelMetadata():
         :returns: the metadata represented by this instance as Fortran.
         :rtype: str
         '''
+        # if not (self.procedure_name and ...):
+        #     raise Exception("XXX")
+
         lfric_args = []
         for lfric_arg in self.meta_args:
             lfric_args.append(lfric_arg.fortran_string())
@@ -521,29 +419,79 @@ class LFRicKernelMetadata():
             f"END TYPE {self.name}\n")
         return result
 
-    #class FieldVectorArg():
-    #    def __init__(self, arg_string, vector_size, kernel_metadata):
-    #        self.form = "GH_FIELD"
-    #        self.vector_size = vector_size
-    #
-    #    def fortran_string(self):
-    #        ''' xxx '''
-    #        return f"arg_type({self.form}*{self.vector_size}, ...)"
+    @property
+    def operates_on(self):
+        '''
+        :returns: the kernel operates_on property specified by the \
+            metadata.
+        :rtype: str
+        '''
+        return self._operates_on
 
-    class ScalarArg():
-        def __init__(self, arg_string, kernel_metadata):
-            self.form = "GH_SCALAR"
+    @operates_on.setter
+    def operates_on(self, value):
+        '''
+        :param str value: set the kernel operates_on property \
+            in the metadata to the specified value.
+        '''
+        const = LFRicConstants()
+        if not value or value.lower() not in const.VALID_ITERATION_SPACES:
+            raise ValueError(
+                f"The operates_on metadata should be a recognised "
+                f"iteration space (one of {const.VALID_ITERATION_SPACES}) "
+                f"but found '{value}'.")
+        self._operates_on = value.lower()
 
-        def fortran_string(self):
-            ''' xxx '''
-            return f"arg_type({self.form}, ...)"
+    @property
+    def procedure_name(self):
+        '''
+        :returns: the kernel procedure name specified by the metadata.
+        :rtype: str
+        '''
+        return self._procedure_name
 
-    class OperatorArg():
-        def __init__(arg_string, kernel_metadata):
-            self.form = "GH_OPERATOR"
+    @procedure_name.setter
+    def procedure_name(self, value):
+        '''
+        :param str value: set the kernel procedure name in the \
+            metadata to the specified value.
+        '''
+        if not value or not LFRicKernelMetadata.VALID_NAME.match(value):
+            raise ValueError(
+                f"Expected procedure_name to be a valid value but found "
+                f"'{value}'.")
+        self._procedure_name = value
 
-        def fortran_string(self):
-            ''' xxx '''
-            return f"arg_type({self.form}, ...)"
+    @property
+    def name(self):
+        '''
+        :returns: the name of the symbol that will contain the \
+            metadata when lowering.
+        :rtype: str
 
-    # class ColumnwiseOperatorArg():
+        '''
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        '''
+        :param str value: set the name of the symbol that will contain \
+            the metadata when lowering.
+
+        :raises ValueError: if the name is not valid.
+
+        '''
+        if not value or not LFRicKernelMetadata.VALID_NAME.match(value):
+            raise ValueError(
+                f"Expected name to be a valid value but found '{value}'.")
+        self._name = value
+
+    @property
+    def meta_args(self):
+        '''
+        :returns: a list of 'meta_arg' objects which capture the \
+            metadata values of the kernel arguments.
+        :rtype: List[:py:class:`psyclone.psyir.common.kernel.\
+            KernelMetadataSymbol.KernelMetadataArg`]
+        '''
+        return self._meta_args

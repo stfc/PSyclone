@@ -42,7 +42,17 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
 
-from psyclone.domain.lfric.kernel.psyir import LFRicKernelMetadata
+from psyclone.domain.lfric.kernel.lfric_kernel_metadata import LFRicKernelMetadata
+from psyclone.domain.lfric.kernel.scalar_arg import ScalarArg
+from psyclone.domain.lfric.kernel.field_arg import FieldArg
+from psyclone.domain.lfric.kernel.field_vector_arg import FieldVectorArg
+from psyclone.domain.lfric.kernel.inter_grid_arg import InterGridArg
+from psyclone.domain.lfric.kernel.inter_grid_vector_arg import InterGridVectorArg
+from psyclone.domain.lfric.kernel.operator_arg import OperatorArg
+from psyclone.domain.lfric.kernel.columnwise_operator_arg import ColumnwiseOperatorArg
+from psyclone.errors import InternalError
+from psyclone.parse.utils import ParseError
+from psyclone.psyir.symbols import DataTypeSymbol, REAL_TYPE, UnknownFortranType
 
 
 def test_init_noargs():
@@ -61,9 +71,97 @@ def test_init_noargs():
     assert meta._procedure_name is None
     assert meta._name is None
 
-# LFRic Container ...
 
-# Test check and set initial values
+def test_init_args():
+    '''Test that a LFRicKernelMetadata instance can be created
+    successfully when valid arguments are provided.
+
+    '''
+    meta = LFRicKernelMetadata(
+        operates_on="DOMAIN", gh_shape="TBD", meta_args=[],
+        meta_funcs="TBD", meta_reference_element="TBD",
+        meta_mesh="TBD", procedure_name="KERN_CODE", name="kern_type")
+    assert meta.operates_on == "domain"
+    assert meta.procedure_name == "KERN_CODE"
+    assert meta.name == "kern_type"
+    assert meta.meta_args == []
+    # TODO gh_shape, meta_funcs, meta_reference_element, meta_mesh
+
+
+def test_init_args_error():
+    '''Test that a LFRicKernelMetadata instance raises the expected
+    exceptions when invalid argument values are provided.
+
+    '''
+    with pytest.raises(ValueError) as info:
+        _ = LFRicKernelMetadata(operates_on="invalid")
+    assert ("The operates_on metadata should be a recognised iteration "
+            "space (one of ['cell_column', 'domain', 'dof']) but found "
+            "'invalid'." in str(info.value))
+
+    with pytest.raises(ValueError) as info:
+        _ = LFRicKernelMetadata(procedure_name="1_invalid")
+    assert ("Expected procedure_name to be a valid value but found "
+            "'1_invalid'." in str(info.value))
+
+    with pytest.raises(ValueError) as info:
+        _ = LFRicKernelMetadata(name="1_invalid")
+    assert ("Expected name to be a valid value but found "
+            "'1_invalid'." in str(info.value))
+
+    with pytest.raises(TypeError) as info:
+        _ = LFRicKernelMetadata(meta_args="error")
+    assert ("meta_args should be a list but found str." in str(info.value))
+
+    with pytest.raises(TypeError) as info:
+        _ = LFRicKernelMetadata(meta_args=["error"])
+    assert ("meta_args should be a list of argument objects, but found str."
+            in str(info.value))
+    # TODO gh_shape, meta_funcs, meta_reference_element, meta_mesh
+
+
+def test_setter_getter():
+    '''Test that the LFRicKernelMetadata setters and getters work as
+    expected.
+
+    '''
+    metadata = LFRicKernelMetadata()
+    assert metadata.operates_on is None
+    with pytest.raises(ValueError) as info:
+        metadata.operates_on = "invalid"
+    assert ("The operates_on metadata should be a recognised iteration "
+            "space (one of ['cell_column', 'domain', 'dof']) but found "
+            "'invalid'." in str(info.value))
+    metadata.operates_on = "DOF"
+    assert metadata.operates_on == "dof"
+
+    assert metadata.procedure_name is None
+    with pytest.raises(ValueError) as info:
+        metadata.procedure_name="1_invalid"
+    assert ("Expected procedure_name to be a valid value but found "
+            "'1_invalid'." in str(info.value))
+    metadata.procedure_name = "KERN_CODE"
+    assert metadata.procedure_name == "KERN_CODE"
+
+    assert metadata.name is None
+    with pytest.raises(ValueError) as info:
+        metadata.name="1_invalid"
+    assert ("Expected name to be a valid value but found "
+            "'1_invalid'." in str(info.value))
+    metadata.name = "kern_type"
+    assert metadata.name == "kern_type"
+
+    assert metadata.meta_args == []
+    with pytest.raises(TypeError) as info:
+        _ = LFRicKernelMetadata(meta_args="error")
+    assert ("meta_args should be a list but found str." in str(info.value))
+
+    scalar_arg = ScalarArg("GH_REAL", "GH_READ")
+    tmp = LFRicKernelMetadata(meta_args=[scalar_arg])
+    assert len(tmp.meta_args) == 1
+    assert tmp.meta_args[0] is scalar_arg
+    # TODO gh_shape, meta_funcs, meta_reference_element, meta_mesh
+
 
 # create_from_fortran_string
 METADATA = (
@@ -80,13 +178,231 @@ METADATA = (
     "   integer :: operates_on = cell_column\n"
     " contains\n"
     "   procedure, nopass :: code => testkern_code\n"
-    "end type testkern_type")
+    "end type testkern_type\n")
 
 
-def test_create():
-    ''' xxx '''
+def test_create_from_psyir_error():
+    '''Test that create_from_psyir raises the expected exceptions.'''
+    with pytest.raises(TypeError) as info:
+        _ = LFRicKernelMetadata.create_from_psyir(None)
+    assert ("Expected a DataTypeSymbol but found a NoneType."
+            in str(info.value))
+
+    with pytest.raises(InternalError) as info:
+        _ = LFRicKernelMetadata.create_from_psyir(
+            DataTypeSymbol("x", REAL_TYPE))
+    assert ("Expected kernel metadata to be stored in the PSyIR as an "
+            "UnknownFortranType, but found ScalarType." in str(info.value))
+
+PROGRAM = (
+    f"module dummy\n"
+    f"{METADATA}"
+    f"contains\n"
+    f"  subroutine kern()\n"
+    f"  end subroutine kern\n"
+    f"end module dummy\n")
+
+
+def test_create_from_psyir(fortran_reader):
+    '''Test that an instance of the LFRicKernelMetadata class can be
+    created from PSyIR.
+
+    '''
+    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
+    symbol = kernel_psyir.children[0].symbol_table.lookup("testkern_type")
+    metadata = LFRicKernelMetadata.create_from_psyir(symbol)
+    assert metadata.operates_on == "cell_column"
+    assert metadata.procedure_name == "testkern_code"
+    assert metadata.name == "testkern_type"
+    assert isinstance(metadata.meta_args, list)
+    assert len(metadata.meta_args) == 7
+    assert isinstance(metadata.meta_args[0], ScalarArg)
+    assert isinstance(metadata.meta_args[1], FieldArg)
+    assert isinstance(metadata.meta_args[2], FieldVectorArg)
+    assert isinstance(metadata.meta_args[3], InterGridArg)
+    assert isinstance(metadata.meta_args[4], InterGridVectorArg)
+    assert isinstance(metadata.meta_args[5], OperatorArg)
+    assert isinstance(metadata.meta_args[6], ColumnwiseOperatorArg)
+
+
+def test_create_from_fortran_error():
+    '''Test that the expected exceptions are raised when invalid input is
+    provided to the create_from_fortran_string method.
+
+    '''
+    with pytest.raises(ValueError) as info:
+        _ = LFRicKernelMetadata.create_from_fortran_string("hello")
+    assert ("Expected kernel metadata to be a Fortran derived type, but "
+            "found 'hello'." in str(info.value))
+
+    METADATA = (
+        "type, extends(kernel_type) :: testkern_type\n"
+        "   type(arg_type) :: meta_args =  invalid\n"
+        "   integer :: operates_on = cell_column\n"
+        " contains\n"
+        "   procedure, nopass :: code => testkern_code\n"
+        "end type testkern_type\n")
+    with pytest.raises(ParseError) as info:
+        _ = LFRicKernelMetadata.create_from_fortran_string(METADATA)
+    assert("meta_args should be a list, but found 'invalid' in"
+           in str(info.value))
+
+
+def test_create_from_fortran():
+    '''Test that an instance of the LFRicKernelMetadata class can be
+    created from Fortran.
+
+    '''
     metadata = LFRicKernelMetadata.create_from_fortran_string(METADATA)
-        
+    assert isinstance(metadata, LFRicKernelMetadata)
+    assert isinstance(metadata.meta_args, list)
+    assert len(metadata.meta_args) == 7
+    assert isinstance(metadata.meta_args[0], ScalarArg)
+    assert isinstance(metadata.meta_args[1], FieldArg)
+    assert isinstance(metadata.meta_args[2], FieldVectorArg)
+    assert isinstance(metadata.meta_args[3], InterGridArg)
+    assert isinstance(metadata.meta_args[4], InterGridVectorArg)
+    assert isinstance(metadata.meta_args[5], OperatorArg)
+    assert isinstance(metadata.meta_args[6], ColumnwiseOperatorArg)
+    assert metadata.name == "testkern_type"
+    assert metadata.operates_on == "cell_column"
+    assert metadata.procedure_name == "testkern_code"
+    assert metadata.gh_shape is None
+    assert metadata.meta_reference_element == []
 
-# lower_to_psyir
-# create_from_psyir
+
+def test_lower_to_psyir():
+    ''' Test that the metadata can be lowered to an UnknownFortranType symbol'''
+    metadata = LFRicKernelMetadata.create_from_fortran_string(METADATA)
+    symbol = metadata.lower_to_psyir()
+    assert isinstance(symbol, DataTypeSymbol)
+    assert symbol.name == metadata.name
+    assert isinstance(symbol.datatype, UnknownFortranType)
+    assert symbol.datatype.declaration == metadata.fortran_string()
+
+
+def test_getpropertyerror(fortran_reader):
+    '''Test that all the exceptions are raised as expected in the
+    _get_property method.
+
+    '''
+    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
+    datatype = kernel_psyir.children[0].symbol_table.lookup(
+        "testkern_type").datatype
+    metadata = LFRicKernelMetadata()
+    reader = FortranStringReader(datatype.declaration)
+    spec_part = Fortran2003.Derived_Type_Def(reader)
+    del spec_part.children[2]
+    with pytest.raises(ParseError) as info:
+        metadata._get_property(spec_part, "code")
+    assert ("No type-bound procedure found within a 'contains' section in"
+            in str(info.value))
+
+    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM.replace(
+        "procedure, nopass :: code => testkern_code", ""))
+    datatype = kernel_psyir.children[0].symbol_table.lookup(
+        "testkern_type").datatype
+    metadata = LFRicKernelMetadata()
+    reader = FortranStringReader(datatype.declaration)
+    spec_part = Fortran2003.Derived_Type_Def(reader)
+    with pytest.raises(ParseError) as info:
+        metadata._get_property(spec_part, "code")
+    assert ("Expecting a type-bound procedure, but found" in str(info.value))
+
+    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
+    datatype = kernel_psyir.children[0].symbol_table.lookup(
+        "testkern_type").datatype
+    metadata = LFRicKernelMetadata()
+    reader = FortranStringReader(datatype.declaration)
+    spec_part = Fortran2003.Derived_Type_Def(reader)
+    binding = spec_part.children[2]
+    binding.children[1] = binding.children[0]
+    with pytest.raises(ParseError) as info:
+        metadata._get_property(spec_part, "code")
+    assert ("Expecting a specific binding for the type-bound procedure, "
+            "but found" in str(info.value))
+
+    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM.replace("code", "hode"))
+    datatype = kernel_psyir.children[0].symbol_table.lookup(
+        "testkern_type").datatype
+    metadata = LFRicKernelMetadata()
+    reader = FortranStringReader(datatype.declaration)
+    spec_part = Fortran2003.Derived_Type_Def(reader)
+    with pytest.raises(ParseError) as info:
+        metadata._get_property(spec_part, "code")
+    assert ("Expecting the type-bound procedure binding-name to be 'code' "
+            "if there is a procedure name, but found 'hode'"
+            in str(info.value))
+
+    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
+    datatype = kernel_psyir.children[0].symbol_table.lookup(
+        "testkern_type").datatype
+    metadata = LFRicKernelMetadata()
+    reader = FortranStringReader(datatype.declaration)
+    spec_part = Fortran2003.Derived_Type_Def(reader)
+    del spec_part.children[1]
+    with pytest.raises(ParseError) as info:
+        metadata._get_property(spec_part, "operates_on")
+    assert ("No declarations were found in the kernel metadata:"
+            in str(info.value))
+
+    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM.replace("= cell_column", ""))
+    datatype = kernel_psyir.children[0].symbol_table.lookup(
+        "testkern_type").datatype
+    metadata = LFRicKernelMetadata()
+    reader = FortranStringReader(datatype.declaration)
+    spec_part = Fortran2003.Derived_Type_Def(reader)
+    with pytest.raises(ParseError) as info:
+        metadata._get_property(spec_part, "operates_on")
+    assert ("No value for property operates_on was found in "
+            in str(info.value))
+
+    with pytest.raises(ParseError) as info:
+        metadata._get_property(spec_part, "not_a_property")
+    assert ("'not_a_property' was not found in" in str(info.value))
+
+
+def test_getproperty(fortran_reader):
+    '''Test utility function that takes metadata in an fparser2 tree and
+    returns the value associated with the supplied property name.
+
+    '''
+    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
+    datatype = kernel_psyir.children[0].symbol_table.lookup(
+        "testkern_type").datatype
+    metadata = LFRicKernelMetadata()
+    reader = FortranStringReader(datatype.declaration)
+    spec_part = Fortran2003.Derived_Type_Def(reader)
+    assert metadata._get_property(spec_part, "code").string == \
+        "testkern_code"
+    assert metadata._get_property(spec_part, "operates_on").string == \
+        "cell_column"
+    with pytest.raises(ParseError) as info:
+        metadata._get_property(spec_part, "not_found")
+    assert ("'not_found' was not found in TYPE, EXTENDS(kernel_type) :: "
+            "testkern_type" in str(info.value))
+
+
+def test_fortran_string():
+    '''Test that the metadata can be written out as a fortran string.'''
+    metadata = LFRicKernelMetadata.create_from_fortran_string(METADATA)
+    result = metadata.fortran_string()
+    expected = (
+        "TYPE, PUBLIC, EXTENDS(kernel_type) :: testkern_type\n"
+        "  TYPE(arg_type) :: meta_args(7) = (/ &\n"
+        "arg_type(GH_SCALAR, gh_real, gh_read), &\n"
+        "arg_type(GH_FIELD, gh_real, gh_inc, w1), &\n"
+        "arg_type(GH_FIELD*3, gh_real, gh_read, w2), &\n"
+        "arg_type(GH_FIELD, gh_real, gh_read, w2, mesh_arg=gh_coarse), &\n"
+        "arg_type(GH_FIELD*3, gh_real, gh_read, w2, mesh_arg=gh_fine), &\n"
+        "arg_type(GH_OPERATOR, gh_real, gh_read, w2, w3), &\n"
+        "arg_type(GH_COLUMNWISE_OPERATOR, gh_real, gh_read, w3, w0)/)\n"
+        "  TYPE(func_type) :: meta_funcs(x) = xxx\n"
+        "  TYPE(ref_type) :: meta_ref(x) = xxx\n"
+        "  TYPE(grid_type) :: meta_grid(x) = xxx\n"
+        "  INTEGER :: OPERATES_ON = cell_column\n"
+        "  INTEGER :: GH_SHAPE = None\n"
+        "  CONTAINS\n"
+        "    PROCEDURE, NOPASS :: testkern_code\n"
+        "END TYPE testkern_type\n")
+    assert result == expected
