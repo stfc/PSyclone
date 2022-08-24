@@ -133,7 +133,7 @@ class CommonArg():
 
     @staticmethod
     def check_datatype(value):
-        raise NotImplementedError("Error")
+        raise NotImplementedError("Not implemented.")
 
     @datatype.setter
     def datatype(self, value):
@@ -146,7 +146,7 @@ class CommonArg():
 
     @staticmethod
     def check_access(value):
-        raise NotImplementedError("Error")
+        raise NotImplementedError("Not implemented.")
 
     @property
     def access(self):
