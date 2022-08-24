@@ -232,10 +232,10 @@ class ACCUpdateTrans(Transformation):
                 direction = "device"
                 tentative_update_pos = "end"
 
-            # Since the supplied nodes may be the children of an IfBlock or a
-            # Loop, we get the deepest ancestor that is a child of a Schedule.
             child = node_list[node_index]
             sched = child.parent
+            # Since the supplied nodes may be the children of an IfBlock or a
+            # Loop, we get the deepest ancestor that is a child of a Schedule.
             while not isinstance(sched, Schedule):
                 child, sched = child.parent, sched.parent
 
