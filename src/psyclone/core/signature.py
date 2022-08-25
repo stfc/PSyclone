@@ -110,7 +110,7 @@ class Signature(object):
         return "%".join(self._signature)
 
     # ------------------------------------------------------------------------
-    def to_language(self, component_indices, language_writer=None):
+    def to_language(self, component_indices=None, language_writer=None):
         # pylint: disable=too-many-locals
         '''Converts this signature with the provided indices to a string
         in the selected language.
@@ -121,18 +121,25 @@ class Signature(object):
 
         :param component_indices: the indices for each component of \
             the signature.
-        :type component_indices: \
+        :type component_indices: None (default is scalar access), or \
             :py:class:`psyclone.core.component_indices.ComponentIndices`
         :param language_writer: a backend visitor to convert PSyIR \
             expressions to a representation in the selected language. \
             This is used when creating error and warning messages.
-        :type language_writer: None (default is Fortran), or an \
-            instance of \
+        :type language_writer: None (default is Fortran), or an instance of \
             :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
 
         :raises InternalError: if the number of components in this signature \
             is different from the number of indices in component_indices.
         '''
+
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.core import ComponentIndices
+
+        # By default, if component_indices is None, we assume a scalar access:
+        if component_indices == None:
+            component_indices = ComponentIndices([[]] * len(self))
 
         # Check if number of components between self and component_indices
         # is consistent:

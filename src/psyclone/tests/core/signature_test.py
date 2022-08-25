@@ -210,6 +210,7 @@ def test_to_language_fortran():
     assert sig.to_language(comp) == "a(1,2)%b%c"
     comp = ComponentIndices([[], [], []])
     assert sig.to_language(comp) == "a%b%c"
+    assert sig.to_language() == "a%b%c"
 
 
 def test_output_languages():
