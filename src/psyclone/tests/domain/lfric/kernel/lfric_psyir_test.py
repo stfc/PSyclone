@@ -35,42 +35,28 @@
 
 '''Module containing tests for the KernelMetadataSymbol
 kernel-layer-specific symbol. The tests include translation of
-language-level PSyIR to PSyclone LFRic Kernel PSyIR and PSyclone LFRic
-Kernel PSyIR to language-level PSyIR.
+language-level PSyIR to PSyclone LFRic Kernel PSyIR and PSyclone
+LFRic Kernel PSyIR to language-level PSyIR.
 
 '''
 import pytest
 
-from fparser.common.readfortran import FortranStringReader
-from fparser.two import Fortran2003
-from fparser.two.utils import walk
-
-from psyclone.configuration import Config
-from psyclone.domain.lfric.kernel.lfric_kernel_metadata import LFRicKernelMetadata
 from psyclone.domain.lfric.kernel.psyir import LFRicContainer
-from psyclone.domain.lfric.transformations.raise_psyir_2_lfric_kern_trans import RaisePSyIR2LFRicKernTrans
-from psyclone.errors import InternalError
-from psyclone.parse.utils import ParseError
+from psyclone.domain.lfric.kernel.lfric_kernel_metadata import LFRicKernelMetadata
+from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyir.nodes import Container
-from psyclone.psyir.symbols import SymbolTable, REAL_TYPE
+from psyclone.domain.lfric.transformations.raise_psyir_2_lfric_kern_trans import RaisePSyIR2LFRicKernTrans
 
-METADATA = ("type, public, extends(kernel_type) :: w3_solver_kernel_type\n"
-"    private\n"
-"    type(arg_type) :: meta_args(4) = (/                                           &\n"
-"        arg_type(GH_FIELD,   GH_REAL,    GH_WRITE, W3),                           &\n"
-"        arg_type(GH_FIELD,   GH_REAL,    GH_READ,      W3),                       &\n"
-"        arg_type(GH_FIELD*3, GH_REAL,    GH_READ,      Wchi),                     &\n"
-"        arg_type(GH_FIELD,   GH_INTEGER, GH_READ,      ANY_DISCONTINUOUS_SPACE_3) &\n"
-"        /)\n"
-"    type(func_type) :: meta_funcs(2) = (/                                         &\n"
-"        func_type(W3,   GH_BASIS),                                                &\n"
-"        func_type(Wchi, GH_BASIS, GH_DIFF_BASIS)                                  &\n"
-"        /)\n"
-"    integer :: operates_on = CELL_COLUMN\n"
-"    integer :: gh_shape = GH_QUADRATURE_XYoZ\n"
-"  contains\n"
-"    procedure, nopass :: solver_w3_code\n"
-"  end type\n")
+
+METADATA = (
+    "type, extends(kernel_type) :: testkern_type\n"
+    "   type(arg_type), dimension(1) :: meta_args =  (/     &\n"
+    "           arg_type(gh_field,    gh_real, gh_inc,  w1) &\n"
+    "         /)\n"
+    "   integer :: operates_on = cell_column\n"
+    " contains\n"
+    "   procedure, nopass :: code => testkern_code\n"
+    "end type testkern_type\n")
 
 
 PROGRAM = (
@@ -82,35 +68,30 @@ PROGRAM = (
     f"end module dummy\n")
 
 
-# Class LFRicContainer
-
-def test_lfriccontainer_init():
+def test_container_init():
     '''Test that an instance of LFRicContainer can be created. '''
     container = LFRicContainer("name", None)
     assert container.name == "name"
     assert container._metadata is None
 
 
-def test_lfriccontainer_create():
+def test_container_create():
     '''Test that the LFRicContainer create method works as
     expected. Includes raising any exceptions. Also make use of the
     metadata property.
+
     '''
     metadata = LFRicKernelMetadata.create_from_fortran_string(METADATA)
     container = LFRicContainer.create("name", metadata, SymbolTable(), [])
     assert container.name == "name"
     expected = (
-        "TYPE, PUBLIC, EXTENDS(kernel_type) :: w3_solver_kernel_type\n"
-        "  TYPE(arg_type) :: meta_args(4) = (/ &\n"
-        "arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3), &\n"
-        "arg_type(GH_FIELD, GH_REAL, GH_READ, W3), &\n"
-        "arg_type(GH_FIELD*3, GH_REAL, GH_READ, Wchi), &\n"
-        "arg_type(GH_FIELD, GH_INTEGER, GH_READ, "
-        "ANY_DISCONTINUOUS_SPACE_3)/)\n"
+        "TYPE, PUBLIC, EXTENDS(kernel_type) :: testkern_type\n"
+        "  TYPE(arg_type) :: meta_args(1) = (/ &\n"
+        "arg_type(GH_FIELD, gh_real, gh_inc, w1)/)\n"
         "  INTEGER :: OPERATES_ON = cell_column\n"
         "  CONTAINS\n"
-        "    PROCEDURE, NOPASS :: solver_w3_code\n"
-        "END TYPE w3_solver_kernel_type\n")
+        "    PROCEDURE, NOPASS :: testkern_code\n"
+        "END TYPE testkern_type\n")
     assert container.metadata.fortran_string() == expected
     assert container.children == []
     with pytest.raises(ValueError) as info:
@@ -119,26 +100,27 @@ def test_lfriccontainer_create():
             "found 'Not valid'." in str(str(info.value)))
 
 
-def test_lfriccontainer_lower(fortran_reader):
+def test_container_lower(fortran_reader):
     '''Test that the LFRicContainer lower_to_language_level method works
     as expected.
+
     '''
     # First load program and perform checks
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
     assert isinstance(kernel_psyir.children[0], Container)
     assert not isinstance(kernel_psyir.children[0], LFRicContainer)
-    assert kernel_psyir.children[0].symbol_table.lookup("w3_solver_kernel_type")
+    assert kernel_psyir.children[0].symbol_table.lookup("testkern_type")
 
     # Now raise to LFRic PSyIR and perform checks
-    kern_trans = RaisePSyIR2LFRicKernTrans("w3_solver_kernel_type")
+    kern_trans = RaisePSyIR2LFRicKernTrans("testkern_type")
     kern_trans.apply(kernel_psyir)
     assert isinstance(kernel_psyir.children[0], LFRicContainer)
     with pytest.raises(KeyError):
-        kernel_psyir.children[0].symbol_table.lookup("w3_solver_kernel_type")
+        kernel_psyir.children[0].symbol_table.lookup("testkern_type")
 
     # Now use lower_to_language_level and perform checks
     container = kernel_psyir.children[0]
     container.lower_to_language_level()
     assert isinstance(kernel_psyir.children[0], Container)
     assert not isinstance(kernel_psyir.children[0], LFRicContainer)
-    assert kernel_psyir.children[0].symbol_table.lookup("w3_solver_kernel_type")
+    assert kernel_psyir.children[0].symbol_table.lookup("testkern_type")

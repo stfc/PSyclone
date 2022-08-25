@@ -397,11 +397,7 @@ def test_fortran_string():
         "arg_type(GH_FIELD*3, gh_real, gh_read, w2, mesh_arg=gh_fine), &\n"
         "arg_type(GH_OPERATOR, gh_real, gh_read, w2, w3), &\n"
         "arg_type(GH_COLUMNWISE_OPERATOR, gh_real, gh_read, w3, w0)/)\n"
-        "  TYPE(func_type) :: meta_funcs(x) = xxx\n"
-        "  TYPE(ref_type) :: meta_ref(x) = xxx\n"
-        "  TYPE(grid_type) :: meta_grid(x) = xxx\n"
         "  INTEGER :: OPERATES_ON = cell_column\n"
-        "  INTEGER :: GH_SHAPE = None\n"
         "  CONTAINS\n"
         "    PROCEDURE, NOPASS :: testkern_code\n"
         "END TYPE testkern_type\n")

@@ -82,8 +82,15 @@ def test_init_invalid():
     assert ("The fourth metadata entry for an argument should be a "
             "recognised datatype descriptor (one of ['w3', 'wtheta', 'w2v', "
             "'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', 'w2h', "
-            "'w2htrace', 'any_w2', 'wchi']), but found 'invalid'."
-            in str(info.value))
+            "'w2htrace', 'any_w2', 'wchi', 'any_space_1', 'any_space_2', "
+            "'any_space_3', 'any_space_4', 'any_space_5', 'any_space_6', "
+            "'any_space_7', 'any_space_8', 'any_space_9', 'any_space_10', "
+            "'any_discontinuous_space_1', 'any_discontinuous_space_2', "
+            "'any_discontinuous_space_3', 'any_discontinuous_space_4', "
+            "'any_discontinuous_space_5', 'any_discontinuous_space_6', "
+            "'any_discontinuous_space_7', 'any_discontinuous_space_8', "
+            "'any_discontinuous_space_9', 'any_discontinuous_space_10']), "
+            "but found 'invalid'." in str(info.value))
 
 
 def test_init_args():
@@ -218,9 +225,15 @@ def test_setter_getter():
     assert ("The fourth metadata entry for an argument should be a "
             "recognised datatype descriptor (one of ['w3', 'wtheta', 'w2v', "
             "'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', 'w2h', "
-            "'w2htrace', 'any_w2', 'wchi']), but found 'invalid'."
-            in str(info.value))
-
+            "'w2htrace', 'any_w2', 'wchi', 'any_space_1', 'any_space_2', "
+            "'any_space_3', 'any_space_4', 'any_space_5', 'any_space_6', "
+            "'any_space_7', 'any_space_8', 'any_space_9', 'any_space_10', "
+            "'any_discontinuous_space_1', 'any_discontinuous_space_2', "
+            "'any_discontinuous_space_3', 'any_discontinuous_space_4', "
+            "'any_discontinuous_space_5', 'any_discontinuous_space_6', "
+            "'any_discontinuous_space_7', 'any_discontinuous_space_8', "
+            "'any_discontinuous_space_9', 'any_discontinuous_space_10']), "
+            "but found 'invalid'." in str(info.value))
     field_arg.function_space = "w0"
     assert field_arg.function_space == "w0"
     field_arg.function_space = "W0"

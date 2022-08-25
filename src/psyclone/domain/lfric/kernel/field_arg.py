@@ -173,9 +173,9 @@ class FieldArg(CommonArg):
 
         '''
         const = LFRicConstants()
-        if not value or value.lower() not in const.VALID_FUNCTION_SPACES:
+        if not value or value.lower() not in const.VALID_FUNCTION_SPACE_NAMES:
             raise ValueError(
                 f"The fourth metadata entry for an argument should "
                 f"be a recognised datatype descriptor (one of "
-                f"{const.VALID_FUNCTION_SPACES}), but found '{value}'.")
+                f"{const.VALID_FUNCTION_SPACE_NAMES}), but found '{value}'.")
         self._function_space = value

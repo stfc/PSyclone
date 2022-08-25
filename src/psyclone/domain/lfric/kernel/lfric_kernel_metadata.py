@@ -244,6 +244,7 @@ class LFRicKernelMetadata():
         kernel_metadata._meta_args = []
         for meta_arg in args[0].children:
             form = meta_arg.children[1].children[0].tostr()
+            form = form.lower()
             if form == "gh_scalar":
                 arg = ScalarArg.create_from_psyir(meta_arg)
             elif form == "gh_operator":
@@ -269,15 +270,15 @@ class LFRicKernelMetadata():
                     arg = FieldArg.create_from_psyir(meta_arg)
             else:
                 raise ParseError(
-                    f"Expected a 'meta_arg' entry with to "
-                    f"either be a field, a scalar or an operator, but found "
+                    f"Expected a 'meta_arg' entry to be a "
+                    f"field, a scalar or an operator, but found "
                     f"'{meta_arg}'.")
             kernel_metadata.meta_args.append(arg)
 
         try:
             meta_funcs = LFRicKernelMetadata._get_property(
                 spec_part, "meta_funcs")
-            args = walk(meta_args, Fortran2003.Ac_Value_List)
+            args = walk(meta_funcs, Fortran2003.Ac_Value_List)
             if not args:
                 raise ParseError(
                     f"meta_funcs should be a list, but found "
@@ -405,15 +406,19 @@ class LFRicKernelMetadata():
         for lfric_arg in self.meta_args:
             lfric_args.append(lfric_arg.fortran_string())
         lfric_args_str = ", &\n".join(lfric_args)
+        meta_funcs = ""
+        meta_ref = ""
+        meta_grid = ""
+        shape = ""
         result = (
             f"TYPE, PUBLIC, EXTENDS(kernel_type) :: {self.name}\n"
             f"  TYPE(arg_type) :: meta_args({len(self.meta_args)}) = "
             f"(/ &\n{lfric_args_str}/)\n"
-            f"  TYPE(func_type) :: meta_funcs(x) = xxx\n"
-            f"  TYPE(ref_type) :: meta_ref(x) = xxx\n"
-            f"  TYPE(grid_type) :: meta_grid(x) = xxx\n"
+            f"{meta_funcs}"
+            f"{meta_ref}"
+            f"{meta_grid}"
             f"  INTEGER :: OPERATES_ON = {self.operates_on}\n"
-            f"  INTEGER :: GH_SHAPE = {self.gh_shape}\n"
+            f"{shape}"
             f"  CONTAINS\n"
             f"    PROCEDURE, NOPASS :: {self.procedure_name}\n"
             f"END TYPE {self.name}\n")
