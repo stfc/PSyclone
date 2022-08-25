@@ -38,12 +38,14 @@ associated with a generic LFRic argument. Supports the creation,
 modification and Fortran output of such an argument.
 
 '''
+from abc import ABC, abstractmethod
+
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
 
 
-class CommonArg():
+class CommonArg(ABC):
     '''Class to capture commone LFRic kernel metadata.
 
     :param Optional[str] datatype: the datatype of this argument.
@@ -130,8 +132,9 @@ class CommonArg():
         return self._datatype
 
     @staticmethod
+    @abstractmethod
     def check_datatype(value):
-        raise NotImplementedError("Not implemented.")
+        '''Check that value is a valid datatype.'''
 
     @datatype.setter
     def datatype(self, value):
@@ -143,8 +146,9 @@ class CommonArg():
         self._datatype = value
 
     @staticmethod
+    @abstractmethod
     def check_access(value):
-        raise NotImplementedError("Not implemented.")
+        '''Check that value is a valid value for the access descriptor.'''
 
     @property
     def access(self):

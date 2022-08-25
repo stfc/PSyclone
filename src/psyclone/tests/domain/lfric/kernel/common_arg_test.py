@@ -41,59 +41,11 @@ import pytest
 from psyclone.domain.lfric.kernel.common_arg import CommonArg
 
 
-def test_init_noargs():
+def test_init():
     '''Test that a CommonArg instance can be created successfully when no
     arguments are provided.
-
     '''
-    field_arg = CommonArg()
-    assert isinstance(field_arg, CommonArg)
-    assert field_arg._datatype is None
-    assert field_arg._access is None
-
-
-def test_init_invalid():
-    '''No exceptions are raised when constructing an instance of the CommonArg
-    class as we don't know what is valid.
-
-    '''
-    with pytest.raises(NotImplementedError) as info:
-        _ = CommonArg(datatype="invalid")
-    assert "Not implemented." in str(info.value)
-    with pytest.raises(NotImplementedError) as info:
-        _ = CommonArg(access="invalid")
-    assert "Not implemented." in str(info.value)
-
-
-def test_init_args():
-    '''Test that valid initial values provided when constructing an
-    instance of CommonArg are stored as expected.
-
-    '''
-    with pytest.raises(NotImplementedError) as info:
-        _ = CommonArg("GH_REAL", "GH_READ")
-    assert "Not implemented." in str(info.value)
-
-
-def test_setter_getter():
-    '''Test that the setters and getters work as expected.'''
-    field_arg = CommonArg()
-    assert field_arg.datatype is None
-    with pytest.raises(NotImplementedError) as info:
-        field_arg.datatype = "gh_integer"
-    assert "Not implemented." in str(info.value)
-    assert field_arg.datatype is None
-    with pytest.raises(NotImplementedError) as info:
-        field_arg.datatype = "GH_INTEGER"
-    assert "Not implemented." in str(info.value)
-    assert field_arg.datatype is None
-
-    assert field_arg.access is None
-    with pytest.raises(NotImplementedError) as info:
-        field_arg.access = "gh_read"
-    assert "Not implemented." in str(info.value)
-    assert field_arg.access is None
-    with pytest.raises(NotImplementedError) as info:
-        field_arg.access = "GH_READ"
-    assert "Not implemented." in str(info.value)
-    assert field_arg.access is None
+    with pytest.raises(TypeError) as info:
+        arg = CommonArg()
+    assert ("Can't instantiate abstract class CommonArg with abstract "
+            "methods check_access, check_datatype" in str(info.value))
