@@ -38,12 +38,11 @@ associated with a scalar argument. Supports the creation, modification
 and Fortran output of a Scalar argument.
 
 '''
-from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
-from fparser.two.parser import ParserFactory
 
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.common_arg import CommonArg
+
 
 class ScalarArg(CommonArg):
     '''Class to capture LFRic kernel metadata information for a scalar
@@ -58,41 +57,6 @@ class ScalarArg(CommonArg):
     def __init__(self, datatype=None, access=None):
         super().__init__(datatype, access)
         self._form = "GH_SCALAR"
-
-    @staticmethod
-    def create_from_psyir(psyir):
-        '''Create an instance of this class from generic PSyIR. At this moment
-        this information is captured in an fparser2 tree.
-
-        :param psyir: fparser2 tree containing the PSyIR for a scalar \
-            argument.
-        :type psyir: :py:class:`fparser.two.Fortran2003.Part_Ref`
-
-        :returns: an instance of ScalarArg.
-        :rtype: :py:class:`psyclone.domain.lfric.kernel.ScalarArg`
-
-        '''
-        ScalarArg.check_psyir(psyir)
-        datatype = psyir.children[1].children[1].tostr()
-        access = psyir.children[1].children[2].tostr()
-        return ScalarArg(datatype, access)
-
-    def fortran_string(self):
-        ''':returns: the metadata represented by this class as a \
-            Fortran string.
-        :rtype: str
-
-        raises ValueError: if one or more of the datatype and access \
-            values have not been set.
-
-        '''
-        if not (self.datatype and self.access):
-            raise ValueError(
-                f"Values for datatype and access must be "
-                f"provided before calling the fortran_string method, but "
-                f"found '{self.datatype}' and '{self.access}'.")
-
-        return (f"arg_type({self.form}, {self.datatype}, {self.access})")
 
     @staticmethod
     def check_psyir(psyir, nargs=3):
@@ -175,7 +139,7 @@ class ScalarArg(CommonArg):
                 f"provided before calling the fortran_string method, but "
                 f"found '{self.datatype}' and '{self.access}'.")
 
-        return (f"arg_type({self.form}, {self.datatype}, {self.access})")
+        return f"arg_type({self.form}, {self.datatype}, {self.access})"
 
     @property
     def datatype(self):

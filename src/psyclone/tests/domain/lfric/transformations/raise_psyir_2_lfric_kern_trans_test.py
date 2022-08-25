@@ -42,10 +42,10 @@ classes.
 import pytest
 
 from psyclone.domain.lfric.kernel.psyir import LFRicContainer
-from psyclone.domain.lfric.transformations.raise_psyir_2_lfric_kern_trans import RaisePSyIR2LFRicKernTrans
+from psyclone.domain.lfric.transformations.raise_psyir_2_lfric_kern_trans \
+    import RaisePSyIR2LFRicKernTrans
 from psyclone.domain.gocean.transformations.raise_psyir_2_gocean_kern_trans \
     import find_symbol
-from psyclone.parse.utils import ParseError
 from psyclone.psyir.nodes import FileContainer, Container, Routine
 from psyclone.psyir.symbols import SymbolTable, DataTypeSymbol
 from psyclone.psyir.transformations import TransformationError

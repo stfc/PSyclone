@@ -38,11 +38,6 @@ the metadata associated with a columnwise operator argument. Supports the
 creation, modification and Fortran output of a ColumnwiseOperator argument.
 
 '''
-from fparser.common.readfortran import FortranStringReader
-from fparser.two import Fortran2003
-from fparser.two.parser import ParserFactory
-
-from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.operator_arg import OperatorArg
 
 
@@ -64,9 +59,6 @@ class ColumnwiseOperatorArg(OperatorArg):
                  function_space2=None):
         super().__init__(datatype, access, function_space1, function_space2)
         self._form = "GH_COLUMNWISE_OPERATOR"
-        #if not flavour in ["assembly", "application", "matrixmatrix"]:
-        #    raise i
-        #self._flavour = flavour
 
     @staticmethod
     def create_from_psyir(psyir):

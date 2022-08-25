@@ -38,10 +38,6 @@ associated with a field argument. Supports the creation, modification
 and Fortran output of a Field argument.
 
 '''
-from fparser.common.readfortran import FortranStringReader
-from fparser.two import Fortran2003
-from fparser.two.parser import ParserFactory
-
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.common_arg import CommonArg
 
@@ -94,7 +90,7 @@ class FieldArg(CommonArg):
 
         :returns: an instance of cls.
         :rtype: :py:class:`psyclone.domain.lfric.kernel.cls`
- 
+
         '''
         part_ref = cls.create_part_ref(fortran_string)
         return cls.create_from_psyir(part_ref)

@@ -42,8 +42,6 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
 
-from psyclone.domain.lfric import LFRicConstants
-
 
 class CommonArg():
     '''Class to capture commone LFRic kernel metadata.

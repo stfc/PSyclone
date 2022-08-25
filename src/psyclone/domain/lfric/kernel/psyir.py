@@ -39,17 +39,6 @@ language-level PSyIR to PSyclone LFRic Kernel PSyIR and PSyclone LFRic
 Kernel PSyIR to language-level PSyIR.
 
 '''
-import re
-
-from fparser.common.readfortran import FortranStringReader
-from fparser.two import Fortran2003
-from fparser.two.parser import ParserFactory
-from fparser.two.utils import walk, get_child
-
-from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.lfric.kernel.field_arg import FieldArg
-
-from psyclone.parse.utils import ParseError
 from psyclone.psyir.nodes import Container
 
 

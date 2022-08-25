@@ -184,7 +184,8 @@ def test_fortran_string():
     '''Test that the fortran_string method works as expected, including
     raise an exception if all of the required properties have not been
     set '''
-    fortran_string = "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, mesh_arg=GH_FINE)"
+    fortran_string = ("arg_type(GH_FIELD, GH_REAL, GH_READ, W0, "
+                      "mesh_arg=GH_FINE)")
     intergrid_arg = InterGridArg.create_from_fortran_string(fortran_string)
     result = intergrid_arg.fortran_string()
     assert result == fortran_string

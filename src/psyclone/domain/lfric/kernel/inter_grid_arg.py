@@ -82,7 +82,7 @@ class InterGridArg(FieldArg):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.InterGridArg`
 
         '''
-        #???? FieldArg.check_psyir(psyir, nargs=5)
+        #  ???? FieldArg.check_psyir(psyir, nargs=5)
         if not isinstance(psyir, Fortran2003.Structure_Constructor):
             raise TypeError(
                 f"Expected kernel metadata to be encoded as a Fortran "
@@ -116,14 +116,15 @@ class InterGridArg(FieldArg):
 
         :returns: an instance of cls.
         :rtype: :py:class:`psyclone.domain.lfric.kernel.cls`
- 
+
         '''
         _ = ParserFactory().create(std="f2003")
         reader = FortranStringReader(fortran_string)
         structure_constructor = Fortran2003.Structure_Constructor(reader)
         if not structure_constructor:
-            raise ValueError(f"Expected kernel metadata to be a Fortran part reference, "
-                             f"with the form 'arg_type(...)' but found '{fortran_string}'.")
+            raise ValueError(
+                f"Expected kernel metadata to be a Fortran part reference, "
+                f"with the form 'arg_type(...)' but found '{fortran_string}'.")
         return cls.create_from_psyir(structure_constructor)
 
     def fortran_string(self):
@@ -139,9 +140,9 @@ class InterGridArg(FieldArg):
         if not (self.datatype and self.access and self.function_space and
                 self.mesh_arg):
             raise ValueError(
-                f"Values for datatype, access, function_space and mesh_arg must be "
-                f"provided before calling the fortran_string method, but "
-                f"found '{self.datatype}', '{self.access}', "
+                f"Values for datatype, access, function_space and mesh_arg "
+                f"must be provided before calling the fortran_string method, "
+                f"but found '{self.datatype}', '{self.access}', "
                 f"'{self.function_space}' and '{self.mesh_arg}'.")
 
         return (f"arg_type({self.form}, {self.datatype}, {self.access}, "

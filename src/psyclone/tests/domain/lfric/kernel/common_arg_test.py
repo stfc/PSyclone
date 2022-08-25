@@ -38,10 +38,6 @@
 '''
 import pytest
 
-from fparser.common.readfortran import FortranStringReader
-from fparser.two import Fortran2003
-from fparser.two.parser import ParserFactory
-
 from psyclone.domain.lfric.kernel.common_arg import CommonArg
 
 
@@ -63,10 +59,10 @@ def test_init_invalid():
     '''
     with pytest.raises(NotImplementedError) as info:
         _ = CommonArg(datatype="invalid")
-    assert ("Not implemented." in str(info.value))
+    assert "Not implemented." in str(info.value)
     with pytest.raises(NotImplementedError) as info:
         _ = CommonArg(access="invalid")
-    assert ("Not implemented." in str(info.value))
+    assert "Not implemented." in str(info.value)
 
 
 def test_init_args():
@@ -76,7 +72,7 @@ def test_init_args():
     '''
     with pytest.raises(NotImplementedError) as info:
         _ = CommonArg("GH_REAL", "GH_READ")
-    assert ("Not implemented." in str(info.value))
+    assert "Not implemented." in str(info.value)
 
 
 def test_setter_getter():
@@ -86,18 +82,18 @@ def test_setter_getter():
     with pytest.raises(NotImplementedError) as info:
         field_arg.datatype = "gh_integer"
     assert "Not implemented." in str(info.value)
-    assert field_arg.datatype == None
+    assert field_arg.datatype is None
     with pytest.raises(NotImplementedError) as info:
         field_arg.datatype = "GH_INTEGER"
     assert "Not implemented." in str(info.value)
-    assert field_arg.datatype == None
+    assert field_arg.datatype is None
 
     assert field_arg.access is None
     with pytest.raises(NotImplementedError) as info:
         field_arg.access = "gh_read"
     assert "Not implemented." in str(info.value)
-    assert field_arg.access == None
+    assert field_arg.access is None
     with pytest.raises(NotImplementedError) as info:
         field_arg.access = "GH_READ"
     assert "Not implemented." in str(info.value)
-    assert field_arg.access == None
+    assert field_arg.access is None

@@ -50,13 +50,14 @@ from psyclone.domain.lfric.kernel.scalar_arg import ScalarArg
 from psyclone.domain.lfric.kernel.field_arg import FieldArg
 from psyclone.domain.lfric.kernel.field_vector_arg import FieldVectorArg
 from psyclone.domain.lfric.kernel.inter_grid_arg import InterGridArg
-from psyclone.domain.lfric.kernel.inter_grid_vector_arg import InterGridVectorArg
+from psyclone.domain.lfric.kernel.inter_grid_vector_arg import \
+    InterGridVectorArg
 from psyclone.domain.lfric.kernel.operator_arg import OperatorArg
-from psyclone.domain.lfric.kernel.columnwise_operator_arg import ColumnwiseOperatorArg
+from psyclone.domain.lfric.kernel.columnwise_operator_arg import \
+    ColumnwiseOperatorArg
 
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
-from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import DataTypeSymbol, UnknownFortranType
 
 
@@ -69,25 +70,24 @@ class LFRicKernelMetadata():
     :param meta_args: a list of 'meta_arg' objects which capture the \
         metadata values of the kernel arguments.
 
-    :type meta_args: Optional[List[:py:class:`ScalarArg` | :py:class:`FieldArg` \
-        | :py:class:`OperatorArg`]]
+    :type meta_args: Optional[List[:py:class:`ScalarArg` | \
+        :py:class:`FieldArg` | :py:class:`OperatorArg`]]
 
     :param meta_funcs: a list of 'meta_arg' objects which capture the \
         metadata values of the kernel arguments.
 
-    :type meta_funcs: Optional[List[:py:class:`GridArg` | :py:class:`FieldArg` \
-        | :py:class:`ScalarArg`]]
+    :type meta_funcs: Optional[List[:py:class:`GridArg` | \
+        :py:class:`FieldArg` | :py:class:`ScalarArg`]]
 
-    :param meta_reference_element: a list of 'meta_arg' objects which capture the \
-        metadata values of the kernel arguments.
-    :type meta_reference_element: Optional[List[:py:class:`GridArg` | :py:class:`FieldArg` \
-        | :py:class:`ScalarArg`]]
+    :param meta_reference_element: a list of 'meta_arg' objects which \
+        capture the metadata values of the kernel arguments.
+    :type meta_reference_element: Optional[List[:py:class:`GridArg` | \
+        :py:class:`FieldArg` | :py:class:`ScalarArg`]]
 
     :param meta_mesh: a list of 'meta_arg' objects which capture the \
         metadata values of the kernel arguments.
-    :type meta_mesh: Optional[List[:py:class:`ScalarArg` | :py:class:`FieldArg` \
-        | :py:class:`OperatorArg`]]
-
+    :type meta_mesh: Optional[List[:py:class:`ScalarArg` | \
+        :py:class:`FieldArg` | :py:class:`OperatorArg`]]
 
     :param shape: quadrature.
     :type shape: Optional[str]
@@ -103,13 +103,6 @@ class LFRicKernelMetadata():
     :type name: Optional[str]
 
     '''
-    #general purpose kernel operates_on=CELL_COLUMN (no CMA)
-    #general purpose kernel operates_on=DOMAIN
-    #CMA construction kernel
-    #CMA application kernel
-    #CMA matrix-matrix kernel
-    #inter-grid kernel
-
     VALID_NAME = re.compile(r'[a-zA-Z_][\w]*')
 
     def __init__(self, operates_on=None, gh_shape=None, meta_args=None,
@@ -231,7 +224,7 @@ class LFRicKernelMetadata():
             spec_part, "code").string
 
         # meta_args contains arguments which have
-        # properties. Therefore create appropriate (ScalarArg, 
+        # properties. Therefore create appropriate (ScalarArg,
         # FieldArg, ...) instances to capture this information.
         kernel_metadata._meta_args = LFRicKernelMetadata._get_property(
             spec_part, "meta_args")
@@ -255,7 +248,7 @@ class LFRicKernelMetadata():
                 vector_arg = "gh_field" in form and "*" in form
                 nargs = len(meta_arg.children[1].children)
                 intergrid_arg = False
-                if nargs==5:
+                if nargs == 5:
                     fifth_arg = meta_arg.children[1].children[4]
                     if fifth_arg.children[0].string == "mesh_arg":
                         intergrid_arg = True
@@ -288,31 +281,24 @@ class LFRicKernelMetadata():
 
         LFRicKernelMetadata.meta_reference_element = []
         try:
-            LFRicKernelMetadata.meta_reference_element = LFRicKernelMetadata._get_property(
-                spec_part, "meta_reference_element")
+            LFRicKernelMetadata.meta_reference_element = \
+                LFRicKernelMetadata._get_property(
+                    spec_part, "meta_reference_element")
         except ParseError:
             pass
-        args = walk(LFRicKernelMetadata.meta_reference_element, Fortran2003.Ac_Value_List)
+        args = walk(LFRicKernelMetadata.meta_reference_element,
+                    Fortran2003.Ac_Value_List)
         if not args:
             LFRicKernelMetadata.meta_reference_element = []
-            #raise ParseError(
-            #    f"meta_reference_element should be a list, but found "
-            #    f"'{str(LFRicKernelMetadata.meta_reference_element)}' in '{spec_part}'.")
 
         # meta_mesh contains arguments which have
         # properties.
         try:
-            meta_mesh = LFRicKernelMetadata._get_property(
+            LFRicKernelMetadata.meta_mesh = LFRicKernelMetadata._get_property(
                 spec_part, "meta_mesh")
         except ParseError:
             # meta_mesh is not specified in the metadata
-            meta_mesh = []
-        #finally:
-        #    args = walk(meta_args, Fortran2003.Ac_Value_List)
-        #    if not args:
-        #        raise ParseError(
-        #            f"meta_mesh should be a list, but found "
-        #            f"'{str(meta_mesh)}' in '{spec_part}'.")
+            LFRicKernelMetadata.meta_mesh = []
         return kernel_metadata
 
     def lower_to_psyir(self):

@@ -38,11 +38,8 @@ associated with a field argument. Supports the creation, modification
 and Fortran output of a Field argument.
 
 '''
-from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
-from fparser.two.parser import ParserFactory
 
-from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.inter_grid_arg import InterGridArg
 
 
@@ -61,7 +58,7 @@ class InterGridVectorArg(InterGridArg):
     def __init__(self, datatype=None, access=None, function_space=None,
                  mesh_arg=None, vector_length=None):
         super().__init__(datatype, access, function_space, mesh_arg)
-        
+
         if vector_length is None:
             self._vector_length = vector_length
         else:
@@ -113,20 +110,6 @@ class InterGridVectorArg(InterGridArg):
         mesh_arg = psyir.children[1].children[4].children[1].tostr()
         return InterGridVectorArg(
             datatype, access, function_space, mesh_arg, vector_length)
-
-    #@classmethod
-    #def create_from_fortran_string(cls, fortran_string):
-    #    '''Create an instance of this class from a Fortran string.
-    #
-    #    :param str fortran_string: a string containing the metadata in \
-    #        Fortran.
-    #
-    #    :returns: an instance of cls.
-    #    :rtype: :py:class:`psyclone.domain.lfric.kernel.cls`
-    #
-    #    '''
-    #    part_ref = cls.create_part_ref(fortran_string)
-    #    return cls.create_from_psyir(part_ref)
 
     def fortran_string(self):
         '''

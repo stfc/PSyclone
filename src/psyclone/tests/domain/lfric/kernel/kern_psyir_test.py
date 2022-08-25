@@ -41,37 +41,33 @@ Kernel PSyIR to language-level PSyIR.
 '''
 import pytest
 
-from fparser.common.readfortran import FortranStringReader
-from fparser.two import Fortran2003
-from fparser.two.utils import walk
-
-from psyclone.configuration import Config
-from psyclone.domain.lfric.kernel.lfric_kernel_metadata import LFRicKernelMetadata
+from psyclone.domain.lfric.kernel.lfric_kernel_metadata import \
+    LFRicKernelMetadata
 from psyclone.domain.lfric.kernel.psyir import LFRicContainer
-from psyclone.domain.lfric.transformations.raise_psyir_2_lfric_kern_trans import RaisePSyIR2LFRicKernTrans
-from psyclone.errors import InternalError
-from psyclone.parse.utils import ParseError
+from psyclone.domain.lfric.transformations.raise_psyir_2_lfric_kern_trans \
+    import RaisePSyIR2LFRicKernTrans
 from psyclone.psyir.nodes import Container
-from psyclone.psyir.symbols import SymbolTable, REAL_TYPE
+from psyclone.psyir.symbols import SymbolTable
 
-METADATA = ("type, public, extends(kernel_type) :: w3_solver_kernel_type\n"
-"    private\n"
-"    type(arg_type) :: meta_args(4) = (/                                           &\n"
-"        arg_type(GH_FIELD,   GH_REAL,    GH_WRITE, W3),                           &\n"
-"        arg_type(GH_FIELD,   GH_REAL,    GH_READ,      W3),                       &\n"
-"        arg_type(GH_FIELD*3, GH_REAL,    GH_READ,      Wchi),                     &\n"
-"        arg_type(GH_FIELD,   GH_INTEGER, GH_READ,      ANY_DISCONTINUOUS_SPACE_3) &\n"
-"        /)\n"
-"    type(func_type) :: meta_funcs(2) = (/                                         &\n"
-"        func_type(W3,   GH_BASIS),                                                &\n"
-"        func_type(Wchi, GH_BASIS, GH_DIFF_BASIS)                                  &\n"
-"        /)\n"
-"    integer :: operates_on = CELL_COLUMN\n"
-"    integer :: gh_shape = GH_QUADRATURE_XYoZ\n"
-"  contains\n"
-"    procedure, nopass :: solver_w3_code\n"
-"  end type\n")
-
+METADATA = (
+    "type, public, extends(kernel_type) :: w3_solver_kernel_type\n"
+    "    private\n"
+    "    type(arg_type) :: meta_args(4) = (/                           &\n"
+    "        arg_type(GH_FIELD,   GH_REAL,    GH_WRITE, W3),           &\n"
+    "        arg_type(GH_FIELD,   GH_REAL,    GH_READ,      W3),       &\n"
+    "        arg_type(GH_FIELD*3, GH_REAL,    GH_READ,      Wchi),     &\n"
+    "        arg_type(GH_FIELD,   GH_INTEGER, GH_READ,"
+    "      ANY_DISCONTINUOUS_SPACE_3) &\n"
+    "        /)\n"
+    "    type(func_type) :: meta_funcs(2) = (/                         &\n"
+    "        func_type(W3,   GH_BASIS),                                &\n"
+    "        func_type(Wchi, GH_BASIS, GH_DIFF_BASIS)                  &\n"
+    "        /)\n"
+    "    integer :: operates_on = CELL_COLUMN\n"
+    "    integer :: gh_shape = GH_QUADRATURE_XYoZ\n"
+    "  contains\n"
+    "    procedure, nopass :: solver_w3_code\n"
+    "  end type\n")
 
 PROGRAM = (
     f"module dummy\n"
@@ -127,7 +123,8 @@ def test_lfriccontainer_lower(fortran_reader):
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
     assert isinstance(kernel_psyir.children[0], Container)
     assert not isinstance(kernel_psyir.children[0], LFRicContainer)
-    assert kernel_psyir.children[0].symbol_table.lookup("w3_solver_kernel_type")
+    assert kernel_psyir.children[0].symbol_table.lookup(
+        "w3_solver_kernel_type")
 
     # Now raise to LFRic PSyIR and perform checks
     kern_trans = RaisePSyIR2LFRicKernTrans("w3_solver_kernel_type")
@@ -141,4 +138,5 @@ def test_lfriccontainer_lower(fortran_reader):
     container.lower_to_language_level()
     assert isinstance(kernel_psyir.children[0], Container)
     assert not isinstance(kernel_psyir.children[0], LFRicContainer)
-    assert kernel_psyir.children[0].symbol_table.lookup("w3_solver_kernel_type")
+    assert kernel_psyir.children[0].symbol_table.lookup(
+        "w3_solver_kernel_type")

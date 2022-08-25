@@ -39,11 +39,11 @@ PSyclone kernel-layer-specific PSyIR which uses specialised classes.
 '''
 import re
 
-from psyclone.domain.gocean.kernel import GOceanKernelMetadata, GOceanContainer
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Container, ScopingNode, FileContainer
 from psyclone.psyir.transformations import TransformationError
-from psyclone.domain.lfric.kernel.lfric_kernel_metadata import LFRicKernelMetadata
+from psyclone.domain.lfric.kernel.lfric_kernel_metadata import \
+    LFRicKernelMetadata
 from psyclone.domain.lfric.kernel.psyir import LFRicContainer
 
 
@@ -78,7 +78,8 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
     symbols. This is currently limited to the specialisation of kernel
     metadata.
 
-    >>> from psyclone.domain.lfric.transformations import RaisePSyIR2LFRicKernTrans
+    >>> from psyclone.domain.lfric.transformations import \
+    ...      RaisePSyIR2LFRicKernTrans
     >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> CODE = ("""
     ... MODULE example

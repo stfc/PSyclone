@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing tests for the OperatorArg class.
+'''Module containing tests for the ColumnwiseOperatorArg class.
 
 '''
 import pytest
@@ -42,7 +42,6 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
 
-from psyclone.domain.lfric.kernel.operator_arg import OperatorArg
 from psyclone.domain.lfric.kernel.columnwise_operator_arg import \
     ColumnwiseOperatorArg
 

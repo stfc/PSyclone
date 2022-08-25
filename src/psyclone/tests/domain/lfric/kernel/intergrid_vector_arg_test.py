@@ -42,12 +42,13 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
 
-from psyclone.domain.lfric.kernel.inter_grid_vector_arg import InterGridVectorArg
+from psyclone.domain.lfric.kernel.inter_grid_vector_arg import \
+    InterGridVectorArg
 
 
 def test_init_noargs():
-    '''Test that an InterGridVectorArg instance can be created successfully when no
-    arguments are provided.
+    '''Test that an InterGridVectorArg instance can be created
+    successfully when no arguments are provided.
 
     '''
     intergrid_arg = InterGridVectorArg()
@@ -94,7 +95,6 @@ def test_init_invalid():
             "'any_discontinuous_space_9', 'any_discontinuous_space_10']), "
             "but found 'invalid'." in str(info.value))
 
-
     with pytest.raises(ValueError) as info:
         _ = InterGridVectorArg(mesh_arg="invalid")
     assert ("The fifth metadata entry for an intergrid argument should be a "
@@ -107,7 +107,8 @@ def test_init_args():
     instance of InterGridVectorArg are stored as expected.
 
     '''
-    intergrid_arg = InterGridVectorArg("GH_REAL", "GH_READ", "W0", "GH_FINE", "3")
+    intergrid_arg = InterGridVectorArg(
+        "GH_REAL", "GH_READ", "W0", "GH_FINE", "3")
     assert intergrid_arg._form == "GH_FIELD"
     assert intergrid_arg._datatype == "GH_REAL"
     assert intergrid_arg._access == "GH_READ"
@@ -129,7 +130,8 @@ def test_create_from_fortran_string():
 
     fortran_string = ("arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0, "
                       "gh_mesh=GH_COARSE)")
-    intergrid_arg = InterGridVectorArg.create_from_fortran_string(fortran_string)
+    intergrid_arg = InterGridVectorArg.create_from_fortran_string(
+        fortran_string)
     assert intergrid_arg._form == "GH_FIELD"
     assert intergrid_arg._datatype == "GH_REAL"
     assert intergrid_arg._access == "GH_READ"
@@ -189,8 +191,10 @@ def test_fortran_string():
     '''Test that the fortran_string method works as expected, including
     raise an exception if all of the required properties have not been
     set '''
-    fortran_string = "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0, mesh_arg=GH_FINE)"
-    intergrid_arg = InterGridVectorArg.create_from_fortran_string(fortran_string)
+    fortran_string = ("arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0, "
+                      "mesh_arg=GH_FINE)")
+    intergrid_arg = InterGridVectorArg.create_from_fortran_string(
+        fortran_string)
     result = intergrid_arg.fortran_string()
     assert result == fortran_string
 
