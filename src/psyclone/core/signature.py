@@ -100,7 +100,10 @@ class Signature(object):
 
     # ------------------------------------------------------------------------
     def __getitem__(self, indx):
-        return self._signature[indx]
+        if isinstance(indx, slice):
+            return Signature(self._signature[indx])
+        else:
+            return self._signature[indx]
 
     # ------------------------------------------------------------------------
     def __str__(self):
