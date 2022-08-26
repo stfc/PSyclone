@@ -33,9 +33,9 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing the FieldArg class which captures the metadata
-associated with a field argument. Supports the creation, modification
-and Fortran output of a Field argument.
+'''Module containing the InterGridArg class which captures the metadata
+associated with an intergrid argument. Supports the creation, modification
+and Fortran output of an intergrid argument.
 
 '''
 from fparser.common.readfortran import FortranStringReader
@@ -82,25 +82,9 @@ class InterGridArg(FieldArg):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.InterGridArg`
 
         '''
-        #  ???? FieldArg.check_psyir(psyir, nargs=5)
-        if not isinstance(psyir, Fortran2003.Structure_Constructor):
-            raise TypeError(
-                f"Expected kernel metadata to be encoded as a Fortran "
-                f"Structure_Constructor object but found type "
-                f"'{type(psyir).__name__}' with value '{psyir}'.")
-        if not psyir.children[0].tostr().lower() == "arg_type":
-            raise ValueError(
-                f"Expected kernel metadata to have the name "
-                f"'arg_type' and be in the form 'arg_type(...)', but found "
-                f"'{str(psyir)}'.")
-        nargs = 5
-        if len(psyir.children[1].children) != nargs:
-            raise ValueError(
-                f"Expected kernel metadata to have {nargs} "
-                f"arguments, but found {len(psyir.children[1].children)} in "
-                f"'{str(psyir)}'.")
+        InterGridArg.check_psyir(
+            psyir, nargs=5, encoding=Fortran2003.Structure_Constructor)
         args = psyir.children[1]
-
         datatype = args.children[1].tostr()
         access = args.children[2].tostr()
         function_space = args.children[3].tostr()

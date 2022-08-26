@@ -73,7 +73,7 @@ class ColumnwiseOperatorArg(OperatorArg):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.ColumnwiseOperatorArg`
 
         '''
-        OperatorArg.check_psyir(psyir, nargs=5)
+        ColumnwiseOperatorArg.check_psyir(psyir, nargs=5)
         datatype = psyir.children[1].children[1].tostr()
         access = psyir.children[1].children[2].tostr()
         function_space1 = psyir.children[1].children[3].tostr()

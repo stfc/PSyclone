@@ -91,13 +91,17 @@ class CommonArg(ABC):
         return part_ref
 
     @staticmethod
-    def check_psyir(psyir, nargs):
+    def check_psyir(psyir, nargs=4, encoding=Fortran2003.Part_Ref):
         '''Checks that the psyir argument is valid.
 
-        :param psyir: fparser2 tree containing the PSyIR for a metadata \
-            argument.
-        :type psyir: :py:class:`fparser.two.Fortran2003.Part_Ref`
+        :param psyir: optional fparser2 tree containing the PSyIR for a \
+            metadata argument. Defaults to 4.
+        :type psyir: Optional[:py:class:`fparser.two.Fortran2003.Part_Ref`]
         :param Optional[int] nargs: the number of expected arguments.
+        :param encoding: optional class in which the psyir argument should \
+            be encoded. Defaults to fparser.two.Fortran2003.Part_Ref.
+        :type encoding: Optional[:py:class:`fparser.two.Fortran2003.Part_Ref`, \
+            :py:class:`fparser.two.Fortran2003.Structure_Constructor`]
 
         :raises TypeError: if the psyir argument is not an fparser2 \
             Part_Ref object.
@@ -107,10 +111,10 @@ class CommonArg(ABC):
             contain nargs arguments.
 
         '''
-        if not isinstance(psyir, Fortran2003.Part_Ref):
+        if not isinstance(psyir, encoding):
             raise TypeError(
                 f"Expected kernel metadata to be encoded as a "
-                f"Fortran Part_Ref object but found type "
+                f"Fortran {encoding.__name__} object but found type "
                 f"'{type(psyir).__name__}' with value '{str(psyir)}'.")
         if not psyir.children[0].tostr().lower() == "arg_type":
             raise ValueError(
