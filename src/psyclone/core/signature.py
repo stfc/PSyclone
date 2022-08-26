@@ -82,8 +82,9 @@ class Signature(object):
         elif isinstance(variable, Signature):
             self._signature = variable._signature + sub_tuple
         else:
-            raise InternalError("Got unexpected type '{0}' in Signature "
-                                "constructor".format(type(variable).__name__))
+            raise InternalError(f"Got unexpected type "
+                                f"'{type(variable).__name__}' in Signature "
+                                f"constructor")
 
     # ------------------------------------------------------------------------
     @property
@@ -144,11 +145,10 @@ class Signature(object):
         # Check if number of components between self and component_indices
         # is consistent:
         if len(self._signature) != len(component_indices):
-            raise InternalError("Signature '{0}' has {1} components, but "
-                                "component_indices {2} has {3}."
-                                .format(self, len(self._signature),
-                                        component_indices,
-                                        len(component_indices)))
+            raise InternalError(f"Signature '{self}' has {len(self)} "
+                                f"components, but component_indices "
+                                f"{component_indices} has "
+                                f"{len(component_indices)}.")
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.backend.fortran import FortranWriter
@@ -195,7 +195,7 @@ class Signature(object):
 
     # ------------------------------------------------------------------------
     def __repr__(self):
-        return "Signature({0})".format("%".join(self._signature))
+        return f"Signature({str(self)})"
 
     # ------------------------------------------------------------------------
     def __hash__(self):
@@ -225,36 +225,32 @@ class Signature(object):
     def __lt__(self, other):
         '''Required to sort signatures. It just compares the tuples.'''
         if not isinstance(other, Signature):
-            raise TypeError("'<' not supported between instances of "
-                            "'Signature' and '{0}'."
-                            .format(type(other).__name__))
+            raise TypeError(f"'<' not supported between instances of "
+                            f"'Signature' and '{type(other).__name__}'.")
         return self._signature < other._signature
 
     # ------------------------------------------------------------------------
     def __le__(self, other):
         '''Required to compare signatures. It just compares the tuples.'''
         if not isinstance(other, Signature):
-            raise TypeError("'<=' not supported between instances of "
-                            "'Signature' and '{0}'."
-                            .format(type(other).__name__))
+            raise TypeError(f"'<=' not supported between instances of "
+                            f"'Signature' and '{type(other).__name__}'.")
         return self._signature <= other._signature
 
     # ------------------------------------------------------------------------
     def __gt__(self, other):
         '''Required to compare signatures. It just compares the tuples.'''
         if not isinstance(other, Signature):
-            raise TypeError("'>' not supported between instances of "
-                            "'Signature' and '{0}'."
-                            .format(type(other).__name__))
+            raise TypeError(f"'>' not supported between instances of "
+                            f"'Signature' and '{type(other).__name__}'.")
         return self._signature > other._signature
 
     # ------------------------------------------------------------------------
     def __ge__(self, other):
         '''Required to compare signatures. It just compares the tuples.'''
         if not isinstance(other, Signature):
-            raise TypeError("'>=' not supported between instances of "
-                            "'Signature' and '{0}'."
-                            .format(type(other).__name__))
+            raise TypeError(f"'>=' not supported between instances of "
+                            f"'Signature' and '{type(other).__name__}'.")
         return self._signature >= other._signature
 
     # ------------------------------------------------------------------------
