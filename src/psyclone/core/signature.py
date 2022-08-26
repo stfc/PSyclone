@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
+# Modified by N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''This module provides management of variable access information.'''
@@ -102,8 +103,7 @@ class Signature(object):
     def __getitem__(self, indx):
         if isinstance(indx, slice):
             return Signature(self._signature[indx])
-        else:
-            return self._signature[indx]
+        return self._signature[indx]
 
     # ------------------------------------------------------------------------
     def __str__(self):
@@ -138,7 +138,7 @@ class Signature(object):
         from psyclone.core import ComponentIndices
 
         # By default, if component_indices is None, we assume a scalar access:
-        if component_indices == None:
+        if component_indices is None:
             component_indices = ComponentIndices([[]] * len(self))
 
         # Check if number of components between self and component_indices
