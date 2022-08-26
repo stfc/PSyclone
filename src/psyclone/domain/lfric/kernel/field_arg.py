@@ -39,7 +39,7 @@ and Fortran output of a Field argument.
 
 '''
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.lfric.kernel.common_arg import CommonArg
+from psyclone.domain.lfric.kernel import CommonArg
 
 
 class FieldArg(CommonArg):

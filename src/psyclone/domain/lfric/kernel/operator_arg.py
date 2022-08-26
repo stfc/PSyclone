@@ -39,7 +39,7 @@ and Fortran output of a Operator argument.
 
 '''
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.lfric.kernel.field_arg import FieldArg
+from psyclone.domain.lfric.kernel import FieldArg
 
 
 class OperatorArg(FieldArg):

@@ -43,7 +43,7 @@ from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
 
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.lfric.kernel.field_arg import FieldArg
+from psyclone.domain.lfric.kernel import FieldArg
 
 
 class InterGridArg(FieldArg):
