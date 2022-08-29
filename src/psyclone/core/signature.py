@@ -46,7 +46,7 @@ from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 
 
 # =============================================================================
-class Signature(object):
+class Signature:
     '''Given a variable access of the form ``a(i,j)%b(k,l)%c``, the signature
     of this access is the tuple ``(a,b,c)``. For a simple scalar variable
     ``a`` the signature would just be ``(a,)``.
