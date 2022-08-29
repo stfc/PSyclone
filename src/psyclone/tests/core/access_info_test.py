@@ -343,6 +343,17 @@ def test_variables_access_info():
 
 
 # -----------------------------------------------------------------------------
+def test_variables_access_info_options():
+    '''Test handling of options for VariablesAccessInfo.
+    '''
+    vai = VariablesAccessInfo(options={'a': 1})
+
+    assert vai.options("a") == 1
+    assert vai.options("b") is None
+    assert vai.options() == {'a': 1}
+
+
+# -----------------------------------------------------------------------------
 def test_variables_access_info_errors():
     '''Tests if errors are handled correctly. '''
     var_accesses = VariablesAccessInfo()
@@ -371,6 +382,11 @@ def test_variables_access_info_errors():
                                 ComponentIndices([]))
     assert "Cannot add '[[]]' with length 1 as indices for 'a%b' which "\
            "requires 2 elements." in str(err.value)
+
+    with pytest.raises(InternalError) as err:
+        _ = VariablesAccessInfo(options=1)
+    assert ("Options argument for VariablesAccessInfomust be a dictionary or "
+            "None, but got 'int'." in str(err.value))
 
 
 # -----------------------------------------------------------------------------

@@ -441,12 +441,24 @@ class VariablesAccessInfo(dict):
                   which to initialise this object.
     :type nodes: None, :py:class:`psyclone.psyir.nodes.Node` or\
                  List[:py:class:`psyclone.psyir.nodes.Node`]
+    :param options: a dictionary with options to influence which variable \
+                    accesses are to be collected.
+    :type param: Dict[str, Any]
 
     '''
-    def __init__(self, nodes=None):
+    def __init__(self, nodes=None, options=None):
         # This dictionary stores the mapping of signatures to the
         # corresponding SingleVariableAccessInfo instance.
         dict.__init__(self)
+
+        if options:
+            if not isinstance(options, dict):
+                raise InternalError(f"Options argument for VariablesAccessInfo"
+                                    f"must be a dictionary or None, but got "
+                                    f"'{type(options).__name__}'.")
+            self._options = options.copy()
+        else:
+            self._options = {}
 
         # Stores the current location information
         self._location = 0
@@ -505,6 +517,23 @@ class VariablesAccessInfo(dict):
                     mode = "WRITE"
             output_list.append(f"{signature}: {mode}")
         return ", ".join(output_list)
+
+    def options(self, key=None):
+        '''Returns the value of the options for a specified key,
+        or None if the key is not specified in the options. If no
+        key is specified, the whole option dictionary is returned.
+
+        :param key: the option to query, or None if all options should \
+            be returned.
+        :type key: Union[str, None]
+
+        :returns: the value of the option or the whole option dictionary.
+        :rtype: Any
+
+        '''
+        if key:
+            return self._options.get(key, None)
+        return self._options
 
     @property
     def location(self):
