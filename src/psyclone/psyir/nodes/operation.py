@@ -39,17 +39,15 @@
 ''' This module contains the implementation of the Operation class and its
 sub-classes.'''
 
-import abc
+from abc import ABCMeta
 from enum import Enum
 import re
-import six
 
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.datanode import DataNode
 
 
-@six.add_metaclass(abc.ABCMeta)
-class Operation(DataNode):
+class Operation(DataNode, metaclass=ABCMeta):
     '''
     Abstract base class for PSyIR nodes representing operators.
 
@@ -73,7 +71,7 @@ class Operation(DataNode):
     _colour = "blue"
 
     def __init__(self, operator, parent=None):
-        super(Operation, self).__init__(parent=parent)
+        super().__init__(parent=parent)
 
         if not isinstance(operator, self.Operator):
             raise TypeError(
@@ -201,7 +199,7 @@ class Operation(DataNode):
         :returns: whether other is equal to self.
         :rtype: bool
         '''
-        is_eq = super(Operation, self).__eq__(other)
+        is_eq = super().__eq__(other)
         is_eq = is_eq and self.operator == other.operator
         is_eq = is_eq and self.argument_names == other.argument_names
 
@@ -294,7 +292,7 @@ class Operation(DataNode):
         # pylint: disable=protected-access
         self._reconcile()
         # copy
-        new_copy = super(Operation, self).copy()
+        new_copy = super().copy()
         # Fix invalid id's in _argument_names after copying.
         new_list = []
         for idx, child in enumerate(new_copy.children):
