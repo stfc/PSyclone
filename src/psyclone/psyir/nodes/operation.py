@@ -560,6 +560,30 @@ class BinaryOperation(Operation):
         binary_op.append_named_arg(rhs_name, rhs)
         return binary_op
 
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information from this node, i.e.
+        it sets this variable to be read. It relies on
+        `get_signature_and_indices` and will correctly handle
+        array expressions.
+
+        :param var_accesses: VariablesAccessInfo instance that stores the \
+            information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        '''
+        if not var_accesses.options("COLLECT-ARRAY-SHAPE-READS") \
+                and self.operator in [BinaryOperation.Operator.LBOUND,
+                                      BinaryOperation.Operator.UBOUND,
+                                      BinaryOperation.Operator.SIZE]:
+            # If shape accesses are not considered reads, ignore the first
+            # child (which is always the array being read)
+            for child in self._children[1:]:
+                child.reference_accesses(var_accesses)
+            return
+        for child in self._children:
+            child.reference_accesses(var_accesses)
+
 
 class NaryOperation(Operation):
     '''Node representing a n-ary operation expression. The n operands are

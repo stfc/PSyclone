@@ -343,17 +343,6 @@ def test_variables_access_info():
 
 
 # -----------------------------------------------------------------------------
-def test_variables_access_info_options():
-    '''Test handling of options for VariablesAccessInfo.
-    '''
-    vai = VariablesAccessInfo(options={'a': 1})
-
-    assert vai.options("a") == 1
-    assert vai.options("b") is None
-    assert vai.options() == {'a': 1}
-
-
-# -----------------------------------------------------------------------------
 def test_variables_access_info_errors():
     '''Tests if errors are handled correctly. '''
     var_accesses = VariablesAccessInfo()
@@ -651,3 +640,45 @@ def test_symbol_array_detection(fortran_reader):
     b_is_array = sym_b.is_array_access(access_info=access_info_b,
                                        index_variable="j")
     assert not b_is_array
+
+
+# -----------------------------------------------------------------------------
+def test_variables_access_info_options():
+    '''Test handling of options for VariablesAccessInfo.
+    '''
+    vai = VariablesAccessInfo(options={'a': 1})
+
+    assert vai.options("a") == 1
+    assert vai.options("b") is None
+    assert vai.options() == {'a': 1}
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.parametrize("function", ["size", "lbound", "ubound"])
+def test_variables_access_info_shape_bounds(fortran_reader, function):
+    '''Test that access to an array using shape, or lbound/ubound can be
+    disables using options
+    '''
+    code = f'''module test
+        contains
+        subroutine tmp()
+          real, dimension(:,:), allocatable:: a
+          integer :: n
+          n = {function}(a, 1)
+        end subroutine tmp
+        end module test'''
+    psyir = fortran_reader.psyir_from_source(code)
+    schedule = psyir.children[0].children[0]
+    node1 = schedule[0]
+
+    # By default, array shape accesses are not reads.
+    vai = VariablesAccessInfo(node1)
+    assert str(vai) == "n: WRITE"
+
+    # Check that explicitly disabling array shape reads works:
+    vai = VariablesAccessInfo(node1, options={"COLLECT-ARRAY-SHAPE-READS": 0})
+    assert str(vai) == "n: WRITE"
+
+    # Check that we can enable collection of array shape reads:
+    vai = VariablesAccessInfo(node1, options={"COLLECT-ARRAY-SHAPE-READS": 1})
+    assert str(vai) == "a: READ, n: WRITE"
