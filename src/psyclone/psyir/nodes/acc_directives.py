@@ -82,7 +82,7 @@ class ACCRegionDirective(ACCDirective, RegionDirective):
             regions are not supported.
 
         '''
-        super().validate_global_constraints()
+        super(RegionDirective, self).validate_global_constraints()
 
         data_nodes = self.walk((PSyDataNode, CodeBlock))
         if data_nodes:
