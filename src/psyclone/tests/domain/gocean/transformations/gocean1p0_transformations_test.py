@@ -52,9 +52,9 @@ from psyclone.psyir.nodes import Loop, Routine
 from psyclone.psyir.transformations import LoopFuseTrans, LoopTrans, \
     TransformationError
 from psyclone.transformations import ACCKernelsTrans, ACCRoutineTrans, \
-    OMPParallelTrans, MoveTrans, GOceanOMPParallelLoopTrans, \
-    GOceanOMPLoopTrans, KernelModuleInlineTrans, OMPLoopTrans, \
-    ACCParallelTrans, ACCEnterDataTrans, ACCDataTrans, ACCLoopTrans
+    OMPParallelTrans, GOceanOMPParallelLoopTrans, GOceanOMPLoopTrans, \
+    KernelModuleInlineTrans, OMPLoopTrans, ACCParallelTrans, \
+    ACCEnterDataTrans, ACCLoopTrans
 from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
 from psyclone.tests.gocean1p0_build import GOcean1p0Build
 from psyclone.tests.utilities import count_lines, get_invoke, Compile
@@ -68,7 +68,7 @@ API = "gocean1.0"
 def setup():
     '''Make sure that all tests here use gocean1.0 as API.'''
     Config.get().api = "gocean1.0"
-    yield()
+    yield
     Config._instance = None
 
 
@@ -1160,7 +1160,7 @@ def test_acc_parallel_not_a_loop():
     assert "'int'>" in str(error.value)
 
 
-def test_acc_parallel_trans(tmpdir, fortran_writer):
+def test_acc_parallel_trans(tmpdir):
     ''' Test that we can apply an OpenACC parallel transformation
     to a loop '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,

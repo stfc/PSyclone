@@ -50,7 +50,6 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.directive import StandaloneDirective, RegionDirective
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
-from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.symbols import DataSymbol, ScalarType
 
 
@@ -83,7 +82,7 @@ class ACCRegionDirective(ACCDirective, RegionDirective):
             regions are not supported.
 
         '''
-        super(ACCRegionDirective, self).validate_global_constraints()
+        super().validate_global_constraints()
 
         data_nodes = self.walk((PSyDataNode, CodeBlock))
         if data_nodes:
@@ -329,23 +328,21 @@ class ACCLoopDirective(ACCRegionDirective):
     '''
     Class managing the creation of a '!$acc loop' OpenACC directive.
 
-    :param children: list of nodes that will be children of this directive.
-    :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
-    :param parent: the node in the Schedule to which to add this directive.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param int collapse: Number of nested loops to collapse into a single \
                          iteration space or None.
     :param bool independent: Whether or not to add the `independent` clause \
                              to the loop directive.
     :param bool sequential: whether or not to add the `seq` clause to the \
                             loop directive.
+    :param kwargs: additional keyword arguments provided to the super class.
+    :type kwargs: unwrapped dict.
     '''
-    def __init__(self, children=None, parent=None, collapse=None,
-                 independent=True, sequential=False):
+    def __init__(self, collapse=None, independent=True, sequential=False,
+                 **kwargs):
         self.collapse = collapse
         self._independent = independent
         self._sequential = sequential
-        super().__init__(children=children, parent=parent)
+        super().__init__(**kwargs)
 
     def __eq__(self, other):
         '''
