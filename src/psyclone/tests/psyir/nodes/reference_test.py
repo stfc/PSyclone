@@ -173,7 +173,7 @@ def test_reference_accesses_bounds(operator, fortran_reader):
 
     # When explicitly requested, the access to 'a' should be reported:
     vai = VariablesAccessInfo(schedule[0],
-                              options={"COLLECT-ARRAY-SHAPE-READS": 1})
+                              options={"COLLECT-ARRAY-SHAPE-READS": True})
     assert str(vai) == "a: READ, b: READ, n: WRITE"
 
 

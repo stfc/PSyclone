@@ -438,14 +438,24 @@ class VariablesAccessInfo(dict):
     another.
 
     :param nodes: optional, a single PSyIR node or list of nodes from \
-                  which to initialise this object.
+        which to initialise this object.
     :type nodes: None, :py:class:`psyclone.psyir.nodes.Node` or\
-                 List[:py:class:`psyclone.psyir.nodes.Node`]
+        List[:py:class:`psyclone.psyir.nodes.Node`]
     :param options: a dictionary with options to influence which variable \
-                    accesses are to be collected.
+        accesses are to be collected.
     :type param: Dict[str, Any]
+    :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is set \
+        to a True value, arrays used as first parameter to the Fortran \
+        intrinsics lbound, ubound, or size will be reported as 'read'.
+        Otherwise, these accesses will be ignored.
 
     '''
+
+    # List of valid options. Note that only the option method check this,
+    # since it is convenient to pass in options from the DependencyTools
+    # that might contain options for these tools.
+    _VALID_OPTIONS = ["COLLECT-ARRAY-SHAPE-READS"]
+
     def __init__(self, nodes=None, options=None):
         # This dictionary stores the mapping of signatures to the
         # corresponding SingleVariableAccessInfo instance.
@@ -530,8 +540,15 @@ class VariablesAccessInfo(dict):
         :returns: the value of the option or the whole option dictionary.
         :rtype: Any
 
+        :raises InternalError: if an invalid key is specified.
+
         '''
         if key:
+            if key not in VariablesAccessInfo._VALID_OPTIONS:
+                raise InternalError(f"Option key '{key}' is invalid, it "
+                                    f"must be one of "
+                                    f"{VariablesAccessInfo._VALID_OPTIONS}"
+                                    f".")
             return self._options.get(key, None)
         return self._options
 

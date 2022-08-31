@@ -646,11 +646,14 @@ def test_symbol_array_detection(fortran_reader):
 def test_variables_access_info_options():
     '''Test handling of options for VariablesAccessInfo.
     '''
-    vai = VariablesAccessInfo(options={'a': 1})
+    vai = VariablesAccessInfo(options={'COLLECT-ARRAY-SHAPE-READS': True})
 
-    assert vai.options("a") == 1
-    assert vai.options("b") is None
-    assert vai.options() == {'a': 1}
+    assert vai.options("COLLECT-ARRAY-SHAPE-READS") is True
+    assert vai.options() == {'COLLECT-ARRAY-SHAPE-READS': True}
+    with pytest.raises(InternalError) as err:
+        vai.options("invalid")
+    assert ("Option key 'invalid' is invalid, it must be one of "
+            "['COLLECT-ARRAY-SHAPE-READS']." in str(err.value))
 
 
 # -----------------------------------------------------------------------------
@@ -676,9 +679,11 @@ def test_variables_access_info_shape_bounds(fortran_reader, function):
     assert str(vai) == "n: WRITE"
 
     # Check that explicitly disabling array shape reads works:
-    vai = VariablesAccessInfo(node1, options={"COLLECT-ARRAY-SHAPE-READS": 0})
+    vai = VariablesAccessInfo(node1,
+                              options={"COLLECT-ARRAY-SHAPE-READS": False})
     assert str(vai) == "n: WRITE"
 
     # Check that we can enable collection of array shape reads:
-    vai = VariablesAccessInfo(node1, options={"COLLECT-ARRAY-SHAPE-READS": 1})
+    vai = VariablesAccessInfo(node1,
+                              options={"COLLECT-ARRAY-SHAPE-READS": True})
     assert str(vai) == "a: READ, n: WRITE"
