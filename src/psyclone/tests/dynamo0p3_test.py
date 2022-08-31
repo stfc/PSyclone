@@ -62,7 +62,7 @@ from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import Arg, parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange, BuiltIn
-from psyclone.psyir.nodes import colored, UnaryOperation, Reference
+from psyclone.psyir.nodes import colored, UnaryOperation, Reference, Routine
 from psyclone.psyir.symbols import ScalarType, DataTypeSymbol
 from psyclone.psyir.transformations import LoopFuseTrans
 from psyclone.tests.lfric_build import LFRicBuild
@@ -4322,3 +4322,27 @@ def test_mixed_precision_args(tmpdir):
 
     # Test compilation
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_dynpsy_gen_container_routines(tmpdir):
+    ''' Tests that routines outside the InvokeSchedule are generated when
+    the code_gen method is called.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "11_any_space.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+
+    # Manually add a new top-level routine
+    psy.invokes.invoke_list[0].schedule.root.addchild(Routine("new_routine"))
+
+    # Search the routine in the code_gen output
+    generated_code = str(psy.gen)
+    searchstring = "SUBROUTINE new_routine("
+    assert generated_code.count(searchstring) == 1
+
+    # Make sure that after a second code generation call the routine is still
+    # only once in the output
+    generated_code = str(psy.gen)
+    searchstring = "SUBROUTINE new_routine("
+    assert generated_code.count(searchstring) == 1
