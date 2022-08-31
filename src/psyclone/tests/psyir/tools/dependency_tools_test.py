@@ -686,10 +686,10 @@ def test_inout_parameters_nemo(fortran_reader):
     '''Test detection of input and output parameters in NEMO.
     '''
     source = '''program test
-                integer :: ji, jj, jpi, jpj
-                real :: a(5,5), c(5,5), b
-                do jj = 1, jpj   ! loop 0
-                   do ji = 1, jpi
+                integer :: ji, jj, jpj
+                real :: a(5,5), c(5,5), b, dummy(5,5)
+                do jj = lbound(dummy,1), jpj   ! loop 0
+                   do ji = lbound(dummy,2), ubound(dummy,2)
                       a(ji, jj) = b+c(ji, jj)
                     end do
                 end do
@@ -701,8 +701,10 @@ def test_inout_parameters_nemo(fortran_reader):
     input_list = dep_tools.get_input_parameters(loops)
     # Use set to be order independent
     input_set = set(input_list)
+    # Note that by default the read access to `dummy` in lbound etc should
+    # not be reported, since it does not really read the array values.
     assert input_set == set([Signature("b"), Signature("c"),
-                             Signature("jpi"), Signature("jpj")])
+                             Signature("jpj")])
 
     output_list = dep_tools.get_output_parameters(loops)
     # Use set to be order independent
@@ -714,6 +716,20 @@ def test_inout_parameters_nemo(fortran_reader):
 
     assert in_list1 == input_list
     assert out_list1 == output_list
+
+    # Check that we can also request to get the access to 'dummy'
+    # inside the ubound/lbound function calls.
+    input_list = dep_tools.\
+        get_input_parameters(loops,
+                             options={'COLLECT-ARRAY-SHAPE-READS': True})
+    assert set(input_list) == set([Signature("b"), Signature("c"),
+                                   Signature("jpj"), Signature("dummy")])
+
+    in_list1, out_list1 = dep_tools.\
+        get_in_out_parameters(loops,
+                              options={'COLLECT-ARRAY-SHAPE-READS': True})
+    assert set(in_list1) == set([Signature("b"), Signature("c"),
+                                 Signature("jpj"), Signature("dummy")])
 
 
 # -----------------------------------------------------------------------------

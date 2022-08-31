@@ -805,7 +805,8 @@ class DependencyTools():
         return result
 
     # -------------------------------------------------------------------------
-    def get_input_parameters(self, node_list, variables_info=None):
+    def get_input_parameters(self, node_list, variables_info=None,
+                             options=None):
         # pylint: disable=no-self-use
         '''Return all variables that are input parameters, i.e. are
         read (before potentially being written).
@@ -816,6 +817,14 @@ class DependencyTools():
             can be used to avoid repeatedly collecting this information.
         :type variables_info: \
             :py:class:`psyclone.core.variables_info.VariablesAccessInfo`
+        :param options: a dictionary with options for the dependency tools \
+            which will also be used when creating the VariablesAccessInfo \
+            instance if required.
+        :type param: Optional[Dict[str, Any]]
+        :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is \
+            set to a True value, arrays used as first parameter to the \
+            Fortran intrinsics lbound, ubound, or size will be reported as \
+            'read'. Otherwise, these accesses will be ignored.
 
         :returns: a list of all variable signatures that are read.
         :rtype: List[:py:class:`psyclone.core.Signature`]
@@ -823,7 +832,7 @@ class DependencyTools():
         '''
         # Collect the information about all variables used:
         if not variables_info:
-            variables_info = VariablesAccessInfo(node_list)
+            variables_info = VariablesAccessInfo(node_list, options=options)
 
         input_list = []
         for signature in variables_info.all_signatures:
@@ -839,7 +848,8 @@ class DependencyTools():
         return input_list
 
     # -------------------------------------------------------------------------
-    def get_output_parameters(self, node_list, variables_info=None):
+    def get_output_parameters(self, node_list, variables_info=None,
+                              options=None):
         # pylint: disable=no-self-use
         '''Return all variables that are output parameters, i.e. are
         written.
@@ -850,6 +860,14 @@ class DependencyTools():
             can be used to avoid repeatedly collecting this information.
         :type variables_info: \
         Optional[:py:class:`psyclone.core.variables_info.VariablesAccessInfo`]
+        :param options: a dictionary with options for the dependency tools \
+            which will also be used when creating the VariablesAccessInfo \
+            instance if required.
+        :type param: Optional[Dict[str, Any]]
+        :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is \
+            set to a True value, arrays used as first parameter to the \
+            Fortran intrinsics lbound, ubound, or size will be reported as \
+            'read'. Otherwise, these accesses will be ignored.
 
         :returns: a list of all variable signatures that are written.
         :rtype: List[:py:class:`psyclone.core.Signature`]
@@ -857,13 +875,13 @@ class DependencyTools():
         '''
         # Collect the information about all variables used:
         if not variables_info:
-            variables_info = VariablesAccessInfo(node_list)
+            variables_info = VariablesAccessInfo(node_list, options=options)
 
         return [signature for signature in variables_info.all_signatures
                 if variables_info.is_written(signature)]
 
     # -------------------------------------------------------------------------
-    def get_in_out_parameters(self, node_list):
+    def get_in_out_parameters(self, node_list, options=None):
         '''Return a 2-tuple of lists that contains all variables that are input
         parameters (first entry) and output parameters (second entry).
         This function calls get_input_parameter and get_output_parameter,
@@ -871,6 +889,14 @@ class DependencyTools():
 
         :param node_list: list of PSyIR nodes to be analysed.
         :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :param options: a dictionary with options for the dependency tools \
+            which will also be used when creating the VariablesAccessInfo \
+            instance if required.
+        :type param: Dict[str, Any]
+        :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is \
+            set to a True value, arrays used as first parameter to the \
+            Fortran intrinsics lbound, ubound, or size will be reported as \
+            'read'. Otherwise, these accesses will be ignored.
 
         :returns: a 2-tuple of two lists, the first one containing \
             the input parameters, the second the output parameters.
@@ -878,6 +904,6 @@ class DependencyTools():
                       List[:py:class:`psyclone.core.Signature`])
 
         '''
-        variables_info = VariablesAccessInfo(node_list)
+        variables_info = VariablesAccessInfo(node_list, options=options)
         return (self.get_input_parameters(node_list, variables_info),
                 self.get_output_parameters(node_list, variables_info))
