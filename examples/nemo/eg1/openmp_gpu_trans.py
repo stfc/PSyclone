@@ -38,10 +38,10 @@
 directives into Nemo code. '''
 
 from __future__ import print_function
-from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import Loop, Assignment
 from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
-from psyclone.transformations import TransformationError
+from psyclone.psyir.transformations.omp_target_trans import OMPTargetTrans
+from psyclone.transformations import TransformationError, OMPLoopTrans
 
 USE_GPU = True  # Enable for generating OpenMP target directives
 
@@ -56,8 +56,8 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-    omp_target_trans = TransInfo().get_trans_name('OMPTargetTrans')
-    omp_loop_trans = TransInfo().get_trans_name('OMPLoopTrans')
+    omp_target_trans = OMPTargetTrans()
+    omp_loop_trans = OMPLoopTrans()
     # Disabling worksharing will produce the 'loop' directive which is better
     # suited to map the work into the GPU
     omp_loop_trans.omp_worksharing = False

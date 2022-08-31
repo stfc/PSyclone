@@ -93,9 +93,9 @@ class OMPTargetTrans(RegionTrans):
 
         :param node: the PSyIR node or nodes to enclose in the OpenMP \
                       target region.
-        :type node: (list of) :py:class:`psyclone.psyir.nodes.Node`
+        :type node: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param options: a dictionary with options for transformations.
-        :type options: dict of str:values or None
+        :type options: Optional[Dict[str,Any]]
 
         '''
         # Check whether we've been passed a list of nodes or just a
@@ -111,34 +111,3 @@ class OMPTargetTrans(RegionTrans):
             parent=parent, children=[node.detach() for node in node_list])
 
         parent.children.insert(start_index, directive)
-
-    def validate(self, nodes, options=None):
-        ''' Check that an OMPTargetDirective can be inserted.
-
-        :param nodes: can be a single node, a schedule or a list of nodes.
-        :type nodes: Union[:py:obj:`psyclone.psyir.nodes.Node`,
-                           :py:obj:`psyclone.psyir.nodes.Schedule`,
-                           List[:py:obj:`psyclone.psyir.nodes.Node`]
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str,Any]]
-
-        :raises TransformationError: the node contains structures that \
-            are not allowed inside an OMPTargetDirective.
-
-        '''
-        super().validate(nodes, options=options)
-
-        node_list = self.get_node_list(nodes)
-
-        for node in node_list:
-            for bop in node.walk(BinaryOperation):
-                if bop.operator == BinaryOperation.Operator.LBOUND:
-                    raise TransformationError(
-                        f"The OMPTargetDirective can not be inserted as "
-                        f"an ancestor of LBOUND operations, but found: "
-                        f"'{bop}'.")
-                if bop.operator == BinaryOperation.Operator.UBOUND:
-                    raise TransformationError(
-                        f"The OMPTargetDirective can not be inserted as "
-                        f"an ancestor of UBOUND operations, but found: "
-                        f"'{bop}'.")

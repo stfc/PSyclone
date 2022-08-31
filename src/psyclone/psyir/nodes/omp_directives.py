@@ -62,7 +62,6 @@ from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.codeblock import CodeBlock
-from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.symbols import INTEGER_TYPE
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
@@ -1279,7 +1278,7 @@ class OMPTargetDirective(OMPRegionDirective):
         on GPUs. But it may be implementation-dependent!
 
         :raises GenerationError: if this OMPTargetDirective contains \
-            CodeBlocks, LBOUND and UBOUND intrinsics in its body.
+            CodeBlocks.
         '''
         super().validate_global_constraints()
 
@@ -1288,16 +1287,6 @@ class OMPTargetDirective(OMPRegionDirective):
             raise GenerationError(
                 f"The OMPTargetDirective must not have "
                 f"CodeBlocks inside, but found: '{cbs}'.")
-
-        for bop in self.walk(BinaryOperation):
-            if bop.operator == BinaryOperation.Operator.LBOUND:
-                raise GenerationError(
-                    f"The OMPTargetDirective must not have "
-                    f"LBOUND operations inside, but found: '{bop}'.")
-            if bop.operator == BinaryOperation.Operator.UBOUND:
-                raise GenerationError(
-                    f"The OMPTargetDirective must not have "
-                    f"UBOUND operations inside, but found: '{bop}'.")
 
 
 class OMPLoopDirective(OMPRegionDirective):

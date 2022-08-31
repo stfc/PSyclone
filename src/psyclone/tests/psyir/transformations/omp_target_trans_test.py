@@ -123,27 +123,3 @@ def test_omptargettrans_validate(sample_psyir):
         omptargettrans.validate(loops[0])
     assert ("Nodes of type 'CodeBlock' cannot be enclosed by a OMPTargetTrans "
             "transformation" in str(err.value))
-
-    # With a LBOUND it should fail
-    symbol = DataSymbol("dummy", INTEGER_TYPE)
-    loops[0].loop_body[-1].replace_with(
-            Assignment.create(
-                Reference(symbol),
-                BinaryOperation(BinaryOperation.Operator.LBOUND)))
-    with pytest.raises(TransformationError) as err:
-        omptargettrans.validate(loops[0])
-    assert ("The OMPTargetDirective can not be inserted as an ancestor of "
-            "LBOUND operations, but found: 'BinaryOperation[operator:"
-            "'LBOUND']'." in str(err.value))
-
-    # With a UBOUND it should fail
-    symbol = DataSymbol("dummy", INTEGER_TYPE)
-    loops[0].loop_body[-1].replace_with(
-            Assignment.create(
-                Reference(symbol),
-                BinaryOperation(BinaryOperation.Operator.UBOUND)))
-    with pytest.raises(TransformationError) as err:
-        omptargettrans.validate(loops[0])
-    assert ("The OMPTargetDirective can not be inserted as an ancestor of "
-            "UBOUND operations, but found: 'BinaryOperation[operator:"
-            "'UBOUND']'." in str(err.value))

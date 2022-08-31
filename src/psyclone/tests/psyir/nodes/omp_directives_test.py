@@ -819,27 +819,6 @@ def test_omp_target_directive_validate_global_constraints():
     assert ("The OMPTargetDirective must not have CodeBlocks inside, but "
             "found:" in str(err.value))
 
-    # With a LBOUND, it should fail
-    symbol = DataSymbol("dummy", INTEGER_TYPE)
-    target.children[0][0].replace_with(
-            Assignment.create(
-                Reference(symbol),
-                BinaryOperation(BinaryOperation.Operator.LBOUND)))
-    with pytest.raises(GenerationError) as err:
-        target.validate_global_constraints()
-    assert ("The OMPTargetDirective must not have LBOUND operations inside,"
-            " but found:" in str(err.value))
-
-    # With a UBOUND, it should fail
-    target.children[0][0].replace_with(
-            Assignment.create(
-                Reference(symbol),
-                BinaryOperation(BinaryOperation.Operator.UBOUND)))
-    with pytest.raises(GenerationError) as err:
-        target.validate_global_constraints()
-    assert ("The OMPTargetDirective must not have UBOUND operations inside,"
-            " but found:" in str(err.value))
-
 
 # Test OMPDeclareTargetDirective
 
