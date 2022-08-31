@@ -41,10 +41,9 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.nodes import Reference, ArrayReference, Assignment, \
-    Literal, BinaryOperation, Range, KernelSchedule
-from psyclone.psyir.symbols import DataSymbol, ArrayType, \
-    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, INTEGER_TYPE
+from psyclone.psyir.nodes import Reference, Assignment, Literal, KernelSchedule
+from psyclone.psyir.symbols import (DataSymbol, ArrayType, REAL_SINGLE_TYPE,
+                                    INTEGER_SINGLE_TYPE, REAL_TYPE)
 from psyclone.psyGen import GenerationError
 from psyclone.core.access_info import VariablesAccessInfo
 from psyclone.psyir.nodes.node import colored
@@ -146,9 +145,8 @@ def test_reference_accesses():
     assert (str(var_access_info)) == "test: READ"
 
 
-@pytest.mark.parametrize("operator_type", [BinaryOperation.Operator.LBOUND,
-                                           BinaryOperation.Operator.UBOUND])
-def test_reference_accesses_bounds(operator_type):
+@pytest.mark.parametrize("operator", ["lbound", "ubound"])
+def test_reference_accesses_bounds(operator, fortran_reader):
     '''Test that the reference_accesses method behaves as expected when
     the reference is the first argument to either the lbound or ubound
     intrinsic as that is simply looking up the array bounds (therefore
@@ -157,25 +155,26 @@ def test_reference_accesses_bounds(operator_type):
     case the access should be a read).
 
     '''
-    # Note, one would usually expect UBOUND to provide the upper bound
-    # of a range but to simplify the test both LBOUND and UBOUND are
-    # used for the lower bound. This does not affect the test.
-    one = Literal("1", INTEGER_TYPE)
-    array_symbol = DataSymbol("test", ArrayType(REAL_TYPE, [10]))
-    array_ref1 = Reference(array_symbol)
-    array_ref2 = Reference(array_symbol)
-    array_access = ArrayReference.create(array_symbol, [one])
+    code = f'''module test
+        contains
+        subroutine tmp()
+          real, dimension(:,:), allocatable:: a, b
+          integer :: n
+          n = {operator}(a, b(1,1))
+        end subroutine tmp
+        end module test'''
+    psyir = fortran_reader.psyir_from_source(code)
+    schedule = psyir.children[0].children[0]
 
-    # test when first or second argument to LBOUND or UBOUND is an
-    # array reference
-    operator = BinaryOperation.create(operator_type, array_ref1, array_ref2)
-    array_access.children[0] = Range.create(operator, one.copy(), one.copy())
-    var_access_info = VariablesAccessInfo()
-    array_ref1.reference_accesses(var_access_info)
-    assert str(var_access_info) == ""
-    var_access_info = VariablesAccessInfo()
-    array_ref2.reference_accesses(var_access_info)
-    assert str(var_access_info) == "test: READ"
+    # By default, the access to 'a' should not be reported as read,
+    # but the access to b must be reported:
+    vai = VariablesAccessInfo(schedule[0])
+    assert str(vai) == "b: READ, n: WRITE"
+
+    # When explicitly requested, the access to 'a' should be reported:
+    vai = VariablesAccessInfo(schedule[0],
+                              options={"COLLECT-ARRAY-SHAPE-READS": 1})
+    assert str(vai) == "a: READ, b: READ, n: WRITE"
 
 
 def test_reference_can_be_copied():
