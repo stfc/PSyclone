@@ -145,7 +145,7 @@ def test_reference_accesses():
     assert (str(var_access_info)) == "test: READ"
 
 
-@pytest.mark.parametrize("operator", ["lbound", "ubound"])
+@pytest.mark.parametrize("operator", ["lbound", "ubound", "size"])
 def test_reference_accesses_bounds(operator, fortran_reader):
     '''Test that the reference_accesses method behaves as expected when
     the reference is the first argument to either the lbound or ubound
