@@ -231,6 +231,7 @@ class ScalarType(DataType):
 
     def __eq__(self, other):
         '''
+        :param Any other: the object to check equality to.
         :returns: whether this scalar type is equal to the 'other' scalar type.
         :rtype: bool
         '''

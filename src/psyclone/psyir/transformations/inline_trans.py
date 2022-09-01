@@ -94,23 +94,22 @@ class InlineTrans(Transformation):
     end subroutine run_it
     <BLANKLINE>
 
-    .. warning:: Currently, (Issue #924) the routine must be in the same
-                 source file as the call.
+    .. warning::
+        Routines/calls with any of the following characteristics are not
+        supported and will result in a TransformationError:
 
-    Routines/calls with any of the following characteristics are not supported
-    and will result in a TransformationError:
+        * the routine is not in the same file as the call;
+        * the routine has a return value;
+        * the routine contains an early Return statement;
+        * the routine has a named argument;
+        * the call to the routine passes array subsections;
+        * the shape of any array arguments as declared inside the routine does
+          not match the shape of the arrays being passed as arguments;
+        * the routine accesses an un-resolved symbol;
+        * the routine accesses a symbol declared in the Container to which it
+          belongs.
 
-    * the routine has a return value;
-    * the routine contains an early Return statement;
-    * the routine has a named argument;
-    * the call to the routine passes array subsections;
-    * the shape of any array arguments as declared inside the routine does
-      not match the shape of the arrays being passed as arguments;
-    * the routine accesses an un-resolved symbol;
-    * the routine accesses a symbol declared in the Container to which it
-      belongs.
-
-    Some of these restrictions will be lifted by #924.
+        Some of these restrictions will be lifted by #924.
 
     '''
     def apply(self, node, options=None):
