@@ -34,19 +34,17 @@
 # Author R. W. Ford, STFC Daresbury Lab
 # Modified: S. Siso and A. R. Porter, STFC Daresbury Lab
 
-'''Module containing tests for the LFRicAlgorithmInvokeCall,
-LFRicBuiltinFunctor and LFRicKernelFunctor LFRic
-algorithm-layer-specific nodes. The tests include translation of PSyIR
-to LFRic Algorithm PSyIR and from LFRic Algorithm PSyIR to processed
+'''Module containing tests for the LFRicAlgorithmInvokeCall
+algorithm-layer-specific node. The tests include translation of PSyIR
+to LFRic Algorithm PSyIR and from LFRic Algorithm PSyIR to language-level
 PSyIR.
 
 '''
-from __future__ import absolute_import
 import pytest
 
-from psyclone.domain.lfric.algorithm import \
-    LFRicAlgorithmInvokeCall, LFRicKernelFunctor, \
-    LFRicBuiltinFunctor
+from psyclone.domain.lfric.algorithm.psyir import (
+    LFRicAlgorithmInvokeCall, LFRicKernelFunctor,
+    LFRicBuiltinFunctor)
 from psyclone.domain.lfric.transformations import LFRicAlgTrans
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, \
@@ -82,8 +80,7 @@ def test_lfricalgorithminvokecall():
     call = LFRicAlgorithmInvokeCall(routine, index)
     assert call.routine is routine
     assert call._index == index
-    assert (call._children_valid_format ==
-            "[LFRicKernelFunctor|LFRicBuiltinFunctor]*")
+    assert call._children_valid_format == "[LFRicFunctor]*"
     assert call._text_name == "LFRicAlgorithmInvokeCall"
 
 
@@ -148,23 +145,3 @@ def test_aic_defcontainerrootname():
     routine_node = psyir.children[0]
     name = invoke._def_container_root_name(routine_node)
     assert name == "alg1_psy"
-
-
-def test_lfricbuiltinfunctor():
-    '''test that an instance of LFRicBuiltinFunctor class can be created.
-
-    '''
-    routine = DataTypeSymbol("hello", StructureType())
-    lbc = LFRicBuiltinFunctor(routine)
-    assert isinstance(lbc, LFRicBuiltinFunctor)
-    assert lbc._text_name == "LFRicBuiltinFunctor"
-
-
-def test_lfrickernelfunctor():
-    '''test that an instance of LFRicKernelFunctor class can be created.
-
-    '''
-    routine = DataTypeSymbol("hello", StructureType())
-    lbc = LFRicKernelFunctor(routine)
-    assert isinstance(lbc, LFRicKernelFunctor)
-    assert lbc._text_name == "LFRicKernelFunctor"

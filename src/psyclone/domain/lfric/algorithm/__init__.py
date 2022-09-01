@@ -33,9 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-'''Module to capture LFRic-specific PSyIR for the Algorithm layer, the
-transformation from PSyIR to LFRic-specific PSyIR and transformations
-on LFRic-specific PSyIR.
+'''Module to capture LFRic-specific classes for the Algorithm layer.
 
 '''
 from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg

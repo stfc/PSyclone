@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council
+# Copyright (c) 2019-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,11 +38,15 @@
 for the GOcean1.0 API '''
 
 from __future__ import absolute_import, print_function
+
 import os
+import subprocess
+import sys
+
 from psyclone.tests.utilities import Compile, CompileError
 
 
-class GOcean1p0Build(Compile):
+class GOceanBuild(Compile):
     '''Build class for compiling test files for the GOcean1.0 api. It
     uses dl_esm_inf as included in the PSyclone distribution (as a
     git submodule).
@@ -56,8 +60,12 @@ class GOcean1p0Build(Compile):
     # (.o and .mod) are stored for this process.
     _compilation_path = ""
 
+    # Define the 'make' command to use. Having this as an attribute
+    # allows testing to modify this to trigger exceptions.
+    _make_command = "make"
+
     def __init__(self, tmpdir):
-        super(GOcean1p0Build, self).__init__(tmpdir)
+        super().__init__(tmpdir)
 
         base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "gocean1p0")
@@ -66,7 +74,7 @@ class GOcean1p0Build(Compile):
         # On first instantiation (triggered by conftest.infra_compile)
         # compile the infrastructure library files.
         if (Compile.TEST_COMPILE or Compile.TEST_COMPILE_OPENCL) and \
-                not GOcean1p0Build._infrastructure_built:
+                not GOceanBuild._infrastructure_built:
             self._build_infrastructure()
 
     def get_infrastructure_flags(self):
@@ -88,9 +96,8 @@ class GOcean1p0Build(Compile):
         old_pwd = self._tmpdir.chdir()
         # Store the temporary path so that the compiled infrastructure
         # files can be used by all test compilations later.
-        GOcean1p0Build._compilation_path = str(self._tmpdir)
+        GOceanBuild._compilation_path = str(self._tmpdir)
 
-        import subprocess
         dl_esm_inf_path = \
             os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "../../../external/dl_esm_inf/finite_difference/src")
@@ -99,50 +106,47 @@ class GOcean1p0Build(Compile):
             os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "../../../external/FortCL/src")
 
-        arg_list = ["make", "F90={0}".format(self._f90),
-                    "F90FLAGS={0}".format(self._f90flags),
-                    "-f", "{0}/Makefile".format(dl_esm_inf_path)]
+        arg_list = [GOceanBuild._make_command, f"F90={self._f90}",
+                    f"F90FLAGS={self._f90flags}",
+                    "-f", f"{dl_esm_inf_path}/Makefile"]
 
-        arg_list_fortcl = ["make", "F90={0}".format(self._f90),
-                           "F90FLAGS={0}".format(self._f90flags),
-                           "-f", "{0}/Makefile".format(fortcl_path)]
+        arg_list_fortcl = [GOceanBuild._make_command, f"F90={self._f90}",
+                           f"F90FLAGS={self._f90flags}",
+                           "-f", f"{fortcl_path}/Makefile"]
         try:
-            build = subprocess.Popen(arg_list,
-                                     stdout=subprocess.PIPE,
-                                     stderr=subprocess.STDOUT)
-            (output, error) = build.communicate()
+            with subprocess.Popen(arg_list,
+                                  stdout=subprocess.PIPE,
+                                  stderr=subprocess.STDOUT) as build:
+                # stderr is redirected to stdout, so ignore stderr
+                (output, _) = build.communicate()
             if Compile.TEST_COMPILE_OPENCL:
-                build = subprocess.Popen(arg_list_fortcl,
-                                         stdout=subprocess.PIPE,
-                                         stderr=subprocess.STDOUT)
-                (output, error) = build.communicate()
-
-            GOcean1p0Build._infrastructure_built = True
+                with subprocess.Popen(arg_list_fortcl,
+                                      stdout=subprocess.PIPE,
+                                      stderr=subprocess.STDOUT) as build:
+                    # stderr is redirected to stdout, so ignore stderr
+                    (output, _) = build.communicate()
 
         except OSError as err:
-            import sys
-            print("Failed to run: {0}: ".format(" ".join(arg_list)),
+            print(f"Failed to run: {' '.join(arg_list)}: ",
                   file=sys.stderr)
-            print("Error was: {0}".format(str(err.value)), file=sys.stderr)
-            GOcean1p0Build._infrastructure_built = False
-            raise CompileError(str(err.value))
+            print(f"Error was: {str(err)}", file=sys.stderr)
+            GOceanBuild._infrastructure_built = False
+            raise CompileError(str(err)) from err
         finally:
             old_pwd.chdir()
 
         # Check the return code
         stat = build.returncode
         if stat != 0:
-            import sys
             print(output, file=sys.stderr)
-            if error:
-                print("=========", file=sys.stderr)
-                print(error, file=sys.stderr)
             raise CompileError(output)
+
+        GOceanBuild._infrastructure_built = True
 
 
 # =============================================================================
-class GOcean1p0OpenCLBuild(GOcean1p0Build):
-    '''A simple class based on the GOcean1p0 compilation object, that will
+class GOceanOpenCLBuild(GOceanBuild):
+    '''A simple class based on the GOcean compilation object, that will
     only compile OpenCL code.
     '''
 
@@ -172,5 +176,4 @@ class GOcean1p0OpenCLBuild(GOcean1p0Build):
         # Don't call the base class code_compile() function, since it
         # will only work if --compile was specified. Call the internal
         # function instead that does the actual compilation.
-        return super(GOcean1p0OpenCLBuild, self)._code_compiles(psy_ast,
-                                                                dependencies)
+        return super()._code_compiles(psy_ast, dependencies)

@@ -47,7 +47,7 @@ from fparser.two.symbol_table import SYMBOL_TABLES
 from psyclone.configuration import Config
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.tests.gocean1p0_build import GOcean1p0Build
+from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import Compile
 
@@ -138,7 +138,7 @@ def infra_compile(tmpdir_factory, request):
     '''A per-session initialisation function that sets the compilation flags
     in the Compile class based on command line options for --compile,
     --compileopencl, --f90, --f90flags. Then makes sure that the
-    infrastructure files for the dynamo0p3 and gocean1p0 APIs are compiled
+    infrastructure files for the dynamo0p3 and gocean APIs are compiled
     (if compilation was enabled).
     '''
     Compile.store_compilation_flags(request.config)
@@ -154,7 +154,7 @@ def infra_compile(tmpdir_factory, request):
     LFRicBuild(tmpdir)
 
     tmpdir = tmpdir_factory.mktemp('dl_esm_inf')
-    GOcean1p0Build(tmpdir)
+    GOceanBuild(tmpdir)
 
 
 @pytest.fixture(name="_session_parser", scope="session")

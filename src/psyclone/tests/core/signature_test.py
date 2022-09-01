@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: Joerg Henrichs, Bureau of Meteorology
+# Modified by N. Nobre, STFC Daresbury Lab
 
 '''This module tests the Signature class.'''
 
@@ -63,7 +64,7 @@ def test_signature():
     assert sig[0] == "a"
     assert sig[2] == "c"
     assert sig[-1] == "c"
-    assert sig[0:2] == ("a", "b")
+    assert sig[0:2] == Signature(("a", "b"))
     assert len(sig) == 3
     assert Signature(["a", "b", "c"]).is_structure
     assert not Signature(("a")).is_structure
@@ -210,6 +211,7 @@ def test_to_language_fortran():
     assert sig.to_language(comp) == "a(1,2)%b%c"
     comp = ComponentIndices([[], [], []])
     assert sig.to_language(comp) == "a%b%c"
+    assert sig.to_language() == "a%b%c"
 
 
 def test_output_languages():

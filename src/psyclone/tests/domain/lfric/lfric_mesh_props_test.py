@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,20 +39,18 @@ Module containing pytest tests for the mesh-property functionality
 of the LFRic (Dynamo0.3) API.
 '''
 
-from __future__ import absolute_import, print_function
 import os
 import pytest
 import fparser
 from fparser import api as fpapi
-from psyclone.configuration import Config
-from psyclone.dynamo0p3 import DynKernMetadata, LFRicMeshProperties, \
-    MeshProperty
+from psyclone.dynamo0p3 import (DynKernMetadata, LFRicMeshProperties,
+                                MeshProperty)
+from psyclone.errors import InternalError
+from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, Kern
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.errors import InternalError
-from psyclone.f2pygen import ModuleGen
 
 
 # Constants
@@ -83,14 +81,6 @@ end module testkern_mesh_mod
 # Tests for parsing the metadata
 
 
-@pytest.fixture(scope="module", autouse=True)
-def setup():
-    '''Make sure that all tests here use Dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
-    yield()
-    Config._instance = None
-
-
 def test_mdata_parse():
     ''' Check that we get the correct list of mesh properties. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -111,8 +101,8 @@ def test_mdata_invalid_property(property_name):
     name = "testkern_mesh_type"
     with pytest.raises(ParseError) as err:
         DynKernMetadata(ast, name=name)
-    assert ("in metadata: '{0}'. Supported values are: "
-            "['ADJACENT_FACE'".format(property_name) in str(err.value))
+    assert (f"in metadata: '{property_name}'. Supported values are: "
+            f"['ADJACENT_FACE'" in str(err.value))
 
 
 def test_mdata_wrong_arg_count():

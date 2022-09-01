@@ -141,7 +141,7 @@ def test_omptaskloop_apply(monkeypatch):
     assert (
         "    !$omp parallel default(shared), private(i,j)\n" +
         "      !$omp master\n" +
-        "      !$omp taskloop{0}\n".format(clauses) +
+        f"      !$omp taskloop{clauses}\n" +
         "      DO" in code)
     assert (
         "      END DO\n" +
@@ -170,9 +170,9 @@ def test_omptaskloop_apply(monkeypatch):
 def test_omptaskwait_trans_str():
     '''Test the __str__ method of the OMPTaskwaitTrans'''
     trans = OMPTaskwaitTrans()
-    assert trans.__str__() == ("Adds 'OpenMP TASKWAIT' directives to an OpenMP"
-                               " parallel region to satisfy 'OpenMP TASKLOOP' "
-                               "dependencies")
+    assert str(trans) == ("Adds 'OpenMP TASKWAIT' directives to an OpenMP"
+                          " parallel region to satisfy 'OpenMP TASKLOOP' "
+                          "dependencies")
 
 
 def test_omptaskwait_validate_non_parallel():

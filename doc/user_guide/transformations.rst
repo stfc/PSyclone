@@ -220,6 +220,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.HoistLoopBoundExprTrans
+      :members: apply
+      :noindex:
+
+####
+
 .. autoclass:: psyclone.psyir.transformations.HoistTrans
       :members: apply
       :noindex:
@@ -391,6 +397,14 @@ can be found in the API-specific sections).
 .. autoclass:: psyclone.psyir.transformations.ReadOnlyVerifyTrans
     :members: apply
     :noindex:
+
+####
+
+.. _replace_induction_variable_trans:
+
+.. autoclass:: psyclone.psyir.transformations.ReplaceInductionVariablesTrans
+      :members: apply
+      :noindex:
 
 ####
 
