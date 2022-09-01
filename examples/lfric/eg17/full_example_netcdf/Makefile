@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -57,7 +57,8 @@ LFRIC_PATH = $(PSYROOT)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME=lfric_netcdf
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
-F90FLAGS += $$(nf-config --fflags) -I$(LFRIC_PATH)
+# This will add the required include flags to F90FLAGS
+include $(LFRIC_PATH)/lfric_include_flags.inc
 
 run: compile
 	./example

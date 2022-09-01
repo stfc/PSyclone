@@ -54,7 +54,8 @@ LFRIC_PATH = ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME=lfric
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
-F90FLAGS += -I$(LFRIC_PATH)
+# This will add the required include flags to F90FLAGS
+include $(LFRIC_PATH)/lfric_include_flags.inc
 
 # This example will not run as no mesh is set up and the data is not
 # initialised in the algorithm layer. The example was simply designed

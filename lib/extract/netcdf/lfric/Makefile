@@ -1,7 +1,7 @@
 #------------------------------------------------------------------------------
 # BSD 2-Clause License
 # 
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
@@ -56,7 +56,7 @@ INF_INC = $(LFRIC_INF_DIR)
 INF_LIB_NAME = lfric_netcdf
 INF_LIB = $(LFRIC_INF_DIR)/lib$(INF_LIB_NAME).a
 
-F90FLAGS += $$(nf-config --fflags) -I$(INF_INC)
+F90FLAGS += $$(nf-config --fflags) -I$(INF_INC)/field
 PSYDATA_LIB_NAME = _kernel_data_netcdf
 PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 
