@@ -443,7 +443,7 @@ class VariablesAccessInfo(dict):
         List[:py:class:`psyclone.psyir.nodes.Node`]
     :param options: a dictionary with options to influence which variable \
         accesses are to be collected.
-    :type param: Dict[str, Any]
+    :type options: Dict[str, Any]
     :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is set \
         to a True value, arrays used as first parameter to the Fortran \
         intrinsics lbound, ubound, or size will be reported as 'read'.

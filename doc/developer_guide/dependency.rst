@@ -319,6 +319,26 @@ combine two `VariablesAccessInfo` objects into one. It is up to the user to
 keep track of which statements (PSyIR nodes) a given `VariablesAccessInfo`
 instance is holding information about.
 
+
+VariablesAccessInfo Options
++++++++++++++++++++++++++++
+
+By default, `VariablesAccessInfo` will not report the first argument of
+the Fortran intrinsics `lbound`, `ubound`, or `size` as read accesses,
+since these functions do not actually access the content of the array,
+they only query the size. If these accesses are required (e.g. in kernel
+extraction this could be important if an array is only used in these
+intrinsic - a driver would still need these arrays in order to query
+the size), the optional `options` parameter of the `VariablesAccessInfo`
+constructor can be used: add the key
+`COLLECT-ARRAY-SHAPE-READS` and set it to true::
+
+    vai = VariablesAccessInfo(options={'COLLECT-ARRAY-SHAPE-READS': True})
+
+In this case all arrays specified as first parameter to one of the
+Fortran intrinsics above will be reported as read access.
+
+
 SingleVariableAccessInfo
 ------------------------
 The class `VariablesAccessInfo` uses a dictionary of
