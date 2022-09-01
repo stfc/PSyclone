@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council
+# Copyright (c) 2018-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
-# Modified by J. Henrichs, Bureau of Meteorology
+# Modified J. Henrichs, Bureau of Meteorology
 
 
 '''Stencil tests for PSy-layer code generation that are specific to the
@@ -50,7 +50,7 @@ from psyclone.parse.utils import ParseError
 from psyclone.gocean1p0 import GOStencil
 from psyclone import expression as expr
 
-from psyclone.tests.gocean1p0_build import GOcean1p0Build
+from psyclone.tests.gocean_build import GOceanBuild
 
 API = "gocean1.0"
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -219,8 +219,8 @@ def test_stencil_depth_args():
     for i, j in [(-2, 0), (2, 0), (0, -2), (0, 2)]:
         with pytest.raises(GenerationError) as excinfo:
             stencil.depth(i, j)
-        assert "must be between -1 and 1 but found ({0},{1})".format(i, j) \
-            in str(excinfo.value)
+        assert (f"must be between -1 and 1 but found ({i},{j})"
+                in str(excinfo.value))
 
 # Section 4
 # Test that the GOStencil object captures valid stencil information correctly
@@ -305,4 +305,4 @@ def test_stencil_information(tmpdir):
                 expected_depth = 0
             assert stencil_arg.stencil.depth(idx1, idx2) == expected_depth
 
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
