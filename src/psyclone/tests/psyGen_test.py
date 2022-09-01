@@ -566,6 +566,49 @@ def test_codedkern_module_inline_gen_code(tmpdir):
             "yet.") in str(err.value)
 
 
+def test_codedkern_module_inline_kernel_in_multiple_invokes(tmpdir):
+    ''' Check that module-inline works as expected when the same kernel
+    is provided in different invokes'''
+    # Use LFRic example with the kernel 'testkern_qr' repeated once in
+    # the first invoke and 3 times in the second invoke.
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "3.1_multi_functions_multi_invokes.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+
+    # By default the kernel is imported once per invoke
+    gen = str(psy.gen)
+    assert gen.count("USE testkern_qr, ONLY: testkern_qr_code") == 2
+    assert gen.count("END SUBROUTINE testkern_qr_code") == 0
+
+    # Module inline kernel in invoke 1
+    schedule1 = psy.invokes.invoke_list[0].schedule
+    for coded_kern in schedule1.walk(CodedKern):
+        print(coded_kern.name)
+        if coded_kern.name == "testkern_qr_code":
+            coded_kern.module_inline = True
+    gen = str(psy.gen)
+
+    # After this, one invoke uses the inlined top-level subroutine
+    # and the other imports it (shadowing the top-level symbol)
+    assert gen.count("USE testkern_qr, ONLY: testkern_qr_code") == 1
+    assert gen.count("END SUBROUTINE testkern_qr_code") == 1
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    # Module inline kernel in invoke 2
+    schedule1 = psy.invokes.invoke_list[1].schedule
+    for coded_kern in schedule1.walk(CodedKern):
+        print(coded_kern.name)
+        if coded_kern.name == "testkern_qr_code":
+            coded_kern.module_inline = True
+    gen = str(psy.gen)
+    # After this, no imports are remaining and both use the same
+    # top-level implementation
+    assert gen.count("USE testkern_qr, ONLY: testkern_qr_code") == 0
+    assert gen.count("END SUBROUTINE testkern_qr_code") == 1
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
 @pytest.mark.usefixtures("kernel_outputdir")
 def test_codedkern_module_inline_gen_code_modified_kernels(tmpdir):
     ''' Check that a CodedKern marked as modified can still be
