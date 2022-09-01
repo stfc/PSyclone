@@ -38,9 +38,8 @@
 
 ''' This module provides the OMPTargetTrans PSyIR transformation '''
 
-from psyclone.psyir.nodes import CodeBlock, OMPTargetDirective, BinaryOperation
+from psyclone.psyir.nodes import CodeBlock, OMPTargetDirective
 from psyclone.psyir.transformations.region_trans import RegionTrans
-from psyclone.psyir.transformations.transformation_error import TransformationError
 
 
 class OMPTargetTrans(RegionTrans):

@@ -37,7 +37,6 @@
 ''' PSyclone transformation script showing the introduction of OpenMP for GPU
 directives into Nemo code. '''
 
-from __future__ import print_function
 from psyclone.psyir.nodes import Loop, Assignment
 from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
 from psyclone.psyir.transformations.omp_target_trans import OMPTargetTrans

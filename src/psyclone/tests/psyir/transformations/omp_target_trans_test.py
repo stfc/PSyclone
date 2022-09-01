@@ -31,17 +31,13 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#         A. B. G. Chalk, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
-# Modified J. Henrichs, Bureau of Meteorology
+# Author: S. Siso, STFC Daresbury Lab
 
 ''' Tests for the OMPTargetTrans transformation. '''
 
 import pytest
 from psyclone.psyir.nodes import Loop, Schedule, OMPTargetDirective, Routine, \
-    CodeBlock, BinaryOperation, Assignment, Reference
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+    CodeBlock
 from psyclone.psyir.transformations import OMPTargetTrans, TransformationError
 
 

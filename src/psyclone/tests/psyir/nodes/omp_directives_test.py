@@ -51,8 +51,7 @@ from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, \
     Return, OMPSingleDirective, Loop, Literal, Routine, Assignment, \
     Reference, OMPDeclareTargetDirective, OMPNowaitClause, \
     OMPGrainsizeClause, OMPNumTasksClause, OMPNogroupClause, CodeBlock, \
-    BinaryOperation, OMPPrivateClause, OMPDefaultClause,\
-    OMPReductionClause, OMPScheduleClause
+    OMPPrivateClause, OMPDefaultClause, OMPReductionClause, OMPScheduleClause
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, SymbolTable, \
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE
 from psyclone.errors import InternalError, GenerationError

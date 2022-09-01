@@ -61,8 +61,8 @@ from psyclone.psyir.nodes import ACCDataDirective, ACCDirective, \
     Directive, KernelSchedule, Loop, Node, OMPDeclareTargetDirective, \
     OMPDirective, OMPDoDirective, OMPLoopDirective, OMPMasterDirective, \
     OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective, \
-    OMPSingleDirective, OMPTargetDirective, OMPTaskloopDirective, \
-    PSyDataNode, Reference, Return, Routine, Schedule, BinaryOperation
+    OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Reference, \
+    Return, Routine, Schedule
 from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, \
     DeferredType, INTEGER_TYPE, ScalarType, Symbol, SymbolError
 from psyclone.psyir.transformations.loop_trans import LoopTrans
