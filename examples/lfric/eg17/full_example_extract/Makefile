@@ -81,8 +81,9 @@ $(EXTRACT_LIB): $(LFRIC_LIB)
 	$(MAKE) -C $(EXTRACT_DIR)
 
 # Dependencies
-main_psy.o:	testkern_w0_kernel_mod.o
+main_psy.o:	testkern_w0_kernel_mod.o $(EXTRACT_LIB) $(LFRIC_LIB)
 main_alg.o:	main_psy.o
+testkern_w0_kernel_mod.o: $(LFRIC_LIB)
 
 %.o: %.F90
 	$(F90) $(F90FLAGS) -c $<
