@@ -45,6 +45,12 @@ this_file := $(abspath $(lastword $(MAKEFILE_LIST)))
 # PSyclone directory is up two from this file
 LFRIC_PATH := $(dir $(this_file))
 
+# $(LFRIC_PATH) is the location of the source files. Define
+# $(BUILD_DIR) to point to the build directory, which the include
+# makefile will then use instead of $(LFRIC_PATH) for creating the
+# include paths (note: do not use $PWD, this variable might not
+# get updated when `make -C ...` is used to change the directory)
+BUILD_PATH := $(shell pwd)
 include $(LFRIC_PATH)/lfric_include_flags.inc
 
 ALL_SRC := $(subst $(LFRIC_PATH),,\

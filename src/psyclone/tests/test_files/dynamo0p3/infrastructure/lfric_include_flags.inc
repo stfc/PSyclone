@@ -48,7 +48,17 @@
 #     LFRic infrastructure files.
 # F90FLAGS: $(LFRIC_INCLUDE_FLAGS) are appended.
 
+# If this file is used to determine the flags of an already compiled
+# version of the infrastructure library, the include path must use
+# $(LFRIC_PATH), which is the location of the compiled LFRic
+# infrastructure files.
+# But if this file is used to compile the infrastructure library
+# $(LFRIC_PATH) is actually the location of the source files and not
+# the build directory. So in this case the calling Makefile has to
+# define $(BUILD_PATH) to point to the build directory.
+
+BUILD_PATH ?= $(LFRIC_PATH)
 DIRS := $(subst $(LFRIC_PATH),,\
 		    $(shell find $(LFRIC_PATH) -type d -print))
-LFRIC_INCLUDE_FLAGS := $(patsubst %,-I $(LFRIC_PATH)/%,$(DIRS))
+LFRIC_INCLUDE_FLAGS := $(patsubst %,-I $(BUILD_PATH)/%,$(DIRS))
 F90FLAGS += $(LFRIC_INCLUDE_FLAGS)
