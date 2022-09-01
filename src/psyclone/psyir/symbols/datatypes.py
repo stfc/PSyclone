@@ -237,6 +237,8 @@ class ScalarType(DataType):
         # A ScalarType is not equal to e.g. an ArrayType.
         if not type(other) is type(self):
             return False
+        # TODO #1799 - this method needs implementing for the other Types as
+        # currently we're not consistent.
         return (self.precision == other.precision and
                 self.intrinsic == other.intrinsic)
 
