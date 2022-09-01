@@ -35,15 +35,15 @@
 # Modified: S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' Perform py.test tests on the psygen.psyir.symbols.datatype module '''
+''' Perform py.test tests on the psyclone.psyir.symbols.datatype module. '''
 
 import pytest
+from psyclone.errors import InternalError
+from psyclone.psyir.nodes import Literal, BinaryOperation, Reference, \
+    Container, KernelSchedule
 from psyclone.psyir.symbols import DataType, DeferredType, ScalarType, \
     ArrayType, UnknownFortranType, DataSymbol, StructureType, NoType, \
     INTEGER_TYPE, REAL_TYPE, Symbol, DataTypeSymbol, SymbolTable
-from psyclone.psyir.nodes import Literal, BinaryOperation, Reference, \
-    Container, KernelSchedule
-from psyclone.errors import InternalError
 
 
 # Abstract DataType class

@@ -49,8 +49,8 @@ from psyclone.tests.utilities import Compile
 
 def test_init():
     '''Test an InlineTrans transformation can be successfully created.'''
-    hoist_trans = InlineTrans()
-    assert isinstance(hoist_trans, InlineTrans)
+    inline_trans = InlineTrans()
+    assert isinstance(inline_trans, InlineTrans)
 
 
 # apply
@@ -619,9 +619,9 @@ def test_inline_non_local_import(fortran_reader, fortran_writer):
 
 def test_apply_validate():
     '''Test the apply method calls the validate method.'''
-    hoist_trans = InlineTrans()
+    inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as info:
-        hoist_trans.apply(None)
+        inline_trans.apply(None)
     assert ("The target of the InlineTrans transformation should be "
             "a Call but found 'NoneType'." in str(info.value))
 
@@ -631,9 +631,9 @@ def test_apply_validate():
 def test_validate_node():
     ''' Test the expected exception is raised if an invalid node is
     supplied to the transformation. '''
-    hoist_trans = InlineTrans()
+    inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as info:
-        hoist_trans.validate(None)
+        inline_trans.validate(None)
     assert ("The target of the InlineTrans transformation should be "
             "a Call but found 'NoneType'." in str(info.value))
 
@@ -818,7 +818,8 @@ def test_validate_function(fortran_reader):
         "  end function my_func\n"
         "end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
-    routine = psyir.walk(Routine)[0]
+    routines = psyir.walk(Routine)
+    routine = routines[0]
     # Currently the call to my_func() is identified as an array reference
     # so we have to fix it before we can apply the transformation.
     isym = routine.symbol_table.lookup("i")
@@ -826,6 +827,13 @@ def test_validate_function(fortran_reader):
     assign = routine.walk(Assignment)[0]
     assign.rhs.replace_with(Call.create(func, [Reference(isym)]))
     inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.apply(assign.rhs)
+    assert ("Cannot inline routine 'my_func' as it has a return value "
+            "('my_func') - TODO #924." in str(err.value))
+    # Repeat the check but with an empty function.
+    callee = routines[1]
+    callee.children = []
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(assign.rhs)
     assert ("Cannot inline routine 'my_func' as it has a return value "
@@ -963,7 +971,7 @@ def test_find_routine_missing_implementation(fortran_reader):
     routine = psyir.walk(Routine)[1]
     routine.detach()
     inline_trans = InlineTrans()
-    with pytest.raises(InternalError) as err:
+    with pytest.raises(TransformationError) as err:
         inline_trans._find_routine(call)
     assert ("Failed to find the source for routine 'sub' and therefore "
             "cannot inline it." in str(err.value))

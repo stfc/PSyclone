@@ -94,9 +94,23 @@ class InlineTrans(Transformation):
     end subroutine run_it
     <BLANKLINE>
 
-    The routine to be inlined must not contain any un-resolved symbols or
-    access any symbols that are defined in the parent container. Currently,
-    (#924) the routine must also be in the same source file as the call.
+    .. warning:: Currently, (Issue #924) the routine must be in the same
+                 source file as the call.
+
+    Routines/calls with any of the following characteristics are not supported
+    and will result in a TransformationError:
+
+    * the routine has a return value;
+    * the routine contains an early Return statement;
+    * the routine has a named argument;
+    * the call to the routine passes array subsections;
+    * the shape of any array arguments as declared inside the routine does
+      not match the shape of the arrays being passed as arguments;
+    * the routine accesses an un-resolved symbol;
+    * the routine accesses a symbol declared in the Container to which it
+      belongs.
+
+    Some of these restrictions will be lifted by #924.
 
     '''
     def apply(self, node, options=None):
@@ -303,7 +317,7 @@ class InlineTrans(Transformation):
         :param node: target PSyIR node.
         :type node: subclass of :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
-        :type options: dict of str:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node is not a Call.
         :raises TransformationError: if the routine has a return value.
@@ -337,14 +351,14 @@ class InlineTrans(Transformation):
         # Check that we can find the source of the routine being inlined.
         routine = self._find_routine(node)
 
-        if not routine.children or isinstance(routine.children[0], Return):
-            # An empty routine is fine.
-            return
-
         if routine.return_symbol:
             raise TransformationError(
                 f"Cannot inline routine '{routine.name}' as it has a return "
                 f"value ('{routine.return_symbol.name}') - TODO #924.")
+
+        if not routine.children or isinstance(routine.children[0], Return):
+            # An empty routine is fine.
+            return
 
         return_stmts = routine.walk(Return)
         if return_stmts:
@@ -425,6 +439,10 @@ class InlineTrans(Transformation):
                         # contains. This can then be compared with the shape of
                         # the dummy argument.
                         if not actual_arg.is_full_range(idx):
+                            # It's OK to use the loop variable in the lambda
+                            # definition because if we get to this point then
+                            # we're going to quit the loop.
+                            # pylint: disable=cell-var-from-loop
                             raise TransformationError(LazyString(
                                 lambda: f"Cannot inline routine "
                                 f"'{routine.name}' because argument "
@@ -435,6 +453,10 @@ class InlineTrans(Transformation):
                 else:
                     dummy_rank = len(dummy_arg.datatype.shape)
                 if rank != dummy_rank:
+                    # It's OK to use the loop variable in the lambda definition
+                    # because if we get to this point then we're going to quit
+                    # the loop.
+                    # pylint: disable=cell-var-from-loop
                     raise TransformationError(LazyString(
                         lambda: f"Cannot inline routine '{routine.name}' "
                         f"because it reshapes an argument: actual argument "
@@ -451,11 +473,14 @@ class InlineTrans(Transformation):
         Currently only supports routines that are present in the
         same source file - TODO #924.
 
+        :param call_node: the Call that is to be inlined.
+        :type call_node: :py:class:`psyclone.psyir.nodes.Call`
+
         :returns: the PSyIR for the target routine.
         :rtype: :py:class:`psyclone.psyir.nodes.Routine`
 
         :raises TransformationError: if the RoutineSymbol is not local.
-        :raises InternalError: if the routine symbol is local but the \
+        :raises TransformationError: if the routine symbol is local but the \
             definition cannot be found.
         '''
         name = call_node.routine.name
@@ -469,7 +494,7 @@ class InlineTrans(Transformation):
             if routine.name == name:
                 return routine
 
-        raise InternalError(
+        raise TransformationError(
             f"Failed to find the source for routine '{name}' and "
             f"therefore cannot inline it.")
 
