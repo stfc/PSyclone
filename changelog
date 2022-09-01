@@ -75,6 +75,9 @@
 	28) PR #1838 for #1704. Update replace_with method to take into
 	account named arguments.
 
+	29) PR #1847. Make a subSignature a Signature and allow
+	Signature.to_language w/o arguments
+
 release 2.3.1 17th of June 2022
 
         1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
