@@ -78,12 +78,14 @@ class RegionTrans(Transformation):
         nodes in the tree).
 
         :param nodes: can be a single node, a schedule or a list of nodes.
-        :type nodes: :py:obj:`psyclone.psyir.nodes.Node` or  \
-            :py:obj:`psyclone.psyir.nodes.Schedule or a list of \
-            :py:obj:`psyclone.psyir.nodes.Node`
+        :type nodes: Union[:py:obj:`psyclone.psyir.nodes.Node`,
+                           :py:obj:`psyclone.psyir.nodes.Schedule`,
+                           List[:py:obj:`psyclone.psyir.nodes.Node`]
+        :param options: a dictionary with options for transformations.
+        :type options: Optional[Dict[str,Any]]
 
         :returns: a list of nodes.
-        :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
+        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
 
         :raises TransformationError: if the supplied parameter is neither a \
             single Node, nor a Schedule, nor a list of Nodes.
@@ -113,11 +115,12 @@ class RegionTrans(Transformation):
         '''Checks that the nodes in node_list are valid for a region
         transformation.
 
-        :param nodes: list of PSyIR nodes or a single node.
-        :type nodes: subclass of :py:class:`psyclone.psyir.nodes.Node` or \
-                a list of subclasses of :py:class:`psyclone.psyir.nodes.Node`
+        :param nodes: can be a single node, a schedule or a list of nodes.
+        :type nodes: Union[:py:obj:`psyclone.psyir.nodes.Node`,
+                           :py:obj:`psyclone.psyir.nodes.Schedule`,
+                           List[:py:obj:`psyclone.psyir.nodes.Node`]
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str,Any]]
         :param bool options["node-type-check"]: this flag controls if the \
                 type of the nodes enclosed in the region should be tested \
                 to avoid using unsupported nodes inside a region.
