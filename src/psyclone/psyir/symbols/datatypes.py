@@ -36,7 +36,6 @@
 
 ''' This module contains the datatype definitions.'''
 
-from __future__ import absolute_import
 import abc
 from collections import OrderedDict, namedtuple
 from enum import Enum
@@ -48,7 +47,7 @@ from psyclone.psyir.symbols.symbol import Symbol
 
 
 @six.add_metaclass(abc.ABCMeta)
-class DataType(object):
+class DataType():
     '''Abstract base class from which all types are derived.'''
 
     @abc.abstractmethod
@@ -229,6 +228,20 @@ class ScalarType(DataType):
         else:
             precision_str = str(self.precision)
         return f"Scalar<{self.intrinsic.name}, {precision_str}>"
+
+    def __eq__(self, other):
+        '''
+        :param Any other: the object to check equality to.
+        :returns: whether this scalar type is equal to the 'other' scalar type.
+        :rtype: bool
+        '''
+        # A ScalarType is not equal to e.g. an ArrayType.
+        if not type(other) is type(self):
+            return False
+        # TODO #1799 - this method needs implementing for the other Types as
+        # currently we're not consistent.
+        return (self.precision == other.precision and
+                self.intrinsic == other.intrinsic)
 
 
 class ArrayType(DataType):
@@ -492,7 +505,7 @@ class ArrayType(DataType):
                     f"ArrayType shape list elements can only be 'ArrayType."
                     f"ArrayBounds', or 'ArrayType.Extent', but found "
                     f"'{type(dimension).__name__}'.")
-        return (f"Array<{self._datatype}, shape=[{', '.join(dims)}]>")
+        return f"Array<{self._datatype}, shape=[{', '.join(dims)}]>"
 
 
 class StructureType(DataType):

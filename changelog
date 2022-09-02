@@ -72,6 +72,20 @@
 	27) PR #1551 towards #1338. Add OpenMP Clauses and its referenced
 	variables as part of the PSyIR tree.
 
+	28) PR #1838 for #1704. Update replace_with method to take into
+	account named arguments.
+
+	29) PR #1847. Make a subSignature a Signature and allow
+	Signature.to_language w/o arguments
+
+	30) PR #1831 for #1735. Changes the directory structure in the
+	test LFRic infrastructure to mimic that in the full LFRic
+	infrastructure. Alter the testing infrastructure to use the
+	Makefile to build the LFRic library.
+
+	31) PR #1814 towards #924. Add new PSyIR InlineTransformation.
+
+
 release 2.3.1 17th of June 2022
 
         1) PR #1747 for #1720. Adds support for If blocks to PSyAD.

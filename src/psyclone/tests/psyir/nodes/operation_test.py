@@ -175,14 +175,14 @@ def test_operation_replacenamedarg():
     # name arg wrong type
     with pytest.raises(TypeError) as info:
         binary_operation.replace_named_arg(1, op3)
-    assert ("The 'name' argument in 'replace_named_arg' in the 'Operator' "
-            "node should be a string or None, but found int."
+    assert ("The 'name' argument in 'replace_named_arg' in the 'Operation' "
+            "node should be a string, but found int."
             in str(info.value))
     # name arg is not found
     with pytest.raises(ValueError) as info:
         binary_operation.replace_named_arg("new_name", op3)
     assert ("The value of the existing_name argument (new_name) in "
-            "'insert_named_arg' in the 'Operator' node is not found in the "
+            "'replace_named_arg' in the 'Operation' node was not found in the "
             "existing arguments." in str(info.value))
     # ok
     assert binary_operation.children == [op1, op2]

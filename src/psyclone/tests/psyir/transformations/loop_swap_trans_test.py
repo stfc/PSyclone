@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,7 @@ from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
 from psyclone.psyir.nodes import CodeBlock, Loop
 from psyclone.psyir.symbols import ContainerSymbol
 from psyclone.psyir.transformations import LoopSwapTrans, TransformationError
-from psyclone.tests.gocean1p0_build import GOcean1p0Build
+from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.utilities import get_invoke
 
 
@@ -129,7 +129,7 @@ def test_loop_swap_apply(tmpdir):
 
     assert re.search(expected, schedule_str.replace("\n", " "))
 
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_loop_swap_validate():
