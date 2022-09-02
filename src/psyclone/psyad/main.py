@@ -100,7 +100,7 @@ def main(args):
     filename = args.filename
     logger.info("Reading kernel file %s", filename)
     try:
-        with open(filename) as my_file:
+        with open(filename, mode="r", encoding="utf-8") as my_file:
             tl_fortran_str = my_file.read()
             tl_fortran_str = str(tl_fortran_str)
     except FileNotFoundError:

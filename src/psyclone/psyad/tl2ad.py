@@ -192,7 +192,7 @@ def generate_adjoint(tl_psyir, active_variables):
 
     :param tl_psyir: language-level PSyIR containing the tangent-linear kernel.
     :type tl_psyir: :py:class:`psyclone.psyir.Node`
-    :param list of str active_variables: list of active variable names.
+    :param List[str] active_variables: list of active variable names.
 
     :returns: language-level PSyIR containing the adjoint of the \
         supplied tangent-linear kernel.
