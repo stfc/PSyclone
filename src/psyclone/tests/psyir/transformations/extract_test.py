@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author I. Kavcic, Met Office
 # Modified by A. R. Porter, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' Module containing tests for PSyclone ExtractTrans
@@ -43,6 +44,7 @@ from __future__ import absolute_import
 
 import pytest
 
+from psyclone.configuration import Config
 from psyclone.core import Signature
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError
@@ -125,3 +127,34 @@ def test_malformed_extract_node(monkeypatch):
     with pytest.raises(InternalError) as err:
         _ = enode.extract_body
     assert "malformed or incomplete. It should have a " in str(err.value)
+
+
+# -----------------------------------------------------------------------------
+def test_extract_with_shape_function(monkeypatch, fortran_reader,
+                                     fortran_writer):
+    '''Tests that extraction of a region that uses an array-shape Fortran
+    intrinsic like lbound, ubound, or size do include these references.
+
+    '''
+    source = '''program test
+                integer :: ji, jk
+                integer, parameter :: jpi=10, jpk=10
+                real, dimension(jpi,jpi,jpk) :: umask, dummy
+                do jk = 1, ubound(dummy,1)
+                  umask(1,1,jk) = -1.0d0
+                end do
+                end program test'''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    # Child 0 is the program
+    loop = psyir.children[0].children[0]
+
+    extract = ExtractTrans()
+    # We need to disable distributed_memory for the extraction to work:
+    config = Config.get()
+    monkeypatch.setattr(config, "distributed_memory", False)
+
+    extract.apply(loop)
+    out = fortran_writer(psyir)
+    assert 'CALL extract_psy_data % PreDeclareVariable("dummy", dummy)' in out
+    assert 'CALL extract_psy_data % ProvideVariable("dummy", dummy)' in out

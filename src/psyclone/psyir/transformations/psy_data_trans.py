@@ -89,7 +89,7 @@ class PSyDataTrans(RegionTrans):
     _used_kernel_names = {}
 
     def __init__(self, node_class=PSyDataNode):
-        super(PSyDataTrans, self).__init__()
+        super().__init__()
         self._node_class = node_class
 
     # ------------------------------------------------------------------------
@@ -110,6 +110,35 @@ class PSyDataTrans(RegionTrans):
         '''
 
         return self.__class__.__name__
+
+    # -------------------------------------------------------------------------
+    def get_additional_options(self):
+        # pylint: disable=no-self-use
+        '''Returns additional options, specific to the transformation, that
+        will be added to the user option. Any values specified by the user
+        will take precedence.
+
+        :returns: a dictionary with additional options.
+        :rtype: Dict[str, Any]
+        '''
+
+        return {}
+
+    # -------------------------------------------------------------------------
+    def merge_in_additional_options(self, options):
+        '''This function returns additional options that should be
+        added to the user-specified options for any extraction transformation.
+        Any user-specified option will take precedence over the default
+        values specified here.
+
+        :returns: a dictionary with additional options to set.
+        :rtype: Dict[str:Any]
+
+        '''
+        new_options = self.get_additional_options()
+        if options:
+            new_options.update(options)
+        return new_options
 
     # ------------------------------------------------------------------------
     def get_unique_region_name(self, nodes, options):
@@ -222,28 +251,28 @@ class PSyDataTrans(RegionTrans):
             raise TransformationError("A PSyData node cannot be inserted "
                                       "inside an OpenACC region.")
 
-        if options:
-            if "region_name" in options:
-                name = options["region_name"]
-                # pylint: disable=too-many-boolean-expressions
-                if not isinstance(name, tuple) or not len(name) == 2 or \
-                   not name[0] or not isinstance(name[0], str) or \
-                   not name[1] or not isinstance(name[1], str):
-                    raise TransformationError(
-                        f"Error in {self.name}. User-supplied region name "
-                        f"must be a tuple containing two non-empty strings.")
-                # pylint: enable=too-many-boolean-expressions
-            if "prefix" in options:
-                prefix = options["prefix"]
-                if prefix not in Config.get().valid_psy_data_prefixes:
-                    raise TransformationError(
-                        f"Error in 'prefix' parameter: found '{prefix}', while"
-                        f" one of {Config.get().valid_psy_data_prefixes} was "
-                        f"expected as defined in {Config.get().filename}")
+        my_options = self.merge_in_additional_options(options)
+        name = my_options.get("region_name", "")
+        if name:
+            # pylint: disable=too-many-boolean-expressions
+            if not isinstance(name, tuple) or not len(name) == 2 or \
+               not name[0] or not isinstance(name[0], str) or \
+               not name[1] or not isinstance(name[1], str):
+                raise TransformationError(
+                    f"Error in {self.name}. User-supplied region name "
+                    f"must be a tuple containing two non-empty strings.")
+            # pylint: enable=too-many-boolean-expressions
+        prefix = my_options.get("prefix", "")
+        if prefix:
+            if prefix not in Config.get().valid_psy_data_prefixes:
+                raise TransformationError(
+                    f"Error in 'prefix' parameter: found '{prefix}', while"
+                    f" one of {Config.get().valid_psy_data_prefixes} was "
+                    f"expected as defined in {Config.get().filename}")
 
         # We have to create an instance of the node that will be inserted in
         # order to find out what module name it will use.
-        pdata_node = self._node_class(options=options)
+        pdata_node = self._node_class(options=my_options)
         table = node_list[0].scope.symbol_table
         for name in ([sym.name for sym in pdata_node.imported_symbols] +
                      [pdata_node.fortran_module]):
@@ -262,10 +291,11 @@ class PSyDataTrans(RegionTrans):
                 except KeyError:
                     pass
 
-        super(PSyDataTrans, self).validate(node_list, options)
+        super().validate(node_list, my_options)
 
+    # ------------------------------------------------------------------------
     def apply(self, nodes, options=None):
-        # pylint: disable=arguments-differ
+        # pylint: disable=arguments-renamed
         '''Apply this transformation to a subset of the nodes within a
         schedule - i.e. enclose the specified Nodes in the
         schedule within a single PSyData region.
@@ -288,13 +318,15 @@ class PSyDataTrans(RegionTrans):
         '''
         node_list = self.get_node_list(nodes)
 
+        # Add any transformation-specific settings that are required:
+        my_options = self.merge_in_additional_options(options)
+
         # Perform validation checks
-        self.validate(node_list, options)
+        self.validate(node_list, my_options)
 
         # Get useful references
         parent = node_list[0].parent
         position = node_list[0].position
-        root = node_list[0].root
 
         # We always use the Routine symbol table
         table = node_list[0].ancestor(Routine).symbol_table
@@ -308,8 +340,9 @@ class PSyDataTrans(RegionTrans):
         # performing kernel extraction).
         for node in node_list:
             node.detach()
+
         psy_data_node = self._node_class.create(
-            node_list, symbol_table=table, options=options)
+            node_list, symbol_table=table, options=my_options)
         parent.addchild(psy_data_node, position)
 
 
