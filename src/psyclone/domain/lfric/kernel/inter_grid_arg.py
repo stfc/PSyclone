@@ -102,13 +102,8 @@ class InterGridArg(FieldArg):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.cls`
 
         '''
-        _ = ParserFactory().create(std="f2003")
-        reader = FortranStringReader(fortran_string)
-        structure_constructor = Fortran2003.Structure_Constructor(reader)
-        if not structure_constructor:
-            raise ValueError(
-                f"Expected kernel metadata to be a Fortran part reference, "
-                f"with the form 'arg_type(...)' but found '{fortran_string}'.")
+        structure_constructor = cls.create_psyir(
+            fortran_string, encoding=Fortran2003.Structure_Constructor)
         return cls.create_from_psyir(structure_constructor)
 
     def fortran_string(self):

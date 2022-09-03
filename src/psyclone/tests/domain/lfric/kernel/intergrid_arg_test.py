@@ -120,8 +120,8 @@ def test_create_from_fortran_string():
     '''
     with pytest.raises(ValueError) as info:
         _ = InterGridArg.create_from_fortran_string("not valid")
-    assert ("Expected kernel metadata to be a Fortran part reference, with "
-            "the form 'arg_type(...)' but found 'not valid'."
+    assert ("Expected kernel metadata to be a Fortran Structure_Constructor, "
+            "with the form 'arg_type(...)' but found 'not valid'."
             in str(info.value))
 
     fortran_string = ("arg_type(GH_FIELD, GH_REAL, GH_READ, W0, "

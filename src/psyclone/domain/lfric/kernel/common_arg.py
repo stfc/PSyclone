@@ -33,9 +33,9 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing the BaseArg class which captures the metadata
-associated with a generic LFRic argument. Supports the creation,
-modification and Fortran output of such an argument.
+'''Module containing the abstract CommonArg class which captures the
+metadata associated with a generic LFRic argument. Supports the
+creation, modification and Fortran output of such an argument.
 
 '''
 from abc import ABC, abstractmethod
@@ -46,7 +46,7 @@ from fparser.two.parser import ParserFactory
 
 
 class CommonArg(ABC):
-    '''Class to capture commone LFRic kernel metadata.
+    '''Abstract class to capture common LFRic kernel metadata.
 
     :param Optional[str] datatype: the datatype of this argument.
     :param Optional[str] access: the way the kernel accesses this \
@@ -65,13 +65,18 @@ class CommonArg(ABC):
             self.access = access
 
     @staticmethod
-    def create_part_ref(fortran_string):
-        '''Creates an fparser tree from a Fortran string. Expects the parent
-        node of the tree to be a Part_Ref object (as it represents a metadata
-        argument).
+    def create_psyir(fortran_string, encoding=Fortran2003.Part_Ref):
+        '''Creates psyir from a Fortran string. In this case the PSyiR will be
+        encoded as an fparser2 tree. The resultant parent node of the
+        tree will be a Part_Ref or a Structure_Constructor object (as
+        it represents a metadata argument).
 
         :param str fortran_string: a string containing the metadata in \
            Fortran.
+        :param encoding: the parent class with which we will encode the \
+            Fortran string. This is an optional argument that defaults to \
+            Fortran2003.Part_Ref.
+        :type encoding: Optional[type]
 
         :returns: an fparser2 tree containing the PSyIR for a metadata \
             argument.
@@ -83,32 +88,39 @@ class CommonArg(ABC):
         '''
         _ = ParserFactory().create(std="f2003")
         reader = FortranStringReader(fortran_string)
-        part_ref = Fortran2003.Part_Ref(reader)
-        if not part_ref:
+        psyir = encoding(reader)
+        if not psyir:
             raise ValueError(
-                f"Expected kernel metadata to be a Fortran part reference, "
-                f"with the form 'arg_type(...)' but found '{fortran_string}'.")
-        return part_ref
+                f"Expected kernel metadata to be a Fortran "
+                f"{encoding.__name__}, with the form 'arg_type(...)' "
+                f"but found '{fortran_string}'.")
+        return psyir
 
     @staticmethod
     def check_psyir(psyir, nargs=4, encoding=Fortran2003.Part_Ref):
-        '''Checks that the psyir argument is valid.
+        '''Checks that the PSyIR is valid. The PSyIR may have a
+        different number of arguments depending on its type and it may
+        be in the form of a Fortran2003 Part_Ref or Fortran2003
+        Structure_Constructor.
 
-        :param psyir: optional fparser2 tree containing the PSyIR for a \
-            metadata argument. Defaults to 4.
-        :type psyir: Optional[:py:class:`fparser.two.Fortran2003.Part_Ref`]
-        :param Optional[int] nargs: the number of expected arguments.
-        :param encoding: optional class in which the psyir argument should \
+        :param psyir: fparser2 tree containing the PSyIR for a \
+            metadata argument.
+        :type psyir: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
+            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
+        :param Optional[int] nargs: the number of expected arguments. \
+            Defaults to 4.
+        :param encoding: class in which the psyir argument should \
             be encoded. Defaults to fparser.two.Fortran2003.Part_Ref.
-        :type encoding: Optional[:py:class:`fparser.two.Fortran2003.Part_Ref`, \
+        :type encoding: Optional[ \
+            :py:class:`fparser.two.Fortran2003.Part_Ref` | \
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`]
 
         :raises TypeError: if the psyir argument is not an fparser2 \
-            Part_Ref object.
+            Part_Ref or Structure_Constructor object.
         :raises ValueError: if the kernel metadata is not in \
             the form arg_type(...).
-        :raises ValueError: if the kernel metadata does not \
-            contain nargs arguments.
+        :raises ValueError: if the kernel metadata does not contain \
+            the expected number of arguments (nargs).
 
         '''
         if not isinstance(psyir, encoding):

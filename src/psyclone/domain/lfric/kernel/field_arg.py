@@ -92,7 +92,7 @@ class FieldArg(CommonArg):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.cls`
 
         '''
-        part_ref = cls.create_part_ref(fortran_string)
+        part_ref = cls.create_psyir(fortran_string)
         return cls.create_from_psyir(part_ref)
 
     def fortran_string(self):

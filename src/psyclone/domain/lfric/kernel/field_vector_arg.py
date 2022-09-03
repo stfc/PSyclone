@@ -75,7 +75,7 @@ class FieldVectorArg(FieldArg):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.FieldVectorArg`
 
         '''
-        part_ref = FieldArg.create_part_ref(fortran_string)
+        part_ref = FieldArg.create_psyir(fortran_string)
         return FieldVectorArg.create_from_psyir(part_ref)
 
     @staticmethod

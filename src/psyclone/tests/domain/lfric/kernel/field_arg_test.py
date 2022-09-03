@@ -112,7 +112,7 @@ def test_create_from_fortran_string():
     '''
     with pytest.raises(ValueError) as info:
         _ = FieldArg.create_from_fortran_string("not valid")
-    assert ("Expected kernel metadata to be a Fortran part reference, with "
+    assert ("Expected kernel metadata to be a Fortran Part_Ref, with "
             "the form 'arg_type(...)' but found 'not valid'."
             in str(info.value))
 
