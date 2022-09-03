@@ -58,39 +58,6 @@ class ScalarArg(CommonArg):
         self._form = "GH_SCALAR"
 
     @staticmethod
-    def check_psyir(psyir, nargs=3):
-        '''Checks that the psyir argument is valid.
-
-        :param psyir: fparser2 tree containing the PSyIR for a scalar \
-            argument.
-        :type psyir: :py:class:`fparser.two.Fortran2003.Part_Ref`
-        :param Optional[int] nargs: the number of expected arguments.
-
-        :raises TypeError: if the psyir argument is not an fparser2 \
-            Part_Ref object.
-        :raises ValueError: if the scalar arg kernel metadata is not in \
-            the form arg_type(...).
-        :raises ValueError: if the scalar arg kernel metadata does not \
-            contain nargs arguments.
-
-        '''
-        if not isinstance(psyir, Fortran2003.Part_Ref):
-            raise TypeError(
-                f"Expected scalar arg kernel metadata to be encoded as a "
-                f"Fortran Part_Ref object but found type "
-                f"'{type(psyir).__name__}' with value '{str(psyir)}'.")
-        if not psyir.children[0].tostr().lower() == "arg_type":
-            raise ValueError(
-                f"Expected scalar arg kernel metadata to have the name "
-                f"'arg_type' and be in the form 'arg_type(...)', but found "
-                f"'{str(psyir)}'.")
-        if not len(psyir.children[1].children) == nargs:
-            raise ValueError(
-                f"Expected scalar arg kernel metadata to have {nargs} "
-                f"arguments, but found {len(psyir.children[1].children)} in "
-                f"'{str(psyir)}'.")
-
-    @staticmethod
     def create_from_psyir(psyir):
         '''Create an instance of this class from generic PSyIR. At this moment
         this information is captured in an fparser2 tree.
@@ -103,7 +70,7 @@ class ScalarArg(CommonArg):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.ScalarArg`
 
         '''
-        ScalarArg.check_psyir(psyir)
+        ScalarArg.check_psyir(psyir, nargs=3)
         datatype = psyir.children[1].children[1].tostr()
         access = psyir.children[1].children[2].tostr()
         return ScalarArg(datatype, access)
@@ -151,7 +118,14 @@ class ScalarArg(CommonArg):
 
     @staticmethod
     def check_datatype(value):
-        '''xxx'''
+        '''
+        :param str value: set the datatype to the \
+            specified value.
+
+        :raises ValueError: if the provided value is not a valid \
+            datatype descriptor.
+
+        '''
         const = LFRicConstants()
         if not value or value.lower() not in const.VALID_SCALAR_DATA_TYPES:
             raise ValueError(

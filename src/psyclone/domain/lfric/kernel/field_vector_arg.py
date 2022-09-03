@@ -75,7 +75,7 @@ class FieldVectorArg(FieldArg):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.FieldVectorArg`
 
         '''
-        part_ref = FieldArg.create_psyir(fortran_string)
+        part_ref = FieldVectorArg.create_psyir(fortran_string)
         return FieldVectorArg.create_from_psyir(part_ref)
 
     @staticmethod
@@ -102,6 +102,7 @@ class FieldVectorArg(FieldArg):
                 f"Expecting the first argument to be in the form "
                 f"'form*vector_length' but found '{vector_datatype}'.")
         vector_length = components[1].strip()
+
         datatype = psyir.children[1].children[1].tostr()
         access = psyir.children[1].children[2].tostr()
         function_space = psyir.children[1].children[3].tostr()
@@ -112,6 +113,9 @@ class FieldVectorArg(FieldArg):
         :returns: the metadata represented by this class as a \
             Fortran string.
         :rtype: str
+
+        :raises ValueError: if all of the properties have not been \
+            set.
 
         '''
         if not (self.datatype and self.access and self.function_space and

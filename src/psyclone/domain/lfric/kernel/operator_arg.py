@@ -104,13 +104,13 @@ class OperatorArg(FieldArg):
         return cls.create_from_psyir(part_ref)
 
     def fortran_string(self):
-        '''
-        :returns: the metadata represented by this class as a \
+        ''':returns: the metadata represented by this class as a \
             Fortran string.
         :rtype: str
 
         raises ValueError: if one or more of the datatype, access or \
-            function_space values have not been set.
+            function_space1 and function_space2 values have not been \
+            set.
 
         '''
         if not (self.datatype and self.access and self.function_space1 and
@@ -144,10 +144,10 @@ class OperatorArg(FieldArg):
         '''
         :param str value: set the datatype to the \
             specified value.
-
+    
         :raises ValueError: if the provided value is not a valid \
             datatype descriptor.
-
+    
         '''
         const = LFRicConstants()
         if not value or value.lower() not in const.VALID_OPERATOR_DATA_TYPES:

@@ -96,8 +96,8 @@ def test_create_from_fortran_string():
     '''
     with pytest.raises(ValueError) as info:
         _ = ScalarArg.create_from_fortran_string("not valid")
-    assert ("Expected kernel metadata to be a Fortran Part_Ref, with "
-            "the form 'arg_type(...)' but found 'not valid'."
+    assert ("Expected kernel metadata to be a Fortran Part_Ref, "
+            "with the form 'arg_type(...)' but found 'not valid'."
             in str(info.value))
 
     fortran_string = "arg_type(GH_FIELD, GH_REAL, GH_READ)"
@@ -129,21 +129,21 @@ def test_create_from_psyir():
     '''
     with pytest.raises(TypeError) as info:
         _ = ScalarArg.create_from_psyir("hello")
-    assert ("Expected scalar arg kernel metadata to be encoded as a Fortran "
+    assert ("Expected kernel metadata to be encoded as a Fortran "
             "Part_Ref object but found type 'str' with value 'hello'."
             in str(info.value))
 
     part_ref = create_part_ref("hello(x)")
     with pytest.raises(ValueError) as info:
         _ = ScalarArg.create_from_psyir(part_ref)
-    assert ("Expected scalar arg kernel metadata to have the name 'arg_type' "
+    assert ("Expected kernel metadata to have the name 'arg_type' "
             "and be in the form 'arg_type(...)', but found 'hello(x)'."
             in str(info.value))
 
     part_ref = create_part_ref("arg_type(x)")
     with pytest.raises(ValueError) as info:
         _ = ScalarArg.create_from_psyir(part_ref)
-    assert ("Expected scalar arg kernel metadata to have 3 arguments, but "
+    assert ("Expected kernel metadata to have 3 arguments, but "
             "found 1 in 'arg_type(x)'." in str(info.value))
 
     part_ref = create_part_ref("arg_type(GH_FIELD, GH_REAL, GH_READ)")

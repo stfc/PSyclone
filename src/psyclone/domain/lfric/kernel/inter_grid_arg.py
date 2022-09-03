@@ -50,20 +50,19 @@ class InterGridArg(FieldArg):
     '''Class to capture LFRic kernel metadata information for an intergrid
     argument.
 
-    :param Optional[str] datatype: the datatype of this field \
-        (GH_INTEGER, ...).
+    :param Optional[str] datatype: the datatype of this InterGrid \
+        argument (GH_INTEGER, ...).
     :param Optional[str] access: the way the kernel accesses this \
-        field (GH_WRITE, ...).
+        intergrid argument (GH_WRITE, ...).
     :param Optional[str] function_space: the function space that this \
-        field is on (W0, ...).
+        InterGrid is on (W0, ...).
     :param Optional[str] mesh_arg: the type of mesh that this \
-        arg is on (coarse or fine).
+        InterGrid arg is on (coarse or fine).
 
     '''
     def __init__(self, datatype=None, access=None, function_space=None,
                  mesh_arg=None):
         super().__init__(datatype, access, function_space)
-        self._form = "GH_FIELD"
         if mesh_arg is None:
             self._mesh_arg = mesh_arg
         else:
@@ -126,40 +125,6 @@ class InterGridArg(FieldArg):
 
         return (f"arg_type({self.form}, {self.datatype}, {self.access}, "
                 f"{self.function_space}, mesh_arg={self.mesh_arg})")
-
-    @staticmethod
-    def check_datatype(value):
-        '''
-        :param str value: set the datatype to the \
-            specified value.
-
-        :raises ValueError: if the provided value is not a valid \
-            datatype descriptor.
-
-        '''
-        const = LFRicConstants()
-        if not value or value.lower() not in const.VALID_FIELD_DATA_TYPES:
-            raise ValueError(
-                f"The second metadata entry for an argument should "
-                f"be a recognised datatype descriptor (one of "
-                f"{const.VALID_FIELD_DATA_TYPES}), but found '{value}'.")
-
-    @staticmethod
-    def check_access(value):
-        '''
-        :param str value: set the access descriptor to the \
-            specified value.
-
-        :raises ValueError: if the provided value is not a valid \
-            access type.
-
-        '''
-        const = LFRicConstants()
-        if not value or value.lower() not in const.VALID_FIELD_ACCESS_TYPES:
-            raise ValueError(
-                f"The third metadata entry for an argument should "
-                f"be a recognised datatype descriptor (one of "
-                f"{const.VALID_FIELD_ACCESS_TYPES}), but found '{value}'.")
 
     @property
     def mesh_arg(self):

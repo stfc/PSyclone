@@ -80,7 +80,8 @@ class CommonArg(ABC):
 
         :returns: an fparser2 tree containing the PSyIR for a metadata \
             argument.
-        :rtype: :py:class:`fparser.two.Fortran2003.Part_Ref`
+        :rtype: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
+            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
 
         :raises ValueError: if the Fortran string is not in the \
             expected form.

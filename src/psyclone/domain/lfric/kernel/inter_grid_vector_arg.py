@@ -33,9 +33,9 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing the FieldArg class which captures the metadata
-associated with a field argument. Supports the creation, modification
-and Fortran output of a Field argument.
+'''Module containing the InterGridVectorArg class which captures the metadata
+associated with a intergrid vector argument. Supports the creation, modification
+and Fortran output of an InterGridVector argument.
 
 '''
 from fparser.two import Fortran2003
@@ -43,15 +43,15 @@ from psyclone.domain.lfric.kernel import InterGridArg
 
 
 class InterGridVectorArg(InterGridArg):
-    '''Class to capture LFRic kernel metadata information for a field
-    argument.
+    '''Class to capture LFRic kernel metadata information for an
+    InterGridVector argument.
 
-    :param Optional[str] datatype: the datatype of this field \
-        (GH_INTEGER, ...).
+    :param Optional[str] datatype: the datatype of this \
+        InterGridVector argument (GH_INTEGER, ...).
     :param Optional[str] access: the way the kernel accesses this \
-        field (GH_WRITE, ...).
+        InterGridVector argument (GH_WRITE, ...).
     :param Optional[str] function_space: the function space that this \
-        field is on (W0, ...).
+        InterGridVector argument is on (W0, ...).
 
     '''
     def __init__(self, datatype=None, access=None, function_space=None,
@@ -79,7 +79,6 @@ class InterGridVectorArg(InterGridArg):
         InterGridVectorArg.check_psyir(
             psyir, nargs=5, encoding=Fortran2003.Structure_Constructor)
 
-        # TODO utility as a duplicate of code in field_vector_arg.py?
         vector_datatype = psyir.children[1].children[0].tostr()
         components = vector_datatype.split("*")
         if len(components) != 2:
