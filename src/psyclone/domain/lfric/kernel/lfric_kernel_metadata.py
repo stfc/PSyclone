@@ -178,14 +178,14 @@ class LFRicKernelMetadata():
 
     @staticmethod
     def create_from_fortran_string(fortran_string):
-        '''Create a new instance of GOceanKernelMetadata populated with
+        '''Create a new instance of LFRicKernelMetadata populated with
         metadata stored in a fortran string.
 
         :param str fortran_string: the metadata stored as Fortran.
 
-        :returns: an instance of GOceanKernelMetadata.
-        :rtype: :py:class:`psyclone.domain.gocean.kernel.psyir.\
-            GOceanKernelMetadata`
+        :returns: an instance of LFRicKernelMetadata.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.psyir.\
+            LFRicKernelMetadata`
         :raises ValueError: if the string does not contain a fortran \
             derived type.
 
@@ -318,7 +318,7 @@ class LFRicKernelMetadata():
     @staticmethod
     def _get_property(spec_part, property_name):
         '''Internal utility that gets the property 'property_name' from an
-        fparser2 tree capturing gocean metadata. It is assumed that
+        fparser2 tree capturing LFRic metadata. It is assumed that
         the code property is part of a type bound procedure and that
         the other properties are part of the data declarations.
 
