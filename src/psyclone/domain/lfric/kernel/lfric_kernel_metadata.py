@@ -46,8 +46,9 @@ from fparser.two.utils import walk, get_child
 
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel import (
-    CommonArg, ScalarArg, FieldArg, FieldVectorArg, InterGridArg,
+    ScalarArg, FieldArg, FieldVectorArg, InterGridArg,
     InterGridVectorArg, OperatorArg, ColumnwiseOperatorArg)
+from psyclone.domain.lfric.kernel.common_arg import CommonArg
 
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
