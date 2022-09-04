@@ -46,6 +46,6 @@ def test_init():
     arguments are provided.
     '''
     with pytest.raises(TypeError) as info:
-        arg = CommonArg()
+        _ = CommonArg()
     assert ("Can't instantiate abstract class CommonArg with abstract "
             "methods check_access, check_datatype" in str(info.value))

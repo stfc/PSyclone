@@ -33,9 +33,10 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing the InterGridVectorArg class which captures the metadata
-associated with a intergrid vector argument. Supports the creation, modification
-and Fortran output of an InterGridVector argument.
+'''Module containing the InterGridVectorArg class which captures the
+metadata associated with a intergrid vector argument. Supports the
+creation, modification and Fortran output of an InterGridVector
+argument.
 
 '''
 from fparser.two import Fortran2003

@@ -38,7 +38,6 @@ associated with a scalar argument. Supports the creation, modification
 and Fortran output of a Scalar argument.
 
 '''
-from fparser.two import Fortran2003
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.common_arg import CommonArg
 

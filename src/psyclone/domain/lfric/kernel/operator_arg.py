@@ -144,10 +144,10 @@ class OperatorArg(FieldArg):
         '''
         :param str value: set the datatype to the \
             specified value.
-    
+
         :raises ValueError: if the provided value is not a valid \
             datatype descriptor.
-    
+
         '''
         const = LFRicConstants()
         if not value or value.lower() not in const.VALID_OPERATOR_DATA_TYPES:

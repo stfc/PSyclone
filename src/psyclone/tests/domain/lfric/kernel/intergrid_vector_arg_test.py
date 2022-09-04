@@ -179,7 +179,7 @@ def test_create_from_psyir():
 
     with pytest.raises(TypeError) as info:
         _ = InterGridVectorArg.create_from_fortran_string(
-        "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, mesh_arg=GH_COARSE)")
+            "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, mesh_arg=GH_COARSE)")
     assert ("Expecting the first argument to be in the form "
             "'datatype*vector_length' but found 'GH_FIELD'."
             in str(info.value))
@@ -238,6 +238,6 @@ def test_setter_getter():
     with pytest.raises(ValueError) as info:
         intergrid_arg.vector_length = "0"
     assert ("The vector size should be an integer greater than 1 but found 0."
-            in str(info.value))        
+            in str(info.value))
     intergrid_arg.vector_length = "3"
     assert intergrid_arg.vector_length == "3"

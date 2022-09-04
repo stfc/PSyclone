@@ -38,9 +38,7 @@ associated with an intergrid argument. Supports the creation, modification
 and Fortran output of an intergrid argument.
 
 '''
-from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
-from fparser.two.parser import ParserFactory
 
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.field_arg import FieldArg

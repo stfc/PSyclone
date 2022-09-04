@@ -231,7 +231,7 @@ def test_create_from_psyir(fortran_reader):
     assert isinstance(metadata.meta_args[6], ColumnwiseOperatorArg)
 
 
-def test_create_from_fortran_error(monkeypatch):
+def test_create_from_fortran_error():
     '''Test that the expected exceptions are raised when invalid input is
     provided to the create_from_fortran_string method.
 
@@ -255,7 +255,7 @@ def test_create_from_fortran_error(monkeypatch):
     assert ("Expected a 'meta_arg' entry to be a field, a scalar or an "
             "operator, but found 'arg_type(gh_invalid, gh_real, gh_read)'."
             in str(info.value))
-    
+
     invalid_metadata2 = (
         "type, extends(kernel_type) :: testkern_type\n"
         "   type(arg_type) :: meta_args =  invalid\n"
@@ -267,17 +267,6 @@ def test_create_from_fortran_error(monkeypatch):
         _ = LFRicKernelMetadata.create_from_fortran_string(invalid_metadata2)
     assert("meta_args should be a list, but found 'invalid' in"
            in str(info.value))
-
-    invalid_metadata3 = (
-        "type, extends(kernel_type) :: testkern_type\n"
-        "   type(arg_type), dimension(1) :: meta_args =   &\n"
-        "        (/ arg_type(gh_scalar, gh_real, gh_read) &\n"
-        "        /)\n"
-        "   type(func_type) :: meta_funcs = unknown\n"
-        "   integer :: operates_on = cell_column\n"
-        " contains\n"
-        "   procedure, nopass :: code => testkern_code\n"
-        "end type testkern_type\n")
 
 
 def test_create_from_fortran():
