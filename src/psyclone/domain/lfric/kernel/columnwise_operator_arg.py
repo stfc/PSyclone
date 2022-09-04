@@ -38,7 +38,7 @@ the metadata associated with a columnwise operator argument. Supports the
 creation, modification and Fortran output of a ColumnwiseOperator argument.
 
 '''
-from psyclone.domain.lfric.kernel import OperatorArg
+from psyclone.domain.lfric.kernel.operator_arg import OperatorArg
 
 
 class ColumnwiseOperatorArg(OperatorArg):

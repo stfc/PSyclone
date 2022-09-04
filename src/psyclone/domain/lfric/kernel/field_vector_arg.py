@@ -1,4 +1,4 @@
-# -----------------------------------------------------------------------------
+v# -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
 # Copyright (c) 2022, Science and Technology Facilities Council
@@ -38,7 +38,7 @@ associated with a field vector argument. Supports the creation, modification
 and Fortran output of a Field Vector argument.
 
 '''
-from psyclone.domain.lfric.kernel import FieldArg
+from psyclone.domain.lfric.kernel.field_arg import FieldArg
 
 
 class FieldVectorArg(FieldArg):

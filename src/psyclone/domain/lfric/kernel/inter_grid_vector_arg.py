@@ -39,7 +39,7 @@ and Fortran output of an InterGridVector argument.
 
 '''
 from fparser.two import Fortran2003
-from psyclone.domain.lfric.kernel import InterGridArg
+from psyclone.domain.lfric.kernel.inter_grid_arg import InterGridArg
 
 
 class InterGridVectorArg(InterGridArg):
