@@ -84,7 +84,7 @@ class InterGridVectorArg(InterGridArg):
         if len(components) != 2:
             raise TypeError(
                 f"Expecting the first argument to be in the form "
-                f"'form*vector_length' but found '{vector_datatype}'.")
+                f"'datatype*vector_length' but found '{vector_datatype}'.")
         vector_length = components[1].strip()
 
         datatype = psyir.children[1].children[1].tostr()

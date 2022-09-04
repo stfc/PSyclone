@@ -186,9 +186,9 @@ class LFRicKernelMetadata():
         :returns: an instance of LFRicKernelMetadata.
         :rtype: :py:class:`psyclone.domain.lfric.kernel.psyir.\
             LFRicKernelMetadata`
+
         :raises ValueError: if the string does not contain a fortran \
             derived type.
-
         :raises ValueError: if kernel metadata is not a Fortran \
             derived type.
         :raises ParseError: if meta args is not a list.
@@ -276,10 +276,6 @@ class LFRicKernelMetadata():
             meta_funcs = LFRicKernelMetadata._get_property(
                 spec_part, "meta_funcs")
             args = walk(meta_funcs, Fortran2003.Ac_Value_List)
-            if not args:
-                raise ParseError(
-                    f"meta_funcs should be a list, but found "
-                    f"'{str(meta_funcs)}' in '{spec_part}'.")
         except ParseError:
             meta_funcs = []
 

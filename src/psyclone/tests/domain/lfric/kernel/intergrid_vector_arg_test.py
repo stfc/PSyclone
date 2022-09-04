@@ -177,6 +177,13 @@ def test_create_from_psyir():
     assert ("Expected kernel metadata to have 5 arguments, but "
             "found 1 in 'arg_type(x)'." in str(info.value))
 
+    with pytest.raises(TypeError) as info:
+        _ = InterGridVectorArg.create_from_fortran_string(
+        "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, mesh_arg=GH_COARSE)")
+    assert ("Expecting the first argument to be in the form "
+            "'datatype*vector_length' but found 'GH_FIELD'."
+            in str(info.value))
+
     intergrid_arg = InterGridVectorArg.create_from_fortran_string(
         "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0, mesh_arg=GH_COARSE)")
     assert intergrid_arg._form == "GH_FIELD"
@@ -222,3 +229,15 @@ def test_setter_getter():
     assert intergrid_arg.mesh_arg == "GH_COARSE"
     intergrid_arg.mesh_arg = "GH_FINE"
     assert intergrid_arg.mesh_arg == "GH_FINE"
+
+    assert intergrid_arg.vector_length is None
+    with pytest.raises(TypeError) as info:
+        intergrid_arg.vector_length = 3
+    assert ("The vector size should be a string but found int."
+            in str(info.value))
+    with pytest.raises(ValueError) as info:
+        intergrid_arg.vector_length = "0"
+    assert ("The vector size should be an integer greater than 1 but found 0."
+            in str(info.value))        
+    intergrid_arg.vector_length = "3"
+    assert intergrid_arg.vector_length == "3"

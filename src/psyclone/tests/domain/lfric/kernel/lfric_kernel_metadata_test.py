@@ -166,7 +166,6 @@ def test_setter_getter():
     # TODO gh_shape, meta_funcs, meta_reference_element, meta_mesh
 
 
-# create_from_fortran_string
 METADATA = (
     "type, extends(kernel_type) :: testkern_type\n"
     "   type(arg_type), dimension(7) :: meta_args =        &\n"
@@ -232,7 +231,7 @@ def test_create_from_psyir(fortran_reader):
     assert isinstance(metadata.meta_args[6], ColumnwiseOperatorArg)
 
 
-def test_create_from_fortran_error():
+def test_create_from_fortran_error(monkeypatch):
     '''Test that the expected exceptions are raised when invalid input is
     provided to the create_from_fortran_string method.
 
@@ -242,7 +241,22 @@ def test_create_from_fortran_error():
     assert ("Expected kernel metadata to be a Fortran derived type, but "
             "found 'hello'." in str(info.value))
 
-    metadata = (
+    invalid_metadata1 = (
+        "type, extends(kernel_type) :: testkern_type\n"
+        "   type(arg_type), dimension(1) :: meta_args =   &\n"
+        "        (/ arg_type(gh_invalid, gh_real, gh_read) &\n"
+        "        /)\n"
+        "   integer :: operates_on = cell_column\n"
+        " contains\n"
+        "   procedure, nopass :: code => testkern_code\n"
+        "end type testkern_type\n")
+    with pytest.raises(ParseError) as info:
+        _ = LFRicKernelMetadata.create_from_fortran_string(invalid_metadata1)
+    assert ("Expected a 'meta_arg' entry to be a field, a scalar or an "
+            "operator, but found 'arg_type(gh_invalid, gh_real, gh_read)'."
+            in str(info.value))
+    
+    invalid_metadata2 = (
         "type, extends(kernel_type) :: testkern_type\n"
         "   type(arg_type) :: meta_args =  invalid\n"
         "   integer :: operates_on = cell_column\n"
@@ -250,9 +264,20 @@ def test_create_from_fortran_error():
         "   procedure, nopass :: code => testkern_code\n"
         "end type testkern_type\n")
     with pytest.raises(ParseError) as info:
-        _ = LFRicKernelMetadata.create_from_fortran_string(metadata)
+        _ = LFRicKernelMetadata.create_from_fortran_string(invalid_metadata2)
     assert("meta_args should be a list, but found 'invalid' in"
            in str(info.value))
+
+    invalid_metadata3 = (
+        "type, extends(kernel_type) :: testkern_type\n"
+        "   type(arg_type), dimension(1) :: meta_args =   &\n"
+        "        (/ arg_type(gh_scalar, gh_real, gh_read) &\n"
+        "        /)\n"
+        "   type(func_type) :: meta_funcs = unknown\n"
+        "   integer :: operates_on = cell_column\n"
+        " contains\n"
+        "   procedure, nopass :: code => testkern_code\n"
+        "end type testkern_type\n")
 
 
 def test_create_from_fortran():
@@ -396,7 +421,17 @@ def test_getproperty(fortran_reader):
 
 
 def test_fortran_string():
-    '''Test that the metadata can be written out as a fortran string.'''
+    '''Test that the metadata can be written out as a fortran string and
+    that it raises the expected exception if there is an error.
+
+    '''
+    instance = LFRicKernelMetadata()
+    with pytest.raises(ValueError) as info:
+        instance.fortran_string()
+    assert ("Values for name, meta_args, operates_on and procedure_name must "
+            "be provided before calling the fortran_string method, but found "
+            "'None', '[]', 'None' and 'None'." in str(info.value))
+
     metadata = LFRicKernelMetadata.create_from_fortran_string(METADATA)
     result = metadata.fortran_string()
     expected = (
