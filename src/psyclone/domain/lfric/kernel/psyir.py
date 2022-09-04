@@ -33,10 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing tests for the KernelMetadataSymbol
-kernel-layer-specific symbol. The tests include translation of
-language-level PSyIR to PSyclone LFRic Kernel PSyIR and PSyclone LFRic
-Kernel PSyIR to language-level PSyIR.
+'''Module containing the LFRic-specific Container class.
 
 '''
 from psyclone.psyir.nodes import Container
@@ -79,9 +76,11 @@ class LFRicContainer(Container):
             Container. These must be Containers or Routines.
         :type children: List[:py:class:`psyclone.psyir.nodes.Container` \
             | :py:class:`psyclone.psyir.nodes.Routine`]
+
         :returns: an instance of `cls`.
         :rtype: :py:class:`psyclone.psyir.nodes.Container` or subclass
-            thereof
+            thereof.
+
         '''
         return cls(name, metadata, children=children,
                    symbol_table=symbol_table.detach())

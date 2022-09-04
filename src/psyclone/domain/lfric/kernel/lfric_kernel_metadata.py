@@ -45,16 +45,9 @@ from fparser.two.parser import ParserFactory
 from fparser.two.utils import walk, get_child
 
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.lfric.kernel.common_arg import CommonArg
-from psyclone.domain.lfric.kernel.scalar_arg import ScalarArg
-from psyclone.domain.lfric.kernel.field_arg import FieldArg
-from psyclone.domain.lfric.kernel.field_vector_arg import FieldVectorArg
-from psyclone.domain.lfric.kernel.inter_grid_arg import InterGridArg
-from psyclone.domain.lfric.kernel.inter_grid_vector_arg import \
-    InterGridVectorArg
-from psyclone.domain.lfric.kernel.operator_arg import OperatorArg
-from psyclone.domain.lfric.kernel.columnwise_operator_arg import \
-    ColumnwiseOperatorArg
+from psyclone.domain.lfric.common_arg import (
+    CommonArg, ScalarArg, FieldArg, FieldVectorArg, InterGridArg,
+    InterGridVectorArg, OperatorArg, ColumnwiseOperatorArg)
 
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
@@ -69,38 +62,32 @@ class LFRicKernelMetadata():
 
     :param meta_args: a list of 'meta_arg' objects which capture the \
         metadata values of the kernel arguments.
-
     :type meta_args: Optional[List[:py:class:`ScalarArg` | \
         :py:class:`FieldArg` | :py:class:`OperatorArg`]]
-
     :param meta_funcs: a list of 'meta_arg' objects which capture the \
         metadata values of the kernel arguments.
-
     :type meta_funcs: Optional[List[:py:class:`GridArg` | \
         :py:class:`FieldArg` | :py:class:`ScalarArg`]]
-
     :param meta_reference_element: a list of 'meta_arg' objects which \
         capture the metadata values of the kernel arguments.
     :type meta_reference_element: Optional[List[:py:class:`GridArg` | \
         :py:class:`FieldArg` | :py:class:`ScalarArg`]]
-
     :param meta_mesh: a list of 'meta_arg' objects which capture the \
         metadata values of the kernel arguments.
     :type meta_mesh: Optional[List[:py:class:`ScalarArg` | \
         :py:class:`FieldArg` | :py:class:`OperatorArg`]]
-
     :param shape: quadrature.
     :type shape: Optional[str]
-
     :param operates_on: the name of the quantity that this kernel is
         intended to iterate over.
     :type operates_on: Optional[str]
-
     :param procedure_name: the name of the kernel procedure to call.
     :type procedure_name: Optional[str]
     :param name: the name of the symbol to use for the metadata in \
         language-level PSyIR.
     :type name: Optional[str]
+
+    raises TypeError: if meta args is not a list of argument objects.
 
     '''
     VALID_NAME = re.compile(r'[a-zA-Z_][\w]*')
@@ -149,12 +136,15 @@ class LFRicKernelMetadata():
     def create_from_psyir(symbol):
         '''Create a new instance of LFRicKernelMetadata populated with
         metadata from a kernel in language-level PSyIR.
+
         :param symbol: the symbol in which the metadata is stored \
             in language-level PSyIR.
         :type symbol: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
+
         :returns: an instance of LFRicKernelMetadata.
         :rtype: :py:class:`psyclone.domain.lfric.kernel.psyir.\
             LFRicKernelMetadata`
+
         :raises TypeError: if the symbol argument is not the expected \
             type.
         :raises InternalError: if the datatype of the provided symbol \
@@ -183,13 +173,20 @@ class LFRicKernelMetadata():
     def create_from_fortran_string(fortran_string):
         '''Create a new instance of GOceanKernelMetadata populated with
         metadata stored in a fortran string.
+
         :param str fortran_string: the metadata stored as Fortran.
+
         :returns: an instance of GOceanKernelMetadata.
         :rtype: :py:class:`psyclone.domain.gocean.kernel.psyir.\
             GOceanKernelMetadata`
         :raises ValueError: if the string does not contain a fortran \
             derived type.
+
+        :raises ValueError: if kernel metadata is not a Fortran \
+            derived type.
+        :raises ParseError: if meta args is not a list.
         :raises ParseError: if the metadata has an unexpected format.
+
         '''
         kernel_metadata = LFRicKernelMetadata()
 
@@ -302,9 +299,11 @@ class LFRicKernelMetadata():
         return kernel_metadata
 
     def lower_to_psyir(self):
-        ''' Lower the metadata to language-level PSyIR.
+        '''Lower the metadata to language-level PSyIR.
+
         :returns: metadata as stored in language-level PSyIR.
         :rtype: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
+
         '''
         return DataTypeSymbol(
             str(self.name), UnknownFortranType(self.fortran_string()))
@@ -315,15 +314,18 @@ class LFRicKernelMetadata():
         fparser2 tree capturing gocean metadata. It is assumed that
         the code property is part of a type bound procedure and that
         the other properties are part of the data declarations.
+
         :param spec_part: the fparser2 parse tree containing the metadata.
         :type spec_part: :py:class:`fparser.two.Fortran2003.Derived_Type_Def`
         :param str property_name: the name of the property whose value \
             is being extracted from the metadata.
+
         :returns: the value of the property.
         :rtype: :py:class:`fparser.two.Fortran2003.Name | \
             :py:class:`fparser.two.Fortran2003.Array_Constructor`
-        :raises ParseError: if the property name is not found in the \
-            metadata.
+
+        :raises ParseError: if the metadata is invalid.
+
         '''
         if property_name.lower() == "code":
             # The value of 'code' should be found in a type bound
@@ -384,9 +386,15 @@ class LFRicKernelMetadata():
         '''
         :returns: the metadata represented by this instance as Fortran.
         :rtype: str
+
         '''
-        # if not (self.procedure_name and ...):
-        #     raise Exception("XXX")
+        if not (self.name and self.meta_args and self.operates_on and
+                self.procedure_name):
+            raise ValueError(
+                f"Values for name, meta_args, operates_on and procedure_name "
+                f"must be provided before calling the fortran_string method, "
+                f"but found '{self.name}', '{self.meta_args}', "
+                f"'{self.operates_on}' and '{self.procedure_name}'.")
 
         lfric_args = []
         for lfric_arg in self.meta_args:
@@ -424,6 +432,9 @@ class LFRicKernelMetadata():
         '''
         :param str value: set the kernel operates_on property \
             in the metadata to the specified value.
+
+        :raises ValueError: if the metadata has an invalid type.
+
         '''
         const = LFRicConstants()
         if not value or value.lower() not in const.VALID_ITERATION_SPACES:
@@ -446,6 +457,9 @@ class LFRicKernelMetadata():
         '''
         :param str value: set the kernel procedure name in the \
             metadata to the specified value.
+
+        :raises ValueError: if the metadata has an invalid value.
+
         '''
         if not value or not LFRicKernelMetadata.VALID_NAME.match(value):
             raise ValueError(
@@ -484,5 +498,6 @@ class LFRicKernelMetadata():
             metadata values of the kernel arguments.
         :rtype: List[:py:class:`psyclone.psyir.common.kernel.\
             KernelMetadataSymbol.KernelMetadataArg`]
+
         '''
         return self._meta_args
