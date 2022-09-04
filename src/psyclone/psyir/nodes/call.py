@@ -204,7 +204,8 @@ class Call(Statement, DataNode):
         self.children.insert(index, arg)
 
     def replace_named_arg(self, existing_name, arg):
-        '''Replace one named argument with another for a Call node.
+        '''Replace one named argument node with another node keeping the
+        same name.
 
            :param str existing_name: the argument name.
            :param arg: the argument expression.
@@ -222,18 +223,17 @@ class Call(Statement, DataNode):
                 f"'Call' node should be a string, but found "
                 f"{type(existing_name).__name__}.")
         index = 0
-        # pylint: disable=undefined-loop-variable
-        for named_arg in self._argument_names:
-            if named_arg[1].lower() == existing_name:
+        for _, name in self._argument_names:
+            if name is not None and name.lower() == existing_name:
                 break
             index += 1
         else:
             raise ValueError(
                 f"The value of the existing_name argument ({existing_name}) "
-                f"in 'insert_named_arg' in the 'Call' node was not found "
+                f"in 'replace_named_arg' in the 'Call' node was not found "
                 f"in the existing arguments.")
         self.children[index] = arg
-        self._argument_names[index] = (id(arg), named_arg[1])
+        self._argument_names[index] = (id(arg), existing_name)
 
     @staticmethod
     def _validate_name(name):
