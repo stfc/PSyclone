@@ -123,10 +123,10 @@ class ArrayMixin(object):
         '''Returns True if the specified array index contains a Range node
         which has a starting value given by the 'LBOUND(name,index)'
         intrinsic where 'name' is the name of the current Array and
-        'index' matches the specified array index. Otherwise False is
-        returned.
-
-        **** RF: Or if the starting value of the range node is an integer that matches the starting value of the declaration. ***
+        'index' matches the specified array index. Also returns True
+        if the starting value of the range node is an integer that
+        matches the starting value of the declaration. Otherwise False
+        is returned.
 
         For example, if a Fortran array A was declared as
         A(10) then the starting value is 1 and LBOUND(A,1) would
@@ -141,7 +141,6 @@ class ArrayMixin(object):
         '''
         self._validate_index(index)
 
-
         array_dimension = self.indices[index]
         if not isinstance(array_dimension, Range):
             return False
@@ -154,13 +153,14 @@ class ArrayMixin(object):
                 datatype = symbol.datatype
                 shape = datatype.shape
                 array_bounds = shape[index]
-                if isinstance(array_bounds, ArrayType.ArrayBounds) \
-                   and isinstance(array_bounds.lower, Literal):
+                if (isinstance(array_bounds, ArrayType.ArrayBounds)
+                        and isinstance(array_bounds.lower, Literal)):
                     if lower.value == array_bounds.lower.value:
                         return True
             except (KeyError, SymbolError):
                 # Can't find symbol declaration
                 pass
+            return False
 
         if not (isinstance(lower, BinaryOperation) and
                 lower.operator == BinaryOperation.Operator.LBOUND):
@@ -182,9 +182,11 @@ class ArrayMixin(object):
     def is_upper_bound(self, index):
         '''Returns True if the specified array index contains a Range node
         which has a stopping value given by the 'UBOUND(name,index)'
-        intrinsic where 'name' is the name of the current ArrayReference and
-        'index' matches the specified array index. Otherwise False is
-        returned.
+        intrinsic where 'name' is the name of the current
+        ArrayReference and 'index' matches the specified array index.
+        Also returns True if the starting value of the range node is
+        an integer that matches the starting value of the
+        declaration. Otherwise False is returned.
 
         For example, if a Fortran array A was declared as
         A(10) then the stopping value is 10 and UBOUND(A,1) would
@@ -211,13 +213,14 @@ class ArrayMixin(object):
                 datatype = symbol.datatype
                 shape = datatype.shape
                 array_bounds = shape[index]
-                if isinstance(array_bounds, ArrayType.ArrayBounds) and \
-                   isinstance(array_bounds.upper, Literal):
+                if (isinstance(array_bounds, ArrayType.ArrayBounds) and
+                        isinstance(array_bounds.upper, Literal)):
                     if upper.value == array_bounds.upper.value:
                         return True
             except (KeyError, SymbolError):
                 # Can't find symbol declaration
                 pass
+            return False
 
         if not (isinstance(upper, BinaryOperation) and
                 upper.operator == BinaryOperation.Operator.UBOUND):

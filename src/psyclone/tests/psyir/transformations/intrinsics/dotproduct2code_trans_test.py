@@ -97,7 +97,6 @@ def check_trans(code, expected, fortran_reader, fortran_writer, tmpdir):
         if bin_op.operator == BinaryOperation.Operator.DOT_PRODUCT:
             trans.apply(bin_op)
     result = fortran_writer(psyir)
-    print(result)
     assert expected in result
     assert Compile(tmpdir).string_compiles(result)
 
@@ -285,19 +284,6 @@ def test_validate_array_full_slice(fortran_reader):
         "and is for the full range of that dimension, but found a1(2:4,1) in "
         "DOT_PRODUCT(a1(2:4,1), a2(:,10)).")
     check_validate(code, expected, fortran_reader)
-
-
-#def test_validate_array_full_slice_2(fortran_reader):
-#    ''' '''
-#    code = (
-#        "subroutine dot_product_test()\n"
-#        "real, dimension(3) :: wind\n"
-#        "real :: basis_w1(:)\n"
-#        "integer :: result\n"
-#        "result = dot_product(basis_w1(:),wind(1:3))\n"
-#        "end subroutine\n")
-#    expected = ""
-#    check_validate(code, expected, fortran_reader)
 
 
 def test_validate_real(fortran_reader):
@@ -559,16 +545,16 @@ def test_apply_explicit_range(fortran_reader, fortran_writer, tmpdir):
 
     '''
     code = (
-        "subroutine dot_product_test()\n"
+        "subroutine dot_product_test(basis_w1)\n"
         "real, dimension(3) :: wind\n"
         "real :: basis_w1(:)\n"
         "integer :: result\n"
         "result = dot_product(basis_w1(:),wind(1:3))\n"
         "end subroutine\n")
     expected = (
-        "subroutine dot_product_test()\n"
-        "  real, dimension(3) :: wind\n"
+        "subroutine dot_product_test(basis_w1)\n"
         "  real, dimension(:) :: basis_w1\n"
+        "  real, dimension(3) :: wind\n"
         "  integer :: result\n"
         "  integer :: i\n"
         "  real :: res_dot_product\n\n"
