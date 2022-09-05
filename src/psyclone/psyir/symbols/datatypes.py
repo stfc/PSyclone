@@ -58,6 +58,15 @@ class DataType():
 
         '''
 
+    def __eq__(self, other):
+        '''
+        :param Any other: the object to check equality to.
+
+        :returns: whether this type is equal to the 'other' type.
+        :rtype: bool
+        '''
+        return type(other) is type(self)
+
 
 class DeferredType(DataType):
     '''Indicates that the type is unknown at this point.'''
@@ -137,6 +146,32 @@ class UnknownFortranType(UnknownType):
     '''
     def __str__(self):
         return f"UnknownFortranType('{self._declaration}')"
+
+    def __eq__(self, other):
+        '''
+        :param Any other: the object to check equality to.
+
+        :returns: whether this type is equal to the 'other' type.
+        :rtype: bool
+        '''
+        if not type(other) is type(self):
+            return False
+        # Since an UnknownFortranType stores the whole declaration, including
+        # variable name, to compare them we must examine only that part of
+        # the declaration that specifies the type.
+        from fparser.common.readfortran import FortranStringReader
+        from fparser.common.sourceinfo import FortranFormat
+        from fparser.two import Fortran2008
+        from fparser.two.parser import ParserFactory
+        string_reader = FortranStringReader(self._declaration)
+        # Set reader to free format.
+        string_reader.set_format(FortranFormat(True, False))
+        ParserFactory().create(std="f2008")
+        decln = Fortran2008.Declaration_Construct(string_reader)
+        other_reader = FortranStringReader(other.declaration)
+        other_reader.set_format(FortranFormat(True, False))
+        other_decln = Fortran2008.Declaration_Construct(other_reader)
+        return other_decln.children[0] == decln.children[0]
 
 
 class ScalarType(DataType):
@@ -232,14 +267,14 @@ class ScalarType(DataType):
     def __eq__(self, other):
         '''
         :param Any other: the object to check equality to.
-        :returns: whether this scalar type is equal to the 'other' scalar type.
+
+        :returns: whether this type is equal to the 'other' type.
         :rtype: bool
         '''
         # A ScalarType is not equal to e.g. an ArrayType.
         if not type(other) is type(self):
             return False
-        # TODO #1799 - this method needs implementing for the other Types as
-        # currently we're not consistent.
+
         return (self.precision == other.precision and
                 self.intrinsic == other.intrinsic)
 
@@ -507,6 +542,30 @@ class ArrayType(DataType):
                     f"'{type(dimension).__name__}'.")
         return f"Array<{self._datatype}, shape=[{', '.join(dims)}]>"
 
+    def __eq__(self, other):
+        '''
+        :param Any other: the object to check equality to.
+
+        :returns: whether this ArrayType is equal to the 'other' ArrayType.
+        :rtype: bool
+        '''
+        # An ArrayType is not equal to any other type.
+        if not type(other) is type(self):
+            return False
+
+        if (self.intrinsic != other.intrinsic or
+                self.precision != other.precision):
+            return False
+
+        if len(self.shape) != len(other.shape):
+            return False
+
+        for this_dim, other_dim in zip(self.shape, other.shape):
+            if this_dim != other_dim:
+                return False
+
+        return True
+
 
 class StructureType(DataType):
     '''
@@ -606,6 +665,24 @@ class StructureType(DataType):
         :rtype: :py:class:`psyclone.psyir.symbols.StructureType.ComponentType`
         '''
         return self._components[name]
+
+    def __eq__(self, other):
+        '''
+        :param Any other: the object to check equality to.
+
+        :returns: whether this StructureType is equal to the 'other' type.
+        :rtype: bool
+        '''
+        if not type(other) is type(self):
+            return False
+
+        if len(self.components) != len(other.components):
+            return False
+
+        if self.components != other.components:
+            return False
+
+        return True
 
 
 # Create common scalar datatypes
