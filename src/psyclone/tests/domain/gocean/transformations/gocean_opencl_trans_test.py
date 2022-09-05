@@ -76,7 +76,7 @@ def setup():
 
     Config.get().api = "gocean1.0"
     Config.get()._include_paths = [filepath]
-    yield()
+    yield
     # At the end of every tests make sure that we wipe the Config object
     # so we get a fresh/default one for any further test (and not a
     # left-over one from a test here).
