@@ -42,7 +42,6 @@ and ExtractNode.
 
 import pytest
 
-from psyclone.configuration import Config
 from psyclone.core import Signature
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError
@@ -125,47 +124,3 @@ def test_malformed_extract_node(monkeypatch):
     with pytest.raises(InternalError) as err:
         _ = enode.extract_body
     assert "malformed or incomplete. It should have a " in str(err.value)
-
-
-# -----------------------------------------------------------------------------
-def test_extract_with_shape_function(monkeypatch, fortran_reader,
-                                     fortran_writer):
-    '''Tests that extraction of a region that uses an array-shape Fortran
-    intrinsic like lbound, ubound, or size do include these references.
-
-    '''
-    source = '''program test
-                integer :: ji, jk
-                integer, parameter :: jpi=10, jpk=10
-                real, dimension(jpi,jpi,jpk) :: umask, dummy
-                do jk = 1, ubound(dummy,1)
-                  umask(1,1,jk) = -1.0d0
-                end do
-                end program test'''
-
-    psyir = fortran_reader.psyir_from_source(source)
-    # Child 0 is the program
-    loop = psyir.children[0].children[0]
-
-    extract = ExtractTrans()
-    # We need to disable distributed_memory for the extraction to work:
-    config = Config.get()
-    monkeypatch.setattr(config, "distributed_memory", False)
-
-    psyir_copy = psyir.copy()
-    extract.apply(loop)
-    out = fortran_writer(psyir)
-    assert 'CALL extract_psy_data % PreDeclareVariable("dummy", dummy)' in out
-    assert 'CALL extract_psy_data % ProvideVariable("dummy", dummy)' in out
-
-    # Now check that the user can overwrite 'COLLECT-ARRAY-SHAPE-READS'
-    # =================================================================
-    # Since the original tree was modified, we now use the copy:
-
-    loop = psyir_copy.children[0].children[0]
-    # Disable array-shape-reads, which means 'dummy' should then not
-    # be in the list of input parameters anymore, and therefore
-    extract.apply(loop, options={"COLLECT-ARRAY-SHAPE-READS": False})
-    out = fortran_writer(psyir_copy)
-    # No referene to 'dummy' should be in the created code:
-    assert "dummy"not in out
