@@ -376,7 +376,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.OMPTargetTrans
+.. autoclass:: psyclone.psyir.transformations.OMPTargetTrans
     :members: apply
     :noindex:
 

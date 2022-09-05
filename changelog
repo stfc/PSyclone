@@ -85,6 +85,11 @@
 
 	31) PR #1814 towards #924. Add new PSyIR InlineTransformation.
 
+	32) PR #1819 for #1815. Forbid OMPTarget regions from containing
+	CodeBlock nodes.
+
+	33) PR #1830 for #1828. Fixes to enable explicit OpenACC Loop
+	parallelism with UM
 
 release 2.3.1 17th of June 2022
 

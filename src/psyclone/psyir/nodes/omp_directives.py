@@ -61,6 +61,7 @@ from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
+from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.symbols import INTEGER_TYPE
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
@@ -1285,6 +1286,25 @@ class OMPTargetDirective(OMPRegionDirective):
         '''
         # pylint: disable=no-self-use
         return "omp end target"
+
+    def validate_global_constraints(self):
+        '''
+        Perform validation checks that can only be done at code-generation
+        time.
+
+        TODO #1837. This should be expanded to all intrinsics not supported
+        on GPUs. But it may be implementation-dependent!
+
+        :raises GenerationError: if this OMPTargetDirective contains \
+            CodeBlocks.
+        '''
+        super().validate_global_constraints()
+
+        cbs = self.walk(CodeBlock)
+        if cbs:
+            raise GenerationError(
+                f"The OMPTargetDirective must not have "
+                f"CodeBlocks inside, but found: '{cbs}'.")
 
 
 class OMPLoopDirective(OMPRegionDirective):
