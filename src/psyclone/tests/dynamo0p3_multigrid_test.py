@@ -90,7 +90,7 @@ end module restrict_mod
 def setup():
     '''Make sure that all tests here use dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
-    yield()
+    yield
     Config._instance = None
 
 
