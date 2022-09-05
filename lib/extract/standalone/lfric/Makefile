@@ -42,7 +42,7 @@ F90FLAGS ?=
 # Path to the LFRic infrastructure library. It defaults to the pared-down
 # version of the LFRic infrastructure distributed with PSyclone.
 # Overwrite for a different infrastructure version.
-LFRIC_INF_DIR ?= ./../../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_PATH ?= ./../../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
 # Paths to the PSyclone wrapper libraries and required templates. They default
 # to the relative paths to the top-level 'lib' and 'lib/extract/standalone'
 # directories. Overwrite for a custom location.
@@ -50,11 +50,13 @@ PSYDATA_LIB_DIR ?= ./../../..
 LIB_TMPLT_DIR ?= ./..
 # -----------------------------------------------------------------------------
 
-INF_INC = $(LFRIC_INF_DIR)
+INF_INC = $(LFRIC_PATH)
 INF_LIB_NAME = lfric
-INF_LIB = $(LFRIC_INF_DIR)/lib$(INF_LIB_NAME).a
+INF_LIB = $(LFRIC_PATH)/lib$(INF_LIB_NAME).a
 
-F90FLAGS += -I$(INF_INC)
+# This will add the required include flags to F90FLAGS
+include $(LFRIC_PATH)/lfric_include_flags.inc
+
 PSYDATA_LIB_NAME = _extract
 PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 
@@ -73,7 +75,7 @@ $(PSYDATA_LIB): $(INF_LIB) $(OBJS)
 
 # Create LFRic infrastructure library
 $(INF_LIB):
-	$(MAKE) -C $(LFRIC_INF_DIR)
+	$(MAKE) -C $(LFRIC_PATH)
 
 kernel_data_standalone.o:	extract_standalone_base.o
 extract_standalone_base.o:	psy_data_base.o
@@ -91,4 +93,4 @@ clean:
 	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_standalone_base.f90
 
 allclean: clean
-	$(MAKE) -C $(LFRIC_INF_DIR) allclean
+	$(MAKE) -C $(LFRIC_PATH) allclean
