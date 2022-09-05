@@ -1305,7 +1305,7 @@ end function get_stencil_dofmap
 !> @return map The stencil_dofmap object to return
 function get_stencil_2D_dofmap(self, stencil_shape, stencil_extent) result(map)
 
-  use stencil_2D_dofmap_mod, only: stencil_2D_dofmap_type
+  use stencil_2d_dofmap_mod, only: stencil_2D_dofmap_type
 
   implicit none
 
