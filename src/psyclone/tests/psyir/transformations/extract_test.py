@@ -40,8 +40,6 @@
 and ExtractNode.
 '''
 
-from __future__ import absolute_import
-
 import pytest
 
 from psyclone.configuration import Config
@@ -154,7 +152,20 @@ def test_extract_with_shape_function(monkeypatch, fortran_reader,
     config = Config.get()
     monkeypatch.setattr(config, "distributed_memory", False)
 
+    psyir_copy = psyir.copy()
     extract.apply(loop)
     out = fortran_writer(psyir)
     assert 'CALL extract_psy_data % PreDeclareVariable("dummy", dummy)' in out
     assert 'CALL extract_psy_data % ProvideVariable("dummy", dummy)' in out
+
+    # Now check that the user can overwrite 'COLLECT-ARRAY-SHAPE-READS'
+    # =================================================================
+    # Since the original tree was modified, we now use the copy:
+
+    loop = psyir_copy.children[0].children[0]
+    # Disable array-shape-reads, which means 'dummy' should then not
+    # be in the list of input parameters anymore, and therefore
+    extract.apply(loop, options={"COLLECT-ARRAY-SHAPE-READS": False})
+    out = fortran_writer(psyir_copy)
+    # No referene to 'dummy' should be in the created code:
+    assert "dummy"not in out

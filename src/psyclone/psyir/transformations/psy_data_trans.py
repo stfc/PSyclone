@@ -137,6 +137,8 @@ class PSyDataTrans(RegionTrans):
         '''
         new_options = self.get_additional_options()
         if options:
+            # Update will overwrite any existing setting with the ones
+            # specified by the user:
             new_options.update(options)
         return new_options
 
@@ -252,8 +254,8 @@ class PSyDataTrans(RegionTrans):
                                       "inside an OpenACC region.")
 
         my_options = self.merge_in_additional_options(options)
-        name = my_options.get("region_name", "")
-        if name:
+        if "region_name" in my_options:
+            name = my_options["region_name"]
             # pylint: disable=too-many-boolean-expressions
             if not isinstance(name, tuple) or not len(name) == 2 or \
                not name[0] or not isinstance(name[0], str) or \
@@ -262,8 +264,9 @@ class PSyDataTrans(RegionTrans):
                     f"Error in {self.name}. User-supplied region name "
                     f"must be a tuple containing two non-empty strings.")
             # pylint: enable=too-many-boolean-expressions
-        prefix = my_options.get("prefix", "")
-        if prefix:
+        prefix = my_options.get("prefix", None)
+        if "prefix" in my_options:
+            prefix = my_options.get("prefix", None)
             if prefix not in Config.get().valid_psy_data_prefixes:
                 raise TransformationError(
                     f"Error in 'prefix' parameter: found '{prefix}', while"
@@ -320,7 +323,6 @@ class PSyDataTrans(RegionTrans):
 
         # Add any transformation-specific settings that are required:
         my_options = self.merge_in_additional_options(options)
-
         # Perform validation checks
         self.validate(node_list, my_options)
 
