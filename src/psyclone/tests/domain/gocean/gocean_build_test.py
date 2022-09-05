@@ -31,17 +31,17 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: I. Kavcic, Met Office
+# Author: J. Henrichs, Bureau of Meteorology
 
 
 '''
 Module containing tests related to building generated code for
-the LFRic domain.
+the GOcean domain.
 '''
 
 import pytest
 
-from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.gocean_build import GOceanBuild, GOceanOpenCLBuild
 from psyclone.tests.utilities import Compile, CompileError
 
 
@@ -53,10 +53,10 @@ def reset_infrastructure_compiled_flag():
     trigger a fresh building of the infrastructure.
 
     '''
-    LFRicBuild._infrastructure_built = False
-    saved_orig_path = LFRicBuild._compilation_path
+    GOceanBuild._infrastructure_built = False
+    saved_orig_path = GOceanBuild._compilation_path
     yield()
-    LFRicBuild._compilation_path = saved_orig_path
+    GOceanBuild._compilation_path = saved_orig_path
 
 
 def test_make_flags(tmpdir):
@@ -64,7 +64,7 @@ def test_make_flags(tmpdir):
     in every second position: `-I operator -I field -I mesh`
 
     '''
-    flags = LFRicBuild(tmpdir).get_infrastructure_flags()
+    flags = GOceanBuild(tmpdir).get_infrastructure_flags()
     i = 0
     while i < len(flags):
         assert flags[i] == "-I"
@@ -78,10 +78,10 @@ def test_make_fail(tmpdir, monkeypatch):
 
     '''
     monkeypatch.setattr(Compile, "TEST_COMPILE", True)
-    monkeypatch.setattr(LFRicBuild, "_make_command", "make_does_not_exist")
+    monkeypatch.setattr(GOceanBuild, "_make_command", "make_does_not_exist")
 
     with pytest.raises(CompileError) as excinfo:
-        LFRicBuild(tmpdir)._build_infrastructure()
+        GOceanBuild(tmpdir)._build_infrastructure()
     assert ("No such file or directory: 'make_does_not_exist'"
             in str(excinfo.value))
 
@@ -92,10 +92,10 @@ def test_make_error_code(tmpdir, monkeypatch):
 
     '''
     monkeypatch.setattr(Compile, "TEST_COMPILE", True)
-    monkeypatch.setattr(LFRicBuild, "_make_command", "false")
+    monkeypatch.setattr(GOceanBuild, "_make_command", "false")
 
     with pytest.raises(CompileError) as excinfo:
-        LFRicBuild(tmpdir)._build_infrastructure()
+        GOceanBuild(tmpdir)._build_infrastructure()
     assert ("Compile error: "
             in str(excinfo.value))
 
@@ -105,9 +105,24 @@ def test_make_works(tmpdir, monkeypatch):
     This done by using `true` as build command.
 
     '''
-    assert LFRicBuild._infrastructure_built is False
+    assert GOceanBuild._infrastructure_built is False
     monkeypatch.setattr(Compile, "TEST_COMPILE", True)
-    monkeypatch.setattr(LFRicBuild, "_make_command", "true")
+    monkeypatch.setattr(Compile, "TEST_COMPILE_OPENCL", True)
+    monkeypatch.setattr(GOceanBuild, "_make_command", "true")
 
-    LFRicBuild(tmpdir)._build_infrastructure()
-    assert LFRicBuild._infrastructure_built is True
+    GOceanBuild(tmpdir)._build_infrastructure()
+    assert GOceanBuild._infrastructure_built is True
+
+
+def test_opencl_compiles(tmpdir, monkeypatch):
+    '''Test that the OpenCL compilation works as expected.
+
+    '''
+    monkeypatch.setattr(Compile, "TEST_COMPILE_OPENCL", False)
+    assert GOceanOpenCLBuild(tmpdir).code_compiles(None, None) is True
+    monkeypatch.setattr(Compile, "TEST_COMPILE_OPENCL", True)
+    # GOceanOpenCLBuild.code_compiles will call Compile._code_compiles.
+    # To avoid the overhead of creating the required AST, we patch this
+    # function to always return True.
+    monkeypatch.setattr(Compile, "_code_compiles", lambda a, b, c: True)
+    assert GOceanOpenCLBuild(tmpdir).code_compiles(None, None) is True

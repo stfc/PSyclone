@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council.
+# Copyright (c) 2018-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # ----------------------------------------------------------------------------
 # Authors A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified by R. W. Ford, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 # ----------------------------------------------------------------------------
 
 ''' Module containing tests for the PSyclone GOcean OpenCL transformation.'''
@@ -46,10 +47,9 @@ from psyclone.domain.gocean.transformations import \
     GOMoveIterationBoundariesInsideKernelTrans, GOOpenCLTrans
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKernelSchedule
-from psyclone.psyir.backend.opencl import OpenCLWriter
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE
-from psyclone.tests.gocean1p0_build import GOcean1p0OpenCLBuild
+from psyclone.tests.gocean_build import GOceanOpenCLBuild
 from psyclone.tests.utilities import Compile, get_invoke
 from psyclone.transformations import TransformationError, \
     KernelImportsToArguments
@@ -103,9 +103,9 @@ def test_opencl_compiler_works(kernel_outputdir):
     '''
     old_pwd = kernel_outputdir.chdir()
     try:
-        with open("hello_world_opencl.f90", "w") as ffile:
+        with open("hello_world_opencl.f90", "w", encoding="utf-8") as ffile:
             ffile.write(example_ocl_code)
-        GOcean1p0OpenCLBuild(kernel_outputdir).\
+        GOceanOpenCLBuild(kernel_outputdir).\
             compile_file("hello_world_opencl.f90",
                          link=True)
     finally:
@@ -159,7 +159,7 @@ def test_ocl_apply(kernel_outputdir):
     kernel_files = os.listdir(str(kernel_outputdir))
     assert len(kernel_files) == 1
     assert "opencl_kernels_0.cl" in kernel_files
-    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+    assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
 @pytest.mark.parametrize("debug_mode", [True, False])
@@ -215,7 +215,7 @@ def test_invoke_use_stmts_and_decls(kernel_outputdir, monkeypatch, debug_mode,
     assert ("integer(kind=c_intptr_t), pointer, save :: cmd_queues(:)"
             in generated_code)
 
-    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+    assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
 def test_invoke_opencl_initialisation(kernel_outputdir, fortran_writer):
@@ -288,7 +288,7 @@ p_fld_cl_mem, u_fld_cl_mem, xstart - 1, xstop - 1, ystart - 1, ystop - 1)
 
 end subroutine'''
     assert expected in generated_code
-    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+    assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
@@ -329,8 +329,9 @@ c_sizeof(field%grid%'''
     assert expected in generated_code
 
     for grid_property in check_properties:
-        code = ("field%grid%{0}_device = transfer(create_ronly_buffer("
-                "size_in_bytes), field%grid%{0}_device)".format(grid_property))
+        code = (f"field%grid%{grid_property}_device = transfer("
+                f"create_ronly_buffer(size_in_bytes), "
+                f"field%grid%{grid_property}_device)")
         assert code in generated_code
 
     # Check that device grid write routine is generated
@@ -358,12 +359,13 @@ c_sizeof(field%grid%area_t(1,1))'''
     assert expected in generated_code
 
     for grid_property in check_properties:
-        code = ("      cl_mem = transfer(field%grid%{0}_device, cl_mem)\n"
-                "      ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,"
-                "cl_true,0_8,size_in_bytes,c_loc(field%grid%{0}),0,"
-                "c_null_ptr,c_null_ptr)\n      call check_status("
-                "'clenqueuewritebuffer {0}_device', ierr)\n"
-                "".format(grid_property))
+        code = (f"      cl_mem = transfer(field%grid%{grid_property}_device, "
+                f"cl_mem)\n"
+                f"      ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,"
+                f"cl_true,0_8,size_in_bytes,c_loc(field%grid%{grid_property}),"
+                f"0,c_null_ptr,c_null_ptr)\n"
+                f"      call check_status('clenqueuewritebuffer "
+                f"{grid_property}_device', ierr)\n")
         assert code in generated_code
 
     # Check that during the first time set-up the previous routines are called
@@ -541,7 +543,7 @@ field%device_ptr)
 
     end subroutine initialise_device_buffer'''
     assert expected in generated_code
-    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+    assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
 def test_psy_init_defaults(kernel_outputdir):
@@ -574,7 +576,7 @@ def test_psy_init_defaults(kernel_outputdir):
 
     END SUBROUTINE psy_init'''
     assert expected in generated_code
-    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+    assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
 def test_psy_init_multiple_kernels(kernel_outputdir):
@@ -611,7 +613,7 @@ def test_psy_init_multiple_kernels(kernel_outputdir):
     # Check that add_kernels is provided with the total number of kernels
     assert "CALL add_kernels(2, kernel_names)" in generated_code
 
-    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(
+    assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(
             psy, dependencies=["model_mod.f90"])
 
 
@@ -653,7 +655,7 @@ def test_psy_init_multiple_devices_per_node(kernel_outputdir, monkeypatch):
 
     END SUBROUTINE psy_init'''
     assert expected in generated_code
-    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+    assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
 def test_psy_init_with_options(kernel_outputdir):
@@ -675,7 +677,7 @@ def test_psy_init_with_options(kernel_outputdir):
     generated_code = str(psy.gen)
     assert "CALL ocl_env_init(5, ocl_device_num, .true., .true.)\n" \
         in generated_code
-    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+    assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
 @pytest.mark.parametrize("debug_mode", [True, False])
@@ -746,7 +748,7 @@ C_NULL_PTR)'''
       CALL check_status('Errors during compute_cu_code', ierr)'''
 
     assert expected in generated_code
-    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+    assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
@@ -854,9 +856,9 @@ def test_opencl_multi_invoke_options_validation(option_to_check):
     otrans.apply(invoke1_schedule, options={option_to_check: False})
     with pytest.raises(TransformationError) as err:
         otrans.apply(invoke2_schedule, options={option_to_check: True})
-    assert ("Can't generate an OpenCL Invoke with {0}='True' since a previous "
-            "transformation used a different value, and their OpenCL "
-            "environments must match.".format(option_to_check)
+    assert (f"Can't generate an OpenCL Invoke with {option_to_check}='True' "
+            f"since a previous transformation used a different value, and "
+            f"their OpenCL environments must match."
             in str(err.value))
 
 
@@ -1041,7 +1043,7 @@ def test_set_kern_args(kernel_outputdir):
     assert generated_code.count("SUBROUTINE time_smooth_code_set_args("
                                 "kernel_obj, u_fld, unew_fld, uold_fld, "
                                 "xstart_1, xstop_1, ystart_1, ystop_1)") == 1
-    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+    assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
@@ -1142,7 +1144,7 @@ tmask, xstart, xstop_1, ystart, ystop)
     # instance of the symbol is not declared in the symbol table. Issue #798
     # should fix this problem. This is not essential for the purpose of this
     # test that just checks that a_scalar argument is generated appropriately
-    # assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+    # assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
 def test_set_arg_const_scalar():
@@ -1205,7 +1207,7 @@ def test_opencl_kernel_output_file(kernel_outputdir):
 
     # Create a opencl_kernels_0.cl so another name is needed for the new file
     filename = os.path.join(str(kernel_outputdir), "opencl_kernels_0.cl")
-    with open(filename, "w") as myfile:
+    with open(filename, "w", encoding="utf-8") as myfile:
         myfile.write("This file exists!")
 
     otrans = GOOpenCLTrans()
