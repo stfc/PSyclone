@@ -39,10 +39,9 @@
 
 ''' This module contains the implementation of the Reference node.'''
 
-from __future__ import absolute_import
+from psyclone.core import AccessType, Signature
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.operation import Operation, BinaryOperation
-from psyclone.core import AccessType, Signature
 from psyclone.psyir.symbols import Symbol
 
 

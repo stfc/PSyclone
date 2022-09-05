@@ -251,8 +251,11 @@ class StructureReference(Reference):
             return DeferredType()
         dtype = self.symbol.datatype.intrinsic.datatype
         if isinstance(dtype, DeferredType):
+            # We don't know the type of the symbol that defines the type
+            # of this structure.
             return dtype
 
+        # We do have the definition of this structure - walk down it.
         cursor = self
         cursor_type = dtype
         if isinstance(cursor, ArrayMixin):
