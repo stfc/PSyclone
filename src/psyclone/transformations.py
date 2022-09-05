@@ -61,8 +61,8 @@ from psyclone.psyir.nodes import ACCDataDirective, ACCDirective, \
     Directive, KernelSchedule, Loop, Node, OMPDeclareTargetDirective, \
     OMPDirective, OMPDoDirective, OMPLoopDirective, OMPMasterDirective, \
     OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective, \
-    OMPSingleDirective, OMPTargetDirective, OMPTaskloopDirective, \
-    PSyDataNode, Reference, Return, Routine, Schedule
+    OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Reference, \
+    Return, Routine, Schedule
 from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, \
     DeferredType, INTEGER_TYPE, ScalarType, Symbol, SymbolError
 from psyclone.psyir.transformations.loop_trans import LoopTrans
@@ -412,75 +412,6 @@ class OMPTaskloopTrans(ParallelLoopTrans):
         finally:
             # Reset the nogroup value to the original value
             self.omp_nogroup = current_nogroup
-
-
-class OMPTargetTrans(RegionTrans):
-    '''
-    Adds an OpenMP target directive to a region of code.
-
-    For example:
-
-    >>> from psyclone.psyir.frontend.fortran import FortranReader
-    >>> from psyclone.psyir.nodes import Loop
-    >>> from psyclone.transformations import OMPTargetTrans
-    >>>
-    >>> tree = FortranReader().psyir_from_source("""
-    ...     subroutine my_subroutine()
-    ...         integer, dimension(10, 10) :: A
-    ...         integer :: i
-    ...         integer :: j
-    ...         do i = 1, 10
-    ...             do j = 1, 10
-    ...                 A(i, j) = 0
-    ...             end do
-    ...         end do
-    ...     end subroutine
-    ...     """
-    >>> omptargettrans = OMPTargetTrans()
-    >>> omptargettrans.apply(tree.walk(Loop))
-
-    will generate:
-
-    .. code-block:: fortran
-
-        subroutine my_subroutine()
-            integer, dimension(10, 10) :: A
-            integer :: i
-            integer :: j
-            !$omp target
-            do i = 1, 10
-                do j = 1, 10
-                    A(i, j) = 0
-                end do
-            end do
-            !$omp end target
-        end subroutine
-
-    '''
-    def apply(self, node, options=None):
-        ''' Insert an OMPTargetDirective before the provided node or list
-        of nodes.
-
-        :param node: the PSyIR node or nodes to enclose in the OpenMP \
-                      target region.
-        :type node: (list of) :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.
-        :type options: dict of str:values or None
-
-        '''
-        # Check whether we've been passed a list of nodes or just a
-        # single node. If the latter then we create ourselves a
-        # list containing just that node.
-        node_list = self.get_node_list(node)
-        self.validate(node_list, options)
-
-        # Create a directive containing the nodes in node_list and insert it.
-        parent = node_list[0].parent
-        start_index = node_list[0].position
-        directive = OMPTargetDirective(
-            parent=parent, children=[node.detach() for node in node_list])
-
-        parent.children.insert(start_index, directive)
 
 
 class OMPDeclareTargetTrans(Transformation):
