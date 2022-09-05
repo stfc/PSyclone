@@ -932,22 +932,28 @@ class OMPDoDirective(OMPRegionDirective):
     Class representing an OpenMP DO directive in the PSyIR.
 
     :param str omp_schedule: the OpenMP schedule to use (defaults to "auto").
-    :param bool reprod: whether or not to generate code for run-reproducible \
-                        OpenMP reductions (if not specified the value is \
-                        provided by the PSyclone's Config file). 
+    :param Optional[int] collapse: optional number of nested loops to \
+        collapse into a single iteration space to parallelise. Defaults to \
+        None.
+    :param Optional[bool] reprod: whether or not to generate code for \
+        run-reproducible OpenMP reductions (if not specified the value is \
+        provided by the PSyclone's Config file).
     :param kwargs: additional keyword arguments provided to the PSyIR node.
     :type kwargs: unwrapped dict.
 
     '''
-    def __init__(self, omp_schedule="auto", reprod=None, **kwargs):
+    def __init__(self, omp_schedule="auto", collapse=None, reprod=None,
+                 **kwargs):
 
-        super(OMPDoDirective, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         if reprod is None:
             self._reprod = Config.get().reproducible_reductions
         else:
             self._reprod = reprod
 
         self._omp_schedule = omp_schedule
+        self._collapse = None
+        self.collapse = collapse  # Use setter with error checking
 
     def __eq__(self, other):
         '''
@@ -963,8 +969,41 @@ class OMPDoDirective(OMPRegionDirective):
         is_eq = super().__eq__(other)
         is_eq = is_eq and self.omp_schedule == other.omp_schedule
         is_eq = is_eq and self.reprod == other.reprod
+        is_eq = is_eq and self.collapse == other.collapse
 
         return is_eq
+
+    @property
+    def collapse(self):
+        '''
+        :returns: the value of the collapse clause.
+        :rtype: int or NoneType
+        '''
+        return self._collapse
+
+    @collapse.setter
+    def collapse(self, value):
+        '''
+        :param value: optional number of nested loop to collapse into a \
+            single iteration space to parallelise. Defaults to None.
+        :type value: int or NoneType.
+
+        :raises TypeError: if the collapse value given is not an integer \
+            or NoneType.
+        :raises ValueError: if the collapse integer given is not positive.
+
+        '''
+        if value is not None and not isinstance(value, int):
+            raise TypeError(
+                f"The {type(self).__name__} collapse clause must be a positive"
+                f" integer or None, but value '{value}' has been given.")
+
+        if value is not None and value <= 0:
+            raise ValueError(
+                f"The {type(self).__name__} collapse clause must be a positive"
+                f" integer or None, but value '{value}' has been given.")
+
+        self._collapse = value
 
     def node_str(self, colour=True):
         '''
@@ -1013,6 +1052,8 @@ class OMPDoDirective(OMPRegionDirective):
 
         :raises GenerationError: if this OMPDoDirective is not enclosed \
                             within some OpenMP parallel region.
+        :raises GenerationError: if this OMPLoopDirective has a collapse \
+            clause but it doesn't have the expected number of nested Loops.
         '''
         # It is only at the point of code generation that we can check for
         # correctness (given that we don't mandate the order that a user
@@ -1025,9 +1066,23 @@ class OMPDoDirective(OMPRegionDirective):
                 "OMPDoDirective must be inside an OMP parallel region but "
                 "could not find an ancestor OMPParallelDirective node")
 
+        # If there is a collapse clause, there must be as many immediately
+        # nested loops as the collapse value
+        if self._collapse:
+            cursor = self.dir_body.children[0]
+            for depth in range(self._collapse):
+                if not isinstance(cursor, Loop):
+                    raise GenerationError(
+                        f"{type(self).__name__} must have as many immediately "
+                        f"nested loops as the collapse clause specifies but "
+                        f"'{self}' has a collapse={self._collapse} and the "
+                        f"nested statement at depth {depth} is a "
+                        f"{type(cursor).__name__} rather than a Loop.")
+                cursor = cursor.loop_body.children[0]
+
         self._validate_single_loop()
 
-        super(OMPDoDirective, self).validate_global_constraints()
+        super().validate_global_constraints()
 
     def _validate_single_loop(self):
         '''
@@ -1062,6 +1117,11 @@ class OMPDoDirective(OMPRegionDirective):
 
         '''
         self.validate_global_constraints()
+
+        if self.collapse and self.collapse > 1:
+            raise GenerationError(
+                f"{type(self).__name__} gen_code does not support the "
+                f"generation of directives that need a collapse clause.")
 
         if self._reprod:
             local_reduction_string = ""
@@ -1153,6 +1213,11 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # omp parallel do is not already within some parallel region
         from psyclone.psyGen import zero_reduction_variables
         self.validate_global_constraints()
+
+        if self.collapse and self.collapse > 1:
+            raise GenerationError(
+                f"{type(self).__name__} gen_code does not support the "
+                f"generation of directives that need a collapse clause.")
 
         calls = self.reductions()
         zero_reduction_variables(calls, parent)
@@ -1457,7 +1522,7 @@ class OMPLoopDirective(OMPRegionDirective):
                         f"{type(cursor).__name__} rather than a Loop.")
                 cursor = cursor.loop_body.children[0]
 
-        super(OMPLoopDirective, self).validate_global_constraints()
+        super().validate_global_constraints()
 
 
 # For automatic API documentation generation
