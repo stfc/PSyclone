@@ -156,7 +156,7 @@ class ExtractNode(PSyDataNode):
         # Determine the variables to write:
         dep = DependencyTools()
         input_list, output_list = \
-            dep.get_in_out_parameters(self, options=self._options)
+            dep.get_in_out_parameters(self, options=self.options)
         options = {'pre_var_list': input_list,
                    'post_var_list': output_list,
                    'post_var_postfix': self._post_name}

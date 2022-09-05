@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -71,9 +71,26 @@ class ReadOnlyVerifyTrans(PSyDataTrans):
     valid_node_types = (Loop, Kern, BuiltIn, Directive, Literal, Reference)
 
     def __init__(self, node_class=ReadOnlyVerifyNode):
-        super(ReadOnlyVerifyTrans, self).__init__(node_class=node_class)
+        super().__init__(node_class=node_class)
 
+    # -------------------------------------------------------------------------
+    def get_additional_options(self):
+        '''Returns additional options, specific to this transformation, that
+        will be added to the user option. Any values specified by the user
+        will take precedence. For the read-only verify transformation, by
+        default we want VariablesAccessInformation to report array arguments
+        to lbound, ubound and size as read accesses, since these arguments
+        should also not be overwritten.
+
+        :returns: a dictionary with additional options.
+        :rtype: Dict[str, Any]
+        '''
+
+        return {"COLLECT-ARRAY-SHAPE-READS": True}
+
+    # -------------------------------------------------------------------------
     def validate(self, node_list, options=None):
+        # pylint: disable=arguments-renamed
         '''Performs validation checks specific to read-only-based
         transformations.
 
@@ -117,7 +134,7 @@ class ReadOnlyVerifyTrans(PSyDataTrans):
 
         # Performs validation checks specific to PSyData-based
         # transformations.
-        super(ReadOnlyVerifyTrans, self).validate(node_list, options)
+        super().validate(node_list, options)
 
 
 # ============================================================================
