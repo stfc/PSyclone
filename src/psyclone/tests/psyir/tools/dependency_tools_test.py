@@ -736,7 +736,7 @@ def test_da_array_expression(fortran_reader):
     '''
     source = '''program test
                 integer :: ji, jj, jpi, jpj
-                real :: a(5,5), c(5,5), b
+                real :: a(5,5)
                 do jj = 1, jpj   ! loop 0
                    do ji = 1, jpi
                       a(ji, jj) = a*a
