@@ -684,6 +684,41 @@ descendants.
 
     node.replace_with(new_node)
 
+
+When the node being replaced is part of a named context (in Calls or
+Operations) the name of the argument is conserved by default. For example
+
+
+.. code-block:: fortran
+
+    call named_subroutine(name1=1)
+
+.. code-block:: python
+
+    call.children[0].replace_with(Literal('2', INTEGER_TYPE))
+
+will become:
+
+.. code-block:: fortran
+
+    call named_subroutine(name1=2)
+
+This behaviour can be changed with the `keep_name_in_context` parameter.
+
+.. code-block:: python
+
+    call.children[0].replace_with(
+        Literal('3', INTEGER_TYPE),
+        keep_name_in_context=False
+    )
+
+will become:
+
+.. code-block:: fortran
+
+    call named_subroutine(3)
+
+
 Detaching PSyIR nodes
 ---------------------
 
@@ -726,9 +761,11 @@ methods.
 
 If an argument is inserted directly (via the children list) then it is
 assumed that this is not a named argument. If the top node of an
-argument is replaced then it is assumed that this argument is no
-longer a named argument. If arguments are re-ordered then the names
-follow the re-ordering.
+argument is replaced by removing and inserting a new node then it is
+assumed that this argument is no longer a named argument. If it is
+replaced with the `replace_with` method, it has a `keep_name_in_context`
+argument to choose the desired behaviour (defaults to True).
+If arguments are re-ordered then the names follow the re-ordering.
 
 The names of named arguments can be accessed via the `argument_names`
 property. This list has an entry for each argument and either contains

@@ -517,6 +517,20 @@ the tangent-linear names were also compliant).
 	  issue #1772) so it needs to be changed manually after the
 	  adjoint code has been created.
 
+Multiple Subroutines
+++++++++++++++++++++
+
+The LFRic API supports mixed precision kernels. It does this by
+implementing multiple versions of kernel subroutines with different
+precision and a generic interface. PSyAD supports mixed precision
+kernels by translating all of the kernel subroutines. This approach
+relies on each kernel implementation using the same active variable
+names as PSyAD only supports a single list of names. If this is not
+the case then PSyAD will raise an exception.
+
+.. note:: At the moment PSyAD does not modify the interface names so
+          these must be done manually by the user, see issue #1772.
+
 Test Harness
 ++++++++++++
 

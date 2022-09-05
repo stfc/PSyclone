@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,9 +32,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Authors A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified work Copyright (c) 2018-2019 by J. Henrichs, Bureau of Meteorology
+# Modified J. Henrichs, Bureau of Meteorology
 # Modified R. W. Ford, STFC Daresbury Lab
-# Modified: I. Kavcic, Met Office
+# Modified I. Kavcic, Met Office
 
 '''Tests for PSy-layer code generation that are specific to the
 GOcean 1.0 API.'''
@@ -53,7 +53,7 @@ from psyclone.gocean1p0 import GOKern, GOLoop, \
     GOKernelArgument, GOKernelArguments, GOKernelGridArgument, \
     GOBuiltInCallFactory, GOSymbolTable
 from psyclone.tests.utilities import get_invoke
-from psyclone.tests.gocean1p0_build import GOcean1p0Build
+from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.psyir.symbols import SymbolTable, DeferredType, \
     ContainerSymbol, DataSymbol, ImportInterface, ScalarType, INTEGER_TYPE, \
     ArgumentInterface, DataTypeSymbol
@@ -70,7 +70,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 def setup():
     '''Make sure that all tests here use gocean1.0 as API.'''
     Config.get().api = "gocean1.0"
-    yield()
+    yield
     Config._instance = None
 
 
@@ -118,7 +118,7 @@ def test_field(tmpdir, dist_mem):
         expected_output = before_kernel + remaining_code
 
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_two_kernels(tmpdir, dist_mem):
@@ -176,7 +176,7 @@ def test_two_kernels(tmpdir, dist_mem):
         expected_output = before_kernels + first_kernel + second_kernel
 
     assert str(generated_code) == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_two_kernels_with_dependencies(tmpdir, dist_mem):
@@ -230,7 +230,7 @@ def test_two_kernels_with_dependencies(tmpdir, dist_mem):
         expected_output = before_kernels + first_kernel + second_kernel
 
     assert str(generated_code) == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_grid_property(tmpdir, dist_mem):
@@ -286,7 +286,7 @@ def test_grid_property(tmpdir, dist_mem):
         expected_output = before_kernels + first_kernel + second_kernel
 
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_scalar_int_arg(tmpdir, dist_mem):
@@ -329,7 +329,7 @@ def test_scalar_int_arg(tmpdir, dist_mem):
     expected_output = before_kernels + first_kernel
 
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_scalar_float_arg(tmpdir, dist_mem):
@@ -372,7 +372,7 @@ def test_scalar_float_arg(tmpdir, dist_mem):
     expected_output = before_kernel + first_kernel
 
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_scalar_float_arg_from_module():
@@ -479,7 +479,7 @@ def test_ne_offset_cf_points(tmpdir):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_ne_offset_ct_points(tmpdir):
@@ -528,7 +528,7 @@ def test_ne_offset_ct_points(tmpdir):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_ne_offset_all_cu_points(tmpdir):
@@ -574,7 +574,7 @@ def test_ne_offset_all_cu_points(tmpdir):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_ne_offset_all_cv_points(tmpdir):
@@ -620,7 +620,7 @@ def test_ne_offset_all_cv_points(tmpdir):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_ne_offset_all_cf_points(tmpdir):
@@ -666,7 +666,7 @@ def test_ne_offset_all_cf_points(tmpdir):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_sw_offset_cf_points(tmpdir):
@@ -713,7 +713,7 @@ def test_sw_offset_cf_points(tmpdir):
         "    END SUBROUTINE invoke_0_compute_z\n"
         "  END MODULE psy_single_invoke_test")
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_sw_offset_all_cf_points(tmpdir):
@@ -764,7 +764,7 @@ def test_sw_offset_all_cf_points(tmpdir):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_sw_offset_ct_points(tmpdir):
@@ -814,7 +814,7 @@ def test_sw_offset_ct_points(tmpdir):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_sw_offset_all_ct_points(tmpdir):
@@ -865,7 +865,7 @@ def test_sw_offset_all_ct_points(tmpdir):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_sw_offset_all_cu_points(tmpdir):
@@ -913,7 +913,7 @@ def test_sw_offset_all_cu_points(tmpdir):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_sw_offset_all_cv_points(tmpdir):
@@ -961,7 +961,7 @@ def test_sw_offset_all_cv_points(tmpdir):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_offset_any_all_cu_points(tmpdir):
@@ -1011,7 +1011,7 @@ def test_offset_any_all_cu_points(tmpdir):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_offset_any_all_points(tmpdir):
@@ -1058,7 +1058,7 @@ def test_offset_any_all_points(tmpdir):
         "    END SUBROUTINE invoke_0_copy\n"
         "  END MODULE psy_single_invoke_test")
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_find_grid_access(monkeypatch):
@@ -1136,7 +1136,7 @@ def test_compile_with_dependency(tmpdir):
         os.path.join(BASE_PATH, "single_invoke_kern_with_use.f90"),
         api=API)
     psy = PSyFactory(API).create(invoke_info)
-    assert GOcean1p0Build(tmpdir).code_compiles(psy, ["model_mod"])
+    assert GOceanBuild(tmpdir).code_compiles(psy, ["model_mod"])
 
 
 # -----------------------------------
@@ -1317,7 +1317,7 @@ def test05p1_kernel_add_iteration_spaces(tmpdir):
         "Schedule:\n"
         "kern call: compute_cu_code\n")
     assert expected_sched in str(schedule)
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test06_kernel_invalid_access():
@@ -1358,7 +1358,7 @@ def test08_kernel_invalid_grid_property():
 
     # GOKernelGridArgument contains also a test for the validity of
     # a grid property. It's easier to create a dummy class to test this:
-    class DummyDescriptor(object):
+    class DummyDescriptor():
         '''Dummy class to test error handling.'''
         def __init__(self):
             self.access = "read"
