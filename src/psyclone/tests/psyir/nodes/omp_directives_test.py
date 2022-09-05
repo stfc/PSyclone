@@ -51,8 +51,8 @@ from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, \
     Return, OMPSingleDirective, Loop, Literal, Routine, Assignment, \
     Reference, OMPDeclareTargetDirective, OMPNowaitClause, \
     OMPGrainsizeClause, OMPNumTasksClause, OMPNogroupClause, \
-    OMPPrivateClause, OMPDefaultClause,\
-    OMPReductionClause, OMPScheduleClause
+    OMPPrivateClause, OMPDefaultClause, OMPReductionClause, \
+    OMPScheduleClause, OMPTeamsDistributeParallelDoDirective
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, SymbolTable, \
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE
 from psyclone.errors import InternalError, GenerationError
@@ -232,6 +232,29 @@ def test_omp_parallel_do_changes_begin_str(fortran_reader):
     assert pdir.children[3] != sched_clause
     assert isinstance(pdir.children[3], OMPScheduleClause)
 
+
+def test_omp_teams_distribute_parallel_do_strings(
+        fortran_reader, fortran_writer):
+    ''' '''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(321, 10) :: A
+        integer, dimension(32, 10) :: B
+        integer :: i, ii
+        integer :: j
+
+        do i = 1, 320, 32
+            A(i, 1) = B(i, 1) + 1
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    loop = tree.walk(Loop)[0]
+    new_directive = OMPTeamsDistributeParallelDoDirective()
+    loop.replace_with(new_directive)
+    new_directive.dir_body.addchild(loop)
+    print(fortran_writer(tree))
+    assert False
 
 def test_ompdo_constructor():
     ''' Check that we can make an OMPDoDirective with and without

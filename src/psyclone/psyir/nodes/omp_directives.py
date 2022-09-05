@@ -930,28 +930,23 @@ class OMPDoDirective(OMPRegionDirective):
     '''
     Class representing an OpenMP DO directive in the PSyIR.
 
-    :param list children: list of Nodes that are children of this Node.
-    :param parent: the Node in the AST that has this directive as a child.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-    :param str omp_schedule: the OpenMP schedule to use.
+    :param str omp_schedule: the OpenMP schedule to use (defaults to "auto").
     :param bool reprod: whether or not to generate code for run-reproducible \
-                        OpenMP reductions.
+                        OpenMP reductions (if not specified the value is \
+                        provided by the PSyclone's Config file). 
+    :param kwargs: additional keyword arguments provided to the PSyIR node.
+    :type kwargs: unwrapped dict.
 
     '''
-    def __init__(self, children=None, parent=None, omp_schedule="static",
-                 reprod=None):
+    def __init__(self, omp_schedule="auto", reprod=None, **kwargs):
 
+        super(OMPDoDirective, self).__init__(**kwargs)
         if reprod is None:
             self._reprod = Config.get().reproducible_reductions
         else:
             self._reprod = reprod
 
         self._omp_schedule = omp_schedule
-
-        # Call the init method of the base class once we've stored
-        # the OpenMP schedule
-        super(OMPDoDirective, self).__init__(children=children,
-                                             parent=parent)
 
     def __eq__(self, other):
         '''
@@ -1114,16 +1109,17 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
     ''' Class for the !$OMP PARALLEL DO directive. This inherits from
         both OMPParallelDirective (because it creates a new OpenMP
         thread-parallel region) and OMPDoDirective (because it
-        causes a loop to be parallelised). '''
+        causes a loop to be parallelised).
+
+        :param kwargs: additional keyword arguments provided to the PSyIR node.
+        :type kwargs: unwrapped dict.
+    '''
 
     _children_valid_format = ("Schedule, OMPDefaultClause, OMPPrivateClause, "
                               "OMPScheduleClause, [OMPReductionClause]*")
 
-    def __init__(self, children=[], parent=None, omp_schedule="static"):
-        OMPDoDirective.__init__(self,
-                                children=children,
-                                parent=parent,
-                                omp_schedule=omp_schedule)
+    def __init__(self, **kwargs):
+        OMPDoDirective.__init__(self, **kwargs)
         self.addchild(OMPDefaultClause(
             clause_type=OMPDefaultClause.DefaultClauseTypes.SHARED))
 
@@ -1240,6 +1236,28 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         self._validate_single_loop()
 
 
+class OMPTeamsDistributeParallelDoDirective(OMPParallelDoDirective):
+    ''' '''
+    def begin_string(self):
+        '''Returns the beginning statement of this directive. The visitor is
+        responsible for adding the correct directive beginning (e.g. "!$").
+
+        :returns: the beginning statement for this directive.
+        :rtype: str
+
+        '''
+        return ("omp teams distribute parallel do " + self._reduction_string())
+
+    def end_string(self):
+        '''
+        :returns: the closing statement for this directive.
+        :rtype: str
+        '''
+        # pylint: disable=no-self-use
+        return "omp end teams distribute parallel do"
+
+
+
 class OMPTargetDirective(OMPRegionDirective):
     ''' Class for the !$OMP TARGET directive that offloads the code contained
     in its region into an accelerator device. '''
@@ -1275,6 +1293,8 @@ class OMPLoopDirective(OMPRegionDirective):
 
     :param int collapse: optional number of nested loops to collapse into a \
         single iteration space to parallelise. Defaults to None.
+    :param kwargs: additional keyword arguments provided to the PSyIR node.
+    :type kwargs: unwrapped dict.
     '''
 
     def __init__(self, collapse=None, **kwargs):
