@@ -67,7 +67,7 @@ def clear_region_name_cache():
     order in which tests are run.
     '''
     PSyDataTrans._used_kernel_names = {}
-    yield()
+    yield
     PSyDataTrans._used_kernel_names = {}
 
 
