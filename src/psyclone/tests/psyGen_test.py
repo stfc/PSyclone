@@ -746,13 +746,13 @@ def test_call_abstract_methods():
     ''' Check that calling the abstract methods of Kern raises
     the expected exceptions '''
 
-    class KernType(object):
+    class KernType:
         ''' temporary dummy class '''
         def __init__(self):
             self.iterates_over = "stuff"
     my_ktype = KernType()
 
-    class DummyClass(object):
+    class DummyClass:
         ''' temporary dummy class '''
         def __init__(self, ktype):
             self.module_name = "dummy_module"
@@ -760,6 +760,8 @@ def test_call_abstract_methods():
 
     class DummyArguments(Arguments):
         ''' temporary dummy class '''
+        # This is a mock class, we can disable expected pylint warnings
+        # pylint: disable=abstract-method, unused-argument
         def __init__(self, call, parent_call, check):
             Arguments.__init__(self, parent_call)
 
@@ -1056,7 +1058,7 @@ def test_call_multi_reduction_error(monkeypatch, dist_mem):
         "or builtin" in str(err.value))
 
 
-def test_reduction_no_set_precision(monkeypatch, dist_mem):
+def test_reduction_no_set_precision(dist_mem):
     '''Test that the zero_reduction_variable() method generates correct
     code when a reduction argument does not have a defined
     precision. Only a zero value (without precision i.e. 0.0 not

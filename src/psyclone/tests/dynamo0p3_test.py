@@ -4346,3 +4346,6 @@ def test_dynpsy_gen_container_routines(tmpdir):
     generated_code = str(psy.gen)
     searchstring = "SUBROUTINE new_routine("
     assert generated_code.count(searchstring) == 1
+
+    # Test compilation
+    assert LFRicBuild(tmpdir).code_compiles(psy)
