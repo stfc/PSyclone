@@ -83,8 +83,8 @@ from psyclone.psyir.transformations.replace_induction_variables_trans import \
      ReplaceInductionVariablesTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
-from psyclone.psyir.transformations.arraynotation2arrayrange_trans import \
-    ArrayNotation2ArrayRangeTrans
+from psyclone.psyir.transformations.reference2arrayrange_trans import \
+    Reference2ArrayRangeTrans
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:
@@ -118,4 +118,4 @@ __all__ = ['ArrayRange2LoopTrans',
            'RegionTrans',
            'ReplaceInductionVariablesTrans',
            'TransformationError',
-           'ArrayNotation2ArrayRangeTrans']
+           'Reference2ArrayRangeTrans']

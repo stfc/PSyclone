@@ -31,12 +31,13 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford
+# Author: R. W. Ford, STFC Daresbury Lab
 
-'''Module providing a transformation from PSyIR Array notation to an
-array range. This can be useful to determine when we have array
-accesses (as it is not clear with array notation) and can allow
-further optimisations such as transforming to explicit loops.
+'''Module providing a transformation from a reference to an Array (a = ...)
+   to an ArrayReference with one or more array ranges (a(:) = ...). This can
+   be useful to determine when we have array accesses (as it is not clear when
+   there is a reference to an Array) and can allow further optimisations such
+   as transforming to explicit loops.
 
 '''
 from psyclone.psyGen import Transformation
@@ -47,9 +48,9 @@ from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 
 
-class ArrayNotation2ArrayRangeTrans(Transformation):
-    '''Provides a transformation from PSyIR Array Notation to a PSyIR
-    Range. For example:
+class Reference2ArrayRangeTrans(Transformation):
+    '''Provides a transformation from PSyIR Array Notation (a reference to
+    an Array) to a PSyIR Range. For example:
 
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.frontend.fortran import FortranReader
@@ -59,7 +60,7 @@ class ArrayNotation2ArrayRangeTrans(Transformation):
     ...         "real :: a(:)\\n"
     ...         "a = 0.0\\n"
     ...         "end program\\n")
-    >>> trans = ArrayNotation2ArrayRangeTrans()
+    >>> trans = Reference2ArrayRangeTrans()
     >>> psyir = FortranReader().psyir_from_source(CODE)
     >>> for reference in psyir.walk(Reference):
     ...    try:
@@ -91,8 +92,12 @@ class ArrayNotation2ArrayRangeTrans(Transformation):
             interested in.
 
         :returns: the loop bounds for this array index.
-        :rtype: (Literal, Literal, Literal) or \
-            (BinaryOperation, BinaryOperation, Literal)
+        :rtype: Tuple(:py:class:`psyclone.psyir.nodes.Literal`, \
+                      :py:class:`psyclone.psyir.nodes.Literal`, \
+                      :py:class:`psyclone.psyir.nodes.Literal`) or \
+                Tuple(:py:class:`psyclone.psyir.nodes.BinaryOperation`, \
+                      :py:class:`psyclone.psyir.nodes.BinaryOperation`, \
+                      :py:class:`psyclone.psyir.nodes.Literal`)
 
         '''
         # Look for explicit bounds in the array declaration.
@@ -121,7 +126,7 @@ class ArrayNotation2ArrayRangeTrans(Transformation):
         :param node: a Reference node.
         :type node: :py:class:`psyclone.psyir.nodes.Reference`
         :param options: a dict with options for transformations.
-        :type options: Optional[Dict[str]]
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the node is not a Reference \
             node or the Reference node not does not reference an array \
@@ -135,20 +140,19 @@ class ArrayNotation2ArrayRangeTrans(Transformation):
                 f"'{type(node).__name__}'.")
         if not node.symbol.is_array:
             raise TransformationError(
-                f"The supplied node should be a Reference that references a "
-                f"symbol that is an array, but '{node.symbol.name}' is not.")
+                f"The supplied node should be a Reference to a symbol "
+                f"that is an array, but '{node.symbol.name}' is not.")
 
     def apply(self, node, options=None):
-        '''Apply the ArrayNotation2ArrayRangeTrans transformation to the
-        specified node. The node must be a Reference. If the Reference
-        is to an array then the reference is replaced by an
-        ArrayReference with appropriate explicit range nodes (termed
-        colon notation in Fortran).
+        '''Apply the Reference2ArrayRangeTrans transformation to the specified
+        node. The node must be a Reference to an array. The Reference
+        is replaced by an ArrayReference with appropriate explicit
+        range nodes (termed colon notation in Fortran).
 
         :param node: a Reference node.
         :type node: :py:class:`psyclone.psyir.nodes.Reference`
         :param options: a dict with options for transformations.
-        :type options: Optional[Dict[str]]
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(node, options=None)
@@ -157,7 +161,7 @@ class ArrayNotation2ArrayRangeTrans(Transformation):
         indices = []
         for idx, _ in enumerate(symbol.shape):
             lbound, ubound, step = \
-                ArrayNotation2ArrayRangeTrans._get_array_bound(symbol, idx)
+                Reference2ArrayRangeTrans._get_array_bound(symbol, idx)
             indices.append(Range.create(lbound, ubound, step))
 
         array_ref = ArrayReference.create(symbol, indices)

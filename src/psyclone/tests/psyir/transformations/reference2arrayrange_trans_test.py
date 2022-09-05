@@ -31,17 +31,18 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford
+# Author: R. W. Ford, STFC Daresbury Lab
 
-'''Module containing tests for the ArrayNotation2ArrayRangeLoopTrans
+'''Module containing tests for the Reference2ArrayRangeLoopTrans
 transformation.'''
 
 import pytest
 
-from psyclone.psyir.nodes import Reference
 from psyclone.psyGen import Transformation
+from psyclone.psyir.nodes import Reference, Literal, BinaryOperation, \
+    ArrayReference
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
-from psyclone.psyir.transformations import ArrayNotation2ArrayRangeTrans, \
+from psyclone.psyir.transformations import Reference2ArrayRangeTrans, \
     TransformationError
 
 
@@ -68,7 +69,7 @@ def apply_trans(fortran_reader, fortran_writer, code):
     :rtype str
 
     '''
-    trans = ArrayNotation2ArrayRangeTrans()
+    trans = Reference2ArrayRangeTrans()
     psyir = fortran_reader.psyir_from_source(code)
     for reference in psyir.walk(Reference):
         try:
@@ -85,36 +86,54 @@ def test_get_array_bound(fortran_reader):
     node = psyir.walk(Reference)[0]
     symbol = node.symbol
     lower_bound, upper_bound, step = \
-        ArrayNotation2ArrayRangeTrans._get_array_bound(symbol, 0)
-    from psyclone.psyir.nodes import Literal, BinaryOperation
+        Reference2ArrayRangeTrans._get_array_bound(symbol, 0)
     assert isinstance(lower_bound, Literal)
     assert lower_bound.value == "1"
     assert isinstance(upper_bound, Literal)
     assert upper_bound.value == "10"
     assert isinstance(step, Literal)
     assert step.value == "1"
+
     # unknown bounds
     psyir = fortran_reader.psyir_from_source(
         CODE.replace("dimension(10)", "dimension(:)"))
     node = psyir.walk(Reference)[0]
     symbol = node.symbol
     lower_bound, upper_bound, step = \
-        ArrayNotation2ArrayRangeTrans._get_array_bound(symbol, 0)
+        Reference2ArrayRangeTrans._get_array_bound(symbol, 0)
     assert isinstance(lower_bound, BinaryOperation)
     assert lower_bound.operator == BinaryOperation.Operator.LBOUND
     assert isinstance(upper_bound, BinaryOperation)
     assert upper_bound.operator == BinaryOperation.Operator.UBOUND
     assert isinstance(step, Literal)
     assert step.value == "1"
+    reference = lower_bound.children[0]
+    assert symbol is reference.symbol
+    reference = upper_bound.children[0]
+    assert symbol is reference.symbol
+
+    # non-zero array index
+    psyir = fortran_reader.psyir_from_source(
+        CODE.replace("dimension(10)", "dimension(10,20)"))
+    node = psyir.walk(Reference)[0]
+    symbol = node.symbol
+    lower_bound, upper_bound, step = \
+        Reference2ArrayRangeTrans._get_array_bound(symbol, 1)
+    assert isinstance(lower_bound, Literal)
+    assert lower_bound.value == "1"
+    assert isinstance(upper_bound, Literal)
+    assert upper_bound.value == "20"
+    assert isinstance(step, Literal)
+    assert step.value == "1"
 
 
 def test_transform():
     '''Check that it is possible to create an instance of
-    ArrayNotation2ArrayRangeTrans and that it is a Transformation.
+    Reference2ArrayRangeTrans and that it is a Transformation.
 
     '''
-    assert ArrayNotation2ArrayRangeTrans()
-    assert isinstance(ArrayNotation2ArrayRangeTrans(), Transformation)
+    assert Reference2ArrayRangeTrans()
+    assert isinstance(Reference2ArrayRangeTrans(), Transformation)
 
 
 def test_notation(fortran_reader, fortran_writer):
@@ -137,8 +156,8 @@ def test_dimension(fortran_reader, fortran_writer):
 
 
 def test_variable(fortran_reader, fortran_writer):
-    '''Test that a array notation gets replaced with an array range when
-    the size of the array dimension is a variable.
+    '''Test that a reference to an array gets replaced with an array range
+    when the size of the array dimension is a variable.
 
     '''
     code = CODE.replace("  real, dimension(10) :: a\n",
@@ -176,15 +195,27 @@ def test_multid(fortran_reader, fortran_writer):
 
 def test_validate():
     ''' Test the validate method '''
-    trans = ArrayNotation2ArrayRangeTrans()
+    trans = Reference2ArrayRangeTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(None)
     assert ("The supplied node should be a Reference but found 'NoneType'."
             in str(info.value))
     with pytest.raises(TransformationError) as info:
         trans.validate(Reference(DataSymbol("x", REAL_TYPE)))
-    assert ("The supplied node should be a Reference that references a "
-            "symbol that is an array, but 'x' is not." in str(info.value))
+    assert ("The supplied node should be a Reference to a symbol "
+            "that is an array, but 'x' is not." in str(info.value))
+
+
+def test_validate_range(fortran_reader):
+    '''Test that an ArrayReference raises an exception.'''
+    code = CODE.replace("a = b", "a(2:4) = b\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    reference = psyir.walk(Reference)[0]
+    trans = Reference2ArrayRangeTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(reference)
+    assert("The supplied node should be a Reference but found "
+           "'ArrayReference'." in str(info.value))
 
 
 def test_apply_validate():
@@ -192,7 +223,7 @@ def test_apply_validate():
     exception raised by validate is raised when apply is called.
 
     '''
-    trans = ArrayNotation2ArrayRangeTrans()
+    trans = Reference2ArrayRangeTrans()
     with pytest.raises(TransformationError) as info:
         trans.apply(None)
     assert ("The supplied node should be a Reference but found 'NoneType'."
