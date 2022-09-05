@@ -35,7 +35,13 @@
 
 ''' '''
 
-from psyclone.transformations import ParallelLoopTrans
+from psyclone.configuration import Config
+from psyclone.psyir.nodes import Routine, OMPDoDirective, OMPLoopDirective
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.transformations.parallel_loop_trans import \
+    ParallelLoopTrans
+
+VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 
 
 class OMPLoopTrans(ParallelLoopTrans):

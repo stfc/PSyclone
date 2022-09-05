@@ -59,13 +59,14 @@ from psyclone.psyir.nodes import ACCDataDirective, ACCDirective, \
     ACCEnterDataDirective, ACCKernelsDirective, ACCLoopDirective, \
     ACCParallelDirective, ACCRoutineDirective, Assignment, CodeBlock, \
     Directive, KernelSchedule, Loop, Node, OMPDeclareTargetDirective, \
-    OMPDirective, OMPDoDirective, OMPLoopDirective, OMPMasterDirective, \
+    OMPDirective, OMPMasterDirective, \
     OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective, \
     OMPSingleDirective, OMPTargetDirective, OMPTaskloopDirective, \
     PSyDataNode, Reference, Return, Routine, Schedule
 from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, \
     DeferredType, INTEGER_TYPE, ScalarType, Symbol, SymbolError
 from psyclone.psyir.transformations.loop_trans import LoopTrans
+from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 from psyclone.psyir.transformations.parallel_loop_trans import \
     ParallelLoopTrans
 from psyclone.psyir.transformations.region_trans import RegionTrans
@@ -73,7 +74,6 @@ from psyclone.psyir.transformations.transformation_error import \
     TransformationError
 
 
-VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 
 
 def check_intergrid(node):

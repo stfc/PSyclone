@@ -253,8 +253,10 @@ def test_omp_teams_distribute_parallel_do_strings(
     new_directive = OMPTeamsDistributeParallelDoDirective()
     loop.replace_with(new_directive)
     new_directive.dir_body.addchild(loop)
-    print(fortran_writer(tree))
-    assert False
+    output = fortran_writer(tree)
+    assert "!$omp teams distribute parallel do" in output
+    assert "!$omp end teams distribute parallel do" in output
+
 
 def test_ompdo_constructor():
     ''' Check that we can make an OMPDoDirective with and without
