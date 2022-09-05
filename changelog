@@ -88,6 +88,9 @@
 	32) PR #1819 for #1815. Forbid OMPTarget regions from containing
 	CodeBlock nodes.
 
+	33) PR #1830 for #1828. Fixes to enable explicit OpenACC Loop
+	parallelism with UM
+
 release 2.3.1 17th of June 2022
 
         1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
