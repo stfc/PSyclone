@@ -60,6 +60,7 @@ LFRIC_TEST_FILES_DIR = os.path.join(TESTS_DIR, "test_files", "dynamo0p3")
 
 # generate_adjoint_str function
 
+
 # expected output
 @pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
                    "github actions.", strict=False)
@@ -110,7 +111,7 @@ def test_generate_adjoint_str(caplog):
     assert test_harness == ""
 
 
-def test_generate_adjoint_str_lfric_api(fortran_reader):
+def test_generate_adjoint_str_lfric_api():
     '''
     Check that specifying the LFRic (dynamo0p3) API to the generate_adjoint_str
     routine works as expected.
@@ -371,7 +372,7 @@ def test_generate_adjoint_kind(fortran_reader, fortran_writer):
     assert ad_fortran_str in expected_ad_fortran_str
 
 
-def test_generate_adjoint_multi_kernel(fortran_reader, fortran_writer):
+def test_generate_adjoint_multi_kernel(fortran_reader):
     '''Check that generate_adjoint raises the expected error when there
     are multiple kernels in a module.
 

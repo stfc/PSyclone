@@ -44,6 +44,7 @@ from psyclone.errors import InternalError
 from psyclone.psyad.domain.common import create_adjoint_name, find_container
 from psyclone.psyir.nodes import Container, FileContainer, Return
 
+
 # create_adjoint_name function
 
 def test_create_adjoint_name():
