@@ -55,6 +55,7 @@ from psyclone.psyir.symbols import DataSymbol, ScalarType
 
 @six.add_metaclass(abc.ABCMeta)
 class ACCDirective():
+    # pylint: disable=too-few-public-methods
     '''
     Base mixin class for all OpenACC directive statements.
 
@@ -82,6 +83,8 @@ class ACCRegionDirective(ACCDirective, RegionDirective):
             regions are not supported.
 
         '''
+        # We need to make sure to call the right constructor here:
+        # pylint: disable=bad-super-call
         super(RegionDirective, self).validate_global_constraints()
 
         data_nodes = self.walk((PSyDataNode, CodeBlock))
