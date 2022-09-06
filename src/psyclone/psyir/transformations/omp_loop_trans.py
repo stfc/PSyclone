@@ -71,10 +71,11 @@ class OMPLoopTrans(ParallelLoopTrans):
     For example:
 
     >>> from psyclone.psyir.frontend.fortran import FortranReader
-    >>> from psyclone.psyir.nodes import Routine
+    >>> from psyclone.psyir.backend.fortran import FortranWriter
+    >>> from psyclone.psyir.nodes import Loop
     >>> from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
     >>>
-    >>> tree = FortranReader().psyir_from_source("""
+    >>> psyir = FortranReader().psyir_from_source("""
     ...     subroutine my_subroutine()
     ...         integer, dimension(10, 10) :: A
     ...         integer :: i
@@ -84,46 +85,30 @@ class OMPLoopTrans(ParallelLoopTrans):
     ...                 A(i, j) = 0
     ...             end do
     ...         end do
-    ...         do i = 1, 10
-    ...             do j = 1, 10
-    ...                 A(i, j) = 0
-    ...             end do
-    ...         end do
     ...     end subroutine
-    ...     """
-    >>> routine.walk(Routine)
-    >>> ompparalleltrans = OMPParallelTrans()  # Necessary in loop worksharing
-    >>> omplooptrans1 = OMPLoopTrans(omp_schedule="auto")
-    >>> omplooptrans2 = OMPLoopTrans(omp_worksharing=False)
-    >>> omplooptrans1.apply(routine.children[0])
-    >>> ompparalleltrans.apply(routine.children[0])
-    >>> omplooptrans2.apply(routine.children[1])
-
-    will generate:
-
-    .. code-block:: fortran
-
-        subroutine my_subroutine()
-            integer, dimension(10, 10) :: A
-            integer :: i
-            integer :: j
-            !$omp parallel
-            !$omp do schedule(auto)
-            do i = 1, 10
-                do j = 1, 10
-                    A(i, j) = 0
-                end do
-            end do
-            !$omp end do
-            !$omp end parallel
-            !$omp loop
-            do i = 1, 10
-                do j = 1, 10
-                    A(i, j) = 0
-                end do
-            end do
-            !$omp end loop
-        end subroutine
+    ...     """)
+    >>> loop = psyir.walk(Loop)[0]
+    >>> omplooptrans1 = OMPLoopTrans(omp_schedule="auto",
+    ...                              omp_directive="paralleldo")
+    >>> omplooptrans1.apply(loop)
+    >>> print(FortranWriter()(psyir))
+    subroutine my_subroutine()
+      integer, dimension(10,10) :: a
+      integer :: i
+      integer :: j
+      integer :: th_idx
+      integer :: nthreads
+    <BLANKLINE>
+      !$omp parallel do default(shared), private(i,j), schedule(auto)
+      do i = 1, 10, 1
+        do j = 1, 10, 1
+          a(i,j) = 0
+        enddo
+      enddo
+      !$omp end parallel do
+    <BLANKLINE>
+    end subroutine my_subroutine
+    <BLANKLINE>
 
     '''
     def __init__(self, omp_directive="do", omp_schedule="static"):
@@ -160,7 +145,7 @@ class OMPLoopTrans(ParallelLoopTrans):
         '''
         if not isinstance(value, str) or value not in VALID_OMP_DIRECTIVES:
             raise TypeError(
-                f"The {type(self).__name__}.omp_worksharing property must be "
+                f"The {type(self).__name__}.omp_directive property must be "
                 f"a str with the value of {VALID_OMP_DIRECTIVES}"
                 f" but found a '{type(value).__name__}' with value '{value}'.")
         self._omp_directive = value

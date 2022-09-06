@@ -338,7 +338,7 @@ def test_omplooptrans_properties():
     # Use setters with invalid values
     with pytest.raises(TypeError) as err:
         omplooptrans.omp_directive = "invalid"
-    assert ("The OMPLoopTrans.omp_worksharing property must be a str with "
+    assert ("The OMPLoopTrans.omp_directive property must be a str with "
             "the value of ['do', 'paralleldo', 'teamsdistributeparalleldo', "
             "'loop'] but found a 'str' with value 'invalid'."
             in str(err.value))
@@ -467,7 +467,7 @@ def test_omplooptrans_apply(sample_psyir, fortran_writer):
     assert loop1.parent.parent._omp_schedule == 'dynamic,2'
     ompparalleltrans.apply(loop1.parent.parent)  # Needed for generation
 
-    # If omp_worksharing is False, it adds a OMPLoopDirective instead
+    # The omp_directive can be changed
     omplooptrans = OMPLoopTrans(omp_directive="loop")
     loop2 = tree.walk(Loop, stop_type=Loop)[1]
     omplooptrans.apply(loop2, {'collapse': 2})
