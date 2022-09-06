@@ -94,6 +94,8 @@
 	34) PR #1855 for #1840. Fix bug with dependency analysis when an
 	expression has the same array reference with and without indices.
 
+	35) PR #1827 for #1826. Adds support for SIR intrinsics.
+
 release 2.3.1 17th of June 2022
 
         1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
