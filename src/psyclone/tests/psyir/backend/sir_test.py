@@ -39,12 +39,13 @@
 
 import pytest
 
+from fparser.common.readfortran import FortranStringReader
+
 from psyclone.nemo import NemoKern
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.backend.sir import gen_stencil, SIRWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import Schedule, Assignment, Node
-from fparser.common.readfortran import FortranStringReader
 
 
 # pylint: disable=redefined-outer-name
@@ -975,7 +976,8 @@ def test_sirwriter_binaryoperation_sign_node(parser, sir_writer):
     '''Check the binaryoperation_node method of the SIRWriter class
     outputs the expected SIR code when the binaryoperation is sign
     intrinsic. This is a special case as the sign intrinsic is
-    implemented differently in Fortran and C.
+    implemented differently in the PSyIR (Fortran implementation) and
+    SIR (C implementation).
 
     '''
     code = CODE.replace("1.0", "sign(1.0, 2.0)")
@@ -1000,7 +1002,8 @@ def test_sirwriter_naryoperation_error(parser, sir_writer):
     with pytest.raises(VisitorError) as info:
         _ = sir_writer.naryoperation_node(rhs)
     assert ("Method naryoperation_node in class SIRWriter, unsupported "
-            "operator 'Operator.SUM' found." in str(info.value))
+            "operator 'Operator.SUM' found. Expected one of "
+            "'['MIN', 'MAX']'." in str(info.value))
 
 
 @pytest.mark.parametrize("operation", ["min", "max"])

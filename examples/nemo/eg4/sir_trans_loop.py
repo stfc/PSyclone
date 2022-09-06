@@ -50,9 +50,10 @@ from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans, \
 
 
 def trans(psy):
-    '''Transformation routine for use with PSyclone. Applies the PSyIR2SIR
-    transform to the supplied invokes. This transformation is limited
-    the NEMO API.
+    '''Transformation routine for use with PSyclone. Applies the
+    NemoAllArrayRange2LoopTrans, NemoAllArrayAccess2LoopTrans and
+    HoistTrans transformations to the supplied invokes. This
+    transformation routine is limited to the NEMO API.
 
     :param psy: the PSy object which this script will transform.
     :type psy: :py:class:`psyclone.psyGen.PSy`
@@ -96,5 +97,7 @@ def trans(psy):
                         hoist_trans.apply(child)
 
         kern = sir_writer(schedule)
+        # TODO issue #1854. There should be backend support for
+        # writing out SIR.
         print(kern)
     return psy

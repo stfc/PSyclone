@@ -31,6 +31,7 @@ contains
                 upsmsk(ji,jj)               ,      &
                 zice                               &
                 &                  ) * tmask(ji,jj,jk)
+             zind(ji,jj,jk) = 1 - zind(ji,jj,jk)
           END DO
        END DO
     END DO

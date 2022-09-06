@@ -1052,6 +1052,6 @@ of a loop, translate array-index notation into explicit loops and
 translate a single access to an array dimension to a one-trip loop (to
 make the code suitable for the SIR backend). This works with the
 `tracer-advection` example. The third script `sir_trans_all.py`
-additionally additionally replaces any intrinsics with equivalent code
-and can also be used with the `tracer-advection` example (and the
+additionally replaces any intrinsics with equivalent code and can also
+be used with the `tracer-advection` example (and the
 `intrinsic_example.f90` example).

@@ -314,10 +314,15 @@ class SIRWriter(PSyIRVisitor):
         operator to SIR.
 
         '''
+        # Specify any PSyIR intrinsic operators as these are typically
+        # mapped to SIR functions and are therefore treated
+        # differently to other operators.
         intrinsic_operators = [
             BinaryOperation.Operator.MIN, BinaryOperation.Operator.MAX,
             BinaryOperation.Operator.SIGN]
 
+        # Specify the mapping of PSyIR binary operators to SIR binary
+        # operators.
         binary_operators = {
             BinaryOperation.Operator.ADD: '+',
             BinaryOperation.Operator.SUB: '-',
@@ -564,9 +569,12 @@ class SIRWriter(PSyIRVisitor):
         :rtype: str
 
         :raises VisitorError: if there is no mapping from the PSyIR \
-        operator to SIR.
+            operator to SIR.
 
         '''
+        # Specify the mapping of PSyIR nary operators to SIR nary
+        # operators. The assumption here is that the nary operators
+        # are SIR intrinsics.
         nary_operators = {
             NaryOperation.Operator.MIN: 'math::min',
             NaryOperation.Operator.MAX: 'math::max'}
@@ -574,9 +582,11 @@ class SIRWriter(PSyIRVisitor):
         try:
             oper = nary_operators[node.operator]
         except KeyError as err:
+            oper_names = [operator.name for operator in nary_operators]
             raise VisitorError(
                 f"Method naryoperation_node in class SIRWriter, unsupported "
-                f"operator '{node.operator}' found.") from err
+                f"operator '{node.operator}' found. Expected one of "
+                f"'{oper_names}'.") from err
 
         arg_list = []
         self._depth += 1
