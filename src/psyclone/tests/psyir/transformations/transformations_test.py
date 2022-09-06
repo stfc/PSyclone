@@ -321,25 +321,27 @@ def test_omplooptrans_properties():
     # Check default values
     omplooptrans = OMPLoopTrans()
     assert omplooptrans.omp_schedule == "static"
-    assert omplooptrans.omp_worksharing is True
+    assert omplooptrans.omp_directive == "do"
 
     # Use setters with valid values
     omplooptrans.omp_schedule = "dynamic,2"
-    omplooptrans.omp_worksharing = False
+    omplooptrans.omp_directive = "paralleldo"
     assert omplooptrans.omp_schedule == "dynamic,2"
-    assert omplooptrans.omp_worksharing is False
+    assert omplooptrans.omp_directive == "paralleldo"
 
     # Setting things at the constructor also works
     omplooptrans = OMPLoopTrans(omp_schedule="dynamic,2",
-                                omp_worksharing=False)
+                                omp_directive="loop")
     assert omplooptrans.omp_schedule == "dynamic,2"
-    assert omplooptrans.omp_worksharing is False
+    assert omplooptrans.omp_directive == "loop"
 
     # Use setters with invalid values
     with pytest.raises(TypeError) as err:
-        omplooptrans.omp_worksharing = "invalid"
-    assert ("The OMPLoopTrans.omp_worksharing property must be a boolean but"
-            " found a 'str'." in str(err.value))
+        omplooptrans.omp_directive = "invalid"
+    assert ("The OMPLoopTrans.omp_worksharing property must be a str with "
+            "the value of ['do', 'paralleldo', 'teamsdistributeparalleldo', "
+            "'loop'] but found a 'str' with value 'invalid'."
+            in str(err.value))
 
     with pytest.raises(TypeError) as err:
         omplooptrans.omp_schedule = 3
@@ -466,7 +468,7 @@ def test_omplooptrans_apply(sample_psyir, fortran_writer):
     ompparalleltrans.apply(loop1.parent.parent)  # Needed for generation
 
     # If omp_worksharing is False, it adds a OMPLoopDirective instead
-    omplooptrans = OMPLoopTrans(omp_worksharing=False)
+    omplooptrans = OMPLoopTrans(omp_directive="loop")
     loop2 = tree.walk(Loop, stop_type=Loop)[1]
     omplooptrans.apply(loop2, {'collapse': 2})
     assert isinstance(loop2.parent, Schedule)

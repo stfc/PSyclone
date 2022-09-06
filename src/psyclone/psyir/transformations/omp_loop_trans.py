@@ -33,31 +33,40 @@
 # -----------------------------------------------------------------------------
 # Author: S. Siso, STFC Daresbury Lab
 
-''' '''
+''' Transformation to insert OpenMP directives to parallelise PSyIR Loops. '''
 
 from psyclone.configuration import Config
-from psyclone.psyir.nodes import Routine, OMPDoDirective, OMPLoopDirective
+from psyclone.psyir.nodes import Routine, OMPDoDirective, OMPLoopDirective, \
+    OMPParallelDoDirective, OMPTeamsDistributeParallelDoDirective
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations.parallel_loop_trans import \
     ParallelLoopTrans
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
+MAP_STR_TO_LOOP_DIRECTIVES = {
+    "do": OMPDoDirective,
+    "paralleldo": OMPParallelDoDirective,
+    "teamsdistributeparalleldo": OMPTeamsDistributeParallelDoDirective,
+    "loop": OMPLoopDirective
+}
+VALID_OMP_DIRECTIVES = list(MAP_STR_TO_LOOP_DIRECTIVES.keys())
 
 
 class OMPLoopTrans(ParallelLoopTrans):
     '''
-    Adds an OpenMP directive to a loop. This can be the loop worksharing
-    OpenMP Do/For directive to distribute the iterations of the enclosed
-    loop or a descriptive OpenMP loop directive to let the compiler decide
-    the best implementation. The OpenMP schedule used for the worksharing
-    directive can also be specified, but this will be ignored in case of the
-    descriptive OpenMP loop. The configuration-defined 'reprod' parameter
+    Adds an OpenMP directive to parallelise this loop. It can insert different
+    directives such as "omp do/for", "omp parallel do/for", "omp teams
+    distribute parallel do/for" or "omp loop" depending on the provided
+    parameters.
+    The OpenMP schedule to use can also be specified, but this will be ignored
+    in case of the "omp loop". The configuration-defined 'reprod' parameter
     also specifies whether a manual reproducible reproduction is to be used.
+    Note, reproducible in this case means obtaining the same results with the
+    same number of OpenMP threads, not for different numbers of OpenMP threads.
 
     :param str omp_schedule: the OpenMP schedule to use. Defaults to 'static'.
-    :param bool omp_worksharing: whether to generate OpenMP loop worksharing \
-        directives (e.g. omp do/for) or an OpenMP loop directive. Defaults to \
-        True.
+    :param str omp_directive: choose which OpenMP loop directive to use. \
+        Defaults to "omp do"
 
     For example:
 
@@ -117,45 +126,44 @@ class OMPLoopTrans(ParallelLoopTrans):
         end subroutine
 
     '''
-    def __init__(self, omp_schedule="static", omp_worksharing=True):
+    def __init__(self, omp_directive="do", omp_schedule="static"):
+        super().__init__()
         # Whether or not to generate code for (run-to-run on n threads)
         # reproducible OpenMP reductions. This setting can be overridden
         # via the `reprod` argument to the apply() method.
         self._reprod = Config.get().reproducible_reductions
 
-        # Declare the attributes but use the property setter for proper
-        # error checking
-        self._omp_worksharing = None
-        self.omp_worksharing = omp_worksharing
-
+        # Use setters to set up attributes
         self._omp_schedule = ""
         self.omp_schedule = omp_schedule
 
-        super().__init__()
+        self._omp_directive = ""
+        self.omp_directive = omp_directive
 
     def __str__(self):
-        return "Adds an 'OpenMP DO' directive to a loop"
+        return "Adds an OpenMP directive to parallelise the target loop"
 
     @property
-    def omp_worksharing(self):
+    def omp_directive(self):
         '''
-        :returns: the value of the omp_worksharing attribute.
-        :rtype: bool
+        :returns: the value of the omp_directive attribute.
+        :rtype: str
         '''
-        return self._omp_worksharing
+        return self._omp_directive
 
-    @omp_worksharing.setter
-    def omp_worksharing(self, value):
+    @omp_directive.setter
+    def omp_directive(self, value):
         '''
-        :param bool value: new value of the omp_worksharing attribute.
+        :param str value: new value of the omp_directive attribute.
 
-        :raises TypeError: if the provided value is not a boolean.
+        :raises TypeError: if the provided value is not a valid str.
         '''
-        if not isinstance(value, bool):
+        if not isinstance(value, str) or value not in VALID_OMP_DIRECTIVES:
             raise TypeError(
-                f"The OMPLoopTrans.omp_worksharing property must be a boolean"
-                f" but found a '{type(value).__name__}'.")
-        self._omp_worksharing = value
+                f"The {type(self).__name__}.omp_worksharing property must be "
+                f"a str with the value of {VALID_OMP_DIRECTIVES}"
+                f" but found a '{type(value).__name__}' with value '{value}'.")
+        self._omp_directive = value
 
     @property
     def omp_schedule(self):
@@ -203,55 +211,32 @@ class OMPLoopTrans(ParallelLoopTrans):
         self._omp_schedule = value
 
     def _directive(self, children, collapse=None):
-        '''
-        Creates the type of directive needed for this sub-class of
+        ''' Creates the type of directive needed for this sub-class of
         transformation.
 
         :param children: list of Nodes that will be the children of \
-                         the created directive.
+            the created directive.
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
         :param int collapse: number of nested loops to collapse or None if \
-                             no collapse attribute is required.
+            no collapse attribute is required.
 
         :returns: the new node representing the directive in the AST
-        :rtype: :py:class:`psyclone.psyir.nodes.OMPDoDirective` or \
-                :py:class:`psyclone.psyir.nodes.OMPLoopDirective`
-
+        :rtype: :py:class:`psyclone.psyir.nodes.OMPDoDirective` | \
+            :py:class:`psyclone.psyir.nodes.OMPParallelDoDirective` | \
+            :py:class:`psyclone.psyir.nodes. \
+            OMPTeamsDistributeParallelDoDirective` | \
+            :py:class:`psyclone.psyir.nodes.OMPLoopDirective`
         '''
-        if self._omp_worksharing:
-            # TODO 1370: OpenMP Do Directive don't support collapse yet.
-            _directive = OMPDoDirective(children=children,
-                                        omp_schedule=self.omp_schedule,
-                                        reprod=self._reprod)
-        else:
-            _directive = OMPLoopDirective(children=children,
-                                          collapse=collapse)
-
-        return _directive
+        node = MAP_STR_TO_LOOP_DIRECTIVES[self._omp_directive](
+                children=children,
+                collapse=collapse)
+        if self._omp_directive != "loop":
+            node.omp_schedule = self._omp_schedule
+            node.reprod = self._reprod
+        return node
 
     def apply(self, node, options=None):
-        '''Apply the OMPLoopTrans transformation to the specified node in a
-        Schedule. This node must be a Loop since this transformation
-        corresponds to wrapping the generated code with directives like so:
-
-        .. code-block:: fortran
-
-          !$OMP DO
-          do ...
-             ...
-          end do
-          !$OMP END DO
-
-        At code-generation time (when
-        :py:meth:`OMPLoopDirective.gen_code` is called), this node must be
-        within (i.e. a child of) an OpenMP PARALLEL region.
-
-        If the keyword "reprod" is specified in the options, it will cause a
-        reproducible reduction to be generated if it is set to True, otherwise
-        the default value (as read from the psyclone.cfg file) will be used.
-        Note, reproducible in this case means obtaining the same results
-        with the same number of OpenMP threads, not for different
-        numbers of OpenMP threads.
+        '''Apply the OMPLoopTrans transformation to the specified PSyIR Loop.
 
         :param node: the supplied node to which we will apply the \
                      OMPLoopTrans transformation
@@ -288,6 +273,3 @@ class OMPLoopTrans(ParallelLoopTrans):
                 symbol_type=DataSymbol, datatype=INTEGER_TYPE)
 
         super().apply(node, options)
-
-
-

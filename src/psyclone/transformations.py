@@ -793,6 +793,10 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
     :py:class:`base class <OMPLoopTrans>`.
 
     '''
+    def __init__(self, omp_directive="do", omp_schedule="static"):
+        super().__init__(omp_directive=omp_directive,
+                         omp_schedule=omp_schedule)
+
     def __str__(self):
         return "Add an OpenMP DO directive to a Dynamo 0.3 loop"
 

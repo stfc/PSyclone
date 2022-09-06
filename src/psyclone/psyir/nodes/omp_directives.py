@@ -1040,10 +1040,26 @@ class OMPDoDirective(OMPRegionDirective):
         '''
         return self._omp_schedule
 
+    @omp_schedule.setter
+    def omp_schedule(self, value):
+        '''
+        :param str value: the omp_schedule for this object.
+        '''
+        self._omp_schedule = value
+
     @property
     def reprod(self):
-        ''' returns whether reprod has been set for this object or not '''
+        '''
+        :returns: whether reprod has been set for this object or not.
+        '''
         return self._reprod
+
+    @reprod.setter
+    def reprod(self, value):
+        '''
+        :param bool value: enable or disable reproducible loop parallelism.
+        '''
+        self._reprod = value
 
     def validate_global_constraints(self):
         '''
