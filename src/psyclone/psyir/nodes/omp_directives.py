@@ -1269,25 +1269,6 @@ class OMPTargetDirective(OMPRegionDirective):
         # pylint: disable=no-self-use
         return "omp end target"
 
-    def validate_global_constraints(self):
-        '''
-        Perform validation checks that can only be done at code-generation
-        time.
-
-        TODO #1837. This should be expanded to all intrinsics not supported
-        on GPUs. But it may be implementation-dependent!
-
-        :raises GenerationError: if this OMPTargetDirective contains \
-            CodeBlocks.
-        '''
-        super().validate_global_constraints()
-
-        cbs = self.walk(CodeBlock)
-        if cbs:
-            raise GenerationError(
-                f"The OMPTargetDirective must not have "
-                f"CodeBlocks inside, but found: '{cbs}'.")
-
 
 class OMPLoopDirective(OMPRegionDirective):
     ''' Class for the !$OMP LOOP directive that specifies that the iterations

@@ -38,12 +38,13 @@
 directives into Nemo code. '''
 
 from utils import insert_explicit_loop_parallelism, normalise_loops, \
-    enhance_tree_information
+    enhance_tree_information, add_profiling
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import Call, Loop
 from psyclone.psyir.transformations import OMPTargetTrans
 from psyclone.transformations import OMPDeclareTargetTrans
 
+PROFILING_ENABLED = True
 
 def trans(psy):
     ''' Add OpenMP Target and Loop directives to all loops, including the
@@ -65,6 +66,10 @@ def trans(psy):
     print(f"Invokes found in {psy.name}:")
     for invoke in psy.invokes.invoke_list:
         print(invoke.name)
+
+
+        if PROFILING_ENABLED:
+            add_profiling(invoke.schedule.children)
 
         # Has structure accesses that can not be offloaded
         if psy.name.startswith("psy_obs_"):
