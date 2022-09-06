@@ -37,9 +37,9 @@
 ''' PSyclone transformation script showing the introduction of OpenMP for GPU
 directives into Nemo code. '''
 
-from psyclone.psyGen import TransInfo
 from utils import insert_explicit_loop_parallelism, normalise_loops, \
     enhance_tree_information
+from psyclone.psyGen import TransInfo
 
 
 def trans(psy):
@@ -63,11 +63,17 @@ def trans(psy):
     for invoke in psy.invokes.invoke_list:
         print(invoke.name)
 
-        if invoke.name in ("tra_zdf", "iscpl_rst_interpol", "dom_ngb"):
+        if invoke.name in ("iscpl_rst_interpol", "dom_ngb"):
             print("Skipping", invoke.name)
             continue
 
-        if invoke.name in ("obs_surf_alloc", "copy_obfbdata"):
+        # Has structure accesses that can not be offloaded
+        if psy.name.startswith("psy_obs_"):
+            print("Skipping", invoke.name)
+            continue
+
+        # Has a TRIM intrinsic that can not be offloaded
+        if invoke.name in ("cpl_oasis3_cpl_freq"):
             print("Skipping", invoke.name)
             continue
 
