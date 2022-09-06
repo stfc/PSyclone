@@ -40,6 +40,9 @@ directives into Nemo code. '''
 from utils import insert_explicit_loop_parallelism, normalise_loops, \
     enhance_tree_information
 from psyclone.psyGen import TransInfo
+from psyclone.psyir.nodes import Call, Loop
+from psyclone.psyir.transformations import OMPTargetTrans
+from psyclone.transformations import OMPDeclareTargetTrans
 
 
 def trans(psy):
@@ -53,22 +56,29 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-    omp_target_trans = TransInfo().get_trans_name('OMPTargetTrans')
+    omp_target_trans = OMPTargetTrans()
     omp_loop_trans = TransInfo().get_trans_name('OMPLoopTrans')
     # Disabling worksharing will produce the 'loop' directive which is better
     # suited to map the work into the GPU
     omp_loop_trans.omp_worksharing = False
 
-    print("Invokes found:")
+    print(f"Invokes found in {psy.name}:")
     for invoke in psy.invokes.invoke_list:
         print(invoke.name)
 
-        if invoke.name in ("iscpl_rst_interpol", "dom_ngb"):
+        # Has structure accesses that can not be offloaded
+        if psy.name.startswith("psy_obs_"):
+            print("Skipping", invoke.name)
+            continue
+        if psy.name in ("psy_diaobs_psy", "psy_stopar_psy", "psy_diawri_psy"):
             print("Skipping", invoke.name)
             continue
 
-        # Has structure accesses that can not be offloaded
-        if psy.name.startswith("psy_obs_"):
+        # diaptr ptr_sf is considered and array instead of a function call
+        # because it is an interface.
+        # sbc_dyc is is considered and array instead of a function call because
+        # it is imported.
+        if psy.name in ("psy_diaptr_psy", "psy_sbccpl_psy"):
             print("Skipping", invoke.name)
             continue
 
@@ -76,6 +86,13 @@ def trans(psy):
         if invoke.name in ("cpl_oasis3_cpl_freq"):
             print("Skipping", invoke.name)
             continue
+
+        # TODO #1841:
+        # NVFORTRAN-S-0083-Vector expression used where scalar expression required
+        if invoke.name in ("blk_oce"):
+            print("Skipping", invoke.name)
+            continue
+
 
         enhance_tree_information(invoke.schedule)
 
@@ -85,11 +102,18 @@ def trans(psy):
                 hoist_expressions=True,
         )
 
+        # For performance in lib_fortran, mark serial routines as GPU-enabled
+        if psy.name == "psy_lib_fortran_psy":
+            if not invoke.schedule.walk((Loop, Call)):
+                OMPDeclareTargetTrans().apply(invoke.schedule)
+                continue
+
         insert_explicit_loop_parallelism(
                 invoke.schedule,
                 region_directive_trans=omp_target_trans,
                 loop_directive_trans=omp_loop_trans,
-                collapse=True
+                collapse=True,
+                exclude_calls=psy.name != "psy_lib_fortran_psy",
         )
 
     return psy

@@ -37,7 +37,7 @@
 ''' Utilities file to parallelise Nemo code. '''
 
 from psyclone.psyir.nodes import Loop, Assignment, Directive, Container, \
-    Reference
+    Reference, CodeBlock, Call
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE
 from psyclone.psyir.transformations import HoistLoopBoundExprTrans, HoistTrans
 from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
@@ -115,7 +115,8 @@ def insert_explicit_loop_parallelism(
         schedule,
         region_directive_trans=None,
         loop_directive_trans=None,
-        collapse: bool = True
+        collapse: bool = True,
+        exclude_calls: bool = True
         ):
     ''' For each loop in the schedule that doesn't already have a Directive
     as an ancestor, attempt to insert the given region and loop directives.
@@ -133,6 +134,12 @@ def insert_explicit_loop_parallelism(
         if loop.ancestor(Directive):
             continue  # Skip if an outer loop is already parallelised
 
+        if loop.walk(CodeBlock):
+            continue  # Skip if loop has a CodeBlock (why not caught by validate?)
+
+        if exclude_calls and loop.walk(Call):
+            continue
+
         try:
             loop_directive_trans.apply(loop)
             # Only add the region directive if the loop was successfully
@@ -144,14 +151,34 @@ def insert_explicit_loop_parallelism(
             continue
 
         if collapse:
-            # Count the number of perfectly nested loops
+
+            # Count the number of perfectly nested loops that can be collapsed
             num_nested_loops = 0
             next_loop = loop
+            previous_variables = []
             while isinstance(next_loop, Loop):
+                previous_variables.append(next_loop.variable)
                 num_nested_loops += 1
+
+                # If it has more than one children, the next loop will not be
+                # perfectly nested, so stop searching
                 if len(next_loop.loop_body.children) > 1:
                     break
+
                 next_loop = next_loop.loop_body.children[0]
 
+                # If it is a dependent (e.g. triangular) loop, it can not be
+                # collapsed
+                dependent_of_previous_variable = False
+                for bound in next_loop.children[0:2]:
+                    for ref in bound.walk(Reference):
+                        if ref.symbol in previous_variables:
+                            dependent_of_previous_variable = True
+                if dependent_of_previous_variable:
+                    break
+
+                # Check if next_loop is parallelisable?
+
+            # Add collapse clause to the parent directive
             if num_nested_loops > 1:
                 loop.parent.parent.collapse = num_nested_loops
