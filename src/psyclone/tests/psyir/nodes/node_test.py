@@ -1054,6 +1054,44 @@ def test_replace_with():
     assert node2.parent is None
 
 
+def test_replace_with_named_context():
+    '''Check that the replace_with method behaves as expected when the
+    replaced node is named in its parent context.'''
+
+    node1 = Literal('1', INTEGER_TYPE)
+    node2 = Literal('2', INTEGER_TYPE)
+    node3 = Literal('3', INTEGER_TYPE)
+    parent_node = Call.create(RoutineSymbol("mycall"),[
+        ("name1", node1),
+        ("name2", node2),
+        ("name3", node3),
+        ])
+    parent_node.children = [node1, node2, node3]
+
+    # Replace a node keeping the name
+    new_node = Literal('20', INTEGER_TYPE)
+    node2.replace_with(new_node)
+    assert parent_node.children[1] is new_node
+    assert new_node.parent is parent_node
+    assert node2.parent is None
+    assert parent_node.argument_names == ["name1", "name2", "name3"]
+
+    # Replace a node keeping the name
+    new_node = Literal('10', INTEGER_TYPE)
+    node1.replace_with(new_node, keep_name_in_context=False)
+    assert parent_node.children[0] is new_node
+    assert new_node.parent is parent_node
+    assert node1.parent is None
+    assert parent_node.argument_names == [None, "name2", "name3"]
+
+    # keep_name_in_context wrong type
+    with pytest.raises(TypeError) as info:
+        node3.replace_with(new_node, keep_name_in_context="hi")
+    assert ("The argument keep_name_in_context in method replace_with in "
+            "the Node class should be a bool but found 'str'."
+            in str(info.value))
+
+
 def test_replace_with_error1():
     '''Check that the replace_with method raises the expected exception if
     the type of node is invalid for the location it is being added

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: I. Kavcic, Met Office
+# Modified J. Henrichs, Bureau of Meteorology
 
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g -fcheck=bound
@@ -41,7 +42,9 @@ PSYCLONE_RELPATH = ../../../../..
 LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME = lfric_netcdf
 LFRIC_LIB = $(LFRIC_PATH)/lib$(LFRIC_NAME).a
-F90FLAGS += -I$(LFRIC_PATH)
+
+# This will add the required include flags to F90FLAGS
+include $(LFRIC_PATH)/lfric_include_flags.inc
 
 GHLIB_SRC = $(wildcard *.F90) $(wildcard *.f90)
 
