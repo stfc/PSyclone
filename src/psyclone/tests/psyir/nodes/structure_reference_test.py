@@ -38,8 +38,6 @@
 
 ''' Module containing pytest tests for the StructureReference class. '''
 
-from __future__ import absolute_import
-
 import pytest
 
 from psyclone.core import Signature, VariablesAccessInfo
@@ -208,10 +206,21 @@ def test_struc_ref_semantic_nav():
 
 def test_struc_ref_datatype():
     '''Test the datatype() method of StructureReference.'''
+    atype = symbols.ArrayType(symbols.REAL_TYPE, [10, 8])
     grid_type = symbols.StructureType.create([
-        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
+        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC),
+        ("data", atype, symbols.Symbol.Visibility.PRIVATE)])
     grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
     ssym = symbols.DataSymbol("grid", grid_type_symbol)
     # Reference to scalar member of structure
     sref = nodes.StructureReference.create(ssym, ["nx"])
     assert sref.datatype == symbols.INTEGER_TYPE
+    one = nodes.Literal("1", symbols.INTEGER_TYPE)
+    two = nodes.Literal("2", symbols.INTEGER_TYPE)
+    sref2 = nodes.StructureReference.create(ssym, [("data", [one, two])])
+    assert sref2.datatype == symbols.REAL_TYPE
+    # Structure of deferred type
+    utypesym = symbols.DataTypeSymbol("my_type", symbols.DeferredType())
+    mysym = symbols.DataSymbol("my_sym", utypesym)
+    myref = nodes.StructureReference.create(mysym, ["flag"])
+    assert myref.datatype == symbols.DeferredType()

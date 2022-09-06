@@ -46,7 +46,8 @@ from psyclone.psyir.nodes.array_of_structures_member import \
     ArrayOfStructuresMember
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.symbols import (DataSymbol, DataTypeSymbol, StructureType,
-                                    ArrayType, DeferredType, UnknownType)
+                                    ArrayType, DeferredType, ScalarType,
+                                    UnknownType)
 from psyclone.errors import InternalError
 
 
@@ -266,14 +267,15 @@ class StructureReference(Reference):
             while cursor.member:
                 cursor = cursor.member
                 cursor_type = cursor_type.components[cursor.name]
-                if isinstance(cursor, ArrayMixin):
+                if isinstance(cursor, ArrayMixin) and cursor.shape:
                     shape.extend(cursor.shape)
         except AttributeError:
             pass
 
         if shape:
             return ArrayType(cursor_type.datatype, shape)
-        return cursor_type.datatype
+        return ScalarType(cursor_type.datatype.intrinsic,
+                          cursor_type.datatype.precision)
 
 
 # For AutoAPI documentation generation
