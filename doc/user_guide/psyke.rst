@@ -364,7 +364,7 @@ apply code extraction by utilising PSyclone transformation scripts
 in ``examples/lfric/eg17/full_example_extract`` can be compiled and
 run, and it will create two kernel data files.
 
-.. _psyke_netcdf:
+.. _extraction_libraries:
 
 Extraction Libraries
 --------------------
@@ -380,12 +380,14 @@ and in
 `lib/extract/netcdf
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf>`_.
 
+.. _extraction_for_gocean:
+
 Extraction for GOcean
 +++++++++++++++++++++
 
 The extraction libraries in 
-`lib/extract/netcdf/dl_esm_inf
-<https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/dl_esm_inf>`_
+`lib/extract/standard/dl_esm_inf
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/standard/dl_esm_inf>`_
 and 
 `lib/extract/netcdf/dl_esm_inf
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/dl_esm_inf>`_
@@ -405,7 +407,8 @@ sizes stored as ``xyzdim1``, ``xyzdim2`` for the input values,
 and output arrays use the name ``xyz_postdim1``, ``xyz_postdim2``.
 
 .. note:: The stand-alone library does not store the names of the
-    variables in the output file.
+    variables in the output file, but these names will be used
+    as variable names in the created driver.
 
 The output file contains the values of all variables used in the
 subroutine. The ``GOceanExtractTrans`` transformation can automatically
@@ -449,6 +452,8 @@ and
 implement the full PSyData API for use with the
 :ref:`LFRic <dynamo0.3-api>` infrastructure library. When running the
 code, it will create an output file for each instrumented code region.
+The same logic for naming variables used in :ref:`extraction_for_gocean`
+is used here.
 
 As in the case of e.g. :ref:`read-only verification
 <psydata_read_verification>`, this library uses the pared-down LFRic

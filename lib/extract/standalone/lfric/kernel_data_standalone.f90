@@ -139,7 +139,7 @@ contains
 
     ! -------------------------------------------------------------------------
     !> This subroutine writes the values of an LFRic real-valued field.
-    !! to the NetCDF file. It uses the corresponding function
+    !! to the binary file. It uses the corresponding function
     !! provided by the base class.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
@@ -163,7 +163,7 @@ contains
 
     ! -------------------------------------------------------------------------
     !> This subroutine writes the values of an LFRic integer-valued field.
-    !! to the NetCDF file. It uses the corresponding function
+    !! to the binary file. It uses the corresponding function
     !! provided by the base class.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
@@ -256,7 +256,7 @@ contains
     end subroutine DeclareIntFieldVector
 
     ! -------------------------------------------------------------------------
-    !> This subroutine writes an LFRic real-valued field vector to the NetCDF
+    !> This subroutine writes an LFRic real-valued field vector to the binary
     !! file. Each component is stored as an individual variable using the
     !! corresponding array function of the base class.
     !! @param[in,out] this The instance of the extract_PSyDataType.
@@ -287,7 +287,7 @@ contains
 
 ! -------------------------------------------------------------------------
     !> This subroutine writes an LFRic integer-valued field vector to the
-    !! NetCDF file. Each component is stored as an individual variable
+    !! binary file. Each component is stored as an individual variable
     !! using the corresponding array function of the base class.
     !! @param[in,out] this The instance of the extract_PSyDataType.
     !! @param[in] name The name of the variable (string).

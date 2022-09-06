@@ -67,7 +67,8 @@
 ! -----------------------------------------------------------------------------
 ! Author: J. Henrichs, Bureau of Meteorology
 
-!> This module implements a simple NetCDF reader. It provides the functions:
+!> This module implements a simple binary file reader. It provides the
+!! functions:
 !! OpenRead:      opens a file for reading
 !! ReadScalar...:           reads the specified scalar value
 !! ReadArray1dDouble, ... : allocates and reads the specified array type.
@@ -118,9 +119,9 @@ module read_kernel_data_mod
 contains
 
     ! -------------------------------------------------------------------------
-    !> This subroutine is called to open a NetCDF file for reading. The
+    !> This subroutine is called to open a binary file for reading. The
     !! filename is based on the module and kernel name. This is used by a
-    !! driver program that will read a NetCDF file previously created by the
+    !! driver program that will read a binary file previously created by the
     !! PSyData API.
     !! @param[in,out] this The instance of the ReadKernelDataType.
     !! @param[in] module_name The name of the module of the instrumented
@@ -146,10 +147,10 @@ contains
 
     ! -------------------------------------------------------------------------
     !> This subroutine reads the value of a scalar {{type}}
-    !! variable from the NetCDF file and returns it to the user. Note that
+    !! variable from the binary file and returns it to the user. Note that
     !! this function is not part of the PSyData API, but it is convenient to
     !! have these functions together here. The driver can then be linked with
-    !! this  PSyData library and will be able to read the files.
+    !! this PSyData library and will be able to read the files.
     !! @param[in,out] this The instance of the ReadKernelDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[out] value The read value is stored here.

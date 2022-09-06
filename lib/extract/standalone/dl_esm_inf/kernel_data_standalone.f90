@@ -33,13 +33,12 @@
 ! -----------------------------------------------------------------------------
 ! Author J. Henrichs, Bureau of Meteorology
 
-!> This module implements a simple NetCDF writer using the PSyData
+!> This module implements a simple binary-file writer using the PSyData
 !! interface. It is specific to the dl_esm_inf library used with
 !! the GOcean API.
 !! A Fortran code instrumented with corresponding calls
-!! to the PSyData API and linked in with this library will nf90_create
-!! a NetCDF file that contains the dimensions for each
-!! field.
+!! to the PSyData API and linked in with this library will write
+!! the requested input and output parameters to a Fortran binary file.
 !!
 
 module extract_psy_data_mod
@@ -49,7 +48,7 @@ module extract_psy_data_mod
     implicit none
 
     !> This is the data type that manages the information required
-    !! to write data to a NetCDF file using the PSyData API. A
+    !! to write data to a binary file using the PSyData API. A
     !! static instance of this type is created for each instrumented
     !! region with PSyclone (and each region will write a separate
     !! file).

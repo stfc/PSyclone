@@ -25,12 +25,15 @@ when calling `make`, e.g.:
 
     $ TYPE=netcdf make
 
-This will then use
-``../../../../lib/extract/netcdf/dl_esm_inf`` as extraction library.
+This requires NetCDF to be available (including ``nf-config`` to detect
+installation-specific paths). The NetCDF-based extraction library in
+``../../../../lib/extract/netcdf/dl_esm_inf``
+will also be automatically compiled.
+
 The binary will either be called ``extract.standalone`` or ``extract.netcdf``.
 More details on compiling these libraries are in the corresponding
 subdirectories. To create and compile the example, modify the Makefile
-if required and type ``make``.
+if required and type ``make compile``.
 
 This examples uses the ``extract_transform.py`` transformation script
 which will add extract regions around the invokes:
@@ -43,7 +46,7 @@ psyclone -nodm -l -api "gocean1.0"             \
 
 This will also create two driver files, which can read the corresponding
 output files, call the kernel, and verify that the same output values are
-computed.
+computed. These drivers will be compiled by the Makefile as well.
 
 ## Running
 When running the program, you should see:
@@ -62,7 +65,7 @@ When using the stand-alone extraction library, two binary files called
 ``main-update.binary`` and ``main-init.binary`` will be created, one for
 each of the instrumented invoke regions. When using the NetCDF-based
 extraction library, these files will be called ``main-update.nc`` and
-``main-init.nc``. The NetCDF files can be inspected for example with
+``main-init.nc``. The NetCDF files can be inspected, for example with
 ``ncdump``:
 
     ncdump ./main-update.nc  | less

@@ -34,7 +34,6 @@
 # export F90FLAGS="-O3"
 # export AR=ar
 #
-# It also uses nf-config to query for flags required for NetCDF compilation.
 
 # ----------- Default "make" values, can be overwritten by the user -----------
 # Compiler and compiler flags
@@ -44,7 +43,7 @@ F90FLAGS ?=
 # distributed with PSyclone. Overwrite for a different infrastructure version.
 GOCEAN_INF_DIR ?= ./../../../../external/dl_esm_inf/finite_difference
 # Paths to the PSyclone wrapper libraries and required templates. They default
-# to the relative paths to the top-level 'lib' and 'lib/extract/netcdf'
+# to the relative paths to the top-level 'lib' and 'lib/extract/standalone'
 # directories. Overwrite for a custom location.
 PSYDATA_LIB_DIR ?= ./../../..
 LIB_TMPLT_DIR ?= ./..

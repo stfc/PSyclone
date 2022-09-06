@@ -91,7 +91,7 @@ module extract_standalone_base_mod
     implicit none
 
     !> This is the data type that manages the information required
-    !! to write data to a NetCDF file using the PSyData API. A
+    !! to write data to a file using the PSyData API. A
     !! static instance of this type is created for each instrumented
     !! region with PSyclone (and each region will write a separate
     !! file).
@@ -147,7 +147,7 @@ contains
     ! -------------------------------------------------------------------------
     !> This subroutine is the first function called when data is written out
     !! before an instrumented region of code.
-    !! @param[in,out] this The instance of the ExtractNetcdfBaseType.
+    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
     !! @param[in] module_name The name of the module of the instrumented
     !!            region.
     !! @param[in] region_name The name of the instrumented region.
@@ -180,8 +180,8 @@ contains
     ! -------------------------------------------------------------------------
     !> This subroutine is called after the instrumented region has been
     !! executed and all values of variables after the instrumented
-    !! region have been provided. This will close the NetCDF file.
-    !! @param[in,out] this The instance of the ExtractNetcdfBaseType.
+    !! region have been provided. This will close the file.
+    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
     subroutine PostEnd(this)
 
         implicit none
@@ -196,9 +196,9 @@ contains
 {% for name, type, bits in ALL_TYPES %}
     ! -------------------------------------------------------------------------
     !> This subroutine writes the value of a scalar {{type}}
-    !! variable to the NetCDF file. It takes the variable id from the
+    !! variable to the file. It takes the variable id from the
     !! corresponding declaration.
-    !! @param[in,out] this The instance of the ExtractNetcdfBaseType.
+    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine WriteScalar{{name}}(this, name, value)
@@ -227,8 +227,8 @@ contains
 
     ! -------------------------------------------------------------------------
     !> This subroutine writes a {{dim}}d-array of {{type}}
-    !! to the NetCDF file.
-    !! @param[in,out] this The instance of the ExtractNetcdfBaseType.
+    !! to the file.
+    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine WriteArray{{dim}}d{{name}}(this, name, value)
