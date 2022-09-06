@@ -246,10 +246,9 @@ class StructureReference(Reference):
         '''
         if isinstance(self.symbol.datatype, DeferredType):
             return DeferredType()
-        if not isinstance(self.symbol.datatype.intrinsic,
-                          DataTypeSymbol):
+        if not isinstance(self.symbol.datatype, DataTypeSymbol):
             return DeferredType()
-        dtype = self.symbol.datatype.intrinsic.datatype
+        dtype = self.symbol.datatype.datatype
         if isinstance(dtype, DeferredType):
             # We don't know the type of the symbol that defines the type
             # of this structure.

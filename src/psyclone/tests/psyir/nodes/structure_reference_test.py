@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -204,3 +204,14 @@ def test_struc_ref_semantic_nav():
     assert ("StructureReference malformed or incomplete. It must have a "
             "single child that must be a (sub-class of) Member, but "
             "found: ['broken']" in str(err.value))
+
+
+def test_struc_ref_datatype():
+    '''Test the datatype() method of StructureReference.'''
+    grid_type = symbols.StructureType.create([
+        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
+    grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
+    ssym = symbols.DataSymbol("grid", grid_type_symbol)
+    # Reference to scalar member of structure
+    sref = nodes.StructureReference.create(ssym, ["nx"])
+    assert sref.datatype == symbols.INTEGER_TYPE
