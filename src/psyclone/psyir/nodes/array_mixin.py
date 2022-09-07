@@ -94,7 +94,7 @@ class ArrayMixin():
         :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \
             lists of indices)
         '''
-        sig, _ = super().get_signature_and_indices()
+        sig, _ = super(ArrayMixin, self).get_signature_and_indices()
         return (sig, [self.indices[:]])
 
     def _validate_index(self, index):
