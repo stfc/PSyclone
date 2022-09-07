@@ -139,7 +139,6 @@ contains
         open(newunit=this%unit_number, access='sequential',  &
              form="unformatted", status="old",               &
              file=module_name//"-"//region_name//".binary")
-        print *,"UNIT", this%unit_number
 
     end subroutine OpenRead
 
