@@ -244,13 +244,17 @@ class StructureReference(Reference):
         '''
         :returns: the datatype of this reference.
         :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+
         '''
-        if isinstance(self.symbol.datatype, DeferredType):
-            return DeferredType()
-        if not isinstance(self.symbol.datatype, DataTypeSymbol):
-            return DeferredType()
-        dtype = self.symbol.datatype.datatype
-        if isinstance(dtype, DeferredType):
+        dtype = self.symbol.datatype
+
+        if isinstance(dtype, ArrayType):
+            dtype = dtype.intrinsic
+
+        if isinstance(dtype, DataTypeSymbol):
+            dtype = dtype.datatype
+
+        if isinstance(dtype, (DeferredType, UnknownType)):
             # We don't know the type of the symbol that defines the type
             # of this structure.
             return dtype
@@ -258,7 +262,7 @@ class StructureReference(Reference):
         # We do have the definition of this structure - walk down it.
         cursor = self
         cursor_type = dtype
-        if isinstance(cursor, ArrayMixin):
+        if isinstance(cursor, ArrayMixin) and cursor.shape:
             shape = cursor.shape
         else:
             shape = []
@@ -266,16 +270,34 @@ class StructureReference(Reference):
         try:
             while cursor.member:
                 cursor = cursor.member
-                cursor_type = cursor_type.components[cursor.name]
+                cursor_type = cursor_type.components[cursor.name].datatype
+                if isinstance(cursor_type, (UnknownType, DeferredType)):
+                    return DeferredType()
                 if isinstance(cursor, ArrayMixin) and cursor.shape:
                     shape.extend(cursor.shape)
         except AttributeError:
             pass
 
+        # We've reached the ultimate member of the structure access.
         if shape:
-            return ArrayType(cursor_type.datatype, shape)
-        return ScalarType(cursor_type.datatype.intrinsic,
-                          cursor_type.datatype.precision)
+            return ArrayType(cursor_type, shape)
+
+        # We don't have an explicit array access but is the ultimate member
+        # itself an array?
+        if isinstance(cursor_type, ArrayType):
+            if not cursor.children:
+                # It is and there are no index expressions so we return the
+                # ArrayType.
+                return cursor_type
+            # We have an access to a single element of the array.
+            # Currently arrays of scalars are handled in a
+            # different way to all other types of array. Issue #1857 will
+            # fix this anomaly.
+            if isinstance(cursor_type.intrinsic, ScalarType.Intrinsic):
+                return ScalarType(cursor_type.intrinsic, cursor_type.precision)
+            else:
+                return cursor_type.intrinsic
+        return cursor_type
 
 
 # For AutoAPI documentation generation

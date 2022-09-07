@@ -169,7 +169,12 @@ def test_ast_is_array():
 
 
 def test_asr_datatype():
-    '''Test the datatype property of the ArrayOfStructuresReference.'''
+    '''Test that the datatype property works correctly for
+    ArrayOfStructuresReference. (The actual implementation is in
+    StructureReference.)'''
+    one = nodes.Literal("1", symbols.INTEGER_TYPE)
+    two = nodes.Literal("2", symbols.INTEGER_TYPE)
+
     ndofs = symbols.DataSymbol("ndofs", symbols.INTEGER_TYPE)
     atype = symbols.ArrayType(symbols.REAL_TYPE,
                               [nodes.Reference(ndofs), nodes.Reference(ndofs)])
@@ -182,20 +187,23 @@ def test_asr_datatype():
     # Reference to a single member of the array of structures and to the "nx"
     # member of it.
     asref = nodes.ArrayOfStructuresReference.create(
-        ssym, [nodes.Literal("2", symbols.INTEGER_TYPE)], ["nx"])
+        ssym, [two.copy()], ["nx"])
     assert isinstance(asref.datatype, symbols.ScalarType)
     assert asref.datatype.intrinsic == symbols.ScalarType.Intrinsic.INTEGER
     # Reference to a range of members of the array of structures and to the
     # "nx" member of each.
-    my_range = nodes.Range.create(nodes.Literal("2", symbols.INTEGER_TYPE),
+    my_range = nodes.Range.create(two.copy(),
                                   nodes.Literal("3", symbols.INTEGER_TYPE))
     asref2 = nodes.ArrayOfStructuresReference.create(
         ssym, [my_range], ["nx"])
     assert isinstance(asref2.datatype, symbols.ArrayType)
+    assert asref2.datatype.intrinsic == symbols.ScalarType.Intrinsic.INTEGER
     assert len(asref2.datatype.shape) == 1
+    assert asref2.datatype.shape[0].lower == one
+    assert isinstance(asref2.datatype.shape[0].upper, nodes.BinaryOperation)
     # Reference to a single member of the array of structures and to the "data"
     # member of it which is itself an array.
     asref3 = nodes.ArrayOfStructuresReference.create(
-        ssym, [nodes.Literal("1", symbols.INTEGER_TYPE)], ["data"])
+        ssym, [one.copy()], ["data"])
     assert isinstance(asref3.datatype, symbols.ArrayType)
     assert len(asref3.datatype.shape) == 2

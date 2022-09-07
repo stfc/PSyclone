@@ -204,12 +204,28 @@ def test_struc_ref_semantic_nav():
             "found: ['broken']" in str(err.value))
 
 
-def test_struc_ref_datatype():
+def test_struc_ref_datatype(monkeypatch):
     '''Test the datatype() method of StructureReference.'''
     atype = symbols.ArrayType(symbols.REAL_TYPE, [10, 8])
+    rtype = symbols.StructureType.create([
+        ("gibber", symbols.BOOLEAN_TYPE, symbols.Symbol.Visibility.PUBLIC)])
+    # TODO #1031. Currently cannot create an array of StructureTypes
+    # directly - have to have a DataTypeSymbol.
+    rtype_sym = symbols.DataTypeSymbol("gibber_type", rtype)
+    artype = symbols.ArrayType(rtype_sym, [10, 3])
     grid_type = symbols.StructureType.create([
         ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC),
-        ("data", atype, symbols.Symbol.Visibility.PRIVATE)])
+        ("data", atype, symbols.Symbol.Visibility.PRIVATE),
+        ("mesh", symbols.DeferredType(), symbols.Symbol.Visibility.PUBLIC),
+        ("roger", rtype, symbols.Symbol.Visibility.PUBLIC),
+        ("titty", artype, symbols.Symbol.Visibility.PUBLIC)])
+    # Symbol with type defined by StructureType
+    ssym0 = symbols.DataSymbol("grid", grid_type)
+    # Reference to scalar member of structure
+    sref0 = nodes.StructureReference.create(ssym0, ["nx"])
+    assert sref0.datatype == symbols.INTEGER_TYPE
+
+    # Symbol with type defined by DataTypeSymbol
     grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
     ssym = symbols.DataSymbol("grid", grid_type_symbol)
     # Reference to scalar member of structure
@@ -219,8 +235,46 @@ def test_struc_ref_datatype():
     two = nodes.Literal("2", symbols.INTEGER_TYPE)
     sref2 = nodes.StructureReference.create(ssym, [("data", [one, two])])
     assert sref2.datatype == symbols.REAL_TYPE
+
+    # Reference to scalar member of structure member
+    gref = nodes.StructureReference.create(ssym, ["roger", "gibber"])
+    assert gref.datatype == symbols.BOOLEAN_TYPE
+
+    # Reference to structure member of structure
+    rref = nodes.StructureReference.create(ssym, ["roger"])
+    assert rref.datatype == rtype
+
+    # Reference to single element of array of structures within a structure
+    singleref = nodes.StructureReference.create(
+        ssym, [("titty", [one.copy(), two.copy()])])
+    assert singleref.datatype == rtype_sym
+
+    # Reference to sub-array of structure members of structure
+    myrange = nodes.Range.create(two.copy(),
+                                 nodes.Literal("4", symbols.INTEGER_TYPE))
+    arref = nodes.StructureReference.create(
+        ssym, [("titty", [nodes.Literal("3", symbols.INTEGER_TYPE), myrange])])
+    dtype = arref.datatype
+    assert isinstance(dtype, symbols.ArrayType)
+    assert dtype.intrinsic == rtype_sym
+    assert len(dtype.shape) == 1
+    assert dtype.shape[0].lower == one
+    assert isinstance(dtype.shape[0].upper, nodes.BinaryOperation)
+
+    # Reference to whole array of structures that are a member of a structure
+    fullref = nodes.StructureReference.create(ssym, ["titty"])
+    dtype = fullref.datatype
+    assert dtype == artype
+
     # Structure of deferred type
+    deft_sym = symbols.DataSymbol("john", symbols.DeferredType())
+    jref = nodes.StructureReference.create(deft_sym, ["value"])
+    assert jref.datatype == symbols.DeferredType()
+    # Structure with type given by DataTypeSymbol that is of DeferredType
     utypesym = symbols.DataTypeSymbol("my_type", symbols.DeferredType())
     mysym = symbols.DataSymbol("my_sym", utypesym)
     myref = nodes.StructureReference.create(mysym, ["flag"])
     assert myref.datatype == symbols.DeferredType()
+    # Member of structure that is of deferred type
+    meshref = nodes.StructureReference.create(ssym, ["mesh", "polly"])
+    assert meshref.datatype == symbols.DeferredType()
