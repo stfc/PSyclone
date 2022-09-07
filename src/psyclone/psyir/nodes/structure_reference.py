@@ -242,8 +242,11 @@ class StructureReference(Reference):
     def datatype(self):
         '''
         Walks down the list of members making up this reference to determine
-        the type that it refers to. This method is also supports
-        ArrayOfStructuresReference.
+        the type that it refers to.
+
+        In order to minimise code duplication, this method also supports
+        ArrayOfStructuresReference by simply allowing for the case where
+        the starting reference is to an Array.
 
         :returns: the datatype of this reference.
         :rtype: :py:class:`psyclone.psyir.symbols.DataType`
@@ -265,10 +268,11 @@ class StructureReference(Reference):
         # We do have the definition of this structure - walk down it.
         cursor = self
         cursor_type = dtype
+        shape = []
+        # The next two lines are required for when this method is called
+        # for an ArrayOfStructuresReference.
         if isinstance(cursor, ArrayMixin) and cursor.shape:
             shape = cursor.shape
-        else:
-            shape = []
 
         try:
             while cursor.member:
