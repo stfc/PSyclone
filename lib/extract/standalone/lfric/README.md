@@ -3,8 +3,7 @@
 This wrapper library [writes (extracts)](
 https://psyclone.readthedocs.io/en/stable/psyke.html) input and output
 parameters of instrumented code regions to a stand-alone
-[binary file(
-https://psyclone.readthedocs.io/en/stable/psyke.html#extraction_libraries)]
+[binary file](https://psyclone.readthedocs.io/en/stable/psyke.html#extraction_libraries)
 using the LFRic infrastructure library. A stand-alone driver can then be
 used to rerun this specific code region and verify the results (or
 compare performance).
