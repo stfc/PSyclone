@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, STFC Daresbury Laboratory
+# Author: R. W. Ford, STFC Daresbury Laboratory
 
 '''Module containing tests for the sum2code transformation.'''
 
@@ -68,10 +68,57 @@ def test_validate_node():
     with pytest.raises(TransformationError) as info:
         trans.validate(bin_op)
     assert ("Error in Sum2CodeTrans transformation. The supplied node "
-            "operator is invalid, found 'Operator.MUL'." in str(info.value))
+            "operator is invalid, found 'Operator.MUL', but expected one "
+            "of '['SUM']'." in str(info.value))
 
 
-# Literal value of dimension argument
+def test_structure_error(fortran_reader):
+    '''Test that the transformation raises an exception if the array node
+    is part of a structure, as this is not currently supported.
+
+    '''
+    code = (
+        "subroutine sum_test(n,m)\n"
+        "  integer :: n, m\n"
+        "  type :: array_type\n"
+        "      real :: array(10,10)\n"
+        "  end type\n"
+        "  type(array_type) :: ref\n"
+        "  real :: result\n"
+        "  integer :: dimension\n"
+        "  result = sum(ref%array)\n"
+        "end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    sum_node = psyir.children[0].children[0].children[1]
+    trans = Sum2CodeTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(sum_node)
+    assert ("Sum2CodeTrans only support arrays for the first argument, but "
+            "found 'StructureReference'." in str(info.value))
+
+
+def test_indexed_array_error(fortran_reader):
+    '''Test that the transformation raises an exception if the array node
+    has a literal index, as this is invalid.
+
+    '''
+    code = (
+        "subroutine sum_test(array,n,m)\n"
+        "  integer :: n, m\n"
+        "  real :: array(10,10)\n"
+        "  real :: result\n"
+        "  integer :: dimension\n"
+        "  result = sum(array(1,1))\n"
+        "end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    sum_node = psyir.children[0].children[0].children[1]
+    trans = Sum2CodeTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(sum_node)
+    assert ("Sum2CodeTrans only supports arrays with array ranges, but "
+            "found a fixed dimension in 'array(1,1)'." in str(info.value))
+
+
 def test_dimension_arg(fortran_reader):
     '''Test that the expected exception is raised if the dimension arg is
     not a literal or a variable.

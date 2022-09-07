@@ -42,11 +42,13 @@ than the intrinsic.
 
 from psyclone.psyir.nodes import (
     UnaryOperation, BinaryOperation, NaryOperation, Assignment, Reference,
-    Literal, Loop, ArrayReference, IfBlock)
+    Literal, Loop, ArrayReference, IfBlock, Range)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, ScalarType, ArrayType)
 from psyclone.psyir.transformations.intrinsics.operator2code_trans import (
     Operator2CodeTrans)
+from psyclone.psyir.transformations.transformation_error import \
+    TransformationError
 
 
 def get_args(node):
@@ -55,9 +57,9 @@ def get_args(node):
     :param node: a Sum Operation. This could be a UnaryOperation, \
         BinaryOperation or NaryOperation depending on how many arguments \
         it has.
-    :type node: :py:test:`psyclone.psyir.nodes.operation.UnaryOperation` | \
-        :py:test:`psyclone.psyir.nodes.operation.BinaryOperation` | \
-        :py:test:`psyclone.psyir.nodes.operation.NaryOperation`
+    :type node: :py:class:`psyclone.psyir.nodes.operation.UnaryOperation` | \
+        :py:class:`psyclone.psyir.nodes.operation.BinaryOperation` | \
+        :py:class:`psyclone.psyir.nodes.operation.NaryOperation`
 
     returns: a tuple containing the 3 sum arguments.
     rtype: Tuple[py:class:`psyclone.psyir.nodes.reference.Reference`, \
@@ -103,7 +105,7 @@ class Sum2CodeTrans(Operator2CodeTrans):
         R = 0.0
         DO J=LBOUND(A,2),UBOUND(A,2)
           DO I=LBOUND(A,1),UBOUND(A,1)
-            R += A(I,J)
+            R = R + A(I,J)
 
     If the dimension argument is provided then only that dimension is
     summed:
@@ -120,14 +122,14 @@ class Sum2CodeTrans(Operator2CodeTrans):
         R(:) = 0.0
         DO J=LBOUND(A,2),UBOUND(A,2)
           DO I=LBOUND(A,1),UBOUND(A,1)
-            R(I) += R(I) + A(I,J)
+            R(I) = R(I) + A(I,J)
 
     If the mask argument is provided then the mask is used to
     determine whether the sum is applied:
 
     .. code-block:: python
 
-        R = SUM(ARRAY, mask=MOD(array, 2.0)==1)
+        R = SUM(ARRAY, mask=MOD(ARRAY, 2.0)==1)
 
     If the array is two dimensional, the equivalent code
     for real data is:
@@ -137,8 +139,43 @@ class Sum2CodeTrans(Operator2CodeTrans):
         R = 0.0
         DO J=LBOUND(A,2),UBOUND(A,2)
           DO I=LBOUND(A,1),UBOUND(A,1)
-            if (MOD(array(I,J), 2.0)==1):
-              R += R + A(I,J)
+            if (MOD(ARRAY(I,J), 2.0)==1):
+              R = R + A(I,J)
+
+    For example:
+
+    >>> from psyclone.psyir.backend.fortran import FortranWriter
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> from psyclone.psyir.transformations import Sum2CodeTrans
+    >>> code = ("subroutine sum_test(array,n,m)\\n"
+    ...         "  integer :: n, m\\n"
+    ...         "  real :: array(10,10)\\n"
+    ...         "  real :: result\\n"
+    ...         "  result = sum(array)\\n"
+    ...         "end subroutine\\n")
+    >>> psyir = FortranReader().psyir_from_source(code)
+    >>> sum_node = psyir.children[0].children[0].children[1]
+    >>> Sum2CodeTrans().apply(sum_node)
+    >>> print(FortranWriter()(psyir))
+    subroutine sum_test(array, n, m)
+      integer :: n
+      integer :: m
+      real, dimension(10,10) :: array
+      real :: result
+      real :: sum_var
+      integer :: i_0
+      integer :: i_1
+    <BLANKLINE>
+      sum_var = 0.0
+      do i_1 = 1, 10, 1
+        do i_0 = 1, 10, 1
+          sum_var = sum_var + array(i_0,i_1)
+        enddo
+      enddo
+      result = sum_var
+    <BLANKLINE>
+    end subroutine sum_test
+    <BLANKLINE>
 
     '''
     def __init__(self):
@@ -156,15 +193,14 @@ class Sum2CodeTrans(Operator2CodeTrans):
         :param node: a Sum Operation. This could be a UnaryOperation, \
             BinaryOperation or NaryOperation depending on how many \
             arguments it has.
-        :type node: :py:test:`psyclone.psyir.nodes.operation.UnaryOperation` \
-            | :py:test:`psyclone.psyir.nodes.operation.BinaryOperation` | \
-            :py:test:`psyclone.psyir.nodes.operation.NaryOperation`
+        :type node: :py:class:`psyclone.psyir.nodes.operation.UnaryOperation` \
+            | :py:class:`psyclone.psyir.nodes.operation.BinaryOperation` | \
+            :py:class:`psyclone.psyir.nodes.operation.NaryOperation`
         :param options: options for the transformation.
-        :type options: Optional[Dict[str,str]]
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if a valid value for the \
             dimension argument can't be determined.
-        :raises TransformationError: if the array argument is not an array.
         :raises TransformationError: if the array argument is not an array.
         :raises TransformationError: if the shape of the array is not \
             supported.
@@ -172,10 +208,6 @@ class Sum2CodeTrans(Operator2CodeTrans):
             supported.
 
         '''
-        # Avoid circular import error
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.transformations import TransformationError
-
         super().validate(node, options)
 
         array_ref, dim_ref, _ = get_args(node)
@@ -186,10 +218,24 @@ class Sum2CodeTrans(Operator2CodeTrans):
                 f"'{self._writer(dim_ref)}' which is a "
                 f"'{type(dim_ref).__name__}'.")
 
+        # pylint: disable=unidiomatic-typecheck
+        if not (isinstance(array_ref, ArrayReference) or
+                type(array_ref) == Reference):
+            raise TransformationError(
+                f"Sum2CodeTrans only support arrays for the first argument, "
+                f"but found '{type(array_ref).__name__}'.")
+
         if len(array_ref.children) == 0:
             if not array_ref.symbol.is_array:
                 raise TransformationError(
                     f"Expected '{array_ref.name}' to be an array.")
+
+        for shape in array_ref.children:
+            if not isinstance(shape, Range):
+                raise TransformationError(
+                    f"Sum2CodeTrans only supports arrays with array ranges, "
+                    f"but found a fixed dimension in "
+                    f"'{self._writer(array_ref)}'.")
 
         for shape in array_ref.symbol.shape:
             if not (shape in [
@@ -214,11 +260,11 @@ class Sum2CodeTrans(Operator2CodeTrans):
         :param node: a Sum Operation. This could be a UnaryOperation, \
             BinaryOperation or NaryOperation depending on how many \
             arguments it has.
-        :type node: :py:test:`psyclone.psyir.nodes.operation.UnaryOperation` \
-            | :py:test:`psyclone.psyir.nodes.operation.BinaryOperation` | \
-            :py:test:`psyclone.psyir.nodes.operation.NaryOperation`
+        :type node: :py:class:`psyclone.psyir.nodes.operation.UnaryOperation` \
+            | :py:class:`psyclone.psyir.nodes.operation.BinaryOperation` | \
+            :py:class:`psyclone.psyir.nodes.operation.NaryOperation`
         :param options: options for the transformation.
-        :type options: Optional[Dict[str,str]]
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(node)
@@ -240,9 +286,8 @@ class Sum2CodeTrans(Operator2CodeTrans):
         # Determine the dimension and extent of the array
         ndims = None
         if len(array_ref.children) == 0:
-            if not array_ref.symbol.is_array:
-                # Exception handled by validate method
-                pass
+            # Note, the potential 'if not array_ref.symbol.is_array:'
+            # exception is already handled by the validate method.
             ndims = len(array_ref.symbol.shape)
 
             loop_bounds = []
@@ -262,9 +307,11 @@ class Sum2CodeTrans(Operator2CodeTrans):
                 elif isinstance(shape, ArrayType.ArrayBounds):
                     # array extent is defined in the array declaration
                     loop_bounds.append(shape)
-                #  else: Exception is handled by validate method
+                #  Note, the validate method guarantees that an else
+                #  clause is not required.
         else:
-            # This is an array reference
+            # The validate method guarantees that this is an array
+            # reference.
             loop_bounds = []
             ndims = len(array_ref.children)
             for shape in array_ref.children:
@@ -305,9 +352,8 @@ class Sum2CodeTrans(Operator2CodeTrans):
             rhs = Literal("0.0", scalar_type)
         elif scalar_type.intrinsic == scalar_type.Intrinsic.INTEGER:
             rhs = Literal("0", scalar_type)
-        else:
-            # exception handled by validate method
-            pass
+        # Note, the validate method guarantees that an else branch is
+        # not required.
 
         new_assignment = Assignment.create(lhs, rhs)
         assignment.parent.children.insert(assignment.position, new_assignment)
