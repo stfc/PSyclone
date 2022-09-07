@@ -4,16 +4,15 @@ module tra_adv_compute_mod
 
 contains
 
-  subroutine tra_adv_compute(pun, pvn, pwn, umask, vmask, tmask, mydomain, jpi, jpj, jpk)
+  subroutine tra_adv_compute(pun, pvn, pwn, umask, vmask, tmask, mydomain, tsn, jpi, jpj, jpk)
     implicit none
 
-    REAL*8, DIMENSION(:,:,:), intent(in)   :: pun, pvn, pwn, umask, vmask, tmask
+    REAL*8, DIMENSION(:,:,:), intent(in)   :: pun, pvn, pwn, umask, vmask, tmask, tsn
     REAL*8, DIMENSION(:,:,:), intent(inout)   :: mydomain
     INTEGER, INTENT(IN) :: jpi, jpj, jpk
-    ! Not sure what to do with 2D and 1D arrays in the SIR backend
-    !REAL*8, DIMENSION(:,:)     :: ztfreez, rnfmsk, upsmsk
-    !REAL*8, DIMENSION(:)       :: rnfmsk_z
-    REAL*8, DIMENSION(:,:,:)    :: rnfmsk, upsmsk, rnfmsk_z, zice
+    REAL*8, DIMENSION(:,:)     :: ztfreez, rnfmsk, upsmsk
+    REAL*8, DIMENSION(:)       :: rnfmsk_z
+    REAL*8, DIMENSION(:,:,:)    :: zice
     
     ! local variables
     REAL*8, DIMENSION(jpi,jpj, jpk)               :: zslpx, zslpy, zwx, zwy, zind
@@ -21,32 +20,16 @@ contains
     REAL*8                                        :: zw, z0w
     INTEGER                                       :: ji, jj, jk
 
-    ! Mapping of 1D and 2D arrays not yet supported in the SIR backend
-    !DO jk = 1, jpk
-    !   DO jj = 1, jpj
-    !      DO ji = 1, jpi
-    !         IF( tsn(ji,jj,jk) <= ztfreez(ji,jj) + 0.1d0 ) THEN   ;   zice = 1.d0
-    !         ELSE                                                 ;   zice = 0.d0
-    !         ENDIF
-    !         zind(ji,jj,jk) = MAX (   &
-    !            rnfmsk(ji,jj) * rnfmsk_z(jk),      & 
-    !            upsmsk(ji,jj)               ,      &
-    !            zice                               &
-    !            &                  ) * tmask(ji,jj,jk)
-    !      END DO
-    !   END DO
-    !END DO
-    
-    ! Create a temporary similar loop structure to the original
-    ! commented out version above to test out the MAX intrinsic
-    ! transformation.
     DO jk = 1, jpk
        DO jj = 1, jpj
           DO ji = 1, jpi
-             zind(ji,jj,jk) = MAX (   &
-                rnfmsk(ji,jj,jk) * rnfmsk_z(ji,jj,jk),      & 
-                upsmsk(ji,jj,jk)               ,      &
-                zice(ji,jj,jk)                               &
+             IF( tsn(ji,jj,jk) <= ztfreez(ji,jj) + 0.1d0 ) THEN   ;   zice = 1.d0
+             ELSE                                                 ;   zice = 0.d0
+             ENDIF
+             zind(ji,jj,jk) = MAX (                &
+                rnfmsk(ji,jj) * rnfmsk_z(jk),      &
+                upsmsk(ji,jj)               ,      &
+                zice                               &
                 &                  ) * tmask(ji,jj,jk)
              zind(ji,jj,jk) = 1 - zind(ji,jj,jk)
           END DO
