@@ -23,19 +23,19 @@ will also be automatically compiled. You can also use the NetCDF based
 extraction library by setting the environment variable `TYPE` to `netcdf`
 when calling `make`, e.g.:
 
-    $ TYPE=netcdf make
+    $ TYPE=netcdf make compile
 
 This requires NetCDF to be available (including ``nf-config`` to detect
 installation-specific paths). The NetCDF-based extraction library in
 ``../../../../lib/extract/netcdf/dl_esm_inf``
 will also be automatically compiled.
 
-The binary will either be called ``extract.standalone`` or ``extract.netcdf``.
+The binary  instrumented for extraction will either be called
+``extract_test.standalone`` or ``extract_test.netcdf``.
 More details on compiling these libraries are in the corresponding
-subdirectories. To create and compile the example, modify the Makefile
-if required and type ``make compile``.
+subdirectories. To create and compile the example, type ``make compile``.
 
-This examples uses the ``extract_transform.py`` transformation script
+This example uses the ``extract_transform.py`` transformation script
 which will add extract regions around the invokes:
 ```
 psyclone -nodm -l -api "gocean1.0"             \
@@ -46,10 +46,13 @@ psyclone -nodm -l -api "gocean1.0"             \
 
 This will also create two driver files, which can read the corresponding
 output files, call the kernel, and verify that the same output values are
-computed. These drivers will be compiled by the Makefile as well.
+computed. These drivers will be compiled by the Makefile as well and will
+be named ``driver-main-init.standalone/netcdf`` and
+``driver-main-update.standalone/netcdf``.
+
 
 ## Running
-When running the program, you should see:
+When running the instrumented program, you should see:
 ```
 parallel_init: Not running with MPI
 go_decompose: using grid of   1x  1
@@ -59,6 +62,19 @@ Allocating C-T field with bounds: (1: 12,1:  6)
 Internal region is:(2:  4,2:  4)
 Grid has bounds:  (1: 12,1:  6)
    15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000     
+```
+
+When running the driver program, all the output variables will be listed
+together with either 'correct', or 'incorrect' (and the actual and
+expected) values:
+```
+./driver-main-init.standalone
+ a_fld correct
+ b_fld correct
+ c_fld correct
+ d_fld correct
+ i correct
+ j correct
 ```
 
 When using the stand-alone extraction library, two binary files called

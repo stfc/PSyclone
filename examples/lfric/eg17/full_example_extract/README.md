@@ -19,7 +19,7 @@ creates NetCDF files. By default, the stand-alone version will be used,
 but you can set the ``TYPE`` environment variable to ``netcdf`` when building to
 use the NetCDF library::
 
-    $ TYPE=netcdf make
+    $ TYPE=netcdf make compile
 
  To compile the example, the following dependencies are needed:
 - the infrastructure library ``liblfric.a`` provided in
@@ -83,3 +83,4 @@ data:
  field1 = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 ...
 ```
+Note that due to #1392 the driver cannot be created yet.

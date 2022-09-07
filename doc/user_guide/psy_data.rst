@@ -60,7 +60,7 @@ Kernel Data Extraction:
   invocation. This can be used to automatically create tests for
   a kernel, or to write a stand-alone driver that just calls one
   kernel, which can be used for performance tuning. Two example
-  libraries that extract input and output data into a either a Fortran
+  libraries that extract input and output data into either a Fortran
   binary or a NetCDF file are included with PSyclone (see
   :ref:`extraction_libraries`).
 

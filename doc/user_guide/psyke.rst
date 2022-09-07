@@ -371,7 +371,9 @@ Extraction Libraries
 PSyclone comes with two extraction libraries: one is based on NetCDF
 and will create NetCDF files to contain all input- and output-parameters.
 The second one is a stand-alone library which uses only standard Fortran
-IO to write and read kernel data.
+IO to write and read kernel data. The binary files produced using this
+library may not be portable between machines and compilers. If you
+require such portabililty then please use the NetCDF extraction library.
 
 The two extraction :ref:`libraries <libraries>` are in
 `lib/extract/standalone
