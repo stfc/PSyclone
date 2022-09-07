@@ -2614,15 +2614,19 @@ class ACCEnterDataTrans(Transformation):
     >>> ast, invokeInfo = parse(SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
-    >>> from psyclone.psyGen import TransInfo
-    >>> t = TransInfo()
-    >>> dtrans = t.get_trans_name('ACCEnterDataTrans')
+    >>> from psyclone.transformations import ACCKernelsTrans, ACCEnterDataTrans
+    >>> ktrans = ACCKernelsTrans()
+    >>> dtrans = ACCEnterDataTrans()
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # print(schedule.view())
     >>>
-    >>> # Add an enter-data directive
+    >>> # Add a kernels construct for execution on the device
+    >>> kernels = schedule.children[9]
+    >>> ktrans.apply(kernels)
+    >>>
+    >>> # Add an enter data directive to copy the required data to the device
     >>> dtrans.apply(schedule)
     >>>
     >>> # Uncomment the following line to see a text view of the schedule
@@ -2850,7 +2854,7 @@ class ACCKernelsTrans(RegionTrans):
     >>> schedule = psy.invokes.get('tra_adv').schedule
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # print(schedule.view())
-    >>> kernels = schedule.children[0].children[0].children[0:-1]
+    >>> kernels = schedule.children[9]
     >>> # Transform the kernel
     >>> ktrans.apply(kernels)
 
@@ -2958,14 +2962,20 @@ class ACCDataTrans(RegionTrans):
     >>> ast, invokeInfo = parse(filename, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
-    >>> from psyclone.transformations import ACCDataTrans
+    >>> from psyclone.transformations import ACCKernelsTrans, ACCDataTrans
+    >>> ktrans = ACCKernelsTrans()
     >>> dtrans = ACCDataTrans()
     >>>
     >>> schedule = psy.invokes.get('tra_adv').schedule
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # print(schedule.view())
-    >>> kernels = schedule.children[0].children[0].children[0:-1]
-    >>> # Enclose the kernels
+    >>>
+    >>> # Add a kernels construct for execution on the device
+    >>> kernels = schedule.children[9]
+    >>> ktrans.apply(kernels)
+    >>>
+    >>> # Enclose the kernels in a data construct
+    >>> kernels = schedule.children[9]
     >>> dtrans.apply(kernels)
 
     '''
