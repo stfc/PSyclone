@@ -204,7 +204,7 @@ def test_struc_ref_semantic_nav():
             "found: ['broken']" in str(err.value))
 
 
-def test_struc_ref_datatype(monkeypatch):
+def test_struc_ref_datatype():
     '''Test the datatype() method of StructureReference.'''
     atype = symbols.ArrayType(symbols.REAL_TYPE, [10, 8])
     rtype = symbols.StructureType.create([

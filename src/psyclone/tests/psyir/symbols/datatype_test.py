@@ -536,6 +536,23 @@ def test_unknown_fortran_type():
     assert utype.declaration == decl
 
 
+def test_unknown_fortran_type_text():
+    '''
+    Check that the 'type_text' property returns the expected string and
+    that the result is cached.
+    '''
+    decl = "type(some_type) :: var"
+    utype = UnknownFortranType(decl)
+    text = utype.type_text
+    assert text == "TYPE(some_type)"
+    # Calling it a second time should just return the previously cached
+    # result.
+    assert utype.type_text is text
+    # Changing the declaration text should wipe the cache
+    utype.declaration = decl
+    assert utype.type_text is not text
+
+
 def test_unknown_fortran_type_eq():
     '''Test the equality operator for UnknownFortranType.'''
     decl = "type(some_type) :: var"
@@ -544,7 +561,7 @@ def test_unknown_fortran_type_eq():
     assert utype != NoType()
     # Type is the same even if the variable name is different.
     assert utype == UnknownFortranType("type(some_type) :: var1")
-    assert utype != UnknownFortranType("type(other_type) :: var1")
+    assert utype != UnknownFortranType("type(other_type) :: var")
 
 
 # StructureType tests

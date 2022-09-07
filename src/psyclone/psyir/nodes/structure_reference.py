@@ -202,7 +202,7 @@ class StructureReference(Reference):
         return ref
 
     def __str__(self):
-        result = super(StructureReference, self).__str__()
+        result = super().__str__()
         for entity in self._children:
             result += "\n" + str(entity)
         return result
@@ -232,8 +232,7 @@ class StructureReference(Reference):
 
         '''
         # Get the signature of self:
-        my_sig, my_index = \
-            super(StructureReference, self).get_signature_and_indices()
+        my_sig, my_index = super().get_signature_and_indices()
         # Then the sub-signature of the member, and indices used:
         sub_sig, indices = self.children[0].get_signature_and_indices()
         # Combine signature and indices
@@ -242,6 +241,10 @@ class StructureReference(Reference):
     @property
     def datatype(self):
         '''
+        Walks down the list of members making up this reference to determine
+        the type that it refers to. This method is also supports
+        ArrayOfStructuresReference.
+
         :returns: the datatype of this reference.
         :rtype: :py:class:`psyclone.psyir.symbols.DataType`
 
@@ -295,8 +298,7 @@ class StructureReference(Reference):
             # fix this anomaly.
             if isinstance(cursor_type.intrinsic, ScalarType.Intrinsic):
                 return ScalarType(cursor_type.intrinsic, cursor_type.precision)
-            else:
-                return cursor_type.intrinsic
+            return cursor_type.intrinsic
         return cursor_type
 
 

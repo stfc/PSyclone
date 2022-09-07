@@ -100,7 +100,7 @@ class ArrayReference(ArrayMixin, Reference):
         return array
 
     def __str__(self):
-        result = super(ArrayReference, self).__str__() + "\n"
+        result = super().__str__() + "\n"
         for entity in self._children:
             result += str(entity) + "\n"
         return result
@@ -114,6 +114,10 @@ class ArrayReference(ArrayMixin, Reference):
         shape = self.shape
         if shape:
             return ArrayType(self.symbol.datatype, shape)
+        # Really we should just be able to return self.symbol.datatype
+        # here but currently arrays of scalars are handled in a
+        # different way to all other types of array. Issue #1857 will
+        # fix this anomaly.
         return ScalarType(self.symbol.datatype.intrinsic,
                           self.symbol.datatype.precision)
 

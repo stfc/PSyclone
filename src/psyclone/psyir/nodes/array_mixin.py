@@ -52,7 +52,7 @@ from psyclone.psyir.symbols.datatypes import ScalarType, INTEGER_TYPE
 
 
 @six.add_metaclass(abc.ABCMeta)
-class ArrayMixin(object):
+class ArrayMixin():
     '''
     Abstract class used to add functionality common to Nodes that represent
     Array accesses.
@@ -94,7 +94,7 @@ class ArrayMixin(object):
         :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \
             lists of indices)
         '''
-        sig, _ = super(ArrayMixin, self).get_signature_and_indices()
+        sig, _ = super().get_signature_and_indices()
         return (sig, [self.indices[:]])
 
     def _validate_index(self, index):

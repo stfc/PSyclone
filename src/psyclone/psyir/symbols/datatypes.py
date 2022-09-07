@@ -140,12 +140,64 @@ class UnknownFortranType(UnknownType):
 
     :param str declaration_txt: string containing the original variable \
                                 declaration.
-
-    :raises TypeError: if the supplied declaration_txt is not a str.
-
     '''
+    def __init__(self, declaration_txt):
+        super().__init__(declaration_txt)
+        # This will hold the Fortran type specification (as opposed to
+        # the whole declaration).
+        self._type_text = ""
+
     def __str__(self):
         return f"UnknownFortranType('{self._declaration}')"
+
+    @property
+    def declaration(self):
+        '''
+        This useless routine is required so that we can override the associated
+        setter method below.
+        '''
+        return super().declaration
+
+    @declaration.setter
+    def declaration(self, value):
+        '''
+        Sets the original declaration that this instance represents and
+        removes any cached type text.
+
+        :param str value: the original declaration.
+
+        '''
+        self._declaration = value[:]
+        self._type_text = ""
+
+    @property
+    def type_text(self):
+        '''
+        Parses the original Fortran declaration and uses the resulting
+        parse tree to extract the type information. This is returned in
+        text form and also cached.
+
+        :returns: the Fortran code specifying the type.
+        :rtype: str
+        '''
+        if self._type_text:
+            return self._type_text
+
+        # Encapsulate fparser2 functionality here.
+        # pylint:disable=import-outside-toplevel
+        from fparser.common.readfortran import FortranStringReader
+        from fparser.common.sourceinfo import FortranFormat
+        from fparser.two import Fortran2008
+        from fparser.two.parser import ParserFactory
+        string_reader = FortranStringReader(self._declaration)
+        # Set reader to free format.
+        string_reader.set_format(FortranFormat(True, False))
+        ParserFactory().create(std="f2008")
+        ptree = Fortran2008.Declaration_Construct(
+            string_reader)
+        self._type_text = str(ptree.children[0])
+
+        return self._type_text
 
     def __eq__(self, other):
         '''
@@ -156,22 +208,8 @@ class UnknownFortranType(UnknownType):
         '''
         if not type(other) is type(self):
             return False
-        # Since an UnknownFortranType stores the whole declaration, including
-        # variable name, to compare them we must examine only that part of
-        # the declaration that specifies the type.
-        from fparser.common.readfortran import FortranStringReader
-        from fparser.common.sourceinfo import FortranFormat
-        from fparser.two import Fortran2008
-        from fparser.two.parser import ParserFactory
-        string_reader = FortranStringReader(self._declaration)
-        # Set reader to free format.
-        string_reader.set_format(FortranFormat(True, False))
-        ParserFactory().create(std="f2008")
-        decln = Fortran2008.Declaration_Construct(string_reader)
-        other_reader = FortranStringReader(other.declaration)
-        other_reader.set_format(FortranFormat(True, False))
-        other_decln = Fortran2008.Declaration_Construct(other_reader)
-        return other_decln.children[0] == decln.children[0]
+
+        return other.type_text == self.type_text
 
 
 class ScalarType(DataType):

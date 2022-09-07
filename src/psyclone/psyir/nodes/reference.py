@@ -61,7 +61,7 @@ class Reference(DataNode):
     _colour = "yellow"
 
     def __init__(self, symbol, parent=None):
-        super(Reference, self).__init__(parent=parent)
+        super().__init__(parent=parent)
         self.symbol = symbol
 
     def __eq__(self, other):
