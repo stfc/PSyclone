@@ -661,7 +661,8 @@ Demonstrates that simple Fortran code examples which conform to the
 NEMO API can be transformed to the Stencil Intermediate Representation
 (SIR). The SIR is the front-end language to DAWN
 (https://github.com/MeteoSwiss-APN/dawn), a tool which generates
-optimised cuda, or gridtools code. Thus these simple Fortran examples
+optimised cuda, or gridtools code. Thus various simple Fortran
+examples and the computational part of the tracer-advection benchmark
 can be transformed to optimised cuda and/or gridtools code by using
 PSyclone and then DAWN.
 
