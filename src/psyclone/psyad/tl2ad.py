@@ -110,33 +110,31 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
     logger.debug("PSyIR after TL preprocessing\n%s",
                  tl_psyir.view(colour=False))
 
-    # TL to AD translation
+    # TL to AD translation and test harness generation
+
+    writer = FortranWriter()
+
     if not api:
         ad_psyir = generate_adjoint(tl_psyir, active_variables)
+        if create_test:
+            test_psyir = generate_adjoint_test(tl_psyir, ad_psyir,
+                                               active_variables)
     elif api == "dynamo0.3":
         ad_psyir = generate_lfric_adjoint(tl_psyir, active_variables)
+        if create_test:
+            test_psyir = generate_lfric_adjoint_test(writer(tl_psyir))
     else:
         raise NotImplementedError(
             f"PSyAD only supports generic routines/programs or LFRic "
             f"(dynamo0.3) kernels but got API '{api}'")
 
     # AD Fortran code
-    writer = FortranWriter()
     adjoint_fortran_str = writer(ad_psyir)
     logger.debug(adjoint_fortran_str)
 
-    # Create test harness if requested
+    # Test harness Fortran code
     test_fortran_str = ""
     if create_test:
-        if not api:
-            test_psyir = generate_adjoint_test(tl_psyir, ad_psyir,
-                                               active_variables)
-        elif api == "dynamo0.3":
-            test_psyir = generate_lfric_adjoint_test(writer(tl_psyir))
-        else:
-            raise NotImplementedError(
-                f"Test-harness generation is not implemented for the "
-                f"'{api}' API.")
         test_fortran_str = writer(test_psyir)
         logger.debug(test_fortran_str)
 
