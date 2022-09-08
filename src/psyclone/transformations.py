@@ -2610,7 +2610,7 @@ class ACCEnterDataTrans(Transformation):
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.transformations import \
-    ...     ACCEnterDataTrans, ACCLoopTrans, ACCParallelTrans
+        ACCEnterDataTrans, ACCLoopTrans, ACCParallelTrans
     >>> dtrans = ACCEnterDataTrans()
     >>> ltrans = ACCLoopTrans()
     >>> ptrans = ACCParallelTrans()
