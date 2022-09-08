@@ -31,9 +31,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and S. Siso STFC Daresbury Lab
-# Modified: J. Henrichs, Bureau of Meteorology,
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified: J. Henrichs, Bureau of Meteorology
 #           I. Kavcic, Met Office
+#           N. Nobre, STFC Daresbury Lab
 
 '''
 PSyclone configuration management module.
