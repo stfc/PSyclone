@@ -857,18 +857,13 @@ class ACCLoopTrans(ParallelLoopTrans):
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # print(schedule.view())
-    >>> new_schedule = schedule
     >>>
-    # Apply the OpenACC Loop transformation to *every* loop
-    # in the schedule
-    >>> for child in schedule.children:
-    >>>     ltrans.apply(child, reprod=True)
-    >>>     schedule = newschedule
+    >>> # Apply the OpenACC Loop transformation to *every* loop in the schedule
+    >>> for child in schedule.children[:]:
+    >>>     ltrans.apply(child)
     >>>
-    # Enclose all of these loops within a single OpenACC
-    # PARALLEL region
-    >>> rtrans.omp_schedule("dynamic,1")
-    >>> rtrans.apply(schedule.children)
+    >>> # Enclose all of these loops within a single OpenACC parallel region
+    >>> rtrans.apply(schedule)
     >>>
 
     '''
@@ -2614,13 +2609,22 @@ class ACCEnterDataTrans(Transformation):
     >>> ast, invokeInfo = parse(SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
-    >>> from psyclone.psyGen import TransInfo
-    >>> t = TransInfo()
-    >>> dtrans = t.get_trans_name('ACCEnterDataTrans')
+    >>> from psyclone.transformations import \
+    >>>    ACCEnterDataTrans, ACCLoopTrans, ACCParallelTrans
+    >>> dtrans = ACCEnterDataTrans()
+    >>> ltrans = ACCLoopTrans()
+    >>> ptrans = ACCParallelTrans()
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # print(schedule.view())
+    >>>
+    >>> # Apply the OpenACC Loop transformation to *every* loop in the schedule
+    >>> for child in schedule.children[:]:
+    >>>     ltrans.apply(child)
+    >>>
+    >>> # Enclose all of these loops within a single OpenACC parallel region
+    >>> ptrans.apply(schedule)
     >>>
     >>> # Add an enter data directive
     >>> dtrans.apply(schedule)
