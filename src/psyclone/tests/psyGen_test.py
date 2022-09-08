@@ -584,7 +584,6 @@ def test_codedkern_module_inline_kernel_in_multiple_invokes(tmpdir):
     # Module inline kernel in invoke 1
     schedule1 = psy.invokes.invoke_list[0].schedule
     for coded_kern in schedule1.walk(CodedKern):
-        print(coded_kern.name)
         if coded_kern.name == "testkern_qr_code":
             coded_kern.module_inline = True
     gen = str(psy.gen)
@@ -598,7 +597,6 @@ def test_codedkern_module_inline_kernel_in_multiple_invokes(tmpdir):
     # Module inline kernel in invoke 2
     schedule1 = psy.invokes.invoke_list[1].schedule
     for coded_kern in schedule1.walk(CodedKern):
-        print(coded_kern.name)
         if coded_kern.name == "testkern_qr_code":
             coded_kern.module_inline = True
     gen = str(psy.gen)
