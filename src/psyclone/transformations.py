@@ -860,7 +860,7 @@ class ACCLoopTrans(ParallelLoopTrans):
     >>>
     >>> # Apply the OpenACC Loop transformation to *every* loop in the schedule
     >>> for child in schedule.children[:]:
-    >>>     ltrans.apply(child)
+    ...     ltrans.apply(child)
     >>>
     >>> # Enclose all of these loops within a single OpenACC parallel region
     >>> rtrans.apply(schedule)
@@ -2610,7 +2610,7 @@ class ACCEnterDataTrans(Transformation):
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.transformations import \
-        ACCEnterDataTrans, ACCLoopTrans, ACCParallelTrans
+    ...     ACCEnterDataTrans, ACCLoopTrans, ACCParallelTrans
     >>> dtrans = ACCEnterDataTrans()
     >>> ltrans = ACCLoopTrans()
     >>> ptrans = ACCParallelTrans()
@@ -2621,7 +2621,7 @@ class ACCEnterDataTrans(Transformation):
     >>>
     >>> # Apply the OpenACC Loop transformation to *every* loop in the schedule
     >>> for child in schedule.children[:]:
-    >>>     ltrans.apply(child)
+    ...     ltrans.apply(child)
     >>>
     >>> # Enclose all of these loops within a single OpenACC parallel region
     >>> ptrans.apply(schedule)
