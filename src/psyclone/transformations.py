@@ -185,7 +185,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
     >>> from pysclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "gocean1.0"
-    >>> ast, invokeInfo = parse(SOURCE_FILE, api=api)
+    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
@@ -846,7 +846,7 @@ class ACCLoopTrans(ParallelLoopTrans):
     >>> from psyclone.psyGen import PSyFactory
     >>> from psyclone.errors import GenerationError
     >>> api = "gocean1.0"
-    >>> ast, invokeInfo = parse(SOURCE_FILE, api=api)
+    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.psyGen import TransInfo
@@ -1569,7 +1569,7 @@ class OMPSingleTrans(ParallelRegionTrans):
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "gocean1.0"
-    >>> ast, invokeInfo = parse(SOURCE_FILE, api=api)
+    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
@@ -1701,7 +1701,7 @@ class OMPMasterTrans(ParallelRegionTrans):
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "gocean1.0"
-    >>> ast, invokeInfo = parse(SOURCE_FILE, api=api)
+    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.transformations import OMPParallelTrans, OMPMasterTrans
@@ -1754,7 +1754,7 @@ class OMPParallelTrans(ParallelRegionTrans):
     >>> from psyclone.psyGen import PSyFactory
     >>> from psyclone.errors import GenerationError
     >>> api = "gocean1.0"
-    >>> ast, invokeInfo = parse(SOURCE_FILE, api=api)
+    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.psyGen import TransInfo
@@ -1831,7 +1831,7 @@ class ACCParallelTrans(ParallelRegionTrans):
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "gocean1.0"
-    >>> ast, invokeInfo = parse(SOURCE_FILE, api=api)
+    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.psyGen import TransInfo
@@ -2606,7 +2606,7 @@ class ACCEnterDataTrans(Transformation):
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "gocean1.0"
-    >>> ast, invokeInfo = parse(SOURCE_FILE, api=api)
+    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.transformations import \
@@ -2724,7 +2724,7 @@ class ACCRoutineTrans(Transformation):
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "gocean1.0"
-    >>> ast, invokeInfo = parse(SOURCE_FILE, api=api)
+    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.transformations import ACCRoutineTrans
@@ -2844,8 +2844,7 @@ class ACCKernelsTrans(RegionTrans):
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "nemo"
-    >>> filename = "tra_adv.F90"
-    >>> ast, invokeInfo = parse(filename, api=api)
+    >>> ast, invokeInfo = parse(NEMO_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.transformations import ACCKernelsTrans
@@ -2958,8 +2957,7 @@ class ACCDataTrans(RegionTrans):
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "nemo"
-    >>> filename = "tra_adv.F90"
-    >>> ast, invokeInfo = parse(filename, api=api)
+    >>> ast, invokeInfo = parse(NEMO_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.transformations import ACCKernelsTrans, ACCDataTrans
