@@ -133,6 +133,7 @@ class Reference2ArrayRangeTrans(Transformation):
             symbol.
 
         '''
+        # TODO issue #1858. Add support for structures containing arrays.
         # pylint: disable=unidiomatic-typecheck
         if not type(node) is Reference:
             raise TransformationError(
