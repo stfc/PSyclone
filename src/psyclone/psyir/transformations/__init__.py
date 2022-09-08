@@ -46,9 +46,12 @@ from psyclone.psyir.transformations.chunk_loop_trans import ChunkLoopTrans
 from psyclone.psyir.transformations.extract_trans import ExtractTrans
 from psyclone.psyir.transformations.fold_conditional_return_expressions_trans \
     import FoldConditionalReturnExpressionsTrans
-from psyclone.psyir.transformations.hoist_local_arrays_trans import (
-    HoistLocalArraysTrans)
+from psyclone.psyir.transformations.hoist_local_arrays_trans import \
+    HoistLocalArraysTrans
+from psyclone.psyir.transformations.hoist_loop_bound_expr_trans import \
+    HoistLoopBoundExprTrans
 from psyclone.psyir.transformations.hoist_trans import HoistTrans
+from psyclone.psyir.transformations.inline_trans import InlineTrans
 from psyclone.psyir.transformations.intrinsics.abs2code_trans import \
     Abs2CodeTrans
 from psyclone.psyir.transformations.intrinsics.dotproduct2code_trans import \
@@ -67,7 +70,10 @@ from psyclone.psyir.transformations.loop_tiling_2d_trans \
     import LoopTiling2DTrans
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.nan_test_trans import NanTestTrans
+from psyclone.psyir.transformations.omp_target_trans import OMPTargetTrans
 from psyclone.psyir.transformations.omp_taskwait_trans import OMPTaskwaitTrans
+from psyclone.psyir.transformations.parallel_loop_trans import \
+    ParallelLoopTrans
 from psyclone.psyir.transformations.profile_trans import ProfileTrans
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 from psyclone.psyir.transformations.read_only_verify_trans \
@@ -87,6 +93,7 @@ __all__ = ['ArrayRange2LoopTrans',
            'ExtractTrans',
            'FoldConditionalReturnExpressionsTrans',
            'HoistLocalArraysTrans',
+           'HoistLoopBoundExprTrans',
            'HoistTrans',
            'Abs2CodeTrans',
            'DotProduct2CodeTrans',
@@ -99,7 +106,10 @@ __all__ = ['ArrayRange2LoopTrans',
            'LoopTiling2DTrans',
            'LoopTrans',
            'NanTestTrans',
+           'OMPTaskTrans',
            'OMPTaskwaitTrans',
+           'OMPTargetTrans',
+           'ParallelLoopTrans',
            'ProfileTrans',
            'PSyDataTrans',
            'ReadOnlyVerifyTrans',

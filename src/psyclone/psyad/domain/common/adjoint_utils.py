@@ -36,10 +36,13 @@
 ''' Provides various utilities in support of the PSyAD adjoint
     functionality. '''
 
+from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (UnaryOperation, BinaryOperation,
-                                  Reference, Assignment, IfBlock)
+                                  Reference, Assignment, IfBlock,
+                                  Container, FileContainer)
 from psyclone.psyir.symbols import DataSymbol
+
 
 #: The prefix we will prepend to a routine, container and metadata
 #: names when generating the adjoint. If the original name contains
@@ -130,4 +133,44 @@ def create_real_comparison(sym_table, kernel, var1, var2):
     return statements
 
 
-__all__ = ["create_adjoint_name", "create_real_comparison"]
+def find_container(psyir):
+    ''' Finds the first Container in the supplied PSyIR that is not a
+    FileContainer. Also validates that the PSyIR contains at most one
+    FileContainer which, if present, contains a Container.
+
+    :returns: the first Container that is not a FileContainer or None if \
+              there is none.
+    :rtype: :py:class:`psyclone.psyir.nodes.Container` or NoneType
+
+    :raises InternalError: if there are two Containers and the second is a \
+                           FileContainer.
+    :raises NotImplementedError: if there are two Containers and the first is \
+                                 not a FileContainer.
+    :raises NotImplementedError: if there are more than two Containers.
+
+    '''
+    containers = psyir.walk(Container)
+    if not containers:
+        return None
+
+    if len(containers) == 1:
+        if isinstance(containers[0], FileContainer):
+            return None
+        return containers[0]
+
+    if len(containers) == 2:
+        if isinstance(containers[1], FileContainer):
+            raise InternalError(
+                "The supplied PSyIR contains two Containers but the innermost "
+                "is a FileContainer. This should not be possible.")
+        if not isinstance(containers[0], FileContainer):
+            raise NotImplementedError(
+                "The supplied PSyIR contains two Containers and the outermost "
+                "one is not a FileContainer. This is not supported.")
+        return containers[1]
+
+    raise NotImplementedError("The supplied PSyIR contains more than two "
+                              "Containers. This is not supported.")
+
+
+__all__ = ["create_adjoint_name", "create_real_comparison", "find_container"]

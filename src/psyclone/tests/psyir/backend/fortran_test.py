@@ -49,7 +49,7 @@ from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
     KernelSchedule, ArrayReference, ArrayOfStructuresReference, Range, \
     StructureReference, Schedule, Routine, Return, FileContainer, \
     Assignment, IfBlock, OMPTaskloopDirective, OMPMasterDirective, \
-    OMPParallelDirective, Loop, OMPNumTasksClause
+    OMPParallelDirective, Loop, OMPNumTasksClause, OMPDependClause
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     ImportInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
@@ -2300,11 +2300,11 @@ def test_fw_directive_with_clause(fortran_reader, fortran_writer):
     directive = OMPTaskloopDirective(children=[loop], num_tasks=32,
                                      nogroup=True)
     master = OMPMasterDirective(children=[directive])
-    parallel = OMPParallelDirective(children=[master])
+    parallel = OMPParallelDirective.create(children=[master])
     schedule.addchild(parallel, 0)
     assert '''!$omp parallel default(shared), private(i)
   !$omp master
-  !$omp taskloop num_tasks(32) nogroup
+  !$omp taskloop num_tasks(32), nogroup
   do i = 1, n, 1
     a(i) = 0.0
   enddo
@@ -2317,3 +2317,15 @@ def test_fw_clause(fortran_writer):
     '''Test that a PSyIR clause is translated to the correct Fortran code.'''
     clause = OMPNumTasksClause(children=[Literal("32", INTEGER_TYPE)])
     assert "num_tasks(32)" in fortran_writer(clause)
+
+
+def test_fw_operand_clause(fortran_writer):
+    '''Test that a PSyIR operand clause is translated to the correct Fortran
+    code.'''
+    op_clause = OMPDependClause()
+    symbol_table = SymbolTable()
+    symbol_a = DataSymbol("a", REAL_TYPE)
+    symbol_table.add(symbol_a)
+    ref_a = Reference(symbol_a)
+    op_clause.addchild(ref_a)
+    assert "depend(inout: a)" in fortran_writer(op_clause)

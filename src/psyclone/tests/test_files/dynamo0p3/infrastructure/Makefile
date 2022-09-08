@@ -38,113 +38,89 @@
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g -fcheck=bound
 
-OBJ = global_mesh_base_mod.o mesh_mod.o linked_list_data_mod.o \
-		extrusion_mod.o mesh_colouring_mod.o mesh_constructor_helper_functions_mod.o \
-		domain_size_config_mod.o coord_transform_mod.o matrix_invert_mod.o \
-		cross_product_mod.o partition_mod.o mpi_mod.o linked_list_int_mod.o \
-		log_mod.o linked_list_mod.o reference_element_mod.o function_space_mod.o \
-		master_dofmap_mod.o stencil_dofmap_mod.o fs_continuity_mod.o \
-		field_mod.o integer_field_mod.o r_solver_field_mod.o r_tran_field_mod.o \
-		function_space_constructor_helper_functions_mod.o polynomial_mod.o \
-		field_parent_mod.o pure_abstract_field_mod.o scalar_mod.o count_mod.o \
-		operator_mod.o columnwise_operator_mod.o operator_parent_mod.o \
-		argument_mod.o kernel_mod.o constants_mod.o \
-		mesh_map_mod.o stencil_dofmap_helper_functions_mod.o stencil_2D_dofmap_mod.o \
-		timer_mod.o io_utility_mod.o
+# MAKEFILE_LIST is a Gnu-make variable that contains all of the
+# arguments passed to the first invocation of Make. The last entry
+# in this list is the current file.
+this_file := $(abspath $(lastword $(MAKEFILE_LIST)))
+# PSyclone directory is up two from this file
+LFRIC_PATH := $(dir $(this_file))
+
+# $(LFRIC_PATH) is the location of the source files. Define
+# $(BUILD_DIR) to point to the build directory, which the include
+# makefile will then use instead of $(LFRIC_PATH) for creating the
+# include paths (note: do not use $PWD, this variable might not
+# get updated when `make -C ...` is used to change the directory)
+BUILD_PATH := $(shell pwd)
+include $(LFRIC_PATH)/lfric_include_flags.inc
+
+ALL_SRC := $(subst $(LFRIC_PATH),,\
+		    $(shell find $(LFRIC_PATH) -name '*.[Ff]90' -print))
+ALL_OBJ = $(subst .F90,.o,$(subst .f90,.o,$(ALL_SRC)))
 
 # Additional object files required for netcdf support
-OBJ_NETCDF = global_mesh_netcdf_mod.o ugrid_2d_mod.o ugrid_file_mod.o file_mod.o \
-		ugrid_generator_mod.o ncdf_quad_mod.o
+OBJ_NETCDF = mesh/global_mesh_netcdf_mod.o io/ugrid_2d_mod.o     \
+	io/ugrid_file_mod.o io/file_mod.o io/ugrid_generator_mod.o \
+	io/ncdf_quad_mod.o
 
-# Note that the files
-# quadrature_edge_mod.F90 quadrature_face_mod.F90 quadrature_mod.F90
-# quadrature_rule_mod.F90 quadrature_xoyoz_mod.F90 quadrature_xyoz_mod.F90
-# quadrature_xyz_mod.F90
-# are required for some compilation tests only, they are not required for
-# a stand-alone LFRic example, and as such are not compiled when creating
-# an infrastructure library.
+# We need to remove the objects only required for NetCDF from the
+# list of all objects (since we don't want to require NetCDF for
+# most compilation tests):
+OBJ := $(filter-out $(OBJ_NETCDF),$(ALL_OBJ))
 
-.PHONY: standalone netcdf default
-
-default: standalone
+.PHONY: standalone netcdf dirs get_include_flags
 
 # Standalone target, no netcdf dependency:
 # ----------------------------------------
 standalone: liblfric.a
-liblfric.a: $(OBJ)
-	$(AR) $(ARFLAGS) $@ $(OBJ)
 
+liblfric.a: dirs $(OBJ)
+	$(AR) $(ARFLAGS) $@ $(OBJ)
 
 # Netcdf target, like standalone but with support for netcdf files:
 # -----------------------------------------------------------------
 netcdf: F90FLAGS += $$(nf-config --fflags)
+netcdf: OBJ += $(OBJ_NETCDF)
 netcdf: liblfric_netcdf.a
-liblfric_netcdf.a: $(OBJ) $(OBJ_NETCDF)
+liblfric_netcdf.a: dirs $(OBJ) $(OBJ_NETCDF)
 	$(AR) $(ARFLAGS) $@ $(OBJ) $(OBJ_NETCDF)
 
+# Other rules
+dirs:
+	# Create all required build directories. $(DIRS) is defined by the
+	# included makefile `lfric_include_flags.inc` above.
+	mkdir -p $(DIRS)
 
 # Dependencies
 # ------------
-global_mesh_base_mod.o:	linked_list_data_mod.o log_mod.o reference_element_mod.o
-global_mesh_netcdf_mod.o: ugrid_2d_mod.o ncdf_quad_mod.o global_mesh_base_mod.o
-ugrid_2d_mod.o: ugrid_file_mod.o ugrid_generator_mod.o
-ugrid_generator_mod.o: constants_mod.o
-ugrid_file_mod.o: file_mod.o
-file_mod.o:	constants_mod.o linked_list_data_mod.o
-ncdf_quad_mod.o: log_mod.o ugrid_file_mod.o
-linked_list_data_mod.o: constants_mod.o
-mesh_map_mod.o: linked_list_data_mod.o
-mesh_mod.o: mesh_map_mod.o extrusion_mod.o linked_list_mod.o mesh_colouring_mod.o \
-	mesh_constructor_helper_functions_mod.o partition_mod.o
-mesh_constructor_helper_functions_mod.o: coord_transform_mod.o \
-	domain_size_config_mod.o 
-domain_size_config_mod.o: mpi_mod.o
-log_mod.o:	constants_mod.o
-field_mod.o: field_parent_mod.o scalar_mod.o count_mod.o
-integer_field_mod.o: field_parent_mod.o mpi_mod.o count_mod.o
-r_solver_field_mod.o: constants_mod.o fs_continuity_mod.o function_space_mod.o mesh_mod.o field_parent_mod.o pure_abstract_field_mod.o log_mod.o mpi_mod.o count_mod.o
-r_tran_field_mod.o: constants_mod.o fs_continuity_mod.o function_space_mod.o mesh_mod.o field_parent_mod.o pure_abstract_field_mod.o log_mod.o mpi_mod.o count_mod.o
-field_parent_mod.o: pure_abstract_field_mod.o function_space_mod.o
-extrusion_mod.o:	global_mesh_base_mod.o
-coord_transform_mod.o: matrix_invert_mod.o cross_product_mod.o
-partition_mod.o:	mpi_mod.o linked_list_int_mod.o global_mesh_base_mod.o
-linked_list_mod.o: linked_list_data_mod.o
-stencil_dofmap_mod.o: master_dofmap_mod.o mesh_mod.o stencil_dofmap_helper_functions_mod.o
-stencil_dofmap_helper_functions_mod.o: constants_mod.o mesh_mod.o
-stencil_2D_dofmap_mod.o: master_dofmap_mod.o mesh_mod.o \
-	stencil_dofmap_helper_functions_mod.o
-function_space_mod.o: mesh_mod.o master_dofmap_mod.o stencil_dofmap_mod.o \
-	fs_continuity_mod.o function_space_constructor_helper_functions_mod.o \
-	polynomial_mod.o stencil_2D_dofmap_mod.o
-function_space_constructor_helper_functions_mod.o: mesh_mod.o
-operator_mod.o:	operator_parent_mod.o function_space_mod.o
-columnwise_operator_mod.o:	operator_parent_mod.o function_space_mod.o
-operator_parent_mod.o: function_space_mod.o
-reference_element_mod.o: constants_mod.o
-mesh_colouring_mod.o: reference_element_mod.o
-matrix_invert_mod.o: constants_mod.o
-cross_product_mod.o: constants_mod.o
-mpi_mod.o: log_mod.o
-linked_list_int_mod.o: linked_list_data_mod.o
-fs_continuity_mod.o: log_mod.o
-pure_abstract_field_mod.o: linked_list_data_mod.o
-scalar_mod.o: mpi_mod.o
-polynomial_mod.o: constants_mod.o
-count_mod.o: log_mod.o mpi_mod.o
-master_dofmap_mod.o: constants_mod.o
-io_utility_mod.o: constants_mod.o log_mod.o
-timer_mod.o: constants_mod.o io_utility_mod.o log_mod.o mpi_mod.o scalar_mod.o
+include $(LFRIC_PATH)/dependency
 
-%.o: %.F90
-	$(F90) $(F90FLAGS) -c $<
+# Compilation rules
+# -----------------
 
-%.o: %.f90
-	$(F90) $(F90FLAGS) -c $<
+# The following function defines two rules to compile SOMEDIR/*.F90
+# and SOMEDIR/*.f90 into SOMEDIR/*.o. Since LFRic stores the mod and
+# .o files in the same directory, we mirror this behaviour here. Instead
+# of using compiler-specific flags to control the output location for
+# .mod files, this changes into the directory where the .o files should
+# be stored. This avoids the hassle of handling compiler specific flags.
+# An example for the rule created:
+# field/%.o: $(INFRASTRUCTURE)/field/%.f90
+#     cd field; $(F90) $(F90FLAGS) -c $< -o $(notdir $@)
 
-%_psy.f90:	%.x90
-	psyclone --config ../../../config/psyclone.cfg -opsy $*_psy.f90 -oalg $*_alg.f90 $<
+define compile_rule_template =
+$(1)/%.o:	$$(LFRIC_PATH)/$(1)/%.f90
+	cd $(1); $$(F90) $$(F90FLAGS) -c $$< -o $$(notdir $$@)
+
+$(1)/%.o:	$$(LFRIC_PATH)/$(1)/%.F90
+	cd $(1); $$(F90) $$(F90FLAGS) -c $$< -o $$(notdir $$@)
+endef
+
+# Define the required rules for each subdirectory. DIRS is defined
+# by the included file `lfric_include_flags.inc`
+$(foreach dir,$(DIRS),$(eval $(call compile_rule_template,$(dir))))
 
 clean:
-	rm -f *.o *.mod  $(LIB) liblfric.a liblfric_netcdf.a
+	rm -f */*.o */*.mod
+	rm -f liblfric.a liblfric_netcdf.a
 
 allclean: clean

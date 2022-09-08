@@ -128,7 +128,11 @@ def test_main_h_option(capsys):
         "  -v, --verbose         increase the verbosity of the output\n"
         "  -t, --gen-test        generate a standalone unit test for the "
         "adjoint code\n"
-        "  -api API              the PSyclone API that the TL kernel conforms")
+        "  -api API              the PSyclone API that the TL kernel conforms "
+        "to (if\n"
+        "                        any)\n"
+        "  -otest TEST_FILENAME  filename for the unit test (implies -t)\n"
+        "  -oad OAD              filename for the transformed code\n")
     assert expected3 in output
     assert ("-otest TEST_FILENAME  filename for the unit test (implies -t)"
             in output)
@@ -146,9 +150,6 @@ def test_main_no_args(capsys):
     assert str(info.value) == "2"
     output, error = capsys.readouterr()
     assert output == ""
-    # Python2 returns a different message to Python3. Also, the name
-    # of the executable is replaced with either pytest or -c when
-    # using pytest, therefore we split the test into sections.
     expected1 = "usage: "
     expected2 = ("[-h] [-oad OAD] [-v] [-t] [-api API] [-otest TEST_FILENAME] "
                  "-a ACTIVE [ACTIVE ...] -- filename")
@@ -253,7 +254,7 @@ def test_main_tangentlinearerror(tmpdir, capsys):
         "real :: a, b\n"
         "a = b\n"
         "end program test\n")
-    filename = tmpdir.join("tl.f90")
+    filename = str(tmpdir.join("tl.f90"))
     with open(filename, "w", encoding='utf-8') as my_file:
         my_file.write(test_prog)
     with pytest.raises(SystemExit) as info:
@@ -273,7 +274,7 @@ def test_main_keyerror(tmpdir, capsys):
     code.
 
     '''
-    filename = tmpdir.join("tl.f90")
+    filename = str(tmpdir.join("tl.f90"))
     with open(filename, "w", encoding='utf-8') as my_file:
         my_file.write(TEST_PROG)
     with pytest.raises(SystemExit) as info:
@@ -298,7 +299,7 @@ def test_main_not_implemented_error(tmpdir, capsys):
         "a = b\n"
         "end subroutine test\n"
         "end module my_mod\n")
-    filename = tmpdir.join("tl.f90")
+    filename = str(tmpdir.join("tl.f90"))
     with open(filename, "w", encoding='utf-8') as my_file:
         my_file.write(test_prog)
     with pytest.raises(SystemExit) as info:
@@ -339,7 +340,7 @@ def test_main_stdout(tmpdir, capsys):
         "  a = 0.0\n"
         "  a = 0.0\n\n"
         "end program adj_test\n")
-    filename = tmpdir.join("tl.f90")
+    filename = str(tmpdir.join("tl.f90"))
     with open(filename, "w", encoding='utf-8') as my_file:
         my_file.write(TEST_PROG)
     main(["-a", "a", "--", filename])

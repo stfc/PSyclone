@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,14 +37,10 @@
 support. Transforms an LFRic tangent linear kernel to its adjoint.
 
 '''
-from __future__ import absolute_import, print_function
 import argparse
 import logging
 import sys
 
-import six
-
-from psyclone.generator import write_unicode_file
 from psyclone.psyad.tl2ad import generate_adjoint_str
 from psyclone.psyad.transformations import TangentLinearError
 
@@ -104,9 +100,9 @@ def main(args):
     filename = args.filename
     logger.info("Reading kernel file %s", filename)
     try:
-        with open(filename) as my_file:
+        with open(filename, mode="r", encoding="utf-8") as my_file:
             tl_fortran_str = my_file.read()
-            tl_fortran_str = six.text_type(tl_fortran_str)
+            tl_fortran_str = str(tl_fortran_str)
     except FileNotFoundError:
         logger.error("psyad error: file '%s', not found.", filename)
         sys.exit(1)
@@ -126,7 +122,8 @@ def main(args):
     # Output the Fortran code for the adjoint kernel
     if args.oad:
         logger.info("Writing adjoint of kernel to file %s", args.oad)
-        write_unicode_file(ad_fortran_str, args.oad)
+        with open(args.oad, mode="w", encoding="utf-8") as adj_file:
+            adj_file.write(ad_fortran_str)
     else:
         print(ad_fortran_str, file=sys.stdout)
 
@@ -135,7 +132,8 @@ def main(args):
         if args.test_filename:
             logger.info("Writing test harness for adjoint kernel to file %s",
                         args.test_filename)
-            write_unicode_file(test_fortran_str, args.test_filename)
+            with open(args.test_filename, mode="w", encoding="utf-8") as tfile:
+                tfile.write(test_fortran_str)
         else:
             print(test_fortran_str, file=sys.stdout)
 

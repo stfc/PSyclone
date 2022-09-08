@@ -41,15 +41,13 @@ import logging
 
 from psyclone.errors import InternalError
 from psyclone.psyad import AdjointVisitor
-from psyclone.psyad.domain.common.adjoint_utils import (create_adjoint_name,
-                                                        create_real_comparison)
-from psyclone.psyad.domain.lfric import generate_lfric_adjoint_test
+from psyclone.psyad.domain.common import find_container, create_adjoint_name
+from psyclone.psyad.domain.lfric import generate_lfric_adjoint
 from psyclone.psyad.transformations.preprocess import preprocess_trans
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
-    Call, Container, BinaryOperation, UnaryOperation, \
-    FileContainer, ArrayReference, Range
+    Call, Container, BinaryOperation, UnaryOperation, ArrayReference, Range
 from psyclone.psyir.symbols import SymbolTable, ImportInterface, Symbol, \
     ContainerSymbol, ScalarType, ArrayType, RoutineSymbol, DataSymbol, \
     INTEGER_TYPE, DeferredType, UnknownType
@@ -69,10 +67,10 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
 
     :param str tl_fortran_str: Fortran implementation of a tangent-linear \
         kernel.
-    :param list of str active_variables: list of active variable names.
+    :param List[str] active_variables: list of active variable names.
     :param Optional[str] api: The PSyclone API in use, if any.
-    :param Optional[bool] create_test: whether or not to create test code \
-        for the adjoint kernel (defaults to True).
+    :param Optional[bool] create_test: whether or not to create test code for \
+        the adjoint kernel.
 
     :returns: a 2-tuple consisting of a string containing the Fortran \
         implementation of the supplied tangent-linear kernel and (if \
@@ -80,6 +78,10 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
         harness for the adjoint kernel.
     :rtype: Tuple[str, str]
 
+    :raises NotImplementedError: if the tangent-linear code is a function.
+    :raises NotImplementedError: if an unsupported API is specified.
+    :raises NotImplementedError: if test-harness generation is requested for \
+                                 the LFRic API.
     '''
     logger = logging.getLogger(__name__)
     logger.debug(tl_fortran_str)
@@ -87,6 +89,15 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
     # TL Language-level PSyIR
     reader = FortranReader()
     tl_psyir = reader.psyir_from_source(tl_fortran_str)
+
+    # Check there is only one routine (program or subroutine) and that
+    # this routine is not a function,as functions are not supported.
+    routines = tl_psyir.walk(Routine)
+    for routine in routines:
+        if routine.return_symbol:
+            raise NotImplementedError(
+                f"PSyAD does not support tangent-linear code written as a "
+                f"function. Please re-write '{routine.name}' as a subroutine.")
 
     logger.debug("PSyIR\n%s", tl_psyir.view(colour=False))
 
@@ -98,7 +109,14 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
                  tl_psyir.view(colour=False))
 
     # TL to AD translation
-    ad_psyir = generate_adjoint(tl_psyir, active_variables)
+    if not api:
+        ad_psyir = generate_adjoint(tl_psyir, active_variables)
+    elif api == "dynamo0.3":
+        ad_psyir = generate_lfric_adjoint(tl_psyir, active_variables)
+    else:
+        raise NotImplementedError(
+            f"PSyAD only supports generic routines/programs or LFRic "
+            f"(dynamo0.3) kernels but got API '{api}'")
 
     # AD Fortran code
     writer = FortranWriter()
@@ -121,46 +139,6 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
         logger.debug(test_fortran_str)
 
     return adjoint_fortran_str, test_fortran_str
-
-
-def _find_container(psyir):
-    ''' Finds the first Container in the supplied PSyIR that is not a
-    FileContainer. Also validates that the PSyIR contains at most one
-    FileContainer which, if present, contains a Container.
-
-    :returns: the first Container that is not a FileContainer or None if \
-              there is none.
-    :rtype: :py:class:`psyclone.psyir.nodes.Container` or NoneType
-
-    :raises InternalError: if there are two Containers and the second is a \
-                           FileContainer.
-    :raises NotImplementedError: if there are two Containers and the first is \
-                                 not a FileContainer.
-    :raises NotImplementedError: if there are more than two Containers.
-
-    '''
-    containers = psyir.walk(Container)
-    if not containers:
-        return None
-
-    if len(containers) == 1:
-        if isinstance(containers[0], FileContainer):
-            return None
-        return containers[0]
-
-    if len(containers) == 2:
-        if isinstance(containers[1], FileContainer):
-            raise InternalError(
-                "The supplied PSyIR contains two Containers but the innermost "
-                "is a FileContainer. This should not be possible.")
-        if not isinstance(containers[0], FileContainer):
-            raise NotImplementedError(
-                "The supplied PSyIR contains two Containers and the outermost "
-                "one is not a FileContainer. This is not supported.")
-        return containers[1]
-
-    raise NotImplementedError("The supplied PSyIR contains more than two "
-                              "Containers. This is not supported.")
 
 
 def _get_active_variables_datatype(kernel, active_variables):
@@ -205,16 +183,12 @@ def _get_active_variables_datatype(kernel, active_variables):
 
 
 def generate_adjoint(tl_psyir, active_variables):
-    '''Takes an LFRic tangent-linear kernel represented in language-level PSyIR
+    '''Takes a tangent-linear kernel represented in language-level PSyIR
     and returns its adjoint represented in language-level PSyIR.
 
-    Currently just takes a copy of the supplied PSyIR and re-names the
-    Container (if there is one) and Routine nodes.
-
-    :param tl_psyir: language-level PSyIR containing the LFRic \
-        tangent-linear kernel.
+    :param tl_psyir: language-level PSyIR containing the tangent-linear kernel.
     :type tl_psyir: :py:class:`psyclone.psyir.Node`
-    :param list of str active_variables: list of active variable names.
+    :param List[str] active_variables: list of active variable names.
 
     :returns: language-level PSyIR containing the adjoint of the \
         supplied tangent-linear kernel.
@@ -227,12 +201,12 @@ def generate_adjoint(tl_psyir, active_variables):
     logger = logging.getLogger(__name__)
 
     # Translate from TL to AD
-    logger.debug("Translating from TL to AD.")
+    logger.debug("Translating from LFRic TL to AD.")
     adjoint_visitor = AdjointVisitor(active_variables)
     ad_psyir = adjoint_visitor(tl_psyir)
 
     # We permit the input code to be a single Program or Subroutine
-    container = _find_container(ad_psyir)
+    container = find_container(ad_psyir)
     if container:
         # Re-name the Container for the adjoint code. Use the symbol table
         # for the existing TL code so that we don't accidentally clash with
@@ -250,8 +224,8 @@ def generate_adjoint(tl_psyir, active_variables):
         raise NotImplementedError(
             f"The supplied Fortran must contain one and only one routine "
             f"but found: {[sub.name for sub in routines]}")
-    routine = routines[0]
 
+    routine = routines[0]
     # We need to re-name the kernel routine. Have to take care in case we've
     # been supplied with a bare program/subroutine rather than a subroutine
     # within a module.
@@ -354,7 +328,7 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
     # We expect a single Container containing a single Kernel. Anything else
     # is not supported. However, we have to allow for the fact that, in
     # general, there will be an outermost FileContainer.
-    container = _find_container(ad_psyir)
+    container = find_container(ad_psyir)
     if not container:
         raise NotImplementedError(
             "Generation of a test harness is only supported for a TL kernel "

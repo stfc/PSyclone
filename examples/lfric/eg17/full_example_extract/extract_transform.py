@@ -62,13 +62,12 @@ def trans(psy):
     '''
     extract = ExtractTrans()
 
-    # We don't support builtins yet, so the initialisation
-    # cannot be instrumented, TODO #637
-    # invoke = psy.invokes.get("invoke_initialise_fields")
-    # schedule = invoke.schedule
-    # extract.apply(schedule.children,
-    #               {"create_driver": True,
-    #                "region_name": ("main", "init")})
+    # Show that it works on a builtin:
+    invoke = psy.invokes.get("invoke_initialise_fields")
+    schedule = invoke.schedule
+    extract.apply(schedule.children,
+                  {"create_driver": False,
+                   "region_name": ("main", "init")})
 
     invoke = psy.invokes.get("invoke_testkern_w0")
     schedule = invoke.schedule
