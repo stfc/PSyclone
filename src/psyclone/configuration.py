@@ -48,6 +48,7 @@ from collections import namedtuple
 import os
 import re
 import sys
+import psyclone
 
 from psyclone.errors import PSycloneError, InternalError
 
@@ -408,6 +409,7 @@ class Config:
               <base-dir-of-virtual-env>/share/psyclone/
         - ${HOME}/.local/share/psyclone/
         - <system-install-prefix>/share/psyclone/
+        - <psyclone-installation-base>/share/psyclone/
 
         :returns: the fully-qualified path to the configuration file
         :rtype: str
@@ -427,6 +429,8 @@ class Config:
 
         # Set up list of locations to search
         share_dir = os.path.join(sys.prefix, "share", "psyclone")
+        pkg_share_dir = [os.path.join(psyclone_path, "..", "share", "psyclone")
+            for psyclone_path in psyclone.__path__]
 
         # 1. .psyclone/ in the CWD
         _file_paths = [os.path.join(os.getcwd(), ".psyclone")]
@@ -439,6 +443,8 @@ class Config:
         if not within_virtual_env():
             # 4. <python-installation-base>/share/psyclone/
             _file_paths.append(share_dir)
+        # 5. <psyclone-installation-base>/share/psyclone/
+        _file_paths.extend(pkg_share_dir)
 
         for cfile in [os.path.join(cdir, _FILE_NAME) for cdir in _file_paths]:
             if os.path.isfile(cfile):
