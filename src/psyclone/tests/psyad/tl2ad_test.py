@@ -58,6 +58,17 @@ from psyclone.psyir.symbols import (
 TESTS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LFRIC_TEST_FILES_DIR = os.path.join(TESTS_DIR, "test_files", "dynamo0p3")
 
+
+TL_CODE = (
+    "module my_mod\n"
+    "  contains\n"
+    "  subroutine kern(field)\n"
+    "    real, intent(inout) :: field\n"
+    "    field = 0.0\n"
+    "  end subroutine kern\n"
+    "end module my_mod\n"
+)
+
 # generate_adjoint_str function
 
 
@@ -124,25 +135,6 @@ def test_generate_adjoint_str_lfric_api():
                                      ["xi", "u", "res_dot_product", "curl_u"],
                                      api="dynamo0.3")
     assert "subroutine adj_testkern_code" in result.lower()
-
-
-def test_generate_adjoint_str_lfric_no_harness():
-    '''
-    Check that generate_adjoint_str() raises the expected error if a test
-    harness is requested for the adjoint of an LFRic kernel.
-
-    TODO #1782 will remove this test.
-    '''
-    testkern = os.path.join(LFRIC_TEST_FILES_DIR, "tl_testkern_mod.F90")
-    with open(testkern, mode="r", encoding="utf-8") as kfile:
-        tl_code = kfile.read()
-    with pytest.raises(NotImplementedError) as err:
-        generate_adjoint_str(tl_code,
-                             ["xi", "u", "res_dot_product", "curl_u"],
-                             api="dynamo0.3", create_test=True)
-    assert ("The generation of a test harness for an adjoint kernel "
-            "conforming to the 'dynamo0.3' API is not yet implemented." in
-            str(err.value))
 
 
 def test_generate_adjoint_str_function():
@@ -220,8 +212,8 @@ def test_generate_adjoint_str_generate_harness_invalid_api():
     with pytest.raises(NotImplementedError) as err:
         _ = generate_adjoint_str(
             TL_CODE, ["field"], api="gocean1.0", create_test=True)
-    assert ("Test-harness generation is not implemented for the 'gocean1.0' "
-            "API" in str(err.value))
+    assert ("PSyAD only supports generic routines/programs or LFRic "
+            "(dynamo0.3) kernels but got API 'gocean1.0'" in str(err.value))
 
 
 def test_generate_adjoint_str_generate_harness_lfric():

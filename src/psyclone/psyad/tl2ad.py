@@ -41,8 +41,10 @@ import logging
 
 from psyclone.errors import InternalError
 from psyclone.psyad import AdjointVisitor
-from psyclone.psyad.domain.common import find_container, create_adjoint_name
-from psyclone.psyad.domain.lfric import generate_lfric_adjoint
+from psyclone.psyad.domain.common import (find_container, create_adjoint_name,
+                                          create_real_comparison)
+from psyclone.psyad.domain.lfric import (generate_lfric_adjoint,
+                                         generate_lfric_adjoint_test)
 from psyclone.psyad.transformations.preprocess import preprocess_trans
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader

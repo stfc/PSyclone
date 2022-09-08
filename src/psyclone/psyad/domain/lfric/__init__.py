@@ -1,11 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-<<<<<<< HEAD
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
-=======
 # Copyright (c) 2022, Science and Technology Facilities Council.
->>>>>>> master
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,14 +33,10 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-<<<<<<< HEAD
-
-from psyclone.psyad.domain.lfric.tl2ad import generate_lfric_adjoint_test
-=======
 '''
 LFRic-specific support for PSyAD.
 '''
 
 from psyclone.psyad.domain.lfric.generate_lfric_adjoint import (
     generate_lfric_adjoint)
->>>>>>> master
+from psyclone.psyad.domain.lfric.tl2ad import generate_lfric_adjoint_test
