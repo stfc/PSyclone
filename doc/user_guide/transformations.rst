@@ -406,6 +406,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.Reference2ArrayRangeTrans
+    :members: apply
+    :noindex:
+
+####
+
 .. _replace_induction_variable_trans:
 
 .. autoclass:: psyclone.psyir.transformations.ReplaceInductionVariablesTrans

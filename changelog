@@ -101,6 +101,9 @@
 	37) PR #1844 towards #1823. Makes module inlining work in LFRic
 	when the same kernel is used multiple times.
 
+	38) PR #1825 for #1576. Adds the Reference2ArrayRangeTrans
+	transformation.
+
 release 2.3.1 17th of June 2022
 
         1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
