@@ -76,6 +76,9 @@ class Reference2ArrayRangeTrans(Transformation):
     end program example
     <BLANKLINE>
 
+    This transformation does not currently support arrays within
+    structures, see issue #1858.
+
     '''
     @staticmethod
     def _get_array_bound(symbol, index):

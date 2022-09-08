@@ -218,7 +218,10 @@ def test_validate_range(fortran_reader):
 
 
 def test_validate_structure(fortran_reader):
-    '''Test that a StructureReference raises an exception.'''
+    '''Test that a StructureReference raises an exception. This limitation
+    will be removed once issue #1858 is addressed.
+
+    '''
     code = (
         "program test\n"
         "  type :: array_type\n"
