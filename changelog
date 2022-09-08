@@ -50,7 +50,7 @@
 	19) PR #1809. A few fixes for code style issues.
 
 	20) PR #1803 for #1797. Adds support for logical variables to the
- 	PSyData	API.
+	PSyData API.
 
 	21) PR #1804 for #637. Extends the dependence analysis to support
 	LFRic built-in kernels.
@@ -89,7 +89,14 @@
 	CodeBlock nodes.
 
 	33) PR #1830 for #1828. Fixes to enable explicit OpenACC Loop
-	parallelism with UM
+	parallelism with UM.
+
+	34) PR #1855 for #1840. Fix bug with dependency analysis when an
+	expression has the same array reference with and without indices.
+
+	35) PR #1827 for #1826. Adds support for SIR intrinsics.
+
+	36) PR #1839 for #1782. Adds a -api option to the PSyAD script.
 
 release 2.3.1 17th of June 2022
 

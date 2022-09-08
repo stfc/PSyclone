@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,37 +30,12 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
-# Modified by R. W. Ford, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
+# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-include ../../common.mk
+'''
+LFRic-specific support for PSyAD.
+'''
 
-FORTRAN_FILES = tridiagonal_solve.f90 if_example.f90 copy_stencil.f90 hori_diff.f90
-
-.PHONY: ${FORTRAN_FILES} intrinsic tra_adv
-
-transform: ${FORTRAN_FILES} intrinsic tra_adv
-
-${FORTRAN_FILES}:
-	${PSYCLONE} -s ./sir_trans.py -api nemo $@ -opsy /dev/null
-
-# intrinsic_example.f90 and tracer_advection.f90 can make use of
-# different transformation scripts
-intrinsic:
-	${PSYCLONE} -s ./sir_trans.py -api nemo intrinsic_example.f90 \
--opsy /dev/null
-	${PSYCLONE} -s ./sir_trans_all.py -api nemo intrinsic_example.f90 \
--opsy /dev/null
-tra_adv:
-	${PSYCLONE} -s ./sir_trans_loop.py -api nemo tra_adv_compute.F90 \
--opsy /dev/null
-	${PSYCLONE} -s ./sir_trans_all.py -api nemo tra_adv_compute.F90 \
--opsy /dev/null
-
-# We don't do any compilation for this example
-compile: transform
-	@echo "No compilation supported for nemo/eg4"
-
-run: compile
-	@echo "No run targets for nemo/eg4"
+from psyclone.psyad.domain.lfric.generate_lfric_adjoint import (
+    generate_lfric_adjoint)
