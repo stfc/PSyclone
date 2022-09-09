@@ -289,7 +289,8 @@ class Compile():
                 with subprocess.Popen(arg_list,
                                       stdout=subprocess.PIPE,
                                       stderr=subprocess.STDOUT) as build:
-                    (output, error) = build.communicate()
+                    # stderr = stdout, so ignore empty stderr in result:
+                    (output, _) = build.communicate()
             except OSError as err:
                 print(f"Failed to run: {' '.join(arg_list)}: ",
                       file=sys.stderr)
@@ -300,9 +301,6 @@ class Compile():
         if stat != 0:
             print(f"Compiling: {' '.join(arg_list)}", file=sys.stderr)
             print(output.decode("utf-8"), file=sys.stderr)
-            if error:
-                print("=========", file=sys.stderr)
-                print(error.decode("utf-8"), file=sys.stderr)
             raise CompileError(output)
 
     def _code_compiles(self, psy_ast, dependencies=None):
