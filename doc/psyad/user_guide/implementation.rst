@@ -517,13 +517,29 @@ the tangent-linear names were also compliant).
 	  issue #1772) so it needs to be changed manually after the
 	  adjoint code has been created.
 
+Multiple Subroutines
+++++++++++++++++++++
+
+The LFRic API supports mixed precision kernels. It does this by
+implementing multiple versions of kernel subroutines with different
+precision and a generic interface. PSyAD supports mixed precision
+kernels by translating all of the kernel subroutines. This approach
+relies on each kernel implementation using the same active variable
+names as PSyAD only supports a single list of names. If this is not
+the case then PSyAD will raise an exception.
+
+.. note:: At the moment PSyAD does not modify the interface names so
+          these must be done manually by the user, see issue #1772.
+
 Test Harness
 ++++++++++++
 
 In addition to generating the adjoint of a tangent-linear kernel, PSyAD
 is also able to :ref:`generate <test_harness_gen>` a test harness for
 that kernel that verifies that the generated adjoint is mathematically
-correct.
+correct. Currently this option is only available for generic subroutines
+since LFRic kernels require arrays containing geometric information and
+look-up maps, both of which require special handling (Issue #1782).
 
 This test harness code must perform the following steps:
 
@@ -549,7 +565,7 @@ function.
 .. note:: this initialisation will not be correct when a kernel contains
 	  indirection and is passed a mapping array. In such cases the mapping
 	  array will need initialising with meaningful values. This is the
-	  subject of Issue #1496.
+	  subject of Issue #1782.
 
 Inner Products
 --------------

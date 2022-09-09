@@ -461,7 +461,21 @@ class CWriter(LanguageWriter):
 
         '''
         # Note that {{ is replaced with a single { in the format call
-        result_list = [f"{self._nindent}#pragma {node.begin_string()}\n{{\n"]
+        result_list = [f"{self._nindent}#pragma {node.begin_string()}"]
+
+        clause_list = []
+        for clause in node.clauses:
+            val = self._visit(clause)
+            # Some clauses return empty strings if they should not
+            # generate any output (e.g. private clause with no children).
+            if val != "":
+                clause_list.append(val)
+        # Add a space only if there are clauses
+        if len(clause_list) > 0:
+            result_list.append(" ")
+        result_list.append(", ".join(clause_list))
+        result_list.append(f"\n{self._nindent}{{\n")
+
         self._depth += 1
         for child in node.dir_body:
             result_list.append(self._visit(child))

@@ -50,12 +50,12 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.directive import StandaloneDirective, RegionDirective
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
-from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.symbols import ScalarType
 
 
 @six.add_metaclass(abc.ABCMeta)
 class ACCDirective():
+    # pylint: disable=too-few-public-methods
     '''
     Base mixin class for all OpenACC directive statements.
 
@@ -83,7 +83,9 @@ class ACCRegionDirective(ACCDirective, RegionDirective):
             regions are not supported.
 
         '''
-        super(ACCRegionDirective, self).validate_global_constraints()
+        # We need to make sure to call the right constructor here:
+        # pylint: disable=bad-super-call
+        super(RegionDirective, self).validate_global_constraints()
 
         data_nodes = self.walk((PSyDataNode, CodeBlock))
         if data_nodes:
@@ -283,38 +285,6 @@ class ACCParallelDirective(ACCRegionDirective):
     a DataDirective.
 
     '''
-    def validate_global_constraints(self):
-        '''
-        Check that the PSyIR tree containing this node is valid. Since we
-        use 'default(present)', this node must either be the child of an
-        ACCDataDirective or the parent Schedule must contain an
-        ACCEnterDataDirective before this one.
-
-        :raises GenerationError: if this ACCParallel node is not preceded by \
-            an ACCEnterDataDirective and is not the child of an \
-            ACCDataDirective.
-
-        '''
-        # We can't use Node.ancestor() because the enter data directive does
-        # not have children. Instead, we go back up to the Schedule and
-        # walk down from there.
-        routine = self.ancestor(Routine)
-        enter_dir = routine.walk(ACCEnterDataDirective)
-        # Check that any enter data directive comes before this parallel
-        # directive
-        if enter_dir and enter_dir[0].abs_position > self.abs_position:
-            raise GenerationError(
-                f"An ACC parallel region must be preceded by an ACC enter data"
-                f" directive but in '{routine.name}' this is not the case.")
-
-        if not enter_dir and not self.ancestor(ACCDataDirective):
-            raise GenerationError(
-                f"An ACC parallel region must either be preceded by an ACC "
-                f"enter data directive or enclosed within an ACC data region "
-                f"but in '{routine.name}' this is not the case.")
-
-        super().validate_global_constraints()
-
     def gen_code(self, parent):
         '''
         Generate the elements of the f2pygen AST for this Node in the Schedule.
@@ -382,23 +352,21 @@ class ACCLoopDirective(ACCRegionDirective):
     '''
     Class managing the creation of a '!$acc loop' OpenACC directive.
 
-    :param children: list of nodes that will be children of this directive.
-    :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
-    :param parent: the node in the Schedule to which to add this directive.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param int collapse: Number of nested loops to collapse into a single \
                          iteration space or None.
     :param bool independent: Whether or not to add the `independent` clause \
                              to the loop directive.
     :param bool sequential: whether or not to add the `seq` clause to the \
                             loop directive.
+    :param kwargs: additional keyword arguments provided to the super class.
+    :type kwargs: unwrapped dict.
     '''
-    def __init__(self, children=None, parent=None, collapse=None,
-                 independent=True, sequential=False):
-        self._collapse = collapse
+    def __init__(self, collapse=None, independent=True, sequential=False,
+                 **kwargs):
+        self.collapse = collapse
         self._independent = independent
         self._sequential = sequential
-        super().__init__(children=children, parent=parent)
+        super().__init__(**kwargs)
 
     def __eq__(self, other):
         '''
@@ -427,6 +395,30 @@ class ACCLoopDirective(ACCRegionDirective):
         :rtype: int or None
         '''
         return self._collapse
+
+    @collapse.setter
+    def collapse(self, value):
+        '''
+        :param value: optional number of nested loop to collapse into a \
+            single iteration space to parallelise. Defaults to None.
+        :type value: Optional[int]
+
+        :raises TypeError: if the collapse value given is not an integer \
+            or NoneType.
+        :raises ValueError: if the collapse integer given is not positive.
+
+        '''
+        if value is not None and not isinstance(value, int):
+            raise TypeError(
+                f"The ACCLoopDirective collapse clause must be a positive "
+                f"integer or None, but value '{value}' has been given.")
+
+        if value is not None and value <= 0:
+            raise ValueError(
+                f"The ACCLoopDirective collapse clause must be a positive "
+                f"integer or None, but value '{value}' has been given.")
+
+        self._collapse = value
 
     @property
     def independent(self):

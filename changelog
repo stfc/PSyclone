@@ -50,7 +50,7 @@
 	19) PR #1809. A few fixes for code style issues.
 
 	20) PR #1803 for #1797. Adds support for logical variables to the
- 	PSyData	API.
+	PSyData API.
 
 	21) PR #1804 for #637. Extends the dependence analysis to support
 	LFRic built-in kernels.
@@ -65,6 +65,44 @@
 
 	25) PR #1633 towards #1631. New implementation of kernel meta-data
 	parser for GOcean API.
+
+	26) PR #1821 for #1557. Extends PSyAD to support LFRic mixed-
+	precision kernels.
+
+	27) PR #1551 towards #1338. Add OpenMP Clauses and its referenced
+	variables as part of the PSyIR tree.
+
+	28) PR #1838 for #1704. Update replace_with method to take into
+	account named arguments.
+
+	29) PR #1847. Make a subSignature a Signature and allow
+	Signature.to_language w/o arguments
+
+	30) PR #1831 for #1735. Changes the directory structure in the
+	test LFRic infrastructure to mimic that in the full LFRic
+	infrastructure. Alter the testing infrastructure to use the
+	Makefile to build the LFRic library.
+
+	31) PR #1814 towards #924. Add new PSyIR InlineTransformation.
+
+	32) PR #1819 for #1815. Forbid OMPTarget regions from containing
+	CodeBlock nodes.
+
+	33) PR #1830 for #1828. Fixes to enable explicit OpenACC Loop
+	parallelism with UM.
+
+	34) PR #1855 for #1840. Fix bug with dependency analysis when an
+	expression has the same array reference with and without indices.
+
+	35) PR #1827 for #1826. Adds support for SIR intrinsics.
+
+	36) PR #1839 for #1782. Adds a -api option to the PSyAD script.
+
+	37) PR #1844 towards #1823. Makes module inlining work in LFRic
+	when the same kernel is used multiple times.
+
+	38) PR #1825 for #1576. Adds the Reference2ArrayRangeTrans
+	transformation.
 
 release 2.3.1 17th of June 2022
 
