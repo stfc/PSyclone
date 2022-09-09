@@ -1,7 +1,7 @@
 <!--
 BSD 3-Clause License
 
-Copyright (c) 2021, Science and Technology Facilities Council.
+Copyright (c) 2021-2022, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
-Author: R. W. Ford, STFC Daresbury Lab
+Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 -->
 
 # PSyAD Examples
@@ -52,8 +52,6 @@ code PSyAD can currently translate. The kernel computes the
 tangent-linear of the hydrostatic balance term. It was taken from the
 LFRic repository and has any unsupported code commented out.
 
-The harness generation does not currently support this example as it
-assumes all arguments are real arrays which can be filled with random
-real data, whereas LFRic arguments can include integer arrays and
-these integer arrays may act as lookups into other arrays and
-therefore require non-random integer values.
+This example includes the generation of a test harness for the adjoint
+kernel.  See the README for more details.
+
