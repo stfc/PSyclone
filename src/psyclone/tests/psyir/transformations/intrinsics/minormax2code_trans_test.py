@@ -59,7 +59,7 @@ from psyclone.tests.utilities import Compile
 def setup():
     '''Make sure that all tests here use nemo as the API.'''
     Config.get().api = "nemo"
-    yield()
+    yield
     Config._instance = None
 
 

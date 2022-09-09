@@ -37,7 +37,6 @@
 support. Transforms an LFRic tangent linear kernel to its adjoint.
 
 '''
-from __future__ import absolute_import, print_function
 import argparse
 import logging
 import sys
@@ -62,11 +61,12 @@ def main(args):
     # reflect this workaround.
     def msg():
         '''Function to overide the argpass usage message'''
-        return ("psyad [-h] [-oad OAD] [-v] [-t] [-otest TEST_FILENAME] "
+        return ("psyad [-h] [-oad OAD] [-v] [-t] [-api API] "
+                "[-otest TEST_FILENAME] "
                 "-a ACTIVE [ACTIVE ...] -- filename")
 
     parser = argparse.ArgumentParser(
-        description="Run the PSyclone adjoint code generator on an LFRic "
+        description="Run the PSyclone adjoint code generator on a "
         "tangent-linear kernel file", usage=msg())
     parser.add_argument(
         '-a', '--active', nargs='+', help='names of active variables',
@@ -78,11 +78,14 @@ def main(args):
         '-t', '--gen-test',
         help='generate a standalone unit test for the adjoint code',
         action='store_true')
+    parser.add_argument('-api', default=None,
+                        help='the PSyclone API that the TL kernel conforms '
+                        'to (if any)')
     parser.add_argument('-otest',
                         help='filename for the unit test (implies -t)',
                         dest='test_filename')
     parser.add_argument('-oad', help='filename for the transformed code')
-    parser.add_argument('filename', help='LFRic tangent-linear kernel source')
+    parser.add_argument('filename', help='tangent-linear kernel source')
 
     args = parser.parse_args(args)
 
@@ -97,8 +100,9 @@ def main(args):
     filename = args.filename
     logger.info("Reading kernel file %s", filename)
     try:
-        with open(filename, mode='r', encoding='utf8') as my_file:
+        with open(filename, mode="r", encoding="utf-8") as my_file:
             tl_fortran_str = my_file.read()
+            tl_fortran_str = str(tl_fortran_str)
     except FileNotFoundError:
         logger.error("psyad error: file '%s', not found.", filename)
         sys.exit(1)
@@ -106,7 +110,8 @@ def main(args):
     try:
         # Create the adjoint (and associated test framework if requested)
         ad_fortran_str, test_fortran_str = generate_adjoint_str(
-            tl_fortran_str, args.active, create_test=generate_test)
+            tl_fortran_str, args.active, api=args.api,
+            create_test=generate_test)
     except TangentLinearError as info:
         print(str(info.value))
         sys.exit(1)
@@ -117,8 +122,8 @@ def main(args):
     # Output the Fortran code for the adjoint kernel
     if args.oad:
         logger.info("Writing adjoint of kernel to file %s", args.oad)
-        with open(args.oad, mode='w', encoding='utf8') as adjoint_file:
-            adjoint_file.write(ad_fortran_str)
+        with open(args.oad, mode="w", encoding="utf-8") as adj_file:
+            adj_file.write(ad_fortran_str)
     else:
         print(ad_fortran_str, file=sys.stdout)
 
@@ -127,9 +132,8 @@ def main(args):
         if args.test_filename:
             logger.info("Writing test harness for adjoint kernel to file %s",
                         args.test_filename)
-            with open(args.test_filename, mode='w',
-                      encoding='utf8') as harness_file:
-                harness_file.write(test_fortran_str)
+            with open(args.test_filename, mode="w", encoding="utf-8") as tfile:
+                tfile.write(test_fortran_str)
         else:
             print(test_fortran_str, file=sys.stdout)
 

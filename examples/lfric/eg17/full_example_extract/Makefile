@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -54,11 +54,14 @@ EXEC = extract
 EXTRACT_DIR ?= $(PSYROOT)/lib/extract/netcdf/lfric
 EXTRACT_NAME =_kernel_data_netcdf
 EXTRACT_LIB = $(EXTRACT_DIR)/lib$(EXTRACT_NAME).a
-LFRIC_DIR ?= $(PSYROOT)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_PATH ?= $(PSYROOT)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME=lfric
-LFRIC_LIB=$(LFRIC_DIR)/lib$(LFRIC_NAME).a
+LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
-F90FLAGS += -I$(LFRIC_DIR) -I$(EXTRACT_DIR)
+# This will add the required include flags to F90FLAGS
+include $(LFRIC_PATH)/lfric_include_flags.inc
+
+F90FLAGS += -I$(EXTRACT_DIR)
 
 transform: main_psy.f90 main_alg.f90
 
@@ -69,17 +72,18 @@ run: compile
 
 $(EXEC): $(LFRIC_LIB) $(EXTRACT_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(EXTRACT_DIR) -l$(EXTRACT_NAME) \
-	      -L$(LFRIC_DIR) -l$(LFRIC_NAME) $$(nf-config --flibs)
+	      -L$(LFRIC_PATH) -l$(LFRIC_NAME) $$(nf-config --flibs)
 
 $(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_DIR)
+	$(MAKE) -C $(LFRIC_PATH)
 
 $(EXTRACT_LIB): $(LFRIC_LIB)
 	$(MAKE) -C $(EXTRACT_DIR)
 
 # Dependencies
-main_psy.o:	testkern_w0_kernel_mod.o
+main_psy.o:	testkern_w0_kernel_mod.o $(EXTRACT_LIB) $(LFRIC_LIB)
 main_alg.o:	main_psy.o
+testkern_w0_kernel_mod.o: $(LFRIC_LIB)
 
 %.o: %.F90
 	$(F90) $(F90FLAGS) -c $<
@@ -97,5 +101,5 @@ main_alg.f90: main_psy.f90
 	-nodm -opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
 allclean: clean
-	$(MAKE) -C $(LFRIC_DIR) allclean
+	$(MAKE) -C $(LFRIC_PATH) allclean
 	$(MAKE) -C $(EXTRACT_DIR) allclean

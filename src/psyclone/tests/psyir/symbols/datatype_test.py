@@ -35,16 +35,15 @@
 # Modified: S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' Perform py.test tests on the psygen.psyir.symbols.datatype module '''
+''' Perform py.test tests on the psyclone.psyir.symbols.datatype module. '''
 
-from __future__ import absolute_import
 import pytest
+from psyclone.errors import InternalError
+from psyclone.psyir.nodes import Literal, BinaryOperation, Reference, \
+    Container, KernelSchedule
 from psyclone.psyir.symbols import DataType, DeferredType, ScalarType, \
     ArrayType, UnknownFortranType, DataSymbol, StructureType, NoType, \
     INTEGER_TYPE, REAL_TYPE, Symbol, DataTypeSymbol, SymbolTable
-from psyclone.psyir.nodes import Literal, BinaryOperation, Reference, \
-    Container, KernelSchedule
-from psyclone.errors import InternalError
 
 
 # Abstract DataType class
@@ -97,12 +96,15 @@ def test_notype():
 def test_scalartype_enum_precision(intrinsic, precision):
     '''Test that the ScalarType class can be created successfully for all
     supported ScalarType intrinsics and all suported enumerated precisions.
+    Also test that two such types are equal.
 
     '''
     scalar_type = ScalarType(intrinsic, precision)
     assert isinstance(scalar_type, ScalarType)
     assert scalar_type.intrinsic == intrinsic
     assert scalar_type.precision == precision
+    scalar_type2 = ScalarType(intrinsic, precision)
+    assert scalar_type == scalar_type2
 
 
 @pytest.mark.parametrize("precision", [1, 8, 16])
@@ -113,12 +115,15 @@ def test_scalartype_enum_precision(intrinsic, precision):
 def test_scalartype_int_precision(intrinsic, precision):
     '''Test that the ScalarType class can be created successfully for all
     supported ScalarType intrinsics and a set of valid integer precisions.
+    Also test that two such types are equal.
 
     '''
     scalar_type = ScalarType(intrinsic, precision)
     assert isinstance(scalar_type, ScalarType)
     assert scalar_type.intrinsic == intrinsic
     assert scalar_type.precision == precision
+    scalar_type2 = ScalarType(intrinsic, precision)
+    assert scalar_type == scalar_type2
 
 
 @pytest.mark.parametrize("intrinsic", [ScalarType.Intrinsic.INTEGER,
@@ -128,7 +133,7 @@ def test_scalartype_int_precision(intrinsic, precision):
 def test_scalartype_datasymbol_precision(intrinsic):
     '''Test that the ScalarType class can be created successfully for all
     supported ScalarType intrinsics and the precision specified by another
-    symbol.
+    symbol.  Also test that two such types are equal.
 
     '''
     # Create an r_def precision symbol with a constant value of 8
@@ -140,6 +145,35 @@ def test_scalartype_datasymbol_precision(intrinsic):
     assert isinstance(scalar_type, ScalarType)
     assert scalar_type.intrinsic == intrinsic
     assert scalar_type.precision is precision_symbol
+    scalar_type2 = ScalarType(intrinsic, precision_symbol)
+    assert scalar_type == scalar_type2
+
+
+def test_scalartype_not_equal():
+    '''
+    Check that ScalarType instances with different precision or intrinsic type
+    are recognised as being different. Also check that an ArrayType is !=
+    to a ScalarType.
+
+    '''
+    intrinsic = ScalarType.Intrinsic.INTEGER
+    data_type = ScalarType(ScalarType.Intrinsic.INTEGER,
+                           ScalarType.Precision.UNDEFINED)
+    precision_symbol = DataSymbol("r_def", data_type, constant_value=8)
+    # Set the precision of our ScalarType to be the precision symbol
+    scalar_type = ScalarType(intrinsic, precision_symbol)
+    # Same precision symbol but different intrinsic type
+    scalar_type2 = ScalarType(ScalarType.Intrinsic.REAL, precision_symbol)
+    assert scalar_type2 != scalar_type
+    # Same intrinsic type but different precision specified as an integer
+    scalar_type3 = ScalarType(intrinsic, 8)
+    assert scalar_type3 != scalar_type
+    # Same intrinsic type but different precision
+    scalar_type4 = ScalarType(intrinsic, ScalarType.Precision.SINGLE)
+    assert scalar_type4 != scalar_type
+    # A ScalarType is not equal to an ArrayType
+    atype = ArrayType(scalar_type4, [10])
+    assert atype != scalar_type4
 
 
 def test_scalartype_invalid_intrinsic_type():
