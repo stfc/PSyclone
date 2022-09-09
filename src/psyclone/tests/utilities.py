@@ -36,8 +36,6 @@
 
 ''' Test utilities including support for testing that code compiles. '''
 
-from __future__ import absolute_import, print_function
-
 import difflib
 from contextlib import contextmanager
 import os
@@ -129,7 +127,7 @@ def change_dir(new_dir):
 
 
 # =============================================================================
-class Compile(object):
+class Compile():
     '''This class provides compile functionality to the testing framework.
     It stores the name of the compiler, compiler flags, and a temporary
     directory used for test compiles. The temporary directory will be
@@ -254,8 +252,8 @@ class Compile(object):
                 if os.path.isfile(str(name)+"."+suffix):
                     name += "." + suffix
                     return name
-        raise IOError("Cannot find a Fortran file '{0}' with suffix in {1}".
-                      format(base_name, FORTRAN_SUFFIXES))
+        raise IOError(f"Cannot find a Fortran file '{base_name}' with "
+                      f"suffix in {FORTRAN_SUFFIXES}")
 
     def compile_file(self, filename, link=False):
         ''' Compiles the specified Fortran file into an object file (in
@@ -286,24 +284,21 @@ class Compile(object):
 
         # Change to the temporary directory passed in to us from
         # pytest. (This is a LocalPath object.)
-        old_pwd = self._tmpdir.chdir()
-        try:
-
-            build = subprocess.Popen(arg_list,
-                                     stdout=subprocess.PIPE,
-                                     stderr=subprocess.STDOUT)
-            (output, error) = build.communicate()
-        except OSError as err:
-            print("Failed to run: {0}: ".format(" ".join(arg_list)),
-                  file=sys.stderr)
-            raise CompileError(str(err)) from err
-        finally:
-            old_pwd.chdir()
+        with change_dir(self._tmpdir):
+            try:
+                with subprocess.Popen(arg_list,
+                                      stdout=subprocess.PIPE,
+                                      stderr=subprocess.STDOUT) as build:
+                    (output, error) = build.communicate()
+            except OSError as err:
+                print(f"Failed to run: {' '.join(arg_list)}: ",
+                      file=sys.stderr)
+                raise CompileError(str(err)) from err
 
         # Check the return code
         stat = build.returncode
         if stat != 0:
-            print("Compiling: {0}".format(" ".join(arg_list)), file=sys.stderr)
+            print(f"Compiling: {' '.join(arg_list)}", file=sys.stderr)
             print(output.decode("utf-8"), file=sys.stderr)
             if error:
                 print("=========", file=sys.stderr)
@@ -311,6 +306,7 @@ class Compile(object):
             raise CompileError(output)
 
     def _code_compiles(self, psy_ast, dependencies=None):
+        # pylint: disable=too-many-branches
         '''Attempts to build the Fortran code supplied as an AST of
         f2pygen objects. Returns True for success, False otherwise.
         It is meant for internal test uses only, and must only be
@@ -352,7 +348,7 @@ class Compile(object):
 
         # Create a file containing our generated PSy layer.
         psy_filename = "psy.f90"
-        with open(psy_filename, 'w') as psy_file:
+        with open(psy_filename, 'w', encoding="utf-8") as psy_file:
             # We limit the line lengths of the generated code so that
             # we don't trip over compiler limits.
             fll = FortLineLength()
@@ -387,9 +383,9 @@ class Compile(object):
             except IOError:
                 # Not all modules need to be found, for example API
                 # infrastructure modules will be provided already built.
-                print("File {0} not found for compilation.".format(fort_file))
-                print("It was searched in: {0}".format([self.base_path,
-                                                        str(self._tmpdir)]))
+                print(f"File {fort_file} not found for compilation.")
+                paths = [self.base_path, str(self._tmpdir)]
+                print(f"It was searched in: {paths}")
             except CompileError:
                 # Failed to compile one of the files
                 success = False
@@ -454,8 +450,8 @@ class Compile(object):
         # Add a object-specific hash-code to the file name so that all files
         # created in the same test have different names and can easily be
         # inspected in case of errors.
-        filename = "generated-{0}.f90".format(str(hash(self)))
-        with open(filename, 'w') as test_file:
+        filename = f"generated-{hash(self)}.f90"
+        with open(filename, 'w', encoding="utf-8") as test_file:
             test_file.write(code)
 
         success = True
@@ -492,10 +488,10 @@ def get_base_path(api):
                   "gocean1.0": "gocean1p0"}
     try:
         dir_name = api_2_path[api]
-    except KeyError:
-        raise RuntimeError("The API '{0}' is not supported. "
-                           "Supported types are {1}.".
-                           format(api, api_2_path.keys()))
+    except KeyError as err:
+        raise RuntimeError(f"The API '{api}' is not supported. "
+                           f"Supported types are {api_2_path.keys()}.") \
+                           from err
     return os.path.join(os.path.dirname(os.path.abspath(__file__)),
                         "test_files", dir_name)
 
