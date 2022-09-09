@@ -53,7 +53,7 @@ from psyclone.domain.lfric.lfric_builtins import (LFRicBuiltInCallFactory,
                                                   LFRicBuiltIn)
 from psyclone.dynamo0p3 import DynKernelArgument
 from psyclone.errors import GenerationError, InternalError
-from psyclone.parse.algorithm import parse
+from psyclone.parse.algorithm import BuiltInCall, parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Loop, Reference, UnaryOperation, Literal, \
@@ -426,6 +426,30 @@ def test_lfricbuiltin_wrong_name():
         _ = lfricinf.create(fake_kern)
     assert ("Unrecognised built-in call in LFRic API: found 'pw_blah' "
             "but expected one of [" in str(excinfo.value))
+
+
+def test_lfricbuiltin_not_dofs():
+    '''Check that LFRicBuiltInCallFactory.create() raises an error if the
+    builtin doesn't iterate over DoFs.'''
+
+    class KtypeDummy():
+        '''A fake KernelType class which provides the required variables
+        (including an invalid value of iterates_over) to
+        allow the BuiltInCall class to be instantiated and passed to the
+        LFRicBuiltInCallFactory.
+
+        '''
+        def __init__(self):
+            self.nargs = 2
+            self.name = "x_plus_y"
+            self.iterates_over = "wrong"
+
+    factory = LFRicBuiltInCallFactory()
+    bincall = BuiltInCall(KtypeDummy(), ["a", "b"])
+    with pytest.raises(InternalError) as err:
+        factory.create(bincall)
+    assert ("An LFRic built-in must iterate over DoFs but kernel 'x_plus_y' "
+            "iterates over 'wrong'" in str(err.value))
 
 
 def test_invalid_builtin_kernel():
