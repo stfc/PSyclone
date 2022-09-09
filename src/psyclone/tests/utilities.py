@@ -39,6 +39,7 @@
 from __future__ import absolute_import, print_function
 
 import difflib
+from contextlib import contextmanager
 import os
 from pprint import pprint
 import subprocess
@@ -106,6 +107,25 @@ def print_diffs(expected, actual):
     diff = difflib.Differ()
     diff_list = list(diff.compare(expected_lines, actual_lines))
     pprint(diff_list)
+
+
+# =============================================================================
+@contextmanager
+def change_dir(new_dir):
+    '''This is a small context manager that changes the current working
+    directory, and will automatically switch back. Usage:
+
+    >>> with change_dir("/tmp"):
+    ...     print(f"CWD is {os.getcwd()}")
+    CWD is /tmp
+
+    '''
+    prev_dir = os.getcwd()
+    os.chdir(os.path.expanduser(new_dir))
+    try:
+        yield
+    finally:
+        os.chdir(prev_dir)
 
 
 # =============================================================================

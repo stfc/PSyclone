@@ -32,14 +32,18 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 ''' This module contains tests for the the various utility functions in
 psyclone_test_utils.'''
 
-from __future__ import absolute_import
+import os
+
 import pytest
+
 from psyclone.parse.utils import ParseError
-from psyclone.tests.utilities import CompileError, get_invoke, Compile
+from psyclone.tests.utilities import (change_dir, CompileError, get_invoke,
+                                      Compile)
 
 
 HELLO_CODE = '''
@@ -183,3 +187,16 @@ def test_get_invoke():
     with pytest.raises(ParseError) as excinfo:
         get_invoke("does_not_exist", "nemo", idx=0)
     assert "No such file or directory" in str(excinfo.value)
+
+
+# -----------------------------------------------------------------------------
+def test_change_directory():
+    '''Tests the change_directory context manager.'''
+
+    old_dir = os.getcwd()
+
+    with change_dir("/tmp"):
+        tmp_dir = os.getcwd()
+        assert tmp_dir == "/tmp"
+
+    assert os.getcwd() == old_dir
