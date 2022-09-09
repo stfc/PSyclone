@@ -153,11 +153,13 @@ def infra_compile(tmpdir_factory, request):
 
     # Create a shared temporary directory to store the compiled files.
     shared_tmp_dir = Path(tmpdir_factory.getbasetemp())
+    num_processes = 1
     if os.environ.get('PYTEST_XDIST_TESTRUNUID') is not None:
         # We run in parallel, so we get a process-specific temporary
         # directory (e.g. pytest-58/popen-gw0). Use the parent directory
         # as base for any shared files/directories in this casse:
         shared_tmp_dir = shared_tmp_dir.parent
+        num_processes = int(os.environ.get('PYTEST_XDIST_WORKER_COUNT'))
 
     dynamo_shared_tmp_dir = shared_tmp_dir / "dynamo"
     dynamo_shared_lock = shared_tmp_dir / "dynamo.lock"
@@ -166,7 +168,7 @@ def infra_compile(tmpdir_factory, request):
             dynamo_shared_tmp_dir.mkdir()
             # This is the first instance created. This will trigger
             # compilation of the infrastructure files.
-            LFRicBuild(dynamo_shared_tmp_dir)
+            LFRicBuild(dynamo_shared_tmp_dir, num_processes=num_processes)
 
     gocean_shared_tmp_dir = shared_tmp_dir / "dl_esm_inf"
     gocean_shared_lock = shared_tmp_dir / "dl_esm_inf.lock"

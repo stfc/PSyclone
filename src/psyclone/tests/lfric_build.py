@@ -64,13 +64,16 @@ class LFRicBuild(Compile):
     # allows testing to modify this to trigger exceptions.
     _make_command = "make"
 
-    def __init__(self, tmpdir):
+    def __init__(self, tmpdir, num_processes=1):
         '''Constructor for the LFRic-specific compilation class.
         The very first time the constructor is called it will compile
         the infrastructure library in a temporary, process-specific
         location. These files will be used by all test compilations.
         :param tmpdir: Temporary directory to be used for output files.
         :type tmpdir: :py:class:`LocalPath`
+        :param int num_processes: number of processes to use when building \
+            the infrastructure library (i.e. -j parameter for make).
+
         '''
         super().__init__(tmpdir)
 
@@ -81,7 +84,7 @@ class LFRicBuild(Compile):
         # On first instantiation (triggered by conftest.infra_compile)
         # compile the infrastructure library files.
         if not LFRicBuild._infrastructure_built:
-            self._build_infrastructure()
+            self._build_infrastructure(num_processes=num_processes)
 
     def get_infrastructure_flags(self):
         '''Returns the required flag to use the infrastructure wrapper
@@ -99,9 +102,12 @@ class LFRicBuild(Compile):
                 all_flags.extend(["-I", path])
         return all_flags
 
-    def _build_infrastructure(self):
+    def _build_infrastructure(self, num_processes=1):
         '''Compiles the LFRic wrapper infrastructure files so that
         compilation tests can be done.
+        :param int num_processes: number of processes to use when building \
+            the infrastructure library (i.e. -j parameter for make).
+
         '''
         if not Compile.TEST_COMPILE:
             return
@@ -111,7 +117,8 @@ class LFRicBuild(Compile):
             # files can be used by all test compilations later.
             LFRicBuild._compilation_path = str(self._tmpdir)
             makefile = os.path.join(self._infrastructure_path, "Makefile")
-            arg_list = [LFRicBuild._make_command, "-f", makefile]
+            arg_list = [LFRicBuild._make_command, "-f", makefile,
+                        "-j", str(num_processes)]
             try:
                 with subprocess.Popen(arg_list, stdout=subprocess.PIPE,
                                       stderr=subprocess.STDOUT) as build:
