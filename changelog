@@ -96,6 +96,17 @@
 
 	35) PR #1827 for #1826. Adds support for SIR intrinsics.
 
+	36) PR #1839 for #1782. Adds a -api option to the PSyAD script.
+
+	37) PR #1844 towards #1823. Makes module inlining work in LFRic
+	when the same kernel is used multiple times.
+
+	38) PR #1825 for #1576. Adds the Reference2ArrayRangeTrans
+	transformation.
+
+	39) PR #1846. Fixes to various docstrings in transformations.py
+	and node.py.
+
 release 2.3.1 17th of June 2022
 
         1) PR #1747 for #1720. Adds support for If blocks to PSyAD.

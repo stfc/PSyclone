@@ -64,7 +64,8 @@ from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeallocateGen, DeclGen, DoGen, IfThenGen,
-                              ModuleGen, SubroutineGen, TypeDeclGen, UseGen)
+                              ModuleGen, SubroutineGen, TypeDeclGen, UseGen,
+                              PSyIRGen)
 from psyclone.parse.algorithm import Arg, KernelCall
 from psyclone.parse.kernel import KernelType, getkerneldescriptors
 from psyclone.parse.utils import ParseError
@@ -1102,6 +1103,12 @@ class DynamoPSy(PSy):
         '''
         # Create an empty PSy layer module
         psy_module = ModuleGen(self.name)
+
+        # If the container has a Routine that is not an InvokeSchedule
+        # it should also be added to the generated module.
+        for routine in self.container.children:
+            if not isinstance(routine, InvokeSchedule):
+                psy_module.add(PSyIRGen(psy_module, routine))
 
         # Add all invoke-specific information
         self.invokes.gen_code(psy_module)
