@@ -61,11 +61,12 @@ def test_compute_inner_products_scalars(fortran_writer):
     prog = Routine.create("test_prog", table, [], is_program=True)
     sum_sym = table.new_symbol(root_name="my_sum",
                                symbol_type=DataSymbol, datatype=REAL_TYPE)
-    s1 = table.new_symbol(root_name="var1", symbol_type=DataSymbol,
-                          datatype=REAL_TYPE)
-    s2 = table.new_symbol(root_name="var2", symbol_type=DataSymbol,
-                          datatype=REAL_TYPE)
-    _compute_lfric_inner_products(prog, [(s1, s1), (s1, s2)], [], sum_sym)
+    sym1 = table.new_symbol(root_name="var1", symbol_type=DataSymbol,
+                            datatype=REAL_TYPE)
+    sym2 = table.new_symbol(root_name="var2", symbol_type=DataSymbol,
+                            datatype=REAL_TYPE)
+    _compute_lfric_inner_products(prog, [(sym1, sym1), (sym1, sym2)], [],
+                                  sum_sym)
     gen = fortran_writer(prog)
     assert ("  my_sum = 0.0\n"
             "  my_sum = my_sum + var1 * var1\n"
@@ -79,15 +80,15 @@ def test_compute_inner_products_fields(fortran_writer):
     prog = Routine.create("test_prog", table, [], is_program=True)
     sum_sym = table.new_symbol(root_name="my_sum",
                                symbol_type=DataSymbol, datatype=REAL_TYPE)
-    s1 = table.new_symbol(root_name="ip1", symbol_type=DataSymbol,
-                          datatype=REAL_TYPE)
-    s2 = table.new_symbol(root_name="ip2", symbol_type=DataSymbol,
-                          datatype=REAL_TYPE)
+    sym1 = table.new_symbol(root_name="ip1", symbol_type=DataSymbol,
+                            datatype=REAL_TYPE)
+    sym2 = table.new_symbol(root_name="ip2", symbol_type=DataSymbol,
+                            datatype=REAL_TYPE)
     # For field vectors we have an array of inner-product values to sum.
     atype = ArrayType(REAL_TYPE, [3])
-    s3 = table.new_symbol(root_name="ip3", symbol_type=DataSymbol,
-                          datatype=atype)
-    _compute_lfric_inner_products(prog, [], [s1, s2, s3], sum_sym)
+    sym3 = table.new_symbol(root_name="ip3", symbol_type=DataSymbol,
+                            datatype=atype)
+    _compute_lfric_inner_products(prog, [], [sym1, sym2, sym3], sum_sym)
     gen = fortran_writer(prog)
     assert ("  my_sum = 0.0\n"
             "  my_sum = my_sum + ip1\n"
