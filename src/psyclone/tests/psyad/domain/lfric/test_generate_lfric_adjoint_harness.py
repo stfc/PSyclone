@@ -40,10 +40,11 @@ from psyclone.domain.lfric import KernCallInvokeArgList
 from psyclone.domain.lfric.algorithm import (LFRicBuiltinFunctor,
                                              LFRicBuiltinFunctorFactory)
 from psyclone.errors import InternalError
-from psyclone.psyad.domain.lfric.tl2ad import (_compute_lfric_inner_products,
-                                               _compute_field_inner_products,
-                                               _init_fields_random,
-                                               generate_lfric_adjoint_test)
+from psyclone.psyad.domain.lfric.generate_lfric_adjoint_harness import (
+    _compute_lfric_inner_products,
+    _compute_field_inner_products,
+    _init_fields_random,
+    generate_lfric_adjoint_test)
 from psyclone.psyir.nodes import Routine, Literal, Assignment
 from psyclone.psyir.symbols import (SymbolTable, DataSymbol, REAL_TYPE,
                                     ArrayType, DataTypeSymbol, DeferredType,

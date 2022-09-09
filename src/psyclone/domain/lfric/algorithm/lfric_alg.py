@@ -379,7 +379,7 @@ class LFRicAlg:
         Given an fparser1 parse tree for an LFRic kernel, creates and returns
         a DynKern object.
 
-        :param parse_tree: the fparser2 parse tree for the LFRic kernel.
+        :param parse_tree: the fparser1 parse tree for the LFRic kernel.
         :type parse_tree: :py:class:`fparser.one.block_statements.BeginSource`
         :param str kernel_name: the name of the kernel contained in the \
             supplied parse tree for which a DynKern is to be created.
@@ -397,8 +397,7 @@ class LFRicAlg:
             raise ValueError(
                 f"Failed to find kernel '{kernel_name}' in supplied "
                 f"code: '{parse_tree}'. Is it a valid LFRic kernel?") from err
-        # Construct a DynKern using the metadata. This is used when
-        # constructing the kernel argument list.
+        # Construct a DynKern using the metadata.
         kern = DynKern()
         kern.load_meta(ktype)
         return kern

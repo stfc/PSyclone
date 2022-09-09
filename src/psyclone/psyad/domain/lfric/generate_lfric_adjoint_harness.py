@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-''' Provides LFRic-specific PSyclone adjoint functionality. '''
+''' Provides LFRic-specific PSyclone adjoint test-harness functionality. '''
 
 from fparser import api as fpapi
 from psyclone.domain.lfric import psyir
