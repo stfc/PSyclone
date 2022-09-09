@@ -136,7 +136,7 @@ def test_compiler_with_flags(tmpdir, monkeypatch):
             _compile.compile_file("hello_world.f90")
 
         if Compile.F90 != "false":
-            # We don't get an error message like this from
+            # The actual message might vary depending on compiler
             assert "not-a-flag" in str(excinfo.value)
         else:
             # If we are not compiling, use 'true' as compiler in
