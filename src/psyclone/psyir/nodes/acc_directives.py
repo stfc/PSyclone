@@ -869,13 +869,12 @@ class ACCUpdateDirective(ACCStandaloneDirective):
 
 
 def _sig_set_to_string(sig_set):
-    # TODO this is Fortran specific
     names = set()
     for sig in sig_set:
         if isinstance(sig, str):
             names.add(sig)
         elif isinstance(sig, Signature):
-            names.update({"%".join(sig[:idx+1]) for idx in range(len(sig))})
+            names.update({sig[:i+1].to_language() for i in range(len(sig))})
     return ",".join(sorted(names))
 
 
