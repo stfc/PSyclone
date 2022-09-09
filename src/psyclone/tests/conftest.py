@@ -33,14 +33,18 @@
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
 # Modified by R. W. Ford, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 
 ''' Module which performs pytest set-up so that we can specify
     command-line options. Also creates certain test fixtures. '''
 
-import os
 import copy
+import os
+from pathlib import Path
 import pytest
+
+from filelock import FileLock
 
 from fparser.two.parser import ParserFactory
 from fparser.two.symbol_table import SYMBOL_TABLES
@@ -140,21 +144,38 @@ def infra_compile(tmpdir_factory, request):
     --compileopencl, --f90, --f90flags. Then makes sure that the
     infrastructure files for the dynamo0p3 and gocean APIs are compiled
     (if compilation was enabled).
+
     '''
     Compile.store_compilation_flags(request.config)
 
-    # Create a temporary directory to store the compiled files.
-    # Note that this directory is unique even if compiled in
-    # parallel, i.e. each process has its own copy of the
-    # compiled infrastructure file, which avoids the problem
-    # of synchronisation between the processes.
-    tmpdir = tmpdir_factory.mktemp('dynamo_wrapper')
-    # This is the first instance created. This will trigger
-    # compilation of the infrastructure files.
-    LFRicBuild(tmpdir)
+    if not Compile.TEST_COMPILE and not Compile.TEST_COMPILE_OPENCL:
+        return
 
-    tmpdir = tmpdir_factory.mktemp('dl_esm_inf')
-    GOceanBuild(tmpdir)
+    # Create a shared temporary directory to store the compiled files.
+    shared_tmp_dir = Path(tmpdir_factory.getbasetemp())
+    if os.environ.get('PYTEST_XDIST_TESTRUNUID') is not None:
+        # We run in parallel, so we get a process-specific temporary
+        # directory (e.g. pytest-58/popen-gw0). Use the parent directory
+        # as base for any shared files/directories in this casse:
+        shared_tmp_dir = shared_tmp_dir.parent
+
+    dynamo_shared_tmp_dir = shared_tmp_dir / "dynamo"
+    dynamo_shared_lock = shared_tmp_dir / "dynamo.lock"
+    with FileLock(dynamo_shared_lock):
+        if not dynamo_shared_tmp_dir.exists():
+            dynamo_shared_tmp_dir.mkdir()
+            # This is the first instance created. This will trigger
+            # compilation of the infrastructure files.
+            LFRicBuild(dynamo_shared_tmp_dir)
+
+    gocean_shared_tmp_dir = shared_tmp_dir / "dl_esm_inf"
+    gocean_shared_lock = shared_tmp_dir / "dl_esm_inf.lock"
+    with FileLock(gocean_shared_lock):
+        if not gocean_shared_tmp_dir.exists():
+            gocean_shared_tmp_dir.mkdir()
+            # This is the first instance created. This will trigger
+            # compilation of the infrastructure files.
+            GOceanBuild(gocean_shared_tmp_dir)
 
 
 @pytest.fixture(name="_session_parser", scope="session")

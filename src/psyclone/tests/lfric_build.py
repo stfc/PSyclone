@@ -43,7 +43,7 @@ import subprocess
 import sys
 
 
-from psyclone.tests.utilities import CompileError, Compile
+from psyclone.tests.utilities import change_dir, CompileError, Compile
 
 
 class LFRicBuild(Compile):
@@ -106,22 +106,22 @@ class LFRicBuild(Compile):
         if not Compile.TEST_COMPILE:
             return
 
-        old_pwd = self._tmpdir.chdir()
-        # Store the temporary path so that the compiled infrastructure
-        # files can be used by all test compilations later.
-        LFRicBuild._compilation_path = str(self._tmpdir)
-        makefile = os.path.join(self._infrastructure_path, "Makefile")
-        arg_list = [LFRicBuild._make_command, "-f", makefile]
-        try:
-            with subprocess.Popen(arg_list, stdout=subprocess.PIPE,
-                                  stderr=subprocess.STDOUT) as build:
-                # stderr = stdout, so ignore stderr result:
-                (output, _) = build.communicate()
-        except OSError as err:
-            print(f"Failed to run: {' '.join(arg_list)}: ", file=sys.stderr)
-            raise CompileError(str(err)) from err
-        finally:
-            old_pwd.chdir()
+        with change_dir(self._tmpdir):
+            # Store the temporary path so that the compiled infrastructure
+            # files can be used by all test compilations later.
+            LFRicBuild._compilation_path = str(self._tmpdir)
+            makefile = os.path.join(self._infrastructure_path, "Makefile")
+            arg_list = [LFRicBuild._make_command, "-f", makefile]
+            try:
+                with subprocess.Popen(arg_list, stdout=subprocess.PIPE,
+                                      stderr=subprocess.STDOUT) as build:
+                    # stderr = stdout, so ignore stderr result:
+                    (output, _) = build.communicate()
+            except OSError as err:
+                print(f"Failed to run: {' '.join(arg_list)}: ",
+                      file=sys.stderr)
+                raise CompileError(str(err)) from err
+
         # Check the return code
         stat = build.returncode
         if stat != 0:
