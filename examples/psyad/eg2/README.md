@@ -25,7 +25,7 @@ PSy layer (`psy.f90`).
 There is no `compile` target for this example because the generated code
 requires the full LFRic infrastructure. However, it is straightforward
 to modify the LFRic "skeleton" mini-app to call the algorithm subroutine
-that has been generated.
+that has been generated (see below).
 
 Alternatively, PSyAD may be run from the command line as:
 
@@ -36,6 +36,51 @@ psyad tl_hydrostatic_kernel_mod.F90 -a r_u exner theta moist_dyn_gas moist_dyn_t
 In this case, the adjoint of the tangent-linear kernel is written to
 `stdout`.
 
+## Using the generated test harness in the LFRic skeleton mini-app
+
+This assumes that you have a local, compiled version of LFRic in `<lfric-root>`
+and that the directory containing this file is `<work-dir>`.
+
+1. Create the adjoint kernel and test harness code:
+```sh
+cd <work-dir>
+make
+```
+
+2. Change to the LFRic skeleton miniapp directory and copy over the
+   test-harness code and the TL and adjoint kernels:
+```sh
+cd <lfric-root>/miniapps/skeleton
+cp <work-dir>/adjoint_test_mod.x90 source/algorithm/.
+cp <work-dir>/tl_hydrostatic_kernel_mod.F90 source/kernel/.
+cp <work-dir>/adj_hydrostatic_kernel_mod.F90 source/kernel/.
+```
+
+3. Modify the miniapp driver routine to import and call the test-harness
+   algorithm (WARNING, this `sed` command should be treated as an
+   example - if the skeleton mini-app is modified on LFRic trunk then it will
+   need to be updated):
+```sh
+sed -e 's/  subroutine run()/  subroutine run()\n    use adjoint_test_mod, only: adjoint_test/' -e 's/call skeleton_alg(field_1)/call adjoint_test(mesh, chi, panel_id)/' source/driver/skeleton_driver_mod.f90 > new_driver.f90
+mv source/driver/skeleton_driver_mod.f90{,.bak}
+mv new_driver.f90 source/driver/skeleton_driver_mod.f90
+```
+
+4. Build and run the modified miniapp:
+```sh
+make clean
+make
+cd example
+../bin/skeleton ./configuration.nml
+...
+20220909120222.220+0100:INFO : Skeleton: created FEM constants
+20220909120222.220+0100:INFO : skeleton: Miniapp initialised
+ Test of adjoint of 'tl_hydrostatic_kernel_type' PASSED:    3074233422750.6738        3074233422750.7188        92.000000000000000     
+20220909120222.451+0100:S1:INFO : skeleton: Writing diagnostic output
+20220909120222.524+0100:S1:INFO : Finalising skeleton ...
+...
+```
+
 ## Testing Other LFRic Kernels
 
 The Makefile is written such that it may be used for other
@@ -45,27 +90,27 @@ adjoint project may be tested as follows (assuming that the specified
 kernel has been put in the current working directory):
 
 ```sh
-ACTIVE_VAR_LIST="rhs_eos exner rho theta moist_dyn_gas eos exner_quad theta_vd_quad rho_quad rho_e exner_e theta_vd_e" TL_KERNEL_NAME=tl_rhs_eos_kernel make compile
+ACTIVE_VAR_LIST="rhs_eos exner rho theta moist_dyn_gas rhs_eos rho_e rho_cell exner_cell exner_e theta_vd_e theta_vd_cell" TL_KERNEL_NAME=tl_rhs_sample_eos_kernel make
 ```
 
 ```sh
-ACTIVE_VAR_LIST="xi u res_dot_product curl_u" TL_KERNEL_NAME=strong_curl_kernel make run
+ACTIVE_VAR_LIST="xi u res_dot_product curl_u" TL_KERNEL_NAME=strong_curl_kernel make
 ```
 
 ```sh
-ACTIVE_VAR_LIST="lhs x lhs_e x_e" TL_KERNEL_NAME=matrix_vector_kernel make run
+ACTIVE_VAR_LIST="lhs x lhs_e x_e" TL_KERNEL_NAME=matrix_vector_kernel make
 ```
 
 ```sh
-ACTIVE_VAR_LIST="lhs x lhs_e x_e" TL_KERNEL_NAME=transpose_matrix_vector_kernel make run
+ACTIVE_VAR_LIST="lhs x lhs_e x_e" TL_KERNEL_NAME=transpose_matrix_vector_kernel make
 ```
 
 ```sh
-ACTIVE_VAR_LIST="lhs x lhs_e x_e" TL_KERNEL_NAME=dg_matrix_vector_kernel make run
+ACTIVE_VAR_LIST="lhs x lhs_e x_e" TL_KERNEL_NAME=dg_matrix_vector_kernel make
 ```
 
 ```sh
-ACTIVE_VAR_LIST="r_u vorticity wind res_dot_product vorticity_term cross_product1 cross_product2 j_vorticity u_at_quad mul2 vorticity_at_quad" TL_KERNEL_NAME=tl_vorticity_advection_kernel make run
+ACTIVE_VAR_LIST="r_u vorticity wind res_dot_product vorticity_term cross_product1 cross_product2 j_vorticity u_at_quad mul2 vorticity_at_quad" TL_KERNEL_NAME=tl_vorticity_advection_kernel make
 ```
 
 ## Licence

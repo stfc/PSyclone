@@ -212,11 +212,13 @@ def _init_fields_random(fields, input_symbols, table):
     initialising with pseudo-random data.
 
     :param fields: those fields requiring initialisation.
-    :type fields: List[:py:class:`psyclone....`]
+    :type fields: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
     :param input_symbols: map from field name to corresponding field copy.
-    :type input_symbols: Dict[str, xxx]
-    :param table:
-    :type table:
+    :type input_symbols: Dict[str, \
+        :py:class:`psyclone.psyir.symbols.DataTypeSymbol` | \
+        :py:class:`psyclone.psyir.symbols.ArrayType`]
+    :param table: the symbol table to which to add new symbols.
+    :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
     :returns: the required kernel calls.
     :rtype: List[:py:class:`psyclone.domain.common.algorithm.Functor`]
@@ -225,7 +227,7 @@ def _init_fields_random(fields, input_symbols, table):
     # We use the setval_random builtin to initialise all fields.
     kernel_list = []
     builtin_factory = LFRicBuiltinFunctorFactory.get()
-    for sym, space in fields:
+    for sym in fields:
         input_sym = input_symbols[sym.name]
         if isinstance(sym.datatype, DataTypeSymbol):
             # Initialise the field with pseudo-random numbers.
@@ -273,7 +275,7 @@ def generate_lfric_adjoint_test(tl_source):
 
     '''
     lfalg = LFRicAlg()
-    container = lfalg._create_alg_mod("adjoint_test")
+    container = lfalg.create_alg_routine("adjoint_test")
     routine = container.walk(Routine)[0]
     table = routine.symbol_table
 
@@ -309,13 +311,14 @@ def generate_lfric_adjoint_test(tl_source):
 
     # Construct a DynKern using the metadata and then use it to construct
     # the kernel argument list.
-    kern = lfalg._create_kernel(parse_tree, kernel_name)
+    kern = lfalg.kernel_from_metadata(parse_tree, kernel_name)
     kern_args = lfalg.construct_kernel_args(routine, kern)
 
     # Create symbols that will store copies of the inputs to the TL kernel.
+    # Currently we only support scalar and field arguments.
+    # TODO #1864 - add support for operators.
     input_symbols = {}
-    for arg in kern_args.arglist:
-        sym = table.lookup(arg)
+    for sym in kern_args.scalars + [fsym for fsym, _ in kern_args.fields]:
         input_sym = table.new_symbol(sym.name+"_input", symbol_type=DataSymbol,
                                      datatype=DeferredType())
         input_sym.copy_properties(sym)
@@ -327,7 +330,7 @@ def generate_lfric_adjoint_test(tl_source):
 
     # Initialise argument values and keep copies. For scalars we use the
     # Fortran 'random_number' intrinsic directly.
-    # TODO this is Fortran specific.
+    # TODO #1345 - this is Fortran specific.
     random_num = RoutineSymbol("random_number")
     for sym in kern_args.scalars:
         routine.addchild(Call.create(random_num, [Reference(sym)]))
@@ -335,13 +338,15 @@ def generate_lfric_adjoint_test(tl_source):
         routine.addchild(Assignment.create(Reference(input_sym),
                                            Reference(sym)))
 
-    kernel_list = _init_fields_random(kern_args.fields, input_symbols, table)
+    kernel_list = _init_fields_random([fld for fld, _ in kern_args.fields],
+                                      input_symbols, table)
 
     # Initialise all operator arguments.
     if kern_args.operators:
         raise NotImplementedError(
             f"Kernel {kernel_name} has one or more operator arguments. Test "
-            f"harness creation for such a kernel is not yet supported.")
+            f"harness creation for such a kernel is not yet supported "
+            f"(Issue #1864).")
 
     # Finally, add the kernel itself to the list for the invoke().
     arg_nodes = []

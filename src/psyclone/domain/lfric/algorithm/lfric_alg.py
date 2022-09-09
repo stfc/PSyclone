@@ -85,7 +85,7 @@ class LFRicAlg:
         # pylint: disable=too-many-locals
 
         # Create PSyIR for an algorithm routine.
-        cont = self._create_alg_mod(name)
+        cont = self.create_alg_routine(name)
         sub = cont.walk(Routine)[0]
         table = sub.symbol_table
 
@@ -98,7 +98,7 @@ class LFRicAlg:
         # Get the name of the module that contains the kernel and create a
         # ContainerSymbol for it.
         kernel_mod_name = parse_tree.content[0].name
-        # TODO #1453. The current meta-data parsing requires that we specify
+        # TODO #1806. The current meta-data parsing requires that we specify
         # the name of the kernel. It would be much better if we could query the
         # meta-data for the name of the kernel. For now we require that the
         # LFRic naming scheme is strictly adhered to (since this is simpler
@@ -118,7 +118,7 @@ class LFRicAlg:
             datatype=DeferredType(),
             interface=ImportInterface(kernel_mod))
 
-        kern = self._create_kernel(parse_tree, kernel_name)
+        kern = self.kernel_from_metadata(parse_tree, kernel_name)
 
         # Declare and initialise the data structures required by the kernel
         # arguments. Appropriate symbols are added to the symbol table
@@ -165,9 +165,9 @@ class LFRicAlg:
         return cont
 
     @staticmethod
-    def _create_alg_mod(name):
+    def create_alg_routine(name):
         '''
-        Creates a standalone LFRic algorithm subroutine within a module. The
+        Creates an LFRic algorithm subroutine within a module. The
         generated subroutine has three arguments:
 
          * mesh: pointer to the LFRic mesh object.
@@ -192,13 +192,19 @@ class LFRicAlg:
 
         # Create Container and Type Symbols for each of the modules/types that
         # we will need.
-        for root in ["field", "function_space", "function_space_collection",
-                     "mesh"]:
+        for root in ["field", "function_space", "mesh"]:
             csym = table.new_symbol(root + "_mod", symbol_type=ContainerSymbol)
 
             table.new_symbol(root + "_type", symbol_type=DataTypeSymbol,
                              datatype=DeferredType(),
                              interface=ImportInterface(csym))
+
+        fsc_mod = table.new_symbol("function_space_collection_mod",
+                                   symbol_type=ContainerSymbol)
+        table.new_symbol("function_space_collection",
+                         symbol_type=DataSymbol,
+                         datatype=DeferredType(),
+                         interface=ImportInterface(fsc_mod))
 
         # Declare the three arguments to the subroutine. All of them have to be
         # of UnknownFortranType - the mesh because it is a pointer and chi and
@@ -368,15 +374,28 @@ class LFRicAlg:
                                       f"'{shape}' is not yet implemented.")
 
     @staticmethod
-    def _create_kernel(parse_tree, kernel_name):
+    def kernel_from_metadata(parse_tree, kernel_name):
         '''
+        Given an fparser1 parse tree for an LFRic kernel, creates and returns
+        a DynKern object.
+
+        :param parse_tree: the fparser2 parse tree for the LFRic kernel.
+        :type parse_tree: :py:class:`fparser.one.block_statements.BeginSource`
+        :param str kernel_name: the name of the kernel contained in the \
+            supplied parse tree for which a DynKern is to be created.
+
+        :returns: A DynKern object describing the LFRic kernel.
+        :rtype: :py:class:`psyclone.dynamo0p3.DynKern`
+
+        :raises ValueError: if an LFRic kernel with the specified name cannot \
+                            be found in the supplied parse tree.
         '''
         try:
             ktype = KernelTypeFactory(api="dynamo0.3").create(parse_tree,
                                                               name=kernel_name)
         except ParseError as err:
             raise ValueError(
-                f"Failed to parse kernel metadata in supplied "
+                f"Failed to find kernel '{kernel_name}' in supplied "
                 f"code: '{parse_tree}'. Is it a valid LFRic kernel?") from err
         # Construct a DynKern using the metadata. This is used when
         # constructing the kernel argument list.

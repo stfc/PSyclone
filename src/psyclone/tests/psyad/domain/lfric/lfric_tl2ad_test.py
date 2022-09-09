@@ -162,7 +162,7 @@ def test_compute_field_vector_inner_products(fortran_writer):
         assert f"field2_field1_inner_prod({dim}) = 0.0_r_def" in code
 
 
-def test_compute_field_inner_products_errors(fortran_writer):
+def test_compute_field_inner_products_errors():
     '''Check that _compute_field_inner_products raises the expected errors
     when passed incorrect arguments.'''
     table = SymbolTable()
@@ -197,13 +197,13 @@ def test_compute_field_inner_products_errors(fortran_writer):
 
 # _init_fields_random
 
-def test_init_fields_random(fortran_writer):
+def test_init_fields_random():
     '''Check that the _init_fields_random() routine works as expected.'''
     table = SymbolTable()
     fld_type = DataTypeSymbol("field_type", datatype=DeferredType())
     table.add(fld_type)
     fld1 = DataSymbol("field1", datatype=fld_type)
-    fields = [(fld1, "w1")]
+    fields = [fld1]
     fld1_input = DataSymbol("field1_input", datatype=fld_type)
     input_syms = {"field1": fld1_input}
     table.add(fld1)
@@ -219,7 +219,7 @@ def test_init_fields_random(fortran_writer):
     assert kernels[1].children[0].symbol.name == "field1_input"
 
 
-def test_init_fields_random_vector(fortran_writer):
+def test_init_fields_random_vector():
     '''Check that the _init_fields_random() routine works as expected for
     a field vector.
 
@@ -228,7 +228,7 @@ def test_init_fields_random_vector(fortran_writer):
     fld_type = DataTypeSymbol("field_type", datatype=DeferredType())
     table.add(fld_type)
     fld1 = DataSymbol("field1", datatype=ArrayType(fld_type, [3]))
-    fields = [(fld1, "w1")]
+    fields = [fld1]
     fld1_input = DataSymbol("field1_input", datatype=ArrayType(fld_type, [3]))
     table.add(fld1)
     table.add(fld1_input)
@@ -257,7 +257,7 @@ def test_init_fields_random_error():
 
     '''
     fld1 = DataSymbol("field1", datatype=INTEGER_TYPE)
-    fields = [(fld1, "w1")]
+    fields = [fld1]
     inputs = {"field1": fld1}
     with pytest.raises(InternalError) as err:
         _init_fields_random(fields, inputs, SymbolTable())
@@ -278,10 +278,6 @@ def test_generate_lfric_adjoint_test_invalid_code():
         _ = generate_lfric_adjoint_test("program oops\nend program oops\n")
     assert ("generated if the supplied TL kernel is within a module but got: "
             "'program oops" in str(err.value))
-    with pytest.raises(ValueError) as err:
-        _ = generate_lfric_adjoint_test("module oops\nend module oops\n")
-    assert ("Failed to parse kernel metadata in supplied code:"
-            in str(err.value))
 
 
 TL_CODE = (
@@ -359,9 +355,29 @@ def test_generate_lfric_adjoint_test(fortran_writer):
             "    inner2 = inner2 + field_2_field_2_input_inner_prod\n" in gen)
 
 
+def test_generate_lfric_adj_test_quadrature():
+    '''Check that input copies of quadrature arguments are not created.'''
+    new_code = TL_CODE.replace("     integer :: operates_on = cell_column\n",
+                               '''\
+    type(func_type) :: meta_funcs(1) = (/                                   &
+         func_type(W3,          GH_BASIS)                                   &
+         /)
+    integer :: operates_on = CELL_COLUMN
+    integer :: gh_shape = GH_EVALUATOR
+''')
+    psyir = generate_lfric_adjoint_test(new_code)
+    routine = psyir.walk(Routine)[0]
+    for sym in routine.symbol_table.datasymbols:
+        # All input variables should be either scalars or fields.
+        # TODO #1864 add support for operators.
+        if sym.name.endswith("_input"):
+            assert (sym.name.startswith("field") or
+                    sym.name.startswith("rscalar"))
+
+
 def test_generate_lfric_adjoint_test_no_operators(monkeypatch):
     '''Check that a kernel that has an operator as argument raises the
-    expected error.
+    expected error. This limitation will be lifted in #1864.
 
     '''
     code = TL_CODE.replace("arg_type(gh_field,  gh_real, gh_write,  w3)",
@@ -375,5 +391,5 @@ def test_generate_lfric_adjoint_test_no_operators(monkeypatch):
     with pytest.raises(NotImplementedError) as err:
         _ = generate_lfric_adjoint_test(code)
     assert ("Kernel testkern_type has one or more operator arguments. Test "
-            "harness creation for such a kernel is not yet supported." in
-            str(err.value))
+            "harness creation for such a kernel is not yet supported (Issue "
+            "#1864)." in str(err.value))
