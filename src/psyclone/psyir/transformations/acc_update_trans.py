@@ -77,8 +77,10 @@ class ACCUpdateTrans(Transformation):
     def __init__(self):
         # Perform some set-up required by the recursive routine.
         self._dep_tools = DependencyTools()
-        self._acc_regions = (ACCParallelDirective, ACCKernelsDirective)
-        # Assume CodeBlocks do not call routines executed on the device.
+        self._acc_ignore = (ACCEnterDataDirective, )
+        self._acc_compute = (ACCParallelDirective, ACCKernelsDirective)
+        # Assume Call nodes may (and CodeBlocks do not) call routines whose
+        # (part of their) bodies execute on the device.
         self._brk_nodes = (Call, )
 
         super().__init__()
@@ -105,7 +107,7 @@ class ACCUpdateTrans(Transformation):
             raise TransformationError(f"Expected a Schedule but got a node of "
                                       f"type '{type(node).__name__}'")
 
-        if node.ancestor(self._acc_regions):
+        if node.ancestor(self._acc_compute):
             raise TransformationError(
                 "Cannot apply the ACCUpdateTrans to nodes that are already "
                 "within an OpenACC compute region.")
@@ -145,13 +147,13 @@ class ACCUpdateTrans(Transformation):
         '''
         # We must walk through the Schedule and find those nodes representing
         # contiguous regions of code that are not executed on the device. Any
-        # Call nodes are taken as boundaries of such regions
-        # because it may be that their bodies are executed on the device.
+        # Call nodes are taken as boundaries of such regions because it may be
+        # that (part of) their bodies are executed on the device.
         node_list = []
         for child in sched.children[:]:
-            if isinstance(child, ACCEnterDataDirective):
+            if isinstance(child, self._acc_ignore):
                 continue
-            elif not child.walk(self._acc_regions + self._brk_nodes):
+            elif not child.walk(self._acc_compute + self._brk_nodes):
                 node_list.append(child)
             else:
                 self._add_update_directives(node_list)
@@ -274,7 +276,7 @@ class ACCUpdateTrans(Transformation):
                                         (loop_dep_stmts, loop_sync)]:
                     kern_sig = set()
                     for stmt in dep_stmts:
-                        for acc in stmt.walk(self._acc_regions):
+                        for acc in stmt.walk(self._acc_compute):
                             # Kernel outputs are potential both input and
                             # output dependencies. The latter is because we
                             # must guarantee no kernel write is overwritten by
