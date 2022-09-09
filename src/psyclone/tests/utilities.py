@@ -71,8 +71,20 @@ class CompileError(PSycloneError):
 
 # =============================================================================
 def line_number(root, string_name):
-    '''helper routine which returns the first index of the supplied
-    string or -1 if it is not found'''
+    '''Helper routine which returns the first index of the supplied
+    name in the root object, when it is converted into a string, or
+    -1 if it is not found.
+
+    :param root: the supplied object, which is converted into a list of \
+        strings using `str(root).splitlines()`
+    :type root: Any
+    :param str string_name: the string to search for.
+
+    :returns: first index in the converted list of strings, or -1 if it \
+        is not found
+    :rtype: int
+
+    '''
     lines = str(root).splitlines()
     for idx, line in enumerate(lines):
         if string_name in line:
@@ -82,8 +94,21 @@ def line_number(root, string_name):
 
 # =============================================================================
 def count_lines(root, string_name):
-    '''helper routine which returns the number of lines that contain the
-    supplied string'''
+    '''Helper routine which returns the number of lines that contain the
+    supplied string.
+    Helper routine which returns the first index of the supplied
+    name in the root object, when it is converted into a string, or
+    -1 if it is not found.
+
+    :param root: the supplied object, which is converted into a list of \
+        strings using `str(root).splitlines()`
+    :type root: Any
+    :param str string_name: the string to search for.
+
+    :returns: the number of lines that contain the specified string.
+    :rtype: int
+
+    '''
     count = 0
     lines = str(root).splitlines()
     for line in lines:
@@ -444,22 +469,20 @@ class Compile():
 
         # Change to the temporary directory passed in to us from
         # pytest. (This is a LocalPath object.)
-        old_pwd = self._tmpdir.chdir()
-        # Add a object-specific hash-code to the file name so that all files
-        # created in the same test have different names and can easily be
-        # inspected in case of errors.
-        filename = f"generated-{hash(self)}.f90"
-        with open(filename, 'w', encoding="utf-8") as test_file:
-            test_file.write(code)
+        with change_dir(self._tmpdir):
+            # Add a object-specific hash-code to the file name so that all
+            # files created in the same test have different names and can
+            # easily be inspected in case of errors.
+            filename = f"generated-{hash(self)}.f90"
+            with open(filename, 'w', encoding="utf-8") as test_file:
+                test_file.write(code)
 
-        success = True
-        try:
-            self.compile_file(filename)
-        except CompileError:
-            # Failed to compile the file
-            success = False
-        finally:
-            old_pwd.chdir()
+            success = True
+            try:
+                self.compile_file(filename)
+            except CompileError:
+                # Failed to compile the file
+                success = False
 
         return success
 
