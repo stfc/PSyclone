@@ -41,6 +41,7 @@ import argparse
 import logging
 import sys
 
+from psyclone.line_length import FortLineLength
 from psyclone.psyad.tl2ad import generate_adjoint_str
 from psyclone.psyad.transformations import TangentLinearError
 
@@ -53,6 +54,9 @@ def main(args):
                       been invoked with.
 
     '''
+    # TODO #1863 - expose line-length limiting as a command-line flag.
+    line_length_limit = True
+
     logger = logging.getLogger(__name__)
 
     # There is a well known bug in argparse when mixing positional and
@@ -119,7 +123,12 @@ def main(args):
         print(str(info))
         sys.exit(1)
 
+    fll = FortLineLength()
+
     # Output the Fortran code for the adjoint kernel
+    if line_length_limit:
+        ad_fortran_str = fll.process(ad_fortran_str)
+
     if args.oad:
         logger.info("Writing adjoint of kernel to file %s", args.oad)
         with open(args.oad, mode="w", encoding="utf-8") as adj_file:
@@ -127,8 +136,13 @@ def main(args):
     else:
         print(ad_fortran_str, file=sys.stdout)
 
+
     # Output test framework if requested
     if generate_test:
+
+        if line_length_limit:
+            test_fortran_str = fll.process(test_fortran_str)
+
         if args.test_filename:
             logger.info("Writing test harness for adjoint kernel to file %s",
                         args.test_filename)
