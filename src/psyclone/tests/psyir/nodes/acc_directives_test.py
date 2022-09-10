@@ -353,11 +353,17 @@ def test_accupdatedirective_begin_string():
     ''' Test the begin_string method of ACCUpdateDirective. '''
 
     sig = {Signature("x")}
-    directive1 = ACCUpdateDirective(sig, "host", conditional=False)
-    directive2 = ACCUpdateDirective(sig, "device")
+    directive_host = ACCUpdateDirective(sig, "host", conditional=False)
+    directive_device = ACCUpdateDirective(sig, "device")
+    directive_empty = ACCUpdateDirective(set(), "host", conditional=False)
 
-    assert directive1.begin_string() == "acc update host(x)"
-    assert directive2.begin_string() == "acc update if_present device(x)"
+    assert directive_host.begin_string() == "acc update host(x)"
+    assert directive_device.begin_string() == "acc update if_present device(x)"
+
+    with pytest.raises(GenerationError) as err:
+        directive_empty.begin_string()
+    assert ("ACCUpdate directive did not find any data to update."
+            in str(err.value))
 
 
 def test_accupdatedirective_equality():

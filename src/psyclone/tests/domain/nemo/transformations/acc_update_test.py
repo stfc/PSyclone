@@ -46,13 +46,28 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import CodeBlock
+from psyclone.psyir.nodes import ACCKernelsDirective, CodeBlock, Schedule
 from psyclone.psyir.transformations import TransformationError, ACCUpdateTrans
 from psyclone.transformations import ACCEnterDataTrans, ACCKernelsTrans
 from psyclone.tests.utilities import Compile
 
 # Constants
 API = "nemo"
+
+
+def test_validate(parser):
+    ''' Check that the validate() method works as expected. '''
+    trans = ACCUpdateTrans()
+
+    with pytest.raises(TransformationError) as err:
+        trans.validate(ACCKernelsDirective())
+    assert ("Expected a Schedule but got a node of type 'ACCKernelsDirective'"
+            in str(err.value))
+
+    with pytest.raises(TransformationError) as err:
+        trans.validate(Schedule(parent=ACCKernelsDirective()))
+    assert ("Cannot apply the ACCUpdateTrans to nodes that are already "
+            "within an OpenACC compute region." in str(err.value))
 
 
 def test_simple_missed_region(parser):
@@ -123,6 +138,8 @@ SUBROUTINE tra_ldf_iso()
     CALL dia_ptr_hst( jn, 'ldf', zftv(:,:,:)  )
     zftv(:,:,:) = 1.0d0
     zftw(:,:,:) = -1.0d0
+  ELSE
+    CALL dia_ptr_hst( jn, 'ldf', zftv(:,:,:)  )
   END IF
   CALL dia_ptr_hst( jn, 'ldf', zftv(:,:,:)  )
   zftu(:,:,1) = 1.0d0
@@ -152,7 +169,7 @@ end SUBROUTINE tra_ldf_iso
             "    zftv(:,:,:) = 1.0d0\n"
             ) in gen_code
     assert ("    !$acc update if_present device(zftv)\n"
-            "  end if\n"
+            "  else\n"
             ) in gen_code
     assert ("  !$acc update if_present host(jn,zftv)\n"
             "  call"

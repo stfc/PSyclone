@@ -202,7 +202,7 @@ class ACCUpdateTrans(Transformation):
         inputs, outputs = self._dep_tools.get_in_out_parameters(node_list)
         inputs, outputs = set(inputs), set(outputs)
 
-        # As a workaround for the lack of precise access descriptions, we
+        # As a workaround for the lack of precise array access descriptions, we
         # currently overapproximate dependencies by adding any variables being
         # written to the input set (in addition to the output set). The aim is
         # to avoid situations where the host only writes an array slice and the
