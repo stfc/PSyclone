@@ -108,10 +108,10 @@ include $(LFRIC_PATH)/dependency
 #     cd field; $(F90) $(F90FLAGS) -c $< -o $(notdir $@)
 
 define compile_rule_template =
-$(1)/%.o:	$$(LFRIC_PATH)/$(1)/%.f90
+$(1)/%.o:	$$(LFRIC_PATH)/$(1)/%.f90 dirs
 	cd $(1); $$(F90) $$(F90FLAGS) -c $$< -o $$(notdir $$@)
 
-$(1)/%.o:	$$(LFRIC_PATH)/$(1)/%.F90
+$(1)/%.o:	$$(LFRIC_PATH)/$(1)/%.F90 dirs
 	cd $(1); $$(F90) $$(F90FLAGS) -c $$< -o $$(notdir $$@)
 endef
 
