@@ -49,11 +49,11 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.nodes import BinaryOperation, Call, CodeBlock, DataNode, \
-    Literal, Operation, Range, Routine, Schedule, UnaryOperation
+    Literal, Operation, Range, Routine, Schedule, UnaryOperation, Reference
 from psyclone.psyir.symbols import ArgumentInterface, ArrayType, \
     ContainerSymbol, DataSymbol, DataTypeSymbol, DeferredType, RoutineSymbol, \
     ScalarType, Symbol, SymbolTable, UnknownFortranType, UnknownType, \
-    UnresolvedInterface
+    UnresolvedInterface, REAL_TYPE
 
 
 # The list of Fortran instrinsic functions that we know about (and can
@@ -1214,6 +1214,12 @@ class FortranWriter(LanguageWriter):
             fort_oper = self.get_operator(node.operator)
             if self.is_intrinsic(fort_oper):
                 # This is a binary intrinsic function.
+                # pylint: disable=unidiomatic-typecheck
+                if fort_oper in ["LBOUND", "UBOUND"] and \
+                       type(node.children[0]) == Reference:
+                    # Only write out the array reference
+                    lhs = self._visit(Reference(
+                        DataSymbol(node.children[0].name, REAL_TYPE)))
                 return f"{fort_oper}({lhs}, {rhs})"
             parent = node.parent
             if isinstance(parent, Operation):

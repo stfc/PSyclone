@@ -240,6 +240,51 @@ def test_validate_structure(fortran_reader):
            "'StructureReference'." in str(info.value))
 
 
+def test_validate_bounds(fortran_reader, fortran_writer):
+    '''Test that an exception is raised if the transformation is applied
+    to a reference to an array within an LBOUND or UBOUND binary
+    operator, as we do not want these to be modified.
+
+    '''
+    code = (
+        "program test\n"
+        "  real, dimension(10,10,10) :: a\n"
+        "  real, dimension(10,10,10) :: b\n"
+        "  real, dimension(10,10,10) :: c\n"
+        "  integer :: idx\n"
+        "  integer :: idx_1\n\n"
+        "  do idx = LBOUND(a, 3), UBOUND(a, 3), 1\n"
+        "    do idx_1 = LBOUND(a, 1), UBOUND(a, 1), 1\n"
+        "      a = b * c\n"
+        "    enddo\n"
+        "  enddo\n"
+        "end program test\n")
+    expected = (
+        "program test\n"
+        "  real, dimension(10,10,10) :: a\n"
+        "  real, dimension(10,10,10) :: b\n"
+        "  real, dimension(10,10,10) :: c\n"
+        "  integer :: idx\n"
+        "  integer :: idx_1\n\n"
+        "  do idx = LBOUND(a, 3), UBOUND(a, 3), 1\n"
+        "    do idx_1 = LBOUND(a, 1), UBOUND(a, 1), 1\n"
+        "      a(:,:,:) = b(:,:,:) * c(:,:,:)\n"
+        "    enddo\n"
+        "  enddo\n\n"
+        "end program test\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    trans = Reference2ArrayRangeTrans()
+    for idx, reference in enumerate(psyir.walk(Reference)):
+        if idx < 4:
+            with pytest.raises(TransformationError) as info:
+                trans.apply(reference)
+            assert "Ignore arrays in LBOUND and UBOUND." in str(info.value)
+        else:
+            trans.apply(reference)
+    result = fortran_writer(psyir)
+    assert result == expected
+
+
 def test_apply_validate():
     '''Test that the apply method calls validate by checking that the
     exception raised by validate is raised when apply is called.
