@@ -135,12 +135,13 @@ def test_compiler_with_flags(tmpdir, monkeypatch):
         with pytest.raises(CompileError) as excinfo:
             _compile.compile_file("hello_world.f90")
 
-        if Compile.F90 != "false":
-            # The actual message might vary depending on compiler
-            assert "not-a-flag" in str(excinfo.value)
-        else:
+        assert "not-a-flag" in str(excinfo.value) or Compile.F90 == "false"
+
+        # We have monkeypatched TEST_COMPILE to be true if compilation is
+        # disabled. So check for the specified compiler here:
+        if Compile.F90 == "false":
             # If we are not compiling, use 'true' as compiler in
-            # the next step that is supposed to be successful:
+            # the next step that is supposed to be successful.
             _compile._f90 = "true"
 
         # For completeness we also try with a valid flag although we
@@ -150,11 +151,16 @@ def test_compiler_with_flags(tmpdir, monkeypatch):
 
 
 # -----------------------------------------------------------------------------
-def test_build_invalid_fortran(tmpdir):
+def test_build_invalid_fortran(tmpdir, monkeypatch):
     ''' Check that we raise the expected error when attempting
     to compile some invalid Fortran. Skips test if --compile not
     supplied to py.test on command-line. '''
-    Compile.skip_if_compilation_disabled()
+    if not Compile.TEST_COMPILE:
+        # If compilation is disable, use '/usr/bin/true' as 'compile'
+        # to cover more lines:
+        monkeypatch.setattr(Compile, "TEST_COMPILE", True)
+        monkeypatch.setattr(Compile, "F90", "false")
+
     invalid_code = HELLO_CODE.replace("write", "wite", 1)
     with change_dir(tmpdir):
         with open("hello_world.f90", "w", encoding="utf-8") as ffile:
@@ -187,17 +193,26 @@ def test_find_fortran_file(tmpdir):
 # -----------------------------------------------------------------------------
 def test_compile_str(monkeypatch, tmpdir):
     ''' Checks for the routine that compiles Fortran supplied as a string '''
-    # Check that we always return True if compilation testing is disabled
-    Compile.skip_if_compilation_disabled()
+    if not Compile.TEST_COMPILE:
+        # If compilation is disable, use '/usr/bin/true' as 'compile'
+        # to cover more lines:
+        monkeypatch.setattr(Compile, "TEST_COMPILE", True)
+        monkeypatch.setattr(Compile, "F90", "true")
+
     _compile = Compile(tmpdir)
-    test_compile = "psyclone.tests.utilities.Compile"
-    monkeypatch.setattr(test_compile+".TEST_COMPILE", False)
-    monkeypatch.setattr(test_compile+".TEST_COMPILE_OPENCL", False)
+
+    # Check that we always return True if compilation testing is disabled
+    monkeypatch.setattr(Compile, "TEST_COMPILE", False)
+    monkeypatch.setattr(Compile, "TEST_COMPILE_OPENCL", False)
     assert _compile.string_compiles("not fortran")
+
     # Re-enable compilation testing and check that we can build hello world
-    monkeypatch.setattr(test_compile+".TEST_COMPILE", True)
+    monkeypatch.setattr(Compile, "TEST_COMPILE", True)
     assert _compile.string_compiles(HELLO_CODE)
+
     # Repeat for some broken code
+    if Compile.F90 == "true":
+        monkeypatch.setattr(_compile, "_f90", "false")
     invalid_code = HELLO_CODE.replace("write", "wite", 1)
     assert not _compile.string_compiles(invalid_code)
 
@@ -205,8 +220,10 @@ def test_compile_str(monkeypatch, tmpdir):
 # -----------------------------------------------------------------------------
 def test_code_compile(tmpdir, monkeypatch):
     '''A dummy test of the underlying code_compiles function, which takes
-    an AST. Note that the derived classes (GOceanBuild and LFRicBUILD)
-    will test this properly, so here we just use 'true' as 'compiler'.
+    an AST. Note that the derived classes (GOceanBuild and LFRicBuild)
+    will test this properly (especially when compilation is enabled),
+    here we only to cover the other lines handling AST conversion. So,
+    here we just use 'true' as 'compiler'.
     '''
     _, invoke_info = parse(os.path.join(os.path.
                                         dirname(os.path.
@@ -215,14 +232,16 @@ def test_code_compile(tmpdir, monkeypatch):
                                         "single_invoke.f90"),
                            api="gocean1.0")
     psy = PSyFactory("gocean1.0", distributed_memory=False).create(invoke_info)
-    if not Compile.TEST_COMPILE:
-        # If compilation is disabled, temporarily enable it and use
-        # 'true' as compiler:
-        monkeypatch.setattr(Compile, "TEST_COMPILE", True)
-        monkeypatch.setattr(Compile, "F90", "true")
+    # Always trigger 'compilation' to avoid early abort, before the code
+    # to be tested is executed.
+    monkeypatch.setattr(Compile, "TEST_COMPILE", True)
+    monkeypatch.setattr(Compile, "F90", "true")
     _compile = Compile(tmpdir)
-    _compile.base_path = "/tmp"
     with change_dir(tmpdir):
+        # GOceanBuild or LFRicBuild will set the 'base_path' for the
+        # infrastructure files. We just need to set it to something:
+        _compile.base_path = tmpdir
+        # Only used to specify an existing dependency:
         with open("hello_world.f90", "w", encoding="utf-8") as ffile:
             ffile.write(HELLO_CODE)
         assert _compile.code_compiles(psy, dependencies=["something.cl",
