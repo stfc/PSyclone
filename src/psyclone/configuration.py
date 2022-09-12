@@ -430,8 +430,8 @@ class Config:
 
         # Set up list of locations to search
         share_dir = os.path.join(sys.prefix, "share", "psyclone")
-        pkg_share_dir = [os.path.join(psyclone_path, "..", "share", "psyclone")
-            for psyclone_path in psyclone.__path__]
+        pkg_share_dir = [os.path.join(os.path.dirname(psyclone_path),
+            "share", "psyclone") for psyclone_path in psyclone.__path__]
 
         # 1. .psyclone/ in the CWD
         _file_paths = [os.path.join(os.getcwd(), ".psyclone")]
