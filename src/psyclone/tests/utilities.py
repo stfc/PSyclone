@@ -71,8 +71,20 @@ class CompileError(PSycloneError):
 
 # =============================================================================
 def line_number(root, string_name):
-    '''helper routine which returns the first index of the supplied
-    string or -1 if it is not found'''
+    '''Helper routine which returns the first index of the supplied
+    name in the root object, when it is converted into a string, or
+    -1 if it is not found.
+
+    :param root: the supplied object, which is converted into a list of \
+        strings using `str(root).splitlines()`
+    :type root: Any
+    :param str string_name: the string to search for.
+
+    :returns: first index in the converted list of strings, or -1 if it \
+        is not found
+    :rtype: int
+
+    '''
     lines = str(root).splitlines()
     for idx, line in enumerate(lines):
         if string_name in line:
@@ -82,8 +94,21 @@ def line_number(root, string_name):
 
 # =============================================================================
 def count_lines(root, string_name):
-    '''helper routine which returns the number of lines that contain the
-    supplied string'''
+    '''Helper routine which returns the number of lines that contain the
+    supplied string.
+    Helper routine which returns the first index of the supplied
+    name in the root object, when it is converted into a string, or
+    -1 if it is not found.
+
+    :param root: the supplied object, which is converted into a list of \
+        strings using `str(root).splitlines()`
+    :type root: Any
+    :param str string_name: the string to search for.
+
+    :returns: the number of lines that contain the specified string.
+    :rtype: int
+
+    '''
     count = 0
     lines = str(root).splitlines()
     for line in lines:
@@ -301,12 +326,10 @@ class Compile():
         if stat != 0:
             print(f"Compiling: {' '.join(arg_list)}", file=sys.stderr)
             print(output.decode("utf-8"), file=sys.stderr)
-            if error:
-                print("=========", file=sys.stderr)
-                print(error.decode("utf-8"), file=sys.stderr)
             raise CompileError(output)
 
     def _code_compiles(self, psy_ast, dependencies=None):
+        # pylint: disable=too-many-branches
         '''Attempts to build the Fortran code supplied as an AST of
         f2pygen objects. Returns True for success, False otherwise.
         It is meant for internal test uses only, and must only be
@@ -348,7 +371,7 @@ class Compile():
 
         # Create a file containing our generated PSy layer.
         psy_filename = "psy.f90"
-        with open(psy_filename, 'w') as psy_file:
+        with open(psy_filename, 'w', encoding="utf-8") as psy_file:
             # We limit the line lengths of the generated code so that
             # we don't trip over compiler limits.
             fll = FortLineLength()
@@ -383,9 +406,9 @@ class Compile():
             except IOError:
                 # Not all modules need to be found, for example API
                 # infrastructure modules will be provided already built.
-                print("File {0} not found for compilation.".format(fort_file))
-                print("It was searched in: {0}".format([self.base_path,
-                                                        str(self._tmpdir)]))
+                print(f"File {fort_file} not found for compilation.")
+                paths = [self.base_path, str(self._tmpdir)]
+                print(f"It was searched in: {paths}")
             except CompileError:
                 # Failed to compile one of the files
                 success = False
@@ -486,10 +509,10 @@ def get_base_path(api):
                   "gocean1.0": "gocean1p0"}
     try:
         dir_name = api_2_path[api]
-    except KeyError:
-        raise RuntimeError("The API '{0}' is not supported. "
-                           "Supported types are {1}.".
-                           format(api, api_2_path.keys()))
+    except KeyError as err:
+        raise RuntimeError(f"The API '{api}' is not supported. "
+                           f"Supported types are {api_2_path.keys()}.") \
+                           from err
     return os.path.join(os.path.dirname(os.path.abspath(__file__)),
                         "test_files", dir_name)
 
