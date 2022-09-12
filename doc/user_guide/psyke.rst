@@ -364,38 +364,58 @@ apply code extraction by utilising PSyclone transformation scripts
 in ``examples/lfric/eg17/full_example_extract`` can be compiled and
 run, and it will create two kernel data files.
 
-.. _psyke_netcdf:
+.. _extraction_libraries:
 
-NetCDF Extraction Examples
---------------------------
+Extraction Libraries
+--------------------
+PSyclone comes with two extraction libraries: one is based on NetCDF
+and will create NetCDF files to contain all input- and output-parameters.
+The second one is a stand-alone library which uses only standard Fortran
+IO to write and read kernel data. The binary files produced using this
+library may not be portable between machines and compilers. If you
+require such portabililty then please use the NetCDF extraction library.
 
-PSyclone comes with example NetCDF-based extraction :ref:`libraries
-<libraries>` in `lib/extract/netcdf
+The two extraction :ref:`libraries <libraries>` are in
+`lib/extract/standalone
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone>`_.
+and in
+`lib/extract/netcdf
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf>`_.
 
-NetCDF Extraction for GOcean
-++++++++++++++++++++++++++++
+.. _extraction_for_gocean:
 
-The library in `lib/extract/netcdf/dl_esm_inf
+Extraction for GOcean
++++++++++++++++++++++
+
+The extraction libraries in 
+`lib/extract/standard/dl_esm_inf
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/standard/dl_esm_inf>`_
+and 
+`lib/extract/netcdf/dl_esm_inf
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/dl_esm_inf>`_
-implements the full PSyData API for use with the
+implement the full PSyData API for use with the
 :ref:`GOcean1.0 <gocean1.0-api>` dl_esm_inf infrastructure library.
-In order to compile this library, you must have NetCDF installed.
-When running the code, it will create a NetCDF file for the instrumented
+When running the instrumented executable, it will create either a binary or
+a NetCDF file for each instrumented
 code region. It includes all variables that are read before the code
 is executed, and all variables that have been modified. The output
-variables have the postfix ``_post`` attached to the NetCDF names,
+variables have the postfix ``_post`` attached to the names,
 e.g. a variable ``xyz`` that is read and written will be stored
 with the name ``xyz`` containing the input values, and the name
 ``xyz_post`` containing the output values. Arrays have their size
-stored as NetCDF dimensions: again the variable ``xyz`` will have its
+explicitly stored (in case of NetCDF as dimensions): again the
+variable ``xyz`` will have its
 sizes stored as ``xyzdim1``, ``xyzdim2`` for the input values,
 and output arrays use the name ``xyz_postdim1``, ``xyz_postdim2``.
 
+.. note:: The stand-alone library does not store the names of the
+    variables in the output file, but these names will be used
+    as variable names in the created driver.
+
 The output file contains the values of all variables used in the
-subroutine. The ``GOceanExtractTrans`` can automatically create a
-driver program which will read the NetCDF file, call the
-instrumented region, and compare the results. In order to create
+subroutine. The ``GOceanExtractTrans`` transformation can automatically
+create a driver program which will read the corresponding output file,
+call the instrumented region, and compare the results. In order to create
 this driver program, the options parameter ``create_driver`` must
 be set to true:
 
@@ -408,21 +428,34 @@ be set to true:
 
 This will create a Fortran file called ``driver-main-init.f90``, which
 can then be compiled and executed. This stand-alone program will read
-the NetCDF file created during an execution of the actual program, call
+the output file created during an execution of the actual program, call
 the kernel with all required input parameter, and compare the output
 variables with the original output variables. This can be used to create
 stand-alone test cases to reproduce a bug, or for performance
 optimisation of a stand-alone kernel.
 
-NetCDF Extraction for LFRic
-++++++++++++++++++++++++++++
+.. warning:: Care has to be taken that the driver matches the version
+    of the code that was used to create the output file, otherwise the
+    driver will likely crash. The stand-alone driver relies on a
+    strict ordering of variable values in the output file and e.g.
+    even renaming one variable can affect this. The NetCDF version
+    stores the variable names and will not be able to find a variable
+    if its name has changed.
 
-The library in `lib/extract/netcdf/lfric
+Extraction for LFRic
+++++++++++++++++++++
+
+The libraries in 
+`lib/extract/standalone/lfric
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone/lfric>`_
+and
+`lib/extract/netcdf/lfric
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/lfric>`_
-implements the full PSyData API for use with the
-:ref:`LFRic <dynamo0.3-api>` infrastructure library. In order to compile
-this library, you must have NetCDF installed. When running the code, it will
-create a NetCDF file for the instrumented code region.
+implement the full PSyData API for use with the
+:ref:`LFRic <dynamo0.3-api>` infrastructure library. When running the
+code, it will create an output file for each instrumented code region.
+The same logic for naming variables used in :ref:`extraction_for_gocean`
+is used here.
 
 As in the case of e.g. :ref:`read-only verification
 <psydata_read_verification>`, this library uses the pared-down LFRic

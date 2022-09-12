@@ -1,7 +1,7 @@
 #------------------------------------------------------------------------------
 # BSD 2-Clause License
 # 
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2022, Science and Technology Facilities Council.
 # All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
@@ -35,35 +35,36 @@
 # export F90FLAGS="-O3"
 # export AR=ar
 #
-# It also uses nf-config to query for flags required for NetCDF compilation.
-
 # ----------- Default "make" values, can be overwritten by the user -----------
 # Compiler and compiler flags
 F90 ?= gfortran
 F90FLAGS ?=
-# Path to the 'dl_esm_inf' infrastructure library. It defaults to the version
-# distributed with PSyclone. Overwrite for a different infrastructure version.
-GOCEAN_INF_DIR ?= ./../../../../external/dl_esm_inf/finite_difference
+# Path to the LFRic infrastructure library. It defaults to the pared-down
+# version of the LFRic infrastructure distributed with PSyclone.
+# Overwrite for a different infrastructure version.
+LFRIC_PATH ?= ./../../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
 # Paths to the PSyclone wrapper libraries and required templates. They default
-# to the relative paths to the top-level 'lib' and 'lib/extract/netcdf'
+# to the relative paths to the top-level 'lib' and 'lib/extract/standalone'
 # directories. Overwrite for a custom location.
 PSYDATA_LIB_DIR ?= ./../../..
 LIB_TMPLT_DIR ?= ./..
 # -----------------------------------------------------------------------------
 
-INF_INC = $(GOCEAN_INF_DIR)/src
-INF_LIB_NAME = _fd
-INF_LIB = $(GOCEAN_INF_DIR)/src/lib$(INF_LIB_NAME).a
+INF_INC = $(LFRIC_PATH)
+INF_LIB_NAME = lfric
+INF_LIB = $(LFRIC_PATH)/lib$(INF_LIB_NAME).a
 
-F90FLAGS += $$(nf-config --fflags) -I$(INF_INC)
+# This will add the required include flags to F90FLAGS
+include $(LFRIC_PATH)/lfric_include_flags.inc
+
 PSYDATA_LIB_NAME = _extract
 PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 
-PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
-                       -dims=2
+PROCESS_ARGS = -prefix=extract_ -types=int,logical,real,double \
+                       -dims=1,2,3,4
 PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
-OBJS = psy_data_base.o kernel_data_netcdf.o extract_netcdf_base.o
+OBJS = psy_data_base.o kernel_data_standalone.o extract_standalone_base.o
 
 default: $(PSYDATA_LIB)
 
@@ -72,24 +73,24 @@ default: $(PSYDATA_LIB)
 $(PSYDATA_LIB): $(INF_LIB) $(OBJS)
 	${AR} ${ARFLAGS} ${PSYDATA_LIB} $^
 
-kernel_data_netcdf.o:	extract_netcdf_base.o $(INF_LIB)
-extract_netcdf_base.o:	psy_data_base.o
+# Create LFRic infrastructure library
+$(INF_LIB):
+	$(MAKE) -C $(LFRIC_PATH)
+
+kernel_data_standalone.o:	extract_standalone_base.o
+extract_standalone_base.o:	psy_data_base.o
 
 psy_data_base.f90: $(PSYDATA_LIB_DIR)/psy_data_base.jinja Makefile
-	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
+	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
 
-extract_netcdf_base.f90: $(LIB_TMPLT_DIR)/extract_netcdf_base.jinja Makefile
-	$(PROCESS) $(PROCESS_ARGS) -generic-declare -generic-provide $< > extract_netcdf_base.f90
-
-# The dl_esm_inf library
-$(INF_LIB):
-	$(MAKE) -C $(GOCEAN_INF_DIR)
+extract_standalone_base.f90: $(LIB_TMPLT_DIR)/extract_standalone_base.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > extract_standalone_base.f90
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_netcdf_base.f90
+	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_standalone_base.f90
 
 allclean: clean
-	$(MAKE) -C $(GOCEAN_INF_DIR) clean
+	$(MAKE) -C $(LFRIC_PATH) allclean

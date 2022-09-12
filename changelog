@@ -107,6 +107,12 @@
 	39) PR #1846. Fixes to various docstrings in transformations.py
 	and node.py.
 
+	40) PR #1845 for #1813. Adds a standalone PSyData extraction
+	library (that uses only Fortran IO).
+
+	41) PR #1836 for #1834. Adds support for explicit array-range
+	declarations to the dotproducttrans transformation.
+
 release 2.3.1 17th of June 2022
 
         1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
