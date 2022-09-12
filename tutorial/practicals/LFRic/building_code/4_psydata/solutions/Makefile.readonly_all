@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@ PSYDATA_LIB_NAME?=_read_only
 include Makefile.inc
 
 time_evolution_alg_mod_psy.f90: time_evolution_alg_mod.x90 solutions/readonly_all_transform.py
-	psyclone $(PSYCLONE_CMD) --config $(PSYCLONE_RELPATH)/config/psyclone.cfg        \
-	-s ./solutions/readonly_all_transform.py -opsy time_evolution_alg_mod_psy.f90    \
+	psyclone $(PSYCLONE_CMD) -s ./solutions/readonly_all_transform.py \
+	-opsy time_evolution_alg_mod_psy.f90                              \
 	-oalg time_evolution_alg_mod.f90 time_evolution_alg_mod.x90
 
