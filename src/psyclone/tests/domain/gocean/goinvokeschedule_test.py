@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,21 +32,19 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Authors: A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified work Copyright (c) 2018-2019 by J. Henrichs, Bureau of Meteorology
-# Modified R. W. Ford, STFC Daresbury Lab
+# Modified: by J. Henrichs, Bureau of Meteorology
+# Modified: R. W. Ford, STFC Daresbury Lab
 # Modified: I. Kavcic, Met Office
 
 ''' pytest tests for the GOInvokeSchedule class. '''
 
-from __future__ import absolute_import, print_function
 import os
-import pytest
-from psyclone.errors import GenerationError
+
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.parse.algorithm import parse
-from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.nodes import Container
 from psyclone.psyGen import PSyFactory
+from psyclone.tests.utilities import change_dir
 
 API = "gocean1.0"
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -77,26 +75,25 @@ def test_writetoread_dag(tmpdir, have_graphviz):
                            api=API)
     psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    old_cwd = tmpdir.chdir()
-    invoke.schedule.dag()
-    if have_graphviz:
-        dot_file = os.path.join(str(tmpdir), "dag")
-        assert os.path.isfile(dot_file)
-        with open(dot_file, "r") as dfile:
-            dot = dfile.read()
-        assert dot.startswith("digraph")
-        # write -> read means that the second loop can only begin once the
-        # first loop is complete. Check that we have the correct forwards
-        # dependence (green) and backwards dependence (red).
-        assert ('"loop_[outer]_1_end" -> "loop_[outer]_20_start" [color=red]'
-                in dot or
-                '"loop_[outer]_1_end" -> "loop_[outer]_20_start" '
-                '[color=#ff0000]' in dot)
-        assert ('"loop_[outer]_1_end" -> "loop_[outer]_20_start" [color=green]'
-                in dot or
-                '"loop_[outer]_1_end" -> "loop_[outer]_20_start" '
-                '[color=#00ff00]' in dot)
-    old_cwd.chdir()
+    with change_dir(tmpdir):
+        invoke.schedule.dag()
+        if have_graphviz:
+            dot_file = os.path.join(str(tmpdir), "dag")
+            assert os.path.isfile(dot_file)
+            with open(dot_file, "r", encoding="utf-8") as dfile:
+                dot = dfile.read()
+            assert dot.startswith("digraph")
+            # write -> read means that the second loop can only begin once the
+            # first loop is complete. Check that we have the correct forwards
+            # dependence (green) and backwards dependence (red).
+            assert ('"loop_[outer]_1_end" -> "loop_[outer]_20_start" '
+                    '[color=red]' in dot or
+                    '"loop_[outer]_1_end" -> "loop_[outer]_20_start" '
+                    '[color=#ff0000]' in dot)
+            assert ('"loop_[outer]_1_end" -> "loop_[outer]_20_start" '
+                    '[color=green]' in dot or
+                    '"loop_[outer]_1_end" -> "loop_[outer]_20_start" '
+                    '[color=#00ff00]' in dot)
 
 
 def test_dag(tmpdir, have_graphviz):
@@ -105,16 +102,15 @@ def test_dag(tmpdir, have_graphviz):
                            api=API)
     psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    old_cwd = tmpdir.chdir()
-    invoke.schedule.dag()
-    if have_graphviz:
-        assert os.path.isfile(os.path.join(str(tmpdir), "dag.svg"))
-        dot_file = os.path.join(str(tmpdir), "dag")
-        assert os.path.isfile(dot_file)
-        with open(dot_file, "r") as dfile:
-            dot = dfile.read()
-        # The two kernels in this example are independent so we should
-        # have no forwards/backwards dependencies
-        for col in ["red", "#ff0000", "green", "#00ff00"]:
-            assert '[color={0}]'.format(col) not in dot
-    old_cwd.chdir()
+    with change_dir(tmpdir):
+        invoke.schedule.dag()
+        if have_graphviz:
+            assert os.path.isfile(os.path.join(str(tmpdir), "dag.svg"))
+            dot_file = os.path.join(str(tmpdir), "dag")
+            assert os.path.isfile(dot_file)
+            with open(dot_file, "r", encoding="utf-8") as dfile:
+                dot = dfile.read()
+            # The two kernels in this example are independent so we should
+            # have no forwards/backwards dependencies
+            for col in ["red", "#ff0000", "green", "#00ff00"]:
+                assert f'[color={col}]' not in dot

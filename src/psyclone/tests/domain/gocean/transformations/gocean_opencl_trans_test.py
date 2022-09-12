@@ -38,21 +38,21 @@
 
 ''' Module containing tests for the PSyclone GOcean OpenCL transformation.'''
 
-from __future__ import absolute_import
 import os
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.domain.gocean.transformations import \
-    GOMoveIterationBoundariesInsideKernelTrans, GOOpenCLTrans
+from psyclone.domain.gocean.transformations import (
+    GOMoveIterationBoundariesInsideKernelTrans, GOOpenCLTrans)
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKernelSchedule
-from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
-    ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE
+from psyclone.psyir.symbols import (DataSymbol, ArgumentInterface,
+                                    ScalarType, ArrayType, INTEGER_TYPE,
+                                    REAL_TYPE)
 from psyclone.tests.gocean_build import GOceanOpenCLBuild
-from psyclone.tests.utilities import Compile, get_invoke
-from psyclone.transformations import TransformationError, \
-    KernelImportsToArguments
+from psyclone.tests.utilities import change_dir, Compile, get_invoke
+from psyclone.transformations import (TransformationError,
+                                      KernelImportsToArguments)
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -101,15 +101,13 @@ def test_opencl_compiler_works(kernel_outputdir):
       write (*,*) "Hello"
     end program hello
     '''
-    old_pwd = kernel_outputdir.chdir()
-    try:
+
+    with change_dir(kernel_outputdir):
         with open("hello_world_opencl.f90", "w", encoding="utf-8") as ffile:
             ffile.write(example_ocl_code)
         GOceanOpenCLBuild(kernel_outputdir).\
             compile_file("hello_world_opencl.f90",
                          link=True)
-    finally:
-        old_pwd.chdir()
 
 
 def test_transformation_name():
