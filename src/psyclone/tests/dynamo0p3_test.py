@@ -879,6 +879,7 @@ def test_bc_kernel_anyspace1_only():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     kernels = schedule.walk(DynKern)
+    assert kernels[0].base_name == "enforce_bc"
     # Ensure that none of the arguments are listed as being on ANY_SPACE_1
     for fspace in kernels[0].arguments._unique_fss:
         fspace._orig_name = "W2"
@@ -1327,6 +1328,7 @@ def test_dynkernelargument_infer_scalar_datatype(monkeypatch, proxy):
 
 @pytest.mark.parametrize("proxy", [True, False])
 def test_dynkernelargument_infer_field_datatype(monkeypatch, proxy):
+    # pylint: disable=too-many-statements
     '''
     Tests for the DynKernelArgument.infer_datatype() method for field and
     operator arguments.
