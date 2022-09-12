@@ -1140,24 +1140,6 @@ class GOKern(CodedKern):
         super().reference_accesses(var_accesses)
         var_accesses.next_location()
 
-    def load(self, call, parent=None):
-        '''
-        Populate the state of this GOKern object.
-
-        :param call: information on the way in which this kernel is called \
-                     from the Algorithm layer.
-        :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
-        :param parent: the parent of this Kernel node in the PSyIR.
-        :type parent: :py:class:`psyclone.gocean1p0.GOLoop`
-
-        '''
-        super().__init__(GOKernelArguments, call, parent, check=False)
-
-        # Pull out the grid index-offset that this kernel expects and
-        # store it here. This is used to check that all of the kernels
-        # invoked by an application are using compatible index offsets.
-        self._index_offset = call.ktype.index_offset
-
     def local_vars(self):
         '''Return a list of the variable (names) that are local to this loop
         (and must therefore be e.g. threadprivate if doing OpenMP)
