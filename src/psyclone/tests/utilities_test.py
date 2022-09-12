@@ -37,8 +37,11 @@
 ''' This module contains tests for the the various utility functions in
 psyclone_test_utils.'''
 
-from __future__ import absolute_import
+import os
+
 import pytest
+
+from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.utilities import (change_dir, count_lines, Compile,
@@ -184,6 +187,7 @@ def test_find_fortran_file(tmpdir):
         old_pwd.chdir()
 
 
+# -----------------------------------------------------------------------------
 def test_compile_str(monkeypatch, tmpdir):
     ''' Checks for the routine that compiles Fortran supplied as a string '''
     # Check that we always return True if compilation testing is disabled
@@ -199,6 +203,68 @@ def test_compile_str(monkeypatch, tmpdir):
     # Repeat for some broken code
     invalid_code = HELLO_CODE.replace("write", "wite", 1)
     assert not _compile.string_compiles(invalid_code)
+
+
+# -----------------------------------------------------------------------------
+def test_code_compile(tmpdir, monkeypatch):
+    '''A dummy test of the underlying code_compiles function, which takes
+    an AST. Note that the derived classes (GOceanBuild and LFRicBUILD)
+    will test this properly, so here we just use 'true' as 'compiler'.
+    '''
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke.f90"),
+                           api="gocean1.0")
+    psy = PSyFactory("gocean1.0", distributed_memory=False).create(invoke_info)
+    if not Compile.TEST_COMPILE:
+        # If compilation is disabled, temporarily enable it and use
+        # 'true' as compiler:
+        monkeypatch.setattr(Compile, "TEST_COMPILE", True)
+        monkeypatch.setattr(Compile, "F90", "true")
+    _compile = Compile(tmpdir)
+    _compile.base_path = "/tmp"
+    with change_dir(tmpdir):
+        with open("hello_world.f90", "w", encoding="utf-8") as ffile:
+            ffile.write(HELLO_CODE)
+        assert _compile.code_compiles(psy, dependencies=["something.cl",
+                                                         "hello_world.f90"])
+        # Now check compilation failure, which we simulate by
+        # using 'false' as compiler:
+        monkeypatch.setattr(_compile, "_f90", "false")
+        assert _compile.code_compiles(psy, dependencies=["something.cl",
+                                                         "hello_world.f90"]) \
+            is False
+
+
+# -----------------------------------------------------------------------------
+def test_line_number():
+    '''Tests the line number function.
+    '''
+    assert line_number("a\nb\nc", "a") == 0
+    assert line_number("a\nb\nc", "c") == 2
+    assert line_number("a\nb\nc", "x") == -1
+
+
+# -----------------------------------------------------------------------------
+def test_count_lines():
+    '''Tests the line number function.
+    '''
+    assert count_lines("a\nbab\ncaaa", "a") == 3
+    assert count_lines("a\nbab\ncaaa", "b") == 1
+    assert count_lines("a\nbab\ncaaa", "c") == 1
+
+
+# -----------------------------------------------------------------------------
+def test_print_diff(capsys):
+    '''Tests the print-diff function.'''
+    string_list1 = "aa\nbb\ncc"
+    string_list2 = "aa\ncc\ndd"
+    print_diffs(string_list1, string_list2)
+    out, err = capsys.readouterr()
+    assert out == "['  aa', '- bb', '  cc', '+ dd']\n"
+    assert err == ""
 
 
 # -----------------------------------------------------------------------------
