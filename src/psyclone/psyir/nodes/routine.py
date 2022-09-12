@@ -259,13 +259,13 @@ class Routine(Schedule, CommentableMixin):
         :raises KeyError: if the supplied symbol is not a local entry in the \
                           symbol table of this Routine.
         '''
-        if not isinstance(value, DataSymbol):
+        if not isinstance(value, (DataSymbol, RoutineSymbol)):
             raise TypeError(f"Routine return-symbol should be a DataSymbol "
                             f"but found '{type(value).__name__}'.")
-        if value not in self.symbol_table.local_datasymbols:
-            raise KeyError(
-                f"For a symbol to be a return-symbol, it must be present in "
-                f"the symbol table of the Routine but '{value.name}' is not.")
+        #if value not in self.symbol_table.local_datasymbols:
+        #    raise KeyError(
+        #        f"For a symbol to be a return-symbol, it must be present in "
+        #        f"the symbol table of the Routine but '{value.name}' is not.")
         self._return_symbol = value
         # The routine symbol must be updated accordingly, this is because the
         # function datatype is provided by the type of the return symbol which

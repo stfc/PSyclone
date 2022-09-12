@@ -1785,7 +1785,7 @@ def test_handling_parenthesis():
 
 
 @pytest.mark.usefixtures("f2008_parser")
-def test_handling_part_ref():
+def test_handling_part_ref(parser):
     ''' Test that fparser2 Part_Ref is converted to the expected PSyIR
     tree structure.
     '''
@@ -1828,6 +1828,45 @@ def test_handling_part_ref():
     assert isinstance(new_node, ArrayReference)
     assert new_node.name == "x"
     assert len(new_node.children) == 3  # Array dimensions
+
+    # Test a function
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine test_sub()\n"
+        "    integer :: a\n"
+        "    integer :: i\n"
+        "    a = test_func(i)\n"
+        "  end subroutine\n"
+        "  integer function test_func(i)\n"
+        "    integer :: i\n"
+        "    test_func = i\n"
+        "  end function test_func\n"
+        "end module\n")
+    reader = FortranStringReader(code)
+    ast = parser(reader)
+    processor = Fparser2Reader()
+    node = processor.generate_psyir(ast)
+    print(node.view())
+    function = node.children[0].children[0]
+    from psyclone.psyir.nodes import Routine
+    assert isinstance(function, Routine)
+    # assert isinstance(function.return_symbol, DataSymbol)
+    assert isinstance(function.return_symbol, RoutineSymbol)
+    assert isinstance(function.return_symbol.datatype, ScalarType)
+
+    call = node.children[0].children[0].children[0].rhs
+    from psyclone.psyir.nodes import Call
+    from psyclone.psyir.symbols import DeferredType
+    # assert isinstance(call, Call)
+    # assert call.routine.name == "test_func"
+    symbol = call.scope.symbol_table.lookup("test_func")
+    print("***")
+    print(call.scope.symbol_table.view())
+    print(call.parent.parent.parent.scope.symbol_table.view())
+    assert isinstance(symbol, RoutineSymbol)
+    assert not isinstance(symbol.datatype, DeferredType)
+    exit(1)
 
 
 @pytest.fixture(scope="function", name="symbol_table")

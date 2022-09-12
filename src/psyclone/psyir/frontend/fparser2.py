@@ -149,6 +149,9 @@ def _find_or_create_imported_symbol(location, name, scope_limit=None,
         no ContainerSymbols from which it might be brought into scope.
 
     '''
+
+    print(f"Looking for symbol with name '{name}' ...")
+    print (location.scope.symbol_table.view())
     if not isinstance(location, Node):
         raise TypeError(
             f"The location argument '{location}' provided to "
@@ -732,9 +735,11 @@ def _process_routine_symbols(module_ast, symbol_table, visibility_map):
         vis = visibility_map.get(name, symbol_table.default_visibility)
         # This routine is defined within this scoping unit and therefore has a
         # local interface.
+        print(f"Creating RoutineSymbol for routine '{name}'.")
         rsymbol = RoutineSymbol(name, type_map[type(routine)], visibility=vis,
                                 interface=LocalInterface())
         symbol_table.add(rsymbol)
+        print(symbol_table.view())
 
 
 def _process_access_spec(attr):
@@ -1996,6 +2001,7 @@ class Fparser2Reader(object):
                 # corresponding implementation with that name.)
                 # We store its definition using an UnknownFortranType so that
                 # we can recreate it in the Fortran backend.
+                print("Creating RoutineSymbol 2")
                 parent.symbol_table.add(
                     RoutineSymbol(name, UnknownFortranType(str(node).lower()),
                                   visibility=vis))
@@ -3557,8 +3563,9 @@ class Fparser2Reader(object):
         :raises NotImplementedError: If the fparser node represents \
             unsupported PSyIR features and should be placed in a CodeBlock.
 
-        :returns: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyir.nodes.ArrayReference`
+        :returns: PSyIR representation of node.
+        :rtype: :py:class:`psyclone.psyir.nodes.ArrayReference` or \
+            :py:class:`psyclone.psyir.nodes.Call`
 
         '''
         reference_name = node.items[0].string.lower()
@@ -3567,9 +3574,14 @@ class Fparser2Reader(object):
         # part-references instead of function-references.
         symbol = _find_or_create_imported_symbol(parent, reference_name)
 
-        array = ArrayReference(symbol, parent)
-        self.process_nodes(parent=array, nodes=node.items[1].items)
-        return array
+        if isinstance(symbol, RoutineSymbol):
+            print("This is a RoutineSymbol")
+            print("RoutineSymbol return type is '{symbol.datatype}'.")
+            call_or_array = Call(symbol, parent)
+        else:
+            call_or_array = ArrayReference(symbol, parent)
+        self.process_nodes(parent=call_or_array, nodes=node.items[1].items)
+        return call_or_array
 
     def _subscript_triplet_handler(self, node, parent):
         '''
@@ -3771,6 +3783,7 @@ class Fparser2Reader(object):
             if type(routine_symbol) is Symbol:
                 # Specialise routine_symbol from a Symbol to a
                 # RoutineSymbol
+                print("Creating RoutineSymbol 3")
                 routine_symbol.specialise(RoutineSymbol)
             elif type(routine_symbol) is RoutineSymbol:
                 # This symbol is already the expected type
@@ -3782,6 +3795,7 @@ class Fparser2Reader(object):
                     f"'{type(routine_symbol).__name__}'.")
         except KeyError:
             # A call must be to a subroutine which has no type in Fortran.
+            print("Creating a RoutineSymbol 1")
             routine_symbol = RoutineSymbol(
                 call_name, interface=UnresolvedInterface())
             symbol_table.add(routine_symbol)
@@ -3879,17 +3893,25 @@ class Fparser2Reader(object):
                 # a symbol of the same name.
                 return_name = name
 
+            print(routine.symbol_table.view())
+            print(routine.parent.parent.parent.symbol_table.view())
+            
             # Ensure that we have an explicit declaration for the symbol
             # returned by the function.
             keep_tag = None
             if return_name in routine.symbol_table:
+                print(f"Found function name '{return_name}' in symbol table")
                 symbol = routine.symbol_table.lookup(return_name)
+                print(f"This is a '{type(symbol).__name__}'.")
+                print(f"Its datatype is '{type(symbol.datatype)}'.")
+                print("WHY IS IT NOT DEFERRED TYPE????")
                 # If the symbol table still contains a RoutineSymbol
                 # for the function name (rather than a DataSymbol)
                 # then there is no explicit declaration within the
                 # function of the variable used to hold the return
                 # value.
                 if isinstance(symbol, RoutineSymbol):
+                    print("Doing RoutineSymbol stuff ...")
                     if not base_type:
                         # The type of the return value was not specified in the
                         # function prefix either therefore we have no explicit
@@ -3897,24 +3919,36 @@ class Fparser2Reader(object):
                         raise NotImplementedError()
                     # Remove the RoutineSymbol ready to replace it with a
                     # DataSymbol.
-                    routine.symbol_table.remove(symbol)
+                    print("Update RoutineSymbol with datatype.")
+                    # routine.symbol_table.remove(symbol)
+                    symbol.datatype = base_type
                     keep_tag = "own_routine_symbol"
+                    print(f"This is a '{type(symbol).__name__}'.")
+                    print(f"Its datatype is '{type(symbol.datatype)}'.")
 
             if return_name not in routine.symbol_table:
+                print(f"Name '{return_name}' not found in symbol table.")
                 # There is no existing declaration for the symbol returned by
                 # the function (because it is specified by the prefix and
                 # suffix of the function declaration). We add one rather than
                 # attempt to recreate the prefix. We have to set shadowing to
                 # True as there is likely to be a RoutineSymbol for this
                 # function in any enclosing Container.
+                print(f"Adding symbol name '{return_name}' as a DataSymbol "
+                      f"with datatype '{base_type}'.")
                 routine.symbol_table.new_symbol(return_name,
                                                 tag=keep_tag,
                                                 symbol_type=DataSymbol,
                                                 datatype=base_type,
                                                 shadowing=True)
+                print(routine.symbol_table.view())
 
             # Update the Routine object with the return symbol.
             routine.return_symbol = routine.symbol_table.lookup(return_name)
+            print(f"updating routine object with the new symbol called "
+                  f"'{routine.return_symbol.name}' as a "
+                  f"'{type(routine.return_symbol)}' with datatype "
+                  f"'{routine.return_symbol.datatype}'.")
 
         try:
             sub_exec = _first_type_match(node.content,
