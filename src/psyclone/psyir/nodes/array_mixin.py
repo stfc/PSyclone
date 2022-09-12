@@ -184,8 +184,8 @@ class ArrayMixin(object):
         which has a stopping value given by the 'UBOUND(name,index)'
         intrinsic where 'name' is the name of the current
         ArrayReference and 'index' matches the specified array index.
-        Also returns True if the starting value of the range node is
-        an integer that matches the starting value of the
+        Also returns True if the stopping value of the range node is
+        an integer that matches the stopping value of the
         declaration. Otherwise False is returned.
 
         For example, if a Fortran array A was declared as
