@@ -1228,7 +1228,7 @@ class Node(object):
 
         :param reprod: if provided, filter reductions by whether or not they \
                        are set to be reproducible.
-        :type param: Optional[bool]
+        :type reprod: Optional[bool]
 
         :returns: all kernels involving reductions that are descendants of \
                   this node.
