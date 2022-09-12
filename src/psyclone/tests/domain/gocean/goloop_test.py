@@ -43,7 +43,8 @@ from __future__ import absolute_import, print_function
 import pytest
 from fparser.two.parser import ParserFactory
 
-from psyclone.errors import GenerationError
+from psyclone.domain.gocean import GOceanConstants
+from psyclone.errors import GenerationError, InternalError
 from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule
 from psyclone.psyir.nodes import Schedule, Reference, StructureReference, \
     Node, Literal
@@ -133,6 +134,21 @@ def test_goloop_create(monkeypatch):
                                field_space="go_cv")
     assert ("Error, loop_type value (invalid) is invalid. Must be one of "
             "['inner', 'outer']." in str(err.value))
+
+    # Now trigger the second test: it must be a valid loop type according
+    # to VALID_LOOP_TYPES, not not 'inner' or 'outer', the only values
+    # the code can actually handle. So monkeypatch VALID_LOOP_TYPES:
+    monkeypatch.setattr(GOceanConstants, "VALID_LOOP_TYPES",
+                        ["inner", "outer", "other"])
+    with pytest.raises(InternalError) as err:
+        goloop = GOLoop.create(parent=gosched,
+                               loop_type="other",
+                               field_name="cv_fld",
+                               iteration_space="go_internal_pts",
+                               field_space="go_cv")
+    assert ("While loop type of 'other' is valid, it is not yet supported."
+            in str(err.value))
+
 
 
 def test_goloop_properties_getters_and_setters():

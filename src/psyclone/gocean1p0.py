@@ -382,9 +382,8 @@ class GOLoop(PSyLoop):
             tag = "noncontiguous_kidx"
             suggested_name = "j"
         else:
-            raise GenerationError(
-                "Invalid loop type of '{0}'. Expected one of {1}".
-                format(self._loop_type, const.VALID_LOOP_TYPES))
+            raise InternalError(f"While loop type of '{self._loop_type}' is "
+                                f"valid, it is not yet supported.")
 
         # In the GOcean API the loop iteration variables are declared in the
         # Invoke routine scope in order to share them between all GOLoops.
