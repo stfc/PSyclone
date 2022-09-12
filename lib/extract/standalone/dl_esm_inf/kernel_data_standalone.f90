@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020-2022, Science and Technology Facilities Council.
+! Copyright (c) 2022, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,29 +32,27 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author J. Henrichs, Bureau of Meteorology
-! Modified I. Kavcic, Met Office
 
-!> This module implements a simple NetCDF writer using the PSyData
+!> This module implements a simple binary-file writer using the PSyData
 !! interface. It is specific to the dl_esm_inf library used with
 !! the GOcean API.
 !! A Fortran code instrumented with corresponding calls
-!! to the PSyData API and linked in with this library will nf90_create
-!! a NetCDF file that contains the dimensions for each
-!! field.
+!! to the PSyData API and linked in with this library will write
+!! the requested input and output parameters to a Fortran binary file.
 !!
 
 module extract_psy_data_mod
 
-    use extract_netcdf_base_mod, only : ExtractNetcdfBaseType
+    use extract_standalone_base_mod, only : ExtractStandaloneBaseType
 
     implicit none
 
     !> This is the data type that manages the information required
-    !! to write data to a NetCDF file using the PSyData API. A
+    !! to write data to a binary file using the PSyData API. A
     !! static instance of this type is created for each instrumented
     !! region with PSyclone (and each region will write a separate
     !! file).
-    type, extends(ExtractNetcdfBaseType), public :: extract_PsyDataType
+    type, extends(ExtractStandaloneBaseType), public :: extract_PsyDataType
 
     contains
 
@@ -66,7 +64,7 @@ module extract_psy_data_mod
         generic, public :: PreDeclareVariable => DeclareFieldDouble
 
         !> The generic interface for providing the value of variables,
-        !! which in case of the NetCDF interface is written:
+        !! which in case of the extract interface is written:
         generic, public :: ProvideVariable => WriteFieldDouble
 
     end type extract_PSyDataType
@@ -90,7 +88,7 @@ contains
     ! -------------------------------------------------------------------------
     !> This subroutine declares a double precision field as defined in
     !! dl_esm_info (r2d_field). A corresponding variable definition is added
-    !! to the NetCDF file, and the variable id is stored in the var_id field.
+    !! to the Fortran binary file.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
@@ -111,8 +109,7 @@ contains
 
     ! -------------------------------------------------------------------------
     !> This subroutine writes the value of a dl_esm_field (r2d_field)
-    !! to the NetCDF file. It takes the variable id from the corresponding
-    !! declaration.
+    !! to the Fortran binary file.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.

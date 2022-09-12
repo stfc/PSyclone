@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020-2021, Science and Technology Facilities Council.
+! Copyright (c) 2022, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,28 +32,27 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author J. Henrichs, Bureau of Meteorology
-! Modified I. Kavcic, Met Office
 
-!> This module implements a simple NetCDF writer using the PSyData
+!> This module implements a simple standalone writer using the PSyData
 !! interface. It is specific to the LFRic infrastructure library.
 !! A Fortran code instrumented with corresponding calls
 !! to the PSyData API and linked in with this library will write
-!! the requested input and output parameters to a NetCDF file.
+!! the requested input and output parameters to a Fortran binary file.
 !!
 
 module extract_psy_data_mod
 
     use, intrinsic :: iso_fortran_env, only : int64, int32
-    use extract_netcdf_base_mod,       only : ExtractNetcdfBaseType, CheckError
+    use extract_standalone_base_mod,       only : ExtractStandaloneBaseType
 
     implicit none
 
     !> This is the data type that manages the information required
-    !! to write data to a NetCDF file using the PSyData API. A
+    !! to write data to a binary file using the PSyData API. A
     !! static instance of this type is created for each instrumented
     !! region with PSyclone (and each region will write a separate
     !! file).
-    type, extends(ExtractNetcdfBaseType), public :: extract_PsyDataType
+    type, extends(ExtractStandaloneBaseType), public :: extract_PsyDataType
 
     contains
 
@@ -76,7 +75,7 @@ module extract_psy_data_mod
 
         !> The generic interface for providing the value of variables,
         !! which in case of the kernel extraction writes the data to
-        !! the NetCDF file.
+        !! the Fortran file.
         generic, public :: ProvideVariable => &
                            WriteField,        &
                            WriteFieldVector,  &
@@ -140,7 +139,7 @@ contains
 
     ! -------------------------------------------------------------------------
     !> This subroutine writes the values of an LFRic real-valued field.
-    !! to the NetCDF file. It uses the corresponding function
+    !! to the binary file. It uses the corresponding function
     !! provided by the base class.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
@@ -164,7 +163,7 @@ contains
 
     ! -------------------------------------------------------------------------
     !> This subroutine writes the values of an LFRic integer-valued field.
-    !! to the NetCDF file. It uses the corresponding function
+    !! to the binary file. It uses the corresponding function
     !! provided by the base class.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
@@ -257,7 +256,7 @@ contains
     end subroutine DeclareIntFieldVector
 
     ! -------------------------------------------------------------------------
-    !> This subroutine writes an LFRic real-valued field vector to the NetCDF
+    !> This subroutine writes an LFRic real-valued field vector to the binary
     !! file. Each component is stored as an individual variable using the
     !! corresponding array function of the base class.
     !! @param[in,out] this The instance of the extract_PSyDataType.
@@ -288,7 +287,7 @@ contains
 
 ! -------------------------------------------------------------------------
     !> This subroutine writes an LFRic integer-valued field vector to the
-    !! NetCDF file. Each component is stored as an individual variable
+    !! binary file. Each component is stored as an individual variable
     !! using the corresponding array function of the base class.
     !! @param[in,out] this The instance of the extract_PSyDataType.
     !! @param[in] name The name of the variable (string).

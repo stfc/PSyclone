@@ -46,9 +46,12 @@
 PSYROOT=../../../..
 include $(PSYROOT)/examples/common.mk
 
-GENERATED_FILES += *.o *.mod $(NAME)  alg.f90 psy.f90 \
-		  $(DRIVER_INIT)   $(DRIVER_INIT).f90         \
-		  $(DRIVER_UPDATE) $(DRIVER_UPDATE).f90
+# Set it to 'netcdf' to use the NetCDF writer
+TYPE?=standalone
+
+GENERATED_FILES += *.o *.mod $(NAME)  alg.f90 psy.f90   \
+		  $(DRIVER_INIT).$(TYPE)   $(DRIVER_INIT).f90   \
+		  $(DRIVER_UPDATE).$(TYPE) $(DRIVER_UPDATE).f90
 
 # Location of the infrastucture code (which is a submodule of the
 # PSyclone git repo).
@@ -56,8 +59,20 @@ SHARED_DIR ?= $(PSYROOT)/external
 INF_DIR ?= $(SHARED_DIR)/dl_esm_inf/finite_difference
 INF_INC = $(INF_DIR)/src
 INF_LIB = $(INF_DIR)/src/lib_fd.a
-EXTRACT_DIR ?= $(PSYROOT)/lib/extract/netcdf/dl_esm_inf
-READ_DIR ?= $(PSYROOT)/lib/extract/netcdf
+ifeq ($(TYPE), netcdf)
+	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/netcdf/dl_esm_inf
+	READ_DIR ?= $(PSYROOT)/lib/extract/netcdf
+	F90FLAGS += $$(nf-config --fflags)
+	LDFLAGS += $$(nf-config --flibs)
+	GENERATED_FILES += main-init.nc main-update.nc
+else
+	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/standalone/dl_esm_inf
+	READ_DIR ?= $(PSYROOT)/lib/extract/standalone
+	GENERATED_FILES += main-init.binary main-update.binary
+
+endif
+
+LIB_NAME = lib_extract.a
 READ_KERNEL_DATA = $(READ_DIR)/read_kernel_data_mod.o \
 
 
@@ -65,7 +80,7 @@ READ_KERNEL_DATA = $(READ_DIR)/read_kernel_data_mod.o \
 KERNELS = init_field_mod.o update_field_mod.o
 
 # The name of the executable
-NAME = extract_test
+NAME = extract_test.$(TYPE)
 
 # The name of the stand-alone driver that will call the init kernel.
 DRIVER_INIT = driver-main-init
@@ -80,39 +95,39 @@ run: compile
 	./driver-main-init
 	./driver-main-update
 
-compile: transform $(NAME) $(DRIVER_INIT) $(DRIVER_UPDATE)
+compile: transform $(NAME) $(DRIVER_INIT).$(TYPE) $(DRIVER_UPDATE).$(TYPE)
 
 transform: psy.f90
 
 
-F90FLAGS += $$(nf-config --fflags) -I$(INF_INC) -I$(EXTRACT_DIR) -I$(READ_DIR)
-LIB_NAME = lib_kernel_data_netcdf.a
+F90FLAGS += -I$(INF_INC) -I$(EXTRACT_DIR) -I$(READ_DIR)
 
 alg.f90 psy.f90: test.x90 extract_transform.py
 	$(PSYCLONE) -nodm -api "gocean1.0" -s ./extract_transform.py\
 				-opsy psy.f90 -oalg alg.f90 test.x90
 
-$(NAME): $(INF_LIB) $(EXTRACT_DIR)/lib_kernel_data_netcdf.a $(KERNELS) alg.o psy.o
+$(NAME): $(INF_LIB) $(EXTRACT_DIR)/$(LIB_NAME) $(KERNELS) alg.o psy.o
 	$(F90) $(F90FLAGS) $(KERNELS) alg.o psy.o -o $(NAME) \
-	-L$(EXTRACT_DIR) -l_kernel_data_netcdf    \
-	$(INF_LIB)                                \
-	$$(nf-config --flibs)
+	$(EXTRACT_DIR)/$(LIB_NAME) $(INF_LIB) $(LDFLAGS)
 
 #TODO #1757: $(INF_LIB) is required because of the meta-data in the
 #            kernel - once this is fixed, $(INF_LIB) can be removed.
-$(DRIVER_INIT):	$(KERNELS) $(DRIVER_INIT).o $(READ_KERNEL_DATA)
-	$(F90) $(KERNELS) $(DRIVER_INIT).o -o $(DRIVER_INIT)  \
-		$(INF_LIB) $(READ_KERNEL_DATA) $$(nf-config --flibs)
+$(DRIVER_INIT).$(TYPE):	$(KERNELS) $(DRIVER_INIT).o $(READ_KERNEL_DATA)
+	$(F90) $(KERNELS) $(DRIVER_INIT).o -o $(DRIVER_INIT).$(TYPE) \
+		$(INF_LIB) $(READ_KERNEL_DATA) $(LDFLAGS)
 
 #TODO #1757: $(INF_LIB) is required because of the meta-data in the
 #            kernel - once this is fixed, $(INF_LIB) can be removed.
-$(DRIVER_UPDATE): $(KERNELS) $(DRIVER_UPDATE).o $(READ_KERNEL_DATA)
-	$(F90) $(KERNELS) $(DRIVER_UPDATE).o -o $(DRIVER_UPDATE) \
-		$(INF_LIB) $(READ_KERNEL_DATA) $$(nf-config --flibs)
+$(DRIVER_UPDATE).$(TYPE): $(KERNELS) $(DRIVER_UPDATE).o $(READ_KERNEL_DATA)
+	$(F90) $(KERNELS) $(DRIVER_UPDATE).o -o $(DRIVER_UPDATE).$(TYPE) \
+		$(INF_LIB) $(READ_KERNEL_DATA) $(LDFLAGS)
 
 # The dl_esm_inf library
 $(INF_LIB):
 	$(MAKE) -C $(INF_DIR) F90=$(F90)
+
+$(EXTRACT_DIR)/$(LIB_NAME):
+	$(MAKE) -C $(EXTRACT_DIR)
 
 alg.o:	psy.o
 
