@@ -36,9 +36,8 @@
 
 ''' Test utilities including support for testing that code compiles. '''
 
-from __future__ import absolute_import, print_function
-
 import difflib
+from contextlib import contextmanager
 import os
 from pprint import pprint
 import subprocess
@@ -109,7 +108,26 @@ def print_diffs(expected, actual):
 
 
 # =============================================================================
-class Compile(object):
+@contextmanager
+def change_dir(new_dir):
+    '''This is a small context manager that changes the current working
+    directory, and will automatically switch back. Usage:
+
+    >>> with change_dir("/tmp"):
+    ...     print(f"CWD is {os.getcwd()}")
+    CWD is /tmp
+
+    '''
+    prev_dir = os.getcwd()
+    os.chdir(os.path.expanduser(new_dir))
+    try:
+        yield
+    finally:
+        os.chdir(prev_dir)
+
+
+# =============================================================================
+class Compile():
     '''This class provides compile functionality to the testing framework.
     It stores the name of the compiler, compiler flags, and a temporary
     directory used for test compiles. The temporary directory will be
@@ -234,8 +252,8 @@ class Compile(object):
                 if os.path.isfile(str(name)+"."+suffix):
                     name += "." + suffix
                     return name
-        raise IOError("Cannot find a Fortran file '{0}' with suffix in {1}".
-                      format(base_name, FORTRAN_SUFFIXES))
+        raise IOError(f"Cannot find a Fortran file '{base_name}' with "
+                      f"suffix in {FORTRAN_SUFFIXES}")
 
     def compile_file(self, filename, link=False):
         ''' Compiles the specified Fortran file into an object file (in
@@ -266,24 +284,22 @@ class Compile(object):
 
         # Change to the temporary directory passed in to us from
         # pytest. (This is a LocalPath object.)
-        old_pwd = self._tmpdir.chdir()
-        try:
-
-            build = subprocess.Popen(arg_list,
-                                     stdout=subprocess.PIPE,
-                                     stderr=subprocess.STDOUT)
-            (output, error) = build.communicate()
-        except OSError as err:
-            print("Failed to run: {0}: ".format(" ".join(arg_list)),
-                  file=sys.stderr)
-            raise CompileError(str(err)) from err
-        finally:
-            old_pwd.chdir()
+        with change_dir(self._tmpdir):
+            try:
+                with subprocess.Popen(arg_list,
+                                      stdout=subprocess.PIPE,
+                                      stderr=subprocess.STDOUT) as build:
+                    # stderr = stdout, so ignore empty stderr in result:
+                    (output, _) = build.communicate()
+            except OSError as err:
+                print(f"Failed to run: {' '.join(arg_list)}: ",
+                      file=sys.stderr)
+                raise CompileError(str(err)) from err
 
         # Check the return code
         stat = build.returncode
         if stat != 0:
-            print("Compiling: {0}".format(" ".join(arg_list)), file=sys.stderr)
+            print(f"Compiling: {' '.join(arg_list)}", file=sys.stderr)
             print(output.decode("utf-8"), file=sys.stderr)
             if error:
                 print("=========", file=sys.stderr)
@@ -430,22 +446,20 @@ class Compile(object):
 
         # Change to the temporary directory passed in to us from
         # pytest. (This is a LocalPath object.)
-        old_pwd = self._tmpdir.chdir()
-        # Add a object-specific hash-code to the file name so that all files
-        # created in the same test have different names and can easily be
-        # inspected in case of errors.
-        filename = "generated-{0}.f90".format(str(hash(self)))
-        with open(filename, 'w') as test_file:
-            test_file.write(code)
+        with change_dir(self._tmpdir):
+            # Add a object-specific hash-code to the file name so that all
+            # files created in the same test have different names and can
+            # easily be inspected in case of errors.
+            filename = f"generated-{hash(self)}.f90"
+            with open(filename, 'w', encoding="utf-8") as test_file:
+                test_file.write(code)
 
-        success = True
-        try:
-            self.compile_file(filename)
-        except CompileError:
-            # Failed to compile the file
-            success = False
-        finally:
-            old_pwd.chdir()
+            success = True
+            try:
+                self.compile_file(filename)
+            except CompileError:
+                # Failed to compile the file
+                success = False
 
         return success
 

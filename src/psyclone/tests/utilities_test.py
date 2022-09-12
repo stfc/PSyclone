@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 ''' This module contains tests for the the various utility functions in
 psyclone_test_utils.'''
@@ -39,7 +40,10 @@ psyclone_test_utils.'''
 from __future__ import absolute_import
 import pytest
 from psyclone.parse.utils import ParseError
-from psyclone.tests.utilities import CompileError, get_invoke, Compile
+from psyclone.psyGen import PSyFactory
+from psyclone.tests.utilities import (change_dir, count_lines, Compile,
+                                      CompileError, get_invoke, line_number,
+                                      print_diffs)
 
 
 HELLO_CODE = '''
@@ -49,62 +53,117 @@ end program hello
 '''
 
 
-def test_compiler_works(tmpdir):
-    ''' Check that the specified compiler works for a hello-world
-    example '''
+def test_enable_disable_compilation(monkeypatch):
+    '''Test the behaviour when disabling compilation ... even if
+    compilation is enabled.
+    '''
+    monkeypatch.setattr(Compile, "TEST_COMPILE", False)
+    # Test that compile_file will do nothing if compilation is disabled:
+    _compile = Compile()
+    _compile.compile_file("nothing-to-compile")
+    _compile.code_compiles(None)
+    _compile.string_compiles("")
     Compile.skip_if_compilation_disabled()
 
-    old_pwd = tmpdir.chdir()
-    try:
+
+# -----------------------------------------------------------------------------
+def test_enable_disable_opencl_compilation(monkeypatch):
+    '''Test the behaviour when disabling opencl compilation ... even if
+    compilation is enabled.
+    '''
+    monkeypatch.setattr(Compile, "TEST_COMPILE_OPENCL", False)
+    Compile.skip_if_opencl_compilation_disabled()
+
+
+# -----------------------------------------------------------------------------
+def test_compiler_works(tmpdir, monkeypatch):
+    ''' Check that the specified compiler works for a hello-world
+    example.'''
+
+    _compile = Compile()
+    assert _compile.base_path is None
+    _compile.base_path = "/tmp"
+    assert _compile.base_path == "/tmp"
+
+    if not Compile.TEST_COMPILE:
+
+        # If compilation is disable, use '/usr/bin/true' as 'compile'
+        # to cover more lines:
+        monkeypatch.setattr(Compile, "TEST_COMPILE", True)
+        monkeypatch.setattr(Compile, "F90", "true")
+
+    with change_dir(tmpdir):
+        _compile = Compile(tmpdir)
+        # Check compile_file:
         with open("hello_world.f90", "w", encoding="utf-8") as ffile:
             ffile.write(HELLO_CODE)
-        Compile(tmpdir).compile_file("hello_world.f90", link=True)
-    finally:
-        old_pwd.chdir()
+        _compile.compile_file("hello_world.f90", link=True)
+        # Check string_compiles functions
+        _compile.string_compiles(HELLO_CODE)
+
+        monkeypatch.setattr(_compile, "_f90", "does-not-exist")
+        with pytest.raises(CompileError) as err:
+            _compile.compile_file("hello_world.f90")
+        assert _compile.string_compiles(HELLO_CODE) is False
+        # The actual error message might vary, e.g.:
+        # No such file or directory: 'does-not-exist
+        # But it should contain the invalid command in any case
+        assert "does-not-exist" in str(err.value)
 
 
-def test_compiler_with_flags(tmpdir):
+# -----------------------------------------------------------------------------
+def test_compiler_with_flags(tmpdir, monkeypatch):
     ''' Check that we can pass through flags to the Fortran compiler.
     Since correct flags are compiler-dependent and hard to test,
     we pass something that is definitely not a flag and check that
     the compiler complains. This test is skipped if no compilation
     tests have been requested (--compile flag to py.test). '''
-    Compile.skip_if_compilation_disabled()
-    old_pwd = tmpdir.chdir()
-    try:
+    if not Compile.TEST_COMPILE:
+        # If compilation is disable, use '/usr/bin/true' as 'compile'
+        # to cover more lines:
+        monkeypatch.setattr(Compile, "TEST_COMPILE", True)
+        monkeypatch.setattr(Compile, "F90", "false")
+
+    with change_dir(tmpdir):
         with open("hello_world.f90", "w", encoding="utf-8") as ffile:
             ffile.write(HELLO_CODE)
         _compile = Compile(tmpdir)
         _compile._f90flags = "not-a-flag"
         with pytest.raises(CompileError) as excinfo:
             _compile.compile_file("hello_world.f90")
-        assert "not-a-flag" in str(excinfo.value)
+
+        if Compile.F90 != "false":
+            # The actual message might vary depending on compiler
+            assert "not-a-flag" in str(excinfo.value)
+        else:
+            # If we are not compiling, use 'true' as compiler in
+            # the next step that is supposed to be successful:
+            _compile._f90 = "true"
+
         # For completeness we also try with a valid flag although we
         # can't actually check its effect.
         _compile._f90flags = "-g"
         _compile.compile_file("hello_world.f90", link=True)
-    finally:
-        old_pwd.chdir()
 
 
+# -----------------------------------------------------------------------------
 def test_build_invalid_fortran(tmpdir):
     ''' Check that we raise the expected error when attempting
     to compile some invalid Fortran. Skips test if --compile not
     supplied to py.test on command-line. '''
     Compile.skip_if_compilation_disabled()
     invalid_code = HELLO_CODE.replace("write", "wite", 1)
-    old_pwd = tmpdir.chdir()
-    try:
+    with change_dir(tmpdir):
         with open("hello_world.f90", "w", encoding="utf-8") as ffile:
             ffile.write(invalid_code)
         _compile = Compile(tmpdir)
         with pytest.raises(CompileError) as excinfo:
             _compile.compile_file("hello_world.f90")
-    finally:
-        old_pwd.chdir()
+
     assert "Compile error" in str(excinfo.value)
 
 
+# -----------------------------------------------------------------------------
 def test_find_fortran_file(tmpdir):
     ''' Check that our find_fortran_file routine raises the expected
     error if it can't find a matching file. Also check that it returns
@@ -183,3 +242,16 @@ def test_get_invoke():
     with pytest.raises(ParseError) as excinfo:
         get_invoke("does_not_exist", "nemo", idx=0)
     assert "No such file or directory" in str(excinfo.value)
+
+
+# -----------------------------------------------------------------------------
+def test_change_directory():
+    '''Tests the change_directory context manager.'''
+
+    old_dir = os.getcwd()
+
+    with change_dir("/tmp"):
+        tmp_dir = os.getcwd()
+        assert tmp_dir == "/tmp"
+
+    assert os.getcwd() == old_dir
