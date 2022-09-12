@@ -47,9 +47,7 @@
 
 '''
 
-from __future__ import print_function
 import re
-import six
 
 from fparser.common.readfortran import FortranStringReader
 from fparser.common.sourceinfo import FortranFormat
@@ -455,7 +453,7 @@ class GOLoop(PSyLoop):
         '''
         # TODO 1393: This could call the super setter if the validations are
         # generic
-        if not isinstance(my_field_space, six.string_types):
+        if not isinstance(my_field_space, str):
             raise TypeError(
                 f"Field space must be a 'str' but found "
                 f"'{type(my_field_space).__name__}' instead.")
@@ -490,7 +488,7 @@ class GOLoop(PSyLoop):
         :raises TypeError: if the provided it_space is not a string.
 
         '''
-        if not isinstance(it_space, six.string_types):
+        if not isinstance(it_space, str):
             raise TypeError(
                 f"Iteration space must be a 'str' but found "
                 f"'{type(it_space).__name__}' instead.")
@@ -728,10 +726,9 @@ class GOLoop(PSyLoop):
             try:
                 _ = Nonlabel_Do_Stmt(do_string)
             except NoMatchError as err:
-                six.raise_from(
-                    ConfigurationError(f"Expression '{bound}' is not a "
-                                       f"valid do loop boundary. Error "
-                                       f"message: '{err}'."), err)
+                raise ConfigurationError(f"Expression '{bound}' is not a "
+                                         f"valid do loop boundary. Error "
+                                         f"message: '{err}'.") from err
 
         # All tests successful, so add the new bounds:
         # --------------------------------------------
@@ -803,14 +800,14 @@ class GOLoop(PSyLoop):
                 self.iteration_space][self.loop_type][side].format(
                     start='2', stop=stop_expr)
         except KeyError as err:
-            six.raise_from(GenerationError(
+            raise GenerationError(
                 f"Cannot generate custom loop bound for a loop with an index-"
                 f"offset of '{self.index_offset}', a field-space of "
                 f"'{self.field_space}', an iteration-space of "
                 f"'{self.iteration_space}' and a loop-type of "
                 f"'{self.loop_type}', for the side '{side}' because "
                 f"this keys combination does not exist in the "
-                f"GOLoop.bounds_lookup table."), err)
+                f"GOLoop.bounds_lookup table.") from err
 
         return bound
 
@@ -948,7 +945,7 @@ class GOLoop(PSyLoop):
                 raise GenerationError(f"All Kernels must expect the same "
                                       f"grid offset but kernel "
                                       f"'{kernel.name}' has offset"
-                                      " '{kernel.index_offset}' which does "
+                                      f" '{kernel.index_offset}' which does "
                                       f"not match '{index_offset}'.")
 
     def gen_code(self, parent):
@@ -1445,8 +1442,7 @@ class GOKernelArgument(KernelArgument):
         '''
         # If the argument name is just a number (e.g. '0') we return a
         # constant Literal expression
-        # six.text_type is needed in Python2 to use the isnumeric method
-        if six.text_type(self.name).isnumeric():
+        if self.name.isnumeric():
             return Literal(self.name, INTEGER_TYPE)
 
         # Now try for a real value. The constructor will raise an exception
@@ -1577,11 +1573,9 @@ class GOKernelGridArgument(Argument):
             deref_name = api_config.grid_properties[arg.grid_prop].fortran
         except KeyError as err:
             all_keys = str(api_config.grid_properties.keys())
-            six.raise_from(
-                GenerationError(f"Unrecognised grid property specified. "
-                                f"Expected one of {all_keys} but found "
-                                f"'{arg.grid_prop}'"),
-                err)
+            raise GenerationError(f"Unrecognised grid property specified. "
+                                  f"Expected one of {all_keys} but found "
+                                  f"'{arg.grid_prop}'") from err
 
         # Each entry is a pair (name, type). Name can be subdomain%internal...
         # so only take the last part after the last % as name.
@@ -1795,7 +1789,7 @@ class GOStencil():
             # check and that extract them
             for arg_idx in range(3):
                 arg = args[arg_idx]
-                if not isinstance(arg, six.string_types):
+                if not isinstance(arg, str):
                     raise ParseError(
                         f"Meta-data error in kernel '{kernel_name}': 3rd "
                         f"descriptor (stencil) of field argument with format "
@@ -2007,10 +2001,9 @@ class GO1p0Descriptor(Descriptor):
             access_type = access_mapping[access]
         except KeyError as err:
             valid_names = api_config.get_valid_accesses_api()
-            six.raise_from(
-                ParseError(f"Meta-data error in kernel {kernel_name}: "
-                           f"argument access  is given as '{access}' but "
-                           f"must be one of {valid_names}"), err)
+            raise ParseError(f"Meta-data error in kernel {kernel_name}: "
+                             f"argument access  is given as '{access}' but "
+                             f"must be one of {valid_names}") from err
 
         # Finally we can call the __init__ method of our base class
         super().__init__(access_type, funcspace, stencil=stencil_info,
