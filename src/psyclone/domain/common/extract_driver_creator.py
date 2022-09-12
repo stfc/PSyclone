@@ -385,7 +385,23 @@ class ExtractDriverCreator:
         # at the end.
         output_symbols = []
 
-        for signature in all_sigs:
+        # First handle variables that are read:
+        # -------------------------------------
+        for signature in input_list:
+            # Find the right symbol for the variable. Note that all variables
+            # in the input and output list have been detected as being used
+            # when the variable accesses were analysed. Therefore, these
+            # variables have References, and will already have been declared
+            # in the symbol table (in add_all_kernel_symbols).
+            sig_str = str(signature)
+            sym = symbol_table.lookup_with_tag(sig_str)
+            name_lit = Literal(sig_str, CHARACTER_TYPE)
+            ExtractDriverCreator.add_call(program, read_var,
+                                          [name_lit, Reference(sym)])
+
+        # Then handle all variables that are written (note that some
+        # variables might be read and written)
+        for signature in output_list:
             # Find the right symbol for the variable. Note that all variables
             # in the input and output list have been detected as being used
             # when the variable accesses were analysed. Therefore, these
@@ -394,17 +410,6 @@ class ExtractDriverCreator:
             sig_str = str(signature)
             sym = symbol_table.lookup_with_tag(sig_str)
             is_input = signature in input_list
-            is_output = signature in output_list
-
-            # First handle variables that are read:
-            # -------------------------------------
-            if is_input:
-                name_lit = Literal(sig_str, CHARACTER_TYPE)
-                ExtractDriverCreator.add_call(program, read_var,
-                                              [name_lit, Reference(sym)])
-                if not is_output:
-                    # input only variable, nothing else to do.
-                    continue
 
             # The variable is written (and maybe read as well)
             # ------------------------------------------------
