@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified: I. Kavcic, Met Office
+# Modified by J. Henrichs, Bureau of Meteorology
 
 ''' Tests for the psyclone-kern driver. '''
 
@@ -43,6 +44,7 @@ from psyclone import gen_kernel_stub, kernel_tools
 from psyclone.domain.lfric import algorithm
 from psyclone.psyir.nodes import Container, Routine
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, CHARACTER_TYPE
+from psyclone.tests.utilities import change_dir
 from psyclone.version import __VERSION__
 
 
@@ -219,12 +221,12 @@ def test_file_output(fortran_reader, monkeypatch, mode, tmpdir):
     monkeypatch.setattr(algorithm.lfric_alg.LFRicAlg, "create_from_kernel",
                         fake_psyir_gen)
     monkeypatch.setattr(gen_kernel_stub, "generate", fake_gen)
-    tmpdir.chdir()
-    kernel_tools.run(["-gen", mode, "-o", f"output_file_{mode}",
-                      str("/does_not_exist")])
-    with open(f"output_file_{mode}", "r", encoding="utf-8") as infile:
-        content = infile.read()
-        assert "the_answer = 42" in content
+    with change_dir(tmpdir):
+        kernel_tools.run(["-gen", mode, "-o", f"output_file_{mode}",
+                          str("/does_not_exist")])
+        with open(f"output_file_{mode}", "r", encoding="utf-8") as infile:
+            content = infile.read()
+            assert "the_answer = 42" in content
 
 
 def test_no_args_usage_msg(capsys):

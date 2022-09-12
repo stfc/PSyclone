@@ -39,12 +39,10 @@
 Module containing tests relating to PSyclone configuration handling.
 '''
 
-from __future__ import absolute_import
 import os
 import re
 import sys
 
-import six
 import pytest
 
 from psyclone.configuration import (APISpecificConfig, ConfigurationError,
@@ -53,6 +51,7 @@ from psyclone.core.access_type import AccessType
 from psyclone.domain.gocean import GOceanConstants
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.nemo import NemoConstants
+from psyclone.tests.utilities import change_dir
 
 
 # constants
@@ -213,9 +212,7 @@ def test_search_path(monkeypatch, tmpdir):
     # to fail to find any file and thus raise an error. The error msg
     # then gives us the list of locations searched.
     monkeypatch.setattr("os.path.isfile", lambda arg: False)
-    try:
-        # Store our working directory
-        oldpwd = tmpdir.chdir()
+    with change_dir(tmpdir):
         cwd = str(tmpdir)
         # Test when (we appear to be) both inside and outside a virtual
         # environment
@@ -247,8 +244,6 @@ def test_search_path(monkeypatch, tmpdir):
                 assert share_idx < home_idx
             else:
                 assert home_idx < share_idx
-    finally:
-        oldpwd.chdir()
 
 
 def test_search_env(monkeypatch, tmpdir):
@@ -256,13 +251,13 @@ def test_search_env(monkeypatch, tmpdir):
     environment variable. It is important to use monkeypatch for manipulating
     PSYCLONE_CONFIG, since all other tests rely on this variable
     (see conftest.setup_psyclone_config).'''
-    try:
-        oldpwd = tmpdir.chdir()
+    with change_dir(tmpdir):
         cwd = str(tmpdir)
         # Create a .psyclone/psyclone.cfg in the CWD
         cfg_dir = os.path.join(cwd, ".psyclone")
         os.mkdir(cfg_dir)
-        with open(os.path.join(cfg_dir, "psyclone.cfg"), "w") as cfile:
+        with open(os.path.join(cfg_dir, "psyclone.cfg"), "w",
+                  encoding="utf-8") as cfile:
             cfile.write(TEST_CONFIG)
         # Point PSYCLONE_CONFIG to a non-existent file - we should revert
         # to the normal search path in this case
@@ -273,13 +268,11 @@ def test_search_env(monkeypatch, tmpdir):
         assert "not_a_dir" not in name
         # Now point PSYCLONE_CONFIG to a file that does exist
         cfg_file = os.path.join(cwd, "another.cfg")
-        with open(cfg_file, "w") as cfile:
+        with open(cfg_file, "w", encoding="utf-8") as cfile:
             cfile.write(TEST_CONFIG)
         monkeypatch.setitem(os.environ, "PSYCLONE_CONFIG", cfg_file)
         name = Config.find_file()
         assert name == cfg_file
-    finally:
-        oldpwd.chdir()
 
 
 def test_read_values():
@@ -294,14 +287,14 @@ def test_read_values():
     assert dist_mem
     # The default API
     api = _config.default_api
-    assert isinstance(api, six.text_type)
+    assert isinstance(api, str)
     assert api == "dynamo0.3"
     # The list of supported APIs
     api_list = _config.supported_apis
     assert api_list == ['dynamo0.3', 'gocean1.0', 'nemo']
     # The default API for kernel stub generation
     api = _config.default_stub_api
-    assert isinstance(api, six.text_type)
+    assert isinstance(api, str)
     assert api == "dynamo0.3"
     # The list of supported APIs for kernel stub generation
     api_list = _config.supported_stub_apis
@@ -390,8 +383,8 @@ def test_not_bool(bool_entry, tmpdir):
 
     '''
     config_file = tmpdir.join("config")
-    content = re.sub(r"^{0} = .*$".format(bool_entry),
-                     "{0} = wrong".format(bool_entry),
+    content = re.sub(rf"^{bool_entry} = .*$",
+                     f"{bool_entry} = wrong",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
 
@@ -399,7 +392,7 @@ def test_not_bool(bool_entry, tmpdir):
         config(config_file, content)
 
     assert "configuration error (file=" in str(err.value)
-    assert ": Error while parsing {0}".format(bool_entry) in str(err.value)
+    assert f": Error while parsing {bool_entry}" in str(err.value)
     assert "Not a boolean: wrong" in str(err.value)
 
 
@@ -409,8 +402,8 @@ def test_not_int(int_entry, tmpdir):
 
     '''
     config_file = tmpdir.join("config")
-    content = re.sub(r"^{0} = .*$".format(int_entry),
-                     "{0} = wrong".format(int_entry),
+    content = re.sub(rf"^{int_entry} = .*$",
+                     f"{int_entry} = wrong",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
 
@@ -418,7 +411,7 @@ def test_not_int(int_entry, tmpdir):
         config(config_file, content)
 
     assert "configuration error (file=" in str(err.value)
-    assert (": error while parsing {0}: invalid literal".format(int_entry)
+    assert (f": error while parsing {int_entry}: invalid literal"
             in str(err.value))
 
 
@@ -561,8 +554,8 @@ def test_kernel_naming_setter():
     assert config.kernel_naming == "single"
     with pytest.raises(ValueError) as err:
         config.kernel_naming = "not-a-scheme"
-    assert ("kernel_naming must be one of '{0}' but got 'not-a-scheme'".
-            format(VALID_KERNEL_NAMING_SCHEMES) in str(err.value))
+    assert (f"kernel_naming must be one of '{VALID_KERNEL_NAMING_SCHEMES}' "
+            f"but got 'not-a-scheme'" in str(err.value))
 
 
 def test_incl_path_errors(tmpdir):
@@ -689,10 +682,10 @@ def test_invalid_prefix(tmpdir):
         # When there is a '"' in the invalid prefix, the "'" in the
         # error message is escaped with a '\'. So in order to test the
         # invalid 'cd"' prefix, we need to have two tests in the assert:
-        assert "Invalid PsyData-prefix '{0}' in config file" \
-               .format(prefix) in str(err.value)  \
-            or "Invalid PsyData-prefix \\'{0}\\' in config file" \
-               .format(prefix) in str(err.value)
+        assert (f"Invalid PsyData-prefix '{prefix}' in config file"
+                in str(err.value)
+                or f"Invalid PsyData-prefix \\'{prefix}\\' in config file"
+                in str(err.value))
         assert "The prefix must be valid for use as the start of a " \
                "Fortran variable name." in str(err.value)
 

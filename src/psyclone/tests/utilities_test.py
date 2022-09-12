@@ -174,8 +174,7 @@ def test_find_fortran_file(tmpdir):
     with pytest.raises(IOError) as excinfo:
         Compile.find_fortran_file([str(tmpdir)], "missing_file")
     assert "missing_file' with suffix in ['f90', 'F90'," in str(excinfo.value)
-    old_pwd = tmpdir.chdir()
-    try:
+    with change_dir(tmpdir):
         with open("hello_world.f90", "w", encoding="utf-8") as ffile:
             ffile.write(HELLO_CODE)
         name = Compile.find_fortran_file([str(tmpdir)], "hello_world")
@@ -183,8 +182,6 @@ def test_find_fortran_file(tmpdir):
         # Check that we also succeed if the file suffix is included
         name = Compile.find_fortran_file([str(tmpdir)], "hello_world.f90")
         assert name.endswith("hello_world.f90")
-    finally:
-        old_pwd.chdir()
 
 
 # -----------------------------------------------------------------------------
