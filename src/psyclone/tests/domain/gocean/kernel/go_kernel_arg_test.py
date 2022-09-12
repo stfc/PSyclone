@@ -39,21 +39,23 @@
 '''Tests of handling of arguments for GOcean kernels.
 '''
 
+import os
 
 import pytest
-
 from psyclone.configuration import Config
-from psyclone.parse.algorithm import Arg
-from psyclone.parse.kernel import Descriptor
 from psyclone.errors import InternalError, GenerationError
 from psyclone.gocean1p0 import (GOKernelArgument, GOKernelArguments,
                                 GOSymbolTable)
-from psyclone.tests.utilities import get_invoke
+from psyclone.parse.algorithm import Arg, parse
+from psyclone.parse.kernel import Descriptor
+from psyclone.parse.utils import ParseError
+from psyclone.psyir.nodes import (Node, StructureReference, Member,
+                                  StructureMember, Reference, Literal)
 from psyclone.psyir.symbols import (SymbolTable, DeferredType, DataSymbol,
                                     ScalarType, INTEGER_TYPE,
                                     ArgumentInterface, DataTypeSymbol)
-from psyclone.psyir.nodes import (Node, StructureReference, Member,
-                                  StructureMember, Reference, Literal)
+from psyclone.tests.utilities import get_base_path, get_invoke
+
 
 API = "gocean1.0"
 
@@ -290,3 +292,24 @@ def test_gokernelargument_type(monkeypatch):
         symbol_table._check_gocean_conformity()
     assert ("GOcean 1.0 API kernels first argument should be a scalar integer "
             "but got 'DeferredType'." in str(excinfo.value))
+
+
+def test_gokernelargument_invalid_type():
+    '''Tests that invalid kernel argument types are handled correctly.
+    '''
+    # Parse an existing kernel to create the required kernel_call
+    # type.
+    _, invoke_info = parse(os.path.join(get_base_path(API),
+                                        "single_invoke_scalar_float_arg.f90"),
+                           api=API)
+
+    kernel_call = invoke_info.calls[0].kcalls[0]
+    arg_descriptors = kernel_call.ktype.arg_descriptors
+
+    # Now modify the argument type to be invalid.
+    arg_descriptors[0]._argument_type = "INVALID"
+    with pytest.raises(ParseError) as err:
+        _ = GOKernelArguments(kernel_call, None)
+
+    assert ("Invalid kernel argument type. Found 'INVALID' but must be one of "
+            "['grid_property', 'scalar', 'field']" in str(err.value))
