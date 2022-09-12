@@ -313,3 +313,16 @@ def test_gokernelargument_invalid_type():
 
     assert ("Invalid kernel argument type. Found 'INVALID' but must be one of "
             "['grid_property', 'scalar', 'field']" in str(err.value))
+
+
+def test_gokernelarguments_scalar():
+    '''Tests the GOKernelArguments.scalar property.
+    '''
+    _, invoke = get_invoke("single_invoke_scalar_float_arg.f90", API, idx=0)
+    kern = invoke.schedule.coded_kernels()[0]
+    assert kern.arguments.scalars == ['a_scalar']
+
+    # Use 'set' to make sure the test is independent of order
+    assert (set(kern.arguments.acc_args) ==
+            set(['ssh_fld', 'ssh_fld%data', 'a_scalar', 'ssh_fld%grid',
+                 'ssh_fld%grid%xstop', 'ssh_fld%grid%tmask']))

@@ -52,7 +52,7 @@ from psyclone.psyGen import PSyFactory
 from psyclone.gocean1p0 import (GOKern, GOLoop, GOKernelArgument,
                                 GOKernelGridArgument, GOBuiltInCallFactory,
                                 GOSymbolTable)
-from psyclone.tests.utilities import get_invoke
+from psyclone.tests.utilities import get_base_path, get_invoke
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.psyir.symbols import (DeferredType, ContainerSymbol, DataSymbol,
                                     ImportInterface, INTEGER_TYPE,
@@ -1442,3 +1442,33 @@ def test_gosymboltable_conformity_check():
         symbol_table._check_gocean_conformity()
     assert ("GOcean 1.0 API kernels first argument should be a scalar integer "
             "but got 'DeferredType'." in str(excinfo.value))
+
+
+def test_go_descriptor_str():
+    '''Tests  the __str__ function of a GO1p0Descriptor.
+    '''
+    # Parse an existing kernel to create the required kernel_call
+    # type.
+    _, invoke_info = parse(os.path.join(get_base_path(API),
+                                        "single_invoke_scalar_float_arg.f90"),
+                           api=API)
+
+    kernel_call = invoke_info.calls[0].kcalls[0]
+    arg_descriptors = kernel_call.ktype.arg_descriptors
+
+    assert "Descriptor(READ, go_r_scalar)" == str(arg_descriptors[0])
+
+
+def test_go_kerneltype_str():
+    '''Tests  the __str__ function of a GOKernelType1p0.
+    '''
+    # Parse an existing kernel to create the required kernel_call
+    # type.
+    _, invoke_info = parse(os.path.join(get_base_path(API),
+                                        "single_invoke_scalar_float_arg.f90"),
+                           api=API)
+
+    kernel_call = invoke_info.calls[0].kcalls[0]
+
+    assert ("GOcean 1.0 kernel bc_ssh, index-offset = go_offset_ne, "
+            "iterates-over = go_all_pts" == str(kernel_call.ktype))
