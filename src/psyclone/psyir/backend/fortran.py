@@ -49,7 +49,8 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.nodes import BinaryOperation, Call, CodeBlock, DataNode, \
-    Literal, Operation, Range, Routine, Schedule, UnaryOperation, Reference
+    Literal, Operation, Range, Routine, Schedule, UnaryOperation, Reference, \
+    ArrayReference
 from psyclone.psyir.symbols import ArgumentInterface, ArrayType, \
     ContainerSymbol, DataSymbol, DataTypeSymbol, DeferredType, RoutineSymbol, \
     ScalarType, Symbol, SymbolTable, UnknownFortranType, UnknownType, \
@@ -1216,8 +1217,8 @@ class FortranWriter(LanguageWriter):
                 # This is a binary intrinsic function.
                 # pylint: disable=unidiomatic-typecheck
                 if fort_oper in ["LBOUND", "UBOUND"] and \
-                       type(node.children[0]) == Reference:
-                    # Only write out the array reference
+                       type(node.children[0]) in [Reference, ArrayReference]:
+                    # Write out the array ignoring any array indexing.
                     lhs = self._visit(Reference(
                         DataSymbol(node.children[0].name, REAL_TYPE)))
                 return f"{fort_oper}({lhs}, {rhs})"
