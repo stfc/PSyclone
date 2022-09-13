@@ -388,8 +388,8 @@ Extraction for GOcean
 +++++++++++++++++++++
 
 The extraction libraries in 
-`lib/extract/standard/dl_esm_inf
-<https://github.com/stfc/PSyclone/tree/master/lib/extract/standard/dl_esm_inf>`_
+`lib/extract/standalone/dl_esm_inf
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone/dl_esm_inf>`_
 and 
 `lib/extract/netcdf/dl_esm_inf
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/dl_esm_inf>`_
