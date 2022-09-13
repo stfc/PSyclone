@@ -147,16 +147,15 @@ class Reference2ArrayRangeTrans(Transformation):
                 f"The supplied node should be a Reference to a symbol "
                 f"that is an array, but '{node.symbol.name}' is not.")
         if isinstance(node.parent, BinaryOperation):
-            # if isinstance(node.parent.parent, Loop):
             if node.ancestor(Loop):
-                # print(node.ancestor(Loop))
                 # This is an array reference within an LBOUND or
                 # UBOUND binaryoperator.
                 if node.parent.operator in [
                         BinaryOperation.Operator.LBOUND,
                         BinaryOperation.Operator.UBOUND]:
                     raise TransformationError(
-                        "Ignore arrays in LBOUND and UBOUND.")
+                        "Arrays within LBOUND and UBOUND operators should "
+                        "not be transformed.")
 
     def apply(self, node, options=None):
         '''Apply the Reference2ArrayRangeTrans transformation to the specified

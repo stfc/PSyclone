@@ -278,7 +278,8 @@ def test_validate_bounds(fortran_reader, fortran_writer):
         if idx < 4:
             with pytest.raises(TransformationError) as info:
                 trans.apply(reference)
-            assert "Ignore arrays in LBOUND and UBOUND." in str(info.value)
+            assert ("Arrays within LBOUND and UBOUND operators should not "
+                    "be transformed." in str(info.value))
         else:
             trans.apply(reference)
     result = fortran_writer(psyir)
