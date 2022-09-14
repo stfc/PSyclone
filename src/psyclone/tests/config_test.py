@@ -245,7 +245,7 @@ def test_search_path(monkeypatch, tmpdir):
             # share directory within package installation directory
             pkg_share_dir = [os.path.join(os.path.dirname(psyclone_path),
                 "share", "psyclone") for psyclone_path in psyclone.__path__]
-            pkg_share_idx = min([err_msg.find(dir) for dir in pkg_share_dir])
+            pkg_share_idx = min(err_msg.find(dir) for dir in pkg_share_dir)
             assert pkg_share_idx != -1
             assert cwd_idx < home_idx
             assert max(home_idx, share_idx) < pkg_share_idx
