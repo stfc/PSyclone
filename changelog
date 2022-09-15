@@ -50,7 +50,7 @@
 	19) PR #1809. A few fixes for code style issues.
 
 	20) PR #1803 for #1797. Adds support for logical variables to the
- 	PSyData	API.
+	PSyData API.
 
 	21) PR #1804 for #637. Extends the dependence analysis to support
 	LFRic built-in kernels.
@@ -87,6 +87,40 @@
 
 	32) PR #1819 for #1815. Forbid OMPTarget regions from containing
 	CodeBlock nodes.
+
+	33) PR #1830 for #1828. Fixes to enable explicit OpenACC Loop
+	parallelism with UM.
+
+	34) PR #1855 for #1840. Fix bug with dependency analysis when an
+	expression has the same array reference with and without indices.
+
+	35) PR #1827 for #1826. Adds support for SIR intrinsics.
+
+	36) PR #1839 for #1782. Adds a -api option to the PSyAD script.
+
+	37) PR #1844 towards #1823. Makes module inlining work in LFRic
+	when the same kernel is used multiple times.
+
+	38) PR #1825 for #1576. Adds the Reference2ArrayRangeTrans
+	transformation.
+
+	39) PR #1846. Fixes to various docstrings in transformations.py
+	and node.py.
+
+	40) PR #1845 for #1813. Adds a standalone PSyData extraction
+	library (that uses only Fortran IO).
+
+	41) PR #1836 for #1834. Adds support for explicit array-range
+	declarations to the dotproducttrans transformation.
+
+	42) PR #1871 for #1870. Fixes typo in link in User Guide.
+
+	43) PR #1875 for #1874. Remove pytest-pep257 dependency from setup.py
+
+	44) PR #1860 for #1538. Fixes search for config file when
+	`python setup.py install` used instead of pip and adds yaml config
+	file to tell RTD to use pip and Python 3.8 (for interop. with
+	SymPy).
 
 release 2.3.1 17th of June 2022
 

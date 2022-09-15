@@ -33,7 +33,8 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified: I. Kavcic, Met Office, R. W. Ford, STFC Daresbury Lab
-# Modified by J. Henrichs, Bureau of Meteorology
+#           J. Henrichs, Bureau of Meteorology
+#           N. Nobre, STFC Daresbury Lab
 
 '''
 Module containing tests relating to PSyclone configuration handling.
@@ -46,6 +47,8 @@ import sys
 
 import six
 import pytest
+
+import psyclone
 
 from psyclone.configuration import (APISpecificConfig, ConfigurationError,
                                     Config, VALID_KERNEL_NAMING_SCHEMES)
@@ -239,7 +242,13 @@ def test_search_path(monkeypatch, tmpdir):
             share_idx = err_msg.find(os.path.join(sys.prefix, "share",
                                                   "psyclone"))
             assert share_idx != -1
+            # share directory within package installation directory
+            pkg_share_dir = [os.path.join(os.path.dirname(psyclone_path),
+                "share", "psyclone") for psyclone_path in psyclone.__path__]
+            pkg_share_idx = min(err_msg.find(dir) for dir in pkg_share_dir)
+            assert pkg_share_idx != -1
             assert cwd_idx < home_idx
+            assert max(home_idx, share_idx) < pkg_share_idx
             if inside_venv:
                 # When inside a virtual environment, the 'share' directory of
                 # that environment takes precedence over the user's home

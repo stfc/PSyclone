@@ -47,7 +47,7 @@ def setup():
     up the config file at the end of the tests.'''
 
     Config.get().api = "nemo"
-    yield()
+    yield
     # At the end of all tests make sure that we wipe the Config object
     # so we get a fresh/default one for any further test (and not a
     # left-over one from a test here).
