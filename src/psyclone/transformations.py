@@ -2558,8 +2558,6 @@ class ACCEnterDataTrans(Transformation):
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # print(schedule.view())
 
-    ...
-
     '''
     def __str__(self):
         return "Adds an OpenACC 'enter data' directive"

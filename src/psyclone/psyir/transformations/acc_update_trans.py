@@ -199,20 +199,27 @@ class ACCUpdateTrans(Transformation):
         if not node_list:
             return
 
+        # TODO #1872: the lack of precise array access descriptions might
+        # unnecessarily increase the data transfer volume.
         inputs, outputs = self._dep_tools.get_in_out_parameters(node_list)
         inputs, outputs = set(inputs), set(outputs)
 
-        # As a workaround for the lack of precise array access descriptions, we
-        # currently overapproximate dependencies by adding any variables being
-        # written to the input set (in addition to the output set). The aim is
-        # to avoid situations where the host only writes an array slice and the
-        # respective update device directive would then incorrectly overwrite
-        # the entire array on the device, including the data outside the slice.
+        # TODO #1872: as a workaround for the lack of precise array access
+        # descriptions, we currently overapproximate dependencies by adding any
+        # variables being written to the input set (in addition to the output
+        # set). The aim is to avoid situations where the host only writes an
+        # array slice and the respective update device directive would then
+        # incorrectly overwrite the entire array on the device, including the
+        # data outside the slice. If or when this is no longer needed, the step
+        # of the algorithm below dealing with if stmts will need updating.
         inputs.update(outputs)
 
-        # For CodeBlock nodes, until we have semantic information on the
-        # statements involved, we conservatively assume every referenced
+        # TODO #1732: for CodeBlock nodes, until we have semantic information
+        # on the statements involved, we conservatively assume every referenced
         # variable is both an input and an output.
+        # TODO #1872: CodeBlock.get_symbol_names might include function names
+        # mistaken for array names. However, as these do not correspond to any
+        # arrays, the compiler should be able to ignore them in the directive.
         for node in node_list:
             if isinstance(node, CodeBlock):
                 for symbol_name in node.get_symbol_names():

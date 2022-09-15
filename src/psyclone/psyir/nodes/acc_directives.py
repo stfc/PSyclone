@@ -254,6 +254,8 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         '''
         if not self._sig_set:
             # There should be at least one variable to copyin.
+            # TODO #1872: this directive needs reimplementing using the Clause
+            # class and proper lowering.
             raise GenerationError(
                 "ACCEnterData directive did not find any data to copyin. "
                 "Perhaps there are no ACCParallel or ACCKernels directives "
@@ -856,6 +858,8 @@ class ACCUpdateDirective(ACCStandaloneDirective):
         '''
         if not self._sig_set:
             # There should be at least one variable to update.
+            # TODO #1872: this directive needs reimplementing using the Clause
+            # class and proper lowering.
             raise GenerationError(
                 "ACCUpdate directive did not find any data to update. "
                 "This most likely happened because a specialisation of "
