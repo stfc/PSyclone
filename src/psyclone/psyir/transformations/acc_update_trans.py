@@ -249,12 +249,12 @@ class ACCUpdateTrans(Transformation):
                 child, sched = child.parent, sched.parent
 
             # While there are variables from this host region which have not
-            # been place in an update directive, we check if they need to be
+            # been placed in an update directive, we check if they need to be
             # placed at the current schedule, in which case they are, or
             # if we can bring them up to the next deepest ancestor schedule.
             # The main goal is to avoid placing update directives inside loop
             # statements, but the algorithm also tries to minimise the total
-            # number of update directives by promoting the coalescence of
+            # number of update directives by promoting the coalescence of
             # neighbouring directives.
             while host_sig:
                 # Most conservative position for a new update directive at this
@@ -263,7 +263,7 @@ class ACCUpdateTrans(Transformation):
                 # dependencies. It is also the position for the update
                 # directive used by those variables with textual dependencies.
                 # Perhaps, eventually, specially if we adopt the async clause,
-                # it may be benefecial to textually move update host directives
+                # it may be benefecial to textually move update host directives
                 # earlier within the schedule as much as legally possible to
                 # leverage overlapping communication and computation.
                 update_pos = sched.children.index(child) + node_offset
@@ -329,7 +329,7 @@ class ACCUpdateTrans(Transformation):
                 # preceding kernel within the if stmt which writes that
                 # variable. Since that variable would appear in loop_sync as
                 # part of the outputs of all textually preceding kernels, we
-                # may simply place an update device directive inside the if
+                # may simply place an update device directive inside the if
                 # statement for those variables in loop_sync.
                 if isinstance(sched.parent, Loop) or \
                    isinstance(sched.parent, IfBlock) and idx == OUT:
