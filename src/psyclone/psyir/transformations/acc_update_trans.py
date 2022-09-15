@@ -160,7 +160,9 @@ class ACCUpdateTrans(Transformation):
                 node_list.clear()
                 if isinstance(child, self._brk_nodes):
                     # Conservatively add an update host statement just before
-                    # the Call node for fear of temporary operands.
+                    # the Call node since, first, any temporary operands need
+                    # to be up to date and, second, since in pass-by-value
+                    # languages, the passed value must also be up to date.
                     self._add_update_directives([child])
                 elif isinstance(child, IfBlock):
                     # Add any update statements that are required due to
