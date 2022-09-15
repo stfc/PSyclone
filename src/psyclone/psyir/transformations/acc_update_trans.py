@@ -58,8 +58,7 @@ class ACCUpdateTrans(Transformation):
     >>> from psyclone.psyir.transformations import ACCUpdateTrans
     >>>
     >>> api = "nemo"
-    >>> filename = "tra_adv.F90"
-    >>> ast, invokeInfo = parse(filename, api=api)
+    >>> ast, invokeInfo = parse(NEMO_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>> schedule = psy.invokes.get('tra_adv').schedule
     >>>
