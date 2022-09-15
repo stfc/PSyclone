@@ -104,7 +104,7 @@ class ACCRegionDirective(ACCDirective, RegionDirective):
         device (probably a GPU) before the parallel region can be begun.
 
         :returns: set of variable names
-        :rtype: Set[str]
+        :rtype: Set[str] or Set[:py:class:`psyclone.Core.Signature`]
         '''
 
         # pylint: disable=import-outside-toplevel
@@ -124,6 +124,14 @@ class ACCRegionDirective(ACCDirective, RegionDirective):
 
     @property
     def in_kernel_references(self):
+        '''
+        Returns a set of the input references (whether to arrays or objects)
+        required by the Kernel call(s) that are children of this directive.
+
+        :returns: set of variable names
+        :rtype: Set[str] or Set[:py:class:`psyclone.Core.Signature`]
+        '''
+
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.tools import DependencyTools
 
@@ -132,6 +140,14 @@ class ACCRegionDirective(ACCDirective, RegionDirective):
 
     @property
     def out_kernel_references(self):
+        '''
+        Returns a set of the output references (whether to arrays or objects)
+        required by the Kernel call(s) that are children of this directive.
+
+        :returns: set of variable names
+        :rtype: Set[str] or Set[:py:class:`psyclone.Core.Signature`]
+        '''
+
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.tools import DependencyTools
 

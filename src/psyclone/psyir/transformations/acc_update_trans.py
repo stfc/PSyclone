@@ -153,7 +153,7 @@ class ACCUpdateTrans(Transformation):
         for child in sched.children[:]:
             if isinstance(child, self._acc_ignore):
                 continue
-            elif not child.walk(self._acc_compute + self._brk_nodes):
+            if not child.walk(self._acc_compute + self._brk_nodes):
                 node_list.append(child)
             else:
                 self._add_update_directives(node_list)
