@@ -35,9 +35,11 @@
 
 .. testsetup::
 
-    # Define SOURCE_FILE to point to an existing gocean 1.0 file.
-    SOURCE_FILE = ("../../src/psyclone/tests/test_files/"
+    # Define GOCEAN_SOURCE_FILE to point to an existing gocean 1.0 file.
+    GOCEAN_SOURCE_FILE = ("../../src/psyclone/tests/test_files/"
         "gocean1p0/test11_different_iterates_over_one_invoke.f90")
+    # Define NEMO_SOURCE_FILE to point to an existing nemo file.
+    NEMO_SOURCE_FILE = ("../../examples/nemo/code/tra_adv.F90")
 
 
 Transformations

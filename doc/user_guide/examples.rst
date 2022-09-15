@@ -243,23 +243,21 @@ Example 5.1: Kernel data extraction
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 This example shows the use of kernel data extraction in PSyclone.
 It instruments each of the two invokes in the example program
-with the PSyData-based kernel extraction code.
-It uses the dl_esm_inf-specific extraction library ``netcdf``
-(``lib/extract/netcdf/dl_esm_inf``), and needs NetCDF to be
-available (including ``nf-config`` to detect installation-specific
-paths). You need to compile the NetCDF extraction library
-(see :ref:`psyke_netcdf`).
-The ``Makefile`` in this example will link with the compiled NetCDF
-extraction library and NetCDF. You can execute the created
-binary and it will create two output NetCDF files, one for
-each of the two invokes.
+with the PSyData-based kernel extraction code. Detailed compilation
+instructions are in the ``README.md`` file, including how to switch
+from using the stand-alone extraction library to the NetCDF-based one
+(see :ref:`extraction_libraries` for details).
 
-It will also create two stand-alone driver programs (one for
-each invoke), that will read the corresponding NetCDF file,
-and then executes the original code.
+The ``Makefile`` in this example will create the binary that extracts
+the data at run time, as well as two driver programs that can read in
+the extracted data, call the kernel, and compare the results. These
+driver programs are independent of the dl_esm_inf infrastructure library.
+These drivers can only read the corresponding file format, i.e. a NetCDF
+driver program cannot read in extraction data that is based on Fortran IO
+and vice versa.
 
-.. note:: At this stage the driver program will not compile
-    (see issue #644).
+.. note:: At this stage the driver program still needs the infrastructure
+     library when compiling the kernels, see #1757.
 
 Example 5.2: Profiling
 ~~~~~~~~~~~~~~~~~~~~~~
