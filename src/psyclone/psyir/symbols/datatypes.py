@@ -39,15 +39,14 @@
 import abc
 from collections import OrderedDict, namedtuple
 from enum import Enum
-import six
+
 from psyclone.errors import InternalError
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.datasymbol import DataSymbol
 from psyclone.psyir.symbols.symbol import Symbol
 
 
-@six.add_metaclass(abc.ABCMeta)
-class DataType():
+class DataType(metaclass=abc.ABCMeta):
     '''Abstract base class from which all types are derived.'''
 
     @abc.abstractmethod
@@ -88,8 +87,7 @@ class NoType(DataType):
         return "NoType"
 
 
-@six.add_metaclass(abc.ABCMeta)
-class UnknownType(DataType):
+class UnknownType(DataType, metaclass=abc.ABCMeta):
     '''
     Indicates that a variable declaration is not supported by the PSyIR.
     This class is abstract and must be subclassed for each language
@@ -206,7 +204,7 @@ class UnknownFortranType(UnknownType):
         :returns: whether this type is equal to the 'other' type.
         :rtype: bool
         '''
-        if not type(other) is type(self):
+        if not super().__eq__(other):
             return False
 
         return other.type_text == self.type_text
@@ -309,8 +307,7 @@ class ScalarType(DataType):
         :returns: whether this type is equal to the 'other' type.
         :rtype: bool
         '''
-        # A ScalarType is not equal to e.g. an ArrayType.
-        if not type(other) is type(self):
+        if not super().__eq__(other):
             return False
 
         return (self.precision == other.precision and
@@ -587,8 +584,7 @@ class ArrayType(DataType):
         :returns: whether this ArrayType is equal to the 'other' ArrayType.
         :rtype: bool
         '''
-        # An ArrayType is not equal to any other type.
-        if not type(other) is type(self):
+        if not super().__eq__(other):
             return False
 
         if (self.intrinsic != other.intrinsic or
@@ -711,7 +707,7 @@ class StructureType(DataType):
         :returns: whether this StructureType is equal to the 'other' type.
         :rtype: bool
         '''
-        if not type(other) is type(self):
+        if not super().__eq__(other):
             return False
 
         if len(self.components) != len(other.components):
