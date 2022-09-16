@@ -115,6 +115,13 @@
 
 	42) PR #1871 for #1870. Fixes typo in link in User Guide.
 
+	43) PR #1875 for #1874. Remove pytest-pep257 dependency from setup.py
+
+	44) PR #1860 for #1538. Fixes search for config file when
+	`python setup.py install` used instead of pip and adds yaml config
+	file to tell RTD to use pip and Python 3.8 (for interop. with
+	SymPy).
+
 release 2.3.1 17th of June 2022
 
         1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
