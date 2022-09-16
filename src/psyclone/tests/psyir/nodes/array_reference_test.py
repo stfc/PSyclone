@@ -67,7 +67,7 @@ def test_array_can_be_printed():
     symbol = DataSymbol("aname", ArrayType(INTEGER_SINGLE_TYPE, [10]))
     kschedule.symbol_table.add(symbol)
     assignment = Assignment()
-    array = ArrayReference(symbol, assignment)
+    array = ArrayReference(symbol, parent=assignment)
     assert "ArrayReference[name:'aname']\n" in str(array)
     array2 = ArrayReference.create(symbol, [Literal("1", INTEGER_TYPE)])
     assert ("ArrayReference[name:'aname']\nLiteral[value:'1', "

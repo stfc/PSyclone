@@ -39,7 +39,6 @@
 ''' This module contains the implementation of the abstract ArrayMixin. '''
 
 import abc
-import six
 
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes.datanode import DataNode
@@ -53,8 +52,7 @@ from psyclone.psyir.symbols.datatypes import (ScalarType, ArrayType,
                                               INTEGER_TYPE)
 
 
-@six.add_metaclass(abc.ABCMeta)
-class ArrayMixin():
+class ArrayMixin(metaclass=abc.ABCMeta):
     '''
     Abstract class used to add functionality common to Nodes that represent
     Array accesses.

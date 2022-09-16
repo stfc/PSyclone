@@ -92,7 +92,7 @@ def test_reference_node_str():
     symbol = DataSymbol("rname", INTEGER_SINGLE_TYPE)
     kschedule.symbol_table.add(symbol)
     assignment = Assignment()
-    ref = Reference(symbol, assignment)
+    ref = Reference(symbol, parent=assignment)
     coloredtext = colored("Reference", Reference._colour)
     assert coloredtext+"[name:'rname']" in ref.node_str()
 
@@ -104,7 +104,7 @@ def test_reference_can_be_printed():
     symbol = DataSymbol("rname", INTEGER_SINGLE_TYPE)
     kschedule.symbol_table.add(symbol)
     assignment = Assignment()
-    ref = Reference(symbol, assignment)
+    ref = Reference(symbol, parent=assignment)
     assert "Reference[name:'rname']" in str(ref)
 
 

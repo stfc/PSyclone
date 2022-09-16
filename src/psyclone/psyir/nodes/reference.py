@@ -51,8 +51,8 @@ class Reference(DataNode):
 
     :param symbol: the symbol being referenced.
     :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
-    :param parent: the parent node of this Reference in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node` or NoneType
+    :param kwargs: additional keyword arguments provided to the super class.
+    :type kwargs: unwrapped dict.
 
     '''
     # Textual description of the node.
@@ -60,8 +60,8 @@ class Reference(DataNode):
     _text_name = "Reference"
     _colour = "yellow"
 
-    def __init__(self, symbol, parent=None):
-        super().__init__(parent=parent)
+    def __init__(self, symbol, **kwargs):
+        super().__init__(**kwargs)
         self.symbol = symbol
 
     def __eq__(self, other):
