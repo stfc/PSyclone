@@ -1336,50 +1336,6 @@ def test_fw_binaryoperator_matmul(fortran_writer, tmpdir, fortran_reader):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_fw_binaryoperator_bounds(tmpdir, fortran_reader, fortran_writer):
-    '''Check the FortranWriter class binary_operation method only writes
-    out the array name when the array reference is within a lbound or
-    ubound binary operation.
-
-    '''
-    code = (
-        "program test\n"
-        "  real, dimension(10,10,10) :: a\n"
-        "  real, dimension(10,10,10) :: b\n"
-        "  real, dimension(10,10,10) :: c\n"
-        "  integer :: idx\n"
-        "  integer :: idx_1\n\n"
-        "  do idx = LBOUND(a(1,1,1), 3), UBOUND(a(:,:,:), 3), 1\n"
-        "    do idx_1 = LBOUND(a(10,10,10), 1), UBOUND(a(10,:,10), 1), 1\n"
-        "      a(idx_1,1,idx) = b(idx_1,1,idx) * c(idx_1,1,idx)\n"
-        "    enddo\n"
-        "  enddo\n"
-        "end program test\n")
-    expected = (
-        "program test\n"
-        "  real, dimension(10,10,10) :: a\n"
-        "  real, dimension(10,10,10) :: b\n"
-        "  real, dimension(10,10,10) :: c\n"
-        "  integer :: idx\n"
-        "  integer :: idx_1\n\n"
-        "  do idx = LBOUND(a, 3), UBOUND(a, 3), 1\n"
-        "    do idx_1 = LBOUND(a, 1), UBOUND(a, 1), 1\n"
-        "      a(idx_1,1,idx) = b(idx_1,1,idx) * c(idx_1,1,idx)\n"
-        "    enddo\n"
-        "  enddo\n\n"
-        "end program test\n")
-    schedule = fortran_reader.psyir_from_source(code)
-    idx_loop = schedule.walk(Loop)[0]
-    # array 'a' is stored as a(1,1,1) within LBOUND in the PSyIR
-    assert fortran_writer(idx_loop.children[0].children[0]) == "a(1,1,1)"
-    # but the backend just outputs the array name
-    assert fortran_writer(idx_loop.children[0]) == "LBOUND(a, 3)"
-    # Check the full code is output as expected
-    result = fortran_writer(schedule)
-    assert result == expected
-    assert Compile(tmpdir).string_compiles(result)
-
-
 def test_fw_binaryoperator_unknown(fortran_reader, fortran_writer,
                                    monkeypatch):
     '''Check the FortranWriter class binary_operation method raises an
