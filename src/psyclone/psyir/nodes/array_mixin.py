@@ -48,7 +48,9 @@ from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols.datatypes import ScalarType, INTEGER_TYPE
+from psyclone.psyir.symbols import SymbolError
+from psyclone.psyir.symbols.datatypes import (ScalarType, ArrayType,
+                                              INTEGER_TYPE)
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -122,8 +124,10 @@ class ArrayMixin():
         '''Returns True if the specified array index contains a Range node
         which has a starting value given by the 'LBOUND(name,index)'
         intrinsic where 'name' is the name of the current Array and
-        'index' matches the specified array index. Otherwise False is
-        returned.
+        'index' matches the specified array index. Also returns True
+        if the starting value of the range node is an integer that
+        matches the starting value of the declaration. Otherwise False
+        is returned.
 
         For example, if a Fortran array A was declared as
         A(10) then the starting value is 1 and LBOUND(A,1) would
@@ -143,6 +147,22 @@ class ArrayMixin():
             return False
 
         lower = array_dimension.start
+
+        if isinstance(lower, Literal):
+            try:
+                symbol = self.scope.symbol_table.lookup(self.name)
+                datatype = symbol.datatype
+                shape = datatype.shape
+                array_bounds = shape[index]
+                if (isinstance(array_bounds, ArrayType.ArrayBounds)
+                        and isinstance(array_bounds.lower, Literal)):
+                    if lower.value == array_bounds.lower.value:
+                        return True
+            except (KeyError, SymbolError):
+                # Can't find symbol declaration
+                pass
+            return False
+
         if not (isinstance(lower, BinaryOperation) and
                 lower.operator == BinaryOperation.Operator.LBOUND):
             return False
@@ -163,9 +183,11 @@ class ArrayMixin():
     def is_upper_bound(self, index):
         '''Returns True if the specified array index contains a Range node
         which has a stopping value given by the 'UBOUND(name,index)'
-        intrinsic where 'name' is the name of the current ArrayReference and
-        'index' matches the specified array index. Otherwise False is
-        returned.
+        intrinsic where 'name' is the name of the current
+        ArrayReference and 'index' matches the specified array index.
+        Also returns True if the stopping value of the range node is
+        an integer that matches the stopping value of the
+        declaration. Otherwise False is returned.
 
         For example, if a Fortran array A was declared as
         A(10) then the stopping value is 10 and UBOUND(A,1) would
@@ -185,6 +207,22 @@ class ArrayMixin():
             return False
 
         upper = array_dimension.stop
+
+        if isinstance(upper, Literal):
+            try:
+                symbol = self.scope.symbol_table.lookup(self.name)
+                datatype = symbol.datatype
+                shape = datatype.shape
+                array_bounds = shape[index]
+                if (isinstance(array_bounds, ArrayType.ArrayBounds) and
+                        isinstance(array_bounds.upper, Literal)):
+                    if upper.value == array_bounds.upper.value:
+                        return True
+            except (KeyError, SymbolError):
+                # Can't find symbol declaration
+                pass
+            return False
+
         if not (isinstance(upper, BinaryOperation) and
                 upper.operator == BinaryOperation.Operator.UBOUND):
             return False
