@@ -111,7 +111,7 @@ class ArrayReference(ArrayMixin, Reference):
         :returns: the datatype of this array reference.
         :rtype: :py:class:`psyclone.psyir.symbols.DataType`
         '''
-        shape = self.shape
+        shape = self._get_effective_shape()
         if shape:
             return ArrayType(self.symbol.datatype, shape)
         # Really we should just be able to return self.symbol.datatype

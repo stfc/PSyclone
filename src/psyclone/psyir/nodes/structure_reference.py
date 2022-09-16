@@ -41,7 +41,6 @@ from psyclone.core import Signature
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.array_member import ArrayMember
-from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_of_structures_member import \
     ArrayOfStructuresMember
 from psyclone.psyir.nodes.structure_member import StructureMember
@@ -268,22 +267,25 @@ class StructureReference(Reference):
         # We do have the definition of this structure - walk down it.
         cursor = self
         cursor_type = dtype
-        shape = []
-        # The next two lines are required for when this method is called
-        # for an ArrayOfStructuresReference.
-        if isinstance(cursor, ArrayMixin) and cursor.shape:
-            shape = cursor.shape
 
+        # The next four lines are required for when this method is called
+        # for an ArrayOfStructuresReference.
         try:
-            while cursor.member:
-                cursor = cursor.member
-                cursor_type = cursor_type.components[cursor.name].datatype
-                if isinstance(cursor_type, (UnknownType, DeferredType)):
-                    return DeferredType()
-                if isinstance(cursor, ArrayMixin) and cursor.shape:
-                    shape.extend(cursor.shape)
+            # pylint: disable=protected-access
+            shape = cursor._get_effective_shape()
         except AttributeError:
-            pass
+            shape = []
+
+        while hasattr(cursor, "member"):
+            cursor = cursor.member
+            cursor_type = cursor_type.components[cursor.name].datatype
+            if isinstance(cursor_type, (UnknownType, DeferredType)):
+                return DeferredType()
+            try:
+                # pylint: disable=protected-access
+                shape.extend(cursor._get_effective_shape())
+            except AttributeError:
+                pass
 
         # We've reached the ultimate member of the structure access.
         if shape:

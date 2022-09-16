@@ -354,8 +354,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                     f"expression but found '{type(child).__name__}'")
         return self.children
 
-    @property
-    def shape(self):
+    def _get_effective_shape(self):
         '''
         :returns: the shape of the array access represented by this node.
         :rtype: List[:py:class:`psyclone.psyir.nodes.DataNode`]
