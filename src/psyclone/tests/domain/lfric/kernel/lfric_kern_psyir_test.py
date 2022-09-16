@@ -127,8 +127,8 @@ def test_lfriccontainer_lower(fortran_reader):
         "w3_solver_kernel_type")
 
     # Now raise to LFRic PSyIR and perform checks
-    kern_trans = RaisePSyIR2LFRicKernTrans("w3_solver_kernel_type")
-    kern_trans.apply(kernel_psyir)
+    kern_trans = RaisePSyIR2LFRicKernTrans()
+    kern_trans.apply(kernel_psyir, {"metadata_name": "w3_solver_kernel_type"})
     assert isinstance(kernel_psyir.children[0], LFRicContainer)
     with pytest.raises(KeyError):
         kernel_psyir.children[0].symbol_table.lookup("w3_solver_kernel_type")

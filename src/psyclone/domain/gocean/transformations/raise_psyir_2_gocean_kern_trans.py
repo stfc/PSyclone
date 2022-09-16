@@ -39,6 +39,7 @@ PSyclone kernel-layer-specific PSyIR which uses specialised classes.
 '''
 import re
 
+from psyclone.configuration import VALID_NAME
 from psyclone.domain.gocean.kernel import GOceanKernelMetadata, GOceanContainer
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Container, ScopingNode, FileContainer
@@ -107,13 +108,10 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
         invalid.
 
     '''
-    VALID_NAME = re.compile(r'[a-zA-Z_][\w]*')
-
     def __init__(self, metadata_name):
         super().__init__()
 
-        if not metadata_name or not \
-           RaisePSyIR2GOceanKernTrans.VALID_NAME.match(metadata_name):
+        if not metadata_name or not VALID_NAME.match(metadata_name):
             raise TransformationError(
                 f"Error in {self.name} transformation. The "
                 f"RaisePSyIR2GOceanKernTrans transformation requires the "

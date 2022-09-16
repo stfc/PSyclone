@@ -3772,3 +3772,7 @@ all versions of the Dynamo API.
 .. autoclass:: psyclone.transformations.Dynamo0p3RedundantComputationTrans
     :members:
     :noindex:
+
+.. autoclass:: psyclone.domain.lfric.transformations.RaisePSyIR2LFRicKernTrans
+    :members:
+    :noindex:

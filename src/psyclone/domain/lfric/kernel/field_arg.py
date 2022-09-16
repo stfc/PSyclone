@@ -67,7 +67,7 @@ class FieldArg(CommonArg):
         '''Create an instance of this class from generic PSyIR. At this moment
         this information is captured in an fparser2 tree.
 
-        :param psyir: fparser2 tree containing the PSyIR for a field \
+        :param psyir: fparser2 tree representing the PSyIR for a field \
             argument.
         :type psyir: :py:class:`fparser.two.Fortran2003.Part_Ref`
 
@@ -110,7 +110,7 @@ class FieldArg(CommonArg):
                 f"Values for datatype, access and function_space must be "
                 f"provided before calling the fortran_string method, but "
                 f"found '{self.datatype}', '{self.access}' and "
-                f"'{self.function_space}'.")
+                f"'{self.function_space}', respectively.")
 
         return (f"arg_type({self.form}, {self.datatype}, {self.access}, "
                 f"{self.function_space})")

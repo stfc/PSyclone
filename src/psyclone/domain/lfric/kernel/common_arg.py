@@ -66,10 +66,11 @@ class CommonArg(ABC):
 
     @staticmethod
     def create_psyir(fortran_string, encoding=Fortran2003.Part_Ref):
-        '''Creates psyir from a Fortran string. In this case the PSyiR will be
-        encoded as an fparser2 tree. The resultant parent node of the
-        tree will be a Part_Ref or a Structure_Constructor object (as
-        it represents a metadata argument).
+        '''Creates PSyIR from a Fortran string. In this case the PSyiR will be
+        encoded as an fparser2 tree as the PSyIR is not able to encode
+        the Fortran. The resultant parent node of the tree will be a
+        Part_Ref or a Structure_Constructor object (as it represents a
+        metadata argument).
 
         :param str fortran_string: a string containing the metadata in \
            Fortran.
@@ -99,12 +100,13 @@ class CommonArg(ABC):
 
     @staticmethod
     def check_psyir(psyir, nargs=4, encoding=Fortran2003.Part_Ref):
-        '''Checks that the PSyIR is valid. The PSyIR may have a
-        different number of arguments depending on its type and it may
-        be in the form of a Fortran2003 Part_Ref or Fortran2003
-        Structure_Constructor.
+        '''Checks that the PSyIR is valid. In this case the PSyiR will be
+        encoded as an fparser2 tree as the PSyIR is not able to encode
+        the Fortran.  The PSyIR may have a different number of
+        arguments depending on its type and it may be in the form of a
+        Fortran2003 Part_Ref or Fortran2003 Structure_Constructor.
 
-        :param psyir: fparser2 tree containing the PSyIR for a \
+        :param psyir: fparser2 tree representing the PSyIR for a \
             metadata argument.
         :type psyir: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`
@@ -170,8 +172,7 @@ class CommonArg(ABC):
     @property
     def access(self):
         '''
-        :returns: the access descriptor for this scalar \
-            argument.
+        :returns: the access descriptor for this argument.
         :rtype: str
         '''
         return self._access

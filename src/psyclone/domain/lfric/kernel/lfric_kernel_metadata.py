@@ -44,21 +44,22 @@ from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
 from fparser.two.utils import walk, get_child
 
+from psyclone.configuration import VALID_NAME
 from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric.kernel.columnwise_operator_arg import \
+    ColumnwiseOperatorArg
 from psyclone.domain.lfric.kernel.common_arg import CommonArg
-from psyclone.domain.lfric.kernel.scalar_arg import ScalarArg
 from psyclone.domain.lfric.kernel.field_arg import FieldArg
 from psyclone.domain.lfric.kernel.field_vector_arg import FieldVectorArg
 from psyclone.domain.lfric.kernel.inter_grid_arg import InterGridArg
 from psyclone.domain.lfric.kernel.inter_grid_vector_arg import \
     InterGridVectorArg
 from psyclone.domain.lfric.kernel.operator_arg import OperatorArg
-from psyclone.domain.lfric.kernel.columnwise_operator_arg import \
-    ColumnwiseOperatorArg
+from psyclone.domain.lfric.kernel.scalar_arg import ScalarArg
 
 from psyclone.errors import InternalError
-from psyclone.parse.utils import ParseError
 from psyclone.psyir.symbols import DataTypeSymbol, UnknownFortranType
+from psyclone.parse.utils import ParseError
 
 
 class LFRicKernelMetadata():
@@ -69,21 +70,25 @@ class LFRicKernelMetadata():
 
     :param meta_args: a list of 'meta_arg' objects which capture the \
         metadata values of the kernel arguments.
-    :type meta_args: Optional[List[:py:class:`ScalarArg` | \
-        :py:class:`FieldArg` | :py:class:`OperatorArg`]]
-    :param meta_funcs: a list of 'meta_arg' objects which capture the \
-        metadata values of the kernel arguments.
-    :type meta_funcs: Optional[List[:py:class:`GridArg` | \
-        :py:class:`FieldArg` | :py:class:`ScalarArg`]]
-    :param meta_reference_element: a list of 'meta_arg' objects which \
-        capture the metadata values of the kernel arguments.
-    :type meta_reference_element: Optional[List[:py:class:`GridArg` | \
-        :py:class:`FieldArg` | :py:class:`ScalarArg`]]
-    :param meta_mesh: a list of 'meta_arg' objects which capture the \
-        metadata values of the kernel arguments.
-    :type meta_mesh: Optional[List[:py:class:`ScalarArg` | \
-        :py:class:`FieldArg` | :py:class:`OperatorArg`]]
-    :param shape: quadrature.
+    :type meta_args: Optional[List[
+        :py:class:`psyclone.domain.lfric.kernel.ScalarArg` | \
+        :py:class:`psyclone.domain.lfric.kernel.FieldArg` | \
+        :py:class:`pscylong.domain.lfric.kernel.OperatorArg`]]
+    :param meta_funcs: a list of 'meta_func' objects which capture whether \
+        quadrature or evaluator data is required for a given function space.
+    :type meta_funcs: Optional[List[:py:class:`TODO`]] # issue #1879
+    :param meta_reference_element: a kernel that requires properties \
+        of the reference element in LFRic specifies those properties \
+        through the meta_reference_element metadata entry.
+    :type meta_reference_element: :py:class:`TODO` # issue #1879
+    :param meta_mesh: a kernel that requires properties of the LFRic \
+        mesh object specifies those properties through the meta_mesh \
+        metadata entry.
+    :type meta_mesh: :py:class:`TODO` # issue #1879
+    :param shape: if a kernel requires basis or differential-basis \
+        functions then the metadata must also specify the set of points on \
+        which these functions are required. This information is provided \
+        by the gh_shape component of the metadata.
     :type shape: Optional[str]
     :param operates_on: the name of the quantity that this kernel is
         intended to iterate over.
@@ -94,11 +99,9 @@ class LFRicKernelMetadata():
         language-level PSyIR.
     :type name: Optional[str]
 
-    raises TypeError: if meta args is not a list of argument objects.
+    raises TypeError: if meta_args is not a list of argument objects.
 
     '''
-    VALID_NAME = re.compile(r'[a-zA-Z_][\w]*')
-
     def __init__(self, operates_on=None, gh_shape=None, meta_args=None,
                  meta_funcs=None, meta_reference_element=None,
                  meta_mesh=None, procedure_name=None, name=None):
@@ -109,9 +112,10 @@ class LFRicKernelMetadata():
         self._gh_shape = None
         if gh_shape is not None:
             self.gh_shape = gh_shape
-            # TBD
+            # TODO issue #1879. GH_SHAPE is not parsed correctly yet.
         if meta_args is None:
             self._meta_args = []
+            # TODO issue #1879. META_ARGS is not parsed correctly yet.
         else:
             if not isinstance(meta_args, list):
                 raise TypeError(f"meta_args should be a list but found "
@@ -119,25 +123,22 @@ class LFRicKernelMetadata():
             for entry in meta_args:
                 if not isinstance(entry, CommonArg):
                     raise TypeError(
-                        f"meta_args should be a list of argument objects, "
-                        f"but found {type(entry).__name__}.")
+                        f"meta_args should be a list of argument objects "
+                        f"(of type CommonArg), but found "
+                        f"{type(entry).__name__}.")
             self._meta_args = meta_args
         if meta_funcs is None:
             self._meta_funcs = []
-            # TBD
+            # TODO issue #1879. META_FUNCS is not parsed correctly yet.
         if meta_reference_element is None:
             self._meta_reference_element = []
-            # TBD
+            # TODO issue #1879. META_REFERENCE_ELEMENT is not parsed correctly yet.
         if meta_mesh is None:
             self._meta_mesh = []
-            # TBD
+            # TODO issue #1879. META_MESH is not parsed correctly yet.
 
-        self._procedure_name = None
-        if procedure_name is not None:
-            self.procedure_name = procedure_name
-        self._name = None
-        if name is not None:
-            self.name = name
+        self._procedure_name = procedure_name if procedure_name else None
+        self._name = name if name else None
 
     @staticmethod
     def create_from_psyir(symbol):
@@ -191,7 +192,8 @@ class LFRicKernelMetadata():
             derived type.
         :raises ValueError: if kernel metadata is not a Fortran \
             derived type.
-        :raises ParseError: if meta args is not a list.
+        :raises ParseError: if the meta_args extracted from the \
+            fortran_string is not a list.
         :raises ParseError: if the metadata has an unexpected format.
 
         '''
@@ -215,7 +217,7 @@ class LFRicKernelMetadata():
             spec_part, "operates_on").string
         kernel_metadata.operates_on = value
 
-        # the value of index offset (NE, ...)
+        # the value of gh_shape (gh_quadrature_XYoZ, ...)
         try:
             value = LFRicKernelMetadata._get_property(
                 spec_part, "gh_shape").string
@@ -254,8 +256,7 @@ class LFRicKernelMetadata():
                 intergrid_arg = False
                 if nargs == 5:
                     fifth_arg = meta_arg.children[1].children[4]
-                    if fifth_arg.children[0].string == "mesh_arg":
-                        intergrid_arg = True
+                    intergrid_arg = fifth_arg.children[0].string == "mesh_arg"
 
                 if intergrid_arg and vector_arg:
                     arg = InterGridVectorArg.create_from_psyir(meta_arg)
@@ -270,9 +271,10 @@ class LFRicKernelMetadata():
                     f"Expected a 'meta_arg' entry to be a "
                     f"field, a scalar or an operator, but found "
                     f"'{meta_arg}'.")
-            kernel_metadata.meta_args.append(arg)
+            kernel_metadata._meta_args.append(arg)
 
         try:
+            # TODO issue #1879. META_FUNCS is not parsed correctly yet.
             meta_funcs = LFRicKernelMetadata._get_property(
                 spec_part, "meta_funcs")
             args = walk(meta_funcs, Fortran2003.Ac_Value_List)
@@ -281,6 +283,7 @@ class LFRicKernelMetadata():
 
         LFRicKernelMetadata.meta_reference_element = []
         try:
+            # TODO issue #1879. META_REFERENCE_ELEMENT is not parsed correctly yet.
             LFRicKernelMetadata.meta_reference_element = \
                 LFRicKernelMetadata._get_property(
                     spec_part, "meta_reference_element")
@@ -294,6 +297,7 @@ class LFRicKernelMetadata():
         # meta_mesh contains arguments which have
         # properties.
         try:
+            # TODO issue #1879. META_MESH is not parsed correctly yet.
             LFRicKernelMetadata.meta_mesh = LFRicKernelMetadata._get_property(
                 spec_part, "meta_mesh")
         except ParseError:
@@ -330,6 +334,7 @@ class LFRicKernelMetadata():
         :raises ParseError: if the metadata is invalid.
 
         '''
+        # TODO issue #1879. What to do if we have an interface.
         if property_name.lower() == "code":
             # The value of 'code' should be found in a type bound
             # procedure (after the contains keyword)
@@ -390,6 +395,9 @@ class LFRicKernelMetadata():
         :returns: the metadata represented by this instance as Fortran.
         :rtype: str
 
+        :raises ValueError: if the values for name, meta_arg, \
+            operates_on and procedure_name have not been set.
+
         '''
         if not (self.name and self.meta_args and self.operates_on and
                 self.procedure_name):
@@ -397,7 +405,8 @@ class LFRicKernelMetadata():
                 f"Values for name, meta_args, operates_on and procedure_name "
                 f"must be provided before calling the fortran_string method, "
                 f"but found '{self.name}', '{self.meta_args}', "
-                f"'{self.operates_on}' and '{self.procedure_name}'.")
+                f"'{self.operates_on}' and '{self.procedure_name}' "
+                f"respectively.")
 
         lfric_args = []
         for lfric_arg in self.meta_args:
@@ -464,10 +473,10 @@ class LFRicKernelMetadata():
         :raises ValueError: if the metadata has an invalid value.
 
         '''
-        if not value or not LFRicKernelMetadata.VALID_NAME.match(value):
+        if not value or not VALID_NAME.match(value):
             raise ValueError(
-                f"Expected procedure_name to be a valid value but found "
-                f"'{value}'.")
+                f"Expected procedure_name to be a valid Fortran name but "
+                f"found '{value}'.")
         self._procedure_name = value
 
     @property
@@ -489,7 +498,7 @@ class LFRicKernelMetadata():
         :raises ValueError: if the name is not valid.
 
         '''
-        if not value or not LFRicKernelMetadata.VALID_NAME.match(value):
+        if not value or not VALID_NAME.match(value):
             raise ValueError(
                 f"Expected name to be a valid value but found '{value}'.")
         self._name = value

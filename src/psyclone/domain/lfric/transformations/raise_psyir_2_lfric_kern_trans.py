@@ -45,8 +45,12 @@ from psyclone.psyir.transformations import TransformationError
 from psyclone.domain.lfric.kernel.lfric_kernel_metadata import \
     LFRicKernelMetadata
 from psyclone.domain.lfric.kernel.psyir import LFRicContainer
+from psyclone.configuration import VALID_NAME
 
-
+# TODO issue #1877. Find an appropriate place for the find_symbol()
+# method as it can be useful beyond this particular
+# transformation. Although the generic one would probably not return
+# the symbol table as well.
 def find_symbol(node, name):
     '''Utility method to find the symbol associated with the supplied
     name. The supplied node and all of its siblings are searched and the
@@ -58,39 +62,36 @@ def find_symbol(node, name):
 
     :returns: a tuple containing the symbol with the same name as the \
         supplied name and the scoping node for that symbol.
-    :rtype: Optional[(:py:class:`psyclone.psyir.symbols.datasymbol, \
-        :py:class:`psyclone.psyir.nodes.node`)]
+    :rtype: Optional[Tuple[:py:class:`psyclone.psyir.symbols.datasymbol, \
+        :py:class:`psyclone.psyir.nodes.node`]]
 
     '''
-    symbol = None
-    scoping_node = None
     for test_node in node.walk(ScopingNode):
         if name in test_node.symbol_table:
             symbol = test_node.symbol_table.lookup(name)
             scoping_node = test_node
-            break
-    return (symbol, scoping_node)
+            return (symbol, scoping_node)
+    return (None, None)
 
 
 class RaisePSyIR2LFRicKernTrans(Transformation):
-    '''Raise a generic PSyIR representation of a kernel-layer routine
-    to a PSyclone version with specialised domain-specific nodes and
-    symbols. This is currently limited to the specialisation of kernel
-    metadata.
+    '''Raise a generic PSyIR representation of a kernel-layer routine and
+    metadata to an LFRic version with specialised domain-specific
+    nodes and symbols. This is currently limited to the specialisation
+    of kernel metadata.
 
     >>> from psyclone.domain.lfric.transformations import \
-    ...      RaisePSyIR2LFRicKernTrans
+            RaisePSyIR2LFRicKernTrans
     >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> CODE = ("""
     ... MODULE example
     ... TYPE, EXTENDS(kernel_type) :: compute_cu
-    ...   TYPE(go_arg), DIMENSION(4) :: meta_args = (/         &
-    ...     go_arg(GO_WRITE, GO_CU, GO_POINTWISE),             &
-    ...     go_arg(GO_READ, GO_CT, GO_STENCIL(000, 011, 000)), &
-    ...     go_arg(GO_READ, GO_GRID_AREA_T),                   &
-    ...     go_arg(GO_READ, GO_R_SCALAR, GO_POINTWISE)/)
-    ...   INTEGER :: ITERATES_OVER = GO_ALL_PTS
-    ...   INTEGER :: index_offset = GO_OFFSET_SW
+    ...   TYPE(arg_type), DIMENSION(4) :: meta_args = (/     &
+    ...     arg_type(GH_FIELD, GH_REAL, GH_INC, W1),         &
+    ...     arg_type(GH_FIELD, GH_REAL, GH_READ, W3),        &
+    ...     arg_type(GH_FIELD, GH_REAL, GH_READ, W3),        &
+    ...     arg_type(GH_FIELD, GH_REAL, GH_READ, W3)/)
+    ...   INTEGER :: OPERATES_ON = CELL_COLUMN
     ... CONTAINS
     ...   PROCEDURE, NOPASS :: code => compute_cu_code
     ... END TYPE compute_cu
@@ -100,49 +101,33 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
     ... end module""")
     >>> fortran_reader = FortranReader()
     >>> kernel_container = fortran_reader.psyir_from_source(CODE)
-    >>> trans = RaisePSyIR2LFRicKernTrans("compute_cu")
-    >>> trans.apply(kernel_container)
-
-    :param str metadata_name: the name of the symbol containing the \
-        required kernel metadata in language-level PSyIR.
-
-    :raises TransformationError: if the supplied metadata_name is \
-        invalid.
+    >>> trans = RaisePSyIR2LFRicKernTrans()
+    >>> trans.apply(kernel_container, {"metadata_name": "compute_cu"})
 
     '''
-    VALID_NAME = re.compile(r'[a-zA-Z_][\w]*')
-
-    def __init__(self, metadata_name):
+    def __init__(self):
         super().__init__()
-
-        if not metadata_name or not \
-           RaisePSyIR2LFRicKernTrans.VALID_NAME.match(metadata_name):
-            raise TransformationError(
-                f"Error in {self.name} transformation. The "
-                f"RaisePSyIR2LFRicKernTrans transformation requires the "
-                f"name of the variable containing the metadata to be set to a "
-                f"valid value, but found '{metadata_name}'.")
-
-        # The name of the PSyIR symbol containing the metadata
-        self._metadata_name = metadata_name
 
     def validate(self, node, options=None):
         '''Validate the supplied PSyIR tree.
 
         :param node: a PSyIR node that is the root of a PSyIR tree.
-        :type node: Union[:py:class:`psyclone.psyir.node.Routine`, \
-            :py:class:`psyclone.psyir.node.Container`]
+        :type node: :py:class:`psyclone.psyir.node.Container`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str: str]]
 
-        :raises TransformationError: if the metadata name has not been \
-            set or does not exist in the code.
         :raises TransformationError: if the supplied node is not a \
-            Routine or a Container.
+            Container.
         :raises TransformationError: if the supplied node argument has \
             a parent.
+        :raises TransformationError: if the metadata name has not been \
+            provided in the options argument.
+        :raises TransformationError: if the metadata name has not been \
+            set or does not exist in the code.
 
         '''
+        super().validate(node, options=options)
+
         if not isinstance(node, Container):
             raise TransformationError(
                 f"Error in {self.name} transformation. The supplied node "
@@ -154,11 +139,27 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
                 f"should be the root of a PSyIR tree but this node has a "
                 f"parent ({type(node.parent).__name__}).")
 
-        metadata_symbol, scoping_node = find_symbol(node, self._metadata_name)
+        try:
+            metadata_name = options["metadata_name"]
+        except KeyError:
+            raise TransformationError(
+                f"Error in {self.name} transformation. This "
+                f"transformation requires the name of the variable "
+                f"containing the metadata to be provided in the options"
+                f"argument with lookup name 'metadata_name'.")
+                
+        if not VALID_NAME.match(metadata_name):
+            raise TransformationError(
+                f"Error in {self.name} transformation. This "
+                f"transformation requires the name of the variable "
+                f"containing the metadata to be set to a "
+                f"valid value, but found '{metadata_name}'.")
+
+        metadata_symbol, scoping_node = find_symbol(node, metadata_name)
         if not metadata_symbol:
             raise TransformationError(
                 f"Error in {self.name} transformation. The metadata name "
-                f"({self._metadata_name}) provided to the transformation "
+                f"({metadata_name}) provided to the transformation "
                 f"does not correspond to a symbol in the supplied PSyIR.")
 
         # Find the nearest ancestor container including self.  There
@@ -175,7 +176,7 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
         _ = LFRicKernelMetadata.create_from_psyir(metadata_symbol)
 
     def apply(self, node, options=None):
-        '''Raise the supplied language-level LFRic kernel PSyIR to
+        '''Raise the supplied language-level LFRic kernel to
         LFRic-specific kernel PSyIR. Specialises the kernel container
         to a LFRic-specific subclass, populates this subclass with
         the kernel metadata extracted from the metadata symbol as
@@ -183,28 +184,29 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
         symbol table.
 
         :param node: a kernel represented in generic PSyIR.
-        :type node: Union[:py:class:`psyclone.psyir.node.Routine`, \
-            :py:class:`psyclone.psyir.node.Container`]
+        :type node: :py:class:`psyclone.psyir.node.Container`]
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str: str]]
 
         '''
         self.validate(node, options=options)
 
+        # The name of the PSyIR symbol containing the metadata.
+        metadata_name = options["metadata_name"]
+
         # Find the metadata symbol based on the supplied name.
-        metadata_symbol, scoping_node = find_symbol(node, self._metadata_name)
+        metadata_symbol, scoping_node = find_symbol(node, metadata_name)
 
         # Find the container in which this metadata resides.
         container = scoping_node.ancestor(Container, include_self=True)
 
-        # Create metadata
+        # Create the metadata.
         metadata = LFRicKernelMetadata.create_from_psyir(metadata_symbol)
 
         # Remove metadata symbol.
         # TODO issue #898: support needs to be added for removing a
         # DataSymbol from the symbol table. At the moment we need to
         # use internal methods.
-        # pylint: disable=protected-access
         symbol_table = scoping_node.symbol_table
         norm_name = symbol_table._normalize(metadata_symbol.name)
         symbol_table._symbols.pop(norm_name)
@@ -217,4 +219,6 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
         container.replace_with(lfric_container)
 
 
+# The list of module members that we wish AutoAPI to generate
+# documentation for. (See https://psyclone-ref.readthedocs.io)
 __all__ = ['RaisePSyIR2LFRicKernTrans', 'find_symbol']

@@ -65,6 +65,9 @@ _FILE_NAME = "psyclone.cfg"
 #          applied and only one version of the transformed kernel is created.
 VALID_KERNEL_NAMING_SCHEMES = ["multiple", "single"]
 
+# Specify a valid name for use in checking for variable names etc.
+VALID_NAME = re.compile(r'[a-zA-Z_][\w]*')
+
 # pylint: disable=too-many-lines
 
 

@@ -103,19 +103,8 @@ def test_kerntrans_init():
     supplied argument is invalid.
 
     '''
-    kern_trans = RaisePSyIR2LFRicKernTrans("dummy")
+    kern_trans = RaisePSyIR2LFRicKernTrans()
     assert isinstance(kern_trans, RaisePSyIR2LFRicKernTrans)
-    assert kern_trans._metadata_name == "dummy"
-    with pytest.raises(TransformationError) as info:
-        _ = RaisePSyIR2LFRicKernTrans("")
-    assert ("The RaisePSyIR2LFRicKernTrans transformation requires the "
-            "name of the variable containing the metadata to be set to a "
-            "valid value, but found ''." in str(info.value))
-    with pytest.raises(TransformationError) as info:
-        _ = RaisePSyIR2LFRicKernTrans("1dummy")
-    assert ("The RaisePSyIR2LFRicKernTrans transformation requires the "
-            "name of the variable containing the metadata to be set to a "
-            "valid value, but found '1dummy'." in str(info.value))
 
 
 def test_validate_nosymbol(fortran_reader):
@@ -125,9 +114,9 @@ def test_validate_nosymbol(fortran_reader):
 
     '''
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
-    kern_trans = RaisePSyIR2LFRicKernTrans("does_not_exist")
+    kern_trans = RaisePSyIR2LFRicKernTrans()
     with pytest.raises(TransformationError) as info:
-        kern_trans.validate(kernel_psyir)
+        kern_trans.validate(kernel_psyir, {"metadata_name": "does_not_exist"})
     assert ("The metadata name (does_not_exist) provided to the "
             "transformation does not correspond to a symbol in the "
             "supplied PSyIR." in str(info.value))
@@ -144,9 +133,9 @@ def test_validate_container1(fortran_reader):
         f"{METADATA}\n"
         f"end subroutine test\n")
     kernel_psyir = fortran_reader.psyir_from_source(code)
-    kern_trans = RaisePSyIR2LFRicKernTrans("testkern_type")
+    kern_trans = RaisePSyIR2LFRicKernTrans()
     with pytest.raises(TransformationError) as info:
-        kern_trans.validate(kernel_psyir)
+        kern_trans.validate(kernel_psyir, {"metadata_name": "testkern_type"})
     assert ("The Container in which the metadata symbol resides is a "
             "FileContainer, but should be a generic Container."
             in str(info.value))
@@ -167,8 +156,8 @@ def test_validate_keyerror(fortran_reader):
                   f"  end subroutine\n"
                   f"end module\n")
     kernel_psyir = fortran_reader.psyir_from_source(my_program)
-    kern_trans = RaisePSyIR2LFRicKernTrans("testkern_type")
-    kern_trans.validate(kernel_psyir)
+    kern_trans = RaisePSyIR2LFRicKernTrans()
+    kern_trans.validate(kernel_psyir, {"metadata_name": "testkern_type"})
 
 
 def test_validate_container2(fortran_reader):
@@ -177,11 +166,11 @@ def test_validate_container2(fortran_reader):
 
     '''
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
-    kern_trans = RaisePSyIR2LFRicKernTrans("testkern_type")
+    kern_trans = RaisePSyIR2LFRicKernTrans()
     routine = kernel_psyir.children[0].children[0]
     routine.detach()
     with pytest.raises(TransformationError) as info:
-        kern_trans.validate(routine)
+        kern_trans.validate(routine, {"metadata_name": "testkern_type"})
     assert ("Error in RaisePSyIR2LFRicKernTrans transformation. The "
             "supplied node should be a Container but found 'Routine'."
             in str(info.value))
@@ -194,19 +183,39 @@ def test_validate_parent(fortran_reader):
     '''
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
     _ = FileContainer.create("test", SymbolTable(), [kernel_psyir])
-    kern_trans = RaisePSyIR2LFRicKernTrans("testkern_type")
+    kern_trans = RaisePSyIR2LFRicKernTrans()
     with pytest.raises(TransformationError) as info:
-        kern_trans.validate(kernel_psyir)
+        kern_trans.validate(kernel_psyir, {"metadata_name": "testkern_type"})
     assert ("Error in RaisePSyIR2LFRicKernTrans transformation. The "
             "supplied node should be the root of a PSyIR tree but this node "
             "has a parent (FileContainer)." in str(info.value))
+
+def test_validate_medatata():
+    '''Test that the validate method raises the expected exception if the
+    supplied metadata has an invalid value.
+
+    '''
+    transformation = RaisePSyIR2LFRicKernTrans()
+    with pytest.raises(TransformationError) as info:
+        transformation.validate(
+            Container("container"), {"metadata_name": ""})
+    assert ("This transformation requires the name of the variable "
+            "containing the metadata to be set to a valid value, but "
+            "found ''." in str(info.value))
+    with pytest.raises(TransformationError) as info:
+        transformation.validate(
+            Container("container"), {"metadata_name": "1dummy"})
+    assert ("Error in RaisePSyIR2LFRicKernTrans transformation. This "
+            "transformation requires the name of the variable containing "
+            "the metadata to be set to a valid value, but found '1dummy'."
+            in str(info.value))
 
 
 def test_validate_ok(fortran_reader):
     '''Test that the validate method accepts valid psyir.'''
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
-    kern_trans = RaisePSyIR2LFRicKernTrans("testkern_type")
-    kern_trans.validate(kernel_psyir)
+    kern_trans = RaisePSyIR2LFRicKernTrans()
+    kern_trans.validate(kernel_psyir, {"metadata_name": "testkern_type"})
 
 
 def test_apply_validate(fortran_reader, monkeypatch):
@@ -215,7 +224,7 @@ def test_apply_validate(fortran_reader, monkeypatch):
 
     '''
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
-    kern_trans = RaisePSyIR2LFRicKernTrans("testkern_type")
+    kern_trans = RaisePSyIR2LFRicKernTrans()
 
     def dummy(_, options=None):
         '''Dummy method used to check that the validate method is called from
@@ -226,7 +235,7 @@ def test_apply_validate(fortran_reader, monkeypatch):
 
     monkeypatch.setattr(kern_trans, "validate", dummy)
     with pytest.raises(RuntimeError) as info:
-        kern_trans.apply(kernel_psyir)
+        kern_trans.apply(kernel_psyir, {"metadata_name": "testkern_type"})
     assert "dummy called" in str(info.value)
 
 
@@ -237,13 +246,13 @@ def test_apply_ok(fortran_reader):
 
     '''
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
-    kern_trans = RaisePSyIR2LFRicKernTrans("testkern_type")
+    kern_trans = RaisePSyIR2LFRicKernTrans()
     container = kernel_psyir.children[0]
     assert isinstance(container, Container)
     assert not isinstance(container, LFRicContainer)
     # The symbol should exist
     _ = container.symbol_table.lookup("testkern_type")
-    kern_trans.apply(kernel_psyir)
+    kern_trans.apply(kernel_psyir, {"metadata_name": "testkern_type"})
     container = kernel_psyir.children[0]
     # The symbol should be removed
     with pytest.raises(KeyError):
