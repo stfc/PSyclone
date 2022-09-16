@@ -108,7 +108,7 @@ class ArrayReference(ArrayMixin, Reference):
     @property
     def datatype(self):
         '''
-        :returns: the datatype of this array reference.
+        :returns: the datatype of the accessed array element(s).
         :rtype: :py:class:`psyclone.psyir.symbols.DataType`
         '''
         shape = self._get_effective_shape()

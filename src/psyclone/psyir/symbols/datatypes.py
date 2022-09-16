@@ -175,6 +175,11 @@ class UnknownFortranType(UnknownType):
         parse tree to extract the type information. This is returned in
         text form and also cached.
 
+        TODO #1419 - alter Unknown(Fortran)Type so that it is only the
+        type information that is stored as a string. i.e. remove the name
+        of the variable being declared. Once that is done this method
+        won't be required.
+
         :returns: the Fortran code specifying the type.
         :rtype: str
         '''
@@ -594,6 +599,11 @@ class ArrayType(DataType):
         if len(self.shape) != len(other.shape):
             return False
 
+        # TODO #1799 - this implementation currently has some limitations.
+        # e.g. a(1:10) and b(2:11) have the same datatype (an array of 1
+        # dimension and 10 elements) but we will currently return false.
+        # One improvement could be to use the SymbolicMath to do the comparison
+        # but this won't resolve all cases as shape can be references.
         for this_dim, other_dim in zip(self.shape, other.shape):
             if this_dim != other_dim:
                 return False
