@@ -134,7 +134,7 @@ class Reference2ArrayRangeTrans(Transformation):
         :raises TransformationError: if the node is not a Reference \
             node or the Reference node not does not reference an array \
             symbol.
-        :raises TransformationError: if the the array reference is \
+        :raises TransformationError: if the Reference node is \
             within an LBOUND, UBOUND or SIZE binaryoperator.
 
         '''

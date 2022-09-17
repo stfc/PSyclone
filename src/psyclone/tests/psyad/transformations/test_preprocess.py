@@ -64,30 +64,6 @@ def test_preprocess_no_change():
     assert result == code
 
 
-def test_preprocess_reference(tmpdir, fortran_reader, fortran_writer):
-    '''Test the preprocess script replaces array references with
-    references to arrays.
-
-    '''
-    code = (
-        "program test\n"
-        "real :: a(10), b(10), c(10)\n"
-        "a = b * c\n"
-        "end program test\n")
-    expected = (
-        "program test\n"
-        "  real, dimension(10) :: a\n"
-        "  real, dimension(10) :: b\n"
-        "  real, dimension(10) :: c\n\n"
-        "  a(:) = b(:) * c(:)\n\n"
-        "end program test\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    preprocess_trans(psyir, [])
-    result = fortran_writer(psyir)
-    assert result == expected
-    assert Compile(tmpdir).string_compiles(result)
-
-
 def test_preprocess_dotproduct(tmpdir, fortran_reader, fortran_writer):
     '''Test that the preprocess script replaces a dotproduct with
     equivalent code.
