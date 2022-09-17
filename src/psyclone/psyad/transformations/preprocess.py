@@ -40,20 +40,18 @@ translated to adjoint PSyIR.
 '''
 from psyclone.core import SymbolicMaths
 from psyclone.psyad.utils import node_is_active, node_is_passive
-from psyclone.psyir.nodes import BinaryOperation, Assignment, Range, \
-    Reference
+from psyclone.psyir.nodes import BinaryOperation, Assignment, Range
 from psyclone.psyir.transformations import DotProduct2CodeTrans, \
-    Matmul2CodeTrans, ArrayRange2LoopTrans, TransformationError, \
-    Reference2ArrayRangeTrans
+    Matmul2CodeTrans, ArrayRange2LoopTrans, TransformationError
 
 
 def preprocess_trans(kernel_psyir, active_variable_names):
     '''PSyclone kernel transformation script which modifies the supplied
-    kernel psyir by replacing references to arrays with array-ranges,
-    array-ranges with explicit loops, dotproduct and matmul intrinsics
-    with equivalent code and performing symbolic expansion
-    (e.g. x(a+b) => x*a+x*b). This is called internally by the PSyAD
-    script before transforming the code to its adjoint form.
+    kernel psyir by replacing array-ranges with explicit loops,
+    dotproduct and matmul intrinsics with equivalent code and
+    performing symbolic expansion (e.g. x(a+b) => x*a+x*b). This is
+    called internally by the PSyAD script before transforming the code
+    to its adjoint form.
 
     :param kernel_psyir: PSyIR representation of the tangent linear \
         kernel code.
@@ -65,14 +63,6 @@ def preprocess_trans(kernel_psyir, active_variable_names):
     dot_product_trans = DotProduct2CodeTrans()
     matmul_trans = Matmul2CodeTrans()
     arrayrange2loop_trans = ArrayRange2LoopTrans()
-    reference2arrayrange_trans = Reference2ArrayRangeTrans()
-
-    # Replace references with array ranges
-    for reference in kernel_psyir.walk(Reference):
-        try:
-            reference2arrayrange_trans.apply(reference)
-        except TransformationError:
-            pass
 
     # Replace array-ranges with explicit loops
     for assignment in kernel_psyir.walk(Assignment):
