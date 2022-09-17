@@ -152,7 +152,7 @@ class Reference2ArrayRangeTrans(Transformation):
                 node.parent.operator in [
                     BinaryOperation.Operator.LBOUND,
                     BinaryOperation.Operator.UBOUND,
-                    BinaryOperation.Operator.SIZE]:
+                    BinaryOperation.Operator.SIZE]):
             raise TransformationError(
                 "References to arrays within LBOUND, UBOUND or SIZE "
                 "operators should not be transformed.")
