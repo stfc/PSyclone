@@ -134,6 +134,8 @@ class Reference2ArrayRangeTrans(Transformation):
         :raises TransformationError: if the node is not a Reference \
             node or the Reference node not does not reference an array \
             symbol.
+        :raises TransformationError: if the the array reference is \
+            within an LBOUND, UBOUND or SIZE binaryoperator.
 
         '''
         # TODO issue #1858. Add support for structures containing arrays.
@@ -152,10 +154,11 @@ class Reference2ArrayRangeTrans(Transformation):
                 # UBOUND binaryoperator.
                 if node.parent.operator in [
                         BinaryOperation.Operator.LBOUND,
-                        BinaryOperation.Operator.UBOUND]:
+                        BinaryOperation.Operator.UBOUND,
+                        BinaryOperation.Operator.SIZE]:
                     raise TransformationError(
-                        "Arrays within LBOUND and UBOUND operators should "
-                        "not be transformed.")
+                        "Arrays within LBOUND, UBOUND and SIZE operators "
+                        "should not be transformed.")
 
     def apply(self, node, options=None):
         '''Apply the Reference2ArrayRangeTrans transformation to the specified
