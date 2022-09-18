@@ -1,9 +1,9 @@
-# Kernel Extraction Library Using NetCDF for GOcean
+# Stand-alone Kernel Extraction Library for GOcean
 
 This wrapper library is used to [write (extract)](
 https://psyclone.readthedocs.io/en/stable/psyke.html)
-input and output parameters of instrumented code regions to a [NetCDF file](
-https://psyclone.readthedocs.io/en/stable/psyke.html#netcdf-extraction-example)
+input and output parameters of instrumented code regions to a [binary file](
+https://psyclone.readthedocs.io/en/stable/psyke.html#extraction_libraries)
 using the [``dl_esm_inf`` library](https://github.com/stfc/dl_esm_inf).
 A stand-alone driver can then be used to rerun this specific code region and
 verify the results (or compare performance).
@@ -27,22 +27,14 @@ the application. The following dependencies must be available:
   submodules). However, it is not included in the PSyclone [installation](
   ./../../../README.md#installation) and has to be cloned separately.
 
-- This library uses NetCDF to store the data, so NetCDF must
-  be available on the system. NetCDF development packages are available via
-  the Linux package manager. Otherwise they can be built from source that
-  can be downloaded from the [UCAR NetCDF website](
-  https://www.unidata.ucar.edu/software/netcdf). For more information please
-  refer to the [hands-on practicals documentation](
-  https://github.com/stfc/PSyclone/tree/master/tutorial/practicals#netcdf-library-lfric-examples).
-
-- The ExtractNetcdf (``extract_netcdf_base.jinja``) and PSyData
+- The ExtractStandalone (``extract_standalone_base.jinja``) and PSyData
   (``psy_data_base.jinja``) base classes, which are included in PSyclone
   installation. These Jinja templates are processed to create the
   code to write ``integer``, 32- and 64-bit ``real`` scalars, and
   2-dimensional ``real`` and ``integer`` arrays. The generated Fortran
-  modules, ``extract_netcdf_base.f90`` and ``psy_data_base.f90``, are
-  then used by the supplied NetCDF-kernel-extraction module,
-  ``kernel_data_netcdf.f90``, to create the wrapper library.
+  modules, ``extract_standalone_base.f90`` and ``psy_data_base.f90``, are
+  then used by the supplied kernel-extraction module,
+  ``kernel_data_standalone.f90``, to create the wrapper library.
 
 ## Compilation
 
@@ -51,10 +43,9 @@ environment variables ``$F90`` and ``$F90FLAGS`` can be set to point to the
 [Fortran compiler](./../../../README.md#compilation) and flags to use. They
 default to ``gfortran`` and the empty string.
 
-The NetCDF helper program ``nf-config`` is used to get the NetCDF-specific
-include paths. By default it is set to the relative path to location of
-the version included in PSyclone repository
-(``<PSYCLONEHOME>/external/dl_esm_inf/finite_difference``). This is not
+It needs the dl_esm_inf infrastructure library. By default, the version
+included in PSyclone repository
+(``<PSYCLONEHOME>/external/dl_esm_inf/finite_difference``) is used. This is not
 available in the PSyclone [installation](./../../../README.md#installation)
 so the exact path **must be specified** using the environment variable
 ``GOCEAN_INF_DIR``, e.g.
@@ -63,10 +54,10 @@ so the exact path **must be specified** using the environment variable
 GOCEAN_INF_DIR=<path/to/dl_esm_inf/finite_difference> make
 ```
 
-The locations of the ExtractNetcdf and PSyData base classes are
+The locations of the ExtractStandalone and PSyData base classes are
 specified using the environment variables ``$LIB_TMPLT_DIR`` and
 ``$PSYDATA_LIB_DIR``, respectively. They default to the relative paths to
-the [``lib/extract/netcdf``](./../) and top-level [``lib``](./../../../)
+the [``lib/extract/standalone``](./../) and top-level [``lib``](./../../../)
 directories.
 
 The compilation process will create the wrapper library
@@ -83,22 +74,16 @@ or compiler flags).
 
 ### Linking the wrapper library
 
-The application needs to provide the parameters to link in this
-NetCDF-kernel-extraction library, ``_kernel_data_netcdf``, the ``dl_esm_inf``
-infrastructure library, ``_fd``,  and the required NetCDF parameters when
-compiling and linking. For instance:
+At link time, the path to the stand-alone-kernel-extraction library,
+``_kernel_data_standalone``, and the ``dl_esm_inf`` infrastructure
+library, ``_fd``, need to be specified when compiling and linking.
+For instance:
 
 ```shell
-$(F90)  ... -L$(PSYDATA_LIB_DIR)/extract/netcdf/dl_esm_inf -l_kernel_data_netcdf \
-        -L$(GOCEAN_INF_DIR) -l_fd $(nf-config --flibs)
+$(F90)  ... -L$(PSYDATA_LIB_DIR)/extract/standalone/dl_esm_inf -l_kernel_data_standalone \
+        -L$(GOCEAN_INF_DIR) -l_fd
 ```
 
-### Note
-
-Certain versions of Fedora have a broken ``nf-config`` script. In
-this case the ``Makefile`` has to be modified to provide the required
-information (you can try to see if ``nc-config`` can be used,
-or you have to explicitly provide the required paths and options).
 
 <!--
 ## Licence
