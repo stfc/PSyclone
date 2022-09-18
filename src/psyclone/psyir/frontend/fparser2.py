@@ -3915,8 +3915,16 @@ class Fparser2Reader(object):
                 # First, update the existing RoutineSymbol with the
                 # return datatype specified in the function
                 # declaration.
-                routine_symbol = routine.symbol_table.lookup(return_name)
-                routine_symbol.datatype = base_type
+                
+                # Lookup with the routine name as return_name may be
+                # declared with its own local name. Be wary that this
+                # function may not be referenced so there might not be
+                # a RoutineSymbol.
+                try:
+                    routine_symbol = routine.symbol_table.lookup(routine.name)
+                    routine_symbol.datatype = base_type
+                except KeyError:
+                    pass
 
                 routine.symbol_table.new_symbol(return_name,
                                                 tag=keep_tag,
