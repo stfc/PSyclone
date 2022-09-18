@@ -60,6 +60,75 @@ def preprocess_trans(kernel_psyir, active_variable_names):
     :type active_variable_names: list of str
 
     '''
+    # perform any inlining
+    # find potential names
+    from psyclone.psyir.nodes import Call, ArrayReference
+    from psyclone.psyir.symbols import DataSymbol
+    from psyclone.psyir.frontend.fortran import FortranReader
+    from psyclone.psyir.transformations import InlineTrans
+
+    inline_calls = []
+    for call in kernel_psyir.walk(Call):
+        print(f"found routine '{call.routine.name}'.")
+        if node_is_passive(call, active_variable_names):
+            print("No need to modify this as it is passive.")
+        else:
+            print("This is active")
+        # inline passive ones anyway for the moment as a test
+        inline_calls.append(call)
+
+    # Functions will soon be captured as calls but they are not yet so
+    # this is a hack ...
+    func_node = None
+    for array_ref in kernel_psyir.walk(ArrayReference):
+        if not isinstance(array_ref.symbol, DataSymbol):
+            print(f"found function '{array_ref.name}'.")
+            if node_is_passive(array_ref, active_variable_names):
+                print("No need to modify this as it is passive.")
+            else:
+                inline_calls.append(array_ref)
+                print("This is active")
+    
+    # Assume we can find the location of the source and turn in to PSyIR
+    active_func = "tl_calc_exner_pointwise"
+    reader = FortranReader()
+    psyir = reader.psyir_from_source(
+        "integer function tl_calc_exner_pointwise()\n"
+        " tl_calc_exner_pointwise = 1\n"
+        "end function\n")
+    print(psyir.view())
+
+    code = (
+        "  subroutine pointwise_coordinate_jacobian( &\n"
+        "                                       ndf, chi_1, chi_2, chi_3,      &\n"
+        "                                       panel_id, basis, diff_basis,   &\n"
+        "                                       jac, dj      )\n"
+        "    implicit none\n\n"
+        "    integer(kind=i_def),  intent(in) :: ndf\n"
+        "    integer(kind=i_def),  intent(in) :: panel_id\n\n"
+        "    real(kind=r_double),  intent(in) :: chi_1(ndf), chi_2(ndf), chi_3(ndf)\n"
+        "    real(kind=r_double),  intent(in) :: basis(1,ndf)\n"
+        "    real(kind=r_double),  intent(in) :: diff_basis(3,ndf)\n"
+        "    real(kind=r_double), intent(out) :: jac(3,3)\n"
+        "    real(kind=r_double), intent(out) :: dj\n"
+        "  end subroutine")
+    reader = FortranReader()
+    psyir = reader.psyir_from_source(code)
+    
+    # Add this to our PSyIR
+    kernel_psyir.children.append(psyir.children[0].detach())
+    # Need to change symbol type of call so it is no longer imported,
+    # otherwise the inline transformation complains
+    print(kernel_psyir.view())
+
+    # use inlining transformation - note, not yet working with functions
+    # note, precision may need to be specified as routine may have an interface :-(
+    inline_trans = InlineTrans()
+    for call in inline_calls:
+        inline_trans.apply(call)
+
+    exit(1)
+
     dot_product_trans = DotProduct2CodeTrans()
     matmul_trans = Matmul2CodeTrans()
     arrayrange2loop_trans = ArrayRange2LoopTrans()
