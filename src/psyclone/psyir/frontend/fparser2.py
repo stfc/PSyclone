@@ -149,7 +149,6 @@ def _find_or_create_imported_symbol(location, name, scope_limit=None,
         no ContainerSymbols from which it might be brought into scope.
 
     '''
-
     if not isinstance(location, Node):
         raise TypeError(
             f"The location argument '{location}' provided to "
@@ -3903,7 +3902,6 @@ class Fparser2Reader(object):
                     # Remove the RoutineSymbol ready to replace it with a
                     # DataSymbol.
                     routine.symbol_table.remove(symbol)
-                    symbol.datatype = base_type
                     keep_tag = "own_routine_symbol"
 
             if return_name not in routine.symbol_table:
@@ -3914,8 +3912,9 @@ class Fparser2Reader(object):
                 # True as there is likely to be a RoutineSymbol for this
                 # function in any enclosing Container.
 
-                # Update the RoutineSymbol with the return datatype
-                # specified in the function declaration.
+                # First, update the existing RoutineSymbol with the
+                # return datatype specified in the function
+                # declaration.
                 routine_symbol = routine.symbol_table.lookup(return_name)
                 routine_symbol.datatype = base_type
 
