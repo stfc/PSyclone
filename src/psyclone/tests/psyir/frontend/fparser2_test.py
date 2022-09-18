@@ -61,7 +61,7 @@ from psyclone.psyir.nodes import (
     UnaryOperation, BinaryOperation, NaryOperation, IfBlock, Reference,
     ArrayReference, Container, Literal, Range, KernelSchedule,
     RegionDirective, StandaloneDirective, StructureReference,
-    ArrayOfStructuresReference)
+    ArrayOfStructuresReference, Call, Routine)
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, SymbolTable, RoutineSymbol, ArgumentInterface,
     SymbolError, ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE,
@@ -1829,7 +1829,7 @@ def test_handling_part_ref(parser):
     assert new_node.name == "x"
     assert len(new_node.children) == 3  # Array dimensions
 
-    # Test a function
+    # Test a function. This will be a part_ref but will have a RoutineSymbol
     code = (
         "module test_mod\n"
         "contains\n"
@@ -1847,26 +1847,19 @@ def test_handling_part_ref(parser):
     ast = parser(reader)
     processor = Fparser2Reader()
     node = processor.generate_psyir(ast)
-    print(node.view())
-    function = node.children[0].children[0]
-    from psyclone.psyir.nodes import Routine
+
+    function = node.children[0].children[1]
     assert isinstance(function, Routine)
-    # assert isinstance(function.return_symbol, DataSymbol)
-    assert isinstance(function.return_symbol, RoutineSymbol)
+    assert isinstance(function.return_symbol, DataSymbol)
     assert isinstance(function.return_symbol.datatype, ScalarType)
 
     call = node.children[0].children[0].children[0].rhs
-    from psyclone.psyir.nodes import Call
-    from psyclone.psyir.symbols import DeferredType
-    # assert isinstance(call, Call)
-    # assert call.routine.name == "test_func"
+    assert isinstance(call, Call)
+    assert call.routine.name == "test_func"
     symbol = call.scope.symbol_table.lookup("test_func")
-    print("***")
-    print(call.scope.symbol_table.view())
-    print(call.parent.parent.parent.scope.symbol_table.view())
     assert isinstance(symbol, RoutineSymbol)
-    assert not isinstance(symbol.datatype, DeferredType)
-    exit(1)
+    assert isinstance(symbol.datatype, ScalarType)
+    assert symbol.datatype is function.return_symbol.datatype
 
 
 @pytest.fixture(scope="function", name="symbol_table")
