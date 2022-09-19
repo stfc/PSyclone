@@ -46,8 +46,7 @@ missing (TODO: #647)
 
 from __future__ import print_function
 
-from psyclone.psyir.transformations import ExtractTrans
-
+from psyclone.domain.lfric.transformations import LFRicExtractTrans
 
 def trans(psy):
     '''
@@ -60,7 +59,7 @@ def trans(psy):
     :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
 
     '''
-    extract = ExtractTrans()
+    extract = LFRicExtractTrans()
 
     # Show that it works on a builtin:
     invoke = psy.invokes.get("invoke_initialise_fields")
