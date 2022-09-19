@@ -76,7 +76,8 @@ from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
                                   ArrayReference, ACCEnterDataDirective,
-                                  ACCRegionDirective, OMPRegionDirective)
+                                  ACCRegionDirective, OMPRegionDirective,
+                                  StructureReference)
 from psyclone.psyir.symbols import (
     INTEGER_TYPE, INTEGER_SINGLE_TYPE, DataSymbol, SymbolTable, ScalarType,
     DeferredType, DataTypeSymbol, ContainerSymbol, ImportInterface, ArrayType)
@@ -7020,7 +7021,7 @@ class DynLoop(PSyLoop):
         self._upper_bound_name = None
         self._upper_bound_halo_depth = None
 
-    def reference_accesses(self, var_accesses):
+    def XXreference_accesses(self, var_accesses):
         # TODO 1876, Item 1
         '''Get all variable access information. It combines the data from
         the loop bounds (start, stop and step), as well as the loop body.
@@ -7665,6 +7666,9 @@ class DynLoop(PSyLoop):
         :rtype: :py:class:`psyclone.psyir.Node`
 
         '''
+        if isinstance(self.children[0], Reference):
+            return self.children[0]
+
         inv_sched = self.ancestor(InvokeSchedule)
         sym_table = inv_sched.symbol_table
         loops = inv_sched.loops()
@@ -7673,8 +7677,19 @@ class DynLoop(PSyLoop):
             if loop is self:
                 posn = index
                 break
-        lbound = sym_table.lookup_with_tag(f"loop{posn}_start")
-        return Reference(lbound)
+        root_name = f"loop{posn}_start"
+        try:
+            lbound = sym_table.lookup_with_tag(root_name)
+        except KeyError:
+            # TODO #1258 the loop bound symbol should be of
+            # precision 'i_def'.
+            lbound = sym_table.new_symbol(root_name=root_name,
+                                          tag=root_name,
+                                          symbol_type=DataSymbol,
+                                          datatype=INTEGER_TYPE)
+
+        self.children[0] = Reference(lbound)
+        return self.children[0]
 
     @property
     def stop_expr(self):
@@ -7683,6 +7698,9 @@ class DynLoop(PSyLoop):
         :rtype: :py:class:`psyclone.psyir.Node`
 
         '''
+        if isinstance(self.children[1], Reference):
+            return self.children[1]
+
         inv_sched = self.ancestor(InvokeSchedule)
         sym_table = inv_sched.symbol_table
 
@@ -7723,8 +7741,19 @@ class DynLoop(PSyLoop):
             if loop is self:
                 posn = index
                 break
-        ubound = sym_table.lookup_with_tag(f"loop{posn}_stop")
-        return Reference(ubound)
+        root_name = f"loop{posn}_stop"
+        try:
+            ubound = sym_table.lookup_with_tag(root_name)
+        except KeyError:
+            # TODO #1258 the loop bound symbol should be of
+            # precision 'i_def'.
+            ubound = sym_table.new_symbol(root_name=root_name,
+                                          tag=root_name,
+                                          symbol_type=DataSymbol,
+                                          datatype=INTEGER_TYPE)
+
+        self.children[1] = Reference(ubound)
+        return self.children[1]
 
     def gen_code(self, parent):
         ''' Call the base class to generate the code and then add any
@@ -9093,6 +9122,20 @@ class DynKernelArguments(Arguments):
 
         return self._raw_arg_list
 
+    def psyir_expressions(self):
+        '''
+        :returns: the PSyIR expressions representing this Argument list.
+        :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        symtab = self._parent_call.scope.symbol_table
+        create_arg_list = KernCallArgList(self._parent_call)
+        create_arg_list.generate()
+        reader = FortranReader()
+        symtab = create_arg_list._symtab
+        l = [reader.psyir_from_expression(arg, symtab) for arg in self._raw_arg_list]
+        return [arg.psyir_expression() for arg in self.args]
+
     @property
     def acc_args(self):
         '''
@@ -9669,7 +9712,7 @@ class DynKernelArgument(KernelArgument):
                 sym = symbol_table.new_symbol(
                     self.proxy_name, symbol_type=DataSymbol,
                     datatype=self.infer_datatype(proxy=True))
-            return Reference(sym)
+            return StructureReference.create(sym, ["data"])
 
         raise NotImplementedError(
             "Unsupported kernel argument type: '{0}' is of type '{1}' "
