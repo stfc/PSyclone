@@ -43,7 +43,7 @@ from psyclone.psyGen import Transformation
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
     ArrayReference, Call, Range, Routine, Reference, CodeBlock,
-    Return, Literal)
+    Return, Literal, Assignment)
 from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol, ScalarType,
                                     ImportInterface)
 from psyclone.psyir.transformations.transformation_error import (
@@ -179,13 +179,22 @@ class InlineTrans(Transformation):
             # remove it from the list.
             del new_stmts[-1]
 
-        parent = node.parent
-        idx = node.position
-
-        node.replace_with(new_stmts[0])
-        for child in new_stmts[1:]:
-            idx += 1
-            parent.addchild(child, idx)
+        if routine.return_symbol:
+            # This is a function
+            parent = node.ancestor(Assignment).parent
+            idx = parent.position-1
+            for child in new_stmts:
+                idx += 1
+                parent.addchild(child, idx)
+            node.replace_with(Reference(routine.return_symbol))
+        else:
+            # This is a call
+            parent = node.parent
+            idx = node.parent.position
+            node.replace_with(new_stmts[0])
+            for child in new_stmts[1:]:
+                idx += 1
+                parent.addchild(child, idx)
 
     @staticmethod
     def _inline_container_symbols(table, routine_table):
@@ -349,11 +358,6 @@ class InlineTrans(Transformation):
 
         # Check that we can find the source of the routine being inlined.
         routine = self._find_routine(node)
-
-        if routine.return_symbol:
-            raise TransformationError(
-                f"Cannot inline routine '{routine.name}' as it has a return "
-                f"value ('{routine.return_symbol.name}') - TODO #924.")
 
         if not routine.children or isinstance(routine.children[0], Return):
             # An empty routine is fine.

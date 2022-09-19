@@ -617,6 +617,45 @@ def test_inline_non_local_import(fortran_reader, fortran_writer):
             "    i = i + trouble\n" in output)
 
 
+def test_apply_function(fortran_reader, fortran_writer, tmpdir):
+    '''Check that the apply() method works correctly for a simple call to
+    a function.
+
+    '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "  real :: a,b\n"
+        "  a = func(b)\n"
+        "  end subroutine run_it\n"
+        "  real function func()\n"
+        "    func = 2.0\n"
+        "  end function\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    print(psyir.view())
+    from psyclone.psyir.nodes import ArrayReference
+    from psyclone.psyir.symbols import RoutineSymbol
+    array_ref = psyir.walk(ArrayReference)[0]
+    array_ref.replace_with(Call(RoutineSymbol(array_ref.name)))
+    print(psyir.view())
+
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(routine)
+    output = fortran_writer(psyir)
+    print(psyir.view())
+    print(output)
+    exit(1)
+    assert ("    do i = 1, 10, 1\n"
+            "      a(i) = 1.0\n"
+            "      a(i) = 2.0 * a(i)\n"
+            "    enddo\n" in output)
+    assert Compile(tmpdir).string_compiles(output)
+
+
+
 def test_apply_validate():
     '''Test the apply method calls the validate method.'''
     inline_trans = InlineTrans()
@@ -793,51 +832,6 @@ def test_validate_unresolved_import(fortran_reader):
         inline_trans.validate(call)
     assert ("Routine 'sub' cannot be inlined because it accesses an "
             "un-resolved variable 'trouble'" in str(err.value))
-
-
-def test_validate_function(fortran_reader):
-    '''Test that the validate method rejects an attempt to inline a
-    function.
-
-    TODO #924: add support for function inlining.
-    '''
-    code = (
-        "module test_mod\n"
-        "contains\n"
-        "  subroutine run_it()\n"
-        "  integer :: i\n"
-        "  real :: a(10)\n"
-        "  do i=1,10\n"
-        "    a(i) = my_func(i)\n"
-        "  end do\n"
-        "  end subroutine run_it\n"
-        "  function my_func(idx)\n"
-        "    integer :: my_func\n"
-        "    integer, intent(in) :: idx\n"
-        "    my_func = 3*idx\n"
-        "  end function my_func\n"
-        "end module test_mod\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    routines = psyir.walk(Routine)
-    routine = routines[0]
-    # Currently the call to my_func() is identified as an array reference
-    # so we have to fix it before we can apply the transformation.
-    isym = routine.symbol_table.lookup("i")
-    func = psyir.children[0].symbol_table.lookup("my_func")
-    assign = routine.walk(Assignment)[0]
-    assign.rhs.replace_with(Call.create(func, [Reference(isym)]))
-    inline_trans = InlineTrans()
-    with pytest.raises(TransformationError) as err:
-        inline_trans.apply(assign.rhs)
-    assert ("Cannot inline routine 'my_func' as it has a return value "
-            "('my_func') - TODO #924." in str(err.value))
-    # Repeat the check but with an empty function.
-    callee = routines[1]
-    callee.children = []
-    with pytest.raises(TransformationError) as err:
-        inline_trans.apply(assign.rhs)
-    assert ("Cannot inline routine 'my_func' as it has a return value "
-            "('my_func') - TODO #924." in str(err.value))
 
 
 def test_validate_array_subsection(fortran_reader):
