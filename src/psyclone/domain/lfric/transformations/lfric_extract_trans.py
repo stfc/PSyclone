@@ -39,7 +39,10 @@
 transformation.
 '''
 
+from psyclone.domain.lfric import LFRicExtractDriverCreator
 from psyclone.dynamo0p3 import DynLoop
+from psyclone.psyir.nodes import ExtractNode
+from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations import ExtractTrans, TransformationError
 
 # TODO: #1392 we need to call driver creation here.
@@ -66,6 +69,11 @@ class LFRicExtractTrans(ExtractTrans):
     >>> print(schedule.view())
 
     '''
+
+    def __init__(self):
+        super().__init__(ExtractNode)
+        self._driver_creator = LFRicExtractDriverCreator()
+
     def validate(self, node_list, options=None):
         ''' Perform Dynamo0.3 API specific validation checks before applying
         the transformation.
@@ -96,3 +104,68 @@ class LFRicExtractTrans(ExtractTrans):
                     "Error in {0} for Dynamo0.3 API: Extraction of a Loop "
                     "over cells in a colour without its ancestor Loop over "
                     "colours is not allowed.".format(str(self.name)))
+
+    # ------------------------------------------------------------------------
+    def apply(self, nodes, options=None):
+        # pylint: disable=arguments-differ
+        '''Apply this transformation to a subset of the nodes within a
+        schedule - i.e. enclose the specified Nodes in the schedule within
+        a single PSyData region. Note that this implementation just calls
+        the base class, it is only added here to provide the documentation
+        for this function, since it accepts different options
+        to the base class (e.g. create_driver, which is passed to the
+        ExtractNode instance that will be inserted.).
+
+        :param nodes: can be a single node or a list of nodes.
+        :type nodes: :py:obj:`psyclone.psyir.nodes.Node` or list of \
+                     :py:obj:`psyclone.psyir.nodes.Node`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+        :param str options["prefix"]: a prefix to use for the PSyData module \
+            name (``prefix_psy_data_mod``) and the PSyDataType \
+            (``prefix_PSyDataType``) - a "_" will be added automatically. \
+            It defaults to "extract", resulting in e.g. \
+            ``extract_psy_data_mod``.
+        :param bool options["create_driver"]: whether or not to create a \
+            driver program at code-generation time. If set, the driver will \
+            be created in the current working directory with the name \
+            "driver-MODULE-REGION.f90" where MODULE and REGION will be the \
+            corresponding values for this region. Defaults to False.
+        :param (str,str) options["region_name"]: an optional name to \
+            use for this PSyData area, provided as a 2-tuple containing a \
+            location name followed by a local name. The pair of strings \
+            should uniquely identify a region unless aggregate information \
+            is required (and is supported by the runtime library).
+
+        '''
+        if options is None:
+            my_options = {}
+        else:
+            # We will add a default prefix, so create a copy to avoid
+            # changing the user's options:
+            my_options = options.copy()
+
+        dep = DependencyTools()
+        nodes = self.get_node_list(nodes)
+        region_name = self.get_unique_region_name(nodes, my_options)
+        my_options["region_name"] = region_name
+        my_options["prefix"] = my_options.get("prefix", "extract")
+        input_list, output_list = dep.get_in_out_parameters(nodes)
+        # Determine a unique postfix to be used for output variables
+        # that avoid any name clashes
+        postfix = ExtractTrans.determine_postfix(input_list,
+                                                 output_list,
+                                                 postfix="_post")
+        my_options["post_var_postfix"] = postfix
+
+        if my_options.get("create_driver", False):
+            # We need to create the driver before inserting the ExtractNode
+            # (since some of the visitors used in driver creation do not
+            # handle an ExtractNode in the tree)
+            self._driver_creator.write_driver(nodes,
+                                              input_list, output_list,
+                                              postfix=postfix,
+                                              prefix=my_options["prefix"],
+                                              region_name=region_name)
+
+        super().apply(nodes, my_options)
