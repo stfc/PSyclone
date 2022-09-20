@@ -45,8 +45,12 @@ from collections import namedtuple
 
 from psyclone import psyGen
 from psyclone.core import AccessType, Signature
-from psyclone.domain.lfric import ArgOrdering, LFRicConstants
+from psyclone.domain.lfric import ArgOrdering, LFRicConstants, psyir
 from psyclone.errors import GenerationError, InternalError
+from psyclone.psyir.nodes import Reference, StructureReference
+from psyclone.psyir.symbols import (ArrayType, DataSymbol,
+                                    DataTypeSymbol, DeferredType,
+                                    ContainerSymbol, ImportInterface)
 
 
 class KernCallArgList(ArgOrdering):
@@ -69,8 +73,26 @@ class KernCallArgList(ArgOrdering):
         self._nlayers_positions = []
         self._nqp_positions = []
         self._ndf_positions = []
+        # This stores the PSyIR representation of the arguments
+        self._psyir_arglist = []
         # Keep a reference to the Invoke SymbolTable as a shortcut
         self._symtab = self._kern.ancestor(psyGen.InvokeSchedule).symbol_table
+
+    @property
+    def psyir_arglist(self):
+        '''
+        :return: the kernel argument list as PSyIR expressions. The generate \
+            method must be called first.
+        :rtype: List[:py:class:`psyclone.psyir.nodes.Reference`]
+
+        :raises InternalError: if the generate() method has not been called.
+
+        '''
+        if not self._generate_called:
+            raise InternalError(
+                f"The PSyIR argument list in {type(self).__name__} is empty. "
+                f"Has the generate() method been called?")
+        return self._psyir_arglist
 
     def cell_position(self, var_accesses=None):
         '''Adds a cell argument to the argument list and if supplied stores
@@ -128,9 +150,31 @@ class KernCallArgList(ArgOrdering):
         '''
         if self._kern.iterates_over not in ["cell_column", "domain"]:
             return
-        nlayers_name = self._symtab.find_or_create_tag("nlayers").name
+        nlayers_symbol = self._symtab.find_or_create_tag("nlayers")
+        nlayers_name = nlayers_symbol.name
         self.append(nlayers_name, var_accesses)
         self._nlayers_positions.append(self.num_args)
+        self._psyir_arglist.append(Reference(nlayers_symbol))
+
+    def scalar(self, scalar_arg, var_accesses=None):
+        '''
+        Add the necessary argument for a scalar quantity as well as an
+        appropriate Symbol to the SymbolTable.
+
+        :param scalar_arg: the scalar kernel argument.
+        :type scalar_arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :param var_accesses: optional VariablesAccessInfo instance that \
+            stores information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        :raises NotImplementedError: if a scalar of type other than real \
+            or integer is found.
+
+        '''
+        super().scalar(scalar_arg, var_accesses)
+        sym = self._symtab.lookup(scalar_arg.name)
+        self._psyir_arglist.append(Reference(sym))
 
     # TODO uncomment this method when ensuring we only pass ncell3d once
     # to any given kernel.
@@ -165,7 +209,9 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        name = self._symtab.find_or_create_tag("ncell_2d_no_halos").name
+        ncell_symbol = self._symtab.find_or_create_tag("ncell_2d_no_halos")
+        name = ncell_symbol.name
+        self._psyir_arglist.append(Reference(ncell_symbol))
         self.append(name, var_accesses)
 
     def cma_operator(self, arg, var_accesses=None):
@@ -242,6 +288,31 @@ class KernCallArgList(ArgOrdering):
         # as being read.
         self.append(text, var_accesses, var_access_name=arg.name,
                     mode=arg.access)
+        try:
+            sym = self._symtab.lookup(arg.proxy_name)
+        except KeyError:
+            # The proxy symbol does not exist, add it to the symbol table.
+            # The container for field mod is already defined in the root
+            # symbol table:
+            root_table = self._symtab
+            while root_table.parent_symbol_table():
+                root_table = root_table.parent_symbol_table()
+            cont = root_table.lookup("field_mod")
+            # The proxy type must be declared in the same symbol table as the
+            # container (otherwise errors will happen later):
+            proxy_type = \
+                root_table.find_or_create("field_proxy_type",
+                                          symbol_type=DataTypeSymbol,
+                                          datatype=DeferredType(),
+                                          interface=ImportInterface(cont))
+            # Declare the actual proxy symbol in the local symbol table, using
+            # the datatype from the root table:
+            sym = self._symtab.new_symbol(arg.proxy_name,
+                                          symbol_type=DataSymbol,
+                                          datatype=proxy_type)
+
+        ref = StructureReference.create(sym, ["data"])
+        self._psyir_arglist.append(ref)
 
     def stencil_unknown_extent(self, arg, var_accesses=None):
         '''Add stencil information to the argument list associated with the
