@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Laboratory
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Laboratory
 
 '''Module containing tests for the matmul2code transformation.'''
 
@@ -279,8 +279,8 @@ def test_validate2():
             BinaryOperation.Operator.ADD, Literal("1.0", REAL_TYPE),
             Literal("1.0", REAL_TYPE)))
     assert ("Transformation Error: Error in Matmul2CodeTrans transformation. "
-            "The supplied node operator is invalid, found 'Operator.ADD'."
-            in str(excinfo.value))
+            "The supplied node operator is invalid, found 'Operator.ADD', "
+            "but expected one of '['MATMUL']'." in str(excinfo.value))
 
 
 def test_validate3():
