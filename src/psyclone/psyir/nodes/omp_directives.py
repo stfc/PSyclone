@@ -942,6 +942,7 @@ class OMPDoDirective(OMPRegionDirective):
     :type kwargs: unwrapped dict.
 
     '''
+    _directive_string = "do"
     def __init__(self, omp_schedule="auto", collapse=None, reprod=None,
                  **kwargs):
 
@@ -1015,11 +1016,12 @@ class OMPDoDirective(OMPRegionDirective):
         :returns: description of this node, possibly coloured.
         :rtype: str
         '''
+        val = f"{self.coloured_name(colour)}[omp_schedule={self.omp_schedule}"
         if self.reductions():
-            reprod = f"reprod={self._reprod}"
-        else:
-            reprod = ""
-        return f"{self.coloured_name(colour)}[{reprod}]"
+            val += f",reprod={self._reprod}"
+        if self._collapse and self._collapse > 1:
+            val += f",collapse={self._collapse}"
+        return val + "]"
 
     def _reduction_string(self):
         ''' Return the OMP reduction information as a string '''
@@ -1068,8 +1070,6 @@ class OMPDoDirective(OMPRegionDirective):
 
         :raises GenerationError: if this OMPDoDirective is not enclosed \
                             within some OpenMP parallel region.
-        :raises GenerationError: if this OMPLoopDirective has a collapse \
-            clause but it doesn't have the expected number of nested Loops.
         '''
         # It is only at the point of code generation that we can check for
         # correctness (given that we don't mandate the order that a user
@@ -1082,8 +1082,19 @@ class OMPDoDirective(OMPRegionDirective):
                 "OMPDoDirective must be inside an OMP parallel region but "
                 "could not find an ancestor OMPParallelDirective node")
 
-        # If there is a collapse clause, there must be as many immediately
-        # nested loops as the collapse value
+        self._validate_single_loop()
+        self._validate_collapse_value()
+
+        super().validate_global_constraints()
+
+    def _validate_collapse_value(self):
+        '''
+        Checks that if there is a collapse clause, there must be as many
+        immediately nested loops as the collapse value.
+
+        :raises GenerationError: if this OMPLoopDirective has a collapse \
+            clause but it doesn't have the expected number of nested Loops.
+        '''
         if self._collapse:
             cursor = self.dir_body.children[0]
             for depth in range(self._collapse):
@@ -1095,10 +1106,6 @@ class OMPDoDirective(OMPRegionDirective):
                         f"nested statement at depth {depth} is a "
                         f"{type(cursor).__name__} rather than a Loop.")
                 cursor = cursor.loop_body.children[0]
-
-        self._validate_single_loop()
-
-        super().validate_global_constraints()
 
     def _validate_single_loop(self):
         '''
@@ -1167,7 +1174,10 @@ class OMPDoDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        return f"omp do schedule({self._omp_schedule})"
+        string = f"omp {self._directive_string} schedule({self._omp_schedule})"
+        if self._collapse:
+            string += f" collapse({self._collapse})"
+        return string
 
     def end_string(self):
         '''Returns the end (or closing) statement of this directive, i.e.
@@ -1178,8 +1188,7 @@ class OMPDoDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
-        return "omp end do"
+        return f"omp end {self._directive_string}"
 
 
 class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
@@ -1194,6 +1203,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
     _children_valid_format = ("Schedule, OMPDefaultClause, OMPPrivateClause, "
                               "OMPScheduleClause, [OMPReductionClause]*")
+    _directive_string = "parallel do"
 
     def __init__(self, **kwargs):
         OMPDoDirective.__init__(self, **kwargs)
@@ -1297,15 +1307,22 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         :rtype: str
 
         '''
-        return ("omp parallel do" + self._reduction_string())
+        string = f"omp {self._directive_string}"
+        if self._collapse:
+            string += f" collapse({self._collapse})"
+        string += self._reduction_string()
+        return string
 
     def end_string(self):
-        '''
-        :returns: the closing statement for this directive.
+        '''Returns the end (or closing) statement of this directive, i.e.
+        "omp end do". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the end statement for this directive.
         :rtype: str
+
         '''
-        # pylint: disable=no-self-use
-        return "omp end parallel do"
+        return f"omp end {self._directive_string}"
 
     def validate_global_constraints(self):
         '''
@@ -1313,31 +1330,15 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         time.
 
         '''
-        super(OMPParallelDoDirective, self).validate_global_constraints()
+        OMPParallelDirective.validate_global_constraints(self)
 
         self._validate_single_loop()
+        self._validate_collapse_value()
 
 
 class OMPTeamsDistributeParallelDoDirective(OMPParallelDoDirective):
-    ''' '''
-    def begin_string(self):
-        '''Returns the beginning statement of this directive. The visitor is
-        responsible for adding the correct directive beginning (e.g. "!$").
-
-        :returns: the beginning statement for this directive.
-        :rtype: str
-
-        '''
-        return ("omp teams distribute parallel do " + self._reduction_string())
-
-    def end_string(self):
-        '''
-        :returns: the closing statement for this directive.
-        :rtype: str
-        '''
-        # pylint: disable=no-self-use
-        return "omp end teams distribute parallel do"
-
+    ''' Class representing the OMP teams distribute parallel do directive. '''
+    _directive_string = "teams distribute parallel do"
 
 
 class OMPTargetDirective(OMPRegionDirective):

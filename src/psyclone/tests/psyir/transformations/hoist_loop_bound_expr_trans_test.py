@@ -159,7 +159,7 @@ def test_validate_loop_with_directive(fortran_reader):
         hoist_trans.validate(loop)
     assert ("The loop provided to HoistLoopBoundExprTrans must not be directly"
             " inside a Directive as its Schedule does not support multiple "
-            "statements, but found 'OMPParallelDoDirective[]'."
+            "statements, but found 'OMPParallelDoDirective'."
             in str(err.value))
 
 

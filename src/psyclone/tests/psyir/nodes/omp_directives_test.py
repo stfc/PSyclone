@@ -282,6 +282,85 @@ def test_ompdo_constructor():
     ompdo = OMPDoDirective(parent=schedule, children=[child])
     assert len(ompdo.dir_body.children) == 1
 
+    # Constructor with non-default parameters
+    ompdo = OMPDoDirective(omp_schedule="dynamic", collapse=4, reprod=True)
+    assert ompdo.omp_schedule == "dynamic"
+    assert ompdo.collapse == 4
+    assert ompdo.reprod
+    assert str(ompdo) == "OMPDoDirective[omp_schedule=dynamic,collapse=4]"
+
+
+def test_omp_do_directive_collapse_getter_and_setter():
+    ''' Test the OMPDODirective collapse property setter and getter.'''
+    target = OMPDoDirective()
+    assert target.collapse is None
+
+    with pytest.raises(ValueError) as err:
+        target.collapse = 0
+    assert ("The OMPDoDirective collapse clause must be a positive integer "
+            "or None, but value '0' has been given." in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        target.collapse = 'a'
+    assert ("The OMPDoDirective collapse clause must be a positive integer "
+            "or None, but value 'a' has been given." in str(err.value))
+
+    # Set valid collapse values
+    target.collapse = 2
+    assert target.collapse == 2
+    assert target.begin_string() == "omp do schedule(auto) collapse(2)"
+    target.collapse = None
+    assert target.collapse is None
+    assert target.begin_string() == "omp do schedule(auto)"
+
+
+def test_omp_do_directive_validate_global_constraints(fortran_reader,
+                                                      fortran_writer):
+    ''' Test the OMPDoDirective with a collapse value is only valid if
+    it has enough perfectly nested loops inside.'''
+
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(10, 10) :: A
+        integer, dimension(10, 10) :: B
+        integer :: i, j, val
+
+        do i = 1, 10
+            val = 1
+            do j = 1, 10
+                A(i, j) = B(i, j) + 1
+            end do
+        end do
+        do i = 1, 10
+            do j = 1, 10
+                A(i, j) = B(i, j) + 1
+            end do
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    loops = tree.walk(Loop, stop_type=Loop)
+    for loop in loops:
+        parent = loop.parent
+        position = loop.position
+        directive = OMPParallelDoDirective(children=[loop.detach()],
+                                           collapse=2)
+        parent.addchild(directive, position)
+
+    directive = tree.walk(OMPParallelDoDirective)
+
+    # The first loop nest will fail the validation
+    with pytest.raises(GenerationError) as err:
+        _ = fortran_writer(directive[0])
+    assert ("OMPParallelDoDirective must have as many immediately nested loops"
+            " as the collapse clause specifies but 'OMPParallelDoDirective"
+            "[omp_schedule=auto,collapse=2]' has a collapse=2 and the nested "
+            "statement at depth 1 is a Assignment rather than a Loop."
+            in str(err.value))
+
+    # The second loop nest will succeed
+    code = fortran_writer(directive[1])
+    assert "collapse(2)" in code
 
 def test_omp_pdo_validate_child():
     ''' Test the _validate_child method for OMPParallelDoDirective'''
