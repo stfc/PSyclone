@@ -20,7 +20,7 @@ any code is created and can be used to modify the PSyIR
 trans, and this is were you can add transformations to a code.
 
 In this exercise you will create a script that will apply
-the existing kernel extraction transformation to an invoke.
+PSyclone's existing kernel extraction transformation to an invoke.
 This will insert code that writes the input- and output-data
 of a kernel to a file. Initially we will only transform one kernel,
 the one that propagates the perturbation. Open the file
@@ -54,7 +54,7 @@ object with the schedule as parameter.
 
 There is a set of makefiles provided in this directory, one for
 each of the available PSyData transformations. They all include
-``Makefile.inc`` which defines all of the rules. The PSyData-specific
+``Makefile.inc`` which defines all of the required rules. The PSyData-specific
 makefiles just supply different settings for compiling and linking
 with the PSyData libraries, and they contain a special rule to run
 PSyclone on the file ``time_evolution_alg_mod.x90``.
@@ -67,6 +67,7 @@ Python will not find our file.
 Once this is done, you can then create your application using:
 
     make -f Makefile.extract_one
+
 
 You need the NetCDF development package installed, the makefiles
 will be using ``nf-config`` to get the appropriate compiler and
@@ -282,3 +283,22 @@ When you run this application again, a significant number of NANs will be report
 While we only overwrite one entry in a field in the kernel, this LFRic kernel is called once
 for each column. And after the first time this is reported as an invalid input parameter,
 and then as an invalid output value.
+
+### Stand-alone Kernel Extraction
+PSyclone provides two different kernel extraction libraries. Besides the
+NetCDF based one, which was used above, there is also a stand-alone library
+which only uses Fortran IO and has no other external dependencies. This
+library is ideal if your application does not already have a NetCDF dependency.
+The downside is that you can't easily inspect the binary output file.
+There is no other change to the script or the application required, and you
+don't need to run PSyclone again if you have already processed the files,
+but you need to recompile the files that use kernel extraction.
+
+The extraction makefiles are all set up so you can easily switch to use
+the stand-alone library instead of the NetCDF one. Just set the
+makefile variable `TYPE` to `standalone` when invoking `make`:
+
+    make TYPE=standalone -f solutions/Makefile.extract_one
+
+After running the instrumented `time_evolution` binary, a new output file
+`time_evolution-propagate.binary` is created.
