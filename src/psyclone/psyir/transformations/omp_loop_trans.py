@@ -239,22 +239,23 @@ class OMPLoopTrans(ParallelLoopTrans):
         self._reprod = options.get("reprod",
                                    Config.get().reproducible_reductions)
 
-        # Add variable names for OMP functions into the InvokeSchedule
-        # (a Routine) symboltable if they don't already exist
-        root = node.ancestor(Routine)
+        if self._reprod:
+            # Add variable names for OMP functions into the InvokeSchedule
+            # (a Routine) symboltable if they don't already exist
+            root = node.ancestor(Routine)
 
-        symtab = root.symbol_table
-        try:
-            symtab.lookup_with_tag("omp_thread_index")
-        except KeyError:
-            symtab.new_symbol(
-                "th_idx", tag="omp_thread_index",
-                symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-        try:
-            symtab.lookup_with_tag("omp_num_threads")
-        except KeyError:
-            symtab.new_symbol(
-                "nthreads", tag="omp_num_threads",
-                symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+            symtab = root.symbol_table
+            try:
+                symtab.lookup_with_tag("omp_thread_index")
+            except KeyError:
+                symtab.new_symbol(
+                    "th_idx", tag="omp_thread_index",
+                    symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+            try:
+                symtab.lookup_with_tag("omp_num_threads")
+            except KeyError:
+                symtab.new_symbol(
+                    "nthreads", tag="omp_num_threads",
+                    symbol_type=DataSymbol, datatype=INTEGER_TYPE)
 
         super().apply(node, options)
