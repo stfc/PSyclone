@@ -392,6 +392,9 @@ class ArrayType(DataType):
             if not isinstance(datatype, UnknownType):
                 self._intrinsic = datatype.intrinsic
                 self._precision = datatype.precision
+            else:
+                self._intrinsic = datatype
+                self._precision = None
         elif isinstance(datatype, DataTypeSymbol):
             self._intrinsic = datatype
             self._precision = None

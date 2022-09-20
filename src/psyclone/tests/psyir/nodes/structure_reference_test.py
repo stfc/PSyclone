@@ -216,7 +216,6 @@ def test_struc_ref_datatype():
     grid_type = symbols.StructureType.create([
         ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC),
         ("data", atype, symbols.Symbol.Visibility.PRIVATE),
-        ("mesh", symbols.DeferredType(), symbols.Symbol.Visibility.PUBLIC),
         ("roger", rtype, symbols.Symbol.Visibility.PUBLIC),
         ("titty", artype, symbols.Symbol.Visibility.PUBLIC)])
     # Symbol with type defined by StructureType
@@ -266,6 +265,21 @@ def test_struc_ref_datatype():
     dtype = fullref.datatype
     assert dtype == artype
 
+
+def test_structure_reference_deferred_type():
+    '''
+    Check that the datatype() method behaves as expected when it
+    encounters members of DeferredType or UnknownType.
+
+    '''
+    atype = symbols.ArrayType(
+        symbols.UnknownFortranType(
+            "type(atype), dimension(10,8), pointer :: aptr"), [10, 8])
+    grid_type = symbols.StructureType.create([
+        ("mesh", symbols.DeferredType(), symbols.Symbol.Visibility.PUBLIC),
+        ("aptr", atype, symbols.Symbol.Visibility.PUBLIC)])
+    grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
+    ssym = symbols.DataSymbol("grid", grid_type_symbol)
     # Structure of deferred type
     deft_sym = symbols.DataSymbol("john", symbols.DeferredType())
     jref = nodes.StructureReference.create(deft_sym, ["value"])
@@ -278,3 +292,28 @@ def test_struc_ref_datatype():
     # Member of structure that is of deferred type
     meshref = nodes.StructureReference.create(ssym, ["mesh", "polly"])
     assert meshref.datatype == symbols.DeferredType()
+    # Member of structure that is an array of unknown type.
+    two = nodes.Literal("2", symbols.INTEGER_TYPE)
+    four = nodes.Literal("4", symbols.INTEGER_TYPE)
+    myrange = nodes.Range.create(two.copy(), four.copy())
+    aref = nodes.StructureReference.create(ssym, [("aptr",
+                                                   [two.copy(), myrange])])
+    assert len(aref.datatype.shape) == 1
+    assert isinstance(aref.datatype, symbols.ArrayType)
+    assert isinstance(aref.datatype.intrinsic, symbols.UnknownFortranType)
+    # An array made of individual elements of a member array.
+    # my_sym(:)%aptr(2,2)
+    array_grid_type = symbols.ArrayType(grid_type_symbol, [four.copy()])
+    array_sym = symbols.DataSymbol("thing", array_grid_type)
+    aref2 = nodes.ArrayOfStructuresReference.create(
+        array_sym, [myrange.copy()],
+        [("aptr", [two.copy(), two.copy()])])
+    assert len(aref2.datatype.shape) == 1
+    assert isinstance(aref2.datatype.intrinsic, symbols.UnknownFortranType)
+    # An array of arrays - not supported.
+    # my_sym(2:4)%aptr
+    aref3 = nodes.ArrayOfStructuresReference.create(
+        array_sym, [myrange.copy()], ["aptr"])
+    with pytest.raises(NotImplementedError) as err:
+        _ = aref3.datatype
+    assert "Array of arrays not supported: " in str(err.value)

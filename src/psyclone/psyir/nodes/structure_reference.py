@@ -41,6 +41,7 @@ from psyclone.core import Signature
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.array_member import ArrayMember
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_of_structures_member import \
     ArrayOfStructuresMember
 from psyclone.psyir.nodes.structure_member import StructureMember
@@ -250,6 +251,8 @@ class StructureReference(Reference):
         :returns: the datatype of this reference.
         :rtype: :py:class:`psyclone.psyir.symbols.DataType`
 
+        :raises NotImplementedError: if the structure reference represents \
+                                     an array of arrays.
         '''
         dtype = self.symbol.datatype
 
@@ -268,31 +271,59 @@ class StructureReference(Reference):
         cursor = self
         cursor_type = dtype
 
-        # The next four lines are required for when this method is called
-        # for an ArrayOfStructuresReference.
-        try:
+        # The next four lines are required when this method is called for an
+        # ArrayOfStructuresReference.
+        if isinstance(cursor, ArrayMixin):
             # pylint: disable=protected-access
             shape = cursor._get_effective_shape()
-        except AttributeError:
+        else:
             shape = []
 
+        # Walk down the structure, collecting information on any array slices
+        # as we go.
         while hasattr(cursor, "member"):
             cursor = cursor.member
             cursor_type = cursor_type.components[cursor.name].datatype
             if isinstance(cursor_type, (UnknownType, DeferredType)):
                 return DeferredType()
-            try:
+            if isinstance(cursor, ArrayMixin):
                 # pylint: disable=protected-access
                 shape.extend(cursor._get_effective_shape())
-            except AttributeError:
-                pass
 
         # We've reached the ultimate member of the structure access.
         if shape:
+            if isinstance(cursor_type, ArrayType):
+                # It's of array type but does it represent a single element,
+                # a slice or a whole array? (We use `children` rather than
+                # `indices` so as to avoid having to check that `cursor` is
+                # an `ArrayMember`.)
+                if cursor.children:
+                    # It has indices so could be a single element or a slice.
+                    # pylint: disable=protected-access
+                    cursor_shape = cursor._get_effective_shape()
+                else:
+                    # No indices so it is an access to a whole array.
+                    cursor_shape = cursor_type.shape
+                if cursor_shape and shape != cursor_shape:
+                    # This ultimate access is an array but we've already
+                    # encountered one or more slices earlier in the access
+                    # expression.
+                    # TODO #1887. Allow the writer to be used in error messages
+                    # to be set in the Config object?
+                    # pylint: disable=import-outside-toplevel
+                    from psyclone.psyir.backend.fortran import FortranWriter
+                    fwriter = FortranWriter()
+                    raise NotImplementedError(
+                        f"Array of arrays not supported: the ultimate member "
+                        f"'{cursor.name}' of the StructureAccess represents "
+                        f"an array but other array notation is present in the "
+                        f"full access expression: '{fwriter(self)}'")
+                return ArrayType(cursor_type.intrinsic, shape)
+
             return ArrayType(cursor_type, shape)
 
-        # We don't have an explicit array access but is the ultimate member
-        # itself an array?
+        # We don't have an explicit array access (because `shape` is Falsey)
+        # but is the ultimate member itself an array?
         if isinstance(cursor_type, ArrayType):
             if not cursor.children:
                 # It is and there are no index expressions so we return the
