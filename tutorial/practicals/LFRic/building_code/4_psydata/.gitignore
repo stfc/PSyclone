@@ -4,8 +4,6 @@
 *_alg_mod_psy.f90
 *.txt
 time_evolution
+time_evolution*.nc
+time_evolution*.binary
 main-update.nc
-time_evolution-propagate.nc
-time_evolution-invoke_initialise_perturbation.nc
-time_evolution-invoke_propagate_perturbation.nc
-

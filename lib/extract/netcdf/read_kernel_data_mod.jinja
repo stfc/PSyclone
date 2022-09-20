@@ -88,11 +88,6 @@ module read_kernel_data_mod
 
         !> The NetCDF ID used for this file.
         integer                            :: ncid
-        !> Each variable ID. This is required to associate data
-        !! with the declared variables: the variables are declared
-        !! in the same order in which their value is provided
-
-        integer, dimension(:), allocatable :: var_id
 
     contains
 

@@ -287,8 +287,10 @@ The library using the PSyData API must provide a user-defined data type
 called ``PREFIX_PSyDataType``. It is up to the application how this variable is
 used. PSyclone will declare the variables to be static, meaning that they
 can be used to accumulate data from call to call. An example of
-the PSyDataType can be found in the NetCDF example extraction code
-(see ``lib/extract/netcdf/dl_esm_inf``, or :ref:`user_guide:psyke_netcdf` for
+the PSyDataType can be found in the example extraction code
+(see ``lib/extract/standalone/dl_esm_inf``,
+``lib/extract/netcdf/dl_esm_inf``, or
+:ref:`user_guide:extraction_libraries` for
 a detailed description), any of the profiling wrapper libraries
 (all contained in ``lib/profiling``) or the read_only wrappers
 (in ``lib/read_only``).
@@ -329,7 +331,7 @@ a detailed description), any of the profiling wrapper libraries
     is written both before and after the region, the transformations will
     add two calls to ``PreDeclareVariable`` (it can be useful to
     provide a variable using a different name before and after,
-    see :ref:`user_guide:psyke_netcdf`). If no variables are to be
+    see :ref:`user_guide:extraction_libraries`). If no variables are to be
     provided to the wrapper library, this call will not be created
     (and there is no need to implement this function in a wrapper
     library).
@@ -342,8 +344,8 @@ a detailed description), any of the profiling wrapper libraries
     
     The same call is used for different arguments, so a generic
     interface is recommended to distinguish between
-    the data types provided. The netcdf kernel writer 
-    (see :ref:`user_guide:psyke_netcdf`) uses the following declaration
+    the data types provided. The kernel extraction writer
+    (see :ref:`user_guide:extraction_libraries`) uses the following declaration
     (with types defined in the dl_esm_inf library)::    
     
         generic, public :: PreDeclareVariable => DeclareScalarInteger, &
@@ -551,7 +553,8 @@ The kernel extraction node ``ExtractNode`` uses the dependency
 module to determine which variables are input- and output-parameters,
 and provides these two lists to the ``gen_code()`` function of its base class,
 a ``PSyDataNode`` node. It also uses the ``post_var_postfix`` option
-as described under ``gen_code()`` above (see also :ref:`user_guide:psyke_netcdf`).
+as described under ``gen_code()`` above (see also
+:ref:`user_guide:extraction_libraries`).
 
 .. _psydata_base_class:
 
@@ -999,6 +1002,11 @@ format supports special characters (e.g. NetCDF does allow the use of
    ``_post1``. The same postfix will be applied to all variables,
    not only to variables that have a name clash.
 
+.. note::
+   The stand-alone version of the extraction libraries does not store
+   the actual variable names in the output files, it relies on a strict
+   ordering of the values in the binary output file.
+
 An excerpt of the created code (based on ``examples/gocean/eg5/extract``):
 
 .. code-block:: Fortran
@@ -1040,11 +1048,16 @@ the extraction transformation, e.g.:
 When compiled and executed, this driver will read in the values of
 all input- and output-variables, execute the
 instrumented code region, and then compare the results of the output
-variables (see :ref:`user_guide:psyke_netcdf`). This program does
+variables (see :ref:`user_guide:extraction_libraries`). This program does
 not depend on any infrastructure library (like 'dl_esm_inf`'), it
 only needs the PSyData ReadKernelData library (ie.
 ``lib/extract/netcdf/read_kernel_data_mod``), plus any libraries
 the wrapper depends on (e.g. NetCDF).
+
+.. note:: Due to issue #1757 the infrastructure is required at compile
+    and linke time for now, since the kernel contains metadata. If
+    the metadata is manually removed from the kernel, the infrastructure
+    is not required anymore.
 
 The following changes are applied by the ``ExtractionDriverCreator``
 in order to generate stand-alone code for GOcean:

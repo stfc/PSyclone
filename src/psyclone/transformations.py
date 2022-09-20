@@ -185,7 +185,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
     >>> from pysclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "gocean1.0"
-    >>> ast, invokeInfo = parse(SOURCE_FILE, api=api)
+    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
@@ -531,7 +531,7 @@ class ACCLoopTrans(ParallelLoopTrans):
     >>> from psyclone.psyGen import PSyFactory
     >>> from psyclone.errors import GenerationError
     >>> api = "gocean1.0"
-    >>> ast, invokeInfo = parse(SOURCE_FILE, api=api)
+    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.psyGen import TransInfo
@@ -542,18 +542,13 @@ class ACCLoopTrans(ParallelLoopTrans):
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # print(schedule.view())
-    >>> new_schedule = schedule
     >>>
-    # Apply the OpenACC Loop transformation to *every* loop
-    # in the schedule
-    >>> for child in schedule.children:
-    >>>     ltrans.apply(child, reprod=True)
-    >>>     schedule = newschedule
+    >>> # Apply the OpenACC Loop transformation to *every* loop in the schedule
+    >>> for child in schedule.children[:]:
+    ...     ltrans.apply(child)
     >>>
-    # Enclose all of these loops within a single OpenACC
-    # PARALLEL region
-    >>> rtrans.omp_schedule("dynamic,1")
-    >>> rtrans.apply(schedule.children)
+    >>> # Enclose all of these loops within a single OpenACC parallel region
+    >>> rtrans.apply(schedule)
     >>>
 
     '''
@@ -1263,7 +1258,7 @@ class OMPSingleTrans(ParallelRegionTrans):
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "gocean1.0"
-    >>> ast, invokeInfo = parse(SOURCE_FILE, api=api)
+    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
@@ -1395,7 +1390,7 @@ class OMPMasterTrans(ParallelRegionTrans):
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "gocean1.0"
-    >>> ast, invokeInfo = parse(SOURCE_FILE, api=api)
+    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.transformations import OMPParallelTrans, OMPMasterTrans
@@ -1448,7 +1443,7 @@ class OMPParallelTrans(ParallelRegionTrans):
     >>> from psyclone.psyGen import PSyFactory
     >>> from psyclone.errors import GenerationError
     >>> api = "gocean1.0"
-    >>> ast, invokeInfo = parse(SOURCE_FILE, api=api)
+    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.psyGen import TransInfo
@@ -1525,7 +1520,7 @@ class ACCParallelTrans(ParallelRegionTrans):
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "gocean1.0"
-    >>> ast, invokeInfo = parse(SOURCE_FILE, api=api)
+    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.psyGen import TransInfo
@@ -2300,19 +2295,29 @@ class ACCEnterDataTrans(Transformation):
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "gocean1.0"
-    >>> ast, invokeInfo = parse(SOURCE_FILE, api=api)
+    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
-    >>> from psyclone.psyGen import TransInfo
-    >>> t = TransInfo()
-    >>> dtrans = t.get_trans_name('ACCEnterDataTrans')
+    >>> from psyclone.transformations import \
+        ACCEnterDataTrans, ACCLoopTrans, ACCParallelTrans
+    >>> dtrans = ACCEnterDataTrans()
+    >>> ltrans = ACCLoopTrans()
+    >>> ptrans = ACCParallelTrans()
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # print(schedule.view())
     >>>
-    >>> # Add an enter-data directive
+    >>> # Apply the OpenACC Loop transformation to *every* loop in the schedule
+    >>> for child in schedule.children[:]:
+    ...     ltrans.apply(child)
+    >>>
+    >>> # Enclose all of these loops within a single OpenACC parallel region
+    >>> ptrans.apply(schedule)
+    >>>
+    >>> # Add an enter data directive
     >>> dtrans.apply(schedule)
+    >>>
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # print(schedule.view())
 
@@ -2408,7 +2413,7 @@ class ACCRoutineTrans(Transformation):
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "gocean1.0"
-    >>> ast, invokeInfo = parse(SOURCE_FILE, api=api)
+    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.transformations import ACCRoutineTrans
@@ -2525,20 +2530,19 @@ class ACCKernelsTrans(RegionTrans):
 
     For example:
 
-    >>> from psyclone.parse import parse
+    >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api = "NEMO"
-    >>> filename = "tra_adv.F90"
-    >>> ast, invokeInfo = parse(filename, api=api)
+    >>> api = "nemo"
+    >>> ast, invokeInfo = parse(NEMO_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.transformations import ACCKernelsTrans
     >>> ktrans = ACCKernelsTrans()
     >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule = psy.invokes.get('tra_adv').schedule
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # print(schedule.view())
-    >>> kernels = schedule.children[0].children[0].children[0:-1]
+    >>> kernels = schedule.children[9]
     >>> # Transform the kernel
     >>> ktrans.apply(kernels)
 
@@ -2639,21 +2643,26 @@ class ACCDataTrans(RegionTrans):
 
     For example:
 
-    >>> from psyclone.parse import parse
+    >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api = "NEMO"
-    >>> filename = "tra_adv.F90"
-    >>> ast, invokeInfo = parse(filename, api=api)
+    >>> api = "nemo"
+    >>> ast, invokeInfo = parse(NEMO_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
-    >>> from psyclone.transformations import ACCDataTrans
+    >>> from psyclone.transformations import ACCKernelsTrans, ACCDataTrans
+    >>> ktrans = ACCKernelsTrans()
     >>> dtrans = ACCDataTrans()
     >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule = psy.invokes.get('tra_adv').schedule
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # print(schedule.view())
-    >>> kernels = schedule.children[0].children[0].children[0:-1]
-    >>> # Enclose the kernels
+    >>>
+    >>> # Add a kernels construct for execution on the device
+    >>> kernels = schedule.children[9]
+    >>> ktrans.apply(kernels)
+    >>>
+    >>> # Enclose the kernels in a data construct
+    >>> kernels = schedule.children[9]
     >>> dtrans.apply(kernels)
 
     '''

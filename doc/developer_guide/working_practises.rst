@@ -339,18 +339,18 @@ file ``transformation.py`` uses::
 
         >>> from psyclone.parse.algorithm import parse
         >>> api = "gocean1.0"
-        >>> ast, invokeInfo = parse(SOURCE_FILE, api=api)
+        >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
         ...
         >>> dtrans.apply(schedule)
 
 
-And the variable SOURCE_FILE is defined in the ``testsetup`` section
+And the variable GOCEAN_SOURCE_FILE is defined in the ``testsetup`` section
 of ``transformations.rst``::
 
     .. testsetup::
 
-        # Define SOURCE_FILE to point to an existing gocean 1.0 file.
-        SOURCE_FILE = ("../../src/psyclone/tests/test_files/"
+        # Define GOCEAN_SOURCE_FILE to point to an existing gocean 1.0 file.
+        GOCEAN_SOURCE_FILE = ("../../src/psyclone/tests/test_files/"
             "gocean1p0/test11_different_iterates_over_one_invoke.f90")
 
     ...

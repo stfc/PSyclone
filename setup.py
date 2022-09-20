@@ -167,7 +167,7 @@ if __name__ == '__main__':
                     "sphinx_rtd_theme", "autoapi"],
             'psydata': ["Jinja2"],
             'test': ["pep8", "pylint", "pytest-cov", "pytest-pep8",
-                     "pytest-pylint", "pytest-flakes", "pytest-pep257"],
+                     "pytest-pylint", "pytest-flakes"],
         },
         include_package_data=True,
         scripts=['bin/psyclone', 'bin/psyclone-kern', 'bin/psyad'],
