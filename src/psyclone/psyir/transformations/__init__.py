@@ -116,4 +116,5 @@ __all__ = ['ArrayRange2LoopTrans',
            'ReadOnlyVerifyTrans',
            'RegionTrans',
            'ReplaceInductionVariablesTrans',
+           'Sum2CodeTrans',
            'TransformationError']

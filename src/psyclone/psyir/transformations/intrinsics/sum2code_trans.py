@@ -52,7 +52,8 @@ from psyclone.psyir.transformations.transformation_error import \
 
 
 def get_args(node):
-    '''Utility method that returns the sum arguments.
+    '''Utility method that returns the sum arguments, (array reference,
+    dimension and mask).
 
     :param node: a Sum Operation. This could be a UnaryOperation, \
         BinaryOperation or NaryOperation depending on how many arguments \
@@ -66,6 +67,7 @@ def get_args(node):
                  py:class:`psyclone.psyir.nodes.Literal` | \
                  :py:class:`psyclone.psyir.nodes.Reference`, \
                  Optional[:py:class:`psyclone.psyir.nodes.node`]]
+
     '''
     # Determine the arguments to sum
     args = [None, None, None]
@@ -103,9 +105,9 @@ class Sum2CodeTrans(Operator2CodeTrans):
     .. code-block:: python
 
         R = 0.0
-        DO J=LBOUND(A,2),UBOUND(A,2)
-          DO I=LBOUND(A,1),UBOUND(A,1)
-            R = R + A(I,J)
+        DO J=LBOUND(ARRAY,2),UBOUND(ARRAY,2)
+          DO I=LBOUND(ARRAY,1),UBOUND(ARRAY,1)
+            R = R + ARRAY(I,J)
 
     If the dimension argument is provided then only that dimension is
     summed:
@@ -120,9 +122,9 @@ class Sum2CodeTrans(Operator2CodeTrans):
     .. code-block:: python
 
         R(:) = 0.0
-        DO J=LBOUND(A,2),UBOUND(A,2)
-          DO I=LBOUND(A,1),UBOUND(A,1)
-            R(I) = R(I) + A(I,J)
+        DO J=LBOUND(ARRAY,2),UBOUND(ARRAY,2)
+          DO I=LBOUND(ARRAY,1),UBOUND(ARRAY,1)
+            R(I) = R(I) + ARRAY(I,J)
 
     If the mask argument is provided then the mask is used to
     determine whether the sum is applied:
@@ -137,10 +139,10 @@ class Sum2CodeTrans(Operator2CodeTrans):
     .. code-block:: python
 
         R = 0.0
-        DO J=LBOUND(A,2),UBOUND(A,2)
-          DO I=LBOUND(A,1),UBOUND(A,1)
+        DO J=LBOUND(ARRAY,2),UBOUND(ARRAY,2)
+          DO I=LBOUND(ARRAY,1),UBOUND(ARRAY,1)
             if (MOD(ARRAY(I,J), 2.0)==1):
-              R = R + A(I,J)
+              R = R + ARRAY(I,J)
 
     For example:
 
