@@ -100,9 +100,11 @@ class Operator2CodeTrans(Transformation):
                 f"argument is not a {self._operator_name} operator, found "
                 f"'{type(node).__name__}'.")
         if node.operator not in self._operators:
+            oper_names = list(set([oper.name for oper in self._operators]))
             raise TransformationError(
                 f"Error in {self.name} transformation. The supplied node "
-                f"operator is invalid, found '{node.operator}'.")
+                f"operator is invalid, found '{node.operator}', but expected "
+                f"one of '{oper_names}'.")
         # Check that there is an Assignment node that is an ancestor
         # of this Operation.
         if not node.ancestor(Assignment):
