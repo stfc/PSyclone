@@ -37,8 +37,6 @@
 PSyclone kernel-layer-specific PSyIR which uses specialised classes.
 
 '''
-import re
-
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Container, ScopingNode, FileContainer
 from psyclone.psyir.transformations import TransformationError
@@ -141,13 +139,13 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
 
         try:
             metadata_name = options["metadata_name"]
-        except KeyError:
+        except KeyError as info:
             raise TransformationError(
                 f"Error in {self.name} transformation. This "
                 f"transformation requires the name of the variable "
                 f"containing the metadata to be provided in the options"
-                f"argument with lookup name 'metadata_name'.")
-                
+                f"argument with lookup name 'metadata_name'.") from info
+
         if not VALID_NAME.match(metadata_name):
             raise TransformationError(
                 f"Error in {self.name} transformation. This "
@@ -176,16 +174,17 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
         _ = LFRicKernelMetadata.create_from_psyir(metadata_symbol)
 
     def apply(self, node, options=None):
-        '''Raise the supplied language-level LFRic kernel to
-        LFRic-specific kernel PSyIR. Specialises the kernel container
-        to a LFRic-specific subclass, populates this subclass with
-        the kernel metadata extracted from the metadata symbol as
-        specified in metadata_name and removes the symbol from the
-        symbol table.
+        '''Raise the supplied language-level kernel to LFRic-specific kernel
+        PSyIR. Specialises the kernel container to a LFRic-specific
+        subclass, populates this subclass with the kernel metadata
+        extracted from the metadata symbol as specified in
+        metadata_name (which is supplied via the options argument) and
+        removes the symbol from the symbol table.
 
         :param node: a kernel represented in generic PSyIR.
-        :type node: :py:class:`psyclone.psyir.node.Container`]
-        :param options: a dictionary with options for transformations.
+        :type node: :py:class:`psyclone.psyir.node.Container`
+        :param options: a dictionary with options for transformations. \
+            This is expected to contain the metadata_name.
         :type options: Optional[Dict[str: str]]
 
         '''
@@ -208,8 +207,10 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
         # DataSymbol from the symbol table. At the moment we need to
         # use internal methods.
         symbol_table = scoping_node.symbol_table
+        # pylint: disable=protected-access
         norm_name = symbol_table._normalize(metadata_symbol.name)
         symbol_table._symbols.pop(norm_name)
+        # pylint: enable=protected-access
 
         # Replace container
         children = container.pop_all_children()

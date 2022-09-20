@@ -37,8 +37,6 @@
 kernel-layer-specific class that captures the LFRic kernel metadata.
 
 '''
-import re
-
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
@@ -58,8 +56,8 @@ from psyclone.domain.lfric.kernel.operator_arg import OperatorArg
 from psyclone.domain.lfric.kernel.scalar_arg import ScalarArg
 
 from psyclone.errors import InternalError
-from psyclone.psyir.symbols import DataTypeSymbol, UnknownFortranType
 from psyclone.parse.utils import ParseError
+from psyclone.psyir.symbols import DataTypeSymbol, UnknownFortranType
 
 
 class LFRicKernelMetadata():
@@ -115,7 +113,6 @@ class LFRicKernelMetadata():
             # TODO issue #1879. GH_SHAPE is not parsed correctly yet.
         if meta_args is None:
             self._meta_args = []
-            # TODO issue #1879. META_ARGS is not parsed correctly yet.
         else:
             if not isinstance(meta_args, list):
                 raise TypeError(f"meta_args should be a list but found "
@@ -132,7 +129,8 @@ class LFRicKernelMetadata():
             # TODO issue #1879. META_FUNCS is not parsed correctly yet.
         if meta_reference_element is None:
             self._meta_reference_element = []
-            # TODO issue #1879. META_REFERENCE_ELEMENT is not parsed correctly yet.
+            # TODO issue #1879. META_REFERENCE_ELEMENT is not parsed
+            # correctly yet.
         if meta_mesh is None:
             self._meta_mesh = []
             # TODO issue #1879. META_MESH is not parsed correctly yet.
@@ -232,14 +230,15 @@ class LFRicKernelMetadata():
         # meta_args contains arguments which have
         # properties. Therefore create appropriate (ScalarArg,
         # FieldArg, ...) instances to capture this information.
-        kernel_metadata._meta_args = LFRicKernelMetadata._get_property(
+        psyir_meta_args = LFRicKernelMetadata._get_property(
             spec_part, "meta_args")
-        args = walk(kernel_metadata.meta_args, Fortran2003.Ac_Value_List)
+        args = walk(psyir_meta_args, Fortran2003.Ac_Value_List)
         if not args:
             raise ParseError(
                 f"meta_args should be a list, but found "
-                f"'{str(kernel_metadata.meta_args)}' in '{spec_part}'.")
+                f"'{str(psyir_meta_args)}' in '{spec_part}'.")
 
+        # pylint: disable=protected-access
         kernel_metadata._meta_args = []
         for meta_arg in args[0].children:
             form = meta_arg.children[1].children[0].tostr()
@@ -272,6 +271,7 @@ class LFRicKernelMetadata():
                     f"field, a scalar or an operator, but found "
                     f"'{meta_arg}'.")
             kernel_metadata._meta_args.append(arg)
+            # pylint: enable=protected-access
 
         try:
             # TODO issue #1879. META_FUNCS is not parsed correctly yet.
@@ -283,7 +283,8 @@ class LFRicKernelMetadata():
 
         LFRicKernelMetadata.meta_reference_element = []
         try:
-            # TODO issue #1879. META_REFERENCE_ELEMENT is not parsed correctly yet.
+            # TODO issue #1879. META_REFERENCE_ELEMENT is not parsed
+            # correctly yet.
             LFRicKernelMetadata.meta_reference_element = \
                 LFRicKernelMetadata._get_property(
                     spec_part, "meta_reference_element")
@@ -412,9 +413,12 @@ class LFRicKernelMetadata():
         for lfric_arg in self.meta_args:
             lfric_args.append(lfric_arg.fortran_string())
         lfric_args_str = ", &\n".join(lfric_args)
+        # TODO issue #1879. GH_SHAPE, META_FUNCS,
+        # META_REFERENCE_ELEMENT and META_MESH are not parsed
+        # correctly yet.
         meta_funcs = ""
         meta_ref = ""
-        meta_grid = ""
+        meta_mesh = ""
         shape = ""
         result = (
             f"TYPE, PUBLIC, EXTENDS(kernel_type) :: {self.name}\n"
@@ -422,7 +426,7 @@ class LFRicKernelMetadata():
             f"(/ &\n{lfric_args_str}/)\n"
             f"{meta_funcs}"
             f"{meta_ref}"
-            f"{meta_grid}"
+            f"{meta_mesh}"
             f"  INTEGER :: OPERATES_ON = {self.operates_on}\n"
             f"{shape}"
             f"  CONTAINS\n"
