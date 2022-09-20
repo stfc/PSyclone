@@ -7613,6 +7613,9 @@ class DynLoop(PSyLoop):
         :rtype: :py:class:`psyclone.psyir.Node`
 
         '''
+        if isinstance(self.children[0], Reference):
+            return self.children[0]
+
         inv_sched = self.ancestor(InvokeSchedule)
         sym_table = inv_sched.symbol_table
         loops = inv_sched.loops()
@@ -7621,8 +7624,19 @@ class DynLoop(PSyLoop):
             if loop is self:
                 posn = index
                 break
-        lbound = sym_table.lookup_with_tag(f"loop{posn}_start")
-        return Reference(lbound)
+        root_name = f"loop{posn}_start"
+        try:
+            lbound = sym_table.lookup_with_tag(root_name)
+        except KeyError:
+            # TODO #1258 the loop bound symbol should be of
+            # precision 'i_def'.
+            lbound = sym_table.new_symbol(root_name=root_name,
+                                          tag=root_name,
+                                          symbol_type=DataSymbol,
+                                          datatype=INTEGER_TYPE)
+
+        self.children[0] = Reference(lbound)
+        return self.children[0]
 
     @property
     def stop_expr(self):
@@ -7631,6 +7645,9 @@ class DynLoop(PSyLoop):
         :rtype: :py:class:`psyclone.psyir.Node`
 
         '''
+        if isinstance(self.children[1], Reference):
+            return self.children[1]
+
         inv_sched = self.ancestor(InvokeSchedule)
         sym_table = inv_sched.symbol_table
 
@@ -7671,8 +7688,19 @@ class DynLoop(PSyLoop):
             if loop is self:
                 posn = index
                 break
-        ubound = sym_table.lookup_with_tag(f"loop{posn}_stop")
-        return Reference(ubound)
+        root_name = f"loop{posn}_stop"
+        try:
+            ubound = sym_table.lookup_with_tag(root_name)
+        except KeyError:
+            # TODO #1258 the loop bound symbol should be of
+            # precision 'i_def'.
+            ubound = sym_table.new_symbol(root_name=root_name,
+                                          tag=root_name,
+                                          symbol_type=DataSymbol,
+                                          datatype=INTEGER_TYPE)
+
+        self.children[1] = Reference(ubound)
+        return self.children[1]
 
     def gen_code(self, parent):
         ''' Call the base class to generate the code and then add any
