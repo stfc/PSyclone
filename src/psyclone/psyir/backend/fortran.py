@@ -43,7 +43,7 @@ from a PSyIR tree. '''
 from fparser.two import Fortran2003
 
 from psyclone.core import Signature
-from psyclone.errors import InternalError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
@@ -1424,13 +1424,22 @@ class FortranWriter(LanguageWriter):
         start = self._visit(node.start_expr)
         stop = self._visit(node.stop_expr)
         step = self._visit(node.step_expr)
-        variable_name = node.variable.name
 
         self._depth += 1
         body = ""
         for child in node.loop_body:
             body += self._visit(child)
         self._depth -= 1
+
+        # A generation error is raised if variable is not defined. This
+        # happens in LFRic kernel that iterate over a domain.
+        try:
+            variable_name = node.variable.name
+        except GenerationError:
+            # If a kernel iterates over a domain - there is
+            # no loop. But the loop node is maintained since it handles halo
+            # exchanges. So just return the body in this case
+            return body
 
         return (
             f"{self._nindent}do {variable_name} = {start}, {stop}, {step}\n"
