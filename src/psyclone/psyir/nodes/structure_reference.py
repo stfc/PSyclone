@@ -265,7 +265,7 @@ class StructureReference(Reference):
         if isinstance(dtype, (DeferredType, UnknownType)):
             # We don't know the type of the symbol that defines the type
             # of this structure.
-            return dtype
+            return DeferredType()
 
         # We do have the definition of this structure - walk down it.
         cursor = self

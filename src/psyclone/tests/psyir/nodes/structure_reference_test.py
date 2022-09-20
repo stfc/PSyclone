@@ -284,6 +284,11 @@ def test_structure_reference_deferred_type():
     deft_sym = symbols.DataSymbol("john", symbols.DeferredType())
     jref = nodes.StructureReference.create(deft_sym, ["value"])
     assert jref.datatype == symbols.DeferredType()
+    # Structure of UnknownType
+    ut_sym = symbols.DataSymbol("teasel",
+                                symbols.UnknownFortranType("some type decln"))
+    tref = nodes.StructureReference.create(ut_sym, ["yard"])
+    assert tref.datatype == symbols.DeferredType()
     # Structure with type given by DataTypeSymbol that is of DeferredType
     utypesym = symbols.DataTypeSymbol("my_type", symbols.DeferredType())
     mysym = symbols.DataSymbol("my_sym", utypesym)
