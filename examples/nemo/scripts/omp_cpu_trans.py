@@ -85,8 +85,10 @@ def trans(psy):
 
         normalise_loops(
                 invoke.schedule,
-                unroll_array_ranges=True,
-                hoist_expressions=False,
+                hoist_local_arrays=True,
+                convert_array_notation=True,
+                convert_range_loops=True,
+                hoist_expressions=False
         )
 
         insert_explicit_loop_parallelism(

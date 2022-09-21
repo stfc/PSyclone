@@ -87,7 +87,7 @@ def trans(psy):
             print("Skipping", invoke.name)
             continue
 
-        # Has a TRIM intrinsic that can not be offloaded
+        # TODO 1837: Has a TRIM intrinsic that can not be offloaded
         if invoke.name in ("cpl_oasis3_cpl_freq"):
             print("Skipping", invoke.name)
             continue
@@ -102,8 +102,10 @@ def trans(psy):
 
         normalise_loops(
                 invoke.schedule,
-                unroll_array_ranges=True,
-                hoist_expressions=True,
+                hoist_local_arrays=True,
+                convert_array_notation=True,
+                convert_range_loops=True,
+                hoist_expressions=True
         )
 
         # For performance in lib_fortran, mark serial routines as GPU-enabled

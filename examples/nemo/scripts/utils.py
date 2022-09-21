@@ -54,11 +54,14 @@ PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
                     "interp1", "interp2", "interp3", "integ_spline", "sbc_dcy",
                     "sum", "sign_", "ddpdd"]
 
+VERBOSE = False
+
 def enhance_tree_information(schedule):
     ''' Resolve imports in order to populate relevant datatype on the
     tree symbol tables.
 
     :param schedule: the PSyIR Schedule to transform.
+    :type schedule: :py:class:`psyclone.psyir.nodes.node`
     '''
 
     mod_sym_tab = schedule.ancestor(Container).symbol_table
@@ -101,7 +104,9 @@ def enhance_tree_information(schedule):
 
 def normalise_loops(
         schedule,
-        unroll_array_ranges: bool = True,
+        hoist_local_arrays: bool = True,
+        convert_array_notation: bool = True,
+        convert_range_loops: bool = True,
         hoist_expressions: bool = True,
         ):
     ''' Normalise all loops in the given schedule so that they are in an
@@ -109,28 +114,33 @@ def normalise_loops(
     them.
 
     :param schedule: the PSyIR Schedule to transform.
-    :param unroll_array_ranges: whether to convert ranges to explicit loops.
-    :param hoist_expressions: whether to hoist bounds and loop invariant \
+    :type schedule: :py:class:`psyclone.psyir.nodes.node`
+    :param bool hoist_local_arrays: whether to hoist local arrays.
+    :param bool convert_array_notation: wether to convert array notation \
+        to explicit loops.
+    :param bool convert_range_loops: whether to convert ranges to explicit \
+        loops.
+    :param bool hoist_expressions: whether to hoist bounds and loop invariant \
         statements out of the loop nest.
     '''
 
-    # Apply the HoistLocalArraysTrans when possible
-    try:
-        HoistLocalArraysTrans().apply(schedule)
-    except TransformationError as err:
-        pass
+    if hoist_local_arrays:
+        # Apply the HoistLocalArraysTrans when possible
+        try:
+            HoistLocalArraysTrans().apply(schedule)
+        except TransformationError as _:
+            pass
 
-    # Make sure all array dimensions are explicit
-    for reference in schedule.walk(Reference, stop_type=Reference):
-        if isinstance(reference.symbol, DataSymbol):
-            try:
-                Reference2ArrayRangeTrans().apply(reference)
-            except TransformationError as err:
-                pass
-                #new_ref = create_explicit_array(reference)
-                #reference.replace_with(new_ref)
+    if convert_array_notation:
+        # Make sure all array dimensions are explicit
+        for reference in schedule.walk(Reference, stop_type=Reference):
+            if isinstance(reference.symbol, DataSymbol):
+                try:
+                    Reference2ArrayRangeTrans().apply(reference)
+                except TransformationError as _:
+                    pass
 
-    if unroll_array_ranges:
+    if convert_range_loops:
         # Convert all array implicit loops to explicit loops
         explicit_loops = NemoAllArrayRange2LoopTrans()
         for assignment in schedule.walk(Assignment):
@@ -165,12 +175,20 @@ def insert_explicit_loop_parallelism(
     ''' For each loop in the schedule that doesn't already have a Directive
     as an ancestor, attempt to insert the given region and loop directives.
 
+    :param schedule: the PSyIR Schedule to transform.
+    :type schedule: :py:class:`psyclone.psyir.nodes.node`
     :param region_directive_trans: PSyclone transformation to insert the \
         region directive.
+    :type region_directive_trans: \
+        :py:class:`psyclone.transformation.Transformation`
     :param loop_directive_trans: PSyclone transformation to use to insert the \
         loop directive.
+    :type loop_directive_trans: \
+        :py:class:`psyclone.transformation.Transformation`
     :param collapse: whether to attempt to insert the collapse clause to as \
         many nested loops as possible.
+    :param collapse: whether to insert directive on loops with Calls or \
+        CodeBlocks in their loop body.
     '''
 
     # Add the parallel directives in each loop
