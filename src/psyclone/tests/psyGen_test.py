@@ -67,7 +67,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Assignment, BinaryOperation, Container, \
-    Literal, Node, KernelSchedule, Call, colored
+    Literal, Node, KernelSchedule, Call, colored, Routine
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
     ImportInterface, ContainerSymbol, Symbol, INTEGER_TYPE, DeferredType, \
     SymbolTable
@@ -531,6 +531,11 @@ def test_codedkern_module_inline_gen_code(tmpdir):
     assert "USE ru_kernel_mod, ONLY: ru_code" not in gen
     assert "SUBROUTINE ru_code(" in gen
     assert gen.count("SUBROUTINE ru_code(") == 1
+    # Do a psy.gen again because this resets the modulegen, but the inlined
+    # kernel should now be inserted, but again, only once
+    gen = str(psy.gen)
+    assert gen.count("SUBROUTINE ru_code(") == 1
+
     # And the generated code is valid
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -538,24 +543,68 @@ def test_codedkern_module_inline_gen_code(tmpdir):
     schedule.symbol_table.add(DataSymbol("ru_code", REAL_TYPE))
     with pytest.raises(NotImplementedError) as err:
         gen = str(psy.gen)
-    assert ("Can not module-inline subroutine 'ru_code' because symbol"
+    assert ("Can not module-inline subroutine 'ru_code' because symbol "
             "'ru_code: DataSymbol<Scalar<REAL, UNDEFINED>, Local>' with the "
             "same name already exists and changing names of module-inlined "
             "subroutines is not implemented yet.") in str(err.value)
 
     # TODO # 898. Manually force removal of previous symbol as
     # symbol_table.remove() for DataSymbols is not implemented yet.
+    schedule.parent.symbol_table._symbols.pop("ru_code")
     schedule.symbol_table._symbols.pop("ru_code")
 
     # Check that if a subroutine with the same name already exists and it is
     # not identical, it fails.
-    schedule.symbol_table.add(RoutineSymbol("ru_code"))
+    new_symbol = RoutineSymbol("ru_code")
+    schedule.parent.symbol_table.add(new_symbol)
+    schedule.parent.addchild(Routine(new_symbol.name))
     with pytest.raises(NotImplementedError) as err:
         gen = str(psy.gen)
     assert ("Can not inline subroutine 'ru_code' because another, different, "
             "subroutine with the same name already exists and versioning of "
             "module-inlined subroutines is not implemented "
             "yet.") in str(err.value)
+
+
+def test_codedkern_module_inline_kernel_in_multiple_invokes(tmpdir):
+    ''' Check that module-inline works as expected when the same kernel
+    is provided in different invokes'''
+    # Use LFRic example with the kernel 'testkern_qr' repeated once in
+    # the first invoke and 3 times in the second invoke.
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "3.1_multi_functions_multi_invokes.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+
+    # By default the kernel is imported once per invoke
+    gen = str(psy.gen)
+    assert gen.count("USE testkern_qr, ONLY: testkern_qr_code") == 2
+    assert gen.count("END SUBROUTINE testkern_qr_code") == 0
+
+    # Module inline kernel in invoke 1
+    schedule1 = psy.invokes.invoke_list[0].schedule
+    for coded_kern in schedule1.walk(CodedKern):
+        if coded_kern.name == "testkern_qr_code":
+            coded_kern.module_inline = True
+    gen = str(psy.gen)
+
+    # After this, one invoke uses the inlined top-level subroutine
+    # and the other imports it (shadowing the top-level symbol)
+    assert gen.count("USE testkern_qr, ONLY: testkern_qr_code") == 1
+    assert gen.count("END SUBROUTINE testkern_qr_code") == 1
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    # Module inline kernel in invoke 2
+    schedule1 = psy.invokes.invoke_list[1].schedule
+    for coded_kern in schedule1.walk(CodedKern):
+        if coded_kern.name == "testkern_qr_code":
+            coded_kern.module_inline = True
+    gen = str(psy.gen)
+    # After this, no imports are remaining and both use the same
+    # top-level implementation
+    assert gen.count("USE testkern_qr, ONLY: testkern_qr_code") == 0
+    assert gen.count("END SUBROUTINE testkern_qr_code") == 1
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
@@ -695,13 +744,13 @@ def test_call_abstract_methods():
     ''' Check that calling the abstract methods of Kern raises
     the expected exceptions '''
 
-    class KernType(object):
+    class KernType:
         ''' temporary dummy class '''
         def __init__(self):
             self.iterates_over = "stuff"
     my_ktype = KernType()
 
-    class DummyClass(object):
+    class DummyClass:
         ''' temporary dummy class '''
         def __init__(self, ktype):
             self.module_name = "dummy_module"
@@ -709,6 +758,8 @@ def test_call_abstract_methods():
 
     class DummyArguments(Arguments):
         ''' temporary dummy class '''
+        # This is a mock class, we can disable expected pylint warnings
+        # pylint: disable=abstract-method, unused-argument
         def __init__(self, call, parent_call, check):
             Arguments.__init__(self, parent_call)
 
@@ -1005,7 +1056,7 @@ def test_call_multi_reduction_error(monkeypatch, dist_mem):
         "or builtin" in str(err.value))
 
 
-def test_reduction_no_set_precision(monkeypatch, dist_mem):
+def test_reduction_no_set_precision(dist_mem):
     '''Test that the zero_reduction_variable() method generates correct
     code when a reduction argument does not have a defined
     precision. Only a zero value (without precision i.e. 0.0 not

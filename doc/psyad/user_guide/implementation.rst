@@ -537,7 +537,9 @@ Test Harness
 In addition to generating the adjoint of a tangent-linear kernel, PSyAD
 is also able to :ref:`generate <test_harness_gen>` a test harness for
 that kernel that verifies that the generated adjoint is mathematically
-correct.
+correct. Currently this option is only available for generic subroutines
+since LFRic kernels require arrays containing geometric information and
+look-up maps, both of which require special handling (Issue #1782).
 
 This test harness code must perform the following steps:
 
@@ -563,7 +565,7 @@ function.
 .. note:: this initialisation will not be correct when a kernel contains
 	  indirection and is passed a mapping array. In such cases the mapping
 	  array will need initialising with meaningful values. This is the
-	  subject of Issue #1496.
+	  subject of Issue #1782.
 
 Inner Products
 --------------
