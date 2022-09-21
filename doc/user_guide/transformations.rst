@@ -429,6 +429,14 @@ can be found in the API-specific sections).
              this is the case. Once issue #658 is on master then this
              limitation can be fixed.
 
+####
+
+.. autoclass:: psyclone.psyir.transformations.Sum2CodeTrans
+      :members: apply
+      :noindex:
+
+####
+
 Algorithm-layer
 ---------------
 
