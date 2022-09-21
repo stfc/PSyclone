@@ -59,6 +59,7 @@ Tested with the NVIDIA HPC SDK version 22.5.
 
 from __future__ import print_function
 import logging
+from utils import add_profiling
 from psyclone.errors import InternalError
 from psyclone.nemo import NemoInvokeSchedule, NemoKern, NemoLoop
 from psyclone.psyGen import TransInfo
@@ -313,74 +314,6 @@ def add_kernels(children):
     added_kernels |= success
 
     return added_kernels
-
-
-def add_profiling(children):
-    '''
-    Walks down the PSyIR and inserts the largest possible profiling regions.
-    Code that contains OpenACC directives is excluded.
-
-    :param children: sibling nodes in the PSyIR to which to attempt to add \
-                     profiling regions.
-    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-
-    '''
-    if not children:
-        return
-
-    node_list = []
-    for child in children[:]:
-        # Do we want this node to be included in a profiling region?
-        if child.walk((ACCDirective, Return)):
-            # It contains OpenACC so we put what we have so far inside a
-            # profiling region
-            add_profile_region(node_list)
-            # A node that is not included in a profiling region marks the
-            # end of the current candidate region so reset the list.
-            node_list = []
-            # Now we go down a level and try again without attempting to put
-            # profiling below OpenACC directives or within Assignments
-            if isinstance(child, IfBlock):
-                add_profiling(child.if_body)
-                add_profiling(child.else_body)
-            elif not isinstance(child, (Assignment, ACCDirective)):
-                add_profiling(child.children)
-        else:
-            # We can add this node to our list for the current region
-            node_list.append(child)
-    add_profile_region(node_list)
-
-
-def add_profile_region(nodes):
-    '''
-    Attempt to put the supplied list of nodes within a profiling region.
-
-    :param nodes: list of sibling PSyIR nodes to enclose.
-    :type nodes: list of :py:class:`psyclone.psyir.nodes.Node`
-
-    '''
-    if nodes:
-        # Check whether we should be adding profiling inside this routine
-        routine_name = \
-            nodes[0].ancestor(NemoInvokeSchedule).invoke.name.lower()
-        if any([ignore in routine_name for ignore in PROFILING_IGNORE]):
-            return
-        if len(nodes) == 1:
-            if isinstance(nodes[0], CodeBlock) and \
-               len(nodes[0].get_ast_nodes) == 1:
-                # Don't create profiling regions for CodeBlocks consisting
-                # of a single statement
-                return
-            if isinstance(nodes[0], IfBlock) and \
-               "was_single_stmt" in nodes[0].annotations and \
-               isinstance(nodes[0].if_body[0], CodeBlock):
-                # We also don't put single statements consisting of
-                # 'IF(condition) CALL blah()' inside profiling regions
-                return
-        try:
-            PROFILE_TRANS.apply(nodes)
-        except TransformationError:
-            pass
 
 
 def try_kernels_trans(nodes):
