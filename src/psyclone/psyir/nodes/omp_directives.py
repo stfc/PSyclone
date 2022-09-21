@@ -1131,6 +1131,8 @@ class OMPDoDirective(OMPRegionDirective):
         '''
         Generate the f2pygen AST entries in the Schedule for this OpenMP do
         directive.
+        Note gen_code ignores the collapse clause but the generated code is
+        still valid.
 
         :param parent: the parent Node in the Schedule to which to add our \
                        content.
@@ -1140,11 +1142,6 @@ class OMPDoDirective(OMPRegionDirective):
 
         '''
         self.validate_global_constraints()
-
-        if self.collapse and self.collapse > 1:
-            raise GenerationError(
-                f"{type(self).__name__} gen_code does not support the "
-                f"generation of directives that need a collapse clause.")
 
         if self._reprod:
             local_reduction_string = ""
@@ -1234,16 +1231,21 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         return False
 
     def gen_code(self, parent):
+        '''
+        Generate the f2pygen AST entries in the Schedule for this OpenMP
+        directive.
+        Note gen_code ignores the collapse clause but the generated code is
+        still valid.
 
+        :param parent: the parent Node in the Schedule to which to add our \
+                       content.
+        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
         # We're not doing nested parallelism so make sure that this
         # omp parallel do is not already within some parallel region
         from psyclone.psyGen import zero_reduction_variables
         self.validate_global_constraints()
-
-        if self.collapse and self.collapse > 1:
-            raise GenerationError(
-                f"{type(self).__name__} gen_code does not support the "
-                f"generation of directives that need a collapse clause.")
 
         calls = self.reductions()
         zero_reduction_variables(calls, parent)

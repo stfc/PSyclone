@@ -362,6 +362,7 @@ def test_omp_do_directive_validate_global_constraints(fortran_reader,
     code = fortran_writer(directive[1])
     assert "collapse(2)" in code
 
+
 def test_omp_pdo_validate_child():
     ''' Test the _validate_child method for OMPParallelDoDirective'''
     sched = Schedule()
