@@ -122,9 +122,14 @@
 	file to tell RTD to use pip and Python 3.8 (for interop. with
 	SymPy).
 
+	45) PR #1768 for #1711. Add initial Sum2CodeTrans transformation.
+
+	46) PR #1885 for #1878. Update FortCL submodule to head of master to
+	fix invalid-boz compilation errors with newer versions of gfortran.
+
 release 2.3.1 17th of June 2022
 
-        1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
+	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
 
 	2) PR #1669 for #450. Remove set_dirty/clean from ACC regions
 
