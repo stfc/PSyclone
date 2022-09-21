@@ -701,18 +701,18 @@ class OMPParallelDirective(OMPRegionDirective):
                 if parent and isinstance(parent, Loop):
                     # The assignment to the variable is inside a loop, so
                     # declare it to be private
-                    result.add(str(signature).lower())
+                    name = str(signature).lower()
+                    symbol = accesses[0].node.scope.symbol_table.lookup(name)
+                    result.add((name, symbol))
 
         # Convert the set into a list and sort it, so that we get
         # reproducible results
         list_result = list(result)
-        list_result.sort()
+        list_result.sort(key=lambda x:x[0])
 
         # Create the OMPPrivateClause corresponding to the results
         priv_clause = OMPPrivateClause()
-        symbol_table = self.scope.symbol_table
-        for ref_name in list_result:
-            symbol = symbol_table.lookup(ref_name)
+        for _, symbol in list_result:
             ref = Reference(symbol)
             priv_clause.addchild(ref)
         return priv_clause

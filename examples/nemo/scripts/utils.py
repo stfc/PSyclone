@@ -40,7 +40,7 @@ from psyclone.psyir.nodes import Loop, Assignment, Directive, Container, \
     Reference, CodeBlock, Call, Return, IfBlock, Routine
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, ArrayType
 from psyclone.psyir.transformations import HoistLoopBoundExprTrans, \
-    HoistTrans, ProfileTrans, HoistLocalArraysTrans
+    HoistTrans, ProfileTrans, HoistLocalArraysTrans, Reference2ArrayRangeTrans
 from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
 from psyclone.transformations import TransformationError
 
@@ -55,6 +55,12 @@ PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
                     "sum", "sign_", "ddpdd"]
 
 def enhance_tree_information(schedule):
+    ''' Resolve imports in order to populate relevant datatype on the
+    tree symbol tables.
+
+    :param schedule: the PSyIR Schedule to transform.
+    '''
+
     mod_sym_tab = schedule.ancestor(Container).symbol_table
 
     if "oce" in mod_sym_tab:
@@ -73,6 +79,10 @@ def enhance_tree_information(schedule):
         phycst_symbol = mod_sym_tab.lookup("phycst")
         mod_sym_tab.resolve_imports(container_symbols=[phycst_symbol])
 
+    if "ice" in mod_sym_tab:
+        ice_symbol = mod_sym_tab.lookup("ice")
+        mod_sym_tab.resolve_imports(container_symbols=[ice_symbol])
+
     # Manually set the datatype of some integer and real variables that are
     # important for performance
     for reference in schedule.walk(Reference):
@@ -88,24 +98,6 @@ def enhance_tree_information(schedule):
                     ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE,
                                           ArrayType.Extent.ATTRIBUTE,
                                           ArrayType.Extent.ATTRIBUTE]))
-
-
-def create_explicit_array(reference):
-    children = []
-    from psyclone.psyir.nodes import Literal, BinaryOperation, \
-        Range, ArrayReference
-    for idx, _ in enumerate(reference.symbol.datatype.shape):
-        dimension = Literal(str(idx + 1), INTEGER_TYPE)  # Assume 1-indexed
-        lbound = BinaryOperation.create(
-            BinaryOperation.Operator.LBOUND,
-            Reference(reference.symbol), dimension)
-        ubound = BinaryOperation.create(
-            BinaryOperation.Operator.UBOUND,
-            Reference(reference.symbol), dimension.copy())
-        dim_range = Range.create(lbound, ubound)
-        children.append(dim_range)
-    return ArrayReference.create(reference.symbol, children)
-
 
 def normalise_loops(
         schedule,
@@ -127,16 +119,16 @@ def normalise_loops(
         HoistLocalArraysTrans().apply(schedule)
     except TransformationError as err:
         pass
-        # print("Transformation failed with ", str(err.value))
 
     # Make sure all array dimensions are explicit
-    # TODO #1572 replace with equivalent transformation
-    from psyclone.psyir.nodes.array_mixin import ArrayMixin
     for reference in schedule.walk(Reference, stop_type=Reference):
         if isinstance(reference.symbol, DataSymbol):
-            if reference.symbol.is_array and not isinstance(reference, ArrayMixin):
-                new_ref = create_explicit_array(reference)
-                reference.replace_with(new_ref)
+            try:
+                Reference2ArrayRangeTrans().apply(reference)
+            except TransformationError as err:
+                pass
+                #new_ref = create_explicit_array(reference)
+                #reference.replace_with(new_ref)
 
     if unroll_array_ranges:
         # Convert all array implicit loops to explicit loops
@@ -145,8 +137,6 @@ def normalise_loops(
             explicit_loops.apply(assignment)
 
     if hoist_expressions:
-
-
         # First hoist all possible expressions
         for loop in schedule.walk(Loop):
             HoistLoopBoundExprTrans().apply(loop)
@@ -159,6 +149,10 @@ def normalise_loops(
                     HoistTrans().apply(statement)
                 except TransformationError:
                     pass
+
+    # TODO: In order to perform better on the GPU, nested loops with two
+    # sibling inner loops need to be fused or apply loop fission to the
+    # top level. This would allow the collapse clause to be applied.
 
 
 def insert_explicit_loop_parallelism(
