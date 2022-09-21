@@ -81,8 +81,11 @@ EXCLUDED_FILES = [
     # abort intrinsic not recognised
     "mpp_io.f90",
     # There is a bug on a WHERE fparser2 frontend processing
-    # on the ECMWF code
-    # "sbccpl.f90",
+    "sbccpl.f90",  # There is a bug on a WHERE fparser2 frontend processing
+
+    # TODO # 1142: The following issue only affects the ECMWF Nemo code.
+    # Currently we have to manually uncomment the line below to process ECMWF
+    # NEMO but this can be improved resolving the referenced issue.
     # "lbclnk.f90",  # has mpif.h in the ECMWF version
     ]
 

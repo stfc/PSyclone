@@ -157,8 +157,9 @@ class ArrayMixin(object):
                         and isinstance(array_bounds.lower, Literal)):
                     if lower.value == array_bounds.lower.value:
                         return True
-            except (KeyError, SymbolError):
-                # Can't find symbol declaration
+            except (KeyError, SymbolError, AttributeError):
+                # If any issue is found we can not guarantee that it is
+                # the lower bound
                 pass
             return False
 
@@ -217,8 +218,9 @@ class ArrayMixin(object):
                         isinstance(array_bounds.upper, Literal)):
                     if upper.value == array_bounds.upper.value:
                         return True
-            except (KeyError, SymbolError):
-                # Can't find symbol declaration
+            except (KeyError, SymbolError, AttributeError):
+                # If any issue is found we can not guarantee that it is
+                # the upper bound
                 pass
             return False
 

@@ -804,21 +804,6 @@ def test_omp_target_directive_constructor_and_strings():
     assert str(target) == "OMPTargetDirective[]"
 
 
-def test_omp_target_directive_validate_global_constraints():
-    ''' Test the OMPTargetDirective prevents the generation of target
-    directives with non-allowed nodes inside.'''
-    target = OMPTargetDirective()
-    # If no condition is broken, it should succeed
-    target.validate_global_constraints()
-
-    # With a Codeblock, it should fail
-    target.children[0].addchild(CodeBlock([], CodeBlock.Structure.STATEMENT))
-    with pytest.raises(GenerationError) as err:
-        target.validate_global_constraints()
-    assert ("The OMPTargetDirective must not have CodeBlocks inside, but "
-            "found:" in str(err.value))
-
-
 # Test OMPDeclareTargetDirective
 
 def test_omp_declare_target_directive_constructor_and_strings(monkeypatch):
