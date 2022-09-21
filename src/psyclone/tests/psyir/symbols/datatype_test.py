@@ -368,7 +368,7 @@ def test_arraytype_invalid_shape_dimension_1():
         _ = ArrayType(scalar_type, [Reference(symbol)])
     assert (
         "If a DataSymbol is referenced in a dimension declaration then it "
-        "should be a scalar integer or of UnknownType or DeferredType, but "
+        "should be an integer or of UnknownType or DeferredType, but "
         "'fred' is a 'Scalar<REAL, 4>'." in str(excinfo.value))
 
 
@@ -410,7 +410,7 @@ def test_arraytype_invalid_shape_dimension_3():
 def test_arraytype_invalid_shape_bounds():
     ''' Check that the ArrayType class raises the expected exception when
     one of the dimensions of the shape list is a tuple that does not contain
-    either an int or a DataNode.'''
+    either an int or a DataNode or is not a scalar.'''
     scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [(1, 4, 1)])
@@ -438,8 +438,15 @@ def test_arraytype_invalid_shape_bounds():
         _ = ArrayType(scalar_type, [(1, Reference(symbol))])
     assert (
         "If a DataSymbol is referenced in a dimension declaration then it "
-        "should be a scalar integer or of UnknownType or DeferredType, but "
+        "should be an integer or of UnknownType or DeferredType, but "
         "'fred' is a 'Scalar<REAL, 4>'." in str(excinfo.value))
+    array_type = ArrayType(INTEGER_TYPE, [10])
+    symbol = DataSymbol("jim", array_type)
+    with pytest.raises(TypeError) as excinfo:
+        _ = ArrayType(scalar_type, [(1, Reference(symbol))])
+    assert ("If a DataSymbol is referenced in a dimension declaration then it "
+            "should be a scalar but 'Reference[name:'jim']' is not." in
+            str(excinfo.value))
 
 
 def test_arraytype_shape_dim_from_parent_scope():

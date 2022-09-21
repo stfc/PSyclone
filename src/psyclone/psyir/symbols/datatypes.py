@@ -510,9 +510,8 @@ class ArrayType(DataType):
                         f"If a DataSymbol is referenced in a dimension "
                         f"declaration then it should be a scalar but "
                         f"'{dim_node}' is not.")
-                if (not isinstance(dtype, (UnknownType, DeferredType)) or
-                        dim_node.datatype.intrinsic !=
-                        ScalarType.Intrinsic.INTEGER):
+                if not (isinstance(dtype, (UnknownType, DeferredType)) or
+                        dtype.intrinsic == ScalarType.Intrinsic.INTEGER):
                     raise TypeError(
                         f"If a DataSymbol is referenced in a dimension "
                         f"declaration then it should be an integer or "
