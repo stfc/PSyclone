@@ -320,7 +320,7 @@ def test_omplooptrans_properties():
 
     # Check default values
     omplooptrans = OMPLoopTrans()
-    assert omplooptrans.omp_schedule == "static"
+    assert omplooptrans.omp_schedule == "auto"
     assert omplooptrans.omp_directive == "do"
 
     # Use setters with valid values
@@ -454,7 +454,7 @@ def test_omplooptrans_apply(sample_psyir, fortran_writer):
     omplooptrans.apply(tree.walk(Loop)[0])
     assert isinstance(tree.walk(Loop)[0].parent, Schedule)
     assert isinstance(tree.walk(Loop)[0].parent.parent, OMPDoDirective)
-    assert tree.walk(Loop)[0].parent.parent._omp_schedule == 'static'
+    assert tree.walk(Loop)[0].parent.parent._omp_schedule == 'auto'
 
     # The omp_schedule can be changed
     omplooptrans = OMPLoopTrans(omp_schedule="dynamic,2")

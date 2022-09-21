@@ -39,8 +39,8 @@ directives into Nemo code. '''
 
 from psyclone.psyir.nodes import Loop, Assignment
 from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
-from psyclone.psyir.transformations.omp_target_trans import OMPTargetTrans
-from psyclone.transformations import TransformationError, OMPLoopTrans
+from psyclone.psyir.transformations import OMPTargetTrans, OMPLoopTrans
+from psyclone.transformations import TransformationError
 
 USE_GPU = True  # Enable for generating OpenMP target directives
 

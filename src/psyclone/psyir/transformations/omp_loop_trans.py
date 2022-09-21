@@ -64,7 +64,7 @@ class OMPLoopTrans(ParallelLoopTrans):
     Note, reproducible in this case means obtaining the same results with the
     same number of OpenMP threads, not for different numbers of OpenMP threads.
 
-    :param str omp_schedule: the OpenMP schedule to use. Defaults to 'static'.
+    :param str omp_schedule: the OpenMP schedule to use. Defaults to 'auto'.
     :param str omp_directive: choose which OpenMP loop directive to use. \
         Defaults to "omp do"
 
@@ -88,7 +88,7 @@ class OMPLoopTrans(ParallelLoopTrans):
     ...     end subroutine
     ...     """)
     >>> loop = psyir.walk(Loop)[0]
-    >>> omplooptrans1 = OMPLoopTrans(omp_schedule="auto",
+    >>> omplooptrans1 = OMPLoopTrans(omp_schedule="dynamic",
     ...                              omp_directive="paralleldo")
     >>> omplooptrans1.apply(loop)
     >>> print(FortranWriter()(psyir))
@@ -99,7 +99,7 @@ class OMPLoopTrans(ParallelLoopTrans):
       integer :: th_idx
       integer :: nthreads
     <BLANKLINE>
-      !$omp parallel do default(shared), private(i,j), schedule(auto)
+      !$omp parallel do default(shared), private(i,j), schedule(dynamic)
       do i = 1, 10, 1
         do j = 1, 10, 1
           a(i,j) = 0
@@ -111,7 +111,7 @@ class OMPLoopTrans(ParallelLoopTrans):
     <BLANKLINE>
 
     '''
-    def __init__(self, omp_directive="do", omp_schedule="static"):
+    def __init__(self, omp_directive="do", omp_schedule="auto"):
         super().__init__()
         # Whether or not to generate code for (run-to-run on n threads)
         # reproducible OpenMP reductions. This setting can be overridden

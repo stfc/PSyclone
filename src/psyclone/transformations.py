@@ -74,8 +74,6 @@ from psyclone.psyir.transformations.transformation_error import \
     TransformationError
 
 
-
-
 def check_intergrid(node):
     '''
     Utility function to check that the supplied node does not have
@@ -706,7 +704,17 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         validity checks. Actual transformation is done by the
         :py:class:`base class <OMPParallelLoopTrans>`.
 
+        :param str omp_directive: choose which OpenMP loop directive to use. \
+            Defaults to "do".
+        :param str omp_schedule: the OpenMP schedule to use. Must be one of \
+            'runtime', 'static', 'dynamic', 'guided' or 'auto'. Defaults to \
+            'static'.
+
     '''
+    def __init__(self, omp_directive="do", omp_schedule="static"):
+        super().__init__(omp_directive=omp_directive,
+                         omp_schedule=omp_schedule)
+
     def __str__(self):
         return "Add an OpenMP Parallel Do directive to a Dynamo loop"
 
@@ -749,10 +757,17 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
        loop). Actual transformation is done by
        :py:class:`base class <OMPParallelLoopTrans>`.
 
-       :param omp_schedule: the omp schedule to be created. Must be one of \
-           'runtime', 'static', 'dynamic', 'guided' or 'auto'.
+        :param str omp_directive: choose which OpenMP loop directive to use. \
+            Defaults to "do".
+        :param str omp_schedule: the OpenMP schedule to use. Must be one of \
+            'runtime', 'static', 'dynamic', 'guided' or 'auto'. Defaults to \
+            'static'.
 
     '''
+    def __init__(self, omp_directive="do", omp_schedule="static"):
+        super().__init__(omp_directive=omp_directive,
+                         omp_schedule=omp_schedule)
+
     def __str__(self):
         return "Add an OpenMP Parallel Do directive to a GOcean loop"
 
@@ -786,6 +801,12 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
     ''' Dynamo 0.3 specific orphan OpenMP loop transformation. Adds
     Dynamo-specific validity checks. Actual transformation is done by
     :py:class:`base class <OMPLoopTrans>`.
+
+    :param str omp_directive: choose which OpenMP loop directive to use. \
+        Defaults to "do".
+    :param str omp_schedule: the OpenMP schedule to use. Must be one of \
+        'runtime', 'static', 'dynamic', 'guided' or 'auto'. Defaults to \
+        'static'.
 
     '''
     def __init__(self, omp_directive="do", omp_schedule="static"):
@@ -840,10 +861,17 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
         Loop). Actual transformation is done by
         :py:class:`base class <OMPLoopTrans>`.
 
-        :param omp_schedule: the omp schedule to be created. Must be one of
-            'runtime', 'static', 'dynamic', 'guided' or 'auto'.
+        :param str omp_directive: choose which OpenMP loop directive to use. \
+            Defaults to "do".
+        :param str omp_schedule: the OpenMP schedule to use. Must be one of \
+            'runtime', 'static', 'dynamic', 'guided' or 'auto'. Defaults to \
+            'static'.
 
         '''
+    def __init__(self, omp_directive="do", omp_schedule="static"):
+        super().__init__(omp_directive=omp_directive,
+                         omp_schedule=omp_schedule)
+
     def __str__(self):
         return "Add an OpenMP DO directive to a GOcean loop"
 
