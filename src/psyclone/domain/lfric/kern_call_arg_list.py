@@ -291,20 +291,36 @@ class KernCallArgList(ArgOrdering):
         try:
             sym = self._symtab.lookup(arg.proxy_name)
         except KeyError:
-            # The proxy symbol does not exist, add it to the symbol table.
-            # The container for field mod is already defined in the root
-            # symbol table:
-            root_table = self._symtab
-            while root_table.parent_symbol_table():
-                root_table = root_table.parent_symbol_table()
-            cont = root_table.lookup("field_mod")
+            # The symbol does not exist already. So we potentially need to
+            # create the import statement for the type:
+            try:
+                # Check if the module is already declared:
+                module = self._symtab.lookup("field_mod")
+                # Get the symbol table in which the module is declared
+                mod_sym_tab = module.find_symbol_table(self._kern)
+                # If the module is declared in a different (outer) scope,
+                # still add the module to this (local) symbol table, so
+                # the subroutine does not rely on module imports.
+                if mod_sym_tab is not self._symtab:
+                    module = None
+            except KeyError:
+                module = None
+
+            if module is None:
+                module = \
+                    self._symtab.new_symbol("field_mod",
+                                            shadowing=True,
+                                            symbol_type=ContainerSymbol)
+
+            # Get the symbol table in which the module is declared:
+            mod_sym_tab = module.find_symbol_table(self._kern)
             # The proxy type must be declared in the same symbol table as the
             # container (otherwise errors will happen later):
             proxy_type = \
-                root_table.find_or_create("field_proxy_type",
-                                          symbol_type=DataTypeSymbol,
-                                          datatype=DeferredType(),
-                                          interface=ImportInterface(cont))
+                mod_sym_tab.find_or_create("field_proxy_type",
+                                           symbol_type=DataTypeSymbol,
+                                           datatype=DeferredType(),
+                                           interface=ImportInterface(module))
             # Declare the actual proxy symbol in the local symbol table, using
             # the datatype from the root table:
             sym = self._symtab.new_symbol(arg.proxy_name,
@@ -506,6 +522,21 @@ class KernCallArgList(ArgOrdering):
             # This kernel takes responsibility for iterating over cells so
             # pass the whole dofmap.
             self.append(f"{map_name}", var_accesses, var_access_name=map_name)
+            try:
+                sym = self._symtab.lookup(map_name)
+            except KeyError:
+                # Create a DataSymbol for this kernel argument.
+                datatype = psyir.LfricIntegerScalarDataType()
+                consts = LFRicConstants()
+                precision_name = consts.SCALAR_PRECISION_MAP["integer"]
+                psyir.add_lfric_precision_symbol(self._symtab, precision_name)
+
+                sym = self._symtab.new_symbol(map_name,
+                                              symbol_type=DataSymbol,
+                                              datatype=datatype)
+
+            self._psyir_arglist.append(Reference(sym))
+
         else:
             # Pass the dofmap for the cell column
             self.append(f"{map_name}(:,{self._cell_ref_name(var_accesses)})",

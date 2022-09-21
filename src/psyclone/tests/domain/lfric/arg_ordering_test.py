@@ -127,14 +127,16 @@ def test_arg_ordering_generate_domain_kernel(dist_mem, fortran_writer):
     assert create_arg_list._arglist == [
         'nlayers', 'ncell_2d_no_halos', 'b', 'f1_proxy%data', 'ndf_w3',
         'undf_w3', 'map_w3']
-    print(fortran_writer(schedule))
+    print(fortran_writer(schedule.parent))
+    print("OLD\n", psy.gen)
     # Check the PSyIR representation
     result = []
     for node in create_arg_list.psyir_arglist:
         assert isinstance(node, Reference)
         result.append(fortran_writer(node))
 
-    assert result == ['nlayers', "ncell_2d_no_halos", "b", "f1_proxy%data"]
+    assert result == ['nlayers', "ncell_2d_no_halos", "b", "f1_proxy%data",
+                      "map_w3"]
 
 
 def test_arg_ordering_generate_cma_kernel(dist_mem):
