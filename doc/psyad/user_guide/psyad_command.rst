@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2021, Science and Technology Facilities Council.
+.. Copyright (c) 2021-2022, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -61,12 +61,12 @@ by the command:
 .. parsed-literal::
 		
   >>> psyad -h
-    usage: psyad [-h] [-oad OAD] [-v] [-t] [-otest TEST_FILENAME] -a ACTIVE [ACTIVE ...] -- filename
+    usage: psyad [-h] [-oad OAD] [-v] [-t] [-api API] [-otest TEST_FILENAME] -a ACTIVE [ACTIVE ...] -- filename
 
     Run the PSyclone adjoint code generator on an LFRic tangent-linear kernel file
 
     positional arguments:
-      filename       LFRic tangent-linear kernel source
+      filename              tangent-linear kernel source
 
     optional arguments:
       -h, --help            show this help message and exit
@@ -74,6 +74,7 @@ by the command:
                             name of active variables
       -v, --verbose         increase the verbosity of the output
       -t, --gen-test        generate a standalone unit test for the adjoint code
+      -api API              the PSyclone API that the TL kernel conforms to (if any)
       -otest TEST_FILENAME  filename for the unit test (implies -t)
       -oad OAD              filename for the transformed code
 
@@ -85,7 +86,7 @@ tangent-linear kernel file and the names of the active variables
 within the kernel file
 ::
 
-    > psyad -a var1 var2 -- tl_kern.f90
+    > psyad -api dynamo0.3 -a var1 var2 -- tl_kern.f90
 
 If the kernel file or active variables are invalid for some reason,
 the command should return with an appropriate error.
@@ -161,8 +162,11 @@ the previous command
 	  kernel is in the form of a subroutine contained within a module.
 	  PSyAD will report an error if this is not the case.
 
-Processing Information
-----------------------
+.. note:: Currently PSyAD can only generate the test harness for a generic
+	  routine. Support for LFRic kernels is the subject of #1782.
+
+Logging Output
+--------------
 
 To see more information about what the psyad script is doing
 internally you can specify the ``-v`` option. For example

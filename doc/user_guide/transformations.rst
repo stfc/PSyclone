@@ -135,7 +135,7 @@ can be found in the API-specific sections).
           KernelImportsToArguments transformations for the GOcean 1.0
           API, the OpenACC Data transformation is limited to
           the NEMO and GOcean 1.0 APIs and the OpenACC Kernels
-          transformation is limited to the NEMO and Dynamo0.3 APIs.
+          transformation is limited to the NEMO and LFRic (Dynamo0.3) APIs.
 
 .. note:: The directory layout of PSyclone is currently being restructured.
           As a result of this some transformations are already in the new
@@ -227,6 +227,12 @@ can be found in the API-specific sections).
 ####
 
 .. autoclass:: psyclone.psyir.transformations.HoistTrans
+      :members: apply
+      :noindex:
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.InlineTrans
       :members: apply
       :noindex:
 
@@ -370,7 +376,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.OMPTargetTrans
+.. autoclass:: psyclone.psyir.transformations.OMPTargetTrans
     :members: apply
     :noindex:
 
@@ -400,6 +406,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.Reference2ArrayRangeTrans
+    :members: apply
+    :noindex:
+
+####
+
 .. _replace_induction_variable_trans:
 
 .. autoclass:: psyclone.psyir.transformations.ReplaceInductionVariablesTrans
@@ -416,6 +428,14 @@ can be found in the API-specific sections).
              on PSyIR Real scalar data and does not check whether or not
              this is the case. Once issue #658 is on master then this
              limitation can be fixed.
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.Sum2CodeTrans
+      :members: apply
+      :noindex:
+
+####
 
 Algorithm-layer
 ---------------
@@ -1036,9 +1056,16 @@ SIR
 ---
 
 It is currently not possible for PSyclone to output SIR code without
-using a script. Two examples of such scripts are given in example 4
-for the NEMO API, one of which includes transformations to remove
-PSyIR intrinsics, hoist code out of a loop, translate array-index
-notation into explicit loops and translate a single access to an array
-dimension to a one-trip loop (to make the code suitable for the SIR
-backend).
+using a script. Three examples of such scripts are given in example 4
+for the NEMO API. The first `sir_trans.py` simply outputs SIR. This
+will raise an exception if used with the `tracer advection` example as
+the example contains array-index notation which is not supported by
+the SIR backend, but will generate code for the other examples. The
+second, `sir_trans_loop.py` includes transformations to hoist code out
+of a loop, translate array-index notation into explicit loops and
+translate a single access to an array dimension to a one-trip loop (to
+make the code suitable for the SIR backend). This works with the
+`tracer-advection` example. The third script `sir_trans_all.py`
+additionally replaces any intrinsics with equivalent code and can also
+be used with the `tracer-advection` example (and the
+`intrinsic_example.f90` example).

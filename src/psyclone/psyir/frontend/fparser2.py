@@ -2857,9 +2857,6 @@ class Fparser2Reader(object):
         supplied PSyIR fragment so that they are indexed using the supplied
         loop variables rather than having colon array notation.
 
-        # TODO #1576 this functionality is very similar to that needed in
-        # the NemoArrayRange2Loop transformation and should be rationalised.
-
         :param parent: root of PSyIR sub-tree to search for Array \
                        references to modify.
         :type parent:  :py:class:`psyclone.psyir.nodes.Node`

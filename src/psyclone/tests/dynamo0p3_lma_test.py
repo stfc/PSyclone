@@ -96,7 +96,7 @@ end module testkern_qr
 def setup():
     '''Make sure that all tests here use Dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
-    yield()
+    yield
     Config._instance = None
 
 

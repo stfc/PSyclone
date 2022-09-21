@@ -1104,7 +1104,6 @@ class DynamoPSy(PSy):
         # Create an empty PSy layer module
         psy_module = ModuleGen(self.name)
 
-
         # If the container has a Routine that is not an InvokeSchedule
         # it should also be added to the generated module.
         for routine in self.container.children:

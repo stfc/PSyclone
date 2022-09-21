@@ -1569,10 +1569,10 @@ class CodedKern(Kern):
                             # Found and matches expected routine
                             return
                 else:
-                    # Not found, but the symbol already existed, this means it
-                    # is a second psy.gen call with starts the module_gen from
-                    # scratch, we need to re-introduce the PSyIRGen containing
-                    # the kernel code.
+                    # Implementation not found, but the symbol already exists.
+                    # This happens when psy.gen is called multiple times and
+                    # the module_gen is restarted, we need to re-introduce the
+                    # PSyIRGen containing the kernel code.
                     module.add(PSyIRGen(module, self.get_kernel_schedule()))
 
     def gen_code(self, parent):
