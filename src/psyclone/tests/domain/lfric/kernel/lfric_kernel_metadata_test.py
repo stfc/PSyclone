@@ -104,7 +104,7 @@ def test_init_args_error():
 
     with pytest.raises(ValueError) as info:
         _ = LFRicKernelMetadata(procedure_name="1_invalid")
-    assert ("Expected procedure_name to be a valid value but found "
+    assert ("Expected procedure_name to be a valid Fortran name but found "
             "'1_invalid'." in str(info.value))
 
     with pytest.raises(ValueError) as info:
@@ -118,9 +118,10 @@ def test_init_args_error():
 
     with pytest.raises(TypeError) as info:
         _ = LFRicKernelMetadata(meta_args=["error"])
-    assert ("meta_args should be a list of argument objects, but found str."
-            in str(info.value))
-    # TODO gh_shape, meta_funcs, meta_reference_element, meta_mesh
+    assert ("meta_args should be a list of argument objects (of type "
+            "CommonArg), but found str." in str(info.value))
+    # TODO issue #1879 gh_shape, meta_funcs, meta_reference_element,
+    # meta_mesh
 
 
 def test_setter_getter():
@@ -141,7 +142,7 @@ def test_setter_getter():
     assert metadata.procedure_name is None
     with pytest.raises(ValueError) as info:
         metadata.procedure_name = "1_invalid"
-    assert ("Expected procedure_name to be a valid value but found "
+    assert ("Expected procedure_name to be a valid Fortran name but found "
             "'1_invalid'." in str(info.value))
     metadata.procedure_name = "KERN_CODE"
     assert metadata.procedure_name == "KERN_CODE"
@@ -419,7 +420,7 @@ def test_fortran_string():
         instance.fortran_string()
     assert ("Values for name, meta_args, operates_on and procedure_name must "
             "be provided before calling the fortran_string method, but found "
-            "'None', '[]', 'None' and 'None'." in str(info.value))
+            "'None', '[]', 'None' and 'None' respectively." in str(info.value))
 
     metadata = LFRicKernelMetadata.create_from_fortran_string(METADATA)
     result = metadata.fortran_string()

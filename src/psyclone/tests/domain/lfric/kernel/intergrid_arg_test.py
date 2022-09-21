@@ -52,7 +52,7 @@ def test_init_noargs():
     '''
     intergrid_arg = InterGridArg()
     assert isinstance(intergrid_arg, InterGridArg)
-    assert intergrid_arg._form == "GH_FIELD"
+    assert intergrid_arg.form == "GH_FIELD"
     assert intergrid_arg._datatype is None
     assert intergrid_arg._access is None
     assert intergrid_arg._function_space is None
@@ -106,7 +106,7 @@ def test_init_args():
 
     '''
     intergrid_arg = InterGridArg("GH_REAL", "GH_READ", "W0", "GH_FINE")
-    assert intergrid_arg._form == "GH_FIELD"
+    assert intergrid_arg.form == "GH_FIELD"
     assert intergrid_arg._datatype == "GH_REAL"
     assert intergrid_arg._access == "GH_READ"
     assert intergrid_arg._function_space == "W0"
@@ -127,7 +127,7 @@ def test_create_from_fortran_string():
     fortran_string = ("arg_type(GH_FIELD, GH_REAL, GH_READ, W0, "
                       "gh_mesh=GH_COARSE)")
     intergrid_arg = InterGridArg.create_from_fortran_string(fortran_string)
-    assert intergrid_arg._form == "GH_FIELD"
+    assert intergrid_arg.form == "GH_FIELD"
     assert intergrid_arg._datatype == "GH_REAL"
     assert intergrid_arg._access == "GH_READ"
     assert intergrid_arg._function_space == "W0"
@@ -149,13 +149,13 @@ def create_part_ref(fortran_string):
     return Fortran2003.Part_Ref(reader)
 
 
-def test_create_from_psyir():
-    '''Test that the create_from_psyir static method works as
+def test_create_from_fparser2():
+    '''Test that the create_from_fparser2 static method works as
     expected. Test for exceptions as well as valid input.
 
     '''
     with pytest.raises(TypeError) as info:
-        _ = InterGridArg.create_from_psyir("hello")
+        _ = InterGridArg.create_from_fparser2("hello")
     assert ("Expected kernel metadata to be encoded as a Fortran "
             "Structure_Constructor object but found type 'str' with value "
             "'hello'." in str(info.value))
@@ -173,7 +173,7 @@ def test_create_from_psyir():
 
     intergrid_arg = InterGridArg.create_from_fortran_string(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, mesh_arg=GH_COARSE)")
-    assert intergrid_arg._form == "GH_FIELD"
+    assert intergrid_arg.form == "GH_FIELD"
     assert intergrid_arg._datatype == "GH_REAL"
     assert intergrid_arg._access == "GH_READ"
     assert intergrid_arg._function_space == "W0"
@@ -195,7 +195,8 @@ def test_fortran_string():
         _ = intergrid_arg.fortran_string()
     assert ("Values for datatype, access, function_space and mesh_arg must "
             "be provided before calling the fortran_string method, but found "
-            "'None', 'None', 'None' and 'None'." in str(info.value))
+            "'None', 'None', 'None' and 'None', respectively."
+            in str(info.value))
 
 
 def test_setter_getter():

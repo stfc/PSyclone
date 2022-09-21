@@ -65,11 +65,6 @@ _FILE_NAME = "psyclone.cfg"
 #          applied and only one version of the transformed kernel is created.
 VALID_KERNEL_NAMING_SCHEMES = ["multiple", "single"]
 
-# Specify a valid name for use in checking for variable names etc.
-VALID_NAME = re.compile(r'[a-zA-Z_][\w]*')
-
-# pylint: disable=too-many-lines
-
 
 # pylint: disable=too-many-lines
 class ConfigurationError(PSycloneError):
@@ -97,6 +92,10 @@ class Config:
     '''
     # Class variable to store the singleton instance
     _instance = None
+
+    # Static specification of a valid name for use in checking for
+    # variable names etc.
+    valid_name = re.compile(r'[a-zA-Z_][\w]*')
 
     # List of supported API by PSyclone
     _supported_api_list = ["dynamo0.3", "gocean1.0", "nemo"]

@@ -67,7 +67,7 @@ def test_init_noargs():
     '''
     field_vector_arg = FieldVectorArg()
     assert isinstance(field_vector_arg, FieldVectorArg)
-    assert field_vector_arg._form == "GH_FIELD"
+    assert field_vector_arg.form == "GH_FIELD"
     assert field_vector_arg._datatype is None
     assert field_vector_arg._access is None
     assert field_vector_arg._function_space is None
@@ -108,7 +108,7 @@ def test_init_args():
 
     '''
     field_vector_arg = FieldVectorArg("GH_REAL", "GH_READ", "W0", "2")
-    assert field_vector_arg._form == "GH_FIELD"
+    assert field_vector_arg.form == "GH_FIELD"
     assert field_vector_arg._datatype == "GH_REAL"
     assert field_vector_arg._access == "GH_READ"
     assert field_vector_arg._function_space == "W0"
@@ -128,33 +128,33 @@ def test_create_from_fortran_string():
 
     fortran_string = "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)"
     field_arg = FieldVectorArg.create_from_fortran_string(fortran_string)
-    assert field_arg._form == "GH_FIELD"
+    assert field_arg.form == "GH_FIELD"
     assert field_arg._datatype == "GH_REAL"
     assert field_arg._access == "GH_READ"
     assert field_arg._function_space == "W0"
     assert field_arg._vector_length == "3"
 
 
-def test_create_from_psyir():
-    '''Test that the create_from_psyir static method works as
+def test_create_from_fparser2():
+    '''Test that the create_from_fparser2 static method works as
     expected. Test for exceptions as well as valid input.
 
     '''
     with pytest.raises(TypeError) as info:
-        _ = FieldVectorArg.create_from_psyir("hello")
+        _ = FieldVectorArg.create_from_fparser2("hello")
     assert ("Expected kernel metadata to be encoded as a Fortran "
             "Part_Ref object but found type 'str' with value 'hello'."
             in str(info.value))
 
     part_ref = create_part_ref("arg_type(GH_FIELD, GH_REAL, GH_READ, W0)")
     with pytest.raises(TypeError) as info:
-        _ = FieldVectorArg.create_from_psyir(part_ref)
+        _ = FieldVectorArg.create_from_fparser2(part_ref)
     assert("Expecting the first argument to be in the form "
            "'form*vector_length' but found 'GH_FIELD'." in str(info.value))
 
     part_ref = create_part_ref("arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)")
-    field_vector_arg = FieldVectorArg.create_from_psyir(part_ref)
-    assert field_vector_arg._form == "GH_FIELD"
+    field_vector_arg = FieldVectorArg.create_from_fparser2(part_ref)
+    assert field_vector_arg.form == "GH_FIELD"
     assert field_vector_arg._datatype == "GH_REAL"
     assert field_vector_arg._access == "GH_READ"
     assert field_vector_arg._function_space == "W0"
@@ -176,7 +176,8 @@ def test_fortran_string():
         _ = field_vector_arg.fortran_string()
     assert ("Values for datatype, access, function_space and vector_length "
             "must be provided before calling the fortran_string method, but "
-            "found 'None', 'None', 'None' and 'None'." in str(info.value))
+            "found 'None', 'None', 'None' and 'None', respectively."
+            in str(info.value))
 
 
 def test_setter_getter():

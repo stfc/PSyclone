@@ -52,26 +52,26 @@ class ScalarArg(CommonArg):
         scalar (GH_WRITE, ...).
 
     '''
+    form = "GH_SCALAR"
+
     def __init__(self, datatype=None, access=None):
         super().__init__(datatype, access)
-        self._form = "GH_SCALAR"
 
     @staticmethod
-    def create_from_psyir(psyir):
-        '''Create an instance of this class from generic PSyIR. At this moment
-        this information is captured in an fparser2 tree.
+    def create_from_fparser2(fparser2_tree):
+        '''Create an instance of this class from an fparser2 tree.
 
-        :param psyir: fparser2 tree containing the PSyIR for a scalar \
-            argument.
-        :type psyir: :py:class:`fparser.two.Fortran2003.Part_Ref`
+        :param fparser2_tree: fparser2 tree containing the metadata \
+            for a scalar argument.
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
 
         :returns: an instance of ScalarArg.
         :rtype: :py:class:`psyclone.domain.lfric.kernel.ScalarArg`
 
         '''
-        ScalarArg.check_psyir(psyir, nargs=3)
-        datatype = psyir.children[1].children[1].tostr()
-        access = psyir.children[1].children[2].tostr()
+        ScalarArg.check_fparser2(fparser2_tree, nargs=3)
+        datatype = fparser2_tree.children[1].children[1].tostr()
+        access = fparser2_tree.children[1].children[2].tostr()
         return ScalarArg(datatype, access)
 
     @classmethod
@@ -85,8 +85,8 @@ class ScalarArg(CommonArg):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.cls`
 
         '''
-        part_ref = cls.create_psyir(fortran_string)
-        return cls.create_from_psyir(part_ref)
+        fparser2_tree = cls.create_fparser2(fortran_string)
+        return cls.create_from_fparser2(fparser2_tree)
 
     def fortran_string(self):
         '''
@@ -102,7 +102,7 @@ class ScalarArg(CommonArg):
             raise ValueError(
                 f"Values for datatype and access must be "
                 f"provided before calling the fortran_string method, but "
-                f"found '{self.datatype}' and '{self.access}'.")
+                f"found '{self.datatype}' and '{self.access}', respectively.")
 
         return f"arg_type({self.form}, {self.datatype}, {self.access})"
 

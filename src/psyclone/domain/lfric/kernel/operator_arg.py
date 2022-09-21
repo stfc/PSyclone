@@ -56,10 +56,11 @@ class OperatorArg(FieldArg):
         field maps to (W0, ...).
 
     '''
+    form = "GH_OPERATOR"
+
     def __init__(self, datatype=None, access=None, function_space1=None,
                  function_space2=None):
         super().__init__(datatype, access)
-        self._form = "GH_OPERATOR"
         if function_space1 is None:
             self._function_space1 = function_space1
         else:
@@ -70,23 +71,22 @@ class OperatorArg(FieldArg):
             self.function_space2 = function_space2
 
     @staticmethod
-    def create_from_psyir(psyir):
-        '''Create an instance of this class from generic PSyIR. At this moment
-        this information is captured in an fparser2 tree.
+    def create_from_fparser2(fparser2_tree):
+        '''Create an instance of this class from an fparser2 tree.
 
-        :param psyir: fparser2 tree containing the PSyIR for an operator \
-            argument.
-        :type psyir: :py:class:`fparser.two.Fortran2003.Part_Ref`
+        :param fparser2_tree: fparser2 tree capturing the metadata for \
+            an operator argument.
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
 
         :returns: an instance of OperatorArg.
         :rtype: :py:class:`psyclone.domain.lfric.kernel.OperatorArg`
 
         '''
-        OperatorArg.check_psyir(psyir, nargs=5)
-        datatype = psyir.children[1].children[1].tostr()
-        access = psyir.children[1].children[2].tostr()
-        function_space1 = psyir.children[1].children[3].tostr()
-        function_space2 = psyir.children[1].children[4].tostr()
+        OperatorArg.check_fparser2(fparser2_tree, nargs=5)
+        datatype = fparser2_tree.children[1].children[1].tostr()
+        access = fparser2_tree.children[1].children[2].tostr()
+        function_space1 = fparser2_tree.children[1].children[3].tostr()
+        function_space2 = fparser2_tree.children[1].children[4].tostr()
         return OperatorArg(datatype, access, function_space1, function_space2)
 
     @classmethod
@@ -100,8 +100,8 @@ class OperatorArg(FieldArg):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.cls`
 
         '''
-        part_ref = cls.create_psyir(fortran_string)
-        return cls.create_from_psyir(part_ref)
+        fparser2_tree = cls.create_fparser2(fortran_string)
+        return cls.create_from_fparser2(fparser2_tree)
 
     def fortran_string(self):
         ''':returns: the metadata represented by this class as a \
@@ -120,7 +120,7 @@ class OperatorArg(FieldArg):
                 f"function_space2 must be provided before calling the "
                 f"fortran_string method, but found '{self.datatype}', "
                 f"'{self.access}', '{self.function_space1}' and "
-                f"'{self.function_space2}'.")
+                f"'{self.function_space2}', respectively.")
 
         return (f"arg_type({self.form}, {self.datatype}, {self.access}, "
                 f"{self.function_space1}, {self.function_space2})")

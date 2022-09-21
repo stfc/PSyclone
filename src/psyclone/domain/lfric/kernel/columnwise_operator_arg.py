@@ -55,28 +55,28 @@ class ColumnwiseOperatorArg(OperatorArg):
         field maps to (W0, ...).
 
     '''
+    form = "GH_COLUMNWISE_OPERATOR"
+    
     def __init__(self, datatype=None, access=None, function_space1=None,
                  function_space2=None):
         super().__init__(datatype, access, function_space1, function_space2)
-        self._form = "GH_COLUMNWISE_OPERATOR"
 
     @staticmethod
-    def create_from_psyir(psyir):
-        '''Create an instance of this class from generic PSyIR. At this moment
-        this information is captured in an fparser2 tree.
+    def create_from_fparser2(fparser2_tree):
+        '''Create an instance of this class from an fparser2 tree.
 
-        :param psyir: fparser2 tree containing the PSyIR for a \
+        :param fparser2_tree: fparser2 tree capturing the metadata for a \
             columnwise operator argument.
-        :type psyir: :py:class:`fparser.two.Fortran2003.Part_Ref`
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
 
         :returns: an instance of ColumnwiseOperatorArg.
         :rtype: :py:class:`psyclone.domain.lfric.kernel.ColumnwiseOperatorArg`
 
         '''
-        ColumnwiseOperatorArg.check_psyir(psyir, nargs=5)
-        datatype = psyir.children[1].children[1].tostr()
-        access = psyir.children[1].children[2].tostr()
-        function_space1 = psyir.children[1].children[3].tostr()
-        function_space2 = psyir.children[1].children[4].tostr()
+        ColumnwiseOperatorArg.check_fparser2(fparser2_tree, nargs=5)
+        datatype = fparser2_tree.children[1].children[1].tostr()
+        access = fparser2_tree.children[1].children[2].tostr()
+        function_space1 = fparser2_tree.children[1].children[3].tostr()
+        function_space2 = fparser2_tree.children[1].children[4].tostr()
         return ColumnwiseOperatorArg(
             datatype, access, function_space1, function_space2)

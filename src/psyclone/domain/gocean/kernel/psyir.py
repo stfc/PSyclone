@@ -44,7 +44,7 @@ from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
 from fparser.two.utils import walk, get_child
 
-from psyclone.configuration import Config, VALID_NAME
+from psyclone.configuration import Config
 from psyclone.domain.gocean import GOceanConstants
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
@@ -447,7 +447,8 @@ class GOceanKernelMetadata():
         :raises ValueError: if the name is not valid.
 
         '''
-        if not value or not VALID_NAME.match(value):
+        config = Config.get()
+        if not value or not config.valid_name.match(value):
             raise ValueError(
                 f"Expected name to be a valid value but found '{value}'.")
         self._name = value
@@ -528,7 +529,8 @@ class GOceanKernelMetadata():
         :param str value: set the procedure name specified in the \
             metadata to the specified value.
         '''
-        if not value or not VALID_NAME.match(value):
+        config = Config.get()
+        if not value or not config.valid_name.match(value):
             raise ValueError(
                 f"Expected procedure_name to be a valid value but found "
                 f"'{value}'.")

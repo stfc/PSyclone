@@ -75,17 +75,16 @@ class FieldVectorArg(FieldArg):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.FieldVectorArg`
 
         '''
-        part_ref = FieldVectorArg.create_psyir(fortran_string)
-        return FieldVectorArg.create_from_psyir(part_ref)
+        fparser2_tree = FieldVectorArg.create_fparser2(fortran_string)
+        return FieldVectorArg.create_from_fparser2(fparser2_tree)
 
     @staticmethod
-    def create_from_psyir(psyir):
-        '''Create an instance of this class from generic PSyIR. At this moment
-        this information is captured in an fparser2 tree.
+    def create_from_fparser2(fparser2_tree):
+        '''Create an instance of this class from an fparser2 tree.
 
-        :param psyir: fparser2 tree containing the PSyIR for a field \
-            vector argument.
-        :type psyir: :py:class:`fparser.two.Fortran2003.Part_Ref`
+        :param fparser2_tree: fparser2 tree capturing the metadata \
+            for a field vector argument.
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
 
         :returns: an instance of this class.
         :rtype: :py:class:`psyclone.domain.lfric.kernel.FieldVectorArg`
@@ -94,8 +93,8 @@ class FieldVectorArg(FieldArg):
             the form datatype*vector_length.
 
         '''
-        FieldVectorArg.check_psyir(psyir, nargs=4)
-        vector_datatype = psyir.children[1].children[0].tostr()
+        FieldVectorArg.check_fparser2(fparser2_tree, nargs=4)
+        vector_datatype = fparser2_tree.children[1].children[0].tostr()
         components = vector_datatype.split("*")
         if len(components) != 2:
             raise TypeError(
@@ -103,9 +102,9 @@ class FieldVectorArg(FieldArg):
                 f"'form*vector_length' but found '{vector_datatype}'.")
         vector_length = components[1].strip()
 
-        datatype = psyir.children[1].children[1].tostr()
-        access = psyir.children[1].children[2].tostr()
-        function_space = psyir.children[1].children[3].tostr()
+        datatype = fparser2_tree.children[1].children[1].tostr()
+        access = fparser2_tree.children[1].children[2].tostr()
+        function_space = fparser2_tree.children[1].children[3].tostr()
         return FieldVectorArg(datatype, access, function_space, vector_length)
 
     def fortran_string(self):
@@ -125,7 +124,7 @@ class FieldVectorArg(FieldArg):
                 f"vector_length must be provided before calling the "
                 f"fortran_string method, but found '{self.datatype}', "
                 f"'{self.access}', '{self.function_space}' and "
-                f"'{self.vector_length}'.")
+                f"'{self.vector_length}', respectively.")
 
         return (f"arg_type({self.form}*{self.vector_length}, {self.datatype}, "
                 f"{self.access}, {self.function_space})")

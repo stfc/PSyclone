@@ -65,22 +65,21 @@ class InterGridVectorArg(InterGridArg):
             self.vector_length = vector_length
 
     @staticmethod
-    def create_from_psyir(psyir):
-        '''Create an instance of this class from generic PSyIR. At this moment
-        this information is captured in an fparser2 tree.
+    def create_from_fparser2(fparser2_tree):
+        '''Create an instance of this class from an fparser2 tree.
 
-        :param psyir: fparser2 tree containing the PSyIR for an InterGrid \
-            vector argument.
-        :type psyir: :py:class:`fparser.two.Fortran2003.Part_Ref`
+        :param fparser2_tree: fparser2 tree capturing the metadata for \
+            an InterGrid vector argument.
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
 
         :returns: an instance of InterGridVectorArg.
         :rtype: :py:class:`psyclone.domain.lfric.kernel.InterGridArg`
 
         '''
-        InterGridVectorArg.check_psyir(
-            psyir, nargs=5, encoding=Fortran2003.Structure_Constructor)
+        InterGridVectorArg.check_fparser2(
+            fparser2_tree, nargs=5, encoding=Fortran2003.Structure_Constructor)
 
-        vector_datatype = psyir.children[1].children[0].tostr()
+        vector_datatype = fparser2_tree.children[1].children[0].tostr()
         components = vector_datatype.split("*")
         if len(components) != 2:
             raise TypeError(
@@ -88,10 +87,10 @@ class InterGridVectorArg(InterGridArg):
                 f"'datatype*vector_length' but found '{vector_datatype}'.")
         vector_length = components[1].strip()
 
-        datatype = psyir.children[1].children[1].tostr()
-        access = psyir.children[1].children[2].tostr()
-        function_space = psyir.children[1].children[3].tostr()
-        mesh_arg = psyir.children[1].children[4].children[1].tostr()
+        datatype = fparser2_tree.children[1].children[1].tostr()
+        access = fparser2_tree.children[1].children[2].tostr()
+        function_space = fparser2_tree.children[1].children[3].tostr()
+        mesh_arg = fparser2_tree.children[1].children[4].children[1].tostr()
         return InterGridVectorArg(
             datatype, access, function_space, mesh_arg, vector_length)
 
@@ -112,7 +111,7 @@ class InterGridVectorArg(InterGridArg):
                 f"must be provided before calling the fortran_string method, "
                 f"but found '{self.datatype}', '{self.access}', "
                 f"'{self.function_space}', '{self.mesh_arg}' and "
-                f"'{self.vector_length}'.")
+                f"'{self.vector_length}', respectively.")
 
         return (f"arg_type({self.form}*{self.vector_length}, "
                 f"{self.datatype}, {self.access}, {self.function_space}, "

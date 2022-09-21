@@ -54,31 +54,31 @@ class FieldArg(CommonArg):
         field is on (W0, ...).
 
     '''
+    form = "GH_FIELD"
+
     def __init__(self, datatype=None, access=None, function_space=None):
         super().__init__(datatype, access)
-        self._form = "GH_FIELD"
         if function_space is None:
             self._function_space = function_space
         else:
             self.function_space = function_space
 
     @staticmethod
-    def create_from_psyir(psyir):
-        '''Create an instance of this class from generic PSyIR. At this moment
-        this information is captured in an fparser2 tree.
+    def create_from_fparser2(fparser2_tree):
+        '''Create an instance of this class from an fparser2 tree.
 
-        :param psyir: fparser2 tree representing the PSyIR for a field \
-            argument.
-        :type psyir: :py:class:`fparser.two.Fortran2003.Part_Ref`
+        :param fparser2_tree: fparser2 tree capturing the metadata for \
+            a field argument.
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
 
         :returns: an instance of FieldArg.
         :rtype: :py:class:`psyclone.domain.lfric.kernel.FieldArg`
 
         '''
-        FieldArg.check_psyir(psyir, nargs=4)
-        datatype = psyir.children[1].children[1].tostr()
-        access = psyir.children[1].children[2].tostr()
-        function_space = psyir.children[1].children[3].tostr()
+        FieldArg.check_fparser2(fparser2_tree, nargs=4)
+        datatype = fparser2_tree.children[1].children[1].tostr()
+        access = fparser2_tree.children[1].children[2].tostr()
+        function_space = fparser2_tree.children[1].children[3].tostr()
         return FieldArg(datatype, access, function_space)
 
     @classmethod
@@ -92,8 +92,8 @@ class FieldArg(CommonArg):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.cls`
 
         '''
-        part_ref = cls.create_psyir(fortran_string)
-        return cls.create_from_psyir(part_ref)
+        fparser2_tree = cls.create_fparser2(fortran_string)
+        return cls.create_from_fparser2(fparser2_tree)
 
     def fortran_string(self):
         '''

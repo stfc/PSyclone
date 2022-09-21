@@ -53,7 +53,7 @@ def test_init_noargs():
     '''
     operator_arg = ColumnwiseOperatorArg()
     assert isinstance(operator_arg, ColumnwiseOperatorArg)
-    assert operator_arg._form == "GH_COLUMNWISE_OPERATOR"
+    assert operator_arg.form == "GH_COLUMNWISE_OPERATOR"
     assert operator_arg._datatype is None
     assert operator_arg._access is None
     assert operator_arg._function_space1 is None
@@ -66,7 +66,7 @@ def test_init_args():
 
     '''
     operator_arg = ColumnwiseOperatorArg("GH_REAL", "GH_READ", "W0", "W1")
-    assert operator_arg._form == "GH_COLUMNWISE_OPERATOR"
+    assert operator_arg.form == "GH_COLUMNWISE_OPERATOR"
     assert operator_arg._datatype == "GH_REAL"
     assert operator_arg._access == "GH_READ"
     assert operator_arg._function_space1 == "W0"
@@ -87,7 +87,7 @@ def test_create_from_fortran_string():
     fortran_string = "arg_type(GH_OPERATOR, GH_REAL, GH_READ, W0, W1)"
     operator_arg = ColumnwiseOperatorArg.create_from_fortran_string(
         fortran_string)
-    assert operator_arg._form == "GH_COLUMNWISE_OPERATOR"
+    assert operator_arg.form == "GH_COLUMNWISE_OPERATOR"
     assert operator_arg._datatype == "GH_REAL"
     assert operator_arg._access == "GH_READ"
     assert operator_arg._function_space1 == "W0"
@@ -109,15 +109,15 @@ def create_part_ref(fortran_string):
     return Fortran2003.Part_Ref(reader)
 
 
-def test_create_from_psyir():
-    '''Test that the create_from_psyir static method works as
+def test_create_from_fparser2():
+    '''Test that the create_from_fparser2 static method works as
     expected. Test for exceptions as well as valid input.
 
     '''
     part_ref = create_part_ref(
         "arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, W0, W1)")
-    operator_arg = ColumnwiseOperatorArg.create_from_psyir(part_ref)
-    assert operator_arg._form == "GH_COLUMNWISE_OPERATOR"
+    operator_arg = ColumnwiseOperatorArg.create_from_fparser2(part_ref)
+    assert operator_arg.form == "GH_COLUMNWISE_OPERATOR"
     assert operator_arg._datatype == "GH_REAL"
     assert operator_arg._access == "GH_READ"
     assert operator_arg._function_space1 == "W0"

@@ -45,6 +45,8 @@ from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
 
 
+#TODO issue #1886. This class has commonalities with GOcean metadata
+#processing.
 class CommonArg(ABC):
     '''Abstract class to capture common LFRic kernel metadata.
 
@@ -54,7 +56,6 @@ class CommonArg(ABC):
 
     '''
     def __init__(self, datatype=None, access=None):
-        self._form = None
         if datatype is None:
             self._datatype = datatype
         else:
@@ -65,12 +66,11 @@ class CommonArg(ABC):
             self.access = access
 
     @staticmethod
-    def create_psyir(fortran_string, encoding=Fortran2003.Part_Ref):
-        '''Creates PSyIR from a Fortran string. In this case the PSyiR will be
-        encoded as an fparser2 tree as the PSyIR is not able to encode
-        the Fortran. The resultant parent node of the tree will be a
-        Part_Ref or a Structure_Constructor object (as it represents a
-        metadata argument).
+    def create_fparser2(fortran_string, encoding=Fortran2003.Part_Ref):
+        '''Creates an fparser2 tree from a Fortran string. The resultant
+        parent node of the tree will be a Part_Ref or a
+        Structure_Constructor object (as it represents a metadata
+        argument).
 
         :param str fortran_string: a string containing the metadata in \
            Fortran.
@@ -79,7 +79,7 @@ class CommonArg(ABC):
             Fortran2003.Part_Ref.
         :type encoding: Optional[type]
 
-        :returns: an fparser2 tree containing the PSyIR for a metadata \
+        :returns: an fparser2 tree containing a metadata \
             argument.
         :rtype: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`
@@ -90,35 +90,33 @@ class CommonArg(ABC):
         '''
         _ = ParserFactory().create(std="f2003")
         reader = FortranStringReader(fortran_string)
-        psyir = encoding(reader)
-        if not psyir:
+        fparser2_tree = encoding(reader)
+        if not fparser2_tree:
             raise ValueError(
                 f"Expected kernel metadata to be a Fortran "
                 f"{encoding.__name__}, with the form 'arg_type(...)' "
                 f"but found '{fortran_string}'.")
-        return psyir
+        return fparser2_tree
 
     @staticmethod
-    def check_psyir(psyir, nargs=4, encoding=Fortran2003.Part_Ref):
-        '''Checks that the PSyIR is valid. In this case the PSyiR will be
-        encoded as an fparser2 tree as the PSyIR is not able to encode
-        the Fortran.  The PSyIR may have a different number of
-        arguments depending on its type and it may be in the form of a
-        Fortran2003 Part_Ref or Fortran2003 Structure_Constructor.
+    def check_fparser2(fparser2_tree, nargs=4, encoding=Fortran2003.Part_Ref):
+        '''Checks that the fparser2 tree is valid. The metadata may have a
+        different number of arguments depending on its type (as
+        specified by nargs) and it will be in the form of a
+        Fortran2003 Part_Ref or a Fortran2003 Structure_Constructor.
 
-        :param psyir: fparser2 tree representing the PSyIR for a \
-            metadata argument.
-        :type psyir: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
+        :param fparser2_tree: fparser2 tree capturing a metadata argument.
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`
         :param Optional[int] nargs: the number of expected arguments. \
             Defaults to 4.
-        :param encoding: class in which the psyir argument should \
+        :param encoding: class in which the fparser2 tree should \
             be encoded. Defaults to fparser.two.Fortran2003.Part_Ref.
         :type encoding: Optional[ \
             :py:class:`fparser.two.Fortran2003.Part_Ref` | \
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`]
 
-        :raises TypeError: if the psyir argument is not an fparser2 \
+        :raises TypeError: if the fparser2_tree argument is not an fparser2 \
             Part_Ref or Structure_Constructor object.
         :raises ValueError: if the kernel metadata is not in \
             the form arg_type(...).
@@ -126,21 +124,21 @@ class CommonArg(ABC):
             the expected number of arguments (nargs).
 
         '''
-        if not isinstance(psyir, encoding):
+        if not isinstance(fparser2_tree, encoding):
             raise TypeError(
                 f"Expected kernel metadata to be encoded as a "
                 f"Fortran {encoding.__name__} object but found type "
-                f"'{type(psyir).__name__}' with value '{str(psyir)}'.")
-        if not psyir.children[0].tostr().lower() == "arg_type":
+                f"'{type(fparser2_tree).__name__}' with value '{str(fparser2_tree)}'.")
+        if not fparser2_tree.children[0].tostr().lower() == "arg_type":
             raise ValueError(
                 f"Expected kernel metadata to have the name "
                 f"'arg_type' and be in the form 'arg_type(...)', but found "
-                f"'{str(psyir)}'.")
-        if len(psyir.children[1].children) != nargs:
+                f"'{str(fparser2_tree)}'.")
+        if len(fparser2_tree.children[1].children) != nargs:
             raise ValueError(
                 f"Expected kernel metadata to have {nargs} "
-                f"arguments, but found {len(psyir.children[1].children)} in "
-                f"'{str(psyir)}'.")
+                f"arguments, but found {len(fparser2_tree.children[1].children)} in "
+                f"'{str(fparser2_tree)}'.")
 
     @property
     def datatype(self):
@@ -186,12 +184,3 @@ class CommonArg(ABC):
         '''
         self.check_access(value)
         self._access = value
-
-    @property
-    def form(self):
-        '''
-        :returns: the form descriptor for this scalar \
-            argument. This is always GH_SCALAR.
-        :rtype: str
-        '''
-        return self._form

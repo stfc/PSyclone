@@ -67,21 +67,21 @@ class InterGridArg(FieldArg):
             self.mesh_arg = mesh_arg
 
     @staticmethod
-    def create_from_psyir(psyir):
-        '''Create an instance of this class from generic PSyIR. At this moment
-        this information is captured in an fparser2 tree.
+    def create_from_fparser2(fparser2_tree):
+        '''Create an instance of this class from an fparser2 tree.
 
-        :param psyir: fparser2 tree containing the PSyIR for an InterGrid \
-            argument.
-        :type psyir: :py:class:`fparser.two.Fortran2003.Structure_Constructor`
+        :param fparser2_tree: fparser2 tree capturing the metadata for \
+            an InterGrid argument.
+        :type fparser2_tree: \
+            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
 
         :returns: an instance of InterGridArg.
         :rtype: :py:class:`psyclone.domain.lfric.kernel.InterGridArg`
 
         '''
-        InterGridArg.check_psyir(
-            psyir, nargs=5, encoding=Fortran2003.Structure_Constructor)
-        args = psyir.children[1]
+        InterGridArg.check_fparser2(
+            fparser2_tree, nargs=5, encoding=Fortran2003.Structure_Constructor)
+        args = fparser2_tree.children[1]
         datatype = args.children[1].tostr()
         access = args.children[2].tostr()
         function_space = args.children[3].tostr()
@@ -99,9 +99,9 @@ class InterGridArg(FieldArg):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.cls`
 
         '''
-        structure_constructor = cls.create_psyir(
+        fparser2_tree = cls.create_fparser2(
             fortran_string, encoding=Fortran2003.Structure_Constructor)
-        return cls.create_from_psyir(structure_constructor)
+        return cls.create_from_fparser2(fparser2_tree)
 
     def fortran_string(self):
         '''
@@ -119,7 +119,8 @@ class InterGridArg(FieldArg):
                 f"Values for datatype, access, function_space and mesh_arg "
                 f"must be provided before calling the fortran_string method, "
                 f"but found '{self.datatype}', '{self.access}', "
-                f"'{self.function_space}' and '{self.mesh_arg}'.")
+                f"'{self.function_space}' and '{self.mesh_arg}', "
+                f"respectively.")
 
         return (f"arg_type({self.form}, {self.datatype}, {self.access}, "
                 f"{self.function_space}, mesh_arg={self.mesh_arg})")

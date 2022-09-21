@@ -52,7 +52,7 @@ def test_init_noargs():
     '''
     field_arg = FieldArg()
     assert isinstance(field_arg, FieldArg)
-    assert field_arg._form == "GH_FIELD"
+    assert field_arg.form == "GH_FIELD"
     assert field_arg._datatype is None
     assert field_arg._access is None
     assert field_arg._function_space is None
@@ -99,7 +99,7 @@ def test_init_args():
 
     '''
     field_arg = FieldArg("GH_REAL", "GH_READ", "W0")
-    assert field_arg._form == "GH_FIELD"
+    assert field_arg.form == "GH_FIELD"
     assert field_arg._datatype == "GH_REAL"
     assert field_arg._access == "GH_READ"
     assert field_arg._function_space == "W0"
@@ -118,7 +118,7 @@ def test_create_from_fortran_string():
 
     fortran_string = "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)"
     field_arg = FieldArg.create_from_fortran_string(fortran_string)
-    assert field_arg._form == "GH_FIELD"
+    assert field_arg.form == "GH_FIELD"
     assert field_arg._datatype == "GH_REAL"
     assert field_arg._access == "GH_READ"
     assert field_arg._function_space == "W0"
@@ -139,33 +139,33 @@ def create_part_ref(fortran_string):
     return Fortran2003.Part_Ref(reader)
 
 
-def test_create_from_psyir():
-    '''Test that the create_from_psyir static method works as
+def test_create_from_fparser2():
+    '''Test that the create_from_fparser2 static method works as
     expected. Test for exceptions as well as valid input.
 
     '''
     with pytest.raises(TypeError) as info:
-        _ = FieldArg.create_from_psyir("hello")
+        _ = FieldArg.create_from_fparser2("hello")
     assert ("Expected kernel metadata to be encoded as a Fortran "
             "Part_Ref object but found type 'str' with value 'hello'."
             in str(info.value))
 
     part_ref = create_part_ref("hello(x)")
     with pytest.raises(ValueError) as info:
-        _ = FieldArg.create_from_psyir(part_ref)
+        _ = FieldArg.create_from_fparser2(part_ref)
     assert ("Expected kernel metadata to have the name 'arg_type' "
             "and be in the form 'arg_type(...)', but found 'hello(x)'."
             in str(info.value))
 
     part_ref = create_part_ref("arg_type(x)")
     with pytest.raises(ValueError) as info:
-        _ = FieldArg.create_from_psyir(part_ref)
+        _ = FieldArg.create_from_fparser2(part_ref)
     assert ("Expected kernel metadata to have 4 arguments, but "
             "found 1 in 'arg_type(x)'." in str(info.value))
 
     part_ref = create_part_ref("arg_type(GH_FIELD, GH_REAL, GH_READ, W0)")
-    field_arg = FieldArg.create_from_psyir(part_ref)
-    assert field_arg._form == "GH_FIELD"
+    field_arg = FieldArg.create_from_fparser2(part_ref)
+    assert field_arg.form == "GH_FIELD"
     assert field_arg._datatype == "GH_REAL"
     assert field_arg._access == "GH_READ"
     assert field_arg._function_space == "W0"
@@ -185,7 +185,7 @@ def test_fortran_string():
         _ = field_arg.fortran_string()
     assert ("Values for datatype, access and function_space must be provided "
             "before calling the fortran_string method, but found 'None', "
-            "'None' and 'None'." in str(info.value))
+            "'None' and 'None', respectively." in str(info.value))
 
 
 def test_setter_getter():

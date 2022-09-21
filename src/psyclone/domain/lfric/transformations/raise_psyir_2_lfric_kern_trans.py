@@ -43,7 +43,7 @@ from psyclone.psyir.transformations import TransformationError
 from psyclone.domain.lfric.kernel.lfric_kernel_metadata import \
     LFRicKernelMetadata
 from psyclone.domain.lfric.kernel.psyir import LFRicContainer
-from psyclone.configuration import VALID_NAME
+from psyclone.configuration import Config
 
 # TODO issue #1877. Find an appropriate place for the find_symbol()
 # method as it can be useful beyond this particular
@@ -146,7 +146,8 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
                 f"containing the metadata to be provided in the options"
                 f"argument with lookup name 'metadata_name'.") from info
 
-        if not VALID_NAME.match(metadata_name):
+        config = Config.get()
+        if not config.valid_name.match(metadata_name):
             raise TransformationError(
                 f"Error in {self.name} transformation. This "
                 f"transformation requires the name of the variable "

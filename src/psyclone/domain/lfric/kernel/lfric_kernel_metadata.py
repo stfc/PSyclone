@@ -42,7 +42,7 @@ from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
 from fparser.two.utils import walk, get_child
 
-from psyclone.configuration import VALID_NAME
+from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.columnwise_operator_arg import \
     ColumnwiseOperatorArg
@@ -135,8 +135,18 @@ class LFRicKernelMetadata():
             self._meta_mesh = []
             # TODO issue #1879. META_MESH is not parsed correctly yet.
 
-        self._procedure_name = procedure_name if procedure_name else None
-        self._name = name if name else None
+        if procedure_name:
+            # Validate procedure_name via setter
+            self.procedure_name = procedure_name
+        else:
+            # Don't validate
+            self._procedure_name = None
+        if name:
+            # Validate name via setter
+            self.name = name
+        else:
+            # Don't validate
+            self._name = None
 
     @staticmethod
     def create_from_psyir(symbol):
@@ -244,11 +254,11 @@ class LFRicKernelMetadata():
             form = meta_arg.children[1].children[0].tostr()
             form = form.lower()
             if form == "gh_scalar":
-                arg = ScalarArg.create_from_psyir(meta_arg)
+                arg = ScalarArg.create_from_fparser2(meta_arg)
             elif form == "gh_operator":
-                arg = OperatorArg.create_from_psyir(meta_arg)
+                arg = OperatorArg.create_from_fparser2(meta_arg)
             elif form == "gh_columnwise_operator":
-                arg = ColumnwiseOperatorArg.create_from_psyir(meta_arg)
+                arg = ColumnwiseOperatorArg.create_from_fparser2(meta_arg)
             elif "gh_field" in form:
                 vector_arg = "gh_field" in form and "*" in form
                 nargs = len(meta_arg.children[1].children)
@@ -258,13 +268,13 @@ class LFRicKernelMetadata():
                     intergrid_arg = fifth_arg.children[0].string == "mesh_arg"
 
                 if intergrid_arg and vector_arg:
-                    arg = InterGridVectorArg.create_from_psyir(meta_arg)
+                    arg = InterGridVectorArg.create_from_fparser2(meta_arg)
                 elif intergrid_arg and not vector_arg:
-                    arg = InterGridArg.create_from_psyir(meta_arg)
+                    arg = InterGridArg.create_from_fparser2(meta_arg)
                 elif vector_arg and not intergrid_arg:
-                    arg = FieldVectorArg.create_from_psyir(meta_arg)
+                    arg = FieldVectorArg.create_from_fparser2(meta_arg)
                 else:
-                    arg = FieldArg.create_from_psyir(meta_arg)
+                    arg = FieldArg.create_from_fparser2(meta_arg)
             else:
                 raise ParseError(
                     f"Expected a 'meta_arg' entry to be a "
@@ -477,7 +487,8 @@ class LFRicKernelMetadata():
         :raises ValueError: if the metadata has an invalid value.
 
         '''
-        if not value or not VALID_NAME.match(value):
+        config = Config.get()
+        if not value or not config.valid_name.match(value):
             raise ValueError(
                 f"Expected procedure_name to be a valid Fortran name but "
                 f"found '{value}'.")
@@ -502,7 +513,8 @@ class LFRicKernelMetadata():
         :raises ValueError: if the name is not valid.
 
         '''
-        if not value or not VALID_NAME.match(value):
+        config = Config.get()
+        if not value or not config.valid_name.match(value):
             raise ValueError(
                 f"Expected name to be a valid value but found '{value}'.")
         self._name = value
