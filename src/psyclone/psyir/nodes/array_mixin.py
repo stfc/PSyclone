@@ -41,10 +41,12 @@
 import abc
 
 from psyclone.errors import InternalError
+from psyclone.psyir.nodes.call import Call
+from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.member import Member
-from psyclone.psyir.nodes.operation import BinaryOperation
+from psyclone.psyir.nodes.operation import Operation, BinaryOperation
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import SymbolError
@@ -359,22 +361,69 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         :returns: the shape of the array access represented by this node.
         :rtype: List[:py:class:`psyclone.psyir.nodes.DataNode`]
 
+        :raises NotImplementedError: if any of the array-indices involve a
+                                     function call or an expression.
         '''
+        def _num_elements(expr):
+            '''
+            Create PSyIR for the number of elements in this range. It
+            is given by (stop - start)/step + 1.
+
+            :param expr: the range for which to compute the number of elements.
+            :type expr: :py:class:`psyclone.psyir.nodes.Range` or \
+                :py:class:`psyclone.psyir.symbols.ArrayType.ArrayBounds`
+
+            :returns: the PSyIR expression for the number of elements in the \
+                      supplied range.
+            :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation`
+
+            '''
+            if isinstance(expr, Range):
+                start = expr.start
+                stop = expr.stop
+                step = expr.step
+            elif isinstance(expr, ArrayType.ArrayBounds):
+                start = expr.lower
+                stop = expr.upper
+                step = Literal("1", INTEGER_TYPE)
+            minus = BinaryOperation.create(BinaryOperation.Operator.SUB,
+                                           stop.copy(), start.copy())
+            div = BinaryOperation.create(BinaryOperation.Operator.DIV,
+                                         minus, step.copy())
+            plus = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                          div, Literal("1", INTEGER_TYPE))
+            return plus
+
         shape = []
         for idx_expr in self.indices:
             if isinstance(idx_expr, Range):
-                # Create PSyIR for the number of elements in this range. It
-                # is given by (stop - start)/step + 1.
-                minus = BinaryOperation.create(
-                    BinaryOperation.Operator.SUB,
-                    idx_expr.stop.copy(), idx_expr.start.copy())
-                div = BinaryOperation.create(
-                    BinaryOperation.Operator.DIV,
-                    minus, idx_expr.step.copy())
-                plus = BinaryOperation.create(
-                    BinaryOperation.Operator.ADD,
-                    div, Literal("1", INTEGER_TYPE))
-                shape.append(plus)
+                shape.append(_num_elements(idx_expr))
+
+            elif isinstance(idx_expr, Reference):
+                dtype = idx_expr.datatype
+                if dtype.shape:
+                    # An array slice can be defined by a 1D slice of another
+                    # array, e.g. `a(b(1:4))`.
+                    if len(dtype.shape) > 1:
+                        raise InternalError(
+                            f"An array defining a slice of a dimension of "
+                            f"another array must be 1D but '{idx_expr.name}' "
+                            f"used to index into '{self.name}' has "
+                            f"{len(dtype.shape)} dimensions.")
+                    shape.append(_num_elements(dtype.shape[0]))
+            elif isinstance(idx_expr, (Call, Operation, CodeBlock)):
+                # We can't yet straightforwardly query the type of a function
+                # call or Operation - TODO #1799.
+                # pylint: disable=import-outside-toplevel
+                from psyclone.psyir.backend.fortran import FortranWriter
+                # TODO #1887 - get type of writer to use from Config object?
+                fvisitor = FortranWriter()
+                raise NotImplementedError(
+                    f"The array index expressions for access "
+                    f"'{fvisitor(self)}' include a function call or "
+                    f"expression. Querying the return type of "
+                    f"such things is yet to be implemented.")
+
         return shape
 
     def get_outer_range_index(self):

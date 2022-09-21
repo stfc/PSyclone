@@ -496,7 +496,7 @@ class ArrayType(DataType):
             :raises TypeError: if the DataNode is not valid in this context.
 
             '''
-            # When issue #685 is addressed then check that the
+            # When issue #1799 is addressed then check that the
             # datatype returned is an int (or is unknown). For the
             # moment, just check that if the DataNode is a
             # Reference then the associated symbol is a scalar
@@ -504,16 +504,20 @@ class ArrayType(DataType):
             if isinstance(dim_node, Reference):
                 # Check the DataSymbol instance is a scalar
                 # integer or is unknown
-                symbol = dim_node.symbol
-                if not ((symbol.is_scalar and symbol.datatype.intrinsic ==
-                         ScalarType.Intrinsic.INTEGER) or
-                        isinstance(symbol.datatype,
-                                   (UnknownFortranType, DeferredType))):
+                dtype = dim_node.datatype
+                if isinstance(dtype, ArrayType) and dtype.shape:
                     raise TypeError(
                         f"If a DataSymbol is referenced in a dimension "
-                        f"declaration then it should be a scalar integer or "
+                        f"declaration then it should be a scalar but "
+                        f"'{dim_node}' is not.")
+                if (not isinstance(dtype, (UnknownType, DeferredType)) or
+                        dim_node.datatype.intrinsic !=
+                        ScalarType.Intrinsic.INTEGER):
+                    raise TypeError(
+                        f"If a DataSymbol is referenced in a dimension "
+                        f"declaration then it should be an integer or "
                         f"of UnknownType or DeferredType, but "
-                        f"'{symbol.name}' is a '{symbol.datatype}'.")
+                        f"'{dim_node.name}' is a '{dtype}'.")
                 # TODO #1089 - add check that any References are not to a
                 # local datasymbol that is not constant (as this would have
                 # no value).
