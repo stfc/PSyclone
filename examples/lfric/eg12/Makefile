@@ -41,17 +41,14 @@ include ../../common.mk
 transform: extract extract_transformed find_kernel
 
 extract:
-	@echo "SKIP"
-# ${PSYCLONE} -nodm -s ./extract_nodes.py ../code/gw_mixed_schur_preconditioner_alg_mod.x90
+	${PSYCLONE} -nodm -s ./extract_nodes.py ../code/gw_mixed_schur_preconditioner_alg_mod.x90
 
 extract_transformed:
-	@echo "SKIP"
-# ${PSYCLONE} -nodm -s ./extract_kernel_with_transformations.py \
-#  ../code/gw_mixed_schur_preconditioner_alg_mod.x90
+	${PSYCLONE} -nodm -s ./extract_kernel_with_transformations.py \
+  ../code/gw_mixed_schur_preconditioner_alg_mod.x90
 
 find_kernel:
-	@echo "SKIP"
-# PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg ${PYTHON} find_kernel.py
+	PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg ${PYTHON} find_kernel.py
 
 compile: transform
 	@echo "No compilation supported for lfric/eg12"
