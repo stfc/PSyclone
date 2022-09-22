@@ -41,8 +41,8 @@
 
 '''
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import Range, Reference, ArrayReference, Literal, \
-    BinaryOperation, Loop
+from psyclone.psyir.nodes import (Range, Reference, ArrayReference, Literal,
+                                  BinaryOperation)
 from psyclone.psyir.symbols import INTEGER_TYPE, ArrayType
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
