@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,6 @@
 
 ''' Performs py.test tests on the Assignment PSyIR node. '''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.errors import InternalError, GenerationError
 from psyclone.f2pygen import ModuleGen
@@ -78,7 +77,7 @@ def test_assignment_semantic_navigation():
     assert "' malformed or incomplete. It needs at least 1 child to have " \
         "a lhs." in str(err.value)
 
-    ref = Reference(DataSymbol("a", REAL_SINGLE_TYPE), assignment)
+    ref = Reference(DataSymbol("a", REAL_SINGLE_TYPE), parent=assignment)
     assignment.addchild(ref)
 
     # rhs should fail if second child is not present

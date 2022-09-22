@@ -3523,7 +3523,7 @@ class Fparser2Reader(object):
 
         '''
         symbol = _find_or_create_imported_symbol(parent, node.string)
-        return Reference(symbol, parent)
+        return Reference(symbol, parent=parent)
 
     def _parenthesis_handler(self, node, parent):
         '''
@@ -3569,9 +3569,9 @@ class Fparser2Reader(object):
         symbol = _find_or_create_imported_symbol(parent, reference_name)
 
         if isinstance(symbol, RoutineSymbol):
-            call_or_array = Call(symbol, parent)
+            call_or_array = Call(symbol, parent=parent)
         else:
-            call_or_array = ArrayReference(symbol, parent)
+            call_or_array = ArrayReference(symbol, parent=parent)
         self.process_nodes(parent=call_or_array, nodes=node.items[1].items)
         return call_or_array
 

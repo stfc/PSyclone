@@ -38,15 +38,14 @@
 
 ''' Performs py.test tests of the ArrayReference PSyIR node. '''
 
-from __future__ import absolute_import
 import pytest
+from psyclone.errors import GenerationError, InternalError
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.nodes import Reference, ArrayReference, Assignment, \
     Literal, BinaryOperation, Range, KernelSchedule
-from psyclone.psyir.symbols import DataSymbol, ArrayType, \
+from psyclone.psyir.symbols import DataSymbol, ArrayType, ScalarType, \
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, INTEGER_TYPE
-from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
 
 
@@ -65,11 +64,14 @@ def test_array_can_be_printed():
     '''Test that an ArrayReference instance can always be printed (i.e. is
     initialised fully)'''
     kschedule = KernelSchedule("kname")
-    symbol = DataSymbol("aname", INTEGER_SINGLE_TYPE)
+    symbol = DataSymbol("aname", ArrayType(INTEGER_SINGLE_TYPE, [10]))
     kschedule.symbol_table.add(symbol)
     assignment = Assignment()
-    array = ArrayReference(symbol, assignment)
+    array = ArrayReference(symbol, parent=assignment)
     assert "ArrayReference[name:'aname']\n" in str(array)
+    array2 = ArrayReference.create(symbol, [Literal("1", INTEGER_TYPE)])
+    assert ("ArrayReference[name:'aname']\nLiteral[value:'1', "
+            "Scalar<INTEGER, UNDEFINED>]" in str(array2))
 
 
 def test_array_create():
@@ -482,3 +484,29 @@ def test_array_same_array():
     # A Reference to the array symbol should also match
     bare_array = Reference(test_sym)
     assert array.is_same_array(bare_array) is True
+
+
+def test_array_datatype(fortran_writer):
+    '''Test the datatype() method for an ArrayReference.'''
+    test_sym = DataSymbol("test", ArrayType(REAL_TYPE, [10]))
+    one = Literal("1", INTEGER_TYPE)
+    two = Literal("2", INTEGER_TYPE)
+    four = Literal("4", INTEGER_TYPE)
+    # Reference to a single element of an array.
+    aref = ArrayReference.create(test_sym, [one])
+    assert aref.datatype == REAL_TYPE
+    # Reference to a 1D sub-array of a 2D array.
+    test_sym2d = DataSymbol("test", ArrayType(REAL_TYPE, [10, 8]))
+    bref = ArrayReference.create(test_sym2d, [two.copy(),
+                                              Range.create(two.copy(),
+                                                           four.copy())])
+    assert isinstance(bref.datatype, ArrayType)
+    assert bref.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    assert len(bref.datatype.shape) == 1
+    # The sub-array will have a lower bound of one.
+    assert bref.datatype.shape[0].lower == one
+    upper = bref.datatype.shape[0].upper
+    assert isinstance(upper, BinaryOperation)
+    # The easiest way to check the expression is to convert it to Fortran
+    code = fortran_writer(upper)
+    assert code == "(4 - 2) / 1 + 1"
