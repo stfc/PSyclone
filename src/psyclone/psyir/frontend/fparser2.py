@@ -3554,10 +3554,10 @@ class Fparser2Reader(object):
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
-        :raises NotImplementedError: If the fparser node represents \
+        :raises NotImplementedError: if the fparser node represents \
             unsupported PSyIR features and should be placed in a CodeBlock.
 
-        :returns: PSyIR representation of node.
+        :returns: the PSyIR node.
         :rtype: :py:class:`psyclone.psyir.nodes.ArrayReference` or \
             :py:class:`psyclone.psyir.nodes.Call`
 
