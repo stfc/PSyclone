@@ -1232,16 +1232,49 @@ class KernelModuleInlineTrans(KernelTrans):
 
         if not options:
             options = {}
-        inline = options.get("inline", True)
 
-        # set kernel's inline status
-        if node.module_inline == inline:
-            # issue a warning here when we implement logging
-            # print "Warning, Kernel inline is already set to "+str(inline)
-            pass
+        name = node.name
+        try:
+            existing_symbol = node.scope.symbol_table.lookup(name)
+        except KeyError:
+            existing_symbol = None
+
+        if not existing_symbol:
+            # If it doesn't exist already, module-inline the subroutine by:
+            # 1) Registering the subroutine symbol in the Container
+            from psyclone.psyir.symbols import RoutineSymbol
+            from psyclone.psyir.nodes import Literal
+            node.root.symbol_table.add(RoutineSymbol(name))
+            # 2) Insert the relevant code into the tree.
+            inlined_code = node.get_kernel_schedule()
+
+            import pdb; pdb.set_trace()
+            for container in inlined_code.ancestor(Container):
+                cont
+
+            for reference in inlined_code.walk(Reference):
+                try:
+                    reference.scope.symbol_table.lookup(
+                        reference.symbol.name,
+                        scope_limit=inlined_code
+                    )
+                except KeyError:
+                    import pdb; pdb.set_trace()
+            for literal in inlined_code.walk(Literal):
+                if isinstance(lit.datatype.precision, DataSymbol):
+                    name = lit.datatype.precision.name
+
+
+            import pdb; pdb.set_trace()
+
+
+            node.root.addchild(inlined_code.detach())
+
+            
+
         else:
-            node.module_inline = inline
-
+            import pdb; pdb.set_trace()
+        
 
 class Dynamo0p3ColourTrans(ColourTrans):
 

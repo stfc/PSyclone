@@ -1030,35 +1030,6 @@ def test_module_inline_with_transformation(tmpdir):
     assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
-def test_module_no_inline_with_transformation(tmpdir):
-    ''' Test that we can switch off the inlining of a kernel routine
-    into the PSy layer module using a transformation. Relies on the
-    test_module_inline() test being successful to be a valid test. '''
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
-                             dist_mem=False)
-    schedule = invoke.schedule
-    kern_call = schedule.children[0].loop_body[0].loop_body[0]
-    # directly switch on inlining
-    kern_call.module_inline = True
-    inline_trans = KernelModuleInlineTrans()
-    # use a transformation to switch inlining off again
-    inline_trans.apply(kern_call, {"inline": False})
-    gen = str(psy.gen)
-    # check that the subroutine has not been inlined
-    assert 'SUBROUTINE compute_cu_code(i, j, cu, p, u)' not in gen
-    # check that the associated use exists (as this is removed when
-    # inlining)
-    assert 'USE compute_cu_mod, ONLY: compute_cu_code' in gen
-    assert GOceanBuild(tmpdir).code_compiles(psy)
-
-
-# we can not test if someone accidentally sets module_inline to True
-# to an object that is not a Kernel as Python allows one to
-# dynamically add new variables to an object. Therefore an error is
-# never thrown. This would be testable if "inline" were a function.
-# def test_inline_error_if_not_kernel():
-
-
 def test_transformation_inline_error_if_not_kernel():
     ''' Test that the inline transformation fails if the object being
     passed is not a kernel'''
