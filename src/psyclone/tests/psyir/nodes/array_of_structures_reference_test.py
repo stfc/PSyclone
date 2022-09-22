@@ -188,8 +188,7 @@ def test_asr_datatype():
     # member of it.
     asref = nodes.ArrayOfStructuresReference.create(
         ssym, [two.copy()], ["nx"])
-    assert isinstance(asref.datatype, symbols.ScalarType)
-    assert asref.datatype.intrinsic == symbols.ScalarType.Intrinsic.INTEGER
+    assert asref.datatype == symbols.INTEGER_TYPE
     # Reference to a range of members of the array of structures and to the
     # "nx" member of each.
     my_range = nodes.Range.create(two.copy(),

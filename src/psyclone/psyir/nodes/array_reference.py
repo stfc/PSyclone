@@ -114,10 +114,9 @@ class ArrayReference(ArrayMixin, Reference):
         shape = self._get_effective_shape()
         if shape:
             return ArrayType(self.symbol.datatype, shape)
-        # Really we should just be able to return self.symbol.datatype
-        # here but currently arrays of scalars are handled in a
-        # different way to all other types of array. Issue #1857 will
-        # fix this anomaly.
+        # TODO #1857: Really we should just be able to return
+        # self.symbol.datatype here but currently arrays of scalars are
+        # handled in a different way to all other types of array.
         return ScalarType(self.symbol.datatype.intrinsic,
                           self.symbol.datatype.precision)
 
