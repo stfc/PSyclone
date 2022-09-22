@@ -158,12 +158,15 @@ def test_new_kern_no_clobber(kernel_outputdir, monkeypatch):
     [("testkern_mod", "testkern"),
      ("testkern", "testkern_code"),
      ("testkern1_mod", "testkern2_code")])
-def test_kernel_module_name(mod_name, sub_name, monkeypatch):
+def test_kernel_module_name(kernel_outputdir, mod_name, sub_name, monkeypatch):
     '''Check that there is no limitation on kernel and module names. In
     particular check that the names do not have to conform to the
     <name>_mod, <name>_code convention.
 
     '''
+    # Argument kernel_outputdir is needed to capture the files created by
+    # the rename_and_write() call
+    # pylint: disable=unused-argument
     _, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
     sched = invoke.schedule
     kernels = sched.coded_kernels()
