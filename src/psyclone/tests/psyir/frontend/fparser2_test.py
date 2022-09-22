@@ -37,7 +37,6 @@
 
 ''' Performs py.test tests on the fparser2 PSyIR front-end '''
 
-from __future__ import absolute_import
 import pytest
 
 import fparser
@@ -421,7 +420,7 @@ def test_array_notation_rank():
     # An array with no dimensions raises an exception
     array_type = ArrayType(REAL_TYPE, [10])
     symbol = DataSymbol("a", array_type)
-    array = ArrayReference(symbol, [])
+    array = ArrayReference(symbol)
     with pytest.raises(InternalError) as excinfo:
         Fparser2Reader._array_notation_rank(array)
     assert ("ArrayReference malformed or incomplete: must have one or more "
