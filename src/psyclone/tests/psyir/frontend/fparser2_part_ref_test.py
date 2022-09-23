@@ -118,13 +118,12 @@ def test_handling_part_ref_expression():
     assert len(new_node.children) == 3  # Array dimensions
 
 
-@pytest.mark.usefixtures("f2008_parser")
-def test_handling_part_ref_function(parser):
-    ''' Test that fparser2 Part_Ref is converted to the expected PSyIR
-    tree structure when there is a function.
+def test_handling_part_ref_function(fortran_reader):
+    '''Test that fparser2 Part_Ref is converted to the expected PSyIR
+    tree structure when there is a function. The function will be a
+    part_ref but will have a RoutineSymbol.
+
     '''
-    # Note, the function will be a part_ref but will have a
-    # RoutineSymbol
     code = (
         "module test_mod\n"
         "contains\n"
@@ -138,17 +137,13 @@ def test_handling_part_ref_function(parser):
         "    test_func = i\n"
         "  end function test_func\n"
         "end module\n")
-    reader = FortranStringReader(code)
-    ast = parser(reader)
-    processor = Fparser2Reader()
-    node = processor.generate_psyir(ast)
+    psyir = fortran_reader.psyir_from_source(code)
 
-    function = node.children[0].children[1]
+    function = psyir.children[0].children[1]
     assert isinstance(function, Routine)
     assert isinstance(function.return_symbol, DataSymbol)
     assert isinstance(function.return_symbol.datatype, ScalarType)
-
-    call = node.children[0].children[0].children[0].rhs
+    call = psyir.children[0].children[0].children[0].rhs
     assert isinstance(call, Call)
     assert call.routine.name == "test_func"
     symbol = call.scope.symbol_table.lookup("test_func")
