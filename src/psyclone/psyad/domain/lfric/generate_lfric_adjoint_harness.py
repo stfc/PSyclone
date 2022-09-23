@@ -42,7 +42,8 @@ from psyclone.domain.lfric.algorithm.psyir import (
 from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
 from psyclone.errors import InternalError
 from psyclone.psyad.domain.common.adjoint_utils import (create_adjoint_name,
-                                                        create_real_comparison)
+                                                        create_real_comparison,
+                                                        find_container)
 from psyclone.psyir.nodes import (Call, Reference, ArrayReference, Assignment,
                                   Literal, BinaryOperation, Routine)
 from psyclone.psyir.symbols import (ImportInterface, ContainerSymbol,
@@ -267,44 +268,50 @@ def _init_fields_random(fields, input_symbols, table):
     return kernel_list
 
 
-def generate_lfric_adjoint_harness(tl_source):
+def generate_lfric_adjoint_harness(tl_psyir):
     '''
     Constructs and returns the PSyIR for a Container and Routine that
     implements a test harness for the adjoint of the supplied tangent-linear
     kernel.
 
-    :param str tl_source: the Fortran source of an LFRic module defining a \
-                          tangent-linear kernel.
+    :param tl_psyir: the PSyIR of an LFRic module defining a \
+                     tangent-linear kernel.
+    :type tl_psyir: :py:class:`psyclone.psyir.nodes.Container`
 
     :returns: PSyIR of an Algorithm that tests the adjoint of the supplied \
               LFRic TL kernel.
     :rtype: :py:class:`psyclone.psyir.nodes.Container`
 
-    :raises ValueError: if the supplied source results in an empty parse tree \
-                        or does not contain a module.
+    :raises ValueError: if the supplied PSyIR does not have a Container (that \
+                        is *not* a FileContainer).
     :raises ValueError: if the name of the module in the parse tree does not \
                         follow the LFRic naming convention of ending in '_mod'.
     '''
+    tl_container = find_container(tl_psyir)
+    if not tl_container:
+        raise ValueError(
+            f"Test harness code can only be generated if the supplied TL "
+            f"kernel is within a module (Container) but the supplied PSyIR "
+            f"does not have a Container node:\n{tl_psyir.view()}")
+
     lfalg = LFRicAlg()
     container = lfalg.create_alg_routine("adjoint_test")
     routine = container.walk(Routine)[0]
     table = routine.symbol_table
 
-    # Parse the kernel metadata (this still uses fparser1 as that's what
-    # the meta-data handling is currently based upon).
+    # Parse the kernel metadata . This still uses fparser1 as that's what
+    # the meta-data handling is currently based upon. We therefore have to
+    # convert back from PSyIR to Fortran for the moment.
     # TODO #1806 - replace this with the new PSyIR-based metadata handling.
+    # pylint: disable=import-outside-toplevel
+    from psyclone.psyir.backend.fortran import FortranWriter
+    writer = FortranWriter()
+    tl_source = writer(tl_container)
     parse_tree = fpapi.parse(tl_source)
-    if not parse_tree.content:
-        raise ValueError(f"Supplied TL code ('{tl_source}') is empty.")
-
-    if parse_tree.content[0].blocktype != "module":
-        raise ValueError(
-            f"Test harness code can only be generated if the supplied TL "
-            f"kernel is within a module but got: '{tl_source}'")
 
     # Get the name of the module that contains the kernel and create a
     # ContainerSymbol for it.
-    kernel_mod_name = parse_tree.content[0].name.lower()
+    kernel_mod_name = tl_container.name.lower()
     if not kernel_mod_name.endswith("_mod"):
         raise ValueError(
             f"The supplied LFRic TL kernel is contained within a module named "
@@ -331,6 +338,8 @@ def generate_lfric_adjoint_harness(tl_source):
 
     # Construct a DynKern using the metadata and then use it to construct
     # the kernel argument list.
+    # TODO #1806 - once we have the new PSyIR-based metadata handling then
+    # we can pass PSyIR to this routine rather than an fparser1 parse tree.
     kern = lfalg.kernel_from_metadata(parse_tree, kernel_name)
     kern_args = lfalg.construct_kernel_args(routine, kern)
 

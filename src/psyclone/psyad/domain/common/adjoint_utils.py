@@ -40,7 +40,7 @@ from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (UnaryOperation, BinaryOperation,
                                   Reference, Assignment, IfBlock,
-                                  Container, FileContainer)
+                                  Container, FileContainer, Node)
 from psyclone.psyir.symbols import DataSymbol
 
 
@@ -138,6 +138,9 @@ def find_container(psyir):
     FileContainer. Also validates that the PSyIR contains at most one
     FileContainer which, if present, contains a Container.
 
+    :param psyir: the PSyIR to search for a Container.
+    :type psyir: :py:class:`psyclone.psyir.nodes.Node`
+
     :returns: the first Container that is not a FileContainer or None if \
               there is none.
     :rtype: :py:class:`psyclone.psyir.nodes.Container` or NoneType
@@ -149,6 +152,10 @@ def find_container(psyir):
     :raises NotImplementedError: if there are more than two Containers.
 
     '''
+    if not isinstance(psyir, Node):
+        raise TypeError(
+            f"Expected a PSyIR Node but got '{type(psyir).__name__}'")
+
     containers = psyir.walk(Container)
     if not containers:
         return None

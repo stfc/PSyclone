@@ -112,8 +112,6 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
 
     # TL to AD translation and test harness generation
 
-    writer = FortranWriter()
-
     if not api:
         ad_psyir = generate_adjoint(tl_psyir, active_variables)
         if create_test:
@@ -122,11 +120,13 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
     elif api == "dynamo0.3":
         ad_psyir = generate_lfric_adjoint(tl_psyir, active_variables)
         if create_test:
-            test_psyir = generate_lfric_adjoint_harness(writer(tl_psyir))
+            test_psyir = generate_lfric_adjoint_harness(tl_psyir)
     else:
         raise NotImplementedError(
             f"PSyAD only supports generic routines/programs or LFRic "
             f"(dynamo0.3) kernels but got API '{api}'")
+
+    writer = FortranWriter()
 
     # AD Fortran code
     adjoint_fortran_str = writer(ad_psyir)

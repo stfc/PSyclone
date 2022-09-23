@@ -274,12 +274,12 @@ def test_init_fields_random_error():
 # generate_lfric_adjoint_harness
 
 
-def test_generate_lfric_adjoint_harness_invalid_code():
+def test_generate_lfric_adjoint_harness_invalid_code(fortran_reader):
     '''Test that the generate_lfric_adjoint_harness() function raises the
     expected errors if passed invalid/unsupported source code.'''
-    with pytest.raises(ValueError) as err:
-        _ = generate_lfric_adjoint_harness("")
-    assert "Supplied TL code ('') is empty" in str(err.value)
+    with pytest.raises(TypeError) as err:
+        _ = generate_lfric_adjoint_harness(None)
+    assert "Expected a PSyIR Node but got 'NoneType'" in str(err.value)
     with pytest.raises(ValueError) as err:
         _ = generate_lfric_adjoint_harness("program oops\nend program oops\n")
     assert ("generated if the supplied TL kernel is within a module but got: "
@@ -319,10 +319,11 @@ TL_CODE = (
 )
 
 
-def test_generate_lfric_adjoint_harness(fortran_writer):
+def test_generate_lfric_adjoint_harness(fortran_reader, fortran_writer):
     '''Test that the generate_lfric_adjoint_harness() function generates the
     expected test-harness code.'''
-    psyir = generate_lfric_adjoint_harness(TL_CODE)
+    tl_psyir = fortran_reader.psyir_from_source(TL_CODE)
+    psyir = generate_lfric_adjoint_harness(tl_psyir)
     gen = fortran_writer(psyir)
     assert "module adjoint_test_mod" in gen
     assert "subroutine adjoint_test(mesh, chi, panel_id)" in gen
