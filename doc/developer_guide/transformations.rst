@@ -94,7 +94,7 @@ Raising Transformations for the LFRic API
 
 .. autoclass:: psyclone.domain.lfric.transformations.LFRicAlgTrans
 
-.. autoclass:: psyclone.domain.lfric.transformations.LFRicRaiseCall2InvokeTrans
+.. autoclass:: psyclone.domain.lfric.transformations.RaisePSyIR2LFRicAlgTrans
 
 .. autoclass:: psyclone.domain.lfric.transformations.RaisePSyIR2LFRicKernTrans
 
