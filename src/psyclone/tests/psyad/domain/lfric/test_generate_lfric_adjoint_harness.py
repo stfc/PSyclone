@@ -45,7 +45,7 @@ from psyclone.psyad.domain.lfric.generate_lfric_adjoint_harness import (
     _compute_lfric_inner_products,
     _compute_field_inner_products,
     _init_fields_random,
-    generate_lfric_adjoint_test)
+    generate_lfric_adjoint_harness)
 from psyclone.psyir.nodes import Routine, Literal, Assignment
 from psyclone.psyir.symbols import (SymbolTable, DataSymbol, REAL_TYPE,
                                     ArrayType, DataTypeSymbol, DeferredType,
@@ -271,19 +271,24 @@ def test_init_fields_random_error():
             "specified by a DataTypeSymbol but found Scalar<INTEGER, "
             "UNDEFINED> for field 'field1'" in str(err.value))
 
-# generate_lfric_adjoint_test
+# generate_lfric_adjoint_harness
 
 
-def test_generate_lfric_adjoint_test_invalid_code():
-    '''Test that the generate_lfric_adjoint_test() function raises the
+def test_generate_lfric_adjoint_harness_invalid_code():
+    '''Test that the generate_lfric_adjoint_harness() function raises the
     expected errors if passed invalid/unsupported source code.'''
     with pytest.raises(ValueError) as err:
-        _ = generate_lfric_adjoint_test("")
+        _ = generate_lfric_adjoint_harness("")
     assert "Supplied TL code ('') is empty" in str(err.value)
     with pytest.raises(ValueError) as err:
-        _ = generate_lfric_adjoint_test("program oops\nend program oops\n")
+        _ = generate_lfric_adjoint_harness("program oops\nend program oops\n")
     assert ("generated if the supplied TL kernel is within a module but got: "
             "'program oops" in str(err.value))
+    with pytest.raises(ValueError) as err:
+        _ = generate_lfric_adjoint_harness("module wrong\nend module wrong\n")
+    assert ("The supplied LFRic TL kernel is contained within a module named "
+            "'wrong'. This does not end in '_mod' and as such does not comply "
+            "with the LFRic naming convention." in str(err.value))
 
 
 TL_CODE = (
@@ -314,10 +319,10 @@ TL_CODE = (
 )
 
 
-def test_generate_lfric_adjoint_test(fortran_writer):
-    '''Test that the generate_lfric_adjoint_test() function generates the
+def test_generate_lfric_adjoint_harness(fortran_writer):
+    '''Test that the generate_lfric_adjoint_harness() function generates the
     expected test-harness code.'''
-    psyir = generate_lfric_adjoint_test(TL_CODE)
+    psyir = generate_lfric_adjoint_harness(TL_CODE)
     gen = fortran_writer(psyir)
     assert "module adjoint_test_mod" in gen
     assert "subroutine adjoint_test(mesh, chi, panel_id)" in gen
@@ -371,7 +376,7 @@ def test_generate_lfric_adj_test_quadrature():
     integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_EVALUATOR
 ''')
-    psyir = generate_lfric_adjoint_test(new_code)
+    psyir = generate_lfric_adjoint_harness(new_code)
     routine = psyir.walk(Routine)[0]
     for sym in routine.symbol_table.datasymbols:
         # All input variables should be either scalars or fields.
@@ -381,7 +386,7 @@ def test_generate_lfric_adj_test_quadrature():
                     sym.name.startswith("rscalar"))
 
 
-def test_generate_lfric_adjoint_test_no_operators(monkeypatch):
+def test_generate_lfric_adjoint_harness_no_operators(monkeypatch):
     '''Check that a kernel that has an operator as argument raises the
     expected error. This limitation will be lifted in #1864.
 
@@ -395,7 +400,7 @@ def test_generate_lfric_adjoint_test_no_operators(monkeypatch):
     monkeypatch.setattr(KernCallInvokeArgList, "operators",
                         lambda: [1])
     with pytest.raises(NotImplementedError) as err:
-        _ = generate_lfric_adjoint_test(code)
+        _ = generate_lfric_adjoint_harness(code)
     assert ("Kernel testkern_type has one or more operator arguments. Test "
             "harness creation for such a kernel is not yet supported (Issue "
             "#1864)." in str(err.value))

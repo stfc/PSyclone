@@ -245,6 +245,8 @@ def _init_fields_random(fields, input_symbols, table):
             kernel_list.append(builtin_factory.create(
                 "setval_x", table, [Reference(input_sym), Reference(sym)]))
         elif isinstance(sym.datatype, ArrayType):
+            # Initialise each member of the field vector with pseudo-random
+            # numbers.
             for dim in range(int(sym.datatype.shape[0].lower.value),
                              int(sym.datatype.shape[0].upper.value)+1):
                 lit = Literal(str(dim), idef_type)
@@ -265,10 +267,11 @@ def _init_fields_random(fields, input_symbols, table):
     return kernel_list
 
 
-def generate_lfric_adjoint_test(tl_source):
+def generate_lfric_adjoint_harness(tl_source):
     '''
     Constructs and returns the PSyIR for a Container and Routine that
-    implements a test of the adjoint of the supplied tangent-linear kernel.
+    implements a test harness for the adjoint of the supplied tangent-linear
+    kernel.
 
     :param str tl_source: the Fortran source of an LFRic module defining a \
                           tangent-linear kernel.
@@ -279,7 +282,8 @@ def generate_lfric_adjoint_test(tl_source):
 
     :raises ValueError: if the supplied source results in an empty parse tree \
                         or does not contain a module.
-
+    :raises ValueError: if the name of the module in the parse tree does not \
+                        follow the LFRic naming convention of ending in '_mod'.
     '''
     lfalg = LFRicAlg()
     container = lfalg.create_alg_routine("adjoint_test")
@@ -300,10 +304,18 @@ def generate_lfric_adjoint_test(tl_source):
 
     # Get the name of the module that contains the kernel and create a
     # ContainerSymbol for it.
-    kernel_mod_name = parse_tree.content[0].name
+    kernel_mod_name = parse_tree.content[0].name.lower()
+    if not kernel_mod_name.endswith("_mod"):
+        raise ValueError(
+            f"The supplied LFRic TL kernel is contained within a module named "
+            f"'{kernel_mod_name}'. This does not end in '_mod' and as such "
+            f"does not comply with the LFRic naming convention.")
+
     kernel_mod = table.new_symbol(kernel_mod_name, symbol_type=ContainerSymbol)
     # Assume the LFRic naming convention is followed in order to infer the name
-    # of the TL kernel.
+    # of the TL kernel. (If this convention isn't followed in the supplied code
+    # then the call to `kernel_from_metadata` below will raise an appropriate
+    # exception.)
     kernel_name = kernel_mod_name.replace("_mod", "_type")
 
     adj_mod = table.new_symbol(create_adjoint_name(kernel_mod_name),

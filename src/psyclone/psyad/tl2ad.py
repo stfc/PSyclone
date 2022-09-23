@@ -44,7 +44,7 @@ from psyclone.psyad import AdjointVisitor
 from psyclone.psyad.domain.common import (find_container, create_adjoint_name,
                                           create_real_comparison)
 from psyclone.psyad.domain.lfric import (generate_lfric_adjoint,
-                                         generate_lfric_adjoint_test)
+                                         generate_lfric_adjoint_harness)
 from psyclone.psyad.transformations.preprocess import preprocess_trans
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -122,7 +122,7 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
     elif api == "dynamo0.3":
         ad_psyir = generate_lfric_adjoint(tl_psyir, active_variables)
         if create_test:
-            test_psyir = generate_lfric_adjoint_test(writer(tl_psyir))
+            test_psyir = generate_lfric_adjoint_harness(writer(tl_psyir))
     else:
         raise NotImplementedError(
             f"PSyAD only supports generic routines/programs or LFRic "
