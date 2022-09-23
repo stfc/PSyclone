@@ -313,11 +313,31 @@ def test_omp_do_directive_collapse_getter_and_setter():
     assert target.collapse is None
     assert target.begin_string() == "omp do schedule(auto)"
 
+
 def test_omp_do_directive_omp_schedule_getter_and_setter():
     ''' Test the OMPDODirective omp_schedule property setter and getter.'''
     directive = OMPDoDirective()
     # By default is auto
     assert directive.omp_schedule == "auto"
+
+    # By valid omp_schedules are accepted
+    directive.omp_schedule = "static"
+    assert directive.omp_schedule == "static"
+    directive.omp_schedule = "dynamic,3"
+    assert directive.omp_schedule == "dynamic,3"
+
+    # Invalid omp_schedules raise a TypeError
+    with pytest.raises(TypeError) as err:
+        directive.omp_schedule = 3
+    assert ("OMPDoDirective omp_schedule should be a str but found 'int'."
+            in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        directive.omp_schedule = "invalid,3"
+    assert ("OMPDoDirective omp_schedule should be one of ['runtime', "
+            "'static', 'dynamic', 'guided', 'auto'] but found 'invalid,3'."
+            in str(err.value))
+
 
 def test_omp_do_directive_validate_global_constraints(fortran_reader,
                                                       fortran_writer):
