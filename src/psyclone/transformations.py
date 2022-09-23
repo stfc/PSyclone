@@ -799,19 +799,15 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
 class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
 
     ''' Dynamo 0.3 specific orphan OpenMP loop transformation. Adds
-    Dynamo-specific validity checks. Actual transformation is done by
-    :py:class:`base class <OMPLoopTrans>`.
+    Dynamo-specific validity checks.
 
-    :param str omp_directive: choose which OpenMP loop directive to use. \
-        Defaults to "do".
     :param str omp_schedule: the OpenMP schedule to use. Must be one of \
         'runtime', 'static', 'dynamic', 'guided' or 'auto'. Defaults to \
         'static'.
 
     '''
-    def __init__(self, omp_directive="do", omp_schedule="static"):
-        super().__init__(omp_directive=omp_directive,
-                         omp_schedule=omp_schedule)
+    def __init__(self, omp_schedule="static"):
+        super().__init__(omp_directive="do", omp_schedule=omp_schedule)
 
     def __str__(self):
         return "Add an OpenMP DO directive to a Dynamo 0.3 loop"
@@ -858,8 +854,7 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
 
     ''' GOcean-specific orphan OpenMP loop transformation. Adds GOcean
         specific validity checks (that the node is either an inner or outer
-        Loop). Actual transformation is done by
-        :py:class:`base class <OMPLoopTrans>`.
+        Loop).
 
         :param str omp_directive: choose which OpenMP loop directive to use. \
             Defaults to "do".
@@ -873,12 +868,12 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
                          omp_schedule=omp_schedule)
 
     def __str__(self):
-        return "Add an OpenMP DO directive to a GOcean loop"
+        return "Add the selected OpenMP loop directive to a GOcean loop"
 
     def validate(self, node, options=None):
         '''
         Checks that the supplied node is a valid target for parallelisation
-        using OMP Do.
+        using OMP directives.
 
         :param node: the candidate loop for parallelising using OMP Do.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
