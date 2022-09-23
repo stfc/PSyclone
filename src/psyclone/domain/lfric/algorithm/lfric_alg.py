@@ -309,6 +309,8 @@ class LFRicAlg:
         '''
         reader = FortranReader()
 
+        psyir.add_lfric_precision_symbol(prog.symbol_table, "i_def")
+
         if isinstance(sym.datatype, DataTypeSymbol):
             # Single field argument.
             prog.addchild(
@@ -323,9 +325,9 @@ class LFRicAlg:
                              int(sym.datatype.shape[0].upper.value)+1):
                 prog.addchild(
                     reader.psyir_from_statement(
-                        f"CALL {sym.name}({dim}) % initialise(vector_space = "
-                        f"vector_space_{space}_ptr, name = '{sym.name}')",
-                        prog.symbol_table))
+                        f"CALL {sym.name}({dim}_i_def) % initialise("
+                        f"vector_space = vector_space_{space}_ptr, "
+                        f"name = '{sym.name}')", prog.symbol_table))
         else:
             raise InternalError(
                 f"Expected a field symbol to either be of ArrayType or have "
@@ -384,7 +386,7 @@ class LFRicAlg:
         :param str kernel_name: the name of the kernel contained in the \
             supplied parse tree for which a DynKern is to be created.
 
-        :returns: A DynKern object describing the LFRic kernel.
+        :returns: a DynKern object describing the LFRic kernel.
         :rtype: :py:class:`psyclone.dynamo0p3.DynKern`
 
         :raises ValueError: if an LFRic kernel with the specified name cannot \

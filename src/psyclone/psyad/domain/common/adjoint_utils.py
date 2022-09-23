@@ -44,7 +44,7 @@ from psyclone.psyir.nodes import (UnaryOperation, BinaryOperation,
 from psyclone.psyir.symbols import DataSymbol
 
 
-#: The prefix we will prepend to a routine, container and metadata
+#: The prefix we will prepend to routine, container and metadata
 #: names when generating the adjoint. If the original name contains
 #: the tl prefix, then this is removed.
 ADJOINT_NAME_PREFIX = "adj_"

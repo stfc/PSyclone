@@ -47,8 +47,7 @@ from psyclone.psyir.nodes import (Call, Reference, ArrayReference, Assignment,
                                   Literal, BinaryOperation, Routine)
 from psyclone.psyir.symbols import (ImportInterface, ContainerSymbol,
                                     ScalarType, ArrayType, RoutineSymbol,
-                                    DataTypeSymbol,
-                                    DataSymbol, INTEGER_TYPE, DeferredType)
+                                    DataTypeSymbol, DataSymbol, DeferredType)
 
 
 def _compute_lfric_inner_products(prog, scalars, field_sums, sum_sym):
@@ -68,6 +67,10 @@ def _compute_lfric_inner_products(prog, scalars, field_sums, sum_sym):
     :type sum_sym: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
     '''
+    table = prog.symbol_table
+    idef_sym = psyir.add_lfric_precision_symbol(table, "i_def")
+    idef_type = ScalarType(ScalarType.Intrinsic.REAL, idef_sym)
+
     prog.addchild(Assignment.create(Reference(sum_sym),
                                     Literal("0.0", sum_sym.datatype)))
     for scalar in scalars:
@@ -96,7 +99,7 @@ def _compute_lfric_inner_products(prog, scalars, field_sums, sum_sym):
                     BinaryOperation.Operator.ADD,
                     Reference(sum_sym),
                     ArrayReference.create(sym,
-                                          [Literal(str(dim), INTEGER_TYPE)]))
+                                          [Literal(str(dim), idef_type)]))
                 prog.addchild(Assignment.create(Reference(sum_sym), add_op))
 
 
@@ -130,6 +133,8 @@ def _compute_field_inner_products(routine, field_pairs):
     table = routine.symbol_table
     rdef_sym = psyir.add_lfric_precision_symbol(table, "r_def")
     rdef_type = ScalarType(ScalarType.Intrinsic.REAL, rdef_sym)
+    idef_sym = psyir.add_lfric_precision_symbol(table, "i_def")
+    idef_type = ScalarType(ScalarType.Intrinsic.REAL, idef_sym)
 
     builtin_factory = LFRicBuiltinFunctorFactory.get()
 
@@ -179,7 +184,7 @@ def _compute_field_inner_products(routine, field_pairs):
                                       datatype=dtype)
             for dim in range(int(sym1.datatype.shape[0].lower.value),
                              int(sym1.datatype.shape[0].upper.value)+1):
-                lit = Literal(str(dim), INTEGER_TYPE)
+                lit = Literal(str(dim), idef_type)
                 routine.addchild(Assignment.create(
                     ArrayReference.create(ip_sym,
                                           [lit]), Literal("0.0", rdef_type)))
@@ -224,6 +229,8 @@ def _init_fields_random(fields, input_symbols, table):
     :rtype: List[:py:class:`psyclone.domain.common.algorithm.Functor`]
 
     '''
+    idef_sym = psyir.add_lfric_precision_symbol(table, "i_def")
+    idef_type = ScalarType(ScalarType.Intrinsic.REAL, idef_sym)
     # We use the setval_random builtin to initialise all fields.
     kernel_list = []
     builtin_factory = LFRicBuiltinFunctorFactory.get()
@@ -240,7 +247,7 @@ def _init_fields_random(fields, input_symbols, table):
         elif isinstance(sym.datatype, ArrayType):
             for dim in range(int(sym.datatype.shape[0].lower.value),
                              int(sym.datatype.shape[0].upper.value)+1):
-                lit = Literal(str(dim), INTEGER_TYPE)
+                lit = Literal(str(dim), idef_type)
                 kernel_list.append(
                     builtin_factory.create("setval_random", table,
                                            [ArrayReference.create(sym,
@@ -281,6 +288,7 @@ def generate_lfric_adjoint_test(tl_source):
 
     # Parse the kernel metadata (this still uses fparser1 as that's what
     # the meta-data handling is currently based upon).
+    # TODO #1806 - replace this with the new PSyIR-based metadata handling.
     parse_tree = fpapi.parse(tl_source)
     if not parse_tree.content:
         raise ValueError(f"Supplied TL code ('{tl_source}') is empty.")

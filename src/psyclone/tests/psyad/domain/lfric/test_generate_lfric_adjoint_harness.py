@@ -39,6 +39,7 @@ import pytest
 from psyclone.domain.lfric import KernCallInvokeArgList
 from psyclone.domain.lfric.algorithm import (LFRicBuiltinFunctor,
                                              LFRicBuiltinFunctorFactory)
+from psyclone.domain.lfric.psyir import add_lfric_precision_symbol
 from psyclone.errors import InternalError
 from psyclone.psyad.domain.lfric.generate_lfric_adjoint_harness import (
     _compute_lfric_inner_products,
@@ -49,7 +50,7 @@ from psyclone.psyir.nodes import Routine, Literal, Assignment
 from psyclone.psyir.symbols import (SymbolTable, DataSymbol, REAL_TYPE,
                                     ArrayType, DataTypeSymbol, DeferredType,
                                     INTEGER_TYPE, ContainerSymbol,
-                                    ImportInterface)
+                                    ImportInterface, ScalarType)
 
 
 # _compute_lfric_inner_products
@@ -93,9 +94,9 @@ def test_compute_inner_products_fields(fortran_writer):
     assert ("  my_sum = 0.0\n"
             "  my_sum = my_sum + ip1\n"
             "  my_sum = my_sum + ip2\n"
-            "  my_sum = my_sum + ip3(1)\n"
-            "  my_sum = my_sum + ip3(2)\n"
-            "  my_sum = my_sum + ip3(3)\n" in gen)
+            "  my_sum = my_sum + ip3(1_i_def)\n"
+            "  my_sum = my_sum + ip3(2_i_def)\n"
+            "  my_sum = my_sum + ip3(3_i_def)\n" in gen)
 
 
 # _compute_field_inner_products
@@ -160,8 +161,8 @@ def test_compute_field_vector_inner_products(fortran_writer):
                           bin_factory._get_builtin_class("x_innerproduct_x"))
     code = fortran_writer(prog)
     for dim in range(1, 4):
-        assert f"field1_inner_prod({dim}) = 0.0_r_def" in code
-        assert f"field2_field1_inner_prod({dim}) = 0.0_r_def" in code
+        assert f"field1_inner_prod({dim}_i_def) = 0.0_r_def" in code
+        assert f"field2_field1_inner_prod({dim}_i_def) = 0.0_r_def" in code
 
 
 def test_compute_field_inner_products_errors():
@@ -227,6 +228,9 @@ def test_init_fields_random_vector():
 
     '''
     table = SymbolTable()
+    idef_sym = add_lfric_precision_symbol(table, "i_def")
+    idef_type = ScalarType(ScalarType.Intrinsic.REAL, idef_sym)
+
     fld_type = DataTypeSymbol("field_type", datatype=DeferredType())
     table.add(fld_type)
     fld1 = DataSymbol("field1", datatype=ArrayType(fld_type, [3]))
@@ -239,7 +243,7 @@ def test_init_fields_random_vector():
     assert len(kernels) == 6
     for idx in range(3):
         kidx = 2*idx
-        lit = Literal(f"{idx+1}", INTEGER_TYPE)
+        lit = Literal(f"{idx+1}", idef_type)
         assert isinstance(kernels[kidx], LFRicBuiltinFunctor)
         assert kernels[kidx].symbol.name == "setval_random"
         assert kernels[kidx].children[0].symbol.name == "field1"
