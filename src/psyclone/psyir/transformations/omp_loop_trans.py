@@ -42,7 +42,6 @@ from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations.parallel_loop_trans import \
     ParallelLoopTrans
 
-VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 MAP_STR_TO_LOOP_DIRECTIVES = {
     "do": OMPDoDirective,
     "paralleldo": OMPParallelDoDirective,
@@ -154,7 +153,7 @@ class OMPLoopTrans(ParallelLoopTrans):
     def omp_schedule(self):
         '''
         :returns: the OpenMP schedule that will be specified by \
-            this transformation. The default schedule is 'static'.
+            this transformation.
         :rtype: str
 
         '''
@@ -178,9 +177,9 @@ class OMPLoopTrans(ParallelLoopTrans):
 
         # Some schedules have an optional chunk size following a ','
         value_parts = value.split(',')
-        if value_parts[0].lower() not in VALID_OMP_SCHEDULES:
+        if value_parts[0].lower() not in OMPDoDirective.VALID_OMP_SCHEDULES:
             raise ValueError(f"Valid OpenMP schedules are "
-                             f"{VALID_OMP_SCHEDULES} but got "
+                             f"{OMPDoDirective.VALID_OMP_SCHEDULES} but got "
                              f"'{value_parts[0]}'.")
 
         if len(value_parts) > 1:

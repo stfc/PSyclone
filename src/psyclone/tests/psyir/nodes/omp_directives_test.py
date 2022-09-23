@@ -313,6 +313,11 @@ def test_omp_do_directive_collapse_getter_and_setter():
     assert target.collapse is None
     assert target.begin_string() == "omp do schedule(auto)"
 
+def test_omp_do_directive_omp_schedule_getter_and_setter():
+    ''' Test the OMPDODirective omp_schedule property setter and getter.'''
+    directive = OMPDoDirective()
+    # By default is auto
+    assert directive.omp_schedule == "auto"
 
 def test_omp_do_directive_validate_global_constraints(fortran_reader,
                                                       fortran_writer):

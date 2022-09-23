@@ -937,12 +937,14 @@ class OMPDoDirective(OMPRegionDirective):
         None.
     :param Optional[bool] reprod: whether or not to generate code for \
         run-reproducible OpenMP reductions (if not specified the value is \
-        provided by the PSyclone's Config file).
+        provided by the PSyclone Config file).
     :param kwargs: additional keyword arguments provided to the PSyIR node.
     :type kwargs: unwrapped dict.
 
     '''
+    VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
     _directive_string = "do"
+
     def __init__(self, omp_schedule="auto", collapse=None, reprod=None,
                  **kwargs):
 
@@ -1047,6 +1049,10 @@ class OMPDoDirective(OMPRegionDirective):
         '''
         :param str value: the omp_schedule for this object.
         '''
+        if not isinstance(value, str) or value not in self.VALID_OMP_SCHEDULES:
+            raise TypeError(
+                f"{type(self).__name__} omp_schedule should be a str in"
+                f"{self.VALID_OMP_SCHEDULES} but found '{value}'.")
         self._omp_schedule = value
 
     @property
