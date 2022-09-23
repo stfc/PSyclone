@@ -47,11 +47,9 @@ adjoint form and tested with the harness generation.
 
 ## Example 2
 
-An LFRic tangent-linear kernel example which shows how much of this
-code PSyAD can currently translate. The kernel computes the
-tangent-linear of the hydrostatic balance term. It was taken from the
-LFRic repository and has any unsupported code commented out.
+An LFRic example using the kernel that computes the tangent-linear of
+the hydrostatic balance term. It was taken from the LFRic repository.
 
 This example includes the generation of a test harness for the adjoint
-kernel.  See the README for more details.
+kernel. See the README for more details.
 

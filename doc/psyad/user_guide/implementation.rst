@@ -562,6 +562,10 @@ function. If the LFRic API is selected then only scalar and field arguments
 are initialised in this way since arguments such as dof-maps contain
 essential information derived from the model configuration.
 
+.. note:: Currently this means that fields containing geometric information
+	  such as coordinates or panel IDs are overwritten with pseudo-random
+	  data and consequently the test harness will not work for kernels
+	  with those arguments. Issue #1708 will address this.
 
 Inner Products
 --------------
@@ -609,7 +613,7 @@ currently set as a constant in the
 will eventually be exposed as a configuration option (this is the
 subject of issue #1346).  This value is the one arrived at over time
 by the Met Office in the current adjoint-testing code. In that code,
-the vector of variables can be of order 200M in length (since it
+the vector of variables can be of order 200 million in length (since it
 involves values at all points of the 3D mesh) and therefore there is
 plenty of scope for numerical errors to accumulate. Whether this value
 is appropriate for LFRic kernels is yet to be determined.

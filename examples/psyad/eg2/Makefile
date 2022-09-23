@@ -36,16 +36,9 @@
 PSYROOT=../../..
 include ${PSYROOT}/examples/common.mk
 
-NAN_TEST_DIR = $(PSYROOT)/lib/nan_test/lfric
-LIB_NAME = lib_nan_test.a
-
 CONFIG_ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
 
-LFRIC_DIR ?= $(PSYROOT)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
-LFRIC_NAME=lfric
-LFRIC_LIB=$(LFRIC_DIR)/lib$(LFRIC_NAME).a
-
-F90FLAGS += -I$(LFRIC_DIR) -ffree-line-length-none -I$(NAN_TEST_DIR)
+F90FLAGS += -ffree-line-length-none
 
 ACTIVE_VAR_LIST ?= r_u exner theta moist_dyn_gas moist_dyn_tot moist_dyn_fac grad_term theta_v_e theta_v_at_quad grad_theta_v_at_quad exner_e exner_at_quad res_dot_product
 TL_KERNEL_NAME ?= tl_hydrostatic_kernel
@@ -67,7 +60,6 @@ GENERATED_FILES += adj_*.[fF]90 test_harness.exe \
 transform: psy.f90
 
 # Process the generated test-harness algorithm with PSyclone.
-# Note that we could add NaN checking at this point.
 psy.f90 ${HARNESS_F90_FILE}: ${HARNESS_X90_FILE} ${ADJ_KERNEL_F90_FILE}
 	${PSYCLONE} -l all -api dynamo0.3 -nodm -opsy psy.f90 -oalg ${HARNESS_F90_FILE} ${HARNESS_X90_FILE}
 
@@ -81,14 +73,14 @@ psy.f90 ${HARNESS_F90_FILE}: ${HARNESS_X90_FILE} ${ADJ_KERNEL_F90_FILE}
 ${ADJ_KERNEL_X90_FILE} ${HARNESS_X90_FILE}: ${TL_KERNEL_FILE}
 	$(PSYAD) -api dynamo0.3 $< -otest ${HARNESS_X90_FILE} -oad ${ADJ_KERNEL_X90_FILE} -a ${ACTIVE_VAR_LIST}
 
+# Currently PSyAD does not update the kernel metadata (issue #1453)
+# so we do that manually here. We have to allow for the case where
+# the kernel contains multiple implementations (for mixed precision).
+#
+# WARNING: the metadata may still be incorrect as we do not change
+# the ACCESS properties of the arguments.
+# TODO #1772.
 ${ADJ_KERNEL_F90_FILE}: ${ADJ_KERNEL_X90_FILE}
-	# Currently PSyAD does not update the kernel metadata (issue #1453)
-	# so we do that manually here. We have to allow for the case where
-	# the kernel contains multiple implementations (for mixed precision).
-        #
-        # WARNING: the metadata may still be incorrect as we do not change
-        # the ACCESS properties of the arguments.
-        # TODO #1772.
 	sed -e 's/PROCEDURE, NOPASS :: ${TL_PROC_NAME}/PROCEDURE, NOPASS :: ${ADJ_PROC_NAME}/' -e 's/:: ${TL_KERNEL_TYPE}/:: ${ADJ_KERNEL_TYPE}/' \
 -e 's/interface ${TL_PROC_NAME}/interface ${ADJ_PROC_NAME}/' \
 -e 's/module procedure ${TL_PROC_NAME}.*\w/&_adj/' \
@@ -98,7 +90,3 @@ compile:
 	@echo No compilation supported: the generated Algorithm must be called from within an LFRic mini-app.
 
 run: compile
-
-allclean: clean
-	${MAKE} -C ${LFRIC_DIR} allclean
-	${MAKE} -C ${NAN_TEST_DIR} allclean

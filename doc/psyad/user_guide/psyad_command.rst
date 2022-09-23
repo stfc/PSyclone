@@ -63,7 +63,7 @@ by the command:
   >>> psyad -h
     usage: psyad [-h] [-oad OAD] [-v] [-t] [-api API] [-otest TEST_FILENAME] -a ACTIVE [ACTIVE ...] -- filename
 
-    Run the PSyclone adjoint code generator on an LFRic tangent-linear kernel file
+    Run the PSyclone adjoint code generator on a tangent-linear kernel file
 
     positional arguments:
       filename              tangent-linear kernel source
@@ -162,8 +162,10 @@ the previous command
 	  kernel is in the form of a subroutine contained within a module.
 	  PSyAD will report an error if this is not the case.
 
-.. note:: Currently PSyAD can only generate the test harness for a generic
-	  routine. Support for LFRic kernels is the subject of #1782.
+.. warning:: Currently PSyAD cannot generate the test harness for an LFRic
+	     kernel that takes as argument a field containing either coordinates
+	     (``chi``) or panel IDs. Support for such kernels is the subject of
+	     Issue #1708.
 
 Logging Output
 --------------

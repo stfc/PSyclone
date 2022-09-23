@@ -17,15 +17,15 @@ make
 ```
 
 This will construct the adjoint of the kernel (written to
-`tl_hydrostatic_kernel_mod_adj.x90`) and a test harness in the form of an
-Algorithm (`main_alg.x90`). The Makefile then proceeds to process the test
-harness Algorithm using PSyclone to generate an algorithm (`alg.f90`) and
-PSy layer (`psy.f90`).
+`adj_hydrostatic_kernel_mod.x90`) and a test harness in the form of LFRic
+Algorithm-layer code (`adjoint_test_mod.x90`). The Makefile then proceeds to
+use PSyclone to process the test harness Algorithm code to generate algorithm
+(`adjoint_test_mod.F90`) and PSy layer (`psy.f90`) code.
 
 There is no `compile` target for this example because the generated code
 requires the full LFRic infrastructure. However, it is straightforward
-to modify the LFRic "skeleton" mini-app to call the algorithm subroutine
-that has been generated (see below).
+to modify the LFRic "skeleton" mini-app to call the generated algorithm
+code (see below).
 
 Alternatively, PSyAD may be run from the command line as:
 
@@ -38,8 +38,14 @@ In this case, the adjoint of the tangent-linear kernel is written to
 
 ## Using the generated test harness in the LFRic skeleton mini-app
 
-This assumes that you have a local, compiled version of LFRic in `<lfric-root>`
-and that the directory containing this file is `<work-dir>`.
+> **Warning**
+> Currently the generated test harness *WILL NOT WORK* if the TL kernel
+> takes either the coordinate field (`chi`) or panel IDs as arguments
+> (`tl_vorticity_advection_kernel_mod.F90` is one example). This is the
+> subject of Issue #1708.
+
+These instructions assume that you have a local, compiled version of LFRic
+in `<lfric-root>` and that the directory containing this file is `<work-dir>`.
 
 1. Create the adjoint kernel and test harness code:
 ```sh
@@ -102,15 +108,7 @@ ACTIVE_VAR_LIST="lhs x lhs_e x_e" TL_KERNEL_NAME=matrix_vector_kernel make
 ```
 
 ```sh
-ACTIVE_VAR_LIST="lhs x lhs_e x_e" TL_KERNEL_NAME=transpose_matrix_vector_kernel make
-```
-
-```sh
 ACTIVE_VAR_LIST="lhs x lhs_e x_e" TL_KERNEL_NAME=dg_matrix_vector_kernel make
-```
-
-```sh
-ACTIVE_VAR_LIST="r_u vorticity wind res_dot_product vorticity_term cross_product1 cross_product2 j_vorticity u_at_quad mul2 vorticity_at_quad" TL_KERNEL_NAME=tl_vorticity_advection_kernel make
 ```
 
 ## Licence

@@ -53,7 +53,7 @@ set-up necessary for getting PSyAD to work.
 Adjoint and Test Harness Generation
 -----------------------------------
 
-PSyAD is currently able to transform both generic tangent-linear routines
-as well as some of the LFRic tangent-linear kernels. There are two examples
+PSyAD is currently able to transform generic tangent-linear routines
+plus some of the LFRic tangent-linear kernels. There are two examples
 available in the ``examples/psyad`` directory. See the ``README.md`` file in
 that directory for full details.
