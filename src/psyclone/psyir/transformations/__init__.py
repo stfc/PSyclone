@@ -64,6 +64,8 @@ from psyclone.psyir.transformations.intrinsics.min2code_trans import \
     Min2CodeTrans
 from psyclone.psyir.transformations.intrinsics.sign2code_trans import \
     Sign2CodeTrans
+from psyclone.psyir.transformations.intrinsics.sum2code_trans import \
+    Sum2CodeTrans
 from psyclone.psyir.transformations.loop_fuse_trans import LoopFuseTrans
 from psyclone.psyir.transformations.loop_swap_trans import LoopSwapTrans
 from psyclone.psyir.transformations.loop_tiling_2d_trans \
@@ -103,19 +105,19 @@ __all__ = ['ArrayRange2LoopTrans',
            'Max2CodeTrans',
            'Min2CodeTrans',
            'Sign2CodeTrans',
+           'Sum2CodeTrans',
            'LoopFuseTrans',
            'LoopSwapTrans',
            'LoopTiling2DTrans',
            'LoopTrans',
            'NanTestTrans',
-           'OMPTaskTrans',
            'OMPTaskwaitTrans',
            'OMPTargetTrans',
            'ParallelLoopTrans',
            'ProfileTrans',
            'PSyDataTrans',
            'ReadOnlyVerifyTrans',
+           'Reference2ArrayRangeTrans',
            'RegionTrans',
            'ReplaceInductionVariablesTrans',
-           'TransformationError',
-           'Reference2ArrayRangeTrans']
+           'TransformationError']
