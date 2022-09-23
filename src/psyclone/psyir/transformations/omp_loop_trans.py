@@ -58,7 +58,8 @@ class OMPLoopTrans(ParallelLoopTrans):
     distribute parallel do/for" or "omp loop" depending on the provided
     parameters.
     The OpenMP schedule to use can also be specified, but this will be ignored
-    in case of the "omp loop". The configuration-defined 'reprod' parameter
+    in case of the "omp loop" (as the 'schedule' clause is not valid for this
+    specific directive). The configuration-defined 'reprod' parameter
     also specifies whether a manual reproducible reproduction is to be used.
     Note, reproducible in this case means obtaining the same results with the
     same number of OpenMP threads, not for different numbers of OpenMP threads.
@@ -95,8 +96,6 @@ class OMPLoopTrans(ParallelLoopTrans):
       integer, dimension(10,10) :: a
       integer :: i
       integer :: j
-      integer :: th_idx
-      integer :: nthreads
     <BLANKLINE>
       !$omp parallel do default(shared), private(i,j), schedule(dynamic)
       do i = 1, 10, 1
@@ -130,7 +129,8 @@ class OMPLoopTrans(ParallelLoopTrans):
     @property
     def omp_directive(self):
         '''
-        :returns: the value of the omp_directive attribute.
+        :returns: the type of OMP directive that this transformation will \
+            insert.
         :rtype: str
         '''
         return self._omp_directive
@@ -138,7 +138,7 @@ class OMPLoopTrans(ParallelLoopTrans):
     @omp_directive.setter
     def omp_directive(self, value):
         '''
-        :param str value: new value of the omp_directive attribute.
+        :param str value: the type of OMP directive to add.
 
         :raises TypeError: if the provided value is not a valid str.
         '''
@@ -163,7 +163,8 @@ class OMPLoopTrans(ParallelLoopTrans):
     def omp_schedule(self, value):
         '''
         :param str value: Sets the OpenMP schedule value that will be \
-            specified by this transformation.
+            specified by this transformation, unless adding an OMP Loop \
+            directive (in which case it is not applicable).
 
         :raises TypeError: if the provided value is not a string.
         :raises ValueError: if the provided string is not a valid OpenMP \
@@ -200,7 +201,7 @@ class OMPLoopTrans(ParallelLoopTrans):
 
         :param children: list of Nodes that will be the children of \
             the created directive.
-        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+        :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param int collapse: number of nested loops to collapse or None if \
             no collapse attribute is required.
 
@@ -214,6 +215,8 @@ class OMPLoopTrans(ParallelLoopTrans):
         node = MAP_STR_TO_LOOP_DIRECTIVES[self._omp_directive](
                 children=children,
                 collapse=collapse)
+        # OMP loop does not support 'schedule' or 'reprod' attributes, so we do
+        # not attempt to set these properties for this specific directive
         if self._omp_directive != "loop":
             node.omp_schedule = self._omp_schedule
             node.reprod = self._reprod
@@ -239,8 +242,8 @@ class OMPLoopTrans(ParallelLoopTrans):
                                    Config.get().reproducible_reductions)
 
         if self._reprod:
-            # Add variable names for OMP functions into the InvokeSchedule
-            # (a Routine) symboltable if they don't already exist
+            # When reprod is True, the variables th_idx and nthreads are
+            # expected to be declared in the scope.
             root = node.ancestor(Routine)
 
             symtab = root.symbol_table
