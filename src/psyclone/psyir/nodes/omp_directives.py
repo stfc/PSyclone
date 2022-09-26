@@ -1105,13 +1105,14 @@ class OMPDoDirective(OMPRegionDirective):
         if self._collapse:
             cursor = self.dir_body.children[0]
             for depth in range(self._collapse):
-                if not isinstance(cursor, Loop):
+                if (len(cursor.parent.children) != 1 or
+                        not isinstance(cursor, Loop)):
                     raise GenerationError(
                         f"{type(self).__name__} must have as many immediately "
                         f"nested loops as the collapse clause specifies but "
                         f"'{self}' has a collapse={self._collapse} and the "
-                        f"nested statement at depth {depth} is a "
-                        f"{type(cursor).__name__} rather than a Loop.")
+                        f"nested body at depth {depth} is a can not be "
+                        f"collapsed.")
                 cursor = cursor.loop_body.children[0]
 
     def _validate_single_loop(self):

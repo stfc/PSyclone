@@ -235,7 +235,8 @@ def test_omp_parallel_do_changes_begin_str(fortran_reader):
 
 def test_omp_teams_distribute_parallel_do_strings(
         fortran_reader, fortran_writer):
-    ''' '''
+    ''' Check that the beginning and ending directive strings that the
+    backend uses are the expected ones.'''
     code = '''
     subroutine my_subroutine()
         integer, dimension(321, 10) :: A
@@ -360,6 +361,12 @@ def test_omp_do_directive_validate_global_constraints(fortran_reader,
             do j = 1, 10
                 A(i, j) = B(i, j) + 1
             end do
+            val = 1
+        end do
+        do i = 1, 10
+            do j = 1, 10
+                A(i, j) = B(i, j) + 1
+            end do
         end do
     end subroutine
     '''
@@ -374,18 +381,36 @@ def test_omp_do_directive_validate_global_constraints(fortran_reader,
 
     directive = tree.walk(OMPParallelDoDirective)
 
-    # The first loop nest will fail the validation
+    # The first and second loop nests will fail the validation
     with pytest.raises(GenerationError) as err:
         _ = fortran_writer(directive[0])
-    assert ("OMPParallelDoDirective must have as many immediately nested loops"
-            " as the collapse clause specifies but 'OMPParallelDoDirective"
-            "[omp_schedule=auto,collapse=2]' has a collapse=2 and the nested "
-            "statement at depth 1 is a Assignment rather than a Loop."
+    assert ("OMPParallelDoDirective must have as many immediately nested "
+            "loops as the collapse clause specifies but 'OMPParallelDo"
+            "Directive[omp_schedule=auto,collapse=2]' has a collapse=2 and "
+            "the nested body at depth 1 is a can not be collapsed."
             in str(err.value))
 
-    # The second loop nest will succeed
-    code = fortran_writer(directive[1])
+    with pytest.raises(GenerationError) as err:
+        _ = fortran_writer(directive[1])
+    assert ("OMPParallelDoDirective must have as many immediately nested "
+            "loops as the collapse clause specifies but 'OMPParallelDo"
+            "Directive[omp_schedule=auto,collapse=2]' has a collapse=2 and "
+            "the nested body at depth 1 is a can not be collapsed."
+            in str(err.value))
+
+    # The third loop nest will succeed
+    code = fortran_writer(directive[2])
     assert "collapse(2)" in code
+
+    # but it will also fail if trying to collapse more loops than available
+    directive[2].collapse = 3
+    with pytest.raises(GenerationError) as err:
+        _ = fortran_writer(directive[2])
+    assert ("OMPParallelDoDirective must have as many immediately nested "
+            "loops as the collapse clause specifies but 'OMPParallelDo"
+            "Directive[omp_schedule=auto,collapse=3]' has a collapse=3 and "
+            "the nested body at depth 2 is a can not be collapsed."
+            in str(err.value))
 
 
 def test_omp_pdo_validate_child():
