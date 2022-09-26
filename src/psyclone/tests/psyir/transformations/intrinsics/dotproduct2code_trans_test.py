@@ -537,3 +537,31 @@ def test_apply_multi_different_line(tmpdir, fortran_reader, fortran_writer):
         "  enddo\n"
         "  result = result + c * res_dot_product_1\n")
     check_trans(code, expected, fortran_reader, fortran_writer, tmpdir)
+
+
+def test_apply_explicit_range(fortran_reader, fortran_writer, tmpdir):
+    '''Check that this transformation works when there is an explicit
+    range declaration (i.e. wind(1:3)) that matches the array extent.
+
+    '''
+    code = (
+        "subroutine dot_product_test(basis_w1)\n"
+        "real, dimension(3) :: wind\n"
+        "real :: basis_w1(:)\n"
+        "integer :: result\n"
+        "result = dot_product(basis_w1(:),wind(1:3))\n"
+        "end subroutine\n")
+    expected = (
+        "subroutine dot_product_test(basis_w1)\n"
+        "  real, dimension(:) :: basis_w1\n"
+        "  real, dimension(3) :: wind\n"
+        "  integer :: result\n"
+        "  integer :: i\n"
+        "  real :: res_dot_product\n\n"
+        "  res_dot_product = 0.0\n"
+        "  do i = 1, 3, 1\n"
+        "    res_dot_product = res_dot_product + basis_w1(i) * wind(i)\n"
+        "  enddo\n"
+        "  result = res_dot_product\n\n"
+        "end subroutine dot_product_test\n")
+    check_trans(code, expected, fortran_reader, fortran_writer, tmpdir)

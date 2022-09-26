@@ -41,12 +41,13 @@
 
 import pytest
 
-from psyclone.psyir.nodes import Reference, Assignment, Literal, KernelSchedule
-from psyclone.psyir.symbols import (DataSymbol, ArrayType, REAL_SINGLE_TYPE,
-                                    INTEGER_SINGLE_TYPE, REAL_TYPE)
-from psyclone.psyGen import GenerationError
 from psyclone.core.access_info import VariablesAccessInfo
-from psyclone.psyir.nodes.node import colored
+from psyclone.psyGen import GenerationError
+from psyclone.psyir.nodes import (colored, Reference, Assignment, Literal,
+                                  KernelSchedule)
+from psyclone.psyir.symbols import (ArrayType, DataSymbol, INTEGER_SINGLE_TYPE,
+                                    REAL_SINGLE_TYPE,
+                                    REAL_TYPE, ScalarType)
 
 
 def test_reference_bad_init():
@@ -90,7 +91,7 @@ def test_reference_node_str():
     symbol = DataSymbol("rname", INTEGER_SINGLE_TYPE)
     kschedule.symbol_table.add(symbol)
     assignment = Assignment()
-    ref = Reference(symbol, assignment)
+    ref = Reference(symbol, parent=assignment)
     coloredtext = colored("Reference", Reference._colour)
     assert coloredtext+"[name:'rname']" in ref.node_str()
 
@@ -102,7 +103,7 @@ def test_reference_can_be_printed():
     symbol = DataSymbol("rname", INTEGER_SINGLE_TYPE)
     kschedule.symbol_table.add(symbol)
     assignment = Assignment()
-    ref = Reference(symbol, assignment)
+    ref = Reference(symbol, parent=assignment)
     assert "Reference[name:'rname']" in str(ref)
 
 
@@ -132,6 +133,15 @@ def test_reference_is_array():
     '''
     reference = Reference(DataSymbol("test", REAL_TYPE))
     assert reference.is_array is False
+
+
+def test_reference_datatype():
+    '''Test the datatype property.
+
+    '''
+    reference = Reference(DataSymbol("test", REAL_TYPE))
+    assert isinstance(reference.datatype, ScalarType)
+    assert reference.datatype.intrinsic == ScalarType.Intrinsic.REAL
 
 
 def test_reference_accesses():

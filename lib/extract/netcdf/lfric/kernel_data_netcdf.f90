@@ -196,7 +196,6 @@ contains
     !! @param[in] value The value of the variable.
     subroutine DeclareFieldVector(this, name, value)
 
-        use netcdf,    only : nf90_def_dim, nf90_def_var, NF90_REAL8
         use field_mod, only : field_type, field_proxy_type
 
         implicit none
@@ -231,7 +230,6 @@ contains
     !! @param[in] value The value of the variable.
     subroutine DeclareIntFieldVector(this, name, value)
 
-        use netcdf,            only : nf90_def_dim, nf90_def_var, NF90_INT4
         use integer_field_mod, only : integer_field_type, &
                                       integer_field_proxy_type
 
@@ -267,7 +265,6 @@ contains
     !! @param[in] value The value of the variable.
     subroutine WriteFieldVector(this, name, value)
 
-        use netcdf,    only : nf90_put_var
         use field_mod, only : field_type, field_proxy_type
 
         implicit none
@@ -298,7 +295,6 @@ contains
     !! @param[in] value The value of the variable.
     subroutine WriteIntFieldVector(this, name, value)
 
-        use netcdf,            only : nf90_put_var
         use integer_field_mod, only : integer_field_type, &
                                       integer_field_proxy_type
 

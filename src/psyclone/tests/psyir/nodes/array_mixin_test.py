@@ -32,13 +32,15 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests of the ArrayMixin PSyIR nodes trait. '''
 
 import pytest
+from psyclone.errors import InternalError
 from psyclone.psyir.nodes import ArrayReference, ArrayOfStructuresReference, \
-    Range, Literal
+    BinaryOperation, Range, Literal, Routine
 from psyclone.psyir.symbols import DataSymbol, DeferredType, ArrayType, \
     INTEGER_TYPE
 
@@ -60,10 +62,93 @@ def test_get_outer_range_index():
 
 def test_get_outer_range_index_error():
     '''Check that the get_outer_range_index method raises an IndexError if
-    no range exist as child of the given array. Us eArrayReference as concrete
+    no range exist as child of the given array. Use ArrayReference as concrete
     implementation of ArrayMixin.
     '''
     symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE, [10]))
     array = ArrayReference.create(symbol, [Literal("2", INTEGER_TYPE)])
     with pytest.raises(IndexError):
         _ = array.get_outer_range_index()
+
+
+def test_is_upper_lower_bound(fortran_reader):
+    '''Test the is_lower_bound() and is_upper_bound() methods return the
+    expected values if an array reference has literal bounds. Create
+    and use an ArrayReference node to test the abstract ArrayMixin
+    class.
+
+    '''
+    code = (
+        "subroutine test()\n"
+        "real a(10)\n"
+        "a(1:10) = 0.0\n"
+        "end subroutine\n")
+
+    # Return True as the literal values or the declaration and array
+    # reference match.
+    psyir = fortran_reader.psyir_from_source(code)
+    array_ref = psyir.children[0].children[0].lhs
+    assert array_ref.is_lower_bound(0)
+    assert array_ref.is_upper_bound(0)
+
+    # Remove the symbol from the symbol table to force the returning
+    # of False.
+    symbol = array_ref.symbol
+    symbol_table = array_ref.scope.symbol_table
+    norm_name = symbol_table._normalize(symbol.name)
+    symbol_table._symbols.pop(norm_name)
+    assert not array_ref.is_lower_bound(0)
+    assert not array_ref.is_upper_bound(0)
+
+    # Return False as the literal values of the array declaration and
+    # array reference do not match.
+    psyir = fortran_reader.psyir_from_source(code.replace("1:10", "2:9"))
+    array_ref = psyir.children[0].children[0].lhs
+    assert not array_ref.is_lower_bound(0)
+    assert not array_ref.is_upper_bound(0)
+
+
+def test_get_effective_shape(fortran_reader, fortran_writer):
+    '''Tests for the _get_effective_shape() method.'''
+    code = (
+        "subroutine test()\n"
+        "  use some_mod\n"
+        "  integer :: indices(8,3)\n"
+        "  real a(10), b(10,10)\n"
+        "  a(1:10) = 0.0\n"
+        "  b(indices(2:3,1), 2:5) = 2.0\n"
+        "  b(indices(2:3,1:2), 2:5) = 2.0\n"
+        "  a(f()) = 2.0\n"
+        "  a(2+3) = 1.0\n"
+        "end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    # Direct array slice.
+    shape = routine.children[0].lhs._get_effective_shape()
+    assert len(shape) == 1
+    assert isinstance(shape[0], BinaryOperation)
+    # Indirect array slice.
+    shape = routine.children[1].lhs._get_effective_shape()
+    assert len(shape) == 2
+    assert isinstance(shape[0], BinaryOperation)
+    code = fortran_writer(shape[0])
+    # An ArrayType does not store the number of elements, just lower and upper
+    # bounds. Therefore, we end up recursively computing the no. of elements.
+    # The answer is still "2" though!
+    assert code == "((3 - 2) / 1 + 1 - 1) / 1 + 1"
+    code = fortran_writer(shape[1])
+    assert code == "(5 - 2) / 1 + 1"
+    # An indirect array slice can only be 1D.
+    with pytest.raises(InternalError) as err:
+        _ = routine.children[2].lhs._get_effective_shape()
+    assert ("array defining a slice of a dimension of another array must be "
+            "1D but 'indices' used to index into 'b' has 2 dimensions" in
+            str(err.value))
+    # Indirect array access using function call.
+    with pytest.raises(NotImplementedError) as err:
+        _ = routine.children[3].lhs._get_effective_shape()
+    assert "include a function call or expression" in str(err.value)
+    # Array access with expression in indices.
+    with pytest.raises(NotImplementedError) as err:
+        _ = routine.children[4].lhs._get_effective_shape()
+    assert "include a function call or expression" in str(err.value)

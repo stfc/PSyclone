@@ -280,7 +280,14 @@ class DependencyTools():
         #          [ ({"i"}, [(0,0)]), ({"j","k"}, [(0,1)])]
         partition_infos = []
         for i, indx in enumerate(comp_ind1.iterate()):
-            partition_infos.append((indices_1[i].union(indices_2[i]), [indx]))
+            # This can happen if there is a mixture of accesses to an array
+            # with and without indices, e.g.: a(i) = a*a
+            # In this case we don't add this to the partition, which will
+            # result in an empty partition (which in turns will disable
+            # parallelisation).
+            if i < len(indices_2):
+                partition_infos.append((indices_1[i].union(indices_2[i]),
+                                        [indx]))
 
         # Check each loop variable to find subscripts in which they are used:
         for loop_var in loop_variables:

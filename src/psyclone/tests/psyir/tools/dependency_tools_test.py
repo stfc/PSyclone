@@ -743,3 +743,25 @@ def test_const_argument():
     # Make sure the constant '0' is not listed
     assert "0" not in input_list
     assert Signature("0") not in input_list
+
+
+# -----------------------------------------------------------------------------
+def test_da_array_expression(fortran_reader):
+    '''Test that a mixture of using the same array with and without indices
+    does not cause a crash and correctly disables parallelisation.
+    '''
+    source = '''program test
+                integer :: ji, jj, jpi, jpj
+                real :: a(5,5)
+                do jj = 1, jpj   ! loop 0
+                   do ji = 1, jpi
+                      a(ji, jj) = a*a
+                    end do
+                end do
+                end program test'''
+    psyir = fortran_reader.psyir_from_source(source)
+    loops = psyir.children[0].children
+
+    dep_tools = DependencyTools()
+    result = dep_tools.can_loop_be_parallelised(loops[0])
+    assert result is False

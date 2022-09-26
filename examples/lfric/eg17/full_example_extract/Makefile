@@ -41,18 +41,32 @@
 
 PSYROOT=../../../..
 
+# Set it to 'netcdf' to use the NetCDF writer
+TYPE?=standalone
+
 include $(PSYROOT)/examples/common.mk
 
-GENERATED_FILES = *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90 main-update.nc
+ifeq ($(TYPE), netcdf)
+	GENERATED_FILES += main-update.nc main-init.nc
+else
+	GENERATED_FILES += main-update.binary main-init.binary
+endif
 
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g
 
 OBJ = main_psy.o main_alg.o testkern_w0_kernel_mod.o
 
-EXEC = extract
-EXTRACT_DIR ?= $(PSYROOT)/lib/extract/netcdf/lfric
-EXTRACT_NAME =_kernel_data_netcdf
+ifeq ($(TYPE), netcdf)
+	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/netcdf/lfric
+	LDFLAGS += $$(nf-config --flibs)
+else
+	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/standalone/lfric
+endif
+
+EXEC = extract.$(TYPE)
+GENERATED_FILES = *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90
+EXTRACT_NAME ?= _extract
 EXTRACT_LIB = $(EXTRACT_DIR)/lib$(EXTRACT_NAME).a
 LFRIC_PATH ?= $(PSYROOT)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME=lfric
@@ -72,7 +86,7 @@ run: compile
 
 $(EXEC): $(LFRIC_LIB) $(EXTRACT_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(EXTRACT_DIR) -l$(EXTRACT_NAME) \
-	      -L$(LFRIC_PATH) -l$(LFRIC_NAME) $$(nf-config --flibs)
+	      -L$(LFRIC_PATH) -l$(LFRIC_NAME) $(LDFLAGS)
 
 $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_PATH)
