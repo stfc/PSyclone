@@ -200,15 +200,15 @@ def test_validate_medatata():
         transformation.validate(
             Container("container"), {"metadata_name": ""})
     assert ("This transformation requires the name of the variable "
-            "containing the metadata to be set to a valid value, but "
-            "found ''." in str(info.value))
+            "containing the metadata to be set to a valid Fortran "
+            "name, but found ''." in str(info.value))
     with pytest.raises(TransformationError) as info:
         transformation.validate(
             Container("container"), {"metadata_name": "1dummy"})
     assert ("Error in RaisePSyIR2LFRicKernTrans transformation. This "
             "transformation requires the name of the variable containing "
-            "the metadata to be set to a valid value, but found '1dummy'."
-            in str(info.value))
+            "the metadata to be set to a valid Fortran name, but found "
+            "'1dummy'." in str(info.value))
 
 
 def test_validate_ok(fortran_reader):
