@@ -126,12 +126,13 @@ class PSyDataTrans(RegionTrans):
 
     # -------------------------------------------------------------------------
     def merge_in_default_options(self, options):
-        '''This function returns additional options that should be
-        added to the user-specified options for any extraction transformation.
+        '''This function returns a new dictionary which contains the default
+        options for this transformation plus any user-specified options.
         Any user-specified option will take precedence over the default
-        values specified here.
+        values.
 
-        :returns: a dictionary with additional options to set.
+        :returns: a new dictionary which merges the default options with \
+            the user-specified options.
         :rtype: Dict[str:Any]
 
         '''
