@@ -42,6 +42,8 @@ sub-classes.
 '''
 from __future__ import absolute_import
 import pytest
+
+from psyclone.core import VariablesAccessInfo
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Literal, Reference, Return
 from psyclone.psyir.symbols import DataSymbol, INTEGER_SINGLE_TYPE, \
@@ -49,7 +51,7 @@ from psyclone.psyir.symbols import DataSymbol, INTEGER_SINGLE_TYPE, \
 from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
-from psyclone.psyir.nodes.node import colored
+from psyclone.psyir.nodes import Assignment, colored
 
 
 # Test Operation class. These are mostly covered by the subclass tests.
@@ -935,3 +937,35 @@ def test_operation_equality():
     binaryoperation5 = BinaryOperation.create(
         oper, ("new_name", lhs.copy()), rhs.copy())
     assert binaryoperation3 != binaryoperation5
+
+
+@pytest.mark.parametrize("operator", ["lbound", "ubound", "size"])
+def test_reference_accesses_bounds(operator, fortran_reader):
+    '''Test that the reference_accesses method behaves as expected when
+    the reference is the first argument to either the lbound or ubound
+    intrinsic as that is simply looking up the array bounds (therefore
+    var_access_info should be empty) and when the reference is the
+    second argument of either the lbound or ubound intrinsic (in which
+    case the access should be a read).
+
+    '''
+    code = f'''module test
+        contains
+        subroutine tmp()
+          real, dimension(:,:), allocatable:: a, b
+          integer :: n
+          n = {operator}(a, b(1,1))
+        end subroutine tmp
+        end module test'''
+    psyir = fortran_reader.psyir_from_source(code)
+    schedule = psyir.walk(Assignment)[0]
+
+    # By default, the access to 'a' should not be reported as read,
+    # but the access to b must be reported:
+    vai = VariablesAccessInfo(schedule)
+    assert str(vai) == "b: READ, n: WRITE"
+
+    # When explicitly requested, the access to 'a' should be reported:
+    vai = VariablesAccessInfo(schedule,
+                              options={"COLLECT-ARRAY-SHAPE-READS": True})
+    assert str(vai) == "a: READ, b: READ, n: WRITE"
