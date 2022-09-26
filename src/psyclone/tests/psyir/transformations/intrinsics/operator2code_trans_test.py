@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -121,6 +121,7 @@ def test_validate():
     with pytest.raises(TransformationError) as excinfo:
         dummy.validate(UnaryOperation(UnaryOperation.Operator.SIN, var))
     assert ("Error in Hello2CodeTrans transformation. The supplied node "
-            "operator is invalid, found 'Operator.SIN'." in str(excinfo.value))
+            "operator is invalid, found 'Operator.SIN', but expected one "
+            "of '['ABS']'." in str(excinfo.value))
 
     dummy.validate(operator)

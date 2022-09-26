@@ -41,8 +41,8 @@
 
 '''
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import Range, Reference, ArrayReference, Literal, \
-    BinaryOperation
+from psyclone.psyir.nodes import (Range, Reference, ArrayReference, Literal,
+                                  BinaryOperation)
 from psyclone.psyir.symbols import INTEGER_TYPE, ArrayType
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -134,6 +134,8 @@ class Reference2ArrayRangeTrans(Transformation):
         :raises TransformationError: if the node is not a Reference \
             node or the Reference node not does not reference an array \
             symbol.
+        :raises TransformationError: if the Reference node is \
+            within an LBOUND, UBOUND or SIZE binaryoperator.
 
         '''
         # TODO issue #1858. Add support for structures containing arrays.
@@ -146,6 +148,14 @@ class Reference2ArrayRangeTrans(Transformation):
             raise TransformationError(
                 f"The supplied node should be a Reference to a symbol "
                 f"that is an array, but '{node.symbol.name}' is not.")
+        if (isinstance(node.parent, BinaryOperation) and
+                node.parent.operator in [
+                    BinaryOperation.Operator.LBOUND,
+                    BinaryOperation.Operator.UBOUND,
+                    BinaryOperation.Operator.SIZE]):
+            raise TransformationError(
+                "References to arrays within LBOUND, UBOUND or SIZE "
+                "operators should not be transformed.")
 
     def apply(self, node, options=None):
         '''Apply the Reference2ArrayRangeTrans transformation to the specified
