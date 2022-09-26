@@ -114,9 +114,9 @@ class PSyDataTrans(RegionTrans):
     # -------------------------------------------------------------------------
     def get_default_options(self):
         # pylint: disable=no-self-use
-        '''Returns additional options, specific to the transformation, that
-        will be added to the user option. Any values specified by the user
-        will take precedence.
+        '''Returns a new dictionary with additional options, specific to the
+        transformation, that will be added to the user option. Any values
+        specified by the user will take precedence.
 
         :returns: a dictionary with additional options.
         :rtype: Dict[str, Any]

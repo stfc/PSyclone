@@ -75,12 +75,12 @@ class ReadOnlyVerifyTrans(PSyDataTrans):
 
     # -------------------------------------------------------------------------
     def get_default_options(self):
-        '''Returns additional options, specific to this transformation, that
-        will be added to the user option. Any values specified by the user
-        will take precedence. For the read-only verify transformation, by
-        default we want VariablesAccessInformation to report array arguments
-        to lbound, ubound and size as read accesses, since these arguments
-        should also not be overwritten.
+        '''Returns a new dictionary with additional options, specific to the
+        transformation, that will be added to the user option. Any values
+        specified by the user will take precedence. For the read-only verify
+        transformation, by default we want VariablesAccessInformation to
+        report array arguments to lbound, ubound and size as read accesses,
+        since these arguments should also not be overwritten.
 
         :returns: a dictionary with additional options.
         :rtype: Dict[str, Any]
