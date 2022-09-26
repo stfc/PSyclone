@@ -153,7 +153,7 @@ class GOceanExtractTrans(ExtractTrans):
 
         '''
 
-        my_options = self.merge_in_additional_options(options)
+        my_options = self.merge_in_default_options(options)
 
         dep = DependencyTools()
         nodes = self.get_node_list(nodes)

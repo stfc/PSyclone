@@ -125,7 +125,7 @@ class PSyDataTrans(RegionTrans):
         return {}
 
     # -------------------------------------------------------------------------
-    def merge_in_additional_options(self, options):
+    def merge_in_default_options(self, options):
         '''This function returns additional options that should be
         added to the user-specified options for any extraction transformation.
         Any user-specified option will take precedence over the default
@@ -253,7 +253,7 @@ class PSyDataTrans(RegionTrans):
             raise TransformationError("A PSyData node cannot be inserted "
                                       "inside an OpenACC region.")
 
-        my_options = self.merge_in_additional_options(options)
+        my_options = self.merge_in_default_options(options)
         if "region_name" in my_options:
             name = my_options["region_name"]
             # pylint: disable=too-many-boolean-expressions
@@ -322,7 +322,7 @@ class PSyDataTrans(RegionTrans):
         node_list = self.get_node_list(nodes)
 
         # Add any transformation-specific settings that are required:
-        my_options = self.merge_in_additional_options(options)
+        my_options = self.merge_in_default_options(options)
         # Perform validation checks
         self.validate(node_list, my_options)
 
