@@ -115,7 +115,7 @@ class PSyDataNode(Statement):
             options = {}
 
         # Store a copy of the options so the node can later access them
-        self._options = dict(options)
+        self._options = options.copy()
 
         # _prefix stores a prefix to be used with all external PSyData
         # symbols (i.e. data types and module name), used in the

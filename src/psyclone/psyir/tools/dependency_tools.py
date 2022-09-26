@@ -823,7 +823,7 @@ class DependencyTools():
         :type param: Optional[Dict[str, Any]]
         :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is \
             set to a True value, arrays used as first parameter to the \
-            Fortran intrinsics lbound, ubound, or size will be reported as \
+            PSyIR operators lbound, ubound, or size will be reported as \
             'read'. Otherwise, these accesses will be ignored.
 
         :returns: a list of all variable signatures that are read.
@@ -866,7 +866,7 @@ class DependencyTools():
         :type param: Optional[Dict[str, Any]]
         :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is \
             set to a True value, arrays used as first parameter to the \
-            Fortran intrinsics lbound, ubound, or size will be reported as \
+            PSyIR operators lbound, ubound, or size will be reported as \
             'read'. Otherwise, these accesses will be ignored.
 
         :returns: a list of all variable signatures that are written.
@@ -892,10 +892,10 @@ class DependencyTools():
         :param options: a dictionary with options for the dependency tools \
             which will also be used when creating the VariablesAccessInfo \
             instance if required.
-        :type param: Dict[str, Any]
+        :type param: Optional[Dict[str, Any]]
         :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is \
             set to a True value, arrays used as first parameter to the \
-            Fortran intrinsics lbound, ubound, or size will be reported as \
+            PSyIR operators lbound, ubound, or size will be reported as \
             'read'. Otherwise, these accesses will be ignored.
 
         :returns: a 2-tuple of two lists, the first one containing \

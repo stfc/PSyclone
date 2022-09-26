@@ -39,8 +39,8 @@
 
 ''' Performs py.test tests on the Reference PSyIR node. '''
 
-from __future__ import absolute_import
 import pytest
+
 from psyclone.psyir.nodes import Reference, Assignment, Literal, KernelSchedule
 from psyclone.psyir.symbols import (DataSymbol, ArrayType, REAL_SINGLE_TYPE,
                                     INTEGER_SINGLE_TYPE, REAL_TYPE)

@@ -439,19 +439,19 @@ class VariablesAccessInfo(dict):
 
     :param nodes: optional, a single PSyIR node or list of nodes from \
         which to initialise this object.
-    :type nodes: None, :py:class:`psyclone.psyir.nodes.Node` or\
-        List[:py:class:`psyclone.psyir.nodes.Node`]
+    :type nodes: Optional[:py:class:psyclone.psyir.nodes.Node | \
+        List[:py:class:`psyclone.psyir.nodes.Node`]]
     :param options: a dictionary with options to influence which variable \
         accesses are to be collected.
     :type options: Dict[str, Any]
     :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is set \
-        to a True value, arrays used as first parameter to the Fortran \
-        intrinsics lbound, ubound, or size will be reported as 'read'.
+        to a True value, arrays used as first parameter to the PSyIR query \
+        operators lbound, ubound, or size will be reported as 'read'.
         Otherwise, these accesses will be ignored.
 
     '''
 
-    # List of valid options. Note that only the option method check this,
+    # List of valid options. Note that only the options method checks this,
     # since it is convenient to pass in options from the DependencyTools
     # that might contain options for these tools.
     _VALID_OPTIONS = ["COLLECT-ARRAY-SHAPE-READS"]
@@ -463,8 +463,9 @@ class VariablesAccessInfo(dict):
 
         if options:
             if not isinstance(options, dict):
-                raise InternalError(f"Options argument for VariablesAccessInfo"
-                                    f"must be a dictionary or None, but got "
+                raise InternalError(f"The options argument for "
+                                    f"VariablesAccessInfo must be a "
+                                    f"dictionary or None, but got "
                                     f"'{type(options).__name__}'.")
             self._options = options.copy()
         else:
@@ -535,7 +536,7 @@ class VariablesAccessInfo(dict):
 
         :param key: the option to query, or None if all options should \
             be returned.
-        :type key: Union[str, None]
+        :type key: Optional[str]
 
         :returns: the value of the option or the whole option dictionary.
         :rtype: Any

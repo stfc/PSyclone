@@ -559,10 +559,10 @@ class BinaryOperation(Operation):
         return binary_op
 
     def reference_accesses(self, var_accesses):
-        '''Get all variable access information from this node, i.e.
-        it sets this variable to be read. It relies on
-        `get_signature_and_indices` and will correctly handle
-        array expressions.
+        '''Get all reference access information from this node.
+        If the 'COLLECT-ARRAY-SHAPE-READS' options is set, it
+        will not report array accesses used as first parameter
+        in `lbound`, `ubound`, or `size` as 'read' accesses.
 
         :param var_accesses: VariablesAccessInfo instance that stores the \
             information about variable accesses.

@@ -40,7 +40,6 @@
 sub-classes.
 
 '''
-from __future__ import absolute_import
 import pytest
 
 from psyclone.core import VariablesAccessInfo

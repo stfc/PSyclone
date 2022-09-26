@@ -374,8 +374,8 @@ def test_variables_access_info_errors():
 
     with pytest.raises(InternalError) as err:
         _ = VariablesAccessInfo(options=1)
-    assert ("Options argument for VariablesAccessInfomust be a dictionary or "
-            "None, but got 'int'." in str(err.value))
+    assert ("The options argument for VariablesAccessInfo must be a "
+            "dictionary or None, but got 'int'." in str(err.value))
 
 
 # -----------------------------------------------------------------------------
@@ -477,9 +477,9 @@ def test_constructor(fortran_reader):
         end subroutine tmp
         end module test'''
     psyir = fortran_reader.psyir_from_source(code)
-    schedule = psyir.children[0].children[0]
-    node1 = schedule[0]
-    node2 = schedule[1]
+    assignments = psyir.walk(Assignment)
+    node1 = assignments[0]
+    node2 = assignments[1]
     vai1 = VariablesAccessInfo(node1)
     assert str(vai1) == "a: WRITE, b: READ, c: READ"
     vai2 = VariablesAccessInfo([node1, node2])
@@ -516,10 +516,8 @@ def test_derived_type_scalar(fortran_reader):
           a%b = b%c/c%d%e
         end subroutine tmp
         end module test'''
-    schedule = fortran_reader.psyir_from_source(code).children[0]
-    node1 = schedule.children[0][0]
+    node1 = fortran_reader.psyir_from_source(code).walk(Assignment)[0]
     vai1 = VariablesAccessInfo(node1)
-    assert isinstance(node1, Assignment)
     assert str(vai1) == "a%b: WRITE, b%c: READ, c%d%e: READ"
 
 
@@ -573,10 +571,8 @@ def test_derived_type_array(array, indices, fortran_writer, fortran_reader):
         end subroutine tmp
         end module test'''
 
-    schedule = fortran_reader.psyir_from_source(code).children[0]
-    node1 = schedule.children[0][0]
+    node1 = fortran_reader.psyir_from_source(code).walk(Assignment)[0]
     vai1 = VariablesAccessInfo(node1)
-    assert isinstance(node1, Assignment)
     assert str(vai1) == "a%b%c: READ, c%e: WRITE, i: READ, j: READ, k: READ"
 
     # Verify that the index expression is correct. Convert the index
@@ -671,8 +667,7 @@ def test_variables_access_info_shape_bounds(fortran_reader, function):
         end subroutine tmp
         end module test'''
     psyir = fortran_reader.psyir_from_source(code)
-    schedule = psyir.children[0].children[0]
-    node1 = schedule[0]
+    node1 = psyir.walk(Assignment)[0]
 
     # By default, array shape accesses are not reads.
     vai = VariablesAccessInfo(node1)
