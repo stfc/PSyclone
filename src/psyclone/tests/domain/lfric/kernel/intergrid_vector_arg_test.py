@@ -83,7 +83,7 @@ def test_init_invalid():
     with pytest.raises(ValueError) as info:
         _ = InterGridVectorArg(function_space="invalid")
     assert ("The fourth metadata entry for an argument should be a "
-            "recognised datatype descriptor (one of ['w3', 'wtheta', 'w2v', "
+            "recognised function space (one of ['w3', 'wtheta', 'w2v', "
             "'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', 'w2h', "
             "'w2htrace', 'any_w2', 'wchi', 'any_space_1', 'any_space_2', "
             "'any_space_3', 'any_space_4', 'any_space_5', 'any_space_6', "
@@ -181,7 +181,7 @@ def test_create_from_fparser2():
         _ = InterGridVectorArg.create_from_fortran_string(
             "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, mesh_arg=GH_COARSE)")
     assert ("Expecting the first argument to be in the form "
-            "'datatype*vector_length' but found 'GH_FIELD'."
+            "'form*vector_length' but found 'GH_FIELD'."
             in str(info.value))
 
     intergrid_arg = InterGridVectorArg.create_from_fortran_string(
@@ -208,10 +208,10 @@ def test_fortran_string():
     intergrid_arg = InterGridVectorArg()
     with pytest.raises(ValueError) as info:
         _ = intergrid_arg.fortran_string()
-    assert ("Values for datatype, access, function_space and mesh_arg must "
-            "be provided before calling the fortran_string method, but found "
-            "'None', 'None', 'None', 'None' and 'None', respectively."
-            in str(info.value))
+    assert ("Values for datatype, access, function_space, mesh_arg and "
+            "vector_length must be provided before calling the "
+            "fortran_string method, but found 'None', 'None', 'None', "
+            "'None' and 'None', respectively." in str(info.value))
 
 
 def test_setter_getter():

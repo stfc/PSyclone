@@ -76,20 +76,19 @@ class FieldArg(CommonArg):
 
         '''
         FieldArg.check_fparser2(fparser2_tree, nargs=4)
-        datatype = fparser2_tree.children[1].children[1].tostr()
-        access = fparser2_tree.children[1].children[2].tostr()
-        function_space = fparser2_tree.children[1].children[3].tostr()
+        datatype, access, function_space = \
+            FieldArg.get_type_access_and_fs(fparser2_tree)
         return FieldArg(datatype, access, function_space)
 
     @classmethod
     def create_from_fortran_string(cls, fortran_string):
-        '''Create an instance of this class from a Fortran string.
+        '''Create an instance of this class from Fortran.
 
         :param str fortran_string: a string containing the metadata in \
             Fortran.
 
         :returns: an instance of cls.
-        :rtype: :py:class:`psyclone.domain.lfric.kernel.cls`
+        :rtype: subclass of :py:class:`psyclone.domain.lfric.kernel.common_arg`
 
         '''
         fparser2_tree = cls.create_fparser2(fortran_string)
@@ -97,11 +96,10 @@ class FieldArg(CommonArg):
 
     def fortran_string(self):
         '''
-        :returns: the metadata represented by this class as a \
-            Fortran string.
+        :returns: the metadata represented by this class as Fortran.
         :rtype: str
 
-        raises ValueError: if one or more of the datatype, access or \
+        :raises ValueError: if one or more of the datatype, access or \
             function_space values have not been set.
 
         '''
@@ -118,8 +116,7 @@ class FieldArg(CommonArg):
     @staticmethod
     def check_datatype(value):
         '''
-        :param str value: set the datatype to the \
-            specified value.
+        :param str value: the datatype to check for validity.
 
         :raises ValueError: if the provided value is not a valid \
             datatype descriptor.
@@ -135,8 +132,7 @@ class FieldArg(CommonArg):
     @staticmethod
     def check_access(value):
         '''
-        :param str value: set the access descriptor to the \
-            specified value.
+        :param str value: the access descriptor to validate.
 
         :raises ValueError: if the provided value is not a valid \
             access type.
@@ -146,14 +142,13 @@ class FieldArg(CommonArg):
         if not value or value.lower() not in const.VALID_FIELD_ACCESS_TYPES:
             raise ValueError(
                 f"The third metadata entry for an argument should "
-                f"be a recognised datatype descriptor (one of "
+                f"be a recognised access descriptor (one of "
                 f"{const.VALID_FIELD_ACCESS_TYPES}), but found '{value}'.")
 
     @property
     def function_space(self):
         '''
-        :returns: the function space for this field \
-            argument.
+        :returns: the function space for this field argument.
         :rtype: str
         '''
         return self._function_space
@@ -161,10 +156,10 @@ class FieldArg(CommonArg):
     @function_space.setter
     def function_space(self, value):
         '''
-        :param str value: set the access descriptor to the \
+        :param str value: set the function space to the \
             specified value.
 
-        raises ValueError: if the provided value is not a valid \
+        :raises ValueError: if the provided value is not a valid \
             function space.
 
         '''
@@ -172,6 +167,6 @@ class FieldArg(CommonArg):
         if not value or value.lower() not in const.VALID_FUNCTION_SPACE_NAMES:
             raise ValueError(
                 f"The fourth metadata entry for an argument should "
-                f"be a recognised datatype descriptor (one of "
+                f"be a recognised function space (one of "
                 f"{const.VALID_FUNCTION_SPACE_NAMES}), but found '{value}'.")
         self._function_space = value

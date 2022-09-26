@@ -81,22 +81,37 @@ class InterGridArg(FieldArg):
         '''
         InterGridArg.check_fparser2(
             fparser2_tree, nargs=5, encoding=Fortran2003.Structure_Constructor)
-        args = fparser2_tree.children[1]
-        datatype = args.children[1].tostr()
-        access = args.children[2].tostr()
-        function_space = args.children[3].tostr()
-        mesh_arg = args.children[4].children[1].tostr()
+        datatype, access, function_space = \
+            InterGridArg.get_type_access_and_fs(fparser2_tree)
+        mesh_arg = InterGridArg.get_mesh_arg(fparser2_tree)
         return InterGridArg(datatype, access, function_space, mesh_arg)
+
+    @staticmethod
+    def get_mesh_arg(fparser2_tree):
+        '''Retrieves the mesh_arg metadata value from the supplied fparser2
+        tree.
+
+        :param fparser2_tree: fparser2 tree capturing the metadata for \
+            an InterGrid argument.
+        :type fparser2_tree: \
+            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
+
+        :returns: the metadata mesh value extracted from the fparser2 tree.
+        :rtype: str
+
+        '''
+        mesh_arg = fparser2_tree.children[1].children[4].children[1].tostr()
+        return mesh_arg
 
     @classmethod
     def create_from_fortran_string(cls, fortran_string):
-        '''Create an instance of this class from a Fortran string.
+        '''Create an instance of this class from Fortran.
 
         :param str fortran_string: a string containing the metadata in \
             Fortran.
 
         :returns: an instance of cls.
-        :rtype: :py:class:`psyclone.domain.lfric.kernel.cls`
+        :rtype: subclass of :py:class:`psyclone.domain.lfric.kernel.common_arg`
 
         '''
         fparser2_tree = cls.create_fparser2(
@@ -105,12 +120,11 @@ class InterGridArg(FieldArg):
 
     def fortran_string(self):
         '''
-        :returns: the metadata represented by this class as a \
-            Fortran string.
+        :returns: the metadata represented by this class as Fortran.
         :rtype: str
 
-        raises ValueError: if one or more of the datatype, access or \
-            function_space values have not been set.
+        :raises ValueError: if one or more of the datatype, access, \
+            function_space or mesh_arg values have not been set.
 
         '''
         if not (self.datatype and self.access and self.function_space and
@@ -138,7 +152,7 @@ class InterGridArg(FieldArg):
     @mesh_arg.setter
     def mesh_arg(self, value):
         '''
-        :param str value: set the access descriptor to the \
+        :param str value: set the mesh type to the \
             specified value.
 
         raises ValueError: if the provided value is not a valid \

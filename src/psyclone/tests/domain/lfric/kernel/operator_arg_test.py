@@ -55,8 +55,8 @@ def test_init_noargs():
     assert operator_arg.form == "GH_OPERATOR"
     assert operator_arg._datatype is None
     assert operator_arg._access is None
-    assert operator_arg._function_space1 is None
-    assert operator_arg._function_space2 is None
+    assert operator_arg._function_space_to is None
+    assert operator_arg._function_space_from is None
 
 
 def test_init_invalid():
@@ -74,25 +74,25 @@ def test_init_invalid():
     with pytest.raises(ValueError) as info:
         _ = OperatorArg(access="invalid")
     assert ("The third metadata entry for an argument should be a "
-            "recognised datatype descriptor (one of ['gh_read', 'gh_write', "
+            "recognised access descriptor (one of ['gh_read', 'gh_write', "
             "'gh_readwrite']), but found 'invalid'."
             in str(info.value))
 
     with pytest.raises(ValueError) as info:
-        _ = OperatorArg(function_space1="invalid")
+        _ = OperatorArg(function_space_to="invalid")
     assert ("The fourth metadata entry for an argument should be a "
-            "recognised function space (one of ['w3', 'wtheta', 'w2v', "
-            "'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', 'w2h', "
-            "'w2htrace', 'any_w2', 'wchi']), but found 'invalid'."
-            in str(info.value))
+            "recognised function space that the operator maps to (one of "
+            "['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', "
+            "'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi']), but "
+            "found 'invalid'." in str(info.value))
 
     with pytest.raises(ValueError) as info:
-        _ = OperatorArg(function_space2="invalid")
+        _ = OperatorArg(function_space_from="invalid")
     assert ("The fifth metadata entry for an argument should be a "
-            "recognised function space (one of ['w3', 'wtheta', 'w2v', "
-            "'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', 'w2h', "
-            "'w2htrace', 'any_w2', 'wchi']), but found 'invalid'."
-            in str(info.value))
+            "recognised function space that the operator maps from (one of "
+            "['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', "
+            "'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi']), but "
+            "found 'invalid'." in str(info.value))
 
 
 def test_init_args():
@@ -104,8 +104,8 @@ def test_init_args():
     assert operator_arg.form == "GH_OPERATOR"
     assert operator_arg._datatype == "GH_REAL"
     assert operator_arg._access == "GH_READ"
-    assert operator_arg._function_space1 == "W0"
-    assert operator_arg._function_space2 == "W1"
+    assert operator_arg._function_space_to == "W0"
+    assert operator_arg._function_space_from == "W1"
 
 
 def test_create_from_fortran_string():
@@ -124,8 +124,8 @@ def test_create_from_fortran_string():
     assert operator_arg.form == "GH_OPERATOR"
     assert operator_arg._datatype == "GH_REAL"
     assert operator_arg._access == "GH_READ"
-    assert operator_arg._function_space1 == "W0"
-    assert operator_arg._function_space2 == "W1"
+    assert operator_arg._function_space_to == "W0"
+    assert operator_arg._function_space_from == "W1"
 
 
 def create_part_ref(fortran_string):
@@ -173,8 +173,8 @@ def test_create_from_fparser2():
     assert operator_arg.form == "GH_OPERATOR"
     assert operator_arg._datatype == "GH_REAL"
     assert operator_arg._access == "GH_READ"
-    assert operator_arg._function_space1 == "W0"
-    assert operator_arg._function_space2 == "W1"
+    assert operator_arg._function_space_to == "W0"
+    assert operator_arg._function_space_from == "W1"
 
 
 def test_fortran_string():
@@ -189,7 +189,7 @@ def test_fortran_string():
     operator_arg = OperatorArg()
     with pytest.raises(ValueError) as info:
         _ = operator_arg.fortran_string()
-    assert ("Values for datatype, access, function_space1 and function_space2 "
+    assert ("Values for datatype, access, function_space_to and function_space_from "
             "must be provided before calling the fortran_string method, but "
             "found 'None', 'None', 'None' and 'None', respectively."
             in str(info.value))
@@ -217,7 +217,7 @@ def test_setter_getter():
     with pytest.raises(ValueError) as info:
         operator_arg.access = "invalid"
     assert ("The third metadata entry for an argument should be a "
-            "recognised datatype descriptor (one of ['gh_read', 'gh_write', "
+            "recognised access descriptor (one of ['gh_read', 'gh_write', "
             "'gh_readwrite']), but found 'invalid'."
             in str(info.value))
 
@@ -226,30 +226,30 @@ def test_setter_getter():
     operator_arg.access = "GH_READ"
     assert operator_arg.access == "GH_READ"
 
-    assert operator_arg.function_space1 is None
+    assert operator_arg.function_space_to is None
     with pytest.raises(ValueError) as info:
-        operator_arg.function_space1 = "invalid"
+        operator_arg.function_space_to = "invalid"
     assert ("The fourth metadata entry for an argument should be a "
-            "recognised function space (one of ['w3', 'wtheta', 'w2v', "
-            "'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', 'w2h', "
-            "'w2htrace', 'any_w2', 'wchi']), but found 'invalid'."
-            in str(info.value))
+            "recognised function space that the operator maps to (one of "
+            "['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', "
+            "'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi']), but "
+            "found 'invalid'." in str(info.value))
 
-    operator_arg.function_space1 = "w0"
-    assert operator_arg.function_space1 == "w0"
-    operator_arg.function_space1 = "W0"
-    assert operator_arg.function_space1 == "W0"
+    operator_arg.function_space_to = "w0"
+    assert operator_arg.function_space_to == "w0"
+    operator_arg.function_space_to = "W0"
+    assert operator_arg.function_space_to == "W0"
 
-    assert operator_arg.function_space2 is None
+    assert operator_arg.function_space_from is None
     with pytest.raises(ValueError) as info:
-        operator_arg.function_space2 = "invalid"
+        operator_arg.function_space_from = "invalid"
     assert ("The fifth metadata entry for an argument should be a "
-            "recognised function space (one of ['w3', 'wtheta', 'w2v', "
-            "'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', 'w2h', "
-            "'w2htrace', 'any_w2', 'wchi']), but found 'invalid'."
-            in str(info.value))
+            "recognised function space that the operator maps from (one of "
+            "['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', "
+            "'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi']), but "
+            "found 'invalid'." in str(info.value))
 
-    operator_arg.function_space2 = "w1"
-    assert operator_arg.function_space2 == "w1"
-    operator_arg.function_space2 = "W1"
-    assert operator_arg.function_space2 == "W1"
+    operator_arg.function_space_from = "w1"
+    assert operator_arg.function_space_from == "w1"
+    operator_arg.function_space_from = "W1"
+    assert operator_arg.function_space_from == "W1"

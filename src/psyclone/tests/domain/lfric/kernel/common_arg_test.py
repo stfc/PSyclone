@@ -42,8 +42,8 @@ from psyclone.domain.lfric.kernel.common_arg import CommonArg
 
 
 def test_init():
-    '''Test that a CommonArg instance can be created successfully when no
-    arguments are provided.
+    '''Test that a CommonArg instance can't be created as it is abstract.
+
     '''
     with pytest.raises(TypeError) as info:
         _ = CommonArg()

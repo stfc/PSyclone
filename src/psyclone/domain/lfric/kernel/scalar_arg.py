@@ -54,9 +54,6 @@ class ScalarArg(CommonArg):
     '''
     form = "GH_SCALAR"
 
-    def __init__(self, datatype=None, access=None):
-        super().__init__(datatype, access)
-
     @staticmethod
     def create_from_fparser2(fparser2_tree):
         '''Create an instance of this class from an fparser2 tree.
@@ -70,19 +67,18 @@ class ScalarArg(CommonArg):
 
         '''
         ScalarArg.check_fparser2(fparser2_tree, nargs=3)
-        datatype = fparser2_tree.children[1].children[1].tostr()
-        access = fparser2_tree.children[1].children[2].tostr()
+        datatype, access = ScalarArg.get_type_and_access(fparser2_tree)
         return ScalarArg(datatype, access)
 
     @classmethod
     def create_from_fortran_string(cls, fortran_string):
-        '''Create an instance of this class from a Fortran string.
+        '''Create an instance of this class from Fortran.
 
         :param str fortran_string: a string containing the metadata in \
             Fortran.
 
         :returns: an instance of cls.
-        :rtype: :py:class:`psyclone.domain.lfric.kernel.cls`
+        :rtype: subclass of :py:class:`psyclone.domain.lfric.kernel.common_arg`
 
         '''
         fparser2_tree = cls.create_fparser2(fortran_string)
@@ -90,12 +86,11 @@ class ScalarArg(CommonArg):
 
     def fortran_string(self):
         '''
-        :returns: the metadata represented by this class as a \
-            Fortran string.
+        :returns: the metadata represented by this class as Fortran.
         :rtype: str
 
-        raises ValueError: if one or more of the datatype, access or \
-            function_space values have not been set.
+        :raises ValueError: if one or more of the datatype or access \
+            values have not been set.
 
         '''
         if not (self.datatype and self.access):
@@ -118,8 +113,7 @@ class ScalarArg(CommonArg):
     @staticmethod
     def check_datatype(value):
         '''
-        :param str value: set the datatype to the \
-            specified value.
+        :param str value: the datatype to check for validity.
 
         :raises ValueError: if the provided value is not a valid \
             datatype descriptor.
@@ -137,10 +131,6 @@ class ScalarArg(CommonArg):
         '''
         :param str value: set the datatype to the \
             specified value.
-
-        :raises ValueError: if the provided value is not a valid \
-            datatype descriptor.
-
         '''
         self.check_datatype(value)
         self._datatype = value
@@ -157,6 +147,8 @@ class ScalarArg(CommonArg):
     @staticmethod
     def check_access(value):
         '''
+        :param str value: the access descriptor to validate.
+
         :raises ValueError: if the provided value is not a valid \
             access type.
         '''
@@ -165,7 +157,7 @@ class ScalarArg(CommonArg):
         if not value or value.lower() not in const.VALID_SCALAR_ACCESS_TYPES:
             raise ValueError(
                 f"The third metadata entry for a scalar argument should "
-                f"be a recognised datatype descriptor (one of "
+                f"be a recognised access descriptor (one of "
                 f"{const.VALID_SCALAR_ACCESS_TYPES}), but found '{value}'.")
 
     @access.setter

@@ -45,8 +45,8 @@ from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
 
 
-#TODO issue #1886. This class has commonalities with GOcean metadata
-#processing.
+# TODO issue #1886. This class has commonalities with GOcean metadata
+# processing.
 class CommonArg(ABC):
     '''Abstract class to capture common LFRic kernel metadata.
 
@@ -116,8 +116,8 @@ class CommonArg(ABC):
             :py:class:`fparser.two.Fortran2003.Part_Ref` | \
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`]
 
-        :raises TypeError: if the fparser2_tree argument is not an fparser2 \
-            Part_Ref or Structure_Constructor object.
+        :raises TypeError: if the fparser2_tree argument is not of the \
+            type specified by the encoding argument.
         :raises ValueError: if the kernel metadata is not in \
             the form arg_type(...).
         :raises ValueError: if the kernel metadata does not contain \
@@ -128,7 +128,8 @@ class CommonArg(ABC):
             raise TypeError(
                 f"Expected kernel metadata to be encoded as a "
                 f"Fortran {encoding.__name__} object but found type "
-                f"'{type(fparser2_tree).__name__}' with value '{str(fparser2_tree)}'.")
+                f"'{type(fparser2_tree).__name__}' with value "
+                f"'{str(fparser2_tree)}'.")
         if not fparser2_tree.children[0].tostr().lower() == "arg_type":
             raise ValueError(
                 f"Expected kernel metadata to have the name "
@@ -137,8 +138,82 @@ class CommonArg(ABC):
         if len(fparser2_tree.children[1].children) != nargs:
             raise ValueError(
                 f"Expected kernel metadata to have {nargs} "
-                f"arguments, but found {len(fparser2_tree.children[1].children)} in "
+                f"arguments, but found "
+                f"{len(fparser2_tree.children[1].children)} in "
                 f"'{str(fparser2_tree)}'.")
+
+    @staticmethod
+    def get_arg(fparser2_tree, index):
+        '''Retrieves the metadata value found at the position specified by the
+        index argument within the supplied fparser2 tree.
+
+        :param fparser2_tree: fparser2 tree capturing the required metadata.
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
+        :param int index: the position of the metadata argument.
+
+        :returns: the metadata value extracted from the fparser2 tree.
+        :rtype: str
+
+        '''
+        return fparser2_tree.children[1].children[index].tostr()
+
+    @staticmethod
+    def get_type_and_access(fparser2_tree):
+        '''Retrieves the datatype and access metadata values found within the
+        supplied fparser2 tree.
+
+        :param fparser2_tree: fparser2 tree capturing the required metadata.
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
+
+        :returns: the datatype and access values extracted from the \
+            fparser2 tree.
+        :rtype: Tuple[str, str]
+
+        '''
+        datatype = CommonArg.get_arg(fparser2_tree, 1)
+        access = CommonArg.get_arg(fparser2_tree, 2)
+        return (datatype, access)
+
+    @staticmethod
+    def get_type_access_and_fs(fparser2_tree):
+        '''Retrieves the datatype, access and function space metadata values
+        found within the supplied fparser2 tree.
+
+        :param fparser2_tree: fparser2 tree capturing the required metadata.
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
+
+        :returns: the datatype, access and function space values \
+            extracted from the fparser2 tree.
+        :rtype: Tuple[str, str, str]
+
+        '''
+        datatype, access = CommonArg.get_type_and_access(fparser2_tree)
+        function_space = CommonArg.get_arg(fparser2_tree, 3)
+        return (datatype, access, function_space)
+
+    @staticmethod
+    def get_vector_length(fparser2_tree):
+        '''Retrieves the vector length metadata value found within the
+        supplied fparser2 tree.
+
+        :param fparser2_tree: fparser2 tree capturing the required metadata.
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
+
+        :returns: the vector length value extracted from the fparser2 tree.
+        :rtype: str
+
+        :raises TypeError: if the vector length metadata is not in the \
+            expected form.
+
+        '''
+        vector_datatype = CommonArg.get_arg(fparser2_tree, 0)
+        components = vector_datatype.split("*")
+        if len(components) != 2:
+            raise TypeError(
+                f"Expecting the first argument to be in the form "
+                f"'form*vector_length' but found '{vector_datatype}'.")
+        vector_length = components[1].strip()
+        return vector_length
 
     @property
     def datatype(self):

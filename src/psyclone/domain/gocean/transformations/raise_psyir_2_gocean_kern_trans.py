@@ -37,8 +37,6 @@
 PSyclone kernel-layer-specific PSyIR which uses specialised classes.
 
 '''
-import re
-
 from psyclone.configuration import Config
 from psyclone.domain.gocean.kernel import GOceanKernelMetadata, GOceanContainer
 from psyclone.psyGen import Transformation
@@ -77,7 +75,8 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
     symbols. This is currently limited to the specialisation of kernel
     metadata.
 
-    >>> from psyclone.domain.gocean.transformations import RaisePSyIR2GOceanKernTrans
+    >>> from psyclone.domain.gocean.transformations import \
+            RaisePSyIR2GOceanKernTrans
     >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> CODE = ("""
     ... MODULE example

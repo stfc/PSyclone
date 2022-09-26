@@ -48,18 +48,14 @@ class ColumnwiseOperatorArg(OperatorArg):
     :param Optional[str] datatype: the datatype of this Columnwise \
         Operator (GH_INTEGER, ...).
     :param Optional[str] access: the way the kernel accesses this \
-        field (GH_WRITE, ...).
-    :param Optional[str] function_space1: the function space that this \
-        field maps from (W0, ...).
-    :param Optional[str] function_space2: the function space that this \
-        field maps to (W0, ...).
+        operator (GH_WRITE, ...).
+    :param Optional[str] function_space_to: the function space that this \
+        operator maps to (W0, ...).
+    :param Optional[str] function_space_from: the function space that this \
+        operator maps from (W0, ...).
 
     '''
     form = "GH_COLUMNWISE_OPERATOR"
-    
-    def __init__(self, datatype=None, access=None, function_space1=None,
-                 function_space2=None):
-        super().__init__(datatype, access, function_space1, function_space2)
 
     @staticmethod
     def create_from_fparser2(fparser2_tree):
@@ -74,9 +70,9 @@ class ColumnwiseOperatorArg(OperatorArg):
 
         '''
         ColumnwiseOperatorArg.check_fparser2(fparser2_tree, nargs=5)
-        datatype = fparser2_tree.children[1].children[1].tostr()
-        access = fparser2_tree.children[1].children[2].tostr()
-        function_space1 = fparser2_tree.children[1].children[3].tostr()
-        function_space2 = fparser2_tree.children[1].children[4].tostr()
+        datatype, access, function_space_to = \
+            ColumnwiseOperatorArg.get_type_access_and_fs(fparser2_tree)
+        function_space_from = ColumnwiseOperatorArg.get_fs_to_arg(
+            fparser2_tree)
         return ColumnwiseOperatorArg(
-            datatype, access, function_space1, function_space2)
+            datatype, access, function_space_to, function_space_from)

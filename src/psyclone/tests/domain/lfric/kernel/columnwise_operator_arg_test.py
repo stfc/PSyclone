@@ -56,8 +56,8 @@ def test_init_noargs():
     assert operator_arg.form == "GH_COLUMNWISE_OPERATOR"
     assert operator_arg._datatype is None
     assert operator_arg._access is None
-    assert operator_arg._function_space1 is None
-    assert operator_arg._function_space2 is None
+    assert operator_arg._function_space_to is None
+    assert operator_arg._function_space_from is None
 
 
 def test_init_args():
@@ -69,8 +69,8 @@ def test_init_args():
     assert operator_arg.form == "GH_COLUMNWISE_OPERATOR"
     assert operator_arg._datatype == "GH_REAL"
     assert operator_arg._access == "GH_READ"
-    assert operator_arg._function_space1 == "W0"
-    assert operator_arg._function_space2 == "W1"
+    assert operator_arg._function_space_to == "W0"
+    assert operator_arg._function_space_from == "W1"
 
 
 def test_create_from_fortran_string():
@@ -90,8 +90,8 @@ def test_create_from_fortran_string():
     assert operator_arg.form == "GH_COLUMNWISE_OPERATOR"
     assert operator_arg._datatype == "GH_REAL"
     assert operator_arg._access == "GH_READ"
-    assert operator_arg._function_space1 == "W0"
-    assert operator_arg._function_space2 == "W1"
+    assert operator_arg._function_space_to == "W0"
+    assert operator_arg._function_space_from == "W1"
 
 
 def create_part_ref(fortran_string):
@@ -120,5 +120,5 @@ def test_create_from_fparser2():
     assert operator_arg.form == "GH_COLUMNWISE_OPERATOR"
     assert operator_arg._datatype == "GH_REAL"
     assert operator_arg._access == "GH_READ"
-    assert operator_arg._function_space1 == "W0"
-    assert operator_arg._function_space2 == "W1"
+    assert operator_arg._function_space_to == "W0"
+    assert operator_arg._function_space_from == "W1"

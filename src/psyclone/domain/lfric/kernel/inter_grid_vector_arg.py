@@ -53,6 +53,7 @@ class InterGridVectorArg(InterGridArg):
         InterGridVector argument (GH_WRITE, ...).
     :param Optional[str] function_space: the function space that this \
         InterGridVector argument is on (W0, ...).
+    :param Optional[str] vector_length: the size of the vector.
 
     '''
     def __init__(self, datatype=None, access=None, function_space=None,
@@ -78,40 +79,31 @@ class InterGridVectorArg(InterGridArg):
         '''
         InterGridVectorArg.check_fparser2(
             fparser2_tree, nargs=5, encoding=Fortran2003.Structure_Constructor)
-
-        vector_datatype = fparser2_tree.children[1].children[0].tostr()
-        components = vector_datatype.split("*")
-        if len(components) != 2:
-            raise TypeError(
-                f"Expecting the first argument to be in the form "
-                f"'datatype*vector_length' but found '{vector_datatype}'.")
-        vector_length = components[1].strip()
-
-        datatype = fparser2_tree.children[1].children[1].tostr()
-        access = fparser2_tree.children[1].children[2].tostr()
-        function_space = fparser2_tree.children[1].children[3].tostr()
-        mesh_arg = fparser2_tree.children[1].children[4].children[1].tostr()
+        vector_length = InterGridVectorArg.get_vector_length(fparser2_tree)
+        datatype, access, function_space = \
+            InterGridVectorArg.get_type_access_and_fs(fparser2_tree)
+        mesh_arg = InterGridVectorArg.get_mesh_arg(fparser2_tree)
         return InterGridVectorArg(
             datatype, access, function_space, mesh_arg, vector_length)
 
     def fortran_string(self):
         '''
-        :returns: the metadata represented by this class as a \
-            Fortran string.
+        :returns: the metadata represented by this class as Fortran.
         :rtype: str
 
-        raises ValueError: if one or more of the datatype, access or \
-            function_space values have not been set.
+        :raises ValueError: if one or more of the datatype, access, \
+            function_space, mesh_arg or vecgtor_length values have not \
+            been set.
 
         '''
         if not (self.datatype and self.access and self.function_space and
                 self.mesh_arg and self.vector_length):
             raise ValueError(
-                f"Values for datatype, access, function_space and mesh_arg "
-                f"must be provided before calling the fortran_string method, "
-                f"but found '{self.datatype}', '{self.access}', "
-                f"'{self.function_space}', '{self.mesh_arg}' and "
-                f"'{self.vector_length}', respectively.")
+                f"Values for datatype, access, function_space, mesh_arg "
+                f"and vector_length must be provided before calling the "
+                f"fortran_string method, but found '{self.datatype}', "
+                f"'{self.access}', '{self.function_space}', "
+                f"'{self.mesh_arg}' and '{self.vector_length}', respectively.")
 
         return (f"arg_type({self.form}*{self.vector_length}, "
                 f"{self.datatype}, {self.access}, {self.function_space}, "

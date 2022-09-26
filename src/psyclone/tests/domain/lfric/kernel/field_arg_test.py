@@ -80,7 +80,7 @@ def test_init_invalid():
     with pytest.raises(ValueError) as info:
         _ = FieldArg(function_space="invalid")
     assert ("The fourth metadata entry for an argument should be a "
-            "recognised datatype descriptor (one of ['w3', 'wtheta', 'w2v', "
+            "recognised function space (one of ['w3', 'wtheta', 'w2v', "
             "'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', 'w2h', "
             "'w2htrace', 'any_w2', 'wchi', 'any_space_1', 'any_space_2', "
             "'any_space_3', 'any_space_4', 'any_space_5', 'any_space_6', "
@@ -223,7 +223,7 @@ def test_setter_getter():
     with pytest.raises(ValueError) as info:
         field_arg.function_space = "invalid"
     assert ("The fourth metadata entry for an argument should be a "
-            "recognised datatype descriptor (one of ['w3', 'wtheta', 'w2v', "
+            "recognised function space (one of ['w3', 'wtheta', 'w2v', "
             "'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', 'w2h', "
             "'w2htrace', 'any_w2', 'wchi', 'any_space_1', 'any_space_2', "
             "'any_space_3', 'any_space_4', 'any_space_5', 'any_space_6', "

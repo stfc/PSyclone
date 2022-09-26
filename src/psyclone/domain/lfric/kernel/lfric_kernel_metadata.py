@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing the KernelMetadataSymbol
+'''Module containing the LFRicKernelMetadata
 kernel-layer-specific class that captures the LFRic kernel metadata.
 
 '''
@@ -64,7 +64,7 @@ class LFRicKernelMetadata():
     '''Contains LFRic kernel metadata. This class supports kernel
     metadata creation, modification, loading from a fortran string,
     writing to a fortran string, raising from existing language-level
-    PSyIR and lowering to language-level psyir.
+    PSyIR and lowering to language-level PSyIR.
 
     :param meta_args: a list of 'meta_arg' objects which capture the \
         metadata values of the kernel arguments.
@@ -305,8 +305,7 @@ class LFRicKernelMetadata():
         if not args:
             LFRicKernelMetadata.meta_reference_element = []
 
-        # meta_mesh contains arguments which have
-        # properties.
+        # meta_mesh contains arguments which have properties.
         try:
             # TODO issue #1879. META_MESH is not parsed correctly yet.
             LFRicKernelMetadata.meta_mesh = LFRicKernelMetadata._get_property(
@@ -419,9 +418,7 @@ class LFRicKernelMetadata():
                 f"'{self.operates_on}' and '{self.procedure_name}' "
                 f"respectively.")
 
-        lfric_args = []
-        for lfric_arg in self.meta_args:
-            lfric_args.append(lfric_arg.fortran_string())
+        lfric_args = [arg.fortran_string() for arg in self.meta_args]
         lfric_args_str = ", &\n".join(lfric_args)
         # TODO issue #1879. GH_SHAPE, META_FUNCS,
         # META_REFERENCE_ELEMENT and META_MESH are not parsed

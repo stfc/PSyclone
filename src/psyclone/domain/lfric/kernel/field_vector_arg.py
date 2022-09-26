@@ -66,7 +66,7 @@ class FieldVectorArg(FieldArg):
 
     @staticmethod
     def create_from_fortran_string(fortran_string):
-        '''Create an instance of this class from a Fortran string.
+        '''Create an instance of this class from Fortran.
 
         :param str fortran_string: a string containing the metadata in \
             Fortran.
@@ -94,23 +94,14 @@ class FieldVectorArg(FieldArg):
 
         '''
         FieldVectorArg.check_fparser2(fparser2_tree, nargs=4)
-        vector_datatype = fparser2_tree.children[1].children[0].tostr()
-        components = vector_datatype.split("*")
-        if len(components) != 2:
-            raise TypeError(
-                f"Expecting the first argument to be in the form "
-                f"'form*vector_length' but found '{vector_datatype}'.")
-        vector_length = components[1].strip()
-
-        datatype = fparser2_tree.children[1].children[1].tostr()
-        access = fparser2_tree.children[1].children[2].tostr()
-        function_space = fparser2_tree.children[1].children[3].tostr()
+        vector_length = FieldVectorArg.get_vector_length(fparser2_tree)
+        datatype, access, function_space = \
+            FieldVectorArg.get_type_access_and_fs(fparser2_tree)
         return FieldVectorArg(datatype, access, function_space, vector_length)
 
     def fortran_string(self):
         '''
-        :returns: the metadata represented by this class as a \
-            Fortran string.
+        :returns: the metadata represented by this class as Fortran.
         :rtype: str
 
         :raises ValueError: if all of the properties have not been \

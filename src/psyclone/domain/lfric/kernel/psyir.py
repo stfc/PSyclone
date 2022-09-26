@@ -47,11 +47,9 @@ class LFRicContainer(Container):
     :param metadata: the metadata object.
     :type metadata: :py:class:`psyclone.domain.gocean.kernel.psyir.\
         LFRicKernelMetadata`
-    :param parent: optional parent node of this Container in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-    :param symbol_table: initialise the node with a given symbol table.
-    :type symbol_table: \
-        Optional[:py:class:`psyclone.psyir.symbols.SymbolTable`]
+    :param **kwargs: additional keyword arguments to pass to parent \
+        constructor.
+    :type **kwargs: unwrapped dict
 
     '''
     def __init__(self, name, metadata, **kwargs):
@@ -65,13 +63,14 @@ class LFRicContainer(Container):
         table and a list of child nodes. An LFRic-specific kernel is
         created with the metadata describing the kernel interface for
         a single kernel routine within the container.
+
         :param str name: the name of the Container.
         :param symbol_table: the symbol table associated with this \
             Container.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param metadata: the metadata object.
-        :type metadata: :py:class:`psyclone.domain.lfric.kernel.psyir.\
-            LFRicKernelMetadata`
+        :type metadata: \
+            :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
         :param children: a list of PSyIR nodes contained in the \
             Container. These must be Containers or Routines.
         :type children: List[:py:class:`psyclone.psyir.nodes.Container` \

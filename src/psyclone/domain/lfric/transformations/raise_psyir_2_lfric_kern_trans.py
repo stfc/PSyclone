@@ -34,25 +34,27 @@
 # Author R. W. Ford STFC Daresbury Lab
 
 '''Raise generic PSyIR representing a kernel-layer routine to
-PSyclone kernel-layer-specific PSyIR which uses specialised classes.
+LFRic kernel-layer-specific PSyIR which uses specialised classes.
 
 '''
-from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import Container, ScopingNode, FileContainer
-from psyclone.psyir.transformations import TransformationError
+from psyclone.configuration import Config
 from psyclone.domain.lfric.kernel.lfric_kernel_metadata import \
     LFRicKernelMetadata
 from psyclone.domain.lfric.kernel.psyir import LFRicContainer
-from psyclone.configuration import Config
+from psyclone.psyGen import Transformation
+from psyclone.psyir.nodes import Container, ScopingNode, FileContainer
+from psyclone.psyir.transformations import TransformationError
 
 # TODO issue #1877. Find an appropriate place for the find_symbol()
 # method as it can be useful beyond this particular
 # transformation. Although the generic one would probably not return
-# the symbol table as well.
+# the scoping node as well.
 def find_symbol(node, name):
     '''Utility method to find the symbol associated with the supplied
-    name. The supplied node and all of its siblings are searched and the
-    symbol and its scoping node are returned if the symbol is found.
+    name. The supplied node and all of its descendants are searched
+    and the symbol and its scoping node are returned if the symbol is
+    found. If not found, None is returned for the symbol and scoping
+    node.
 
     :param node: the starting node for the search.
     :type: :py:class:`psyclone.psyir.nodes.node`
@@ -60,8 +62,8 @@ def find_symbol(node, name):
 
     :returns: a tuple containing the symbol with the same name as the \
         supplied name and the scoping node for that symbol.
-    :rtype: Optional[Tuple[:py:class:`psyclone.psyir.symbols.datasymbol, \
-        :py:class:`psyclone.psyir.nodes.node`]]
+    :rtype: Tuple[Optional[:py:class:`psyclone.psyir.symbols.datasymbol], \
+        Optional[:py:class:`psyclone.psyir.nodes.node`]]
 
     '''
     for test_node in node.walk(ScopingNode):
@@ -152,7 +154,7 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
                 f"Error in {self.name} transformation. This "
                 f"transformation requires the name of the variable "
                 f"containing the metadata to be set to a "
-                f"valid value, but found '{metadata_name}'.")
+                f"valid Fortran name, but found '{metadata_name}'.")
 
         metadata_symbol, scoping_node = find_symbol(node, metadata_name)
         if not metadata_symbol:
@@ -161,9 +163,11 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
                 f"({metadata_name}) provided to the transformation "
                 f"does not correspond to a symbol in the supplied PSyIR.")
 
-        # Find the nearest ancestor container including self.  There
+        # Find the nearest ancestor container including self. There
         # will always be at least one ancestor container as otherwise
         # an earlier test will fail.
+        # TODO issue #1886. Avoid replicating tests (see gocean
+        # raising transformation).
         container = scoping_node.ancestor(Container, include_self=True)
         if isinstance(container, FileContainer):
             raise TransformationError(
@@ -176,7 +180,7 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
 
     def apply(self, node, options=None):
         '''Raise the supplied language-level kernel to LFRic-specific kernel
-        PSyIR. Specialises the kernel container to a LFRic-specific
+        PSyIR. Specialises the kernel container to an LFRic-specific
         subclass, populates this subclass with the kernel metadata
         extracted from the metadata symbol as specified in
         metadata_name (which is supplied via the options argument) and

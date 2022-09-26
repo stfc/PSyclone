@@ -46,29 +46,29 @@ class OperatorArg(FieldArg):
     '''Class to capture LFRic kernel metadata information for an operator
     argument.
 
-    :param Optional[str] datatype: the datatype of this field \
+    :param Optional[str] datatype: the datatype of this operator \
         (GH_INTEGER, ...).
     :param Optional[str] access: the way the kernel accesses this \
-        field (GH_WRITE, ...).
-    :param Optional[str] function_space1: the function space that this \
-        field maps from (W0, ...).
-    :param Optional[str] function_space2: the function space that this \
-        field maps to (W0, ...).
+        operator (GH_WRITE, ...).
+    :param Optional[str] function_space_to: the function space that \
+        this operator maps to (W0, ...).
+    :param Optional[str] function_space_from: the function space that \
+        this operator maps from (W0, ...).
 
     '''
     form = "GH_OPERATOR"
 
-    def __init__(self, datatype=None, access=None, function_space1=None,
-                 function_space2=None):
+    def __init__(self, datatype=None, access=None, function_space_to=None,
+                 function_space_from=None):
         super().__init__(datatype, access)
-        if function_space1 is None:
-            self._function_space1 = function_space1
+        if function_space_to is None:
+            self._function_space_to = function_space_to
         else:
-            self.function_space1 = function_space1
-        if function_space2 is None:
-            self._function_space2 = function_space2
+            self.function_space_to = function_space_to
+        if function_space_from is None:
+            self._function_space_from = function_space_from
         else:
-            self.function_space2 = function_space2
+            self.function_space_from = function_space_from
 
     @staticmethod
     def create_from_fparser2(fparser2_tree):
@@ -83,51 +83,71 @@ class OperatorArg(FieldArg):
 
         '''
         OperatorArg.check_fparser2(fparser2_tree, nargs=5)
-        datatype = fparser2_tree.children[1].children[1].tostr()
-        access = fparser2_tree.children[1].children[2].tostr()
-        function_space1 = fparser2_tree.children[1].children[3].tostr()
-        function_space2 = fparser2_tree.children[1].children[4].tostr()
-        return OperatorArg(datatype, access, function_space1, function_space2)
+        datatype, access, function_space_to = \
+            OperatorArg.get_type_access_and_fs(fparser2_tree)
+        function_space_from = OperatorArg.get_fs_to_arg(fparser2_tree)
+        return OperatorArg(
+            datatype, access, function_space_to, function_space_from)
+
+    @staticmethod
+    def get_fs_to_arg(fparser2_tree):
+        '''Retrieves the metadata value for the second function space (the
+        function space that the operator maps from) from the supplied
+        fparser2 tree.
+
+        :param fparser2_tree: fparser2 tree capturing the metadata for \
+            an Operator argument.
+        :type fparser2_tree: \
+            :py:class:`fparser.two.Fortran2003.Part_Ref`
+
+        :returns: the metadata function space value extracted from \
+            the fparser2 tree.
+        :rtype: str
+
+        '''
+        function_space_from = OperatorArg.get_arg(fparser2_tree, 4)
+        return function_space_from
 
     @classmethod
     def create_from_fortran_string(cls, fortran_string):
-        '''Create an instance of this class from a Fortran string.
+        '''Create an instance of this class from Fortran.
 
         :param str fortran_string: a string containing the metadata in \
             Fortran.
 
         :returns: an instance of cls.
-        :rtype: :py:class:`psyclone.domain.lfric.kernel.cls`
+        :rtype: subclass of :py:class:`psyclone.domain.lfric.kernel.common_arg`
 
         '''
         fparser2_tree = cls.create_fparser2(fortran_string)
         return cls.create_from_fparser2(fparser2_tree)
 
     def fortran_string(self):
-        ''':returns: the metadata represented by this class as a \
-            Fortran string.
+        ''':returns: the metadata represented by this class as Fortran.
         :rtype: str
 
-        raises ValueError: if one or more of the datatype, access or \
-            function_space1 and function_space2 values have not been \
-            set.
+        :raises ValueError: if one or more of the datatype, access, \
+            function_space_to or function_space_from values have not \
+            been set.
 
         '''
-        if not (self.datatype and self.access and self.function_space1 and
-                self.function_space2):
+        if not (self.datatype and self.access and self.function_space_to and
+                self.function_space_from):
             raise ValueError(
-                f"Values for datatype, access, function_space1 and "
-                f"function_space2 must be provided before calling the "
+                f"Values for datatype, access, function_space_to and "
+                f"function_space_from must be provided before calling the "
                 f"fortran_string method, but found '{self.datatype}', "
-                f"'{self.access}', '{self.function_space1}' and "
-                f"'{self.function_space2}', respectively.")
+                f"'{self.access}', '{self.function_space_to}' and "
+                f"'{self.function_space_from}', respectively.")
 
         return (f"arg_type({self.form}, {self.datatype}, {self.access}, "
-                f"{self.function_space1}, {self.function_space2})")
+                f"{self.function_space_to}, {self.function_space_from})")
 
     @staticmethod
     def check_access(value):
         '''
+        :param str value: the access descriptor to validate.
+
         :raises ValueError: if the provided value is not a valid \
             access type.
         '''
@@ -136,14 +156,13 @@ class OperatorArg(FieldArg):
         if not value or value.lower() not in const.VALID_OPERATOR_ACCESS_TYPES:
             raise ValueError(
                 f"The third metadata entry for an argument should "
-                f"be a recognised datatype descriptor (one of "
+                f"be a recognised access descriptor (one of "
                 f"{const.VALID_OPERATOR_ACCESS_TYPES}), but found '{value}'.")
 
     @staticmethod
     def check_datatype(value):
         '''
-        :param str value: set the datatype to the \
-            specified value.
+        :param str value: the datatype to check for validity.
 
         :raises ValueError: if the provided value is not a valid \
             datatype descriptor.
@@ -157,18 +176,18 @@ class OperatorArg(FieldArg):
                 f"{const.VALID_OPERATOR_DATA_TYPES}), but found '{value}'.")
 
     @property
-    def function_space1(self):
+    def function_space_to(self):
         '''
         :returns: the first function space for this operator \
-            argument.
+            argument (that this operator maps to).
         :rtype: str
         '''
-        return self._function_space1
+        return self._function_space_to
 
-    @function_space1.setter
-    def function_space1(self, value):
+    @function_space_to.setter
+    def function_space_to(self, value):
         '''
-        :param str value: set the access descriptor to the \
+        :param str value: set the function space to the \
             specified value.
 
         raises ValueError: if the provided value is not a valid \
@@ -179,23 +198,24 @@ class OperatorArg(FieldArg):
         if not value or value.lower() not in const.VALID_FUNCTION_SPACES:
             raise ValueError(
                 f"The fourth metadata entry for an argument should "
-                f"be a recognised function space (one of "
-                f"{const.VALID_FUNCTION_SPACES}), but found '{value}'.")
-        self._function_space1 = value
+                f"be a recognised function space that the operator maps "
+                f"to (one of {const.VALID_FUNCTION_SPACES}), but found "
+                f"'{value}'.")
+        self._function_space_to = value
 
     @property
-    def function_space2(self):
+    def function_space_from(self):
         '''
         :returns: the second function space for this operator \
-            argument.
+            argument (that this operator maps from).
         :rtype: str
         '''
-        return self._function_space2
+        return self._function_space_from
 
-    @function_space2.setter
-    def function_space2(self, value):
+    @function_space_from.setter
+    def function_space_from(self, value):
         '''
-        :param str value: set the access descriptor to the \
+        :param str value: set the function space to the \
             specified value.
 
         raises ValueError: if the provided value is not a valid \
@@ -206,6 +226,7 @@ class OperatorArg(FieldArg):
         if not value or value.lower() not in const.VALID_FUNCTION_SPACES:
             raise ValueError(
                 f"The fifth metadata entry for an argument should "
-                f"be a recognised function space (one of "
-                f"{const.VALID_FUNCTION_SPACES}), but found '{value}'.")
-        self._function_space2 = value
+                f"be a recognised function space that the operator maps "
+                f"from (one of {const.VALID_FUNCTION_SPACES}), but found "
+                f"'{value}'.")
+        self._function_space_from = value
