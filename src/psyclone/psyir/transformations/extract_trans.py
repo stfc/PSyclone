@@ -82,7 +82,7 @@ class ExtractTrans(PSyDataTrans):
         super().__init__(node_class=node_class)
 
     # -------------------------------------------------------------------------
-    def get_additional_options(self):
+    def get_default_options(self):
         '''Returns additional options, specific to this transformation, that
         will be added to the user option. Any values specified by the user
         will take precedence. For the extract transformation, by default we

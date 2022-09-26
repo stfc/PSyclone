@@ -112,7 +112,7 @@ class PSyDataTrans(RegionTrans):
         return self.__class__.__name__
 
     # -------------------------------------------------------------------------
-    def get_additional_options(self):
+    def get_default_options(self):
         # pylint: disable=no-self-use
         '''Returns additional options, specific to the transformation, that
         will be added to the user option. Any values specified by the user
@@ -135,7 +135,7 @@ class PSyDataTrans(RegionTrans):
         :rtype: Dict[str:Any]
 
         '''
-        new_options = self.get_additional_options()
+        new_options = self.get_default_options()
         if options:
             # Update will overwrite any existing setting with the ones
             # specified by the user:
