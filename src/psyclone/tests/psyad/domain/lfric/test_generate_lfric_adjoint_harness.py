@@ -280,12 +280,18 @@ def test_generate_lfric_adjoint_harness_invalid_code(fortran_reader):
     with pytest.raises(TypeError) as err:
         _ = generate_lfric_adjoint_harness(None)
     assert "Expected a PSyIR Node but got 'NoneType'" in str(err.value)
+    psyir = fortran_reader.psyir_from_source("program oops\n"
+                                             "end program oops\n")
     with pytest.raises(ValueError) as err:
-        _ = generate_lfric_adjoint_harness("program oops\nend program oops\n")
-    assert ("generated if the supplied TL kernel is within a module but got: "
-            "'program oops" in str(err.value))
+        _ = generate_lfric_adjoint_harness(psyir)
+    assert ("generated if the supplied TL kernel is within a module "
+            "(Container) but the supplied PSyIR does not have a Container "
+            "node:\nFileContainer[]\n    Routine[name:'oops']" in
+            str(err.value))
+    psyir = fortran_reader.psyir_from_source("module wrong\n"
+                                             "end module wrong\n")
     with pytest.raises(ValueError) as err:
-        _ = generate_lfric_adjoint_harness("module wrong\nend module wrong\n")
+        _ = generate_lfric_adjoint_harness(psyir)
     assert ("The supplied LFRic TL kernel is contained within a module named "
             "'wrong'. This does not end in '_mod' and as such does not comply "
             "with the LFRic naming convention." in str(err.value))
@@ -367,7 +373,7 @@ def test_generate_lfric_adjoint_harness(fortran_reader, fortran_writer):
             "    inner2 = inner2 + field_2_field_2_input_inner_prod\n" in gen)
 
 
-def test_generate_lfric_adj_test_quadrature():
+def test_generate_lfric_adj_test_quadrature(fortran_reader):
     '''Check that input copies of quadrature arguments are not created.'''
     new_code = TL_CODE.replace("     integer :: operates_on = cell_column\n",
                                '''\
@@ -377,7 +383,8 @@ def test_generate_lfric_adj_test_quadrature():
     integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_EVALUATOR
 ''')
-    psyir = generate_lfric_adjoint_harness(new_code)
+    tl_psyir = fortran_reader.psyir_from_source(new_code)
+    psyir = generate_lfric_adjoint_harness(tl_psyir)
     routine = psyir.walk(Routine)[0]
     for sym in routine.symbol_table.datasymbols:
         # All input variables should be either scalars or fields.
@@ -387,13 +394,15 @@ def test_generate_lfric_adj_test_quadrature():
                     sym.name.startswith("rscalar"))
 
 
-def test_generate_lfric_adjoint_harness_no_operators(monkeypatch):
+def test_generate_lfric_adjoint_harness_no_operators(monkeypatch,
+                                                     fortran_reader):
     '''Check that a kernel that has an operator as argument raises the
     expected error. This limitation will be lifted in #1864.
 
     '''
     code = TL_CODE.replace("arg_type(gh_field,  gh_real, gh_write,  w3)",
                            "arg_type(gh_operator,gh_real,gh_write,w0,w0)")
+    tl_psyir = fortran_reader.psyir_from_source(code)
     # We have to monkeypatch KernCallInvokeArgList as that too doesn't yet
     # support operators.
     monkeypatch.setattr(KernCallInvokeArgList, "operator",
@@ -401,7 +410,7 @@ def test_generate_lfric_adjoint_harness_no_operators(monkeypatch):
     monkeypatch.setattr(KernCallInvokeArgList, "operators",
                         lambda: [1])
     with pytest.raises(NotImplementedError) as err:
-        _ = generate_lfric_adjoint_harness(code)
+        _ = generate_lfric_adjoint_harness(tl_psyir)
     assert ("Kernel testkern_type has one or more operator arguments. Test "
             "harness creation for such a kernel is not yet supported (Issue "
             "#1864)." in str(err.value))
