@@ -283,9 +283,10 @@ def generate_lfric_adjoint_harness(tl_psyir):
     :rtype: :py:class:`psyclone.psyir.nodes.Container`
 
     :raises ValueError: if the supplied PSyIR does not have a Container (that \
-                        is *not* a FileContainer).
-    :raises ValueError: if the name of the module in the parse tree does not \
-                        follow the LFRic naming convention of ending in '_mod'.
+        is *not* a FileContainer).
+    :raises ValueError: if the name of the Container (module) in the supplied \
+        PSyIR does not follow the LFRic naming convention of ending in '_mod'.
+
     '''
     tl_container = find_container(tl_psyir)
     if not tl_container:
