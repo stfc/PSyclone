@@ -94,6 +94,27 @@ class KernCallArgList(ArgOrdering):
                 f"Has the generate() method been called?")
         return self._psyir_arglist
 
+    def add_integer_reference(self, name):
+        '''This function adds a reference to an integer variable to the list
+        of PSyIR nodes. If the symbol does not exit, it will be added to the
+        symbol table.
+
+        :param str name: name of the integer variable to declare.
+
+        '''
+        try:
+            sym = self._symtab.lookup_with_tag(name)
+        except KeyError:
+            # Create a DataSymbol for this kernel argument.
+            datatype = psyir.LfricIntegerScalarDataType()
+            consts = LFRicConstants()
+            precision_name = consts.SCALAR_PRECISION_MAP["integer"]
+            psyir.add_lfric_precision_symbol(self._symtab, precision_name)
+            sym = self._symtab.new_symbol(name,
+                                          symbol_type=DataSymbol,
+                                          datatype=datatype)
+        self._psyir_arglist.append(Reference(sym))
+
     def cell_position(self, var_accesses=None):
         '''Adds a cell argument to the argument list and if supplied stores
         this access in var_accesses.
@@ -501,6 +522,7 @@ class KernCallArgList(ArgOrdering):
         self._ndf_positions.append(
             KernCallArgList.NdfInfo(position=self.num_args,
                                     function_space=function_space.orig_name))
+        self.add_integer_reference(function_space.ndf_name)
 
     def fs_compulsory_field(self, function_space, var_accesses=None):
         '''Add compulsory arguments associated with this function space to
@@ -517,11 +539,13 @@ class KernCallArgList(ArgOrdering):
         '''
         undf_name = function_space.undf_name
         self.append(undf_name, var_accesses)
+        self.add_integer_reference(undf_name)
+
         map_name = function_space.map_name
         if self._kern.iterates_over == 'domain':
             # This kernel takes responsibility for iterating over cells so
             # pass the whole dofmap.
-            self.append(f"{map_name}", var_accesses, var_access_name=map_name)
+            self.append(map_name, var_accesses, var_access_name=map_name)
             try:
                 sym = self._symtab.lookup(map_name)
             except KeyError:
@@ -530,10 +554,12 @@ class KernCallArgList(ArgOrdering):
                 consts = LFRicConstants()
                 precision_name = consts.SCALAR_PRECISION_MAP["integer"]
                 psyir.add_lfric_precision_symbol(self._symtab, precision_name)
+                array_type = ArrayType(datatype, [ArrayType.Extent.ATTRIBUTE,
+                                                  ArrayType.Extent.ATTRIBUTE])
 
                 sym = self._symtab.new_symbol(map_name,
                                               symbol_type=DataSymbol,
-                                              datatype=datatype)
+                                              datatype=array_type)
 
             self._psyir_arglist.append(Reference(sym))
 

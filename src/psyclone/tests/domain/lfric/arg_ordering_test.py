@@ -135,8 +135,7 @@ def test_arg_ordering_generate_domain_kernel(dist_mem, fortran_writer):
         assert isinstance(node, Reference)
         result.append(fortran_writer(node))
 
-    assert result == ['nlayers', "ncell_2d_no_halos", "b", "f1_proxy%data",
-                      "map_w3"]
+    assert result == create_arg_list._arglist
 
 
 def test_arg_ordering_generate_cma_kernel(dist_mem):
