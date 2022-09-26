@@ -73,7 +73,7 @@ def test_init_invalid():
     with pytest.raises(ValueError) as info:
         _ = FieldArg(access="invalid")
     assert ("The third metadata entry for an argument should be a "
-            "recognised datatype descriptor (one of ['gh_read', 'gh_write', "
+            "recognised access descriptor (one of ['gh_read', 'gh_write', "
             "'gh_inc', 'gh_readinc']), but found 'invalid'."
             in str(info.value))
 
@@ -210,7 +210,7 @@ def test_setter_getter():
     with pytest.raises(ValueError) as info:
         field_arg.access = "invalid"
     assert ("The third metadata entry for an argument should be a "
-            "recognised datatype descriptor (one of ['gh_read', 'gh_write', "
+            "recognised access descriptor (one of ['gh_read', 'gh_write', "
             "'gh_inc', 'gh_readinc']), but found 'invalid'."
             in str(info.value))
 

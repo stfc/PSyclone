@@ -74,7 +74,7 @@ def test_init_invalid():
     with pytest.raises(ValueError) as info:
         _ = ScalarArg(access="invalid")
     assert ("The third metadata entry for a scalar argument should be a "
-            "recognised datatype descriptor (one of ['gh_read']), but found "
+            "recognised access descriptor (one of ['gh_read']), but found "
             "'invalid'." in str(info.value))
 
 
@@ -194,7 +194,7 @@ def test_setter_getter():
     with pytest.raises(ValueError) as info:
         field_arg.access = "invalid"
     assert ("The third metadata entry for a scalar argument should be a "
-            "recognised datatype descriptor (one of ['gh_read']), but found "
+            "recognised access descriptor (one of ['gh_read']), but found "
             "'invalid'." in str(info.value))
 
     field_arg.access = "gh_read"
