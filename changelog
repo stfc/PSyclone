@@ -115,9 +115,34 @@
 
 	42) PR #1871 for #1870. Fixes typo in link in User Guide.
 
+	43) PR #1875 for #1874. Remove pytest-pep257 dependency from setup.py
+
+	44) PR #1860 for #1538. Fixes search for config file when
+	`python setup.py install` used instead of pip and adds yaml config
+	file to tell RTD to use pip and Python 3.8 (for interop. with
+	SymPy).
+
+	45) PR #1768 for #1711. Add initial Sum2CodeTrans transformation.
+
+	46) PR #1885 for #1878. Update FortCL submodule to head of master to
+	fix invalid-boz compilation errors with newer versions of gfortran.
+
+	47) PR #1890 for #1889. Fix test to avoid temporary files being
+	left after pytest run.
+
+	48) PR #1850 towards #1799. Initial PSyIR node.datatype implementation
+	to query the resulting datatype of a PSyIR subtree.
+
+	49) PR #1869 for #1868. Extend PSyAD to make use of the
+        Reference2ArrayRangeTrans.
+
+	50) PR #1880 for #1865. Improves support for function calls in the
+	PSyIR by ensuring the associated RoutineSymbol has the correct
+	datatype.
+
 release 2.3.1 17th of June 2022
 
-        1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
+	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
 
 	2) PR #1669 for #450. Remove set_dirty/clean from ACC regions
 

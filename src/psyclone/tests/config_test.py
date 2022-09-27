@@ -33,7 +33,8 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified: I. Kavcic, Met Office, R. W. Ford, STFC Daresbury Lab
-# Modified by J. Henrichs, Bureau of Meteorology
+#           J. Henrichs, Bureau of Meteorology
+#           N. Nobre, STFC Daresbury Lab
 
 '''
 Module containing tests relating to PSyclone configuration handling.
@@ -44,6 +45,8 @@ import re
 import sys
 
 import pytest
+
+import psyclone
 
 from psyclone.configuration import (APISpecificConfig, ConfigurationError,
                                     Config, VALID_KERNEL_NAMING_SCHEMES)
@@ -236,6 +239,14 @@ def test_search_path(monkeypatch, change_into_tmpdir):
                                               "psyclone"))
         assert share_idx != -1
         assert cwd_idx < home_idx
+        # share directory within package installation directory
+        pkg_share_dir = [os.path.join(os.path.dirname(psyclone_path),
+                                      "share", "psyclone")
+                         for psyclone_path in psyclone.__path__]
+        pkg_share_idx = min(err_msg.find(dir) for dir in pkg_share_dir)
+        assert pkg_share_idx != -1
+        assert cwd_idx < home_idx
+        assert max(home_idx, share_idx) < pkg_share_idx
         if inside_venv:
             # When inside a virtual environment, the 'share' directory of
             # that environment takes precedence over the user's home
@@ -246,12 +257,14 @@ def test_search_path(monkeypatch, change_into_tmpdir):
 
 
 def test_search_env(monkeypatch, change_into_tmpdir):
+    # pylint: disable=unused-argument
     ''' Check that we pick up the configuration file specified in an
     environment variable. It is important to use monkeypatch for manipulating
     PSYCLONE_CONFIG, since all other tests rely on this variable
     (see conftest.setup_psyclone_config).'''
 
-    cwd = str(change_into_tmpdir)
+    # Get the cwd, which is in a temporary directory
+    cwd = os.getcwd()
     # Create a .psyclone/psyclone.cfg in the CWD
     cfg_dir = os.path.join(cwd, ".psyclone")
     os.mkdir(cfg_dir)
@@ -260,13 +273,13 @@ def test_search_env(monkeypatch, change_into_tmpdir):
         cfile.write(TEST_CONFIG)
     # Point PSYCLONE_CONFIG to a non-existent file - we should revert
     # to the normal search path in this case
-    cfg_file = os.path.join(cwd, "not_a_dir", "psyclone.cfg")
+    cfg_file = os.path.join("not_a_dir", "psyclone.cfg")
     monkeypatch.setitem(os.environ, "PSYCLONE_CONFIG", cfg_file)
     name = Config.find_file()
     assert name.startswith(cfg_dir)
     assert "not_a_dir" not in name
     # Now point PSYCLONE_CONFIG to a file that does exist
-    cfg_file = os.path.join(cwd, "another.cfg")
+    cfg_file = "another.cfg"
     with open(cfg_file, "w", encoding="utf-8") as cfile:
         cfile.write(TEST_CONFIG)
     monkeypatch.setitem(os.environ, "PSYCLONE_CONFIG", cfg_file)
