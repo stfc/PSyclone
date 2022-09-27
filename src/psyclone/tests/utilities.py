@@ -96,9 +96,6 @@ def line_number(root, string_name):
 def count_lines(root, string_name):
     '''Helper routine which returns the number of lines that contain the
     supplied string.
-    Helper routine which returns the first index of the supplied
-    name in the root object, when it is converted into a string, or
-    -1 if it is not found.
 
     :param root: the supplied object, which is converted into a list of \
         strings using `str(root).splitlines()`
