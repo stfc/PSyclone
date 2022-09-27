@@ -55,7 +55,7 @@ from psyclone.transformations import ACCRoutineTrans, \
 
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.tests.utilities import change_dir, get_invoke
+from psyclone.tests.utilities import get_invoke
 
 
 def setup_module():
@@ -158,7 +158,9 @@ def test_new_kern_no_clobber(kernel_outputdir, monkeypatch):
     [("testkern_mod", "testkern"),
      ("testkern", "testkern_code"),
      ("testkern1_mod", "testkern2_code")])
-def test_kernel_module_name(mod_name, sub_name, monkeypatch, tmpdir):
+def test_kernel_module_name(mod_name, sub_name, monkeypatch,
+                            change_into_tmpdir):
+    # pylint: disable=unused-argument
     '''Check that there is no limitation on kernel and module names. In
     particular check that the names do not have to conform to the
     <name>_mod, <name>_code convention.
@@ -175,8 +177,7 @@ def test_kernel_module_name(mod_name, sub_name, monkeypatch, tmpdir):
     monkeypatch.setattr(kern, "_name", sub_name)
     # Generate the code - no exception should be raised when the names
     # do not conform to the <name>_mod, >name>_code convention.
-    with change_dir(tmpdir):
-        kern.rename_and_write()
+    kern.rename_and_write()
 
 
 @pytest.mark.parametrize(
