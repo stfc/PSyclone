@@ -41,9 +41,8 @@ previously dumped kernel input- and output-data.
 
 # TODO #706: Add compilation support
 
-from __future__ import absolute_import
-
 from collections import namedtuple
+from pathlib import Path
 import os
 import re
 
@@ -60,7 +59,7 @@ from psyclone.psyir.nodes import Reference, Routine
 from psyclone.psyir.symbols import ContainerSymbol, SymbolTable
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations import PSyDataTrans, TransformationError
-from psyclone.tests.utilities import change_dir, get_base_path, get_invoke
+from psyclone.tests.utilities import get_base_path, get_invoke
 
 # API names
 GOCEAN_API = "gocean1.0"
@@ -79,39 +78,39 @@ def clear_region_name_cache():
 
 
 # -----------------------------------------------------------------------------
-def test_driver_creation1(tmpdir):
+def test_driver_creation1(change_into_tmpdir):
+    # pylint: disable=unused-argument
     '''Test that driver is created correctly for all variable access
     modes (input, input-output, output). Do not specify a region name,
     so test that the driver (including its filename) use the proper
     default name.
 
     '''
-    with change_dir(tmpdir):
-        # Use tmpdir so that the driver is created in tmp
-        etrans = GOceanExtractTrans()
-        psy, invoke = get_invoke("driver_test.f90",
-                                 GOCEAN_API, idx=0, dist_mem=False)
-        schedule = invoke.schedule
+    # Use tmpdir so that the driver is created in tmp
+    etrans = GOceanExtractTrans()
+    psy, invoke = get_invoke("driver_test.f90",
+                             GOCEAN_API, idx=0, dist_mem=False)
+    schedule = invoke.schedule
 
-        etrans.apply(schedule.children[0], {'create_driver': True})
-        # We are only interested in the driver, so ignore results.
-        str(psy.gen)
+    etrans.apply(schedule.children[0], {'create_driver': True})
+    # We are only interested in the driver, so ignore results.
+    str(psy.gen)
 
-        driver = tmpdir.join("driver-psy_extract_example_with_various_"
-                             "variable_access_patterns-invoke_0_compute_"
-                             "kernel:compute_kernel_code:r0.f90")
-        assert driver.isfile()
+    driver = Path("driver-psy_extract_example_with_various_"
+                  "variable_access_patterns-invoke_0_compute_"
+                  "kernel:compute_kernel_code:r0.f90")
+    assert driver.is_file()
 
-        with driver.open("r") as driver_file:
-            driver_code = driver_file.read()
+    with driver.open("r", encoding="utf-8") as driver_file:
+        driver_code = driver_file.read()
 
-        # This is an excerpt of the code that should get created.
-        # It is tested line by line since there is other code in between
-        # which is not important, and the order might also change. It also
-        # tests if unique variable names are created in the driver: the user
-        # program contains a local variable 'dx', which clashes with the grid
-        # property dx. The grid property will be renamed to 'dx_1':
-        expected = '''use read_kernel_data_mod, only : ReadKernelDataType
+    # This is an excerpt of the code that should get created.
+    # It is tested line by line since there is other code in between
+    # which is not important, and the order might also change. It also
+    # tests if unique variable names are created in the driver: the user
+    # program contains a local variable 'dx', which clashes with the grid
+    # property dx. The grid property will be renamed to 'dx_1':
+    expected = '''use read_kernel_data_mod, only : ReadKernelDataType
 
   real*8, allocatable, dimension(:,:) :: out_fld
   real*8, allocatable, dimension(:,:) :: in_out_fld
@@ -154,43 +153,43 @@ def test_driver_creation1(tmpdir):
     PRINT *, "in_out_fld values should be:"
     PRINT *, in_out_fld_post
   end if'''
-        expected_lines = expected.split("\n")
-        for line in expected_lines:
-            assert line in driver_code
+    expected_lines = expected.split("\n")
+    for line in expected_lines:
+        assert line in driver_code
 
 
 # -----------------------------------------------------------------------------
-def test_driver_creation2(tmpdir):
+def test_driver_creation2(change_into_tmpdir):
+    # pylint: disable=unused-argument
     '''Verify that the region names are used when opening the file, and that
     constant loop boundaries work as expected.
 
     '''
-    with change_dir(tmpdir):
-        # Use tmpdir so that the driver is created in tmp
+    # Use tmpdir so that the driver is created in tmp
 
-        _, invoke = get_invoke("driver_test.f90", GOCEAN_API,
-                               idx=0, dist_mem=False)
+    _, invoke = get_invoke("driver_test.f90", GOCEAN_API,
+                           idx=0, dist_mem=False)
 
-        nodes = [invoke.schedule.children[0]]
-        clb_trans = GOConstLoopBoundsTrans()
-        clb_trans.apply(invoke.schedule)
+    nodes = [invoke.schedule.children[0]]
+    clb_trans = GOConstLoopBoundsTrans()
+    clb_trans.apply(invoke.schedule)
 
-        dep = DependencyTools()
-        input_list, output_list = dep.get_in_out_parameters(nodes)
+    dep = DependencyTools()
+    input_list, output_list = dep.get_in_out_parameters(nodes)
 
-        edc = ExtractDriverCreator()
+    edc = ExtractDriverCreator()
 
-        driver_code = edc.get_driver_as_string(nodes, input_list, output_list,
-                                               "extract", "_post",
-                                               ("module_name", "local_name"))
+    driver_code = edc.get_driver_as_string(nodes, input_list, output_list,
+                                           "extract", "_post",
+                                           ("module_name", "local_name"))
 
-        # This is an excerpt of the code that should get created.
-        # It is tested line by line since there is other code in between
-        # which is not important, and the order might also change. It also
-        # tests if unique variable names are created in the driver: the user
-        # program contains a local variable 'dx', which clashes with the grid
-        # property dx. The grid property will be renamed to 'dx_1':
-        expected = '''use read_kernel_data_mod, only : ReadKernelDataType
+    # This is an excerpt of the code that should get created.
+    # It is tested line by line since there is other code in between
+    # which is not important, and the order might also change. It also
+    # tests if unique variable names are created in the driver: the user
+    # program contains a local variable 'dx', which clashes with the grid
+    # property dx. The grid property will be renamed to 'dx_1':
+    expected = '''use read_kernel_data_mod, only : ReadKernelDataType
 
   integer :: istop
   integer :: jstop
@@ -236,13 +235,14 @@ def test_driver_creation2(tmpdir):
     PRINT *, "in_out_fld values should be:"
     PRINT *, in_out_fld_post
   end if'''
-        expected_lines = expected.split("\n")
-        for line in expected_lines:
-            assert line in driver_code
+    expected_lines = expected.split("\n")
+    for line in expected_lines:
+        assert line in driver_code
 
 
 # -----------------------------------------------------------------------------
-def test_rename_suffix_if_name_clash(tmpdir):
+def test_rename_suffix_if_name_clash(change_into_tmpdir):
+    # pylint: disable=unused-argument
     '''Test that driver is created correctly if there is a clash
     with the variable names, e.g. an output variable 'a', and
     an input variable 'a_post' - writing the output variable 'a'
@@ -254,23 +254,22 @@ def test_rename_suffix_if_name_clash(tmpdir):
     filename.
 
     '''
-    with change_dir(tmpdir):
-        # Use tmpdir so that the driver is created in tmp
+    # Use tmpdir so that the driver is created in tmp
 
-        etrans = GOceanExtractTrans()
-        psy, invoke = get_invoke("driver_test.f90",
-                                 GOCEAN_API, idx=1, dist_mem=False)
-        schedule = invoke.schedule
-        etrans.apply(schedule.children[0], {'create_driver': True,
-                                            'region_name':
-                                            ("module_name", "local_name")})
-        extract_code = str(psy.gen)
+    etrans = GOceanExtractTrans()
+    psy, invoke = get_invoke("driver_test.f90",
+                             GOCEAN_API, idx=1, dist_mem=False)
+    schedule = invoke.schedule
+    etrans.apply(schedule.children[0], {'create_driver': True,
+                                        'region_name':
+                                        ("module_name", "local_name")})
+    extract_code = str(psy.gen)
 
-        # Due to the name clash of "out_fld"+"_post" and "out_fld_post"
-        # the _post suffix is changed to _post0. So the file will
-        # contain out_fld_post for the input variable out_fld_post,
-        # and "out_fld_post0" for the output value of out_fld.
-        expected = """
+    # Due to the name clash of "out_fld"+"_post" and "out_fld_post"
+    # the _post suffix is changed to _post0. So the file will
+    # contain out_fld_post for the input variable out_fld_post,
+    # and "out_fld_post0" for the output value of out_fld.
+    expected = """
       CALL extract_psy_data%PreDeclareVariable("out_fld_post", out_fld_post)
       CALL extract_psy_data%PreDeclareVariable("in_out_fld_post0", in_out_fld)
       CALL extract_psy_data%PreDeclareVariable("out_fld_post0", out_fld)
@@ -278,20 +277,20 @@ def test_rename_suffix_if_name_clash(tmpdir):
       CALL extract_psy_data%ProvideVariable("out_fld_post", out_fld_post)
       CALL extract_psy_data%ProvideVariable("in_out_fld_post0", in_out_fld)
       CALL extract_psy_data%ProvideVariable("out_fld_post0", out_fld)"""
-        expected_lines = expected.split("\n")
-        for line in expected_lines:
-            assert line in expected_lines
+    expected_lines = expected.split("\n")
+    for line in expected_lines:
+        assert line in expected_lines
 
-        # Now we also need to check that the driver uses the new suffix,
-        # i.e. both as key for ReadVariable, as well as for the variable
-        # names.
-        driver = tmpdir.join("driver-module_name-local_name.f90")
-        assert driver.isfile()
+    # Now we also need to check that the driver uses the new suffix,
+    # i.e. both as key for ReadVariable, as well as for the variable
+    # names.
+    driver = Path("driver-module_name-local_name.f90")
+    assert driver.is_file()
 
-        with driver.open("r") as driver_file:
-            driver_code = driver_file.read()
+    with driver.open("r", encoding="utf-8") as driver_file:
+        driver_code = driver_file.read()
 
-        expected = """
+    expected = """
   real*8, allocatable, dimension(:,:) :: out_fld
   real*8, allocatable, dimension(:,:) :: in_out_fld
   real*8, allocatable, dimension(:,:) :: out_fld_post
@@ -303,45 +302,45 @@ def test_rename_suffix_if_name_clash(tmpdir):
   ALLOCATE(out_fld(SIZE(out_fld_post0, 1), SIZE(out_fld_post0, 2)))
   call extract_psy_data%ReadVariable('out_fld_post', out_fld_post)"""
 
-        for line in expected.split("\n"):
-            assert line in driver_code
+    for line in expected.split("\n"):
+        assert line in driver_code
 
-        # Now test that more than one variable clash is handled. The third
-        # invoke uses:
-        # "out_fld" as output field
-        # "out_fld_post" as input field (first clash -->
-        # suffix becomes "_post0")
-        # "out_fld_post0" as input+output field (next clash -->
-        # suffix = "_post1")
-        psy, invoke = get_invoke("driver_test.f90",
-                                 GOCEAN_API, idx=2, dist_mem=False)
-        schedule = invoke.schedule
-        # We don't check the driver, we already tested that the
-        # driver picks up the adjusted suffix above
-        etrans.apply(schedule.children[0])
-        extract_code = str(psy.gen)
+    # Now test that more than one variable clash is handled. The third
+    # invoke uses:
+    # "out_fld" as output field
+    # "out_fld_post" as input field (first clash -->
+    # suffix becomes "_post0")
+    # "out_fld_post0" as input+output field (next clash -->
+    # suffix = "_post1")
+    psy, invoke = get_invoke("driver_test.f90",
+                             GOCEAN_API, idx=2, dist_mem=False)
+    schedule = invoke.schedule
+    # We don't check the driver, we already tested that the
+    # driver picks up the adjusted suffix above
+    etrans.apply(schedule.children[0])
+    extract_code = str(psy.gen)
 
-        # Check that *out_fld* is declared correctly: it is only declared as
-        # output value, so must use key out_fld_post1 once, and not be declared
-        # as input value:
-        assert 'PreDeclareVariable("out_fld_post1", out_fld)' in extract_code
-        assert 'PreDeclareVariable("out_fld", out_fld)' not in extract_code
+    # Check that *out_fld* is declared correctly: it is only declared as
+    # output value, so must use key out_fld_post1 once, and not be declared
+    # as input value:
+    assert 'PreDeclareVariable("out_fld_post1", out_fld)' in extract_code
+    assert 'PreDeclareVariable("out_fld", out_fld)' not in extract_code
 
-        # Check that *out_fld_post* (input/output) is declared correctly. It
-        # must be declared twice: once for the input value using the original
-        # variable name, and once as output using the "_post1" suffix"
-        assert ('PreDeclareVariable("out_fld_post", out_fld_post)'
-                in extract_code)
-        assert ('PreDeclareVariable("out_fld_post_post1", out_fld_post)'
-                in extract_code)
+    # Check that *out_fld_post* (input/output) is declared correctly. It
+    # must be declared twice: once for the input value using the original
+    # variable name, and once as output using the "_post1" suffix"
+    assert ('PreDeclareVariable("out_fld_post", out_fld_post)'
+            in extract_code)
+    assert ('PreDeclareVariable("out_fld_post_post1", out_fld_post)'
+            in extract_code)
 
-        # Check that *out_fld_post0* is declared correctly: as input-only
-        # variable it must be declared once for using the original variable
-        # name.
-        assert ('PreDeclareVariable("out_fld_post0", out_fld_post0)'
-                in extract_code)
-        assert ('PreDeclareVariable("out_fld_post0_post1", out_fld_post0)'
-                not in extract_code)
+    # Check that *out_fld_post0* is declared correctly: as input-only
+    # variable it must be declared once for using the original variable
+    # name.
+    assert ('PreDeclareVariable("out_fld_post0", out_fld_post0)'
+            in extract_code)
+    assert ('PreDeclareVariable("out_fld_post0_post1", out_fld_post0)'
+            not in extract_code)
 
 
 # -----------------------------------------------------------------------------
@@ -533,43 +532,43 @@ def test_driver_creation_import_modules(fortran_reader):
 
 
 # -----------------------------------------------------------------------------
-def test_driver_node_verification(tmpdir):
+def test_driver_node_verification(change_into_tmpdir):
+    # pylint: disable=unused-argument
     '''Test that the create() method verifies the node list it receives
     and only accept the valid parameters.
 
     '''
-    with change_dir(tmpdir):
-        # Use tmpdir in case that the call below does not raise an
-        # exception, which would result in the driver being created
-        # in the current directory.
+    # Use tmpdir in case that the call below does not raise an
+    # exception, which would result in the driver being created
+    # in the current directory.
 
-        api = "gocean1.0"
-        _, info = parse(os.path.join(get_base_path(api), "driver_test.f90"),
-                        api=api)
-        psy = PSyFactory(api, distributed_memory=False).create(info)
-        invokes = psy.invokes.invoke_list
+    api = "gocean1.0"
+    _, info = parse(os.path.join(get_base_path(api), "driver_test.f90"),
+                    api=api)
+    psy = PSyFactory(api, distributed_memory=False).create(info)
+    invokes = psy.invokes.invoke_list
 
-        edc = ExtractDriverCreator()
+    edc = ExtractDriverCreator()
 
-        # Provide the nodes in the wrong order.
-        # Invoke #3 has all in all three kernels:
-        schedule = invokes[3].schedule
-        with pytest.raises(TransformationError) as err:
-            edc.create(nodes=[schedule.children[1],
-                              schedule.children[2],
-                              schedule.children[0]],
-                       input_list=[], output_list=[], prefix="extract",
-                       postfix="post", region_name=("file", "region"))
-        assert ("Children are not consecutive children of one parent"
-                in str(err.value))
-        assert ("has position 0, but previous child had position 2."
-                in str(err.value))
+    # Provide the nodes in the wrong order.
+    # Invoke #3 has all in all three kernels:
+    schedule = invokes[3].schedule
+    with pytest.raises(TransformationError) as err:
+        edc.create(nodes=[schedule.children[1],
+                          schedule.children[2],
+                          schedule.children[0]],
+                   input_list=[], output_list=[], prefix="extract",
+                   postfix="post", region_name=("file", "region"))
+    assert ("Children are not consecutive children of one parent"
+            in str(err.value))
+    assert ("has position 0, but previous child had position 2."
+            in str(err.value))
 
-        # Provide nodes from different invokes:
-        with pytest.raises(TransformationError) as err:
-            edc.create(nodes=[invokes[3].schedule.children[1],
-                              invokes[2].schedule.children[0]],
-                       input_list=[], output_list=[], prefix="extract",
-                       postfix="post", region_name=("file", "region"))
-        assert ("supplied nodes are not children of the same parent."
-                in str(err.value))
+    # Provide nodes from different invokes:
+    with pytest.raises(TransformationError) as err:
+        edc.create(nodes=[invokes[3].schedule.children[1],
+                          invokes[2].schedule.children[0]],
+                   input_list=[], output_list=[], prefix="extract",
+                   postfix="post", region_name=("file", "region"))
+    assert ("supplied nodes are not children of the same parent."
+            in str(err.value))
