@@ -40,7 +40,7 @@
 transformations.
 '''
 
-import os
+from pathlib import Path
 
 import pytest
 
@@ -429,13 +429,13 @@ def test_driver_generation_flag(change_into_tmpdir, create_driver):
     # We are only interested in the potentially triggered driver-creation.
     str(psy.gen)
 
-    driver = ("driver-psy_extract_example_with_various_"
-              "variable_access_patterns-invoke_0_compute_"
-              "kernel:compute_kernel_code:r0.f90")
+    driver = Path("driver-psy_extract_example_with_various_"
+                  "variable_access_patterns-invoke_0_compute_"
+                  "kernel:compute_kernel_code:r0.f90")
     # When create_driver is None, as a default no driver should be created.
     # Since "None or False" is "False", this simple test can be used in all
     # three cases.
-    assert os.path.isfile(driver) == (create_driver or False)
+    assert driver.is_file() == (create_driver or False)
 
 
 # -----------------------------------------------------------------------------
@@ -454,11 +454,11 @@ def test_driver_loop_variables(change_into_tmpdir):
     # We are only interested in the driver, so ignore results.
     str(psy.gen)
 
-    driver = ("driver-psy_extract_example_with_various_"
-              "variable_access_patterns-invoke_0_compute_"
-              "kernel:compute_kernel_code:r0.f90")
+    driver = Path("driver-psy_extract_example_with_various_"
+                  "variable_access_patterns-invoke_0_compute_"
+                  "kernel:compute_kernel_code:r0.f90")
 
-    assert os.path.isfile(driver)
+    assert driver.is_file()
 
     with open(driver, "r", encoding="utf-8") as driver_file:
         driver_code = driver_file.read()
