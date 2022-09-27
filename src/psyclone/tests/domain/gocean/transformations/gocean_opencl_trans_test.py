@@ -50,7 +50,8 @@ from psyclone.psyir.symbols import (DataSymbol, ArgumentInterface,
                                     ScalarType, ArrayType, INTEGER_TYPE,
                                     REAL_TYPE)
 from psyclone.tests.gocean_build import GOceanOpenCLBuild
-from psyclone.tests.utilities import change_dir, Compile, get_invoke
+from psyclone.tests.utilities import (change_dir, Compile, get_base_path,
+                                      get_invoke)
 from psyclone.transformations import (TransformationError,
                                       KernelImportsToArguments)
 
@@ -63,17 +64,7 @@ def setup():
     the tests.'''
 
     Config._instance = None
-    # Each os.path.dirname() move up in the folder hierarchy
-    filepath = os.path.join(
-                   os.path.join(
-                       os.path.dirname(
-                           os.path.dirname(
-                               os.path.dirname(
-                                   os.path.dirname(
-                                       os.path.abspath(__file__))))),
-                       "test_files"),
-                   "gocean1p0")
-
+    filepath = get_base_path("gocean1.0")
     Config.get().api = "gocean1.0"
     Config.get()._include_paths = [filepath]
     yield
