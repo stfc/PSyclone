@@ -49,9 +49,14 @@ from psyclone.tests.utilities import change_dir, Compile, CompileError
 class GOceanBuild(Compile):
     '''Build class for compiling test files for the GOcean1.0 api. It
     uses dl_esm_inf as included in the PSyclone distribution (as a
-    git submodule).
-    '''
+    git submodule). The very first time the constructor is called it will
+    compile the infrastructure library in a temporary, process-specific
+    location. These files will be used by all test compilations.
 
+    :param tmpdir: temporary directory, defaults to os.getcwd()
+    :type tmpdir: Optional[:py:class:`LocalPath`]
+
+    '''
     # A class variable to make sure we compile the infrastructure
     # file only once per process.
     _infrastructure_built = False
@@ -64,7 +69,7 @@ class GOceanBuild(Compile):
     # allows testing to modify this to trigger exceptions.
     _make_command = "make"
 
-    def __init__(self, tmpdir):
+    def __init__(self, tmpdir=None):
         super().__init__(tmpdir)
 
         base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),

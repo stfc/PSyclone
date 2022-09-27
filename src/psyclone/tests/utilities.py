@@ -196,7 +196,10 @@ class Compile():
         Compile.F90FLAGS = config.getoption("--f90flags")
 
     def __init__(self, tmpdir=None):
-        self._tmpdir = tmpdir
+        if tmpdir:
+            self._tmpdir = tmpdir
+        else:
+            self._tmpdir = os.getcwd()
         # Take the compiler and compile flags from the static variables.
         # This allows a specific instance to use different compiler options
         # which is used in some of the compilation tests.

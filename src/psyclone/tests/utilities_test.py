@@ -79,12 +79,14 @@ def test_enable_disable_opencl_compilation(monkeypatch):
 
 
 # -----------------------------------------------------------------------------
-def test_compiler_works(tmpdir, monkeypatch):
+def test_compiler_works(monkeypatch, change_into_tmpdir):
+    # pylint: disable=unused-argument
     ''' Check that the specified compiler works for a hello-world
     example.'''
 
-    _compile = Compile()
+    _compile = Compile("/some-random-dir")
     assert _compile.base_path is None
+    assert _compile._tmpdir == "/some-random-dir"
     _compile.base_path = "/tmp"
     assert _compile.base_path == "/tmp"
 
@@ -95,27 +97,28 @@ def test_compiler_works(tmpdir, monkeypatch):
         monkeypatch.setattr(Compile, "TEST_COMPILE", True)
         monkeypatch.setattr(Compile, "F90", "true")
 
-    with change_dir(tmpdir):
-        _compile = Compile(tmpdir)
-        # Check compile_file:
-        with open("hello_world.f90", "w", encoding="utf-8") as ffile:
-            ffile.write(HELLO_CODE)
-        _compile.compile_file("hello_world.f90", link=True)
-        # Check string_compiles functions
-        _compile.string_compiles(HELLO_CODE)
+    _compile = Compile()
+    assert _compile._tmpdir == os.getcwd()
+    # Check compile_file:
+    with open("hello_world.f90", "w", encoding="utf-8") as ffile:
+        ffile.write(HELLO_CODE)
+    _compile.compile_file("hello_world.f90", link=True)
+    # Check string_compiles functions
+    _compile.string_compiles(HELLO_CODE)
 
-        monkeypatch.setattr(_compile, "_f90", "does-not-exist")
-        with pytest.raises(CompileError) as err:
-            _compile.compile_file("hello_world.f90")
-        assert _compile.string_compiles(HELLO_CODE) is False
-        # The actual error message might vary, e.g.:
-        # No such file or directory: 'does-not-exist
-        # But it should contain the invalid command in any case
-        assert "does-not-exist" in str(err.value)
+    monkeypatch.setattr(_compile, "_f90", "does-not-exist")
+    with pytest.raises(CompileError) as err:
+        _compile.compile_file("hello_world.f90")
+    assert _compile.string_compiles(HELLO_CODE) is False
+    # The actual error message might vary, e.g.:
+    # No such file or directory: 'does-not-exist
+    # But it should contain the invalid command in any case
+    assert "does-not-exist" in str(err.value)
 
 
 # -----------------------------------------------------------------------------
-def test_compiler_with_flags(tmpdir, monkeypatch):
+def test_compiler_with_flags(change_into_tmpdir, monkeypatch):
+    # pylint: disable=unused-argument
     ''' Check that we can pass through flags to the Fortran compiler.
     Since correct flags are compiler-dependent and hard to test,
     we pass something that is definitely not a flag and check that
@@ -127,31 +130,31 @@ def test_compiler_with_flags(tmpdir, monkeypatch):
         monkeypatch.setattr(Compile, "TEST_COMPILE", True)
         monkeypatch.setattr(Compile, "F90", "false")
 
-    with change_dir(tmpdir):
-        with open("hello_world.f90", "w", encoding="utf-8") as ffile:
-            ffile.write(HELLO_CODE)
-        _compile = Compile(tmpdir)
-        _compile._f90flags = "not-a-flag"
-        with pytest.raises(CompileError) as excinfo:
-            _compile.compile_file("hello_world.f90")
+    with open("hello_world.f90", "w", encoding="utf-8") as ffile:
+        ffile.write(HELLO_CODE)
+    _compile = Compile()
+    _compile._f90flags = "not-a-flag"
+    with pytest.raises(CompileError) as excinfo:
+        _compile.compile_file("hello_world.f90")
 
-        assert "not-a-flag" in str(excinfo.value) or Compile.F90 == "false"
+    assert "not-a-flag" in str(excinfo.value) or Compile.F90 == "false"
 
-        # We have monkeypatched TEST_COMPILE to be true if compilation is
-        # disabled. So check for the specified compiler here:
-        if Compile.F90 == "false":
-            # If we are not compiling, use 'true' as compiler in
-            # the next step that is supposed to be successful.
-            _compile._f90 = "true"
+    # We have monkeypatched TEST_COMPILE to be true if compilation is
+    # disabled. So check for the specified compiler here:
+    if Compile.F90 == "false":
+        # If we are not compiling, use 'true' as compiler in
+        # the next step that is supposed to be successful.
+        _compile._f90 = "true"
 
-        # For completeness we also try with a valid flag although we
-        # can't actually check its effect.
-        _compile._f90flags = "-g"
-        _compile.compile_file("hello_world.f90", link=True)
+    # For completeness we also try with a valid flag although we
+    # can't actually check its effect.
+    _compile._f90flags = "-g"
+    _compile.compile_file("hello_world.f90", link=True)
 
 
 # -----------------------------------------------------------------------------
-def test_build_invalid_fortran(tmpdir, monkeypatch):
+def test_build_invalid_fortran(change_into_tmpdir, monkeypatch):
+    # pylint: disable=unused-argument
     ''' Check that we raise the expected error when attempting
     to compile some invalid Fortran. Skips test if --compile not
     supplied to py.test on command-line. '''
@@ -162,32 +165,32 @@ def test_build_invalid_fortran(tmpdir, monkeypatch):
         monkeypatch.setattr(Compile, "F90", "false")
 
     invalid_code = HELLO_CODE.replace("write", "wite", 1)
-    with change_dir(tmpdir):
-        with open("hello_world.f90", "w", encoding="utf-8") as ffile:
-            ffile.write(invalid_code)
-        _compile = Compile(tmpdir)
-        with pytest.raises(CompileError) as excinfo:
-            _compile.compile_file("hello_world.f90")
+    with open("hello_world.f90", "w", encoding="utf-8") as ffile:
+        ffile.write(invalid_code)
+    _compile = Compile()
+    with pytest.raises(CompileError) as excinfo:
+        _compile.compile_file("hello_world.f90")
 
     assert "Compile error" in str(excinfo.value)
 
 
 # -----------------------------------------------------------------------------
-def test_find_fortran_file(tmpdir):
+def test_find_fortran_file(change_into_tmpdir):
+    # pylint: disable=unused-argument
     ''' Check that our find_fortran_file routine raises the expected
     error if it can't find a matching file. Also check that it returns
     the correct name if the file does exist. '''
     with pytest.raises(IOError) as excinfo:
-        Compile.find_fortran_file([str(tmpdir)], "missing_file")
+        Compile.find_fortran_file([os.getcwd()], "missing_file")
     assert "missing_file' with suffix in ['f90', 'F90'," in str(excinfo.value)
-    with change_dir(tmpdir):
-        with open("hello_world.f90", "w", encoding="utf-8") as ffile:
-            ffile.write(HELLO_CODE)
-        name = Compile.find_fortran_file([str(tmpdir)], "hello_world")
-        assert name.endswith("hello_world.f90")
-        # Check that we also succeed if the file suffix is included
-        name = Compile.find_fortran_file([str(tmpdir)], "hello_world.f90")
-        assert name.endswith("hello_world.f90")
+
+    with open("hello_world.f90", "w", encoding="utf-8") as ffile:
+        ffile.write(HELLO_CODE)
+    name = Compile.find_fortran_file([os.getcwd()], "hello_world")
+    assert name.endswith("hello_world.f90")
+    # Check that we also succeed if the file suffix is included
+    name = Compile.find_fortran_file([os.getcwd()], "hello_world.f90")
+    assert name.endswith("hello_world.f90")
 
 
 # -----------------------------------------------------------------------------
@@ -218,7 +221,8 @@ def test_compile_str(monkeypatch, tmpdir):
 
 
 # -----------------------------------------------------------------------------
-def test_code_compile(tmpdir, monkeypatch):
+def test_code_compile(change_into_tmpdir, monkeypatch):
+    # pylint: disable=unused-argument
     '''A dummy test of the underlying code_compiles function, which takes
     an AST. Note that the derived classes (GOceanBuild and LFRicBuild)
     will test this properly (especially when compilation is enabled),
@@ -236,22 +240,22 @@ def test_code_compile(tmpdir, monkeypatch):
     # to be tested is executed.
     monkeypatch.setattr(Compile, "TEST_COMPILE", True)
     monkeypatch.setattr(Compile, "F90", "true")
-    _compile = Compile(tmpdir)
-    with change_dir(tmpdir):
-        # GOceanBuild or LFRicBuild will set the 'base_path' for the
-        # infrastructure files. We just need to set it to something:
-        _compile.base_path = tmpdir
-        # Only used to specify an existing dependency:
-        with open("hello_world.f90", "w", encoding="utf-8") as ffile:
-            ffile.write(HELLO_CODE)
-        assert _compile.code_compiles(psy, dependencies=["something.cl",
-                                                         "hello_world.f90"])
-        # Now check compilation failure, which we simulate by
-        # using 'false' as compiler:
-        monkeypatch.setattr(_compile, "_f90", "false")
-        assert _compile.code_compiles(psy, dependencies=["something.cl",
-                                                         "hello_world.f90"]) \
-            is False
+    _compile = Compile()
+
+    # GOceanBuild or LFRicBuild will set the 'base_path' for the
+    # infrastructure files. We just need to set it to something:
+    _compile.base_path = os.getcwd()
+    # Only used to specify an existing dependency:
+    with open("hello_world.f90", "w", encoding="utf-8") as ffile:
+        ffile.write(HELLO_CODE)
+    assert _compile.code_compiles(psy, dependencies=["something.cl",
+                                                     "hello_world.f90"])
+    # Now check compilation failure, which we simulate by
+    # using 'false' as compiler:
+    monkeypatch.setattr(_compile, "_f90", "false")
+    assert _compile.code_compiles(psy, dependencies=["something.cl",
+                                                     "hello_world.f90"]) \
+        is False
 
 
 # -----------------------------------------------------------------------------

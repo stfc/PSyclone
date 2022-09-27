@@ -48,10 +48,16 @@ from psyclone.tests.utilities import change_dir, CompileError, Compile
 
 class LFRicBuild(Compile):
     '''Build class for compilation of test files for the LFRic api.
-    It uses the wrapper library from test_files/dynamo0p3/infrastructure
-    and will automatically compile those files once per process.
-    '''
+    It uses the wrapper library from test_files/dynamo0p3/infrastructure.
+    The very first time the constructor is called it will automatically
+    compile the infrastructure library in a temporary, process-specific
+    location. These files will be used by all test compilations of this
+    process.
 
+    :param tmpdir: temporary directory, defaults to os.getcwd()
+    :type tmpdir: Optional[:py:class:`LocalPath`]
+
+    '''
     # A class variable to make sure we compile the infrastructure
     # file only once per process.
     _infrastructure_built = False
@@ -65,13 +71,6 @@ class LFRicBuild(Compile):
     _make_command = "make"
 
     def __init__(self, tmpdir):
-        '''Constructor for the LFRic-specific compilation class.
-        The very first time the constructor is called it will compile
-        the infrastructure library in a temporary, process-specific
-        location. These files will be used by all test compilations.
-        :param tmpdir: Temporary directory to be used for output files.
-        :type tmpdir: :py:class:`LocalPath`
-        '''
         super().__init__(tmpdir)
 
         base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
