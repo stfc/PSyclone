@@ -55,7 +55,7 @@ def reset_infrastructure_compiled_flag():
     '''
     GOceanBuild._infrastructure_built = False
     saved_orig_path = GOceanBuild._compilation_path
-    yield()
+    yield
     GOceanBuild._compilation_path = saved_orig_path
 
 
@@ -120,7 +120,7 @@ def test_opencl_compiles(tmpdir, monkeypatch):
     '''
     monkeypatch.setattr(Compile, "TEST_COMPILE_OPENCL", False)
     assert GOceanOpenCLBuild(tmpdir).code_compiles(None, None) is True
-    monkeypatch.setattr(Compile, "TEST_COMPILE_OPENCL", True)
+    monkeypatch.undo()
     # GOceanOpenCLBuild.code_compiles will call Compile._code_compiles.
     # To avoid the overhead of creating the required AST, we patch this
     # function to always return True.
