@@ -59,7 +59,7 @@ def test_module_inline(monkeypatch, annexed, dist_mem):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf(TEST_API)
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     psy, invoke = get_invoke("4.6_multikernel_invokes.f90", TEST_API,
                              name="invoke_0", dist_mem=dist_mem)
@@ -79,3 +79,11 @@ def test_module_inline(monkeypatch, annexed, dist_mem):
     assert 'SUBROUTINE ru_code(' in gen
     # check that the associated psy "use" does not exist
     assert 'USE ru_kernel_mod, only : ru_code' not in gen
+
+
+def test_module_inline_mixed_precision():
+    '''
+    '''
+    psy, invoke = get_invoke("4.6_multikernel_invokes.f90", TEST_API,
+                             name="invoke_0", dist_mem=False)
+
