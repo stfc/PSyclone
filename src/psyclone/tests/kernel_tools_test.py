@@ -44,7 +44,6 @@ from psyclone import gen_kernel_stub, kernel_tools
 from psyclone.domain.lfric import algorithm
 from psyclone.psyir.nodes import Container, Routine
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, CHARACTER_TYPE
-from psyclone.tests.utilities import change_dir
 from psyclone.version import __VERSION__
 
 
@@ -194,7 +193,8 @@ def test_run_line_length(fortran_reader, monkeypatch, capsys, limit, mode):
 
 
 @pytest.mark.parametrize("mode", ["alg", "stub"])
-def test_file_output(fortran_reader, monkeypatch, mode, tmpdir):
+def test_file_output(fortran_reader, monkeypatch, mode, change_into_tmpdir):
+    # pylint: disable=unused-argument
     ''' Check that the output of the generate() function is written to file
     if requested. We test for both the kernel-stub & algorithm generation. '''
 
@@ -221,12 +221,12 @@ def test_file_output(fortran_reader, monkeypatch, mode, tmpdir):
     monkeypatch.setattr(algorithm.lfric_alg.LFRicAlg, "create_from_kernel",
                         fake_psyir_gen)
     monkeypatch.setattr(gen_kernel_stub, "generate", fake_gen)
-    with change_dir(tmpdir):
-        kernel_tools.run(["-gen", mode, "-o", f"output_file_{mode}",
-                          str("/does_not_exist")])
-        with open(f"output_file_{mode}", "r", encoding="utf-8") as infile:
-            content = infile.read()
-            assert "the_answer = 42" in content
+
+    kernel_tools.run(["-gen", mode, "-o", f"output_file_{mode}",
+                      str("/does_not_exist")])
+    with open(f"output_file_{mode}", "r", encoding="utf-8") as infile:
+        content = infile.read()
+        assert "the_answer = 42" in content
 
 
 def test_no_args_usage_msg(capsys):

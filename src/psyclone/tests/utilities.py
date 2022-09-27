@@ -155,14 +155,15 @@ def change_dir(new_dir):
 class Compile():
     '''This class provides compile functionality to the testing framework.
     It stores the name of the compiler, compiler flags, and a temporary
-    directory used for test compiles. The temporary directory will be
-    defined per test case, so a new instance must be created for each
-    test function.
+    directory used for test compiles (defaults to the current working
+    directory). The temporary directory will be defined per test case, so a
+    new instance must be created for each test function.
     API-specific classes are derived from this class to manage handling
     of the corresponding infrastructure library.
 
-    :param tmpdir: py.test-supplied temporary directory
-    :type tmpdir: :py:class:`LocalPath`
+    :param tmpdir: temporary directory, defaults to \
+        os.getcwd()
+    :type tmpdir: Optional[:py:class:`LocalPath`]
 
     '''
     # Class variable to store whether compilation is enabled (--compile).

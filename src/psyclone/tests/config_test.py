@@ -51,7 +51,6 @@ from psyclone.core.access_type import AccessType
 from psyclone.domain.gocean import GOceanConstants
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.nemo import NemoConstants
-from psyclone.tests.utilities import change_dir
 
 
 # constants
@@ -199,7 +198,7 @@ def test_missing_file(tmpdir):
     assert "not_a_file.cfg does not exist" in str(err.value)
 
 
-def test_search_path(monkeypatch, tmpdir):
+def test_search_path(monkeypatch, change_into_tmpdir):
     ''' Check that the search path for a configuration file is as
     expected. It is important to use monkeypatch for manipulating
     PSYCLONE_CONFIG, since all other tests rely on this variable
@@ -212,67 +211,67 @@ def test_search_path(monkeypatch, tmpdir):
     # to fail to find any file and thus raise an error. The error msg
     # then gives us the list of locations searched.
     monkeypatch.setattr("os.path.isfile", lambda arg: False)
-    with change_dir(tmpdir):
-        cwd = str(tmpdir)
-        # Test when (we appear to be) both inside and outside a virtual
-        # environment
-        for inside_venv in [True, False]:
-            monkeypatch.setattr(
-                "psyclone.virtual_utils.within_virtual_env",
-                lambda: inside_venv)  # pylint: disable=cell-var-from-loop
-            with pytest.raises(ConfigurationError) as err:
-                _ = Config.find_file()
-            err_msg = str(err.value)
-            assert "not found in any of " in err_msg
-            # CWD
-            cwd_idx = err_msg.find(os.path.join(cwd, ".psyclone"))
-            assert cwd_idx != -1
-            # Home directory
-            home_idx = err_msg.find(os.path.join(os.path.expanduser("~"),
-                                                 ".local", "share",
-                                                 "psyclone"))
-            assert home_idx != -1
-            # Some share directory
-            share_idx = err_msg.find(os.path.join(sys.prefix, "share",
-                                                  "psyclone"))
-            assert share_idx != -1
-            assert cwd_idx < home_idx
-            if inside_venv:
-                # When inside a virtual environment, the 'share' directory of
-                # that environment takes precedence over the user's home
-                # directory
-                assert share_idx < home_idx
-            else:
-                assert home_idx < share_idx
+
+    cwd = str(change_into_tmpdir)
+    # Test when (we appear to be) both inside and outside a virtual
+    # environment
+    for inside_venv in [True, False]:
+        monkeypatch.setattr(
+            "psyclone.virtual_utils.within_virtual_env",
+            lambda: inside_venv)  # pylint: disable=cell-var-from-loop
+        with pytest.raises(ConfigurationError) as err:
+            _ = Config.find_file()
+        err_msg = str(err.value)
+        assert "not found in any of " in err_msg
+        # CWD
+        cwd_idx = err_msg.find(os.path.join(cwd, ".psyclone"))
+        assert cwd_idx != -1
+        # Home directory
+        home_idx = err_msg.find(os.path.join(os.path.expanduser("~"),
+                                             ".local", "share",
+                                             "psyclone"))
+        assert home_idx != -1
+        # Some share directory
+        share_idx = err_msg.find(os.path.join(sys.prefix, "share",
+                                              "psyclone"))
+        assert share_idx != -1
+        assert cwd_idx < home_idx
+        if inside_venv:
+            # When inside a virtual environment, the 'share' directory of
+            # that environment takes precedence over the user's home
+            # directory
+            assert share_idx < home_idx
+        else:
+            assert home_idx < share_idx
 
 
-def test_search_env(monkeypatch, tmpdir):
+def test_search_env(monkeypatch, change_into_tmpdir):
     ''' Check that we pick up the configuration file specified in an
     environment variable. It is important to use monkeypatch for manipulating
     PSYCLONE_CONFIG, since all other tests rely on this variable
     (see conftest.setup_psyclone_config).'''
-    with change_dir(tmpdir):
-        cwd = str(tmpdir)
-        # Create a .psyclone/psyclone.cfg in the CWD
-        cfg_dir = os.path.join(cwd, ".psyclone")
-        os.mkdir(cfg_dir)
-        with open(os.path.join(cfg_dir, "psyclone.cfg"), "w",
-                  encoding="utf-8") as cfile:
-            cfile.write(TEST_CONFIG)
-        # Point PSYCLONE_CONFIG to a non-existent file - we should revert
-        # to the normal search path in this case
-        cfg_file = os.path.join(cwd, "not_a_dir", "psyclone.cfg")
-        monkeypatch.setitem(os.environ, "PSYCLONE_CONFIG", cfg_file)
-        name = Config.find_file()
-        assert name.startswith(cfg_dir)
-        assert "not_a_dir" not in name
-        # Now point PSYCLONE_CONFIG to a file that does exist
-        cfg_file = os.path.join(cwd, "another.cfg")
-        with open(cfg_file, "w", encoding="utf-8") as cfile:
-            cfile.write(TEST_CONFIG)
-        monkeypatch.setitem(os.environ, "PSYCLONE_CONFIG", cfg_file)
-        name = Config.find_file()
-        assert name == cfg_file
+
+    cwd = str(change_into_tmpdir)
+    # Create a .psyclone/psyclone.cfg in the CWD
+    cfg_dir = os.path.join(cwd, ".psyclone")
+    os.mkdir(cfg_dir)
+    with open(os.path.join(cfg_dir, "psyclone.cfg"), "w",
+              encoding="utf-8") as cfile:
+        cfile.write(TEST_CONFIG)
+    # Point PSYCLONE_CONFIG to a non-existent file - we should revert
+    # to the normal search path in this case
+    cfg_file = os.path.join(cwd, "not_a_dir", "psyclone.cfg")
+    monkeypatch.setitem(os.environ, "PSYCLONE_CONFIG", cfg_file)
+    name = Config.find_file()
+    assert name.startswith(cfg_dir)
+    assert "not_a_dir" not in name
+    # Now point PSYCLONE_CONFIG to a file that does exist
+    cfg_file = os.path.join(cwd, "another.cfg")
+    with open(cfg_file, "w", encoding="utf-8") as cfile:
+        cfile.write(TEST_CONFIG)
+    monkeypatch.setitem(os.environ, "PSYCLONE_CONFIG", cfg_file)
+    name = Config.find_file()
+    assert name == cfg_file
 
 
 def test_read_values():
