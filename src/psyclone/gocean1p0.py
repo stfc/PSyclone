@@ -49,10 +49,7 @@
 
 import re
 
-from fparser.common.readfortran import FortranStringReader
-from fparser.common.sourceinfo import FortranFormat
-from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt, \
-    Pointer_Assignment_Stmt
+from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt
 from fparser.two.parser import ParserFactory
 
 from psyclone.configuration import Config, ConfigurationError
@@ -73,7 +70,7 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Literal, Schedule, KernelSchedule, \
     StructureReference, BinaryOperation, Reference, Call, Assignment, \
-    ACCEnterDataDirective, ACCParallelDirective, CodeBlock, \
+    ACCEnterDataDirective, ACCParallelDirective, \
     ACCKernelsDirective, Container, ACCUpdateDirective
 from psyclone.psyir.symbols import SymbolTable, ScalarType, INTEGER_TYPE, \
     DataSymbol, RoutineSymbol, ContainerSymbol, DeferredType, DataTypeSymbol, \
@@ -2181,12 +2178,12 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
             self.parent.children.insert(self.position, assignment)
 
             # Use a CodeBlock to encode a Fortran pointer assignment
-            reader = FortranStringReader(
-                        f"{symbol.name}%read_from_device_f => "
-                        f"{read_routine_symbol.name}\n")
-            reader.set_format(FortranFormat(True, True))
-            block = Pointer_Assignment_Stmt(reader)
-            codeblock = CodeBlock([block], CodeBlock.Structure.STATEMENT)
+            reader = FortranReader()
+            codeblock = reader.psyir_from_statement(
+                f"{symbol.name}%read_from_device_f => "
+                f"{read_routine_symbol.name}\n",
+                self.scope.symbol_table)
+
             self.parent.children.insert(self.position, codeblock)
 
         super().lower_to_language_level()
