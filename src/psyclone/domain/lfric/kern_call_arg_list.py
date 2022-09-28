@@ -118,6 +118,74 @@ class KernCallArgList(ArgOrdering):
         self._psyir_arglist.append(Reference(sym))
         return sym
 
+    def add_user_type(self, module_name, user_type, member_list, name,
+                      tag=None):
+        # pylint: disable=too-many-arguments
+        '''Created a reference to a variable of a user-defined type. If
+        required, the required import statements will all be generated.
+
+        :param str module_name: the name of the module from which the \
+            user-defined type must be imported.
+        :param str user_type: the name of the user-defined type.
+        :param member_list: a list of string specifying the component(s) \
+            of the user-defined type to use.
+        :type member_list: List[str]
+        :param str name: the name of the variable to be used in the Reference.
+        :param Optional[str] tag: tag to use for the variable, defaults to \
+            the name
+
+        :return: the symbol that is used in the reference
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol
+
+        '''
+        if not tag:
+            tag = name
+
+        try:
+            sym = self._symtab.lookup_with_tag(tag)
+        except KeyError:
+            # The symbol does not exist already. So we potentially need to
+            # create the import statement for the type:
+            try:
+                # Check if the module is already declared:
+                module = self._symtab.lookup(module_name)
+                # Get the symbol table in which the module is declared
+                mod_sym_tab = module.find_symbol_table(self._kern)
+                # If the module is declared in a different (outer) scope,
+                # still add the module to this (local) symbol table, so
+                # the subroutine does not rely on outer module imports.
+                if mod_sym_tab is not self._symtab:
+                    module = None
+            except KeyError:
+                module = None
+
+            if module is None:
+                # Shadowing allows to declare the module, even if it is
+                # already defined in an outer scope.
+                module = \
+                    self._symtab.new_symbol(module_name,
+                                            shadowing=True,
+                                            symbol_type=ContainerSymbol)
+
+            # Get the symbol table in which the module is declared:
+            mod_sym_tab = module.find_symbol_table(self._kern)
+            # The user-defined type must be declared in the same symbol
+            # table as the container (otherwise errors will happen later):
+            user_type_symbol = \
+                mod_sym_tab.find_or_create(user_type,
+                                           symbol_type=DataTypeSymbol,
+                                           datatype=DeferredType(),
+                                           interface=ImportInterface(module))
+            # Declare the actual user symbol in the local symbol table, using
+            # the datatype from the root table:
+            sym = self._symtab.new_symbol(name, tag=tag,
+                                          symbol_type=DataSymbol,
+                                          datatype=user_type_symbol)
+
+        self._psyir_arglist.append(StructureReference.create(sym,
+                                                             member_list))
+        return sym
+
     def cell_position(self, var_accesses=None):
         '''Adds a cell argument to the argument list and if supplied stores
         this access in var_accesses.
@@ -308,47 +376,10 @@ class KernCallArgList(ArgOrdering):
         # as being read.
         self.append(text, var_accesses, var_access_name=arg.name,
                     mode=arg.access)
-        try:
-            sym = self._symtab.lookup(arg.proxy_name)
-        except KeyError:
-            # The symbol does not exist already. So we potentially need to
-            # create the import statement for the type:
-            try:
-                # Check if the module is already declared:
-                module = self._symtab.lookup("field_mod")
-                # Get the symbol table in which the module is declared
-                mod_sym_tab = module.find_symbol_table(self._kern)
-                # If the module is declared in a different (outer) scope,
-                # still add the module to this (local) symbol table, so
-                # the subroutine does not rely on module imports.
-                if mod_sym_tab is not self._symtab:
-                    module = None
-            except KeyError:
-                module = None
 
-            if module is None:
-                module = \
-                    self._symtab.new_symbol("field_mod",
-                                            shadowing=True,
-                                            symbol_type=ContainerSymbol)
-
-            # Get the symbol table in which the module is declared:
-            mod_sym_tab = module.find_symbol_table(self._kern)
-            # The proxy type must be declared in the same symbol table as the
-            # container (otherwise errors will happen later):
-            proxy_type = \
-                mod_sym_tab.find_or_create("field_proxy_type",
-                                           symbol_type=DataTypeSymbol,
-                                           datatype=DeferredType(),
-                                           interface=ImportInterface(module))
-            # Declare the actual proxy symbol in the local symbol table, using
-            # the datatype from the root table:
-            sym = self._symtab.new_symbol(arg.proxy_name,
-                                          symbol_type=DataSymbol,
-                                          datatype=proxy_type)
-
-        ref = StructureReference.create(sym, ["data"])
-        self._psyir_arglist.append(ref)
+        # Add an access to field_proxy%data:
+        self.add_user_type("field_mod", "field_proxy_type", ["data"],
+                           arg.proxy_name)
 
     def stencil_unknown_extent(self, arg, var_accesses=None):
         '''Add stencil information to the argument list associated with the
