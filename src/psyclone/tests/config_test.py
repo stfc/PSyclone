@@ -202,6 +202,7 @@ def test_missing_file(tmpdir):
 
 
 def test_search_path(monkeypatch, change_into_tmpdir):
+    # pylint: disable=unused-argument
     ''' Check that the search path for a configuration file is as
     expected. It is important to use monkeypatch for manipulating
     PSYCLONE_CONFIG, since all other tests rely on this variable
@@ -215,7 +216,7 @@ def test_search_path(monkeypatch, change_into_tmpdir):
     # then gives us the list of locations searched.
     monkeypatch.setattr("os.path.isfile", lambda arg: False)
 
-    cwd = str(change_into_tmpdir)
+    cwd = os.getcwd()
     # Test when (we appear to be) both inside and outside a virtual
     # environment
     for inside_venv in [True, False]:
