@@ -325,15 +325,39 @@ class KernCallArgList(ArgOrdering):
         else:
             components += DynCMAOperators.cma_same_fs_params
         for component in components:
-            name = self._symtab.find_or_create_tag(
-                arg.name + "_" + component).name
             # Matrix takes the access from the declaration of the argument
             # (i.e. read, write, ...), the rest are always read-only parameters
+            name = arg.name + "_" + component
             if component == "matrix":
+                # Matrix is a pointer to a 3d array
+                # REAL(KIND=r_solver), pointer:: cma_op1_matrix(:,:,:)
+                #    = > null()
                 mode = arg.access
+                try:
+                    sym = self._symtab.lookup(name)
+                except KeyError:
+                    # Create a DataSymbol for this kernel argument.
+                    datatype = psyir.LfricRealScalarDataType()
+                    consts = LFRicConstants()
+                    precision_name = consts.SCALAR_PRECISION_MAP["real"]
+                    psyir.add_lfric_precision_symbol(self._symtab,
+                                                     precision_name)
+                    array_type = ArrayType(datatype,
+                                           [ArrayType.Extent.ATTRIBUTE,
+                                            ArrayType.Extent.ATTRIBUTE,
+                                            ArrayType.Extent.ATTRIBUTE])
+                    sym = self._symtab.new_symbol(name, tag=name,
+                                                  symbol_type=DataSymbol,
+                                                  datatype=array_type)
+
+                self._psyir_arglist.append(Reference(sym))
+
             else:
+                # All other variables are scalar integers
                 mode = AccessType.READ
-            self.append(name, var_accesses, mode=mode)
+                sym = self.add_integer_reference(name)
+
+            self.append(sym.name, var_accesses, mode=mode)
 
     def field_vector(self, argvect, var_accesses=None):
         '''Add the field vector associated with the argument 'argvect' to the
@@ -527,8 +551,13 @@ class KernCallArgList(ArgOrdering):
         # TODO we should only be including ncell_3d once in the argument
         # list but this adds it for every operator
         # This argument is always read only:
+        self.add_user_type("operator_mod", "operator_proxy_type",
+                           ["ncell_3d"], arg.proxy_name_indexed)
         self.append(arg.proxy_name_indexed + "%ncell_3d", var_accesses,
                     mode=AccessType.READ)
+
+        self.add_user_type("operator_mod", "operator_proxy_type",
+                           ["local_stencil"], arg.proxy_name_indexed)
         # The access mode of `local_stencil` is taken from the meta-data:
         self.append(arg.proxy_name_indexed + "%local_stencil", var_accesses,
                     mode=arg.access)
