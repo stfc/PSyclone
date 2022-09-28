@@ -1186,10 +1186,20 @@ class GOKern(CodedKern):
 
         :return: Schedule representing the kernel code.
         :rtype: :py:class:`psyclone.gocean1p0.GOKernelSchedule`
+
+        :raises GenerationError: if more than one match for the supplied \
+            kernel is found in the associated Fortran code.
+
         '''
         if self._kern_schedule is None:
             astp = GOFparser2Reader()
-            self._kern_schedule = astp.generate_schedule(self.name, self.ast)
+            schedules = astp.get_routine_schedules(self.name, self.ast)
+            if len(schedules) > 1:
+                raise GenerationError(
+                    f"The GOcean API only supports a 1-to-1 mapping between "
+                    f"kernel name and implementation but found "
+                    f"{len(schedules)} routines for kernel '{self.name}'.")
+            self._kern_schedule = schedules[0]
             # TODO: Validate kernel with metadata (issue #288).
         return self._kern_schedule
 

@@ -74,6 +74,7 @@ from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
                              GlobalSum, FORTRAN_INTENT_NAMES, DataAccess,
                              CodedKern)
 from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
                                   ArrayReference, ACCEnterDataDirective,
                                   ACCRegionDirective, OMPRegionDirective)
@@ -8445,30 +8446,47 @@ class DynKern(CodedKern):
         :returns: Schedule representing the kernel code.
         :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
 
+        :raises GenerationError: if no subroutine matching this kernel can \
+            be found in the parse tree of the associated source code.
         '''
-        if self._kern_schedule is None:
-            # Get the PSyIR Kernel Schedule
-            psyir_schedule = super(DynKern, self).get_kernel_schedule()
+        if self._kern_schedule:
+            return self._kern_schedule
 
-            # Before transforming, check the validity of the kernel
-            # arguments
-            self.validate_kernel_code_args()
+        # Get the PSyIR Kernel Schedule(s)
+        routines = Fparser2Reader().get_routine_schedules(self.name, self.ast)
 
-            # TODO replace the PSyIR argument data symbols with LFRic
-            # data symbols, see issue #935. For the moment we simply
-            # return the unmodified PSyIR schedule
-            self._kern_schedule = psyir_schedule
+        if len(routines) == 1:
+            sched = routines[0]
+            self.validate_kernel_code_args(sched)
+        else:
+            # The kernel name corresponds to an interface block. Find which
+            # of the routines matches the precision of the arguments.
+            for routine in routines:
+                try:
+                    # The validity check for the kernel arguments will raise
+                    # an exception if the precisions don't match.
+                    self.validate_kernel_code_args(routine)
+                    sched = routine
+                    break
+                except GenerationError:
+                    pass
+            else:
+                raise GenerationError("oops")
+
+        # TODO replace the PSyIR argument data symbols with LFRic
+        # data symbols, see issue #935. For the moment we simply
+        # return the unmodified PSyIR schedule
+        self._kern_schedule = sched
 
         return self._kern_schedule
 
-    def validate_kernel_code_args(self):
+    def validate_kernel_code_args(self, psyir_schedule):
         '''Check that the arguments in the kernel code match the expected
         arguments as defined by the kernel metadata and the LFRic
         API.
 
         '''
         # Get the kernel code arguments
-        psyir_schedule = super(DynKern, self).get_kernel_schedule()
         symbol_table = psyir_schedule.symbol_table
         kern_code_args = symbol_table.argument_list
 
@@ -8516,15 +8534,22 @@ class DynKern(CodedKern):
                 "in kernel '{2}' but the LFRic API expects '{3}'."
                 "".format(kern_code_arg.name, actual_datatype,
                           self.name, expected_datatype))
-        # 2: precision
+        # 2: precision. We convert precision into number of bytes to support
+        #    mixed-precision kernels.
         actual_precision = kern_code_arg.datatype.precision
+        if isinstance(actual_precision, DataSymbol):
+            actual_precision = LFRicConstants.PRECISION_MAP[
+                actual_precision.name]
         expected_precision = interface_arg.datatype.precision
-        if actual_precision.name != expected_precision.name:
+        if isinstance(expected_precision, DataSymbol):
+            expected_precision = LFRicConstants.PRECISION_MAP[
+                expected_precision.name]
+        if actual_precision != expected_precision:
             raise GenerationError(
                 "Kernel argument '{0}' has precision '{1}' "
                 "in kernel '{2}' but the LFRic API expects '{3}'."
-                "".format(kern_code_arg.name, actual_precision.name,
-                          self.name, expected_precision.name))
+                "".format(kern_code_arg.name, actual_precision,
+                          self.name, expected_precision))
         # 3: intent
         actual_intent = kern_code_arg.interface.access
         expected_intent = interface_arg.interface.access

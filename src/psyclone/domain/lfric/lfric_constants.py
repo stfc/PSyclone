@@ -275,6 +275,14 @@ class LFRicConstants():
             OrderedDict(zip(LFRicConstants.VALID_INTRINSIC_TYPES,
                             ["r_def", "i_def", "l_def"]))
 
+        #----------- Map from symbolic to actual precision --------------------
+
+        # TODO these should be in the config file?
+        LFRicConstants.PRECISION_MAP = {"r_def": 8,
+                                        "i_def": 4,
+                                        "r_solver": 4,
+                                        "r_tran": 8}
+
         # ---------- Infrastructure module maps -------------------------------
 
         # Dictionary allowing us to look-up the name of the Fortran module,

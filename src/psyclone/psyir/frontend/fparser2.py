@@ -1078,95 +1078,58 @@ class Fparser2Reader(object):
 
         return new_container
 
-    def generate_schedule(self, name, module_ast, container=None):
-        '''Create a Schedule from the supplied fparser2 AST.
-
-        TODO #737. Currently this routine is also used to create a
-        NemoInvokeSchedule from NEMO source code (hence the optional,
-        'container' argument).  This routine needs re-naming and
-        re-writing so that it *only* creates the PSyIR for a
-        subroutine.
+    def get_routine_schedules(self, name, module_ast):
+        '''Create one or more schedules for routines corresponding to the
+        supplied name in the supplied fparser2 AST. (There can be more than
+        one routine if the supplied name corresponds to an interface block
+        in the AST.)
 
         :param str name: name of the subroutine represented by the kernel.
         :param module_ast: fparser2 AST of the full module where the kernel \
                            code is located.
         :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
-        :param container: the parent Container node associated with this \
-                          Schedule (if any).
-        :type container: :py:class:`psyclone.psyir.nodes.Container`
 
-        :returns: PSyIR schedule representing the kernel.
-        :rtype: :py:class:`psyclone.psyir.nodes.KernelSchedule`
+        :returns: PSyIR schedules representing the matching subroutine(s).
+        :rtype: List[:py:class:`psyclone.psyir.nodes.KernelSchedule`]
 
         :raises GenerationError: unable to generate a kernel schedule from \
                                  the provided fpaser2 parse tree.
 
         '''
         new_schedule = self._create_schedule(name)
+        psyir = self.generate_psyir(module_ast)
 
-        routines = walk(module_ast, (Fortran2003.Subroutine_Subprogram,
-                                     Fortran2003.Main_Program,
-                                     Fortran2003.Function_Subprogram))
-        for routine in routines:
-            if isinstance(routine, Fortran2003.Function_Subprogram):
-                # TODO fparser/#225 Function_Stmt does not have a get_name()
-                # method. Once it does we can remove this branch.
-                routine_name = str(routine.children[0].children[1])
-            else:
-                routine_name = str(routine.children[0].get_name())
-            if routine_name == name:
-                subroutine = routine
-                break
-        else:
+        # Check for an interface block
+        actual_names = []
+        interfaces = walk(module_ast, Fortran2003.Interface_Block)
+        if interfaces:
+            for interface in interfaces:
+                if interface.children[0].children[0].string == name:
+                    # We have an interface block with the name of the routine
+                    # we are searching for.
+                    procs = walk(interface, Fortran2003.Procedure_Stmt)
+                    for proc in procs:
+                        if (not isinstance(proc.children[0],
+                                           Fortran2003.Procedure_Name_List) or
+                                len(proc.children[0].children) != 1):
+                            raise GenerationError("huh")
+                        actual_names.append(
+                            proc.children[0].children[0].string)
+                    break
+        if not actual_names:
+            # No interface block was found so we proceed to search for a
+            # routine with the original name that we were passed.
+            actual_names = [name]
+
+        routines = psyir.walk(Routine)
+        selected_routines = [routine for routine in routines
+                             if routine.name in actual_names]
+
+        if not selected_routines:
             raise GenerationError(f"Unexpected kernel AST. Could not find "
                                   f"subroutine: {name}")
 
-        # Check whether or not we need to create a Container for this schedule
-        # TODO #737 this routine should just be creating a Subroutine, not
-        # attempting to create a Container too. Perhaps it should be passed
-        # a reference to the parent Container object.
-        if not container:
-            # Is the routine enclosed within a module?
-            current = subroutine.parent
-            while current:
-                if isinstance(current, Fortran2003.Module):
-                    # We have a parent module so create a Container
-                    container = self.generate_container(current)
-                    break
-                current = current.parent
-        if container:
-            container.children.append(new_schedule)
-
-        try:
-            sub_spec = _first_type_match(subroutine.content,
-                                         Fortran2003.Specification_Part)
-            decl_list = sub_spec.content
-            # TODO this if test can be removed once fparser/#211 is fixed
-            # such that routine arguments are always contained in a
-            # Dummy_Arg_List, even if there's only one of them.
-            from fparser.two.Fortran2003 import Dummy_Arg_List
-            if isinstance(subroutine, Fortran2003.Subroutine_Subprogram) and \
-               isinstance(subroutine.children[0].children[2], Dummy_Arg_List):
-                arg_list = subroutine.children[0].children[2].children
-            else:
-                # Routine has no arguments
-                arg_list = []
-        except ValueError:
-            # Subroutine without declarations, continue with empty lists.
-            decl_list = []
-            arg_list = []
-        finally:
-            self.process_declarations(new_schedule, decl_list, arg_list)
-
-        try:
-            sub_exec = _first_type_match(subroutine.content,
-                                         Fortran2003.Execution_Part)
-        except ValueError:
-            pass
-        else:
-            self.process_nodes(new_schedule, sub_exec.content)
-
-        return new_schedule
+        return selected_routines
 
     @staticmethod
     def _parse_dimensions(dimensions, symbol_table):
