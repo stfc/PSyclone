@@ -217,8 +217,8 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        name = self._symtab.find_or_create_tag("ncell_2d").name
-        self.append(name, var_accesses)
+        sym = self.add_integer_reference("ncell_2d")
+        self.append(sym.name, var_accesses)
 
     def _mesh_ncell2d_no_halos(self, var_accesses=None):
         '''Add the number of columns in the mesh (excluding those in the halo)
