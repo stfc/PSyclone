@@ -76,17 +76,21 @@ class KernCallArgList(ArgOrdering):
         # Keep a reference to the Invoke SymbolTable as a shortcut
         self._symtab = self._kern.ancestor(psyGen.InvokeSchedule).symbol_table
 
-    def add_integer_reference(self, tag):
+    def add_integer_reference(self, name, tag=None):
         '''This function adds a reference to an integer variable to the list
         of PSyIR nodes. If the symbol does not exit, it will be added to the
         symbol table. It also returns the symbol.
 
-        :param str tag: name of the integer variable to declare.
+        :param str name: name of the integer variable to declare.
+        :param tag: optional tag of the integer variable to declare.
+        :type tag: Optional[str]
 
         :returns: the symbol to which a reference was added.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol
 
         '''
+        if not tag:
+            tag = name
         try:
             sym = self._symtab.lookup_with_tag(tag)
         except KeyError:
@@ -108,7 +112,7 @@ class KernCallArgList(ArgOrdering):
                 self._symtab.add(new_sym, tag=tag)
                 sym = new_sym
             else:
-                sym = self._symtab.new_symbol(tag, tag=tag,
+                sym = self._symtab.new_symbol(name, tag=tag,
                                               symbol_type=DataSymbol,
                                               datatype=datatype)
         self._psyir_arglist.append(Reference(sym))
@@ -846,7 +850,8 @@ class KernCallArgList(ArgOrdering):
             var_accesses.add_access(Signature("cell"), AccessType.READ,
                                     self._kern)
 
-        return "cell"
+        sym = self.add_integer_reference("cell", "cell_loop_idx")
+        return sym.name
 
 
 # ============================================================================
