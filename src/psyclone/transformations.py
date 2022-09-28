@@ -1243,15 +1243,12 @@ class KernelModuleInlineTrans(KernelTrans):
             # If it doesn't exist already, module-inline the subroutine by:
             # 1) Registering the subroutine symbol in the Container
             from psyclone.psyir.symbols import RoutineSymbol
-            from psyclone.psyir.nodes import Literal
-            node.root.symbol_table.add(RoutineSymbol(name))
+            from psyclone.psyir.nodes import Literal, Container, ScopingNode
+            node.ancestor(Container).symbol_table.add(RoutineSymbol(name))
             # 2) Insert the relevant code into the tree.
             inlined_code = node.get_kernel_schedule()
 
-            import pdb; pdb.set_trace()
-            for container in inlined_code.ancestor(Container):
-                cont
-
+            bring_in = set()
             for reference in inlined_code.walk(Reference):
                 try:
                     reference.scope.symbol_table.lookup(
@@ -1261,18 +1258,35 @@ class KernelModuleInlineTrans(KernelTrans):
                 except KeyError:
                     import pdb; pdb.set_trace()
             for literal in inlined_code.walk(Literal):
-                if isinstance(lit.datatype.precision, DataSymbol):
-                    name = lit.datatype.precision.name
+                if isinstance(literal.datatype.precision, DataSymbol):
+                    name = literal.datatype.precision.name
+                    pass
 
+            for scope in inlined_code.walk(ScopingNode):
+                for symbol in scope.symbol_table.symbols:
+                    if symbol.is_unresolved:
+                        # We don't know where this comes from, we need to bring
+                        # in all top-level imports
+                        for imported in inlined_code.ancestor(Container).symbol_table.containersymbols:
+                            bring_in.add(imported)
+                    elif symbol.is_import:
+                        pass # Add to bring in if imported outside?
+                    elif symbol.is_local:
+                        # This should be on the validate
+                        pass  # Ok if is a constant, otherwise it should be an error?
 
-            import pdb; pdb.set_trace()
-
+            for symbol in bring_in:
+                scope.symbol_table.add(symbol)
+                # Note that momentarily we have the same symbol in two symbol
+                # tables, but this is not a problem because below we detach and
+                # discard the ancestor part of the tree.
 
             node.root.addchild(inlined_code.detach())
-
             
-
         else:
+            # The routine symbol already exist, we need to make sure it
+            # references the same routine. (would eq work?)
+            # This should be on the validate
             import pdb; pdb.set_trace()
         
 
