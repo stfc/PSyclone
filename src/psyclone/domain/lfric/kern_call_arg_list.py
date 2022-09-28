@@ -90,14 +90,27 @@ class KernCallArgList(ArgOrdering):
         try:
             sym = self._symtab.lookup_with_tag(tag)
         except KeyError:
+            sym = None
+
+        if sym is None or not isinstance(sym, DataSymbol):
+            # Either the symbol doesn't exist, or it doesn't have a type yet.
             # Create a DataSymbol for this kernel argument.
             datatype = psyir.LfricIntegerScalarDataType()
             consts = LFRicConstants()
             precision_name = consts.SCALAR_PRECISION_MAP["integer"]
             psyir.add_lfric_precision_symbol(self._symtab, precision_name)
-            sym = self._symtab.new_symbol(tag,
-                                          symbol_type=DataSymbol,
-                                          datatype=datatype)
+            if sym is not None:
+                # The symbol exists, but is not a DataSymbol. So we need to
+                # properly declare this symbol now by removing the old symbol,
+                # and adding a new symbol with the same name and tag in:
+                new_sym = DataSymbol(sym.name, datatype=datatype)
+                self._symtab.remove(sym)
+                self._symtab.add(new_sym, tag=tag)
+                sym = new_sym
+            else:
+                sym = self._symtab.new_symbol(tag, tag=tag,
+                                              symbol_type=DataSymbol,
+                                              datatype=datatype)
         self._psyir_arglist.append(Reference(sym))
         return sym
 
@@ -214,10 +227,8 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        ncell_symbol = self._symtab.find_or_create_tag("ncell_2d_no_halos")
-        name = ncell_symbol.name
-        self._psyir_arglist.append(Reference(ncell_symbol))
-        self.append(name, var_accesses)
+        ncell_symbol = self.add_integer_reference("ncell_2d_no_halos")
+        self.append(ncell_symbol.name, var_accesses)
 
     def cma_operator(self, arg, var_accesses=None):
         '''Add the CMA operator and associated scalars to the argument
