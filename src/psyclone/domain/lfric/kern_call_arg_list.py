@@ -73,26 +73,8 @@ class KernCallArgList(ArgOrdering):
         self._nlayers_positions = []
         self._nqp_positions = []
         self._ndf_positions = []
-        # This stores the PSyIR representation of the arguments
-        self._psyir_arglist = []
         # Keep a reference to the Invoke SymbolTable as a shortcut
         self._symtab = self._kern.ancestor(psyGen.InvokeSchedule).symbol_table
-
-    @property
-    def psyir_arglist(self):
-        '''
-        :return: the kernel argument list as PSyIR expressions. The generate \
-            method must be called first.
-        :rtype: List[:py:class:`psyclone.psyir.nodes.Reference`]
-
-        :raises InternalError: if the generate() method has not been called.
-
-        '''
-        if not self._generate_called:
-            raise InternalError(
-                f"The PSyIR argument list in {type(self).__name__} is empty. "
-                f"Has the generate() method been called?")
-        return self._psyir_arglist
 
     def add_integer_reference(self, name):
         '''This function adds a reference to an integer variable to the list

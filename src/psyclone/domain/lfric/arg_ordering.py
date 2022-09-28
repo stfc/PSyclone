@@ -66,6 +66,8 @@ class ArgOrdering:
         self._kern = kern
         self._generate_called = False
         self._arglist = []
+        # This stores the PSyIR representation of the arguments
+        self._psyir_arglist = []
 
     def append(self, var_name, var_accesses=None, var_access_name=None,
                mode=AccessType.READ):
@@ -144,6 +146,22 @@ class ArgOrdering:
                 f"The argument list in {type(self).__name__} is empty. "
                 f"Has the generate() method been called?")
         return self._arglist
+
+    @property
+    def psyir_arglist(self):
+        '''
+        :return: the kernel argument list as PSyIR expressions. The generate \
+            method must be called first.
+        :rtype: List[:py:class:`psyclone.psyir.nodes.Reference`]
+
+        :raises InternalError: if the generate() method has not been called.
+
+        '''
+        if not self._generate_called:
+            raise InternalError(
+                f"The PSyIR argument list in {type(self).__name__} is empty. "
+                f"Has the generate() method been called?")
+        return self._psyir_arglist
 
     def generate(self, var_accesses=None):
         # pylint: disable=too-many-statements, too-many-branches
