@@ -76,26 +76,30 @@ class KernCallArgList(ArgOrdering):
         # Keep a reference to the Invoke SymbolTable as a shortcut
         self._symtab = self._kern.ancestor(psyGen.InvokeSchedule).symbol_table
 
-    def add_integer_reference(self, name):
+    def add_integer_reference(self, tag):
         '''This function adds a reference to an integer variable to the list
         of PSyIR nodes. If the symbol does not exit, it will be added to the
-        symbol table.
+        symbol table. It also returns the symbol.
 
-        :param str name: name of the integer variable to declare.
+        :param str tag: name of the integer variable to declare.
+
+        :returns: the symbol to which a reference was added.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol
 
         '''
         try:
-            sym = self._symtab.lookup_with_tag(name)
+            sym = self._symtab.lookup_with_tag(tag)
         except KeyError:
             # Create a DataSymbol for this kernel argument.
             datatype = psyir.LfricIntegerScalarDataType()
             consts = LFRicConstants()
             precision_name = consts.SCALAR_PRECISION_MAP["integer"]
             psyir.add_lfric_precision_symbol(self._symtab, precision_name)
-            sym = self._symtab.new_symbol(name,
+            sym = self._symtab.new_symbol(tag,
                                           symbol_type=DataSymbol,
                                           datatype=datatype)
         self._psyir_arglist.append(Reference(sym))
+        return sym
 
     def cell_position(self, var_accesses=None):
         '''Adds a cell argument to the argument list and if supplied stores
@@ -153,11 +157,9 @@ class KernCallArgList(ArgOrdering):
         '''
         if self._kern.iterates_over not in ["cell_column", "domain"]:
             return
-        nlayers_symbol = self._symtab.find_or_create_tag("nlayers")
-        nlayers_name = nlayers_symbol.name
-        self.append(nlayers_name, var_accesses)
+        nlayers_symbol = self.add_integer_reference("nlayers")
+        self.append(nlayers_symbol.name, var_accesses)
         self._nlayers_positions.append(self.num_args)
-        self._psyir_arglist.append(Reference(nlayers_symbol))
 
     def scalar(self, scalar_arg, var_accesses=None):
         '''
