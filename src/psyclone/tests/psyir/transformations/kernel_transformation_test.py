@@ -356,9 +356,7 @@ def test_no_inline_global_var():
 
 def test_kernel_trans_validate(monkeypatch):
     '''Check that the validate method in the class KernelTrans raises an
-    exception if the reference is not found in any of the symbol
-    tables. KernelTrans can't be instantiated as it is abstract so use
-    a the subclass.
+    exception if the kernel code can not be retrieved.
 
     '''
     kernel_trans = KernelModuleInlineTrans()
@@ -374,15 +372,6 @@ def test_kernel_trans_validate(monkeypatch):
     monkeypatch.setattr(kernel, "get_kernel_schedule", raise_symbol_error)
     with pytest.raises(TransformationError) as err:
         kernel_trans.apply(kernel)
-    assert ("'kernel_with_global_code' contains accesses to data that are "
-            "not present in the Symbol Table(s). Cannot transform such a "
-            "kernel." in str(err.value))
-
-    def raise_gen_error():
-        '''Simple function that raises GenerationError.'''
-        raise GenerationError("error")
-    monkeypatch.setattr(kernel, "get_kernel_schedule", raise_gen_error)
-    with pytest.raises(TransformationError) as err:
-        kernel_trans.apply(kernel)
-    assert ("Failed to create PSyIR for kernel 'kernel_with_global_code'. "
-            "Cannot transform such a kernel." in str(err.value))
+    assert ("KernelModuleInline failed to retrieve PSyIR for kernel "
+            "'kernel_with_global_code' using the 'get_kernel_schedule' "
+            "method." in str(err.value))

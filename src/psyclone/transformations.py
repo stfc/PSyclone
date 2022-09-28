@@ -103,68 +103,7 @@ def check_intergrid(node):
                 f" is such a kernel.")
 
 
-class KernelTrans(Transformation):
-    # pylint: disable=abstract-method
-    '''
-    Base class for all Kernel transformations.
-
-    '''
-    @staticmethod
-    def validate(kern, options=None):
-        # pylint: disable=arguments-renamed
-        '''
-        Checks that the supplied node is a Kernel and that it is possible to
-        construct the PSyIR of its contents.
-
-        :param kern: the kernel which is the target of the transformation.
-        :type kern: :py:class:`psyclone.psyGen.Kern` or sub-class
-        :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
-
-        :raises TransformationError: if the target node is not a sub-class of \
-                                     psyGen.Kern.
-        :raises TransformationError: if the subroutine containing the \
-                                     implementation of the kernel cannot be \
-                                     found in the fparser2 Parse Tree.
-        :raises TransformationError: if the PSyIR cannot be constructed \
-                                     because there are symbols of unknown type.
-
-        '''
-
-        if not isinstance(kern, Kern):
-            raise TransformationError(
-                f"Target of a kernel transformation must be a sub-class of "
-                f"psyGen.Kern but got '{type(kern).__name__}'")
-
-        # Check that the PSyIR and associated Symbol table of the Kernel is OK.
-        # If this kernel contains symbols that are not captured in the PSyIR
-        # SymbolTable then this raises an exception.
-        try:
-            kernel_schedule = kern.get_kernel_schedule()
-        except GenerationError as error:
-            raise TransformationError(
-                f"Failed to create PSyIR for kernel '{kern.name}'. "
-                f"Cannot transform such a kernel.") from error
-        except SymbolError as err:
-            raise TransformationError(
-                f"Kernel '{kern.name}' contains accesses to data that are not "
-                f"present in the Symbol Table(s). Cannot "
-                f"transform such a kernel.") from err
-        # Check that all kernel symbols are declared in the kernel
-        # symbol table(s). At this point they may be declared in a
-        # container containing this kernel which is not supported.
-        for var in kernel_schedule.walk(Reference):
-            try:
-                var.scope.symbol_table.lookup(
-                    var.name, scope_limit=var.ancestor(KernelSchedule))
-            except KeyError as err:
-                raise TransformationError(
-                    f"Kernel '{kern.name}' contains accesses to data (variable"
-                    f" '{var.name}') that are not present in the Symbol Table"
-                    f"(s) within KernelSchedule scope. Cannot transform such a"
-                    f" kernel.") from err
-
-
+    
 class OMPTaskloopTrans(ParallelLoopTrans):
 
     '''
@@ -1178,9 +1117,9 @@ class ColourTrans(LoopTrans):
                             "API-specific sub-class.")
 
 
-class KernelModuleInlineTrans(KernelTrans):
-    '''Switches on, or switches off, the inlining of a Kernel subroutine
-    into the PSy layer module. For example:
+class KernelModuleInlineTrans(Transformation):
+    ''' Module-inlines (bring the subroutine to the same compiler-unit) the
+    subroutine pointed by this Kernel. For example:
 
     >>> invoke = ...
     >>> schedule = invoke.schedule
@@ -1206,26 +1145,69 @@ class KernelModuleInlineTrans(KernelTrans):
     '''
 
     def __str__(self):
-        return ("Inline (or cancel inline of) a kernel subroutine into the "
-                "PSy module")
+        return ("Inline a kernel subroutine into the PSy module")
 
     @property
     def name(self):
         ''' Returns the name of this transformation as a string.'''
         return "KernelModuleInline"
 
-    def apply(self, node, options=None):
-        '''Checks that the node is of the correct type (a Kernel) then marks
-        the Kernel to be inlined, or not, depending on the value of
-        the inline option. If the inline option is not passed the
-        Kernel is marked to be inlined.
+    def validate(self, node, options=None):
+        '''
+        Checks that the supplied node is a Kernel and that it is possible to
+        inline the PSyIR of its contents.
 
-        :param node: the loop to transform.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
+        :param kern: the kernel which is the target of the transformation.
+        :type kern: :py:class:`psyclone.psyGen.Kern` or sub-class
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
-        :param bool options["inline"]: whether the kernel should be module\
-                inlined or not.
+
+        :raises TransformationError: if the target node is not a sub-class of \
+                                     psyGen.Kern.
+        :raises TransformationError: if the subroutine containing the \
+                                     implementation of the kernel cannot be \
+                                     retrieved wiht 'get_kernel_schedule'.
+        :raises TransformationError: if the kernel cannot be safely inlined.
+
+        '''
+
+        if not isinstance(node, Kern):
+            raise TransformationError(
+                f"Target of a kernel transformation must be a sub-class of "
+                f"psyGen.Kern but got '{type(node).__name__}'")
+
+        # Check that the PSyIR and associated Symbol table of the Kernel is OK.
+        # If this kernel contains symbols that are not captured in the PSyIR
+        # SymbolTable then this raises an exception.
+        try:
+            kernel_schedule = node.get_kernel_schedule()
+        except Exception as error:
+            raise TransformationError(
+                f"{self.name} failed to retrieve PSyIR for kernel "
+                f"'{node.name}' using the 'get_kernel_schedule' method."
+                ) from error
+
+        # Check that all kernel symbols are declared in the kernel
+        # symbol table(s). At this point they may be declared in a
+        # container containing this kernel which is not supported.
+        for var in kernel_schedule.walk(Reference):
+            try:
+                var.scope.symbol_table.lookup(
+                    var.name, scope_limit=var.ancestor(KernelSchedule))
+            except KeyError as err:
+                raise TransformationError(
+                    f"Kernel '{node.name}' contains accesses to data (variable"
+                    f" '{var.name}') that are not present in the Symbol Table"
+                    f"(s) within KernelSchedule scope. Cannot inline such a"
+                    f" kernel.") from err
+
+    def apply(self, node, options=None):
+        ''' Bring the kernel subroutine in this Container.
+
+        :param node: the kernel to module-inline.
+        :type node: :py:class:`psyclone.psyGen.CodedKern`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
 
         '''
         self.validate(node, options)
@@ -1242,53 +1224,55 @@ class KernelModuleInlineTrans(KernelTrans):
         if not existing_symbol:
             # If it doesn't exist already, module-inline the subroutine by:
             # 1) Registering the subroutine symbol in the Container
-            from psyclone.psyir.symbols import RoutineSymbol
+            from psyclone.psyir.symbols import RoutineSymbol, ContainerSymbol
             from psyclone.psyir.nodes import Literal, Container, ScopingNode
             node.ancestor(Container).symbol_table.add(RoutineSymbol(name))
             # 2) Insert the relevant code into the tree.
             inlined_code = node.get_kernel_schedule()
+            container = inlined_code.ancestor(Container)
 
             bring_in = set()
-            for reference in inlined_code.walk(Reference):
-                try:
-                    reference.scope.symbol_table.lookup(
-                        reference.symbol.name,
-                        scope_limit=inlined_code
-                    )
-                except KeyError:
-                    import pdb; pdb.set_trace()
+
             for literal in inlined_code.walk(Literal):
                 if isinstance(literal.datatype.precision, DataSymbol):
                     name = literal.datatype.precision.name
-                    pass
+                    # FIXME
 
             for scope in inlined_code.walk(ScopingNode):
                 for symbol in scope.symbol_table.symbols:
                     if symbol.is_unresolved:
                         # We don't know where this comes from, we need to bring
                         # in all top-level imports
-                        for imported in inlined_code.ancestor(Container).symbol_table.containersymbols:
-                            bring_in.add(imported)
+                        for mod in container.symbol_table.containersymbols:
+                            bring_in.add(mod)
                     elif symbol.is_import:
-                        pass # Add to bring in if imported outside?
+                        pass  # Add to bring in if imported outside?
                     elif symbol.is_local:
                         # This should be on the validate
-                        pass  # Ok if is a constant, otherwise it should be an error?
+                        # Ok if is a constant, otherwise it should be an
+                        # # error?
+                        pass
 
             for symbol in bring_in:
-                scope.symbol_table.add(symbol)
-                # Note that momentarily we have the same symbol in two symbol
-                # tables, but this is not a problem because below we detach and
-                # discard the ancestor part of the tree.
+                if symbol.name in inlined_code.symbol_table:
+                    same_symbol = inlined_code.symbol_table.lookup(symbol.name)
+                    if not isinstance(same_symbol, ContainerSymbol):
+                        raise InternalError(
+                            f"Incoherent PSyIR found ({symbol.name} not as "
+                            f"expected)")
+                else:
+                    inlined_code.symbol_table.add(symbol)
+                    # Note that momentarily we have the same symbol in two
+                    # symbol tables, but this is not a problem because below
+                    # we detach and discard the ancestor part of the tree.
 
             node.root.addchild(inlined_code.detach())
-            
+
         else:
             # The routine symbol already exist, we need to make sure it
             # references the same routine. (would eq work?)
-            # This should be on the validate
-            import pdb; pdb.set_trace()
-        
+            pass
+
 
 class Dynamo0p3ColourTrans(ColourTrans):
 
@@ -3179,8 +3163,7 @@ class KernelImportsToArguments(Transformation):
 
 
 # For Sphinx AutoAPI documentation generation
-__all__ = ["KernelTrans",
-           "OMPLoopTrans",
+__all__ = ["OMPLoopTrans",
            "ACCLoopTrans",
            "OMPParallelLoopTrans",
            "DynamoOMPParallelLoopTrans",
