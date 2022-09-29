@@ -382,21 +382,14 @@ def test_omp_do_directive_validate_global_constraints(fortran_reader,
     directive = tree.walk(OMPParallelDoDirective)
 
     # The first and second loop nests will fail the validation
-    with pytest.raises(GenerationError) as err:
-        _ = fortran_writer(directive[0])
-    assert ("OMPParallelDoDirective must have as many immediately nested "
-            "loops as the collapse clause specifies but 'OMPParallelDo"
-            "Directive[omp_schedule=auto,collapse=2]' has a collapse=2 and "
-            "the nested body at depth 1 is a can not be collapsed."
-            in str(err.value))
-
-    with pytest.raises(GenerationError) as err:
-        _ = fortran_writer(directive[1])
-    assert ("OMPParallelDoDirective must have as many immediately nested "
-            "loops as the collapse clause specifies but 'OMPParallelDo"
-            "Directive[omp_schedule=auto,collapse=2]' has a collapse=2 and "
-            "the nested body at depth 1 is a can not be collapsed."
-            in str(err.value))
+    for test_directive in directive[0:1]:
+        with pytest.raises(GenerationError) as err:
+            _ = fortran_writer(test_directive)
+        assert ("OMPParallelDoDirective must have as many immediately nested "
+                "loops as the collapse clause specifies but 'OMPParallelDo"
+                "Directive[omp_schedule=auto,collapse=2]' has a collapse=2 "
+                "and the nested body at depth 1 cannot be collapsed."
+                in str(err.value))
 
     # The third loop nest will succeed
     code = fortran_writer(directive[2])
@@ -409,7 +402,7 @@ def test_omp_do_directive_validate_global_constraints(fortran_reader,
     assert ("OMPParallelDoDirective must have as many immediately nested "
             "loops as the collapse clause specifies but 'OMPParallelDo"
             "Directive[omp_schedule=auto,collapse=3]' has a collapse=3 and "
-            "the nested body at depth 2 is a can not be collapsed."
+            "the nested body at depth 2 cannot be collapsed."
             in str(err.value))
 
 

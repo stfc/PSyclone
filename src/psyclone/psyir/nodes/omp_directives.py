@@ -1111,7 +1111,7 @@ class OMPDoDirective(OMPRegionDirective):
                         f"{type(self).__name__} must have as many immediately "
                         f"nested loops as the collapse clause specifies but "
                         f"'{self}' has a collapse={self._collapse} and the "
-                        f"nested body at depth {depth} is a can not be "
+                        f"nested body at depth {depth} cannot be "
                         f"collapsed.")
                 cursor = cursor.loop_body.children[0]
 
