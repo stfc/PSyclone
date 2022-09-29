@@ -293,7 +293,7 @@ def generate_lfric_adjoint_harness(tl_psyir):
         raise ValueError(
             f"Test harness code can only be generated if the supplied TL "
             f"kernel is within a module (Container) but the supplied PSyIR "
-            f"does not have a Container node:\n{tl_psyir.view()}")
+            f"does not have a Container node:\n{tl_psyir.view(colour=False)}")
 
     lfalg = LFRicAlg()
     container = lfalg.create_alg_routine("adjoint_test")
