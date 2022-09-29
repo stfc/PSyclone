@@ -152,7 +152,7 @@ class KernCallArgList(ArgOrdering):
 
         '''
         cell_ref_name = self._cell_ref_name(var_accesses)
-        self.add_integer_reference(cell_ref_name)
+        self.add_integer_reference(cell_ref_name, "cell_loop_idx")
         self.append(cell_ref_name)
 
     def cell_map(self, var_accesses=None):
@@ -224,8 +224,6 @@ class KernCallArgList(ArgOrdering):
         if scalar_arg.is_literal:
             if scalar_arg.intrinsic_type == "integer":
                 datatype = psyir.LfricIntegerScalarDataType()
-                consts = LFRicConstants()
-                precision_name = consts.SCALAR_PRECISION_MAP["integer"]
             else:
                 datatype = psyir.LfricRealScalarDataType()
 
