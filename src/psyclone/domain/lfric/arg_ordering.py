@@ -41,6 +41,7 @@ kernel calls.
 
 import abc
 
+from psyclone import psyGen
 from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric import LFRicConstants, psyir
 from psyclone.errors import GenerationError, InternalError
@@ -62,19 +63,17 @@ class ArgOrdering:
 
     :param kern: the kernel call object to use.
     :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
-    :param symbol_table: an optional symbol table used to create unique \
-        names, and facilitate proper PSyIR creation. If non is specified \
-        a stand-alone symbol table will be created.
-    :type symbol_table: \
-        Optional[:py:class:`psyclone.psyir.symbols.SymbolTable`]
 
     '''
-    def __init__(self, kern, symbol_table=None):
+    def __init__(self, kern):
         self._kern = kern
         self._generate_called = False
-        # Keep a reference to the Invoke SymbolTable as a shortcut
-        if symbol_table:
-            self._symtab = symbol_table
+        # If available, get an existing symbol table to create unique names
+        # and symbols required for PSyIR. Otherwise just create a new
+        # symbol table (required for stub generation atm).
+        invoke_sched = kern.ancestor(psyGen.InvokeSchedule)
+        if invoke_sched:
+            self._symtab = invoke_sched.symbol_table
         else:
             self._symtab = SymbolTable()
         self._arglist = []

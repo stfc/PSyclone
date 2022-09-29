@@ -69,8 +69,7 @@ class KernCallArgList(ArgOrdering):
     NdfInfo = namedtuple("NdfInfo", ["position", "function_space"])
 
     def __init__(self, kern):
-        super().__init__(kern,
-                         kern.ancestor(psyGen.InvokeSchedule).symbol_table)
+        super().__init__(kern)
         self._nlayers_positions = []
         self._nqp_positions = []
         self._ndf_positions = []
