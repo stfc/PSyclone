@@ -149,8 +149,11 @@ class KernCallArgList(ArgOrdering):
             the information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
         '''
-        self.append(self._cell_ref_name(var_accesses))
+        cell_ref_name = self._cell_ref_name(var_accesses)
+        self.add_integer_reference(cell_ref_name)
+        self.append(cell_ref_name)
 
     def cell_map(self, var_accesses=None):
         '''Add cell-map and related cell counts (for inter-grid kernels)
@@ -865,7 +868,7 @@ class KernCallArgList(ArgOrdering):
             var_accesses.add_access(Signature("cell"), AccessType.READ,
                                     self._kern)
 
-        sym = self.add_integer_reference("cell", "cell_loop_idx")
+        sym = self.get_integer_symbol("cell", "cell_loop_idx")
         return sym.name
 
 

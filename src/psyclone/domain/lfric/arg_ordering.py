@@ -144,16 +144,16 @@ class ArgOrdering:
             for var_name in list_var_name:
                 var_accesses.add_access(Signature(var_name), mode, self._kern)
 
-    def add_integer_reference(self, name, tag=None):
-        '''This function adds a reference to an integer variable to the list
-        of PSyIR nodes. If the symbol does not exit, it will be added to the
-        symbol table. It also returns the symbol.
+    def get_integer_symbol(self, name, tag=None):
+        '''This function returns a symbol for an integer reference. If the
+        symbol should not already exist in the symbol table, it will
+        be properly declared and added to the table.
 
         :param str name: name of the integer variable to declare.
         :param tag: optional tag of the integer variable to declare.
         :type tag: Optional[str]
 
-        :returns: the symbol to which a reference was added.
+        :returns: the symbol for the variable.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol
 
         '''
@@ -183,6 +183,22 @@ class ArgOrdering:
                 sym = self._symtab.new_symbol(name, tag=tag,
                                               symbol_type=DataSymbol,
                                               datatype=datatype)
+        return sym
+
+    def add_integer_reference(self, name, tag=None):
+        '''This function adds a reference to an integer variable to the list
+        of PSyIR nodes. If the symbol does not exit, it will be added to the
+        symbol table. It also returns the symbol.
+
+        :param str name: name of the integer variable to declare.
+        :param tag: optional tag of the integer variable to declare.
+        :type tag: Optional[str]
+
+        :returns: the symbol to which a reference was added.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol
+
+        '''
+        sym = self.get_integer_symbol(name, tag)
         self._psyir_arglist.append(Reference(sym))
         return sym
 
