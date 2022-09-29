@@ -4433,7 +4433,7 @@ class DynInterGrid(object):
         self.fine = fine_arg
 
         # Get a reference to the InvokeSchedule SymbolTable
-        symtab = self.coarse.call.root.symbol_table
+        symtab = self.coarse.call.ancestor(psyGen.InvokeSchedule).symbol_table
 
         # Generate name for inter-mesh map
         base_mmap_name = "mmap_{0}_{1}".format(fine_arg.name,
