@@ -71,7 +71,9 @@ class ArgOrdering:
         # If available, get an existing symbol table to create unique names
         # and symbols required for PSyIR. Otherwise just create a new
         # symbol table (required for stub generation atm).
-        invoke_sched = kern.ancestor(psyGen.InvokeSchedule)
+        invoke_sched = None
+        if kern:
+            invoke_sched = kern.ancestor(psyGen.InvokeSchedule)
         if invoke_sched:
             self._symtab = invoke_sched.symbol_table
         else:
