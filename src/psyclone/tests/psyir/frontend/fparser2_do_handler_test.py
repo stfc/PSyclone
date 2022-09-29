@@ -36,7 +36,6 @@
 ''' Module containing pytest tests for the handling of the DO
 construct in the PSyIR fparser2 frontend. '''
 
-from __future__ import absolute_import
 
 import pytest
 from fparser.common.readfortran import FortranStringReader
@@ -57,8 +56,9 @@ def test_handling_end_do_stmt(parser):
         ''')
     fparser2_tree = parser(reader)
     processor = Fparser2Reader()
-    result = processor.generate_schedule("test", fparser2_tree)
-    assert len(result.children) == 1  # Just the loop (no end statement)
+    result = processor.generate_psyir(fparser2_tree)
+    sched = result.walk(Schedule)[0]
+    assert len(sched.children) == 1  # Just the loop (no end statement)
 
 
 def test_do_construct(parser):
@@ -74,7 +74,8 @@ def test_do_construct(parser):
       ''')
     fparser2_tree = parser(reader)
     processor = Fparser2Reader()
-    result = processor.generate_schedule("test", fparser2_tree)
+    psyir = processor.generate_psyir(fparser2_tree)
+    result = psyir.walk(Routine)[0]
     assert result.children[0]
     new_loop = result.children[0]
     assert isinstance(new_loop, Loop)
@@ -120,7 +121,8 @@ def test_unhandled_do(f2008_parser):
     reader = FortranStringReader("\n".join(lines))
     fp2spec = f2008_parser(reader)
     processor = Fparser2Reader()
-    sched = processor.generate_schedule("a_loop", fp2spec)
+    psyir = processor.generate_psyir(fp2spec)
+    sched = psyir.walk(Routine)[0]
     assert isinstance(sched[0], CodeBlock)
     assert isinstance(sched[0].ast, Fortran2003.Block_Nonlabel_Do_Construct)
 

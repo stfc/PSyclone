@@ -1096,7 +1096,6 @@ class Fparser2Reader(object):
                                  the provided fpaser2 parse tree.
 
         '''
-        new_schedule = self._create_schedule(name)
         psyir = self.generate_psyir(module_ast)
 
         # Check for an interface block

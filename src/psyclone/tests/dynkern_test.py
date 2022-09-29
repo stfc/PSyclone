@@ -42,7 +42,6 @@ tests for other classes end up covering the rest.'''
 
 # pylint: disable=no-name-in-module
 
-from __future__ import absolute_import
 import os
 import pytest
 
@@ -58,10 +57,12 @@ from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynLoop
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import KernelSchedule, Reference
+from psyclone.psyir.nodes import Routine, Reference, KernelSchedule
 from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, REAL_TYPE, \
     INTEGER_TYPE, ArrayType
+from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import Dynamo0p3ColourTrans
+
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 TEST_API = "dynamo0.3"
@@ -168,11 +169,29 @@ def test_get_kernel_schedule():
     assert kernel._kern_schedule is None
 
     kernel_schedule = kernel.get_kernel_schedule()
-    assert isinstance(kernel_schedule, KernelSchedule)
+    assert isinstance(kernel_schedule, Routine)
     assert kernel._kern_schedule is kernel_schedule
 
     kernel_schedule_2 = kernel.get_kernel_schedule()
     assert kernel_schedule is kernel_schedule_2
+
+
+def test_get_kernel_schedule_mixed_precision():
+    '''
+    Test that we can get the correct schedule for a mixed-precision kernel.
+
+    '''
+    psy, invoke = get_invoke("26.8_mixed_precision_args.f90", TEST_API,
+                             name="invoke_0", dist_mem=False)
+    sched = invoke.schedule
+    kernels = sched.walk(DynKern, stop_type=DynKern)
+
+    for kern in kernels:
+        sched = kern.get_kernel_schedule()
+        assert isinstance(sched, KernelSchedule)
+        print(sched.name)
+        assert sched.name == "mixed_code_64"
+    assert 0
 
 
 def test_validate_kernel_code_args(monkeypatch):
@@ -189,14 +208,15 @@ def test_validate_kernel_code_args(monkeypatch):
     schedule = psy.invokes.invoke_list[0].schedule
     # matrix vector kernel
     kernel = schedule[2].loop_body[0]
-
-    kernel.validate_kernel_code_args()
+    sched = kernel.get_kernel_schedule()
+    kernel.validate_kernel_code_args(sched.symbol_table)
 
     # Force DynKern to think that this kernel is an 'apply' kernel and
     # therefore does not need the mesh height argument.
     monkeypatch.setattr(kernel, "_cma_operation", "apply")
     with pytest.raises(GenerationError) as info:
-        kernel.validate_kernel_code_args()
+        kernel.validate_kernel_code_args(
+            kernel.get_kernel_schedule().symbol_table)
     assert (
         "In kernel 'matrix_vector_code' the number of arguments indicated by "
         "the kernel metadata is 8 but the actual number of kernel arguments "
@@ -242,9 +262,9 @@ def test_validate_kernel_code_arg(monkeypatch):
     with pytest.raises(GenerationError) as info:
         kernel._validate_kernel_code_arg(
             real_scalar_symbol, lfric_real_scalar_symbol)
-    assert ("Kernel argument 'generic_real_scalar' has precision 'UNDEFINED' "
-            "in kernel 'dummy' but the LFRic API expects 'r_def'."
-            in str(info.value))
+    assert ("Kernel argument 'generic_real_scalar' has precision "
+            "'Precision.UNDEFINED' in kernel 'dummy' but the LFRic API "
+            "expects 'r_def" in str(info.value))
 
     with pytest.raises(GenerationError) as info:
         kernel._validate_kernel_code_arg(real_scalar_symbol,
@@ -305,8 +325,8 @@ def test_validate_kernel_code_arg(monkeypatch):
     assert (
         "For dimension 1 in array argument 'field' to kernel 'dummy' the "
         "following error was found: Kernel argument 'generic_int_scalar' "
-        "has precision 'UNDEFINED' in kernel 'dummy' but the LFRic API "
-        "expects 'i_def'" in str(info.value))
+        "has precision 'Precision.UNDEFINED' in kernel 'dummy' but the LFRic "
+        "API expects 'i_def" in str(info.value))
 
     # monkeypatch lfric_real_scalar_symbol to return that it is not a
     # scalar in order to force the required exception. We do this by

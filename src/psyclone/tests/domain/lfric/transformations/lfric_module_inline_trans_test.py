@@ -79,11 +79,3 @@ def test_module_inline(monkeypatch, annexed, dist_mem):
     assert 'SUBROUTINE ru_code(' in gen
     # check that the associated psy "use" does not exist
     assert 'USE ru_kernel_mod, only : ru_code' not in gen
-
-
-def test_module_inline_mixed_precision():
-    '''
-    '''
-    psy, invoke = get_invoke("4.6_multikernel_invokes.f90", TEST_API,
-                             name="invoke_0", dist_mem=False)
-

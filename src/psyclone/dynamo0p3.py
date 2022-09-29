@@ -77,7 +77,8 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
                                   ArrayReference, ACCEnterDataDirective,
-                                  ACCRegionDirective, OMPRegionDirective)
+                                  ACCRegionDirective, OMPRegionDirective,
+                                  KernelSchedule)
 from psyclone.psyir.symbols import (
     INTEGER_TYPE, INTEGER_SINGLE_TYPE, DataSymbol, SymbolTable, ScalarType,
     DeferredType, DataTypeSymbol, ContainerSymbol, ImportInterface, ArrayType)
@@ -8457,7 +8458,6 @@ class DynKern(CodedKern):
 
         if len(routines) == 1:
             sched = routines[0]
-            self.validate_kernel_code_args(sched)
         else:
             # The kernel name corresponds to an interface block. Find which
             # of the routines matches the precision of the arguments.
@@ -8465,7 +8465,7 @@ class DynKern(CodedKern):
                 try:
                     # The validity check for the kernel arguments will raise
                     # an exception if the precisions don't match.
-                    self.validate_kernel_code_args(routine)
+                    self.validate_kernel_code_args(routine.symbol_table)
                     sched = routine
                     break
                 except GenerationError:
@@ -8473,22 +8473,36 @@ class DynKern(CodedKern):
             else:
                 raise GenerationError("oops")
 
+        self.validate_kernel_code_args(sched.symbol_table)
+
         # TODO replace the PSyIR argument data symbols with LFRic
         # data symbols, see issue #935. For the moment we simply
         # return the unmodified PSyIR schedule
-        self._kern_schedule = sched
+        ksched = KernelSchedule(sched.name,
+                                symbol_table=sched.symbol_table.detach())
+        for child in sched.pop_all_children():
+            ksched.addchild(child)
+        sched.replace_with(ksched)
+
+        self._kern_schedule = ksched
 
         return self._kern_schedule
 
-    def validate_kernel_code_args(self, psyir_schedule):
+    def validate_kernel_code_args(self, table):
         '''Check that the arguments in the kernel code match the expected
         arguments as defined by the kernel metadata and the LFRic
         API.
 
+        :param table: the symbol table to validate against the metadata.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        :raises GenerationError: if the number of arguments indicated by the \
+            kernel metadata doesn't match the actual number of arguments in \
+            the symbol table.
+
         '''
         # Get the kernel code arguments
-        symbol_table = psyir_schedule.symbol_table
-        kern_code_args = symbol_table.argument_list
+        kern_code_args = table.argument_list
 
         # Get the kernel code interface according to the kernel
         # metadata and LFRic API
@@ -8507,9 +8521,14 @@ class DynKern(CodedKern):
                     self.name, expected_n_args, actual_n_args))
 
         # 2: Check that the properties of each argument matches
-        for idx, kern_code_arg in enumerate(kern_code_args):
-            interface_arg = interface_args[idx]
-            self._validate_kernel_code_arg(kern_code_arg, interface_arg)
+        # The kernel metadata does not have information on precision.
+        # TODO need to work out which arguments in the actual subroutine have
+        # their precision defined by actual arguments in the invoke call.
+        # i.e. all of the scalar, field and operator arguments.
+        arg_list = KernCallArgList(self)
+        arg_list.generate()
+        for kern_code_arg, iface_arg in zip(kern_code_args, interface_args):
+            self._validate_kernel_code_arg(kern_code_arg, iface_arg)
 
     def _validate_kernel_code_arg(self, kern_code_arg, interface_arg):
         '''Internal method to check that the supplied argument descriptions
@@ -8548,8 +8567,8 @@ class DynKern(CodedKern):
             raise GenerationError(
                 "Kernel argument '{0}' has precision '{1}' "
                 "in kernel '{2}' but the LFRic API expects '{3}'."
-                "".format(kern_code_arg.name, actual_precision,
-                          self.name, expected_precision))
+                "".format(kern_code_arg.name, kern_code_arg.datatype.precision,
+                          self.name, interface_arg.datatype.precision))
         # 3: intent
         actual_intent = kern_code_arg.interface.access
         expected_intent = interface_arg.interface.access

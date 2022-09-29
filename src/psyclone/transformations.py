@@ -156,7 +156,7 @@ class KernelTrans(Transformation):
         for var in kernel_schedule.walk(Reference):
             try:
                 var.scope.symbol_table.lookup(
-                    var.name, scope_limit=var.ancestor(KernelSchedule))
+                    var.name, scope_limit=var.ancestor(Routine))
             except KeyError as err:
                 raise TransformationError(
                     f"Kernel '{kern.name}' contains accesses to data (variable"

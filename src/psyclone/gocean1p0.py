@@ -47,7 +47,7 @@
 
 '''
 
-from __future__ import print_function
+import copy
 import re
 import six
 
@@ -1192,20 +1192,31 @@ class GOKern(CodedKern):
 
         '''
         if self._kern_schedule is None:
-            astp = GOFparser2Reader()
+            astp = Fparser2Reader()
             schedules = astp.get_routine_schedules(self.name, self.ast)
             if len(schedules) > 1:
                 raise GenerationError(
                     f"The GOcean API only supports a 1-to-1 mapping between "
                     f"kernel name and implementation but found "
                     f"{len(schedules)} routines for kernel '{self.name}'.")
-            self._kern_schedule = schedules[0]
+            sched = schedules[0]
+            # This is really raising the PSyIR to GO PSyIR and should be part
+            # of a transformation TODO.
+            gotable = GOSymbolTable.create_from_table(sched.symbol_table)
+            gokernsched = GOKernelSchedule(sched.name,
+                                           symbol_table=gotable.detach())
+            for child in sched.pop_all_children():
+                gokernsched.addchild(child)
+            sched.replace_with(gokernsched)
+            self._kern_schedule = gokernsched
             # TODO: Validate kernel with metadata (issue #288).
         return self._kern_schedule
 
 
 class GOFparser2Reader(Fparser2Reader):
     '''
+    TODO - remove this class?
+
     Sub-classes the Fparser2Reader with GOcean 1.0 specific
     functionality.
     '''
@@ -2250,7 +2261,19 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
 class GOSymbolTable(SymbolTable):
     '''
     Sub-classes SymbolTable to provide a GOcean-specific implementation.
+
     '''
+    @staticmethod
+    def create_from_table(old_table):
+        ''' '''
+        new_st = GOSymbolTable()
+        new_st._symbols = copy.copy(old_table._symbols)
+        new_st._argument_list = copy.copy(old_table._argument_list)
+        new_st._tags = copy.copy(old_table._tags)
+        new_st._node = old_table.node
+        new_st._default_visibility = old_table.default_visibility
+
+        return new_st
 
     def _check_gocean_conformity(self):
         '''

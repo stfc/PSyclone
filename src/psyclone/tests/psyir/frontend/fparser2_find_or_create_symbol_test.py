@@ -38,12 +38,11 @@
 of the fparser2 frontend. '''
 
 
-from __future__ import absolute_import
 import os
 import pytest
 from fparser.common.readfortran import FortranFileReader
-from psyclone.psyir.frontend.fparser2 import _find_or_create_imported_symbol
 from psyclone.psyGen import PSyFactory, Kern
+from psyclone.psyir.frontend.fparser2 import _find_or_create_imported_symbol
 from psyclone.psyir.nodes import Reference, Container, Assignment, Literal, \
     KernelSchedule, BinaryOperation
 from psyclone.psyir.symbols import Symbol, DataSymbol, SymbolError, \
@@ -88,7 +87,7 @@ def test_find_or_create_imported_symbol():
     assert alpha.name == "alpha"
     assert isinstance(_find_or_create_imported_symbol(alpha, alpha.name),
                       DataSymbol)
-    container = kernel_schedule.root
+    container = kernel_schedule.ancestor(Container)
     assert isinstance(container, Container)
     assert (_find_or_create_imported_symbol(alpha, alpha.name) in
             container.symbol_table.symbols)
