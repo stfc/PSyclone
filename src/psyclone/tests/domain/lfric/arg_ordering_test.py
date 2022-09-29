@@ -54,6 +54,23 @@ from psyclone.tests.utilities import get_ast, get_base_path, get_invoke
 TEST_API = "dynamo0.3"
 
 
+def check_psyir_results(create_arg_list, fortran_writer):
+    '''Helper function to check if the PSyIR representation of the arguments
+     is identical to the old style textual representation. It checks that each
+     member of the psyir_arglist is a Reference, and that the textural
+     representation matches the textual presentation (which was already
+     verified).
+
+     '''
+    # Check the PSyIR representation
+    result = []
+    for node in create_arg_list.psyir_arglist:
+        assert isinstance(node, Reference)
+        result.append(fortran_writer(node))
+
+    assert result == create_arg_list._arglist
+
+
 def test_unexpected_type_error(dist_mem):
     ''' Check that we raise an exception if an unexpected datatype is found
     when running the ArgOrdering generate method. As it is abstract we use
@@ -127,18 +144,11 @@ def test_arg_ordering_generate_domain_kernel(dist_mem, fortran_writer):
     assert create_arg_list._arglist == [
         'nlayers', 'ncell_2d_no_halos', 'b', 'f1_proxy%data', 'ndf_w3',
         'undf_w3', 'map_w3']
-    print(fortran_writer(schedule.parent))
-    print("OLD\n", psy.gen)
-    # Check the PSyIR representation
-    result = []
-    for node in create_arg_list.psyir_arglist:
-        assert isinstance(node, Reference)
-        result.append(fortran_writer(node))
 
-    assert result == create_arg_list._arglist
+    check_psyir_results(create_arg_list, fortran_writer)
 
 
-def test_arg_ordering_generate_cma_kernel(dist_mem):
+def test_arg_ordering_generate_cma_kernel(dist_mem, fortran_writer):
     '''
     Check that the LFRic ArgOrdering class generates the expected arguments
     for a CMA kernel.
@@ -163,6 +173,11 @@ def test_arg_ordering_generate_cma_kernel(dist_mem):
         'cma_op1_gamma_m', 'cma_op1_gamma_p', 'ndf_adspc1_lma_op1',
         'cbanded_map_adspc1_lma_op1', 'ndf_adspc2_lma_op1',
         'cbanded_map_adspc2_lma_op1']
+
+    print(fortran_writer(schedule.parent))
+    print("OLD\n", psy.gen)
+
+    check_psyir_results(create_arg_list, fortran_writer)
 
 
 def test_kernel_stub_ind_dofmap_errors():
