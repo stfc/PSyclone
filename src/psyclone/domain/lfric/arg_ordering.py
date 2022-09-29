@@ -42,8 +42,10 @@ kernel calls.
 import abc
 
 from psyclone.core import AccessType, Signature
-from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric import LFRicConstants, psyir
 from psyclone.errors import GenerationError, InternalError
+from psyclone.psyir.nodes import Reference
+from psyclone.psyir.symbols import DataSymbol, SymbolTable
 
 
 class ArgOrdering:
@@ -60,11 +62,21 @@ class ArgOrdering:
 
     :param kern: the kernel call object to use.
     :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
+    :param symbol_table: an optional symbol table used to create unique \
+        names, and facilitate proper PSyIR creation. If non is specified \
+        a stand-alone symbol table will be created.
+    :type symbol_table: \
+        Optional[:py:class:`psyclone.psyir.symbols.SymbolTable`]
 
     '''
-    def __init__(self, kern):
+    def __init__(self, kern, symbol_table=None):
         self._kern = kern
         self._generate_called = False
+        # Keep a reference to the Invoke SymbolTable as a shortcut
+        if symbol_table:
+            self._symtab = symbol_table
+        else:
+            self._symtab = SymbolTable()
         self._arglist = []
         # This stores the PSyIR representation of the arguments
         self._psyir_arglist = []
@@ -121,6 +133,48 @@ class ArgOrdering:
         if var_accesses:
             for var_name in list_var_name:
                 var_accesses.add_access(Signature(var_name), mode, self._kern)
+
+    def add_integer_reference(self, name, tag=None):
+        '''This function adds a reference to an integer variable to the list
+        of PSyIR nodes. If the symbol does not exit, it will be added to the
+        symbol table. It also returns the symbol.
+
+        :param str name: name of the integer variable to declare.
+        :param tag: optional tag of the integer variable to declare.
+        :type tag: Optional[str]
+
+        :returns: the symbol to which a reference was added.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol
+
+        '''
+        if not tag:
+            tag = name
+        try:
+            sym = self._symtab.lookup_with_tag(tag)
+        except KeyError:
+            sym = None
+
+        if sym is None or not isinstance(sym, DataSymbol):
+            # Either the symbol doesn't exist, or it doesn't have a type yet.
+            # Create a DataSymbol for this kernel argument.
+            datatype = psyir.LfricIntegerScalarDataType()
+            consts = LFRicConstants()
+            precision_name = consts.SCALAR_PRECISION_MAP["integer"]
+            psyir.add_lfric_precision_symbol(self._symtab, precision_name)
+            if sym is not None:
+                # The symbol exists, but is not a DataSymbol. So we need to
+                # properly declare this symbol now by removing the old symbol,
+                # and adding a new symbol with the same name and tag in:
+                new_sym = DataSymbol(sym.name, datatype=datatype)
+                self._symtab.remove(sym)
+                self._symtab.add(new_sym, tag=tag)
+                sym = new_sym
+            else:
+                sym = self._symtab.new_symbol(name, tag=tag,
+                                              symbol_type=DataSymbol,
+                                              datatype=datatype)
+        self._psyir_arglist.append(Reference(sym))
+        return sym
 
     @property
     def num_args(self):
