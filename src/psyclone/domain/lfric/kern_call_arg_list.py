@@ -139,8 +139,7 @@ class KernCallArgList(ArgOrdering):
                                           symbol_type=DataSymbol,
                                           datatype=user_type_symbol)
 
-        self._psyir_arglist.append(StructureReference.create(sym,
-                                                             member_list))
+        self.psyir_append(StructureReference.create(sym, member_list))
         return sym
 
     def cell_position(self, var_accesses=None):
@@ -221,7 +220,7 @@ class KernCallArgList(ArgOrdering):
         '''
         super().scalar(scalar_arg, var_accesses)
         sym = self._symtab.lookup(scalar_arg.name)
-        self._psyir_arglist.append(Reference(sym))
+        self.psyir_append(Reference(sym))
 
     # TODO uncomment this method when ensuring we only pass ncell3d once
     # to any given kernel.
@@ -307,7 +306,7 @@ class KernCallArgList(ArgOrdering):
                                                   symbol_type=DataSymbol,
                                                   datatype=array_type)
 
-                self._psyir_arglist.append(Reference(sym))
+                self.psyir_append(Reference(sym))
 
             else:
                 # All other variables are scalar integers
@@ -577,7 +576,7 @@ class KernCallArgList(ArgOrdering):
                                               symbol_type=DataSymbol,
                                               datatype=array_type)
 
-            self._psyir_arglist.append(Reference(sym))
+            self.psyir_append(Reference(sym))
 
         else:
             # Pass the dofmap for the cell column

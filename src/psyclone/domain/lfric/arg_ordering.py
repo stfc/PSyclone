@@ -81,6 +81,15 @@ class ArgOrdering:
         # This stores the PSyIR representation of the arguments
         self._psyir_arglist = []
 
+    def psyir_append(self, reference):
+        '''Appends a reference to the PSyIR argument list.
+
+        :param reference: the reference to append.
+        :type reference: :py:class:`psyclone.psyir.nodes.reference`
+
+        '''
+        self._psyir_arglist.append(reference)
+
     def append(self, var_name, var_accesses=None, var_access_name=None,
                mode=AccessType.READ):
         '''Appends the specified variable name to the list of all arguments.
