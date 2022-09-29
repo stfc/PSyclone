@@ -382,7 +382,7 @@ def test_omp_do_directive_validate_global_constraints(fortran_reader,
     directive = tree.walk(OMPParallelDoDirective)
 
     # The first and second loop nests will fail the validation
-    for test_directive in directive[0:1]:
+    for test_directive in directive[0:2]:
         with pytest.raises(GenerationError) as err:
             _ = fortran_writer(test_directive)
         assert ("OMPParallelDoDirective must have as many immediately nested "
