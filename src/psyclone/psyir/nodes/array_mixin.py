@@ -96,7 +96,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \
             lists of indices)
         '''
-        sig, _ = super(ArrayMixin, self).get_signature_and_indices()
+        sig, _ = super().get_signature_and_indices()
         return (sig, [self.indices[:]])
 
     def _validate_index(self, index):
@@ -152,6 +152,10 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             try:
                 symbol = self.scope.symbol_table.lookup(self.name)
                 datatype = symbol.datatype
+                # Check that the symbol is of ArrayType. (It may be of
+                # UnknownFortranType if the symbol is of e.g. character type.)
+                if not isinstance(datatype, ArrayType):
+                    return False
                 shape = datatype.shape
                 array_bounds = shape[index]
                 if (isinstance(array_bounds, ArrayType.ArrayBounds)
@@ -212,6 +216,10 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             try:
                 symbol = self.scope.symbol_table.lookup(self.name)
                 datatype = symbol.datatype
+                # Check that the symbol is of ArrayType. (It may be of
+                # UnknownFortranType if the symbol is of e.g. character type.)
+                if not isinstance(datatype, ArrayType):
+                    return False
                 shape = datatype.shape
                 array_bounds = shape[index]
                 if (isinstance(array_bounds, ArrayType.ArrayBounds) and
