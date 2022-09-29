@@ -134,11 +134,13 @@
 	to query the resulting datatype of a PSyIR subtree.
 
 	49) PR #1869 for #1868. Extend PSyAD to make use of the
-        Reference2ArrayRangeTrans.
+	Reference2ArrayRangeTrans.
 
 	50) PR #1880 for #1865. Improves support for function calls in the
 	PSyIR by ensuring the associated RoutineSymbol has the correct
 	datatype.
+
+	51) PR #1894 for #1893. Fix bug in is_upper/lower_bound for UnknownTypes.
 
 release 2.3.1 17th of June 2022
 
