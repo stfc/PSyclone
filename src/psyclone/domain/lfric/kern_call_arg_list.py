@@ -47,7 +47,7 @@ from psyclone import psyGen
 from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric import ArgOrdering, LFRicConstants, psyir
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.nodes import Reference, StructureReference
+from psyclone.psyir.nodes import Literal, Reference, StructureReference
 from psyclone.psyir.symbols import (ArrayType, DataSymbol,
                                     DataTypeSymbol, DeferredType,
                                     ContainerSymbol, ImportInterface)
@@ -221,8 +221,18 @@ class KernCallArgList(ArgOrdering):
 
         '''
         super().scalar(scalar_arg, var_accesses)
-        sym = self._symtab.lookup(scalar_arg.name)
-        self.psyir_append(Reference(sym))
+        if scalar_arg.is_literal:
+            if scalar_arg.intrinsic_type == "integer":
+                datatype = psyir.LfricIntegerScalarDataType()
+                consts = LFRicConstants()
+                precision_name = consts.SCALAR_PRECISION_MAP["integer"]
+            else:
+                datatype = psyir.LfricRealScalarDataType()
+
+            self.psyir_append(Literal(scalar_arg.name, datatype))
+        else:
+            sym = self._symtab.lookup(scalar_arg.name)
+            self.psyir_append(Reference(sym))
 
     # TODO uncomment this method when ensuring we only pass ncell3d once
     # to any given kernel.
