@@ -151,7 +151,8 @@ class HoistLoopBoundExprTrans(LoopTrans):
             raise TransformationError(
                 f"The loop provided to HoistLoopBoundExprTrans must not be "
                 f"directly inside a Directive as its Schedule does not support"
-                f" multiple statements, but found '{node.parent.parent}'.")
+                f" multiple statements, but found "
+                f"'{node.parent.parent.coloured_name(False)}'.")
 
     def __str__(self):
         return ("Hoist complex loop bound expressions outside the loop "
