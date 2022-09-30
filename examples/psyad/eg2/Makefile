@@ -41,6 +41,7 @@ CONFIG_ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
 F90FLAGS += -ffree-line-length-none
 
 ACTIVE_VAR_LIST ?= r_u exner theta moist_dyn_gas moist_dyn_tot moist_dyn_fac grad_term theta_v_e theta_v_at_quad grad_theta_v_at_quad exner_e exner_at_quad res_dot_product
+GEOMETRY_VAR_LIST ?=
 TL_KERNEL_NAME ?= tl_hydrostatic_kernel
 TL_KERNEL_FILE = ${TL_KERNEL_NAME}_mod.F90
 ADJ_KERNEL_F90_FILE = $(subst tl_,adj_,${TL_KERNEL_FILE})
@@ -71,7 +72,7 @@ psy.f90 ${HARNESS_F90_FILE}: ${HARNESS_X90_FILE} ${ADJ_KERNEL_F90_FILE}
 # will not need to be specified on the command line once issue #1556
 # has been addressed.
 ${ADJ_KERNEL_X90_FILE} ${HARNESS_X90_FILE}: ${TL_KERNEL_FILE}
-	$(PSYAD) -api dynamo0.3 $< -otest ${HARNESS_X90_FILE} -oad ${ADJ_KERNEL_X90_FILE} -a ${ACTIVE_VAR_LIST}
+	$(PSYAD) -api dynamo0.3 $< -otest ${HARNESS_X90_FILE} -oad ${ADJ_KERNEL_X90_FILE} ${GEOMETRY_VAR_LIST} -a ${ACTIVE_VAR_LIST}
 
 # Currently PSyAD does not update the kernel metadata (issue #1453)
 # so we do that manually here. We have to allow for the case where
