@@ -238,7 +238,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.KernelModuleInlineTrans
+.. autoclass:: psyclone.domain.common.transformations.KernelModuleInlineTrans
     :members: apply
     :noindex:
 

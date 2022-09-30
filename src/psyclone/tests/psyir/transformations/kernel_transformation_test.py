@@ -51,11 +51,14 @@ from psyclone.psyir.nodes import Routine, FileContainer
 from psyclone.psyir.symbols import SymbolError
 from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import ACCRoutineTrans, \
-    Dynamo0p3KernelConstTrans, KernelModuleInlineTrans
+    Dynamo0p3KernelConstTrans
 
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
+
+# TODO: move this file to the proper location?
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 
 
 def setup_module():

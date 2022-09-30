@@ -282,7 +282,7 @@ def test_mod_no_implicit_none():
     assert "IMPLICIT NONE" not in str(module.root)
 
 
-def test_failed_module_inline():
+def test_invalid_add_raw_subrotuine_argument():
     ''' test that an error is thrown if the wrong type of object
     is passed to the add_raw_subroutine method '''
     module = ModuleGen(name="test")

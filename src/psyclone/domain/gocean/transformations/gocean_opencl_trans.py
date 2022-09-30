@@ -40,6 +40,7 @@ import os
 
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOInvokeSchedule, GOLoop
 from psyclone.psyGen import Transformation, args_filter, InvokeSchedule, \
@@ -52,8 +53,7 @@ from psyclone.psyir.nodes import Routine, Call, Reference, Literal, \
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, \
     ContainerSymbol, UnknownFortranType, ArgumentInterface, ImportInterface, \
     INTEGER_TYPE, CHARACTER_TYPE, ArrayType, BOOLEAN_TYPE, ScalarType
-from psyclone.transformations import TransformationError, \
-    KernelModuleInlineTrans
+from psyclone.transformations import TransformationError
 
 
 class GOOpenCLTrans(Transformation):

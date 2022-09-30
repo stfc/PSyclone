@@ -36,3 +36,12 @@ from psyclone.domain.common.transformations.raise_call_2_invoke_trans import \
 from psyclone.domain.common.transformations.alg_invoke_2_psy_call_trans \
     import AlgInvoke2PSyCallTrans
 from psyclone.domain.common.transformations.alg_trans import AlgTrans
+from psyclone.domain.common.transformations.kernel_module_inline_trans import \
+    KernelModuleInlineTrans
+
+__all__ = [
+        "RaiseCall2InvokeTrans",
+        "AlgInvoke2PSyCallTrans",
+        "AlgTrans",
+        "KernelModuleInlineTrans",
+        ]

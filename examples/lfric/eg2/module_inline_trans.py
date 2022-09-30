@@ -38,7 +38,7 @@
     transformation for the LFRic domain. '''
 
 from __future__ import print_function
-from psyclone.transformations import KernelModuleInlineTrans
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyGen import Kern
 
 
