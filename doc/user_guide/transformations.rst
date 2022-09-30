@@ -313,8 +313,8 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.OMPLoopTrans
-    :members: apply, omp_schedule, omp_worksharing
+.. autoclass:: psyclone.psyir.transformations.OMPLoopTrans
+    :members: apply, omp_schedule, omp_directive
     :noindex:
 
 ####
