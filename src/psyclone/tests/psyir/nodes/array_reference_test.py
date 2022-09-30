@@ -517,7 +517,14 @@ def test_array_create_colon(fortran_writer):
     create a Range that represents ":".'''
     test_sym = DataSymbol("test", ArrayType(REAL_TYPE, [10, 10]))
     aref = ArrayReference.create(test_sym, [":", ":"])
-    assert isinstance(aref.children[0], Range)
-    assert isinstance(aref.children[1], Range)
+    # Check that each dimension is `lbound(...):ubound(...)`
+    for i in range(2):
+        assert isinstance(aref.children[i], Range)
+        assert isinstance(aref.children[i].children[1], BinaryOperation)
+        assert aref.children[i].children[0].operator == \
+               BinaryOperation.Operator.LBOUND
+        assert aref.children[i].children[1].operator == \
+               BinaryOperation.Operator.UBOUND
+
     code = fortran_writer(aref)
     assert code == "test(:,:)"
