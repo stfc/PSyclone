@@ -47,7 +47,8 @@ from psyclone import psyGen
 from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric import ArgOrdering, LFRicConstants, psyir
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.nodes import Literal, Reference, StructureReference
+from psyclone.psyir.nodes import (ArrayReference, Literal, Reference,
+                                  StructureReference)
 from psyclone.psyir.symbols import (ArrayType, DataSymbol,
                                     DataTypeSymbol, DeferredType,
                                     ContainerSymbol, ImportInterface)
@@ -171,22 +172,51 @@ class KernCallArgList(ArgOrdering):
         fargs = psyGen.args_filter(self._kern.args, arg_meshes=["gh_fine"])
         farg = fargs[0]
         base_name = "cell_map_" + carg.name
-        map_name = self._symtab.find_or_create_tag(base_name).name
+        try:
+            sym = self._symtab.lookup(base_name)
+        except KeyError:
+            sym = None
+        if sym is None or not isinstance(sym, DataSymbol):
+            # Create a DataSymbol for this kernel argument.
+            datatype = psyir.LfricIntegerScalarDataType()
+            consts = LFRicConstants()
+            precision_name = consts.SCALAR_PRECISION_MAP["integer"]
+            psyir.add_lfric_precision_symbol(self._symtab,
+                                             precision_name)
+            array_type = ArrayType(datatype,
+                                   [ArrayType.Extent.ATTRIBUTE,
+                                    ArrayType.Extent.ATTRIBUTE,
+                                    ArrayType.Extent.ATTRIBUTE])
+            if not isinstance(sym, DataSymbol):
+                # We need to remove the old incomplete symbol first
+                self._symtab.remove(sym)
+            sym = self._symtab.new_symbol(base_name, tag=base_name,
+                                          symbol_type=DataSymbol,
+                                          datatype=array_type)
+
+        map_name = sym.name
         # Add the cell map to our argument list
         self.append(f"{map_name}(:,:,{self._cell_ref_name(var_accesses)})",
                     var_accesses=var_accesses)
+
+        cell = self._cell_ref_name(var_accesses)
+        cell_sym = self.get_integer_symbol(cell)
+        self.psyir_append(ArrayReference.create(sym, [Reference(cell_sym),
+                                                      Reference(cell_sym),
+                                                      Reference(cell_sym)]))
+
         # No. of fine cells per coarse cell in x
         base_name = f"ncpc_{farg.name}_{carg.name}_x"
-        ncellpercellx = self._symtab.find_or_create_tag(base_name).name
-        self.append(ncellpercellx, var_accesses)
+        sym = self.add_integer_reference(base_name)
+        self.append(sym.name, var_accesses)
         # No. of fine cells per coarse cell in y
         base_name = f"ncpc_{farg.name}_{carg.name}_y"
-        ncellpercelly = self._symtab.find_or_create_tag(base_name).name
-        self.append(ncellpercelly, var_accesses)
+        sym = self.add_integer_reference(base_name)
+        self.append(sym.name, var_accesses)
         # No. of columns in the fine mesh
         base_name = f"ncell_{farg.name}"
-        ncell_fine = self._symtab.find_or_create_tag(base_name).name
-        self.append(ncell_fine, var_accesses)
+        sym = self.add_integer_reference(base_name)
+        self.append(sym.name, var_accesses)
 
     def mesh_height(self, var_accesses=None):
         '''Add mesh height (nlayers) to the argument list and if supplied
