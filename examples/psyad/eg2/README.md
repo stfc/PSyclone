@@ -123,7 +123,7 @@ require special handling to ensure that the values of those arguments are not
 overwritten by pseudo-random data in the test harness:
 
 ```sh
-ACTIVE_VAR_LIST="r_u vorticity wind res_dot_product vorticity_term cross_product1 cross_product2 j_vorticity u_at_quad mul2 vorticity_at_quad" GEOMETRY_VAR_LIST="-coord-arg 6 -face-id-arg 7" TL_KERNEL_NAME=tl_vorticity_advection_kernel make
+ACTIVE_VAR_LIST="r_u vorticity wind res_dot_product vorticity_term cross_product1 cross_product2 j_vorticity u_at_quad mul2 vorticity_at_quad" GEOMETRY_VAR_LIST="-coord-arg 6 -panel-id-arg 7" TL_KERNEL_NAME=tl_vorticity_advection_kernel make
 ```
 
 ## Licence

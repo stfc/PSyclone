@@ -61,8 +61,7 @@ from psyclone.psyir.symbols import SymbolTable, ImportInterface, Symbol, \
 TEST_ARRAY_DIM_SIZE = 20
 
 
-def generate_adjoint_str(tl_fortran_str, active_variables, cmd_args):
-                         #api=None, create_test=False):
+def generate_adjoint_str(tl_fortran_str, cmd_args):
     '''Takes a tangent-linear kernel encoded as a string as input
     and returns its adjoint encoded as a string along with (if requested)
     a test harness, also encoded as a string.
@@ -72,9 +71,6 @@ def generate_adjoint_str(tl_fortran_str, active_variables, cmd_args):
     :param List[str] active_variables: list of active variable names.
     :param cmd_args: Namespace object containing all command-line flags.
     :type cmd_args: :py:class:`argparse.Namespace`
-    :param Optional[str] api: The PSyclone API in use, if any.
-    :param Optional[bool] create_test: whether or not to create test code for \
-        the adjoint kernel.
 
     :returns: a 2-tuple consisting of a string containing the Fortran \
         implementation of the supplied tangent-linear kernel and (if \
@@ -130,7 +126,7 @@ def generate_adjoint_str(tl_fortran_str, active_variables, cmd_args):
         if create_test:
             test_psyir = generate_lfric_adjoint_harness(tl_psyir,
                                                         cmd_args.coord_arg,
-                                                        cmd_args.face_id_arg)
+                                                        cmd_args.panel_id_arg)
     else:
         raise NotImplementedError(
             f"PSyAD only supports generic routines/programs or LFRic "

@@ -66,6 +66,7 @@ class ArgOrdering:
         self._kern = kern
         self._generate_called = False
         self._arglist = []
+        self._mdata_idx_by_arg = {}
 
     def append(self, var_name, var_accesses=None, var_access_name=None,
                mode=AccessType.READ):
@@ -144,6 +145,22 @@ class ArgOrdering:
                 f"The argument list in {type(self).__name__} is empty. "
                 f"Has the generate() method been called?")
         return self._arglist
+
+    def lookup_metadata_index(self, sym):
+        '''
+        Lookup the index of the kernel argument in the list of arguments
+        in the metadata.
+
+        :param sym: the symbol for which to lookup the metadata index.
+        :type sym: :py:class:`psyclone.psyir.symbols.Symbol`
+
+        :returns: the 0-indexed position of the corresponding metadata entry.
+        :rtype: int
+
+        :raises KeyError: if this symbol does not correspond to an entry \
+                          in the 'meta_args' list.
+        '''
+        return self._mdata_idx_by_arg[sym]
 
     def generate(self, var_accesses=None):
         # pylint: disable=too-many-statements, too-many-branches

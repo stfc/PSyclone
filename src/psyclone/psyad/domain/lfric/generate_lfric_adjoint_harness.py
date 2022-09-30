@@ -36,7 +36,7 @@
 ''' Provides LFRic-specific PSyclone adjoint test-harness functionality. '''
 
 from fparser import api as fpapi
-from psyclone.domain.lfric import psyir
+from psyclone.domain.lfric import psyir, LFRicConstants
 from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctorFactory, LFRicKernelFunctor)
 from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
@@ -289,7 +289,58 @@ def _init_fields_random(fields, input_symbols, table):
     return kernel_list
 
 
-def generate_lfric_adjoint_harness(tl_psyir):
+def _validate_geom_arg(kern, arg_idx, name, valid_spaces, vec_len):
+    '''
+    Check that the argument at the supplied index is consistent with the
+    properties of the field that it is supposed to represent.
+
+    :param kern: the kernel under consideration.
+    :type kern:
+    :param in arg_idx: the 1-indexed position of the argument in the list \
+                       defined in the kernel metadata.
+    :param str name: the name of the argument that we are expecting.
+    :param List[str] valid_spaces: the function spaces that the argument is \
+                                   permitted to be on.
+    :param int vec_len: the expected vector length of the argument.
+
+    :raises ValueError: if any of the properties of the specified kernel \
+                        argument are inconsistent with the supplied values.
+    '''
+    num_metadata_args = len(kern.arg_descriptors)
+    if arg_idx < 1 or arg_idx > num_metadata_args:
+        raise ValueError(
+            f"The supplied LFRic TL kernel '{kern.name}' has "
+            f"{num_metadata_args} arguments specified in its metadata. "
+            f"Therefore, the index of the argument containing the "
+            f"{name} field must be between 1 and {num_metadata_args} "
+            f"(inclusive) but got {arg_idx}.")
+    # Check that the specified argument is of the correct type.
+    descriptor = kern.arg_descriptors[arg_idx-1]
+    if descriptor.function_space not in valid_spaces:
+        raise ValueError(
+            f"If present, the {name} field argument to kernel "
+            f"'{kern.name}' is expected to be "
+            f"on the {valid_spaces} space but the argument at the specified "
+            f"position ({arg_idx}) is on the "
+            f"'{descriptor.function_space}' space.")
+    if descriptor.vector_size != vec_len:
+        if vec_len > 1:
+            raise ValueError(
+                f"If present, the {name} field argument to kernel "
+                f"'{kern.name}' is expected to be a field vector of length "
+                f"{vec_len} but the argument at the specified "
+                f"position ({arg_idx}) has a length of "
+                f"{descriptor.vector_size}.")
+        else:
+            raise ValueError(
+                f"If present, the {name} field argument to kernel "
+                f"'{kern.name}' is expected to be "
+                f"a field but the argument at the specified"
+                f" position ({arg_idx}) is a field vector of length "
+                f"{descriptor.vector_size}.")
+
+
+def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx, panel_id_arg_idx):
     '''
     Constructs and returns the PSyIR for a Container and Routine that
     implements a test harness for the adjoint of the supplied tangent-linear
@@ -298,6 +349,10 @@ def generate_lfric_adjoint_harness(tl_psyir):
     :param tl_psyir: the PSyIR of an LFRic module defining a \
                      tangent-linear kernel.
     :type tl_psyir: :py:class:`psyclone.psyir.nodes.Container`
+    :param Optional[int] coord_arg_idx: 1-indexed position of the coordinate \
+        field in the list of kernel arguments (if present).
+    :param Optional[int] panel_id_arg_idx: 1-indexed position of the panel-id \
+        field in the list of kernel arguments (if present).
 
     :returns: PSyIR of an Algorithm that tests the adjoint of the supplied \
               LFRic TL kernel.
@@ -365,32 +420,57 @@ def generate_lfric_adjoint_harness(tl_psyir):
     kern = lfalg.kernel_from_metadata(parse_tree, kernel_name)
     kern_args = lfalg.construct_kernel_args(routine, kern)
 
+    # Validate the index values for the coordinate and face_id fields if
+    # supplied.
+    geometry_arg_indices = []
+    if coord_arg_idx is not None:
+        _validate_geom_arg(kern, coord_arg_idx, "coordinate", ["wchi"], 3)
+        # Convert to 0-indexed
+        coord_arg_idx -= 1
+        geometry_arg_indices.append(coord_arg_idx)
+    if panel_id_arg_idx is not None:
+        # Check that the specified argument is of the correct type.
+        _validate_geom_arg(kern, panel_id_arg_idx, "panel-id",
+                           LFRicConstants().VALID_DISCONTINUOUS_NAMES, 1)
+        # Convert to 0-indexed
+        panel_id_arg_idx -= 1
+        geometry_arg_indices.append(panel_id_arg_idx)
+
     # Create symbols that will store copies of the inputs to the TL kernel.
     # Currently we only support scalar and field arguments.
     # TODO #1864 - add support for operators.
     input_symbols = {}
     for sym in kern_args.scalars + [fsym for fsym, _ in kern_args.fields]:
+        if kern_args.lookup_metadata_index(sym) in geometry_arg_indices:
+            # This kernel argument is not modified by the test harness.
+            continue
         input_sym = table.new_symbol(sym.name+"_input", symbol_type=DataSymbol,
                                      datatype=DeferredType())
         input_sym.copy_properties(sym)
         input_symbols[sym.name] = input_sym
 
     # Initialise all input field objects.
+    fld_arg_list = []
     for sym, space in kern_args.fields:
-        lfalg.initialise_field(routine, input_symbols[sym.name], space)
+        if kern_args.lookup_metadata_index(sym) not in geometry_arg_indices:
+            # This kernel argument is modified by the test harness.
+            lfalg.initialise_field(routine, input_symbols[sym.name], space)
+            fld_arg_list.append(sym)
 
     # Initialise argument values and keep copies. For scalars we use the
     # Fortran 'random_number' intrinsic directly.
     # TODO #1345 - this is Fortran specific.
     random_num = RoutineSymbol("random_number")
     for sym in kern_args.scalars:
+        if kern_args.lookup_metadata_index(sym) in geometry_arg_indices:
+            # This kernel argument is not modified by the test harness.
+            continue
         routine.addchild(Call.create(random_num, [Reference(sym)]))
         input_sym = table.lookup(sym.name+"_input")
         routine.addchild(Assignment.create(Reference(input_sym),
                                            Reference(sym)))
 
-    kernel_list = _init_fields_random([fld for fld, _ in kern_args.fields],
-                                      input_symbols, table)
+    kernel_list = _init_fields_random(fld_arg_list, input_symbols, table)
 
     # Initialise all operator arguments.
     if kern_args.operators:
@@ -402,14 +482,24 @@ def generate_lfric_adjoint_harness(tl_psyir):
     # Finally, add the kernel itself to the list for the invoke().
     arg_nodes = []
     for arg in kern_args.arglist:
-        arg_nodes.append(Reference(table.lookup(arg)))
+        sym = table.lookup(arg)
+        try:
+            mdata_idx = kern_args.lookup_metadata_index(sym)
+            if mdata_idx == coord_arg_idx:
+                sym = table.lookup_with_tag("coord_field")
+            elif mdata_idx == panel_id_arg_idx:
+                sym = table.lookup_with_tag("panel_id_field")
+        except KeyError:
+            pass
+        arg_nodes.append(Reference(sym))
     kern = LFRicKernelFunctor.create(kernel_routine, arg_nodes)
     kernel_list.append(kern)
 
     # Compute the inner products of the results of the TL kernel.
     fld_pairs = []
     for sym, _ in kern_args.fields:
-        fld_pairs.append((sym, sym))
+        if sym in fld_arg_list:
+            fld_pairs.append((sym, sym))
     field_ip_symbols, ip_kernels = _compute_field_inner_products(routine,
                                                                  fld_pairs)
     kernel_list.extend(ip_kernels)
@@ -441,7 +531,8 @@ def generate_lfric_adjoint_harness(tl_psyir):
     # with the original inputs.
     fld_pairs = []
     for sym, _ in kern_args.fields:
-        fld_pairs.append((sym, input_symbols[sym.name]))
+        if sym in fld_arg_list:
+            fld_pairs.append((sym, input_symbols[sym.name]))
     field_ip_symbols, kernel_list = _compute_field_inner_products(routine,
                                                                   fld_pairs)
     kernel_list = [adj_kern] + kernel_list
