@@ -72,7 +72,7 @@ class ColumnwiseOperatorArg(OperatorArg):
         ColumnwiseOperatorArg.check_fparser2(fparser2_tree, nargs=5)
         datatype, access, function_space_to = \
             ColumnwiseOperatorArg.get_type_access_and_fs(fparser2_tree)
-        function_space_from = ColumnwiseOperatorArg.get_fs_to_arg(
+        function_space_from = ColumnwiseOperatorArg.get_fs_from_arg(
             fparser2_tree)
         return ColumnwiseOperatorArg(
             datatype, access, function_space_to, function_space_from)

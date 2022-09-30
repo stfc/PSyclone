@@ -93,8 +93,8 @@ def test_init_invalid():
 
     with pytest.raises(ValueError) as info:
         _ = FieldVectorArg(vector_length="invalid")
-    assert ("invalid literal for int() with base 10: 'invalid'"
-            in str(info.value))
+    assert ("The vector size should be a string containing an integer, "
+            "but found 'invalid'." in str(info.value))
 
     with pytest.raises(ValueError) as info:
         _ = FieldVectorArg(vector_length="0")
@@ -142,7 +142,7 @@ def test_create_from_fparser2():
     '''
     with pytest.raises(TypeError) as info:
         _ = FieldVectorArg.create_from_fparser2("hello")
-    assert ("Expected kernel metadata to be encoded as a Fortran "
+    assert ("Expected kernel metadata to be encoded as an fparser2 "
             "Part_Ref object but found type 'str' with value 'hello'."
             in str(info.value))
 
@@ -204,8 +204,8 @@ def test_setter_getter():
     assert field_arg.vector_length is None
     with pytest.raises(ValueError) as info:
         field_arg.vector_length = "invalid"
-    assert ("invalid literal for int() with base 10: 'invalid'"
-            in str(info.value))
+    assert ("The vector size should be a string containing an integer, "
+            "but found 'invalid'." in str(info.value))
 
     with pytest.raises(ValueError) as info:
         field_arg.vector_length = "1"

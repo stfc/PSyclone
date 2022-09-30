@@ -150,7 +150,7 @@ def test_create_from_fparser2():
     '''
     with pytest.raises(TypeError) as info:
         _ = OperatorArg.create_from_fparser2("hello")
-    assert ("Expected kernel metadata to be encoded as a Fortran "
+    assert ("Expected kernel metadata to be encoded as an fparser2 "
             "Part_Ref object but found type 'str' with value 'hello'."
             in str(info.value))
 
@@ -189,10 +189,10 @@ def test_fortran_string():
     operator_arg = OperatorArg()
     with pytest.raises(ValueError) as info:
         _ = operator_arg.fortran_string()
-    assert ("Values for datatype, access, function_space_to and function_space_from "
-            "must be provided before calling the fortran_string method, but "
-            "found 'None', 'None', 'None' and 'None', respectively."
-            in str(info.value))
+    assert ("Values for datatype, access, function_space_to and "
+            "function_space_from must be provided before calling the "
+            "fortran_string method, but found 'None', 'None', 'None' "
+            "and 'None', respectively." in str(info.value))
 
 
 def test_setter_getter():

@@ -142,7 +142,13 @@ class FieldVectorArg(FieldArg):
         if not isinstance(value, str):
             raise TypeError(f"The vector size should be a string but found "
                             f"{type(value).__name__}.")
-        int_value = int(value)
+        try:
+            int_value = int(value)
+        except ValueError as info:
+            raise ValueError(
+                f"The vector size should be a string containing an integer, "
+                f"but found '{value}'.") from info
+
         if int_value <= 1:
             raise ValueError(f"The vector size should be an integer greater "
                              f"than 1 but found {value}.")

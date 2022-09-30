@@ -48,5 +48,5 @@ class LFRicAlgTrans(AlgTrans):
 
     '''
     def __init__(self):
-        super(LFRicAlgTrans, self).__init__()
+        super().__init__()
         self._invoke_trans = RaisePSyIR2LFRicAlgTrans()

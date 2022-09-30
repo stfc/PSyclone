@@ -104,8 +104,7 @@ class ScalarArg(CommonArg):
     @property
     def datatype(self):
         '''
-        :returns: the datatype for this scalar \
-            argument.
+        :returns: the datatype for this scalar argument.
         :rtype: str
         '''
         return self._datatype

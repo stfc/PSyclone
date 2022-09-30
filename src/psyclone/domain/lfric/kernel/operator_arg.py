@@ -85,12 +85,12 @@ class OperatorArg(FieldArg):
         OperatorArg.check_fparser2(fparser2_tree, nargs=5)
         datatype, access, function_space_to = \
             OperatorArg.get_type_access_and_fs(fparser2_tree)
-        function_space_from = OperatorArg.get_fs_to_arg(fparser2_tree)
+        function_space_from = OperatorArg.get_fs_from_arg(fparser2_tree)
         return OperatorArg(
             datatype, access, function_space_to, function_space_from)
 
     @staticmethod
-    def get_fs_to_arg(fparser2_tree):
+    def get_fs_from_arg(fparser2_tree):
         '''Retrieves the metadata value for the second function space (the
         function space that the operator maps from) from the supplied
         fparser2 tree.

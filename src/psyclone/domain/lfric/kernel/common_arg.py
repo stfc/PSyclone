@@ -126,8 +126,8 @@ class CommonArg(ABC):
         '''
         if not isinstance(fparser2_tree, encoding):
             raise TypeError(
-                f"Expected kernel metadata to be encoded as a "
-                f"Fortran {encoding.__name__} object but found type "
+                f"Expected kernel metadata to be encoded as an "
+                f"fparser2 {encoding.__name__} object but found type "
                 f"'{type(fparser2_tree).__name__}' with value "
                 f"'{str(fparser2_tree)}'.")
         if not fparser2_tree.children[0].tostr().lower() == "arg_type":
@@ -234,7 +234,9 @@ class CommonArg(ABC):
         :param str value: set the datatype to the \
             specified value.
         '''
+        print(value)
         self.check_datatype(value)
+        print(value)
         self._datatype = value
 
     @staticmethod
