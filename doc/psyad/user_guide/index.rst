@@ -46,8 +46,8 @@ PSyAD User Guide
 
 .. only:: html
 
-    PSyAD is PSyclone's Adjoint code generator. PSyAD takes an LFRic
-    tangent linear kernel and translates it into its adjoint.
+    PSyAD is PSyclone's Adjoint code generator. PSyAD takes either generic
+    or LFRic tangent-linear kernel code and translates it into its adjoint.
 
 .. toctree::
     :hidden:

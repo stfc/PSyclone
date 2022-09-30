@@ -62,7 +62,7 @@ by the command:
 .. parsed-literal::
 		
   >>> psyad -h
-    usage: psyad [-h] [-oad OAD] [-v] [-t] [-api API] [-otest TEST_FILENAME] -a ACTIVE [ACTIVE ...] -- filename
+    usage: psyad [-h] [-oad OAD] [-v] [-t] [-api API] [-coord-arg idx] [-face-id-arg idx] [-otest TEST_FILENAME] -a ACTIVE [ACTIVE ...] -- filename
 
     Run the PSyclone adjoint code generator on a tangent-linear kernel file
 
