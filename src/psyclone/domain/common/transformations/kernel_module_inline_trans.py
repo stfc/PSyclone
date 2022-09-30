@@ -131,6 +131,19 @@ class KernelModuleInlineTrans(Transformation):
                     f"(s) within KernelSchedule scope. Cannot inline such a"
                     f" kernel.") from err
 
+        # If the symbol already exist it must be referring to a Routine
+        try:
+            existing_symbol = node.scope.symbol_table.lookup(node.name)
+        except KeyError:
+            existing_symbol = None
+        if existing_symbol and not isinstance(existing_symbol, RoutineSymbol):
+            raise NotImplementedError(
+                f"Cannot module-inline subroutine '{node.name}' because "
+                f"symbol '{existing_symbol}' with the same name already "
+                f"exists and changing the name of module-inlined subroutines "
+                f"is not supported yet.")
+
+
     def apply(self, node, options=None):
         ''' Bring the kernel subroutine in this Container.
 
@@ -150,6 +163,8 @@ class KernelModuleInlineTrans(Transformation):
             existing_symbol = node.scope.symbol_table.lookup(name)
         except KeyError:
             existing_symbol = None
+
+
 
         if not existing_symbol:
             # If it doesn't exist already, module-inline the subroutine by:
@@ -197,6 +212,6 @@ class KernelModuleInlineTrans(Transformation):
             node.root.addchild(inlined_code.detach())
 
         else:
-            # The routine symbol already exist, we need to make sure it
-            # references the same routine. (would eq work?)
+            # The routine symbol already exist, and we know from the validation
+            # that its a Routine, but are they the same?
             pass

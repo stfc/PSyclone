@@ -41,46 +41,43 @@
 
 import pytest
 from psyclone.configuration import Config
+from psyclone.psyir.nodes import Container
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.utilities import count_lines, get_invoke
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 
 
-def test_module_inline(tmpdir):
-    ''' Test that we can successfully inline a basic kernel subroutine
-    routine into the PSy layer module by directly setting inline to
-    true for the specified kernel. '''
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean1.0",
-                             idx=0, dist_mem=False)
-    schedule = invoke.schedule
-    kern_call = schedule.children[0].loop_body[0].loop_body[0]
-    kern_call.module_inline = True
-    gen = str(psy.gen)
-    # check that the subroutine has been inlined correctly
-    expected = (
-        "    END SUBROUTINE invoke_0\n"
-        "    SUBROUTINE compute_cu_code(i, j, cu, p, u)\n")
-    assert expected in gen
-    # check that the associated use no longer exists
-    assert 'USE compute_cu_mod, ONLY: compute_cu_code' not in gen
-    assert GOceanBuild(tmpdir).code_compiles(psy)
-
-
-def test_module_inline_with_transformation(tmpdir):
+def test_module_inline_apply_transformation(tmpdir, fortran_writer):
     ''' Test that we can succesfully inline a basic kernel subroutine
     routine into the PSy layer module using a transformation '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean1.0",
                              idx=0, dist_mem=False)
     schedule = invoke.schedule
+
+    # Apply the inline transformation
     kern_call = schedule.children[1].loop_body[0].loop_body[0]
     inline_trans = KernelModuleInlineTrans()
     inline_trans.apply(kern_call)
+
+    # The new inlined routine must now exist
+    assert kern_call.ancestor(Container).children[1].name == "compute_cv_code"
+
+    # We should see it in the output of both:
+    # - the backend
+    code = fortran_writer(schedule.root)
+    assert 'subroutine compute_cv_code(i, j, cv, p, v)' in code
+
+    # - the gen_code
     gen = str(psy.gen)
-    # check that the subroutine has been inlined
     assert 'SUBROUTINE compute_cv_code(i, j, cv, p, v)' in gen
+
+    # And the import has been remove from both
     # check that the associated use no longer exists
+    assert 'use compute_cv_mod, only: compute_cv_code' not in code
     assert 'USE compute_cv_mod, ONLY: compute_cv_code' not in gen
+
+    # And it is valid code
     assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
