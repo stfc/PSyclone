@@ -66,6 +66,7 @@ def main(args):
     def msg():
         '''Function to overide the argpass usage message'''
         return ("psyad [-h] [-oad OAD] [-v] [-t] [-api API] "
+                "[-coord-arg COORD_ARG] [-face-id-arg FACE_ID_ARG] "
                 "[-otest TEST_FILENAME] "
                 "-a ACTIVE [ACTIVE ...] -- filename")
 
@@ -85,6 +86,12 @@ def main(args):
     parser.add_argument('-api', default=None,
                         help='the PSyclone API that the TL kernel conforms '
                         'to (if any)')
+    parser.add_argument('-coord-arg', default=None,
+                        help='the position of the coordinate (chi) field in '
+                        'the meta_args list of kernel arguments (LFRic only)')
+    parser.add_argument('-face-id-arg', default=None,
+                        help='the position of the face-ID field in the '
+                        'meta_args list of kernel arguments (LFRic only)')
     parser.add_argument('-otest',
                         help='filename for the unit test (implies -t)',
                         dest='test_filename')
@@ -114,8 +121,7 @@ def main(args):
     try:
         # Create the adjoint (and associated test framework if requested)
         ad_fortran_str, test_fortran_str = generate_adjoint_str(
-            tl_fortran_str, args.active, api=args.api,
-            create_test=generate_test)
+            tl_fortran_str, args)
     except TangentLinearError as info:
         print(str(info.value))
         sys.exit(1)
@@ -136,7 +142,7 @@ def main(args):
     else:
         print(ad_fortran_str, file=sys.stdout)
 
-    # Output test framework if requested
+    # Output test harness if requested
     if generate_test:
 
         if line_length_limit:

@@ -61,8 +61,8 @@ from psyclone.psyir.symbols import SymbolTable, ImportInterface, Symbol, \
 TEST_ARRAY_DIM_SIZE = 20
 
 
-def generate_adjoint_str(tl_fortran_str, active_variables,
-                         api=None, create_test=False):
+def generate_adjoint_str(tl_fortran_str, active_variables, cmd_args):
+                         #api=None, create_test=False):
     '''Takes a tangent-linear kernel encoded as a string as input
     and returns its adjoint encoded as a string along with (if requested)
     a test harness, also encoded as a string.
@@ -70,6 +70,8 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
     :param str tl_fortran_str: Fortran implementation of a tangent-linear \
         kernel.
     :param List[str] active_variables: list of active variable names.
+    :param cmd_args: Namespace object containing all command-line flags.
+    :type cmd_args: :py:class:`argparse.Namespace`
     :param Optional[str] api: The PSyclone API in use, if any.
     :param Optional[bool] create_test: whether or not to create test code for \
         the adjoint kernel.
@@ -87,6 +89,12 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
     '''
     logger = logging.getLogger(__name__)
     logger.debug(tl_fortran_str)
+
+    api = cmd_args.api
+    # Specifying an output file for the test harness is taken to mean that
+    # the user wants us to generate it.
+    create_test = cmd_args.gen_test or cmd_args.test_filename
+    active_variables = cmd_args.active
 
     # TL Language-level PSyIR
     reader = FortranReader()
@@ -120,7 +128,9 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
     elif api == "dynamo0.3":
         ad_psyir = generate_lfric_adjoint(tl_psyir, active_variables)
         if create_test:
-            test_psyir = generate_lfric_adjoint_harness(tl_psyir)
+            test_psyir = generate_lfric_adjoint_harness(tl_psyir,
+                                                        cmd_args.coord_arg,
+                                                        cmd_args.face_id_arg)
     else:
         raise NotImplementedError(
             f"PSyAD only supports generic routines/programs or LFRic "
