@@ -60,15 +60,49 @@ class OMPTaskDirective(OMPRegionDirective):
     '''
     TODO
     '''
+    _children_valid_format = ("Schedule, OMPPrivateClause,"
+                              "OMPFirstprivateClause, OMPSharedClause"
+                              "OMPDependClause, OMPDependClause")
 
-    def __init__(self, children=None, parent=None):
-        sched_childs=None
-        if children != None:
+    def __init__(self, children=None, parent=None, lowering=False):
+        if lowering:
             sched_childs = children[0].pop_all_children()
-        super(OMPTaskDirective, self).__init__(children=sched_childs, parent=parent)
+            super(OMPTaskDirective, self).__init__(children=sched_childs, parent=parent)
+            for child in children[1:]:
+                self.addchild(child)
+        else:
+            super().__init__(children=children, parent=parent)
 
-        for child in children[1:]:
-            self.addchild(child)
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+         Decides whether a given child and position are valid for this node.
+         The rules are:
+         1. Child 0 must always be a Schedule.
+         2. Child 1 must always be an OMPPrivateClause
+         3. Child 2 must always be an OMPFirstprivateClause
+         4. Child 3 must always be an OMPSharedClause
+         5. Child 4 and 5 must always be OMPDependClauses
+
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        if position == 0:
+            return isinstance(child, Schedule)
+        if position == 1:
+            return isinstance(child, OMPPrivateClause)
+        if position == 2:
+            return isinstance(child, OMPFirstprivateClause)
+        if position == 3:
+            return isinstance(child, OMPSharedClause)
+        if position in (4, 5):
+            return isinstance(child, OMPDependClause)
+        return False
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
@@ -126,36 +160,10 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         self._parent_parallel = None
         self._parallel_private = None
 
-    @staticmethod
-    def _validate_child(position, child):
-        '''
-         Decides whether a given child and position are valid for this node.
-         The rules are:
-         1. Child 0 must always be a Schedule.
-         2. Child 1 must always be an OMPPrivateClause
-         3. Child 2 must always be an OMPFirstprivateClause
-         4. Child 3 must always be an OMPSharedClause
-         5. Child 4 and 5 must always be OMPDependClauses
+        # We need to do extra steps when inside a Kern to correctly identify
+        # symbols.
+        self._in_kern = False
 
-        :param int position: the position to be validated.
-        :param child: a child to be validated.
-        :type child: :py:class:`psyclone.psyir.nodes.Node`
-
-        :return: whether the given child and position are valid for this node.
-        :rtype: bool
-
-        '''
-        if position == 0:
-            return isinstance(child, Schedule)
-        if position == 1:
-            return isinstance(child, OMPPrivateClause)
-        if position == 2:
-            return isinstance(child, OMPFirstprivateClause)
-        if position == 3:
-            return isinstance(child, OMPSharedClause)
-        if position in (4, 5):
-            return isinstance(child, OMPDependClause)
-        return False
 
     def validate_global_constraints(self):
         '''
@@ -336,6 +344,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             ref_index = 1
             literal = node.children[0]
 
+        print(node, is_proxy)
         # We have some array access which is of the format:
         # array( Reference +/- Literal).
         # If the Reference is to a proxy (is_proxy is True) then we replace
@@ -1138,15 +1147,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         
         # Get a copy of the kernel's schedule
         subroutine = node.get_kernel_schedule().copy()
-        print(node.name)
-        #print(node.arguments.psyir_expressions())
-        #for expr in node.arguments.psyir_expressions():
-        #    print(expr)
-        #print(node.arguments.find_grid_access())
-        #print(node.reference_accesses())
-        #print(len(subroutine.children))
-        #print(len(node.get_kernel_schedule().children))
-
         # Get the input arguments
         input_args = node.arguments.raw_arg_list()
         for index, symbol in enumerate(subroutine.symbol_table.argument_list):
@@ -1176,10 +1176,13 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
             
         # Evaluate the kernel the same as any other part of the code
+        self._in_kern = True
         node_list = subroutine.walk((Assignment, Loop, IfBlock))
         for child in node_list:
             self._evaluate_node(child, private_list, firstprivate_list, shared_list,
                                 in_list, out_list)
+
+        self.in_kern = False
 
         # Check all the reference point to the base symbols and not our temporary symbols
         # and remove the then-duplicated references.
@@ -1193,16 +1196,20 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         sym = self.ancestor(Routine).symbol_table.lookup(split[0])
                         if sym.name == ref_split[0] and ref.symbol != sym:
                             ref.symbol = sym
-#                if ref.symbol not in self.ancestor(Routine).symbol_table._symbols.values():
-#                    print(ref, ref.symbol)
-#                    for symname in self.ancestor(Routine).symbol_table._symbols:
-#                        sym = self.ancestor(Routine).symbol_table._symbols[symname]
-#                        if ref.symbol.name.split("%")[0] == sym.name:
-#                            print("Found a mathcing named symbol")
-#                    print(self.ancestor(Routine).symbol_table._symbols.keys())
-#                assert ref.symbol in self.ancestor(Routine).symbol_table._symbols.values()
-#                        if sym.name == ref.symbol.name and ref.symbol != sym:
-#                            ref.symbol = sym
+                            # Dependency clauses use full object reference not just the base reference
+                            if len(split) > 1 and (list_id is in_list or list_id is out_list):
+                                #Turn this into a structure Reference or Aos Reference
+                                if isinstance(ref, ArrayReference):
+                                    # TODO
+                                    fin_tup = (split[-1], ref.pop_all_children())
+                                    split[-1] = fin_tup
+                                    temp = StructureReference.create(ref.symbol, split[1:])
+                                    list_id[index] = temp
+                                    ref = temp
+                                else:
+                                    temp = StructureReference.create(ref.symbol, split[1:])
+                                    list_id[index] = temp
+                                    ref = temp
                 # TODO If its a structure reference/AoS reference do we need to do something special?
                 if isinstance(ref, ArrayReference):
                     for ind in ref.indices:
@@ -1349,14 +1356,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         if len(self.children) < 4 or shared_clause != self.children[3]:
             self.children[3] = shared_clause
         if len(self.children) < 5 or in_clause != self.children[4]:
-            print(f"Task previous child 4 has {len(self.children[4].children)} children.")
             self.children[4] = in_clause
-            print(f"Task child 4 has {len(self.children[4].children)} children.")
-            from psyclone.psyGen import Kern
-            print(f"Task has {len(self.walk(Kern))} codedkerns")
-            from psyclone.psyir.nodes.call import Call
-            print(f"Task with id {id(self)} has {len(self.walk(Call))} calls")
-            print(self.view())
         if len(self.children) < 6 or out_clause != self.children[5]:
             self.children[5] = out_clause
 
@@ -1364,5 +1364,5 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
         #TODO Replace this node with an OMPTaskDirective
         childs = self.pop_all_children()
-        replacement = OMPTaskDirective(children=childs)
+        replacement = OMPTaskDirective(children=childs, lowering=True)
         self.replace_with(replacement)
