@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,13 +34,14 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 # Setting for the PSyData extraction library
-PSYDATA_PATH?=$(PSYCLONE_RELPATH)/lib/extract/netcdf/lfric
-PSYDATA_LIB_NAME?=_kernel_data_netcdf
+TYPE?=netcdf
+PSYDATA_PATH?=$(PSYCLONE_RELPATH)/lib/extract/$(TYPE)/lfric
+PSYDATA_LIB_NAME?=_extract
 
 include Makefile.inc
 
 time_evolution_alg_mod_psy.f90: time_evolution_alg_mod.x90
-	psyclone $(PSYCLONE_CMD) --config $(PSYCLONE_RELPATH)/config/psyclone.cfg \
-	-opsy time_evolution_alg_mod_psy.f90                                      \
+	psyclone $(PSYCLONE_CMD)                                    \
+	-opsy time_evolution_alg_mod_psy.f90                        \
 	-oalg time_evolution_alg_mod.f90 time_evolution_alg_mod.x90
 

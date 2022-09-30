@@ -81,7 +81,7 @@ TEST_API = "dynamo0.3"
 def setup():
     '''Make sure that all tests here use dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
-    yield()
+    yield
     Config._instance = None
 
 
@@ -3697,7 +3697,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             isched + "[invoke='invoke_0', dm=True]\n" +
             indent + "0: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
-            3*indent + "0: " + ompdo + "[reprod=True]\n" +
+            3*indent + "0: " + ompdo + "[omp_schedule=static,reprod=True]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
@@ -3712,7 +3712,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             indent + "1: " + gsum + "[scalar='asum']\n" +
             indent + "2: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
-            3*indent + "0: " + ompdo + "[]\n" +
+            3*indent + "0: " + ompdo + "[omp_schedule=static]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
@@ -3726,7 +3726,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             2*indent + ompprivate + "[]\n" +
             indent + "3: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
-            3*indent + "0: " + ompdo + "[reprod=True]\n" +
+            3*indent + "0: " + ompdo + "[omp_schedule=static,reprod=True]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
@@ -3746,7 +3746,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             isched + "[invoke='invoke_0', dm=False]\n" +
             indent + "0: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
-            3*indent + "0: " + ompdo + "[reprod=True]\n" +
+            3*indent + "0: " + ompdo + "[omp_schedule=static,reprod=True]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
@@ -3760,7 +3760,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             2*indent + ompprivate + "[]\n" +
             indent + "1: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
-            3*indent + "0: " + ompdo + "[]\n" +
+            3*indent + "0: " + ompdo + "[omp_schedule=static]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
@@ -3774,7 +3774,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             2*indent + ompprivate + "[]\n" +
             indent + "2: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
-            3*indent + "0: " + ompdo + "[reprod=True]\n" +
+            3*indent + "0: " + ompdo + "[omp_schedule=static,reprod=True]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "

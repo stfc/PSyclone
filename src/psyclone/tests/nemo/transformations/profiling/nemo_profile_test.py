@@ -62,7 +62,7 @@ def setup():
     up the config file at the end of the tests.'''
 
     Config.get().api = "nemo"
-    yield()
+    yield
     # At the end of all tests make sure that we wipe the Config object
     # so we get a fresh/default one for any further test (and not a
     # left-over one from a test here).
@@ -560,7 +560,7 @@ def test_profile_nemo_openmp(parser):
             "\n"
             "  call profile_psy_data % prestart(\"do_loop\", \"r0\", 0, 0)\n"
             "  !$omp parallel do default(shared), private(ji,jj), "
-            "schedule(static)\n"
+            "schedule(auto)\n"
             "  do jj = 1, jpj, 1" in code)
 
 

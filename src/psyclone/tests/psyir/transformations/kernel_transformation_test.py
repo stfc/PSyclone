@@ -53,7 +53,7 @@ from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import ACCRoutineTrans, \
     Dynamo0p3KernelConstTrans, KernelModuleInlineTrans
 
-from psyclone.tests.gocean1p0_build import GOcean1p0Build
+from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 
@@ -88,30 +88,28 @@ def test_new_kernel_file(kernel_outputdir, monkeypatch, fortran_reader):
     code = str(psy.gen).lower()
     # Work out the value of the tag used to re-name the kernel
     tag = re.search('use continuity(.+?)_mod', code).group(1)
-    assert ("use continuity{0}_mod, only: continuity{0}_code".format(tag)
-            in code)
-    assert "call continuity{0}_code(".format(tag) in code
+    assert f"use continuity{tag}_mod, only: continuity{tag}_code" in code
+    assert f"call continuity{tag}_code(" in code
     # The kernel and module name should have gained the tag just identified
     # and be written to the CWD
-    filename = os.path.join(str(kernel_outputdir),
-                            "continuity{0}_mod.f90".format(tag))
+    filename = os.path.join(str(kernel_outputdir), f"continuity{tag}_mod.f90")
     assert os.path.isfile(filename)
     # Parse the new kernel file
     psyir = fortran_reader.psyir_from_file(filename)
     # Check that the module has the right name
     assert isinstance(psyir, FileContainer)
     module = psyir.children[0]
-    assert module.name == "continuity{0}_mod".format(tag)
+    assert module.name == f"continuity{tag}_mod"
     # Check that the subroutine has the right name
     found = False
     for sub in psyir.walk(Routine):
-        if sub.name == "continuity{0}_code".format(tag):
+        if sub.name == f"continuity{tag}_code":
             found = True
             break
     assert found
 
     # If compilation fails this will raise an exception
-    GOcean1p0Build(kernel_outputdir).compile_file(filename)
+    GOceanBuild(kernel_outputdir).compile_file(filename)
 
 
 def test_new_kernel_dir(kernel_outputdir):
@@ -144,7 +142,8 @@ def test_new_kern_no_clobber(kernel_outputdir, monkeypatch):
         old_mod_name = old_mod_name[:-4]
     # Create a file with the same name as we would otherwise generate
     with open(os.path.join(str(kernel_outputdir),
-                           old_mod_name+"_0_mod.f90"), "w") as ffile:
+                           old_mod_name+"_0_mod.f90"),
+              "w", encoding="utf-8") as ffile:
         ffile.write("some code")
     rtrans = ACCRoutineTrans()
     rtrans.apply(kern)
@@ -159,13 +158,15 @@ def test_new_kern_no_clobber(kernel_outputdir, monkeypatch):
     [("testkern_mod", "testkern"),
      ("testkern", "testkern_code"),
      ("testkern1_mod", "testkern2_code")])
-def test_kernel_module_name(mod_name, sub_name, kernel_outputdir,
-                            monkeypatch):
+def test_kernel_module_name(kernel_outputdir, mod_name, sub_name, monkeypatch):
     '''Check that there is no limitation on kernel and module names. In
     particular check that the names do not have to conform to the
     <name>_mod, <name>_code convention.
 
     '''
+    # Argument kernel_outputdir is needed to capture the files created by
+    # the rename_and_write() call
+    # pylint: disable=unused-argument
     _, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
     sched = invoke.schedule
     kernels = sched.coded_kernels()
@@ -224,7 +225,8 @@ def test_new_kern_single_error(kernel_outputdir, monkeypatch):
         old_mod_name = old_mod_name[:-4]
     # Create a file with the same name as we would otherwise generate
     with open(os.path.join(str(kernel_outputdir),
-                           old_mod_name+"_0_mod.f90"), "w") as ffile:
+                           old_mod_name+"_0_mod.f90"),
+              "w", encoding="utf-8") as ffile:
         ffile.write("some code")
     rtrans = ACCRoutineTrans()
     rtrans.apply(kern)
@@ -233,11 +235,10 @@ def test_new_kern_single_error(kernel_outputdir, monkeypatch):
     # which we would generate
     with pytest.raises(GenerationError) as err:
         kern.rename_and_write()
-    assert ("transformed version of this Kernel 'testkern_0_mod.f90' already "
-            "exists in the kernel-output directory ({0}) but is not the same "
-            "as the current, transformed kernel and the kernel-renaming "
-            "scheme is set to 'single'".format(str(kernel_outputdir))
-            in str(err.value))
+    assert (f"transformed version of this Kernel 'testkern_0_mod.f90' already "
+            f"exists in the kernel-output directory ({kernel_outputdir}) "
+            f"but is not the same as the current, transformed kernel and the "
+            f"kernel-renaming scheme is set to 'single'" in str(err.value))
 
 
 def test_new_same_kern_single(kernel_outputdir, monkeypatch):
@@ -281,13 +282,13 @@ def test_1kern_trans(kernel_outputdir):
     code = str(psy.gen).lower()
     tag = re.search('use testkern(.+?)_mod', code).group(1)
     # We should have a USE for the original kernel and a USE for the new one
-    assert "use testkern{0}_mod, only: testkern{0}_code".format(tag) in code
+    assert f"use testkern{tag}_mod, only: testkern{tag}_code" in code
     assert "use testkern_mod, only: testkern_code" in code
     # Similarly, we should have calls to both the original and new kernels
     assert "call testkern_code(" in code
-    assert "call testkern{0}_code(".format(tag) in code
+    assert f"call testkern{tag}_code(" in code
     first = code.find("call testkern_code(")
-    second = code.find("call testkern{0}_code(".format(tag))
+    second = code.find(f"call testkern{tag}_code(")
     assert first < second
     assert LFRicBuild(kernel_outputdir).code_compiles(psy)
 
@@ -308,13 +309,14 @@ def test_2kern_trans(kernel_outputdir):
     # Find the tags added to the kernel/module names
     for match in re.finditer('use testkern_any_space_2(.+?)_mod', code):
         tag = match.group(1)
-        assert ("use testkern_any_space_2{0}_mod, only: "
-                "testkern_any_space_2{0}_code".format(tag) in code)
-        assert "call testkern_any_space_2{0}_code(".format(tag) in code
+        assert (f"use testkern_any_space_2{tag}_mod, only: "
+                f"testkern_any_space_2{tag}_code" in code)
+        assert f"call testkern_any_space_2{tag}_code(" in code
         filepath = os.path.join(str(kernel_outputdir),
-                                "testkern_any_space_2{0}_mod.f90".format(tag))
+                                f"testkern_any_space_2{tag}_mod.f90")
         assert os.path.isfile(filepath)
-        assert "nlayers = 100" in open(filepath).read()
+        with open(filepath, encoding="utf-8") as infile:
+            assert "nlayers = 100" in infile.read()
     assert "use testkern_any_space_2_mod, only" not in code
     assert "call testkern_any_space_2_code(" not in code
     assert LFRicBuild(kernel_outputdir).code_compiles(psy)

@@ -190,7 +190,7 @@ def test_nemo_omp_do(fortran_reader):
     # Disable checks on global constraints to remove need for parallel region
     fvisitor = FortranWriter(check_global_constraints=False)
     result = fvisitor(schedule)
-    correct = '''  !$omp do schedule(static)
+    correct = '''  !$omp do schedule(auto)
   do i = 1, 20, 2
     a = 2 * i
     b(i) = b(i) + a
@@ -200,7 +200,7 @@ def test_nemo_omp_do(fortran_reader):
 
     cvisitor = CWriter(check_global_constraints=False)
     result = cvisitor(schedule[0])
-    correct = '''#pragma omp do schedule(static)
+    correct = '''#pragma omp do schedule(auto)
 {
   for(i=1; i<=20; i+=2)
   {
@@ -235,14 +235,14 @@ def test_gocean_omp_do():
     # GOInvokeSchedule is not yet supported, so start with
     # the OMP node:
     result = fvisitor(invoke.schedule[0])
-    correct = '''!$omp do schedule(static)
+    correct = '''!$omp do schedule(auto)
 a = b
 !$omp end do'''
     assert correct in result
 
     cvisitor = CWriter(check_global_constraints=False)
     result = cvisitor(invoke.schedule[0])
-    correct = '''#pragma omp do schedule(static)
+    correct = '''#pragma omp do schedule(auto)
 {
   a = b;
 }'''
