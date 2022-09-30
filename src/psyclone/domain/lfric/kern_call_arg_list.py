@@ -152,8 +152,8 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        cell_ref_name = self._cell_ref_name(var_accesses)
-        self.add_integer_reference(cell_ref_name, "cell_loop_idx")
+        cell_ref_name, ref = self._cell_ref_name(var_accesses)
+        self._psyir_arglist.append(ref)
         self.append(cell_ref_name)
 
     def cell_map(self, var_accesses=None):
@@ -196,14 +196,13 @@ class KernCallArgList(ArgOrdering):
 
         map_name = sym.name
         # Add the cell map to our argument list
-        self.append(f"{map_name}(:,:,{self._cell_ref_name(var_accesses)})",
+        cell_ref_name, cell_ref = self._cell_ref_name(var_accesses)
+        self.append(f"{map_name}(:,:,{cell_ref_name})",
                     var_accesses=var_accesses)
 
-        cell = self._cell_ref_name(var_accesses)
-        cell_sym = self.get_integer_symbol(cell)
-        self.psyir_append(ArrayReference.create(sym, [Reference(cell_sym),
-                                                      Reference(cell_sym),
-                                                      Reference(cell_sym)]))
+        self.psyir_append(ArrayReference.create(sym, [":",
+                                                      ":",
+                                                      cell_ref]))
 
         # No. of fine cells per coarse cell in x
         base_name = f"ncpc_{farg.name}_{carg.name}_x"
@@ -419,7 +418,7 @@ class KernCallArgList(ArgOrdering):
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_size_name(self._symtab, arg)
-        name = f"{var_name}({self._cell_ref_name(var_accesses)})"
+        name = f"{var_name}({self._cell_ref_name(var_accesses)[0]})"
         self.append(name, var_accesses, var_access_name=var_name)
 
     def stencil_2d_unknown_extent(self, arg, var_accesses=None):
@@ -440,7 +439,7 @@ class KernCallArgList(ArgOrdering):
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_size_name(self._symtab, arg)
-        name = f"{var_name}(:,{self._cell_ref_name(var_accesses)})"
+        name = f"{var_name}(:,{self._cell_ref_name(var_accesses)[0]})"
         self.append(name, var_accesses, var_access_name=var_name)
 
     def stencil_2d_max_extent(self, arg, var_accesses=None):
@@ -501,7 +500,7 @@ class KernCallArgList(ArgOrdering):
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_name(self._symtab, arg)
-        name = f"{var_name}(:,:,{self._cell_ref_name(var_accesses)})"
+        name = f"{var_name}(:,:,{self._cell_ref_name(var_accesses)[0]})"
         self.append(name, var_accesses, var_access_name=var_name)
 
     def stencil_2d(self, arg, var_accesses=None):
@@ -529,7 +528,7 @@ class KernCallArgList(ArgOrdering):
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_name(self._symtab, arg)
-        name = f"{var_name}(:,:,:,{self._cell_ref_name(var_accesses)})"
+        name = f"{var_name}(:,:,:,{self._cell_ref_name(var_accesses)[0]})"
         self.append(name, var_accesses, var_access_name=var_name)
 
     def operator(self, arg, var_accesses=None):
@@ -620,7 +619,8 @@ class KernCallArgList(ArgOrdering):
 
         else:
             # Pass the dofmap for the cell column
-            self.append(f"{map_name}(:,{self._cell_ref_name(var_accesses)})",
+            self.append(f"{map_name}(:,"
+                        f"{self._cell_ref_name(var_accesses)[0]})",
                         var_accesses, var_access_name=map_name)
 
     def fs_intergrid(self, function_space, var_accesses=None):
@@ -888,26 +888,29 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         :returns: the Fortran code needed to access the current cell index.
-        :rtype: str
+        :rtype: Tuple[str, py:class:`psyclone.psyir.nodes.Node`]
 
         '''
+        cell_sym = self.get_integer_symbol("cell", "cell_loop_idx")
         if self._kern.is_coloured():
+            colour_sym = self.get_integer_symbol("colour", "colours_loop_idx")
             if var_accesses is not None:
-                var_accesses.add_access(Signature("colour"), AccessType.READ,
-                                        self._kern)
-                var_accesses.add_access(Signature("cell"), AccessType.READ,
-                                        self._kern)
+                var_accesses.add_access(Signature(colour_sym.name),
+                                        AccessType.READ, self._kern)
+                var_accesses.add_access(Signature(cell_sym.name),
+                                        AccessType.READ, self._kern)
                 var_accesses.add_access(Signature(self._kern.colourmap),
                                         AccessType.READ,
                                         self._kern, ["colour", "cell"])
-            return self._kern.colourmap + "(colour, cell)"
+            #TODO NOT CORRECT YET
+            return (self._kern.colourmap + "(colour, cell)",
+                    Reference(colour_sym))
 
         if var_accesses is not None:
             var_accesses.add_access(Signature("cell"), AccessType.READ,
                                     self._kern)
 
-        sym = self.get_integer_symbol("cell", "cell_loop_idx")
-        return sym.name
+        return (cell_sym.name, Reference(cell_sym))
 
 
 # ============================================================================
