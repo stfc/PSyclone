@@ -65,17 +65,14 @@ def test_init_invalid():
     '''
     with pytest.raises(ValueError) as info:
         _ = ScalarArg(datatype="invalid")
-    print(info.value)
-    assert ("The second metadata entry for a scalar argument should be a "
-            "recognised datatype descriptor (one of ['gh_real', "
-            "'gh_integer', 'gh_logical']), but found 'invalid'."
+    assert ("The datatype descriptor metadata for a scalar should be one of "
+            "['gh_real', 'gh_integer', 'gh_logical'], but found 'invalid'."
             in str(info.value))
 
     with pytest.raises(ValueError) as info:
         _ = ScalarArg(access="invalid")
-    assert ("The third metadata entry for a scalar argument should be a "
-            "recognised access descriptor (one of ['gh_read']), but found "
-            "'invalid'." in str(info.value))
+    assert ("The access descriptor metadata for a scalar should be one of "
+            "['gh_read'], but found 'invalid'." in str(info.value))
 
 
 def test_init_args():
@@ -179,10 +176,8 @@ def test_setter_getter():
     assert field_arg.datatype is None
     with pytest.raises(ValueError) as info:
         field_arg.datatype = "invalid"
-    print(info.value)
-    assert ("The second metadata entry for a scalar argument should be a "
-            "recognised datatype descriptor (one of ['gh_real', "
-            "'gh_integer', 'gh_logical']), but found 'invalid'."
+    assert ("The datatype descriptor metadata for a scalar should be one of "
+            "['gh_real', 'gh_integer', 'gh_logical'], but found 'invalid'."
             in str(info.value))
 
     field_arg.datatype = "gh_integer"
@@ -193,9 +188,8 @@ def test_setter_getter():
     assert field_arg.access is None
     with pytest.raises(ValueError) as info:
         field_arg.access = "invalid"
-    assert ("The third metadata entry for a scalar argument should be a "
-            "recognised access descriptor (one of ['gh_read']), but found "
-            "'invalid'." in str(info.value))
+    assert ("The access descriptor metadata for a scalar should be one of "
+            "['gh_read'], but found 'invalid'." in str(info.value))
 
     field_arg.access = "gh_read"
     assert field_arg.access == "gh_read"

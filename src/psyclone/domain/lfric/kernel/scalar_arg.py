@@ -66,8 +66,11 @@ class ScalarArg(CommonArg):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.ScalarArg`
 
         '''
+        datatype_arg_index = 1
+        access_arg_index = 2
         ScalarArg.check_fparser2(fparser2_tree, nargs=3)
-        datatype, access = ScalarArg.get_type_and_access(fparser2_tree)
+        datatype, access = ScalarArg.get_type_and_access(
+            fparser2_tree, datatype_arg_index, access_arg_index)
         return ScalarArg(datatype, access)
 
     @classmethod
@@ -121,9 +124,8 @@ class ScalarArg(CommonArg):
         const = LFRicConstants()
         if not value or value.lower() not in const.VALID_SCALAR_DATA_TYPES:
             raise ValueError(
-                f"The second metadata entry for a scalar argument should "
-                f"be a recognised datatype descriptor (one of "
-                f"{const.VALID_SCALAR_DATA_TYPES}), but found '{value}'.")
+                f"The datatype descriptor metadata for a scalar should be one "
+                f"of {const.VALID_SCALAR_DATA_TYPES}, but found '{value}'.")
 
     @datatype.setter
     def datatype(self, value):
@@ -155,9 +157,8 @@ class ScalarArg(CommonArg):
         const = LFRicConstants()
         if not value or value.lower() not in const.VALID_SCALAR_ACCESS_TYPES:
             raise ValueError(
-                f"The third metadata entry for a scalar argument should "
-                f"be a recognised access descriptor (one of "
-                f"{const.VALID_SCALAR_ACCESS_TYPES}), but found '{value}'.")
+                f"The access descriptor metadata for a scalar should be one "
+                f"of {const.VALID_SCALAR_ACCESS_TYPES}, but found '{value}'.")
 
     @access.setter
     def access(self, value):

@@ -166,7 +166,7 @@ def test_get_type_and_access():
     dummy = Dummy()
     fparser_tree = dummy.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ)")
-    datatype, access = dummy.get_type_and_access(fparser_tree)
+    datatype, access = dummy.get_type_and_access(fparser_tree, 1, 2)
     assert datatype == "GH_REAL"
     assert access == "GH_READ"
 
@@ -180,7 +180,7 @@ def test_get_type_access_and_fs():
     fparser_tree = dummy.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)")
     datatype, access, function_space = dummy.get_type_access_and_fs(
-        fparser_tree)
+        fparser_tree, 1, 2, 3)
     assert datatype == "GH_REAL"
     assert access == "GH_READ"
     assert function_space == "W0"
@@ -195,14 +195,14 @@ def test_get_vector_length():
     fparser_tree = dummy.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)")
     with pytest.raises(TypeError) as info:
-        _ = dummy.get_vector_length(fparser_tree)
-    assert ("Expecting the first argument to be in the form "
+        _ = dummy.get_vector_length(fparser_tree, 0)
+    assert ("The vector length metadata should be in the form "
             "'form*vector_length' but found 'GH_FIELD'."
             in str(info.value))
 
     fparser_tree = dummy.create_fparser2(
         "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)")
-    vector_length = dummy.get_vector_length(fparser_tree)
+    vector_length = dummy.get_vector_length(fparser_tree, 0)
     assert vector_length == "3"
 
 

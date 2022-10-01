@@ -89,14 +89,18 @@ class FieldVectorArg(FieldArg):
         :returns: an instance of this class.
         :rtype: :py:class:`psyclone.domain.lfric.kernel.FieldVectorArg`
 
-        :raises TypeError: if the first metadata argument is not in \
-            the form datatype*vector_length.
-
         '''
+        vector_length_arg_index = 0
+        datatype_arg_index = 1
+        access_arg_index = 2
+        function_space_arg_index = 3
         FieldVectorArg.check_fparser2(fparser2_tree, nargs=4)
-        vector_length = FieldVectorArg.get_vector_length(fparser2_tree)
+        vector_length = FieldVectorArg.get_vector_length(
+            fparser2_tree, vector_length_arg_index)
         datatype, access, function_space = \
-            FieldVectorArg.get_type_access_and_fs(fparser2_tree)
+            FieldVectorArg.get_type_access_and_fs(
+                fparser2_tree, datatype_arg_index, access_arg_index,
+                function_space_arg_index)
         return FieldVectorArg(datatype, access, function_space, vector_length)
 
     def fortran_string(self):

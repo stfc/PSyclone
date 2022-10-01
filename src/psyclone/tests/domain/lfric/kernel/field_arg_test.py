@@ -66,31 +66,30 @@ def test_init_invalid():
     '''
     with pytest.raises(ValueError) as info:
         _ = FieldArg(datatype="invalid")
-    assert ("The second metadata entry for an argument should be a "
-            "recognised datatype descriptor (one of ['gh_real', "
-            "'gh_integer']), but found 'invalid'." in str(info.value))
-
-    with pytest.raises(ValueError) as info:
-        _ = FieldArg(access="invalid")
-    assert ("The third metadata entry for an argument should be a "
-            "recognised access descriptor (one of ['gh_read', 'gh_write', "
-            "'gh_inc', 'gh_readinc']), but found 'invalid'."
+    assert ("The datatype descriptor metadata for a field should be one of "
+            "['gh_real', 'gh_integer'], but found 'invalid'."
             in str(info.value))
 
     with pytest.raises(ValueError) as info:
+        _ = FieldArg(access="invalid")
+    assert ("The access descriptor metadata for a field should be one of "
+            "['gh_read', 'gh_write', 'gh_inc', 'gh_readinc'], but found "
+            "'invalid'." in str(info.value))
+
+    with pytest.raises(ValueError) as info:
         _ = FieldArg(function_space="invalid")
-    assert ("The fourth metadata entry for an argument should be a "
-            "recognised function space (one of ['w3', 'wtheta', 'w2v', "
-            "'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', 'w2h', "
-            "'w2htrace', 'any_w2', 'wchi', 'any_space_1', 'any_space_2', "
-            "'any_space_3', 'any_space_4', 'any_space_5', 'any_space_6', "
-            "'any_space_7', 'any_space_8', 'any_space_9', 'any_space_10', "
-            "'any_discontinuous_space_1', 'any_discontinuous_space_2', "
-            "'any_discontinuous_space_3', 'any_discontinuous_space_4', "
-            "'any_discontinuous_space_5', 'any_discontinuous_space_6', "
-            "'any_discontinuous_space_7', 'any_discontinuous_space_8', "
-            "'any_discontinuous_space_9', 'any_discontinuous_space_10']), "
-            "but found 'invalid'." in str(info.value))
+    assert ("The function space metadata should be one of ['w3', 'wtheta', "
+            "'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', "
+            "'w2h', 'w2htrace', 'any_w2', 'wchi', 'any_space_1', "
+            "'any_space_2', 'any_space_3', 'any_space_4', 'any_space_5', "
+            "'any_space_6', 'any_space_7', 'any_space_8', 'any_space_9', "
+            "'any_space_10', 'any_discontinuous_space_1', "
+            "'any_discontinuous_space_2', 'any_discontinuous_space_3', "
+            "'any_discontinuous_space_4', 'any_discontinuous_space_5', "
+            "'any_discontinuous_space_6', 'any_discontinuous_space_7', "
+            "'any_discontinuous_space_8', 'any_discontinuous_space_9', "
+            "'any_discontinuous_space_10'], but found 'invalid'."
+            in str(info.value))
 
 
 def test_init_args():
@@ -197,9 +196,9 @@ def test_setter_getter():
     assert field_arg.datatype is None
     with pytest.raises(ValueError) as info:
         field_arg.datatype = "invalid"
-    assert ("The second metadata entry for an argument should be a "
-            "recognised datatype descriptor (one of ['gh_real', "
-            "'gh_integer']), but found 'invalid'." in str(info.value))
+    assert ("The datatype descriptor metadata for a field should be one of "
+            "['gh_real', 'gh_integer'], but found 'invalid'."
+            in str(info.value))
 
     field_arg.datatype = "gh_integer"
     assert field_arg.datatype == "gh_integer"
@@ -209,10 +208,9 @@ def test_setter_getter():
     assert field_arg.access is None
     with pytest.raises(ValueError) as info:
         field_arg.access = "invalid"
-    assert ("The third metadata entry for an argument should be a "
-            "recognised access descriptor (one of ['gh_read', 'gh_write', "
-            "'gh_inc', 'gh_readinc']), but found 'invalid'."
-            in str(info.value))
+    assert ("The access descriptor metadata for a field should be one of "
+            "['gh_read', 'gh_write', 'gh_inc', 'gh_readinc'], but found "
+            "'invalid'." in str(info.value))
 
     field_arg.access = "gh_read"
     assert field_arg.access == "gh_read"
@@ -222,18 +220,18 @@ def test_setter_getter():
     assert field_arg.function_space is None
     with pytest.raises(ValueError) as info:
         field_arg.function_space = "invalid"
-    assert ("The fourth metadata entry for an argument should be a "
-            "recognised function space (one of ['w3', 'wtheta', 'w2v', "
-            "'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', 'w2h', "
-            "'w2htrace', 'any_w2', 'wchi', 'any_space_1', 'any_space_2', "
-            "'any_space_3', 'any_space_4', 'any_space_5', 'any_space_6', "
-            "'any_space_7', 'any_space_8', 'any_space_9', 'any_space_10', "
-            "'any_discontinuous_space_1', 'any_discontinuous_space_2', "
-            "'any_discontinuous_space_3', 'any_discontinuous_space_4', "
-            "'any_discontinuous_space_5', 'any_discontinuous_space_6', "
-            "'any_discontinuous_space_7', 'any_discontinuous_space_8', "
-            "'any_discontinuous_space_9', 'any_discontinuous_space_10']), "
-            "but found 'invalid'." in str(info.value))
+    assert ("The function space metadata should be one of ['w3', 'wtheta', "
+            "'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', "
+            "'w2h', 'w2htrace', 'any_w2', 'wchi', 'any_space_1', "
+            "'any_space_2', 'any_space_3', 'any_space_4', 'any_space_5', "
+            "'any_space_6', 'any_space_7', 'any_space_8', 'any_space_9', "
+            "'any_space_10', 'any_discontinuous_space_1', "
+            "'any_discontinuous_space_2', 'any_discontinuous_space_3', "
+            "'any_discontinuous_space_4', 'any_discontinuous_space_5', "
+            "'any_discontinuous_space_6', 'any_discontinuous_space_7', "
+            "'any_discontinuous_space_8', 'any_discontinuous_space_9', "
+            "'any_discontinuous_space_10'], but found 'invalid'."
+            in str(info.value))
     field_arg.function_space = "w0"
     assert field_arg.function_space == "w0"
     field_arg.function_space = "W0"

@@ -69,10 +69,17 @@ class ColumnwiseOperatorArg(OperatorArg):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.ColumnwiseOperatorArg`
 
         '''
+        datatype_arg_index = 1
+        access_arg_index = 2
+        function_space_to_arg_index = 3
+        function_space_from_arg_index = 4
         ColumnwiseOperatorArg.check_fparser2(fparser2_tree, nargs=5)
-        datatype, access, function_space_to = \
-            ColumnwiseOperatorArg.get_type_access_and_fs(fparser2_tree)
-        function_space_from = ColumnwiseOperatorArg.get_fs_from_arg(
-            fparser2_tree)
+        datatype, access = \
+            ColumnwiseOperatorArg.get_type_and_access(
+                fparser2_tree, datatype_arg_index, access_arg_index)
+        function_space_to = OperatorArg.get_arg(
+            fparser2_tree, function_space_to_arg_index)
+        function_space_from = OperatorArg.get_arg(
+            fparser2_tree, function_space_from_arg_index)
         return ColumnwiseOperatorArg(
             datatype, access, function_space_to, function_space_from)

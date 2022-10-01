@@ -82,31 +82,19 @@ class OperatorArg(FieldArg):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.OperatorArg`
 
         '''
+        datatype_arg_index = 1
+        access_arg_index = 2
+        function_space_to_arg_index = 3
+        function_space_from_arg_index = 4
         OperatorArg.check_fparser2(fparser2_tree, nargs=5)
-        datatype, access, function_space_to = \
-            OperatorArg.get_type_access_and_fs(fparser2_tree)
-        function_space_from = OperatorArg.get_fs_from_arg(fparser2_tree)
+        datatype, access = OperatorArg.get_type_and_access(
+            fparser2_tree, datatype_arg_index, access_arg_index)
+        function_space_to = OperatorArg.get_arg(
+            fparser2_tree, function_space_to_arg_index)
+        function_space_from = OperatorArg.get_arg(
+            fparser2_tree, function_space_from_arg_index)
         return OperatorArg(
             datatype, access, function_space_to, function_space_from)
-
-    @staticmethod
-    def get_fs_from_arg(fparser2_tree):
-        '''Retrieves the metadata value for the second function space (the
-        function space that the operator maps from) from the supplied
-        fparser2 tree.
-
-        :param fparser2_tree: fparser2 tree capturing the metadata for \
-            an Operator argument.
-        :type fparser2_tree: \
-            :py:class:`fparser.two.Fortran2003.Part_Ref`
-
-        :returns: the metadata function space value extracted from \
-            the fparser2 tree.
-        :rtype: str
-
-        '''
-        function_space_from = OperatorArg.get_arg(fparser2_tree, 4)
-        return function_space_from
 
     @classmethod
     def create_from_fortran_string(cls, fortran_string):
@@ -155,9 +143,9 @@ class OperatorArg(FieldArg):
         const = LFRicConstants()
         if not value or value.lower() not in const.VALID_OPERATOR_ACCESS_TYPES:
             raise ValueError(
-                f"The third metadata entry for an argument should "
-                f"be a recognised access descriptor (one of "
-                f"{const.VALID_OPERATOR_ACCESS_TYPES}), but found '{value}'.")
+                f"The access descriptor metadata for an operator should be "
+                f"one of {const.VALID_OPERATOR_ACCESS_TYPES}, but found "
+                f"'{value}'.")
 
     @staticmethod
     def check_datatype(value):
@@ -171,9 +159,9 @@ class OperatorArg(FieldArg):
         const = LFRicConstants()
         if not value or value.lower() not in const.VALID_OPERATOR_DATA_TYPES:
             raise ValueError(
-                f"The second metadata entry for an argument should "
-                f"be a recognised datatype descriptor (one of "
-                f"{const.VALID_OPERATOR_DATA_TYPES}), but found '{value}'.")
+                f"The datatype descriptor metadata for an operator should be "
+                f"one of {const.VALID_OPERATOR_DATA_TYPES}, but found "
+                f"'{value}'.")
 
     @property
     def function_space_to(self):
@@ -197,10 +185,8 @@ class OperatorArg(FieldArg):
         const = LFRicConstants()
         if not value or value.lower() not in const.VALID_FUNCTION_SPACES:
             raise ValueError(
-                f"The fourth metadata entry for an argument should "
-                f"be a recognised function space that the operator maps "
-                f"to (one of {const.VALID_FUNCTION_SPACES}), but found "
-                f"'{value}'.")
+                f"The function_space_to metadata for an operator should be "
+                f"one of {const.VALID_FUNCTION_SPACES}, but found '{value}'.")
         self._function_space_to = value
 
     @property
@@ -225,8 +211,6 @@ class OperatorArg(FieldArg):
         const = LFRicConstants()
         if not value or value.lower() not in const.VALID_FUNCTION_SPACES:
             raise ValueError(
-                f"The fifth metadata entry for an argument should "
-                f"be a recognised function space that the operator maps "
-                f"from (one of {const.VALID_FUNCTION_SPACES}), but found "
-                f"'{value}'.")
+                f"The function_space_from metadata for an operator should be "
+                f"one of {const.VALID_FUNCTION_SPACES}, but found '{value}'.")
         self._function_space_from = value

@@ -43,6 +43,7 @@ from abc import ABC, abstractmethod
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
+from psyclone.domain.lfric import LFRicConstants
 
 
 # TODO issue #1886. This class has commonalities with GOcean metadata
@@ -158,46 +159,63 @@ class CommonArg(ABC):
         return fparser2_tree.children[1].children[index].tostr()
 
     @staticmethod
-    def get_type_and_access(fparser2_tree):
+    def get_type_and_access(fparser2_tree, datatype_arg_index, access_arg_index):
         '''Retrieves the datatype and access metadata values found within the
         supplied fparser2 tree.
 
         :param fparser2_tree: fparser2 tree capturing the required metadata.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
+        :param int datatype_arg_index: the argument index of the \
+            datatype metadata.
+        :param int access_arg_index: the argument index of the access \
+            metadata.
 
         :returns: the datatype and access values extracted from the \
             fparser2 tree.
         :rtype: Tuple[str, str]
 
         '''
-        datatype = CommonArg.get_arg(fparser2_tree, 1)
-        access = CommonArg.get_arg(fparser2_tree, 2)
+        const = LFRicConstants()
+        datatype = CommonArg.get_arg(fparser2_tree, datatype_arg_index)
+        access = CommonArg.get_arg(fparser2_tree, access_arg_index)
         return (datatype, access)
 
     @staticmethod
-    def get_type_access_and_fs(fparser2_tree):
+    def get_type_access_and_fs(
+            fparser2_tree, datatype_arg_index, access_arg_index,
+            function_space_arg_index):
         '''Retrieves the datatype, access and function space metadata values
         found within the supplied fparser2 tree.
 
         :param fparser2_tree: fparser2 tree capturing the required metadata.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
+        :param int datatype_arg_index: the argument index of the \
+            datatype metadata.
+        :param int access_arg_index: the argument index of the access \
+            metadata.
+        :param int function_space_arg_index: the argument index of the \
+            function space metadata.
 
         :returns: the datatype, access and function space values \
             extracted from the fparser2 tree.
         :rtype: Tuple[str, str, str]
 
         '''
-        datatype, access = CommonArg.get_type_and_access(fparser2_tree)
-        function_space = CommonArg.get_arg(fparser2_tree, 3)
+        datatype, access = CommonArg.get_type_and_access(
+            fparser2_tree, datatype_arg_index, access_arg_index)
+        function_space = CommonArg.get_arg(
+            fparser2_tree, function_space_arg_index)
         return (datatype, access, function_space)
 
     @staticmethod
-    def get_vector_length(fparser2_tree):
+    def get_vector_length(fparser2_tree, vector_length_arg_index):
         '''Retrieves the vector length metadata value found within the
         supplied fparser2 tree.
 
         :param fparser2_tree: fparser2 tree capturing the required metadata.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
+        :param int vector_length_arg_index: the argument index of the \
+            vector length metadata.
 
         :returns: the vector length value extracted from the fparser2 tree.
         :rtype: str
@@ -206,11 +224,12 @@ class CommonArg(ABC):
             expected form.
 
         '''
-        vector_datatype = CommonArg.get_arg(fparser2_tree, 0)
+        vector_datatype = CommonArg.get_arg(
+            fparser2_tree, vector_length_arg_index)
         components = vector_datatype.split("*")
         if len(components) != 2:
             raise TypeError(
-                f"Expecting the first argument to be in the form "
+                f"The vector length metadata should be in the form "
                 f"'form*vector_length' but found '{vector_datatype}'.")
         vector_length = components[1].strip()
         return vector_length
@@ -234,9 +253,7 @@ class CommonArg(ABC):
         :param str value: set the datatype to the \
             specified value.
         '''
-        print(value)
         self.check_datatype(value)
-        print(value)
         self._datatype = value
 
     @staticmethod

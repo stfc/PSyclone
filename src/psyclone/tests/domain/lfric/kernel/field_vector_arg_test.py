@@ -82,9 +82,9 @@ def test_init_invalid():
     '''
     with pytest.raises(ValueError) as info:
         _ = FieldVectorArg(datatype="invalid")
-    assert ("The second metadata entry for an argument should be a "
-            "recognised datatype descriptor (one of ['gh_real', "
-            "'gh_integer']), but found 'invalid'." in str(info.value))
+    assert ("The datatype descriptor metadata for a field should be one of "
+            "['gh_real', 'gh_integer'], but found 'invalid'."
+            in str(info.value))
 
     with pytest.raises(TypeError) as info:
         _ = FieldVectorArg(vector_length=1)
@@ -149,7 +149,7 @@ def test_create_from_fparser2():
     part_ref = create_part_ref("arg_type(GH_FIELD, GH_REAL, GH_READ, W0)")
     with pytest.raises(TypeError) as info:
         _ = FieldVectorArg.create_from_fparser2(part_ref)
-    assert("Expecting the first argument to be in the form "
+    assert("The vector length metadata should be in the form "
            "'form*vector_length' but found 'GH_FIELD'." in str(info.value))
 
     part_ref = create_part_ref("arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)")
@@ -192,9 +192,9 @@ def test_setter_getter():
     assert field_arg.datatype is None
     with pytest.raises(ValueError) as info:
         field_arg.datatype = "invalid"
-    assert ("The second metadata entry for an argument should be a "
-            "recognised datatype descriptor (one of ['gh_real', "
-            "'gh_integer']), but found 'invalid'." in str(info.value))
+    assert ("The datatype descriptor metadata for a field should be one of "
+            "['gh_real', 'gh_integer'], but found 'invalid'."
+            in str(info.value))
 
     field_arg.datatype = "gh_integer"
     assert field_arg.datatype == "gh_integer"

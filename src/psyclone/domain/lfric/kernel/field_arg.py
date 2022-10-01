@@ -75,9 +75,14 @@ class FieldArg(CommonArg):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.FieldArg`
 
         '''
+        datatype_arg_index = 1
+        access_arg_index = 2
+        function_space_arg_index = 3
         FieldArg.check_fparser2(fparser2_tree, nargs=4)
         datatype, access, function_space = \
-            FieldArg.get_type_access_and_fs(fparser2_tree)
+            FieldArg.get_type_access_and_fs(
+                fparser2_tree, datatype_arg_index, access_arg_index,
+                function_space_arg_index)
         return FieldArg(datatype, access, function_space)
 
     @classmethod
@@ -125,9 +130,8 @@ class FieldArg(CommonArg):
         const = LFRicConstants()
         if not value or value.lower() not in const.VALID_FIELD_DATA_TYPES:
             raise ValueError(
-                f"The second metadata entry for an argument should "
-                f"be a recognised datatype descriptor (one of "
-                f"{const.VALID_FIELD_DATA_TYPES}), but found '{value}'.")
+                f"The datatype descriptor metadata for a field should be one "
+                f"of {const.VALID_FIELD_DATA_TYPES}, but found '{value}'.")
 
     @staticmethod
     def check_access(value):
@@ -141,9 +145,8 @@ class FieldArg(CommonArg):
         const = LFRicConstants()
         if not value or value.lower() not in const.VALID_FIELD_ACCESS_TYPES:
             raise ValueError(
-                f"The third metadata entry for an argument should "
-                f"be a recognised access descriptor (one of "
-                f"{const.VALID_FIELD_ACCESS_TYPES}), but found '{value}'.")
+                f"The access descriptor metadata for a field should be one of "
+                f"{const.VALID_FIELD_ACCESS_TYPES}, but found '{value}'.")
 
     @property
     def function_space(self):
@@ -166,7 +169,6 @@ class FieldArg(CommonArg):
         const = LFRicConstants()
         if not value or value.lower() not in const.VALID_FUNCTION_SPACE_NAMES:
             raise ValueError(
-                f"The fourth metadata entry for an argument should "
-                f"be a recognised function space (one of "
-                f"{const.VALID_FUNCTION_SPACE_NAMES}), but found '{value}'.")
+                f"The function space metadata should be one of "
+                f"{const.VALID_FUNCTION_SPACE_NAMES}, but found '{value}'.")
         self._function_space = value

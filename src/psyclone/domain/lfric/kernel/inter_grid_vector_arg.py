@@ -77,11 +77,18 @@ class InterGridVectorArg(InterGridArg):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.InterGridArg`
 
         '''
+        vector_length_arg_index = 0
+        datatype_arg_index = 1
+        access_arg_index = 2
+        function_space_arg_index = 3
         InterGridVectorArg.check_fparser2(
             fparser2_tree, nargs=5, encoding=Fortran2003.Structure_Constructor)
-        vector_length = InterGridVectorArg.get_vector_length(fparser2_tree)
+        vector_length = InterGridVectorArg.get_vector_length(
+            fparser2_tree, vector_length_arg_index)
         datatype, access, function_space = \
-            InterGridVectorArg.get_type_access_and_fs(fparser2_tree)
+            InterGridVectorArg.get_type_access_and_fs(
+                fparser2_tree, datatype_arg_index, access_arg_index,
+                function_space_arg_index)
         mesh_arg = InterGridVectorArg.get_mesh_arg(fparser2_tree)
         return InterGridVectorArg(
             datatype, access, function_space, mesh_arg, vector_length)

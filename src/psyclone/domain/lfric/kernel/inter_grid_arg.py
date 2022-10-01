@@ -79,10 +79,15 @@ class InterGridArg(FieldArg):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.InterGridArg`
 
         '''
+        datatype_arg_index = 1
+        access_arg_index = 2
+        function_space_arg_index = 3
         InterGridArg.check_fparser2(
             fparser2_tree, nargs=5, encoding=Fortran2003.Structure_Constructor)
         datatype, access, function_space = \
-            InterGridArg.get_type_access_and_fs(fparser2_tree)
+            InterGridArg.get_type_access_and_fs(
+                fparser2_tree, datatype_arg_index, access_arg_index,
+                function_space_arg_index)
         mesh_arg = InterGridArg.get_mesh_arg(fparser2_tree)
         return InterGridArg(datatype, access, function_space, mesh_arg)
 
@@ -100,7 +105,9 @@ class InterGridArg(FieldArg):
         :rtype: str
 
         '''
-        mesh_arg = fparser2_tree.children[1].children[4].children[1].tostr()
+        mesh_arg_index = 4
+        mesh_arg = fparser2_tree.children[1].children[mesh_arg_index].\
+            children[1].tostr()
         return mesh_arg
 
     @classmethod
@@ -162,7 +169,6 @@ class InterGridArg(FieldArg):
         const = LFRicConstants()
         if not value or value.lower() not in const.VALID_MESH_TYPES:
             raise ValueError(
-                f"The fifth metadata entry for an intergrid argument should "
-                f"be a recognised mesh type (one of "
-                f"{const.VALID_MESH_TYPES}), but found '{value}'.")
+                f"The mesh_arg metadata for a mesh should be one of "
+                f"{const.VALID_MESH_TYPES}, but found '{value}'.")
         self._mesh_arg = value
