@@ -39,10 +39,10 @@ and Fortran output of a Operator argument.
 
 '''
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.lfric.kernel.field_arg import FieldArg
+from psyclone.domain.lfric.kernel.scalar_arg import ScalarArg
 
 
-class OperatorArg(FieldArg):
+class OperatorArg(ScalarArg):
     '''Class to capture LFRic kernel metadata information for an operator
     argument.
 
@@ -57,6 +57,8 @@ class OperatorArg(FieldArg):
 
     '''
     form = "GH_OPERATOR"
+    function_space_to_arg_index = 3
+    function_space_from_arg_index = 4
 
     def __init__(self, datatype=None, access=None, function_space_to=None,
                  function_space_from=None):
@@ -82,17 +84,18 @@ class OperatorArg(FieldArg):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.OperatorArg`
 
         '''
-        datatype_arg_index = 1
-        access_arg_index = 2
-        function_space_to_arg_index = 3
-        function_space_from_arg_index = 4
         OperatorArg.check_fparser2(fparser2_tree, nargs=5)
+        OperatorArg.check_first_arg(fparser2_tree, "Operator")
         datatype, access = OperatorArg.get_type_and_access(
-            fparser2_tree, datatype_arg_index, access_arg_index)
+            fparser2_tree, OperatorArg.datatype_arg_index,
+            OperatorArg.access_arg_index)
         function_space_to = OperatorArg.get_arg(
-            fparser2_tree, function_space_to_arg_index)
+            fparser2_tree, OperatorArg.function_space_to_arg_index)
         function_space_from = OperatorArg.get_arg(
-            fparser2_tree, function_space_from_arg_index)
+            fparser2_tree, OperatorArg.function_space_from_arg_index)
+        OperatorArg.check_remaining_args(
+            fparser2_tree, datatype, access, function_space_to,
+            function_space_from)
         return OperatorArg(
             datatype, access, function_space_to, function_space_from)
 

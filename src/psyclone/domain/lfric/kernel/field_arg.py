@@ -55,6 +55,10 @@ class FieldArg(CommonArg):
 
     '''
     form = "GH_FIELD"
+    form_arg_index = 0
+    datatype_arg_index = 1
+    access_arg_index = 2
+    function_space_arg_index = 3
 
     def __init__(self, datatype=None, access=None, function_space=None):
         super().__init__(datatype, access)
@@ -74,15 +78,18 @@ class FieldArg(CommonArg):
         :returns: an instance of FieldArg.
         :rtype: :py:class:`psyclone.domain.lfric.kernel.FieldArg`
 
+        raises ValueError: if the metadata is not in the correct form.
+
         '''
-        datatype_arg_index = 1
-        access_arg_index = 2
-        function_space_arg_index = 3
         FieldArg.check_fparser2(fparser2_tree, nargs=4)
+        FieldArg.check_first_arg(fparser2_tree, "Field")
         datatype, access, function_space = \
             FieldArg.get_type_access_and_fs(
-                fparser2_tree, datatype_arg_index, access_arg_index,
-                function_space_arg_index)
+                fparser2_tree, FieldArg.datatype_arg_index,
+                FieldArg.access_arg_index,
+                FieldArg.function_space_arg_index)
+        FieldArg.check_remaining_args(
+            fparser2_tree, datatype, access, function_space)
         return FieldArg(datatype, access, function_space)
 
     @classmethod

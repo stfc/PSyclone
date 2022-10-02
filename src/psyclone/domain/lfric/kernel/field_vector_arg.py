@@ -54,6 +54,8 @@ class FieldVectorArg(FieldArg):
     :param Optional[str] vector_length: the size of the vector.
 
     '''
+    vector_length_arg_index = 0
+
     def __init__(self, datatype=None, access=None, function_space=None,
                  vector_length=None):
         super().__init__(
@@ -89,18 +91,21 @@ class FieldVectorArg(FieldArg):
         :returns: an instance of this class.
         :rtype: :py:class:`psyclone.domain.lfric.kernel.FieldVectorArg`
 
+        raises ValueError: if the metadata is not in the correct form.
+
         '''
-        vector_length_arg_index = 0
-        datatype_arg_index = 1
-        access_arg_index = 2
-        function_space_arg_index = 3
         FieldVectorArg.check_fparser2(fparser2_tree, nargs=4)
-        vector_length = FieldVectorArg.get_vector_length(
-            fparser2_tree, vector_length_arg_index)
+        FieldVectorArg.check_first_arg(
+            fparser2_tree, "FieldVector", vector=True)
+        vector_length = FieldVectorArg.get_and_check_vector_length(
+            fparser2_tree, FieldVectorArg.vector_length_arg_index)
         datatype, access, function_space = \
             FieldVectorArg.get_type_access_and_fs(
-                fparser2_tree, datatype_arg_index, access_arg_index,
-                function_space_arg_index)
+                fparser2_tree, FieldVectorArg.datatype_arg_index,
+                FieldVectorArg.access_arg_index,
+                FieldVectorArg.function_space_arg_index)
+        FieldVectorArg.check_remaining_args(
+            fparser2_tree, datatype, access, function_space, vector_length)
         return FieldVectorArg(datatype, access, function_space, vector_length)
 
     def fortran_string(self):

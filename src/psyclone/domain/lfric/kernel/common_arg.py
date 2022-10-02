@@ -43,8 +43,8 @@ from abc import ABC, abstractmethod
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
-from psyclone.domain.lfric import LFRicConstants
 
+from psyclone.errors import InternalError
 
 # TODO issue #1886. This class has commonalities with GOcean metadata
 # processing.
@@ -143,6 +143,69 @@ class CommonArg(ABC):
                 f"{len(fparser2_tree.children[1].children)} in "
                 f"'{str(fparser2_tree)}'.")
 
+    @classmethod
+    def check_first_arg(cls, fparser2_tree, name, vector=False):
+        '''Check that the first metadata argument has the expected value.
+
+        :param fparser2_tree: the metadata encoded in an fparser2_tree
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
+            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
+        :param str name: the name used to describe this metadata.
+        :param bool vector: whether this is vector metadata.
+
+        :raises ValueError: if the first metadata argument has an \
+            incorrect value.
+
+        '''
+        idx = cls.form_arg_index
+        form = cls.get_arg(fparser2_tree, idx)
+        word = "as"
+        if vector:
+            form = form.split("*")[0].strip()
+            word = "in"
+        if not form.lower() == cls.form.lower():
+            raise ValueError(
+                f"{name}s should have {cls.form} {word} their first metadata "
+                f"argument, but found '{form}'.")
+            
+    @classmethod
+    def check_remaining_args(cls, fparser2_tree, *args):
+        '''Check that the remaining untested metadata arguments have the
+        expected value. If they do not then re-raise the exception
+        from the class constructor, adding in positional information
+        and the metadata arguments to make it clearer where the
+        exception occured.
+
+        :param fparser2_tree: the metadata encoded in an fparser2_tree
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
+            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
+
+        :raises ValueError: if the metadata has an incorrect value.
+        :raises InternalError: if an unrecognised exception message is found.
+
+        '''
+        try:
+            arg_object = cls(*args)
+        except ValueError as info:
+            message = str(info)
+            if "datatype descriptor" in message:
+                index = cls.datatype_arg_index
+            elif "access descriptor" in message:
+                index = cls.access_arg_index
+            elif "function space" in message:
+                index = cls.function_space_arg_index
+            elif "mesh_arg" in message:
+                index = cls.mesh_arg_index
+            elif "function_space_to" in message:
+                index = cls.function_space_to_arg_index
+            elif "function_space_from" in message:
+                index = cls.function_space_from_arg_index
+            else:
+                raise InternalError(
+                    f"Unexpected error message found '{message}'")
+            raise ValueError(f"At argument index '{index}' for metadata "
+                             f"'{str(fparser2_tree)}'. {message}")
+
     @staticmethod
     def get_arg(fparser2_tree, index):
         '''Retrieves the metadata value found at the position specified by the
@@ -159,7 +222,8 @@ class CommonArg(ABC):
         return fparser2_tree.children[1].children[index].tostr()
 
     @staticmethod
-    def get_type_and_access(fparser2_tree, datatype_arg_index, access_arg_index):
+    def get_type_and_access(
+            fparser2_tree, datatype_arg_index, access_arg_index):
         '''Retrieves the datatype and access metadata values found within the
         supplied fparser2 tree.
 
@@ -175,7 +239,6 @@ class CommonArg(ABC):
         :rtype: Tuple[str, str]
 
         '''
-        const = LFRicConstants()
         datatype = CommonArg.get_arg(fparser2_tree, datatype_arg_index)
         access = CommonArg.get_arg(fparser2_tree, access_arg_index)
         return (datatype, access)
@@ -208,7 +271,7 @@ class CommonArg(ABC):
         return (datatype, access, function_space)
 
     @staticmethod
-    def get_vector_length(fparser2_tree, vector_length_arg_index):
+    def get_and_check_vector_length(fparser2_tree, vector_length_arg_index):
         '''Retrieves the vector length metadata value found within the
         supplied fparser2 tree.
 

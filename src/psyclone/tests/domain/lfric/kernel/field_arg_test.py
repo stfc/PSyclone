@@ -162,6 +162,45 @@ def test_create_from_fparser2():
     assert ("Expected kernel metadata to have 4 arguments, but "
             "found 1 in 'arg_type(x)'." in str(info.value))
 
+    part_ref = create_part_ref("arg_type(GH_FEELED, GH_REAL, GH_READ, W0)")
+    with pytest.raises(ValueError) as info:
+        _ = FieldArg.create_from_fparser2(part_ref)
+    assert ("Fields should have GH_FIELD as their first metadata argument, "
+            "but found 'GH_FEELED'." in str(info.value))
+    
+    part_ref = create_part_ref("arg_type(GH_FIELD, GH_UNREAL, GH_READ, W0)")
+    with pytest.raises(ValueError) as info:
+        _ = FieldArg.create_from_fparser2(part_ref)
+    assert ("At argument index '1' for metadata 'arg_type(GH_FIELD, "
+            "GH_UNREAL, GH_READ, W0)'. The datatype descriptor metadata for a "
+            "field should be one of ['gh_real', 'gh_integer'], but found "
+            "'GH_UNREAL'." in str(info.value))
+
+    part_ref = create_part_ref("arg_type(GH_FIELD, GH_REAL, GH_ERROR, W0)")
+    with pytest.raises(ValueError) as info:
+        _ = FieldArg.create_from_fparser2(part_ref)
+    assert ("At argument index '2' for metadata 'arg_type(GH_FIELD, GH_REAL, "
+            "GH_ERROR, W0)'. The access descriptor metadata for a field "
+            "should be one of ['gh_read', 'gh_write', 'gh_inc', "
+            "'gh_readinc'], but found 'GH_ERROR'." in str(info.value))
+
+    part_ref = create_part_ref("arg_type(GH_FIELD, GH_REAL, GH_READ, DOUBLE_U_ZERO)")
+    with pytest.raises(ValueError) as info:
+        _ = FieldArg.create_from_fparser2(part_ref)
+    assert ("At argument index '3' for metadata 'arg_type(GH_FIELD, GH_REAL, "
+            "GH_READ, DOUBLE_U_ZERO)'. The function space metadata should be "
+            "one of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', "
+            "'w1', 'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi', "
+            "'any_space_1', 'any_space_2', 'any_space_3', 'any_space_4', "
+            "'any_space_5', 'any_space_6', 'any_space_7', 'any_space_8', "
+            "'any_space_9', 'any_space_10', 'any_discontinuous_space_1', "
+            "'any_discontinuous_space_2', 'any_discontinuous_space_3', "
+            "'any_discontinuous_space_4', 'any_discontinuous_space_5', "
+            "'any_discontinuous_space_6', 'any_discontinuous_space_7', "
+            "'any_discontinuous_space_8', 'any_discontinuous_space_9', "
+            "'any_discontinuous_space_10'], but found 'DOUBLE_U_ZERO'."
+            in str(info.value))
+
     part_ref = create_part_ref("arg_type(GH_FIELD, GH_REAL, GH_READ, W0)")
     field_arg = FieldArg.create_from_fparser2(part_ref)
     assert field_arg.form == "GH_FIELD"

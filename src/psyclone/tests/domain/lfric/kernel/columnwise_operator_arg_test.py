@@ -84,7 +84,8 @@ def test_create_from_fortran_string():
             "the form 'arg_type(...)' but found 'not valid'."
             in str(info.value))
 
-    fortran_string = "arg_type(GH_OPERATOR, GH_REAL, GH_READ, W0, W1)"
+    fortran_string = (
+        "arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, W0, W1)")
     operator_arg = ColumnwiseOperatorArg.create_from_fortran_string(
         fortran_string)
     assert operator_arg.form == "GH_COLUMNWISE_OPERATOR"
@@ -114,6 +115,14 @@ def test_create_from_fparser2():
     expected. Test for exceptions as well as valid input.
 
     '''
+    part_ref = create_part_ref(
+        "arg_type(GH_UNWISE_OPERATOR, GH_REAL, GH_READ, W0, W1)")
+    with pytest.raises(ValueError) as info:
+        _ = ColumnwiseOperatorArg.create_from_fparser2(part_ref)
+    assert ("ColumnwiseOperators should have GH_COLUMNWISE_OPERATOR as their "
+            "first metadata argument, but found 'GH_UNWISE_OPERATOR'."
+            in str(info.value))
+
     part_ref = create_part_ref(
         "arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, W0, W1)")
     operator_arg = ColumnwiseOperatorArg.create_from_fparser2(part_ref)

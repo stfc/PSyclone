@@ -39,7 +39,9 @@
 import pytest
 
 from fparser.two import Fortran2003
+
 from psyclone.domain.lfric.kernel.common_arg import CommonArg
+from psyclone.errors import InternalError
 
 
 # pylint: disable=abstract-class-instantiated
@@ -53,11 +55,14 @@ def test_init_error():
             "methods check_access, check_datatype" in str(info.value))
 
 
-class Dummy(CommonArg):
+class CheckArg(CommonArg):
     '''A utility class that allow the abstract CommonArg class to be
     tested.
 
     '''
+    form = "sluglike"
+    form_arg_index = 0
+
     @staticmethod
     def check_datatype(value):
         '''A concrete implementation of the abstract method in the CommonArg
@@ -84,11 +89,11 @@ def test_init():
     associated setter and getter methods work as expected.
 
     '''
-    dummy = Dummy()
+    dummy = CheckArg()
     assert dummy._datatype is None
     assert dummy._access is None
 
-    dummy = Dummy(datatype="hello", access="there")
+    dummy = CheckArg(datatype="hello", access="there")
     assert dummy._datatype == "hello"
     assert dummy.datatype == "hello"
     assert dummy._access == "there"
@@ -100,7 +105,7 @@ def test_create_fparser2():
     as expected.
 
     '''
-    dummy = Dummy()
+    dummy = CheckArg()
     fortran_string = "arg_type(GH_FIELD, GH_REAL, GH_READ)"
     result = dummy.create_fparser2(fortran_string)
     assert isinstance(result, Fortran2003.Part_Ref)
@@ -122,7 +127,7 @@ def test_check_fparser2():
     as expected.
 
     '''
-    dummy = Dummy()
+    dummy = CheckArg()
     with pytest.raises(TypeError) as info:
         _ = dummy.check_fparser2(None)
     assert ("Expected kernel metadata to be encoded as an fparser2 Part_Ref "
@@ -145,12 +150,68 @@ def test_check_fparser2():
             "'arg_type(GH_FIELD, GH_REAL, GH_READ)'." in str(info.value))
 
 
+def test_check_first_arg():
+    '''Check that the check_first_arg method in the CommonArg class works
+    as expected
+
+    '''
+    fparser2_tree = CheckArg.create_fparser2("arg_type(first_arg)")
+    with pytest.raises(ValueError) as info:
+        CheckArg.check_first_arg(fparser2_tree, "MyTest")
+        assert ("MyTests should have sluglike as their first metadata "
+                "argument, but found 'first_arg'." in str(info.value))
+
+    fparser2_tree = CheckArg.create_fparser2("arg_type(first_arg*3)")
+    with pytest.raises(ValueError) as info:
+        CheckArg.check_first_arg(fparser2_tree, "MyTest", vector=True)
+        assert ("MyTests should have sluglike as their first metadata "
+                "argument, but found 'first_arg'." in str(info.value))
+
+    fparser2_tree = CheckArg.create_fparser2("arg_type(sluglike)")
+    CheckArg.check_first_arg(fparser2_tree, "MyTest")
+
+
+def test_check_remaining_args():
+    '''Check that the check_remaining_args method in the CommonArg class
+    works as expected
+
+    '''
+    class DummyArg(CheckArg):
+        ''' xxx '''
+        datatype_arg_index = 1
+        access_arg_index = 2
+        function_space_arg_index = 3
+        mesh_arg_index = 4
+        function_space_to_arg_index = 5
+        function_space_from_arg_index = 6
+
+        def __init__(self, message):
+            ''' xxx '''
+            raise ValueError(message)
+
+    for index, message in [(1, "datatype descriptor error"),
+                           (2, "access descriptor error"),
+                           (3, "function space error"),
+                           (4, "mesh_arg error"),
+                           (5, "function_space_to error"),
+                           (6, "function_space_from error")]:
+        with pytest.raises(ValueError) as info:
+            DummyArg.check_remaining_args("dummy", message)
+            assert (f"At argument index '{index}' for metadata 'dummy'. "
+                    f"{message}")
+
+    with pytest.raises(InternalError) as info:
+        DummyArg.check_remaining_args("dummy", "Unrecognised error")
+    assert ("Unexpected error message found 'Unrecognised error'"
+            in str(info.value))
+
+
 def test_get_arg():
     '''Test that the get_arg method in the CommonArg class works
     as expected.
 
     '''
-    dummy = Dummy()
+    dummy = CheckArg()
     fparser_tree = dummy.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ)")
     assert dummy.get_arg(fparser_tree, 0) == "GH_FIELD"
@@ -163,7 +224,7 @@ def test_get_type_and_access():
     works as expected.
 
     '''
-    dummy = Dummy()
+    dummy = CheckArg()
     fparser_tree = dummy.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ)")
     datatype, access = dummy.get_type_and_access(fparser_tree, 1, 2)
@@ -176,7 +237,7 @@ def test_get_type_access_and_fs():
     works as expected.
 
     '''
-    dummy = Dummy()
+    dummy = CheckArg()
     fparser_tree = dummy.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)")
     datatype, access, function_space = dummy.get_type_access_and_fs(
@@ -186,23 +247,23 @@ def test_get_type_access_and_fs():
     assert function_space == "W0"
 
 
-def test_get_vector_length():
-    '''Test that the get_vector_length method in the CommonArg class
-    works as expected.
+def test_get_and_check_vector_length():
+    '''Test that the get_and_check_vector_length method in the CommonArg
+    class works as expected.
 
     '''
-    dummy = Dummy()
+    dummy = CheckArg()
     fparser_tree = dummy.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)")
     with pytest.raises(TypeError) as info:
-        _ = dummy.get_vector_length(fparser_tree, 0)
+        _ = dummy.get_and_check_vector_length(fparser_tree, 0)
     assert ("The vector length metadata should be in the form "
             "'form*vector_length' but found 'GH_FIELD'."
             in str(info.value))
 
     fparser_tree = dummy.create_fparser2(
         "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)")
-    vector_length = dummy.get_vector_length(fparser_tree, 0)
+    vector_length = dummy.get_and_check_vector_length(fparser_tree, 0)
     assert vector_length == "3"
 
 

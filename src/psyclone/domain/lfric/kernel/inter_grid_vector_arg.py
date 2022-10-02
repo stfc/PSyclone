@@ -56,6 +56,8 @@ class InterGridVectorArg(InterGridArg):
     :param Optional[str] vector_length: the size of the vector.
 
     '''
+    vector_length_arg_index = 0
+    
     def __init__(self, datatype=None, access=None, function_space=None,
                  mesh_arg=None, vector_length=None):
         super().__init__(datatype, access, function_space, mesh_arg)
@@ -76,20 +78,24 @@ class InterGridVectorArg(InterGridArg):
         :returns: an instance of InterGridVectorArg.
         :rtype: :py:class:`psyclone.domain.lfric.kernel.InterGridArg`
 
+        raises ValueError: if the metadata is not in the correct form.
+
         '''
-        vector_length_arg_index = 0
-        datatype_arg_index = 1
-        access_arg_index = 2
-        function_space_arg_index = 3
         InterGridVectorArg.check_fparser2(
             fparser2_tree, nargs=5, encoding=Fortran2003.Structure_Constructor)
-        vector_length = InterGridVectorArg.get_vector_length(
-            fparser2_tree, vector_length_arg_index)
+        InterGridArg.check_first_arg(
+            fparser2_tree, "InterGridVector", vector=True)
+        vector_length = InterGridVectorArg.get_and_check_vector_length(
+            fparser2_tree, InterGridVectorArg.vector_length_arg_index)
         datatype, access, function_space = \
             InterGridVectorArg.get_type_access_and_fs(
-                fparser2_tree, datatype_arg_index, access_arg_index,
-                function_space_arg_index)
+                fparser2_tree, InterGridVectorArg.datatype_arg_index,
+                InterGridVectorArg.access_arg_index,
+                InterGridVectorArg.function_space_arg_index)
         mesh_arg = InterGridVectorArg.get_mesh_arg(fparser2_tree)
+        InterGridVectorArg.check_remaining_args(
+            fparser2_tree, datatype, access, function_space, mesh_arg,
+            vector_length)
         return InterGridVectorArg(
             datatype, access, function_space, mesh_arg, vector_length)
 

@@ -97,7 +97,7 @@ def test_create_from_fortran_string():
             "with the form 'arg_type(...)' but found 'not valid'."
             in str(info.value))
 
-    fortran_string = "arg_type(GH_FIELD, GH_REAL, GH_READ)"
+    fortran_string = "arg_type(GH_SCALAR, GH_REAL, GH_READ)"
     field_arg = ScalarArg.create_from_fortran_string(fortran_string)
     assert field_arg.form == "GH_SCALAR"
     assert field_arg._datatype == "GH_REAL"
@@ -142,8 +142,30 @@ def test_create_from_fparser2():
         _ = ScalarArg.create_from_fparser2(part_ref)
     assert ("Expected kernel metadata to have 3 arguments, but "
             "found 1 in 'arg_type(x)'." in str(info.value))
-
+    
     part_ref = create_part_ref("arg_type(GH_FIELD, GH_REAL, GH_READ)")
+    with pytest.raises(ValueError) as info:
+        _ = ScalarArg.create_from_fparser2(part_ref)
+    assert ("Scalars should have GH_SCALAR as their first metadata argument, "
+            "but found 'GH_FIELD'." in str(info.value))
+
+    part_ref = create_part_ref("arg_type(GH_SCALAR, GH_UNREAL, GH_READ)")
+    with pytest.raises(ValueError) as info:
+        _ = ScalarArg.create_from_fparser2(part_ref)
+    assert ("At argument index '1' for metadata 'arg_type(GH_SCALAR, "
+            "GH_UNREAL, GH_READ)'. The datatype descriptor metadata for a "
+            "scalar should be one of ['gh_real', 'gh_integer', "
+            "'gh_logical'], but found 'GH_UNREAL'." in str(info.value))
+
+    part_ref = create_part_ref("arg_type(GH_SCALAR, GH_REAL, GH_ERROR)")
+    with pytest.raises(ValueError) as info:
+        _ = ScalarArg.create_from_fparser2(part_ref)
+    assert ("At argument index '2' for metadata 'arg_type(GH_SCALAR, "
+            "GH_REAL, GH_ERROR)'. The access descriptor metadata for a "
+            "scalar should be one of ['gh_read'], but found 'GH_ERROR'."
+            in str(info.value))
+
+    part_ref = create_part_ref("arg_type(GH_SCALAR, GH_REAL, GH_READ)")
     field_arg = ScalarArg.create_from_fparser2(part_ref)
     assert field_arg.form == "GH_SCALAR"
     assert field_arg._datatype == "GH_REAL"

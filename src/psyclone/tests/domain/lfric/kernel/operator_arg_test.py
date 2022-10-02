@@ -164,6 +164,51 @@ def test_create_from_fparser2():
             "found 1 in 'arg_type(x)'." in str(info.value))
 
     part_ref = create_part_ref(
+        "arg_type(GH_OPERATION, GH_REAL, GH_READ, W0, W1)")
+    with pytest.raises(ValueError) as info:
+        _ = OperatorArg.create_from_fparser2(part_ref)
+    assert ("Operators should have GH_OPERATOR as their first metadata "
+            "argument, but found 'GH_OPERATION'." in str(info.value))
+
+    part_ref = create_part_ref(
+        "arg_type(GH_OPERATOR, GH_UNREAL, GH_READ, W0, W1)")
+    with pytest.raises(ValueError) as info:
+        _ = OperatorArg.create_from_fparser2(part_ref)
+    assert ("At argument index '1' for metadata 'arg_type(GH_OPERATOR, "
+            "GH_UNREAL, GH_READ, W0, W1)'. The datatype descriptor metadata "
+            "for an operator should be one of ['gh_real'], but found "
+            "'GH_UNREAL'." in str(info.value))
+
+    part_ref = create_part_ref(
+        "arg_type(GH_OPERATOR, GH_REAL, GH_ERROR, W0, W1)")
+    with pytest.raises(ValueError) as info:
+        _ = OperatorArg.create_from_fparser2(part_ref)
+    assert ("At argument index '2' for metadata 'arg_type(GH_OPERATOR, "
+            "GH_REAL, GH_ERROR, W0, W1)'. The access descriptor metadata for "
+            "an operator should be one of ['gh_read', 'gh_write', "
+            "'gh_readwrite'], but found 'GH_ERROR'." in str(info.value))
+
+    part_ref = create_part_ref(
+        "arg_type(GH_OPERATOR, GH_REAL, GH_READ, XX, W1)")
+    with pytest.raises(ValueError) as info:
+        _ = OperatorArg.create_from_fparser2(part_ref)
+    assert ("At argument index '3' for metadata 'arg_type(GH_OPERATOR, "
+            "GH_REAL, GH_READ, XX, W1)'. The function_space_to metadata for "
+            "an operator should be one of ['w3', 'wtheta', 'w2v', 'w2vtrace', "
+            "'w2broken', 'w0', 'w1', 'w2', 'w2trace', 'w2h', 'w2htrace', "
+            "'any_w2', 'wchi'], but found 'XX'." in str(info.value))
+
+    part_ref = create_part_ref(
+        "arg_type(GH_OPERATOR, GH_REAL, GH_READ, W0, YY)")
+    with pytest.raises(ValueError) as info:
+        _ = OperatorArg.create_from_fparser2(part_ref)
+    assert ("At argument index '4' for metadata 'arg_type(GH_OPERATOR, "
+            "GH_REAL, GH_READ, W0, YY)'. The function_space_from metadata for "
+            "an operator should be one of ['w3', 'wtheta', 'w2v', 'w2vtrace', "
+            "'w2broken', 'w0', 'w1', 'w2', 'w2trace', 'w2h', 'w2htrace', "
+            "'any_w2', 'wchi'], but found 'YY'." in str(info.value))
+
+    part_ref = create_part_ref(
         "arg_type(GH_OPERATOR, GH_REAL, GH_READ, W0, W1)")
     operator_arg = OperatorArg.create_from_fparser2(part_ref)
     assert operator_arg.form == "GH_OPERATOR"

@@ -58,6 +58,8 @@ class InterGridArg(FieldArg):
         InterGrid arg is on (coarse or fine).
 
     '''
+    mesh_arg_index = 4
+
     def __init__(self, datatype=None, access=None, function_space=None,
                  mesh_arg=None):
         super().__init__(datatype, access, function_space)
@@ -78,17 +80,20 @@ class InterGridArg(FieldArg):
         :returns: an instance of InterGridArg.
         :rtype: :py:class:`psyclone.domain.lfric.kernel.InterGridArg`
 
+        raises ValueError: if the metadata is not in the correct form.
+
         '''
-        datatype_arg_index = 1
-        access_arg_index = 2
-        function_space_arg_index = 3
         InterGridArg.check_fparser2(
             fparser2_tree, nargs=5, encoding=Fortran2003.Structure_Constructor)
+        InterGridArg.check_first_arg(fparser2_tree, "InterGrid")
         datatype, access, function_space = \
             InterGridArg.get_type_access_and_fs(
-                fparser2_tree, datatype_arg_index, access_arg_index,
-                function_space_arg_index)
+                fparser2_tree, InterGridArg.datatype_arg_index,
+                InterGridArg.access_arg_index,
+                InterGridArg.function_space_arg_index)
         mesh_arg = InterGridArg.get_mesh_arg(fparser2_tree)
+        InterGridArg.check_remaining_args(
+            fparser2_tree, datatype, access, function_space, mesh_arg)
         return InterGridArg(datatype, access, function_space, mesh_arg)
 
     @staticmethod
@@ -104,10 +109,19 @@ class InterGridArg(FieldArg):
         :returns: the metadata mesh value extracted from the fparser2 tree.
         :rtype: str
 
+        raises ValueError: if the lhs of the assignment "mesh_arg = \
+            value" is not "mesh_arg".
+
         '''
-        mesh_arg_index = 4
-        mesh_arg = fparser2_tree.children[1].children[mesh_arg_index].\
-            children[1].tostr()
+        mesh_arg_lhs = fparser2_tree.children[1].\
+            children[InterGridArg.mesh_arg_index].children[0].tostr()
+        if not (mesh_arg_lhs == "mesh_arg"):
+            raise ValueError(
+                f"At argument index {InterGridArg.mesh_arg_index} for "
+                f"metadata '{fparser2_tree}' expected the left hand side "
+                f"to be MESH_ARG but found '{mesh_arg_lhs}'.")
+        mesh_arg = fparser2_tree.children[1].\
+            children[InterGridArg.mesh_arg_index].children[1].tostr()
         return mesh_arg
 
     @classmethod
