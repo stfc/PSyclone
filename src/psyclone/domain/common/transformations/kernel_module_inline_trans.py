@@ -137,12 +137,11 @@ class KernelModuleInlineTrans(Transformation):
         except KeyError:
             existing_symbol = None
         if existing_symbol and not isinstance(existing_symbol, RoutineSymbol):
-            raise NotImplementedError(
+            raise TransformationError(
                 f"Cannot module-inline subroutine '{node.name}' because "
                 f"symbol '{existing_symbol}' with the same name already "
-                f"exists and changing the name of module-inlined subroutines "
-                f"is not supported yet.")
-
+                f"exists and changing the name of module-inlined "
+                f"subroutines is not supported yet.")
 
     def apply(self, node, options=None):
         ''' Bring the kernel subroutine in this Container.
@@ -164,57 +163,62 @@ class KernelModuleInlineTrans(Transformation):
         except KeyError:
             existing_symbol = None
 
+        # Prepare code to inline
+        code_to_inline = node.get_kernel_schedule()
+        source_container = code_to_inline.ancestor(Container)
+        symbols_to_bring_in = set()
 
+        for scope in code_to_inline.walk(ScopingNode):
+            for symbol in scope.symbol_table.symbols:
+                if symbol.is_unresolved:
+                    # We don't know where this comes from, we need to bring
+                    # in all top-level imports
+                    for mod in source_container.symbol_table.containersymbols:
+                        symbols_to_bring_in.add(mod)
+                elif symbol.is_import:
+                    pass  # Add to bring in if imported outside?
+                elif symbol.is_local:
+                    # This should be on the validate
+                    # Ok if is a constant, otherwise it should be an
+                    # # error?
+                    pass
+
+        for symbol in symbols_to_bring_in:
+            if symbol.name in code_to_inline.symbol_table:
+                same_symbol = code_to_inline.symbol_table.lookup(symbol.name)
+                if not isinstance(same_symbol, ContainerSymbol):
+                    raise InternalError(
+                        f"Incoherent PSyIR found ({symbol.name} not as "
+                        f"expected)")
+            else:
+                code_to_inline.symbol_table.add(symbol)
+                # Note that momentarily we have the same symbol in two
+                # symbol tables, but this is not a problem because below
+                # we detach and discard the ancestor part of the tree.
 
         if not existing_symbol:
             # If it doesn't exist already, module-inline the subroutine by:
             # 1) Registering the subroutine symbol in the Container
             node.ancestor(Container).symbol_table.add(RoutineSymbol(name))
             # 2) Insert the relevant code into the tree.
-            inlined_code = node.get_kernel_schedule()
-            container = inlined_code.ancestor(Container)
-
-            bring_in = set()
-
-            for literal in inlined_code.walk(Literal):
-                if isinstance(literal.datatype.precision, DataSymbol):
-                    name = literal.datatype.precision.name
-                    # FIXME
-
-            for scope in inlined_code.walk(ScopingNode):
-                for symbol in scope.symbol_table.symbols:
-                    if symbol.is_unresolved:
-                        # We don't know where this comes from, we need to bring
-                        # in all top-level imports
-                        for mod in container.symbol_table.containersymbols:
-                            bring_in.add(mod)
-                    elif symbol.is_import:
-                        pass  # Add to bring in if imported outside?
-                    elif symbol.is_local:
-                        # This should be on the validate
-                        # Ok if is a constant, otherwise it should be an
-                        # # error?
-                        pass
-
-            for symbol in bring_in:
-                if symbol.name in inlined_code.symbol_table:
-                    same_symbol = inlined_code.symbol_table.lookup(symbol.name)
-                    if not isinstance(same_symbol, ContainerSymbol):
-                        raise InternalError(
-                            f"Incoherent PSyIR found ({symbol.name} not as "
-                            f"expected)")
-                else:
-                    inlined_code.symbol_table.add(symbol)
-                    # Note that momentarily we have the same symbol in two
-                    # symbol tables, but this is not a problem because below
-                    # we detach and discard the ancestor part of the tree.
-
-            node.root.addchild(inlined_code.detach())
-
+            node.root.addchild(code_to_inline.detach())
         else:
             # The routine symbol already exist, and we know from the validation
-            # that its a Routine, but are they the same?
-            pass
+            # that its a Routine. Now check if they are exactly the same.
+            for routine in node.ancestor(Container).walk(Routine,
+                                                         stop_type=Routine):
+                if routine.name == node.name:
+                    # This TransformationError happens here and not in the
+                    # validation because it needs the symbols_to_bring_in
+                    # applied to effectively compare both versions
+                    # This will be fixed when module-inlining versioning is
+                    # implemented.
+                    if routine != code_to_inline:
+                        raise TransformationError(
+                            f"Cannot inline subroutine '{node.name}' because "
+                            f"another, different, subroutine with the same "
+                            f"name already exists and versioning of module-"
+                            f"inlined subroutines is not implemented yet.")
 
         # Once module-inlined, all kernelcalls to the same kernel in the same
         # invoke use the inlined implementation

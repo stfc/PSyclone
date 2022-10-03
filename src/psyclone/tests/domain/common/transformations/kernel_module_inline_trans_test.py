@@ -42,8 +42,8 @@
 import pytest
 from psyclone.configuration import Config
 from psyclone.psyGen import CodedKern
-from psyclone.psyir.nodes import Container
-from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
+from psyclone.psyir.nodes import Container, Routine
+from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.utilities import count_lines, get_invoke
@@ -63,6 +63,7 @@ def test_module_inline_apply_transformation(tmpdir, fortran_writer):
     inline_trans.apply(kern_call)
 
     # The new inlined routine must now exist
+    assert kern_call.ancestor(Container).symbol_table.lookup("compute_cv_code")
     assert kern_call.ancestor(Container).children[1].name == "compute_cv_code"
 
     # We should see it in the output of both:
@@ -102,16 +103,15 @@ def test_validate_name_clashes():
 
     # Check that name clashes which are not subroutines are detected
     schedule.symbol_table.add(DataSymbol("ru_code", REAL_TYPE))
-    with pytest.raises(NotImplementedError) as err:
+    with pytest.raises(TransformationError) as err:
         inline_trans.apply(coded_kern)
-    assert ("Can not module-inline subroutine 'ru_code' because symbol "
+    assert ("Cannot module-inline subroutine 'ru_code' because symbol "
             "'ru_code: DataSymbol<Scalar<REAL, UNDEFINED>, Local>' with the "
-            "same name already exists and changing names of module-inlined "
-            "subroutines is not implemented yet.") in str(err.value)
+            "same name already exists and changing the name of module-inlined "
+            "subroutines is not supported yet." in str(err.value))
 
-    # TODO # 898. Manually force removal of previous symbol as
-    # symbol_table.remove() for DataSymbols is not implemented yet.
-    schedule.parent.symbol_table._symbols.pop("ru_code")
+    # TODO # 898. Manually force removal of previous imported symbol
+    # symbol_table.remove() is not implemented yet.
     schedule.symbol_table._symbols.pop("ru_code")
 
     # Check that if a subroutine with the same name already exists and it is
@@ -119,9 +119,9 @@ def test_validate_name_clashes():
     new_symbol = RoutineSymbol("ru_code")
     schedule.parent.symbol_table.add(new_symbol)
     schedule.parent.addchild(Routine(new_symbol.name))
-    with pytest.raises(NotImplementedError) as err:
-        gen = str(psy.gen)
-    assert ("Can not inline subroutine 'ru_code' because another, different, "
+    with pytest.raises(TransformationError) as err:
+        inline_trans.apply(coded_kern)
+    assert ("Cannot inline subroutine 'ru_code' because another, different, "
             "subroutine with the same name already exists and versioning of "
             "module-inlined subroutines is not implemented "
             "yet.") in str(err.value)
