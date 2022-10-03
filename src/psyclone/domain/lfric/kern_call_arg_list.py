@@ -48,8 +48,7 @@ from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric import ArgOrdering, LFRicConstants, psyir
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import Literal, Reference, StructureReference
-from psyclone.psyir.symbols import (ArrayType, DataSymbol,
-                                    DataTypeSymbol, DeferredType,
+from psyclone.psyir.symbols import (DataSymbol, DataTypeSymbol, DeferredType,
                                     ContainerSymbol, ImportInterface)
 
 
@@ -303,25 +302,7 @@ class KernCallArgList(ArgOrdering):
                 # REAL(KIND=r_solver), pointer:: cma_op1_matrix(:,:,:)
                 #    = > null()
                 mode = arg.access
-                try:
-                    sym = self._symtab.lookup(name)
-                except KeyError:
-                    # Create a DataSymbol for this kernel argument.
-                    datatype = psyir.LfricRealScalarDataType()
-                    consts = LFRicConstants()
-                    precision_name = consts.SCALAR_PRECISION_MAP["real"]
-                    psyir.add_lfric_precision_symbol(self._symtab,
-                                                     precision_name)
-                    array_type = ArrayType(datatype,
-                                           [ArrayType.Extent.ATTRIBUTE,
-                                            ArrayType.Extent.ATTRIBUTE,
-                                            ArrayType.Extent.ATTRIBUTE])
-                    sym = self._symtab.new_symbol(name, tag=name,
-                                                  symbol_type=DataSymbol,
-                                                  datatype=array_type)
-
-                self.psyir_append(Reference(sym))
-
+                sym = self.add_array_reference(name, [":", ":", ":"], "real")
             else:
                 # All other variables are scalar integers
                 mode = AccessType.READ
