@@ -117,9 +117,9 @@ def test_is_upper_lower_bound(fortran_reader):
     assert not array_ref.is_lower_bound(0)
     assert not array_ref.is_upper_bound(0)
 
-    # Return False if the symbol has not associated type information.
+    # Return False if the symbol has no associated type information.
     array_ref = assigns[2].lhs
-    assert type(array_ref.symbol) is not DataSymbol
+    assert not isinstance(array_ref.symbol, DataSymbol)
     assert not array_ref.is_lower_bound(0)
     assert not array_ref.is_upper_bound(0)
 
