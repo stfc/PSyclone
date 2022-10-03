@@ -40,7 +40,7 @@ LFRic kernel-layer-specific PSyIR which uses specialised classes.
 from psyclone.configuration import Config
 from psyclone.domain.lfric.kernel.lfric_kernel_metadata import \
     LFRicKernelMetadata
-from psyclone.domain.lfric.kernel.psyir import LFRicContainer
+from psyclone.domain.lfric.kernel.psyir import LFRicKernelContainer
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Container, ScopingNode, FileContainer
 from psyclone.psyir.transformations import TransformationError
@@ -145,8 +145,9 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
             raise TransformationError(
                 f"Error in {self.name} transformation. This "
                 f"transformation requires the name of the variable "
-                f"containing the metadata to be provided in the options"
-                f"argument with lookup name 'metadata_name'.") from info
+                f"containing the metadata to be provided in the options "
+                f"argument with lookup name 'metadata_name', but found "
+                f"'{list(options.keys())}'.") from info
 
         config = Config.get()
         if not config.valid_name.match(metadata_name):
@@ -160,7 +161,7 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
         if not metadata_symbol:
             raise TransformationError(
                 f"Error in {self.name} transformation. The metadata name "
-                f"({metadata_name}) provided to the transformation "
+                f"'{metadata_name}' provided to the transformation "
                 f"does not correspond to a symbol in the supplied PSyIR.")
 
         # Find the nearest ancestor container including self. There
@@ -219,7 +220,7 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
 
         # Replace container
         children = container.pop_all_children()
-        lfric_container = LFRicContainer.create(
+        lfric_container = LFRicKernelContainer.create(
             container.name, metadata, container.symbol_table.detach(),
             children)
         container.replace_with(lfric_container)

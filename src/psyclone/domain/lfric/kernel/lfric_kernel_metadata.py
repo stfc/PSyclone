@@ -226,12 +226,15 @@ class LFRicKernelMetadata():
         kernel_metadata.operates_on = value
 
         # the value of gh_shape (gh_quadrature_XYoZ, ...)
-        try:
-            value = LFRicKernelMetadata._get_property(
-                spec_part, "gh_shape").string
-            kernel_metadata.gh_shape = value
-        except ParseError:
-            kernel_metadata.gh_shape = None
+        # TODO issue #1879 gh_shape not parsed yet
+        # Commented code can be used as part of #1879
+        # try:
+        #     value = LFRicKernelMetadata._get_property(
+        #         spec_part, "gh_shape").string
+        #     kernel_metadata.gh_shape = value
+        # except ParseError:
+        #     kernel_metadata.gh_shape = None
+        kernel_metadata.gh_shape = None
 
         # the name of the procedure that this metadata refers to.
         kernel_metadata.procedure_name = LFRicKernelMetadata._get_property(
@@ -283,13 +286,15 @@ class LFRicKernelMetadata():
             kernel_metadata._meta_args.append(arg)
             # pylint: enable=protected-access
 
-        try:
-            # TODO issue #1879. META_FUNCS is not parsed correctly yet.
-            meta_funcs = LFRicKernelMetadata._get_property(
-                spec_part, "meta_funcs")
-            args = walk(meta_funcs, Fortran2003.Ac_Value_List)
-        except ParseError:
-            meta_funcs = []
+        # TODO issue #1879. META_FUNCS is not parsed correctly yet.
+        # Commented code can be used as part of #1879
+        # try:
+        #     meta_funcs = LFRicKernelMetadata._get_property(
+        #         spec_part, "meta_funcs")
+        #     args = walk(meta_funcs, Fortran2003.Ac_Value_List)
+        # except ParseError:
+        #     meta_funcs = []
+        meta_funcs = []
 
         LFRicKernelMetadata.meta_reference_element = []
         try:
@@ -513,7 +518,8 @@ class LFRicKernelMetadata():
         config = Config.get()
         if not value or not config.valid_name.match(value):
             raise ValueError(
-                f"Expected name to be a valid value but found '{value}'.")
+                f"Expected name to be a valid Fortran name but found "
+                f"'{value}'.")
         self._name = value
 
     @property

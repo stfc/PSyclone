@@ -43,7 +43,7 @@ import pytest
 
 from psyclone.domain.lfric.kernel.lfric_kernel_metadata import \
     LFRicKernelMetadata
-from psyclone.domain.lfric.kernel.psyir import LFRicContainer
+from psyclone.domain.lfric.kernel.psyir import LFRicKernelContainer
 from psyclone.domain.lfric.transformations.raise_psyir_2_lfric_kern_trans \
     import RaisePSyIR2LFRicKernTrans
 from psyclone.psyir.nodes import Container
@@ -78,22 +78,23 @@ PROGRAM = (
     f"end module dummy\n")
 
 
-# Class LFRicContainer
+# Class LFRicKernelContainer
 
-def test_lfriccontainer_init():
-    '''Test that an instance of LFRicContainer can be created. '''
-    container = LFRicContainer("name", None)
+def test_lfrickernelcontainer_init():
+    '''Test that an instance of LFRicKernelContainer can be created. '''
+    container = LFRicKernelContainer("name", None)
     assert container.name == "name"
     assert container._metadata is None
 
 
-def test_lfriccontainer_create():
-    '''Test that the LFRicContainer create method works as
+def test_lfrickernelcontainer_create():
+    '''Test that the LFRicKernelContainer create method works as
     expected. Includes raising any exceptions. Also make use of the
     metadata property.
+
     '''
     metadata = LFRicKernelMetadata.create_from_fortran_string(METADATA)
-    container = LFRicContainer.create("name", metadata, SymbolTable(), [])
+    container = LFRicKernelContainer.create("name", metadata, SymbolTable(), [])
     assert container.name == "name"
     expected = (
         "TYPE, PUBLIC, EXTENDS(kernel_type) :: w3_solver_kernel_type\n"
@@ -115,21 +116,22 @@ def test_lfriccontainer_create():
             "found 'Not valid'." in str(str(info.value)))
 
 
-def test_lfriccontainer_lower(fortran_reader):
-    '''Test that the LFRicContainer lower_to_language_level method works
-    as expected.
+def test_lfrickernelcontainer_lower(fortran_reader):
+    '''Test that the LFRicKernelContainer lower_to_language_level method
+    works as expected.
+
     '''
     # First load program and perform checks
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
     assert isinstance(kernel_psyir.children[0], Container)
-    assert not isinstance(kernel_psyir.children[0], LFRicContainer)
+    assert not isinstance(kernel_psyir.children[0], LFRicKernelContainer)
     assert kernel_psyir.children[0].symbol_table.lookup(
         "w3_solver_kernel_type")
 
     # Now raise to LFRic PSyIR and perform checks
     kern_trans = RaisePSyIR2LFRicKernTrans()
     kern_trans.apply(kernel_psyir, {"metadata_name": "w3_solver_kernel_type"})
-    assert isinstance(kernel_psyir.children[0], LFRicContainer)
+    assert isinstance(kernel_psyir.children[0], LFRicKernelContainer)
     with pytest.raises(KeyError):
         kernel_psyir.children[0].symbol_table.lookup("w3_solver_kernel_type")
 
@@ -137,6 +139,6 @@ def test_lfriccontainer_lower(fortran_reader):
     container = kernel_psyir.children[0]
     container.lower_to_language_level()
     assert isinstance(kernel_psyir.children[0], Container)
-    assert not isinstance(kernel_psyir.children[0], LFRicContainer)
+    assert not isinstance(kernel_psyir.children[0], LFRicKernelContainer)
     assert kernel_psyir.children[0].symbol_table.lookup(
         "w3_solver_kernel_type")

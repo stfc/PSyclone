@@ -33,13 +33,13 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing the LFRic-specific Container class.
+'''Module containing the LFRic-specific Container class for a Kernel.
 
 '''
 from psyclone.psyir.nodes import Container
 
 
-class LFRicContainer(Container):
+class LFRicKernelContainer(Container):
     '''An LFRic-specific Container. This specialises the generic Container
     node and adds in any domain-specific information.
 

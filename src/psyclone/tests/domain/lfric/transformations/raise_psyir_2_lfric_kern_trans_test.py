@@ -33,15 +33,15 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford STFC Daresbury Lab
 
-'''pytest tests for the the lfric kern_trans transformation. This
+'''pytest tests for the RaisePSyIR2LFRicKernTrans transformation. This
 transformation raises generic PSyIR representing a kernel-layer
-routine to PSyclone kernel-layer-specific PSyIR which uses specialised
+routine to LFRic kernel-layer-specific PSyIR which uses specialised
 classes.
 
 '''
 import pytest
 
-from psyclone.domain.lfric.kernel.psyir import LFRicContainer
+from psyclone.domain.lfric.kernel.psyir import LFRicKernelContainer
 from psyclone.domain.lfric.transformations.raise_psyir_2_lfric_kern_trans \
     import RaisePSyIR2LFRicKernTrans
 from psyclone.domain.gocean.transformations.raise_psyir_2_gocean_kern_trans \
@@ -99,8 +99,7 @@ def test_find_symbol(fortran_reader):
 
 def test_kerntrans_init():
     '''Test that an instance of RaisePSyIR2LFRicKernTrans can be
-    succesfully created and raises the expected exception if the
-    supplied argument is invalid.
+    succesfully created.
 
     '''
     kern_trans = RaisePSyIR2LFRicKernTrans()
@@ -117,7 +116,7 @@ def test_validate_nosymbol(fortran_reader):
     kern_trans = RaisePSyIR2LFRicKernTrans()
     with pytest.raises(TransformationError) as info:
         kern_trans.validate(kernel_psyir, {"metadata_name": "does_not_exist"})
-    assert ("The metadata name (does_not_exist) provided to the "
+    assert ("The metadata name 'does_not_exist' provided to the "
             "transformation does not correspond to a symbol in the "
             "supplied PSyIR." in str(info.value))
 
@@ -190,6 +189,25 @@ def test_validate_parent(fortran_reader):
             "supplied node should be the root of a PSyIR tree but this node "
             "has a parent (FileContainer)." in str(info.value))
 
+
+
+def test_validate_metadata_name(fortran_reader):
+    '''Test that the validate method raises the expected exception if the
+    options argument does not provide the expected metadata lookup
+    name ('metadata_name').
+
+    '''
+    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
+    kern_trans = RaisePSyIR2LFRicKernTrans()
+    with pytest.raises(TransformationError) as info:
+        kern_trans.validate(kernel_psyir, {"invalid": "testkern_type"})
+    assert ("Transformation Error: Error in RaisePSyIR2LFRicKernTrans "
+            "transformation. This transformation requires the name of the "
+            "variable containing the metadata to be provided in the options "
+            "argument with lookup name 'metadata_name', but found "
+            "'['invalid']'." in str(info.value))
+
+
 def test_validate_medatata():
     '''Test that the validate method raises the expected exception if the
     supplied metadata has an invalid value.
@@ -249,7 +267,7 @@ def test_apply_ok(fortran_reader):
     kern_trans = RaisePSyIR2LFRicKernTrans()
     container = kernel_psyir.children[0]
     assert isinstance(container, Container)
-    assert not isinstance(container, LFRicContainer)
+    assert not isinstance(container, LFRicKernelContainer)
     # The symbol should exist
     _ = container.symbol_table.lookup("testkern_type")
     kern_trans.apply(kernel_psyir, {"metadata_name": "testkern_type"})
@@ -257,8 +275,8 @@ def test_apply_ok(fortran_reader):
     # The symbol should be removed
     with pytest.raises(KeyError):
         _ = container.symbol_table.lookup("testkern_type")
-    # The container should now be a LFRicContainer
-    assert isinstance(container, LFRicContainer)
+    # The container should now be a LFRicKernelContainer
+    assert isinstance(container, LFRicKernelContainer)
     # and should contain the metadata
     expected = (
         "TYPE, PUBLIC, EXTENDS(kernel_type) :: testkern_type\n"

@@ -41,17 +41,17 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 
-from psyclone.domain.lfric.kernel.lfric_kernel_metadata import \
-    LFRicKernelMetadata
-from psyclone.domain.lfric.kernel.scalar_arg import ScalarArg
+from psyclone.domain.lfric.kernel.columnwise_operator_arg import \
+    ColumnwiseOperatorArg
 from psyclone.domain.lfric.kernel.field_arg import FieldArg
 from psyclone.domain.lfric.kernel.field_vector_arg import FieldVectorArg
 from psyclone.domain.lfric.kernel.inter_grid_arg import InterGridArg
 from psyclone.domain.lfric.kernel.inter_grid_vector_arg import \
     InterGridVectorArg
+from psyclone.domain.lfric.kernel.lfric_kernel_metadata import \
+    LFRicKernelMetadata
 from psyclone.domain.lfric.kernel.operator_arg import OperatorArg
-from psyclone.domain.lfric.kernel.columnwise_operator_arg import \
-    ColumnwiseOperatorArg
+from psyclone.domain.lfric.kernel.scalar_arg import ScalarArg
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.symbols import DataTypeSymbol, REAL_TYPE, \
@@ -88,7 +88,8 @@ def test_init_args():
     assert meta.procedure_name == "KERN_CODE"
     assert meta.name == "kern_type"
     assert meta.meta_args == []
-    # TODO gh_shape, meta_funcs, meta_reference_element, meta_mesh
+    # TODO issue #1879 gh_shape, meta_funcs, meta_reference_element,
+    # meta_mesh
 
 
 def test_init_args_error():
@@ -109,7 +110,7 @@ def test_init_args_error():
 
     with pytest.raises(ValueError) as info:
         _ = LFRicKernelMetadata(name="1_invalid")
-    assert ("Expected name to be a valid value but found "
+    assert ("Expected name to be a valid Fortran name but found "
             "'1_invalid'." in str(info.value))
 
     with pytest.raises(TypeError) as info:
@@ -150,7 +151,7 @@ def test_setter_getter():
     assert metadata.name is None
     with pytest.raises(ValueError) as info:
         metadata.name = "1_invalid"
-    assert ("Expected name to be a valid value but found "
+    assert ("Expected name to be a valid Fortran name but found "
             "'1_invalid'." in str(info.value))
     metadata.name = "kern_type"
     assert metadata.name == "kern_type"
@@ -164,7 +165,22 @@ def test_setter_getter():
     tmp = LFRicKernelMetadata(meta_args=[scalar_arg])
     assert len(tmp.meta_args) == 1
     assert tmp.meta_args[0] is scalar_arg
-    # TODO gh_shape, meta_funcs, meta_reference_element, meta_mesh
+    # TODO issue #1879 gh_shape, meta_funcs, meta_reference_element,
+    # meta_mesh
+
+
+def test_create_from_psyir_error():
+    '''Test that create_from_psyir raises the expected exceptions.'''
+    with pytest.raises(TypeError) as info:
+        _ = LFRicKernelMetadata.create_from_psyir(None)
+    assert ("Expected a DataTypeSymbol but found a NoneType."
+            in str(info.value))
+
+    with pytest.raises(InternalError) as info:
+        _ = LFRicKernelMetadata.create_from_psyir(
+            DataTypeSymbol("x", REAL_TYPE))
+    assert ("Expected kernel metadata to be stored in the PSyIR as an "
+            "UnknownFortranType, but found ScalarType." in str(info.value))
 
 
 METADATA = (
@@ -185,21 +201,6 @@ METADATA = (
     " contains\n"
     "   procedure, nopass :: code => testkern_code\n"
     "end type testkern_type\n")
-
-
-def test_create_from_psyir_error():
-    '''Test that create_from_psyir raises the expected exceptions.'''
-    with pytest.raises(TypeError) as info:
-        _ = LFRicKernelMetadata.create_from_psyir(None)
-    assert ("Expected a DataTypeSymbol but found a NoneType."
-            in str(info.value))
-
-    with pytest.raises(InternalError) as info:
-        _ = LFRicKernelMetadata.create_from_psyir(
-            DataTypeSymbol("x", REAL_TYPE))
-    assert ("Expected kernel metadata to be stored in the PSyIR as an "
-            "UnknownFortranType, but found ScalarType." in str(info.value))
-
 
 PROGRAM = (
     f"module dummy\n"
@@ -270,12 +271,15 @@ def test_create_from_fortran_error():
            in str(info.value))
 
 
-def test_create_from_fortran():
+@pytest.mark.parametrize("procedure_format", ["", "code =>"])
+def test_create_from_fortran(procedure_format):
     '''Test that an instance of the LFRicKernelMetadata class can be
-    created from Fortran.
+    created from Fortran. Test using standard and alternative (no
+    'code =>') format for procedure metadata.
 
     '''
-    metadata = LFRicKernelMetadata.create_from_fortran_string(METADATA)
+    fortran_metadata = METADATA.replace(procedure_format, "")
+    metadata = LFRicKernelMetadata.create_from_fortran_string(fortran_metadata)
     assert isinstance(metadata, LFRicKernelMetadata)
     assert isinstance(metadata.meta_args, list)
     assert len(metadata.meta_args) == 7
