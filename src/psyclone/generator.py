@@ -115,6 +115,7 @@ def handle_script(script_name, info, function_name, is_optional=False):
             raise GenerationError(
                 f"generator: expected the script file '{filename}' to have "
                 f"the '.py' extension")
+        print("Python about to try to import filename '{filename}'.")
         try:
             transmod = __import__(filename)
         except ImportError as error:
