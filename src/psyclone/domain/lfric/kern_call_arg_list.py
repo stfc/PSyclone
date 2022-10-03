@@ -47,9 +47,11 @@ from psyclone import psyGen
 from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric import ArgOrdering, LFRicConstants, psyir
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.nodes import Literal, Reference, StructureReference
-from psyclone.psyir.symbols import (DataSymbol, DataTypeSymbol, DeferredType,
-                                    ContainerSymbol, ImportInterface)
+from psyclone.psyir.nodes import (ArrayOfStructuresReference, Literal,
+                                  Reference, StructureReference)
+from psyclone.psyir.symbols import (ArrayType, DataSymbol, DataTypeSymbol,
+                                    DeferredType, ContainerSymbol,
+                                    ImportInterface, INTEGER_SINGLE_TYPE)
 
 
 class KernCallArgList(ArgOrdering):
@@ -73,21 +75,20 @@ class KernCallArgList(ArgOrdering):
         self._nqp_positions = []
         self._ndf_positions = []
 
-    def add_user_type(self, module_name, user_type, member_list, name,
-                      tag=None):
+    def get_user_type(self, module_name, user_type, name, tag=None,
+                      shape=None):
         # pylint: disable=too-many-arguments
-        '''Created a reference to a variable of a user-defined type. If
-        required, the required import statements will all be generated.
+        '''Returns the symbol for a user-defined type. If required, the
+        required import statements will all be generated.
 
         :param str module_name: the name of the module from which the \
             user-defined type must be imported.
         :param str user_type: the name of the user-defined type.
-        :param member_list: a list of string specifying the component(s) \
-            of the user-defined type to use.
-        :type member_list: List[str]
         :param str name: the name of the variable to be used in the Reference.
         :param Optional[str] tag: tag to use for the variable, defaults to \
             the name
+        :param shape: if specified, declare an array of user types
+        :type shape: List[:py:class:`psyclone.psyir.nodes.Node]
 
         :return: the symbol that is used in the reference
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol
@@ -98,45 +99,80 @@ class KernCallArgList(ArgOrdering):
 
         try:
             sym = self._symtab.lookup_with_tag(tag)
+            return sym
         except KeyError:
-            # The symbol does not exist already. So we potentially need to
-            # create the import statement for the type:
-            try:
-                # Check if the module is already declared:
-                module = self._symtab.lookup(module_name)
-                # Get the symbol table in which the module is declared
-                mod_sym_tab = module.find_symbol_table(self._kern)
-                # If the module is declared in a different (outer) scope,
-                # still add the module to this (local) symbol table, so
-                # the subroutine does not rely on outer module imports.
-                if mod_sym_tab is not self._symtab:
-                    module = None
-            except KeyError:
-                module = None
+            pass
 
-            if module is None:
-                # Shadowing allows to declare the module, even if it is
-                # already defined in an outer scope.
-                module = \
-                    self._symtab.new_symbol(module_name,
-                                            shadowing=True,
-                                            symbol_type=ContainerSymbol)
-
-            # Get the symbol table in which the module is declared:
+        # The symbol does not exist already. So we potentially need to
+        # create the import statement for the type:
+        try:
+            # Check if the module is already declared:
+            module = self._symtab.lookup(module_name)
+            # Get the symbol table in which the module is declared
             mod_sym_tab = module.find_symbol_table(self._kern)
-            # The user-defined type must be declared in the same symbol
-            # table as the container (otherwise errors will happen later):
-            user_type_symbol = \
-                mod_sym_tab.find_or_create(user_type,
-                                           symbol_type=DataTypeSymbol,
-                                           datatype=DeferredType(),
-                                           interface=ImportInterface(module))
+            # If the module is declared in a different (outer) scope,
+            # still add the module to this (local) symbol table, so
+            # the subroutine does not rely on outer module imports.
+            if mod_sym_tab is not self._symtab:
+                module = None
+        except KeyError:
+            module = None
+
+        if module is None:
+            # Shadowing allows to declare the module, even if it is
+            # already defined in an outer scope.
+            module = \
+                self._symtab.new_symbol(module_name,
+                                        shadowing=True,
+                                        symbol_type=ContainerSymbol)
+
+        # Get the symbol table in which the module is declared:
+        mod_sym_tab = module.find_symbol_table(self._kern)
+
+        # The user-defined type must be declared in the same symbol
+        # table as the container (otherwise errors will happen later):
+        user_type_symbol = \
+            mod_sym_tab.find_or_create(user_type,
+                                       symbol_type=DataTypeSymbol,
+                                       datatype=DeferredType(),
+                                       interface=ImportInterface(module))
+        if shape:
+            # Define an array of the user type
+            user_type_array = \
+                ArrayType(user_type_symbol, shape)
+            # Then add this symbol for an array to the symbol table.
+            sym = self._symtab.new_symbol(name, tag=tag,
+                                          symbol_type=DataSymbol,
+                                          datatype=user_type_array)
+        else:
             # Declare the actual user symbol in the local symbol table, using
             # the datatype from the root table:
             sym = self._symtab.new_symbol(name, tag=tag,
                                           symbol_type=DataSymbol,
                                           datatype=user_type_symbol)
+        return sym
 
+    def add_user_type(self, module_name, user_type, member_list, name,
+                      tag=None):
+        # pylint: disable=too-many-arguments
+        '''Creates a reference to a variable of a user-defined type. If
+        required, the required import statements will all be generated.
+
+        :param str module_name: the name of the module from which the \
+            user-defined type must be imported.
+        :param str user_type: the name of the user-defined type.
+        :param str name: the name of the variable to be used in the Reference.
+        :param Optional[str] tag: tag to use for the variable, defaults to \
+            the name
+        :param shape: if specified, declare an array of user types
+        :type shape: List[:py:class:`psyclone.psyir.nodes.Node]
+
+        :return: the symbol that is used in the reference
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol
+
+        '''
+        sym = self.get_user_type(module_name, user_type, name,
+                                 tag)
         self.psyir_append(StructureReference.create(sym, member_list))
         return sym
 
@@ -323,11 +359,21 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
+        # First declare the proxy as a 1d-array:
+        lit_ind = Literal(str(argvect.vector_size), INTEGER_SINGLE_TYPE)
+        sym = self.get_user_type("integer_field_mod",
+                                 "integer_field_proxy_type",
+                                 argvect.proxy_name, shape=[lit_ind])
+
         # the range function below returns values from
         # 1 to the vector size which is what we
         # require in our Fortran code
         for idx in range(1, argvect.vector_size + 1):
-            text = argvect.proxy_name + "(" + str(idx) + ")%data"
+            # Create the accesses to each element of the vector:
+            lit_ind = Literal(str(idx), INTEGER_SINGLE_TYPE)
+            ref = ArrayOfStructuresReference.create(sym, [lit_ind], ["data"])
+            self.psyir_append(ref)
+            text = sym.name + "(" + str(idx) + ")%data"
             self.append(text)
         if var_accesses is not None:
             # We add the whole field-vector, not the individual accesses.
