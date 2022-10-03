@@ -118,7 +118,7 @@ class LFRicArgDescriptor(Descriptor):
                 "'arg_type', but found '{0}'.".format(arg_type.name))
 
         # Check the first argument descriptor. If it is a binary operator
-        # then it has to be a field vector with an "*n" where "*"
+        # then it has to be a field vector with an "*n" appended where "*"
         # is a binary operator and "n > 1" is a vector size. If it is a
         # variable then it can be one of the other allowed argument types.
         argtype = None
