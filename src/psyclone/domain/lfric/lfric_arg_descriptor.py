@@ -91,9 +91,10 @@ class LFRicArgDescriptor(Descriptor):
 
     # ----------------------------------------------------------------------- #
 
-    def __init__(self, arg_type, operates_on):
+    def __init__(self, arg_type, operates_on, metadata_idx):
         # pylint: disable=too-many-branches, too-many-statements
         self._arg_type = arg_type
+        self._metadata_idx = metadata_idx
         # Initialise properties
         self._argument_type = None
         self._data_type = None
@@ -775,6 +776,15 @@ class LFRicArgDescriptor(Descriptor):
             raise InternalError("Expected a valid argument type but got "
                                 "'{0}'.".format(self._argument_type))
         return res
+
+    @property
+    def metadata_index(self):
+        '''
+        :returns: the position of the corresponding argument descriptor in \
+                  the kernel metadata.
+        :rtype: int
+        '''
+        return self._metadata_idx
 
 
 # Documentation utils: The list of module members that we wish AutoAPI to

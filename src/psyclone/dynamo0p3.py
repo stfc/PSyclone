@@ -414,9 +414,9 @@ class DynKernMetadata(KernelType):
 
         # parse the arg_type metadata
         self._arg_descriptors = []
-        for arg_type in self._inits:
+        for idx, arg_type in enumerate(self._inits):
             self._arg_descriptors.append(
-                LFRicArgDescriptor(arg_type, self.iterates_over))
+                LFRicArgDescriptor(arg_type, self.iterates_over, idx))
 
         # Get a list of the Type declarations in the metadata
         type_declns = [cline for cline in self._ktype.content if
@@ -9097,6 +9097,7 @@ class DynKernelArgument(KernelArgument):
         self._vector_size = arg_meta_data.vector_size
         self._argument_type = arg_meta_data.argument_type
         self._stencil = None
+        self._metadata_idx = arg_meta_data.metadata_index
         if arg_meta_data.mesh:
             self._mesh = arg_meta_data.mesh.lower()
         else:
@@ -9569,6 +9570,15 @@ class DynKernelArgument(KernelArgument):
         if self._vector_size > 1:
             return self._name+"(1)"
         return self._name
+
+    @property
+    def metadata_index(self):
+        '''
+        :returns: the position of the corresponding argument descriptor in \
+                  the kernel metadata.
+        :rtype: int
+        '''
+        return self._metadata_idx
 
     def psyir_expression(self):
         '''
