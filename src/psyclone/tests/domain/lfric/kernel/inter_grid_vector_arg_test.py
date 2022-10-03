@@ -138,21 +138,6 @@ def test_create_from_fortran_string():
     assert inter_grid_arg._vector_length == "3"
 
 
-def create_part_ref(fortran_string):
-    '''Utility method to create an fparser2 Part_Ref instance from a
-    Fortran string.
-
-    :param str fortran_string: the Fortran string to convert.
-
-    :returns: the fparser2 Part_Ref representation of the Fortran string.
-    :rtype: :py:class:`fparser.two.Fortran2003.Part_Ref`
-
-    '''
-    _ = ParserFactory().create(std="f2003")
-    reader = FortranStringReader(fortran_string)
-    return Fortran2003.Part_Ref(reader)
-
-
 def test_create_from_fparser2():
     '''Test that the create_from_fparser2 static method works as
     expected. Test for exceptions as well as valid input.

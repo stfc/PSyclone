@@ -45,21 +45,6 @@ from fparser.two.parser import ParserFactory
 from psyclone.domain.lfric.kernel.field_vector_arg import FieldVectorArg
 
 
-def create_part_ref(fortran_string):
-    '''Utility method to create an fparser2 Part_Ref instance from a
-    Fortran string.
-
-    :param str fortran_string: the Fortran string to convert.
-
-    :returns: the fparser2 Part_Ref representation of the Fortran string.
-    :rtype: :py:class:`fparser.two.Fortran2003.Part_Ref`
-
-    '''
-    _ = ParserFactory().create(std="f2003")
-    reader = FortranStringReader(fortran_string)
-    return Fortran2003.Part_Ref(reader)
-
-
 def test_init_noargs():
     '''Test that a FieldVectorArg instance can be created successfully when no
     arguments are provided.
@@ -104,7 +89,7 @@ def test_init_invalid():
 
 def test_init_args():
     '''Test that valid initial values provided when constructing an
-    instance of FieldArg are stored as expected.
+    instance of FieldVectorArg are stored as expected.
 
     '''
     field_vector_arg = FieldVectorArg("GH_REAL", "GH_READ", "W0", "2")
@@ -146,38 +131,42 @@ def test_create_from_fparser2():
             "Part_Ref object but found type 'str' with value 'hello'."
             in str(info.value))
 
-    part_ref = create_part_ref("arg_type(GH_FIELD, GH_REAL, GH_READ, W0)")
+    fparser2_tree = FieldVectorArg.create_fparser2(
+        "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)")
     with pytest.raises(TypeError) as info:
-        _ = FieldVectorArg.create_from_fparser2(part_ref)
+        _ = FieldVectorArg.create_from_fparser2(fparser2_tree)
     assert("The vector length metadata should be in the form "
            "'form*vector_length' but found 'GH_FIELD'." in str(info.value))
 
-    part_ref = create_part_ref("arg_type(GH_FEELED*3, GH_REAL, GH_READ, W0)")
+    fparser2_tree = FieldVectorArg.create_fparser2(
+        "arg_type(GH_FEELED*3, GH_REAL, GH_READ, W0)")
     with pytest.raises(ValueError) as info:
-        _ = FieldVectorArg.create_from_fparser2(part_ref)
+        _ = FieldVectorArg.create_from_fparser2(fparser2_tree)
     assert ("FieldVectors should have GH_FIELD in their first metadata "
             "argument, but found 'GH_FEELED'." in str(info.value))
 
-    part_ref = create_part_ref("arg_type(GH_FIELD*3, GH_UNREAL, GH_READ, W0)")
+    fparser2_tree = FieldVectorArg.create_fparser2(
+        "arg_type(GH_FIELD*3, GH_UNREAL, GH_READ, W0)")
     with pytest.raises(ValueError) as info:
-        _ = FieldVectorArg.create_from_fparser2(part_ref)
+        _ = FieldVectorArg.create_from_fparser2(fparser2_tree)
     assert ("At argument index '1' for metadata 'arg_type(GH_FIELD * 3, "
             "GH_UNREAL, GH_READ, W0)'. The datatype descriptor metadata for "
             "a field should be one of ['gh_real', 'gh_integer'], but found "
             "'GH_UNREAL'." in str(info.value))
 
-    part_ref = create_part_ref("arg_type(GH_FIELD*3, GH_REAL, GH_ERROR, W0)")
+    fparser2_tree = FieldVectorArg.create_fparser2(
+        "arg_type(GH_FIELD*3, GH_REAL, GH_ERROR, W0)")
     with pytest.raises(ValueError) as info:
-        _ = FieldVectorArg.create_from_fparser2(part_ref)
+        _ = FieldVectorArg.create_from_fparser2(fparser2_tree)
     assert ("At argument index '2' for metadata 'arg_type(GH_FIELD * 3, "
             "GH_REAL, GH_ERROR, W0)'. The access descriptor metadata for a "
             "field should be one of ['gh_read', 'gh_write', 'gh_inc', "
             "'gh_readinc'], but found 'GH_ERROR'." in str(info.value))
 
-    part_ref = create_part_ref(
+    fparser2_tree = FieldVectorArg.create_fparser2(
         "arg_type(GH_FIELD*3, GH_REAL, GH_READ, DOUBLE_U_ZERO)")
     with pytest.raises(ValueError) as info:
-        _ = FieldVectorArg.create_from_fparser2(part_ref)
+        _ = FieldVectorArg.create_from_fparser2(fparser2_tree)
     assert ("At argument index '3' for metadata 'arg_type(GH_FIELD * 3, "
             "GH_REAL, GH_READ, DOUBLE_U_ZERO)'. The function space metadata "
             "should be one of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', "
@@ -192,9 +181,9 @@ def test_create_from_fparser2():
             "'any_discontinuous_space_9', 'any_discontinuous_space_10'], "
             "but found 'DOUBLE_U_ZERO'." in str(info.value))
 
-    part_ref = create_part_ref(
+    fparser2_tree = FieldVectorArg.create_fparser2(
         "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)")
-    field_vector_arg = FieldVectorArg.create_from_fparser2(part_ref)
+    field_vector_arg = FieldVectorArg.create_from_fparser2(fparser2_tree)
     assert field_vector_arg.form == "GH_FIELD"
     assert field_vector_arg._datatype == "GH_REAL"
     assert field_vector_arg._access == "GH_READ"

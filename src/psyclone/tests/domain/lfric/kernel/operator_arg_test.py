@@ -124,21 +124,6 @@ def test_create_from_fortran_string():
     assert operator_arg._function_space_from == "W1"
 
 
-def create_part_ref(fortran_string):
-    '''Utility method to create an fparser2 Part_Ref instance from a
-    Fortran string.
-
-    :param str fortran_string: the Fortran string to convert.
-
-    :returns: the fparser2 Part_Ref representation of the Fortran string.
-    :rtype: :py:class:`fparser.two.Fortran2003.Part_Ref`
-
-    '''
-    _ = ParserFactory().create(std="f2003")
-    reader = FortranStringReader(fortran_string)
-    return Fortran2003.Part_Ref(reader)
-
-
 def test_create_from_fparser2():
     '''Test that the create_from_fparser2 static method works as
     expected. Test for exceptions as well as valid input.
@@ -150,67 +135,67 @@ def test_create_from_fparser2():
             "Part_Ref object but found type 'str' with value 'hello'."
             in str(info.value))
 
-    part_ref = create_part_ref("hello(x)")
+    fparser2_tree = OperatorArg.create_fparser2("hello(x)")
     with pytest.raises(ValueError) as info:
-        _ = OperatorArg.create_from_fparser2(part_ref)
+        _ = OperatorArg.create_from_fparser2(fparser2_tree)
     assert ("Expected kernel metadata to have the name 'arg_type' "
             "and be in the form 'arg_type(...)', but found 'hello(x)'."
             in str(info.value))
 
-    part_ref = create_part_ref("arg_type(x)")
+    fparser2_tree = OperatorArg.create_fparser2("arg_type(x)")
     with pytest.raises(ValueError) as info:
-        _ = OperatorArg.create_from_fparser2(part_ref)
+        _ = OperatorArg.create_from_fparser2(fparser2_tree)
     assert ("Expected kernel metadata to have 5 arguments, but "
             "found 1 in 'arg_type(x)'." in str(info.value))
 
-    part_ref = create_part_ref(
+    fparser2_tree = OperatorArg.create_fparser2(
         "arg_type(GH_OPERATION, GH_REAL, GH_READ, W0, W1)")
     with pytest.raises(ValueError) as info:
-        _ = OperatorArg.create_from_fparser2(part_ref)
+        _ = OperatorArg.create_from_fparser2(fparser2_tree)
     assert ("Operators should have GH_OPERATOR as their first metadata "
             "argument, but found 'GH_OPERATION'." in str(info.value))
 
-    part_ref = create_part_ref(
+    fparser2_tree = OperatorArg.create_fparser2(
         "arg_type(GH_OPERATOR, GH_UNREAL, GH_READ, W0, W1)")
     with pytest.raises(ValueError) as info:
-        _ = OperatorArg.create_from_fparser2(part_ref)
+        _ = OperatorArg.create_from_fparser2(fparser2_tree)
     assert ("At argument index '1' for metadata 'arg_type(GH_OPERATOR, "
             "GH_UNREAL, GH_READ, W0, W1)'. The datatype descriptor metadata "
             "for an operator should be one of ['gh_real'], but found "
             "'GH_UNREAL'." in str(info.value))
 
-    part_ref = create_part_ref(
+    fparser2_tree = OperatorArg.create_fparser2(
         "arg_type(GH_OPERATOR, GH_REAL, GH_ERROR, W0, W1)")
     with pytest.raises(ValueError) as info:
-        _ = OperatorArg.create_from_fparser2(part_ref)
+        _ = OperatorArg.create_from_fparser2(fparser2_tree)
     assert ("At argument index '2' for metadata 'arg_type(GH_OPERATOR, "
             "GH_REAL, GH_ERROR, W0, W1)'. The access descriptor metadata for "
             "an operator should be one of ['gh_read', 'gh_write', "
             "'gh_readwrite'], but found 'GH_ERROR'." in str(info.value))
 
-    part_ref = create_part_ref(
+    fparser2_tree = OperatorArg.create_fparser2(
         "arg_type(GH_OPERATOR, GH_REAL, GH_READ, XX, W1)")
     with pytest.raises(ValueError) as info:
-        _ = OperatorArg.create_from_fparser2(part_ref)
+        _ = OperatorArg.create_from_fparser2(fparser2_tree)
     assert ("At argument index '3' for metadata 'arg_type(GH_OPERATOR, "
             "GH_REAL, GH_READ, XX, W1)'. The function_space_to metadata for "
             "an operator should be one of ['w3', 'wtheta', 'w2v', 'w2vtrace', "
             "'w2broken', 'w0', 'w1', 'w2', 'w2trace', 'w2h', 'w2htrace', "
             "'any_w2', 'wchi'], but found 'XX'." in str(info.value))
 
-    part_ref = create_part_ref(
+    fparser2_tree = OperatorArg.create_fparser2(
         "arg_type(GH_OPERATOR, GH_REAL, GH_READ, W0, YY)")
     with pytest.raises(ValueError) as info:
-        _ = OperatorArg.create_from_fparser2(part_ref)
+        _ = OperatorArg.create_from_fparser2(fparser2_tree)
     assert ("At argument index '4' for metadata 'arg_type(GH_OPERATOR, "
             "GH_REAL, GH_READ, W0, YY)'. The function_space_from metadata for "
             "an operator should be one of ['w3', 'wtheta', 'w2v', 'w2vtrace', "
             "'w2broken', 'w0', 'w1', 'w2', 'w2trace', 'w2h', 'w2htrace', "
             "'any_w2', 'wchi'], but found 'YY'." in str(info.value))
 
-    part_ref = create_part_ref(
+    fparser2_tree = OperatorArg.create_fparser2(
         "arg_type(GH_OPERATOR, GH_REAL, GH_READ, W0, W1)")
-    operator_arg = OperatorArg.create_from_fparser2(part_ref)
+    operator_arg = OperatorArg.create_from_fparser2(fparser2_tree)
     assert operator_arg.form == "GH_OPERATOR"
     assert operator_arg._datatype == "GH_REAL"
     assert operator_arg._access == "GH_READ"

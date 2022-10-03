@@ -95,37 +95,22 @@ def test_create_from_fortran_string():
     assert operator_arg._function_space_from == "W1"
 
 
-def create_part_ref(fortran_string):
-    '''Utility method to create an fparser2 Part_Ref instance from a
-    Fortran string.
-
-    :param str fortran_string: the Fortran string to convert.
-
-    :returns: the fparser2 Part_Ref representation of the Fortran string.
-    :rtype: :py:class:`fparser.two.Fortran2003.Part_Ref`
-
-    '''
-    _ = ParserFactory().create(std="f2003")
-    reader = FortranStringReader(fortran_string)
-    return Fortran2003.Part_Ref(reader)
-
-
 def test_create_from_fparser2():
     '''Test that the create_from_fparser2 static method works as
     expected. Test for exceptions as well as valid input.
 
     '''
-    part_ref = create_part_ref(
+    fparser2_tree = ColumnwiseOperatorArg.create_fparser2(
         "arg_type(GH_UNWISE_OPERATOR, GH_REAL, GH_READ, W0, W1)")
     with pytest.raises(ValueError) as info:
-        _ = ColumnwiseOperatorArg.create_from_fparser2(part_ref)
+        _ = ColumnwiseOperatorArg.create_from_fparser2(fparser2_tree)
     assert ("ColumnwiseOperators should have GH_COLUMNWISE_OPERATOR as their "
             "first metadata argument, but found 'GH_UNWISE_OPERATOR'."
             in str(info.value))
 
-    part_ref = create_part_ref(
+    fparser2_tree = ColumnwiseOperatorArg.create_fparser2(
         "arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, W0, W1)")
-    operator_arg = ColumnwiseOperatorArg.create_from_fparser2(part_ref)
+    operator_arg = ColumnwiseOperatorArg.create_from_fparser2(fparser2_tree)
     assert operator_arg.form == "GH_COLUMNWISE_OPERATOR"
     assert operator_arg._datatype == "GH_REAL"
     assert operator_arg._access == "GH_READ"
