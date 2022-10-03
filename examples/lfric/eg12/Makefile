@@ -41,9 +41,9 @@ include ../../common.mk
 transform: extract extract_transformed find_kernel
 
 extract:
-	${PSYCLONE} -s ./test.py ../code/gw_mixed_schur_preconditioner_alg_mod.x90
+	${PSYCLONE} -nodm -s ./extract_nodes.py ../code/gw_mixed_schur_preconditioner_alg_mod.x90
+#${PSYCLONE} -s ./test.py ../code/gw_mixed_schur_preconditioner_alg_mod.x90
 #${PSYCLONE} -s ../eg11/async_script.py ../code/gw_mixed_schur_preconditioner_alg_mod.x90
-#${PSYCLONE} -nodm -s ./extract_nodes.py ../code/gw_mixed_schur_preconditioner_alg_mod.x90
 
 extract_transformed:
 	${PSYCLONE} -nodm -s ./extract_kernel_with_transformations.py \
