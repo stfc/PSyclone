@@ -80,10 +80,12 @@ def test_is_upper_lower_bound(fortran_reader):
     '''
     code = (
         "subroutine test()\n"
+        "use some_mod\n"
         "real a(10)\n"
         "character(10) my_str\n"
         "a(1:10) = 0.0\n"
         "my_str(2:2) = 'b'\n"
+        "var1(3:4) = 0\n"
         "end subroutine\n")
 
     # Return True as the literal values or the declaration and array
@@ -112,6 +114,12 @@ def test_is_upper_lower_bound(fortran_reader):
 
     # Return False if the symbol being referenced is of UnknownFortranType.
     array_ref = assigns[1].lhs
+    assert not array_ref.is_lower_bound(0)
+    assert not array_ref.is_upper_bound(0)
+
+    # Return False if the symbol has not associated type information.
+    array_ref = assigns[2].lhs
+    assert type(array_ref.symbol) is not DataSymbol
     assert not array_ref.is_lower_bound(0)
     assert not array_ref.is_upper_bound(0)
 
