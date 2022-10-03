@@ -427,6 +427,8 @@ class Descriptor(object):
     :param str access: whether argument is read/write etc.
     :param str space: which function space/grid-point type argument is \
                       on.
+    :param int metadata_index: position of this argument in the list of \
+                               arguments specified in the metadata.
     :param dict stencil: type of stencil access for this argument. \
                          Defaults to None if the argument is not supplied.
     :param str mesh: which mesh this argument is on. Defaults to None \
@@ -434,12 +436,20 @@ class Descriptor(object):
     :param str argument_type: the type of this argument. Defaults to \
                               None if the argument is not supplied.
 
+    :raises InternalError: if the metadata_index argument is not an int or is \
+                           less than zero.
+
     '''
     # pylint: disable=too-many-arguments
-    def __init__(self, access, space, stencil=None, mesh=None,
+    def __init__(self, access, space, metadata_index, stencil=None, mesh=None,
                  argument_type=None):
         self._access = access
         self._space = space
+        if not isinstance(metadata_index, int) or metadata_index < 0:
+            raise InternalError(
+                f"The metadata index must be an integer, greater than or "
+                f"equal to zero but got: {metadata_index}")
+        self._metadata_index = metadata_index
         self._stencil = stencil
         self._mesh = mesh
         self._argument_type = argument_type
@@ -461,6 +471,15 @@ class Descriptor(object):
 
         '''
         return self._space
+
+    @property
+    def metadata_index(self):
+        '''
+        :returns: the position of the corresponding argument descriptor in \
+                  the kernel metadata.
+        :rtype: int
+        '''
+        return self._metadata_index
 
     @property
     def stencil(self):

@@ -41,7 +41,6 @@ and properties.
 '''
 
 # Imports
-from __future__ import print_function, absolute_import
 
 import os
 import six
@@ -69,9 +68,10 @@ class LFRicArgDescriptor(Descriptor):
                      field or operator).
     :type arg_type: :py:class:`psyclone.expression.FunctionVar` or \
                     :py:class:`psyclone.expression.BinaryOperator`
-    :param operates_on: value of operates_on from the parsed kernel metadata \
-                        (used for validation).
-    :type operates_on: str
+    :param str operates_on: value of operates_on from the parsed kernel \
+                            metadata (used for validation).
+    :param int metadata_index: position of this argument in the list of \
+                               arguments specified in the metadata.
 
     :raises ParseError: if a 'meta_arg' entry is not of 'arg_type' type.
     :raises ParseError: if the first argument of a 'meta_arg' entry is not \
@@ -91,10 +91,9 @@ class LFRicArgDescriptor(Descriptor):
 
     # ----------------------------------------------------------------------- #
 
-    def __init__(self, arg_type, operates_on, metadata_idx):
+    def __init__(self, arg_type, operates_on, metadata_index):
         # pylint: disable=too-many-branches, too-many-statements
         self._arg_type = arg_type
-        self._metadata_idx = metadata_idx
         # Initialise properties
         self._argument_type = None
         self._data_type = None
@@ -119,7 +118,7 @@ class LFRicArgDescriptor(Descriptor):
                 "'arg_type', but found '{0}'.".format(arg_type.name))
 
         # Check the first argument descriptor. If it is a binary operator
-        # then it has to be a field vector with an "*n" appended where "*"
+        # then it has to be a field vector with an "*n" where "*"
         # is a binary operator and "n > 1" is a vector size. If it is a
         # variable then it can be one of the other allowed argument types.
         argtype = None
@@ -214,10 +213,10 @@ class LFRicArgDescriptor(Descriptor):
                 "should not get to here.".format(arg_type))
 
         # Initialise the parent class
-        super(LFRicArgDescriptor,
-              self).__init__(self._access_type, self._function_space1,
-                             stencil=self._stencil, mesh=self._mesh,
-                             argument_type=self._argument_type)
+        super().__init__(self._access_type, self._function_space1,
+                         metadata_index, stencil=self._stencil,
+                         mesh=self._mesh,
+                         argument_type=self._argument_type)
 
     def _validate_vector_size(self, separator, arg_type):
         '''
@@ -776,15 +775,6 @@ class LFRicArgDescriptor(Descriptor):
             raise InternalError("Expected a valid argument type but got "
                                 "'{0}'.".format(self._argument_type))
         return res
-
-    @property
-    def metadata_index(self):
-        '''
-        :returns: the position of the corresponding argument descriptor in \
-                  the kernel metadata.
-        :rtype: int
-        '''
-        return self._metadata_idx
 
 
 # Documentation utils: The list of module members that we wish AutoAPI to
