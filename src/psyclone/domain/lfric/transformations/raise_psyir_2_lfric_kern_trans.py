@@ -45,6 +45,7 @@ from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Container, ScopingNode, FileContainer
 from psyclone.psyir.transformations import TransformationError
 
+
 # TODO issue #1877. Find an appropriate place for the find_symbol()
 # method as it can be useful beyond this particular
 # transformation. Although the generic one would probably not return

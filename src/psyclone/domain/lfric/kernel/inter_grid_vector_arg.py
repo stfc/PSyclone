@@ -57,7 +57,7 @@ class InterGridVectorArg(InterGridArg):
 
     '''
     vector_length_arg_index = 0
-    
+
     def __init__(self, datatype=None, access=None, function_space=None,
                  mesh_arg=None, vector_length=None):
         super().__init__(datatype, access, function_space, mesh_arg)

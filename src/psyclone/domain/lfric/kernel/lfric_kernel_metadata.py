@@ -294,7 +294,6 @@ class LFRicKernelMetadata():
         #     args = walk(meta_funcs, Fortran2003.Ac_Value_List)
         # except ParseError:
         #     meta_funcs = []
-        meta_funcs = []
 
         LFRicKernelMetadata.meta_reference_element = []
         try:

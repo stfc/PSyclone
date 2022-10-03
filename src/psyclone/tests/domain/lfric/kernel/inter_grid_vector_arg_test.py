@@ -38,9 +38,7 @@
 '''
 import pytest
 
-from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
-from fparser.two.parser import ParserFactory
 
 from psyclone.domain.lfric.kernel.inter_grid_vector_arg import \
     InterGridVectorArg
@@ -201,7 +199,7 @@ def test_create_from_fparser2():
             "descriptor metadata for a field should be one of ['gh_read', "
             "'gh_write', 'gh_inc', 'gh_readinc'], but found 'GH_RED'."
             in str(info.value))
-    
+
     fparser2_tree = InterGridVectorArg.create_fparser2(
         "arg_type(GH_FIELD*3, GH_REAL, GH_READ, XX, mesh_arg=GH_COARSE)",
         encoding=Fortran2003.Structure_Constructor)
@@ -220,7 +218,7 @@ def test_create_from_fparser2():
             "'any_discontinuous_space_7', 'any_discontinuous_space_8', "
             "'any_discontinuous_space_9', 'any_discontinuous_space_10'], "
             "but found 'XX'" in str(info.value))
-    
+
     fparser2_tree = InterGridVectorArg.create_fparser2(
         "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0, mesh_rag=GH_COARSE)",
         encoding=Fortran2003.Structure_Constructor)

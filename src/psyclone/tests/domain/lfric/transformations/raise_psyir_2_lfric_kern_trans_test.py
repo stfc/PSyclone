@@ -190,7 +190,6 @@ def test_validate_parent(fortran_reader):
             "has a parent (FileContainer)." in str(info.value))
 
 
-
 def test_validate_metadata_name(fortran_reader):
     '''Test that the validate method raises the expected exception if the
     options argument does not provide the expected metadata lookup

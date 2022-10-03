@@ -38,10 +38,6 @@
 '''
 import pytest
 
-from fparser.common.readfortran import FortranStringReader
-from fparser.two import Fortran2003
-from fparser.two.parser import ParserFactory
-
 from psyclone.domain.lfric.kernel.field_arg import FieldArg
 
 
@@ -136,7 +132,7 @@ def test_create_from_fparser2():
 
     fparser2_tree = FieldArg.create_fparser2("hello(x)")
     with pytest.raises(ValueError) as info:
-       _ = FieldArg.create_from_fparser2(fparser2_tree)
+        _ = FieldArg.create_from_fparser2(fparser2_tree)
     assert ("Expected kernel metadata to have the name 'arg_type' "
             "and be in the form 'arg_type(...)', but found 'hello(x)'."
             in str(info.value))
@@ -147,14 +143,13 @@ def test_create_from_fparser2():
     assert ("Expected kernel metadata to have 4 arguments, but "
             "found 1 in 'arg_type(x)'." in str(info.value))
 
-    
     fparser2_tree = FieldArg.create_fparser2(
         "arg_type(GH_FEELED, GH_REAL, GH_READ, W0)")
     with pytest.raises(ValueError) as info:
         _ = FieldArg.create_from_fparser2(fparser2_tree)
     assert ("Fields should have GH_FIELD as their first metadata argument, "
             "but found 'GH_FEELED'." in str(info.value))
-    
+
     fparser2_tree = FieldArg.create_fparser2(
         "arg_type(GH_FIELD, GH_UNREAL, GH_READ, W0)")
     with pytest.raises(ValueError) as info:

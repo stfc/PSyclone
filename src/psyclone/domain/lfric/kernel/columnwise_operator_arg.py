@@ -70,7 +70,8 @@ class ColumnwiseOperatorArg(OperatorArg):
 
         '''
         ColumnwiseOperatorArg.check_fparser2(fparser2_tree, nargs=5)
-        ColumnwiseOperatorArg.check_first_arg(fparser2_tree, "ColumnwiseOperator")
+        ColumnwiseOperatorArg.check_first_arg(
+            fparser2_tree, "ColumnwiseOperator")
         datatype, access = ColumnwiseOperatorArg.get_type_and_access(
             fparser2_tree, ColumnwiseOperatorArg.datatype_arg_index,
             ColumnwiseOperatorArg.access_arg_index)

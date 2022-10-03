@@ -38,10 +38,6 @@
 '''
 import pytest
 
-from fparser.common.readfortran import FortranStringReader
-from fparser.two import Fortran2003
-from fparser.two.parser import ParserFactory
-
 from psyclone.domain.lfric.kernel.scalar_arg import ScalarArg
 
 
@@ -127,7 +123,7 @@ def test_create_from_fparser2():
         _ = ScalarArg.create_from_fparser2(fparser2_tree)
     assert ("Expected kernel metadata to have 3 arguments, but "
             "found 1 in 'arg_type(x)'." in str(info.value))
-    
+
     fparser2_tree = ScalarArg.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ)")
     with pytest.raises(ValueError) as info:

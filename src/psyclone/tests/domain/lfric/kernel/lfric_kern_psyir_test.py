@@ -94,7 +94,8 @@ def test_lfrickernelcontainer_create():
 
     '''
     metadata = LFRicKernelMetadata.create_from_fortran_string(METADATA)
-    container = LFRicKernelContainer.create("name", metadata, SymbolTable(), [])
+    container = LFRicKernelContainer.create(
+        "name", metadata, SymbolTable(), [])
     assert container.name == "name"
     expected = (
         "TYPE, PUBLIC, EXTENDS(kernel_type) :: w3_solver_kernel_type\n"

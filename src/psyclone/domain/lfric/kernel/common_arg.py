@@ -46,6 +46,7 @@ from fparser.two.parser import ParserFactory
 
 from psyclone.errors import InternalError
 
+
 # TODO issue #1886. This class has commonalities with GOcean metadata
 # processing.
 class CommonArg(ABC):
@@ -56,6 +57,10 @@ class CommonArg(ABC):
         argument.
 
     '''
+    # Dummy values to keep pylint happy for the check_first_arg method
+    form_arg_index = 0
+    form = ""
+
     def __init__(self, datatype=None, access=None):
         if datatype is None:
             self._datatype = datatype
@@ -167,7 +172,7 @@ class CommonArg(ABC):
             raise ValueError(
                 f"{name}s should have {cls.form} {word} their first metadata "
                 f"argument, but found '{form}'.")
-            
+
     @classmethod
     def check_remaining_args(cls, fparser2_tree, *args):
         '''Check that the remaining untested metadata arguments have the
@@ -185,7 +190,7 @@ class CommonArg(ABC):
 
         '''
         try:
-            arg_object = cls(*args)
+            _ = cls(*args)
         except ValueError as info:
             message = str(info)
             if "datatype descriptor" in message:
@@ -202,9 +207,9 @@ class CommonArg(ABC):
                 index = cls.function_space_from_arg_index
             else:
                 raise InternalError(
-                    f"Unexpected error message found '{message}'")
+                    f"Unexpected error message found '{message}'") from info
             raise ValueError(f"At argument index '{index}' for metadata "
-                             f"'{str(fparser2_tree)}'. {message}")
+                             f"'{str(fparser2_tree)}'. {message}") from info
 
     @staticmethod
     def get_arg(fparser2_tree, index):

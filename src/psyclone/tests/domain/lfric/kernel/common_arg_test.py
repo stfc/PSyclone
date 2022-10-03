@@ -56,7 +56,7 @@ def test_init_error():
 
 
 class CheckArg(CommonArg):
-    '''A utility class that allow the abstract CommonArg class to be
+    '''A utility class that allows the abstract CommonArg class to be
     tested.
 
     '''
@@ -177,7 +177,14 @@ def test_check_remaining_args():
 
     '''
     class DummyArg(CheckArg):
-        ''' xxx '''
+        '''Utility class used to test the abstract CommonArg class (via the
+        CheckArg class)
+
+        :param str message: the message to use for an exception.
+
+        :raises ValueError: when instantiated.
+
+        '''
         datatype_arg_index = 1
         access_arg_index = 2
         function_space_arg_index = 3
@@ -186,7 +193,7 @@ def test_check_remaining_args():
         function_space_from_arg_index = 6
 
         def __init__(self, message):
-            ''' xxx '''
+            super().__init__()
             raise ValueError(message)
 
     for index, message in [(1, "datatype descriptor error"),

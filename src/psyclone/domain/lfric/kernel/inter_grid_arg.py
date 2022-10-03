@@ -115,7 +115,7 @@ class InterGridArg(FieldArg):
         '''
         mesh_arg_lhs = fparser2_tree.children[1].\
             children[InterGridArg.mesh_arg_index].children[0].tostr()
-        if not (mesh_arg_lhs == "mesh_arg"):
+        if not mesh_arg_lhs == "mesh_arg":
             raise ValueError(
                 f"At argument index {InterGridArg.mesh_arg_index} for "
                 f"metadata '{fparser2_tree}' expected the left hand side "
