@@ -45,7 +45,7 @@ extract:
 #${PSYCLONE} -nodm -s ./extract_nodes.py ../code/gw_mixed_schur_preconditioner_alg_mod.x90
 
 extract_transformed:
-	${PSYCLONE} -nodm -s ./extract_kernel_with_transformations.py \
+	${PSYCLONE} -s ./extract_kernel_with_transformations.py \
 	  ../code/gw_mixed_schur_preconditioner_alg_mod.x90
 
 find_kernel:
