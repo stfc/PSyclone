@@ -332,12 +332,11 @@ def test_refelem_stub_arglist_err():
         "'Property.OUTWARD_NORMALS_TO_VERTICAL_FACES', "
         "'Property.OUTWARD_NORMALS_TO_FACES']" in str(err.value))
 
-#def test_field_prolong(dist_mem, fortran_writer):
-def test_field_prolong(fortran_writer):
+
+def test_field_prolong(dist_mem, fortran_writer):
     ''' Check that we generate correct psy-layer code for an invoke
     containing a kernel that performs a prolongation operation '''
 
-    dist_mem = False
     full_path = os.path.join(get_base_path(TEST_API),
                              "22.0_intergrid_prolong.f90")
 
@@ -349,28 +348,10 @@ def test_field_prolong(fortran_writer):
 
     create_arg_list = KernCallArgList(kernel)
     create_arg_list.generate()
-    print(create_arg_list._arglist)
     assert create_arg_list._arglist == [
         'nlayers', 'cell_map_field2(:,:,cell)', 'ncpc_field1_field2_x',
         'ncpc_field1_field2_y', 'ncell_field1', 'field1_proxy%data',
         'field2_proxy%data', 'ndf_w1', 'undf_w1', 'map_w1', 'undf_w2',
         'map_w2(:,cell)']
 
-    print("OLD\n", psy.gen)
-    #schedule.lower_to_language_level()
-    print(fortran_writer(schedule))
-
-    result = []
-    for node in create_arg_list.psyir_arglist:
-        assert isinstance(node, Reference)
-        result.append(fortran_writer(node))
-
-    print("PSYIR", result)
-    ###XX assert result == create_arg_list._arglist
-
-    assert result == ['nlayers', 'cell_map_field2(:,:,cell)',
-                      'ncpc_field1_field2_x',
-                      'ncpc_field1_field2_y', 'ncell_field1', 'field1_proxy%data',
-                      'field2_proxy%data', 'ndf_w1', 'undf_w1', 'undf_w2', 'map_w2(:,cell)']
-
-    ##check_psyir_results(create_arg_list, fortran_writer)
+    check_psyir_results(create_arg_list, fortran_writer)

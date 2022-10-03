@@ -174,9 +174,9 @@ class KernCallArgList(ArgOrdering):
 
         # Add the cell map to our argument list
         cell_ref_name, cell_ref = self._cell_ref_name(var_accesses)
-        ref = self.add_array_reference(base_name, [":", ":", cell_ref],
+        sym = self.add_array_reference(base_name, [":", ":", cell_ref],
                                        "integer")
-        self.append(f"{ref.symbol.name}(:,:,{cell_ref_name})",
+        self.append(f"{sym.name}(:,:,{cell_ref_name})",
                     var_accesses=var_accesses)
 
         # No. of fine cells per coarse cell in x
@@ -572,30 +572,14 @@ class KernCallArgList(ArgOrdering):
         if self._kern.iterates_over == 'domain':
             # This kernel takes responsibility for iterating over cells so
             # pass the whole dofmap.
-            self.append(map_name, var_accesses, var_access_name=map_name)
-            try:
-                sym = self._symtab.lookup(map_name)
-            except KeyError:
-                # Create a DataSymbol for this kernel argument.
-                datatype = psyir.LfricIntegerScalarDataType()
-                consts = LFRicConstants()
-                precision_name = consts.SCALAR_PRECISION_MAP["integer"]
-                psyir.add_lfric_precision_symbol(self._symtab, precision_name)
-                array_type = ArrayType(datatype, [ArrayType.Extent.ATTRIBUTE,
-                                                  ArrayType.Extent.ATTRIBUTE])
-
-                sym = self._symtab.new_symbol(map_name,
-                                              symbol_type=DataSymbol,
-                                              datatype=array_type)
-
-            self.psyir_append(Reference(sym))
-
+            sym = self.add_array_reference(map_name, [":", ":"], "integer")
+            self.append(sym.name, var_accesses, var_access_name=sym.name)
         else:
             # Pass the dofmap for the cell column
             cell_name, cell_ref = self._cell_ref_name(var_accesses)
-            ref = self.add_array_reference(map_name, [":", cell_ref], "real")
-            self.append(f"{ref.symbol.name}(:,{cell_name})",
-                        var_accesses, var_access_name=ref.symbol.name)
+            sym = self.add_array_reference(map_name, [":", cell_ref], "real")
+            self.append(f"{sym.name}(:,{cell_name})",
+                        var_accesses, var_access_name=sym.name)
 
     def fs_intergrid(self, function_space, var_accesses=None):
         '''Add function-space related arguments for an intergrid kernel.
@@ -620,6 +604,7 @@ class KernCallArgList(ArgOrdering):
             self.append(sym.name, var_accesses)
             map_name = function_space.map_name
             self.append(map_name, var_accesses)
+            self.add_integer_reference(map_name)
         else:
             # For the coarse mesh we only need undf and the dofmap for
             # the current column

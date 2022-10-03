@@ -207,7 +207,8 @@ class ArgOrdering:
         the given tag, a new array symbol will be defined using the given
         intrinsic_type. If a symbol already exists but has no type, it will
         be replaced. The created reference is added to the list of PSyIR
-        expressions, but also returned to the user (so the name of the
+        expressions, and the symbol is returned to the user
+        but also returned to the user (so the name of the
         created symbol can be queried).
 
         :param str array_name: the name and tag of the array.
@@ -215,8 +216,8 @@ class ArgOrdering:
             must either be ":", or a PSyIR node.
         :type indices: List[Union[str, py:class:`psyclone.psyir.nodes.Node`]]
 
-        :returns: r
-        :rtype : Lpy:class:`psyclone.psyir.nodes.ArrayReference`
+        :returns: the symbol used in the added reference.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         try:
@@ -249,7 +250,7 @@ class ArgOrdering:
         else:
             ref = ArrayReference.create(sym, indices)
         self.psyir_append(ref)
-        return ref
+        return sym
 
     @property
     def num_args(self):
