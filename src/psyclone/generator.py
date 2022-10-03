@@ -122,6 +122,8 @@ def handle_script(script_name, info, function_name, is_optional=False):
         print(f"Python about to try to import filename '{filename}'.")
         cwd = os.getcwd()
         print(f"Current working directory is '{cwd}'.")
+        files = [f for f in os.listdir('.') if os.path.isfile(f)]
+        print(f"Files in cwd are '{files}'.")
         try:
             transmod = __import__(filename)
         except ImportError as error:
