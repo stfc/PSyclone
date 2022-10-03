@@ -112,7 +112,8 @@ def handle_script(script_name, info, function_name, is_optional=False):
             # it exists so we need to add the path to the python
             # search path
             sys_path_appended = True
-            sys.path.append(filepath)
+            #sys.path.append(filepath)
+            sys.path.insert(0, filepath)
         print(f"sys.path is '{sys.path}'.")
         filename, fileext = os.path.splitext(filename)
         if fileext != '.py':
