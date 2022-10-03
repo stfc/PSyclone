@@ -125,8 +125,6 @@ def handle_script(script_name, info, function_name, is_optional=False):
         print(f"Current working directory is '{cwd}'.")
         files = [f for f in os.listdir('.') if os.path.isfile(f)]
         print(f"Files in cwd are '{files}'.")
-        from importlib import invalidate_caches
-        invalidate_caches()
         try:
             transmod = __import__(filename)
         except ImportError as error:
