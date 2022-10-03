@@ -101,6 +101,9 @@ def handle_script(script_name, info, function_name, is_optional=False):
     try:
         # a script has been provided
         filepath, filename = os.path.split(script_name)
+        print(f"scriptname is '{script_name}'.")
+        print(f"filepath is '{filepath}'.")
+        print(f"filename is '{filename}'.")
         if filepath:
             # a path to a file has been provided
             # we need to check the file exists
@@ -110,12 +113,15 @@ def handle_script(script_name, info, function_name, is_optional=False):
             # search path
             sys_path_appended = True
             sys.path.append(filepath)
+        print(f"sys.path is '{sys.path}'.")
         filename, fileext = os.path.splitext(filename)
         if fileext != '.py':
             raise GenerationError(
                 f"generator: expected the script file '{filename}' to have "
                 f"the '.py' extension")
         print(f"Python about to try to import filename '{filename}'.")
+        cwd = os.getcwd()
+        print(f"Current working directory is '{cwd}'.")
         try:
             transmod = __import__(filename)
         except ImportError as error:
