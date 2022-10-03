@@ -165,29 +165,6 @@ def test_codedkern_module_inline_kernel_in_multiple_invokes():
     assert gen.count("END SUBROUTINE testkern_qr_code") == 1
 
 
-@pytest.mark.usefixtures("kernel_outputdir")
-def test_codedkern_module_inline_gen_code_modified_kernels():
-    ''' Check that a CodedKern marked as modified can still be
-    module-inlined. '''
-    # Use LFRic example with a repeated CodedKern
-    psy, _ = get_invoke("4.6_multikernel_invokes.f90", "dynamo0.3", idx=0,
-                        dist_mem=False)
-    schedule = psy.invokes.invoke_list[0].schedule
-    coded_kern = schedule.children[0].loop_body[0]
-
-    # Set modified and module-inline at the same time
-    inline_trans = KernelModuleInlineTrans()
-    inline_trans.apply(coded_kern)
-    coded_kern.modified = True
-
-    # In this case the code generation still works but ...
-    gen = str(psy.gen)
-    assert "USE ru_kernel_mod, ONLY: ru_code" not in gen
-    # ... since this subroutine is modified the kernel has now a new suffix
-    print(gen)
-    assert "SUBROUTINE ru_0_code(" in gen
-
-
 def test_transformation_inline_error_if_not_kernel():
     ''' Test that the inline transformation fails if the object being
     passed is not a kernel'''

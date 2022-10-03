@@ -1468,14 +1468,10 @@ class CodedKern(Kern):
         '''
         symtab = self.ancestor(InvokeSchedule).symbol_table
 
-        # If it is not module inlined then make sure we generate the kernel
-        # file (and rename it when necessary).
-        self.rename_and_write()
-
         if not self.module_inline:
             # If it is not module inlined then make sure we generate the kernel
             # file (and rename it when necessary).
-            # self.rename_and_write()
+            self.rename_and_write()
             # Then find or create the imported RoutineSymbol
             try:
                 rsymbol = symtab.lookup(self._name)
@@ -1508,9 +1504,8 @@ class CodedKern(Kern):
 
         '''
         # If the kernel has been transformed then we rename it.
-        # Note that we call this for module-inlined because we need the new
-        # name, but it will not write it to a file.
-        self.rename_and_write()
+        if not self.module_inline:
+            self.rename_and_write()
 
         # Add the subroutine call with the necessary arguments
         arguments = self.arguments.raw_arg_list()
