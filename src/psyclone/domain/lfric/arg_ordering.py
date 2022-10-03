@@ -242,7 +242,12 @@ class ArgOrdering:
                                           symbol_type=DataSymbol,
                                           datatype=array_type)
 
-        ref = ArrayReference.create(sym, indices)
+        # If all indices are specified as ":", just use the name itself
+        # to reproduce the current look of the code.
+        if indices == [":"]*len(indices):
+            ref = Reference(sym)
+        else:
+            ref = ArrayReference.create(sym, indices)
         self.psyir_append(ref)
         return ref
 
