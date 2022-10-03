@@ -45,8 +45,8 @@ from psyclone import psyGen
 from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric import LFRicConstants, psyir
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.nodes import Reference
-from psyclone.psyir.symbols import DataSymbol, SymbolTable
+from psyclone.psyir.nodes import ArrayReference, Reference
+from psyclone.psyir.symbols import ArrayType, DataSymbol, SymbolTable
 
 
 class ArgOrdering:
@@ -201,6 +201,50 @@ class ArgOrdering:
         sym = self.get_integer_symbol(name, tag)
         self._psyir_arglist.append(Reference(sym))
         return sym
+
+    def add_array_reference(self, array_name, indices, intrinsic_type):
+        '''This function adds an array reference. If there is no sumbol with
+        the given tag, a new array symbol will be defined using the given
+        intrinsic_type. If a symbol already exists but has no type, it will
+        be replaced. The created reference is added to the list of PSyIR
+        expressions, but also returned to the user (so the name of the
+        created symbol can be queried).
+
+        :param str array_name: the name and tag of the array.
+        :param indices: the indices to be used in the PSyIR reference. It \
+            must either be ":", or a PSyIR node.
+        :type indices: List[Union[str, py:class:`psyclone.psyir.nodes.Node`]]
+
+        :returns: r
+        :rtype : Lpy:class:`psyclone.psyir.nodes.ArrayReference`
+
+        '''
+        try:
+            sym = self._symtab.lookup(array_name)
+        except KeyError:
+            sym = None
+        if sym is None or not isinstance(sym, DataSymbol):
+            # Create a DataSymbol for this kernel argument.
+            if intrinsic_type == "real":
+                datatype = psyir.LfricRealScalarDataType()
+            elif intrinsic_type == "integer":
+                datatype = psyir.LfricIntegerScalarDataType()
+            consts = LFRicConstants()
+            precision_name = consts.SCALAR_PRECISION_MAP[intrinsic_type]
+            psyir.add_lfric_precision_symbol(self._symtab,
+                                             precision_name)
+            array_type = ArrayType(datatype,
+                                   [ArrayType.Extent.ATTRIBUTE]*len(indices))
+            if sym and not isinstance(sym, DataSymbol):
+                # We need to remove the old incomplete symbol first
+                self._symtab.remove(sym)
+            sym = self._symtab.new_symbol(array_name, tag=array_name,
+                                          symbol_type=DataSymbol,
+                                          datatype=array_type)
+
+        ref = ArrayReference.create(sym, indices)
+        self.psyir_append(ref)
+        return ref
 
     @property
     def num_args(self):
@@ -676,8 +720,8 @@ class ArgOrdering:
 
         '''
         # There is currently one argument: "ndf"
-        ndf_name = function_space.ndf_name
-        self.append(ndf_name, var_accesses)
+        sym = self.add_integer_reference(function_space.ndf_name)
+        self.append(sym.name, var_accesses)
 
     def fs_compulsory_field(self, function_space, var_accesses=None):
         '''Add compulsory arguments associated with this function space to

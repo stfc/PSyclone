@@ -47,8 +47,7 @@ from psyclone import psyGen
 from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric import ArgOrdering, LFRicConstants, psyir
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.nodes import (ArrayReference, Literal, Reference,
-                                  StructureReference)
+from psyclone.psyir.nodes import Literal, Reference, StructureReference
 from psyclone.psyir.symbols import (ArrayType, DataSymbol,
                                     DataTypeSymbol, DeferredType,
                                     ContainerSymbol, ImportInterface)
@@ -172,37 +171,13 @@ class KernCallArgList(ArgOrdering):
         fargs = psyGen.args_filter(self._kern.args, arg_meshes=["gh_fine"])
         farg = fargs[0]
         base_name = "cell_map_" + carg.name
-        try:
-            sym = self._symtab.lookup(base_name)
-        except KeyError:
-            sym = None
-        if sym is None or not isinstance(sym, DataSymbol):
-            # Create a DataSymbol for this kernel argument.
-            datatype = psyir.LfricIntegerScalarDataType()
-            consts = LFRicConstants()
-            precision_name = consts.SCALAR_PRECISION_MAP["integer"]
-            psyir.add_lfric_precision_symbol(self._symtab,
-                                             precision_name)
-            array_type = ArrayType(datatype,
-                                   [ArrayType.Extent.ATTRIBUTE,
-                                    ArrayType.Extent.ATTRIBUTE,
-                                    ArrayType.Extent.ATTRIBUTE])
-            if not isinstance(sym, DataSymbol):
-                # We need to remove the old incomplete symbol first
-                self._symtab.remove(sym)
-            sym = self._symtab.new_symbol(base_name, tag=base_name,
-                                          symbol_type=DataSymbol,
-                                          datatype=array_type)
 
-        map_name = sym.name
         # Add the cell map to our argument list
         cell_ref_name, cell_ref = self._cell_ref_name(var_accesses)
-        self.append(f"{map_name}(:,:,{cell_ref_name})",
+        ref = self.add_array_reference(base_name, [":", ":", cell_ref],
+                                       "integer")
+        self.append(f"{ref.symbol.name}(:,:,{cell_ref_name})",
                     var_accesses=var_accesses)
-
-        self.psyir_append(ArrayReference.create(sym, [":",
-                                                      ":",
-                                                      cell_ref]))
 
         # No. of fine cells per coarse cell in x
         base_name = f"ncpc_{farg.name}_{carg.name}_x"
@@ -576,7 +551,6 @@ class KernCallArgList(ArgOrdering):
         self._ndf_positions.append(
             KernCallArgList.NdfInfo(position=self.num_args,
                                     function_space=function_space.orig_name))
-        self.add_integer_reference(function_space.ndf_name)
 
     def fs_compulsory_field(self, function_space, var_accesses=None):
         '''Add compulsory arguments associated with this function space to
@@ -591,9 +565,8 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        undf_name = function_space.undf_name
-        self.append(undf_name, var_accesses)
-        self.add_integer_reference(undf_name)
+        sym = self.add_integer_reference(function_space.undf_name)
+        self.append(sym.name, var_accesses)
 
         map_name = function_space.map_name
         if self._kern.iterates_over == 'domain':
@@ -619,9 +592,10 @@ class KernCallArgList(ArgOrdering):
 
         else:
             # Pass the dofmap for the cell column
-            self.append(f"{map_name}(:,"
-                        f"{self._cell_ref_name(var_accesses)[0]})",
-                        var_accesses, var_access_name=map_name)
+            cell_name, cell_ref = self._cell_ref_name(var_accesses)
+            ref = self.add_array_reference(map_name, [":", cell_ref], "real")
+            self.append(f"{ref.symbol.name}(:,{cell_name})",
+                        var_accesses, var_access_name=ref.symbol.name)
 
     def fs_intergrid(self, function_space, var_accesses=None):
         '''Add function-space related arguments for an intergrid kernel.
@@ -642,8 +616,8 @@ class KernCallArgList(ArgOrdering):
             # For the fine mesh, we need ndf, undf and the *whole*
             # dofmap
             self.fs_common(function_space, var_accesses=var_accesses)
-            undf_name = function_space.undf_name
-            self.append(undf_name, var_accesses)
+            sym = self.add_integer_reference(function_space.undf_name)
+            self.append(sym.name, var_accesses)
             map_name = function_space.map_name
             self.append(map_name, var_accesses)
         else:

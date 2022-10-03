@@ -332,8 +332,8 @@ def test_refelem_stub_arglist_err():
         "'Property.OUTWARD_NORMALS_TO_VERTICAL_FACES', "
         "'Property.OUTWARD_NORMALS_TO_FACES']" in str(err.value))
 
-#def test_field_prolong(tmpdir, dist_mem, fortran_writer):
-def test_field_prolong(tmpdir,fortran_writer):
+#def test_field_prolong(dist_mem, fortran_writer):
+def test_field_prolong(fortran_writer):
     ''' Check that we generate correct psy-layer code for an invoke
     containing a kernel that performs a prolongation operation '''
 
@@ -371,6 +371,6 @@ def test_field_prolong(tmpdir,fortran_writer):
     assert result == ['nlayers', 'cell_map_field2(:,:,cell)',
                       'ncpc_field1_field2_x',
                       'ncpc_field1_field2_y', 'ncell_field1', 'field1_proxy%data',
-                      'field2_proxy%data', 'ndf_w1', 'undf_w2']
+                      'field2_proxy%data', 'ndf_w1', 'undf_w1', 'undf_w2', 'map_w2(:,cell)']
 
     ##check_psyir_results(create_arg_list, fortran_writer)
