@@ -40,7 +40,7 @@
 
 
 from psyclone.errors import InternalError
-from psyclone.psyGen import Transformation, Kern
+from psyclone.psyGen import Transformation, Kern, InvokeSchedule
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.symbols import RoutineSymbol, ContainerSymbol, DataSymbol
 from psyclone.psyir.nodes import Literal, Container, ScopingNode, Reference, \
@@ -215,3 +215,9 @@ class KernelModuleInlineTrans(Transformation):
             # The routine symbol already exist, and we know from the validation
             # that its a Routine, but are they the same?
             pass
+
+        # Once module-inlined, all kernelcalls to the same kernel in the same
+        # invoke use the inlined implementation
+        for kernel in node.ancestor(InvokeSchedule).coded_kernels():
+            if kernel.name == node.name:
+                kernel.module_inline = True

@@ -524,46 +524,15 @@ def test_codedkern_module_inline_gen_code(tmpdir):
     assert "USE ru_kernel_mod, ONLY: ru_code" in gen
     assert "SUBROUTINE ru_code(" not in gen
 
-    # With module-inline the subroutine is copied locally only once
-    # even though this kernel has 2 callees.
+    # With module-inline the subroutine does not need to be imported
     coded_kern.module_inline = True
     gen = str(psy.gen)
+
+    # TODO: fail if local routine does not exist
+
     assert "USE ru_kernel_mod, ONLY: ru_code" not in gen
-    assert "SUBROUTINE ru_code(" in gen
-    assert gen.count("SUBROUTINE ru_code(") == 1
-    # Do a psy.gen again because this resets the modulegen, but the inlined
-    # kernel should now be inserted, but again, only once
-    gen = str(psy.gen)
-    assert gen.count("SUBROUTINE ru_code(") == 1
 
-    # And the generated code is valid
     assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    # Check that name clashes which are not subroutines are detected
-    schedule.symbol_table.add(DataSymbol("ru_code", REAL_TYPE))
-    with pytest.raises(NotImplementedError) as err:
-        gen = str(psy.gen)
-    assert ("Can not module-inline subroutine 'ru_code' because symbol "
-            "'ru_code: DataSymbol<Scalar<REAL, UNDEFINED>, Local>' with the "
-            "same name already exists and changing names of module-inlined "
-            "subroutines is not implemented yet.") in str(err.value)
-
-    # TODO # 898. Manually force removal of previous symbol as
-    # symbol_table.remove() for DataSymbols is not implemented yet.
-    schedule.parent.symbol_table._symbols.pop("ru_code")
-    schedule.symbol_table._symbols.pop("ru_code")
-
-    # Check that if a subroutine with the same name already exists and it is
-    # not identical, it fails.
-    new_symbol = RoutineSymbol("ru_code")
-    schedule.parent.symbol_table.add(new_symbol)
-    schedule.parent.addchild(Routine(new_symbol.name))
-    with pytest.raises(NotImplementedError) as err:
-        gen = str(psy.gen)
-    assert ("Can not inline subroutine 'ru_code' because another, different, "
-            "subroutine with the same name already exists and versioning of "
-            "module-inlined subroutines is not implemented "
-            "yet.") in str(err.value)
 
 
 def test_codedkern_module_inline_kernel_in_multiple_invokes(tmpdir):
@@ -579,7 +548,6 @@ def test_codedkern_module_inline_kernel_in_multiple_invokes(tmpdir):
     # By default the kernel is imported once per invoke
     gen = str(psy.gen)
     assert gen.count("USE testkern_qr, ONLY: testkern_qr_code") == 2
-    assert gen.count("END SUBROUTINE testkern_qr_code") == 0
 
     # Module inline kernel in invoke 1
     schedule1 = psy.invokes.invoke_list[0].schedule
@@ -591,7 +559,6 @@ def test_codedkern_module_inline_kernel_in_multiple_invokes(tmpdir):
     # After this, one invoke uses the inlined top-level subroutine
     # and the other imports it (shadowing the top-level symbol)
     assert gen.count("USE testkern_qr, ONLY: testkern_qr_code") == 1
-    assert gen.count("END SUBROUTINE testkern_qr_code") == 1
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # Module inline kernel in invoke 2
@@ -603,33 +570,6 @@ def test_codedkern_module_inline_kernel_in_multiple_invokes(tmpdir):
     # After this, no imports are remaining and both use the same
     # top-level implementation
     assert gen.count("USE testkern_qr, ONLY: testkern_qr_code") == 0
-    assert gen.count("END SUBROUTINE testkern_qr_code") == 1
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
-@pytest.mark.usefixtures("kernel_outputdir")
-def test_codedkern_module_inline_gen_code_modified_kernels(tmpdir):
-    ''' Check that a CodedKern marked as modified can still be
-    module-inlined. '''
-    # Use LFRic example with a repeated CodedKern
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    coded_kern = schedule.children[0].loop_body[0]
-
-    # Set modified and module-inline at the same time
-    coded_kern.modified = True
-    coded_kern.module_inline = True
-
-    # In this case the code generation still works but ...
-    gen = str(psy.gen)
-    assert "USE ru_kernel_mod, ONLY: ru_code" not in gen
-    # ... since this subroutine is modified the kernel has now a new suffix
-    assert "SUBROUTINE ru_0_code(" in gen
-
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 

@@ -41,7 +41,9 @@
 
 import pytest
 from psyclone.configuration import Config
+from psyclone.psyGen import CodedKern
 from psyclone.psyir.nodes import Container
+from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.utilities import count_lines, get_invoke
@@ -77,8 +79,113 @@ def test_module_inline_apply_transformation(tmpdir, fortran_writer):
     assert 'use compute_cv_mod, only: compute_cv_code' not in code
     assert 'USE compute_cv_mod, ONLY: compute_cv_code' not in gen
 
+    # Do the gen_code check again because repeating the call resets some
+    # aspects and we need to see if the second call still works as expected
+    gen = str(psy.gen)
+    assert 'SUBROUTINE compute_cv_code(i, j, cv, p, v)' in gen
+    assert 'USE compute_cv_mod, ONLY: compute_cv_code' not in gen
+    assert gen.count("SUBROUTINE compute_cv_code(") == 1
+
     # And it is valid code
     assert GOceanBuild(tmpdir).code_compiles(psy)
+
+
+def test_validate_name_clashes():
+    ''' Test that if the module-inline transformation finds the kernel name
+    already used in the Container scope, it ...'''
+    # Use LFRic example with a repeated CodedKern
+    psy, _ = get_invoke("4.6_multikernel_invokes.f90", "dynamo0.3", idx=0,
+                        dist_mem=False)
+    schedule = psy.invokes.invoke_list[0].schedule
+    coded_kern = schedule.children[0].loop_body[0]
+    inline_trans = KernelModuleInlineTrans()
+
+    # Check that name clashes which are not subroutines are detected
+    schedule.symbol_table.add(DataSymbol("ru_code", REAL_TYPE))
+    with pytest.raises(NotImplementedError) as err:
+        inline_trans.apply(coded_kern)
+    assert ("Can not module-inline subroutine 'ru_code' because symbol "
+            "'ru_code: DataSymbol<Scalar<REAL, UNDEFINED>, Local>' with the "
+            "same name already exists and changing names of module-inlined "
+            "subroutines is not implemented yet.") in str(err.value)
+
+    # TODO # 898. Manually force removal of previous symbol as
+    # symbol_table.remove() for DataSymbols is not implemented yet.
+    schedule.parent.symbol_table._symbols.pop("ru_code")
+    schedule.symbol_table._symbols.pop("ru_code")
+
+    # Check that if a subroutine with the same name already exists and it is
+    # not identical, it fails.
+    new_symbol = RoutineSymbol("ru_code")
+    schedule.parent.symbol_table.add(new_symbol)
+    schedule.parent.addchild(Routine(new_symbol.name))
+    with pytest.raises(NotImplementedError) as err:
+        gen = str(psy.gen)
+    assert ("Can not inline subroutine 'ru_code' because another, different, "
+            "subroutine with the same name already exists and versioning of "
+            "module-inlined subroutines is not implemented "
+            "yet.") in str(err.value)
+
+
+def test_codedkern_module_inline_kernel_in_multiple_invokes():
+    ''' Check that module-inline works as expected when the same kernel
+    is provided in different invokes'''
+    # Use LFRic example with the kernel 'testkern_qr' repeated once in
+    # the first invoke and 3 times in the second invoke.
+    psy, _ = get_invoke("3.1_multi_functions_multi_invokes.f90", "dynamo0.3",
+                        idx=0, dist_mem=False)
+
+    # By default the kernel is imported once per invoke
+    gen = str(psy.gen)
+    assert gen.count("USE testkern_qr, ONLY: testkern_qr_code") == 2
+    assert gen.count("END SUBROUTINE testkern_qr_code") == 0
+
+    # Module inline kernel in invoke 1
+    inline_trans = KernelModuleInlineTrans()
+    schedule1 = psy.invokes.invoke_list[0].schedule
+    for coded_kern in schedule1.walk(CodedKern):
+        if coded_kern.name == "testkern_qr_code":
+            inline_trans.apply(coded_kern)
+    gen = str(psy.gen)
+
+    # After this, one invoke uses the inlined top-level subroutine
+    # and the other imports it (shadowing the top-level symbol)
+    assert gen.count("USE testkern_qr, ONLY: testkern_qr_code") == 1
+    assert gen.count("END SUBROUTINE testkern_qr_code") == 1
+
+    # Module inline kernel in invoke 2
+    schedule1 = psy.invokes.invoke_list[1].schedule
+    for coded_kern in schedule1.walk(CodedKern):
+        if coded_kern.name == "testkern_qr_code":
+            inline_trans.apply(coded_kern)
+    gen = str(psy.gen)
+    # After this, no imports are remaining and both use the same
+    # top-level implementation
+    assert gen.count("USE testkern_qr, ONLY: testkern_qr_code") == 0
+    assert gen.count("END SUBROUTINE testkern_qr_code") == 1
+
+
+@pytest.mark.usefixtures("kernel_outputdir")
+def test_codedkern_module_inline_gen_code_modified_kernels():
+    ''' Check that a CodedKern marked as modified can still be
+    module-inlined. '''
+    # Use LFRic example with a repeated CodedKern
+    psy, _ = get_invoke("4.6_multikernel_invokes.f90", "dynamo0.3", idx=0,
+                        dist_mem=False)
+    schedule = psy.invokes.invoke_list[0].schedule
+    coded_kern = schedule.children[0].loop_body[0]
+
+    # Set modified and module-inline at the same time
+    inline_trans = KernelModuleInlineTrans()
+    inline_trans.apply(coded_kern)
+    coded_kern.modified = True
+
+    # In this case the code generation still works but ...
+    gen = str(psy.gen)
+    assert "USE ru_kernel_mod, ONLY: ru_code" not in gen
+    # ... since this subroutine is modified the kernel has now a new suffix
+    print(gen)
+    assert "SUBROUTINE ru_0_code(" in gen
 
 
 def test_transformation_inline_error_if_not_kernel():

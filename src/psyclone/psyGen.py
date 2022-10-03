@@ -1468,10 +1468,14 @@ class CodedKern(Kern):
         '''
         symtab = self.ancestor(InvokeSchedule).symbol_table
 
+        # If it is not module inlined then make sure we generate the kernel
+        # file (and rename it when necessary).
+        self.rename_and_write()
+
         if not self.module_inline:
             # If it is not module inlined then make sure we generate the kernel
             # file (and rename it when necessary).
-            self.rename_and_write()
+            # self.rename_and_write()
             # Then find or create the imported RoutineSymbol
             try:
                 rsymbol = symtab.lookup(self._name)
@@ -1485,7 +1489,7 @@ class CodedKern(Kern):
                         interface=ImportInterface(csymbol))
         else:
             # If its inlined, the symbol must exist
-            rsymbol = self.scope.lookup(self._name)
+            rsymbol = self.scope.symbol_table.lookup(self._name)
 
         # Create Call to the rsymbol with the argument expressions as children
         # of the new node
@@ -1503,8 +1507,9 @@ class CodedKern(Kern):
         :type parent: :py:class:`psyclone.f2pygen.LoopGen`
 
         '''
-        # If the kernel has been transformed then we rename it. If it
-        # is *not* being module inlined then we also write it to file.
+        # If the kernel has been transformed then we rename it.
+        # Note that we call this for module-inlined because we need the new
+        # name, but it will not write it to a file.
         self.rename_and_write()
 
         # Add the subroutine call with the necessary arguments
