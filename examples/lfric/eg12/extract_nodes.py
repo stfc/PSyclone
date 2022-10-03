@@ -72,5 +72,5 @@ UBOUND = 3
 
 
 def trans(psy):
-    print("HELLO FROM TEST TRANS")
+    print("HELLO FROM EXTRACT_NODES")
     return psy
