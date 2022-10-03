@@ -53,7 +53,7 @@ inline:
 	${PSYCLONE} -nodm -d ../code -s ./module_inline_trans.py ./multi_invoke_mod.x90
 
 loopfuse:
-	${PSYCLONE} -nodm -d ../code -s ./loop_fuse_trans.py ./multi_invoke_mod.x90
+	${PSYCLONE} -nodm -d ../code -s ./loop_fuse_trans.py ./multi_invoke_mod.x90 -opsy /dev/null -oalg /dev/null
 
 compile: transform
 	@echo "No compilation supported for lfric/eg2"

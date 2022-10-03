@@ -38,7 +38,7 @@
 '''
 
 from __future__ import print_function
-from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
+# from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 
 
 def trans(psy):
@@ -56,24 +56,6 @@ def trans(psy):
     :rtype: :py:class:`psyclone.dynamo0p3.DynamoPSy`
 
     '''
-    print(psy.gen)
-
-    print(psy.invokes.names)
-
-    schedule = psy.invokes.get('invoke_0').schedule
-    print(schedule.view())
-
-    lftrans = LFRicLoopFuseTrans()
-
-    # Since the arguments to the 'setval_c' built-in are on 'ANY_SPACE', we
-    # assert that the various loops over degrees of freedom are of
-    # the same extent and may safely be fused. (This is not actually true
-    # for this particular example but we do this for the purposes of
-    # illustration.)
-    lftrans.apply(schedule[0], schedule[1], {"same_space": True})
-    lftrans.apply(schedule[0], schedule[1], {"same_space": True})
-    lftrans.apply(schedule[0], schedule[1], {"same_space": True})
-
-    print(schedule.view())
+    print("Hello from loop_fuse_trans")
 
     return psy
