@@ -56,8 +56,8 @@ Please note that ExtractTrans works for consecutive Nodes in an
 Invoke Schedule (the Nodes also need to be children of the same parent).
 '''
 
-from __future__ import print_function
-from psyclone.domain.lfric.transformations import LFRicExtractTrans
+# from __future__ import print_function
+# from psyclone.domain.lfric.transformations import LFRicExtractTrans
 
 
 # Specify the name of the Invoke containing the Nodes to extract.
