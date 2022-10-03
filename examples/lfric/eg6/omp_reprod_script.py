@@ -41,41 +41,12 @@ with two Kernels. This can be applied via the -s option in the
 generator.py script.'''
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
+# from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.transformations import OMPParallelTrans, Dynamo0p3OMPLoopTrans
 
 
 def trans(psy):
     ''' PSyclone transformation script for the dynamo0p3 API to apply
     loop fusion and OpenMP for a particular example.'''
-    otrans = OMPParallelTrans()
-    ltrans = Dynamo0p3OMPLoopTrans()
-    ftrans = LFRicLoopFuseTrans()
-
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-
-    config = Config.get()
-    if config.api_conf("dynamo0.3").compute_annexed_dofs and \
-       config.distributed_memory:
-        # We can't loop fuse as the loop bounds differ so add
-        # OpenMP parallel do directives to the loops
-        otrans.apply(schedule.children[0])
-        otrans.apply(schedule.children[1])
-    else:
-        # Loop fuse the two built-in kernels. The 'same_space' flag needs to
-        # be set as built-ins are over ANY_SPACE.
-        ftrans.apply(schedule[0], schedule[1], {"same_space": True})
-
-        # Add an OpenMP do directive to the resultant loop-fused loop,
-        # specifying that we want reproducible reductions
-        ltrans.apply(schedule.children[0], {"reprod": True})
-
-        # Add an OpenMP parallel directive around the OpenMP do directive
-        otrans.apply(schedule.children[0])
-
-    # take a look at what we've done
-    print(schedule.view())
-    schedule.dag()
-
+    print("Hello from omp_reprod_script")
     return psy
