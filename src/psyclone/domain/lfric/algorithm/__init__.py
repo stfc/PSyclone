@@ -38,7 +38,8 @@
 '''
 from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
 from psyclone.domain.lfric.algorithm.psyir import (
-    LFRicAlgorithmInvokeCall, LFRicKernelFunctor, LFRicBuiltinFunctor)
+    LFRicAlgorithmInvokeCall, LFRicKernelFunctor, LFRicBuiltinFunctor,
+    LFRicBuiltinFunctorFactory)
 
 
 # For AutoAPI documentation generation.
@@ -46,4 +47,5 @@ __all__ = [
     'LFRicAlg',
     'LFRicAlgorithmInvokeCall',
     'LFRicKernelFunctor',
-    'LFRicBuiltinFunctor']
+    'LFRicBuiltinFunctor',
+    'LFRicBuiltinFunctorFactory']
