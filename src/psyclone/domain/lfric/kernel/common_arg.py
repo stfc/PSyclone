@@ -174,7 +174,7 @@ class CommonArg(ABC):
                 f"argument, but found '{form}'.")
 
     @classmethod
-    def check_remaining_args(cls, fparser2_tree, *args):
+    def check_remaining_args(cls, fparser2_tree, *metadata_args):
         '''Check that the remaining untested metadata arguments have the
         expected value. If they do not then re-raise the exception
         from the class constructor, adding in positional information
@@ -184,13 +184,17 @@ class CommonArg(ABC):
         :param fparser2_tree: the metadata encoded in an fparser2_tree
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`
+        :param *metadata_args: the metadata arguments required to \
+            create an instance of the class provided by the 'cls' \
+            argument.
+        :type *metadata_args: variable length argument list
 
         :raises ValueError: if the metadata has an incorrect value.
         :raises InternalError: if an unrecognised exception message is found.
 
         '''
         try:
-            _ = cls(*args)
+            _ = cls(*metadata_args)
         except ValueError as info:
             message = str(info)
             if "datatype descriptor" in message:

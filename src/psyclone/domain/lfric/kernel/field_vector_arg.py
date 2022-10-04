@@ -54,6 +54,13 @@ class FieldVectorArg(FieldArg):
     :param Optional[str] vector_length: the size of the vector.
 
     '''
+    # The relative position of LFRic vector length metadata. Metadata
+    # for a field vector argument is provided in the following format
+    # 'arg_type(form*vector_length, datatype, access,
+    # function_space)'. Therefore, the index of the vector_length
+    # argument (vector_length_arg_index) is 0. Index values not
+    # provided here are common to the parent classes and are inherited
+    # from them.
     vector_length_arg_index = 0
 
     def __init__(self, datatype=None, access=None, function_space=None,
@@ -90,8 +97,6 @@ class FieldVectorArg(FieldArg):
 
         :returns: an instance of this class.
         :rtype: :py:class:`psyclone.domain.lfric.kernel.FieldVectorArg`
-
-        raises ValueError: if the metadata is not in the correct form.
 
         '''
         FieldVectorArg.check_fparser2(fparser2_tree, nargs=4)

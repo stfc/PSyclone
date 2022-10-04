@@ -56,6 +56,13 @@ class InterGridVectorArg(InterGridArg):
     :param Optional[str] vector_length: the size of the vector.
 
     '''
+    # The relative position of LFRic vector length metadata. Metadata
+    # for an inter-grid vector argument is provided in the following
+    # format 'arg_type(form*vector_length, datatype, access,
+    # function_space, mesh)'. Therefore, the index of the
+    # vector_length argument (vector_length_arg_index) is 0. Index
+    # values not provided here are common to the parent classes and
+    # are inherited from them.
     vector_length_arg_index = 0
 
     def __init__(self, datatype=None, access=None, function_space=None,
@@ -77,8 +84,6 @@ class InterGridVectorArg(InterGridArg):
 
         :returns: an instance of InterGridVectorArg.
         :rtype: :py:class:`psyclone.domain.lfric.kernel.InterGridArg`
-
-        raises ValueError: if the metadata is not in the correct form.
 
         '''
         InterGridVectorArg.check_fparser2(

@@ -55,6 +55,8 @@ class ColumnwiseOperatorArg(OperatorArg):
         operator maps from (W0, ...).
 
     '''
+    # The name used to specify a columnwise operator argument in LFRic
+    # metadata.
     form = "GH_COLUMNWISE_OPERATOR"
 
     @staticmethod

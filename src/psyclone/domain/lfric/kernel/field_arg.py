@@ -54,7 +54,12 @@ class FieldArg(CommonArg):
         field is on (W0, ...).
 
     '''
+    # The name used to specify a field argument in LFRic metadata.
     form = "GH_FIELD"
+    # The relative positions of LFRic metadata. Metadata for a field
+    # argument is provided in the following format 'arg_type(form,
+    # datatype, access, function_space)'. Therefore, for example, the
+    # index of the form argument (form_arg_index) is 0.
     form_arg_index = 0
     datatype_arg_index = 1
     access_arg_index = 2
@@ -77,8 +82,6 @@ class FieldArg(CommonArg):
 
         :returns: an instance of FieldArg.
         :rtype: :py:class:`psyclone.domain.lfric.kernel.FieldArg`
-
-        raises ValueError: if the metadata is not in the correct form.
 
         '''
         FieldArg.check_fparser2(fparser2_tree, nargs=4)

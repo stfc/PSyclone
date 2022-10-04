@@ -52,7 +52,12 @@ class ScalarArg(CommonArg):
         scalar (GH_WRITE, ...).
 
     '''
+    # The name used to specify a scalar argument in LFRic metadata.
     form = "GH_SCALAR"
+    # The relative positions of LFRic metadata. Metadata for a scalar
+    # argument is provided in the following format 'arg_type(form,
+    # datatype, access)'. Therefore, for example, the index of the
+    # form argument (form_arg_index) is 0.
     form_arg_index = 0
     datatype_arg_index = 1
     access_arg_index = 2
@@ -67,8 +72,6 @@ class ScalarArg(CommonArg):
 
         :returns: an instance of ScalarArg.
         :rtype: :py:class:`psyclone.domain.lfric.kernel.ScalarArg`
-
-        raises ValueError: if the metadata is not in the correct form.
 
         '''
         ScalarArg.check_fparser2(fparser2_tree, nargs=3)

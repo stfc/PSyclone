@@ -56,7 +56,16 @@ class OperatorArg(ScalarArg):
         this operator maps from (W0, ...).
 
     '''
+    # The name used to specify an operator argument in LFRic metadata.
     form = "GH_OPERATOR"
+    # The relative positions of LFRic function-space-to and
+    # function-space-from metadata. Metadata for an operator argument
+    # is provided in the following format 'arg_type(form, datatype,
+    # access, function_space_to, function_space_from)'. Therefore, for
+    # example, the index of the function_space_to argument
+    # (function_space_to_arg_index) is 3. Index values not provided
+    # here are common to the parent classes and are inherited from
+    # them.
     function_space_to_arg_index = 3
     function_space_from_arg_index = 4
 

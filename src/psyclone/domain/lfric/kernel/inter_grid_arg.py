@@ -58,6 +58,12 @@ class InterGridArg(FieldArg):
         InterGrid arg is on (coarse or fine).
 
     '''
+    # The relative position of LFRic mesh metadata. Metadata for an
+    # inter-grid argument is provided in the following format
+    # 'arg_type(form, datatype, access, function_space,
+    # mesh)'. Therefore, the index of the mesh argument
+    # (mesh_arg_index) is 4. Index values not provided here are common
+    # to the parent classes and are inherited from them.
     mesh_arg_index = 4
 
     def __init__(self, datatype=None, access=None, function_space=None,
@@ -79,8 +85,6 @@ class InterGridArg(FieldArg):
 
         :returns: an instance of InterGridArg.
         :rtype: :py:class:`psyclone.domain.lfric.kernel.InterGridArg`
-
-        raises ValueError: if the metadata is not in the correct form.
 
         '''
         InterGridArg.check_fparser2(
@@ -115,7 +119,7 @@ class InterGridArg(FieldArg):
         '''
         mesh_arg_lhs = fparser2_tree.children[1].\
             children[InterGridArg.mesh_arg_index].children[0].tostr()
-        if not mesh_arg_lhs == "mesh_arg":
+        if not mesh_arg_lhs.lower() == "mesh_arg":
             raise ValueError(
                 f"At argument index {InterGridArg.mesh_arg_index} for "
                 f"metadata '{fparser2_tree}' expected the left hand side "
