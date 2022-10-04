@@ -91,12 +91,9 @@ class InterGridVectorArg(InterGridArg):
         InterGridArg.check_first_arg(
             fparser2_tree, "InterGridVector", vector=True)
         vector_length = InterGridVectorArg.get_and_check_vector_length(
-            fparser2_tree, InterGridVectorArg.vector_length_arg_index)
+            fparser2_tree)
         datatype, access, function_space = \
-            InterGridVectorArg.get_type_access_and_fs(
-                fparser2_tree, InterGridVectorArg.datatype_arg_index,
-                InterGridVectorArg.access_arg_index,
-                InterGridVectorArg.function_space_arg_index)
+            InterGridVectorArg.get_type_access_and_fs(fparser2_tree)
         mesh_arg = InterGridVectorArg.get_mesh_arg(fparser2_tree)
         InterGridVectorArg.check_remaining_args(
             fparser2_tree, datatype, access, function_space, mesh_arg,

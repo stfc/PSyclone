@@ -75,8 +75,7 @@ class ColumnwiseOperatorArg(OperatorArg):
         ColumnwiseOperatorArg.check_first_arg(
             fparser2_tree, "ColumnwiseOperator")
         datatype, access = ColumnwiseOperatorArg.get_type_and_access(
-            fparser2_tree, ColumnwiseOperatorArg.datatype_arg_index,
-            ColumnwiseOperatorArg.access_arg_index)
+            fparser2_tree)
         function_space_to = ColumnwiseOperatorArg.get_arg(
             fparser2_tree, ColumnwiseOperatorArg.function_space_to_arg_index)
         function_space_from = ColumnwiseOperatorArg.get_arg(

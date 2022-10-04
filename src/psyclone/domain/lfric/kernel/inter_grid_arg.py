@@ -91,10 +91,7 @@ class InterGridArg(FieldArg):
             fparser2_tree, nargs=5, encoding=Fortran2003.Structure_Constructor)
         InterGridArg.check_first_arg(fparser2_tree, "InterGrid")
         datatype, access, function_space = \
-            InterGridArg.get_type_access_and_fs(
-                fparser2_tree, InterGridArg.datatype_arg_index,
-                InterGridArg.access_arg_index,
-                InterGridArg.function_space_arg_index)
+            InterGridArg.get_type_access_and_fs(fparser2_tree)
         mesh_arg = InterGridArg.get_mesh_arg(fparser2_tree)
         InterGridArg.check_remaining_args(
             fparser2_tree, datatype, access, function_space, mesh_arg)

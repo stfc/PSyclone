@@ -103,12 +103,9 @@ class FieldVectorArg(FieldArg):
         FieldVectorArg.check_first_arg(
             fparser2_tree, "FieldVector", vector=True)
         vector_length = FieldVectorArg.get_and_check_vector_length(
-            fparser2_tree, FieldVectorArg.vector_length_arg_index)
+            fparser2_tree)
         datatype, access, function_space = \
-            FieldVectorArg.get_type_access_and_fs(
-                fparser2_tree, FieldVectorArg.datatype_arg_index,
-                FieldVectorArg.access_arg_index,
-                FieldVectorArg.function_space_arg_index)
+            FieldVectorArg.get_type_access_and_fs(fparser2_tree)
         FieldVectorArg.check_remaining_args(
             fparser2_tree, datatype, access, function_space, vector_length)
         return FieldVectorArg(datatype, access, function_space, vector_length)

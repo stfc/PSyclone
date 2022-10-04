@@ -95,9 +95,7 @@ class OperatorArg(ScalarArg):
         '''
         OperatorArg.check_fparser2(fparser2_tree, nargs=5)
         OperatorArg.check_first_arg(fparser2_tree, "Operator")
-        datatype, access = OperatorArg.get_type_and_access(
-            fparser2_tree, OperatorArg.datatype_arg_index,
-            OperatorArg.access_arg_index)
+        datatype, access = OperatorArg.get_type_and_access(fparser2_tree)
         function_space_to = OperatorArg.get_arg(
             fparser2_tree, OperatorArg.function_space_to_arg_index)
         function_space_from = OperatorArg.get_arg(

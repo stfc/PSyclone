@@ -76,9 +76,7 @@ class ScalarArg(CommonArg):
         '''
         ScalarArg.check_fparser2(fparser2_tree, nargs=3)
         ScalarArg.check_first_arg(fparser2_tree, "Scalar")
-        datatype, access = ScalarArg.get_type_and_access(
-            fparser2_tree, ScalarArg.datatype_arg_index,
-            ScalarArg.access_arg_index)
+        datatype, access = ScalarArg.get_type_and_access(fparser2_tree)
         ScalarArg.check_remaining_args(fparser2_tree, datatype, access)
         return ScalarArg(datatype, access)
 

@@ -62,6 +62,10 @@ class CheckArg(CommonArg):
     '''
     form = "sluglike"
     form_arg_index = 0
+    vector_length_arg_index = 0
+    datatype_arg_index = 1
+    access_arg_index = 2
+    function_space_arg_index = 3
 
     @staticmethod
     def check_datatype(value):
@@ -234,7 +238,7 @@ def test_get_type_and_access():
     dummy = CheckArg()
     fparser_tree = dummy.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ)")
-    datatype, access = dummy.get_type_and_access(fparser_tree, 1, 2)
+    datatype, access = dummy.get_type_and_access(fparser_tree)
     assert datatype == "GH_REAL"
     assert access == "GH_READ"
 
@@ -248,7 +252,7 @@ def test_get_type_access_and_fs():
     fparser_tree = dummy.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)")
     datatype, access, function_space = dummy.get_type_access_and_fs(
-        fparser_tree, 1, 2, 3)
+        fparser_tree)
     assert datatype == "GH_REAL"
     assert access == "GH_READ"
     assert function_space == "W0"
@@ -263,14 +267,14 @@ def test_get_and_check_vector_length():
     fparser_tree = dummy.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)")
     with pytest.raises(TypeError) as info:
-        _ = dummy.get_and_check_vector_length(fparser_tree, 0)
+        _ = dummy.get_and_check_vector_length(fparser_tree)
     assert ("The vector length metadata should be in the form "
             "'form*vector_length' but found 'GH_FIELD'."
             in str(info.value))
 
     fparser_tree = dummy.create_fparser2(
         "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)")
-    vector_length = dummy.get_and_check_vector_length(fparser_tree, 0)
+    vector_length = dummy.get_and_check_vector_length(fparser_tree)
     assert vector_length == "3"
 
 

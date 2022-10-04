@@ -57,8 +57,12 @@ class CommonArg(ABC):
         argument.
 
     '''
-    # Dummy values to keep pylint happy for the check_first_arg method
+    # Dummy values to keep pylint happy for the class methods
     form_arg_index = 0
+    vector_length_arg_index = 0
+    datatype_arg_index = 1
+    access_arg_index = 2
+    function_space_arg_index = 3
     form = ""
 
     def __init__(self, datatype=None, access=None):
@@ -230,64 +234,48 @@ class CommonArg(ABC):
         '''
         return fparser2_tree.children[1].children[index].tostr()
 
-    @staticmethod
-    def get_type_and_access(
-            fparser2_tree, datatype_arg_index, access_arg_index):
+    @classmethod
+    def get_type_and_access(cls, fparser2_tree):
         '''Retrieves the datatype and access metadata values found within the
         supplied fparser2 tree.
 
         :param fparser2_tree: fparser2 tree capturing the required metadata.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
-        :param int datatype_arg_index: the argument index of the \
-            datatype metadata.
-        :param int access_arg_index: the argument index of the access \
-            metadata.
 
         :returns: the datatype and access values extracted from the \
             fparser2 tree.
         :rtype: Tuple[str, str]
 
         '''
-        datatype = CommonArg.get_arg(fparser2_tree, datatype_arg_index)
-        access = CommonArg.get_arg(fparser2_tree, access_arg_index)
+        datatype = CommonArg.get_arg(fparser2_tree, cls.datatype_arg_index)
+        access = CommonArg.get_arg(fparser2_tree, cls.access_arg_index)
         return (datatype, access)
 
-    @staticmethod
-    def get_type_access_and_fs(
-            fparser2_tree, datatype_arg_index, access_arg_index,
-            function_space_arg_index):
+    @classmethod
+    def get_type_access_and_fs(cls, fparser2_tree):
         '''Retrieves the datatype, access and function space metadata values
         found within the supplied fparser2 tree.
 
         :param fparser2_tree: fparser2 tree capturing the required metadata.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
-        :param int datatype_arg_index: the argument index of the \
-            datatype metadata.
-        :param int access_arg_index: the argument index of the access \
-            metadata.
-        :param int function_space_arg_index: the argument index of the \
-            function space metadata.
 
         :returns: the datatype, access and function space values \
             extracted from the fparser2 tree.
         :rtype: Tuple[str, str, str]
 
         '''
-        datatype, access = CommonArg.get_type_and_access(
-            fparser2_tree, datatype_arg_index, access_arg_index)
+        datatype, access = cls.get_type_and_access(fparser2_tree)
         function_space = CommonArg.get_arg(
-            fparser2_tree, function_space_arg_index)
+            fparser2_tree, cls.function_space_arg_index)
         return (datatype, access, function_space)
 
-    @staticmethod
-    def get_and_check_vector_length(fparser2_tree, vector_length_arg_index):
+    @classmethod
+    def get_and_check_vector_length(cls, fparser2_tree):
         '''Retrieves the vector length metadata value found within the
         supplied fparser2 tree.
 
         :param fparser2_tree: fparser2 tree capturing the required metadata.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
-        :param int vector_length_arg_index: the argument index of the \
-            vector length metadata.
 
         :returns: the vector length value extracted from the fparser2 tree.
         :rtype: str
@@ -297,7 +285,7 @@ class CommonArg(ABC):
 
         '''
         vector_datatype = CommonArg.get_arg(
-            fparser2_tree, vector_length_arg_index)
+            fparser2_tree, cls.vector_length_arg_index)
         components = vector_datatype.split("*")
         if len(components) != 2:
             raise TypeError(

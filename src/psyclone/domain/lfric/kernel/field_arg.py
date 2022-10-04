@@ -87,10 +87,7 @@ class FieldArg(CommonArg):
         FieldArg.check_fparser2(fparser2_tree, nargs=4)
         FieldArg.check_first_arg(fparser2_tree, "Field")
         datatype, access, function_space = \
-            FieldArg.get_type_access_and_fs(
-                fparser2_tree, FieldArg.datatype_arg_index,
-                FieldArg.access_arg_index,
-                FieldArg.function_space_arg_index)
+            FieldArg.get_type_access_and_fs(fparser2_tree)
         FieldArg.check_remaining_args(
             fparser2_tree, datatype, access, function_space)
         return FieldArg(datatype, access, function_space)
