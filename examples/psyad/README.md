@@ -42,14 +42,13 @@ individual example directories for further details.
 
 ## Example 1
 
-Simple generic tangent linear example which is translated to its
-adjoint form and tested with the harness generation.
+Simple, generic tangent linear example which is translated to its
+adjoint form. A test harness is also generated which may be compiled
+and executed to validate the adjoint.
 
 ## Example 2
 
 An LFRic example using the kernel that computes the tangent-linear of
-the hydrostatic balance term. It was taken from the LFRic repository.
-
-This example includes the generation of a test harness for the adjoint
-kernel. See the README for more details.
-
+the hydrostatic balance term. A test harness for this kernel can also
+be generated. However, it must be incorporated into an LFRic mini-app
+in order to be compiled and executed.
