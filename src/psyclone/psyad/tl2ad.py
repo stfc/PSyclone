@@ -514,7 +514,7 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
     statements = []
     freader = FortranReader()
     # Initialise those variables and keep a copy of them.
-    for sym, sym_copy in zip(inputs, input_copies):
+    for sym, sym_record in zip(inputs, input_copies):
         # The PSyIR doesn't support the random_number Fortran intrinsic so we
         # create a CodeBlock for it. Happily, the intrinsic will initialise
         # all elements of an array passed to it so we don't have to take any
@@ -523,8 +523,9 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
         statements.append(
             freader.psyir_from_statement(f"call random_number({sym.name})",
                                          symbol_table))
+        # Keep a copy of the value of this argument.
         statements.append(
-            Assignment.create(Reference(sym_copy), Reference(sym)))
+            Assignment.create(Reference(sym_record), Reference(sym)))
     statements[0].preceding_comment = ("Initialise the kernel arguments and "
                                        "keep copies of them")
 

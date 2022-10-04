@@ -136,7 +136,6 @@ def main(args):
     else:
         print(ad_fortran_str, file=sys.stdout)
 
-
     # Output test framework if requested
     if generate_test:
 

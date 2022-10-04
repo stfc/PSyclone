@@ -72,12 +72,16 @@ def _compute_lfric_inner_products(prog, scalars, field_sums, sum_sym):
     idef_sym = psyir.add_lfric_precision_symbol(table, "i_def")
     idef_type = ScalarType(ScalarType.Intrinsic.REAL, idef_sym)
 
+    # Initialise the sum to zero: sum = 0.0
     prog.addchild(Assignment.create(Reference(sum_sym),
                                     Literal("0.0", sum_sym.datatype)))
     for scalar in scalars:
+        # Compute the product of the pair of scalars: scalar[0]*scalar[1]
         prod = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                       Reference(scalar[0]),
                                       Reference(scalar[1]))
+        # Add this product to the sum:
+        #     sum = sum + scalar[0]*scalar[1]
         prog.addchild(
                 Assignment.create(
                     Reference(sum_sym),
@@ -85,6 +89,8 @@ def _compute_lfric_inner_products(prog, scalars, field_sums, sum_sym):
                                            Reference(sum_sym), prod)))
     for sym in field_sums:
         if sym.is_scalar:
+            # Add this result of a field inner product to the sum:
+            #     sum = sum + field_sum
             prog.addchild(
                     Assignment.create(
                         Reference(sum_sym),
@@ -96,6 +102,7 @@ def _compute_lfric_inner_products(prog, scalars, field_sums, sum_sym):
             # must be summed.
             for dim in range(int(sym.datatype.shape[0].lower.value),
                              int(sym.datatype.shape[0].upper.value)+1):
+                # sum = sum + field_sum(dim)
                 add_op = BinaryOperation.create(
                     BinaryOperation.Operator.ADD,
                     Reference(sum_sym),
@@ -108,9 +115,6 @@ def _compute_field_inner_products(routine, field_pairs):
     '''
     Constructs the assignments and kernel functors needed to compute the
     inner products of the supplied list of fields.
-
-    TODO #1799: the error checking is currently limited to ensuring that an
-    inner product of a field vector with a field is rejected.
 
     :param routine: the routine to which to add the assignments.
     :type routine: :py:class:`psyclone.psyir.nodes.Routine`
@@ -148,9 +152,7 @@ def _compute_field_inner_products(routine, field_pairs):
                 f"Each pair of fields/field-vectors must be supplied as "
                 f"DataSymbols but got: {type(sym1)}, {type(sym2)}")
 
-        # TODO #1799: requires support for comparison of types.
-        # if sym1.datatype != sym2.datatype:
-        if sym1.is_array != sym2.is_array:
+        if sym1.datatype != sym2.datatype:
             raise InternalError(
                 f"Cannot compute the inner product of fields '{sym1.name}' "
                 f"and '{sym2.name}' because they are of different types: "
@@ -162,23 +164,33 @@ def _compute_field_inner_products(routine, field_pairs):
             inner_prod_name = f"{sym1.name}_{sym2.name}_inner_prod"
 
         if isinstance(sym1.datatype, DataTypeSymbol):
+            # Create and initialise a variable to hold the result of the
+            # inner product of this pair of fields.
             ip_sym = table.new_symbol(inner_prod_name,
                                       symbol_type=DataSymbol,
                                       datatype=rdef_type)
+            # name_inner_prod = 0.0
             routine.addchild(Assignment.create(Reference(ip_sym),
                                                Literal("0.0", rdef_type)))
             if sym2 is sym1:
+                # Inner product of field with itself.
                 kernel_list.append(
                     builtin_factory.create("x_innerproduct_x", table,
                                            [Reference(ip_sym),
                                             Reference(sym1)]))
             else:
+                # Inner product of two different fields.
                 kernel_list.append(
                     builtin_factory.create(
                         "x_innerproduct_y", table,
                         [Reference(ip_sym), Reference(sym1), Reference(sym2)]))
 
         elif isinstance(sym1.datatype, ArrayType):
+            # This is a pair of field vectors. We compute the inner product of
+            # each component and store the results in an array of the same
+            # length as the field vector.
+
+            # Create the array in which the results will be stored.
             dtype = ArrayType(rdef_type, sym1.datatype.shape)
             ip_sym = table.new_symbol(inner_prod_name,
                                       symbol_type=DataSymbol,
@@ -186,16 +198,19 @@ def _compute_field_inner_products(routine, field_pairs):
             for dim in range(int(sym1.datatype.shape[0].lower.value),
                              int(sym1.datatype.shape[0].upper.value)+1):
                 lit = Literal(str(dim), idef_type)
+                # Zero the inner product for this component pair.
                 routine.addchild(Assignment.create(
                     ArrayReference.create(ip_sym,
                                           [lit]), Literal("0.0", rdef_type)))
                 if sym2 is sym1:
+                    # Inner product of field with itself.
                     kernel_list.append(
                         builtin_factory.create(
                             "x_innerproduct_x", table,
                             [ArrayReference.create(ip_sym, [lit.copy()]),
                              ArrayReference.create(sym1, [lit.copy()])]))
                 else:
+                    # Inner product of two different fields.
                     kernel_list.append(
                         builtin_factory.create(
                             "x_innerproduct_y", table,
@@ -207,6 +222,8 @@ def _compute_field_inner_products(routine, field_pairs):
                 f"Expected a field symbol to either be of ArrayType or have "
                 f"a type specified by a DataTypeSymbol but found "
                 f"{sym1.datatype} for field '{sym1.name}'")
+
+        # Store the list of symbols holding the various inner products.
         field_ip_symbols.append(ip_sym)
 
     return field_ip_symbols, kernel_list
@@ -251,10 +268,12 @@ def _init_fields_random(fields, input_symbols, table):
             for dim in range(int(sym.datatype.shape[0].lower.value),
                              int(sym.datatype.shape[0].upper.value)+1):
                 lit = Literal(str(dim), idef_type)
+                # Initialise this component with pseudo-random numbers.
                 kernel_list.append(
                     builtin_factory.create("setval_random", table,
                                            [ArrayReference.create(sym,
                                                                   [lit])]))
+                # Keep a copy of the values in the associated 'input' field.
                 kernel_list.append(
                     builtin_factory.create(
                         "setval_x", table,
@@ -265,6 +284,8 @@ def _init_fields_random(fields, input_symbols, table):
                 f"Expected a field symbol to either be of ArrayType or have "
                 f"a type specified by a DataTypeSymbol but found "
                 f"{sym.datatype} for field '{sym.name}'")
+
+    # Return the list of kernel functors.
     return kernel_list
 
 

@@ -42,7 +42,8 @@ The simplest way to run PSyAD is to use the ``psyad`` command. If you
 installed PSyclone using ``pip`` then this command should be available
 on your PATH (see the PSyclone user guide for more
 details). Alternatively it can be found in the ``<PSYCLONEHOME>/bin``
-directory. The command takes an LFRic tangent-linear kernel file and a
+directory. The command takes a file containing a tangent-linear kernel
+(either a generic Fortran subroutine or an LFRic kernel) and a
 list of active variables as input and outputs its adjoint. This
 section walks through the functionality of the command.
 

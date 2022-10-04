@@ -241,7 +241,7 @@ def test_kernel_from_metadata(lfric_alg):
     Tests for the kernel_from_metadata() utility.
 
     '''
-    # Invalid code should raise an error.
+    # Invalid parse tree should raise an error.
     with pytest.raises(ValueError) as err:
         lfric_alg.kernel_from_metadata("not fortran", "john")
     assert ("Failed to find kernel 'john' in supplied code: 'not fortran'. "
