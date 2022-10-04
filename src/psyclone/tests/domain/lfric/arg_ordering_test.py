@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,12 +37,12 @@
 
 ''' This module tests the LFric classes based on ArgOrdering.'''
 
-from __future__ import absolute_import
 import os
 import pytest
 
 from psyclone.domain.lfric import (KernCallArgList,
                                    KernStubArgList, LFRicConstants)
+from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynLoop
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
@@ -156,6 +156,33 @@ def test_arg_ordering_generate_cma_kernel(dist_mem):
         'cbanded_map_adspc2_lma_op1']
 
 
+def test_arg_ordering_mdata_index():
+    '''
+    Check that the lookup_metadata_index() and
+    metadata_index_from_actual_index() methods of ArgOrdering work
+    as expected.
+
+    '''
+    full_path = os.path.join(get_base_path(TEST_API),
+                             "1.0.1_single_named_invoke.f90")
+    _, invoke_info = parse(full_path, api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernels = schedule.walk(DynKern)
+    arg_list = ArgOrdering(kernels[0])
+    arg_list.generate()
+    # Scalar argument.
+    assert arg_list.lookup_metadata_index("a") == 0
+    # Field argument - not implemented in ArgOrdering
+    with pytest.raises(KeyError):
+        assert arg_list.lookup_metadata_index("m2") == 4
+    # Scalar argument.
+    assert arg_list.metadata_index_from_actual_index(0) == 0
+    with pytest.raises(KeyError):
+        arg_list.metadata_index_from_actual_index(20)
+
+
 def test_kernel_stub_ind_dofmap_errors():
     '''Check that we raise the expected exceptions if the wrong arguments
     are supplied to KernelStubArgList.indirection_dofmap() '''
@@ -239,6 +266,36 @@ def test_kerncallarglist_quad_rule_error(dist_mem, tmpdir):
         create_arg_list.quad_rule()
     assert ("no support implemented for quadrature with a shape of 'broken'"
             in str(err.value))
+
+
+def test_kerncallarglist_metadata_index_op_vector():
+    '''
+    Check that the lookup_metadata_index() and
+    metadata_index_from_actual_index() methods of KernCallArgList work
+    as expected for operator and field-vector arguments.
+
+    '''
+    full_path = os.path.join(get_base_path(TEST_API),
+                             "4.4_multikernel_invokes.f90")
+    _, invoke_info = parse(full_path, api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernels = schedule.walk(DynKern)
+    arg_list = KernCallArgList(kernels[0])
+    arg_list.generate()
+    assert arg_list.lookup_metadata_index("a") == 2
+    assert arg_list.lookup_metadata_index("f1") == 1
+    assert arg_list.lookup_metadata_index("op") == 0
+    # Operator
+    assert arg_list.metadata_index_from_actual_index(3) == 0
+    # All three members of the vector originate from a single argument
+    # description in the metadata.
+    assert arg_list.metadata_index_from_actual_index(4) == 1
+    assert arg_list.metadata_index_from_actual_index(5) == 1
+    assert arg_list.metadata_index_from_actual_index(6) == 1
+    # Scalar
+    assert arg_list.metadata_index_from_actual_index(7) == 2
 
 
 def test_kernstubarglist_arglist_error():

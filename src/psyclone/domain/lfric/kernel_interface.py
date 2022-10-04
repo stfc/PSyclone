@@ -38,7 +38,6 @@
 kernel based on the kernel metadata.
 
 '''
-from __future__ import absolute_import
 import six
 from psyclone.domain.lfric import ArgOrdering, LFRicConstants
 from psyclone.domain.lfric import psyir as lfric_psyir
@@ -242,6 +241,8 @@ class KernelInterface(ArgOrdering):
             field_data_symbol = self._symbol_table.find_or_create_tag(
                 tag, symbol_type=field_class, dims=[Reference(undf_symbol)],
                 fs=fs_name, interface=interface)
+            self._mdata_idx_by_arg[field_data_symbol.name] = argvect.metadata_index
+            self._arg_index_to_metadata_index[len(self._arglist)] = argvect.metadata_index
             self._arglist.append(field_data_symbol)
 
     def field(self, arg, var_accesses=None):
@@ -276,6 +277,9 @@ class KernelInterface(ArgOrdering):
         field_data_symbol = self._symbol_table.find_or_create_tag(
             arg.name, interface=ArgumentInterface(INTENT_MAPPING[arg.intent]),
             symbol_type=field_class, dims=[Reference(undf_symbol)], fs=fs_name)
+
+        self._arg_index_to_metadata_index[len(self._arglist)] = arg.metadata_index
+        self._mdata_idx_by_arg[field_data_symbol.name] = arg.metadata_index
         self._arglist.append(field_data_symbol)
 
     def stencil_unknown_extent(self, arg, var_accesses=None):
@@ -363,6 +367,9 @@ class KernelInterface(ArgOrdering):
                   Reference(ncells)],
             fs_from=fs_from_name, fs_to=fs_to_name,
             interface=ArgumentInterface(INTENT_MAPPING[arg.intent]))
+
+        self._arg_index_to_metadata_index[len(self._arglist)] = arg.metadata_index
+        self._mdata_idx_by_arg[op_arg_symbol.name] = arg.metadata_index
         self._arglist.append(op_arg_symbol)
 
     def cma_operator(self, arg, var_accesses=None):

@@ -8491,9 +8491,16 @@ class DynKern(CodedKern):
         # 2: Check that the properties of each argument matches
         for idx, kern_code_arg in enumerate(kern_code_args):
             interface_arg = interface_args[idx]
-            self._validate_kernel_code_arg(kern_code_arg, interface_arg)
+            try:
+                alg_idx = interface_info.metadata_index_from_actual_index(idx)
+                alg_arg = self.arguments.args[alg_idx]
+            except KeyError:
+                alg_arg = None
+            self._validate_kernel_code_arg(kern_code_arg, interface_arg,
+                                           alg_arg)
 
-    def _validate_kernel_code_arg(self, kern_code_arg, interface_arg):
+    def _validate_kernel_code_arg(self, kern_code_arg, interface_arg,
+                                  alg_arg=None):
         '''Internal method to check that the supplied argument descriptions
         match and raise appropriate exceptions if not.
 
@@ -8516,7 +8523,7 @@ class DynKern(CodedKern):
                 "in kernel '{2}' but the LFRic API expects '{3}'."
                 "".format(kern_code_arg.name, actual_datatype,
                           self.name, expected_datatype))
-        # 2: precision
+        # 2a: precision
         actual_precision = kern_code_arg.datatype.precision
         expected_precision = interface_arg.datatype.precision
         if actual_precision.name != expected_precision.name:
@@ -8525,6 +8532,13 @@ class DynKern(CodedKern):
                 "in kernel '{2}' but the LFRic API expects '{3}'."
                 "".format(kern_code_arg.name, actual_precision.name,
                           self.name, expected_precision.name))
+        # 2b: precision at compile time
+        # arg_index_in_alg = alg_posn (comes from position in metadata)
+        if alg_arg:
+            # TODO #1892 - check that precision derived from algorithm layer
+            # matches the subroutine interface.
+            pass
+
         # 3: intent
         actual_intent = kern_code_arg.interface.access
         expected_intent = interface_arg.interface.access

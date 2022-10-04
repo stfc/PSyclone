@@ -39,8 +39,6 @@
 call. It especially adds all implicitly required parameters.
 '''
 
-from __future__ import print_function, absolute_import
-
 from collections import namedtuple
 
 from psyclone import psyGen
@@ -199,7 +197,8 @@ class KernCallArgList(ArgOrdering):
                 mode = arg.access
             else:
                 mode = AccessType.READ
-            self.append(name, var_accesses, mode=mode)
+            self.append(name, var_accesses, mode=mode,
+                        metadata_posn=arg.metadata_index)
 
     def field_vector(self, argvect, var_accesses=None):
         '''Add the field vector associated with the argument 'argvect' to the
@@ -219,7 +218,8 @@ class KernCallArgList(ArgOrdering):
         # require in our Fortran code
         for idx in range(1, argvect.vector_size + 1):
             text = argvect.proxy_name + "(" + str(idx) + ")%data"
-            self.append(text)
+            self.append(text, metadata_posn=argvect.metadata_index)
+        self._mdata_idx_by_arg[argvect.name] = argvect.metadata_index
         if var_accesses is not None:
             # We add the whole field-vector, not the individual accesses.
             var_accesses.add_access(Signature(argvect.name), argvect.access,
@@ -238,10 +238,11 @@ class KernCallArgList(ArgOrdering):
 
         '''
         text = arg.proxy_name + "%data"
+        self._mdata_idx_by_arg[arg.name] = arg.metadata_index
         # Add the field object arg%name and not just the proxy part
         # as being read.
         self.append(text, var_accesses, var_access_name=arg.name,
-                    mode=arg.access)
+                    mode=arg.access, metadata_posn=arg.metadata_index)
 
     def stencil_unknown_extent(self, arg, var_accesses=None):
         '''Add stencil information to the argument list associated with the
@@ -391,9 +392,10 @@ class KernCallArgList(ArgOrdering):
         # This argument is always read only:
         self.append(arg.proxy_name_indexed + "%ncell_3d", var_accesses,
                     mode=AccessType.READ)
+        self._mdata_idx_by_arg[arg.name] = arg.metadata_index
         # The access mode of `local_stencil` is taken from the meta-data:
         self.append(arg.proxy_name_indexed + "%local_stencil", var_accesses,
-                    mode=arg.access)
+                    mode=arg.access, metadata_posn=arg.metadata_index)
 
     def fs_common(self, function_space, var_accesses=None):
         '''Add function-space related arguments common to LMA operators and
