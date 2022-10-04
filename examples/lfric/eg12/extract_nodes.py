@@ -57,7 +57,7 @@ Invoke Schedule (the Nodes also need to be children of the same parent).
 '''
 
 from __future__ import print_function
-# from psyclone.domain.lfric.transformations import LFRicExtractTrans
+from psyclone.domain.lfric.transformations import LFRicExtractTrans
 
 
 # Specify the name of the Invoke containing the Nodes to extract.
@@ -72,5 +72,22 @@ UBOUND = 3
 
 
 def trans(psy):
-    print("HELLO FROM EXTRACT_NODES")
+    ''' PSyclone transformation script for the Dynamo0.3 API to extract
+    the specified Nodes in an Invoke. '''
+
+    # Get instance of the ExtractTrans transformation
+    etrans = LFRicExtractTrans()
+
+    # Get Invoke and its Schedule
+    invoke = psy.invokes.get(INVOKE_NAME)
+    schedule = invoke.schedule
+
+    # Apply extract transformation to selected Nodes
+    print("\nExtracting Nodes '[" + str(LBOUND) + ":" + str(UBOUND) +
+          "]' from Invoke '" + invoke.name + "'\n")
+    etrans.apply(schedule.children[LBOUND:UBOUND])
+
+    # Take a look at the transformed Schedule
+    print(schedule.view())
+
     return psy

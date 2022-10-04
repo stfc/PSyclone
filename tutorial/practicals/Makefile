@@ -39,4 +39,5 @@ ALL_TARGETS = transform compile run clean allclean
 .PHONY: $(ALL_TARGETS)
 
 $(ALL_TARGETS):
+	$(MAKE) -C LFRic $@
 	$(MAKE) -C nemo $@

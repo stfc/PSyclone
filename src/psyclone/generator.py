@@ -101,9 +101,6 @@ def handle_script(script_name, info, function_name, is_optional=False):
     try:
         # a script has been provided
         filepath, filename = os.path.split(script_name)
-        print(f"scriptname is '{script_name}'.")
-        print(f"filepath is '{filepath}'.")
-        print(f"filename is '{filename}'.")
         if filepath:
             # a path to a file has been provided
             # we need to check the file exists
@@ -112,20 +109,12 @@ def handle_script(script_name, info, function_name, is_optional=False):
             # it exists so we need to add the path to the python
             # search path
             sys_path_appended = True
-            #sys.path.append(filepath)
-            sys.path.insert(0, filepath)
-        print(f"sys.path is '{sys.path}'.")
+            sys.path.append(filepath)
         filename, fileext = os.path.splitext(filename)
         if fileext != '.py':
             raise GenerationError(
                 f"generator: expected the script file '{filename}' to have "
                 f"the '.py' extension")
-        print(f"Python about to try to import filename '{filename}'.")
-        cwd = os.getcwd()
-        print(f"Current working directory is '{cwd}'.")
-        files = [f for f in os.listdir('.') if os.path.isfile(f)]
-        print(f"Files in cwd are '{files}'.")
-        from psyclone.domain.lfric.transformations.lfric_extract_trans import LFRicExtractTrans
         try:
             transmod = __import__(filename)
         except ImportError as error:
