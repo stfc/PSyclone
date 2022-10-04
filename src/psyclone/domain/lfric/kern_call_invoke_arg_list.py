@@ -145,7 +145,6 @@ class KernCallInvokeArgList(ArgOrdering):
                                       symbol_type=DataSymbol,
                                       datatype=datatype)
         self._scalars.append(sym)
-        self._mdata_idx_by_arg[sym] = scalar_arg.metadata_index
 
     def fs_common(self, function_space, var_accesses=None):
         ''' Does nothing as there are no arguments associated with function
@@ -181,7 +180,6 @@ class KernCallInvokeArgList(ArgOrdering):
                              LFRicConstants().specific_function_space(
                                  argvect.function_space.orig_name)))
         self.append(sym.name, var_accesses, mode=argvect.access)
-        self._mdata_idx_by_arg[sym] = argvect.metadata_index
 
     def field(self, arg, var_accesses=None):
         '''Add the field array associated with the argument 'arg' to the
@@ -202,7 +200,6 @@ class KernCallInvokeArgList(ArgOrdering):
                              LFRicConstants().specific_function_space(
                                  arg.function_space.orig_name)))
         self.append(sym.name, var_accesses, mode=arg.access)
-        self._mdata_idx_by_arg[sym] = arg.metadata_index
 
     def stencil(self, arg, var_accesses=None):
         '''Add general stencil information associated with the argument 'arg'

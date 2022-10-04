@@ -219,7 +219,7 @@ class KernCallArgList(ArgOrdering):
         for idx in range(1, argvect.vector_size + 1):
             text = argvect.proxy_name + "(" + str(idx) + ")%data"
             self.append(text, metadata_posn=argvect.metadata_index)
-        self._mdata_idx_by_arg[argvect.name] = argvect.metadata_index
+
         if var_accesses is not None:
             # We add the whole field-vector, not the individual accesses.
             var_accesses.add_access(Signature(argvect.name), argvect.access,
@@ -238,7 +238,7 @@ class KernCallArgList(ArgOrdering):
 
         '''
         text = arg.proxy_name + "%data"
-        self._mdata_idx_by_arg[arg.name] = arg.metadata_index
+
         # Add the field object arg%name and not just the proxy part
         # as being read.
         self.append(text, var_accesses, var_access_name=arg.name,
@@ -392,7 +392,7 @@ class KernCallArgList(ArgOrdering):
         # This argument is always read only:
         self.append(arg.proxy_name_indexed + "%ncell_3d", var_accesses,
                     mode=AccessType.READ)
-        self._mdata_idx_by_arg[arg.name] = arg.metadata_index
+
         # The access mode of `local_stencil` is taken from the meta-data:
         self.append(arg.proxy_name_indexed + "%local_stencil", var_accesses,
                     mode=arg.access, metadata_posn=arg.metadata_index)

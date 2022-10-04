@@ -67,7 +67,6 @@ class ArgOrdering:
         self._generate_called = False
         self._arglist = []
         self._arg_index_to_metadata_index = {}
-        self._mdata_idx_by_arg = {}
 
     def append(self, var_name, var_accesses=None, var_access_name=None,
                mode=AccessType.READ, metadata_posn=None):
@@ -93,6 +92,8 @@ class ArgOrdering:
             the list of arguments in the kernel metadata (if any).
 
         '''
+        # Keep track of which metadata argument this actual argument
+        # corresponds to.
         self._arg_index_to_metadata_index[len(self._arglist)] = metadata_posn
 
         self._arglist.append(var_name)
@@ -120,7 +121,9 @@ class ArgOrdering:
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         :param mode: optional access mode (defaults to READ).
-        :type mode: :py:class:`psyclone.core.access_type.AccessType`
+        :type mode: Optional[:py:class:`psyclone.core.access_type.AccessType`]
+        :param Optional[List[int]] list_metadata_posn: list of metadata \
+            argument positions.
 
         '''
         for idx, var in enumerate(list_var_name):
@@ -154,22 +157,6 @@ class ArgOrdering:
                 f"The argument list in {type(self).__name__} is empty. "
                 f"Has the generate() method been called?")
         return self._arglist
-
-    def lookup_metadata_index(self, sym):
-        '''
-        Lookup the index of the kernel argument in the list of arguments
-        in the metadata.
-
-        :param sym: the symbol for which to lookup the metadata index.
-        :type sym: :py:class:`psyclone.psyir.symbols.Symbol`
-
-        :returns: the 0-indexed position of the corresponding metadata entry.
-        :rtype: int
-
-        :raises KeyError: if this symbol does not correspond to an entry \
-                          in the 'meta_args' list.
-        '''
-        return self._mdata_idx_by_arg[sym]
 
     def metadata_index_from_actual_index(self, idx):
         '''
@@ -603,8 +590,6 @@ class ArgOrdering:
                 f"Expected argument type to be one of "
                 f"{const.VALID_SCALAR_NAMES} but got "
                 f"'{scalar_arg.argument_type}'")
-
-        self._mdata_idx_by_arg[scalar_arg.name] = scalar_arg.metadata_index
 
         self.append(scalar_arg.name, var_accesses, mode=scalar_arg.access,
                     metadata_posn=scalar_arg.metadata_index)
