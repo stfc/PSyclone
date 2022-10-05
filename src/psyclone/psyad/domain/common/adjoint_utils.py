@@ -37,13 +37,22 @@
     functionality. '''
 
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Container, FileContainer
+from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.psyir.nodes import (UnaryOperation, BinaryOperation,
+                                  Reference, Assignment, IfBlock,
+                                  Container, FileContainer, Node)
+from psyclone.psyir.symbols import DataSymbol
 
-#: The prefix we will prepend to a routine, container and metadata
+
+#: The prefix we will prepend to routine, container and metadata
 #: names when generating the adjoint. If the original name contains
 #: the tl prefix, then this is removed.
 ADJOINT_NAME_PREFIX = "adj_"
 TL_NAME_PREFIX = "tl_"
+#: The tolerance applied to the comparison of the inner product values in
+#: the generated test-harness code.
+#: TODO #1346 this tolerance should be user configurable.
+INNER_PRODUCT_TOLERANCE = 1500.0
 
 
 def create_adjoint_name(tl_name):
@@ -64,10 +73,73 @@ def create_adjoint_name(tl_name):
     return ADJOINT_NAME_PREFIX + adj_name
 
 
+def create_real_comparison(sym_table, kernel, var1, var2):
+    '''
+    Creates PSyIR that checks the values held by Symbols var1 and var2 for
+    equality, allowing for machine precision.
+
+    :param sym_table: the SymbolTable in which to put new Symbols.
+    :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+    :param kernel: the routine for which this adjoint test is being performed.
+    :type kernel: :py:class:`psyclone.psyir.nodes.Routine`
+    :param var1: the symbol holding the first value for the comparison.
+    :type var1: :py:class:`psyclone.psyir.symbols.DataSymbol`
+    :param var2: the symbol holding the second value for the comparison.
+    :type var2: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+    :returns: the PSyIR nodes that perform the check.
+    :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
+
+    '''
+    freader = FortranReader()
+    statements = []
+    mtol = sym_table.new_symbol("MachineTol", symbol_type=DataSymbol,
+                                datatype=var1.datatype)
+    rel_diff = sym_table.new_symbol("relative_diff", symbol_type=DataSymbol,
+                                    datatype=var1.datatype)
+    overall_tol = sym_table.new_symbol("overall_tolerance",
+                                       symbol_type=DataSymbol,
+                                       datatype=var1.datatype,
+                                       constant_value=INNER_PRODUCT_TOLERANCE)
+    # TODO #1161 - the PSyIR does not support `SPACING`
+    assign = freader.psyir_from_statement(
+        f"MachineTol = SPACING ( MAX( ABS({var1.name}), ABS({var2.name}) ) )",
+        sym_table)
+    statements.append(assign)
+    statements[-1].preceding_comment = (
+        "Test the inner-product values for equality, allowing for the "
+        "precision of the active variables")
+    sub_op = BinaryOperation.create(BinaryOperation.Operator.SUB,
+                                    Reference(var1), Reference(var2))
+    abs_op = UnaryOperation.create(UnaryOperation.Operator.ABS, sub_op)
+    div_op = BinaryOperation.create(BinaryOperation.Operator.DIV,
+                                    abs_op, Reference(mtol))
+    statements.append(Assignment.create(Reference(rel_diff), div_op))
+
+    # TODO #1345 make this code language agnostic.
+    write1 = freader.psyir_from_statement(
+        f"write(*,*) 'Test of adjoint of ''{kernel.name}'' PASSED: ', "
+        f"{var1.name}, {var2.name}, {rel_diff.name}", sym_table)
+    write2 = freader.psyir_from_statement(
+        f"write(*,*) 'Test of adjoint of ''{kernel.name}'' FAILED: ', "
+        f"{var1.name}, {var2.name}, {rel_diff.name}", sym_table)
+
+    statements.append(
+        IfBlock.create(BinaryOperation.create(BinaryOperation.Operator.LT,
+                                              Reference(rel_diff),
+                                              Reference(overall_tol)),
+                       [write1], [write2]))
+
+    return statements
+
+
 def find_container(psyir):
     ''' Finds the first Container in the supplied PSyIR that is not a
     FileContainer. Also validates that the PSyIR contains at most one
     FileContainer which, if present, contains a Container.
+
+    :param psyir: the PSyIR to search for a Container.
+    :type psyir: :py:class:`psyclone.psyir.nodes.Node`
 
     :returns: the first Container that is not a FileContainer or None if \
               there is none.
@@ -80,6 +152,10 @@ def find_container(psyir):
     :raises NotImplementedError: if there are more than two Containers.
 
     '''
+    if not isinstance(psyir, Node):
+        raise TypeError(
+            f"Expected a PSyIR Node but got '{type(psyir).__name__}'")
+
     containers = psyir.walk(Container)
     if not containers:
         return None
@@ -104,4 +180,4 @@ def find_container(psyir):
                               "Containers. This is not supported.")
 
 
-__all__ = ["create_adjoint_name", "find_container"]
+__all__ = ["create_adjoint_name", "create_real_comparison", "find_container"]
