@@ -37,7 +37,6 @@
 
 ''' Performs py.test tests on the fparser2 PSyIR front-end '''
 
-from __future__ import absolute_import
 import pytest
 
 import fparser
@@ -61,7 +60,7 @@ from psyclone.psyir.nodes import (
     UnaryOperation, BinaryOperation, NaryOperation, IfBlock, Reference,
     ArrayReference, Container, Literal, Range, KernelSchedule,
     RegionDirective, StandaloneDirective, StructureReference,
-    ArrayOfStructuresReference)
+    ArrayOfStructuresReference, Call, Routine)
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, SymbolTable, RoutineSymbol, ArgumentInterface,
     SymbolError, ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE,
@@ -421,7 +420,7 @@ def test_array_notation_rank():
     # An array with no dimensions raises an exception
     array_type = ArrayType(REAL_TYPE, [10])
     symbol = DataSymbol("a", array_type)
-    array = ArrayReference(symbol, [])
+    array = ArrayReference(symbol)
     with pytest.raises(InternalError) as excinfo:
         Fparser2Reader._array_notation_rank(array)
     assert ("ArrayReference malformed or incomplete: must have one or more "
@@ -1782,52 +1781,6 @@ def test_handling_parenthesis():
     # the new node is connected directly to parent
     new_node = fake_parent[0].rhs
     assert isinstance(new_node, BinaryOperation)
-
-
-@pytest.mark.usefixtures("f2008_parser")
-def test_handling_part_ref():
-    ''' Test that fparser2 Part_Ref is converted to the expected PSyIR
-    tree structure.
-    '''
-    reader = FortranStringReader("x(2)=1")
-    fparser2part_ref = Execution_Part.match(reader)[0][0]
-
-    fake_parent = KernelSchedule('kernel')
-    processor = Fparser2Reader()
-
-    # If one of the ancestors has a symbol table then process_nodes()
-    # checks that the symbol is declared.
-    with pytest.raises(SymbolError) as error:
-        processor.process_nodes(fake_parent, [fparser2part_ref])
-    assert "No Symbol found for name 'x'." in str(error.value)
-
-    fake_parent.symbol_table.add(DataSymbol('x', INTEGER_TYPE))
-    processor.process_nodes(fake_parent, [fparser2part_ref])
-    assert len(fake_parent.children) == 1
-    assignment = fake_parent.children[0]
-    assert len(assignment.children) == 2
-    new_node = assignment.children[0]
-    assert isinstance(new_node, ArrayReference)
-    assert new_node.name == "x"
-    assert len(new_node.children) == 1  # Array dimensions
-
-    # Parse a complex array expression
-    reader = FortranStringReader("x(i+3,j-4,(z*5)+1)=1")
-    fparser2part_ref = Execution_Part.match(reader)[0][0]
-
-    fake_parent = KernelSchedule('assign')
-    array_type = ArrayType(INTEGER_TYPE, [10, 10, 10])
-    fake_parent.symbol_table.add(DataSymbol('x', array_type))
-    fake_parent.symbol_table.add(DataSymbol('i', INTEGER_TYPE))
-    fake_parent.symbol_table.add(DataSymbol('j', INTEGER_TYPE))
-    fake_parent.symbol_table.add(DataSymbol('z', INTEGER_TYPE))
-    processor.process_nodes(fake_parent, [fparser2part_ref])
-    # Check a new node was generated and connected to parent
-    assert len(fake_parent.children) == 1
-    new_node = fake_parent[0].lhs
-    assert isinstance(new_node, ArrayReference)
-    assert new_node.name == "x"
-    assert len(new_node.children) == 3  # Array dimensions
 
 
 @pytest.fixture(scope="function", name="symbol_table")
