@@ -119,6 +119,10 @@ class KernelModuleInlineTrans(Transformation):
         # Check that all kernel symbols are declared in the kernel
         # symbol table(s). At this point they may be declared in a
         # container containing this kernel which is not supported.
+        # TODO #1823: What about symbols not in References (e.g.
+        # literal datatypes, parameters initializations, ...)
+        # It could be more nuanced. Global parameters can be
+        # brought into the inlined subroutine scope
         for var in kernel_schedule.walk(Reference):
             try:
                 var.scope.symbol_table.lookup(
@@ -168,12 +172,8 @@ class KernelModuleInlineTrans(Transformation):
                     for mod in source_container.symbol_table.containersymbols:
                         symbols_to_bring_in.add(mod)
                 elif symbol.is_import:
-                    pass  # Add to bring in if imported outside?
-                elif symbol.is_local:
-                    # This should be on the validate
-                    # Ok if is a constant, otherwise it should be an
-                    # # error?
-                    pass
+                    # Add to symbols_to_bring_in
+                    symbols_to_bring_in.add(symbol.interface.container_symbol)
 
         for symbol in symbols_to_bring_in:
             if symbol.name in code_to_inline.symbol_table:
