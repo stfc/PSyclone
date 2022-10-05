@@ -37,9 +37,8 @@
 # MOdified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk, STFC Daresbury Lab
 
-''' Tests of transformations with the Dynamo 0.3 API '''
+''' Tests of transformations with the LFRic (Dynamo 0.3) API '''
 
-from __future__ import absolute_import, print_function
 import inspect
 from importlib import import_module
 import pytest
@@ -3839,7 +3838,7 @@ def test_list_multiple_reductions(dist_mem):
     arg._argument_type = "gh_scalar"
     arg.descriptor._access = AccessType.SUM
     result = omp_loop_directive._reduction_string()
-    assert " reduction(+:asum), reduction(+:f2)" in result
+    assert "reduction(+:asum), reduction(+:f2)" in result
 
 
 def test_move_name():

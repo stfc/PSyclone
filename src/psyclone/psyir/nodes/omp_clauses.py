@@ -295,15 +295,18 @@ class OMPScheduleClause(Clause):
     '''
     OpenMP Schedule clause used for OMP Do Directives.
 
-    :param str schedule: The OpenMP schedule to use with this directive.\
-                         The default value is "static".
+    :param str schedule: The OpenMP schedule to use with this directive. \
+        The default value is "none" which means that no explicit schedule \
+        is specified.
     :param kwargs: additional keyword arguments provided to the PSyIR node.
     :type kwargs: unwrapped dict.
     '''
     _children_valid_format = "None"
-    _schedule = ""
 
-    def __init__(self, schedule="static", **kwargs):
+    VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto",
+                           "none"]
+
+    def __init__(self, schedule="none", **kwargs):
         self.schedule = schedule
         super().__init__(**kwargs)
 
@@ -315,7 +318,9 @@ class OMPScheduleClause(Clause):
                 set to the value of the schedule of this clause.
         :rtype: str
         '''
-        return f"schedule({self._schedule})"
+        if self._schedule != "none":
+            return f"schedule({self._schedule})"
+        return ""
 
     @property
     def schedule(self):
@@ -330,9 +335,9 @@ class OMPScheduleClause(Clause):
         '''
         :param str schedule: the schedule to use for this clause.
         '''
-        if schedule not in ("runtime", "static", "dynamic", "guided", "auto"):
-            raise ValueError(f"Schedule must be one of runtime, static, "
-                             f"dynamic, guided or auto. Found {schedule}.")
+        if schedule not in self.VALID_OMP_SCHEDULES:
+            raise ValueError(f"Schedule must be one of "
+                             f"{self.VALID_OMP_SCHEDULES}. Found {schedule}.")
         self._schedule = schedule
 
     def __eq__(self, other):

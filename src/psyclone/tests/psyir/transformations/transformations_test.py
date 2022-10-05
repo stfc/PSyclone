@@ -40,7 +40,6 @@
 API-agnostic tests for various transformation classes.
 '''
 
-from __future__ import absolute_import, print_function
 import os
 import pytest
 
@@ -351,7 +350,7 @@ def test_omplooptrans_properties():
     with pytest.raises(ValueError) as err:
         omplooptrans.omp_schedule = "invalid"
     assert ("Valid OpenMP schedules are ['runtime', 'static', 'dynamic', "
-            "'guided', 'auto'] but got 'invalid'." in str(err.value))
+            "'guided', 'auto', 'none'] but got 'invalid'." in str(err.value))
 
     with pytest.raises(ValueError) as err:
         omplooptrans.omp_schedule = "auto,3"

@@ -309,19 +309,19 @@ def test_omp_do_directive_collapse_getter_and_setter():
     # Set valid collapse values
     target.collapse = 2
     assert target.collapse == 2
-    assert target.begin_string() == "omp do schedule(auto) collapse(2)"
+    assert target.begin_string() == "omp do collapse(2)"
     target.collapse = None
     assert target.collapse is None
-    assert target.begin_string() == "omp do schedule(auto)"
+    assert target.begin_string() == "omp do"
 
 
 def test_omp_do_directive_omp_schedule_getter_and_setter():
     ''' Test the OMPDODirective omp_schedule property setter and getter.'''
     directive = OMPDoDirective()
-    # By default is auto
-    assert directive.omp_schedule == "auto"
+    # By default, no schedule is specified.
+    assert directive.omp_schedule == "none"
 
-    # By valid omp_schedules are accepted
+    # But valid omp_schedules are accepted
     directive.omp_schedule = "static"
     assert directive.omp_schedule == "static"
     directive.omp_schedule = "dynamic,3"
@@ -336,8 +336,8 @@ def test_omp_do_directive_omp_schedule_getter_and_setter():
     with pytest.raises(TypeError) as err:
         directive.omp_schedule = "invalid,3"
     assert ("OMPDoDirective omp_schedule should be one of ['runtime', "
-            "'static', 'dynamic', 'guided', 'auto'] but found 'invalid,3'."
-            in str(err.value))
+            "'static', 'dynamic', 'guided', 'auto', 'none'] but found "
+            "'invalid,3'." in str(err.value))
 
 
 def test_omp_do_directive_validate_global_constraints(fortran_reader,
@@ -387,7 +387,7 @@ def test_omp_do_directive_validate_global_constraints(fortran_reader,
             _ = fortran_writer(test_directive)
         assert ("OMPParallelDoDirective must have as many immediately nested "
                 "loops as the collapse clause specifies but 'OMPParallelDo"
-                "Directive[omp_schedule=auto,collapse=2]' has a collapse=2 "
+                "Directive[collapse=2]' has a collapse=2 "
                 "and the nested body at depth 1 cannot be collapsed."
                 in str(err.value))
 
@@ -401,7 +401,7 @@ def test_omp_do_directive_validate_global_constraints(fortran_reader,
         _ = fortran_writer(directive[2])
     assert ("OMPParallelDoDirective must have as many immediately nested "
             "loops as the collapse clause specifies but 'OMPParallelDo"
-            "Directive[omp_schedule=auto,collapse=3]' has a collapse=3 and "
+            "Directive[collapse=3]' has a collapse=3 and "
             "the nested body at depth 2 cannot be collapsed."
             in str(err.value))
 

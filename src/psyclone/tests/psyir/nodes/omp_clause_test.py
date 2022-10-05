@@ -85,7 +85,8 @@ def test_nogroup_clause():
 def test_schedule_clause():
     ''' Test the OMPScheduleClause functionality. '''
     sched = OMPScheduleClause()
-    assert sched._clause_string == "schedule(static)"
+    assert sched._schedule == "none"
+    assert sched._clause_string == ""
     sched.schedule = "auto"
     assert sched._clause_string == "schedule(auto)"
     sched2 = OMPScheduleClause()
@@ -94,6 +95,8 @@ def test_schedule_clause():
     assert sched == sched2
     coloredtext = colored("OMPScheduleClause", OMPScheduleClause._colour)
     assert coloredtext+"[schedule=auto]" in sched.node_str()
+    sched.schedule = "none"
+    assert coloredtext+"[schedule=none]" in sched.node_str()
 
 
 def test_invalid_schedule_clause():
@@ -102,8 +105,8 @@ def test_invalid_schedule_clause():
     sched = OMPScheduleClause()
     with pytest.raises(ValueError) as excinfo:
         sched.schedule = "test"
-    assert ("Schedule must be one of runtime, static, dynamic, guided or auto."
-            " Found test." in str(excinfo.value))
+    assert ("Schedule must be one of ['runtime', 'static', 'dynamic', "
+            "'guided', 'auto', 'none']. Found test." in str(excinfo.value))
 
 
 def test_default_clause():
