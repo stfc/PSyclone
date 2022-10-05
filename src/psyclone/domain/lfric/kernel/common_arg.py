@@ -191,7 +191,7 @@ class CommonArg(ABC):
         :param *metadata_args: the metadata arguments required to \
             create an instance of the class provided by the 'cls' \
             argument.
-        :type *metadata_args: variable length argument list
+        :type *metadata_args: unwrapped dict
 
         :raises ValueError: if the metadata has an incorrect value.
         :raises InternalError: if an unrecognised exception message is found.
