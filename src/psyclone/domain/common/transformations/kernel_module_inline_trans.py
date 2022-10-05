@@ -40,7 +40,7 @@
 
 
 from psyclone.errors import InternalError
-from psyclone.psyGen import Transformation, Kern
+from psyclone.psyGen import Transformation, CodedKern
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.symbols import RoutineSymbol, ContainerSymbol
 from psyclone.psyir.nodes import Container, ScopingNode, Reference, Routine
@@ -87,7 +87,7 @@ class KernelModuleInlineTrans(Transformation):
         inline the PSyIR of its contents.
 
         :param kern: the kernel which is the target of the transformation.
-        :type kern: :py:class:`psyclone.psyGen.Kern` or sub-class
+        :type kern: :py:class:`psyclone.psyGen.CodedKern`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
@@ -100,10 +100,10 @@ class KernelModuleInlineTrans(Transformation):
 
         '''
 
-        if not isinstance(node, Kern):
+        if not isinstance(node, CodedKern):
             raise TransformationError(
-                f"Target of a kernel transformation must be a sub-class of "
-                f"psyGen.Kern but got '{type(node).__name__}'")
+                f"Target of a {self.name} must be a sub-class of "
+                f"psyGen.CodedKern but got '{type(node).__name__}'")
 
         # Check that the PSyIR and associated Symbol table of the Kernel is OK.
         # If this kernel contains symbols that are not captured in the PSyIR

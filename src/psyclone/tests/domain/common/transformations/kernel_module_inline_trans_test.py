@@ -41,9 +41,10 @@
 
 import pytest
 from psyclone.configuration import Config
-from psyclone.psyGen import CodedKern
+from psyclone.psyGen import CodedKern, Kern
 from psyclone.psyir.nodes import Container, Routine
-from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE
+from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
+    SymbolError
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.utilities import count_lines, get_invoke
@@ -53,7 +54,96 @@ from psyclone.domain.common.transformations import KernelModuleInlineTrans
 def test_module_inline_constructor_and_str():
     ''' Test that the transformation can be created and stringified. '''
     inline_trans = KernelModuleInlineTrans()
-    assert str(inline_trans) == "Inline a kernel subroutine into the PSy module"
+    assert str(inline_trans) == \
+        "Inline a kernel subroutine into the PSy module"
+
+
+def test_validate_inline_error_if_not_kernel():
+    ''' Test that the inline transformation fails if the object being
+    passed is not a kernel'''
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean1.0",
+                           idx=0, dist_mem=False)
+    schedule = invoke.schedule
+    kern_call = schedule.children[0].loop_body[0]
+    inline_trans = KernelModuleInlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.apply(kern_call)
+    assert ("Target of a KernelModuleInline must be a sub-class of "
+            "psyGen.CodedKern but got 'GOLoop'" in str(err.value))
+
+
+def test_validate_invalid_get_kernel_schedule(monkeypatch):
+    '''Check that the validate method in the class KernelTrans raises an
+    exception if the kernel code can not be retrieved.
+
+    '''
+    kernel_trans = KernelModuleInlineTrans()
+    _, invoke = get_invoke("single_invoke_kern_with_global.f90",
+                           api="gocean1.0", idx=0)
+    sched = invoke.schedule
+    kernels = sched.walk(Kern)
+    kernel = kernels[0]
+
+    def raise_symbol_error():
+        '''Simple function that raises SymbolError.'''
+        raise SymbolError("error")
+    monkeypatch.setattr(kernel, "get_kernel_schedule", raise_symbol_error)
+    with pytest.raises(TransformationError) as err:
+        kernel_trans.apply(kernel)
+    assert ("KernelModuleInline failed to retrieve PSyIR for kernel "
+            "'kernel_with_global_code' using the 'get_kernel_schedule' "
+            "method." in str(err.value))
+
+
+def test_validate_no_inline_global_var():
+    ''' Check that we refuse to in-line a kernel that accesses a global
+    variable. '''
+    inline_trans = KernelModuleInlineTrans()
+    _, invoke = get_invoke("single_invoke_kern_with_global.f90",
+                           api="gocean1.0", idx=0)
+    sched = invoke.schedule
+    kernels = sched.walk(Kern)
+    with pytest.raises(TransformationError) as err:
+        inline_trans.apply(kernels[0])
+    assert ("'kernel_with_global_code' contains accesses to data (variable "
+            "'alpha') that are not present in the Symbol Table(s) "
+            "within KernelSchedule scope." in str(err.value))
+
+
+def test_validate_name_clashes():
+    ''' Test that if the module-inline transformation finds the kernel name
+    already used in the Container scope, it ...'''
+    # Use LFRic example with a repeated CodedKern
+    psy, _ = get_invoke("4.6_multikernel_invokes.f90", "dynamo0.3", idx=0,
+                        dist_mem=False)
+    schedule = psy.invokes.invoke_list[0].schedule
+    coded_kern = schedule.children[0].loop_body[0]
+    inline_trans = KernelModuleInlineTrans()
+
+    # Check that name clashes which are not subroutines are detected
+    schedule.symbol_table.add(DataSymbol("ru_code", REAL_TYPE))
+    with pytest.raises(TransformationError) as err:
+        inline_trans.apply(coded_kern)
+    assert ("Cannot module-inline subroutine 'ru_code' because symbol "
+            "'ru_code: DataSymbol<Scalar<REAL, UNDEFINED>, Local>' with the "
+            "same name already exists and changing the name of module-inlined "
+            "subroutines is not supported yet." in str(err.value))
+
+    # TODO # 898. Manually force removal of previous imported symbol
+    # symbol_table.remove() is not implemented yet.
+    schedule.symbol_table._symbols.pop("ru_code")
+
+    # Check that if a subroutine with the same name already exists and it is
+    # not identical, it fails.
+    new_symbol = RoutineSymbol("ru_code")
+    schedule.parent.symbol_table.add(new_symbol)
+    schedule.parent.addchild(Routine(new_symbol.name))
+    with pytest.raises(TransformationError) as err:
+        inline_trans.apply(coded_kern)
+    assert ("Cannot inline subroutine 'ru_code' because another, different, "
+            "subroutine with the same name already exists and versioning of "
+            "module-inlined subroutines is not implemented "
+            "yet.") in str(err.value)
 
 
 def test_module_inline_apply_transformation(tmpdir, fortran_writer):
@@ -97,43 +187,7 @@ def test_module_inline_apply_transformation(tmpdir, fortran_writer):
     assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
-def test_validate_name_clashes():
-    ''' Test that if the module-inline transformation finds the kernel name
-    already used in the Container scope, it ...'''
-    # Use LFRic example with a repeated CodedKern
-    psy, _ = get_invoke("4.6_multikernel_invokes.f90", "dynamo0.3", idx=0,
-                        dist_mem=False)
-    schedule = psy.invokes.invoke_list[0].schedule
-    coded_kern = schedule.children[0].loop_body[0]
-    inline_trans = KernelModuleInlineTrans()
-
-    # Check that name clashes which are not subroutines are detected
-    schedule.symbol_table.add(DataSymbol("ru_code", REAL_TYPE))
-    with pytest.raises(TransformationError) as err:
-        inline_trans.apply(coded_kern)
-    assert ("Cannot module-inline subroutine 'ru_code' because symbol "
-            "'ru_code: DataSymbol<Scalar<REAL, UNDEFINED>, Local>' with the "
-            "same name already exists and changing the name of module-inlined "
-            "subroutines is not supported yet." in str(err.value))
-
-    # TODO # 898. Manually force removal of previous imported symbol
-    # symbol_table.remove() is not implemented yet.
-    schedule.symbol_table._symbols.pop("ru_code")
-
-    # Check that if a subroutine with the same name already exists and it is
-    # not identical, it fails.
-    new_symbol = RoutineSymbol("ru_code")
-    schedule.parent.symbol_table.add(new_symbol)
-    schedule.parent.addchild(Routine(new_symbol.name))
-    with pytest.raises(TransformationError) as err:
-        inline_trans.apply(coded_kern)
-    assert ("Cannot inline subroutine 'ru_code' because another, different, "
-            "subroutine with the same name already exists and versioning of "
-            "module-inlined subroutines is not implemented "
-            "yet.") in str(err.value)
-
-
-def test_codedkern_module_inline_kernel_in_multiple_invokes():
+def test_module_inline_apply_kernel_in_multiple_invokes():
     ''' Check that module-inline works as expected when the same kernel
     is provided in different invokes'''
     # Use LFRic example with the kernel 'testkern_qr' repeated once in
@@ -171,19 +225,7 @@ def test_codedkern_module_inline_kernel_in_multiple_invokes():
     assert gen.count("END SUBROUTINE testkern_qr_code") == 1
 
 
-def test_transformation_inline_error_if_not_kernel():
-    ''' Test that the inline transformation fails if the object being
-    passed is not a kernel'''
-    _, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean1.0",
-                           idx=0, dist_mem=False)
-    schedule = invoke.schedule
-    kern_call = schedule.children[0].loop_body[0]
-    inline_trans = KernelModuleInlineTrans()
-    with pytest.raises(TransformationError):
-        inline_trans.apply(kern_call)
-
-
-def test_module_inline_with_sub_use(tmpdir):
+def test_module_inline_apply_with_sub_use(tmpdir):
     ''' Test that we can module inline a kernel subroutine which
     contains a use statement'''
     psy, invoke = get_invoke("single_invoke_scalar_int_arg.f90", "gocean1.0",
@@ -202,7 +244,7 @@ def test_module_inline_with_sub_use(tmpdir):
     assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
-def test_module_inline_same_kernel(tmpdir):
+def test_module_inline_apply_same_kernel(tmpdir):
     '''Tests that correct results are obtained when an invoke that uses
     the same kernel subroutine more than once has that kernel
     inlined'''
