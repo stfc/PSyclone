@@ -1296,7 +1296,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
             self._children[3] = sched_clause
         elif len(self._children) < 4:
             self.addchild(sched_clause, index=3)
-        if sched_clause.schedule:
+        if sched_clause.schedule != "none":
             schedule_str = f"schedule({sched_clause.schedule})"
         else:
             schedule_str = ""
