@@ -68,7 +68,7 @@ class Reference(DataNode):
         '''
         Checks equivalence of two References. References are considered
         equivalent if they are the same type of Reference and their symbol
-        is the same.
+        name is the same.
 
         :param object other: the object to check equality to.
 
@@ -76,7 +76,7 @@ class Reference(DataNode):
         :rtype: bool
         '''
         is_eq = super().__eq__(other)
-        is_eq = is_eq and (self.symbol == other.symbol)
+        is_eq = is_eq and (self.symbol.name == other.symbol.name)
         return is_eq
 
     @property
