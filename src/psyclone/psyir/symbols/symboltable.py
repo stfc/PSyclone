@@ -1397,6 +1397,8 @@ class SymbolTable():
         # TODO 1698: Improve. Currently it uses a quick implementation
         # that only checks that the view() lines of each symbol_table
         # are exactly the same.
+        # The current implementation does not check tags, order
+        # of arguments or visibilities.
 
         :param object other: the object to check equality to.
 
