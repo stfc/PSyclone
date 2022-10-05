@@ -501,10 +501,21 @@ def test_codedkern_module_inline_getter_and_setter():
     assert "module_inline=True" in coded_kern_1.node_str()
     assert "module_inline=True" in coded_kern_2.node_str()
 
-    # It can be turned off (and both kernels change)
-    coded_kern_2.module_inline = False
-    assert not coded_kern_1.module_inline
-    assert not coded_kern_2.module_inline
+    # It can not be turned off
+    with pytest.raises(TypeError) as err:
+        coded_kern_2.module_inline = False
+    assert ("The module inline parameter only accepts the type boolean "
+            "'True' since module-inlining is irreversible. But found: 'False'"
+            in str(err.value))
+    assert coded_kern_1.module_inline
+    assert coded_kern_2.module_inline
+
+    # And it doesn't accept other types
+    with pytest.raises(TypeError) as err:
+        coded_kern_2.module_inline = 3
+    assert ("The module inline parameter only accepts the type boolean "
+            "'True' since module-inlining is irreversible. But found: '3'"
+            in str(err.value))
 
 
 def test_codedkern_module_inline_gen_code(tmpdir):

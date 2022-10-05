@@ -40,11 +40,10 @@
 
 
 from psyclone.errors import InternalError
-from psyclone.psyGen import Transformation, Kern, InvokeSchedule
+from psyclone.psyGen import Transformation, Kern
 from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.symbols import RoutineSymbol, ContainerSymbol, DataSymbol
-from psyclone.psyir.nodes import Literal, Container, ScopingNode, Reference, \
-    Routine
+from psyclone.psyir.symbols import RoutineSymbol, ContainerSymbol
+from psyclone.psyir.nodes import Container, ScopingNode, Reference, Routine
 
 
 class KernelModuleInlineTrans(Transformation):
@@ -143,27 +142,20 @@ class KernelModuleInlineTrans(Transformation):
                 f"exists and changing the name of module-inlined "
                 f"subroutines is not supported yet.")
 
-    def apply(self, node, options=None):
-        ''' Bring the kernel subroutine in this Container.
+    @staticmethod
+    def _prepare_code_to_inline(node):
+        ''' Prepare the PSyIR tree to inline by brining in the subroutine all
+        referenced symbols so that the implementation is self contained.
 
         :param node: the kernel to module-inline.
         :type node: :py:class:`psyclone.psyGen.CodedKern`
-        :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+
+        :returns: a self contained version of the subroutine to inline.
+        :rtype: :py:class:`psyclone.psyir.nodes.Routine`
+
+        :raise InternalError: unexpected PSyIR.
 
         '''
-        self.validate(node, options)
-
-        if not options:
-            options = {}
-
-        name = node.name
-        try:
-            existing_symbol = node.scope.symbol_table.lookup(name)
-        except KeyError:
-            existing_symbol = None
-
-        # Prepare code to inline
         code_to_inline = node.get_kernel_schedule()
         source_container = code_to_inline.ancestor(Container)
         symbols_to_bring_in = set()
@@ -195,6 +187,29 @@ class KernelModuleInlineTrans(Transformation):
                 # Note that momentarily we have the same symbol in two
                 # symbol tables, but this is not a problem because below
                 # we detach and discard the ancestor part of the tree.
+        return code_to_inline
+
+    def apply(self, node, options=None):
+        ''' Bring the kernel subroutine in this Container.
+
+        :param node: the kernel to module-inline.
+        :type node: :py:class:`psyclone.psyGen.CodedKern`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
+        '''
+        self.validate(node, options)
+
+        if not options:
+            options = {}
+
+        name = node.name
+        try:
+            existing_symbol = node.scope.symbol_table.lookup(name)
+        except KeyError:
+            existing_symbol = None
+
+        code_to_inline = self._prepare_code_to_inline(node)
 
         if not existing_symbol:
             # If it doesn't exist already, module-inline the subroutine by:
@@ -222,6 +237,4 @@ class KernelModuleInlineTrans(Transformation):
 
         # Once module-inlined, all kernelcalls to the same kernel in the same
         # invoke use the inlined implementation
-        for kernel in node.ancestor(InvokeSchedule).coded_kernels():
-            if kernel.name == node.name:
-                kernel.module_inline = True
+        node.module_inline = True

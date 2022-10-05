@@ -1435,10 +1435,15 @@ class CodedKern(Kern):
 
         :param bool value: whether or not to module-inline this kernel.
         '''
-        # Check all kernels in the same invoke as this one and set any
-        # with the same name to the same value as this one. This is
-        # required as inlining (or not) affects all calls to the same
-        # kernel within an invoke.
+        if value is not True:
+            raise TypeError(
+                f"The module inline parameter only accepts the type boolean "
+                f"'True' since module-inlining is irreversible. But found:"
+                f" '{value}'.")
+        # Do the same to all kernels in this invoke with the same name.
+        # This is needed because gen_code/lowering would otherwise add
+        # an import with the same name and shadow the module-inline routine
+        # symbol.
         my_schedule = self.ancestor(InvokeSchedule)
         for kernel in my_schedule.walk(Kern):
             if kernel is self:
@@ -1597,7 +1602,7 @@ class CodedKern(Kern):
         from psyclone.line_length import FortLineLength
 
         # If this kernel has not been transformed we do nothing
-        if not self.modified:
+        if not self.modified or self.module_inline:
             return
 
         # Remove any "_mod" if the file follows the PSyclone naming convention
@@ -1642,15 +1647,6 @@ class CodedKern(Kern):
 
         # Kernel is now self-consistent so unset the modified flag
         self.modified = False
-
-        # If this kernel is being module in-lined then we do not need to
-        # write it to file.
-        if self.module_inline:
-            # TODO #1013: However, the file is already created (opened) and
-            # currently this file is needed for the name versioning, so this
-            # will create an unnecessary file.
-            os.close(fdesc)
-            return
 
         # If we reach this point the kernel needs to be written out into a
         # file using a PSyIR back-end. At the moment there is no way to choose

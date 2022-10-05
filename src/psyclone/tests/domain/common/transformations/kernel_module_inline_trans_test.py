@@ -50,6 +50,12 @@ from psyclone.tests.utilities import count_lines, get_invoke
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 
 
+def test_module_inline_constructor_and_str():
+    ''' Test that the transformation can be created and stringified. '''
+    inline_trans = KernelModuleInlineTrans()
+    assert str(inline_trans) == "Inline a kernel subroutine into the PSy module"
+
+
 def test_module_inline_apply_transformation(tmpdir, fortran_writer):
     ''' Test that we can succesfully inline a basic kernel subroutine
     routine into the PSy layer module using a transformation '''
