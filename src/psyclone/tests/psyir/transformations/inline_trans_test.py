@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 '''This module tests the inlining transformation.
 '''
@@ -39,7 +40,7 @@
 import pytest
 
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Assignment, Call, Reference, Routine
+from psyclone.psyir.nodes import Call, Routine
 from psyclone.psyir.transformations import (InlineTrans,
                                             TransformationError)
 from psyclone.tests.utilities import Compile
@@ -629,31 +630,64 @@ def test_apply_function(fortran_reader, fortran_writer, tmpdir):
         "  real :: a,b\n"
         "  a = func(b)\n"
         "  end subroutine run_it\n"
-        "  real function func()\n"
+        "  real function func(b)\n"
+        "    real :: b\n"
         "    func = 2.0\n"
         "  end function\n"
         "end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
-    print(psyir.view())
-    from psyclone.psyir.nodes import ArrayReference
-    from psyclone.psyir.symbols import RoutineSymbol
-    array_ref = psyir.walk(ArrayReference)[0]
-    array_ref.replace_with(Call(RoutineSymbol(array_ref.name)))
-    print(psyir.view())
-
     routine = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
     inline_trans.apply(routine)
     output = fortran_writer(psyir)
-    print(psyir.view())
-    print(output)
-    exit(1)
-    assert ("    do i = 1, 10, 1\n"
-            "      a(i) = 1.0\n"
-            "      a(i) = 2.0 * a(i)\n"
-            "    enddo\n" in output)
+    expected = (
+        "  subroutine run_it()\n"
+        "    real :: a\n"
+        "    real :: b\n"
+        "    real :: func\n\n"
+        "    func = 2.0\n"
+        "    a = func")
+    assert expected in output
     assert Compile(tmpdir).string_compiles(output)
 
+
+# Try two different forms of function declaration.
+@pytest.mark.parametrize("function_header", [
+    "  function func(b) result(x)\n    real :: x\n",
+    "  real function func(b) result(x)\n"])
+def test_apply_function_declare_name(
+        fortran_reader, fortran_writer, tmpdir, function_header):
+    '''Check that the apply() method works correctly for a simple call to
+    a function where the name of the return name differs from the
+    function name.
+
+    '''
+    code = (
+        f"module test_mod\n"
+        f"contains\n"
+        f"  subroutine run_it()\n"
+        f"  real :: a,b\n"
+        f"  a = func(b)\n"
+        f"  end subroutine run_it\n"
+        f"{function_header}"
+        f"    real :: b\n"
+        f"    x = 2.0\n"
+        f"  end function\n"
+        f"end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(routine)
+    output = fortran_writer(psyir)
+    expected = (
+        "  subroutine run_it()\n"
+        "    real :: a\n"
+        "    real :: b\n"
+        "    real :: x\n\n"
+        "    x = 2.0\n"
+        "    a = x")
+    assert expected in output
+    assert Compile(tmpdir).string_compiles(output)
 
 
 def test_apply_validate():

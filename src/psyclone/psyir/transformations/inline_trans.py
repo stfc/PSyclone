@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 '''
 This module contains the InlineTrans transformation.
@@ -52,8 +53,9 @@ from psyclone.psyir.transformations.transformation_error import (
 
 class InlineTrans(Transformation):
     '''
-    This transformation takes a Call and replaces it with the body of the
-    target routine. It is used as follows:
+    This transformation takes a Call (which may have a return value)
+    and replaces it with the body of the target routine. It is used as
+    follows:
 
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.frontend.fortran import FortranReader
@@ -99,7 +101,6 @@ class InlineTrans(Transformation):
         supported and will result in a TransformationError:
 
         * the routine is not in the same file as the call;
-        * the routine has a return value;
         * the routine contains an early Return statement;
         * the routine has a named argument;
         * the call to the routine passes array subsections;
@@ -190,7 +191,7 @@ class InlineTrans(Transformation):
         else:
             # This is a call
             parent = node.parent
-            idx = node.parent.position
+            idx = node.position
             node.replace_with(new_stmts[0])
             for child in new_stmts[1:]:
                 idx += 1
@@ -318,9 +319,6 @@ class InlineTrans(Transformation):
     def validate(self, node, options=None):
         '''
         Checks that the supplied node is a valid target for inlining.
-
-        Routines with a return value (AKA functions in Fortran) are currently
-        rejected: TODO #924.
 
         :param node: target PSyIR node.
         :type node: subclass of :py:class:`psyclone.psyir.nodes.Routine`
