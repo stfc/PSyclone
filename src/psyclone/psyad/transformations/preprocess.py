@@ -63,21 +63,21 @@ def preprocess_trans(kernel_psyir, active_variable_names):
 
     '''
     # perform any inlining
-    # find potential names
-    from psyclone.psyir.nodes import Call, ArrayReference
+    from psyclone.psyir.nodes import Call, ArrayReference, Routine
     from psyclone.psyir.symbols import DataSymbol
     from psyclone.psyir.frontend.fortran import FortranReader
+    from psyclone.psyir.backend.fortran import FortranWriter
     from psyclone.psyir.transformations import InlineTrans
 
+    # find the names of active calls
     inline_calls = []
     for call in kernel_psyir.walk(Call):
         print(f"found routine '{call.routine.name}'.")
         if node_is_passive(call, active_variable_names):
-            print("No need to modify this as it is passive.")
+            print(f"No need to inline '{call.routine.name}' as it is passive.")
         else:
             print("This is active")
-        # inline passive ones anyway for the moment as a test
-        inline_calls.append(call)
+            inline_calls.append(call.routine.name)
 
     # Functions will soon be captured as calls but they are not yet so
     # this is a hack ...
@@ -88,49 +88,60 @@ def preprocess_trans(kernel_psyir, active_variable_names):
             if node_is_passive(array_ref, active_variable_names):
                 print("No need to modify this as it is passive.")
             else:
-                inline_calls.append(array_ref)
+                inline_calls.append(array_ref.name)
                 print("This is active")
-    
-    # Assume we can find the location of the source and turn in to PSyIR
-    active_func = "tl_calc_exner_pointwise"
-    reader = FortranReader()
-    psyir = reader.psyir_from_source(
-        "integer function tl_calc_exner_pointwise()\n"
-        " tl_calc_exner_pointwise = 1\n"
-        "end function\n")
-    print(psyir.view())
 
-    code = (
-        "  subroutine pointwise_coordinate_jacobian( &\n"
-        "                                       ndf, chi_1, chi_2, chi_3,      &\n"
-        "                                       panel_id, basis, diff_basis,   &\n"
-        "                                       jac, dj      )\n"
-        "    implicit none\n\n"
-        "    integer(kind=i_def),  intent(in) :: ndf\n"
-        "    integer(kind=i_def),  intent(in) :: panel_id\n\n"
-        "    real(kind=r_double),  intent(in) :: chi_1(ndf), chi_2(ndf), chi_3(ndf)\n"
-        "    real(kind=r_double),  intent(in) :: basis(1,ndf)\n"
-        "    real(kind=r_double),  intent(in) :: diff_basis(3,ndf)\n"
-        "    real(kind=r_double), intent(out) :: jac(3,3)\n"
-        "    real(kind=r_double), intent(out) :: dj\n"
-        "  end subroutine")
-    reader = FortranReader()
-    psyir = reader.psyir_from_source(code)
-    
-    # Add this to our PSyIR
-    kernel_psyir.children.append(psyir.children[0].detach())
-    # Need to change symbol type of call so it is no longer imported,
-    # otherwise the inline transformation complains
-    print(kernel_psyir.view())
+    # Find the file where this call exists
+    lookup = {"tl_calc_exner_pointwise": "/home/rupert/proj/lfric_trunk/linear/source/kernel/support/tl_calc_exner_pointwise_mod.F90",
+              "coordinate_jacobian": "/home/rupert/proj/lfric_trunk/components/science/source/kernel/support/coordinate_jacobian_mod.F90"}
 
-    # use inlining transformation - note, not yet working with functions
-    # note, precision may need to be specified as routine may have an interface :-(
-    inline_trans = InlineTrans()
-    for call in inline_calls:
-        inline_trans.apply(call)
+    for call_name in inline_calls:
+
+        try:
+            filepath = lookup[call_name]
+        except KeyError:
+            print(f"No file found for call '{call_name}'")
+            exit(1)
+
+        reader = FortranReader()
+        writer = FortranWriter()
+        try:
+            psyir = reader.psyir_from_file(filepath)
+        except FileNotFoundError:
+            print(f"File '{filepath}' not found.")
+            exit(1)
+
+        # Need to deal wih iterfaces
+            
+        # Find the routine in the PSyIR
+        for routine in psyir.walk(Routine):
+            if routine.name == call_name:
+                routine_psyir = routine.detach()
+                break
+        else:
+            print(f"{call_name} not found in '{filepath}'")
+            exit(1)
+
+        print (f"Got PSyIR of '{call_name}'.")
+        #print(psyir.view())
+        #print(writer(routine_psyir))
+        #exit(1)
+        
+        # Add this to our PSyIR
+        #kernel_psyir.children.append(psyir.children[0].detach())
+        # Need to change symbol type of call so it is no longer imported,
+        # otherwise the inline transformation complains
+        #print(kernel_psyir.view())
+
+        # use inlining transformation - note, not yet working with functions
+        # note, precision may need to be specified as routine may have an interface :-(
+        #inline_trans = InlineTrans()
+        #for call in inline_calls:
+        #inline_trans.apply(call)
+
+        #exit(1)
 
     exit(1)
-
     dot_product_trans = DotProduct2CodeTrans()
     matmul_trans = Matmul2CodeTrans()
     arrayrange2loop_trans = ArrayRange2LoopTrans()
