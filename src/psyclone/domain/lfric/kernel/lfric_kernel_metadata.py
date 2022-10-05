@@ -100,17 +100,16 @@ class LFRicKernelMetadata():
     raises TypeError: if meta_args is not a list of argument objects.
 
     '''
-    def __init__(self, operates_on=None, gh_shape=None, meta_args=None,
+    def __init__(self, operates_on=None, shape=None, meta_args=None,
                  meta_funcs=None, meta_reference_element=None,
                  meta_mesh=None, procedure_name=None, name=None):
         # Validate values using setters if they are not None
         self._operates_on = None
         if operates_on is not None:
             self.operates_on = operates_on
-        self._gh_shape = None
-        if gh_shape is not None:
-            self.gh_shape = gh_shape
-            # TODO issue #1879. GH_SHAPE is not parsed correctly yet.
+        self._shape = None
+        if shape is not None:
+            self.shape = shape
         if meta_args is None:
             self._meta_args = []
         else:
@@ -226,15 +225,13 @@ class LFRicKernelMetadata():
         kernel_metadata.operates_on = value
 
         # the value of gh_shape (gh_quadrature_XYoZ, ...)
-        # TODO issue #1879 gh_shape not parsed yet
-        # Commented code can be used as part of #1879
-        # try:
-        #     value = LFRicKernelMetadata._get_property(
-        #         spec_part, "gh_shape").string
-        #     kernel_metadata.gh_shape = value
-        # except ParseError:
-        #     kernel_metadata.gh_shape = None
-        kernel_metadata.gh_shape = None
+        try:
+            value = LFRicKernelMetadata._get_property(
+                spec_part, "gh_shape").string
+            kernel_metadata.shape = value
+        except ParseError:
+            # There is no shape metadata
+            pass
 
         # the name of the procedure that this metadata refers to.
         kernel_metadata.procedure_name = LFRicKernelMetadata._get_property(
@@ -424,13 +421,16 @@ class LFRicKernelMetadata():
 
         lfric_args = [arg.fortran_string() for arg in self.meta_args]
         lfric_args_str = ", &\n".join(lfric_args)
-        # TODO issue #1879. GH_SHAPE, META_FUNCS,
+        # TODO issue #1879. META_FUNCS,
         # META_REFERENCE_ELEMENT and META_MESH are not parsed
         # correctly yet.
         meta_funcs = ""
         meta_ref = ""
         meta_mesh = ""
         shape = ""
+        if self.shape:
+            shape = f"  INTEGER :: GH_SHAPE = {self.shape}\n"
+
         result = (
             f"TYPE, PUBLIC, EXTENDS(kernel_type) :: {self.name}\n"
             f"  TYPE(arg_type) :: meta_args({len(self.meta_args)}) = "
@@ -438,12 +438,38 @@ class LFRicKernelMetadata():
             f"{meta_funcs}"
             f"{meta_ref}"
             f"{meta_mesh}"
-            f"  INTEGER :: OPERATES_ON = {self.operates_on}\n"
             f"{shape}"
+            f"  INTEGER :: OPERATES_ON = {self.operates_on}\n"
             f"  CONTAINS\n"
             f"    PROCEDURE, NOPASS :: {self.procedure_name}\n"
             f"END TYPE {self.name}\n")
         return result
+
+    @property
+    def shape(self):
+        '''
+        :returns: the kernel shape property specified by the \
+            metadata.
+        :rtype: str
+        '''
+        return self._shape
+
+    @shape.setter
+    def shape(self, value):
+        '''
+        :param str value: set the kernel shape property \
+            in the metadata to the specified value.
+
+        :raises ValueError: if the metadata has an invalid type.
+
+        '''
+        const = LFRicConstants()
+        if not value or value.lower() not in const.VALID_EVALUATOR_SHAPES:
+            raise ValueError(
+                f"The shape metadata should be a recognised "
+                f"value (one of {const.VALID_EVALUATOR_SHAPES}) "
+                f"but found '{value}'.")
+        self._shape = value.lower()
 
     @property
     def operates_on(self):

@@ -66,7 +66,7 @@ def test_init_noargs():
     meta = LFRicKernelMetadata()
     assert isinstance(meta, LFRicKernelMetadata)
     assert meta._operates_on is None
-    assert meta._gh_shape is None
+    assert meta._shape is None
     assert meta._meta_args == []
     assert meta._meta_funcs == []
     assert meta._meta_reference_element == []
@@ -81,14 +81,15 @@ def test_init_args():
 
     '''
     meta = LFRicKernelMetadata(
-        operates_on="DOMAIN", gh_shape="TBD", meta_args=[],
+        operates_on="DOMAIN", shape="GH_EVALUATOR", meta_args=[],
         meta_funcs="TBD", meta_reference_element="TBD",
         meta_mesh="TBD", procedure_name="KERN_CODE", name="kern_type")
     assert meta.operates_on == "domain"
     assert meta.procedure_name == "KERN_CODE"
     assert meta.name == "kern_type"
     assert meta.meta_args == []
-    # TODO issue #1879 gh_shape, meta_funcs, meta_reference_element,
+    assert meta.shape == "gh_evaluator"
+    # TODO issue #1879 meta_funcs, meta_reference_element,
     # meta_mesh
 
 
@@ -121,7 +122,15 @@ def test_init_args_error():
         _ = LFRicKernelMetadata(meta_args=["error"])
     assert ("meta_args should be a list of argument objects (of type "
             "CommonArg), but found str." in str(info.value))
-    # TODO issue #1879 gh_shape, meta_funcs, meta_reference_element,
+
+    with pytest.raises(ValueError) as info:
+        _ = LFRicKernelMetadata(shape="invalid")
+    assert ("The shape metadata should be a recognised value (one of "
+            "['gh_quadrature_xyoz', 'gh_quadrature_face', "
+            "'gh_quadrature_edge', 'gh_evaluator']) but found 'invalid'."
+            in str(info.value))
+
+    # TODO issue #1879 meta_funcs, meta_reference_element,
     # meta_mesh
 
 
@@ -165,7 +174,18 @@ def test_setter_getter():
     tmp = LFRicKernelMetadata(meta_args=[scalar_arg])
     assert len(tmp.meta_args) == 1
     assert tmp.meta_args[0] is scalar_arg
-    # TODO issue #1879 gh_shape, meta_funcs, meta_reference_element,
+
+    assert metadata.shape is None
+    with pytest.raises(ValueError) as info:
+        metadata.shape = "invalid"
+    assert ("The shape metadata should be a recognised value (one of "
+            "['gh_quadrature_xyoz', 'gh_quadrature_face', "
+            "'gh_quadrature_edge', 'gh_evaluator']) but found 'invalid'."
+            in str(info.value))
+    metadata.shape = "GH_quadrature_FACE"
+    assert metadata.shape == "gh_quadrature_face"
+
+    # TODO issue #1879 meta_funcs, meta_reference_element,
     # meta_mesh
 
 
@@ -197,6 +217,7 @@ METADATA = (
     "           arg_type(gh_columnwise_operator, gh_real, gh_read, w3, "
     "w0)  &\n"
     "         /)\n"
+    "   integer :: gh_shape = gh_quadrature_XYoZ\n"
     "   integer :: operates_on = cell_column\n"
     " contains\n"
     "   procedure, nopass :: code => testkern_code\n"
@@ -274,8 +295,9 @@ def test_create_from_fortran_error():
 @pytest.mark.parametrize("procedure_format", ["", "code =>"])
 def test_create_from_fortran(procedure_format):
     '''Test that an instance of the LFRicKernelMetadata class can be
-    created from Fortran. Test using standard and alternative (no
-    'code =>') format for procedure metadata.
+    created from Fortran. Test with all optional metadata. Test using
+    standard and alternative (no 'code =>') format for procedure
+    metadata.
 
     '''
     fortran_metadata = METADATA.replace(procedure_format, "")
@@ -293,8 +315,21 @@ def test_create_from_fortran(procedure_format):
     assert metadata.name == "testkern_type"
     assert metadata.operates_on == "cell_column"
     assert metadata.procedure_name == "testkern_code"
-    assert metadata.gh_shape is None
+    assert metadata.shape == "gh_quadrature_xyoz"
     assert metadata.meta_reference_element == []
+
+
+def test_create_from_fortran_no_optional():
+    '''Test that an instance of the LFRicKernelMetadata class can be
+    created from Fortran. Test with no optional metadata.
+
+    '''
+    # TODO issue #1879 meta_funcs, meta_reference_element,
+    # meta_mesh
+    fortran_metadata = METADATA.replace(
+        "   integer :: gh_shape = gh_quadrature_XYoZ\n", "")
+    metadata = LFRicKernelMetadata.create_from_fortran_string(fortran_metadata)
+    assert metadata.shape is None
 
 
 def test_lower_to_psyir():
@@ -427,6 +462,30 @@ def test_fortran_string():
             "'None', '[]', 'None' and 'None' respectively." in str(info.value))
 
     metadata = LFRicKernelMetadata.create_from_fortran_string(METADATA)
+    result = metadata.fortran_string()
+    expected = (
+        "TYPE, PUBLIC, EXTENDS(kernel_type) :: testkern_type\n"
+        "  TYPE(arg_type) :: meta_args(7) = (/ &\n"
+        "arg_type(GH_SCALAR, gh_real, gh_read), &\n"
+        "arg_type(GH_FIELD, gh_real, gh_inc, w1), &\n"
+        "arg_type(GH_FIELD*3, gh_real, gh_read, w2), &\n"
+        "arg_type(GH_FIELD, gh_real, gh_read, w2, mesh_arg=gh_coarse), &\n"
+        "arg_type(GH_FIELD*3, gh_real, gh_read, w2, mesh_arg=gh_fine), &\n"
+        "arg_type(GH_OPERATOR, gh_real, gh_read, w2, w3), &\n"
+        "arg_type(GH_COLUMNWISE_OPERATOR, gh_real, gh_read, w3, w0)/)\n"
+        "  INTEGER :: GH_SHAPE = gh_quadrature_xyoz\n"
+        "  INTEGER :: OPERATES_ON = cell_column\n"
+        "  CONTAINS\n"
+        "    PROCEDURE, NOPASS :: testkern_code\n"
+        "END TYPE testkern_type\n")
+    assert result == expected
+
+    # TODO issue #1879 meta_funcs, meta_reference_element,
+    # meta_mesh
+    # Check that optional metadata is not output
+    fortran_metadata = METADATA.replace(
+        "   integer :: gh_shape = gh_quadrature_XYoZ\n", "")
+    metadata = LFRicKernelMetadata.create_from_fortran_string(fortran_metadata)
     result = metadata.fortran_string()
     expected = (
         "TYPE, PUBLIC, EXTENDS(kernel_type) :: testkern_type\n"
