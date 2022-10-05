@@ -37,7 +37,7 @@
 PSyclone algorithm-layer-specific PSyIR which uses specialised classes.
 
 '''
-from psyclone.domain.common.transformations import RaiseCall2InvokeTrans
+from psyclone.domain.common.transformations import RaisePSyIR2AlgTrans
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Call, Routine, Container
 from psyclone.psyir.transformations import TransformationError
@@ -49,7 +49,7 @@ class AlgTrans(Transformation):
 
     '''
     def __init__(self):
-        self._invoke_trans = RaiseCall2InvokeTrans()
+        self._invoke_trans = RaisePSyIR2AlgTrans()
 
     def validate(self, node, options=None):
         '''Validate the supplied PSyIR tree.
