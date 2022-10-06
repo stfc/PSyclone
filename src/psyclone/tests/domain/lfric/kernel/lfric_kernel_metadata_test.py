@@ -67,7 +67,7 @@ def test_init_noargs():
     assert isinstance(meta, LFRicKernelMetadata)
     assert meta._operates_on is None
     assert meta._shape is None
-    assert meta._meta_args == []
+    assert meta._meta_args is None
     assert meta._meta_funcs == []
     assert meta._meta_reference_element == []
     assert meta._meta_mesh == []
@@ -80,14 +80,15 @@ def test_init_args():
     successfully when valid arguments are provided.
 
     '''
+    scalar_arg = ScalarArg("GH_REAL", "GH_READ")
     meta = LFRicKernelMetadata(
-        operates_on="DOMAIN", shape="GH_EVALUATOR", meta_args=[],
+        operates_on="DOMAIN", shape="GH_EVALUATOR", meta_args=[scalar_arg],
         meta_funcs="TBD", meta_reference_element="TBD",
         meta_mesh="TBD", procedure_name="KERN_CODE", name="kern_type")
     assert meta.operates_on == "domain"
     assert meta.procedure_name == "KERN_CODE"
     assert meta.name == "kern_type"
-    assert meta.meta_args == []
+    assert meta.meta_args == [scalar_arg]
     assert meta.shape == "gh_evaluator"
     # TODO issue #1879 meta_funcs, meta_reference_element,
     # meta_mesh
@@ -117,6 +118,11 @@ def test_init_args_error():
     with pytest.raises(TypeError) as info:
         _ = LFRicKernelMetadata(meta_args="error")
     assert "meta_args should be a list but found str." in str(info.value)
+
+    with pytest.raises(TypeError) as info:
+        _ = LFRicKernelMetadata(meta_args=[])
+    assert ("The meta_args list should contain at least one entry, but it is "
+            "empty." in str(info.value))
 
     with pytest.raises(TypeError) as info:
         _ = LFRicKernelMetadata(meta_args=["error"])
@@ -165,15 +171,28 @@ def test_setter_getter():
     metadata.name = "kern_type"
     assert metadata.name == "kern_type"
 
-    assert metadata.meta_args == []
+    assert metadata.meta_args is None
     with pytest.raises(TypeError) as info:
-        _ = LFRicKernelMetadata(meta_args="error")
+        metadata.meta_args = "error"
     assert "meta_args should be a list but found str." in str(info.value)
+    with pytest.raises(TypeError) as info:
+        metadata.meta_args = []
+    assert ("The meta_args list should contain at least one entry, but it "
+            "is empty." in str(info.value))
+    with pytest.raises(TypeError) as info:
+        metadata.meta_args = ["error"]
+    assert ("meta_args should be a list of argument objects (of type "
+            "CommonArg), but found str." in str(info.value))
 
     scalar_arg = ScalarArg("GH_REAL", "GH_READ")
-    tmp = LFRicKernelMetadata(meta_args=[scalar_arg])
-    assert len(tmp.meta_args) == 1
-    assert tmp.meta_args[0] is scalar_arg
+    meta_args = [scalar_arg]
+    metadata.meta_args = meta_args
+    # Check that a copy of the list is stored
+    assert metadata._meta_args is not meta_args
+    assert len(metadata.meta_args) == 1
+    assert metadata.meta_args[0] is scalar_arg
+    # Check that a copy of the list is returned
+    assert metadata.meta_args is not metadata._meta_args
 
     assert metadata.shape is None
     with pytest.raises(ValueError) as info:
@@ -459,7 +478,8 @@ def test_fortran_string():
         instance.fortran_string()
     assert ("Values for name, meta_args, operates_on and procedure_name must "
             "be provided before calling the fortran_string method, but found "
-            "'None', '[]', 'None' and 'None' respectively." in str(info.value))
+            "'None', 'None', 'None' and 'None' respectively."
+            in str(info.value))
 
     metadata = LFRicKernelMetadata.create_from_fortran_string(METADATA)
     result = metadata.fortran_string()

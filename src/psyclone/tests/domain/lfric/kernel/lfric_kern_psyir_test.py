@@ -105,6 +105,7 @@ def test_lfrickernelcontainer_create():
         "arg_type(GH_FIELD*3, GH_REAL, GH_READ, Wchi), &\n"
         "arg_type(GH_FIELD, GH_INTEGER, GH_READ, "
         "ANY_DISCONTINUOUS_SPACE_3)/)\n"
+        "  INTEGER :: GH_SHAPE = gh_quadrature_xyoz\n"
         "  INTEGER :: OPERATES_ON = cell_column\n"
         "  CONTAINS\n"
         "    PROCEDURE, NOPASS :: solver_w3_code\n"
