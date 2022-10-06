@@ -288,7 +288,7 @@ class HoistLocalArraysTrans(Transformation):
                 f"Container but the enclosing container is a "
                 f"FileContainer (named '{container.name}').")
 
-        if not (options and options.get("allow-accroutine-directive")):
+        if not (options and options.get("allow_accroutine")):
             if node.walk(ACCRoutineDirective):
                 raise TransformationError(
                     f"The supplied routine '{node.name}' contains an ACC "

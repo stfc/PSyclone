@@ -456,7 +456,7 @@ def test_validate_acc_routine_directive(fortran_reader):
     assert ("supplied routine 'test' contains an ACC Routine directive "
             "which implies" in str(err.value))
     # This check can be disabled.
-    hoist_trans.validate(routine, options={"allow-accroutine-directive": True})
+    hoist_trans.validate(routine, options={"allow_accroutine": True})
 
 
 def test_validate_tagged_symbol_clash(fortran_reader):
