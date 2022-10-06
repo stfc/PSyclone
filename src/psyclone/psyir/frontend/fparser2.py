@@ -3526,7 +3526,7 @@ class Fparser2Reader(object):
 
         '''
         symbol = _find_or_create_imported_symbol(parent, node.string)
-        return Reference(symbol, parent)
+        return Reference(symbol, parent=parent)
 
     def _parenthesis_handler(self, node, parent):
         '''
@@ -3557,11 +3557,12 @@ class Fparser2Reader(object):
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
-        :raises NotImplementedError: If the fparser node represents \
+        :raises NotImplementedError: if the fparser node represents \
             unsupported PSyIR features and should be placed in a CodeBlock.
 
-        :returns: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyir.nodes.ArrayReference`
+        :returns: the PSyIR node.
+        :rtype: :py:class:`psyclone.psyir.nodes.ArrayReference` or \
+            :py:class:`psyclone.psyir.nodes.Call`
 
         '''
         reference_name = node.items[0].string.lower()
@@ -3570,9 +3571,12 @@ class Fparser2Reader(object):
         # part-references instead of function-references.
         symbol = _find_or_create_imported_symbol(parent, reference_name)
 
-        array = ArrayReference(symbol, parent)
-        self.process_nodes(parent=array, nodes=node.items[1].items)
-        return array
+        if isinstance(symbol, RoutineSymbol):
+            call_or_array = Call(symbol, parent=parent)
+        else:
+            call_or_array = ArrayReference(symbol, parent=parent)
+        self.process_nodes(parent=call_or_array, nodes=node.items[1].items)
+        return call_or_array
 
     def _subscript_triplet_handler(self, node, parent):
         '''
@@ -3910,6 +3914,21 @@ class Fparser2Reader(object):
                 # attempt to recreate the prefix. We have to set shadowing to
                 # True as there is likely to be a RoutineSymbol for this
                 # function in any enclosing Container.
+
+                # First, update the existing RoutineSymbol with the
+                # return datatype specified in the function
+                # declaration.
+                
+                # Lookup with the routine name as return_name may be
+                # declared with its own local name. Be wary that this
+                # function may not be referenced so there might not be
+                # a RoutineSymbol.
+                try:
+                    routine_symbol = routine.symbol_table.lookup(routine.name)
+                    routine_symbol.datatype = base_type
+                except KeyError:
+                    pass
+
                 routine.symbol_table.new_symbol(return_name,
                                                 tag=keep_tag,
                                                 symbol_type=DataSymbol,

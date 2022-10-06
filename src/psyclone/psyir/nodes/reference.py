@@ -39,10 +39,9 @@
 
 ''' This module contains the implementation of the Reference node.'''
 
-from __future__ import absolute_import
+from psyclone.core import AccessType, Signature
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.operation import Operation, BinaryOperation
-from psyclone.core import AccessType, Signature
 from psyclone.psyir.symbols import Symbol
 
 
@@ -52,8 +51,8 @@ class Reference(DataNode):
 
     :param symbol: the symbol being referenced.
     :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
-    :param parent: the parent node of this Reference in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node` or NoneType
+    :param kwargs: additional keyword arguments provided to the super class.
+    :type kwargs: unwrapped dict.
 
     '''
     # Textual description of the node.
@@ -61,8 +60,8 @@ class Reference(DataNode):
     _text_name = "Reference"
     _colour = "yellow"
 
-    def __init__(self, symbol, parent=None):
-        super(Reference, self).__init__(parent=parent)
+    def __init__(self, symbol, **kwargs):
+        super().__init__(**kwargs)
         self.symbol = symbol
 
     def __eq__(self, other):
@@ -173,6 +172,14 @@ class Reference(DataNode):
             for index in indices:
                 index.reference_accesses(var_accesses)
         var_accesses.add_access(sig, AccessType.READ, self, all_indices)
+
+    @property
+    def datatype(self):
+        '''
+        :returns: the datatype of this reference.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+        '''
+        return self.symbol.datatype
 
 
 # For AutoAPI documentation generation
