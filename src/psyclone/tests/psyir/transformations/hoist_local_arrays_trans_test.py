@@ -36,7 +36,6 @@
 '''This module tests the hoist local arrays transformation.
 '''
 
-from __future__ import absolute_import, print_function
 import pytest
 
 from psyclone.psyir.nodes import Routine, Container, FileContainer
@@ -44,6 +43,7 @@ from psyclone.psyir.symbols import ArrayType, Symbol
 from psyclone.psyir.transformations import (HoistLocalArraysTrans,
                                             TransformationError)
 from psyclone.tests.utilities import Compile
+from psyclone.transformations import ACCRoutineTrans
 
 # init
 
@@ -366,6 +366,31 @@ def test_get_local_arrays_codeblock(fortran_reader):
     # and 'b' has been logged.
 
 
+def test_get_local_arrays_not_parameters(fortran_reader):
+    '''Check that the _get_local_arrays() helper method ignores any local
+    arrays that are parameters.
+
+    '''
+    code = (
+        "module my_mod\n"
+        "contains\n"
+        "subroutine test\n"
+        "  integer :: i\n"
+        "  real, dimension(2), parameter :: a = (/1.0, 2.0/)\n"
+        "  real :: b(2)\n"
+        "  do i=1,2\n"
+        "    b(i) = 2.0*a(i)\n"
+        "  end do\n"
+        "end subroutine test\n"
+        "end module my_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    hoist_trans = HoistLocalArraysTrans()
+    symbols = hoist_trans._get_local_arrays(routine)
+    assert len(symbols) == 1
+    assert symbols[0].name == "b"
+
+
 # validate
 
 def test_validate_node():
@@ -402,6 +427,36 @@ def test_validate_ancestor_container():
     assert ("The supplied routine 'my_prog' should be within a Container but "
             "the enclosing container is a FileContainer (named 'my_file')."
             in str(info.value))
+
+
+def test_validate_acc_routine_directive(fortran_reader):
+    '''
+    Test that, by default, the transformation rejects a routine if it contains
+    an ACCRoutineDirective and that this can be switched off.
+
+    '''
+    code = (
+        "module my_mod\n"
+        "contains\n"
+        "subroutine test\n"
+        "  integer :: i\n"
+        "  real :: a(10)\n"
+        "  do i=1,10\n"
+        "    a(i) = 1.0\n"
+        "  end do\n"
+        "end subroutine test\n"
+        "end module my_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    acc_trans = ACCRoutineTrans()
+    acc_trans.apply(routine)
+    hoist_trans = HoistLocalArraysTrans()
+    with pytest.raises(TransformationError) as err:
+        hoist_trans.validate(routine)
+    assert ("supplied routine 'test' contains an ACC Routine directive "
+            "which implies" in str(err.value))
+    # This check can be disabled.
+    hoist_trans.validate(routine, options={"allow-accroutine-directive": True})
 
 
 def test_validate_tagged_symbol_clash(fortran_reader):

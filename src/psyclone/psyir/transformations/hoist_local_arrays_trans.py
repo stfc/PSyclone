@@ -43,7 +43,7 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (Routine, Container, ArrayReference, Range,
                                   FileContainer, IfBlock, UnaryOperation,
-                                  CodeBlock)
+                                  CodeBlock, ACCRoutineDirective)
 from psyclone.psyir.symbols import ArrayType, Symbol
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -102,6 +102,11 @@ class HoistLocalArraysTrans(Transformation):
     end module test_mod
     <BLANKLINE>
 
+    By default, the target routine will be rejected if it is found to contain
+    an ACCRoutineDirective since this usually implies that the routine will be
+    launched in parallel on the OpenACC device. This check can be disabled
+    by setting 'allow_accroutine' to True in the `options` dictionary.
+
     '''
     def apply(self, node, options=None):
         '''Applies the transformation to the supplied Routine node,
@@ -111,9 +116,13 @@ class HoistLocalArraysTrans(Transformation):
         this method does nothing.
 
         :param node: target PSyIR node.
-        :type node: subclass of :py:class:`psyclone.psyir.nodes.Routine`
+        :type node: :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
-        :type options: dict of str:values or None
+        :param bool options["allow_accroutine"]: permit the target routine \
+            to contain an ACCRoutineDirective. These are forbidden by default \
+            because their presence usually indicates that the routine will be \
+            run in parallel on the OpenACC device.
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(node, options)
@@ -196,9 +205,9 @@ class HoistLocalArraysTrans(Transformation):
     def _get_local_arrays(node):
         '''
         Identify all arrays that are local to the target routine, do not
-        represent its return value and do not explicitly use dynamic memory
-        allocation. Also excludes any such arrays that are accessed within
-        CodeBlocks.
+        represent its return value, are not constant and do not explicitly use
+        dynamic memory allocation. Also excludes any such arrays that are
+        accessed within CodeBlocks.
 
         :param node: target PSyIR node.
         :type node: subclass of :py:class:`psyclone.psyir.nodes.Routine`
@@ -209,7 +218,8 @@ class HoistLocalArraysTrans(Transformation):
         '''
         local_arrays = {}
         for sym in node.symbol_table.local_datasymbols:
-            if sym is node.return_symbol or not sym.is_array:
+            if (sym is node.return_symbol or not sym.is_array or
+                    sym.is_constant):
                 continue
             # Check whether all of the bounds of the array are defined - an
             # allocatable array will have array dimensions of
@@ -239,12 +249,14 @@ class HoistLocalArraysTrans(Transformation):
 
         :param node: target PSyIR node.
         :type node: subclass of :py:class:`psyclone.psyir.nodes.Routine`
-        :param options: a dictionary with options for transformations.
-        :type options: dict of str:values or None
+        :param options: any options for the transformation.
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node is not a Routine.
         :raises TransformationError: if the Routine is not within a Container \
             (that is not a FileContainer).
+        :raises TransformationError: if the routine contains an OpenACC \
+            routine directive and options['allow_accroutine'] is not True.
         :raises TransformationError: if any symbols corresponding to local \
             arrays have a tag that already exists in the table of the parent \
             Container.
@@ -275,6 +287,17 @@ class HoistLocalArraysTrans(Transformation):
                 f"The supplied routine '{node.name}' should be within a "
                 f"Container but the enclosing container is a "
                 f"FileContainer (named '{container.name}').")
+
+        if not (options and options.get("allow-accroutine-directive")):
+            if node.walk(ACCRoutineDirective):
+                raise TransformationError(
+                    f"The supplied routine '{node.name}' contains an ACC "
+                    f"Routine directive which implies it will be run in "
+                    f"parallel. Hoisting local arrays to global scope may "
+                    f"create race conditions in this case. If this routine "
+                    f"will be run in serial on the device then this check can "
+                    f"be disabled by setting 'allow_accroutine' to "
+                    f"True in the transformation options.")
 
         # Check for clashing tags in the container scope.
         auto_arrays = self._get_local_arrays(node)
