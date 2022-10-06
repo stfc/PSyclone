@@ -43,7 +43,8 @@ from psyclone.psyGen import Transformation, CodedKern
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.symbols import RoutineSymbol, DataSymbol, \
     DataTypeSymbol, Symbol
-from psyclone.psyir.nodes import Container, ScopingNode, Reference, Routine
+from psyclone.psyir.nodes import Container, ScopingNode, Reference, Routine, \
+    Literal
 
 
 class KernelModuleInlineTrans(Transformation):
@@ -183,8 +184,11 @@ class KernelModuleInlineTrans(Transformation):
                         if isinstance(symbol.datatype.precision, Symbol):
                             symbols_to_bring_in.add(symbol.datatype.precision)
 
-        # Literals can also reference symbols
-        # for literal in code_to_inline.walk(Literal):
+        # Literals can also reference symbols in they precision
+        for literal in code_to_inline.walk(Literal):
+            if isinstance(literal.datatype.precision, Symbol):
+                symbols_to_bring_in.add(literal.datatype.precision)
+
 
         # Bring the selected symbols inside the subroutine
         for symbol in symbols_to_bring_in:
