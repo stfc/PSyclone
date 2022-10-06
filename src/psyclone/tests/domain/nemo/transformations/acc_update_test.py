@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,11 +34,9 @@
 # Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''Module containing py.test tests for the transformation of the PSy
-   representation of NEMO code using the OpenACC enterdata directive.
+   representation of NEMO code using OpenACC update directives.
 
 '''
-
-from __future__ import print_function, absolute_import
 
 import pytest
 
@@ -55,7 +53,7 @@ from psyclone.tests.utilities import Compile
 API = "nemo"
 
 
-def test_validate(parser):
+def test_validate():
     ''' Check that the validate() method works as expected. '''
     trans = ACCUpdateTrans()
 
@@ -193,7 +191,6 @@ SUBROUTINE tra_ldf_iso()
   zftv(:,:,:) = 0.0d0
   CALL dia_ptr_hst( jn, 'ldf', zftv(:,:,:)  )
   checksum = SUM(zftv)
-  !write(*,*) checksum
 end SUBROUTINE tra_ldf_iso
 '''
     reader = FortranStringReader(code)
@@ -228,7 +225,6 @@ SUBROUTINE tra_ldf_iso()
     CALL dia_ptr_hst( jn, 'ldf', zftv(:,:,:)  )
   end if
   checksum = SUM(zftv)
-  !write(*,*) checksum
 end SUBROUTINE tra_ldf_iso
 '''
     reader = FortranStringReader(code)
@@ -320,7 +316,6 @@ end subroutine lbc_update
     acc_update.apply(schedule)
     assert isinstance(schedule[1], CodeBlock)
     gen_code = str(psy.gen).lower()
-    # TODO We are probably relying on undefined behaviour here
     assert ('''  !$acc update if_present host(jpi,jpj,jpk,tmask)\n'''
             '''  open(unit = 32, file = "some_forcing.dat")''' in gen_code)
     assert ("  read(32, *) tmask\n"
