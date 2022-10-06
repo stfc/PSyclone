@@ -39,10 +39,10 @@
 ''' This module provides the KernelModuleInlineTrans transformation. '''
 
 
-from psyclone.errors import InternalError
 from psyclone.psyGen import Transformation, CodedKern
 from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.symbols import RoutineSymbol, ContainerSymbol
+from psyclone.psyir.symbols import RoutineSymbol, DataSymbol, \
+    DataTypeSymbol, Symbol
 from psyclone.psyir.nodes import Container, ScopingNode, Reference, Routine
 
 
@@ -164,6 +164,7 @@ class KernelModuleInlineTrans(Transformation):
         source_container = code_to_inline.ancestor(Container)
         symbols_to_bring_in = set()
 
+        # Find all symbols that have to be brought inside the subroutine
         for scope in code_to_inline.walk(ScopingNode):
             for symbol in scope.symbol_table.symbols:
                 if symbol.is_unresolved:
@@ -173,20 +174,28 @@ class KernelModuleInlineTrans(Transformation):
                         symbols_to_bring_in.add(mod)
                 elif symbol.is_import:
                     # Add to symbols_to_bring_in
-                    symbols_to_bring_in.add(symbol.interface.container_symbol)
+                    symbols_to_bring_in.add(symbol)
+                if isinstance(symbol, DataSymbol):
+                    # DataTypes can reference other symbols
+                    if isinstance(symbol.datatype, DataTypeSymbol):
+                        symbols_to_bring_in.add(symbol.datatype)
+                    elif hasattr(symbol.datatype, 'precision'):
+                        if isinstance(symbol.datatype.precision, Symbol):
+                            symbols_to_bring_in.add(symbol.datatype.precision)
 
+        # Literals can also reference symbols
+        # for literal in code_to_inline.walk(Literal):
+
+        # Bring the selected symbols inside the subroutine
         for symbol in symbols_to_bring_in:
-            if symbol.name in code_to_inline.symbol_table:
-                same_symbol = code_to_inline.symbol_table.lookup(symbol.name)
-                if not isinstance(same_symbol, ContainerSymbol):
-                    raise InternalError(
-                        f"Incoherent PSyIR found ({symbol.name} not as "
-                        f"expected)")
-            else:
+            if symbol.name not in code_to_inline.symbol_table:
                 code_to_inline.symbol_table.add(symbol)
-                # Note that momentarily we have the same symbol in two
-                # symbol tables, but this is not a problem because below
-                # we detach and discard the ancestor part of the tree.
+                # And when necessary the modules where they come from
+                if symbol.is_import:
+                    module_symbol = symbol.interface.container_symbol
+                    if module_symbol.name not in code_to_inline.symbol_table:
+                        code_to_inline.symbol_table.add(module_symbol)
+
         return code_to_inline
 
     def apply(self, node, options=None):
