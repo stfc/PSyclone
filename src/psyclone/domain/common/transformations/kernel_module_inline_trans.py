@@ -44,7 +44,7 @@ from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.symbols import RoutineSymbol, DataSymbol, \
     DataTypeSymbol, Symbol
 from psyclone.psyir.nodes import Container, ScopingNode, Reference, Routine, \
-    Literal
+    Literal, CodeBlock, Call
 
 
 class KernelModuleInlineTrans(Transformation):
@@ -132,8 +132,21 @@ class KernelModuleInlineTrans(Transformation):
                 raise TransformationError(
                     f"Kernel '{node.name}' contains accesses to data (variable"
                     f" '{var.name}') that are not present in the Symbol Table"
-                    f"(s) within KernelSchedule scope. Cannot inline such a"
+                    f"(s) within subroutine scope. Cannot inline such a"
                     f" kernel.") from err
+
+        # CodeBlocks also have symbols that we need to check
+        for block in kernel_schedule.walk(CodeBlock):
+            for name in block.get_symbol_names():
+                try:
+                    block.scope.symbol_table.lookup(
+                        name, scope_limit=block.ancestor(Routine))
+                except KeyError as err:
+                    raise TransformationError(
+                        f"Kernel '{node.name}' contains accesses to data "
+                        f"(variable '{name}' in a CodeBlock) that are not "
+                        f"present in the Symbol Table(s) within subroutine "
+                        f"scope. Cannot inline such a kernel.") from err
 
         # If the symbol already exist it must be referring to a Routine
         try:
@@ -189,6 +202,13 @@ class KernelModuleInlineTrans(Transformation):
             if isinstance(literal.datatype.precision, Symbol):
                 symbols_to_bring_in.add(literal.datatype.precision)
 
+        # Calls also refer to symbols
+        for caller in code_to_inline.walk(Call):
+            # TODO #1366: We still need a solution for intrinsics that
+            # currently are parsed into Calls/RoutineSymbols, for the
+            # moment here we skip the ones causing issues.
+            if caller.routine.name not in ("random_number", ):
+                symbols_to_bring_in.add(caller.routine)
 
         # Bring the selected symbols inside the subroutine
         for symbol in symbols_to_bring_in:
