@@ -115,10 +115,10 @@ class IntrinsicCall(Call):
             argument are not the expected type.
 
         '''
-        #if not isinstance(arguments, list):
-        #    raise GenerationError(
-        #        f"Call create arguments argument should be a list but found "
-        #        f"'{type(arguments).__name__}'.")
+        if not isinstance(arguments, list):
+            raise TypeError(
+                f"IntrinsicCall create arguments argument should be a list "
+                f"but found '{type(arguments).__name__}'.")
 
         #call = IntrinsicCall(intrinsic)
 

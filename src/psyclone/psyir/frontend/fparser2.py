@@ -46,11 +46,13 @@ import six
 from fparser.two import Fortran2003
 from fparser.two.utils import walk, BlockBase, StmtBase
 from psyclone.errors import InternalError, GenerationError
-from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
-    NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
-    Container, Assignment, Return, ArrayReference, Node, Range, \
-    KernelSchedule, StructureReference, ArrayOfStructuresReference, \
-    Call, Routine, Member, FileContainer, Directive, ArrayMember
+from psyclone.psyir.nodes import (
+    UnaryOperation, BinaryOperation,
+    NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop,
+    Container, Assignment, Return, ArrayReference, Node, Range,
+    KernelSchedule, StructureReference, ArrayOfStructuresReference,
+    Call, Routine, Member, FileContainer, Directive, ArrayMember,
+    IntrinsicCall)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_of_structures_mixin import \
     ArrayOfStructuresMixin
@@ -914,6 +916,7 @@ class Fparser2Reader(object):
         from fparser.two import utils
         # Map of fparser2 node types to handlers (which are class methods)
         self.handlers = {
+            Fortran2003.Allocate_Stmt: self._allocate_handler,
             Fortran2003.Assignment_Stmt: self._assignment_handler,
             Fortran2003.Data_Ref: self._data_ref_handler,
             Fortran2003.Function_Subprogram: self._subroutine_handler,
@@ -2322,6 +2325,29 @@ class Fparser2Reader(object):
         :rtype: NoneType
         '''
         return None
+
+    def _allocate_handler(self, node, parent):
+        '''
+        Transforms an fparser2 Allocate_Stmt into its PSyIR form.
+
+        :param node: node in fparser2 tree.
+        :type node: :py:class:`fparser.two.Fortran2003.Allocate_Stmt`
+        :param parent: parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyir.nodes.Schedule`
+
+        :returns: PSyIR representation of node
+        :rtype: :py:class:`psyclone.psyir.nodes.Call`
+
+        '''
+        #call = IntrinsicCall(parent=parent)
+        alloc_list = node.children[1]
+        for child in alloc_list.children:
+            name = child.children[0].string
+            #self.process_nodes(parent=newifblock,
+            #                   nodes=[clause.items[0]])
+
+        #import pdb; pdb.set_trace()
+        return IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE, [])
 
     def _create_loop(self, parent, variable):
         '''

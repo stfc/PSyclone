@@ -110,6 +110,7 @@ __all__ = [
         'DataNode',
         'FileContainer',
         'IfBlock',
+        'IntrinsicCall',
         'Literal',
         'Loop',
         'Member',

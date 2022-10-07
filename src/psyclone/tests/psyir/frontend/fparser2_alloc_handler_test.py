@@ -32,38 +32,24 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# -----------------------------------------------------------------------------
-
-'''This module contains pytest tests for the IntrinsicCall node.'''
-
-import pytest
-
-from psyclone.psyir.nodes import (
-    Literal, IntrinsicCall, Reference)
-from psyclone.psyir.symbols import (ArrayType, DataSymbol, INTEGER_TYPE,
-                                    IntrinsicSymbol)
 
 
-#def test_allocate_init():
-#    '''Test that an Allocate can be created as expected.'''
-#    alloc = IntrinsicCall(IntrinsicCall.Intrinsic.ALLOCATE)
-#    assert isinstance(alloc.routine, IntrinsicSymbol)
-#    assert str(alloc) == "IntrinsicCall[name='ALLOCATE']"
-#    assert alloc.routine.name.lower() == "allocate"
-#    assert alloc.parent is None
-#    assert alloc.children == []
+''' Performs pytest tests on the support for allocate statements in the
+    fparser2 PSyIR front-end. '''
 
 
-def test_intrinsiccall_create():
-    '''
-    Tests for the create() method.
+from psyclone.psyir.nodes import Call
 
-    '''
-    sym = DataSymbol("my_array", ArrayType(INTEGER_TYPE,
-                                           [ArrayType.Extent.DEFERRED]))
-    alloc = IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,
-                                 [Reference(sym)])
-    assert isinstance(alloc, IntrinsicCall)
-    with pytest.raises(TypeError) as err:
-        IntrinsicCall.create("ALLOCATE", [Reference(sym)])
-    assert "hello" in str(err.value)
+
+def test_allocate(fortran_reader):
+    ''' '''
+    code = '''
+program test_alloc
+  real, allocatable, dimension(:) :: var1
+  allocate(var1(10))
+end program test_alloc
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    print(psyir.view())
+    calls = psyir.walk(Call)
+    assert len(calls) == 1
