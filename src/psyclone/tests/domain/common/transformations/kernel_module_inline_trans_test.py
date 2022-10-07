@@ -283,6 +283,95 @@ def test_module_inline_apply_same_kernel(tmpdir):
     assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
+def test_module_inline_apply_bring_in_non_local_symbols(
+        fortran_reader, fortran_writer):
+    ''' Test that when the inlined routine uses non local symbols, it brings
+    them inside the subroutine when feasible. '''
+
+    inline_trans = KernelModuleInlineTrans()
+
+    # Bring all imports when we can't guarantee where symbols come from
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+        use external_mod1
+        use external_mod2
+        implicit none
+        contains
+        subroutine code()
+            a = b + c
+        end subroutine code
+    end module my_mod
+    ''')
+
+    routine = psyir.walk(Routine)[0]
+    inline_trans._prepare_code_to_inline(routine)
+    result = fortran_writer(routine)
+    assert "use external_mod1" in result
+    assert "use external_mod2" in result
+
+    # Also, if they are in datatype precision expressions
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+        use external_mod1, only: r_def
+        use external_mod2, only: my_user_type
+        use not_needed
+        implicit none
+        contains
+        subroutine code()
+            real(kind=r_def) :: a,b
+            type(my_user_type) :: x
+            a = b + x%data
+        end subroutine code
+    end module my_mod
+    ''')
+
+    routine = psyir.walk(Routine)[0]
+    inline_trans._prepare_code_to_inline(routine)
+    result = fortran_writer(routine)
+    assert "use external_mod1, only : r_def" in result
+    assert "use external_mod2, only : my_user_type" in result
+    assert "use not_needed" not in result
+
+    # Also, if they are literal precision expressions
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+        use external_mod1, only: r_def
+        use not_needed
+        implicit none
+        contains
+        subroutine code()
+            real :: a,b
+            a = b + 1.0_r_def
+        end subroutine code
+    end module my_mod
+    ''')
+
+    routine = psyir.walk(Routine)[0]
+    inline_trans._prepare_code_to_inline(routine)
+    result = fortran_writer(routine)
+    assert "use external_mod1, only : r_def" in result
+    assert "use not_needed" not in result
+
+    # Also, if they are routine names
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+        use external_mod1, only: my_sub
+        implicit none
+        contains
+        subroutine code()
+            real :: a
+            call random_number(a) !intrinsic
+            call my_sub(a)
+        end subroutine code
+    end module my_mod
+    ''')
+
+    routine = psyir.walk(Routine)[0]
+    inline_trans._prepare_code_to_inline(routine)
+    result = fortran_writer(routine)
+    assert "use external_mod1, only : my_sub" in result
+
+
 def test_module_inline_dynamo(monkeypatch, annexed, dist_mem):
     '''Tests that correct results are obtained when a kernel is inlined
     into the psy-layer in the dynamo0.3 API. All previous tests use GOcean

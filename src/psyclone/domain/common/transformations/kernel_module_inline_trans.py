@@ -161,66 +161,66 @@ class KernelModuleInlineTrans(Transformation):
                 f"subroutines is not supported yet.")
 
     @staticmethod
-    def _prepare_code_to_inline(node):
+    def _prepare_code_to_inline(code_to_inline):
         ''' Prepare the PSyIR tree to inline by brining in the subroutine all
         referenced symbols so that the implementation is self contained.
 
-        :param node: the kernel to module-inline.
-        :type node: :py:class:`psyclone.psyGen.CodedKern`
-
-        :returns: a self contained version of the subroutine to inline.
-        :rtype: :py:class:`psyclone.psyir.nodes.Routine`
-
-        :raise InternalError: unexpected PSyIR.
+        :param code_to_inline: the subroutine to module-inline.
+        :type code_to_inline: :py:class:`psyclone.psyir.node.Routine`
 
         '''
-        code_to_inline = node.get_kernel_schedule()
         source_container = code_to_inline.ancestor(Container)
-        symbols_to_bring_in = set()
 
-        # Find all symbols that have to be brought inside the subroutine
+        # First make a set with all symbols used inside the subroutine
+        all_symbols = set()
         for scope in code_to_inline.walk(ScopingNode):
             for symbol in scope.symbol_table.symbols:
-                if symbol.is_unresolved:
-                    # We don't know where this comes from, we need to bring
-                    # in all top-level imports
-                    for mod in source_container.symbol_table.containersymbols:
-                        symbols_to_bring_in.add(mod)
-                elif symbol.is_import:
-                    # Add to symbols_to_bring_in
-                    symbols_to_bring_in.add(symbol)
-                if isinstance(symbol, DataSymbol):
-                    # DataTypes can reference other symbols
-                    if isinstance(symbol.datatype, DataTypeSymbol):
-                        symbols_to_bring_in.add(symbol.datatype)
-                    elif hasattr(symbol.datatype, 'precision'):
-                        if isinstance(symbol.datatype.precision, Symbol):
-                            symbols_to_bring_in.add(symbol.datatype.precision)
-
-        # Literals can also reference symbols in they precision
+                all_symbols.add(symbol)
+        for reference in code_to_inline.walk(Reference):
+            all_symbols.add(reference.symbol)
         for literal in code_to_inline.walk(Literal):
+            # Literals may reference symbols in they precision
             if isinstance(literal.datatype.precision, Symbol):
-                symbols_to_bring_in.add(literal.datatype.precision)
-
-        # Calls also refer to symbols
+                all_symbols.add(literal.datatype.precision)
         for caller in code_to_inline.walk(Call):
             # TODO #1366: We still need a solution for intrinsics that
             # currently are parsed into Calls/RoutineSymbols, for the
             # moment here we skip the ones causing issues.
             if caller.routine.name not in ("random_number", ):
-                symbols_to_bring_in.add(caller.routine)
+                all_symbols.add(caller.routine)
+
+        # Then decide which symbols need to be brought inside the subroutine
+        symbols_to_bring_in = set()
+        for symbol in all_symbols:
+            if symbol.is_unresolved:
+                # We don't know where this comes from, we need to bring
+                # in all top-level imports
+                for mod in source_container.symbol_table.containersymbols:
+                    symbols_to_bring_in.add(mod)
+            elif symbol.is_import:
+                # Add to symbols_to_bring_in
+                symbols_to_bring_in.add(symbol)
+            if isinstance(symbol, DataSymbol):
+                # DataTypes can reference other symbols
+                if isinstance(symbol.datatype, DataTypeSymbol):
+                    symbols_to_bring_in.add(symbol.datatype)
+                elif hasattr(symbol.datatype, 'precision'):
+                    if isinstance(symbol.datatype.precision, Symbol):
+                        symbols_to_bring_in.add(symbol.datatype.precision)
 
         # Bring the selected symbols inside the subroutine
         for symbol in symbols_to_bring_in:
             if symbol.name not in code_to_inline.symbol_table:
                 code_to_inline.symbol_table.add(symbol)
-                # And when necessary the modules where they come from
-                if symbol.is_import:
-                    module_symbol = symbol.interface.container_symbol
-                    if module_symbol.name not in code_to_inline.symbol_table:
-                        code_to_inline.symbol_table.add(module_symbol)
-
-        return code_to_inline
+            # And when necessary the modules where they come from
+            if symbol.is_import:
+                module_symbol = symbol.interface.container_symbol
+                if module_symbol.name not in code_to_inline.symbol_table:
+                    code_to_inline.symbol_table.add(module_symbol)
+            elif symbol.is_unresolved:
+                for mod in source_container.symbol_table.containersymbols:
+                    if mod.name not in code_to_inline.symbol_table:
+                        code_to_inline.symbol_table.add(mod)
 
     def apply(self, node, options=None):
         ''' Bring the kernel subroutine in this Container.
@@ -242,7 +242,8 @@ class KernelModuleInlineTrans(Transformation):
         except KeyError:
             existing_symbol = None
 
-        code_to_inline = self._prepare_code_to_inline(node)
+        code_to_inline = node.get_kernel_schedule()
+        self._prepare_code_to_inline(code_to_inline)
 
         if not existing_symbol:
             # If it doesn't exist already, module-inline the subroutine by:
