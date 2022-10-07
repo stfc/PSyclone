@@ -61,17 +61,10 @@ class KernelModuleInlineTrans(Transformation):
     >>> # print(schedule.view())
 
     .. warning ::
-        For this transformation to work correctly, the Kernel subroutine
-        must only use data that is passed in by argument, declared locally
-        or included via use association within the subroutine. Two
-        examples where in-lining will not work are:
+        Not all kernels subroutines can be module-inlined. This transformation
+        will reject attempts to in-line kernels that access global data in the
+        original module.
 
-        #. A variable is declared within the module that ``contains`` the
-           Kernel subroutine and is then accessed within that Kernel;
-        #. A variable is included via use association at the module level
-           and accessed within the Kernel subroutine.
-
-        The transformation will reject attempts to in-line such kernels.
     '''
 
     def __str__(self):
@@ -169,6 +162,7 @@ class KernelModuleInlineTrans(Transformation):
         :type code_to_inline: :py:class:`psyclone.psyir.node.Routine`
 
         '''
+        # pylint: disable=too-many-branches
         source_container = code_to_inline.ancestor(Container)
 
         # First make a set with all symbols used inside the subroutine
