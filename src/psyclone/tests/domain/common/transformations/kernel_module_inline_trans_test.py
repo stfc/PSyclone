@@ -40,9 +40,10 @@
 ''' Tests of the KernelModuleInlineTrans PSyIR transformation. '''
 
 import pytest
+from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config
 from psyclone.psyGen import CodedKern, Kern
-from psyclone.psyir.nodes import Container, Routine
+from psyclone.psyir.nodes import Container, Routine, CodeBlock
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
     SymbolError
 from psyclone.psyir.transformations import TransformationError
@@ -95,7 +96,7 @@ def test_validate_invalid_get_kernel_schedule(monkeypatch):
             "method." in str(err.value))
 
 
-def test_validate_no_inline_global_var():
+def test_validate_no_inline_global_var(parser):
     ''' Check that we refuse to in-line a kernel that accesses a global
     variable. '''
     inline_trans = KernelModuleInlineTrans()
@@ -107,7 +108,24 @@ def test_validate_no_inline_global_var():
         inline_trans.apply(kernels[0])
     assert ("'kernel_with_global_code' contains accesses to data (variable "
             "'alpha') that are not present in the Symbol Table(s) "
-            "within KernelSchedule scope." in str(err.value))
+            "within subroutine scope." in str(err.value))
+
+    # Check that the issue is also reported if the symbol is inside a
+    # Codeblock
+    reader = FortranStringReader('''
+    subroutine mytest
+        alpha = alpha + 1
+    end subroutine mytest''')
+    stmt = parser(reader).children[0].children[1]
+    block = CodeBlock([stmt], CodeBlock.Structure.STATEMENT)
+    kernels[0].get_kernel_schedule().pop_all_children()
+    kernels[0].get_kernel_schedule().addchild(block)
+
+    with pytest.raises(TransformationError) as err:
+        inline_trans.apply(kernels[0])
+    assert ("'kernel_with_global_code' contains accesses to data (variable "
+            "'alpha' in a CodeBlock) that are not present in the Symbol "
+            "Table(s) within subroutine scope." in str(err.value))
 
 
 def test_validate_name_clashes():
