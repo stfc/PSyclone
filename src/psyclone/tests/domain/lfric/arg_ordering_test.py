@@ -392,10 +392,13 @@ def test_kerncallarglist_2qr_shapes(tmpdir, fortran_writer):
     print("NEW", fortran_writer(schedule))
     assert result == [
         'nlayers', 'f1_proxy%data', 'f2_proxy(1)%data', 'f2_proxy(2)%data',
-        'f2_proxy(3)%data', 'f3_proxy%data', 'istp', 'ndf_w2',
-        'undf_w2', 'map_w2(:,cell)', 'ndf_wchi', 'undf_wchi',
-        'map_wchi(:,cell)', 'ndf_adspc1_f3', 'undf_adspc1_f3',
-        'map_adspc1_f3(:,cell)']
+        'f2_proxy(3)%data', 'f3_proxy%data', 'istp', 'ndf_w2', 'undf_w2',
+        'map_w2(:,cell)', 'basis_w2_qr_xyoz', 'basis_w2_qr_face', 'ndf_wchi',
+        'undf_wchi', 'map_wchi(:,cell)', 'diff_basis_wchi_qr_xyoz',
+        'diff_basis_wchi_qr_face', 'ndf_adspc1_f3', 'undf_adspc1_f3',
+        'map_adspc1_f3(:,cell)', 'basis_adspc1_f3_qr_xyoz',
+        'basis_adspc1_f3_qr_face', 'diff_basis_adspc1_f3_qr_xyoz',
+        'diff_basis_adspc1_f3_qr_face']
 
     # assert result == create_arg_list._arglist
 

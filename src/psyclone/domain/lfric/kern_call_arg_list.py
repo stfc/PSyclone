@@ -653,7 +653,9 @@ class KernCallArgList(ArgOrdering):
         '''
         for rule in self._kern.qr_rules.values():
             basis_name = function_space.get_basis_name(qr_var=rule.psy_name)
-            self.append(basis_name, var_accesses)
+            sym = self.add_array_reference(basis_name, [":", ":", ":", ":"],
+                                           "real")
+            self.append(sym.name, var_accesses)
 
         if "gh_evaluator" in self._kern.eval_shapes:
             # We are dealing with an evaluator and therefore need as many
@@ -683,7 +685,9 @@ class KernCallArgList(ArgOrdering):
         for rule in self._kern.qr_rules.values():
             diff_basis_name = function_space.get_diff_basis_name(
                 qr_var=rule.psy_name)
-            self.append(diff_basis_name, var_accesses)
+            sym = self.add_array_reference(diff_basis_name,
+                                           [":", ":", ":", ":"], "real")
+            self.append(sym.name, var_accesses)
 
         if "gh_evaluator" in self._kern.eval_shapes:
             # We are dealing with an evaluator and therefore need as many
