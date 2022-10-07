@@ -84,10 +84,13 @@ from psyclone.psyir.nodes.omp_directives import OMPDirective, OMPDoDirective, \
     OMPParallelDirective, OMPParallelDoDirective, OMPSingleDirective, \
     OMPMasterDirective, OMPSerialDirective, OMPTaskloopDirective, \
     OMPTaskwaitDirective, OMPStandaloneDirective, OMPRegionDirective, \
-    OMPTargetDirective, OMPLoopDirective, OMPDeclareTargetDirective
-from psyclone.psyir.nodes.clause import Clause
+    OMPTargetDirective, OMPLoopDirective, OMPDeclareTargetDirective, \
+    OMPTeamsDistributeParallelDoDirective
+from psyclone.psyir.nodes.clause import Clause, OperandClause
 from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
-    OMPNogroupClause, OMPNowaitClause, OMPNumTasksClause
+    OMPNogroupClause, OMPNowaitClause, OMPNumTasksClause, OMPPrivateClause, \
+    OMPDefaultClause, OMPReductionClause, OMPScheduleClause, \
+    OMPFirstprivateClause, OMPSharedClause, OMPDependClause
 
 
 # The entities in the __all__ list are made available to import directly from
@@ -112,6 +115,7 @@ __all__ = [
         'Member',
         'NaryOperation',
         'Node',
+        'OperandClause',
         'Operation',
         'Range',
         'Reference',
@@ -159,9 +163,17 @@ __all__ = [
         'OMPTargetDirective',
         'OMPLoopDirective',
         'OMPDeclareTargetDirective',
+        'OMPTeamsDistributeParallelDoDirective',
         # OMP Clause Nodes
         'OMPGrainsizeClause',
         'OMPNogroupClause',
         'OMPNowaitClause',
-        'OMPNumTasksClause'
+        'OMPNumTasksClause',
+        'OMPPrivateClause',
+        'OMPDefaultClause',
+        'OMPReductionClause',
+        'OMPScheduleClause',
+        'OMPFirstprivateClause',
+        'OMPSharedClause',
+        'OMPDependClause'
         ]

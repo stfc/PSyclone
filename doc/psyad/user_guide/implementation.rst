@@ -517,6 +517,20 @@ the tangent-linear names were also compliant).
 	  issue #1772) so it needs to be changed manually after the
 	  adjoint code has been created.
 
+Multiple Subroutines
+++++++++++++++++++++
+
+The LFRic API supports mixed precision kernels. It does this by
+implementing multiple versions of kernel subroutines with different
+precision and a generic interface. PSyAD supports mixed precision
+kernels by translating all of the kernel subroutines. This approach
+relies on each kernel implementation using the same active variable
+names as PSyAD only supports a single list of names. If this is not
+the case then PSyAD will raise an exception.
+
+.. note:: At the moment PSyAD does not modify the interface names so
+          these must be done manually by the user, see issue #1772.
+
 Test Harness
 ++++++++++++
 
@@ -544,12 +558,14 @@ Initialisation
 
 All arguments to the TL kernel are initialised with pseudo-random numbers
 in the interval :math:`[0.0,1.0]` using the Fortran `random_number` intrinsic
-function.
+function. If the LFRic API is selected then only scalar and field arguments
+are initialised in this way since arguments such as dof-maps contain
+essential information derived from the model configuration.
 
-.. note:: this initialisation will not be correct when a kernel contains
-	  indirection and is passed a mapping array. In such cases the mapping
-	  array will need initialising with meaningful values. This is the
-	  subject of Issue #1496.
+.. note:: Currently this means that fields containing geometric information
+	  such as coordinates or panel IDs are overwritten with pseudo-random
+	  data and consequently the test harness will not work for kernels
+	  with those arguments. Issue #1708 will address this.
 
 Inner Products
 --------------
@@ -565,6 +581,10 @@ latter will remain constant for both the TL and adjoint kernel calls
 they can be included in the inner-product compuation without affecting the
 correctness test). It is likely that this will require refinement in future,
 e.g. for kernels that have non-numeric arguments.
+
+For the LFRic API, only scalar and field arguments are currently included in
+the inner-product calculation. Issue #1864 will extend this to operator
+arguments.
 
 Comparing the Inner Products
 ----------------------------
@@ -588,11 +608,12 @@ there is an error and one of the inner products is zero or less than
 `tiny(1.0)`.
 
 By default, the overall test tolerance is set to `1500.0`. This is
-currently set as a constant in the `psyclone.psyad.tl2ad` module but
+currently set as a constant in the
+`psyclone.psyad.domain.common.adjoint_utils` module but
 will eventually be exposed as a configuration option (this is the
 subject of issue #1346).  This value is the one arrived at over time
 by the Met Office in the current adjoint-testing code. In that code,
-the vector of variables can be of order 200M in length (since it
+the vector of variables can be of order 200 million in length (since it
 involves values at all points of the 3D mesh) and therefore there is
 plenty of scope for numerical errors to accumulate. Whether this value
 is appropriate for LFRic kernels is yet to be determined.

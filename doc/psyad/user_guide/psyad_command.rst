@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2021, Science and Technology Facilities Council.
+.. Copyright (c) 2021-2022, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,8 @@ The simplest way to run PSyAD is to use the ``psyad`` command. If you
 installed PSyclone using ``pip`` then this command should be available
 on your PATH (see the PSyclone user guide for more
 details). Alternatively it can be found in the ``<PSYCLONEHOME>/bin``
-directory. The command takes an LFRic tangent-linear kernel file and a
+directory. The command takes a file containing a tangent-linear kernel
+(either a generic Fortran subroutine or an LFRic kernel) and a
 list of active variables as input and outputs its adjoint. This
 section walks through the functionality of the command.
 
@@ -61,12 +62,12 @@ by the command:
 .. parsed-literal::
 		
   >>> psyad -h
-    usage: psyad [-h] [-oad OAD] [-v] [-t] [-otest TEST_FILENAME] -a ACTIVE [ACTIVE ...] -- filename
+    usage: psyad [-h] [-oad OAD] [-v] [-t] [-api API] [-otest TEST_FILENAME] -a ACTIVE [ACTIVE ...] -- filename
 
-    Run the PSyclone adjoint code generator on an LFRic tangent-linear kernel file
+    Run the PSyclone adjoint code generator on a tangent-linear kernel file
 
     positional arguments:
-      filename       LFRic tangent-linear kernel source
+      filename              tangent-linear kernel source
 
     optional arguments:
       -h, --help            show this help message and exit
@@ -74,6 +75,7 @@ by the command:
                             name of active variables
       -v, --verbose         increase the verbosity of the output
       -t, --gen-test        generate a standalone unit test for the adjoint code
+      -api API              the PSyclone API that the TL kernel conforms to (if any)
       -otest TEST_FILENAME  filename for the unit test (implies -t)
       -oad OAD              filename for the transformed code
 
@@ -85,7 +87,7 @@ tangent-linear kernel file and the names of the active variables
 within the kernel file
 ::
 
-    > psyad -a var1 var2 -- tl_kern.f90
+    > psyad -api dynamo0.3 -a var1 var2 -- tl_kern.f90
 
 If the kernel file or active variables are invalid for some reason,
 the command should return with an appropriate error.
@@ -103,6 +105,12 @@ by another optional argument [see the next section])
    
    > psyad tl_kern.f90 -a var1 var2
 
+.. note:: PSyAD does not support tangent-linear code written as a
+          function and will raise an exception if a function is
+          found. The suggested solution is to re-write the code as a
+          subroutine. The reason for this limitation is that there is
+          no natural way to translate such code to its adjoint form
+          without making the adjoint a subroutine.
 
 File Output
 -----------
@@ -155,8 +163,13 @@ the previous command
 	  kernel is in the form of a subroutine contained within a module.
 	  PSyAD will report an error if this is not the case.
 
-Processing Information
-----------------------
+.. warning:: Currently PSyAD cannot generate the test harness for an LFRic
+	     kernel that takes as argument a field containing either coordinates
+	     (``chi``) or panel IDs. Support for such kernels is the subject of
+	     Issue #1708.
+
+Logging Output
+--------------
 
 To see more information about what the psyad script is doing
 internally you can specify the ``-v`` option. For example

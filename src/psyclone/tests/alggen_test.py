@@ -42,6 +42,9 @@ import os
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
+from fparser.two import Fortran2003
+from fparser.two.utils import walk
+
 from psyclone import alg_gen
 from psyclone.configuration import Config
 from psyclone.generator import generate, GenerationError
@@ -52,7 +55,7 @@ from psyclone.errors import InternalError
 def setup():
     '''Make sure that all tests here use dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
-    yield()
+    yield
     Config._instance = None
 
 
@@ -64,9 +67,10 @@ def test_single_function_invoke():
     ''' single kernel specified in an invoke call'''
     alg, _ = generate(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                       api="dynamo0.3")
-    gen = str(alg)
-    assert "USE single_invoke_psy, ONLY: invoke_0_testkern_type" in gen
-    assert "CALL invoke_0_testkern_type(a, f1, f2, m1, m2)" in gen
+    gen = str(alg).lower()
+    assert "use single_invoke_psy, only: invoke_0_testkern_type" in gen
+    assert "call invoke_0_testkern_type(a, f1, f2, m1, m2)" in gen
+    assert "use testkern_mod" not in gen
 
 
 def test_single_function_named_invoke():
@@ -137,9 +141,10 @@ def test_single_function_invoke_qr():
     alg, _ = generate(os.path.join(BASE_PATH,
                                    "1.1.0_single_invoke_xyoz_qr.f90"),
                       api="dynamo0.3")
-    gen = str(alg)
-    assert "USE testkern_qr, ONLY: testkern_qr_type" in gen
-    assert ("CALL invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp, qr)"
+    gen = str(alg).lower()
+    assert "use testkern_qr" not in gen
+    assert "use single_invoke_psy, only: invoke_0_testkern_qr_type" in gen
+    assert ("call invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp, qr)"
             in gen)
 
 
@@ -156,12 +161,17 @@ def test_single_function_multi_invokes():
     ''' three invokes, each containing a single function '''
     alg, _ = generate(os.path.join(BASE_PATH, "3_multi_invokes.f90"),
                       api="dynamo0.3")
-    gen = str(alg)
-    assert "USE testkern_mod, ONLY: testkern_type" in gen
-    assert "USE testkern_qr, ONLY: testkern_qr_type" in gen
-    assert "CALL invoke_0_testkern_type(a, f1, f2, m1, m2)" in gen
-    assert "CALL invoke_2_testkern_type(a, f1, f2, m1, m2)" in gen
-    assert ("CALL invoke_1_testkern_qr_type(f1, f2, m1, a, m2, istp, qr)"
+    gen = str(alg).lower()
+    # Use statements for kernels should have been removed.
+    assert "use testkern_mod" not in gen
+    assert "use testkern_qr" not in gen
+    # Use statements for PSy-layer routines should have been added.
+    assert "use multi_invokes_psy, only: invoke_0_testkern_type" in gen
+    assert "use multi_invokes_psy, only: invoke_2_testkern_type" in gen
+    assert "use multi_invokes_psy, only: invoke_1_testkern_qr_type" in gen
+    assert "call invoke_0_testkern_type(a, f1, f2, m1, m2)" in gen
+    assert "call invoke_2_testkern_type(a, f1, f2, m1, m2)" in gen
+    assert ("call invoke_1_testkern_qr_type(f1, f2, m1, a, m2, istp, qr)"
             in gen)
 
 
@@ -172,15 +182,17 @@ def test_named_multi_invokes():
         os.path.join(BASE_PATH,
                      "3.2_multi_functions_multi_named_invokes.f90"),
         api="dynamo0.3")
-    gen = str(alg)
-    assert "USE testkern_mod, ONLY: testkern_type" in gen
-    assert "USE testkern_qr, ONLY: testkern_qr_type" in gen
-    assert ("USE multi_functions_multi_invokes_psy, ONLY: "
+    gen = str(alg).lower()
+    # Use statements for kernels should have been removed.
+    assert "use testkern_mod" not in gen
+    assert "use testkern_qr" not in gen
+    # Use statements for PSy-layer routines should have been added.
+    assert ("use multi_functions_multi_invokes_psy, only: "
             "invoke_my_first" in gen)
-    assert ("USE multi_functions_multi_invokes_psy, ONLY: "
+    assert ("use multi_functions_multi_invokes_psy, only: "
             "invoke_my_second" in gen)
-    assert "CALL invoke_my_first(a, f1, f2," in gen
-    assert "CALL invoke_my_second(f1, f2, m1, a, m2" in gen
+    assert "call invoke_my_first(a, f1, f2," in gen
+    assert "call invoke_my_second(f1, f2, m1, a, m2" in gen
 
 
 def test_multi_function_multi_invokes():
@@ -200,10 +212,13 @@ def test_multi_function_invoke_qr():
     requires a quadrature rule'''
     alg, _ = generate(os.path.join(
         BASE_PATH, "1.3_multi_invoke_qr.f90"), api="dynamo0.3")
-    gen = str(alg)
-    assert "USE testkern_qr, ONLY: testkern_qr_type" in gen
-    assert "USE testkern_mod, ONLY: testkern_type" in gen
-    assert "CALL invoke_0(f1, f2, m1, a, m2, istp, m3, f3, qr)" in gen
+    gen = str(alg).lower()
+    # Use statements for kernels should have been removed.
+    assert "use testkern_qr" not in gen
+    assert "use testkern_mod" not in gen
+    # Use statement for PSy-layer routines should have been added.
+    assert "use multi_invoke_qr_psy, only: invoke_0" in gen
+    assert "call invoke_0(f1, f2, m1, a, m2, istp, m3, f3, qr)" in gen
 
 
 def test_invoke_argnames():
@@ -403,7 +418,60 @@ def get_parse_tree(code, parser):
     reader = FortranStringReader(code)
     return parser(reader)
 
-# Function _adduse tests These should be moved in #240.
+
+# Function _rm_kernel_use_stmts tests. These will be removed once the LFRic
+# algorithm layer uses PSyIR (#1618).
+
+
+def test_rm_kernel_use_stmts(parser):
+    '''Tests for the _rm_kernel_use_stmts() method.'''
+    code = ("program test\n"
+            "  use my_kernel_mod, only: my_kernel_type\n"
+            "  use kernel2_mod, only: kernel2_type, something_else\n"
+            "contains\n"
+            "  subroutine my_sub()\n"
+            "    use a_kernel_mod, only: a_kernel_type\n"
+            "  end subroutine my_sub\n"
+            "end program test\n")
+    parse_tree = get_parse_tree(code, parser)
+    # An empty list of kernel names should be fine.
+    alg_gen._rm_kernel_use_stmts([], parse_tree)
+    gen = str(parse_tree).lower()
+    assert "use my_kernel_mod, only: my_kernel_type" in gen
+    assert "use kernel2_mod, only: kernel2_type, something_else" in gen
+    assert "use a_kernel_mod, only: a_kernel_type" in gen
+    # A kernel name that doesn't exist should be fine (because we need to
+    # support builtins).
+    alg_gen._rm_kernel_use_stmts(["my_builtin"], parse_tree)
+    gen = str(parse_tree).lower()
+    assert "use my_kernel_mod, only: my_kernel_type" in gen
+    assert "use kernel2_mod, only: kernel2_type, something_else" in gen
+    # Check that the use associated with a named kernel is removed.
+    alg_gen._rm_kernel_use_stmts(["my_kernel_type"], parse_tree)
+    gen = str(parse_tree).lower()
+    assert "my_kernel_type" not in gen
+    assert "use kernel2_mod, only: kernel2_type, something_else" in gen
+    # Check that a use statement is not removed if it imports symbols other
+    # than the named kernel.
+    alg_gen._rm_kernel_use_stmts(["kernel2_type"], parse_tree)
+    gen = str(parse_tree).lower()
+    assert "use kernel2_mod, only: kernel2_type, something_else" in gen
+    alg_gen._rm_kernel_use_stmts(["kernel2_type", "something_else"],
+                                 parse_tree)
+    # One Specification_Part should have been removed entirely.
+    assert len(walk(parse_tree, Fortran2003.Specification_Part)) == 1
+    gen = str(parse_tree).lower()
+    assert "kernel2_type" not in gen
+    assert "something_else" not in gen
+    # Finally, check for the use in the nested subroutine.
+    assert "use a_kernel_mod, only: a_kernel_type" in gen
+    alg_gen._rm_kernel_use_stmts(["a_kernel_type"], parse_tree)
+    assert not walk(parse_tree, Fortran2003.Specification_Part)
+    gen = str(parse_tree).lower()
+    assert "a_kernel_type" not in gen
+
+# Function adduse tests. These will be removed once the LFRic algorithm
+# layer uses PSyIR (#1618).
 
 
 @pytest.mark.parametrize("location", [None, "lilliput"])

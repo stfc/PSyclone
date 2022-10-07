@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2021-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,13 +38,11 @@
 Algorithm PSyIR.
 
 '''
-from __future__ import absolute_import
-
 from psyclone.psyir.nodes import Call
-from psyclone.domain.lfric.algorithm import \
-    LFRicAlgorithmInvokeCall, LFRicKernelFunctor, LFRicBuiltinFunctor
-from psyclone.domain.lfric.transformations import LFRicAlgTrans, \
-    LFRicRaiseCall2InvokeTrans
+from psyclone.domain.lfric.algorithm.psyir import (
+    LFRicAlgorithmInvokeCall, LFRicKernelFunctor, LFRicBuiltinFunctor)
+from psyclone.domain.lfric.transformations import (
+    LFRicAlgTrans, RaisePSyIR2LFRicAlgTrans)
 
 
 def test_init():
@@ -56,7 +54,7 @@ def test_init():
     alg_trans = LFRicAlgTrans()
     assert alg_trans.name == "LFRicAlgTrans"
     assert isinstance(alg_trans, LFRicAlgTrans)
-    assert isinstance(alg_trans._invoke_trans, LFRicRaiseCall2InvokeTrans)
+    assert isinstance(alg_trans._invoke_trans, RaisePSyIR2LFRicAlgTrans)
 
 
 def test_apply(fortran_reader):

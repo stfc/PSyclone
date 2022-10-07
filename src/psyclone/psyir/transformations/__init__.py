@@ -46,9 +46,12 @@ from psyclone.psyir.transformations.chunk_loop_trans import ChunkLoopTrans
 from psyclone.psyir.transformations.extract_trans import ExtractTrans
 from psyclone.psyir.transformations.fold_conditional_return_expressions_trans \
     import FoldConditionalReturnExpressionsTrans
-from psyclone.psyir.transformations.hoist_local_arrays_trans import (
-    HoistLocalArraysTrans)
+from psyclone.psyir.transformations.hoist_local_arrays_trans import \
+    HoistLocalArraysTrans
+from psyclone.psyir.transformations.hoist_loop_bound_expr_trans import \
+    HoistLoopBoundExprTrans
 from psyclone.psyir.transformations.hoist_trans import HoistTrans
+from psyclone.psyir.transformations.inline_trans import InlineTrans
 from psyclone.psyir.transformations.intrinsics.abs2code_trans import \
     Abs2CodeTrans
 from psyclone.psyir.transformations.intrinsics.dotproduct2code_trans import \
@@ -61,20 +64,30 @@ from psyclone.psyir.transformations.intrinsics.min2code_trans import \
     Min2CodeTrans
 from psyclone.psyir.transformations.intrinsics.sign2code_trans import \
     Sign2CodeTrans
+from psyclone.psyir.transformations.intrinsics.sum2code_trans import \
+    Sum2CodeTrans
 from psyclone.psyir.transformations.loop_fuse_trans import LoopFuseTrans
 from psyclone.psyir.transformations.loop_swap_trans import LoopSwapTrans
 from psyclone.psyir.transformations.loop_tiling_2d_trans \
     import LoopTiling2DTrans
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.nan_test_trans import NanTestTrans
+from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
+from psyclone.psyir.transformations.omp_target_trans import OMPTargetTrans
 from psyclone.psyir.transformations.omp_taskwait_trans import OMPTaskwaitTrans
+from psyclone.psyir.transformations.parallel_loop_trans import \
+    ParallelLoopTrans
 from psyclone.psyir.transformations.profile_trans import ProfileTrans
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 from psyclone.psyir.transformations.read_only_verify_trans \
     import ReadOnlyVerifyTrans
 from psyclone.psyir.transformations.region_trans import RegionTrans
+from psyclone.psyir.transformations.replace_induction_variables_trans import \
+     ReplaceInductionVariablesTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
+from psyclone.psyir.transformations.reference2arrayrange_trans import \
+    Reference2ArrayRangeTrans
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:
@@ -85,6 +98,7 @@ __all__ = ['ArrayRange2LoopTrans',
            'ExtractTrans',
            'FoldConditionalReturnExpressionsTrans',
            'HoistLocalArraysTrans',
+           'HoistLoopBoundExprTrans',
            'HoistTrans',
            'Abs2CodeTrans',
            'DotProduct2CodeTrans',
@@ -92,14 +106,20 @@ __all__ = ['ArrayRange2LoopTrans',
            'Max2CodeTrans',
            'Min2CodeTrans',
            'Sign2CodeTrans',
+           'Sum2CodeTrans',
            'LoopFuseTrans',
            'LoopSwapTrans',
            'LoopTiling2DTrans',
            'LoopTrans',
            'NanTestTrans',
+           'OMPLoopTrans',
            'OMPTaskwaitTrans',
+           'OMPTargetTrans',
+           'ParallelLoopTrans',
            'ProfileTrans',
            'PSyDataTrans',
            'ReadOnlyVerifyTrans',
+           'Reference2ArrayRangeTrans',
            'RegionTrans',
+           'ReplaceInductionVariablesTrans',
            'TransformationError']

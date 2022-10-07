@@ -50,7 +50,9 @@ from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, \
     OMPTaskwaitDirective, OMPTargetDirective, OMPLoopDirective, Schedule, \
     Return, OMPSingleDirective, Loop, Literal, Routine, Assignment, \
     Reference, OMPDeclareTargetDirective, OMPNowaitClause, \
-    OMPGrainsizeClause, OMPNumTasksClause, OMPNogroupClause
+    OMPGrainsizeClause, OMPNumTasksClause, OMPNogroupClause, \
+    OMPPrivateClause, OMPDefaultClause, OMPReductionClause, \
+    OMPScheduleClause, OMPTeamsDistributeParallelDoDirective, CodeBlock
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, SymbolTable, \
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE
 from psyclone.errors import InternalError, GenerationError
@@ -64,6 +66,197 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 os.pardir, os.pardir, "test_files",
                                 "gocean1p0")
+
+
+def test_ompparallel_changes_begin_string(fortran_reader):
+    ''' Check that when the code inside an OMP Parallel region changes, the
+    parallel clause changes appropriately. '''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(320) :: A
+        integer :: i
+        integer :: j
+        do i = 1, 320
+            A(i) = i
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    tdir = OMPDoDirective()
+    loops = tree.walk(Loop)
+    loop = loops[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    ptrans.apply(loops[0].parent.parent)
+    assert isinstance(tree.children[0].children[0], OMPParallelDirective)
+    pdir = tree.children[0].children[0]
+    pdir.lower_to_language_level()
+    assert pdir.begin_string() == "omp parallel"
+    assert len(pdir.children) == 3
+    assert isinstance(pdir.children[2], OMPPrivateClause)
+    priv_clause = pdir.children[2]
+
+    # Make acopy of the loop
+    new_loop = pdir.children[0].children[0].children[0].children[0].copy()
+    # Change the loop variable to j
+    jvar = DataSymbol("j", INTEGER_SINGLE_TYPE)
+    new_loop.variable = jvar
+    # Add loop
+    pdir.children[0].addchild(new_loop)
+
+    pdir.lower_to_language_level()
+    assert pdir.children[2] != priv_clause
+
+
+def test_ompparallel_changes_gen_code():
+    ''' Check that when the code inside an OMP Parallel region changes, the
+    private clause changes appropriately. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    tree = psy.invokes.invoke_list[0].schedule
+    ptrans = OMPParallelTrans()
+    tdir = OMPDoDirective()
+    loops = tree.walk(Loop)
+    loop = loops[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    ptrans.apply(loops[0].parent.parent)
+
+    assert isinstance(tree.children[0], OMPParallelDirective)
+    pdir = tree.children[0]
+    _ = psy.gen
+    assert len(pdir.children) == 3
+    assert isinstance(pdir.children[2], OMPPrivateClause)
+    priv_clause = pdir.children[2]
+
+    # Make acopy of the loop
+    new_loop = pdir.children[0].children[0].children[0].children[0].copy()
+    routine = pdir.ancestor(Routine)
+    routine.symbol_table.add(DataSymbol("k", INTEGER_SINGLE_TYPE))
+    # Change the loop variable to j
+    jvar = DataSymbol("k", INTEGER_SINGLE_TYPE)
+    new_loop.variable = jvar
+    tdir2 = OMPDoDirective()
+    tdir2.children[0].addchild(new_loop)
+    # Add loop
+    pdir.children[0].addchild(tdir2)
+
+    _ = psy.gen
+    assert pdir.children[2] != priv_clause
+
+
+def test_omp_paraleldo_changes_gen_code():
+    ''' Check that when the code inside an OMP Parallel Do region changes, the
+    private clause changes appropriately. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    tree = psy.invokes.invoke_list[0].schedule
+    ptrans = OMPParallelLoopTrans()
+    loops = tree.walk(Loop)
+    ptrans.apply(loops[0])
+
+    assert isinstance(tree.children[0], OMPParallelDoDirective)
+    pdir = tree.children[0]
+    _ = psy.gen
+    assert len(pdir.children) == 4
+    assert isinstance(pdir.children[2], OMPPrivateClause)
+    priv_clause = pdir.children[2]
+    sched_clause = pdir.children[3]
+
+    # Make acopy of the loop
+    routine = pdir.ancestor(Routine)
+    routine.symbol_table.add(DataSymbol("k", INTEGER_SINGLE_TYPE))
+    # Change the loop variable to j
+    jvar = DataSymbol("k", INTEGER_SINGLE_TYPE)
+    pdir.children[0].children[0].variable = jvar
+    # Change the schedule
+    pdir._omp_schedule = "dynamic"
+
+    _ = psy.gen
+    assert pdir.children[2] != priv_clause
+    assert isinstance(pdir.children[2], OMPPrivateClause)
+    assert pdir.children[3] != sched_clause
+    assert isinstance(pdir.children[3], OMPScheduleClause)
+
+
+def test_omp_parallel_do_changes_begin_str(fortran_reader):
+    ''' Check that when the code inside an OMP Parallel Do region changes, the
+    private clause changes appropriately. '''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(321, 10) :: A
+        integer, dimension(32, 10) :: B
+        integer :: i, ii
+        integer :: j
+
+        do i = 1, 320, 32
+            A(i, 1) = B(i, 1) + 1
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelLoopTrans()
+    loops = tree.walk(Loop)
+    loop = loops[0]
+    loop.loop_type = None
+    ptrans.apply(loops[0])
+
+    assert isinstance(tree.children[0].children[0], OMPParallelDoDirective)
+    pdir = tree.children[0].children[0]
+    pdir.lower_to_language_level()
+    assert len(pdir.children) == 4
+    assert isinstance(pdir.children[2], OMPPrivateClause)
+    priv_clause = pdir.children[2]
+    sched_clause = pdir.children[3]
+
+    # Make acopy of the loop
+    routine = pdir.ancestor(Routine)
+    routine.symbol_table.add(DataSymbol("k", INTEGER_SINGLE_TYPE))
+    # Change the loop variable to j
+    jvar = DataSymbol("k", INTEGER_SINGLE_TYPE)
+    pdir.children[0].children[0].variable = jvar
+
+    # Change the schedule
+    pdir._omp_schedule = "dynamic"
+
+    pdir.lower_to_language_level()
+    assert pdir.children[2] != priv_clause
+    assert isinstance(pdir.children[2], OMPPrivateClause)
+    assert pdir.children[3] != sched_clause
+    assert isinstance(pdir.children[3], OMPScheduleClause)
+
+
+def test_omp_teams_distribute_parallel_do_strings(
+        fortran_reader, fortran_writer):
+    ''' Check that the beginning and ending directive strings that the
+    backend uses are the expected ones.'''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(321, 10) :: A
+        integer, dimension(32, 10) :: B
+        integer :: i, ii
+        integer :: j
+
+        do i = 1, 320, 32
+            A(i, 1) = B(i, 1) + 1
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    loop = tree.walk(Loop)[0]
+    new_directive = OMPTeamsDistributeParallelDoDirective()
+    loop.replace_with(new_directive)
+    new_directive.dir_body.addchild(loop)
+    output = fortran_writer(tree)
+    assert "!$omp teams distribute parallel do" in output
+    assert "!$omp end teams distribute parallel do" in output
 
 
 def test_ompdo_constructor():
@@ -89,6 +282,151 @@ def test_ompdo_constructor():
     child = schedule.children[0].detach()
     ompdo = OMPDoDirective(parent=schedule, children=[child])
     assert len(ompdo.dir_body.children) == 1
+
+    # Constructor with non-default parameters
+    ompdo = OMPDoDirective(omp_schedule="dynamic", collapse=4, reprod=True)
+    assert ompdo.omp_schedule == "dynamic"
+    assert ompdo.collapse == 4
+    assert ompdo.reprod
+    assert str(ompdo) == "OMPDoDirective[omp_schedule=dynamic,collapse=4]"
+
+
+def test_omp_do_directive_collapse_getter_and_setter():
+    ''' Test the OMPDODirective collapse property setter and getter.'''
+    target = OMPDoDirective()
+    assert target.collapse is None
+
+    with pytest.raises(ValueError) as err:
+        target.collapse = 0
+    assert ("The OMPDoDirective collapse clause must be a positive integer "
+            "or None, but value '0' has been given." in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        target.collapse = 'a'
+    assert ("The OMPDoDirective collapse clause must be a positive integer "
+            "or None, but value 'a' has been given." in str(err.value))
+
+    # Set valid collapse values
+    target.collapse = 2
+    assert target.collapse == 2
+    assert target.begin_string() == "omp do schedule(auto) collapse(2)"
+    target.collapse = None
+    assert target.collapse is None
+    assert target.begin_string() == "omp do schedule(auto)"
+
+
+def test_omp_do_directive_omp_schedule_getter_and_setter():
+    ''' Test the OMPDODirective omp_schedule property setter and getter.'''
+    directive = OMPDoDirective()
+    # By default is auto
+    assert directive.omp_schedule == "auto"
+
+    # By valid omp_schedules are accepted
+    directive.omp_schedule = "static"
+    assert directive.omp_schedule == "static"
+    directive.omp_schedule = "dynamic,3"
+    assert directive.omp_schedule == "dynamic,3"
+
+    # Invalid omp_schedules raise a TypeError
+    with pytest.raises(TypeError) as err:
+        directive.omp_schedule = 3
+    assert ("OMPDoDirective omp_schedule should be a str but found 'int'."
+            in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        directive.omp_schedule = "invalid,3"
+    assert ("OMPDoDirective omp_schedule should be one of ['runtime', "
+            "'static', 'dynamic', 'guided', 'auto'] but found 'invalid,3'."
+            in str(err.value))
+
+
+def test_omp_do_directive_validate_global_constraints(fortran_reader,
+                                                      fortran_writer):
+    ''' Test the OMPDoDirective with a collapse value is only valid if
+    it has enough perfectly nested loops inside.'''
+
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(10, 10) :: A
+        integer, dimension(10, 10) :: B
+        integer :: i, j, val
+
+        do i = 1, 10
+            val = 1
+            do j = 1, 10
+                A(i, j) = B(i, j) + 1
+            end do
+        end do
+        do i = 1, 10
+            do j = 1, 10
+                A(i, j) = B(i, j) + 1
+            end do
+            val = 1
+        end do
+        do i = 1, 10
+            do j = 1, 10
+                A(i, j) = B(i, j) + 1
+            end do
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    loops = tree.walk(Loop, stop_type=Loop)
+    for loop in loops:
+        parent = loop.parent
+        position = loop.position
+        directive = OMPParallelDoDirective(children=[loop.detach()],
+                                           collapse=2)
+        parent.addchild(directive, position)
+
+    directive = tree.walk(OMPParallelDoDirective)
+
+    # The first and second loop nests will fail the validation
+    for test_directive in directive[0:2]:
+        with pytest.raises(GenerationError) as err:
+            _ = fortran_writer(test_directive)
+        assert ("OMPParallelDoDirective must have as many immediately nested "
+                "loops as the collapse clause specifies but 'OMPParallelDo"
+                "Directive[omp_schedule=auto,collapse=2]' has a collapse=2 "
+                "and the nested body at depth 1 cannot be collapsed."
+                in str(err.value))
+
+    # The third loop nest will succeed
+    code = fortran_writer(directive[2])
+    assert "collapse(2)" in code
+
+    # but it will also fail if trying to collapse more loops than available
+    directive[2].collapse = 3
+    with pytest.raises(GenerationError) as err:
+        _ = fortran_writer(directive[2])
+    assert ("OMPParallelDoDirective must have as many immediately nested "
+            "loops as the collapse clause specifies but 'OMPParallelDo"
+            "Directive[omp_schedule=auto,collapse=3]' has a collapse=3 and "
+            "the nested body at depth 2 cannot be collapsed."
+            in str(err.value))
+
+
+def test_omp_pdo_validate_child():
+    ''' Test the _validate_child method for OMPParallelDoDirective'''
+    sched = Schedule()
+    declause = OMPDefaultClause()
+    prclause = OMPPrivateClause()
+    scclause = OMPScheduleClause()
+    reclause = OMPReductionClause()
+
+    assert OMPParallelDoDirective._validate_child(0, sched) is True
+    assert OMPParallelDoDirective._validate_child(1, declause) is True
+    assert OMPParallelDoDirective._validate_child(2, prclause) is True
+    assert OMPParallelDoDirective._validate_child(3, scclause) is True
+    assert OMPParallelDoDirective._validate_child(4, reclause) is True
+    assert OMPParallelDoDirective._validate_child(5, reclause) is True
+
+    assert OMPParallelDoDirective._validate_child(0, "abc") is False
+    assert OMPParallelDoDirective._validate_child(1, "abc") is False
+    assert OMPParallelDoDirective._validate_child(2, "abc") is False
+    assert OMPParallelDoDirective._validate_child(3, "abc") is False
+    assert OMPParallelDoDirective._validate_child(4, "abc") is False
+    assert OMPParallelDoDirective._validate_child(5, "abc") is False
 
 
 def test_ompdo_equality():
@@ -165,7 +503,7 @@ def test_omp_do_children_err():
 
 
 def test_directive_get_private(monkeypatch):
-    ''' Tests for the _get_private_list() method of OMPParallelDirective.
+    ''' Tests for the _get_private_clause() method of OMPParallelDirective.
     Note: this test does not apply colouring so the loops must be over
     discontinuous function spaces.
 
@@ -191,16 +529,41 @@ def test_directive_get_private(monkeypatch):
     # replaced by a `lower_to_language_level` call.
     # pylint: disable=pointless-statement
     psy.gen
-    # Now check that _get_private_list returns what we expect
-    pvars = directive._get_private_list()
-    assert pvars == ['cell']
+    # Now check that _get_private_clause returns what we expect
+    pvars = directive._get_private_clause()
+    assert isinstance(pvars, OMPPrivateClause)
+    assert len(pvars.children) == 1
+    assert pvars.children[0].name == 'cell'
     # Now use monkeypatch to break the Call within the loop
     call = directive.dir_body[0].dir_body[0].loop_body[0]
     monkeypatch.setattr(call, "local_vars", lambda: [""])
     with pytest.raises(InternalError) as err:
-        _ = directive._get_private_list()
+        _ = directive._get_private_clause()
     assert ("call 'testkern_w3_code' has a local variable but its name is "
             "not set" in str(err.value))
+
+    directive.children[1] = OMPDefaultClause(
+            clause_type=OMPDefaultClause.DefaultClauseTypes.NONE)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = directive._get_private_clause()
+    assert ("OMPParallelClause cannot correctly generate the private clause "
+            "when its default data sharing attribute in its default clause is "
+            "not shared." in str(excinfo.value))
+
+
+def test_omp_parallel_validate_child():
+    ''' Test the validate_child method of OMPParallelDirective'''
+    assert OMPParallelDirective._validate_child(0, Schedule()) is True
+    assert OMPParallelDirective._validate_child(1, OMPDefaultClause()) is True
+    assert OMPParallelDirective._validate_child(2, OMPPrivateClause()) is True
+    assert OMPParallelDirective._validate_child(2, OMPReductionClause())\
+           is False
+    assert OMPParallelDirective._validate_child(3, OMPReductionClause())\
+           is True
+    assert OMPParallelDirective._validate_child(4, OMPReductionClause())\
+           is True
+    assert OMPParallelDirective._validate_child(0, OMPDefaultClause()) is False
+    assert OMPParallelDirective._validate_child(6, "test") is False
 
 
 def test_omp_forward_dependence():
@@ -338,10 +701,12 @@ def test_omp_single_gencode(nowait):
     '''Check that the gen_code method in the OMPSingleDirective class
     generates the expected code.
     '''
+    subroutine = Routine("testsub")
     temporary_module = ModuleGen("test")
-    parallel = OMPParallelDirective()
+    parallel = OMPParallelDirective.create()
     single = OMPSingleDirective(nowait=nowait)
     parallel.dir_body.addchild(single)
+    subroutine.addchild(parallel)
     parallel.gen_code(temporary_module)
 
     clauses = ""
@@ -365,10 +730,12 @@ def test_omp_master_gencode():
     '''Check that the gen_code method in the OMPMasterDirective class
     generates the expected code.
     '''
+    subroutine = Routine("testsub")
     temporary_module = ModuleGen("test")
-    parallel = OMPParallelDirective()
+    parallel = OMPParallelDirective.create()
     master = OMPMasterDirective()
     parallel.dir_body.addchild(master)
+    subroutine.addchild(parallel)
     parallel.gen_code(temporary_module)
 
     assert "!$omp master\n" in str(temporary_module.root)
@@ -429,10 +796,12 @@ def test_omptaskwait_gencode():
     '''Check that the gen_code method in the OMPTaskwaitDirective
     class generates the expected code.
     '''
+    subroutine = Routine("testsub")
     temporary_module = ModuleGen("test")
-    parallel = OMPParallelDirective()
+    parallel = OMPParallelDirective.create()
     directive = OMPTaskwaitDirective()
     parallel.dir_body.addchild(directive)
+    subroutine.addchild(parallel)
     parallel.gen_code(temporary_module)
 
     assert "!$omp taskwait\n" in str(temporary_module.root)
@@ -458,7 +827,7 @@ def test_omp_taskwait_validate_global_constraints():
 def test_omp_taskwait_clauses():
     ''' Test the clauses property of the OMPTaskwait directive. '''
     omp_taskwait = OMPTaskwaitDirective()
-    assert omp_taskwait.clauses == []
+    assert len(omp_taskwait.clauses) == 0
 
 
 def test_omp_taskloop_strings():
@@ -494,7 +863,7 @@ def test_omp_taskloop_gencode(grainsize, num_tasks, nogroup, clauses):
     '''
     temporary_module = ModuleGen("test")
     subroutine = Routine("testsub")
-    parallel = OMPParallelDirective()
+    parallel = OMPParallelDirective.create()
     single = OMPSingleDirective()
     directive = OMPTaskloopDirective(grainsize=grainsize, num_tasks=num_tasks,
                                      nogroup=nogroup)
@@ -508,6 +877,7 @@ def test_omp_taskloop_gencode(grainsize, num_tasks, nogroup, clauses):
                        Literal("1", INTEGER_TYPE),
                        [])
     directive.dir_body.addchild(loop)
+    subroutine.addchild(parallel)
     parallel.gen_code(temporary_module)
 
     assert "!$omp taskloop" + clauses + "\n" in str(temporary_module.root)
@@ -535,9 +905,11 @@ def test_omp_taskloop_validate_child():
     assert OMPTaskloopDirective._validate_child(1, ngclause) is True
     assert OMPTaskloopDirective._validate_child(2, ngclause) is True
     assert OMPTaskloopDirective._validate_child(3, ngclause) is False
+    assert OMPTaskloopDirective._validate_child(4, ngclause) is False
     assert OMPTaskloopDirective._validate_child(0, lit) is False
     assert OMPTaskloopDirective._validate_child(1, lit) is False
     assert OMPTaskloopDirective._validate_child(2, lit) is False
+    assert OMPTaskloopDirective._validate_child(3, lit) is False
 
 
 def test_omp_taskloop_validate_global_constraints():
@@ -579,6 +951,21 @@ def test_omp_target_directive_constructor_and_strings():
     assert target.begin_string() == "omp target"
     assert target.end_string() == "omp end target"
     assert str(target) == "OMPTargetDirective[]"
+
+
+def test_omp_target_directive_validate_global_constraints():
+    ''' Test the OMPTargetDirective prevents the generation of target
+    directives with non-allowed nodes inside.'''
+    target = OMPTargetDirective()
+    # If no condition is broken, it should succeed
+    target.validate_global_constraints()
+
+    # With a Codeblock, it should fail
+    target.children[0].addchild(CodeBlock([], CodeBlock.Structure.STATEMENT))
+    with pytest.raises(GenerationError) as err:
+        target.validate_global_constraints()
+    assert ("The OMPTargetDirective must not have CodeBlocks inside, but "
+            "found:" in str(err.value))
 
 
 # Test OMPDeclareTargetDirective

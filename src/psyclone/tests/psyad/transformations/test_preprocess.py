@@ -64,6 +64,54 @@ def test_preprocess_no_change():
     assert result == code
 
 
+def test_preprocess_reference2arrayrange(tmpdir, fortran_reader,
+                                         fortran_writer):
+    '''Test that the preprocess script replaces assignments that contain
+    arrays that use array notation with arrays using range notation
+    (for example, in Fortran, from a = b * c to a(:) = b(:) * c(:)) or
+    with equivalent code that uses explicit loops. Also test that
+    arrays in LBOUND and UBOUND intrinsics do not get modified.
+
+    '''
+    code = (
+        "program test\n"
+        "real, dimension(10,10) :: a,b,c,e,f\n"
+        "real, dimension(10) :: d\n"
+        "integer :: i\n"
+        "a = b * c\n"
+        "do i = lbound(d,1), ubound(d,1)\n"
+        "  d(i) = 0.0\n"
+        "end do\n"
+        "e = f\n"
+        "end program test\n")
+    expected = (
+        "program test\n"
+        "  real, dimension(10,10) :: a\n"
+        "  real, dimension(10,10) :: b\n"
+        "  real, dimension(10,10) :: c\n"
+        "  real, dimension(10,10) :: e\n"
+        "  real, dimension(10,10) :: f\n"
+        "  real, dimension(10) :: d\n"
+        "  integer :: i\n"
+        "  integer :: idx\n"
+        "  integer :: idx_1\n\n"
+        "  do idx = 1, 10, 1\n"
+        "    do idx_1 = 1, 10, 1\n"
+        "      a(idx_1,idx) = b(idx_1,idx) * c(idx_1,idx)\n"
+        "    enddo\n"
+        "  enddo\n"
+        "  do i = LBOUND(d, 1), UBOUND(d, 1), 1\n"
+        "    d(i) = 0.0\n"
+        "  enddo\n"
+        "  e(:,:) = f(:,:)\n\n"
+        "end program test\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    preprocess_trans(psyir, ["a", "c"])
+    result = fortran_writer(psyir)
+    assert result == expected
+    assert Compile(tmpdir).string_compiles(result)
+
+
 def test_preprocess_dotproduct(tmpdir, fortran_reader, fortran_writer):
     '''Test that the preprocess script replaces a dotproduct with
     equivalent code.
@@ -118,7 +166,7 @@ def test_preprocess_matmul(tmpdir, fortran_reader, fortran_writer):
         "  do i = 1, 10, 1\n"
         "    b(i) = 0.0\n"
         "    do j = 1, 10, 1\n"
-        "      b(i) = b(i) + d(i,j) * c(j)\n"
+        "      b(i) = b(i) + c(j) * d(i,j)\n"
         "    enddo\n"
         "  enddo\n"
         "  res_dot_product = 0.0\n"
@@ -302,3 +350,53 @@ def test_preprocess_associativity4(fortran_reader, fortran_writer):
     preprocess_trans(psyir, ["a", "c", "d"])
     result = fortran_writer(psyir)
     assert result == expected
+
+
+def test_associativity5(tmpdir, fortran_reader, fortran_writer):
+    '''Test that the associativity function works as expected when we have
+    a literal as part of the expression that we would like to
+    expand.
+
+    '''
+    code = (
+        "subroutine example(a,b,c)\n"
+        "  real :: a,b,c\n"
+        "  a = 0.5*(b + c)\n"
+        "end subroutine\n")
+    expected = (
+        "subroutine example(a, b, c)\n"
+        "  real :: a\n"
+        "  real :: b\n"
+        "  real :: c\n\n"
+        "  a = 0.5 * b + 0.5 * c\n\n"
+        "end subroutine example\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    preprocess_trans(psyir, ["a", "b", "c"])
+    result = fortran_writer(psyir)
+    assert result == expected
+    assert Compile(tmpdir).string_compiles(result)
+
+
+def test_associativity6(tmpdir, fortran_reader, fortran_writer):
+    '''Test that the associativity function works as expected when we have
+    a negative literal as part of the expression that we would like to
+    expand.
+
+    '''
+    code = (
+        "subroutine example(a,b,c)\n"
+        "  real :: a,b,c\n"
+        "  a = -0.5*(b + c)\n"
+        "end subroutine\n")
+    expected = (
+        "subroutine example(a, b, c)\n"
+        "  real :: a\n"
+        "  real :: b\n"
+        "  real :: c\n\n"
+        "  a = -0.5 * b - 0.5 * c\n\n"
+        "end subroutine example\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    preprocess_trans(psyir, ["a", "b", "c"])
+    result = fortran_writer(psyir)
+    assert result == expected
+    assert Compile(tmpdir).string_compiles(result)

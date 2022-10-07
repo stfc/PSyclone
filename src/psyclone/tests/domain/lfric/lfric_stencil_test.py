@@ -38,16 +38,12 @@
 
 ''' Module containing tests of LFRic stencils through the LFRic API '''
 
-# imports
-from __future__ import absolute_import, print_function
-
 import os
 
 import pytest
 import fparser
 from fparser import api as fpapi
 
-from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.dynamo0p3 import (DynKern, DynKernelArguments,
                                 DynKernMetadata, DynStencils)
@@ -64,17 +60,6 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "../..", "test_files", "dynamo0p3")
 
 TEST_API = "dynamo0.3"
-
-
-@pytest.fixture(scope="module", autouse=True)
-def setup():
-    '''Make sure that all tests here use dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
-    yield()
-    Config._instance = None
-
-# Tests
-
 
 STENCIL_CODE = '''
 module stencil_mod
@@ -211,9 +196,9 @@ def test_stencil_field_arg_lfricconst_properties(monkeypatch):
     monkeypatch.setattr(stencil_arg, "_intrinsic_type", "tortoiseshell")
     with pytest.raises(InternalError) as err:
         stencil_arg._init_data_type_properties(None, False)
-    assert ("Expected one of {0} intrinsic types for a field "
-            "argument but found 'tortoiseshell'.".
-            format(const.VALID_FIELD_INTRINSIC_TYPES)) in str(err.value)
+    assert (f"Expected one of {const.VALID_FIELD_INTRINSIC_TYPES} intrinsic "
+            f"types for a field argument but found 'tortoiseshell'." in
+            str(err.value))
 
 
 def test_single_kernel_any_dscnt_space_stencil(dist_mem, tmpdir):

@@ -48,7 +48,7 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import CodeBlock, IfBlock, Literal, Loop, Node, \
     Reference, Schedule, Statement, ACCLoopDirective, OMPMasterDirective, \
-    OMPDoDirective, OMPLoopDirective, OMPTargetDirective, Routine
+    OMPDoDirective, OMPLoopDirective, Routine
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE, \
     ImportInterface, ContainerSymbol
 from psyclone.psyir.tools import DependencyTools
@@ -57,8 +57,7 @@ from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
     ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans, OMPParallelTrans, \
-    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans, OMPTargetTrans, \
-    OMPDeclareTargetTrans
+    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans, OMPDeclareTargetTrans
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 
@@ -238,44 +237,6 @@ def test_omptaskloop_apply(monkeypatch):
     assert taskloop._nogroup is False
 
 
-def test_omptargettrans(sample_psyir):
-    ''' Test OMPTargetTrans works as expected with the different options. '''
-
-    # Insert a OMPTarget just on the first loop
-    omptargettrans = OMPTargetTrans()
-    tree = sample_psyir.copy()
-    loops = tree.walk(Loop, stop_type=Loop)
-    omptargettrans.apply(loops[0])
-    assert isinstance(loops[0].parent, Schedule)
-    assert isinstance(loops[0].parent.parent, OMPTargetDirective)
-    assert isinstance(tree.children[0].children[0], OMPTargetDirective)
-    assert tree.children[0].children[0] is loops[0].parent.parent
-    assert not isinstance(loops[1].parent.parent, OMPTargetDirective)
-    assert len(tree.walk(Routine)[0].children) == 2
-
-    # Insert a combined OMPTarget in both loops (providing a list of nodes)
-    tree = sample_psyir.copy()
-    loops = tree.walk(Loop, stop_type=Loop)
-    omptargettrans.apply(tree.children[0].children)
-    assert isinstance(loops[0].parent, Schedule)
-    assert isinstance(loops[0].parent.parent, OMPTargetDirective)
-    assert isinstance(loops[1].parent, Schedule)
-    assert isinstance(loops[1].parent.parent, OMPTargetDirective)
-    assert len(tree.walk(Routine)[0].children) == 1
-    assert loops[0].parent.parent is loops[1].parent.parent
-
-    # Insert a combined OMPTarget in both loops (now providing a Schedule)
-    tree = sample_psyir.copy()
-    loops = tree.walk(Loop, stop_type=Loop)
-    omptargettrans.apply(tree.children[0])
-    assert isinstance(loops[0].parent, Schedule)
-    assert isinstance(loops[0].parent.parent, OMPTargetDirective)
-    assert isinstance(loops[1].parent, Schedule)
-    assert isinstance(loops[1].parent.parent, OMPTargetDirective)
-    assert len(tree.walk(Routine)[0].children) == 1
-    assert loops[0].parent.parent is loops[1].parent.parent
-
-
 def test_ompdeclaretargettrans(sample_psyir, fortran_writer):
     ''' Test OMPDeclareTargetTrans works as expected.'''
 
@@ -359,26 +320,28 @@ def test_omplooptrans_properties():
 
     # Check default values
     omplooptrans = OMPLoopTrans()
-    assert omplooptrans.omp_schedule == "static"
-    assert omplooptrans.omp_worksharing is True
+    assert omplooptrans.omp_schedule == "auto"
+    assert omplooptrans.omp_directive == "do"
 
     # Use setters with valid values
     omplooptrans.omp_schedule = "dynamic,2"
-    omplooptrans.omp_worksharing = False
+    omplooptrans.omp_directive = "paralleldo"
     assert omplooptrans.omp_schedule == "dynamic,2"
-    assert omplooptrans.omp_worksharing is False
+    assert omplooptrans.omp_directive == "paralleldo"
 
     # Setting things at the constructor also works
     omplooptrans = OMPLoopTrans(omp_schedule="dynamic,2",
-                                omp_worksharing=False)
+                                omp_directive="loop")
     assert omplooptrans.omp_schedule == "dynamic,2"
-    assert omplooptrans.omp_worksharing is False
+    assert omplooptrans.omp_directive == "loop"
 
     # Use setters with invalid values
     with pytest.raises(TypeError) as err:
-        omplooptrans.omp_worksharing = "invalid"
-    assert ("The OMPLoopTrans.omp_worksharing property must be a boolean but"
-            " found a 'str'." in str(err.value))
+        omplooptrans.omp_directive = "invalid"
+    assert ("The OMPLoopTrans.omp_directive property must be a str with "
+            "the value of ['do', 'paralleldo', 'teamsdistributeparalleldo', "
+            "'loop'] but found a 'str' with value 'invalid'."
+            in str(err.value))
 
     with pytest.raises(TypeError) as err:
         omplooptrans.omp_schedule = 3
@@ -491,7 +454,7 @@ def test_omplooptrans_apply(sample_psyir, fortran_writer):
     omplooptrans.apply(tree.walk(Loop)[0])
     assert isinstance(tree.walk(Loop)[0].parent, Schedule)
     assert isinstance(tree.walk(Loop)[0].parent.parent, OMPDoDirective)
-    assert tree.walk(Loop)[0].parent.parent._omp_schedule == 'static'
+    assert tree.walk(Loop)[0].parent.parent._omp_schedule == 'auto'
 
     # The omp_schedule can be changed
     omplooptrans = OMPLoopTrans(omp_schedule="dynamic,2")
@@ -504,8 +467,8 @@ def test_omplooptrans_apply(sample_psyir, fortran_writer):
     assert loop1.parent.parent._omp_schedule == 'dynamic,2'
     ompparalleltrans.apply(loop1.parent.parent)  # Needed for generation
 
-    # If omp_worksharing is False, it adds a OMPLoopDirective instead
-    omplooptrans = OMPLoopTrans(omp_worksharing=False)
+    # The omp_directive can be changed
+    omplooptrans = OMPLoopTrans(omp_directive="loop")
     loop2 = tree.walk(Loop, stop_type=Loop)[1]
     omplooptrans.apply(loop2, {'collapse': 2})
     assert isinstance(loop2.parent, Schedule)

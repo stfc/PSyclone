@@ -1049,8 +1049,8 @@ For example::
              data is read. To avoid this potential problem in user
              code it is recommended that a redundant computation
              :ref:`transformation <dynamo0.3-api-transformations>`
-             is added to compute all ``setval_c`` and
-             ``setval_x`` Built-in calls (see :ref:`lfric-built-ins`)
+             is added to compute all ``setval_c``, ``setval_x`` and
+	     ``setval_random`` Built-in calls (see :ref:`lfric-built-ins`)
              to the same halo depth as the associated ``GH_INC``
              access - which is level-1 without any redundant
              computation transformations being applied to the
@@ -2998,6 +2998,26 @@ Sets a field *field2* equal (DoF per DoF) to another field
 
   field2(:) = field1(:)
 
+setval_random
+^^^^^^^^^^^^^
+
+**setval_random** (**field**)
+
+Fills all elements of a field *field* using a sequence of ``real``,
+pseudo-random numbers in the interval ``0 <= x < 1``::
+
+  do df = 1, ndofs
+    field(df) = RAND()
+  end do
+
+where ``RAND()`` is some function that returns a new pseudo-random number
+each time it is called.
+
+.. warning:: This Built-in is implemented using the Fortran ``random_number``
+	     intrinsic. Therefore no guarantee is made as to the quality of
+	     the sequence of pseudo-random numbers, especially when running
+	     in parallel.
+
 Raising to power
 ################
 
@@ -3710,11 +3730,15 @@ The **Dynamo0p3KernelConstTrans** transformation is only valid for the
 Dynamo0.3 API. This is because the properties that it makes constant
 are API specific.
 
-The Dynamo0.3-API-specific transformations currently available are given
-below. If the name of a transformation includes "Dynamo0p3" it means
-that the transformation is only valid for this particular API. If the
-name of the transformation includes "Dynamo" then it should work with
-all versions of the Dynamo API.
+The LFRic (dynamo0.3) API-specific transformations currently available
+are given below. Early transformations include "Dynamo0p3" or "Dynamo"
+in their name to indicate that these transformations are only valid
+for this particular API. More recent transformations typically include
+"LFRic" in their name to indicate the same restriction. However, more
+importantly, transformations that are specific to LFRic reside in the
+LFRic-specific "psyclone.domain/lfric/transformations"
+directory. Note, the early LFRic (dynamo0.3) API-specific
+transformations have not yet been migrated to this directory.
 
 .. note:: Only the loop-colouring and OpenMP transformations are currently
           supported for loops that contain inter-grid kernels. Attempting
@@ -3726,6 +3750,10 @@ all versions of the Dynamo API.
     :noindex:
 
 .. autoclass:: psyclone.domain.lfric.transformations.LFRicLoopFuseTrans
+    :members:
+    :noindex:
+
+.. autoclass:: psyclone.domain.lfric.transformations.RaisePSyIR2LFRicKernTrans
     :members:
     :noindex:
 

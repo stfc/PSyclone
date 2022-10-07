@@ -585,6 +585,12 @@ Both ``RegionDirective`` and ``StandaloneDirective`` may also have
 member. See the full API in the :ref_guide:`Directive reference guide
 psyclone.psyir.nodes.html#psyclone.psyir.nodes.Directive`.
 
+.. warning::
+    Some parts of some Clauses are still under development, and not all clauses
+    are encoded in Clauses classes yet (for example OpenACC clauses). These
+    clause strings are instead generated inside the ``begin_string`` or
+    ``gen_code`` methods during code generation.
+
 .. _named_arguments-label:
 
 Named arguments
@@ -875,11 +881,20 @@ The Algorithm-layer subclasses will be used to:
 Algorithm-layer Classes
 -----------------------
 
-The LFRic PSyIR for the Algorithm layer is captured in
-``domain/lfric/algorithm/psyir.py``. Three classes are currently
-provided, one to capture an invoke call, ``LFRicAlgorithmInvokeCall``
+The LFRic PSyIR for the Algorithm layer is captured in the
+``domain/lfric/algorithm/psyir.py`` module. Three classes are currently
+provided statically, one to capture an invoke call, ``LFRicAlgorithmInvokeCall``
 and two to capture Builtin and (coded) Kernel calls within an invoke
 call, ``LFRicBuiltinFunctor`` and ``LFRicKernelFunctor`` respectively.
+
+The ``LFRicBuiltinFunctorFactory`` class dynamically creates a
+subclass of ``LFRicBuiltInFunctor`` for every LFRic
+:ref:`Builtin <user_guide:lfric-built-ins>`. These are named following the
+scheme ``LFRic_<BUILTIN_NAME>_Functor`` so that, for example, the ``Setval_X``
+builtin is represented by the ``LFRic_Setval_X_Functor`` class. An instance
+of the appropriate class may be obtained using the factory's create method:
+
+.. automethod:: psyclone.domain.lfric.algorithm.psyir.LFRicBuiltinFunctorFactory.create
 
 Kernel-layer Classes
 --------------------

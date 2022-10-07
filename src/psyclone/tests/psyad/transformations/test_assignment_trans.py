@@ -273,7 +273,7 @@ def test_single_assign(tmpdir):
         "  integer, parameter :: n = 10\n"
         "  real, dimension(n) :: a\n"
         "  real, dimension(n) :: b\n\n"
-        "  b(1:n - 1) = b(1:n - 1) + a(2:n)\n"
+        "  b(:n - 1) = b(:n - 1) + a(2:n)\n"
         "  a(2:n) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
@@ -483,22 +483,23 @@ def test_increment_multi_add(tmpdir, index_str):
 
     '''
     tl_fortran = (
-        "  real a(10), b(10), c(10), d(10)\n"
-        "  real w(10), x, y(10), z\n"
-        "  integer i\n"
-        "  a({0}) = w({0})*a({0})+x*b({0})+y({0})*c({0})+d({0})*z\n".format(
-            index_str))
+        f"  real a(10), b(10), c(10), d(10)\n"
+        f"  real w(10), x, y(10), z\n"
+        f"  integer i\n"
+        f"  a({index_str}) = w({index_str})*a({index_str})+x*b({index_str})+"
+        f"y({index_str})*c({index_str})+d({index_str})*z\n")
     active_variables = ["a", "b", "c", "d"]
     ad_fortran = (
-        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
-        "  real, dimension(10) :: c\n  real, dimension(10) :: d\n"
-        "  real, dimension(10) :: w\n  real :: x\n"
-        "  real, dimension(10) :: y\n  real :: z\n"
-        "  integer :: i\n\n"
-        "  b({0}) = b({0}) + x * a({0})\n"
-        "  c({0}) = c({0}) + y({0}) * a({0})\n"
-        "  d({0}) = d({0}) + a({0}) * z\n"
-        "  a({0}) = w({0}) * a({0})\n\n".format(index_str))
+        f"  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
+        f"  real, dimension(10) :: c\n  real, dimension(10) :: d\n"
+        f"  real, dimension(10) :: w\n  real :: x\n"
+        f"  real, dimension(10) :: y\n  real :: z\n"
+        f"  integer :: i\n\n"
+        f"  b({index_str}) = b({index_str}) + x * a({index_str})\n"
+        f"  c({index_str}) = c({index_str}) + y({index_str}) * "
+        f"a({index_str})\n"
+        f"  d({index_str}) = d({index_str}) + a({index_str}) * z\n"
+        f"  a({index_str}) = w({index_str}) * a({index_str})\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
@@ -523,6 +524,24 @@ def test_multi_increment(tmpdir, index_str):
         f"  real :: x\n"
         f"  integer :: i\n\n"
         f"  a({index_str}) = a({index_str}) + x * a({index_str})\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
+
+
+def test_unary_minus(tmpdir):
+    '''Test that the transformation works when there is a unary minus on
+    the lhs of a rhs expression.
+
+    '''
+    tl_fortran = (
+        "  real :: x, a, b\n"
+        "  a = -x * b\n")
+    active_variables = ["a", "b"]
+    ad_fortran = (
+        "  real :: x\n"
+        "  real :: a\n"
+        "  real :: b\n\n"
+        "  b = b + (-x * a)\n"
+        "  a = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
@@ -610,17 +629,19 @@ def test_multi_inc_sub(tmpdir, index_str):
 
     '''
     tl_fortran = (
-        "  real a(10), b(10)\n"
-        "  integer :: i\n"
-        "  real :: x,y\n"
-        "  a({0}) = -a({0})-x*a({0})+b({0})+a({0})/y\n".format(index_str))
+        f"  real a(10), b(10)\n"
+        f"  integer :: i\n"
+        f"  real :: x,y\n"
+        f"  a({index_str}) = -a({index_str})-x*a({index_str})+"
+        f"b({index_str})+a({index_str})/y\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
-        "  integer :: i\n"
-        "  real :: x\n  real :: y\n\n"
-        "  b({0}) = b({0}) + a({0})\n"
-        "  a({0}) = -a({0}) - x * a({0}) + a({0}) / y\n\n".format(index_str))
+        f"  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
+        f"  integer :: i\n"
+        f"  real :: x\n  real :: y\n\n"
+        f"  b({index_str}) = b({index_str}) + a({index_str})\n"
+        f"  a({index_str}) = -a({index_str}) - x * a({index_str}) "
+        f"+ a({index_str}) / y\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
@@ -768,16 +789,16 @@ def test_precedence_active_vars(in_op1, in_op2, out_op, tmpdir):
 
     '''
     tl_fortran = (
-        "  real :: a,b,c,d\n"
-        "  a = b {1} (c {0} d)\n".format(in_op1, in_op2))
+        f"  real :: a,b,c,d\n"
+        f"  a = b {in_op2} (c {in_op1} d)\n")
     active_variables = ["a", "b", "c", "d"]
     ad_fortran = (
-        "  real :: a\n  real :: b\n"
-        "  real :: c\n  real :: d\n\n"
-        "  b = b + a\n"
-        "  c = c {1} a\n"
-        "  d = d {0} a\n"
-        "  a = 0.0\n\n".format(out_op, in_op2))
+        f"  real :: a\n  real :: b\n"
+        f"  real :: c\n  real :: d\n\n"
+        f"  b = b + a\n"
+        f"  c = c {in_op2} a\n"
+        f"  d = d {out_op} a\n"
+        f"  a = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
@@ -960,9 +981,9 @@ def test_validate_rhs_term_active(operator, string):
     trans = AssignmentTrans(active_variables=[lhs_symbol, rhs_symbol1])
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
-    assert ("Each non-zero term on the RHS of the assigment 'a = b {0} c\n' "
-            "must have an active variable but 'c' does not.".format(string)
-            in str(info.value))
+    assert (f"Each non-zero term on the RHS of the assigment 'a = b "
+            f"{string} c\n' must have an active variable but 'c' does "
+            f"not." in str(info.value))
 
 
 def test_validate_rhs_assign():
@@ -1153,6 +1174,30 @@ def test_validate_rhs_active_multi_divisor():
         BinaryOperation.Operator.DIV, Reference(rhs_symbol2), divide1)
     # a = x/(y/b)
     assignment = Assignment.create(Reference(lhs_symbol), divide2)
+    trans = AssignmentTrans(active_variables=[lhs_symbol, rhs_symbol1])
+    trans.validate(assignment)
+
+
+def test_validate_rhs_active_unary_minus():
+    '''Test that the validation works when there is a unary minus on
+    the lhs of a rhs expression.
+
+    active vars ["a", "b"]
+    a = -x*b
+
+    '''
+    lhs_symbol = DataSymbol("a", REAL_TYPE)
+    rhs_symbol1 = DataSymbol("b", REAL_TYPE)
+    rhs_symbol2 = DataSymbol("x", REAL_TYPE)
+    # x*b
+    mult = BinaryOperation.create(
+        BinaryOperation.Operator.MUL, Reference(
+            rhs_symbol2), Reference(rhs_symbol1))
+    # -x*b
+    minus = UnaryOperation.create(
+        UnaryOperation.Operator.MINUS, mult)
+    # a = -x*b
+    assignment = Assignment.create(Reference(lhs_symbol), minus)
     trans = AssignmentTrans(active_variables=[lhs_symbol, rhs_symbol1])
     trans.validate(assignment)
 
