@@ -796,7 +796,6 @@ class KernCallArgList(ArgOrdering):
                     {"horizontal": self.num_args + 1,
                      "vertical": self.num_args + 2})
                 self.extend(rule.kernel_args, var_accesses)
-
             elif shape == "gh_quadrature_edge":
                 # TODO #705 support transformations supplying the number of
                 # quadrature points for edge quadrature.
@@ -810,6 +809,20 @@ class KernCallArgList(ArgOrdering):
                     f"quad_rule: no support implemented for quadrature with a "
                     f"shape of '{shape}'. Supported shapes are: "
                     f"{supported_qr_shapes}.")
+            # Now define the types
+            for arg in rule.kernel_args:
+                # Remove "_PSY_NAME" which was added to all variable names:
+                generic_name = arg[:-len(rule.psy_name)-1]
+                if generic_name in ["np_xy", "np_z", "nfaces", "np_xyz"]:
+                    self.add_integer_reference(arg, )
+                elif generic_name in ["weights_xy", "weights_z"]:
+                    # TODO: These should be pointers
+                    self.add_array_reference(arg, [":"], "real")
+                elif generic_name in ["weights_xyz"]:
+                    # TODO: These should be pointers
+                    self.add_array_reference(arg, [":", ":"], "real")
+                else:
+                    pass
 
     @property
     def nlayers_positions(self):

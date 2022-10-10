@@ -90,11 +90,9 @@ def test_field_prolong(dist_mem, fortran_writer):
     check_psyir_results(create_arg_list, fortran_writer)
 
 
-#def test_kerncallarglist_2qr_shapes(dist_mem, tmpdir):
-def test_kerncallarglist_2qr_shapes(tmpdir, fortran_writer):
+def test_kerncallarglist_2qr_shapes(dist_mem, tmpdir, fortran_writer):
     ''' Check the handling of basis, diff_basis, and quad_rule '''
 
-    dist_mem = False
     psy, _ = get_invoke("1.1.9_single_invoke_2qr_shapes_int_field.f90",
                         TEST_API, dist_mem=dist_mem, idx=0)
 
@@ -116,23 +114,4 @@ def test_kerncallarglist_2qr_shapes(tmpdir, fortran_writer):
         'weights_xy_qr_xyoz', 'weights_z_qr_xyoz', 'nfaces_qr_face',
         'np_xyz_qr_face', 'weights_xyz_qr_face']
 
-    result = []
-    for node in create_arg_list.psyir_arglist:
-        assert isinstance(node, Reference)
-        result.append(fortran_writer(node))
-    print("OLD", psy.gen)
-    print(result)
-    print("NEW", fortran_writer(schedule))
-    assert result == [
-        'nlayers', 'f1_proxy%data', 'f2_proxy(1)%data', 'f2_proxy(2)%data',
-        'f2_proxy(3)%data', 'f3_proxy%data', 'istp', 'ndf_w2', 'undf_w2',
-        'map_w2(:,cell)', 'basis_w2_qr_xyoz', 'basis_w2_qr_face', 'ndf_wchi',
-        'undf_wchi', 'map_wchi(:,cell)', 'diff_basis_wchi_qr_xyoz',
-        'diff_basis_wchi_qr_face', 'ndf_adspc1_f3', 'undf_adspc1_f3',
-        'map_adspc1_f3(:,cell)', 'basis_adspc1_f3_qr_xyoz',
-        'basis_adspc1_f3_qr_face', 'diff_basis_adspc1_f3_qr_xyoz',
-        'diff_basis_adspc1_f3_qr_face']
-
-    # assert result == create_arg_list._arglist
-
-    # check_psyir_results(create_arg_list, fortran_writer)
+    check_psyir_results(create_arg_list, fortran_writer)
