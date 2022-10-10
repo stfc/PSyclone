@@ -52,9 +52,11 @@ from psyclone.domain.lfric.kernel.field_vector_arg import FieldVectorArg
 from psyclone.domain.lfric.kernel.inter_grid_arg import InterGridArg
 from psyclone.domain.lfric.kernel.inter_grid_vector_arg import \
     InterGridVectorArg
+from psyclone.domain.lfric.kernel.operates_on_metadata import \
+    OperatesOnMetadata
 from psyclone.domain.lfric.kernel.operator_arg import OperatorArg
 from psyclone.domain.lfric.kernel.scalar_arg import ScalarArg
-
+from psyclone.domain.lfric.kernel.shapes_metadata import ShapesMetadata
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.symbols import DataTypeSymbol, UnknownFortranType
@@ -80,11 +82,11 @@ class LFRicKernelMetadata():
         mesh object specifies those properties through the meta_mesh \
         metadata entry.
     :type meta_mesh: :py:class:`TODO` # issue #1879
-    :param shape: if a kernel requires basis or differential-basis \
+    :param shapes: if a kernel requires basis or differential-basis \
         functions then the metadata must also specify the set of points on \
         which these functions are required. This information is provided \
         by the gh_shape component of the metadata.
-    :type shape: Optional[str | List[str]]
+    :type shapes: List[str]
     :param operates_on: the name of the quantity that this kernel is
         intended to iterate over.
     :type operates_on: Optional[str]
@@ -95,18 +97,18 @@ class LFRicKernelMetadata():
     :type name: Optional[str]
 
     '''
-    def __init__(self, operates_on=None, shape=None, meta_args=None,
+    def __init__(self, operates_on=None, shapes=None, meta_args=None,
                  meta_funcs=None, meta_reference_element=None,
                  meta_mesh=None, procedure_name=None, name=None):
         # Initialise internal variables
         self._operates_on = None
-        self._shape = None
+        self._shapes = None
         self._meta_args = None
         # Use setters to validate any supplied arguments values.
         if operates_on is not None:
-            self.operates_on = operates_on
-        if shape is not None:
-            self.shape = shape
+            self._operates_on = OperatesOnMetadata(operates_on)
+        if shapes is not None:
+            self._shapes = ShapesMetadata(shapes)
         if meta_args is not None:
             self.meta_args = meta_args
         if meta_funcs is None:
@@ -197,7 +199,7 @@ class LFRicKernelMetadata():
         try:
             spec_part = Fortran2003.Derived_Type_Def(reader)
         except Fortran2003.NoMatchError:
-            # pylint: disable=raise-missing-from
+            # pyflint: disable=raise-missing-from
             raise ValueError(
                 f"Expected kernel metadata to be a Fortran derived type, but "
                 f"found '{fortran_string}'.")
@@ -205,19 +207,26 @@ class LFRicKernelMetadata():
         kernel_metadata.name = spec_part.children[0].children[1].tostr()
 
         # the value of operates on (CELL_COLUMN, ...)
-        value = LFRicKernelMetadata._get_property(
-            spec_part, "operates_on").string
-        kernel_metadata.operates_on = value
+        for fparser2_node in walk(spec_part, Fortran2003.Data_Component_Def_Stmt):
+            # Is there a better way to find the required part of fparser2?
+            if "operates_on" in (str(fparser2_node)).lower():
+                kernel_metadata._operates_on = OperatesOnMetadata.\
+                    create_from_fparser2(
+                        fparser2_node)
+                break
+        else:
+            kernel_metadata._operates_on = None
 
-        # the value of gh_shape (gh_quadrature_XYoZ, ...)
-        try:
-            value = LFRicKernelMetadata._get_property(
-                spec_part, "gh_shape").string
-            kernel_metadata.shape = value
-        except ParseError:
-            # There is no shape metadata
-            pass
-
+        # the gh_shape values (gh_quadrature_XYoZ, ...)
+        for fparser2_node in walk(spec_part, Fortran2003.Data_Component_Def_Stmt):
+            # Is there a better way to find the required part of fparser2?
+            if "gh_shape" in (str(fparser2_node)).lower():
+                kernel_metadata._shapes = ShapesMetadata.create_from_fparser2(
+                    fparser2_node)
+                break
+        else:
+            kernel_metadata._shapes = None
+            
         # the name of the procedure that this metadata refers to.
         kernel_metadata.procedure_name = LFRicKernelMetadata._get_property(
             spec_part, "code").string
@@ -403,57 +412,55 @@ class LFRicKernelMetadata():
                 f"'{self.operates_on}' and '{self.procedure_name}' "
                 f"respectively.")
 
-        lfric_args = [arg.fortran_string() for arg in self._meta_args]
-        lfric_args_str = ", &\n".join(lfric_args)
+        meta_args = [arg.fortran_string() for arg in self._meta_args]
+        meta_args_str = ", &\n".join(meta_args)
         # TODO issue #1879. META_FUNCS,
         # META_REFERENCE_ELEMENT and META_MESH are not parsed
         # correctly yet.
         meta_funcs = ""
         meta_ref = ""
         meta_mesh = ""
-        shape = ""
-        if self.shape:
-            shape = f"  INTEGER :: GH_SHAPE = {self.shape}\n"
+
+        shapes = ""
+        if self._shapes:
+            shapes = f"  {self._shapes.fortran_string()}"
+        operates_on = f"  {self._operates_on.fortran_string()}"
 
         result = (
             f"TYPE, PUBLIC, EXTENDS(kernel_type) :: {self.name}\n"
             f"  TYPE(arg_type) :: meta_args({len(self._meta_args)}) = "
-            f"(/ &\n{lfric_args_str}/)\n"
+            f"(/ &\n{meta_args_str}/)\n"
             f"{meta_funcs}"
             f"{meta_ref}"
             f"{meta_mesh}"
-            f"{shape}"
-            f"  INTEGER :: OPERATES_ON = {self.operates_on}\n"
+            f"{shapes}"
+            f"{operates_on}"
             f"  CONTAINS\n"
             f"    PROCEDURE, NOPASS :: {self.procedure_name}\n"
             f"END TYPE {self.name}\n")
         return result
 
     @property
-    def shape(self):
+    def shapes(self):
         '''
-        :returns: the kernel shape property specified by the \
-            metadata.
-        :rtype: str
-        '''
-        return self._shape
-
-    @shape.setter
-    def shape(self, value):
-        '''
-        :param str value: set the kernel shape property \
-            in the metadata to the specified value.
-
-        :raises ValueError: if the metadata has an invalid type.
+        :returns: a list of shape metadata values.
+        :rtype: Optional[List[str]]
 
         '''
-        const = LFRicConstants()
-        if not value or value.lower() not in const.VALID_EVALUATOR_SHAPES:
-            raise ValueError(
-                f"The shape metadata should be a recognised "
-                f"value (one of {const.VALID_EVALUATOR_SHAPES}) "
-                f"but found '{value}'.")
-        self._shape = value.lower()
+        if self._shapes is None:
+            return None
+        else:
+            return self._shapes.shapes
+
+    @shapes.setter
+    def shapes(self, values):
+        '''
+        :param values: set the shape metadata to the \
+            supplied list of values.
+        :type values: List[str]
+
+        '''
+        self._shapes = ShapesMetadata(values)
 
     @property
     def operates_on(self):
@@ -462,7 +469,10 @@ class LFRicKernelMetadata():
             metadata.
         :rtype: str
         '''
-        return self._operates_on
+        if self._operates_on is None:
+            return None
+        else:
+            return self._operates_on.operates_on
 
     @operates_on.setter
     def operates_on(self, value):
@@ -470,16 +480,8 @@ class LFRicKernelMetadata():
         :param str value: set the kernel operates_on property \
             in the metadata to the specified value.
 
-        :raises ValueError: if the metadata has an invalid type.
-
         '''
-        const = LFRicConstants()
-        if not value or value.lower() not in const.VALID_ITERATION_SPACES:
-            raise ValueError(
-                f"The operates_on metadata should be a recognised "
-                f"iteration space (one of {const.VALID_ITERATION_SPACES}) "
-                f"but found '{value}'.")
-        self._operates_on = value.lower()
+        self._operates_on = OperatesOnMetadata(value.lower())
 
     @property
     def procedure_name(self):
@@ -548,10 +550,10 @@ class LFRicKernelMetadata():
 
     @meta_args.setter
     def meta_args(self, values):
-        ''':param meta_args_list: set the meta_args metadata to the \
-            supplied list of values.
-        :type meta_args_list: List[:py:class:`psyclone.domain.lfric.kernel.\
-            CommonArg`]
+        '''
+        :param values: set the meta_args metadata to the supplied list \
+            of values.
+        :type values: List[:py:class:`psyclone.domain.lfric.kernel.CommonArg`]
 
         raises TypeError: if the supplied value is not a list.
         raises TypeError: if the supplied value is an empty list.
@@ -561,7 +563,7 @@ class LFRicKernelMetadata():
         '''
         if not isinstance(values, list):
             raise TypeError(f"meta_args should be a list but found "
-                            f"{type(values).__name__}.")
+                            f"'{type(values).__name__}'.")
         if not values:
             raise TypeError(
                 "The meta_args list should contain at least one entry, but "
@@ -570,7 +572,8 @@ class LFRicKernelMetadata():
             if not isinstance(entry, CommonArg):
                 raise TypeError(
                     f"meta_args should be a list of argument objects "
-                    f"(of type CommonArg), but found {type(entry).__name__}.")
+                    f"(of type CommonArg), but found "
+                    f"'{type(entry).__name__}'.")
         # Take a copy of the list so that it can't be modified
         # externally
         self._meta_args = values[:]

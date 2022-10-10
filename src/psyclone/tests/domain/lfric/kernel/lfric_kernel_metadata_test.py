@@ -66,7 +66,7 @@ def test_init_noargs():
     meta = LFRicKernelMetadata()
     assert isinstance(meta, LFRicKernelMetadata)
     assert meta._operates_on is None
-    assert meta._shape is None
+    assert meta._shapes is None
     assert meta._meta_args is None
     assert meta._meta_funcs == []
     assert meta._meta_reference_element == []
@@ -82,14 +82,14 @@ def test_init_args():
     '''
     scalar_arg = ScalarArg("GH_REAL", "GH_READ")
     meta = LFRicKernelMetadata(
-        operates_on="DOMAIN", shape="GH_EVALUATOR", meta_args=[scalar_arg],
+        operates_on="DOMAIN", shapes=["GH_EVALUATOR"], meta_args=[scalar_arg],
         meta_funcs="TBD", meta_reference_element="TBD",
         meta_mesh="TBD", procedure_name="KERN_CODE", name="kern_type")
     assert meta.operates_on == "domain"
     assert meta.procedure_name == "KERN_CODE"
     assert meta.name == "kern_type"
     assert meta.meta_args == [scalar_arg]
-    assert meta.shape == "gh_evaluator"
+    assert meta.shapes == ["gh_evaluator"]
     # TODO issue #1879 meta_funcs, meta_reference_element,
     # meta_mesh
 
@@ -101,9 +101,10 @@ def test_init_args_error():
     '''
     with pytest.raises(ValueError) as info:
         _ = LFRicKernelMetadata(operates_on="invalid")
-    assert ("The operates_on metadata should be a recognised iteration "
-            "space (one of ['cell_column', 'domain', 'dof']) but found "
-            "'invalid'." in str(info.value))
+    print(str(info.value))
+    assert ("The operates_on metadata should be a recognised value "
+            "(one of ['cell_column', 'domain']) but found 'invalid'."
+            in str(info.value))
 
     with pytest.raises(ValueError) as info:
         _ = LFRicKernelMetadata(procedure_name="1_invalid")
@@ -117,44 +118,39 @@ def test_init_args_error():
 
     with pytest.raises(TypeError) as info:
         _ = LFRicKernelMetadata(meta_args="error")
-    assert "meta_args should be a list but found str." in str(info.value)
+    assert "meta_args should be a list but found 'str'." in str(info.value)
 
     with pytest.raises(TypeError) as info:
-        _ = LFRicKernelMetadata(meta_args=[])
-    assert ("The meta_args list should contain at least one entry, but it is "
-            "empty." in str(info.value))
-
-    with pytest.raises(TypeError) as info:
-        _ = LFRicKernelMetadata(meta_args=["error"])
-    assert ("meta_args should be a list of argument objects (of type "
-            "CommonArg), but found str." in str(info.value))
-
-    with pytest.raises(ValueError) as info:
-        _ = LFRicKernelMetadata(shape="invalid")
-    assert ("The shape metadata should be a recognised value (one of "
-            "['gh_quadrature_xyoz', 'gh_quadrature_face', "
-            "'gh_quadrature_edge', 'gh_evaluator']) but found 'invalid'."
+        _ = LFRicKernelMetadata(shapes="invalid")
+    assert ("shape values should be provided as a list but found 'str'."
             in str(info.value))
 
     # TODO issue #1879 meta_funcs, meta_reference_element,
     # meta_mesh
 
 
-def test_setter_getter():
-    '''Test that the LFRicKernelMetadata setters and getters work as
-    expected.
+def test_setter_getter_operates_on():
+    '''Test that the LFRicKernelMetadata operates_on setters and getters
+    work as expected.
 
     '''
     metadata = LFRicKernelMetadata()
     assert metadata.operates_on is None
     with pytest.raises(ValueError) as info:
         metadata.operates_on = "invalid"
-    assert ("The operates_on metadata should be a recognised iteration "
-            "space (one of ['cell_column', 'domain', 'dof']) but found "
+    assert ("The operates_on metadata should be a recognised value "
+            "(one of ['cell_column', 'domain']) but found "
             "'invalid'." in str(info.value))
-    metadata.operates_on = "DOF"
-    assert metadata.operates_on == "dof"
+    metadata.operates_on = "DOMAIN"
+    assert metadata.operates_on == "domain"
 
+
+def test_setter_getter_procedure_name():
+    '''Test that the LFRicKernelMetadata procedure_name setters and
+    getters work as expected.
+
+    '''
+    metadata = LFRicKernelMetadata()
     assert metadata.procedure_name is None
     with pytest.raises(ValueError) as info:
         metadata.procedure_name = "1_invalid"
@@ -163,6 +159,13 @@ def test_setter_getter():
     metadata.procedure_name = "KERN_CODE"
     assert metadata.procedure_name == "KERN_CODE"
 
+
+def test_setter_getter_name():
+    '''Test that the LFRicKernelMetadata name setters and getters work as
+    expected.
+
+    '''
+    metadata = LFRicKernelMetadata()
     assert metadata.name is None
     with pytest.raises(ValueError) as info:
         metadata.name = "1_invalid"
@@ -171,10 +174,17 @@ def test_setter_getter():
     metadata.name = "kern_type"
     assert metadata.name == "kern_type"
 
+
+def test_setter_getter_meta_args():
+    '''Test that the LFRicKernelMetadata meta_args setters and getters
+    work as expected.
+
+    '''
+    metadata = LFRicKernelMetadata()
     assert metadata.meta_args is None
     with pytest.raises(TypeError) as info:
         metadata.meta_args = "error"
-    assert "meta_args should be a list but found str." in str(info.value)
+    assert "meta_args should be a list but found 'str'." in str(info.value)
     with pytest.raises(TypeError) as info:
         metadata.meta_args = []
     assert ("The meta_args list should contain at least one entry, but it "
@@ -182,7 +192,7 @@ def test_setter_getter():
     with pytest.raises(TypeError) as info:
         metadata.meta_args = ["error"]
     assert ("meta_args should be a list of argument objects (of type "
-            "CommonArg), but found str." in str(info.value))
+            "CommonArg), but found 'str'." in str(info.value))
 
     scalar_arg = ScalarArg("GH_REAL", "GH_READ")
     meta_args = [scalar_arg]
@@ -194,18 +204,40 @@ def test_setter_getter():
     # Check that a copy of the list is returned
     assert metadata.meta_args is not metadata._meta_args
 
-    assert metadata.shape is None
+
+def test_setter_getter_shapes():
+    '''Test that the LFRicKernelMetadata shapes setters and getters work
+    as expected.
+
+    '''
+    metadata = LFRicKernelMetadata()
+    assert metadata.shapes is None
+    with pytest.raises(TypeError) as info:
+        metadata.shapes = "invalid"
+    assert ("shape values should be provided as a list but found 'str'."
+            in str(info.value))
+    with pytest.raises(TypeError) as info:
+        metadata.shapes = []
+    assert ("The shapes list should contain at least one entry, but it is "
+            "empty." in str(info.value))
     with pytest.raises(ValueError) as info:
-        metadata.shape = "invalid"
+        metadata.shapes = ["invalid"]
     assert ("The shape metadata should be a recognised value (one of "
             "['gh_quadrature_xyoz', 'gh_quadrature_face', "
             "'gh_quadrature_edge', 'gh_evaluator']) but found 'invalid'."
             in str(info.value))
-    metadata.shape = "GH_quadrature_FACE"
-    assert metadata.shape == "gh_quadrature_face"
 
-    # TODO issue #1879 meta_funcs, meta_reference_element,
-    # meta_mesh
+    shapes = ["GH_quadrature_FACE", "gh_evaluator"]
+    metadata.shapes = shapes
+    # Check that a copy of the list is stored
+    assert metadata._shapes is not shapes
+    assert metadata.shapes == ["gh_quadrature_face", "gh_evaluator"]
+    # Check that a copy of the list is returned
+    assert metadata.shapes is not metadata._shapes
+
+
+# TODO issue #1879 meta_funcs, meta_reference_element,
+# meta_mesh
 
 
 def test_create_from_psyir_error():
@@ -300,7 +332,7 @@ def test_create_from_fortran_error():
 
     invalid_metadata2 = (
         "type, extends(kernel_type) :: testkern_type\n"
-        "   type(arg_type) :: meta_args =  invalid\n"
+        "   type(arg_type) :: meta_args(1) = invalid\n"
         "   integer :: operates_on = cell_column\n"
         " contains\n"
         "   procedure, nopass :: code => testkern_code\n"
@@ -334,8 +366,22 @@ def test_create_from_fortran(procedure_format):
     assert metadata.name == "testkern_type"
     assert metadata.operates_on == "cell_column"
     assert metadata.procedure_name == "testkern_code"
-    assert metadata.shape == "gh_quadrature_xyoz"
+    assert metadata.shapes == ["gh_quadrature_xyoz"]
     assert metadata.meta_reference_element == []
+
+
+def test_create_from_fortran_shapes():
+    '''Test that an instance of the LFRicKernelMetadata class can be
+    created from Fortran when there are multiple values of the shapes
+    metadata.
+
+    '''
+    fortran_metadata = METADATA.replace(
+        "gh_shape = gh_quadrature_XYoZ",
+        "gh_shape(2) = (/ gh_quadrature_XYoZ, gh_evaluator /)")
+    metadata = LFRicKernelMetadata.create_from_fortran_string(fortran_metadata)
+    assert isinstance(metadata, LFRicKernelMetadata)
+    assert metadata.shapes == ["gh_quadrature_xyoz", "gh_evaluator"]
 
 
 def test_create_from_fortran_no_optional():
@@ -348,7 +394,7 @@ def test_create_from_fortran_no_optional():
     fortran_metadata = METADATA.replace(
         "   integer :: gh_shape = gh_quadrature_XYoZ\n", "")
     metadata = LFRicKernelMetadata.create_from_fortran_string(fortran_metadata)
-    assert metadata.shape is None
+    assert metadata.shapes is None
 
 
 def test_lower_to_psyir():
