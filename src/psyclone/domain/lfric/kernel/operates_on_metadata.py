@@ -44,13 +44,14 @@ from psyclone.domain.lfric.kernel.common_declaration_metadata import \
 
 class OperatesOnMetadata(CommonDeclarationMetadata):
     '''Class to capture the values of the LFRic kernel
-    OPERATES_ON metadata.  This class supports the creation,
+    OPERATES_ON metadata. This class supports the creation,
     modification and Fortran output of this metadata.
 
-    xxxx
+    OPERATES_ON metadata specifies that the Kernel has been written to
+    expect data in the specified form, i.e. 'cell_column' means a column
+    of cells and 'domain' means all cells.
 
-    :param operates_on: a list of operates_on values
-    :type operates_on: List[str]
+    :param str operates_on: the value of operates_on.
 
     '''
     def __init__(self, operates_on):
@@ -69,12 +70,14 @@ class OperatesOnMetadata(CommonDeclarationMetadata):
         '''Create an instance of OperatesOnMetadata from an fparser2
         tree.
 
-        integer :: operates_on = domain
-
         :param fparser2_tree: fparser2 tree capturing the operates_on \
             metadata.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.\
             Data_Component_Def_Stmt`
+
+        LFRic operates_on metadata is in scalar form:
+
+        integer :: operates_on = cell_column
 
         :returns: an instance of OperatesOnMetadata.
         :rtype: :py:class:`psyclone.domain.lfric.kernel.\
@@ -83,15 +86,14 @@ class OperatesOnMetadata(CommonDeclarationMetadata):
         '''
         const = LFRicConstants()
         valid_values = const.USER_KERNEL_ITERATION_SPACES
-        operates_on_list = OperatesOnMetadata.\
-            validate_scalar_declaration(
-                fparser2_tree, "INTEGER", "OPERATES_ON", valid_values)
-        return OperatesOnMetadata(operates_on_list)
+        value = OperatesOnMetadata.validate_scalar_declaration(
+            fparser2_tree, "INTEGER", "OPERATES_ON", valid_values)
+        return OperatesOnMetadata(value)
 
     @property
     def operates_on(self):
         '''
-        :returns: the operates_on value
+        :returns: the operates_on value.
         :rtype: str
         '''
         return self._operates_on
@@ -99,16 +101,20 @@ class OperatesOnMetadata(CommonDeclarationMetadata):
     @operates_on.setter
     def operates_on(self, value):
         '''
-        :param str values: set the operates_on metdata to the supplied \
-            list of values.
+        :param str value: sets the operates_on metadata to the \
+            supplied value.
 
         raises TypeError: if the value is not of the required type.
 
         '''
+        if not isinstance(value, str):
+            raise TypeError(
+                f"The OPERATES_ON metadata should be a str, but found "
+                f"'{type(value).__name__}'.")
         const = LFRicConstants()
         if value.lower() not in const.USER_KERNEL_ITERATION_SPACES:
             raise ValueError(
-                f"The operates_on metadata should be a recognised "
+                f"The OPERATES_ON metadata should be a recognised "
                 f"value (one of {const.USER_KERNEL_ITERATION_SPACES}) "
                 f"but found '{value}'.")
         self._operates_on = value.lower()

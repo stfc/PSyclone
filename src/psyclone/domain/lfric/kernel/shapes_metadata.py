@@ -36,47 +36,6 @@
 '''Module containing the ShapesMetadata class which captures the
 values for the LFRic kernel GH_SHAPE metadata.
 
-        The fparser2 class hierarchy for the different flavours
-        of valid gh_shape metadata above is given below:
-
-        Data_Component_Def_Stmt
-            [0] Intrinsic_Type_Spec
-                [0] <str> INTEGER
-                [1] <NoneType>
-            [1] Component_Attr_Spec_List or <NoneType>
-                ...
-                Dimension_Component_Attr_Spec
-                    [0] <str> DIMENSION
-                    [1] Explicit_Shape_Spec_List
-                        ...
-                        Explicit_Shape_Spec
-                            [0] <NoneType>
-                            [1] Int_Literal_Constant
-                                [0] <str> 1
-                                [1] <NoneType>
-                        ...
-                ...
-            [2] Component_Decl_List
-                ...
-                Component_Decl
-                    [0] Name.string: gh_shape
-                    [1] Explicit_Shape_Spec_List or <NoneType>
-                        [0] <NoneType>
-                        [1] Int_Literal_Constant
-                            [0] <str> 1
-                            [1] <NoneType>
-                    [2] <NoneType>
-                    [3] Component_Initialization
-                        [0] <str> =
-                        [1] Name.string: gh_quadrature_face
-                        *OR*
-                        [1] Array_Constructor (/ ... /)
-                            [0] <str> (/
-                            [1] Ac_Value_List
-                                Name.string: gh_quadrature_face
-                                ...
-                            [2] <str> /)
-                ...
 '''
 from fparser.two import Fortran2003
 
@@ -134,6 +93,14 @@ class ShapesMetadata(CommonDeclarationMetadata):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.ShapesMetadata`
 
         '''
+        # As both scalar and array forms are supported we need the
+        # validation from both validate_array_declaration and
+        # validate_scalar_declaration. However, we can't call these
+        # functions separately as both might raise an exception and we
+        # won't know which exception to return. Instead we call the
+        # validation that is common to both first and then test for an
+        # array declaration to determine whether to call the array or
+        # scalar validation.
         ShapesMetadata.validate_node(
             fparser2_tree, Fortran2003.Data_Component_Def_Stmt)
         ShapesMetadata.validate_datatype_name_value(
@@ -145,10 +112,11 @@ class ShapesMetadata(CommonDeclarationMetadata):
         component_decl_list = fparser2_tree.children[2]
         gh_shape_declaration = component_decl_list.children[0]
         if fparser2_tree.children[1] or gh_shape_declaration.children[1]:
-            # This is probably an array
+            # This is probably the array form
             shapes_list = ShapesMetadata.validate_array_declaration(
                 fparser2_tree, "INTEGER", "GH_SHAPE", valid_values)
         else:
+            # This is probably the scalar form
             shapes_value = ShapesMetadata.validate_scalar_declaration(
                 fparser2_tree, "INTEGER", "GH_SHAPE", valid_values)
             shapes_list = [shapes_value]
@@ -161,6 +129,8 @@ class ShapesMetadata(CommonDeclarationMetadata):
         :returns: a list of shape values
         :rtype: List[str]
         '''
+        # Return a copy of the list so it can't be modified
+        # externally.
         return self._shapes[:]
 
     @shapes.setter
@@ -184,15 +154,16 @@ class ShapesMetadata(CommonDeclarationMetadata):
                 "The shapes list should contain at least one entry, but "
                 "it is empty.")
         const = LFRicConstants()
+        valid_values = const.VALID_EVALUATOR_SHAPES
         for value in values:
             if not isinstance(value, str):
                 raise TypeError(
                     f"shapes should be a list of str, "
                     f"but found '{type(value).__name__}'.")
-            if value.lower() not in const.VALID_EVALUATOR_SHAPES:
+            if value.lower() not in valid_values:
                 raise ValueError(
                     f"The shape metadata should be a recognised "
-                    f"value (one of {const.VALID_EVALUATOR_SHAPES}) "
+                    f"value (one of {valid_values}) "
                     f"but found '{value}'.")
         # Take a copy of the list so that it can't be modified
         # externally. Also make all values lower case.

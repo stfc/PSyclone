@@ -47,7 +47,9 @@ class EvaluatorTargetsMetadata(CommonDeclarationMetadata):
     GH_EVALUATOR_TARGETS metadata.  This class supports the creation,
     modification and Fortran output of this metadata.
 
-    xxxx
+    if an evaluator is required for multiple function spaces then
+    this is specified using the gh_evaluator_targets
+    metadata.
 
     :param evaluator_targets: a list of evaluator_targets values
     :type evaluator_targets: List[str]
@@ -70,7 +72,7 @@ class EvaluatorTargetsMetadata(CommonDeclarationMetadata):
         tree.
 
         LFRic evaluator targets metadata is in array form. Two
-        versions of array form are supported:
+        versions of the array form are supported:
 
         integer :: gh_evaluator_targets(2) = (/ w0, w1 /)
         integer, dimension(2) :: gh_shape = (/ w0, w1 /)
@@ -83,20 +85,19 @@ class EvaluatorTargetsMetadata(CommonDeclarationMetadata):
 
         :returns: an instance of EvaluatorTargetsMetadata.
         :rtype: :py:class:`psyclone.domain.lfric.kernel.\
-            EvaluatorTargetssMetadata`
+            EvaluatorTargetsMetadata`
 
         '''
         const = LFRicConstants()
         valid_values = const.VALID_FUNCTION_SPACES
-        evaluator_targets_list = EvaluatorTargetsMetadata.\
-            validate_array_declaration(
-                fparser2_tree, "INTEGER", "GH_EVALUATOR_TARGETS", valid_values)
-        return EvaluatorTargetsMetadata(shapes_list)
+        values_list = EvaluatorTargetsMetadata.validate_array_declaration(
+            fparser2_tree, "INTEGER", "GH_EVALUATOR_TARGETS", valid_values)
+        return EvaluatorTargetsMetadata(values_list)
 
     @property
     def evaluator_targets(self):
         '''
-        :returns: a list of evaluator targets values
+        :returns: a list of evaluator targets values.
         :rtype: List[str]
         '''
         return self._evaluator_targets[:]
@@ -104,8 +105,8 @@ class EvaluatorTargetsMetadata(CommonDeclarationMetadata):
     @evaluator_targets.setter
     def evaluator_targets(self, values):
         '''
-        :param values: set the shapes metdata to the supplied list of \
-            values.
+        :param values: set the evaluator_targets metadata to the \
+            supplied list of values.
         :type values: List[str]
 
         raises TypeError: if the supplied value is not a list.
@@ -115,21 +116,21 @@ class EvaluatorTargetsMetadata(CommonDeclarationMetadata):
 
         '''
         if not isinstance(values, list):
-            raise TypeError(f"shape values should be provided as a list but "
-                            f"found '{type(values).__name__}'.")
+            raise TypeError(f"evaluator_targets values should be provided as "
+                            f"a list but found '{type(values).__name__}'.")
         if not values:
             raise TypeError(
-                "The shapes list should contain at least one entry, but "
-                "it is empty.")
+                "The evaluator_targets list should contain at least one "
+                "entry, but it is empty.")
         const = LFRicConstants()
         for value in values:
             if not isinstance(value, str):
                 raise TypeError(
-                    f"shapes should be a list of str, "
+                    f"The evaluator_targets list should be a list of str, "
                     f"but found '{type(value).__name__}'.")
             if value.lower() not in const.VALID_FUNCTION_SPACES:
                 raise ValueError(
-                    f"The shape metadata should be a recognised "
+                    f"The evaluator_targets metadata should be a recognised "
                     f"value (one of {const.VALID_FUNCTION_SPACES}) "
                     f"but found '{value}'.")
         # Take a copy of the list so that it can't be modified
