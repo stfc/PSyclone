@@ -917,6 +917,7 @@ class Fparser2Reader(object):
         # Map of fparser2 node types to handlers (which are class methods)
         self.handlers = {
             Fortran2003.Allocate_Stmt: self._allocate_handler,
+            Fortran2003.Allocate_Shape_Spec: self._allocate_shape_spec_handler,
             Fortran2003.Assignment_Stmt: self._assignment_handler,
             Fortran2003.Data_Ref: self._data_ref_handler,
             Fortran2003.Function_Subprogram: self._subroutine_handler,
@@ -2339,15 +2340,60 @@ class Fparser2Reader(object):
         :rtype: :py:class:`psyclone.psyir.nodes.Call`
 
         '''
-        #call = IntrinsicCall(parent=parent)
-        alloc_list = node.children[1]
-        for child in alloc_list.children:
-            name = child.children[0].string
-            #self.process_nodes(parent=newifblock,
-            #                   nodes=[clause.items[0]])
+        call = IntrinsicCall(IntrinsicCall.Intrinsic.ALLOCATE, parent=parent)
+        alloc_list = node.children[1].children
+        for alloc in alloc_list:
+            name = alloc.children[0].string
+            symbol = _find_or_create_imported_symbol(parent, name)
+            ref = ArrayReference(symbol, parent=call)
+            shape_spec_list = alloc.children[1]
+            #import pdb; pdb.set_trace()
+            for spec in shape_spec_list.children:
+                #self._subscript_triplet_handler(spec, parent=ref)
+                self.process_nodes(parent=ref, nodes=[spec])
+            call.addchild(ref)
+        # Handle any options to the allocate()
+        opt_list = walk(node, Fortran2003.Alloc_Opt)
+        for opt in opt_list:
+            self.process_nodes(parent=call, nodes=opt.children[1:])
+            call.append_named_arg(opt.children[0], call.children[-1].detach())
 
-        #import pdb; pdb.set_trace()
-        return IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE, [])
+        # Point to the original statement in the parse tree.
+        call.ast = node
+
+        return call
+
+    def _allocate_shape_spec_handler(self, node, parent):
+        '''
+        Creates a Range node describing the supplied Allocate_Shape_Spec.
+        This is similar to the subscript_triplet handler except that the
+        default lower bound is unity and the step is also unity.
+
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.Fortran2003.Allocate_Shape_Spec`
+        :param parent: parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyir.nodes.Reference`
+
+        :returns: PSyIR of fparser2 node.
+        :rtype: :py:class:`psyclone.psyir.nodes.Range`
+
+        '''
+        my_range = Range(parent=parent)
+        my_range.children = []
+        integer_type = default_integer_type()
+
+        if node.children[0]:
+            self.process_nodes(parent=my_range, nodes=[node.children[0]])
+        else:
+            # Default lower bound in Fortran is 1
+            my_range.addchild(Literal("1", integer_type))
+
+        self.process_nodes(parent=my_range, nodes=[node.children[1]])
+
+        # Step is always 1.
+        my_range.addchild(Literal("1", integer_type))
+
+        return my_range
 
     def _create_loop(self, parent, variable):
         '''
@@ -3611,7 +3657,7 @@ class Fparser2Reader(object):
         :param parent: parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
-        :returns: PSyIR representation of node.
+        :returns: PSyIR of fparser2 node.
         :rtype: :py:class:`psyclone.psyir.nodes.Range`
 
         :raises InternalError: if the supplied parent node is not a sub-class \

@@ -80,14 +80,13 @@ class IntrinsicCall(Call):
     _required_args[Intrinsic.RANDOM.name] = [Reference]
     _optional_args[Intrinsic.RANDOM.name] = {}
 
-    #def __init__(self, intrinsic, parent=None):
-    #
-    #    if not isinstance(intrinsic, self.Intrinsic):
-    #        raise TypeError(
-    #            f"IntrinsicCall 'intrinsic' argument should be a "
-    #            f"IntrinsicCall.Intrinsic but found "
-    #            f"'{type(intrinsic).__name__}'.")
-    #    super().__init__(IntrinsicSymbol(intrinsic.name), parent=parent)
+    def __init__(self, intrinsic, parent=None):
+        if not isinstance(intrinsic, self.Intrinsic):
+            raise TypeError(
+                f"IntrinsicCall 'intrinsic' argument should be a "
+                f"IntrinsicCall.Intrinsic but found "
+                f"'{type(intrinsic).__name__}'.")
+        super().__init__(IntrinsicSymbol(intrinsic.name), parent=parent)
 
     @staticmethod
     def create(intrinsic, arguments):
