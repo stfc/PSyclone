@@ -38,4 +38,5 @@ Functionality common to all API support in PSyAD.
 '''
 
 from psyclone.psyad.domain.common.adjoint_utils import (find_container,
-                                                        create_adjoint_name)
+                                                        create_adjoint_name,
+                                                        create_real_comparison)
