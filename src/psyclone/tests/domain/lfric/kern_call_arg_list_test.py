@@ -48,6 +48,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Reference
 from psyclone.tests.utilities import get_base_path, get_invoke
+from psyclone.transformations import Dynamo0p3ColourTrans
 
 TEST_API = "dynamo0.3"
 
@@ -146,8 +147,33 @@ def test_kerncallarglist_face_edge(dist_mem, fortran_writer):
     # Test that invalid kernel arguments raise the expected error:
     create_arg_list._kern._qr_rules["gh_quadrature_face"] = \
         DynKern.QRRule("invalid", "invalid", ["invalid"])
-
     with pytest.raises(InternalError) as err:
         create_arg_list.generate()
-
     assert "Found invalid kernel argument 'invalid'" in str(err.value)
+
+
+def test_kerncallarglist_colouring(dist_mem, fortran_writer):
+    ''' Check the handling of basis, diff_basis, and quad_rule, including
+    face and edge quadrature
+    '''
+
+    psy, _ = get_invoke("4.8_multikernel_invokes.f90",
+                        TEST_API, dist_mem=dist_mem, idx=0)
+
+    schedule = psy.invokes.invoke_list[0].schedule
+    ctrans = Dynamo0p3ColourTrans()
+    indx = 0
+    if dist_mem:
+        # Skip the halo exchange nodes when dist_mem is enabled
+        indx = 4
+    ctrans.apply(schedule.children[indx])
+
+    create_arg_list = KernCallArgList(schedule.kernels()[0])
+    create_arg_list.generate()
+    assert create_arg_list._arglist == [
+        'nlayers', 'rdt', 'h_proxy%data', 'f_proxy%data', 'c_proxy%data',
+        'd_proxy%data', 'ndf_w1', 'undf_w1', 'map_w1(:,cmap(colour,cell))',
+        'ndf_w2', 'undf_w2', 'map_w2(:,cmap(colour,cell))', 'ndf_w3',
+        'undf_w3', 'map_w3(:,cmap(colour,cell))']
+
+    check_psyir_results(create_arg_list, fortran_writer)

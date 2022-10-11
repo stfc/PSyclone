@@ -202,7 +202,7 @@ class ArgOrdering:
         self._psyir_arglist.append(Reference(sym))
         return sym
 
-    def add_array_reference(self, array_name, indices, intrinsic_type):
+    def get_array_reference(self, array_name, indices, intrinsic_type):
         '''This function adds an array reference. If there is no sumbol with
         the given tag, a new array symbol will be defined using the given
         intrinsic_type. If a symbol already exists but has no type, it will
@@ -216,8 +216,8 @@ class ArgOrdering:
             must either be ":", or a PSyIR node.
         :type indices: List[Union[str, py:class:`psyclone.psyir.nodes.Node`]]
 
-        :returns: the symbol used in the added reference.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+        :returns: a reference to the symbol used.
+        :rtype: :py:class:`psyclone.psyir.nodes.Reference`
 
         '''
         try:
@@ -249,8 +249,30 @@ class ArgOrdering:
             ref = Reference(sym)
         else:
             ref = ArrayReference.create(sym, indices)
+        return ref
+
+    def add_array_reference(self, array_name, indices, intrinsic_type):
+        '''This function adds an array reference. If there is no sumbol with
+        the given tag, a new array symbol will be defined using the given
+        intrinsic_type. If a symbol already exists but has no type, it will
+        be replaced. The created reference is added to the list of PSyIR
+        expressions, and the symbol is returned to the user
+        but also returned to the user (so the name of the
+        created symbol can be queried).
+
+        :param str array_name: the name and tag of the array.
+        :param indices: the indices to be used in the PSyIR reference. It \
+            must either be ":", or a PSyIR node.
+        :type indices: List[Union[str, py:class:`psyclone.psyir.nodes.Node`]]
+
+        :returns: the symbol used in the added reference.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+
+        '''
+
+        ref = self.get_array_reference(array_name, indices, intrinsic_type)
         self.psyir_append(ref)
-        return sym
+        return ref.symbol
 
     @property
     def num_args(self):

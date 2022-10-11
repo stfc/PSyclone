@@ -337,6 +337,7 @@ class KernCallArgList(ArgOrdering):
                 # Matrix is a pointer to a 3d array
                 # REAL(KIND=r_solver), pointer:: cma_op1_matrix(:,:,:)
                 #    = > null()
+                # TODO 1910
                 mode = arg.access
                 sym = self.add_array_reference(name, [":", ":", ":"], "real")
             else:
@@ -818,10 +819,10 @@ class KernCallArgList(ArgOrdering):
                                     "nedges"]:
                     self.add_integer_reference(arg, )
                 elif generic_name in ["weights_xy", "weights_z"]:
-                    # TODO: These should be pointers
+                    # TODO # 1910: These should be pointers
                     self.add_array_reference(arg, [":"], "real")
                 elif generic_name in ["weights_xyz"]:
-                    # TODO: These should be pointers
+                    # TODO #1910: These should be pointers
                     self.add_array_reference(arg, [":", ":"], "real")
                 else:
                     raise InternalError(f"Found invalid kernel argument "
@@ -908,9 +909,13 @@ class KernCallArgList(ArgOrdering):
                 var_accesses.add_access(Signature(self._kern.colourmap),
                                         AccessType.READ,
                                         self._kern, ["colour", "cell"])
-            #TODO NOT CORRECT YET
-            return (self._kern.colourmap + "(colour, cell)",
-                    Reference(colour_sym))
+            array_ref = self.get_array_reference("cmap",
+                                                 [Reference(colour_sym),
+                                                  Reference(cell_sym)],
+                                                 "integer")
+
+            return (self._kern.colourmap + "(colour,cell)",
+                    array_ref)
 
         if var_accesses is not None:
             var_accesses.add_access(Signature("cell"), AccessType.READ,
