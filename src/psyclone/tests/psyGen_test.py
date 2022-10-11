@@ -537,12 +537,18 @@ def test_codedkern_module_inline_gen_code(tmpdir):
 
     # With module-inline the subroutine does not need to be imported
     coded_kern.module_inline = True
+
+    # Fail if local routine symbol does not already exist
+    with pytest.raises(KeyError) as err:
+        gen = str(psy.gen)
+    assert "Could not find 'ru_code' in the Symbol Table." in str(err.value)
+
+    # Create the symbol and try again, it now must succeed
+    schedule.ancestor(Container).symbol_table.new_symbol(
+            "ru_code", symbol_type=RoutineSymbol)
+
     gen = str(psy.gen)
-
-    # TODO: fail if local routine does not exist
-
     assert "USE ru_kernel_mod, ONLY: ru_code" not in gen
-
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -561,10 +567,13 @@ def test_codedkern_module_inline_kernel_in_multiple_invokes(tmpdir):
     assert gen.count("USE testkern_qr, ONLY: testkern_qr_code") == 2
 
     # Module inline kernel in invoke 1
-    schedule1 = psy.invokes.invoke_list[0].schedule
-    for coded_kern in schedule1.walk(CodedKern):
+    schedule = psy.invokes.invoke_list[0].schedule
+    for coded_kern in schedule.walk(CodedKern):
         if coded_kern.name == "testkern_qr_code":
             coded_kern.module_inline = True
+    # A top-level RoutineSymbol must now exist
+    schedule.ancestor(Container).symbol_table.new_symbol(
+            "testkern_qr_code", symbol_type=RoutineSymbol)
     gen = str(psy.gen)
 
     # After this, one invoke uses the inlined top-level subroutine
@@ -573,8 +582,8 @@ def test_codedkern_module_inline_kernel_in_multiple_invokes(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # Module inline kernel in invoke 2
-    schedule1 = psy.invokes.invoke_list[1].schedule
-    for coded_kern in schedule1.walk(CodedKern):
+    schedule = psy.invokes.invoke_list[1].schedule
+    for coded_kern in schedule.walk(CodedKern):
         if coded_kern.name == "testkern_qr_code":
             coded_kern.module_inline = True
     gen = str(psy.gen)

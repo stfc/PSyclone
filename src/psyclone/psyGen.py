@@ -1524,6 +1524,9 @@ class CodedKern(Kern):
         if not self.module_inline:
             parent.add(UseGen(parent, name=self._module_name, only=True,
                               funcnames=[self._name]))
+        else:
+            # If its inlined, the symbol must already exist
+            self.scope.symbol_table.lookup(self._name)
 
     def incremented_arg(self):
         ''' Returns the argument that has INC access. Raises a
