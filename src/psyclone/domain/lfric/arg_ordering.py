@@ -75,7 +75,8 @@ class ArgOrdering:
         the corresponding metadata entry. If var_accesses is given, it will
         also record the access to the variable. The name of the variable
         accessed can be overwritten by specifying var_access_name. By default
-        it is assumed that access mode is READ (which can be set with mode).
+        it is assumed that access mode is READ (which can be set with
+        ``mode``).
 
         :param str var_name: the name of the variable.
         :param var_accesses: optional class to store variable access \

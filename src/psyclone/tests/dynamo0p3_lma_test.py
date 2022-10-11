@@ -35,8 +35,10 @@
 # Modified I. Kavcic, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
-''' This module tests the support for LMA operators in the Dynamo 0.3 API
-using pytest. '''
+''' This module tests the support for LMA operators in the LFRic (Dynamo 0.3)
+    API using pytest.
+
+'''
 
 import copy
 import os

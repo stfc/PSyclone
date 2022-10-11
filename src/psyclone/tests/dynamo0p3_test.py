@@ -38,9 +38,6 @@
 
 ''' This module tests the Dynamo 0.3 API using pytest. '''
 
-# imports
-from __future__ import absolute_import, print_function
-
 import copy
 import os
 import pytest

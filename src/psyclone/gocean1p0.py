@@ -47,7 +47,6 @@
 
 '''
 
-from __future__ import print_function
 import re
 import six
 
@@ -1413,6 +1412,7 @@ class GOKernelArguments(Arguments):
         :param str argument_type: type of the appended argument.
 
         :raises TypeError: if the given name is not a string.
+
         '''
         if not isinstance(name, str):
             raise TypeError(
@@ -1420,7 +1420,10 @@ class GOKernelArguments(Arguments):
                 "should be a string, but found '{0}' instead.".
                 format(type(name).__name__))
 
-        # Create a descriptor with the given type
+        # Create a descriptor with the given type. `len(self.args)` gives the
+        # position in the argument list of the argument to which this
+        # descriptor corresponds. (This argument is appended in the code
+        # below.)
         descriptor = Descriptor(None, argument_type, len(self.args))
 
         # Create the argument and append it to the argument list

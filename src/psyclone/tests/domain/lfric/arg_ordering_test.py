@@ -74,9 +74,9 @@ def test_argordering_append():
     assert arg_list._arg_index_to_metadata_index[1] == 3
     # Access info captured.
     vinfo = VariablesAccessInfo()
-    arg_list.append("titty", var_accesses=vinfo, mode=AccessType.WRITE)
+    arg_list.append("beckfoot", var_accesses=vinfo, mode=AccessType.WRITE)
     assert len(arg_list._arglist) == 3
-    assert vinfo.all_signatures == [Signature("titty")]
+    assert vinfo.all_signatures == [Signature("beckfoot")]
     # Alternate name supplied for the access.
     arg_list.append("john", var_access_name="john_walker",
                     var_accesses=vinfo, mode=AccessType.WRITE)
@@ -105,7 +105,7 @@ def test_argordering_extend():
     assert Signature("flint") in vinfo.all_signatures
     assert Signature("captain") in vinfo.all_signatures
     assert vinfo.is_written(Signature("flint"))
-    arg_list.extend(["dick", "dorothea"], var_accesses=vinfo,
+    arg_list.extend(["richard", "dorothea"], var_accesses=vinfo,
                     mode=AccessType.READ, list_metadata_posn=[5, 7])
     assert len(arg_list._arglist) == 7
     assert arg_list._arg_index_to_metadata_index[5] == 5

@@ -41,7 +41,6 @@
     and generation. The classes in this method need to be specialised for a
     particular API and implementation. '''
 
-from __future__ import print_function, absolute_import
 from collections import OrderedDict
 import abc
 import six
@@ -2191,6 +2190,7 @@ class Argument():
     :type access: str
 
     '''
+    # pylint: disable=too-many-instance-attributes
     def __init__(self, call, arg_info, access):
         self._call = call
         if arg_info is not None:

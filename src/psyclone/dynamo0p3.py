@@ -8495,6 +8495,9 @@ class DynKern(CodedKern):
                 alg_idx = interface_info.metadata_index_from_actual_index(idx)
                 alg_arg = self.arguments.args[alg_idx]
             except KeyError:
+                # There's no algorithm argument directly associated with this
+                # kernel argument. (We only care about the data associated
+                # with scalar, field and operator arguments.)
                 alg_arg = None
             self._validate_kernel_code_arg(kern_code_arg, interface_arg,
                                            alg_arg)
@@ -8508,6 +8511,12 @@ class DynKern(CodedKern):
         :type kern_code_arg: :py:class:`psyclone.psyir.symbols.DataSymbol`
         :param interface_arg: expected argument.
         :type interface_arg: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param alg_arg: the associated argument in the Algorithm layer. Note \
+            that only kernel arguments holding the data associated with \
+            scalar, field and operator arguments directly correspond to \
+            arguments that appear in the Algorithm layer.
+        :type alg_arg: \
+            Optional[:py:class`psyclone.dynamo0p3.DynKernelArgument`]
 
         :raises GenerationError: if the contents of the arguments do \
             not match.
@@ -8533,7 +8542,6 @@ class DynKern(CodedKern):
                 "".format(kern_code_arg.name, actual_precision.name,
                           self.name, expected_precision.name))
         # 2b: precision at compile time
-        # arg_index_in_alg = alg_posn (comes from position in metadata)
         if alg_arg:
             # TODO #1892 - check that precision derived from algorithm layer
             # matches the subroutine interface.
