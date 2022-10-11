@@ -42,14 +42,15 @@
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyGen import CodedKern, Kern
 from psyclone.psyir.nodes import Container, Routine, CodeBlock
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
     SymbolError
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.gocean_build import GOceanBuild
+from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import count_lines, get_invoke
-from psyclone.domain.common.transformations import KernelModuleInlineTrans
 
 
 def test_module_inline_constructor_and_str():
@@ -130,7 +131,7 @@ def test_validate_no_inline_global_var(parser):
 
 def test_validate_name_clashes():
     ''' Test that if the module-inline transformation finds the kernel name
-    already used in the Container scope, it ...'''
+    already used in the Container scope, it raises the appropriate error'''
     # Use LFRic example with a repeated CodedKern
     psy, _ = get_invoke("4.6_multikernel_invokes.f90", "dynamo0.3", idx=0,
                         dist_mem=False)
@@ -205,7 +206,7 @@ def test_module_inline_apply_transformation(tmpdir, fortran_writer):
     assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
-def test_module_inline_apply_kernel_in_multiple_invokes():
+def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir):
     ''' Check that module-inline works as expected when the same kernel
     is provided in different invokes'''
     # Use LFRic example with the kernel 'testkern_qr' repeated once in
@@ -241,6 +242,9 @@ def test_module_inline_apply_kernel_in_multiple_invokes():
     # top-level implementation
     assert gen.count("USE testkern_qr, ONLY: testkern_qr_code") == 0
     assert gen.count("END SUBROUTINE testkern_qr_code") == 1
+
+    # And it is valid code
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_module_inline_apply_with_sub_use(tmpdir):
@@ -372,10 +376,10 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     assert "use external_mod1, only : my_sub" in result
 
 
-def test_module_inline_dynamo(monkeypatch, annexed, dist_mem):
+def test_module_inline_lfric(tmpdir, monkeypatch, annexed, dist_mem):
     '''Tests that correct results are obtained when a kernel is inlined
-    into the psy-layer in the dynamo0.3 API. All previous tests use GOcean
-    for testing.
+    into the psy-layer in the LFRic (dynamo0.3) API. All previous tests
+    use GOcean for testing.
 
     We also test when annexed is False and True as it affects how many halo
     exchanges are generated.
@@ -386,15 +390,7 @@ def test_module_inline_dynamo(monkeypatch, annexed, dist_mem):
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     psy, invoke = get_invoke("4.6_multikernel_invokes.f90", "dynamo0.3",
                              name="invoke_0", dist_mem=dist_mem)
-    schedule = invoke.schedule
-    if dist_mem:
-        if annexed:
-            index = 6
-        else:
-            index = 8
-    else:
-        index = 1
-    kern_call = schedule.children[index].loop_body[0]
+    kern_call = invoke.schedule.walk(CodedKern)[0]
     inline_trans = KernelModuleInlineTrans()
     inline_trans.apply(kern_call)
     gen = str(psy.gen)
@@ -402,3 +398,6 @@ def test_module_inline_dynamo(monkeypatch, annexed, dist_mem):
     assert 'SUBROUTINE ru_code(' in gen
     # check that the associated psy "use" does not exist
     assert 'USE ru_kernel_mod, only : ru_code' not in gen
+
+    # And it is valid code
+    assert LFRicBuild(tmpdir).code_compiles(psy)

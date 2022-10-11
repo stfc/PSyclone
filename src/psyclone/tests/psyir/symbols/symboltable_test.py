@@ -2123,7 +2123,7 @@ def test_attach():
 def test_equality():
     ''' Test that we can compare the equality of 2 symbol tables.
 
-    TODO #1698: The current implementation is not sensible to tags, order
+    TODO #1698: The current implementation is not sensitive to tags, order
     of arguments and visibilities.
     '''
 

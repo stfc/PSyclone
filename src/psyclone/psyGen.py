@@ -48,7 +48,7 @@ import six
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
-from psyclone.f2pygen import CommentGen, CallGen, PSyIRGen, UseGen
+from psyclone.f2pygen import CommentGen, CallGen, UseGen
 from psyclone.parse.algorithm import BuiltInCall
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import PSyIRVisitor
@@ -1444,6 +1444,9 @@ class CodedKern(Kern):
         # This is needed because gen_code/lowering would otherwise add
         # an import with the same name and shadow the module-inline routine
         # symbol.
+        # TODO 1823: The transformation could have more control about this by
+        # giving an option to specify if the module-inline applies to a
+        # single kernel, the whole invoke or the whole algorithm.
         my_schedule = self.ancestor(InvokeSchedule)
         for kernel in my_schedule.walk(Kern):
             if kernel is self:
@@ -1601,7 +1604,9 @@ class CodedKern(Kern):
         import os
         from psyclone.line_length import FortLineLength
 
-        # If this kernel has not been transformed we do nothing
+        # If this kernel has not been transformed we do nothing, also if the
+        # kernel has been module-inlined, the routine already exist in the
+        # PSyIR and we don't need to generate a new file with it.
         if not self.modified or self.module_inline:
             return
 

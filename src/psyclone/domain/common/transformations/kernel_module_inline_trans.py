@@ -61,7 +61,7 @@ class KernelModuleInlineTrans(Transformation):
     >>> # print(schedule.view())
 
     .. warning ::
-        Not all kernels subroutines can be module-inlined. This transformation
+        Not all kernel subroutines can be module-inlined. This transformation
         will reject attempts to in-line kernels that access global data in the
         original module.
 
@@ -78,22 +78,21 @@ class KernelModuleInlineTrans(Transformation):
     def validate(self, node, options=None):
         '''
         Checks that the supplied node is a Kernel and that it is possible to
-        inline the PSyIR of its contents.
+        inline its PSyIR.
 
         :param kern: the kernel which is the target of the transformation.
         :type kern: :py:class:`psyclone.psyGen.CodedKern`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the target node is not a sub-class of \
-                                     psyGen.Kern.
+                                     psyGen.CodedKern.
         :raises TransformationError: if the subroutine containing the \
                                      implementation of the kernel cannot be \
-                                     retrieved wiht 'get_kernel_schedule'.
+                                     retrieved with 'get_kernel_schedule'.
         :raises TransformationError: if the kernel cannot be safely inlined.
 
         '''
-
         if not isinstance(node, CodedKern):
             raise TransformationError(
                 f"Target of a {self.name} must be a sub-class of "
@@ -141,7 +140,8 @@ class KernelModuleInlineTrans(Transformation):
                         f"present in the Symbol Table(s) within subroutine "
                         f"scope. Cannot inline such a kernel.") from err
 
-        # If the symbol already exist it must be referring to a Routine
+        # If the symbol already exist at the call site it must be referring
+        # to a Routine
         try:
             existing_symbol = node.scope.symbol_table.lookup(node.name)
         except KeyError:
@@ -155,8 +155,8 @@ class KernelModuleInlineTrans(Transformation):
 
     @staticmethod
     def _prepare_code_to_inline(code_to_inline):
-        ''' Prepare the PSyIR tree to inline by brining in the subroutine all
-        referenced symbols so that the implementation is self contained.
+        ''' Prepare the PSyIR tree to inline by bringing in to the subroutine
+        all referenced symbols so that the implementation is self contained.
 
         :param code_to_inline: the subroutine to module-inline.
         :type code_to_inline: :py:class:`psyclone.psyir.node.Routine`
@@ -173,7 +173,7 @@ class KernelModuleInlineTrans(Transformation):
         for reference in code_to_inline.walk(Reference):
             all_symbols.add(reference.symbol)
         for literal in code_to_inline.walk(Literal):
-            # Literals may reference symbols in they precision
+            # Literals may reference symbols in their precision
             if isinstance(literal.datatype.precision, Symbol):
                 all_symbols.add(literal.datatype.precision)
         for caller in code_to_inline.walk(Call):
@@ -217,12 +217,12 @@ class KernelModuleInlineTrans(Transformation):
                         code_to_inline.symbol_table.add(mod)
 
     def apply(self, node, options=None):
-        ''' Bring the kernel subroutine in this Container.
+        ''' Bring the kernel subroutine into this Container.
 
         :param node: the kernel to module-inline.
         :type node: :py:class:`psyclone.psyGen.CodedKern`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(node, options)
@@ -244,7 +244,7 @@ class KernelModuleInlineTrans(Transformation):
             # 1) Registering the subroutine symbol in the Container
             node.ancestor(Container).symbol_table.add(RoutineSymbol(name))
             # 2) Insert the relevant code into the tree.
-            node.root.addchild(code_to_inline.detach())
+            node.ancestor(Container).addchild(code_to_inline.detach())
         else:
             # The routine symbol already exist, and we know from the validation
             # that its a Routine. Now check if they are exactly the same.
@@ -263,6 +263,8 @@ class KernelModuleInlineTrans(Transformation):
                             f"name already exists and versioning of module-"
                             f"inlined subroutines is not implemented yet.")
 
-        # Once module-inlined, all kernelcalls to the same kernel in the same
-        # invoke use the inlined implementation
+        # Set the module-inline flag to avoid generating the kernel imports
+        # TODO #1823. If the kernel imports where generated at PSy-layer
+        # creation time, we could just remove it here instead of setting a
+        # flag.
         node.module_inline = True

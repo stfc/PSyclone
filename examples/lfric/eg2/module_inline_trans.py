@@ -37,7 +37,6 @@
 ''' Example transformation script showing the use of the module-inline
     transformation for the LFRic domain. '''
 
-from __future__ import print_function
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyGen import Kern
 

@@ -101,9 +101,7 @@ def check_intergrid(node):
                 f" is such a kernel.")
 
 
-    
 class OMPTaskloopTrans(ParallelLoopTrans):
-
     '''
     Adds an OpenMP taskloop directive to a loop. Only one of grainsize or
     num_tasks must be specified.
@@ -2787,26 +2785,28 @@ class KernelImportsToArguments(Transformation):
 
 
 # For Sphinx AutoAPI documentation generation
-__all__ = ["OMPLoopTrans",
-           "ACCLoopTrans",
-           "OMPParallelLoopTrans",
-           "DynamoOMPParallelLoopTrans",
-           "GOceanOMPParallelLoopTrans",
-           "Dynamo0p3OMPLoopTrans",
-           "GOceanOMPLoopTrans",
-           "ColourTrans",
-           "Dynamo0p3ColourTrans",
-           "ParallelRegionTrans",
-           "OMPSingleTrans",
-           "OMPMasterTrans",
-           "OMPParallelTrans",
-           "ACCParallelTrans",
-           "MoveTrans",
-           "Dynamo0p3RedundantComputationTrans",
-           "Dynamo0p3AsyncHaloExchangeTrans",
-           "Dynamo0p3KernelConstTrans",
-           "ACCEnterDataTrans",
-           "ACCRoutineTrans",
-           "ACCKernelsTrans",
-           "ACCDataTrans",
-           "KernelImportsToArguments"]
+__all__ = [
+   "ACCEnterDataTrans",
+   "ACCDataTrans",
+   "ACCKernelsTrans",
+   "ACCLoopTrans",
+   "ACCParallelTrans",
+   "ACCRoutineTrans",
+   "ColourTrans",
+   "Dynamo0p3AsyncHaloExchangeTrans",
+   "Dynamo0p3ColourTrans",
+   "Dynamo0p3KernelConstTrans",
+   "Dynamo0p3OMPLoopTrans",
+   "Dynamo0p3RedundantComputationTrans",
+   "DynamoOMPParallelLoopTrans",
+   "GOceanOMPLoopTrans",
+   "GOceanOMPParallelLoopTrans",
+   "KernelImportsToArguments",
+   "MoveTrans",
+   "OMPLoopTrans",
+   "OMPMasterTrans",
+   "OMPParallelLoopTrans",
+   "OMPParallelTrans",
+   "OMPSingleTrans",
+   "ParallelRegionTrans",
+]

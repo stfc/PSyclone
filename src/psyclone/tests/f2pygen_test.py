@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council
+# Copyright (c) 2017-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -282,7 +282,7 @@ def test_mod_no_implicit_none():
     assert "IMPLICIT NONE" not in str(module.root)
 
 
-def test_invalid_add_raw_subrotuine_argument():
+def test_invalid_add_raw_subroutine_argument():
     ''' test that an error is thrown if the wrong type of object
     is passed to the add_raw_subroutine method '''
     module = ModuleGen(name="test")

@@ -40,8 +40,8 @@ from psyclone.domain.common.transformations.kernel_module_inline_trans import \
     KernelModuleInlineTrans
 
 __all__ = [
-        "RaiseCall2InvokeTrans",
         "AlgInvoke2PSyCallTrans",
         "AlgTrans",
         "KernelModuleInlineTrans",
+        "RaiseCall2InvokeTrans",
         ]

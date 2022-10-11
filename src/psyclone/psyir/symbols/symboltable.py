@@ -1392,7 +1392,7 @@ class SymbolTable():
 
     def __eq__(self, other):
         '''
-        Checks whether two symbol_tables are equal.
+        Checks whether two SymbolTables are equal.
 
         # TODO 1698: Improve. Currently it uses a quick implementation
         # that only checks that the view() lines of each symbol_table
@@ -1414,6 +1414,4 @@ class SymbolTable():
             if line not in this_lines:
                 return False
             this_lines.remove(line)
-        if len(this_lines) != 0:
-            return False
-        return True
+        return len(this_lines) == 0
