@@ -47,6 +47,8 @@ from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.columnwise_operator_arg import \
     ColumnwiseOperatorArg
 from psyclone.domain.lfric.kernel.common_arg import CommonArg
+from psyclone.domain.lfric.kernel.evaluator_targets_metadata import \
+    EvaluatorTargetsMetadata
 from psyclone.domain.lfric.kernel.field_arg import FieldArg
 from psyclone.domain.lfric.kernel.field_vector_arg import FieldVectorArg
 from psyclone.domain.lfric.kernel.inter_grid_arg import InterGridArg
@@ -87,7 +89,10 @@ class LFRicKernelMetadata():
         which these functions are required. This information is provided \
         by the gh_shape component of the metadata.
     :type shapes: List[str]
-    :param operates_on: the name of the quantity that this kernel is
+    :param evaluator_targets: the function spaces on which an \
+        evaluator is required.
+    :type evaluator_targets: List[str]
+    :param operates_on: the name of the quantity that this kernel is \
         intended to iterate over.
     :type operates_on: Optional[str]
     :param procedure_name: the name of the kernel procedure to call.
@@ -97,18 +102,22 @@ class LFRicKernelMetadata():
     :type name: Optional[str]
 
     '''
-    def __init__(self, operates_on=None, shapes=None, meta_args=None,
-                 meta_funcs=None, meta_reference_element=None,
+    def __init__(self, operates_on=None, shapes=None, evaluator_targets=None,
+                 meta_args=None, meta_funcs=None, meta_reference_element=None,
                  meta_mesh=None, procedure_name=None, name=None):
         # Initialise internal variables
         self._operates_on = None
         self._shapes = None
+        self._evaluator_targets = None
         self._meta_args = None
         # Use setters to validate any supplied arguments values.
         if operates_on is not None:
             self._operates_on = OperatesOnMetadata(operates_on)
         if shapes is not None:
             self._shapes = ShapesMetadata(shapes)
+        if evaluator_targets is not None:
+            self._evaluator_targets = EvaluatorTargetsMetadata(
+                evaluator_targets)
         if meta_args is not None:
             self.meta_args = meta_args
         if meta_funcs is None:
@@ -191,6 +200,10 @@ class LFRicKernelMetadata():
             unexpected type.
 
         '''
+        # RF TODO: This method needs proper validation - It could also
+        # call create_from_psyir like other classes do and the
+        # validation done there intead of here.
+
         kernel_metadata = LFRicKernelMetadata()
 
         # Ensure the Fortran2003 parser is initialised.
@@ -227,6 +240,17 @@ class LFRicKernelMetadata():
         else:
             kernel_metadata._shapes = None
             
+        # the gh_evaluator_targets values (w0, w1, ...)
+        for fparser2_node in walk(
+                spec_part, Fortran2003.Data_Component_Def_Stmt):
+            # Is there a better way to find the required part of fparser2?
+            if "gh_evaluator_targets" in (str(fparser2_node)).lower():
+                kernel_metadata._evaluator_targets = EvaluatorTargetsMetadata.\
+                    create_from_fparser2(fparser2_node)
+                break
+        else:
+            kernel_metadata._evaluator_targets = None
+
         # the name of the procedure that this metadata refers to.
         kernel_metadata.procedure_name = LFRicKernelMetadata._get_property(
             spec_part, "code").string
@@ -403,28 +427,34 @@ class LFRicKernelMetadata():
             operates_on and procedure_name have not been set.
 
         '''
-        if not (self.name and self._meta_args and self.operates_on and
-                self.procedure_name):
+        if not (self.operates_on and self._meta_args and
+                self.procedure_name and self.name):
             raise ValueError(
-                f"Values for name, meta_args, operates_on and procedure_name "
+                f"Values for operates_on, meta_args, procedure_name and name "
                 f"must be provided before calling the fortran_string method, "
-                f"but found '{self.name}', '{self._meta_args}', "
-                f"'{self.operates_on}' and '{self.procedure_name}' "
+                f"but found '{self.operates_on}', '{self._meta_args}', "
+                f"'{self.procedure_name}' and '{self.name}' "
                 f"respectively.")
+
+        operates_on = f"  {self._operates_on.fortran_string()}"
 
         meta_args = [arg.fortran_string() for arg in self._meta_args]
         meta_args_str = ", &\n".join(meta_args)
+
+        shapes = ""
+        if self._shapes:
+            shapes = f"  {self._shapes.fortran_string()}"
+
+        evaluator_targets = ""
+        if self._evaluator_targets:
+            evaluator_targets = f"  {self._evaluator_targets.fortran_string()}"
+
         # TODO issue #1879. META_FUNCS,
         # META_REFERENCE_ELEMENT and META_MESH are not parsed
         # correctly yet.
         meta_funcs = ""
         meta_ref = ""
         meta_mesh = ""
-
-        shapes = ""
-        if self._shapes:
-            shapes = f"  {self._shapes.fortran_string()}"
-        operates_on = f"  {self._operates_on.fortran_string()}"
 
         result = (
             f"TYPE, PUBLIC, EXTENDS(kernel_type) :: {self.name}\n"
@@ -434,11 +464,33 @@ class LFRicKernelMetadata():
             f"{meta_ref}"
             f"{meta_mesh}"
             f"{shapes}"
+            f"{evaluator_targets}"
             f"{operates_on}"
             f"  CONTAINS\n"
             f"    PROCEDURE, NOPASS :: {self.procedure_name}\n"
             f"END TYPE {self.name}\n")
         return result
+
+    @property
+    def operates_on(self):
+        '''
+        :returns: the kernel operates_on property specified by the \
+            metadata.
+        :rtype: str
+        '''
+        if self._operates_on is None:
+            return None
+        else:
+            return self._operates_on.operates_on
+
+    @operates_on.setter
+    def operates_on(self, value):
+        '''
+        :param str value: set the kernel operates_on property \
+            in the metadata to the specified value.
+
+        '''
+        self._operates_on = OperatesOnMetadata(value)
 
     @property
     def shapes(self):
@@ -463,25 +515,71 @@ class LFRicKernelMetadata():
         self._shapes = ShapesMetadata(values)
 
     @property
-    def operates_on(self):
+    def evaluator_targets(self):
         '''
-        :returns: the kernel operates_on property specified by the \
-            metadata.
-        :rtype: str
+        :returns: a list of evaluator_targets metadata values.
+        :rtype: Optional[List[str]]
+
         '''
-        if self._operates_on is None:
+        if self._evaluator_targets is None:
             return None
         else:
-            return self._operates_on.operates_on
+            return self._evaluator_targets.evaluator_targets
 
-    @operates_on.setter
-    def operates_on(self, value):
+    @evaluator_targets.setter
+    def evaluator_targets(self, values):
         '''
-        :param str value: set the kernel operates_on property \
-            in the metadata to the specified value.
+        :param values: set the evaluator_targets metadata to the \
+            supplied list of values.
+        :type values: List[str]
 
         '''
-        self._operates_on = OperatesOnMetadata(value.lower())
+        self._evaluator_targets = EvaluatorTargetsMetadata(values)
+
+    @property
+    def meta_args(self):
+        '''
+        :returns: a list of 'meta_arg' objects which capture the \
+            metadata values of the kernel arguments.
+        :rtype: Optional[List[:py:class:`psyclone.domain.lfric.kernel.\
+            CommonArg`]]
+
+        '''
+        if self._meta_args is None:
+            return self._meta_args
+        # _meta_args is a list. Return a copy so that it can't be
+        # modified externally
+        return self._meta_args[:]
+
+    @meta_args.setter
+    def meta_args(self, values):
+        '''
+        :param values: set the meta_args metadata to the supplied list \
+            of values.
+        :type values: List[:py:class:`psyclone.domain.lfric.kernel.CommonArg`]
+
+        raises TypeError: if the supplied value is not a list.
+        raises TypeError: if the supplied value is an empty list.
+        raises TypeError: if any entry in the list is not of the \
+            required type.
+
+        '''
+        if not isinstance(values, list):
+            raise TypeError(f"meta_args should be a list but found "
+                            f"'{type(values).__name__}'.")
+        if not values:
+            raise TypeError(
+                "The meta_args list should contain at least one entry, but "
+                "it is empty.")
+        for entry in values:
+            if not isinstance(entry, CommonArg):
+                raise TypeError(
+                    f"meta_args should be a list of argument objects "
+                    f"(of type CommonArg), but found "
+                    f"'{type(entry).__name__}'.")
+        # Take a copy of the list so that it can't be modified
+        # externally
+        self._meta_args = values[:]
 
     @property
     def procedure_name(self):
@@ -532,48 +630,3 @@ class LFRicKernelMetadata():
                 f"Expected name to be a valid Fortran name but found "
                 f"'{value}'.")
         self._name = value
-
-    @property
-    def meta_args(self):
-        '''
-        :returns: a list of 'meta_arg' objects which capture the \
-            metadata values of the kernel arguments.
-        :rtype: Optional[List[:py:class:`psyclone.domain.lfric.kernel.\
-            CommonArg`]]
-
-        '''
-        if self._meta_args is None:
-            return self._meta_args
-        # _meta_args is a list. Return a copy so that it can't be
-        # modified externally
-        return self._meta_args[:]
-
-    @meta_args.setter
-    def meta_args(self, values):
-        '''
-        :param values: set the meta_args metadata to the supplied list \
-            of values.
-        :type values: List[:py:class:`psyclone.domain.lfric.kernel.CommonArg`]
-
-        raises TypeError: if the supplied value is not a list.
-        raises TypeError: if the supplied value is an empty list.
-        raises TypeError: if any entry in the list is not of the \
-            required type.
-
-        '''
-        if not isinstance(values, list):
-            raise TypeError(f"meta_args should be a list but found "
-                            f"'{type(values).__name__}'.")
-        if not values:
-            raise TypeError(
-                "The meta_args list should contain at least one entry, but "
-                "it is empty.")
-        for entry in values:
-            if not isinstance(entry, CommonArg):
-                raise TypeError(
-                    f"meta_args should be a list of argument objects "
-                    f"(of type CommonArg), but found "
-                    f"'{type(entry).__name__}'.")
-        # Take a copy of the list so that it can't be modified
-        # externally
-        self._meta_args = values[:]
