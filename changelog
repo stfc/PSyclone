@@ -148,6 +148,15 @@
 	53) PR #1900 for #1893. Fix bug in is_upper/lower_bound for non-typed
 	Symbols.
 
+	54) PR #1782 for #1496. Adds initial support for PSyAD test
+	harness generation for LFRic kernels. Some issues remain.
+
+	55) PR #1807 towards #1806. Adds PSyIR support for LFRic kernel
+	metadata.
+
+	56) PR #1906 for #1896. Update HoistLocalArrayTrans to avoid hoisting
+	parameter arrays and, unless explicitly requested, device parallel routines.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.

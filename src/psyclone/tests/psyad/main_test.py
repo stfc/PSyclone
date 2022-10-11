@@ -67,32 +67,32 @@ EXPECTED_HARNESS_CODE = ('''program adj_test
   real :: inner2
   real :: field
   real :: field_input
-  real :: MachineTol
+  real :: machinetol
   real :: relative_diff
 
-  ! Initialise the kernel arguments and keep copies of them
-  CALL random_number(field)
+  ! initialise the kernel arguments and keep copies of them
+  call random_number(field)
   field_input = field
-  ! Call the tangent-linear kernel
+  ! call the tangent-linear kernel
   call kern(field)
-  ! Compute the inner product of the results of the tangent-linear kernel
+  ! compute the inner product of the results of the tangent-linear kernel
   inner1 = 0.0
   inner1 = inner1 + field * field
-  ! Call the adjoint of the kernel
+  ! call the adjoint of the kernel
   call adj_kern(field)
-  ! Compute inner product of results of adjoint kernel with the original \
+  ! compute inner product of results of adjoint kernel with the original \
 inputs to the tangent-linear kernel
   inner2 = 0.0
   inner2 = inner2 + field * field_input
-  ! Test the inner-product values for equality, allowing for the precision \
+  ! test the inner-product values for equality, allowing for the precision \
 of the active variables
-  MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
-  relative_diff = ABS(inner1 - inner2) / MachineTol
+  machinetol = spacing(max(abs(inner1), abs(inner2)))
+  relative_diff = abs(inner1 - inner2) / machinetol
   if (relative_diff < overall_tolerance) then
-    WRITE(*, *) 'Test of adjoint of ''kern'' PASSED: ', inner1, inner2, \
+    write(*, *) 'test of adjoint of ''kern'' passed: ', inner1, inner2, \
 relative_diff
   else
-    WRITE(*, *) 'Test of adjoint of ''kern'' FAILED: ', inner1, inner2, \
+    write(*, *) 'test of adjoint of ''kern'' failed: ', inner1, inner2, \
 relative_diff
   end if
 
@@ -134,6 +134,9 @@ def test_main_h_option(capsys):
         "  -otest TEST_FILENAME  filename for the unit test (implies -t)\n"
         "  -oad OAD              filename for the transformed code\n")
     assert expected3 in output
+    assert ("-otest TEST_FILENAME  filename for the unit test (implies -t)"
+            in output)
+    assert "-oad OAD              filename for the transformed code" in output
 
 
 # no args
@@ -380,7 +383,7 @@ def test_main_t_option(tmpdir, capsys):
     main([filename_in, "-oad", filename_out, "-t", "-a", "field"])
     output, error = capsys.readouterr()
     assert error == ""
-    assert EXPECTED_HARNESS_CODE in output
+    assert EXPECTED_HARNESS_CODE in output.lower()
 
 
 @pytest.mark.parametrize("extra_args", [[], ["-t"]])
@@ -400,7 +403,7 @@ def test_main_otest_option(tmpdir, capsys, extra_args):
     assert output == ""
     with open(harness_out, 'r', encoding='utf-8') as my_file:
         data = my_file.read()
-    assert EXPECTED_HARNESS_CODE in data
+    assert EXPECTED_HARNESS_CODE in data.lower()
 
 
 # -v output

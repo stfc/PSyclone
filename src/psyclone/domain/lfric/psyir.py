@@ -288,6 +288,9 @@ def add_lfric_precision_symbol(table, name):
     :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
     :param str name: name of the LFRic precision symbol to add to table.
 
+    :returns: the specified LFRic precision symbol.
+    :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
     :raises ValueError: if the supplied name is not a recognised LFRic \
         precision variable.
     :raises ValueError: if a symbol with the same name is already in the \
@@ -315,12 +318,13 @@ def add_lfric_precision_symbol(table, name):
                 f"Precision symbol '{name}' already exists in the supplied"
                 f" symbol table but is not imported from the LFRic constants "
                 f"module ({CONSTANTS_MOD.name}).")
-        return
+        return existing_sym
 
     # pylint: disable=undefined-variable
     if CONSTANTS_MOD.name not in table:
         table.add(CONSTANTS_MOD)
     table.add(sym)
+    return sym
 
 
 __all__ = ["add_lfric_precision_symbol"]
