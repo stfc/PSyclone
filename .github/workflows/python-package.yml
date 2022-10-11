@@ -125,7 +125,7 @@ jobs:
         # submodule instead of the released version (from PyPI) then
         # uncomment the following line:
         pip install external/fparser
-        #pip install .
+        pip install .
     - name: Lint with flake8
       run: |
         # Stop the build if there are Python syntax errors or undefined names.
