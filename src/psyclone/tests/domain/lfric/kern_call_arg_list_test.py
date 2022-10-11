@@ -39,11 +39,14 @@
 
 import os
 
-from psyclone.domain.lfric import (KernCallArgList)
+import pytest
+
+from psyclone.domain.lfric import KernCallArgList
+from psyclone.errors import InternalError
+from psyclone.dynamo0p3 import DynKern
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Reference
-from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_base_path, get_invoke
 
 TEST_API = "dynamo0.3"
@@ -90,13 +93,12 @@ def test_field_prolong(dist_mem, fortran_writer):
     check_psyir_results(create_arg_list, fortran_writer)
 
 
-def test_kerncallarglist_2qr_shapes(dist_mem, tmpdir, fortran_writer):
-    ''' Check the handling of basis, diff_basis, and quad_rule '''
+def test_kerncallarglist_face_xyoz(dist_mem, fortran_writer):
+    ''' Check the handling of basis, diff_basis, and face and xyoz
+    quadrature.'''
 
     psy, _ = get_invoke("1.1.9_single_invoke_2qr_shapes_int_field.f90",
                         TEST_API, dist_mem=dist_mem, idx=0)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     schedule = psy.invokes.invoke_list[0].schedule
     create_arg_list = KernCallArgList(schedule.kernels()[0])
@@ -115,3 +117,37 @@ def test_kerncallarglist_2qr_shapes(dist_mem, tmpdir, fortran_writer):
         'np_xyz_qr_face', 'weights_xyz_qr_face']
 
     check_psyir_results(create_arg_list, fortran_writer)
+
+
+def test_kerncallarglist_face_edge(dist_mem, fortran_writer):
+    ''' Check the handling of basis, diff_basis, and quad_rule, including
+    face and edge quadrature
+    '''
+
+    psy, _ = get_invoke("1.1.7_face_and_edge_qr.f90",
+                        TEST_API, dist_mem=dist_mem, idx=0)
+
+    schedule = psy.invokes.invoke_list[0].schedule
+    create_arg_list = KernCallArgList(schedule.kernels()[0])
+
+    create_arg_list.generate()
+    assert create_arg_list._arglist == [
+        'nlayers', 'f1_proxy%data', 'f2_proxy%data', 'm1_proxy%data',
+        'm2_proxy%data', 'ndf_w1', 'undf_w1', 'map_w1(:,cell)',
+        'basis_w1_qr_face', 'basis_w1_qr_edge', 'ndf_w2', 'undf_w2',
+        'map_w2(:,cell)', 'diff_basis_w2_qr_face', 'diff_basis_w2_qr_edge',
+        'ndf_w3', 'undf_w3', 'map_w3(:,cell)', 'basis_w3_qr_face',
+        'basis_w3_qr_edge', 'diff_basis_w3_qr_face', 'diff_basis_w3_qr_edge',
+        'nfaces_qr_face', 'np_xyz_qr_face', 'weights_xyz_qr_face',
+        'nedges_qr_edge', 'np_xyz_qr_edge', 'weights_xyz_qr_edge']
+
+    check_psyir_results(create_arg_list, fortran_writer)
+
+    # Test that invalid kernel arguments raise the expected error:
+    create_arg_list._kern._qr_rules["gh_quadrature_face"] = \
+        DynKern.QRRule("invalid", "invalid", ["invalid"])
+
+    with pytest.raises(InternalError) as err:
+        create_arg_list.generate()
+
+    assert "Found invalid kernel argument 'invalid'" in str(err.value)

@@ -813,7 +813,9 @@ class KernCallArgList(ArgOrdering):
             for arg in rule.kernel_args:
                 # Remove "_PSY_NAME" which was added to all variable names:
                 generic_name = arg[:-len(rule.psy_name)-1]
-                if generic_name in ["np_xy", "np_z", "nfaces", "np_xyz"]:
+                # nedges, nedges_qr, nedges_qr_edge
+                if generic_name in ["np_xy", "np_z", "nfaces", "np_xyz",
+                                    "nedges"]:
                     self.add_integer_reference(arg, )
                 elif generic_name in ["weights_xy", "weights_z"]:
                     # TODO: These should be pointers
@@ -822,7 +824,8 @@ class KernCallArgList(ArgOrdering):
                     # TODO: These should be pointers
                     self.add_array_reference(arg, [":", ":"], "real")
                 else:
-                    pass
+                    raise InternalError(f"Found invalid kernel argument "
+                                        f"'{arg}'.")
 
     @property
     def nlayers_positions(self):
