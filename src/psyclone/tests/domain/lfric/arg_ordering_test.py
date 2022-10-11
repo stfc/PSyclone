@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,12 +37,13 @@
 
 ''' This module tests the LFric classes based on ArgOrdering.'''
 
-from __future__ import absolute_import
 import os
 import pytest
 
+from psyclone.core import AccessType, VariablesAccessInfo, Signature
 from psyclone.domain.lfric import (KernCallArgList,
                                    KernStubArgList, LFRicConstants)
+from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynLoop
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
@@ -51,6 +52,64 @@ from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_ast, get_base_path, get_invoke
 
 TEST_API = "dynamo0.3"
+
+
+def test_argordering_append():
+    '''
+    Tests for the append() method of ArgOrdering.
+
+    '''
+    full_path = os.path.join(get_base_path(TEST_API),
+                             "1.0.1_single_named_invoke.f90")
+    _, invoke_info = parse(full_path, api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kern = schedule.walk(DynKern)[0]
+    arg_list = ArgOrdering(kern)
+    arg_list.append("roger")
+    assert len(arg_list._arglist) == 1
+    assert arg_list._arg_index_to_metadata_index[0] is None
+    arg_list.append("susan", metadata_posn=3)
+    assert len(arg_list._arglist) == 2
+    assert arg_list._arg_index_to_metadata_index[1] == 3
+    # Access info captured.
+    vinfo = VariablesAccessInfo()
+    arg_list.append("beckfoot", var_accesses=vinfo, mode=AccessType.WRITE)
+    assert len(arg_list._arglist) == 3
+    assert vinfo.all_signatures == [Signature("beckfoot")]
+    # Alternate name supplied for the access.
+    arg_list.append("john", var_access_name="john_walker",
+                    var_accesses=vinfo, mode=AccessType.WRITE)
+    assert vinfo.is_written(Signature("john_walker"))
+
+
+def test_argordering_extend():
+    '''
+    Tests for the extend() method of ArgOrdering.
+
+    '''
+    full_path = os.path.join(get_base_path(TEST_API),
+                             "10.7_operator_read.f90")
+    _, invoke_info = parse(full_path, api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kern = schedule.walk(DynKern)[0]
+    arg_list = ArgOrdering(kern)
+    arg_list.append("roger")
+    arg_list.extend(["peggy", "nancy"])
+    assert len(arg_list._arglist) == 3
+    vinfo = VariablesAccessInfo()
+    arg_list.extend(["flint", "captain"], var_accesses=vinfo,
+                    mode=AccessType.WRITE)
+    assert len(arg_list._arglist) == 5
+    assert Signature("flint") in vinfo.all_signatures
+    assert Signature("captain") in vinfo.all_signatures
+    assert vinfo.is_written(Signature("flint"))
+    arg_list.extend(["richard", "dorothea"], var_accesses=vinfo,
+                    mode=AccessType.READ, list_metadata_posn=[5, 7])
+    assert len(arg_list._arglist) == 7
+    assert arg_list._arg_index_to_metadata_index[5] == 5
+    assert arg_list._arg_index_to_metadata_index[6] == 7
 
 
 def test_unexpected_type_error(dist_mem):
@@ -65,12 +124,7 @@ def test_unexpected_type_error(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    if dist_mem:
-        index = 4
-    else:
-        index = 0
-    loop = schedule.children[index]
-    kernel = loop.loop_body[0]
+    kernel = schedule.walk(DynKern)[0]
     # Sabotage one of the arguments to make it have an invalid type.
     kernel.arguments.args[0]._argument_type = "invalid"
     # Now call KernCallArgList to raise an exception
@@ -156,6 +210,27 @@ def test_arg_ordering_generate_cma_kernel(dist_mem):
         'cbanded_map_adspc2_lma_op1']
 
 
+def test_arg_ordering_mdata_index():
+    '''
+    Check that the metadata_index_from_actual_index() method of ArgOrdering
+    works as expected.
+
+    '''
+    full_path = os.path.join(get_base_path(TEST_API),
+                             "1.0.1_single_named_invoke.f90")
+    _, invoke_info = parse(full_path, api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernels = schedule.walk(DynKern)
+    arg_list = ArgOrdering(kernels[0])
+    arg_list.generate()
+    # Scalar argument.
+    assert arg_list.metadata_index_from_actual_index(0) == 0
+    with pytest.raises(KeyError):
+        arg_list.metadata_index_from_actual_index(20)
+
+
 def test_kernel_stub_ind_dofmap_errors():
     '''Check that we raise the expected exceptions if the wrong arguments
     are supplied to KernelStubArgList.indirection_dofmap() '''
@@ -239,6 +314,33 @@ def test_kerncallarglist_quad_rule_error(dist_mem, tmpdir):
         create_arg_list.quad_rule()
     assert ("no support implemented for quadrature with a shape of 'broken'"
             in str(err.value))
+
+
+def test_kerncallarglist_metadata_index_op_vector():
+    '''
+    Check that the lookup_metadata_index() and
+    metadata_index_from_actual_index() methods of KernCallArgList work
+    as expected for operator and field-vector arguments.
+
+    '''
+    full_path = os.path.join(get_base_path(TEST_API),
+                             "4.4_multikernel_invokes.f90")
+    _, invoke_info = parse(full_path, api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernels = schedule.walk(DynKern)
+    arg_list = KernCallArgList(kernels[0])
+    arg_list.generate()
+    # Operator
+    assert arg_list.metadata_index_from_actual_index(3) == 0
+    # All three members of the vector originate from a single argument
+    # description in the metadata.
+    assert arg_list.metadata_index_from_actual_index(4) == 1
+    assert arg_list.metadata_index_from_actual_index(5) == 1
+    assert arg_list.metadata_index_from_actual_index(6) == 1
+    # Scalar
+    assert arg_list.metadata_index_from_actual_index(7) == 2
 
 
 def test_kernstubarglist_arglist_error():
