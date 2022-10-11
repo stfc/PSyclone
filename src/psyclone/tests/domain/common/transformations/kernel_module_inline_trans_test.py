@@ -375,6 +375,26 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     result = fortran_writer(routine)
     assert "use external_mod1, only : my_sub" in result
 
+    # Check that symbol shadowing is respected (in this example
+    # only 'c' must be brought into the subroutine)
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+        use external_mod1, only: a,b,c
+        use not_needed
+        implicit none
+        contains
+        subroutine code()
+            real :: a,b
+            a = b + c
+        end subroutine code
+    end module my_mod
+    ''')
+
+    routine = psyir.walk(Routine)[0]
+    inline_trans._prepare_code_to_inline(routine)
+    result = fortran_writer(routine)
+    assert "use external_mod1, only : c" in result
+
 
 def test_module_inline_lfric(tmpdir, monkeypatch, annexed, dist_mem):
     '''Tests that correct results are obtained when a kernel is inlined
