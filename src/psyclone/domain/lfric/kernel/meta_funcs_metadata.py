@@ -33,82 +33,86 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing the EvaluatorTargetsMetadata class which captures
-the values for the LFRic kernel GH_EVALUATOR_TARGETS metadata.
+'''Module containing the MetaFuncsMetadata class which captures
+the values for the LFRic kernel meta_funcs metadata.
 
 '''
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.common_declaration_metadata import \
     CommonDeclarationMetadata
+from psyclone.domain.lfric.kernel.meta_funcs_arg_metadata import \
+    MetaFuncsArgMetadata
 
 
-class EvaluatorTargetsMetadata(CommonDeclarationMetadata):
+class MetaFuncsMetadata(CommonDeclarationMetadata):
     '''Class to capture the values of the LFRic kernel
-    GH_EVALUATOR_TARGETS metadata.  This class supports the creation,
+    meta_funcs metadata. This class supports the creation,
     modification and Fortran output of this metadata.
 
-    if an evaluator is required for multiple function spaces then
-    this is specified using the gh_evaluator_targets
-    metadata.
+    meta_funcs metadata specifies whether any quadrature or evaluator
+    data is required for a given function space.
 
-    :param evaluator_targets: a list of evaluator_targets values
-    :type evaluator_targets: List[str]
+    :param meta_funcs_args: a list of meta_funcs arguments.
+    :type meta_funcs_args: List[MetaFuncsArgMetadata]
 
     '''
-    def __init__(self, evaluator_targets):
-        self.evaluator_targets = evaluator_targets
+    def __init__(self, meta_funcs_args):
+        self.meta_funcs_args = meta_funcs_args
 
     def fortran_string(self):
         '''
-         :returns: the evaluator_targets metadata as Fortran.
+         :returns: the meta_funcs metadata as Fortran.
          :rtype: str
         '''
-        return EvaluatorTargetsMetadata.array_declaration_string(
-            "INTEGER", "GH_EVALUATOR_TARGETS", self._evaluator_targets)
+        return MetaFuncsMetadata.type_declaration_string(
+            "FUNC_TYPE", "META_FUNCS", self._meta_funcs_args)
 
     @staticmethod
     def create_from_fparser2(fparser2_tree):
-        '''Create an instance of EvaluatorTargetsMetadata from an fparser2
+        '''Create an instance of MetaFuncsMetadata from an fparser2
         tree.
 
-        LFRic evaluator targets metadata is in array form. Two
+        LFRic meta funcs metadata is in array form. Two
         versions of the array form are supported:
 
-        integer :: gh_evaluator_targets(2) = (/ w0, w1 /)
-        integer, dimension(2) :: gh_shape = (/ w0, w1 /)
+        type(func_type) :: meta_funcs(1) = (/ ... /)
+        type(func_type), dimension(1) :: meta_funcs = (/ ... /)
 
-        :param fparser2_tree: fparser2 tree capturing the evaluator \
-            targets metadata.
+        :param fparser2_tree: fparser2 tree capturing the meta \
+            funcs metadata.
 
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.\
             Data_Component_Def_Stmt`
 
-        :returns: an instance of EvaluatorTargetsMetadata.
+        :returns: an instance of MetaFuncsMetadata.
         :rtype: :py:class:`psyclone.domain.lfric.kernel.\
-            EvaluatorTargetsMetadata`
+            MetaFuncsMetadata`
 
         '''
-        const = LFRicConstants()
-        valid_values = const.VALID_FUNCTION_SPACES
-        values_list = EvaluatorTargetsMetadata.\
-            validate_intrinsic_array_declaration(
-                fparser2_tree, "INTEGER", "GH_EVALUATOR_TARGETS", valid_values)
-        return EvaluatorTargetsMetadata(values_list)
+        values_list = MetaFuncsMetadata.validate_derived_array_declaration(
+            fparser2_tree, "FUNC_TYPE", "META_FUNCS", MetaFuncsArgMetadata)
+        meta_obj_list = []
+        for value in values_list:
+            meta_obj_list.append(
+                MetaFuncsArgMetadata.create_from_fortran_string(value))
+        return MetaFuncsMetadata(meta_obj_list)
 
     @property
-    def evaluator_targets(self):
+    def meta_funcs_args(self):
         '''
-        :returns: a list of evaluator targets values.
-        :rtype: List[str]
+        :returns: a list of meta funcs argument objects.
+        :rtype: List[:py:class:`psyclone.domain.lfric.kernel.\
+            MetaFuncsArgMetadata`]
         '''
-        return self._evaluator_targets[:]
+        return self._meta_funcs_args[:]
 
-    @evaluator_targets.setter
-    def evaluator_targets(self, values):
+    @meta_funcs_args.setter
+    def meta_funcs_args(self, values):
         '''
-        :param values: set the evaluator_targets metadata to the \
+        :param values: set the meta_funcs metadata to the \
             supplied list of values.
-        :type values: List[str]
+        :type values: List[:py:class:`psyclone.domain.lfric.kernel.\
+            MetaFuncsArgMetadata`]
 
         raises TypeError: if the supplied value is not a list.
         raises TypeError: if the supplied value is an empty list.
@@ -117,23 +121,19 @@ class EvaluatorTargetsMetadata(CommonDeclarationMetadata):
 
         '''
         if not isinstance(values, list):
-            raise TypeError(f"evaluator_targets values should be provided as "
+            raise TypeError(f"meta_funcs values should be provided as "
                             f"a list but found '{type(values).__name__}'.")
         if not values:
             raise TypeError(
-                "The evaluator_targets list should contain at least one "
+                "The meta_funcs list should contain at least one "
                 "entry, but it is empty.")
         const = LFRicConstants()
         for value in values:
-            if not isinstance(value, str):
+            if not isinstance(value, MetaFuncsArgMetadata):
                 raise TypeError(
-                    f"The evaluator_targets list should be a list of str, "
-                    f"but found '{type(value).__name__}'.")
-            if value.lower() not in const.VALID_FUNCTION_SPACES:
-                raise ValueError(
-                    f"The evaluator_targets metadata should be a recognised "
-                    f"value (one of {const.VALID_FUNCTION_SPACES}) "
-                    f"but found '{value}'.")
+                    f"The meta_funcs list should be a list containing objects "
+                    f"of type MetaFuncsArgMetadata but found "
+                    f"'{type(value).__name__}'.")
         # Take a copy of the list so that it can't be modified
-        # externally. Also make all values lower case.
-        self._evaluator_targets = [value.lower() for value in values]
+        # externally.
+        self._meta_funcs_args = values[:]

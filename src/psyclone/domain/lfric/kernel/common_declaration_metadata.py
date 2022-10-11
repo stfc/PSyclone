@@ -59,6 +59,14 @@ class CommonDeclarationMetadata:
         num_values = len(values)
         return f"{datatype} :: {name}({num_values}) = (/{values_str}/)\n"
 
+    def type_declaration_string(datatype, name, values):
+        ''' xxx '''
+        values_str_list = [value.fortran_string() for value in values]
+        values_str = ", ".join(values_str_list)
+        num_values = len(values)
+        return (
+            f"type({datatype}) :: {name}({num_values}) = (/{values_str}/)\n")
+
     @classmethod
     def create_from_fortran_string(cls, fortran_string):
         '''Create an instance of this class from Fortran.
@@ -122,18 +130,35 @@ class CommonDeclarationMetadata:
                 f"'{type(fparser2_node).__name__}' with value "
                 f"'{str(fparser2_node)}'.")
 
-    def validate_datatype_name_value(fparser2_tree, datatype, name):
+    def validate_derived(fparser2_tree, type_name, name):
         ''' xxx '''
-        # INTEGER
         # fparser2_tree.children[0] should be an Intrinsic_Type_Spec
-        # and its first child should be a str containing "integer"
+        # and its first child should be a str containing "datatype"
+        if not (isinstance(fparser2_tree.children[0],
+                           Fortran2003.Declaration_Type_Spec) and
+                fparser2_tree.children[0].children[1].string.lower() == \
+                type_name.lower()):
+            raise TypeError(
+                f"In Fortran, {name} metadata should be encoded as a "
+                f"'type({type_name})', but found "
+                f"'{str(fparser2_tree.children[0])}' in "
+                "'{str(fparser2_tree)}'.")
+
+    def validate_intrinsic(fparser2_tree, datatype, name):
+        ''' xxx '''
+        # fparser2_tree.children[0] should be an Intrinsic_Type_Spec
+        # and its first child should be a str containing "datatype"
         if not (isinstance(fparser2_tree.children[0],
                            Fortran2003.Intrinsic_Type_Spec) and
-                fparser2_tree.children[0].children[0].lower() == "integer"):
+                fparser2_tree.children[0].children[0].lower() == \
+                datatype.lower()):
             raise TypeError(
                 f"In Fortran, {name} metadata should be encoded as an "
-                f"INTEGER, but found '{str(fparser2_tree.children[0])}' "
+                f"{datatype}, but found '{str(fparser2_tree.children[0])}' "
                 f"in '{str(fparser2_tree)}'.")
+
+    def validate_datatype_name_value(fparser2_tree, datatype, name):
+        ''' xxx '''
 
         # GH_SHAPE
         # fparser2_tree.children[2] will be an Component_Decl_List, it
@@ -159,11 +184,13 @@ class CommonDeclarationMetadata:
                 f"{name} should be set to a value but none was found, in "
                 f"'{str(fparser2_tree)}'.")
     
-    def validate_scalar_declaration(
+    def validate_intrinsic_scalar_declaration(
             fparser2_tree, datatype, name, valid_values):
         ''' xxx '''
         CommonDeclarationMetadata.validate_node(
             fparser2_tree, Fortran2003.Data_Component_Def_Stmt)
+        CommonDeclarationMetadata.validate_intrinsic(
+            fparser2_tree, "INTEGER", name)
         CommonDeclarationMetadata.validate_datatype_name_value(
             fparser2_tree, datatype, name)
         if fparser2_tree.children[1]:
@@ -186,12 +213,38 @@ class CommonDeclarationMetadata:
             scalar_value, valid_values, name)
         return scalar_value
 
-    def validate_array_declaration(fparser2_tree, datatype, name, valid_values):
+    def validate_intrinsic_array_declaration(
+            fparser2_tree, datatype, name, valid_values):
         ''' xxx '''
         CommonDeclarationMetadata.validate_node(
             fparser2_tree, Fortran2003.Data_Component_Def_Stmt)
+        CommonDeclarationMetadata.validate_intrinsic(
+            fparser2_tree, datatype, name)
         CommonDeclarationMetadata.validate_datatype_name_value(
             fparser2_tree, datatype, name)
+        shapes_list = CommonDeclarationMetadata.validate_array(
+            fparser2_tree, name)
+        for shape in shapes_list:
+            CommonDeclarationMetadata.validate_scalar_value(
+                shape, valid_values, name)
+        return shapes_list
+
+    def validate_derived_array_declaration(
+            fparser2_tree, type_name, name, value_class):
+        ''' xxx '''
+        CommonDeclarationMetadata.validate_node(
+            fparser2_tree, Fortran2003.Data_Component_Def_Stmt)
+        CommonDeclarationMetadata.validate_derived(
+            fparser2_tree, type_name, name)
+        CommonDeclarationMetadata.validate_datatype_name_value(
+            fparser2_tree, type_name, name)
+        values_list = CommonDeclarationMetadata.validate_array(
+            fparser2_tree, name)
+        for value in values_list:
+            _ = value_class.create_from_fortran_string(value)
+        return values_list
+
+    def validate_array(fparser2_tree, name):
         # validate array extent
         component_decl_list = fparser2_tree.children[2]
         gh_shape_declaration = component_decl_list.children[0]
@@ -244,9 +297,7 @@ class CommonDeclarationMetadata:
                 f"'{str(fparser2_tree)}'.")
         shapes_list = []
         for value in array_constructor.children[1].children:
-            value_str = str(value).lower()
-            CommonDeclarationMetadata.validate_scalar_value(
-                value_str, valid_values, name)
+            value_str = str(value)
             shapes_list.append(value_str)
 
         if len(shapes_list) != extent_value:
@@ -274,6 +325,11 @@ class CommonDeclarationMetadata:
             [0] Intrinsic_Type_Spec
                 [0] <str> INTEGER
                 [1] <NoneType>
+            or
+            [0] Declaration_Type_Spec
+                [0] <str> TYPE
+                [1] Type_Name.string: func_type
+        
             [1] Component_Attr_Spec_List or <NoneType>
                 ...
                 Dimension_Component_Attr_Spec

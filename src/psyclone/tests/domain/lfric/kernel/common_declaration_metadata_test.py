@@ -121,13 +121,13 @@ def test_create_from_fparser2_error():
             "Data_Component_Def_Stmt object but found type 'NoneType' with "
             "value 'None'." in str(info.value))
 
-    fortran_string = "real :: gh_shape"
+    fortran_string = "real :: gh_shape = value"
     fparser2_tree = ShapesMetadata.create_fparser2(
         fortran_string, Fortran2003.Data_Component_Def_Stmt)
     with pytest.raises(TypeError) as info:
         ShapesMetadata.create_from_fparser2(fparser2_tree)
     assert ("In Fortran, GH_SHAPE metadata should be encoded as an INTEGER, "
-            "but found 'REAL' in 'REAL :: gh_shape'."
+            "but found 'REAL' in 'REAL :: gh_shape = value'."
             in str(info.value))
 
     fortran_string = "integer :: gh_shape, gh_shape2"
