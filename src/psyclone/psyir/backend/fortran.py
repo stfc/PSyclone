@@ -1647,6 +1647,7 @@ class FortranWriter(LanguageWriter):
                 result_list.append(self._visit(child))
         args = ", ".join(result_list)
         if isinstance(node, IntrinsicCall):
+            # An IntrinsicCall doesn't have 'call'.
             return f"{self._nindent}{node.routine.name}({args})\n"
         if not node.parent or isinstance(node.parent, Schedule):
             return f"{self._nindent}call {node.routine.name}({args})\n"

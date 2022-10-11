@@ -80,16 +80,8 @@ class IntrinsicCall(Call):
     _required_args[Intrinsic.RANDOM.name] = [Reference]
     _optional_args[Intrinsic.RANDOM.name] = {}
 
-    def __init__(self, intrinsic, parent=None):
-        if not isinstance(intrinsic, self.Intrinsic):
-            raise TypeError(
-                f"IntrinsicCall 'intrinsic' argument should be a "
-                f"IntrinsicCall.Intrinsic but found "
-                f"'{type(intrinsic).__name__}'.")
-        super().__init__(IntrinsicSymbol(intrinsic.name), parent=parent)
-
-    @staticmethod
-    def create(intrinsic, arguments):
+    @classmethod
+    def create(cls, intrinsic, arguments):
         '''Create an instance of class cls given valid instances of a routine
         symbol, and a list of child nodes (or name and node tuple) for
         its arguments.
@@ -114,16 +106,14 @@ class IntrinsicCall(Call):
             argument are not the expected type.
 
         '''
-        if not isinstance(arguments, list):
+        if not isinstance(intrinsic, IntrinsicCall.Intrinsic):
             raise TypeError(
                 f"IntrinsicCall create arguments argument should be a list "
                 f"but found '{type(arguments).__name__}'.")
 
-        #call = IntrinsicCall(intrinsic)
-
         # Create a call, supplying an IntrinsicSymbol in place of a
         # RoutineSymbol.
-        call = Call.create(IntrinsicSymbol(intrinsic.name), arguments)
+        call = super().create(IntrinsicSymbol(intrinsic.name), arguments)
 
         # Validate the supplied arguments.
         arg_pos = 0

@@ -60,7 +60,7 @@ from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     Symbol, ImportInterface, ArgumentInterface, UnresolvedInterface, \
     LocalInterface, ScalarType, ArrayType, DeferredType, UnknownType, \
     UnknownFortranType, StructureType, DataTypeSymbol, RoutineSymbol, \
-    SymbolTable, NoType, INTEGER_TYPE
+    SymbolTable, NoType, INTEGER_TYPE, IntrinsicSymbol
 
 #: The list of Fortran instrinsic functions that we know about (and can
 #: therefore distinguish from array accesses). These are taken from
@@ -2340,16 +2340,16 @@ class Fparser2Reader(object):
         :rtype: :py:class:`psyclone.psyir.nodes.Call`
 
         '''
-        call = IntrinsicCall(IntrinsicCall.Intrinsic.ALLOCATE, parent=parent)
+        call = IntrinsicCall(
+            IntrinsicSymbol(IntrinsicCall.Intrinsic.ALLOCATE.name),
+            parent=parent)
         alloc_list = node.children[1].children
         for alloc in alloc_list:
             name = alloc.children[0].string
             symbol = _find_or_create_imported_symbol(parent, name)
             ref = ArrayReference(symbol, parent=call)
             shape_spec_list = alloc.children[1]
-            #import pdb; pdb.set_trace()
             for spec in shape_spec_list.children:
-                #self._subscript_triplet_handler(spec, parent=ref)
                 self.process_nodes(parent=ref, nodes=[spec])
             call.addchild(ref)
         # Handle any options to the allocate()

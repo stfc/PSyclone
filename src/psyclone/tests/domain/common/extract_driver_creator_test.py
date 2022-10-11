@@ -126,7 +126,7 @@ def test_driver_creation1(tmpdir):
   call extract_psy_data%OpenRead('psy_extract_example_with_various_variable_''' \
   '''access_patterns', 'invoke_0_compute_kernel:compute_kernel_code:r0')
   call extract_psy_data%ReadVariable('out_fld_post', out_fld_post)
-  ALLOCATE(out_fld(SIZE(out_fld_post, 1), SIZE(out_fld_post, 2)))
+  ALLOCATE(out_fld, mold=out_fld_post)
   out_fld = 0
   call extract_psy_data%ReadVariable('in_fld', in_fld)
   call extract_psy_data%ReadVariable('in_out_fld_post', in_out_fld_post)
@@ -206,7 +206,7 @@ def test_driver_creation2(tmpdir):
   type(ReadKernelDataType) :: extract_psy_data
   call extract_psy_data%OpenRead('module_name', 'local_name')
   call extract_psy_data%ReadVariable('out_fld_post', out_fld_post)
-  ALLOCATE(out_fld(SIZE(out_fld_post, 1), SIZE(out_fld_post, 2)))
+  ALLOCATE(out_fld, mold=out_fld_post)
   out_fld = 0
   call extract_psy_data%ReadVariable('in_fld', in_fld)
   call extract_psy_data%ReadVariable('in_out_fld_post', in_out_fld_post)
@@ -301,7 +301,7 @@ def test_rename_suffix_if_name_clash(tmpdir):
   call extract_psy_data%ReadVariable('in_out_fld', in_out_fld)
   call extract_psy_data%ReadVariable('in_out_fld_post0', in_out_fld_post0)
   call extract_psy_data%ReadVariable('out_fld_post0', out_fld_post0)
-  ALLOCATE(out_fld(SIZE(out_fld_post0, 1), SIZE(out_fld_post0, 2)))
+  ALLOCATE(out_fld, mold=out_fld_post0)
   call extract_psy_data%ReadVariable('out_fld_post', out_fld_post)"""
 
     for line in expected.split("\n"):
