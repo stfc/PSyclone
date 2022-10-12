@@ -1927,7 +1927,7 @@ class Fparser2Reader(object):
             tsymbol.datatype = UnknownFortranType(str(decl))
 
     def process_declarations(self, parent, nodes, arg_list,
-                             visibility_map=None):
+                             visibility_map=None, implicit=False):
         '''
         Transform the variable declarations in the fparser2 parse tree into
         symbols in the symbol table of the PSyIR parent node. The default
@@ -1946,6 +1946,8 @@ class Fparser2Reader(object):
                         visibilities.
         :type visibility_map: dict with str keys and values of type \
                         :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+        :param Optional[bool] implicit: whether or not the associated routine \
+                        permits implicit variable declarations.
 
         :raises NotImplementedError: the provided declarations contain \
                                      attributes which are not supported yet.
@@ -3829,30 +3831,42 @@ class Fparser2Reader(object):
         '''
         name = node.children[0].children[1].string
         routine = Routine(name, parent=parent)
+        implicit_declns = False
 
         # Deal with any arguments
         try:
             sub_spec = _first_type_match(node.content,
                                          Fortran2003.Specification_Part)
             decl_list = sub_spec.content
-            # TODO this if test can be removed once fparser/#211 is fixed
-            # such that routine arguments are always contained in a
-            # Dummy_Arg_List, even if there's only one of them.
-            if isinstance(node, (Fortran2003.Subroutine_Subprogram,
-                                 Fortran2003.Function_Subprogram)) and \
-               isinstance(node.children[0].children[2],
-                          Fortran2003.Dummy_Arg_List):
-                arg_list = node.children[0].children[2].children
-            else:
-                # Routine has no arguments
-                arg_list = []
         except ValueError:
             # Subroutine has no Specification_Part so has no
-            # declarations. Continue with empty lists.
+            # declarations and no Implicit_Stmt. Continue with empty lists.
             decl_list = []
+            cursor = node
+            while cursor.parent:
+                cursor = cursor.parent
+                if isinstance(cursor, Fortran2003.Module):
+                    for child in cursor.children:
+                        if isinstance(child, Fortran2003.Specification_Part):
+                            impl_part = walk(child, Fortran2003.Implicit_Part)
+                            if impl_part:
+                                if impl_part[0].children[0].string == "implicit none":
+                                    implicit_declns = True
+                    break
+
+        # TODO this if test can be removed once fparser/#211 is fixed
+        # such that routine arguments are always contained in a
+        # Dummy_Arg_List, even if there's only one of them.
+        if isinstance(node, (Fortran2003.Subroutine_Subprogram,
+                             Fortran2003.Function_Subprogram)) and \
+           isinstance(node.children[0].children[2],
+                      Fortran2003.Dummy_Arg_List):
+            arg_list = node.children[0].children[2].children
+        else:
+            # Routine has no arguments
             arg_list = []
-        finally:
-            self.process_declarations(routine, decl_list, arg_list)
+        self.process_declarations(routine, decl_list, arg_list,
+                                  implicit=implicit_declns)
 
         # If this is a function then work out the return type
         if isinstance(node, Fortran2003.Function_Subprogram):

@@ -98,6 +98,22 @@ def test_subroutine_handler(parser, fortran_writer, code, expected):
     assert expected == result
 
 
+def test_subroutine_implicit_args(fortran_reader, parser):
+    code = '''
+module my_mod
+implicit none
+contains
+subroutine sub1(idx)
+end subroutine
+end module my_mod'''
+    #processor = Fparser2Reader()
+    #reader = FortranStringReader(code)
+    #parse_tree = parser(reader)
+    #subroutine = parse_tree.children[0]
+    #psyir = processor._subroutine_handler(subroutine, None)
+    psyir = fortran_reader.psyir_from_source(code)
+
+
 def test_function_handler(fortran_reader, fortran_writer):
     '''Test that subroutine_handler correctly handles a function defined
     within a module.
