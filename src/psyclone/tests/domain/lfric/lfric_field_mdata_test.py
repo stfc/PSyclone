@@ -41,7 +41,6 @@ Module containing pytest tests for the general LFRic field arguments
 functionality (e.g. metadata, parsing, invoke calls).
 '''
 
-from __future__ import absolute_import, print_function
 import os
 import pytest
 import six
@@ -198,7 +197,7 @@ def test_ad_field_init_wrong_type():
     wrong_arg = metadata._inits[0]
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(
-            wrong_arg, metadata.iterates_over)._init_field(
+            wrong_arg, metadata.iterates_over, 0)._init_field(
                 wrong_arg, metadata.iterates_over)
     assert ("Expected a field argument but got an argument of type "
             "'gh_scalar'" in str(excinfo.value))
@@ -225,7 +224,7 @@ def test_ad_field_init_wrong_data_type(monkeypatch):
     # Check real field
     with pytest.raises(ParseError) as excinfo:
         LFRicArgDescriptor(
-            real_field_arg, metadata.iterates_over)._init_field(
+            real_field_arg, metadata.iterates_over, 0)._init_field(
                 real_field_arg, metadata.iterates_over)
     assert ("In the LFRic API the allowed data types for field "
             "arguments are one of {0}, but found 'gh_double'".
@@ -234,7 +233,7 @@ def test_ad_field_init_wrong_data_type(monkeypatch):
     # Check integer field
     with pytest.raises(ParseError) as excinfo:
         LFRicArgDescriptor(
-            int_field_arg, metadata.iterates_over)._init_field(
+            int_field_arg, metadata.iterates_over, 0)._init_field(
                 int_field_arg, metadata.iterates_over)
     assert ("In the LFRic API the allowed data types for field "
             "arguments are one of {0}, but found 'gh_double'".
@@ -284,7 +283,7 @@ def test_ad_field_init_wrong_iteration_space():
     # Set a wrong iteration space
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(
-            field_arg, metadata.iterates_over)._init_field(
+            field_arg, metadata.iterates_over, 0)._init_field(
                 field_arg, "ncolours")
     assert ("Invalid operates_on 'ncolours' in the kernel metadata (expected "
             "one of ['cell_column', 'domain', 'dof'])." in
