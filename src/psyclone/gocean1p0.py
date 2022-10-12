@@ -2257,7 +2257,7 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
             codeblock = CodeBlock([block], CodeBlock.Structure.STATEMENT)
             self.parent.children.insert(self.position, codeblock)
 
-        super(GOACCEnterDataDirective, self).lower_to_language_level()
+        super().lower_to_language_level()
 
 
 class GOSymbolTable(SymbolTable):
@@ -2267,8 +2267,18 @@ class GOSymbolTable(SymbolTable):
     '''
     @staticmethod
     def create_from_table(old_table):
-        ''' '''
+        '''
+        Create a GOSymbolTable instance from the supplied SymbolTable.
+
+        :param old_table:
+        :type old_table:
+
+        :returns:
+        :rtype:
+
+        '''
         new_st = GOSymbolTable()
+        # pylint: disable=protected-access
         new_st._symbols = copy.copy(old_table._symbols)
         new_st._argument_list = copy.copy(old_table._argument_list)
         new_st._tags = copy.copy(old_table._tags)

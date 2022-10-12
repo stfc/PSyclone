@@ -8458,6 +8458,7 @@ class DynKern(CodedKern):
 
         if len(routines) == 1:
             sched = routines[0]
+            self.validate_kernel_code_args(sched.symbol_table)
         else:
             # The kernel name corresponds to an interface block. Find which
             # of the routines matches the precision of the arguments.
@@ -8471,9 +8472,9 @@ class DynKern(CodedKern):
                 except GenerationError:
                     pass
             else:
-                raise GenerationError("oops")
-
-        self.validate_kernel_code_args(sched.symbol_table)
+                raise GenerationError(
+                    f"Failed to find a kernel implementation with an interface"
+                    f" that matches the invoke of '{self.name}'.")
 
         # TODO replace the PSyIR argument data symbols with LFRic
         # data symbols, see issue #935. For the moment we simply
@@ -8501,7 +8502,7 @@ class DynKern(CodedKern):
             the symbol table.
 
         '''
-        # Get the kernel code arguments
+        # Get the kernel subroutine arguments
         kern_code_args = table.argument_list
 
         # Get the kernel code interface according to the kernel
@@ -8515,12 +8516,11 @@ class DynKern(CodedKern):
         expected_n_args = len(interface_args)
         if actual_n_args != expected_n_args:
             raise GenerationError(
-                "In kernel '{0}' the number of arguments indicated by the "
-                "kernel metadata is {1} but the actual number of kernel "
-                "arguments found is {2}.".format(
-                    self.name, expected_n_args, actual_n_args))
+                f"In kernel '{self.name}' the number of arguments indicated by"
+                f" the kernel metadata is {expected_n_args} but the actual "
+                f"number of kernel arguments found is {actual_n_args}.")
 
-        # 2: Check that the properties of each argument matches
+        # 2: Check that the properties of each argument match.
         for idx, kern_code_arg in enumerate(kern_code_args):
             interface_arg = interface_args[idx]
             try:
@@ -8560,73 +8560,77 @@ class DynKern(CodedKern):
         expected_datatype = interface_arg.datatype.intrinsic
         if actual_datatype != expected_datatype:
             raise GenerationError(
-                "Kernel argument '{0}' has datatype '{1}' "
-                "in kernel '{2}' but the LFRic API expects '{3}'."
-                "".format(kern_code_arg.name, actual_datatype,
-                          self.name, expected_datatype))
-        # 2: precision. We convert precision into number of bytes to support
-        #    mixed-precision kernels.
+                f"Kernel argument '{kern_code_arg.name}' has datatype "
+                f"'{actual_datatype}' in kernel '{self.name}' but the LFRic "
+                f"API expects '{expected_datatype}'.")
+        # 2: precision. An LFRic kernel is only permitted to have a precision
+        #    specified by a recognised type parameter or a no. of bytes.
         actual_precision = kern_code_arg.datatype.precision
         if isinstance(actual_precision, DataSymbol):
+            # Convert precision into number of bytes to support
+            # mixed-precision kernels.
             actual_precision = LFRicConstants.PRECISION_MAP[
                 actual_precision.name]
-        expected_precision = interface_arg.datatype.precision
-        if isinstance(expected_precision, DataSymbol):
-            expected_precision = LFRicConstants.PRECISION_MAP[
-                expected_precision.name]
-        if actual_precision != expected_precision:
+        elif not isinstance(actual_precision, int):
             raise GenerationError(
-                "Kernel argument '{0}' has precision '{1}' "
-                "in kernel '{2}' but the LFRic API expects '{3}'."
-                "".format(kern_code_arg.name, actual_precision,
-                          self.name, expected_precision))
-        # 2b: precision at compile time
+                f"An argument to an LFRic kernel must have a precision defined"
+                f" by either a recognised LFRic type parameter (one of "
+                f"{sorted(LFRicConstants.PRECISION_MAP.keys())}) or an integer"
+                f" number of bytes but argument '{kern_code_arg.name}' to "
+                f"kernel '{self.name}' has precision {actual_precision}.")
+
         if alg_arg:
-            # TODO #1892 - check that precision derived from algorithm layer
-            # matches the subroutine interface.
-            pass
+            # We have information on the corresponding argument in the
+            # Algorithm layer so we can check that the precision matches.
+            # This is used to identify the correct kernel subroutine for a
+            # mixed-precision kernel.
+            alg_precision = LFRicConstants.PRECISION_MAP[alg_arg.precision]
+            if alg_precision != actual_precision:
+                raise GenerationError(
+                    f"Precision ({alg_precision} bytes) of algorithm-layer "
+                    f"argument '{alg_arg.name}' does not match that "
+                    f"({actual_precision} bytes) of the corresponding kernel "
+                    f"subroutine argument '{kern_code_arg.name}' for kernel "
+                    f"'{self.name}'.")
 
         # 3: intent
         actual_intent = kern_code_arg.interface.access
         expected_intent = interface_arg.interface.access
         if actual_intent.name != expected_intent.name:
             raise GenerationError(
-                "Kernel argument '{0}' has intent '{1}' "
-                "in kernel '{2}' but the LFRic API expects intent '{3}'."
-                "".format(kern_code_arg.name, actual_intent.name,
-                          self.name, expected_intent.name))
+                f"Kernel argument '{kern_code_arg.name}' has intent "
+                f"'{actual_intent.name}' in kernel '{self.name}' but the "
+                f"LFRic API expects intent '{expected_intent.name}'.")
         # 4: scalar or array
         if interface_arg.is_scalar:
             if not kern_code_arg.is_scalar:
                 raise GenerationError(
-                    "Argument '{0}' to kernel '{1}' should be a scalar "
-                    "according to the LFRic API, but it is not."
-                    "".format(kern_code_arg.name, self.name))
+                    f"Argument '{kern_code_arg.name}' to kernel '{self.name}' "
+                    f"should be a scalar according to the LFRic API, but it "
+                    f"is not.")
         elif interface_arg.is_array:
             if not kern_code_arg.is_array:
                 raise GenerationError(
-                    "Argument '{0}' to kernel '{1}' should be an array "
-                    "according to the LFRic API, but it is not."
-                    "".format(kern_code_arg.name, self.name))
+                    f"Argument '{kern_code_arg.name}' to kernel '{self.name}' "
+                    f"should be an array according to the LFRic API, but it "
+                    f"is not.")
             # 4.1: array dimensions
             if len(interface_arg.shape) != len(kern_code_arg.shape):
                 raise GenerationError(
-                    "Argument '{0}' to kernel '{1}' should be an array "
-                    "with {2} dimension(s) according to the LFRic API, but "
-                    "found {3}.".format(kern_code_arg.name, self.name,
-                                        len(interface_arg.shape),
-                                        len(kern_code_arg.shape)))
+                    f"Argument '{kern_code_arg.name}' to kernel '{self.name}' "
+                    f"should be an array with {len(interface_arg.shape)} "
+                    f"dimension(s) according to the LFRic API, but "
+                    f"found {len(kern_code_arg.shape)}.")
             for dim_idx, kern_code_arg_dim in enumerate(kern_code_arg.shape):
                 if not isinstance(kern_code_arg_dim, ArrayType.ArrayBounds):
                     continue
                 if (not isinstance(kern_code_arg_dim.lower, Literal) or
                         kern_code_arg_dim.lower.value != "1"):
                     raise GenerationError(
-                        "All array arguments to LFRic kernels must have lower "
-                        "bounds of 1 for all dimensions. However, array '{0}' "
-                        "has a lower bound of '{1}' for dimension {2}".format(
-                            kern_code_arg.name, str(kern_code_arg_dim.lower),
-                            dim_idx))
+                        f"All array arguments to LFRic kernels must have lower"
+                        f" bounds of 1 for all dimensions. However, array "
+                        f"'{kern_code_arg.name}' has a lower bound of "
+                        f"'{kern_code_arg_dim.lower}' for dimension {dim_idx}")
                 kern_code_arg_upper_dim = kern_code_arg_dim.upper
                 interface_arg_upper_dim = interface_arg.shape[dim_idx].upper
                 if (isinstance(kern_code_arg_upper_dim, Reference) and
@@ -8644,16 +8648,15 @@ class DynKern(CodedKern):
                             kern_code_arg_upper_dim.symbol,
                             interface_arg_upper_dim.symbol)
                     except GenerationError as info:
-                        six.raise_from(GenerationError(
-                            "For dimension {0} in array argument '{1}' to "
-                            "kernel '{2}' the following error was found: "
-                            "{3}".format(dim_idx+1, kern_code_arg.name,
-                                         self.name, str(info.args[0]))), info)
+                        raise GenerationError(
+                            f"For dimension {dim_idx+1} in array argument "
+                            f"'{kern_code_arg.name}' to kernel '{self.name}' "
+                            f"the following error was found: "
+                            f"{info.args[0]}") from info
         else:
             raise InternalError(
-                "unexpected argument type found for '{0}' in kernel '{1}'. "
-                "Expecting a scalar or an array.".format(
-                    kern_code_arg.name, self.name))
+                f"unexpected argument type found for '{kern_code_arg.name}' in"
+                f" kernel '{self.name}'. Expecting a scalar or an array.")
 
 
 class FSDescriptor(object):
