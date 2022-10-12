@@ -70,7 +70,7 @@ def test_validate_inline_error_if_not_kernel():
     inline_trans = KernelModuleInlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(kern_call)
-    assert ("Target of a KernelModuleInline must be a sub-class of "
+    assert ("Target of a KernelModuleInlineTrans must be a sub-class of "
             "psyGen.CodedKern but got 'GOLoop'" in str(err.value))
 
 
@@ -92,7 +92,7 @@ def test_validate_invalid_get_kernel_schedule(monkeypatch):
     monkeypatch.setattr(kernel, "get_kernel_schedule", raise_symbol_error)
     with pytest.raises(TransformationError) as err:
         kernel_trans.apply(kernel)
-    assert ("KernelModuleInline failed to retrieve PSyIR for kernel "
+    assert ("KernelModuleInlineTrans failed to retrieve PSyIR for kernel "
             "'kernel_with_global_code' using the 'get_kernel_schedule' "
             "method." in str(err.value))
 

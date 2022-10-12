@@ -51,14 +51,16 @@ class KernelModuleInlineTrans(Transformation):
     ''' Module-inlines (bring the subroutine to the same compiler-unit) the
     subroutine pointed by this Kernel. For example:
 
-    >>> invoke = ...
-    >>> schedule = invoke.schedule
-    >>>
-    >>> inline_trans = KernelModuleInlineTrans()
-    >>>
-    >>> inline_trans.apply(schedule.children[0].loop_body[0])
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
+    .. code-block:: python
+
+        from psyclone.domain.common.transformations import \\
+                KernelModuleInlineTrans
+
+        inline_trans = KernelModuleInlineTrans()
+        inline_trans.apply(schedule.walk(CodedKern)[0])
+
+        print(schedule.parent.view())
+
 
     .. warning ::
         Not all kernel subroutines can be module-inlined. This transformation
@@ -69,11 +71,6 @@ class KernelModuleInlineTrans(Transformation):
 
     def __str__(self):
         return "Inline a kernel subroutine into the PSy module"
-
-    @property
-    def name(self):
-        ''' Returns the name of this transformation as a string.'''
-        return "KernelModuleInline"
 
     def validate(self, node, options=None):
         '''
