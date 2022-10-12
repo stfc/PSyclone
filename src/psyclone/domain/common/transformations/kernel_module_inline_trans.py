@@ -187,22 +187,20 @@ class KernelModuleInlineTrans(Transformation):
             if isinstance(literal.datatype.precision, Symbol):
                 all_symbols.add(literal.datatype.precision)
         for caller in code_to_inline.walk(Call):
-            # TODO #1366: We still need a solution for intrinsics that
-            # currently are parsed into Calls/RoutineSymbols, for the
-            # moment here we skip the ones causing issues.
-            if caller.routine.name not in ("random_number", ):
-                all_symbols.add(caller.routine)
+            all_symbols.add(caller.routine)
 
         # Then decide which symbols need to be brought inside the subroutine
         symbols_to_bring_in = set()
         for symbol in all_symbols:
-            if symbol.is_unresolved:
+            # TODO #1366: We still need a solution for intrinsics that
+            # currently are parsed into Calls/RoutineSymbols, for the
+            # moment here we skip the ones causing issues.
+            if symbol.name in ("random_number", ) and symbol.is_unresolved:
+                continue  # Skip intrinsic symbols
+            if symbol.is_unresolved or symbol.is_import:
                 # This symbol is already in the symbol table, but adding it
                 # to the 'symbols_to_bring_in' will make the next step bring
                 # into the subroutine all modules that it could come from.
-                symbols_to_bring_in.add(symbol)
-            elif symbol.is_import:
-                # Add to symbols_to_bring_in
                 symbols_to_bring_in.add(symbol)
             if isinstance(symbol, DataSymbol):
                 # DataTypes can reference other symbols
