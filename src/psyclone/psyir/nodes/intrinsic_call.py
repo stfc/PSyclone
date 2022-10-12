@@ -121,7 +121,11 @@ class IntrinsicCall(Call):
             name = call._argument_names[idx][1]
             if name:
                 if name not in IntrinsicCall._optional_args[intrinsic.name]:
-                    raise GenerationError("arp1")
+                    raise GenerationError(
+                        f"The {intrinsic.name} IntrinsicCall only supports "
+                        f"the optional arguments "
+                        f"{IntrinsicCall._optional_args[intrinsic.name]} but "
+                        f"got '{name}'.")
                 if type(arg) != IntrinsicCall._optional_args[intrinsic.name][name]:
                     raise TypeError("arp2")
             else:

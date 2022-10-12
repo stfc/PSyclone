@@ -57,3 +57,15 @@ def test_intrinsiccall_create():
     with pytest.raises(TypeError) as err:
         IntrinsicCall.create("ALLOCATE", [Reference(sym)])
     assert "hello" in str(err.value)
+    # An allocate must have one or more References as argument.
+    with pytest.raises(TypeError) as err:
+        IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE, [])
+    assert "hello" in str(err.value)
+    with pytest.raises(TypeError) as err:
+        IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE, [sym])
+    assert "hello" in str(err.value)
+    # An allocate only supports the 'stat' and 'mold' arguments.
+    with pytest.raises(TypeError) as err:
+        IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,
+                             [Reference(sym), ("yacht", Reference(sym))])
+    assert "hello" in str(err.value)
