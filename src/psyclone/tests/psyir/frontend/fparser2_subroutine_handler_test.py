@@ -41,7 +41,6 @@ of the fparser2 Subroutine_Subprogram and Function_Subprogram constructs
 to PSyIR.
 
 '''
-from __future__ import absolute_import
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
@@ -50,39 +49,40 @@ from psyclone.psyir.nodes import Container, Routine, CodeBlock, FileContainer
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 
+IN_OUTS = []
 # subroutine no declarations
-SUB1_IN = (
-    "subroutine sub1()\n"
-    "end subroutine\n")
-SUB1_OUT = (
-    "subroutine sub1()\n\n\n"
-    "end subroutine sub1\n")
+IN_OUTS.append(
+    (("subroutine sub1()\n"
+      "end subroutine\n"),
+     ("subroutine sub1()\n\n\n"
+      "end subroutine sub1\n")))
+# subroutine with implicit declaration of argument
+IN_OUTS.append(
+    (("subroutine sub1(idx)\n"
+      "end subroutine\n"),
+     ("subroutine sub1(idx)\n\n\n"
+      "end subroutine sub1\n")))
 # subroutine with symbols/declarations
-SUB2_IN = (
-    "subroutine sub1(a)\n"
-    "real :: a\n"
-    "end subroutine\n")
-SUB2_OUT = (
-    "subroutine sub1(a)\n"
-    "  real :: a\n\n\n"
-    "end subroutine sub1\n")
+IN_OUTS.append(
+    (("subroutine sub1(a)\n"
+      "real :: a\n"
+      "end subroutine\n"),
+     ("subroutine sub1(a)\n"
+      "  real :: a\n\n\n"
+      "end subroutine sub1\n")))
 # subroutine with executable content
-SUB3_IN = (
-    "subroutine sub1()\n"
-    "real :: a\n"
-    "a=0.0\n"
-    "end subroutine\n")
-SUB3_OUT = (
-    "subroutine sub1()\n"
-    "  real :: a\n\n"
-    "  a = 0.0\n\n"
-    "end subroutine sub1\n")
+IN_OUTS.append(
+    (("subroutine sub1()\n"
+      "real :: a\n"
+      "a=0.0\n"
+      "end subroutine\n"),
+     ("subroutine sub1()\n"
+      "  real :: a\n\n"
+      "  a = 0.0\n\n"
+      "end subroutine sub1\n")))
 
 
-@pytest.mark.parametrize("code,expected",
-                         [(SUB1_IN, SUB1_OUT),
-                          (SUB2_IN, SUB2_OUT),
-                          (SUB3_IN, SUB3_OUT)])
+@pytest.mark.parametrize("code,expected", IN_OUTS)
 def test_subroutine_handler(parser, fortran_writer, code, expected):
     '''Test that subroutine_handler handles valid Fortran subroutines.'''
 
