@@ -300,6 +300,7 @@ class OMPScheduleClause(Clause):
         is specified.
     :param kwargs: additional keyword arguments provided to the PSyIR node.
     :type kwargs: unwrapped dict.
+
     '''
     _children_valid_format = "None"
 
@@ -313,9 +314,10 @@ class OMPScheduleClause(Clause):
     @property
     def _clause_string(self):
         '''
-        :returns: the string that represents this clause in OpenMP (e.g.\
-                "schedule(static)"). The value inside parentheses is\
-                set to the value of the schedule of this clause.
+        :returns: the string that represents this clause in OpenMP (e.g. \
+            "schedule(static)"). The value inside parentheses is \
+            set to the value of the schedule of this clause unless \
+            that value is 'none' in which case an empty string is returned.
         :rtype: str
         '''
         if self._schedule != "none":

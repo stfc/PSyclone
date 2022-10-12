@@ -1055,9 +1055,8 @@ class OMPDoDirective(OMPRegionDirective):
             raise TypeError(
                 f"{type(self).__name__} omp_schedule should be a str "
                 f"but found '{type(value).__name__}'.")
-        # An empty string is valid.
-        if value and (value.split(',')[0].lower() not in
-                      OMPScheduleClause.VALID_OMP_SCHEDULES):
+        if (value.split(',')[0].lower() not in
+                OMPScheduleClause.VALID_OMP_SCHEDULES):
             raise TypeError(
                 f"{type(self).__name__} omp_schedule should be one of "
                 f"{OMPScheduleClause.VALID_OMP_SCHEDULES} but found "

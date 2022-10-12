@@ -153,7 +153,8 @@ def test_ompparallel_changes_gen_code():
 
 def test_omp_paraleldo_changes_gen_code():
     ''' Check that when the code inside an OMP Parallel Do region changes, the
-    private clause changes appropriately. '''
+    private clause changes appropriately. Also check that changing the schedule
+    is correctly picked up.'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
@@ -170,20 +171,23 @@ def test_omp_paraleldo_changes_gen_code():
     priv_clause = pdir.children[2]
     sched_clause = pdir.children[3]
 
-    # Make acopy of the loop
+    # Make a copy of the loop
     routine = pdir.ancestor(Routine)
     routine.symbol_table.add(DataSymbol("k", INTEGER_SINGLE_TYPE))
     # Change the loop variable to j
     jvar = DataSymbol("k", INTEGER_SINGLE_TYPE)
     pdir.children[0].children[0].variable = jvar
-    # Change the schedule
-    pdir._omp_schedule = "dynamic"
+    # Change the schedule to 'none'
+    pdir._omp_schedule = "none"
 
-    _ = psy.gen
+    code = str(psy.gen).lower()
     assert pdir.children[2] != priv_clause
     assert isinstance(pdir.children[2], OMPPrivateClause)
     assert pdir.children[3] != sched_clause
     assert isinstance(pdir.children[3], OMPScheduleClause)
+
+    # No 'schedule' clause should now be present on the OMP directive.
+    assert "schedule(" not in code
 
 
 def test_omp_parallel_do_changes_begin_str(fortran_reader):
