@@ -109,17 +109,38 @@ class CommonArg(ABC):
         return fparser2_tree
 
     @staticmethod
-    def check_fparser2(fparser2_tree, nargs=4, encoding=Fortran2003.Part_Ref):
-        '''Checks that the fparser2 tree is valid. The metadata may have a
-        different number of arguments depending on its type (as
-        specified by nargs) and it will be in the form of a
-        Fortran2003 Part_Ref or a Fortran2003 Structure_Constructor.
+    def check_nargs(fparser2_tree, nargs=4):
+        '''Checks that the metadata may has the number of arguments specified
+        by the 'nargs' argument, otherwise an exception is raised.
 
         :param fparser2_tree: fparser2 tree capturing a metadata argument.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`
         :param Optional[int] nargs: the number of expected arguments. \
             Defaults to 4.
+
+        :raises ValueError: if the kernel metadata does not contain \
+            the expected number of arguments (nargs).
+
+        '''
+        if len(fparser2_tree.children[1].children) != nargs:
+            raise ValueError(
+                f"Expected kernel metadata to have {nargs} "
+                f"arguments, but found "
+                f"{len(fparser2_tree.children[1].children)} in "
+                f"'{str(fparser2_tree)}'.")
+
+    @staticmethod
+    def check_fparser2(fparser2_tree, type_name,
+                       encoding=Fortran2003.Part_Ref):
+        '''Checks that the fparser2 tree is valid. The metadata will be in the
+        form of a Fortran2003 Part_Ref or a Fortran2003
+        Structure_Constructor.
+
+        :param fparser2_tree: fparser2 tree capturing a metadata argument.
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
+            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
+        :param str type_name: the name of the argument datatype.
         :param encoding: class in which the fparser2 tree should \
             be encoded. Defaults to fparser.two.Fortran2003.Part_Ref.
         :type encoding: Optional[ \
@@ -130,8 +151,6 @@ class CommonArg(ABC):
             type specified by the encoding argument.
         :raises ValueError: if the kernel metadata is not in \
             the form arg_type(...).
-        :raises ValueError: if the kernel metadata does not contain \
-            the expected number of arguments (nargs).
 
         '''
         if not isinstance(fparser2_tree, encoding):
@@ -140,18 +159,13 @@ class CommonArg(ABC):
                 f"fparser2 {encoding.__name__} object but found type "
                 f"'{type(fparser2_tree).__name__}' with value "
                 f"'{str(fparser2_tree)}'.")
-        if not fparser2_tree.children[0].tostr().lower() == "arg_type":
+        if not fparser2_tree.children[0].tostr().lower() == type_name:
             raise ValueError(
                 f"Expected kernel metadata to have the name "
-                f"'arg_type' and be in the form 'arg_type(...)', but found "
-                f"'{str(fparser2_tree)}'.")
-        if len(fparser2_tree.children[1].children) != nargs:
-            raise ValueError(
-                f"Expected kernel metadata to have {nargs} "
-                f"arguments, but found "
-                f"{len(fparser2_tree.children[1].children)} in "
-                f"'{str(fparser2_tree)}'.")
+                f"'{type_name}' and be in the form '{type_name}(...)', but "
+                f"found '{str(fparser2_tree)}'.")
 
+    # RF this method is specific to meta_args
     @classmethod
     def check_first_arg(cls, fparser2_tree, name, vector=False):
         '''Check that the first metadata argument has the expected value.

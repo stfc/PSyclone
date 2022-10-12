@@ -1,29 +1,94 @@
-class MetaFuncsArgMetadata:
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2022, Science and Technology Facilities Council
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Author R. W. Ford, STFC Daresbury Lab
+
+'''Module containing the MetaFuncsArgMetadata class which captures
+the argument values for the LFRic kernel META_FUNCS metadata.
+
+'''
+from psyclone.domain.lfric.kernel.common_arg import CommonArg
+
+
+class MetaFuncsArgMetadata(CommonArg):
     ''' xxx '''
-    def __init__(self, function_space, basis_function=False, diff_basis_function=False):
+
+    def __init__(self, function_space, basis_function=False,
+                 diff_basis_function=False):
         self._function_space = function_space
         self._basis_function = basis_function
         self._diff_basis_function = diff_basis_function
 
     def create_from_fortran_string(fortran_string):
         ''' xxx '''
-        string_list = fortran_string.split("(")
-        string_list = string_list[1].split(")")
-        string_list = string_list[0].split(",")
-        function_space = string_list[0].strip()
+        fparser2_tree = create_fparser2(fortran_string)
+        return create_from_fparser2(fparser2_tree)
+
+    def create_from_fparser2(fparser2_tree):
+        ''' xxx '''
+        MetaFuncsArgMetadata.check_fparser2(
+            fparser2_tree, type_name="func_type")
+        nargs = MetaFuncsArgMetadata.get_nargs(fparser2_tree)
+        # must be at least 2 and at most 3
+        if nargs < 2:
+            raise Exception("Must have a function_space as first argument and at least one of ...")
+        if nargs > 3:
+            raise Exception("Must have at most 3 args, function_space, basis and diff_basis")
+        function_space = MetaFuncsArgMetadata.get_arg(fparser2_tree, 0)
+        if function_space.lower() not in xxx:
+            raise Exception("")
         basis_function = False
         diff_basis_function = False
-        if len(string_list) > 1:
-            if string_list[1].strip().lower() == "gh_basis":
-                basis_function = True
-            if string_list[1].strip().lower() == "gh_diff_basis":
-                diff_basis_function = True
-        if len(string_list) > 2:
-            if string_list[2].strip().lower() == "gh_basis":
-                basis_function = True
-            if string_list[2].strip().lower() == "gh_diff_basis":
-                diff_basis_function = True
-        return MetaFuncsArgMetadata(function_space, basis_function=basis_function, diff_basis_function=diff_basis_function)
+        arg1 = MetaFuncsArgMetadata.get_arg(fparser2_tree, 1)
+        if arg1.lower() == "gh_basis":
+            basis_function = True
+        elif arg1.lower() == "gh_basis_function":
+            diff_basis_function = True
+        else:
+            raise Exception("")
+        if nargs == 3:
+            arg2 = MetaFuncsArgMetadata.get_arg(fparser2_tree, 2)
+        if arg1.lower() == "gh_basis":
+            basis_function = True
+        elif arg1.lower() == "gh_basis_function":
+            diff_basis_function = True
+        else:
+            raise Exception("")
+        if arg1.lower() == arg2.lower():
+            raise Exception("")
+        return MetaFuncsArgMetadata(
+            function_space, basis_function=basis_function,
+            diff_basis_function=diff_basis_function)
         
     def fortran_string(self):
         ''' xxx '''
@@ -34,3 +99,15 @@ class MetaFuncsArgMetadata:
             args_str_list.append("gh_diff_basis")
         args_str = ", ".join(args_str_list)
         return(f"func_type({args_str})")
+
+    @property
+    def function_space(self):
+        return self._function_space
+
+    @property
+    def basis_function(self):
+        return self._basis_function
+
+    @property
+    def diff_basis_function(self):
+        return self._diff_basis_function

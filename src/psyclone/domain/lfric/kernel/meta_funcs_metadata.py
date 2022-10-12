@@ -53,7 +53,8 @@ class MetaFuncsMetadata(CommonDeclarationMetadata):
     data is required for a given function space.
 
     :param meta_funcs_args: a list of meta_funcs arguments.
-    :type meta_funcs_args: List[MetaFuncsArgMetadata]
+    :type meta_funcs_args: List[:py:class:`psyclone.domain.lfric.kernel.\
+        MetaFuncsArgMetadata`]
 
     '''
     def __init__(self, meta_funcs_args):
@@ -90,7 +91,7 @@ class MetaFuncsMetadata(CommonDeclarationMetadata):
 
         '''
         values_list = MetaFuncsMetadata.validate_derived_array_declaration(
-            fparser2_tree, "FUNC_TYPE", "META_FUNCS", MetaFuncsArgMetadata)
+            fparser2_tree, "FUNC_TYPE", "META_FUNCS")
         meta_obj_list = []
         for value in values_list:
             meta_obj_list.append(

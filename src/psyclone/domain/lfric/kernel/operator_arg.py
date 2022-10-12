@@ -93,7 +93,8 @@ class OperatorArg(ScalarArg):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.OperatorArg`
 
         '''
-        OperatorArg.check_fparser2(fparser2_tree, nargs=5)
+        OperatorArg.check_fparser2(fparser2_tree, "arg_type")
+        OperatorArg.check_nargs(fparser2_tree, nargs=5)
         OperatorArg.check_first_arg(fparser2_tree, "Operator")
         datatype, access = OperatorArg.get_type_and_access(fparser2_tree)
         function_space_to = OperatorArg.get_arg(

@@ -88,7 +88,9 @@ class InterGridArg(FieldArg):
 
         '''
         InterGridArg.check_fparser2(
-            fparser2_tree, nargs=5, encoding=Fortran2003.Structure_Constructor)
+            fparser2_tree, "arg_type",
+            encoding=Fortran2003.Structure_Constructor)
+        InterGridArg.check_nargs(fparser2_tree, nargs=5)
         InterGridArg.check_first_arg(fparser2_tree, "InterGrid")
         datatype, access, function_space = \
             InterGridArg.get_type_access_and_fs(fparser2_tree)

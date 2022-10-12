@@ -84,7 +84,8 @@ class FieldArg(CommonArg):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.FieldArg`
 
         '''
-        FieldArg.check_fparser2(fparser2_tree, nargs=4)
+        FieldArg.check_fparser2(fparser2_tree, "arg_type")
+        FieldArg.check_nargs(fparser2_tree, nargs=4)
         FieldArg.check_first_arg(fparser2_tree, "Field")
         datatype, access, function_space = \
             FieldArg.get_type_access_and_fs(fparser2_tree)

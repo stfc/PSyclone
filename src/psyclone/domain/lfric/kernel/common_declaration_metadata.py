@@ -230,7 +230,7 @@ class CommonDeclarationMetadata:
         return shapes_list
 
     def validate_derived_array_declaration(
-            fparser2_tree, type_name, name, value_class):
+            fparser2_tree, type_name, name):
         ''' xxx '''
         CommonDeclarationMetadata.validate_node(
             fparser2_tree, Fortran2003.Data_Component_Def_Stmt)
@@ -240,8 +240,6 @@ class CommonDeclarationMetadata:
             fparser2_tree, type_name, name)
         values_list = CommonDeclarationMetadata.validate_array(
             fparser2_tree, name)
-        for value in values_list:
-            _ = value_class.create_from_fortran_string(value)
         return values_list
 
     def validate_array(fparser2_tree, name):

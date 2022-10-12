@@ -71,7 +71,8 @@ class ColumnwiseOperatorArg(OperatorArg):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.ColumnwiseOperatorArg`
 
         '''
-        ColumnwiseOperatorArg.check_fparser2(fparser2_tree, nargs=5)
+        ColumnwiseOperatorArg.check_fparser2(fparser2_tree, "arg_type")
+        ColumnwiseOperatorArg.check_nargs(fparser2_tree, nargs=5)
         ColumnwiseOperatorArg.check_first_arg(
             fparser2_tree, "ColumnwiseOperator")
         datatype, access = ColumnwiseOperatorArg.get_type_and_access(

@@ -99,7 +99,8 @@ class FieldVectorArg(FieldArg):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.FieldVectorArg`
 
         '''
-        FieldVectorArg.check_fparser2(fparser2_tree, nargs=4)
+        FieldVectorArg.check_fparser2(fparser2_tree, "arg_type")
+        FieldVectorArg.check_nargs(fparser2_tree, nargs=4)
         FieldVectorArg.check_first_arg(
             fparser2_tree, "FieldVector", vector=True)
         vector_length = FieldVectorArg.get_and_check_vector_length(

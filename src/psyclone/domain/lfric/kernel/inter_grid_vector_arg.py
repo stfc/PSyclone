@@ -87,7 +87,9 @@ class InterGridVectorArg(InterGridArg):
 
         '''
         InterGridVectorArg.check_fparser2(
-            fparser2_tree, nargs=5, encoding=Fortran2003.Structure_Constructor)
+            fparser2_tree, "arg_type",
+            encoding=Fortran2003.Structure_Constructor)
+        InterGridVectorArg.check_nargs(fparser2_tree, nargs=5)
         InterGridArg.check_first_arg(
             fparser2_tree, "InterGridVector", vector=True)
         vector_length = InterGridVectorArg.get_and_check_vector_length(

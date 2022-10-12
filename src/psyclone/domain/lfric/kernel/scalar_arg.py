@@ -74,7 +74,8 @@ class ScalarArg(CommonArg):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.ScalarArg`
 
         '''
-        ScalarArg.check_fparser2(fparser2_tree, nargs=3)
+        ScalarArg.check_fparser2(fparser2_tree, "arg_type")
+        ScalarArg.check_nargs(fparser2_tree, nargs=3)
         ScalarArg.check_first_arg(fparser2_tree, "Scalar")
         datatype, access = ScalarArg.get_type_and_access(fparser2_tree)
         ScalarArg.check_remaining_args(fparser2_tree, datatype, access)
