@@ -644,9 +644,9 @@ def test_apply_function(fortran_reader, fortran_writer, tmpdir):
         "  subroutine run_it()\n"
         "    real :: a\n"
         "    real :: b\n"
-        "    real :: func\n\n"
-        "    func = 2.0\n"
-        "    a = func")
+        "    real :: inlined_func\n\n"
+        "    inlined_func = 2.0\n"
+        "    a = inlined_func")
     assert expected in output
     assert Compile(tmpdir).string_compiles(output)
 
@@ -679,15 +679,97 @@ def test_apply_function_declare_name(
     inline_trans = InlineTrans()
     inline_trans.apply(routine)
     output = fortran_writer(psyir)
+
     expected = (
         "  subroutine run_it()\n"
         "    real :: a\n"
         "    real :: b\n"
-        "    real :: x\n\n"
-        "    x = 2.0\n"
-        "    a = x")
+        "    real :: inlined_x\n\n"
+        "    inlined_x = 2.0\n"
+        "    a = inlined_x")
     assert expected in output
     assert Compile(tmpdir).string_compiles(output)
+
+
+def test_apply_function_expression(fortran_reader, fortran_writer, tmpdir):
+    '''Check that the apply() method works correctly for a call to a
+    function that is within an expression.
+
+    '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "  real :: a,b\n"
+        "  a = (a*func(b)+2.0)/a\n"
+        "  end subroutine run_it\n"
+        "  real function func(b) result(x)\n"
+        "    real :: b\n"
+        "    b = b + 3.0\n"
+        "    x = b * 2.0\n"
+        "  end function\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(routine)
+    output = fortran_writer(psyir)
+    assert (
+        "    real :: b\n"
+        "    real :: inlined_x\n\n"
+        "    b = b + 3.0\n"
+        "    inlined_x = b * 2.0\n"
+        "    a = (a * inlined_x + 2.0) / a\n" in output)
+    assert Compile(tmpdir).string_compiles(output)
+
+
+def test_apply_multi_function(fortran_reader, fortran_writer, tmpdir):
+    '''Check that the apply() method works correctly when a function is
+    called twice but only one of these function calls is inlined.
+
+    '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "  real :: a,b,c\n"
+        "  a = func(b)\n"
+        "  c = func(a)\n"
+        "  end subroutine run_it\n"
+        "  real function func(b)\n"
+        "    real :: b\n"
+        "    func = 2.0\n"
+        "  end function\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(routine)
+    output = fortran_writer(psyir)
+    expected = (
+        "  subroutine run_it()\n"
+        "    real :: a\n"
+        "    real :: b\n"
+        "    real :: c\n"
+        "    real :: inlined_func\n\n"
+        "    inlined_func = 2.0\n"
+        "    a = inlined_func\n"
+        "    c = func(a)")
+    assert expected in output
+    assert Compile(tmpdir).string_compiles(output)
+
+    # inline again
+    routine = psyir.walk(Call)[0]
+    inline_trans.apply(routine)
+    output = fortran_writer(psyir)
+    expected = (
+        "    real :: inlined_func\n"
+        "    real :: inlined_func_1\n\n"
+        "    inlined_func = 2.0\n"
+        "    a = inlined_func\n"
+        "    inlined_func_1 = 2.0\n"
+        "    c = inlined_func_1")
+    assert expected in output
 
 
 def test_apply_validate():

@@ -182,11 +182,17 @@ class InlineTrans(Transformation):
 
         if routine.return_symbol:
             # This is a function
-            parent = node.ancestor(Assignment).parent
-            idx = parent.position-1
+            assignment = node.ancestor(Assignment)
+            parent = assignment.parent
+            idx = assignment.position-1
             for child in new_stmts:
                 idx += 1
                 parent.addchild(child, idx)
+            table = parent.scope.symbol_table
+            # Avoid a potential name clash with the original function
+            table.rename_symbol(
+                routine.return_symbol, table.next_available_name(
+                    f"inlined_{routine.return_symbol.name}"))
             node.replace_with(Reference(routine.return_symbol))
         else:
             # This is a call
@@ -485,7 +491,9 @@ class InlineTrans(Transformation):
             definition cannot be found.
         '''
         name = call_node.routine.name
+        print(f"Looking for {name}")
         routine_sym = call_node.scope.symbol_table.lookup(name)
+        print(f"Found symbol {routine_sym.name}")
         if not routine_sym.is_local:
             raise TransformationError(
                 f"Routine '{name}' is imported and therefore cannot currently "
