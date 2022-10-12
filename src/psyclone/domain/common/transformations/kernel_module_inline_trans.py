@@ -42,7 +42,7 @@
 from psyclone.psyGen import Transformation, CodedKern
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.symbols import RoutineSymbol, DataSymbol, \
-    DataTypeSymbol, Symbol
+    DataTypeSymbol, Symbol, ContainerSymbol
 from psyclone.psyir.nodes import Container, ScopingNode, Reference, Routine, \
     Literal, CodeBlock, Call
 
@@ -140,6 +140,19 @@ class KernelModuleInlineTrans(Transformation):
                         f"present in the Symbol Table(s) within subroutine "
                         f"scope. Cannot inline such a kernel.") from err
 
+        # We can't transform subroutines that shadow top-level symbol module
+        # names, because we won't be able to bring this into the subroutine
+        for scope in kernel_schedule.walk(ScopingNode):
+            for symbol in scope.symbol_table.symbols:
+                symtab = kernel_schedule.ancestor(Container).symbol_table
+                for mod in symtab.containersymbols:
+                    if symbol.name == mod.name and not \
+                            isinstance(symbol, ContainerSymbol):
+                        raise TransformationError(
+                            f"Kernel '{node.name}' cannot be module-inlined"
+                            f" because the subroutine shadows the symbol "
+                            f"name of the module container '{symbol.name}'.")
+
         # If the symbol already exist at the call site it must be referring
         # to a Routine
         try:
@@ -187,10 +200,10 @@ class KernelModuleInlineTrans(Transformation):
         symbols_to_bring_in = set()
         for symbol in all_symbols:
             if symbol.is_unresolved:
-                # We don't know where this comes from, we need to bring
-                # in all top-level imports
-                for mod in source_container.symbol_table.containersymbols:
-                    symbols_to_bring_in.add(mod)
+                # This symbol is already in the symbol table, but adding it
+                # to the 'symbols_to_bring_in' will make the next step bring
+                # into the subroutine all modules that it could come from.
+                symbols_to_bring_in.add(symbol)
             elif symbol.is_import:
                 # Add to symbols_to_bring_in
                 symbols_to_bring_in.add(symbol)
@@ -207,14 +220,25 @@ class KernelModuleInlineTrans(Transformation):
             if symbol.name not in code_to_inline.symbol_table:
                 code_to_inline.symbol_table.add(symbol)
             # And when necessary the modules where they come from
-            if symbol.is_import:
+            if symbol.is_unresolved:
+                # We don't know where this comes from, we need to bring
+                # in all top-level imports with wildcard imports
+                for mod in source_container.symbol_table.containersymbols:
+                    if mod.wildcard_import:
+                        if mod.name not in code_to_inline.symbol_table:
+                            code_to_inline.symbol_table.add(mod)
+                        else:
+                            code_to_inline.symbol_table.lookup(mod.name).\
+                                wildcard_import = True
+            elif symbol.is_import:
                 module_symbol = symbol.interface.container_symbol
                 if module_symbol.name not in code_to_inline.symbol_table:
                     code_to_inline.symbol_table.add(module_symbol)
-            elif symbol.is_unresolved:
-                for mod in source_container.symbol_table.containersymbols:
-                    if mod.name not in code_to_inline.symbol_table:
-                        code_to_inline.symbol_table.add(mod)
+                else:
+                    # If it already exists, we know its a container (from the
+                    # validation) so we just need to point to it
+                    symbol.interface._container_symbol = \
+                        code_to_inline.symbol_table.lookup(module_symbol.name)
 
     def apply(self, node, options=None):
         ''' Bring the kernel subroutine into this Container.

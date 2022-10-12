@@ -164,6 +164,79 @@ def test_validate_name_clashes():
             "module-inlined subroutines is not implemented "
             "yet.") in str(err.value)
 
+def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch, fortran_writer):
+    ''' Test that the validate method refuses to transform a kernel which
+    contains local variables that shadow a module name that would need to
+    be brought into the subroutine scope.'''
+
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean1.0",
+                             idx=0, dist_mem=False)
+    schedule = invoke.schedule
+    kern_call = schedule.children[1].loop_body[0].loop_body[0]
+
+    # Manually set the kernel to the desired problematic code
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+        use external_mod, only: r_def
+        contains
+        subroutine code()
+            real :: external_mod
+            real(kind=r_def) :: a
+            a = external_mod + 1
+        end subroutine code
+    end module my_mod
+    ''')
+    routine = psyir.walk(Routine)[0]
+    monkeypatch.setattr(kern_call, "_kern_schedule", routine)
+
+    # and try to apply the transformation
+    inline_trans = KernelModuleInlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.apply(kern_call)
+    assert ("Kernel 'compute_cv_code' cannot be module-inlined because the "
+            "subroutine shadows the symbol name of the module container "
+            "'external_mod'." in str(err.value))
+
+    # Repeat the same with a wildcard imports
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+        use external_mod
+        contains
+        subroutine code()
+            real :: external_mod
+            real(kind=r_def) :: a
+            a = external_mod + 1
+        end subroutine code
+    end module my_mod
+    ''')
+    routine = psyir.walk(Routine)[0]
+    monkeypatch.setattr(kern_call, "_kern_schedule", routine)
+
+    # and try to apply the transformation
+    inline_trans = KernelModuleInlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.apply(kern_call)
+    assert ("Kernel 'compute_cv_code' cannot be module-inlined because the "
+            "subroutine shadows the symbol name of the module container "
+            "'external_mod'." in str(err.value))
+
+    # But it is fine if it shadows itself
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+        use external_mod
+        contains
+        subroutine code()
+            use external_mod
+            real(kind=r_def) :: a
+            a = external_mod + 1
+        end subroutine code
+    end module my_mod
+    ''')
+    routine = psyir.walk(Routine)[0]
+    monkeypatch.setattr(kern_call, "_kern_schedule", routine)
+
+    inline_trans.apply(kern_call)
+
 
 def test_module_inline_apply_transformation(tmpdir, fortran_writer):
     ''' Test that we can succesfully inline a basic kernel subroutine
@@ -299,6 +372,7 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     module my_mod
         use external_mod1
         use external_mod2
+        use not_needed, only: not_used
         implicit none
         contains
         subroutine code()
@@ -312,6 +386,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     result = fortran_writer(routine)
     assert "use external_mod1" in result
     assert "use external_mod2" in result
+    assert "not_needed" not in result
+    assert "not_used" not in result
 
     # Also, if they are in datatype precision expressions
     psyir = fortran_reader.psyir_from_source('''
@@ -394,6 +470,25 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     inline_trans._prepare_code_to_inline(routine)
     result = fortran_writer(routine)
     assert "use external_mod1, only : c" in result
+
+    # Another shadowing example where the local module should be
+    # promoted to a wildcard import
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+        use external_mod
+        contains
+        subroutine code()
+            use external_mod, only : r_def
+            real(kind=r_def) :: a
+            a = another_unresolved + 1
+        end subroutine code
+    end module my_mod
+    ''')
+    routine = psyir.walk(Routine)[0]
+    inline_trans._prepare_code_to_inline(routine)
+    result = fortran_writer(routine)
+    assert "use external_mod\n" in result
+    assert "use external_mod, only : r_def" not in result
 
 
 def test_module_inline_lfric(tmpdir, monkeypatch, annexed, dist_mem):
