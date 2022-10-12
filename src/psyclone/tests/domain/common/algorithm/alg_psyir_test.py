@@ -452,8 +452,8 @@ def test_kernelfunctor_invalid_args2():
     symbol = DataTypeSymbol("hello", StructureType())
     with pytest.raises(GenerationError) as info:
         _ = KernelFunctor.create(symbol, ["hello"])
-    assert("Item 'str' can't be child 0 of 'KernelFunctor'. The valid "
-           "format is: '[DataNode]*'." in str(info.value))
+    assert ("Item 'str' can't be child 0 of 'KernelFunctor'. The valid "
+            "format is: '[DataNode]*'." in str(info.value))
 
 
 def test_kernelfunctor_node_str():

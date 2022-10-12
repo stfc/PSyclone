@@ -603,8 +603,8 @@ def test_swap_symbol_properties():
     # symbol name is used as the key in the symbol table).
     with pytest.raises(ValueError) as excinfo:
         sym_table.swap_symbol_properties(symbol1, symbol1)
-    assert("The symbols should have different names, but found 'var1' for "
-           "both.") in str(excinfo.value)
+    assert ("The symbols should have different names, but found 'var1' for "
+            "both.") in str(excinfo.value)
 
     sym_table.add(symbol2)
     sym_table.add(symbol3)

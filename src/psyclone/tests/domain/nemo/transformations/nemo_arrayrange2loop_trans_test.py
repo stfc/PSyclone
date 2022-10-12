@@ -462,9 +462,9 @@ def test_apply_calls_validate():
     trans = NemoArrayRange2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.apply(None)
-    assert("Error in NemoArrayRange2LoopTrans transformation. The supplied "
-           "node argument should be a PSyIR Range, but found 'NoneType'."
-           in str(info.value))
+    assert ("Error in NemoArrayRange2LoopTrans transformation. The supplied "
+            "node argument should be a PSyIR Range, but found 'NoneType'."
+            in str(info.value))
 
 
 def test_str():
@@ -492,9 +492,9 @@ def test_valid_node():
     trans = NemoArrayRange2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(None)
-    assert("Error in NemoArrayRange2LoopTrans transformation. The supplied "
-           "node argument should be a PSyIR Range, but found 'NoneType'."
-           in str(info.value))
+    assert ("Error in NemoArrayRange2LoopTrans transformation. The supplied "
+            "node argument should be a PSyIR Range, but found 'NoneType'."
+            in str(info.value))
 
 
 def test_validate_within_array_reference():
@@ -512,10 +512,10 @@ def test_validate_within_array_reference():
         my_range._parent = parent
         with pytest.raises(TransformationError) as info:
             trans.validate(my_range)
-        assert(f"Error in NemoArrayRange2LoopTrans transformation. The "
-               f"supplied node argument should be within an array "
-               f"access node, but found '{result}'."
-               in str(info.value))
+        assert (f"Error in NemoArrayRange2LoopTrans transformation. The "
+                f"supplied node argument should be within an array "
+                f"access node, but found '{result}'."
+                in str(info.value))
 
 
 def test_validate_within_assignment():
@@ -534,10 +534,10 @@ def test_validate_within_assignment():
         array_ref._parent = parent
         with pytest.raises(TransformationError) as info:
             trans.validate(my_range)
-        assert("Error in NemoArrayRange2LoopTrans transformation. The "
-               "supplied node argument should be within an Assignment node, "
-               "but found a 'Range[]' that is not in an assignment."
-               in str(info.value))
+        assert ("Error in NemoArrayRange2LoopTrans transformation. The "
+                "supplied node argument should be within an Assignment node, "
+                "but found a 'Range[]' that is not in an assignment."
+                in str(info.value))
 
 
 def test_validate_within_lhs_assignment():
@@ -554,10 +554,10 @@ def test_validate_within_lhs_assignment():
     my_range = array_ref.children[-1]
     with pytest.raises(TransformationError) as info:
         trans.validate(my_range)
-    assert("Error in NemoArrayRange2LoopTrans transformation. The "
-           "supplied node argument should be within an array access "
-           "node that is within the left-hand-side of an Assignment "
-           "node, but it is on the right-hand-side." in str(info.value))
+    assert ("Error in NemoArrayRange2LoopTrans transformation. The "
+            "supplied node argument should be within an array access "
+            "node that is within the left-hand-side of an Assignment "
+            "node, but it is on the right-hand-side." in str(info.value))
 
 
 def test_validate_array_non_elemental_operator():
@@ -593,6 +593,6 @@ def test_validate_not_outermost_range():
     my_range = array_ref.children[0]
     with pytest.raises(TransformationError) as info:
         trans.validate(my_range)
-    assert("Error in NemoArrayRange2LoopTrans transformation. This "
-           "transformation can only be applied to the outermost "
-           "Range." in str(info.value))
+    assert ("Error in NemoArrayRange2LoopTrans transformation. This "
+            "transformation can only be applied to the outermost "
+            "Range." in str(info.value))

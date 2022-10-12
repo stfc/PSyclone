@@ -202,15 +202,15 @@ def test_cw_ifblock():
     cwriter = CWriter()
     with pytest.raises(VisitorError) as err:
         _ = cwriter(ifblock)
-    assert("IfBlock malformed or incomplete. It should have "
-           "at least 2 children, but found 0." in str(err.value))
+    assert ("IfBlock malformed or incomplete. It should have "
+            "at least 2 children, but found 0." in str(err.value))
 
     # Add the if condition
     ifblock.addchild(Reference(DataSymbol('a', REAL_TYPE)))
     with pytest.raises(VisitorError) as err:
         _ = cwriter(ifblock)
-    assert("IfBlock malformed or incomplete. It should have "
-           "at least 2 children, but found 1." in str(err.value))
+    assert ("IfBlock malformed or incomplete. It should have "
+            "at least 2 children, but found 1." in str(err.value))
 
     # Fill the if_body
     ifblock.addchild(Schedule(parent=ifblock))
@@ -276,8 +276,8 @@ def test_cw_unaryoperator():
     unary_operation = UnaryOperation(UnaryOperation.Operator.MINUS)
     with pytest.raises(VisitorError) as err:
         _ = cwriter(unary_operation)
-    assert("UnaryOperation malformed or incomplete. It should have "
-           "exactly 1 child, but found 0." in str(err.value))
+    assert ("UnaryOperation malformed or incomplete. It should have "
+            "exactly 1 child, but found 0." in str(err.value))
 
     # Add child
     ref1 = Literal("a", CHARACTER_TYPE, unary_operation)
@@ -324,8 +324,8 @@ def test_cw_binaryoperator():
     binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
     with pytest.raises(VisitorError) as err:
         _ = cwriter(binary_operation)
-    assert("BinaryOperation malformed or incomplete. It should have "
-           "exactly 2 children, but found 0." in str(err.value))
+    assert ("BinaryOperation malformed or incomplete. It should have "
+            "exactly 2 children, but found 0." in str(err.value))
 
     # Test with children
     ref1 = Reference(DataSymbol("a", REAL_TYPE))

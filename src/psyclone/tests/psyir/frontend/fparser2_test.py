@@ -624,14 +624,14 @@ def test_generate_schedule_unmatching_arguments(parser):
     # Test exception for unmatching argument list
     with pytest.raises(InternalError) as error:
         _ = processor.generate_schedule("dummy_code", ast)
-    assert("PSyclone internal error: The kernel argument list:\n"
-           "'['f1', 'f2', 'f3', 'f4']'\n"
-           "does not match the variable declarations:\n"
-           "REAL(KIND = wp), DIMENSION(:, :), INTENT(IN) :: f1\n"
-           "REAL(KIND = wp), DIMENSION(:, :), INTENT(OUT) :: f2\n"
-           "REAL(KIND = wp), DIMENSION(:, :) :: f3\n"
-           "Specific PSyIR error is \"Could not find 'f4' in the "
-           "Symbol Table.\"." in str(error.value))
+    assert ("PSyclone internal error: The kernel argument list:\n"
+            "'['f1', 'f2', 'f3', 'f4']'\n"
+            "does not match the variable declarations:\n"
+            "REAL(KIND = wp), DIMENSION(:, :), INTENT(IN) :: f1\n"
+            "REAL(KIND = wp), DIMENSION(:, :), INTENT(OUT) :: f2\n"
+            "REAL(KIND = wp), DIMENSION(:, :) :: f3\n"
+            "Specific PSyIR error is \"Could not find 'f4' in the "
+            "Symbol Table.\"." in str(error.value))
 
 
 @pytest.mark.usefixtures("f2008_parser")

@@ -3915,7 +3915,7 @@ class Fparser2Reader(object):
                 # First, update the existing RoutineSymbol with the
                 # return datatype specified in the function
                 # declaration.
-                
+
                 # Lookup with the routine name as return_name may be
                 # declared with its own local name. Be wary that this
                 # function may not be referenced so there might not be

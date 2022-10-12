@@ -55,7 +55,7 @@ def reset_infrastructure_compiled_flag():
     '''
     LFRicBuild._infrastructure_built = False
     saved_orig_path = LFRicBuild._compilation_path
-    yield()
+    yield
     LFRicBuild._compilation_path = saved_orig_path
 
 

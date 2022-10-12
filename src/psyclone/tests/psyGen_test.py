@@ -990,8 +990,8 @@ def test_reduction_var_error(dist_mem):
     call._reduction_arg = call.arguments.args[1]
     with pytest.raises(GenerationError) as err:
         call.zero_reduction_variable(None)
-    assert("Kern.zero_reduction_variable() should be a scalar but "
-           "found 'gh_field'." in str(err.value))
+    assert ("Kern.zero_reduction_variable() should be a scalar but "
+            "found 'gh_field'." in str(err.value))
 
 
 def test_reduction_var_invalid_scalar_error(dist_mem):
@@ -1011,9 +1011,9 @@ def test_reduction_var_invalid_scalar_error(dist_mem):
     call._reduction_arg = call.arguments.args[5]
     with pytest.raises(GenerationError) as err:
         call.zero_reduction_variable(None)
-    assert("Kern.zero_reduction_variable() should be either a 'real' "
-           "or an 'integer' scalar but found scalar of type 'logical'."
-           in str(err.value))
+    assert ("Kern.zero_reduction_variable() should be either a 'real' "
+            "or an 'integer' scalar but found scalar of type 'logical'."
+            in str(err.value))
 
 
 def test_reduction_sum_error(dist_mem):
@@ -1029,10 +1029,9 @@ def test_reduction_sum_error(dist_mem):
     call._reduction_arg = call.arguments.args[1]
     with pytest.raises(GenerationError) as err:
         call.reduction_sum_loop(None)
-    assert(
-        "Unsupported reduction access 'gh_inc' found in LFRicBuiltIn:"
-        "reduction_sum_loop(). Expected one of ['gh_sum']."
-        in str(err.value))
+    assert ("Unsupported reduction access 'gh_inc' found in LFRicBuiltIn:"
+            "reduction_sum_loop(). Expected one of ['gh_sum']."
+            in str(err.value))
 
 
 def test_call_multi_reduction_error(monkeypatch, dist_mem):
@@ -1051,9 +1050,8 @@ def test_call_multi_reduction_error(monkeypatch, dist_mem):
     with pytest.raises(GenerationError) as err:
         _ = PSyFactory("dynamo0.3",
                        distributed_memory=dist_mem).create(invoke_info)
-    assert(
-        "PSyclone currently only supports a single reduction in a kernel "
-        "or builtin" in str(err.value))
+    assert ("PSyclone currently only supports a single reduction in a kernel "
+            "or builtin" in str(err.value))
 
 
 def test_reduction_no_set_precision(dist_mem):
