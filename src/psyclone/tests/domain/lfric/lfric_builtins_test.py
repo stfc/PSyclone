@@ -49,10 +49,11 @@ import pytest
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import lfric_builtins, LFRicConstants
-from psyclone.domain.lfric.lfric_builtins import LFRicBuiltInCallFactory
+from psyclone.domain.lfric.lfric_builtins import (LFRicBuiltInCallFactory,
+                                                  LFRicBuiltIn)
 from psyclone.dynamo0p3 import DynKernelArgument
 from psyclone.errors import GenerationError, InternalError
-from psyclone.parse.algorithm import parse
+from psyclone.parse.algorithm import BuiltInCall, parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Loop, Reference, UnaryOperation, Literal, \
@@ -139,24 +140,21 @@ def test_lfricbuiltin_missing_defs(monkeypatch):
             "Built-in operations" in str(excinfo.value))
 
 
-def test_lfricbuiltin_not_over_dofs():
+def test_lfricbuiltin_validate_not_over_dofs(monkeypatch):
     ''' Check that we raise an appropriate error if we encounter a
     built-in that does not iterate over dofs. '''
-    old_name = lfric_builtins.BUILTIN_DEFINITIONS_FILE[:]
-    lfric_builtins.BUILTIN_DEFINITIONS_FILE = \
-        os.path.join(BASE_PATH, "not_dofs_builtins_mod.f90")
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.12.3_single_pointwise_builtin.f90"),
         api=API)
-    # Restore the original file name before doing the assert in case
-    # it fails
-    lfric_builtins.BUILTIN_DEFINITIONS_FILE = old_name
-    with pytest.raises(InternalError) as excinfo:
-        _ = PSyFactory(API,
-                       distributed_memory=False).create(invoke_info)
-    assert ("An LFRic built-in must iterate over DoFs but kernel 'setval_c' "
-            "iterates over 'cell_column'" in str(excinfo.value))
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # Get a valid built-in kernel and then monkeypatch it.
+    kern = psy.invokes.invoke_list[0].schedule.walk(LFRicBuiltIn)[0]
+    monkeypatch.setattr(kern, "_iterates_over", "broken")
+    with pytest.raises(ParseError) as err:
+        kern._validate()
+    assert ("built-in calls must operate on one of ['dof'] but found 'broken' "
+            "for Built-in: Set a real-valued field " in str(err.value))
 
 
 def test_builtin_multiple_writes():
@@ -428,6 +426,30 @@ def test_lfricbuiltin_wrong_name():
         _ = lfricinf.create(fake_kern)
     assert ("Unrecognised built-in call in LFRic API: found 'pw_blah' "
             "but expected one of [" in str(excinfo.value))
+
+
+def test_lfricbuiltin_not_dofs():
+    '''Check that LFRicBuiltInCallFactory.create() raises an error if the
+    builtin doesn't iterate over DoFs.'''
+
+    class KtypeDummy():
+        '''A fake KernelType class which provides the required variables
+        (including an invalid value of iterates_over) to
+        allow the BuiltInCall class to be instantiated and passed to the
+        LFRicBuiltInCallFactory.
+
+        '''
+        def __init__(self):
+            self.nargs = 2
+            self.name = "x_plus_y"
+            self.iterates_over = "wrong"
+
+    factory = LFRicBuiltInCallFactory()
+    bincall = BuiltInCall(KtypeDummy(), ["a", "b"])
+    with pytest.raises(InternalError) as err:
+        factory.create(bincall)
+    assert ("An LFRic built-in must iterate over DoFs but kernel 'x_plus_y' "
+            "iterates over 'wrong'" in str(err.value))
 
 
 def test_invalid_builtin_kernel():

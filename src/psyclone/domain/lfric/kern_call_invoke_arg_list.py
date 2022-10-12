@@ -69,12 +69,14 @@ class KernCallInvokeArgList(ArgOrdering):
         self._fields = []
         self._scalars = []
         self._qr_objects = []
+        self._operators = []
 
     @property
     def fields(self):
         '''
-        :returns: the field (and field-vector) arguments to the kernel.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :returns: the field (and field-vector) arguments plus their \
+                  corresponding function spaces.
+        :rtype: List[Tuple(:py:class:`psyclone.psyir.symbols.DataSymbol`, str)]
         '''
         return self._fields
 
@@ -82,7 +84,7 @@ class KernCallInvokeArgList(ArgOrdering):
     def scalars(self):
         '''
         :returns: the scalar arguments to the kernel.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
         '''
         return self._scalars
 
@@ -91,9 +93,18 @@ class KernCallInvokeArgList(ArgOrdering):
         '''
         :returns: the symbols representing the quadrature objects required by \
                   the kernel along with the shape of each.
-        :rtype: list of (:py:class:`psyclone.psyir.symbols.DataSymbol`, str)
+        :rtype: List[Tuple[:py:class:`psyclone.psyir.symbols.DataSymbol`, str]]
         '''
         return self._qr_objects
+
+    @property
+    def operators(self):
+        '''
+        :returns: the symbols representing the operators required by the \
+                  kernel.
+        :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
+        '''
+        return self._operators
 
     def generate(self, var_accesses=None):
         ''' Ensures that our internal lists of arguments of various
@@ -108,6 +119,7 @@ class KernCallInvokeArgList(ArgOrdering):
         self._fields = []
         self._scalars = []
         self._qr_objects = []
+        self._operators = []
         super().generate(var_accesses)
 
     def scalar(self, scalar_arg, var_accesses=None):
@@ -284,8 +296,7 @@ class KernCallInvokeArgList(ArgOrdering):
         :raises NotImplementedError: operators are not yet supported.
 
         '''
-        raise NotImplementedError(
-            "Operators are not yet supported.")
+        raise NotImplementedError("Operators are not yet supported.")
 
     def quad_rule(self, var_accesses=None):
         '''Add quadrature-related information to the kernel argument list.

@@ -416,9 +416,9 @@ class DynKernMetadata(KernelType):
 
         # parse the arg_type metadata
         self._arg_descriptors = []
-        for arg_type in self._inits:
+        for idx, arg_type in enumerate(self._inits):
             self._arg_descriptors.append(
-                LFRicArgDescriptor(arg_type, self.iterates_over))
+                LFRicArgDescriptor(arg_type, self.iterates_over, idx))
 
         # Get a list of the Type declarations in the metadata
         type_declns = [cline for cline in self._ktype.content if
@@ -8521,16 +8521,21 @@ class DynKern(CodedKern):
                     self.name, expected_n_args, actual_n_args))
 
         # 2: Check that the properties of each argument matches
-        # The kernel metadata does not have information on precision.
-        # TODO need to work out which arguments in the actual subroutine have
-        # their precision defined by actual arguments in the invoke call.
-        # i.e. all of the scalar, field and operator arguments.
-        arg_list = KernCallArgList(self)
-        arg_list.generate()
-        for kern_code_arg, iface_arg in zip(kern_code_args, interface_args):
-            self._validate_kernel_code_arg(kern_code_arg, iface_arg)
+        for idx, kern_code_arg in enumerate(kern_code_args):
+            interface_arg = interface_args[idx]
+            try:
+                alg_idx = interface_info.metadata_index_from_actual_index(idx)
+                alg_arg = self.arguments.args[alg_idx]
+            except KeyError:
+                # There's no algorithm argument directly associated with this
+                # kernel argument. (We only care about the data associated
+                # with scalar, field and operator arguments.)
+                alg_arg = None
+            self._validate_kernel_code_arg(kern_code_arg, interface_arg,
+                                           alg_arg)
 
-    def _validate_kernel_code_arg(self, kern_code_arg, interface_arg):
+    def _validate_kernel_code_arg(self, kern_code_arg, interface_arg,
+                                  alg_arg=None):
         '''Internal method to check that the supplied argument descriptions
         match and raise appropriate exceptions if not.
 
@@ -8538,6 +8543,12 @@ class DynKern(CodedKern):
         :type kern_code_arg: :py:class:`psyclone.psyir.symbols.DataSymbol`
         :param interface_arg: expected argument.
         :type interface_arg: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param alg_arg: the associated argument in the Algorithm layer. Note \
+            that only kernel arguments holding the data associated with \
+            scalar, field and operator arguments directly correspond to \
+            arguments that appear in the Algorithm layer.
+        :type alg_arg: \
+            Optional[:py:class`psyclone.dynamo0p3.DynKernelArgument`]
 
         :raises GenerationError: if the contents of the arguments do \
             not match.
@@ -8567,8 +8578,14 @@ class DynKern(CodedKern):
             raise GenerationError(
                 "Kernel argument '{0}' has precision '{1}' "
                 "in kernel '{2}' but the LFRic API expects '{3}'."
-                "".format(kern_code_arg.name, kern_code_arg.datatype.precision,
-                          self.name, interface_arg.datatype.precision))
+                "".format(kern_code_arg.name, actual_precision,
+                          self.name, expected_precision))
+        # 2b: precision at compile time
+        if alg_arg:
+            # TODO #1892 - check that precision derived from algorithm layer
+            # matches the subroutine interface.
+            pass
+
         # 3: intent
         actual_intent = kern_code_arg.interface.access
         expected_intent = interface_arg.interface.access

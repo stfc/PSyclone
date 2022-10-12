@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,9 @@ from psyclone.domain.lfric.transformations.lfric_alg_invoke_2_psy_call_trans \
     import LFRicAlgInvoke2PSyCallTrans
 from psyclone.domain.lfric.transformations.lfric_extract_trans \
     import LFRicExtractTrans
-from psyclone.domain.lfric.transformations.lfric_raise_call_2_invoke_trans \
-    import LFRicRaiseCall2InvokeTrans
+from psyclone.domain.lfric.transformations.raise_psyir_2_lfric_alg_trans \
+    import RaisePSyIR2LFRicAlgTrans
 from psyclone.domain.lfric.transformations.lfric_loop_fuse_trans \
     import LFRicLoopFuseTrans
+from psyclone.domain.lfric.transformations.raise_psyir_2_lfric_kern_trans \
+    import RaisePSyIR2LFRicKernTrans

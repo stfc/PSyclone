@@ -93,6 +93,15 @@ class LFRicConstants():
 
         # pylint: disable=too-many-instance-attributes
 
+        # Supported access types
+        LFRicConstants.VALID_SCALAR_ACCESS_TYPES = ["gh_read"]
+        LFRicConstants.VALID_FIELD_ACCESS_TYPES = [
+            "gh_read", "gh_write", "gh_inc", "gh_readinc"]
+        LFRicConstants.VALID_OPERATOR_ACCESS_TYPES = [
+            "gh_read", "gh_write", "gh_readwrite"]
+        LFRicConstants.VALID_ACCESS_TYPES = [
+            "gh_read", "gh_write", "gh_readwrite", "gh_inc", "gh_readinc"]
+
         # Supported LFRic API stencil types and directions
         LFRicConstants.VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross",
                                               "region", "cross2d"]

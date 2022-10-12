@@ -39,7 +39,6 @@
 '''Tests for PSy-layer code generation that are specific to the
 GOcean 1.0 API.'''
 
-from __future__ import absolute_import, print_function
 import os
 import re
 import pytest
@@ -1329,8 +1328,8 @@ def test06_kernel_invalid_access():
                            "test_files", "gocean1p0",
                            "test06_invoke_kernel_wrong_access.f90"),
               api="gocean1.0")
-    assert "compute_cu: argument access  is given as 'wrong' but must be one "\
-           "of ['go_read', 'go_readwrite', 'go_write']" in str(err.value)
+    assert ("compute_cu: argument access is given as 'wrong' but must be one "
+            "of ['go_read', 'go_readwrite', 'go_write']" in str(err.value))
 
 
 def test07_kernel_wrong_gridpt_type():
@@ -1672,7 +1671,7 @@ def test_gokernelargument_type(monkeypatch):
     dummy_node.symbol_table = SymbolTable()
 
     # Create a dummy GOKernelArgument
-    descriptor = Descriptor(None, "go_r_scalar")
+    descriptor = Descriptor(None, "go_r_scalar", 0)
     arg = Arg("variable", "arg", "arg")
     argument = GOKernelArgument(descriptor, arg, dummy_node)
 
