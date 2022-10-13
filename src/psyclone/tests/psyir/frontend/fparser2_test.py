@@ -1475,7 +1475,7 @@ def test_parse_array_dimensions_attributes():
 
     # Explicit shape symbols can only be Literal or Symbol
     with pytest.raises(NotImplementedError) as error:
-        class UnrecognizedType(object):
+        class UnrecognizedType():
             '''Type guaranteed to not be part of the _parse_dimensions
             conditional type handler.'''
         fparser2spec.items[1].items[0].items[1].__class__ = UnrecognizedType
@@ -1684,7 +1684,7 @@ def test_parse_array_dimensions_unhandled(monkeypatch):
     def walk_ast_return(_1, _2, _3=None, _4=None):
         '''Function that returns a unique object that will not be part
         of the implemented handling in the walk method caller.'''
-        class Invalid(object):
+        class Invalid():
             '''Class that would be invalid to return from an fparser2 parse
             tree.'''
         newobject = Invalid()

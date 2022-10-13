@@ -697,7 +697,7 @@ def test_node_dag_returns_digraph(monkeypatch):
     make this test independent of whether or not graphviz is installed by
     monkeypatching the psyir.nodes.node._graphviz_digraph_class function to
     return a fake digraph class type. '''
-    class FakeDigraph(object):
+    class FakeDigraph():
         ''' Fake version of graphviz.Digraph class with key methods
         implemented as noops. '''
         # pylint: disable=redefined-builtin
@@ -731,7 +731,7 @@ def test_node_dag_wrong_file_format(monkeypatch):
     graphviz is actually available by monkeypatching the
     psyir.nodes.node._graphviz_digraph_class function to return a fake digraph
     class type that mimics the error. '''
-    class FakeDigraph(object):
+    class FakeDigraph():
         ''' Fake version of graphviz.Digraph class that raises a ValueError
         when instantiated. '''
         # pylint: disable=redefined-builtin

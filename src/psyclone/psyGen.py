@@ -165,7 +165,7 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
     return arguments
 
 
-class PSyFactory(object):
+class PSyFactory():
     '''
     Creates a specific version of the PSy. If a particular api is not
     provided then the default api, as specified in the psyclone.cfg
@@ -227,7 +227,7 @@ class PSyFactory(object):
         return PSyClass(invoke_info)
 
 
-class PSy(object):
+class PSy():
     '''
     Base class to help manage and generate PSy code for a single
     algorithm file. Takes the invocation information output from the
@@ -292,7 +292,7 @@ class PSy(object):
         '''
 
 
-class Invokes(object):
+class Invokes():
     '''Manage the invoke calls.
 
     :param alg_calls: a list of invoke metadata extracted by the \
@@ -358,7 +358,7 @@ class Invokes(object):
             invoke.gen_code(parent)
 
 
-class Invoke(object):
+class Invoke():
     r'''Manage an individual invoke call.
 
     :param alg_invocation: metadata from the parsed code capturing \
@@ -1923,7 +1923,7 @@ class BuiltIn(Kern):
         return []
 
 
-class Arguments(object):
+class Arguments():
     '''
     Arguments abstract base class.
 
@@ -2020,7 +2020,7 @@ class Arguments(object):
             "Arguments.append must be implemented in sub-class")
 
 
-class DataAccess(object):
+class DataAccess():
     '''A helper class to simplify the determination of dependencies due to
     overlapping accesses to data associated with instances of the
     Argument class.
@@ -2674,7 +2674,7 @@ class KernelArgument(Argument):
         return self._arg.metadata_index
 
 
-class TransInfo(object):
+class TransInfo():
     '''
     This class provides information about, and access, to the available
     transformations in this implementation of PSyclone. New transformations
