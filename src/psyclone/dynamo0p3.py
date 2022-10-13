@@ -1933,6 +1933,11 @@ class LFRicMeshProperties(DynCollection):
                                             "integer")
                     # Update the name in case there was a clash
                     adj_face = adj_face_sym.name
+                    if var_accesses:
+                        var_accesses.add_access(Signature(adj_face),
+                                                AccessType.READ, self._kernel,
+                                                [":", cell_ref])
+
                 if not stub:
                     adj_face = self._symbol_table.find_or_create_tag(
                         "adjacent_face").name
@@ -1946,7 +1951,7 @@ class LFRicMeshProperties(DynCollection):
                         adj_face += f"(:,{cell_name})"
                 arg_list.append(adj_face)
 
-                if var_accesses is not None:
+                if var_accesses and not kern_call_arg_list:
                     # TODO #1320 Replace [1]
                     # The [1] just indicates that this variable is accessed
                     # as a rank 1 array. #1320 will improve this.

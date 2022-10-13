@@ -41,6 +41,7 @@ import os
 
 import pytest
 
+from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.domain.lfric import KernCallArgList
 from psyclone.errors import InternalError
 from psyclone.dynamo0p3 import DynKern
@@ -192,7 +193,18 @@ def test_kerncallarglist_mesh_properties(fortran_writer):
     ctrans.apply(schedule.children[0])
 
     create_arg_list = KernCallArgList(schedule.kernels()[0])
-    create_arg_list.generate()
+    var_info = VariablesAccessInfo()
+    create_arg_list.generate(var_accesses=var_info)
+    assert str(var_info) == ("a: READ, adjacent_face: READ, cell: READ, "
+                             "cmap: READ, colour: READ, f1: READ+WRITE, "
+                             "map_w1: READ, ndf_w1: READ, nfaces_re_h: "
+                             "READ, nlayers: READ, undf_w1: READ")
+    # Tests that multiple reads are reported as expected:
+    assert str(var_info[Signature("cell")]) == "cell:READ(0),READ(0)"
+    assert str(var_info[Signature("colour")]) == "colour:READ(0),READ(0)"
+    assert str(var_info[Signature("cmap")]) == "cmap:READ(0),READ(0)"
+    assert str(var_info[Signature("adjacent_face")]) == "adjacent_face:READ(0)"
+
     assert create_arg_list._arglist == [
         'nlayers', 'a', 'f1_proxy%data', 'ndf_w1', 'undf_w1',
         'map_w1(:,cmap(colour,cell))', 'nfaces_re_h',

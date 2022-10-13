@@ -902,18 +902,18 @@ class KernCallArgList(ArgOrdering):
         cell_sym = self.get_integer_symbol("cell", "cell_loop_idx")
         if self._kern.is_coloured():
             colour_sym = self.get_integer_symbol("colour", "colours_loop_idx")
+            array_ref = self.get_array_reference("cmap",
+                                                 [Reference(colour_sym),
+                                                  Reference(cell_sym)],
+                                                 "integer")
             if var_accesses is not None:
                 var_accesses.add_access(Signature(colour_sym.name),
                                         AccessType.READ, self._kern)
                 var_accesses.add_access(Signature(cell_sym.name),
                                         AccessType.READ, self._kern)
-                var_accesses.add_access(Signature(self._kern.colourmap),
+                var_accesses.add_access(Signature(array_ref.name),
                                         AccessType.READ,
                                         self._kern, ["colour", "cell"])
-            array_ref = self.get_array_reference("cmap",
-                                                 [Reference(colour_sym),
-                                                  Reference(cell_sym)],
-                                                 "integer")
 
             return (self._kern.colourmap + "(colour,cell)",
                     array_ref)
