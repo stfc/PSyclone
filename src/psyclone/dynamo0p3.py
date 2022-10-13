@@ -1926,7 +1926,7 @@ class LFRicMeshProperties(DynCollection):
                     # Use the functionality in kern_call_arg_list to properly
                     # declare the symbol and to create a PSyIR reference for it
                     _, cell_ref = \
-                        kern_call_arg_list._cell_ref_name(var_accesses)
+                        kern_call_arg_list.cell_ref_name(var_accesses)
                     adj_face_sym = kern_call_arg_list. \
                         add_array_reference(adj_face,
                                             [":", cell_ref],

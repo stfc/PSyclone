@@ -186,7 +186,7 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        cell_ref_name, ref = self._cell_ref_name(var_accesses)
+        cell_ref_name, ref = self.cell_ref_name(var_accesses)
         self._psyir_arglist.append(ref)
         self.append(cell_ref_name)
 
@@ -208,7 +208,7 @@ class KernCallArgList(ArgOrdering):
         base_name = "cell_map_" + carg.name
 
         # Add the cell map to our argument list
-        cell_ref_name, cell_ref = self._cell_ref_name(var_accesses)
+        cell_ref_name, cell_ref = self.cell_ref_name(var_accesses)
         sym = self.add_array_reference(base_name, [":", ":", cell_ref],
                                        "integer")
         self.append(f"{sym.name}(:,:,{cell_ref_name})",
@@ -421,7 +421,7 @@ class KernCallArgList(ArgOrdering):
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_size_name(self._symtab, arg)
-        name = f"{var_name}({self._cell_ref_name(var_accesses)[0]})"
+        name = f"{var_name}({self.cell_ref_name(var_accesses)[0]})"
         self.append(name, var_accesses, var_access_name=var_name)
 
     def stencil_2d_unknown_extent(self, arg, var_accesses=None):
@@ -442,7 +442,7 @@ class KernCallArgList(ArgOrdering):
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_size_name(self._symtab, arg)
-        name = f"{var_name}(:,{self._cell_ref_name(var_accesses)[0]})"
+        name = f"{var_name}(:,{self.cell_ref_name(var_accesses)[0]})"
         self.append(name, var_accesses, var_access_name=var_name)
 
     def stencil_2d_max_extent(self, arg, var_accesses=None):
@@ -503,7 +503,7 @@ class KernCallArgList(ArgOrdering):
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_name(self._symtab, arg)
-        name = f"{var_name}(:,:,{self._cell_ref_name(var_accesses)[0]})"
+        name = f"{var_name}(:,:,{self.cell_ref_name(var_accesses)[0]})"
         self.append(name, var_accesses, var_access_name=var_name)
 
     def stencil_2d(self, arg, var_accesses=None):
@@ -531,7 +531,7 @@ class KernCallArgList(ArgOrdering):
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_name(self._symtab, arg)
-        name = f"{var_name}(:,:,:,{self._cell_ref_name(var_accesses)[0]})"
+        name = f"{var_name}(:,:,:,{self.cell_ref_name(var_accesses)[0]})"
         self.append(name, var_accesses, var_access_name=var_name)
 
     def operator(self, arg, var_accesses=None):
@@ -604,7 +604,7 @@ class KernCallArgList(ArgOrdering):
             self.append(sym.name, var_accesses, var_access_name=sym.name)
         else:
             # Pass the dofmap for the cell column
-            cell_name, cell_ref = self._cell_ref_name(var_accesses)
+            cell_name, cell_ref = self.cell_ref_name(var_accesses)
             sym = self.add_array_reference(map_name, [":", cell_ref], "real")
             self.append(f"{sym.name}(:,{cell_name})",
                         var_accesses, var_access_name=sym.name)
@@ -885,7 +885,7 @@ class KernCallArgList(ArgOrdering):
                 "before the ndf_positions() method")
         return self._ndf_positions
 
-    def _cell_ref_name(self, var_accesses=None):
+    def cell_ref_name(self, var_accesses=None):
         '''Utility routine which determines whether to return the cell value
         or the colourmap lookup value. If supplied it also stores this access
         in var_accesses.
