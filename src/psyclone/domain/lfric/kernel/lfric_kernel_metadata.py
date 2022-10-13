@@ -54,6 +54,8 @@ from psyclone.domain.lfric.kernel.field_vector_arg import FieldVectorArg
 from psyclone.domain.lfric.kernel.inter_grid_arg import InterGridArg
 from psyclone.domain.lfric.kernel.inter_grid_vector_arg import \
     InterGridVectorArg
+from psyclone.domain.lfric.kernel.meta_funcs_metadata import \
+    MetaFuncsMetadata
 from psyclone.domain.lfric.kernel.operates_on_metadata import \
     OperatesOnMetadata
 from psyclone.domain.lfric.kernel.operator_arg import OperatorArg
@@ -75,7 +77,8 @@ class LFRicKernelMetadata():
     :type meta_args: List[:py:class:`psyclone.domain.lfric.kernel.CommonArg`]
     :param meta_funcs: a list of 'meta_func' objects which capture whether \
         quadrature or evaluator data is required for a given function space.
-    :type meta_funcs: Optional[List[:py:class:`TODO`]] # issue #1879
+    :type meta_funcs: Optional[List[:py:class:`psyclone.domain.lfric.kernel.\
+        MetaFuncsArgMetadata`]]
     :param meta_reference_element: a kernel that requires properties \
         of the reference element in LFRic specifies those properties \
         through the meta_reference_element metadata entry.
@@ -110,6 +113,7 @@ class LFRicKernelMetadata():
         self._shapes = None
         self._evaluator_targets = None
         self._meta_args = None
+        self._meta_funcs = None
         # Use setters to validate any supplied arguments values.
         if operates_on is not None:
             self._operates_on = OperatesOnMetadata(operates_on)
@@ -120,9 +124,8 @@ class LFRicKernelMetadata():
                 evaluator_targets)
         if meta_args is not None:
             self.meta_args = meta_args
-        if meta_funcs is None:
-            self._meta_funcs = []
-            # TODO issue #1879. META_FUNCS is not parsed correctly yet.
+        if meta_funcs is not None:
+            self._meta_funcs = MetaFuncsMetadata(meta_funcs)
         if meta_reference_element is None:
             self._meta_reference_element = []
             # TODO issue #1879. META_REFERENCE_ELEMENT is not parsed
@@ -219,37 +222,28 @@ class LFRicKernelMetadata():
 
         kernel_metadata.name = spec_part.children[0].children[1].tostr()
 
-        # the value of operates on (CELL_COLUMN, ...)
+        kernel_metadata._operates_on = None
+        kernel_metadata._meta_funcs = None
+        kernel_metadata._shapes = None
+        kernel_metadata._evaluator_targets = None
         for fparser2_node in walk(spec_part, Fortran2003.Data_Component_Def_Stmt):
             # Is there a better way to find the required part of fparser2?
-            if "operates_on" in (str(fparser2_node)).lower():
-                kernel_metadata._operates_on = OperatesOnMetadata.\
-                    create_from_fparser2(
-                        fparser2_node)
-                break
-        else:
-            kernel_metadata._operates_on = None
 
-        # the gh_shape values (gh_quadrature_XYoZ, ...)
-        for fparser2_node in walk(spec_part, Fortran2003.Data_Component_Def_Stmt):
-            # Is there a better way to find the required part of fparser2?
+            if "operates_on" in (str(fparser2_node)).lower():
+                # the value of operates on (CELL_COLUMN, ...)
+                kernel_metadata._operates_on = OperatesOnMetadata.\
+                    create_from_fparser2(fparser2_node)
+            if "meta_funcs" in (str(fparser2_node)).lower():
+                kernel_metadata._meta_funcs = MetaFuncsMetadata.\
+                    create_from_fparser2(fparser2_node)
             if "gh_shape" in (str(fparser2_node)).lower():
+                # the gh_shape values (gh_quadrature_XYoZ, ...)
                 kernel_metadata._shapes = ShapesMetadata.create_from_fparser2(
                     fparser2_node)
-                break
-        else:
-            kernel_metadata._shapes = None
-            
-        # the gh_evaluator_targets values (w0, w1, ...)
-        for fparser2_node in walk(
-                spec_part, Fortran2003.Data_Component_Def_Stmt):
-            # Is there a better way to find the required part of fparser2?
             if "gh_evaluator_targets" in (str(fparser2_node)).lower():
+                # the gh_evaluator_targets values (w0, w1, ...)
                 kernel_metadata._evaluator_targets = EvaluatorTargetsMetadata.\
                     create_from_fparser2(fparser2_node)
-                break
-        else:
-            kernel_metadata._evaluator_targets = None
 
         # the name of the procedure that this metadata refers to.
         kernel_metadata.procedure_name = LFRicKernelMetadata._get_property(
@@ -299,15 +293,6 @@ class LFRicKernelMetadata():
                     f"'{meta_arg}'.")
             meta_args.append(arg)
         kernel_metadata.meta_args = meta_args
-
-        # TODO issue #1879. META_FUNCS is not parsed correctly yet.
-        # Commented code can be used as part of #1879
-        # try:
-        #     meta_funcs = LFRicKernelMetadata._get_property(
-        #         spec_part, "meta_funcs")
-        #     args = walk(meta_funcs, Fortran2003.Ac_Value_List)
-        # except ParseError:
-        #     meta_funcs = []
 
         LFRicKernelMetadata.meta_reference_element = []
         try:
@@ -449,10 +434,12 @@ class LFRicKernelMetadata():
         if self._evaluator_targets:
             evaluator_targets = f"  {self._evaluator_targets.fortran_string()}"
 
-        # TODO issue #1879. META_FUNCS,
-        # META_REFERENCE_ELEMENT and META_MESH are not parsed
-        # correctly yet.
         meta_funcs = ""
+        if self._meta_funcs:
+            meta_funcs = f"  {self._meta_funcs.fortran_string()}"
+        
+        # TODO issue #1879: META_REFERENCE_ELEMENT and META_MESH are
+        # not parsed correctly yet.
         meta_ref = ""
         meta_mesh = ""
 
@@ -580,6 +567,30 @@ class LFRicKernelMetadata():
         # Take a copy of the list so that it can't be modified
         # externally
         self._meta_args = values[:]
+
+    @property
+    def meta_funcs(self):
+        '''
+        :returns: a list of meta_funcs metadata values.
+        :rtype: Optional[List[:py:class:`psyclone.domain.lfric.kernel.\
+            MetaFuncsArgMetadata`]]
+
+        '''
+        if self._meta_funcs is None:
+            return None
+        else:
+            return self._meta_funcs.meta_funcs_args
+
+    @meta_funcs.setter
+    def meta_funcs(self, values):
+        '''
+        :param values: set the meta_funcs metadata to the \
+            supplied list of values.
+        :type values: List[:py:class:`psyclone.domain.lfric.kernel.\
+            MetaFuncsArgMetadata`]
+
+        '''
+        self._meta_funcs = MetaFuncsMetadata(values)
 
     @property
     def procedure_name(self):

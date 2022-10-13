@@ -52,6 +52,10 @@ from psyclone.domain.lfric.kernel.inter_grid_vector_arg import \
     InterGridVectorArg
 from psyclone.domain.lfric.kernel.lfric_kernel_metadata import \
     LFRicKernelMetadata
+from psyclone.domain.lfric.kernel.meta_funcs_arg_metadata import \
+    MetaFuncsArgMetadata
+from psyclone.domain.lfric.kernel.meta_funcs_metadata import \
+    MetaFuncsMetadata
 from psyclone.domain.lfric.kernel.operates_on_metadata import \
     OperatesOnMetadata
 from psyclone.domain.lfric.kernel.operator_arg import OperatorArg
@@ -74,7 +78,7 @@ def test_init_noargs():
     assert meta._shapes is None
     assert meta._evaluator_targets is None
     assert meta._meta_args is None
-    assert meta._meta_funcs == []
+    assert meta._meta_funcs == None
     assert meta._meta_reference_element == []
     assert meta._meta_mesh == []
     assert meta._procedure_name is None
@@ -87,10 +91,11 @@ def test_init_args():
 
     '''
     scalar_arg = ScalarArg("GH_REAL", "GH_READ")
+    meta_funcs_arg = MetaFuncsArgMetadata("w0", basis_function=True)
     meta = LFRicKernelMetadata(
         operates_on="DOMAIN", shapes=["GH_EVALUATOR"],
         evaluator_targets=["W0"], meta_args=[scalar_arg],
-        meta_funcs="TBD", meta_reference_element="TBD",
+        meta_funcs=[meta_funcs_arg], meta_reference_element="TBD",
         meta_mesh="TBD", procedure_name="KERN_CODE", name="kern_type")
     assert isinstance(meta._operates_on, OperatesOnMetadata)
     assert meta._operates_on.operates_on == "domain"
@@ -99,8 +104,9 @@ def test_init_args():
     assert isinstance(meta._evaluator_targets, EvaluatorTargetsMetadata)
     assert meta._evaluator_targets.evaluator_targets == ["w0"]
     assert meta.meta_args == [scalar_arg]
-    # TODO issue #1879 meta_funcs, meta_reference_element,
-    # meta_mesh
+    assert (meta._meta_funcs.fortran_string() ==
+            "type(FUNC_TYPE) :: META_FUNCS(1) = (/func_type(w0, gh_basis)/)\n")
+    # TODO issue #1879 meta_reference_element, meta_mesh
     assert meta.procedure_name == "KERN_CODE"
     assert meta.name == "kern_type"
 
@@ -131,7 +137,12 @@ def test_init_args_error():
         _ = LFRicKernelMetadata(meta_args="error")
     assert "meta_args should be a list but found 'str'." in str(info.value)
 
-    # TODO issue #1879 meta_funcs, meta_reference_element,
+    with pytest.raises(TypeError) as info:
+        _ = LFRicKernelMetadata(meta_funcs="invalid")
+    assert ("meta_funcs values should be provided as a list but found 'str'." \
+            in str(info.value))
+
+    # TODO issue #1879 meta_reference_element,
     # meta_mesh
 
     with pytest.raises(ValueError) as info:
@@ -147,7 +158,7 @@ def test_init_args_error():
 
 METADATA = (
     "type, extends(kernel_type) :: testkern_type\n"
-    "   type(arg_type), dimension(7) :: meta_args =        &\n"
+    "   type(arg_type), dimension(7) :: meta_args =          &\n"
     "        (/ arg_type(gh_scalar,   gh_real, gh_read),     &\n"
     "           arg_type(gh_field,    gh_real, gh_inc,  w1), &\n"
     "           arg_type(gh_field*3,  gh_real, gh_read, w2), &\n"
@@ -159,6 +170,10 @@ METADATA = (
     "           arg_type(gh_columnwise_operator, gh_real, gh_read, w3, "
     "w0)  &\n"
     "         /)\n"
+    "   type(func_type), dimension(2) :: meta_funcs =        &\n"
+    "        (/ func_type(w1, gh_basis),                     &\n"
+    "           func_type(w2, gh_basis, gh_diff_basis)       &\n"
+    "        /)\n"
     "   integer :: gh_shape = gh_quadrature_XYoZ\n"
     "   integer :: gh_evaluator_targets(2) = (/ w0, w3 /)\n"
     "   integer :: operates_on = cell_column\n"
@@ -195,8 +210,13 @@ def test_create_from_psyir(fortran_reader):
     assert isinstance(metadata.meta_args[4], InterGridVectorArg)
     assert isinstance(metadata.meta_args[5], OperatorArg)
     assert isinstance(metadata.meta_args[6], ColumnwiseOperatorArg)
-    # TODO issue #1879 meta_funcs, meta_reference_element,
-    # meta_mesh
+    assert isinstance(metadata.meta_funcs, list)
+    assert isinstance(metadata.meta_funcs[0], MetaFuncsArgMetadata)
+    assert metadata.meta_funcs[0].fortran_string() == "func_type(w1, gh_basis)"
+    assert isinstance(metadata.meta_funcs[1], MetaFuncsArgMetadata)
+    assert (metadata.meta_funcs[1].fortran_string() ==
+            "func_type(w2, gh_basis, gh_diff_basis)")
+    # TODO issue #1879 meta_reference_element, meta_mesh
     assert metadata.procedure_name == "testkern_code"
     assert metadata.name == "testkern_type"
 
@@ -250,14 +270,20 @@ def test_create_from_fortran_no_optional():
     created from Fortran. Test with no optional metadata.
 
     '''
-    fortran_metadata = METADATA.replace(
-        "   integer :: gh_shape = gh_quadrature_XYoZ\n", "")
-    fortran_metadata = fortran_metadata.replace(
-        "   integer :: gh_evaluator_targets(2) = (/ w0, w3 /)\n", "")
-    metadata = LFRicKernelMetadata.create_from_fortran_string(fortran_metadata)
+    metadata = (
+        "type, extends(kernel_type) :: testkern_type\n"
+        "   type(arg_type), dimension(1) :: meta_args =       &\n"
+        "        (/ arg_type(gh_scalar,   gh_real, gh_read) /)\n"
+        "   integer :: operates_on = cell_column\n"
+        " contains\n"
+        "   procedure, nopass :: code => testkern_code\n"
+        "end type testkern_type\n")
+
+    metadata = LFRicKernelMetadata.create_from_fortran_string(metadata)
     assert metadata.shapes is None
     assert metadata.evaluator_targets is None
-    # TODO issue #1879 meta_funcs, meta_reference_element, meta_mesh
+    assert metadata.meta_funcs is None
+    # TODO issue #1879 meta_reference_element, meta_mesh
 
 
 def test_create_from_fortran_error():
@@ -440,33 +466,10 @@ def test_fortran_string():
         "arg_type(GH_FIELD*3, gh_real, gh_read, w2, mesh_arg=gh_fine), &\n"
         "arg_type(GH_OPERATOR, gh_real, gh_read, w2, w3), &\n"
         "arg_type(GH_COLUMNWISE_OPERATOR, gh_real, gh_read, w3, w0)/)\n"
+        "  type(FUNC_TYPE) :: META_FUNCS(2) = (/func_type(w1, gh_basis), "
+        "func_type(w2, gh_basis, gh_diff_basis)/)\n"
         "  INTEGER :: GH_SHAPE = gh_quadrature_xyoz\n"
         "  INTEGER :: GH_EVALUATOR_TARGETS(2) = (/w0, w3/)\n"
-        "  INTEGER :: OPERATES_ON = cell_column\n"
-        "  CONTAINS\n"
-        "    PROCEDURE, NOPASS :: testkern_code\n"
-        "END TYPE testkern_type\n")
-    assert result == expected
-
-    # TODO issue #1879 meta_funcs, meta_reference_element,
-    # meta_mesh
-    # Check that optional metadata is not output
-    fortran_metadata = METADATA.replace(
-        "   integer :: gh_shape = gh_quadrature_XYoZ\n", "")
-    fortran_metadata = fortran_metadata.replace(
-        "   integer :: gh_evaluator_targets(2) = (/ w0, w3 /)\n", "")
-    metadata = LFRicKernelMetadata.create_from_fortran_string(fortran_metadata)
-    result = metadata.fortran_string()
-    expected = (
-        "TYPE, PUBLIC, EXTENDS(kernel_type) :: testkern_type\n"
-        "  TYPE(arg_type) :: meta_args(7) = (/ &\n"
-        "arg_type(GH_SCALAR, gh_real, gh_read), &\n"
-        "arg_type(GH_FIELD, gh_real, gh_inc, w1), &\n"
-        "arg_type(GH_FIELD*3, gh_real, gh_read, w2), &\n"
-        "arg_type(GH_FIELD, gh_real, gh_read, w2, mesh_arg=gh_coarse), &\n"
-        "arg_type(GH_FIELD*3, gh_real, gh_read, w2, mesh_arg=gh_fine), &\n"
-        "arg_type(GH_OPERATOR, gh_real, gh_read, w2, w3), &\n"
-        "arg_type(GH_COLUMNWISE_OPERATOR, gh_real, gh_read, w3, w0)/)\n"
         "  INTEGER :: OPERATES_ON = cell_column\n"
         "  CONTAINS\n"
         "    PROCEDURE, NOPASS :: testkern_code\n"

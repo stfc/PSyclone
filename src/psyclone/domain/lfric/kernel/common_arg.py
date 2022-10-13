@@ -234,6 +234,11 @@ class CommonArg(ABC):
                              f"'{str(fparser2_tree)}'. {message}") from info
 
     @staticmethod
+    def get_nargs(fparser2_tree):
+        ''' xxx '''
+        return len(fparser2_tree.children[1].children)
+        
+    @staticmethod
     def get_arg(fparser2_tree, index):
         '''Retrieves the metadata value found at the position specified by the
         index argument within the supplied fparser2 tree.
