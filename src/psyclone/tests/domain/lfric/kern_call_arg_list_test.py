@@ -211,3 +211,25 @@ def test_kerncallarglist_mesh_properties(fortran_writer):
         'adjacent_face(:,cmap(colour,cell))']
 
     check_psyir_results(create_arg_list, fortran_writer)
+
+
+def test_kerncallarglist_evaluator(fortran_writer):
+    ''' Check the handling of basis, diff_basis, and quad_rule, including
+    face and edge quadrature
+    '''
+
+    psy, _ = get_invoke("6.1_eval_invoke.f90", TEST_API,
+                        dist_mem=False, idx=0)
+
+    schedule = psy.invokes.invoke_list[0].schedule
+    ctrans = Dynamo0p3ColourTrans()
+    ctrans.apply(schedule.children[0])
+
+    create_arg_list = KernCallArgList(schedule.kernels()[0])
+    create_arg_list.generate()
+    assert create_arg_list._arglist == [
+        'nlayers', 'f0_proxy%data', 'f1_proxy%data', 'ndf_w0', 'undf_w0',
+        'map_w0(:,cmap(colour,cell))', 'basis_w0_on_w0', 'ndf_w1', 'undf_w1',
+        'map_w1(:,cmap(colour,cell))', 'diff_basis_w1_on_w0']
+
+    check_psyir_results(create_arg_list, fortran_writer)

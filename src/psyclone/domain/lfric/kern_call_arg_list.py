@@ -667,7 +667,9 @@ class KernCallArgList(ArgOrdering):
                 # function space
                 fspace = self._kern.eval_targets[fs_name][0]
                 basis_name = function_space.get_basis_name(on_space=fspace)
-                self.append(basis_name, var_accesses)
+                sym = self.add_array_reference(basis_name, [":", ":", ":"],
+                                               "real")
+                self.append(sym.name, var_accesses)
 
     def diff_basis(self, function_space, var_accesses=None):
         '''Add differential basis information for the function space to the
@@ -700,7 +702,9 @@ class KernCallArgList(ArgOrdering):
                 fspace = self._kern.eval_targets[fs_name][0]
                 diff_basis_name = function_space.get_diff_basis_name(
                     on_space=fspace)
-                self.append(diff_basis_name, var_accesses)
+                sym = self.add_array_reference(diff_basis_name,
+                                               [":", ":", ":"], "real")
+                self.append(sym.name, var_accesses)
 
     def field_bcs_kernel(self, function_space, var_accesses=None):
         '''Implement the boundary_dofs array fix for a field. If supplied it
