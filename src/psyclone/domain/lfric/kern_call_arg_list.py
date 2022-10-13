@@ -772,7 +772,8 @@ class KernCallArgList(ArgOrdering):
             # pylint: disable=import-outside-toplevel
             from psyclone.dynamo0p3 import LFRicMeshProperties
             self.extend(LFRicMeshProperties(self._kern).
-                        kern_args(stub=False, var_accesses=var_accesses))
+                        kern_args(stub=False, var_accesses=var_accesses,
+                                  kern_call_arg_list=self))
 
     def quad_rule(self, var_accesses=None):
         '''Add quadrature-related information to the kernel argument list.
@@ -895,7 +896,7 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         :returns: the Fortran code needed to access the current cell index.
-        :rtype: Tuple[str, py:class:`psyclone.psyir.nodes.Node`]
+        :rtype: Tuple[str, py:class:`psyclone.psyir.nodes.Reference`]
 
         '''
         cell_sym = self.get_integer_symbol("cell", "cell_loop_idx")

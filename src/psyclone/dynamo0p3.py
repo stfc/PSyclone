@@ -1838,7 +1838,7 @@ class LFRicMeshProperties(DynCollection):
 
     '''
     def __init__(self, node):
-        super(LFRicMeshProperties, self).__init__(node)
+        super().__init__(node)
 
         # The (ordered) list of mesh properties required by this invoke or
         # kernel stub.
@@ -1863,7 +1863,9 @@ class LFRicMeshProperties(DynCollection):
         for prop in self._properties:
             self._symbol_table.find_or_create_tag(prop.name.lower())
 
-    def kern_args(self, stub=False, var_accesses=None):
+    def kern_args(self, stub=False, var_accesses=None,
+                  kern_call_arg_list=None):
+        # pylint: disable=too-many-locals, too-many-branches
         '''
         Provides the list of kernel arguments associated with the mesh
         properties that the kernel requires. Optionally adds variable
@@ -1875,6 +1877,10 @@ class LFRicMeshProperties(DynCollection):
             the information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        :param kern_call_arg_list: an optional KernCallArgList instance \
+            use to store PSyIR representation of the arguments.
+        :type kern_call_arg_list: \
+            Optional[:py:class:`psyclone.domain.lfric.KernCallArgList]
 
         :returns: the kernel arguments associated with the mesh properties.
         :rtype: list of str
@@ -1903,15 +1909,43 @@ class LFRicMeshProperties(DynCollection):
                     OUTWARD_NORMALS_TO_HORIZONTAL_FACES
                     in self._kernel.reference_element.properties)
                 if not has_nfaces:
-                    name = self._symbol_table.find_or_create_tag(
-                        "nfaces_re_h").name
+                    if kern_call_arg_list:
+                        sym = kern_call_arg_list.\
+                            add_integer_reference("nfaces_re_h")
+                        name = sym.name
+                    else:
+                        name = self._symbol_table.find_or_create_tag(
+                            "nfaces_re_h").name
                     arg_list.append(name)
                     if var_accesses is not None:
                         var_accesses.add_access(Signature(name),
                                                 AccessType.READ, self._kernel)
 
-                adj_face = self._symbol_table.find_or_create_tag(
-                    "adjacent_face").name
+                adj_face = "adjacent_face"
+                if not stub and kern_call_arg_list:
+                    # Use the functionality in kern_call_arg_list to properly
+                    # declare the symbol and to create a PSyIR reference for it
+                    _, cell_ref = \
+                        kern_call_arg_list._cell_ref_name(var_accesses)
+                    adj_face_sym = kern_call_arg_list. \
+                        add_array_reference(adj_face,
+                                            [":", cell_ref],
+                                            "integer")
+                    # Update the name in case there was a clash
+                    adj_face = adj_face_sym.name
+                if not stub:
+                    adj_face = self._symbol_table.find_or_create_tag(
+                        "adjacent_face").name
+                    cell_name = "cell"
+                    if self._kernel.is_coloured():
+                        colour_name = "colour"
+                        cmap_name = "cmap"
+                        adj_face += (f"(:,{cmap_name}({colour_name},"
+                                     f"{cell_name}))")
+                    else:
+                        adj_face += f"(:,{cell_name})"
+                    arg_list.append(adj_face)
+
                 if var_accesses is not None:
                     # TODO #1320 Replace [1]
                     # The [1] just indicates that this variable is accessed
@@ -1919,25 +1953,12 @@ class LFRicMeshProperties(DynCollection):
                     var_accesses.add_access(Signature(adj_face),
                                             AccessType.READ, self._kernel,
                                             [1])
-                if not stub:
-                    # This is a kernel call from within an invoke
-                    cell_name = "cell"
-                    if self._kernel.is_coloured():
-                        colour_name = "colour"
-                        cmap_name = "cmap"
-                        adj_face += "(:,{0}({1}, {2}))".format(
-                            cmap_name, colour_name, cell_name)
-                    else:
-                        adj_face += "(:,{0})".format(cell_name)
-                arg_list.append(adj_face)
-
             else:
                 raise InternalError(
-                    "kern_args: found unsupported mesh property '{0}' when "
-                    "generating arguments for kernel '{1}'. Only members of "
-                    "the MeshProperty Enum are permitted "
-                    "({2}).".format(
-                        str(prop), self._kernel.name, list(MeshProperty)))
+                    f"kern_args: found unsupported mesh property '{prop}' "
+                    f"when generating arguments for kernel "
+                    f"'{self._kernel.name}'. Only members of the MeshProperty "
+                    f"Enum are permitted ({list(MeshProperty)}).")
 
         return arg_list
 

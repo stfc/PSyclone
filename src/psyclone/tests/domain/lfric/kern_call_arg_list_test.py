@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -175,5 +175,27 @@ def test_kerncallarglist_colouring(dist_mem, fortran_writer):
         'd_proxy%data', 'ndf_w1', 'undf_w1', 'map_w1(:,cmap(colour,cell))',
         'ndf_w2', 'undf_w2', 'map_w2(:,cmap(colour,cell))', 'ndf_w3',
         'undf_w3', 'map_w3(:,cmap(colour,cell))']
+
+    check_psyir_results(create_arg_list, fortran_writer)
+
+
+def test_kerncallarglist_mesh_properties(fortran_writer):
+    ''' Check the handling of basis, diff_basis, and quad_rule, including
+    face and edge quadrature
+    '''
+
+    psy, _ = get_invoke("24.1_mesh_prop_invoke.f90",
+                        TEST_API, dist_mem=False, idx=0)
+
+    schedule = psy.invokes.invoke_list[0].schedule
+    ctrans = Dynamo0p3ColourTrans()
+    ctrans.apply(schedule.children[0])
+
+    create_arg_list = KernCallArgList(schedule.kernels()[0])
+    create_arg_list.generate()
+    assert create_arg_list._arglist == [
+        'nlayers', 'a', 'f1_proxy%data', 'ndf_w1', 'undf_w1',
+        'map_w1(:,cmap(colour,cell))', 'nfaces_re_h',
+        'adjacent_face(:,cmap(colour,cell))']
 
     check_psyir_results(create_arg_list, fortran_writer)
