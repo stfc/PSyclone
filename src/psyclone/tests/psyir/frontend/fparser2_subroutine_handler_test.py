@@ -44,6 +44,7 @@ to PSyIR.
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
+from psyclone.errors import InternalError
 from psyclone.psyir.symbols import DataSymbol, ScalarType, UnknownFortranType
 from psyclone.psyir.nodes import Container, Routine, CodeBlock, FileContainer
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
@@ -55,12 +56,6 @@ IN_OUTS.append(
     (("subroutine sub1()\n"
       "end subroutine\n"),
      ("subroutine sub1()\n\n\n"
-      "end subroutine sub1\n")))
-# subroutine with implicit declaration of argument
-IN_OUTS.append(
-    (("subroutine sub1(idx)\n"
-      "end subroutine\n"),
-     ("subroutine sub1(idx)\n\n\n"
       "end subroutine sub1\n")))
 # subroutine with symbols/declarations
 IN_OUTS.append(
@@ -98,20 +93,22 @@ def test_subroutine_handler(parser, fortran_writer, code, expected):
     assert expected == result
 
 
-def test_subroutine_implicit_args(fortran_reader, parser):
+def test_subroutine_implicit_args(parser):
+    """Check that we raise the expected error when we encounter a
+    subroutine argument without an explicit declaration.
+
+    """
     code = '''
-module my_mod
-implicit none
-contains
 subroutine sub1(idx)
-end subroutine
-end module my_mod'''
-    #processor = Fparser2Reader()
-    #reader = FortranStringReader(code)
-    #parse_tree = parser(reader)
-    #subroutine = parse_tree.children[0]
-    #psyir = processor._subroutine_handler(subroutine, None)
-    psyir = fortran_reader.psyir_from_source(code)
+end subroutine'''
+    processor = Fparser2Reader()
+    reader = FortranStringReader(code)
+    parse_tree = parser(reader)
+    subroutine = parse_tree.children[0]
+    with pytest.raises(InternalError) as err:
+        _ = processor._subroutine_handler(subroutine, None)
+    assert ("Routine 'sub1' has arguments ['idx'] but contains no variable "
+            "declarations" in str(err.value))
 
 
 def test_function_handler(fortran_reader, fortran_writer):

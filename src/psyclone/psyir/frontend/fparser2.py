@@ -1927,7 +1927,7 @@ class Fparser2Reader(object):
             tsymbol.datatype = UnknownFortranType(str(decl))
 
     def process_declarations(self, parent, nodes, arg_list,
-                             visibility_map=None, implicit=False):
+                             visibility_map=None):
         '''
         Transform the variable declarations in the fparser2 parse tree into
         symbols in the symbol table of the PSyIR parent node. The default
@@ -1946,8 +1946,6 @@ class Fparser2Reader(object):
                         visibilities.
         :type visibility_map: dict with str keys and values of type \
                         :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
-        :param Optional[bool] implicit: whether or not the associated routine \
-                        permits implicit variable declarations.
 
         :raises NotImplementedError: the provided declarations contain \
                                      attributes which are not supported yet.
@@ -2122,7 +2120,7 @@ class Fparser2Reader(object):
                 f"The kernel argument list:\n'{arg_str_list}'\n"
                 f"does not match the variable declarations:\n"
                 f"{os.linesep.join(decls_str_list)}\n"
-                f"Specific PSyIR error is {str(info)}.")
+                f"Specific PSyIR error is {str(info)}.") from info
 
         # fparser2 does not always handle Statement Functions correctly, this
         # loop checks for Stmt_Functions that should be an array statement
@@ -3828,10 +3826,12 @@ class Fparser2Reader(object):
         :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyir.nodes.Routine`
 
+        :raises InternalError: if the subroutine has one or more arguments \
+            but no explicit variable declarations.
+
         '''
         name = node.children[0].children[1].string
         routine = Routine(name, parent=parent)
-        implicit_declns = False
 
         # Deal with any arguments
         try:
@@ -3840,19 +3840,8 @@ class Fparser2Reader(object):
             decl_list = sub_spec.content
         except ValueError:
             # Subroutine has no Specification_Part so has no
-            # declarations and no Implicit_Stmt. Continue with empty lists.
+            # declarations. Continue with empty list.
             decl_list = []
-            cursor = node
-            while cursor.parent:
-                cursor = cursor.parent
-                if isinstance(cursor, Fortran2003.Module):
-                    for child in cursor.children:
-                        if isinstance(child, Fortran2003.Specification_Part):
-                            impl_part = walk(child, Fortran2003.Implicit_Part)
-                            if impl_part:
-                                if impl_part[0].children[0].string == "implicit none":
-                                    implicit_declns = True
-                    break
 
         # TODO this if test can be removed once fparser/#211 is fixed
         # such that routine arguments are always contained in a
@@ -3865,8 +3854,19 @@ class Fparser2Reader(object):
         else:
             # Routine has no arguments
             arg_list = []
-        self.process_declarations(routine, decl_list, arg_list,
-                                  implicit=implicit_declns)
+
+        if arg_list and not decl_list:
+            # Raise an InternalError here because the rest of PSyclone relies
+            # on explicit variable declarations. Therefore, just putting the
+            # offending routine into a CodeBlock could result in the
+            # creation of invalid Fortran.
+            raise InternalError(
+                f"Routine '{name}' has arguments "
+                f"{[str(arg) for arg in arg_list]} but contains no "
+                f"variable declarations. Implicit declarations are not "
+                f"supported in PSyclone.")
+
+        self.process_declarations(routine, decl_list, arg_list)
 
         # If this is a function then work out the return type
         if isinstance(node, Fortran2003.Function_Subprogram):
@@ -3929,7 +3929,7 @@ class Fparser2Reader(object):
                 # First, update the existing RoutineSymbol with the
                 # return datatype specified in the function
                 # declaration.
-                
+
                 # Lookup with the routine name as return_name may be
                 # declared with its own local name. Be wary that this
                 # function may not be referenced so there might not be
