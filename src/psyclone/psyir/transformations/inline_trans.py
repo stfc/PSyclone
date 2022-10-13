@@ -491,9 +491,7 @@ class InlineTrans(Transformation):
             definition cannot be found.
         '''
         name = call_node.routine.name
-        print(f"Looking for {name}")
         routine_sym = call_node.scope.symbol_table.lookup(name)
-        print(f"Found symbol {routine_sym.name}")
         if not routine_sym.is_local:
             raise TransformationError(
                 f"Routine '{name}' is imported and therefore cannot currently "
