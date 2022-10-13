@@ -2229,7 +2229,8 @@ def test_modified_kern_line_length(kernel_outputdir, monkeypatch):
     assert os.path.isfile(filepath)
     # Check that the argument list is line wrapped as it is longer
     # than 132 characters.
-    assert "map_w2, &\n&ndf_w3" in open(filepath).read()
+    with open(filepath, encoding="utf-8") as testfile:
+        assert "map_w2, &\n&ndf_w3" in testfile.read()
 
 
 def test_walk():

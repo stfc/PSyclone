@@ -43,16 +43,15 @@ import pytest
 
 from psyclone.psyir.nodes import Assignment, CodeBlock, BinaryOperation, Call
 from psyclone.psyGen import Transformation
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
-    ArrayType, DeferredType, UnknownType, RoutineSymbol
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, ArrayType, \
+    UnknownType, RoutineSymbol
 from psyclone.psyir.transformations import TransformationError
 from psyclone.domain.nemo.transformations import NemoArrayRange2LoopTrans
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import get_invoke, Compile
-from psyclone.nemo import NemoKern, NemoLoop
-from psyclone.psyir.nodes import Schedule, Range, Literal
+from psyclone.nemo import NemoKern
+from psyclone.psyir.nodes import Range, Literal
 from psyclone.errors import InternalError
-from psyclone.configuration import Config
 
 # Constants
 API = "nemo"

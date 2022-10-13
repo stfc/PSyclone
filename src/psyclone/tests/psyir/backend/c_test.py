@@ -303,7 +303,7 @@ def test_cw_unaryoperator():
         assert cwriter(unary_operation) in expected
 
     # Test that an unsupported operator raises an error
-    class Unsupported(object):
+    class Unsupported():
         ''' Mock Unsupported object '''
 
     unary_operation._operator = Unsupported
@@ -356,7 +356,7 @@ def test_cw_binaryoperator():
         assert cwriter(binary_operation) == expected
 
     # Test that an unsupported operator raises a error
-    class Unsupported(object):
+    class Unsupported():
         '''Dummy class'''
         def __init__(self):
             pass
