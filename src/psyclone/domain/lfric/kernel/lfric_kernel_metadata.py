@@ -54,11 +54,15 @@ from psyclone.domain.lfric.kernel.field_vector_arg import FieldVectorArg
 from psyclone.domain.lfric.kernel.inter_grid_arg import InterGridArg
 from psyclone.domain.lfric.kernel.inter_grid_vector_arg import \
     InterGridVectorArg
+from psyclone.domain.lfric.kernel.meta_mesh_metadata import \
+    MetaMeshMetadata
 from psyclone.domain.lfric.kernel.meta_funcs_metadata import \
     MetaFuncsMetadata
 from psyclone.domain.lfric.kernel.operates_on_metadata import \
     OperatesOnMetadata
 from psyclone.domain.lfric.kernel.operator_arg import OperatorArg
+from psyclone.domain.lfric.kernel.meta_ref_element_metadata import \
+    MetaRefElementMetadata
 from psyclone.domain.lfric.kernel.scalar_arg import ScalarArg
 from psyclone.domain.lfric.kernel.shapes_metadata import ShapesMetadata
 from psyclone.errors import InternalError
@@ -79,14 +83,16 @@ class LFRicKernelMetadata():
         quadrature or evaluator data is required for a given function space.
     :type meta_funcs: Optional[List[:py:class:`psyclone.domain.lfric.kernel.\
         MetaFuncsArgMetadata`]]
-    :param meta_reference_element: a kernel that requires properties \
+    :param meta_ref_element: a kernel that requires properties \
         of the reference element in LFRic specifies those properties \
         through the meta_reference_element metadata entry.
-    :type meta_reference_element: :py:class:`TODO` # issue #1879
+    :type meta_ref_element: :py:class:`psyclone.domain.lfric.kernel.\
+        RefElementArgMetadata`
     :param meta_mesh: a kernel that requires properties of the LFRic \
         mesh object specifies those properties through the meta_mesh \
         metadata entry.
-    :type meta_mesh: :py:class:`TODO` # issue #1879
+    :type meta_mesh: :py:class:`psyclone.domain.lfric.kernel.\
+        MetaMeshArgMetadata`
     :param shapes: if a kernel requires basis or differential-basis \
         functions then the metadata must also specify the set of points on \
         which these functions are required. This information is provided \
@@ -106,7 +112,7 @@ class LFRicKernelMetadata():
 
     '''
     def __init__(self, operates_on=None, shapes=None, evaluator_targets=None,
-                 meta_args=None, meta_funcs=None, meta_reference_element=None,
+                 meta_args=None, meta_funcs=None, meta_ref_element=None,
                  meta_mesh=None, procedure_name=None, name=None):
         # Initialise internal variables
         self._operates_on = None
@@ -114,7 +120,11 @@ class LFRicKernelMetadata():
         self._evaluator_targets = None
         self._meta_args = None
         self._meta_funcs = None
-        # Use setters to validate any supplied arguments values.
+        self._meta_ref_element = None
+        self._meta_mesh = None
+        self._procedure_name = None
+        self._name = None
+
         if operates_on is not None:
             self._operates_on = OperatesOnMetadata(operates_on)
         if shapes is not None:
@@ -126,26 +136,17 @@ class LFRicKernelMetadata():
             self.meta_args = meta_args
         if meta_funcs is not None:
             self._meta_funcs = MetaFuncsMetadata(meta_funcs)
-        if meta_reference_element is None:
-            self._meta_reference_element = []
-            # TODO issue #1879. META_REFERENCE_ELEMENT is not parsed
-            # correctly yet.
-        if meta_mesh is None:
-            self._meta_mesh = []
-            # TODO issue #1879. META_MESH is not parsed correctly yet.
-
-        if procedure_name:
+        if meta_ref_element is not None:
+            self._meta_ref_element = MetaRefElementMetadata(
+                meta_ref_element)
+        if meta_mesh is not None:
+            self._meta_mesh = MetaMeshMetadata(meta_mesh)
+        if procedure_name is not None:
             # Validate procedure_name via setter
             self.procedure_name = procedure_name
-        else:
-            # Don't validate
-            self._procedure_name = None
-        if name:
+        if name is not None:
             # Validate name via setter
             self.name = name
-        else:
-            # Don't validate
-            self._name = None
 
     @staticmethod
     def create_from_psyir(symbol):
@@ -226,6 +227,8 @@ class LFRicKernelMetadata():
         kernel_metadata._meta_funcs = None
         kernel_metadata._shapes = None
         kernel_metadata._evaluator_targets = None
+        kernel_metadata._meta_ref_element = None
+        kernel_metadata._meta_mesh = None
         for fparser2_node in walk(spec_part, Fortran2003.Data_Component_Def_Stmt):
             # Is there a better way to find the required part of fparser2?
 
@@ -243,6 +246,12 @@ class LFRicKernelMetadata():
             if "gh_evaluator_targets" in (str(fparser2_node)).lower():
                 # the gh_evaluator_targets values (w0, w1, ...)
                 kernel_metadata._evaluator_targets = EvaluatorTargetsMetadata.\
+                    create_from_fparser2(fparser2_node)
+            if "meta_reference_element" in (str(fparser2_node)).lower():
+                kernel_metadata._meta_ref_element = MetaRefElementMetadata.\
+                    create_from_fparser2(fparser2_node)
+            if "meta_mesh" in (str(fparser2_node)).lower():
+                kernel_metadata._meta_mesh = MetaMeshMetadata.\
                     create_from_fparser2(fparser2_node)
 
         # the name of the procedure that this metadata refers to.
@@ -294,28 +303,6 @@ class LFRicKernelMetadata():
             meta_args.append(arg)
         kernel_metadata.meta_args = meta_args
 
-        LFRicKernelMetadata.meta_reference_element = []
-        try:
-            # TODO issue #1879. META_REFERENCE_ELEMENT is not parsed
-            # correctly yet.
-            LFRicKernelMetadata.meta_reference_element = \
-                LFRicKernelMetadata._get_property(
-                    spec_part, "meta_reference_element")
-        except ParseError:
-            pass
-        args = walk(LFRicKernelMetadata.meta_reference_element,
-                    Fortran2003.Ac_Value_List)
-        if not args:
-            LFRicKernelMetadata.meta_reference_element = []
-
-        # meta_mesh contains arguments which have properties.
-        try:
-            # TODO issue #1879. META_MESH is not parsed correctly yet.
-            LFRicKernelMetadata.meta_mesh = LFRicKernelMetadata._get_property(
-                spec_part, "meta_mesh")
-        except ParseError:
-            # meta_mesh is not specified in the metadata
-            LFRicKernelMetadata.meta_mesh = []
         return kernel_metadata
 
     def lower_to_psyir(self):
@@ -438,17 +425,20 @@ class LFRicKernelMetadata():
         if self._meta_funcs:
             meta_funcs = f"  {self._meta_funcs.fortran_string()}"
         
-        # TODO issue #1879: META_REFERENCE_ELEMENT and META_MESH are
-        # not parsed correctly yet.
-        meta_ref = ""
+        meta_ref_element = ""
+        if self._meta_ref_element:
+            meta_ref_element = f"  {self._meta_ref_element.fortran_string()}"
+        
         meta_mesh = ""
-
+        if self._meta_mesh:
+            meta_mesh = f"  {self._meta_mesh.fortran_string()}"
+        
         result = (
             f"TYPE, PUBLIC, EXTENDS(kernel_type) :: {self.name}\n"
             f"  TYPE(arg_type) :: meta_args({len(self._meta_args)}) = "
             f"(/ &\n{meta_args_str}/)\n"
             f"{meta_funcs}"
-            f"{meta_ref}"
+            f"{meta_ref_element}"
             f"{meta_mesh}"
             f"{shapes}"
             f"{evaluator_targets}"
@@ -591,6 +581,54 @@ class LFRicKernelMetadata():
 
         '''
         self._meta_funcs = MetaFuncsMetadata(values)
+
+    @property
+    def meta_ref_element(self):
+        '''
+        :returns: a list of meta_reference_element metadata values.
+        :rtype: Optional[List[:py:class:`psyclone.domain.lfric.kernel.\
+            MetaRefElementArgMetadata`]]
+
+        '''
+        if self._meta_ref_element is None:
+            return None
+        else:
+            return self._meta_ref_element.meta_ref_element_args
+
+    @meta_ref_element.setter
+    def meta_ref_element(self, values):
+        '''
+        :param values: set the meta_funcs metadata to the \
+            supplied list of values.
+        :type values: List[:py:class:`psyclone.domain.lfric.kernel.\
+            MetaRefElementArgMetadata`]
+
+        '''
+        self._meta_ref_element = MetaRefElementMetadata(values)
+
+    @property
+    def meta_mesh(self):
+        '''
+        :returns: a list of meta_mesh metadata values.
+        :rtype: Optional[List[:py:class:`psyclone.domain.lfric.kernel.\
+            MetaMeshArgMetadata`]]
+
+        '''
+        if self._meta_mesh is None:
+            return None
+        else:
+            return self._meta_mesh.meta_mesh_args
+
+    @meta_mesh.setter
+    def meta_mesh(self, values):
+        '''
+        :param values: set the meta_mesh metadata to the \
+            supplied list of values.
+        :type values: List[:py:class:`psyclone.domain.lfric.kernel.\
+            MetaMeshArgMetadata`]
+
+        '''
+        self._meta_mesh = MetaMeshMetadata(values)
 
     @property
     def procedure_name(self):

@@ -33,87 +33,87 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing the MetaFuncsMetadata class which captures
-the values for the LFRic kernel meta_funcs metadata.
+'''Module containing the MetaMeshMetadata class which captures
+the values for the LFRic kernel meta_mesh metadata.
 
 '''
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.common_declaration_metadata import \
     CommonDeclarationMetadata
-from psyclone.domain.lfric.kernel.meta_funcs_arg_metadata import \
-    MetaFuncsArgMetadata
+from psyclone.domain.lfric.kernel.meta_mesh_arg_metadata import \
+    MetaMeshArgMetadata
 
 
-class MetaFuncsMetadata(CommonDeclarationMetadata):
+class MetaMeshMetadata(CommonDeclarationMetadata):
     '''Class to capture the values of the LFRic kernel
-    meta_funcs metadata. This class supports the creation,
+    meta_mesh metadata. This class supports the creation,
     modification and Fortran output of this metadata.
 
-    meta_funcs metadata specifies whether any quadrature or evaluator
-    data is required for a given function space.
+    meta_mesh metadata specifies whether any quadrature
+    or evaluator data is required for a given function space.
 
-    :param meta_funcs_args: a list of meta_funcs arguments.
-    :type meta_funcs_args: List[:py:class:`psyclone.domain.lfric.kernel.\
-        MetaFuncsArgMetadata`]
+    :param meta_mesh_args: a list of meta_mesh arguments.
+    :type meta_mesh_args: List[:py:class:`psyclone.domain.lfric.kernel.\
+        MetaMeshArgMetadata`]
 
     '''
-    def __init__(self, meta_funcs_args):
-        self.meta_funcs_args = meta_funcs_args
+    def __init__(self, meta_mesh_args):
+        self.meta_mesh_args = meta_mesh_args
 
     def fortran_string(self):
         '''
-         :returns: the meta_funcs metadata as Fortran.
+         :returns: the meta_mesh metadata as Fortran.
          :rtype: str
         '''
-        return MetaFuncsMetadata.type_declaration_string(
-            "FUNC_TYPE", "META_FUNCS", self._meta_funcs_args)
+        return MetaMeshMetadata.type_declaration_string(
+            "MESH_DATA_TYPE", "META_MESH", self._meta_mesh_args)
 
     @staticmethod
     def create_from_fparser2(fparser2_tree):
-        '''Create an instance of MetaFuncsMetadata from an fparser2
+        '''Create an instance of MetaMeshMetadata from an fparser2
         tree.
 
-        LFRic meta funcs metadata is in array form. Two
+        LFRic meta mesh metadata is in array form. Two
         versions of the array form are supported:
 
-        type(func_type) :: meta_funcs(1) = (/ ... /)
-        type(func_type), dimension(1) :: meta_funcs = (/ ... /)
+        type(mesh_data_type) :: meta_mesh(1) = (/ ... /)
+        type(mesh_data_type), dimension(1) :: meta_mesh = (/ ... /)
 
         :param fparser2_tree: fparser2 tree capturing the meta \
-            funcs metadata.
+            mesh metadata.
 
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.\
             Data_Component_Def_Stmt`
 
-        :returns: an instance of MetaFuncsMetadata.
+        :returns: an instance of MetaMeshMetadata.
         :rtype: :py:class:`psyclone.domain.lfric.kernel.\
-            MetaFuncsMetadata`
+            MetaMeshMetadata`
 
         '''
-        values_list = MetaFuncsMetadata.validate_derived_array_declaration(
-            fparser2_tree, "FUNC_TYPE", "META_FUNCS")
+        values_list = MetaMeshMetadata.validate_derived_array_declaration(
+            fparser2_tree, "MESH_DATA_TYPE", "META_MESH")
         meta_obj_list = []
         for value in values_list:
             meta_obj_list.append(
-                MetaFuncsArgMetadata.create_from_fortran_string(value))
-        return MetaFuncsMetadata(meta_obj_list)
+                MetaMeshArgMetadata.create_from_fortran_string(value))
+        return MetaMeshMetadata(meta_obj_list)
 
     @property
-    def meta_funcs_args(self):
+    def meta_mesh_args(self):
         '''
-        :returns: a list of meta funcs argument objects.
+        :returns: a list of meta mesh argument objects.
         :rtype: List[:py:class:`psyclone.domain.lfric.kernel.\
-            MetaFuncsArgMetadata`]
+            MetaMeshArgMetadata`]
         '''
-        return self._meta_funcs_args
+        return self._meta_mesh_args[:]
 
-    @meta_funcs_args.setter
-    def meta_funcs_args(self, values):
+    @meta_mesh_args.setter
+    def meta_mesh_args(self, values):
         '''
-        :param values: set the meta_funcs metadata to the \
+        :param values: set the meta_mesh metadata to the \
             supplied list of values.
         :type values: List[:py:class:`psyclone.domain.lfric.kernel.\
-            MetaFuncsArgMetadata`]
+            MetaMeshArgMetadata`]
 
         raises TypeError: if the supplied value is not a list.
         raises TypeError: if the supplied value is an empty list.
@@ -122,19 +122,19 @@ class MetaFuncsMetadata(CommonDeclarationMetadata):
 
         '''
         if not isinstance(values, list):
-            raise TypeError(f"meta_funcs values should be provided as "
+            raise TypeError(f"meta_mesh values should be provided as "
                             f"a list but found '{type(values).__name__}'.")
         if not values:
             raise TypeError(
-                "The meta_funcs list should contain at least one "
+                "The meta_mesh list should contain at least one "
                 "entry, but it is empty.")
         const = LFRicConstants()
         for value in values:
-            if not isinstance(value, MetaFuncsArgMetadata):
+            if not isinstance(value, MetaMeshArgMetadata):
                 raise TypeError(
-                    f"The meta_funcs list should be a list containing objects "
-                    f"of type MetaFuncsArgMetadata but found "
+                    f"The meta_mesh list should be a list containing objects "
+                    f"of type MetaMeshArgMetadata but found "
                     f"'{type(value).__name__}'.")
         # Take a copy of the list so that it can't be modified
         # externally.
-        self._meta_funcs_args = values[:]
+        self._meta_mesh_args = values[:]

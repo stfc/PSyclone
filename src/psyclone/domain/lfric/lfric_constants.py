@@ -279,6 +279,15 @@ class LFRicConstants():
         LFRicConstants.VALID_METAFUNC_NAMES = \
             LFRicConstants.VALID_EVALUATOR_NAMES
 
+        # Valid Reference Element names
+        LFRicConstants.VALID_REF_ELEMENT_NAMES = [
+            "normals_to_horizontal_faces", "normals_to_vertical_faces",
+            "normals_to_faces", "outward_normals_to_horizontal_faces",
+            "outward_normals_to_vertical_faces", "outward_normals_to_faces"]
+
+        # Valid mesh names
+        LFRicConstants.VALID_MESH_NAMES = ["adjacent_face"]
+
         # ---------- Map from scalar intrinsic type to its precision ----------
         LFRicConstants.SCALAR_PRECISION_MAP = \
             OrderedDict(zip(LFRicConstants.VALID_INTRINSIC_TYPES,

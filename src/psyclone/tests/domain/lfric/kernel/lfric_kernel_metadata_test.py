@@ -52,6 +52,10 @@ from psyclone.domain.lfric.kernel.inter_grid_vector_arg import \
     InterGridVectorArg
 from psyclone.domain.lfric.kernel.lfric_kernel_metadata import \
     LFRicKernelMetadata
+from psyclone.domain.lfric.kernel.meta_mesh_metadata import \
+    MetaMeshMetadata
+from psyclone.domain.lfric.kernel.meta_mesh_arg_metadata import \
+    MetaMeshArgMetadata
 from psyclone.domain.lfric.kernel.meta_funcs_arg_metadata import \
     MetaFuncsArgMetadata
 from psyclone.domain.lfric.kernel.meta_funcs_metadata import \
@@ -59,6 +63,10 @@ from psyclone.domain.lfric.kernel.meta_funcs_metadata import \
 from psyclone.domain.lfric.kernel.operates_on_metadata import \
     OperatesOnMetadata
 from psyclone.domain.lfric.kernel.operator_arg import OperatorArg
+from psyclone.domain.lfric.kernel.meta_ref_element_metadata import \
+    MetaRefElementMetadata
+from psyclone.domain.lfric.kernel.meta_ref_element_arg_metadata import \
+    MetaRefElementArgMetadata
 from psyclone.domain.lfric.kernel.scalar_arg import ScalarArg
 from psyclone.domain.lfric.kernel.shapes_metadata import ShapesMetadata
 from psyclone.errors import InternalError
@@ -79,8 +87,8 @@ def test_init_noargs():
     assert meta._evaluator_targets is None
     assert meta._meta_args is None
     assert meta._meta_funcs == None
-    assert meta._meta_reference_element == []
-    assert meta._meta_mesh == []
+    assert meta._meta_ref_element == None
+    assert meta._meta_mesh == None
     assert meta._procedure_name is None
     assert meta._name is None
 
@@ -92,11 +100,15 @@ def test_init_args():
     '''
     scalar_arg = ScalarArg("GH_REAL", "GH_READ")
     meta_funcs_arg = MetaFuncsArgMetadata("w0", basis_function=True)
+    meta_ref_element_arg = MetaRefElementArgMetadata("normals_to_faces")
+    meta_mesh_arg = MetaMeshArgMetadata("adjacent_face")
     meta = LFRicKernelMetadata(
         operates_on="DOMAIN", shapes=["GH_EVALUATOR"],
         evaluator_targets=["W0"], meta_args=[scalar_arg],
-        meta_funcs=[meta_funcs_arg], meta_reference_element="TBD",
-        meta_mesh="TBD", procedure_name="KERN_CODE", name="kern_type")
+        meta_funcs=[meta_funcs_arg], meta_ref_element=[meta_ref_element_arg],
+        meta_mesh=[meta_mesh_arg], procedure_name="KERN_CODE",
+        name="kern_type")
+
     assert isinstance(meta._operates_on, OperatesOnMetadata)
     assert meta._operates_on.operates_on == "domain"
     assert isinstance(meta._shapes, ShapesMetadata)
@@ -104,9 +116,12 @@ def test_init_args():
     assert isinstance(meta._evaluator_targets, EvaluatorTargetsMetadata)
     assert meta._evaluator_targets.evaluator_targets == ["w0"]
     assert meta.meta_args == [scalar_arg]
+    # For some reason the equality test does not work for meta_funcs,
+    # so use the fortran output instead to check for validity.
     assert (meta._meta_funcs.fortran_string() ==
             "type(FUNC_TYPE) :: META_FUNCS(1) = (/func_type(w0, gh_basis)/)\n")
-    # TODO issue #1879 meta_reference_element, meta_mesh
+    assert meta.meta_ref_element == [meta_ref_element_arg]
+    assert meta.meta_mesh == [meta_mesh_arg]
     assert meta.procedure_name == "KERN_CODE"
     assert meta.name == "kern_type"
 
@@ -139,11 +154,18 @@ def test_init_args_error():
 
     with pytest.raises(TypeError) as info:
         _ = LFRicKernelMetadata(meta_funcs="invalid")
-    assert ("meta_funcs values should be provided as a list but found 'str'." \
+    assert ("meta_funcs values should be provided as a list but found 'str'."
             in str(info.value))
 
-    # TODO issue #1879 meta_reference_element,
-    # meta_mesh
+    with pytest.raises(TypeError) as info:
+        _ = LFRicKernelMetadata(meta_ref_element="invalid")
+    assert ("meta_ref_element values should be provided as a list but "
+            "found 'str'." in str(info.value))
+
+    with pytest.raises(TypeError) as info:
+        _ = LFRicKernelMetadata(meta_mesh="invalid")
+    assert ("meta_mesh values should be provided as a list but found 'str'."
+            in str(info.value))
 
     with pytest.raises(ValueError) as info:
         _ = LFRicKernelMetadata(procedure_name="1_invalid")
@@ -158,22 +180,29 @@ def test_init_args_error():
 
 METADATA = (
     "type, extends(kernel_type) :: testkern_type\n"
-    "   type(arg_type), dimension(7) :: meta_args =          &\n"
-    "        (/ arg_type(gh_scalar,   gh_real, gh_read),     &\n"
-    "           arg_type(gh_field,    gh_real, gh_inc,  w1), &\n"
-    "           arg_type(gh_field*3,  gh_real, gh_read, w2), &\n"
+    "   type(arg_type), dimension(7) :: meta_args =                       &\n"
+    "        (/ arg_type(gh_scalar,   gh_real, gh_read),                  &\n"
+    "           arg_type(gh_field,    gh_real, gh_inc,  w1),              &\n"
+    "           arg_type(gh_field*3,  gh_real, gh_read, w2),              &\n"
     "           arg_type(gh_field, gh_real, gh_read, w2, "
-    "mesh_arg=gh_coarse), &\n"
+    "mesh_arg=gh_coarse),                                                 &\n"
     "           arg_type(gh_field*3, gh_real, gh_read, w2, "
-    "mesh_arg=gh_fine), &\n"
-    "           arg_type(gh_operator, gh_real, gh_read, w2, w3), &\n"
+    "mesh_arg=gh_fine),                                                   &\n"
+    "           arg_type(gh_operator, gh_real, gh_read, w2, w3),          &\n"
     "           arg_type(gh_columnwise_operator, gh_real, gh_read, w3, "
-    "w0)  &\n"
+    "w0)                                                                  &\n"
     "         /)\n"
-    "   type(func_type), dimension(2) :: meta_funcs =        &\n"
-    "        (/ func_type(w1, gh_basis),                     &\n"
-    "           func_type(w2, gh_basis, gh_diff_basis)       &\n"
+    "   type(func_type), dimension(2) :: meta_funcs =                     &\n"
+    "        (/ func_type(w1, gh_basis),                                  &\n"
+    "           func_type(w2, gh_basis, gh_diff_basis)                    &\n"
     "        /)\n"
+    "   type(reference_element_data_type), dimension(2) ::                &\n"
+    "     meta_reference_element =                                        &\n"
+    "        (/ reference_element_data_type(normals_to_horizontal_faces), &\n"
+    "           reference_element_data_type(normals_to_vertical_faces)    &\n"
+    "        /)\n"
+    "   type(mesh_data_type) :: meta_mesh(1) =                            &\n"
+    "        (/ mesh_data_type(adjacent_face) /)\n"     
     "   integer :: gh_shape = gh_quadrature_XYoZ\n"
     "   integer :: gh_evaluator_targets(2) = (/ w0, w3 /)\n"
     "   integer :: operates_on = cell_column\n"
@@ -198,9 +227,11 @@ def test_create_from_psyir(fortran_reader):
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
     symbol = kernel_psyir.children[0].symbol_table.lookup("testkern_type")
     metadata = LFRicKernelMetadata.create_from_psyir(symbol)
+
     assert metadata.operates_on == "cell_column"
     assert metadata.shapes == ["gh_quadrature_xyoz"]
     assert metadata.evaluator_targets == ["w0", "w3"]
+
     assert isinstance(metadata.meta_args, list)
     assert len(metadata.meta_args) == 7
     assert isinstance(metadata.meta_args[0], ScalarArg)
@@ -210,13 +241,20 @@ def test_create_from_psyir(fortran_reader):
     assert isinstance(metadata.meta_args[4], InterGridVectorArg)
     assert isinstance(metadata.meta_args[5], OperatorArg)
     assert isinstance(metadata.meta_args[6], ColumnwiseOperatorArg)
+
     assert isinstance(metadata.meta_funcs, list)
     assert isinstance(metadata.meta_funcs[0], MetaFuncsArgMetadata)
-    assert metadata.meta_funcs[0].fortran_string() == "func_type(w1, gh_basis)"
     assert isinstance(metadata.meta_funcs[1], MetaFuncsArgMetadata)
-    assert (metadata.meta_funcs[1].fortran_string() ==
-            "func_type(w2, gh_basis, gh_diff_basis)")
-    # TODO issue #1879 meta_reference_element, meta_mesh
+
+    assert isinstance(metadata.meta_ref_element, list)
+    assert len(metadata.meta_ref_element) == 2
+    assert isinstance(metadata.meta_ref_element[0], MetaRefElementArgMetadata)
+    assert isinstance(metadata.meta_ref_element[1], MetaRefElementArgMetadata)
+
+    assert isinstance(metadata.meta_mesh, list)
+    assert len(metadata.meta_mesh) == 1
+    assert isinstance(metadata.meta_mesh[0], MetaMeshArgMetadata)
+
     assert metadata.procedure_name == "testkern_code"
     assert metadata.name == "testkern_type"
 
@@ -250,6 +288,7 @@ def test_create_from_fortran(procedure_format):
     assert metadata.operates_on == "cell_column"
     assert metadata.shapes == ["gh_quadrature_xyoz"]
     assert metadata.evaluator_targets == ["w0", "w3"]
+
     assert isinstance(metadata.meta_args, list)
     assert len(metadata.meta_args) == 7
     assert isinstance(metadata.meta_args[0], ScalarArg)
@@ -259,8 +298,19 @@ def test_create_from_fortran(procedure_format):
     assert isinstance(metadata.meta_args[4], InterGridVectorArg)
     assert isinstance(metadata.meta_args[5], OperatorArg)
     assert isinstance(metadata.meta_args[6], ColumnwiseOperatorArg)
-    # TODO issue #1879 meta_funcs, meta_reference_element,
-    # meta_mesh
+    assert isinstance(metadata.meta_funcs, list)
+    assert isinstance(metadata.meta_funcs[0], MetaFuncsArgMetadata)
+    assert isinstance(metadata.meta_funcs[1], MetaFuncsArgMetadata)
+
+    assert isinstance(metadata.meta_ref_element, list)
+    assert len(metadata.meta_ref_element) == 2
+    assert isinstance(metadata.meta_ref_element[0], MetaRefElementArgMetadata)
+    assert isinstance(metadata.meta_ref_element[1], MetaRefElementArgMetadata)
+
+    assert isinstance(metadata.meta_mesh, list)
+    assert len(metadata.meta_mesh) == 1
+    assert isinstance(metadata.meta_mesh[0], MetaMeshArgMetadata)
+
     assert metadata.procedure_name == "testkern_code"
     assert metadata.name == "testkern_type"
 
@@ -283,7 +333,6 @@ def test_create_from_fortran_no_optional():
     assert metadata.shapes is None
     assert metadata.evaluator_targets is None
     assert metadata.meta_funcs is None
-    # TODO issue #1879 meta_reference_element, meta_mesh
 
 
 def test_create_from_fortran_error():
@@ -468,6 +517,11 @@ def test_fortran_string():
         "arg_type(GH_COLUMNWISE_OPERATOR, gh_real, gh_read, w3, w0)/)\n"
         "  type(FUNC_TYPE) :: META_FUNCS(2) = (/func_type(w1, gh_basis), "
         "func_type(w2, gh_basis, gh_diff_basis)/)\n"
+        "  type(REFERENCE_ELEMENT_DATA_TYPE) :: META_REFERENCE_ELEMENT(2) "
+        "= (/reference_element_data_type(normals_to_horizontal_faces), "
+        "reference_element_data_type(normals_to_vertical_faces)/)\n"
+        "  type(MESH_DATA_TYPE) :: META_MESH(1) = "
+        "(/mesh_data_type(adjacent_face)/)\n"
         "  INTEGER :: GH_SHAPE = gh_quadrature_xyoz\n"
         "  INTEGER :: GH_EVALUATOR_TARGETS(2) = (/w0, w3/)\n"
         "  INTEGER :: OPERATES_ON = cell_column\n"
@@ -554,8 +608,56 @@ def test_setter_getter_meta_args():
     # Check that a copy of the list is returned
     assert metadata.meta_args is not metadata._meta_args
 
-# TODO issue #1879 meta_funcs, meta_reference_element,
-# meta_mesh
+
+def test_setter_getter_meta_funcs():
+    '''Test that the LFRicKernelMetadata meta_funcs setters and
+    getters work as expected.
+
+    '''
+    metadata = LFRicKernelMetadata()
+    assert metadata.meta_funcs is None
+    with pytest.raises(TypeError) as info:
+        metadata.meta_funcs = "invalid"
+    assert ("meta_funcs values should be provided as a list but "
+            "found 'str'." in str(info.value))
+    meta_funcs_arg = MetaFuncsArgMetadata("w0", basis_function=True)
+    meta_funcs = [meta_funcs_arg]
+    metadata.meta_funcs = meta_funcs
+    assert metadata.meta_funcs == meta_funcs
+
+
+def test_setter_getter_meta_ref_element():
+    '''Test that the LFRicKernelMetadata meta_ref_element setters and
+    getters work as expected.
+
+    '''
+    metadata = LFRicKernelMetadata()
+    assert metadata.meta_ref_element is None
+    with pytest.raises(TypeError) as info:
+        metadata.meta_ref_element = "invalid"
+    assert ("meta_ref_element values should be provided as a list but "
+            "found 'str'." in str(info.value))
+    meta_ref_element_arg = MetaRefElementArgMetadata("normals_to_faces")
+    meta_ref_element = [meta_ref_element_arg]
+    metadata.meta_ref_element = meta_ref_element
+    assert metadata.meta_ref_element == meta_ref_element
+
+
+def test_setter_getter_meta_mesh():
+    '''Test that the LFRicKernelMetadata meta_mesh setters and
+    getters work as expected.
+
+    '''
+    metadata = LFRicKernelMetadata()
+    assert metadata.meta_mesh is None
+    with pytest.raises(TypeError) as info:
+        metadata.meta_mesh = "invalid"
+    assert ("meta_mesh values should be provided as a list but "
+            "found 'str'." in str(info.value))
+    meta_mesh_arg = MetaMeshArgMetadata("adjacent_face")
+    meta_mesh = [meta_mesh_arg]
+    metadata.meta_mesh = meta_mesh
+    assert metadata.meta_mesh == meta_mesh
 
 
 def test_setter_getter_procedure_name():
