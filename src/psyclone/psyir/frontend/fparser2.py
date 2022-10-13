@@ -2120,7 +2120,7 @@ class Fparser2Reader(object):
                 f"The kernel argument list:\n'{arg_str_list}'\n"
                 f"does not match the variable declarations:\n"
                 f"{os.linesep.join(decls_str_list)}\n"
-                f"Specific PSyIR error is {str(info)}.") from info
+                f"Specific PSyIR error is {info}.") from info
 
         # fparser2 does not always handle Statement Functions correctly, this
         # loop checks for Stmt_Functions that should be an array statement
