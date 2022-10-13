@@ -1944,7 +1944,7 @@ class LFRicMeshProperties(DynCollection):
                                      f"{cell_name}))")
                     else:
                         adj_face += f"(:,{cell_name})"
-                    arg_list.append(adj_face)
+                arg_list.append(adj_face)
 
                 if var_accesses is not None:
                     # TODO #1320 Replace [1]
