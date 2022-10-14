@@ -4442,7 +4442,7 @@ class DynMeshes(object):
         return self._ig_kernels
 
 
-class DynInterGrid(object):
+class DynInterGrid():
     '''
     Holds information on quantities required by an inter-grid kernel.
 
@@ -4462,19 +4462,18 @@ class DynInterGrid(object):
         symtab = self.coarse.call.ancestor(InvokeSchedule).symbol_table
 
         # Generate name for inter-mesh map
-        base_mmap_name = "mmap_{0}_{1}".format(fine_arg.name,
-                                               coarse_arg.name)
+        base_mmap_name = f"mmap_{fine_arg.name}_{coarse_arg.name}"
         self.mmap = symtab.find_or_create_tag(base_mmap_name).name
 
         # Generate name for ncell variables
         self.ncell_fine = symtab.find_or_create_tag(
-            "ncell_{0}".format(fine_arg.name)).name
+            f"ncell_{fine_arg.name}").name
         # No. of fine cells per coarse cell in x
         self.ncellpercellx = symtab.find_or_create_tag(
-            "ncpc_{0}_{1}_x".format(fine_arg.name, coarse_arg.name)).name
+            f"ncpc_{fine_arg.name}_{coarse_arg.name}_x").name
         # No. of fine cells per coarse cell in y
         self.ncellpercelly = symtab.find_or_create_tag(
-            "ncpc_{0}_{1}_y".format(fine_arg.name, coarse_arg.name)).name
+            f"ncpc_{fine_arg.name}_{coarse_arg.name}_y").name
         # Name for cell map
         base_name = "cell_map_" + coarse_arg.name
         self.cell_map = symtab.find_or_create_tag(base_name).name
@@ -7322,8 +7321,8 @@ class DynLoop(PSyLoop):
             for kern in kernels:
                 if not kern.ncolours_var:
                     raise InternalError(
-                        "All kernels within a loop over colours must have been"
-                        " coloured but kernel '{0}' has not".format(kern.name))
+                        f"All kernels within a loop over colours must have been"
+                        f" coloured but kernel '{kern.name}' has not")
             return ncolours
         if self._upper_bound_name == "ncolour":
             # Loop over cells of a particular colour when DM is disabled.
@@ -7339,20 +7338,19 @@ class DynLoop(PSyLoop):
             # Loop over cells of a particular colour when DM is enabled. The
             # LFRic API used here allows for colouring with redundant
             # computation.
+            sym_tab = self.ancestor(InvokeSchedule).symbol_table
             if halo_index:
                 # The colouring API provides a 2D array that holds the last
                 # halo cell for a given colour and halo depth.
                 depth = halo_index
             else:
                 # If no depth is specified then we go to the full halo depth
-                depth = self.ancestor(InvokeSchedule).symbol_table.\
-                    find_or_create_tag(
-                        f"max_halo_depth_{self._mesh_name}").name
+                depth = sym_tab.find_or_create_tag(
+                    f"max_halo_depth_{self._mesh_name}").name
             root_name = "last_halo_cell_all_colours"
             if self._kern.is_intergrid:
                 root_name += "_" + self._field_name
-            sym = self.ancestor(
-                InvokeSchedule).symbol_table.find_or_create_tag(root_name)
+            sym = sym_tab.find_or_create_tag(root_name)
             return f"{sym.name}(colour, {depth})"
         if self._upper_bound_name in ["ndofs", "nannexed"]:
             if Config.get().distributed_memory:

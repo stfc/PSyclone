@@ -154,8 +154,7 @@ def test_kerncallarglist_face_edge(dist_mem, fortran_writer):
 
 
 def test_kerncallarglist_colouring(dist_mem, fortran_writer):
-    ''' Check the handling of basis, diff_basis, and quad_rule, including
-    face and edge quadrature
+    ''' Check the handling of coluring.
     '''
 
     psy, _ = get_invoke("4.8_multikernel_invokes.f90",
@@ -181,8 +180,7 @@ def test_kerncallarglist_colouring(dist_mem, fortran_writer):
 
 
 def test_kerncallarglist_mesh_properties(fortran_writer):
-    ''' Check the handling of basis, diff_basis, and quad_rule, including
-    face and edge quadrature
+    ''' Check the handling of mesh properties.
     '''
 
     psy, _ = get_invoke("24.1_mesh_prop_invoke.f90",
@@ -214,8 +212,7 @@ def test_kerncallarglist_mesh_properties(fortran_writer):
 
 
 def test_kerncallarglist_evaluator(fortran_writer):
-    ''' Check the handling of basis, diff_basis, and quad_rule, including
-    face and edge quadrature
+    ''' Check the handling of evaluators.
     '''
 
     psy, _ = get_invoke("6.1_eval_invoke.f90", TEST_API,
