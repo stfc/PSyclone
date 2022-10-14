@@ -773,8 +773,8 @@ class KernCallArgList(ArgOrdering):
         # Checks for this are performed in ArgOrdering.generate()
         op_arg = self._kern.arguments.args[0]
         base_name = "boundary_dofs_" + op_arg.name
-        name = self._symtab.find_or_create_tag(base_name).name
-        self.append(name, var_accesses)
+        sym = self.add_array_reference(base_name, [":", ":"], "integer")
+        self.append(sym.name, var_accesses)
 
     def mesh_properties(self, var_accesses=None):
         '''Provide the kernel arguments required for the mesh properties

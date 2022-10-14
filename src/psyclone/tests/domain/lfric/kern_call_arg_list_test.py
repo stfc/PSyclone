@@ -310,3 +310,20 @@ def test_kerncallarglist_bcs(fortran_writer, monkeypatch):
     assert ("Expected an argument of ['gh_field'] type from which to look-up "
             "boundary dofs for kernel enforce_bc_code but got 'gh_operator'"
             in str(err.value))
+
+
+def test_kerncallarglist_bcs_operator(fortran_writer):
+    ''' Check the handling of bc_kernel operators.
+    '''
+
+    psy, _ = get_invoke("12.4_enforce_op_bc_kernel.f90", TEST_API,
+                        dist_mem=False, idx=0)
+
+    schedule = psy.invokes.invoke_list[0].schedule
+    create_arg_list = KernCallArgList(schedule.kernels()[0])
+    create_arg_list.generate()
+    assert create_arg_list._arglist == [
+        'cell', 'nlayers', 'op_a_proxy%ncell_3d', 'op_a_proxy%local_stencil',
+        'ndf_aspc1_op_a', 'ndf_aspc2_op_a', 'boundary_dofs_op_a']
+
+    check_psyir_results(create_arg_list, fortran_writer)
