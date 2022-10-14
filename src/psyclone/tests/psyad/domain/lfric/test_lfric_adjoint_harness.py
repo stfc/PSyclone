@@ -33,7 +33,8 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-'''Provides py.test tests of LFRic-specific PSyclone adjoint functionality.'''
+'''Provides py.test tests of LFRic-specific PSyclone adjoint test-harness
+   functionality.'''
 
 import pytest
 
@@ -44,8 +45,8 @@ from psyclone.domain.lfric.algorithm import (LFRicBuiltinFunctor, LFRicAlg,
                                              LFRicBuiltinFunctorFactory)
 from psyclone.domain.lfric.psyir import add_lfric_precision_symbol
 from psyclone.errors import InternalError
-from psyclone.psyad.domain.lfric import generate_lfric_adjoint_harness
-from psyclone.psyad.domain.lfric.generate_lfric_adjoint_harness import (
+from psyclone.psyad.domain.lfric import lfric_adjoint_harness
+from psyclone.psyad.domain.lfric.lfric_adjoint_harness import (
     _compute_lfric_inner_products,
     _compute_field_inner_products,
     _init_fields_random,
@@ -604,11 +605,21 @@ def test_generate_lfric_adjoint_harness_geom_args(fortran_reader,
 
 
 def test_generate_lfric_adj_harness_scalar_geom_arg(fortran_reader,
+                                                    fortran_writer,
                                                     monkeypatch):
     '''
+    Check that the code correctly handles the case where a scalar argument
+    is marked as holding geometric information. This is for future-proofing
+    in case such an argument is added in the future.
+
     '''
     tl_psyir = fortran_reader.psyir_from_source(TL_CODE_WITH_GEOM)
+    # Currently there are no scalar, geometry arguments so monkeypatch the
+    # _validate_geom_arg method so that it doesn't complain.
     monkeypatch.setattr(lfric_adjoint_harness,
                         "_validate_geom_arg",
                         lambda _1, _2, _3, _4, _5: None)
     psyir = generate_lfric_adjoint_harness(tl_psyir, panel_id_arg_idx=1)
+    gen = fortran_writer(psyir)
+    assert "call random_number(rscalar_1)" not in gen
+    assert "call random_number(panel_id)" not in gen

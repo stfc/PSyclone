@@ -37,6 +37,6 @@
 LFRic-specific support for PSyAD.
 '''
 
-from psyclone.psyad.domain.lfric.fric_adjoint import generate_lfric_adjoint
+from psyclone.psyad.domain.lfric.lfric_adjoint import generate_lfric_adjoint
 from psyclone.psyad.domain.lfric.lfric_adjoint_harness import (
     generate_lfric_adjoint_harness)

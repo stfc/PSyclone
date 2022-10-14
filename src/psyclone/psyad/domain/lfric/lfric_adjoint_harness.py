@@ -562,8 +562,11 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
     # Sum up the second set of inner products
     inner2_sym = table.new_symbol("inner2", symbol_type=DataSymbol,
                                   datatype=rdef_type)
-    scalars = zip(kern_args.scalars,
-                  [input_symbols[sym.name] for sym in kern_args.scalars])
+    scalars = []
+    for sym in kern_args.scalars:
+        if sym.name in input_symbols:
+            # This scalar is an input so include it in the inner product.
+            scalars.append((sym, input_symbols[sym.name]))
     _compute_lfric_inner_products(routine, scalars, field_ip_symbols,
                                   inner2_sym)
 
