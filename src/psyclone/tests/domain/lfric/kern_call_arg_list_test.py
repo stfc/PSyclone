@@ -280,3 +280,20 @@ def test_kerncallarglist_cross2d_stencil(fortran_writer):
         'map_w2(:,cell)', 'ndf_w3', 'undf_w3', 'map_w3(:,cell)'
     ]
     check_psyir_results(create_arg_list, fortran_writer)
+
+
+def test_kerncallarglist_bcs(fortran_writer):
+    ''' Check the handling of bc_kernel
+    '''
+
+    psy, _ = get_invoke("12.2_enforce_bc_kernel.f90", TEST_API,
+                        dist_mem=False, idx=0)
+
+    schedule = psy.invokes.invoke_list[0].schedule
+    create_arg_list = KernCallArgList(schedule.kernels()[0])
+    create_arg_list.generate()
+    assert create_arg_list._arglist == [
+        'nlayers', 'a_proxy%data', 'ndf_aspc1_a', 'undf_aspc1_a',
+        'map_aspc1_a(:,cell)', 'boundary_dofs_a']
+
+    check_psyir_results(create_arg_list, fortran_writer)

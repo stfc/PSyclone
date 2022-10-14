@@ -752,9 +752,9 @@ class KernCallArgList(ArgOrdering):
                 f"from which to look-up boundary dofs for kernel "
                 f"{self._kern.name} but got '{farg.argument_type}'")
 
-        base_name = "boundary_dofs_" + farg.name
-        name = self._symtab.find_or_create_tag(base_name).name
-        self.append(name, var_accesses)
+        base_name = "boundary_dofs_" + farg.name   # boundary_dofs_a
+        sym = self.add_array_reference(base_name, [":", ":"], "integer")
+        self.append(sym.name, var_accesses)
 
     def operator_bcs_kernel(self, function_space, var_accesses=None):
         '''Supply necessary additional arguments for the kernel that
