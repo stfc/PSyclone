@@ -39,8 +39,6 @@
 call. It especially adds all implicitly required parameters.
 '''
 
-from __future__ import print_function, absolute_import
-
 from collections import namedtuple
 
 from psyclone import psyGen
@@ -345,7 +343,8 @@ class KernCallArgList(ArgOrdering):
                 mode = AccessType.READ
                 sym = self.add_integer_reference(name)
 
-            self.append(sym.name, var_accesses, mode=mode)
+            self.append(name, var_accesses, mode=mode,
+                        metadata_posn=arg.metadata_index)
 
     def field_vector(self, argvect, var_accesses=None):
         '''Add the field vector associated with the argument 'argvect' to the
@@ -375,7 +374,8 @@ class KernCallArgList(ArgOrdering):
             ref = ArrayOfStructuresReference.create(sym, [lit_ind], ["data"])
             self.psyir_append(ref)
             text = sym.name + "(" + str(idx) + ")%data"
-            self.append(text)
+            self.append(text, metadata_posn=argvect.metadata_index)
+
         if var_accesses is not None:
             # We add the whole field-vector, not the individual accesses.
             var_accesses.add_access(Signature(argvect.name), argvect.access,
@@ -394,10 +394,11 @@ class KernCallArgList(ArgOrdering):
 
         '''
         text = arg.proxy_name + "%data"
+
         # Add the field object arg%name and not just the proxy part
         # as being read.
         self.append(text, var_accesses, var_access_name=arg.name,
-                    mode=arg.access)
+                    mode=arg.access, metadata_posn=arg.metadata_index)
 
         # Add an access to field_proxy%data:
         self.add_user_type("field_mod", "field_proxy_type", ["data"],
@@ -573,7 +574,7 @@ class KernCallArgList(ArgOrdering):
                            ["local_stencil"], arg.proxy_name_indexed)
         # The access mode of `local_stencil` is taken from the meta-data:
         self.append(arg.proxy_name_indexed + "%local_stencil", var_accesses,
-                    mode=arg.access)
+                    mode=arg.access, metadata_posn=arg.metadata_index)
 
     def fs_common(self, function_space, var_accesses=None):
         '''Add function-space related arguments common to LMA operators and
