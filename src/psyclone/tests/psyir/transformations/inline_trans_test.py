@@ -772,6 +772,73 @@ def test_apply_multi_function(fortran_reader, fortran_writer, tmpdir):
     assert expected in output
 
 
+def test_apply_container_subroutine(fortran_reader, fortran_writer):
+    '''Test the apply method works correctly when the routine to be
+    inlined is in a different container and is a raw subroutine (so
+    there is no use statement).
+
+    '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "    real :: a\n"
+        "    call sub(a)\n"
+        "  end subroutine run_it\n"
+        "end module test_mod\n"
+        "module inline_mod\n"
+        "contains\n"
+        "subroutine sub(x)\n"
+        "  real, intent(inout) :: x\n"
+        "  x = 2.0*x\n"
+        "end subroutine sub\n"
+        "end module inline_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(routine)
+    output = fortran_writer(psyir)
+    assert (
+        "  subroutine run_it()\n"
+        "    real :: a\n\n"
+        "    a = 2.0 * a\n\n"
+        "  end subroutine run_it" in output)
+
+
+def test_apply_container_module(fortran_reader, fortran_writer):
+    '''Test the apply method works correctly when the routine to be
+    inlined is in a different container and is within a module (so
+    there is a use statement).
+
+    '''
+    code = (
+        "module test_mod\n"
+        "use inline_mod, only : sub\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "    real :: a\n"
+        "    call sub(a)\n"
+        "  end subroutine run_it\n"
+        "end module test_mod\n"
+        "module inline_mod\n"
+        "contains\n"
+        "  subroutine sub(x)\n"
+        "    real, intent(inout) :: x\n"
+        "    x = 2.0*x\n"
+        "  end subroutine sub\n"
+        "end module inline_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(routine)
+    output = fortran_writer(psyir)
+    assert (
+        "  subroutine run_it()\n"
+        "    real :: a\n\n"
+        "    a = 2.0 * a\n\n"
+        "  end subroutine run_it" in output)
+
+
 def test_apply_validate():
     '''Test the apply method calls the validate method.'''
     inline_trans = InlineTrans()

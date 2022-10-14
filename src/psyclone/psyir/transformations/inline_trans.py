@@ -477,8 +477,7 @@ class InlineTrans(Transformation):
         Searches for the definition of the routine that is being called by
         the supplied Call.
 
-        Currently only supports routines that are present in the
-        same source file - TODO #924.
+        Limited to routines that are present in the same source file.
 
         :param call_node: the Call that is to be inlined.
         :type call_node: :py:class:`psyclone.psyir.nodes.Call`
@@ -489,17 +488,22 @@ class InlineTrans(Transformation):
         :raises TransformationError: if the RoutineSymbol is not local.
         :raises TransformationError: if the routine symbol is local but the \
             definition cannot be found.
+
         '''
         name = call_node.routine.name
         routine_sym = call_node.scope.symbol_table.lookup(name)
-        if not routine_sym.is_local:
-            raise TransformationError(
-                f"Routine '{name}' is imported and therefore cannot currently "
-                f"be inlined - TODO #924.")
-        table = routine_sym.find_symbol_table(call_node)
-        for routine in table.node.walk(Routine):
-            if routine.name == name:
-                return routine
+        if routine_sym.is_local:
+            table = routine_sym.find_symbol_table(call_node)
+            for routine in table.node.walk(Routine):
+                if routine.name == name:
+                    return routine
+        else:
+            from psyclone.psyir.nodes import FileContainer
+            file_container = call_node.ancestor(FileContainer)
+            # TODO: Check what happens if there is no FileContainer
+            for routine in file_container.walk(Routine):
+                if routine.name == name:
+                    return routine
 
         raise TransformationError(
             f"Failed to find the source for routine '{name}' and "
