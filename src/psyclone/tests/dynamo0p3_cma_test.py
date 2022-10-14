@@ -36,9 +36,8 @@
 # Modified: J. Henrichs, Bureau of Meteorology
 
 ''' This module tests the support for Column-Matrix-Assembly operators in
-the Dynamo 0.3 API using pytest. '''
+the LFRic (Dynamo 0.3) API using pytest. '''
 
-from __future__ import absolute_import, print_function
 import os
 import pytest
 import fparser
@@ -160,7 +159,7 @@ def test_cma_mdata_init_wrong_argument_type():
     wrong_arg = metadata._inits[3]
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(
-            wrong_arg, metadata.iterates_over)._init_operator(wrong_arg)
+            wrong_arg, metadata.iterates_over, 0)._init_operator(wrong_arg)
     assert ("Expected an operator argument but got an argument of type "
             "'gh_scalar'." in str(excinfo.value))
 
@@ -176,7 +175,7 @@ def test_cma_mdata_init_wrong_data_type():
     cma_op_arg.args[1].name = "gh_integer"
     with pytest.raises(ParseError) as excinfo:
         LFRicArgDescriptor(
-            cma_op_arg, metadata.iterates_over)._init_operator(cma_op_arg)
+            cma_op_arg, metadata.iterates_over, 0)._init_operator(cma_op_arg)
     const = LFRicConstants()
     assert (f"In the LFRic API the allowed data types for operator arguments "
             f"are one of {const.VALID_OPERATOR_DATA_TYPES}, but found "

@@ -66,15 +66,17 @@ class ArgOrdering:
         self._kern = kern
         self._generate_called = False
         self._arglist = []
-        self._mdata_idx_by_arg = {}
+        self._arg_index_to_metadata_index = {}
 
     def append(self, var_name, var_accesses=None, var_access_name=None,
-               mode=AccessType.READ):
-        '''Appends the specified variable name to the list of all arguments.
-        If var_accesses is given, it will also record the access to the
-        variable. The name of the variable accessed can be overwritten by
-        specifying var_access_name. By default it is assumed that access
-        mode is READ (which can be set with mode).
+               mode=AccessType.READ, metadata_posn=None):
+        '''Appends the specified variable name to the list of all arguments and
+        stores the mapping between the position of this actual argument and
+        the corresponding metadata entry. If var_accesses is given, it will
+        also record the access to the variable. The name of the variable
+        accessed can be overwritten by specifying var_access_name. By default
+        it is assumed that access mode is READ (which can be set with
+        ``mode``).
 
         :param str var_name: the name of the variable.
         :param var_accesses: optional class to store variable access \
@@ -87,9 +89,16 @@ class ArgOrdering:
             recorded for field).
         :param mode: optional access mode (defaults to READ).
         :type mode: :py:class:`psyclone.core.access_type.AccessType`
+        :param int metadata_posn: the location of the corresponding entry in \
+            the list of arguments in the kernel metadata (if any).
 
         '''
+        # Keep track of which metadata argument this actual argument
+        # corresponds to.
+        self._arg_index_to_metadata_index[len(self._arglist)] = metadata_posn
+
         self._arglist.append(var_name)
+
         if var_accesses is not None:
             if var_access_name:
                 var_accesses.add_access(Signature(var_access_name), mode,
@@ -99,7 +108,7 @@ class ArgOrdering:
                                         self._kern)
 
     def extend(self, list_var_name, var_accesses=None,
-               mode=AccessType.READ):
+               mode=AccessType.READ, list_metadata_posn=None):
         '''Appends all variable names in the argument list to the list of
         all arguments. If var_accesses is given, it will also record the
         access to the variables. By default any access will be recorded as a
@@ -113,13 +122,17 @@ class ArgOrdering:
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         :param mode: optional access mode (defaults to READ).
-        :type mode: :py:class:`psyclone.core.access_type.AccessType`
+        :type mode: Optional[:py:class:`psyclone.core.access_type.AccessType`]
+        :param Optional[List[int]] list_metadata_posn: list of metadata \
+            argument positions.
 
         '''
-        self._arglist.extend(list_var_name)
-        if var_accesses:
-            for var_name in list_var_name:
-                var_accesses.add_access(Signature(var_name), mode, self._kern)
+        for idx, var in enumerate(list_var_name):
+            if list_metadata_posn:
+                self.append(var, var_accesses=var_accesses, mode=mode,
+                            metadata_posn=list_metadata_posn[idx])
+            else:
+                self.append(var, mode=mode, var_accesses=var_accesses)
 
     @property
     def num_args(self):
@@ -146,21 +159,21 @@ class ArgOrdering:
                 f"Has the generate() method been called?")
         return self._arglist
 
-    def lookup_metadata_index(self, sym):
+    def metadata_index_from_actual_index(self, idx):
         '''
-        Lookup the index of the kernel argument in the list of arguments
-        in the metadata.
+        Returns the index of the entry in the meta_args list from which the
+        actual subroutine argument at `idx` originated.
 
-        :param sym: the symbol for which to lookup the metadata index.
-        :type sym: :py:class:`psyclone.psyir.symbols.Symbol`
+        :param int idx: the index of an actual argument to the kernel \
+                        subroutine.
 
         :returns: the 0-indexed position of the corresponding metadata entry.
         :rtype: int
 
-        :raises KeyError: if this symbol does not correspond to an entry \
-                          in the 'meta_args' list.
+        :raises KeyError: if no entry for the specified argument exists.
+
         '''
-        return self._mdata_idx_by_arg[sym]
+        return self._arg_index_to_metadata_index[idx]
 
     def generate(self, var_accesses=None):
         # pylint: disable=too-many-statements, too-many-branches
@@ -579,7 +592,8 @@ class ArgOrdering:
                 f"{const.VALID_SCALAR_NAMES} but got "
                 f"'{scalar_arg.argument_type}'")
 
-        self.append(scalar_arg.name, var_accesses, mode=scalar_arg.access)
+        self.append(scalar_arg.name, var_accesses, mode=scalar_arg.access,
+                    metadata_posn=scalar_arg.metadata_index)
 
     def fs_common(self, function_space, var_accesses=None):
         '''Add function-space related arguments common to LMA operators and
