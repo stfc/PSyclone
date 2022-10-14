@@ -340,7 +340,8 @@ def _validate_geom_arg(kern, arg_idx, name, valid_spaces, vec_len):
                 f"{descriptor.vector_size}.")
 
 
-def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx, panel_id_arg_idx):
+def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
+                                   panel_id_arg_idx=None):
     '''
     Constructs and returns the PSyIR for a Container and Routine that
     implements a test harness for the adjoint of the supplied tangent-linear
@@ -438,31 +439,46 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx, panel_id_arg_idx):
 
     # Create symbols that will store copies of the inputs to the TL kernel.
     # Currently we only support scalar and field arguments.
+    field_args = [fsym for fsym, _ in kern_args.fields]
+    scalar_and_field_args = kern_args.scalars + field_args
+
     # TODO #1864 - add support for operators.
     input_symbols = {}
-    for sym in kern_args.scalars + [fsym for fsym, _ in kern_args.fields]:
-        if kern_args.lookup_metadata_index(sym) in geometry_arg_indices:
-            # This kernel argument is not modified by the test harness.
+    for idx, arg in enumerate(kern_args.arglist):
+        sym = routine.symbol_table.lookup(arg)
+        if sym not in scalar_and_field_args:
+            # Skip anything that's not a scalar or a field, TODO #1864.
+            continue
+        if (kern_args.metadata_index_from_actual_index(idx) in
+                geometry_arg_indices):
+            # This kernel argument is not modified by the test harness so we
+            # don't need to keep a copy of it.
             continue
         input_sym = table.new_symbol(sym.name+"_input", symbol_type=DataSymbol,
                                      datatype=DeferredType())
         input_sym.copy_properties(sym)
         input_symbols[sym.name] = input_sym
 
-    # Initialise all input field objects.
+    # Initialise all input field objects unless they contain geometric
+    # information (as specified by the user via command-line arguments).
     fld_arg_list = []
     for sym, space in kern_args.fields:
-        if kern_args.lookup_metadata_index(sym) not in geometry_arg_indices:
-            # This kernel argument is modified by the test harness.
-            lfalg.initialise_field(routine, input_symbols[sym.name], space)
-            fld_arg_list.append(sym)
+        idx = kern_args.arglist.index(sym.name)
+        if (kern_args.metadata_index_from_actual_index(idx) in
+                geometry_arg_indices):
+            continue
+        # This kernel argument is modified by the test harness.
+        lfalg.initialise_field(routine, input_symbols[sym.name], space)
+        fld_arg_list.append(sym)
 
     # Initialise argument values and keep copies. For scalars we use the
     # Fortran 'random_number' intrinsic directly.
     # TODO #1345 - this is Fortran specific.
     random_num = RoutineSymbol("random_number")
     for sym in kern_args.scalars:
-        if kern_args.lookup_metadata_index(sym) in geometry_arg_indices:
+        idx = kern_args.arglist.index(sym.name)
+        if (kern_args.metadata_index_from_actual_index(idx) in
+                geometry_arg_indices):
             # This kernel argument is not modified by the test harness.
             continue
         routine.addchild(Call.create(random_num, [Reference(sym)]))
@@ -481,10 +497,10 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx, panel_id_arg_idx):
 
     # Finally, add the kernel itself to the list for the invoke().
     arg_nodes = []
-    for arg in kern_args.arglist:
+    for idx, arg in enumerate(kern_args.arglist):
         sym = table.lookup(arg)
         try:
-            mdata_idx = kern_args.lookup_metadata_index(sym)
+            mdata_idx = kern_args.metadata_index_from_actual_index(idx)
             if mdata_idx == coord_arg_idx:
                 sym = table.lookup_with_tag("coord_field")
             elif mdata_idx == panel_id_arg_idx:

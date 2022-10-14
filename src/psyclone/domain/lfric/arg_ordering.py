@@ -147,10 +147,10 @@ class ArgOrdering:
         '''
         :return: the kernel argument list. The generate method must be \
                  called first.
-        :rtype: list of str.
+        :rtype: List[str]
 
         :raises InternalError: if the generate() method has not been \
-        called.
+                               called.
 
         '''
         if not self._generate_called:

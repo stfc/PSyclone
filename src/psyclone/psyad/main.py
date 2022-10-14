@@ -88,10 +88,12 @@ def main(args):
                         'to (if any)')
     parser.add_argument('-coord-arg', default=None, type=int,
                         help='the position of the coordinate (chi) field in '
-                        'the meta_args list of kernel arguments (LFRic only)')
+                        'the meta_args list of arguments in the kernel '
+                        'metadata (LFRic only)')
     parser.add_argument('-panel-id-arg', default=None, type=int,
                         help='the position of the panel-ID field in the '
-                        'meta_args list of kernel arguments (LFRic only)')
+                        'meta_args list of arguments in the kernel metadata '
+                        '(LFRic only)')
     parser.add_argument('-otest',
                         help='filename for the unit test (implies -t)',
                         dest='test_filename')

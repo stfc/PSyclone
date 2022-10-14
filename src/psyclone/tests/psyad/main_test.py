@@ -114,7 +114,8 @@ def test_main_h_option(capsys):
     # when using pytest, therefore we split this test into sections.
     assert "usage: " in output
     expected2 = (
-        "[-h] [-oad OAD] [-v] [-t] [-api API] [-otest TEST_FILENAME] "
+        "[-h] [-oad OAD] [-v] [-t] [-api API] [-coord-arg COORD_ARG] "
+        "[-panel-id-arg PANEL_ID_ARG] [-otest TEST_FILENAME] "
         "-a ACTIVE [ACTIVE ...] -- filename\n\n"
         "Run the PSyclone adjoint code generator on a tangent-linear "
         "kernel file\n\n"
@@ -131,6 +132,15 @@ def test_main_h_option(capsys):
         "  -api API              the PSyclone API that the TL kernel conforms "
         "to (if\n"
         "                        any)\n"
+        "  -coord-arg COORD_ARG  the position of the coordinate (chi) field "
+        "in the\n"
+        "                        meta_args list of arguments in the kernel "
+        "metadata\n"
+        "                        (LFRic only)\n"
+        "  -panel-id-arg PANEL_ID_ARG\n"
+        "                        the position of the panel-ID field in the "
+        "meta_args\n"
+        "                        list of arguments in the kernel metadata (LFRic only)\n"
         "  -otest TEST_FILENAME  filename for the unit test (implies -t)\n"
         "  -oad OAD              filename for the transformed code\n")
     assert expected3 in output
@@ -151,7 +161,8 @@ def test_main_no_args(capsys):
     output, error = capsys.readouterr()
     assert output == ""
     expected1 = "usage: "
-    expected2 = ("[-h] [-oad OAD] [-v] [-t] [-api API] [-otest TEST_FILENAME] "
+    expected2 = ("[-h] [-oad OAD] [-v] [-t] [-api API] [-coord-arg COORD_ARG] "
+                 "[-panel-id-arg PANEL_ID_ARG] [-otest TEST_FILENAME] "
                  "-a ACTIVE [ACTIVE ...] -- filename")
     expected3 = ("error: the following arguments are required: "
                  "-a/--active, filename\n")
