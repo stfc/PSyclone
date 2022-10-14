@@ -233,3 +233,32 @@ def test_kerncallarglist_evaluator(fortran_writer):
         'map_w1(:,cmap(colour,cell))', 'diff_basis_w1_on_w0']
 
     check_psyir_results(create_arg_list, fortran_writer)
+
+
+def test_kerncallarglist_stencil(fortran_writer):
+    ''' Check the handling of stencils.
+    '''
+
+    psy, _ = get_invoke("19.7_multiple_stencils.f90", TEST_API,
+                        dist_mem=False, idx=0)
+
+    schedule = psy.invokes.invoke_list[0].schedule
+    ctrans = Dynamo0p3ColourTrans()
+    ctrans.apply(schedule.children[0])
+
+    create_arg_list = KernCallArgList(schedule.kernels()[0])
+    create_arg_list.generate()
+
+    assert create_arg_list._arglist == [
+        'nlayers', 'f1_proxy%data', 'f2_proxy%data',
+        'f2_stencil_size(cmap(colour,cell))',
+        'f2_stencil_dofmap(:,:,cmap(colour,cell))', 'f3_proxy%data',
+        'f3_stencil_size(cmap(colour,cell))', 'f3_direction',
+        'f3_stencil_dofmap(:,:,cmap(colour,cell))', 'f4_proxy%data',
+        'f4_stencil_size(cmap(colour,cell))',
+        'f4_stencil_dofmap(:,:,cmap(colour,cell))', 'ndf_w1', 'undf_w1',
+        'map_w1(:,cmap(colour,cell))', 'ndf_w2', 'undf_w2',
+        'map_w2(:,cmap(colour,cell))', 'ndf_w3', 'undf_w3',
+        'map_w3(:,cmap(colour,cell))']
+
+    check_psyir_results(create_arg_list, fortran_writer)

@@ -4459,7 +4459,7 @@ class DynInterGrid(object):
         self.fine = fine_arg
 
         # Get a reference to the InvokeSchedule SymbolTable
-        symtab = self.coarse.call.ancestor(psyGen.InvokeSchedule).symbol_table
+        symtab = self.coarse.call.ancestor(InvokeSchedule).symbol_table
 
         # Generate name for inter-mesh map
         base_mmap_name = "mmap_{0}_{1}".format(fine_arg.name,
@@ -8865,9 +8865,9 @@ class DynKernelArguments(Arguments):
         # We have now completed the construction of the kernel arguments so
         # we can go back and update the names of any stencil size and/or
         # direction variable names to ensure there are no clashes.
-        if self._parent_call and hasattr(self._parent_call.root,
-                                         'symbol_table'):
-            symtab = self._parent_call.root.symbol_table
+        if self._parent_call:
+            inv_sched = self._parent_call.ancestor(InvokeSchedule)
+            symtab = inv_sched.symbol_table
         else:
             # TODO 719 The symtab is not connected to other parts of the
             # Stub generation.

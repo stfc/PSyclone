@@ -421,8 +421,10 @@ class KernCallArgList(ArgOrdering):
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_size_name(self._symtab, arg)
-        name = f"{var_name}({self.cell_ref_name(var_accesses)[0]})"
-        self.append(name, var_accesses, var_access_name=var_name)
+        cell_name, cell_ref = self.cell_ref_name(var_accesses)
+        self.add_array_reference(var_name, [cell_ref], "integer")
+        self.append(f"{var_name}({cell_name})", var_accesses,
+                    var_access_name=var_name)
 
     def stencil_2d_unknown_extent(self, arg, var_accesses=None):
         '''Add 2D stencil information to the argument list associated with the
@@ -481,7 +483,8 @@ class KernCallArgList(ArgOrdering):
 
         '''
         # the direction of the stencil is not known so pass the value in
-        name = arg.stencil.direction_arg.varname
+        name = arg.stencil.direction_arg.varname   # f3_direction
+        self.add_integer_reference(name, f"AlgArgs_{name}")
         self.append(name, var_accesses)
 
     def stencil(self, arg, var_accesses=None):
@@ -503,8 +506,10 @@ class KernCallArgList(ArgOrdering):
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_name(self._symtab, arg)
-        name = f"{var_name}(:,:,{self.cell_ref_name(var_accesses)[0]})"
-        self.append(name, var_accesses, var_access_name=var_name)
+        cell_name, cell_ref = self.cell_ref_name(var_accesses)
+        self.add_array_reference(var_name, [":", ":", cell_ref], "integer")
+        self.append(f"{var_name}(:,:,{cell_name})", var_accesses,
+                    var_access_name=var_name)
 
     def stencil_2d(self, arg, var_accesses=None):
         '''Add general 2D stencil information associated with the argument
@@ -605,7 +610,8 @@ class KernCallArgList(ArgOrdering):
         else:
             # Pass the dofmap for the cell column
             cell_name, cell_ref = self.cell_ref_name(var_accesses)
-            sym = self.add_array_reference(map_name, [":", cell_ref], "real")
+            sym = self.add_array_reference(map_name, [":", cell_ref],
+                                           "integer")
             self.append(f"{sym.name}(:,{cell_name})",
                         var_accesses, var_access_name=sym.name)
 
