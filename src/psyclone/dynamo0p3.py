@@ -7321,8 +7321,8 @@ class DynLoop(PSyLoop):
             for kern in kernels:
                 if not kern.ncolours_var:
                     raise InternalError(
-                        f"All kernels within a loop over colours must have been"
-                        f" coloured but kernel '{kern.name}' has not")
+                        f"All kernels within a loop over colours must have "
+                        f"been coloured but kernel '{kern.name}' has not")
             return ncolours
         if self._upper_bound_name == "ncolour":
             # Loop over cells of a particular colour when DM is disabled.
@@ -8865,7 +8865,10 @@ class DynKernelArguments(Arguments):
         # direction variable names to ensure there are no clashes.
         if self._parent_call:
             inv_sched = self._parent_call.ancestor(InvokeSchedule)
-            symtab = inv_sched.symbol_table
+            if hasattr(inv_sched, "symbol_table"):
+                symtab = inv_sched.symbol_table
+            else:
+                symtab = SymbolTable()
         else:
             # TODO 719 The symtab is not connected to other parts of the
             # Stub generation.
