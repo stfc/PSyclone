@@ -444,8 +444,10 @@ class KernCallArgList(ArgOrdering):
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_size_name(self._symtab, arg)
-        name = f"{var_name}(:,{self.cell_ref_name(var_accesses)[0]})"
-        self.append(name, var_accesses, var_access_name=var_name)
+        cell_name, cell_ref = self.cell_ref_name(var_accesses)
+        sym = self.add_array_reference(var_name, [":", cell_ref], "integer")
+        name = f"{sym.name}(:,{cell_name})"
+        self.append(name, var_accesses, var_access_name=sym.name)
 
     def stencil_2d_max_extent(self, arg, var_accesses=None):
         '''Add the maximum branch extent for a 2D stencil associated with the
@@ -465,8 +467,13 @@ class KernCallArgList(ArgOrdering):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
-        name = DynStencils.max_branch_length_name(self._symtab, arg)
-        self.append(name, var_accesses)
+        # TODO #1915, this duplicates code in
+        # DynStencils.max_branch_length_name
+        unique_tag = DynStencils.stencil_unique_str(arg, "length")
+        root_name = arg.name + "_max_branch_length"
+
+        sym = self.add_integer_reference(root_name, tag=unique_tag)
+        self.append(sym.name, var_accesses)
 
     def stencil_unknown_direction(self, arg, var_accesses=None):
         '''Add stencil information to the argument list associated with the
@@ -536,7 +543,10 @@ class KernCallArgList(ArgOrdering):
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_name(self._symtab, arg)
-        name = f"{var_name}(:,:,:,{self.cell_ref_name(var_accesses)[0]})"
+        cell_name, cell_ref = self.cell_ref_name(var_accesses)
+        sym = self.add_array_reference(var_name, [":", ":", ":", cell_ref],
+                                       "integer")
+        name = f"{sym.name}(:,:,:,{cell_name})"
         self.append(name, var_accesses, var_access_name=var_name)
 
     def operator(self, arg, var_accesses=None):

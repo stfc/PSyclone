@@ -259,3 +259,24 @@ def test_kerncallarglist_stencil(fortran_writer):
         'map_w3(:,cmap(colour,cell))']
 
     check_psyir_results(create_arg_list, fortran_writer)
+
+
+def test_kerncallarglist_cross2d_stencil(fortran_writer):
+    ''' Check the handling of cross-2d stencils.
+    '''
+
+    psy, _ = get_invoke("19.26_single_stencil_cross2d.f90", TEST_API,
+                        dist_mem=False, idx=0)
+
+    schedule = psy.invokes.invoke_list[0].schedule
+    create_arg_list = KernCallArgList(schedule.kernels()[0])
+    create_arg_list.generate()
+
+    assert create_arg_list._arglist == [
+        'nlayers', 'f1_proxy%data', 'f2_proxy%data',
+        'f2_stencil_size(:,cell)', 'f2_max_branch_length',
+        'f2_stencil_dofmap(:,:,:,cell)', 'f3_proxy%data', 'f4_proxy%data',
+        'ndf_w1', 'undf_w1', 'map_w1(:,cell)', 'ndf_w2', 'undf_w2',
+        'map_w2(:,cell)', 'ndf_w3', 'undf_w3', 'map_w3(:,cell)'
+    ]
+    check_psyir_results(create_arg_list, fortran_writer)
