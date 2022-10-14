@@ -36,15 +36,20 @@
 '''Provides py.test tests of LFRic-specific PSyclone adjoint functionality.'''
 
 import pytest
+
+from fparser import api as fpapi
+
 from psyclone.domain.lfric import KernCallInvokeArgList
-from psyclone.domain.lfric.algorithm import (LFRicBuiltinFunctor,
+from psyclone.domain.lfric.algorithm import (LFRicBuiltinFunctor, LFRicAlg,
                                              LFRicBuiltinFunctorFactory)
 from psyclone.domain.lfric.psyir import add_lfric_precision_symbol
 from psyclone.errors import InternalError
+from psyclone.psyad.domain.lfric import generate_lfric_adjoint_harness
 from psyclone.psyad.domain.lfric.generate_lfric_adjoint_harness import (
     _compute_lfric_inner_products,
     _compute_field_inner_products,
     _init_fields_random,
+    _validate_geom_arg,
     generate_lfric_adjoint_harness)
 from psyclone.psyir.nodes import Routine, Literal, Assignment
 from psyclone.psyir.symbols import (SymbolTable, DataSymbol, REAL_TYPE,
@@ -271,6 +276,76 @@ def test_init_fields_random_error():
             "specified by a DataTypeSymbol but found Scalar<INTEGER, "
             "UNDEFINED> for field 'field1'" in str(err.value))
 
+
+# _validate_geom_arg
+
+def test_validate_geom_arg():
+    '''
+    Tests for the _validate_geom_arg method.
+    '''
+    code = '''\
+module testkern_mod
+
+  use argument_mod
+  use fs_continuity_mod
+  use kernel_mod
+  use constants_mod
+
+  implicit none
+
+  type, extends(kernel_type) :: testkern_type
+     type(arg_type), dimension(3) :: meta_args =        &
+          (/ arg_type(gh_scalar, gh_real, gh_read),     &
+             arg_type(gh_field,  gh_real, gh_inc,  w1), &
+             arg_type(gh_field*2, gh_real, gh_read,w1)  &
+           /)
+     integer :: operates_on = cell_column
+   contains
+     procedure, nopass :: code => testkern_code
+  end type testkern_type
+
+contains
+
+  subroutine testkern_code()
+  end subroutine testkern_code
+end module testkern_mod
+'''
+    ptree = fpapi.parse(code)
+    kern = LFRicAlg().kernel_from_metadata(ptree, "testkern_type")
+    # Invalid argument index.
+    with pytest.raises(ValueError) as err:
+        _validate_geom_arg(kern, -1, "var", None, None)
+    assert ("LFRic TL kernel 'testkern_code' has 3 arguments specified in its "
+            "metadata. Therefore, the index of the argument containing the "
+            "'var' field must be between 1 and 3 (inclusive) but got -1" in
+            str(err.value))
+    with pytest.raises(ValueError) as err:
+        _validate_geom_arg(kern, 4, "var", None, None)
+    assert ("LFRic TL kernel 'testkern_code' has 3 arguments specified in its "
+            "metadata. Therefore, the index of the argument containing the "
+            "'var' field must be between 1 and 3 (inclusive) but got 4" in
+            str(err.value))
+    # Inconsistent function space.
+    with pytest.raises(ValueError) as err:
+        _validate_geom_arg(kern, 2, "var", ["w2"], None)
+    assert ("If present, the 'var' field argument to kernel 'testkern_code' is"
+            " expected to be on the ['w2'] space but the argument at the "
+            "specified position (2) is on the 'w1' space" in str(err.value))
+    # Inconsistent vector length.
+    with pytest.raises(ValueError) as err:
+        _validate_geom_arg(kern, 3, "var", ["w1"], 3)
+    assert ("the 'var' field argument to kernel 'testkern_code' is expected "
+            "to be a field vector of length 3 but the argument at the "
+            "specified position (3) has a length of 2" in str(err.value))
+    # Inconsistent vector length.
+    with pytest.raises(ValueError) as err:
+        _validate_geom_arg(kern, 3, "var", ["w1"], 1)
+    assert ("the 'var' field argument to kernel 'testkern_code' is expected "
+            "to be a field but the argument at the specified position (3) is "
+            "a field vector of length 2" in str(err.value))
+    # Everything validates OK.
+    _validate_geom_arg(kern, 3, "var", ["w1"], 2)
+
 # generate_lfric_adjoint_harness
 
 
@@ -312,8 +387,8 @@ TL_CODE = (
     "     procedure, nopass :: code => testkern_code\n"
     "  end type testkern_type\n"
     "contains\n"
-    "  subroutine testkern_code(nlayers, ascalar, field, ndf_w3, undf_w3, "
-    "map_w3)\n"
+    "  subroutine testkern_code(nlayers, ascalar, "
+    "field, ndf_w3, undf_w3, map_w3)\n"
     "    integer(kind=i_def), intent(in) :: nlayers\n"
     "    integer(kind=i_def), intent(in) :: ndf_w3, undf_w3\n"
     "    integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3\n"
@@ -414,3 +489,126 @@ def test_generate_lfric_adjoint_harness_no_operators(monkeypatch,
     assert ("Kernel testkern_type has one or more operator arguments. Test "
             "harness creation for such a kernel is not yet supported (Issue "
             "#1864)." in str(err.value))
+
+
+def test_generate_lfric_adjoint_harness_invalid_geom_arg(fortran_reader):
+    '''
+    Check that generate_lfric_adjoint_harness() calls _validate_geom_arg.
+    '''
+    tl_psyir = fortran_reader.psyir_from_source(TL_CODE)
+    with pytest.raises(ValueError) as err:
+        _ = generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=1)
+    assert ("The 'coordinate' argument is expected to be a field but argument "
+            "1 to kernel 'testkern_code' is a 'gh_scalar'" in str(err.value))
+    with pytest.raises(ValueError) as err:
+        _ = generate_lfric_adjoint_harness(tl_psyir, panel_id_arg_idx=1)
+    assert ("The 'panel-id' argument is expected to be a field but argument 1 "
+            "to kernel 'testkern_code' is a 'gh_scalar'" in str(err.value))
+
+
+TL_CODE_WITH_GEOM = (
+    "module testkern_mod\n"
+    "  use kinds_mod, only: i_def, r_def\n"
+    "  use kernel_mod, only: kernel_type, arg_type, gh_field, gh_real, "
+    "gh_write, w3, cell_column\n"
+    "  type, extends(kernel_type) :: testkern_type\n"
+    "     type(arg_type), dimension(4) :: meta_args =          & \n"
+    "          (/ arg_type(gh_scalar, gh_real, gh_read),       & \n"
+    "             arg_type(gh_field*3,gh_real, gh_read, wchi), & \n"
+    "             arg_type(gh_field,  gh_real, gh_write,  w3), & \n"
+    "             arg_type(gh_field,  gh_integer, gh_read,     & \n"
+    "                      any_discontinuous_space_1)  & \n"
+    "           /)\n"
+    "     integer :: operates_on = cell_column\n"
+    "   contains\n"
+    "     procedure, nopass :: code => testkern_code\n"
+    "  end type testkern_type\n"
+    "contains\n"
+    "  subroutine testkern_code(nlayers, ascalar, cfield1, cfield2, cfield3, &\n"
+    "field, pids, ndf_wchi, undf_wchi, map_wchi, ndf_w3, undf_w3, &\n"
+    "map_w3, ndf_adspace1, undf_adspace1, map_adspace1)\n"
+    "    integer(kind=i_def), intent(in) :: nlayers\n"
+    "    integer(kind=i_def), intent(in) :: ndf_w3, undf_w3\n"
+    "    integer(kind=i_def), intent(in) :: ndf_wchi, undf_wchi\n"
+    "    integer(kind=i_def), intent(in) :: ndf_adspace1, undf_adspace1\n"
+    "    integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3\n"
+    "    integer(kind=i_def), intent(in), dimension(ndf_wchi) :: map_wchi\n"
+    "    integer(kind=i_def), intent(in), dimension(ndf_adspace1) :: map_adspace1\n"
+    "    real(kind=r_def), intent(in) :: ascalar\n"
+    "    real(kind=r_def), intent(inout), dimension(undf_wchi) :: cfield1, cfield2, cfield3\n"
+    "    real(kind=r_def), intent(inout), dimension(undf_w3) :: field\n"
+    "    integer(kind=i_def), intent(in), dimension(undf_adspace1) :: pids\n"
+    "    field = ascalar\n"
+    "  end subroutine testkern_code\n"
+    "end module testkern_mod\n"
+)
+
+
+def test_generate_lfric_adjoint_harness_chi_arg(fortran_reader,
+                                                fortran_writer):
+    '''
+    Check that generate_lfric_adjoint_harness() creates correct code when one
+    of the kernel arguments is identified as being the chi (coordinate) field.
+
+    '''
+    tl_psyir = fortran_reader.psyir_from_source(TL_CODE_WITH_GEOM)
+    psyir = generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=2)
+    gen = fortran_writer(psyir)
+    # chi is passed in as an argument to the algorithm routine.
+    assert "type(field_type), dimension(3), intent(in), optional :: chi" in gen
+    # chi should not be initialised or given values.
+    assert "chi(1) % initialise" not in gen
+    assert "setval_random(chi(1))" not in gen
+    # chi should be passed as the second argument to the TL and adjoint
+    # kernels.
+    assert "testkern_type(rscalar_1, chi, field_3, field_4)" in gen
+    assert "invoke(adj_testkern_type(rscalar_1, chi, field_3, field_4)" in gen
+
+
+def test_generate_lfric_adjoint_harness_panel_id_arg(fortran_reader,
+                                                     fortran_writer):
+    '''
+    Check that generate_lfric_adjoint_harness() creates correct code when one
+    of the kernel arguments is identified as being the panel-id field.
+
+    '''
+    tl_psyir = fortran_reader.psyir_from_source(TL_CODE_WITH_GEOM)
+    psyir = generate_lfric_adjoint_harness(tl_psyir, panel_id_arg_idx=4)
+    gen = fortran_writer(psyir)
+    # panel id is passed in as an argument to the algorithm routine.
+    assert "type(field_type), intent(in), optional :: panel_id" in gen
+    # It should not be initialised or written to.
+    assert "panel_id % initialise" not in gen
+    assert "setval_random(panel_id)" not in gen
+    # panel id should be passed as the 4th argument to both the TL and adjoint
+    # kernels.
+    assert "testkern_type(rscalar_1, field_2, field_3, panel_id)" in gen
+    assert ("invoke(adj_testkern_type(rscalar_1, field_2, field_3, panel_id)"
+            in gen)
+
+
+def test_generate_lfric_adjoint_harness_geom_args(fortran_reader,
+                                                  fortran_writer):
+    '''
+    Check that generate_lfric_adjoint_harness() creates correct code when
+    both chi and panel-id are present.
+
+    '''
+    tl_psyir = fortran_reader.psyir_from_source(TL_CODE_WITH_GEOM)
+    psyir = generate_lfric_adjoint_harness(tl_psyir, panel_id_arg_idx=4,
+                                           coord_arg_idx=2)
+    gen = fortran_writer(psyir)
+    assert "testkern_type(rscalar_1, chi, field_3, panel_id)" in gen
+    assert ("invoke(adj_testkern_type(rscalar_1, chi, field_3, panel_id)"
+            in gen)
+
+
+def test_generate_lfric_adj_harness_scalar_geom_arg(fortran_reader,
+                                                    monkeypatch):
+    '''
+    '''
+    tl_psyir = fortran_reader.psyir_from_source(TL_CODE_WITH_GEOM)
+    monkeypatch.setattr(lfric_adjoint_harness,
+                        "_validate_geom_arg",
+                        lambda _1, _2, _3, _4, _5: None)
+    psyir = generate_lfric_adjoint_harness(tl_psyir, panel_id_arg_idx=1)

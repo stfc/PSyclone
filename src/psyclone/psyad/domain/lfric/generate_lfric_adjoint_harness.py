@@ -295,7 +295,7 @@ def _validate_geom_arg(kern, arg_idx, name, valid_spaces, vec_len):
     properties of the field that it is supposed to represent.
 
     :param kern: the kernel under consideration.
-    :type kern:
+    :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
     :param in arg_idx: the 1-indexed position of the argument in the list \
                        defined in the kernel metadata.
     :param str name: the name of the argument that we are expecting.
@@ -312,13 +312,18 @@ def _validate_geom_arg(kern, arg_idx, name, valid_spaces, vec_len):
             f"The supplied LFRic TL kernel '{kern.name}' has "
             f"{num_metadata_args} arguments specified in its metadata. "
             f"Therefore, the index of the argument containing the "
-            f"{name} field must be between 1 and {num_metadata_args} "
+            f"'{name}' field must be between 1 and {num_metadata_args} "
             f"(inclusive) but got {arg_idx}.")
     # Check that the specified argument is of the correct type.
     descriptor = kern.arg_descriptors[arg_idx-1]
+    if descriptor.argument_type != 'gh_field':
+        raise ValueError(
+            f"The '{name}' argument is expected to be a field but argument "
+            f"{arg_idx} to kernel '{kern.name}' is a "
+            f"'{descriptor.argument_type}'")
     if descriptor.function_space not in valid_spaces:
         raise ValueError(
-            f"If present, the {name} field argument to kernel "
+            f"If present, the '{name}' field argument to kernel "
             f"'{kern.name}' is expected to be "
             f"on the {valid_spaces} space but the argument at the specified "
             f"position ({arg_idx}) is on the "
@@ -326,14 +331,14 @@ def _validate_geom_arg(kern, arg_idx, name, valid_spaces, vec_len):
     if descriptor.vector_size != vec_len:
         if vec_len > 1:
             raise ValueError(
-                f"If present, the {name} field argument to kernel "
+                f"If present, the '{name}' field argument to kernel "
                 f"'{kern.name}' is expected to be a field vector of length "
                 f"{vec_len} but the argument at the specified "
                 f"position ({arg_idx}) has a length of "
                 f"{descriptor.vector_size}.")
         else:
             raise ValueError(
-                f"If present, the {name} field argument to kernel "
+                f"If present, the '{name}' field argument to kernel "
                 f"'{kern.name}' is expected to be "
                 f"a field but the argument at the specified"
                 f" position ({arg_idx}) is a field vector of length "
@@ -444,11 +449,8 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
 
     # TODO #1864 - add support for operators.
     input_symbols = {}
-    for idx, arg in enumerate(kern_args.arglist):
-        sym = routine.symbol_table.lookup(arg)
-        if sym not in scalar_and_field_args:
-            # Skip anything that's not a scalar or a field, TODO #1864.
-            continue
+    for sym in scalar_and_field_args:
+        idx = kern_args.arglist.index(sym.name)
         if (kern_args.metadata_index_from_actual_index(idx) in
                 geometry_arg_indices):
             # This kernel argument is not modified by the test harness so we
