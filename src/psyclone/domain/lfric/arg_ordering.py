@@ -236,10 +236,14 @@ class ArgOrdering:
                                              precision_name)
             array_type = ArrayType(datatype,
                                    [ArrayType.Extent.ATTRIBUTE]*len(indices))
+            tag = array_name
             if sym and not isinstance(sym, DataSymbol):
+                # Get the tag the old symbol might have had:
+                reverse_tags_dict = self._symtab.get_reverse_tags_dict()
+                tag = reverse_tags_dict.get(sym, array_name)
                 # We need to remove the old incomplete symbol first
                 self._symtab.remove(sym)
-            sym = self._symtab.new_symbol(array_name, tag=array_name,
+            sym = self._symtab.new_symbol(array_name, tag=tag,
                                           symbol_type=DataSymbol,
                                           datatype=array_type)
 
