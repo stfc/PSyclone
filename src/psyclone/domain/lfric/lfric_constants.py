@@ -96,7 +96,7 @@ class LFRicConstants():
         # Supported access types
         LFRicConstants.VALID_SCALAR_ACCESS_TYPES = ["gh_read"]
         LFRicConstants.VALID_FIELD_ACCESS_TYPES = [
-            "gh_read", "gh_write", "gh_inc", "gh_readinc"]
+            "gh_read", "gh_write", "gh_readwrite", "gh_inc", "gh_readinc"]
         LFRicConstants.VALID_OPERATOR_ACCESS_TYPES = [
             "gh_read", "gh_write", "gh_readwrite"]
         LFRicConstants.VALID_ACCESS_TYPES = [

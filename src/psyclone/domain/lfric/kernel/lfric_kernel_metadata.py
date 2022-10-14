@@ -54,6 +54,8 @@ from psyclone.domain.lfric.kernel.field_vector_arg import FieldVectorArg
 from psyclone.domain.lfric.kernel.inter_grid_arg import InterGridArg
 from psyclone.domain.lfric.kernel.inter_grid_vector_arg import \
     InterGridVectorArg
+from psyclone.domain.lfric.kernel.meta_args_metadata import \
+    MetaArgsMetadata
 from psyclone.domain.lfric.kernel.meta_mesh_metadata import \
     MetaMeshMetadata
 from psyclone.domain.lfric.kernel.meta_funcs_metadata import \
@@ -133,7 +135,7 @@ class LFRicKernelMetadata():
             self._evaluator_targets = EvaluatorTargetsMetadata(
                 evaluator_targets)
         if meta_args is not None:
-            self.meta_args = meta_args
+            self._meta_args = MetaArgsMetadata(meta_args)
         if meta_funcs is not None:
             self._meta_funcs = MetaFuncsMetadata(meta_funcs)
         if meta_ref_element is not None:
@@ -216,19 +218,19 @@ class LFRicKernelMetadata():
         try:
             spec_part = Fortran2003.Derived_Type_Def(reader)
         except Fortran2003.NoMatchError:
-            # pyflint: disable=raise-missing-from
+            # pylint: disable=raise-missing-from
             raise ValueError(
                 f"Expected kernel metadata to be a Fortran derived type, but "
                 f"found '{fortran_string}'.")
 
-        kernel_metadata.name = spec_part.children[0].children[1].tostr()
-
         kernel_metadata._operates_on = None
+        kernel_metadata._meta_args = None
         kernel_metadata._meta_funcs = None
         kernel_metadata._shapes = None
         kernel_metadata._evaluator_targets = None
         kernel_metadata._meta_ref_element = None
         kernel_metadata._meta_mesh = None
+
         for fparser2_node in walk(spec_part, Fortran2003.Data_Component_Def_Stmt):
             # Is there a better way to find the required part of fparser2?
 
@@ -236,72 +238,34 @@ class LFRicKernelMetadata():
                 # the value of operates on (CELL_COLUMN, ...)
                 kernel_metadata._operates_on = OperatesOnMetadata.\
                     create_from_fparser2(fparser2_node)
-            if "meta_funcs" in (str(fparser2_node)).lower():
+            elif "meta_args" in (str(fparser2_node)).lower():
+                kernel_metadata._meta_args = MetaArgsMetadata.\
+                    create_from_fparser2(fparser2_node)
+            elif "meta_funcs" in (str(fparser2_node)).lower():
                 kernel_metadata._meta_funcs = MetaFuncsMetadata.\
                     create_from_fparser2(fparser2_node)
-            if "gh_shape" in (str(fparser2_node)).lower():
+            elif "gh_shape" in (str(fparser2_node)).lower():
                 # the gh_shape values (gh_quadrature_XYoZ, ...)
                 kernel_metadata._shapes = ShapesMetadata.create_from_fparser2(
                     fparser2_node)
-            if "gh_evaluator_targets" in (str(fparser2_node)).lower():
+            elif "gh_evaluator_targets" in (str(fparser2_node)).lower():
                 # the gh_evaluator_targets values (w0, w1, ...)
                 kernel_metadata._evaluator_targets = EvaluatorTargetsMetadata.\
                     create_from_fparser2(fparser2_node)
-            if "meta_reference_element" in (str(fparser2_node)).lower():
+            elif "meta_reference_element" in (str(fparser2_node)).lower():
                 kernel_metadata._meta_ref_element = MetaRefElementMetadata.\
                     create_from_fparser2(fparser2_node)
-            if "meta_mesh" in (str(fparser2_node)).lower():
+            elif "meta_mesh" in (str(fparser2_node)).lower():
                 kernel_metadata._meta_mesh = MetaMeshMetadata.\
                     create_from_fparser2(fparser2_node)
-
-        # the name of the procedure that this metadata refers to.
-        kernel_metadata.procedure_name = LFRicKernelMetadata._get_property(
-            spec_part, "code").string
-
-        # meta_args contains arguments which have
-        # properties. Therefore create appropriate (ScalarArg,
-        # FieldArg, ...) instances to capture this information.
-        psyir_meta_args = LFRicKernelMetadata._get_property(
-            spec_part, "meta_args")
-        args = walk(psyir_meta_args, Fortran2003.Ac_Value_List)
-        if not args:
-            raise ParseError(
-                f"meta_args should be a list, but found "
-                f"'{str(psyir_meta_args)}' in '{spec_part}'.")
-
-        meta_args = []
-        for meta_arg in args[0].children:
-            form = meta_arg.children[1].children[0].tostr()
-            form = form.lower()
-            if form == "gh_scalar":
-                arg = ScalarArg.create_from_fparser2(meta_arg)
-            elif form == "gh_operator":
-                arg = OperatorArg.create_from_fparser2(meta_arg)
-            elif form == "gh_columnwise_operator":
-                arg = ColumnwiseOperatorArg.create_from_fparser2(meta_arg)
-            elif "gh_field" in form:
-                vector_arg = "gh_field" in form and "*" in form
-                nargs = len(meta_arg.children[1].children)
-                intergrid_arg = False
-                if nargs == 5:
-                    fifth_arg = meta_arg.children[1].children[4]
-                    intergrid_arg = fifth_arg.children[0].string == "mesh_arg"
-
-                if intergrid_arg and vector_arg:
-                    arg = InterGridVectorArg.create_from_fparser2(meta_arg)
-                elif intergrid_arg and not vector_arg:
-                    arg = InterGridArg.create_from_fparser2(meta_arg)
-                elif vector_arg and not intergrid_arg:
-                    arg = FieldVectorArg.create_from_fparser2(meta_arg)
-                else:
-                    arg = FieldArg.create_from_fparser2(meta_arg)
             else:
                 raise ParseError(
-                    f"Expected a 'meta_arg' entry to be a "
-                    f"field, a scalar or an operator, but found "
-                    f"'{meta_arg}'.")
-            meta_args.append(arg)
-        kernel_metadata.meta_args = meta_args
+                    f"Found unexpected metadata declaration "
+                    f"'{str(fparser2_node)}' in '{str(spec_part)}'.")
+
+        kernel_metadata.name = spec_part.children[0].children[1].tostr()
+        kernel_metadata.procedure_name = LFRicKernelMetadata._get_property(
+            spec_part, "code").string
 
         return kernel_metadata
 
@@ -409,9 +373,7 @@ class LFRicKernelMetadata():
                 f"respectively.")
 
         operates_on = f"  {self._operates_on.fortran_string()}"
-
-        meta_args = [arg.fortran_string() for arg in self._meta_args]
-        meta_args_str = ", &\n".join(meta_args)
+        meta_args = f"  {self._meta_args.fortran_string()}"
 
         shapes = ""
         if self._shapes:
@@ -435,8 +397,7 @@ class LFRicKernelMetadata():
         
         result = (
             f"TYPE, PUBLIC, EXTENDS(kernel_type) :: {self.name}\n"
-            f"  TYPE(arg_type) :: meta_args({len(self._meta_args)}) = "
-            f"(/ &\n{meta_args_str}/)\n"
+            f"{meta_args}"
             f"{meta_funcs}"
             f"{meta_ref_element}"
             f"{meta_mesh}"
@@ -523,40 +484,20 @@ class LFRicKernelMetadata():
 
         '''
         if self._meta_args is None:
-            return self._meta_args
-        # _meta_args is a list. Return a copy so that it can't be
-        # modified externally
-        return self._meta_args[:]
+            return None
+        else:
+            return self._meta_args.meta_args_args
 
     @meta_args.setter
     def meta_args(self, values):
         '''
-        :param values: set the meta_args metadata to the supplied list \
-            of values.
-        :type values: List[:py:class:`psyclone.domain.lfric.kernel.CommonArg`]
-
-        raises TypeError: if the supplied value is not a list.
-        raises TypeError: if the supplied value is an empty list.
-        raises TypeError: if any entry in the list is not of the \
-            required type.
+        :param values: set the meta_args metadata to the \
+            supplied list of values.
+        :type values: List[:py:class:`psyclone.domain.lfric.kernel.\
+            CommonArg`]
 
         '''
-        if not isinstance(values, list):
-            raise TypeError(f"meta_args should be a list but found "
-                            f"'{type(values).__name__}'.")
-        if not values:
-            raise TypeError(
-                "The meta_args list should contain at least one entry, but "
-                "it is empty.")
-        for entry in values:
-            if not isinstance(entry, CommonArg):
-                raise TypeError(
-                    f"meta_args should be a list of argument objects "
-                    f"(of type CommonArg), but found "
-                    f"'{type(entry).__name__}'.")
-        # Take a copy of the list so that it can't be modified
-        # externally
-        self._meta_args = values[:]
+        self._meta_args = MetaArgsMetadata(values)
 
     @property
     def meta_funcs(self):

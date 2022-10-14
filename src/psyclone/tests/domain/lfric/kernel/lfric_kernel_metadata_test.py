@@ -150,7 +150,8 @@ def test_init_args_error():
 
     with pytest.raises(TypeError) as info:
         _ = LFRicKernelMetadata(meta_args="error")
-    assert "meta_args should be a list but found 'str'." in str(info.value)
+    assert ("meta_args values should be provided as a list but found 'str'."
+            in str(info.value))
 
     with pytest.raises(TypeError) as info:
         _ = LFRicKernelMetadata(meta_funcs="invalid")
@@ -345,33 +346,6 @@ def test_create_from_fortran_error():
     assert ("Expected kernel metadata to be a Fortran derived type, but "
             "found 'hello'." in str(info.value))
 
-    invalid_metadata1 = (
-        "type, extends(kernel_type) :: testkern_type\n"
-        "   type(arg_type), dimension(1) :: meta_args =   &\n"
-        "        (/ arg_type(gh_invalid, gh_real, gh_read) &\n"
-        "        /)\n"
-        "   integer :: operates_on = cell_column\n"
-        " contains\n"
-        "   procedure, nopass :: code => testkern_code\n"
-        "end type testkern_type\n")
-    with pytest.raises(ParseError) as info:
-        _ = LFRicKernelMetadata.create_from_fortran_string(invalid_metadata1)
-    assert ("Expected a 'meta_arg' entry to be a field, a scalar or an "
-            "operator, but found 'arg_type(gh_invalid, gh_real, gh_read)'."
-            in str(info.value))
-
-    invalid_metadata2 = (
-        "type, extends(kernel_type) :: testkern_type\n"
-        "   type(arg_type) :: meta_args(1) = invalid\n"
-        "   integer :: operates_on = cell_column\n"
-        " contains\n"
-        "   procedure, nopass :: code => testkern_code\n"
-        "end type testkern_type\n")
-    with pytest.raises(ParseError) as info:
-        _ = LFRicKernelMetadata.create_from_fortran_string(invalid_metadata2)
-    assert("meta_args should be a list, but found 'invalid' in"
-           in str(info.value))
-
 
 def test_lower_to_psyir():
     '''Test that the metadata can be lowered to an UnknownFortranType
@@ -507,13 +481,13 @@ def test_fortran_string():
     result = metadata.fortran_string()
     expected = (
         "TYPE, PUBLIC, EXTENDS(kernel_type) :: testkern_type\n"
-        "  TYPE(arg_type) :: meta_args(7) = (/ &\n"
-        "arg_type(GH_SCALAR, gh_real, gh_read), &\n"
-        "arg_type(GH_FIELD, gh_real, gh_inc, w1), &\n"
-        "arg_type(GH_FIELD*3, gh_real, gh_read, w2), &\n"
-        "arg_type(GH_FIELD, gh_real, gh_read, w2, mesh_arg=gh_coarse), &\n"
-        "arg_type(GH_FIELD*3, gh_real, gh_read, w2, mesh_arg=gh_fine), &\n"
-        "arg_type(GH_OPERATOR, gh_real, gh_read, w2, w3), &\n"
+        "  type(ARG_TYPE) :: META_ARGS(7) = (/"
+        "arg_type(GH_SCALAR, gh_real, gh_read), "
+        "arg_type(GH_FIELD, gh_real, gh_inc, w1), "
+        "arg_type(GH_FIELD*3, gh_real, gh_read, w2), "
+        "arg_type(GH_FIELD, gh_real, gh_read, w2, mesh_arg=gh_coarse), "
+        "arg_type(GH_FIELD*3, gh_real, gh_read, w2, mesh_arg=gh_fine), "
+        "arg_type(GH_OPERATOR, gh_real, gh_read, w2, w3), "
         "arg_type(GH_COLUMNWISE_OPERATOR, gh_real, gh_read, w3, w0)/)\n"
         "  type(FUNC_TYPE) :: META_FUNCS(2) = (/func_type(w1, gh_basis), "
         "func_type(w2, gh_basis, gh_diff_basis)/)\n"
@@ -588,25 +562,21 @@ def test_setter_getter_meta_args():
     assert metadata.meta_args is None
     with pytest.raises(TypeError) as info:
         metadata.meta_args = "error"
-    assert "meta_args should be a list but found 'str'." in str(info.value)
+    assert ("meta_args values should be provided as a list but found 'str'."
+            in str(info.value))
     with pytest.raises(TypeError) as info:
         metadata.meta_args = []
     assert ("The meta_args list should contain at least one entry, but it "
             "is empty." in str(info.value))
     with pytest.raises(TypeError) as info:
         metadata.meta_args = ["error"]
-    assert ("meta_args should be a list of argument objects (of type "
-            "CommonArg), but found 'str'." in str(info.value))
+    assert ("The meta_args list should be a list containing objects of type "
+            "CommonArg but found 'str'." in str(info.value))
 
     scalar_arg = ScalarArg("GH_REAL", "GH_READ")
     meta_args = [scalar_arg]
     metadata.meta_args = meta_args
-    # Check that a copy of the list is stored
-    assert metadata._meta_args is not meta_args
-    assert len(metadata.meta_args) == 1
-    assert metadata.meta_args[0] is scalar_arg
-    # Check that a copy of the list is returned
-    assert metadata.meta_args is not metadata._meta_args
+    assert metadata.meta_args == meta_args
 
 
 def test_setter_getter_meta_funcs():
