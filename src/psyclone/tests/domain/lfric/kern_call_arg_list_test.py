@@ -43,7 +43,7 @@ import pytest
 
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.domain.lfric import KernCallArgList
-from psyclone.errors import InternalError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKern
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -282,7 +282,7 @@ def test_kerncallarglist_cross2d_stencil(fortran_writer):
     check_psyir_results(create_arg_list, fortran_writer)
 
 
-def test_kerncallarglist_bcs(fortran_writer):
+def test_kerncallarglist_bcs(fortran_writer, monkeypatch):
     ''' Check the handling of bc_kernel
     '''
 
@@ -297,3 +297,16 @@ def test_kerncallarglist_bcs(fortran_writer):
         'map_aspc1_a(:,cell)', 'boundary_dofs_a']
 
     check_psyir_results(create_arg_list, fortran_writer)
+
+    loop = schedule.children[0]
+    call = loop.loop_body[0]
+    arg = call.arguments.args[0]
+
+    # Monkeypatch the argument object so that it thinks it is an
+    # operator rather than a field
+    monkeypatch.setattr(arg, "_argument_type", value="gh_operator")
+    with pytest.raises(GenerationError) as err:
+        create_arg_list.generate()
+    assert ("Expected an argument of ['gh_field'] type from which to look-up "
+            "boundary dofs for kernel enforce_bc_code but got 'gh_operator'"
+            in str(err.value))
