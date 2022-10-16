@@ -167,10 +167,9 @@ class ArgOrdering:
         :param int idx: the index of an actual argument to the kernel \
                         subroutine.
 
-        :returns: the 0-indexed position of the corresponding metadata entry.
-        :rtype: int
-
-        :raises KeyError: if no entry for the specified argument exists.
+        :returns: the 0-indexed position of the corresponding metadata entry \
+                  or None if there isn't one.
+        :rtype: Optional[int]
 
         '''
         return self._arg_index_to_metadata_index[idx]

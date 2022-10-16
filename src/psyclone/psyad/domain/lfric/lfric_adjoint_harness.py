@@ -501,14 +501,13 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
     arg_nodes = []
     for idx, arg in enumerate(kern_args.arglist):
         sym = table.lookup(arg)
-        try:
-            mdata_idx = kern_args.metadata_index_from_actual_index(idx)
-            if mdata_idx == coord_arg_idx:
-                sym = table.lookup_with_tag("coord_field")
-            elif mdata_idx == panel_id_arg_idx:
-                sym = table.lookup_with_tag("panel_id_field")
-        except KeyError:
-            pass
+        # Check whether this argument contains geometric information that
+        # is passed through from the Algorithm layer.
+        mdata_idx = kern_args.metadata_index_from_actual_index(idx)
+        if mdata_idx == coord_arg_idx:
+            sym = table.lookup_with_tag("coord_field")
+        elif mdata_idx == panel_id_arg_idx:
+            sym = table.lookup_with_tag("panel_id_field")
         arg_nodes.append(Reference(sym))
     kern = LFRicKernelFunctor.create(kernel_routine, arg_nodes)
     kernel_list.append(kern)

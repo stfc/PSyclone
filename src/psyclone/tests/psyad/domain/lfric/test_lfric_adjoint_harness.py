@@ -457,7 +457,7 @@ def test_generate_lfric_adj_test_quadrature(fortran_reader):
          func_type(W3,          GH_BASIS)                                   &
          /)
     integer :: operates_on = CELL_COLUMN
-    integer :: gh_shape = GH_EVALUATOR
+    integer :: gh_shape = GH_QUADRATURE_XYOZ
 ''')
     tl_psyir = fortran_reader.psyir_from_source(new_code)
     psyir = generate_lfric_adjoint_harness(tl_psyir)
