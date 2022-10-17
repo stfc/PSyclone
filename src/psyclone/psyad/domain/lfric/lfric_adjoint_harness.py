@@ -469,7 +469,8 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
         if (kern_args.metadata_index_from_actual_index(idx) in
                 geometry_arg_indices):
             continue
-        # This kernel argument is modified by the test harness.
+        # This kernel argument is not one that is passed through from the
+        # Algorithm layer.
         lfalg.initialise_field(routine, input_symbols[sym.name], space)
         fld_arg_list.append(sym)
 
@@ -512,7 +513,8 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
     kern = LFRicKernelFunctor.create(kernel_routine, arg_nodes)
     kernel_list.append(kern)
 
-    # Compute the inner products of the results of the TL kernel.
+    # Compute the inner products of the results of the TL kernel. We exclude
+    # any fields passed through (unmodified) from the Algorithm layer.
     fld_pairs = []
     for sym, _ in kern_args.fields:
         if sym in fld_arg_list:
