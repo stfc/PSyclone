@@ -227,10 +227,9 @@ def test_gen_decls_nested_scope(fortran_writer):
     assert result == ""
 
 
-def test_gen_decls_routine(fortran_writer):
-    '''Test that the gen_decls method raises an exception if the interface
-    of a routine symbol is not an ImportInterface, unless there's a wildcard
-    import from a Container.
+def test_gen_decls_routine_unresolved(fortran_writer):
+    '''Test that the gen_decls method accepts routine symbols with
+    unresolved interfaces.
 
     '''
     symbol_table = SymbolTable()
@@ -238,13 +237,28 @@ def test_gen_decls_routine(fortran_writer):
     symbol_table.add(RoutineSymbol("nint", interface=UnresolvedInterface()))
     result = fortran_writer.gen_decls(symbol_table)
     assert result == ""
+
+    # Check that a RoutineSymbol representing a user-defined Routine is OK
+    symbol_table.add(RoutineSymbol("my_sub", interface=UnresolvedInterface()))
+    result = fortran_writer.gen_decls(symbol_table)
+    assert result == ""
+
     # Check that a routine 'symbol' resulting from a call to a type-
     # bound procedure is quietly ignored.
     symbol_table.add(RoutineSymbol("grid%init",
                                    interface=UnresolvedInterface()))
     result = fortran_writer.gen_decls(symbol_table)
     assert result == ""
-    # Now add a user-defined routine symbol but with an (unsupported)
+
+
+def test_gen_decls_routine(fortran_writer):
+    '''Test that the gen_decls method raises an exception if the interface
+    of a routine symbol is not an UnresolvedInterface or
+    ImportInterface, unless there's a wildcard import from a
+    Container.
+
+    '''
+    # Check a user-defined routine symbol with an (unsupported)
     # ArgumentInterface
     rsym = RoutineSymbol("arg_sub", interface=ArgumentInterface())
     symbol_table.add(rsym)
@@ -253,19 +267,3 @@ def test_gen_decls_routine(fortran_writer):
     assert ("Routine symbol 'arg_sub' is passed as an argument (has an "
             "ArgumentInterface). This is not supported by the Fortran "
             "back-end." in str(info.value))
-    # Replace that symbol with one that has a deferred interface
-    symbol_table.remove(rsym)
-    symbol_table.add(RoutineSymbol("sub2", interface=UnresolvedInterface()))
-    with pytest.raises(VisitorError) as info:
-        _ = fortran_writer.gen_decls(symbol_table)
-    assert (
-        "Routine symbol 'sub2' does not have an ImportInterface or "
-        "LocalInterface, is not a Fortran intrinsic and there is no wildcard "
-        "import which could bring it into scope. This is not supported by the "
-        "Fortran back-end." in str(info.value))
-    # Now add a wildcard import from a ContainerSymbol
-    csym = ContainerSymbol("some_mod")
-    csym.wildcard_import = True
-    symbol_table.add(csym)
-    result = fortran_writer.gen_decls(symbol_table)
-    assert result == ""
