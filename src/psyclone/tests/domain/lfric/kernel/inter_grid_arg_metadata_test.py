@@ -33,23 +33,24 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing tests for the InterGridArg class.
+'''Module containing tests for the InterGridArgMetadata class.
 
 '''
 import pytest
 
 from fparser.two import Fortran2003
 
-from psyclone.domain.lfric.kernel.inter_grid_arg import InterGridArg
+from psyclone.domain.lfric.kernel.inter_grid_arg_metadata import \
+    InterGridArgMetadata
 
 
 def test_init_noargs():
-    '''Test that an InterGridArg instance can be created successfully when no
-    arguments are provided.
+    '''Test that an InterGridArgMetadata instance can be created
+    successfully when no arguments are provided.
 
     '''
-    inter_grid_arg = InterGridArg()
-    assert isinstance(inter_grid_arg, InterGridArg)
+    inter_grid_arg = InterGridArgMetadata()
+    assert isinstance(inter_grid_arg, InterGridArgMetadata)
     assert inter_grid_arg.form == "GH_FIELD"
     assert inter_grid_arg._datatype is None
     assert inter_grid_arg._access is None
@@ -64,19 +65,19 @@ def test_init_invalid():
 
     '''
     with pytest.raises(ValueError) as info:
-        _ = InterGridArg(datatype="invalid")
+        _ = InterGridArgMetadata(datatype="invalid")
     assert ("The datatype descriptor metadata for a field should be one of "
             "['gh_real', 'gh_integer'], but found 'invalid'."
             in str(info.value))
 
     with pytest.raises(ValueError) as info:
-        _ = InterGridArg(access="invalid")
+        _ = InterGridArgMetadata(access="invalid")
     assert ("The access descriptor metadata for a field should be one of "
             "['gh_read', 'gh_write', 'gh_readwrite', 'gh_inc', 'gh_readinc'], "
             "but found 'invalid'." in str(info.value))
 
     with pytest.raises(ValueError) as info:
-        _ = InterGridArg(function_space="invalid")
+        _ = InterGridArgMetadata(function_space="invalid")
     assert ("The function space metadata should be one of ['w3', 'wtheta', "
             "'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', "
             "'w2h', 'w2htrace', 'any_w2', 'wchi', 'any_space_1', "
@@ -91,17 +92,18 @@ def test_init_invalid():
             in str(info.value))
 
     with pytest.raises(ValueError) as info:
-        _ = InterGridArg(mesh_arg="invalid")
+        _ = InterGridArgMetadata(mesh_arg="invalid")
     assert ("The mesh_arg metadata for a mesh should be one of ['gh_coarse', "
             "'gh_fine'], but found 'invalid'." in str(info.value))
 
 
 def test_init_args():
     '''Test that valid initial values provided when constructing an
-    instance of InterGridArg are stored as expected.
+    instance of InterGridArgMetadata are stored as expected.
 
     '''
-    inter_grid_arg = InterGridArg("GH_REAL", "GH_READ", "W0", "GH_FINE")
+    inter_grid_arg = InterGridArgMetadata(
+        "GH_REAL", "GH_READ", "W0", "GH_FINE")
     assert inter_grid_arg.form == "GH_FIELD"
     assert inter_grid_arg._datatype == "GH_REAL"
     assert inter_grid_arg._access == "GH_READ"
@@ -115,14 +117,15 @@ def test_create_from_fortran_string():
 
     '''
     with pytest.raises(ValueError) as info:
-        _ = InterGridArg.create_from_fortran_string("not valid")
+        _ = InterGridArgMetadata.create_from_fortran_string("not valid")
     assert ("Expected kernel metadata to be a Fortran Structure_Constructor, "
             "with the form 'arg_type(...)' but found 'not valid'."
             in str(info.value))
 
     fortran_string = ("arg_type(GH_FIELD, GH_REAL, GH_READ, W0, "
                       "mesh_arg=GH_COARSE)")
-    inter_grid_arg = InterGridArg.create_from_fortran_string(fortran_string)
+    inter_grid_arg = InterGridArgMetadata.create_from_fortran_string(
+        fortran_string)
     assert inter_grid_arg.form == "GH_FIELD"
     assert inter_grid_arg._datatype == "GH_REAL"
     assert inter_grid_arg._access == "GH_READ"
@@ -136,61 +139,61 @@ def test_create_from_fparser2():
 
     '''
     with pytest.raises(TypeError) as info:
-        _ = InterGridArg.create_from_fparser2("hello")
+        _ = InterGridArgMetadata.create_from_fparser2("hello")
     assert ("Expected kernel metadata to be encoded as an fparser2 "
             "Structure_Constructor object but found type 'str' with value "
             "'hello'." in str(info.value))
 
-    fparser2_tree = InterGridArg.create_fparser2(
+    fparser2_tree = InterGridArgMetadata.create_fparser2(
         "hello(x=a)", encoding=Fortran2003.Structure_Constructor)
     with pytest.raises(ValueError) as info:
-        _ = InterGridArg.create_from_fparser2(fparser2_tree)
+        _ = InterGridArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("Expected kernel metadata to have the name 'arg_type' "
             "and be in the form 'arg_type(...)', but found 'hello(x = a)'."
             in str(info.value))
 
-    fparser2_tree = InterGridArg.create_fparser2(
+    fparser2_tree = InterGridArgMetadata.create_fparser2(
         "arg_type(x=a)", encoding=Fortran2003.Structure_Constructor)
     with pytest.raises(ValueError) as info:
-        _ = InterGridArg.create_from_fparser2(fparser2_tree)
+        _ = InterGridArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("Expected kernel metadata to have 5 arguments, but "
             "found 1 in 'arg_type(x = a)'." in str(info.value))
 
-    fparser2_tree = InterGridArg.create_fparser2(
+    fparser2_tree = InterGridArgMetadata.create_fparser2(
         "arg_type(GH_FEELED, GH_REAL, GH_READ, W0, mesh_arg=GH_COARSE)",
         encoding=Fortran2003.Structure_Constructor)
     with pytest.raises(ValueError) as info:
-        _ = InterGridArg.create_from_fparser2(fparser2_tree)
+        _ = InterGridArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("InterGrids should have GH_FIELD as their first metadata "
             "argument, but found 'GH_FEELED'." in str(info.value))
 
-    fparser2_tree = InterGridArg.create_fparser2(
+    fparser2_tree = InterGridArgMetadata.create_fparser2(
         "arg_type(GH_FIELD, GH_UNREAL, GH_READ, W0, mesh_arg=GH_COARSE)",
         encoding=Fortran2003.Structure_Constructor)
     with pytest.raises(ValueError) as info:
-        _ = InterGridArg.create_from_fparser2(fparser2_tree)
+        _ = InterGridArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '1' for metadata 'arg_type(GH_FIELD, "
             "GH_UNREAL, GH_READ, W0, mesh_arg = GH_COARSE)'. The datatype "
             "descriptor metadata for a field should be one of ['gh_real', "
             "'gh_integer'], but found 'GH_UNREAL'."
             in str(info.value))
 
-    fparser2_tree = InterGridArg.create_fparser2(
+    fparser2_tree = InterGridArgMetadata.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_RED, W0, mesh_arg=GH_COARSE)",
         encoding=Fortran2003.Structure_Constructor)
     with pytest.raises(ValueError) as info:
-        _ = InterGridArg.create_from_fparser2(fparser2_tree)
+        _ = InterGridArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '2' for metadata 'arg_type(GH_FIELD, GH_REAL, "
             "GH_RED, W0, mesh_arg = GH_COARSE)'. The access descriptor "
             "metadata for a field should be one of ['gh_read', 'gh_write', "
             "'gh_readwrite', 'gh_inc', 'gh_readinc'], but found 'GH_RED'."
             in str(info.value))
 
-    fparser2_tree = InterGridArg.create_fparser2(
+    fparser2_tree = InterGridArgMetadata.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, XX, mesh_arg=GH_COARSE)",
         encoding=Fortran2003.Structure_Constructor)
     with pytest.raises(ValueError) as info:
-        _ = InterGridArg.create_from_fparser2(fparser2_tree)
+        _ = InterGridArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '3' for metadata 'arg_type(GH_FIELD, GH_REAL, "
             "GH_READ, XX, mesh_arg = GH_COARSE)'. The function space metadata "
             "should be one of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', "
@@ -205,29 +208,29 @@ def test_create_from_fparser2():
             "'any_discontinuous_space_9', 'any_discontinuous_space_10'], "
             "but found 'XX'" in str(info.value))
 
-    fparser2_tree = InterGridArg.create_fparser2(
+    fparser2_tree = InterGridArgMetadata.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, mesh_rag=GH_COARSE)",
         encoding=Fortran2003.Structure_Constructor)
     with pytest.raises(ValueError) as info:
-        _ = InterGridArg.create_from_fparser2(fparser2_tree)
+        _ = InterGridArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index 4 for metadata 'arg_type(GH_FIELD, GH_REAL, "
             "GH_READ, W0, mesh_rag = GH_COARSE)' expected the left hand side "
             "to be MESH_ARG but found 'mesh_rag'." in str(info.value))
 
-    fparser2_tree = InterGridArg.create_fparser2(
+    fparser2_tree = InterGridArgMetadata.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, mesh_arg=GH_ROUGH)",
         encoding=Fortran2003.Structure_Constructor)
     with pytest.raises(ValueError) as info:
-        _ = InterGridArg.create_from_fparser2(fparser2_tree)
+        _ = InterGridArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '4' for metadata 'arg_type(GH_FIELD, GH_REAL, "
             "GH_READ, W0, mesh_arg = GH_ROUGH)'. The mesh_arg metadata for a "
             "mesh should be one of ['gh_coarse', 'gh_fine'], but found "
             "'GH_ROUGH'." in str(info.value))
 
     metadata = "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, mesh_arg=GH_COARSE)"
-    fparser2_tree = InterGridArg.create_fparser2(
+    fparser2_tree = InterGridArgMetadata.create_fparser2(
         metadata, encoding=Fortran2003.Structure_Constructor)
-    inter_grid_arg = InterGridArg.create_from_fparser2(fparser2_tree)
+    inter_grid_arg = InterGridArgMetadata.create_from_fparser2(fparser2_tree)
     assert inter_grid_arg.form == "GH_FIELD"
     assert inter_grid_arg._datatype == "GH_REAL"
     assert inter_grid_arg._access == "GH_READ"
@@ -241,11 +244,12 @@ def test_fortran_string():
     set '''
     fortran_string = ("arg_type(GH_FIELD, GH_REAL, GH_READ, W0, "
                       "mesh_arg=GH_FINE)")
-    inter_grid_arg = InterGridArg.create_from_fortran_string(fortran_string)
+    inter_grid_arg = InterGridArgMetadata.create_from_fortran_string(
+        fortran_string)
     result = inter_grid_arg.fortran_string()
     assert result == fortran_string
 
-    inter_grid_arg = InterGridArg()
+    inter_grid_arg = InterGridArgMetadata()
     with pytest.raises(ValueError) as info:
         _ = inter_grid_arg.fortran_string()
     assert ("Values for datatype, access, function_space and mesh_arg must "
@@ -257,7 +261,7 @@ def test_fortran_string():
 def test_setter_getter():
     '''Test that the setters and getters work as expected, including
     raising exceptions if values are invalid. '''
-    inter_grid_arg = InterGridArg()
+    inter_grid_arg = InterGridArgMetadata()
     assert inter_grid_arg.form == "GH_FIELD"
 
     with pytest.raises(ValueError) as info:

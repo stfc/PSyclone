@@ -41,19 +41,21 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk
 
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.lfric.kernel.columnwise_operator_arg import \
-    ColumnwiseOperatorArg
-from psyclone.domain.lfric.kernel.common_arg import CommonArg
+from psyclone.domain.lfric.kernel.columnwise_operator_arg_metadata import \
+    ColumnwiseOperatorArgMetadata
+from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
 from psyclone.domain.lfric.kernel.common_declaration_metadata import \
     CommonDeclarationMetadata
-from psyclone.domain.lfric.kernel.field_arg import FieldArg
-from psyclone.domain.lfric.kernel.field_vector_arg import FieldVectorArg
-from psyclone.domain.lfric.kernel.inter_grid_vector_arg import \
-    InterGridVectorArg
-from psyclone.domain.lfric.kernel.operator_arg import OperatorArg
-from psyclone.domain.lfric.kernel.scalar_arg import ScalarArg
-from psyclone.domain.lfric.kernel.inter_grid_arg import InterGridArg
-from psyclone.domain.lfric.kernel.scalar_arg import ScalarArg
+from psyclone.domain.lfric.kernel.field_arg_metadata import FieldArgMetadata
+from psyclone.domain.lfric.kernel.field_vector_arg_metadata import \
+    FieldVectorArgMetadata
+from psyclone.domain.lfric.kernel.inter_grid_arg_metadata import \
+    InterGridArgMetadata
+from psyclone.domain.lfric.kernel.inter_grid_vector_arg_metadata import \
+    InterGridVectorArgMetadata
+from psyclone.domain.lfric.kernel.operator_arg_metadata import \
+    OperatorArgMetadata
+from psyclone.domain.lfric.kernel.scalar_arg_metadata import ScalarArgMetadata
 from psyclone.parse.utils import ParseError
 
 
@@ -116,11 +118,12 @@ class MetaArgsMetadata(CommonDeclarationMetadata):
             form = meta_arg.children[1].children[0].tostr()
             form = form.lower()
             if form == "gh_scalar":
-                arg = ScalarArg.create_from_fparser2(meta_arg)
+                arg = ScalarArgMetadata.create_from_fparser2(meta_arg)
             elif form == "gh_operator":
-                arg = OperatorArg.create_from_fparser2(meta_arg)
+                arg = OperatorArgMetadata.create_from_fparser2(meta_arg)
             elif form == "gh_columnwise_operator":
-                arg = ColumnwiseOperatorArg.create_from_fparser2(meta_arg)
+                arg = ColumnwiseOperatorArgMetadata.create_from_fparser2(
+                    meta_arg)
             elif "gh_field" in form:
                 vector_arg = "gh_field" in form and "*" in form
                 nargs = len(meta_arg.children[1].children)
@@ -130,13 +133,14 @@ class MetaArgsMetadata(CommonDeclarationMetadata):
                     intergrid_arg = fifth_arg.children[0].string == "mesh_arg"
 
                 if intergrid_arg and vector_arg:
-                    arg = InterGridVectorArg.create_from_fparser2(meta_arg)
+                    arg = InterGridVectorArgMetadata.create_from_fparser2(
+                        meta_arg)
                 elif intergrid_arg and not vector_arg:
-                    arg = InterGridArg.create_from_fparser2(meta_arg)
+                    arg = InterGridArgMetadata.create_from_fparser2(meta_arg)
                 elif vector_arg and not intergrid_arg:
-                    arg = FieldVectorArg.create_from_fparser2(meta_arg)
+                    arg = FieldVectorArgMetadata.create_from_fparser2(meta_arg)
                 else:
-                    arg = FieldArg.create_from_fparser2(meta_arg)
+                    arg = FieldArgMetadata.create_from_fparser2(meta_arg)
             else:
                 raise ParseError(
                     f"Expected a 'meta_arg' entry to be a "
@@ -177,10 +181,10 @@ class MetaArgsMetadata(CommonDeclarationMetadata):
                 "entry, but it is empty.")
         const = LFRicConstants()
         for value in values:
-            if not isinstance(value, CommonArg):
+            if not isinstance(value, CommonArgMetadata):
                 raise TypeError(
                     f"The meta_args list should be a list containing objects "
-                    f"of type CommonArg but found "
+                    f"of type CommonArgMetadata but found "
                     f"'{type(value).__name__}'.")
         # Take a copy of the list so that it can't be modified
         # externally.

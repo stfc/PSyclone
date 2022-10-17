@@ -40,10 +40,11 @@ import pytest
 
 from fparser.two import Fortran2003
 
-from psyclone.domain.lfric.kernel.field_arg import FieldArg
-from psyclone.domain.lfric.kernel.field_vector_arg import FieldVectorArg
+from psyclone.domain.lfric.kernel.field_arg_metadata import FieldArgMetadata
+from psyclone.domain.lfric.kernel.field_vector_arg_metadata import \
+    FieldVectorArgMetadata
 from psyclone.domain.lfric.kernel.meta_args_metadata import MetaArgsMetadata
-from psyclone.domain.lfric.kernel.scalar_arg import ScalarArg
+from psyclone.domain.lfric.kernel.scalar_arg_metadata import ScalarArgMetadata
 from psyclone.parse.utils import ParseError
 
 
@@ -52,7 +53,7 @@ def test_init():
     and that its initial values as stored as expected.
 
     '''
-    meta_args_arg = ScalarArg("GH_INTEGER", "GH_READ")
+    meta_args_arg = ScalarArgMetadata("GH_INTEGER", "GH_READ")
     values = [meta_args_arg]
     metadata = MetaArgsMetadata(values)
     assert isinstance(metadata, MetaArgsMetadata)
@@ -68,8 +69,8 @@ def test_init_error():
     '''
     with pytest.raises(TypeError) as info:
         _ = MetaArgsMetadata(None)
-    assert ("meta_args values should be provided as a list but found 'NoneType'."
-            in str(info.value))
+    assert ("meta_args values should be provided as a list but found "
+            "'NoneType'." in str(info.value))
 
 
 def test_fortran_string():
@@ -89,29 +90,34 @@ def test_create_from_fortran_string():
     expected.
 
     '''
-    meta_args_arg1 = ScalarArg("GH_REAL", "GH_READ")
-    meta_args_arg2 = FieldArg("GH_REAL", "GH_READWRITE", "w3")
+    meta_args_arg1 = ScalarArgMetadata("GH_REAL", "GH_READ")
+    meta_args_arg2 = FieldArgMetadata("GH_REAL", "GH_READWRITE", "w3")
     values = [meta_args_arg1, meta_args_arg2]
     values_list_str = [value.fortran_string() for value in values]
     values_str = ", ".join(values_list_str)
-    fortran_string = f"type(arg_type) :: meta_args({len(values)}) = (/{values_str}/)\n"
+    fortran_string = (f"type(arg_type) :: meta_args({len(values)}) = "
+                      f"(/{values_str}/)\n")
     metadata = MetaArgsMetadata.create_from_fortran_string(
         fortran_string)
     assert isinstance(metadata.meta_args_args, list)
     assert len(metadata.meta_args_args) == 2
-    assert metadata.meta_args_args[0].fortran_string() == meta_args_arg1.fortran_string()
-    assert metadata.meta_args_args[1].fortran_string() == meta_args_arg2.fortran_string()
+    assert metadata.meta_args_args[0].fortran_string() == \
+        meta_args_arg1.fortran_string()
+    assert metadata.meta_args_args[1].fortran_string() == \
+        meta_args_arg2.fortran_string()
 
 
 @pytest.mark.parametrize("fortran_string, expected_list", [
     ("TYPE(ARG_TYPE), dimension(2) :: meta_args = (/"
      "arg_type(GH_SCALAR, GH_REAL, GH_READ), "
      "arg_type(GH_FIELD, GH_REAL, GH_WRITE, W0)/)",
-     ["arg_type(gh_scalar, gh_real, gh_read)", "arg_type(gh_field, gh_real, gh_write, w0)"]),
+     ["arg_type(gh_scalar, gh_real, gh_read)",
+      "arg_type(gh_field, gh_real, gh_write, w0)"]),
     ("TYPE(ARG_TYPE), dimension(2) :: meta_args = (/"
      "arg_type(GH_SCALAR, GH_REAL, GH_READ), "
      "arg_type(GH_FIELD, GH_REAL, GH_WRITE, W0)/)",
-     ["arg_type(gh_scalar, gh_real, gh_read)", "arg_type(gh_field, gh_real, gh_write, w0)"])])
+     ["arg_type(gh_scalar, gh_real, gh_read)",
+      "arg_type(gh_field, gh_real, gh_write, w0)"])])
 def test_create_from_fparser2(fortran_string, expected_list):
     '''Test that the create_from_fparser2 method works as expected.'''
     fparser2_tree = MetaArgsMetadata.create_fparser2(
@@ -125,8 +131,8 @@ def test_create_from_fparser2(fortran_string, expected_list):
 
 def test_setter_getter():
     '''Test that the setters and getters work as expected.'''
-    values = [ScalarArg("GH_REAL", "GH_READ"),
-              FieldVectorArg("GH_REAL", "GH_WRITE", "W0", "3")]
+    values = [ScalarArgMetadata("GH_REAL", "GH_READ"),
+              FieldVectorArgMetadata("GH_REAL", "GH_WRITE", "W0", "3")]
     metadata = MetaArgsMetadata(values)
     assert metadata.meta_args_args == values
     # Check that the getter makes a copy of the list
@@ -141,8 +147,8 @@ def test_setter_getter():
 def test_setter_errors():
     '''Test that the setter raises the expected exceptions.'''
 
-    values = [ScalarArg("GH_REAL", "GH_READ"),
-              FieldVectorArg("GH_REAL", "GH_WRITE", "W0", "3")]
+    values = [ScalarArgMetadata("GH_REAL", "GH_READ"),
+              FieldVectorArgMetadata("GH_REAL", "GH_WRITE", "W0", "3")]
     metadata = MetaArgsMetadata(values)
 
     with pytest.raises(TypeError) as info:
@@ -155,7 +161,7 @@ def test_setter_errors():
     assert ("The meta_args list should contain at least one entry, "
             "but it is empty." in str(info.value))
 
-    with pytest.raises(TypeError) as info:    
+    with pytest.raises(TypeError) as info:
         metadata.meta_args_args = [None]
     assert ("The meta_args list should be a list containing objects of type "
             "CommonArg but found 'NoneType'." in str(info.value))

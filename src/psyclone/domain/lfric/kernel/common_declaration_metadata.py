@@ -136,7 +136,7 @@ class CommonDeclarationMetadata:
         # and its first child should be a str containing "datatype"
         if not (isinstance(fparser2_tree.children[0],
                            Fortran2003.Declaration_Type_Spec) and
-                fparser2_tree.children[0].children[1].string.lower() == \
+                fparser2_tree.children[0].children[1].string.lower() ==
                 type_name.lower()):
             raise TypeError(
                 f"In Fortran, {name} metadata should be encoded as a "
@@ -150,7 +150,7 @@ class CommonDeclarationMetadata:
         # and its first child should be a str containing "datatype"
         if not (isinstance(fparser2_tree.children[0],
                            Fortran2003.Intrinsic_Type_Spec) and
-                fparser2_tree.children[0].children[0].lower() == \
+                fparser2_tree.children[0].children[0].lower() ==
                 datatype.lower()):
             raise TypeError(
                 f"In Fortran, {name} metadata should be encoded as an "
@@ -183,7 +183,7 @@ class CommonDeclarationMetadata:
             raise ParseError(
                 f"{name} should be set to a value but none was found, in "
                 f"'{str(fparser2_tree)}'.")
-    
+
     def validate_intrinsic_scalar_declaration(
             fparser2_tree, datatype, name, valid_values):
         ''' xxx '''
@@ -205,9 +205,9 @@ class CommonDeclarationMetadata:
         if gh_shape_declaration.children[1]:
             raise ParseError(
                 f"The integer intrinsic in the Fortran representation of "
-                f"{name} metadata should not be declared as an array, but found "
-                f"'{str(gh_shape_declaration.children[1])}' in "
-                f"'{str(fparser2_tree)}'.")            
+                f"{name} metadata should not be declared as an array, but "
+                f"found '{str(gh_shape_declaration.children[1])}' in "
+                f"'{str(fparser2_tree)}'.")
         scalar_value = str(component_initialisation.children[1])
         CommonDeclarationMetadata.validate_scalar_value(
             scalar_value, valid_values, name)
@@ -314,7 +314,8 @@ class CommonDeclarationMetadata:
 
         integer :: gh_shape = gh_quadrature_face
         integer :: gh_shape(2) = (/ gh_quadrature_face, gh_evaluator /)
-        integer, dimension(2) :: gh_shape = (/ gh_quadrature_face, gh_evaluator /)
+        integer, dimension(2) :: gh_shape = &
+                 (/ gh_quadrature_face, gh_evaluator /)
 
         The fparser2 class hierarchy for the different flavours
         of valid gh_shape metadata above is given below:
@@ -327,7 +328,7 @@ class CommonDeclarationMetadata:
             [0] Declaration_Type_Spec
                 [0] <str> TYPE
                 [1] Type_Name.string: func_type
-        
+
             [1] Component_Attr_Spec_List or <NoneType>
                 ...
                 Dimension_Component_Attr_Spec

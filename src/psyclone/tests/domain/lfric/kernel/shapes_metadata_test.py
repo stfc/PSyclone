@@ -128,6 +128,7 @@ def test_setter_getter():
     shapes_metadata.shapes = shape_values
     assert shapes_metadata._shapes == [value.lower() for value in shape_values]
 
+
 def test_setter_errors():
     '''Test that the setter raises the expected exceptions.'''
 
@@ -144,7 +145,7 @@ def test_setter_errors():
     assert ("The shapes list should contain at least one entry, but it is "
             "empty." in str(info.value))
 
-    with pytest.raises(TypeError) as info:    
+    with pytest.raises(TypeError) as info:
         shapes_metadata.shapes = [None]
     assert ("shapes should be a list of str, but found 'NoneType'."
             in str(info.value))

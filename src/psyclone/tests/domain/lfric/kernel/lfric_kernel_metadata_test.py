@@ -41,15 +41,17 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 
-from psyclone.domain.lfric.kernel.columnwise_operator_arg import \
-    ColumnwiseOperatorArg
+from psyclone.domain.lfric.kernel.columnwise_operator_arg_metadata import \
+    ColumnwiseOperatorArgMetadata
 from psyclone.domain.lfric.kernel.evaluator_targets_metadata import \
     EvaluatorTargetsMetadata
-from psyclone.domain.lfric.kernel.field_arg import FieldArg
-from psyclone.domain.lfric.kernel.field_vector_arg import FieldVectorArg
-from psyclone.domain.lfric.kernel.inter_grid_arg import InterGridArg
-from psyclone.domain.lfric.kernel.inter_grid_vector_arg import \
-    InterGridVectorArg
+from psyclone.domain.lfric.kernel.field_arg_metadata import FieldArgMetadata
+from psyclone.domain.lfric.kernel.field_vector_arg_metadata import \
+    FieldVectorArgMetadata
+from psyclone.domain.lfric.kernel.inter_grid_arg_metadata import \
+    InterGridArgMetadata
+from psyclone.domain.lfric.kernel.inter_grid_vector_arg_metadata import \
+    InterGridVectorArgMetadata
 from psyclone.domain.lfric.kernel.lfric_kernel_metadata import \
     LFRicKernelMetadata
 from psyclone.domain.lfric.kernel.meta_mesh_metadata import \
@@ -62,12 +64,13 @@ from psyclone.domain.lfric.kernel.meta_funcs_metadata import \
     MetaFuncsMetadata
 from psyclone.domain.lfric.kernel.operates_on_metadata import \
     OperatesOnMetadata
-from psyclone.domain.lfric.kernel.operator_arg import OperatorArg
+from psyclone.domain.lfric.kernel.operator_arg_metadata import \
+    OperatorArgMetadata
 from psyclone.domain.lfric.kernel.meta_ref_element_metadata import \
     MetaRefElementMetadata
 from psyclone.domain.lfric.kernel.meta_ref_element_arg_metadata import \
     MetaRefElementArgMetadata
-from psyclone.domain.lfric.kernel.scalar_arg import ScalarArg
+from psyclone.domain.lfric.kernel.scalar_arg_metadata import ScalarArgMetadata
 from psyclone.domain.lfric.kernel.shapes_metadata import ShapesMetadata
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
@@ -86,9 +89,9 @@ def test_init_noargs():
     assert meta._shapes is None
     assert meta._evaluator_targets is None
     assert meta._meta_args is None
-    assert meta._meta_funcs == None
-    assert meta._meta_ref_element == None
-    assert meta._meta_mesh == None
+    assert meta._meta_funcs is None
+    assert meta._meta_ref_element is None
+    assert meta._meta_mesh is None
     assert meta._procedure_name is None
     assert meta._name is None
 
@@ -98,7 +101,7 @@ def test_init_args():
     successfully when valid arguments are provided.
 
     '''
-    scalar_arg = ScalarArg("GH_REAL", "GH_READ")
+    scalar_arg = ScalarArgMetadata("GH_REAL", "GH_READ")
     meta_funcs_arg = MetaFuncsArgMetadata("w0", basis_function=True)
     meta_ref_element_arg = MetaRefElementArgMetadata("normals_to_faces")
     meta_mesh_arg = MetaMeshArgMetadata("adjacent_face")
@@ -203,7 +206,7 @@ METADATA = (
     "           reference_element_data_type(normals_to_vertical_faces)    &\n"
     "        /)\n"
     "   type(mesh_data_type) :: meta_mesh(1) =                            &\n"
-    "        (/ mesh_data_type(adjacent_face) /)\n"     
+    "        (/ mesh_data_type(adjacent_face) /)\n"
     "   integer :: gh_shape = gh_quadrature_XYoZ\n"
     "   integer :: gh_evaluator_targets(2) = (/ w0, w3 /)\n"
     "   integer :: operates_on = cell_column\n"
@@ -235,13 +238,13 @@ def test_create_from_psyir(fortran_reader):
 
     assert isinstance(metadata.meta_args, list)
     assert len(metadata.meta_args) == 7
-    assert isinstance(metadata.meta_args[0], ScalarArg)
-    assert isinstance(metadata.meta_args[1], FieldArg)
-    assert isinstance(metadata.meta_args[2], FieldVectorArg)
-    assert isinstance(metadata.meta_args[3], InterGridArg)
-    assert isinstance(metadata.meta_args[4], InterGridVectorArg)
-    assert isinstance(metadata.meta_args[5], OperatorArg)
-    assert isinstance(metadata.meta_args[6], ColumnwiseOperatorArg)
+    assert isinstance(metadata.meta_args[0], ScalarArgMetadata)
+    assert isinstance(metadata.meta_args[1], FieldArgMetadata)
+    assert isinstance(metadata.meta_args[2], FieldVectorArgMetadata)
+    assert isinstance(metadata.meta_args[3], InterGridArgMetadata)
+    assert isinstance(metadata.meta_args[4], InterGridVectorArgMetadata)
+    assert isinstance(metadata.meta_args[5], OperatorArgMetadata)
+    assert isinstance(metadata.meta_args[6], ColumnwiseOperatorArgMetadata)
 
     assert isinstance(metadata.meta_funcs, list)
     assert isinstance(metadata.meta_funcs[0], MetaFuncsArgMetadata)
@@ -292,13 +295,13 @@ def test_create_from_fortran(procedure_format):
 
     assert isinstance(metadata.meta_args, list)
     assert len(metadata.meta_args) == 7
-    assert isinstance(metadata.meta_args[0], ScalarArg)
-    assert isinstance(metadata.meta_args[1], FieldArg)
-    assert isinstance(metadata.meta_args[2], FieldVectorArg)
-    assert isinstance(metadata.meta_args[3], InterGridArg)
-    assert isinstance(metadata.meta_args[4], InterGridVectorArg)
-    assert isinstance(metadata.meta_args[5], OperatorArg)
-    assert isinstance(metadata.meta_args[6], ColumnwiseOperatorArg)
+    assert isinstance(metadata.meta_args[0], ScalarArgMetadata)
+    assert isinstance(metadata.meta_args[1], FieldArgMetadata)
+    assert isinstance(metadata.meta_args[2], FieldVectorArgMetadata)
+    assert isinstance(metadata.meta_args[3], InterGridArgMetadata)
+    assert isinstance(metadata.meta_args[4], InterGridVectorArgMetadata)
+    assert isinstance(metadata.meta_args[5], OperatorArgMetadata)
+    assert isinstance(metadata.meta_args[6], ColumnwiseOperatorArgMetadata)
     assert isinstance(metadata.meta_funcs, list)
     assert isinstance(metadata.meta_funcs[0], MetaFuncsArgMetadata)
     assert isinstance(metadata.meta_funcs[1], MetaFuncsArgMetadata)
@@ -571,9 +574,9 @@ def test_setter_getter_meta_args():
     with pytest.raises(TypeError) as info:
         metadata.meta_args = ["error"]
     assert ("The meta_args list should be a list containing objects of type "
-            "CommonArg but found 'str'." in str(info.value))
+            "CommonArgMetadata but found 'str'." in str(info.value))
 
-    scalar_arg = ScalarArg("GH_REAL", "GH_READ")
+    scalar_arg = ScalarArgMetadata("GH_REAL", "GH_READ")
     meta_args = [scalar_arg]
     metadata.meta_args = meta_args
     assert metadata.meta_args == meta_args

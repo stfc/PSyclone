@@ -37,10 +37,10 @@
 the argument values for the LFRic kernel META_FUNCS metadata.
 
 '''
-from psyclone.domain.lfric.kernel.common_arg import CommonArg
+from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
 
 
-class MetaFuncsArgMetadata(CommonArg):
+class MetaFuncsArgMetadata(CommonArgMetadata):
     ''' xxx '''
 
     def __init__(self, function_space, basis_function=False,
@@ -69,9 +69,11 @@ class MetaFuncsArgMetadata(CommonArg):
         nargs = MetaFuncsArgMetadata.get_nargs(fparser2_tree)
         # must be at least 2 and at most 3
         if nargs < 2:
-            raise Exception("Must have a function_space as first argument and at least one of ...")
+            raise Exception("Must have a function_space as first argument "
+                            "and at least one of ...")
         if nargs > 3:
-            raise Exception("Must have at most 3 args, function_space, basis and diff_basis")
+            raise Exception("Must have at most 3 args, function_space, "
+                            "basis and diff_basis")
         function_space = MetaFuncsArgMetadata.get_arg(fparser2_tree, 0)
         from psyclone.domain.lfric import LFRicConstants
         const = LFRicConstants()
@@ -100,7 +102,7 @@ class MetaFuncsArgMetadata(CommonArg):
         return MetaFuncsArgMetadata(
             function_space, basis_function=basis_function,
             diff_basis_function=diff_basis_function)
-        
+
     def fortran_string(self):
         ''' xxx '''
         args_str_list = [self._function_space]

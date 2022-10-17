@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing the abstract CommonArg class which captures the
+'''Module containing the abstract CommonArgMetadata class which captures the
 metadata associated with a generic LFRic argument. Supports the
 creation, modification and Fortran output of such an argument.
 
@@ -49,7 +49,7 @@ from psyclone.errors import InternalError
 
 # TODO issue #1886. This class has commonalities with GOcean metadata
 # processing.
-class CommonArg(ABC):
+class CommonArgMetadata(ABC):
     '''Abstract class to capture common LFRic kernel metadata.
 
     :param Optional[str] datatype: the datatype of this argument.
@@ -237,7 +237,7 @@ class CommonArg(ABC):
     def get_nargs(fparser2_tree):
         ''' xxx '''
         return len(fparser2_tree.children[1].children)
-        
+
     @staticmethod
     def get_arg(fparser2_tree, index):
         '''Retrieves the metadata value found at the position specified by the
@@ -266,8 +266,9 @@ class CommonArg(ABC):
         :rtype: Tuple[str, str]
 
         '''
-        datatype = CommonArg.get_arg(fparser2_tree, cls.datatype_arg_index)
-        access = CommonArg.get_arg(fparser2_tree, cls.access_arg_index)
+        datatype = CommonArgMetadata.get_arg(
+            fparser2_tree, cls.datatype_arg_index)
+        access = CommonArgMetadata.get_arg(fparser2_tree, cls.access_arg_index)
         return (datatype, access)
 
     @classmethod
@@ -284,7 +285,7 @@ class CommonArg(ABC):
 
         '''
         datatype, access = cls.get_type_and_access(fparser2_tree)
-        function_space = CommonArg.get_arg(
+        function_space = CommonArgMetadata.get_arg(
             fparser2_tree, cls.function_space_arg_index)
         return (datatype, access, function_space)
 
@@ -303,7 +304,7 @@ class CommonArg(ABC):
             expected form.
 
         '''
-        vector_datatype = CommonArg.get_arg(
+        vector_datatype = CommonArgMetadata.get_arg(
             fparser2_tree, cls.vector_length_arg_index)
         components = vector_datatype.split("*")
         if len(components) != 2:

@@ -33,53 +33,65 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing the ScalarArg class which captures the metadata
-associated with a scalar argument. Supports the creation, modification
-and Fortran output of a Scalar argument.
+'''Module containing the FieldArgMetadata class which captures the metadata
+associated with a field argument. Supports the creation, modification
+and Fortran output of a Field argument.
 
 '''
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.lfric.kernel.common_arg import CommonArg
+from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
 
 
-class ScalarArg(CommonArg):
-    '''Class to capture LFRic kernel metadata information for a scalar
+class FieldArgMetadata(CommonArgMetadata):
+    '''Class to capture LFRic kernel metadata information for a field
     argument.
 
-    :param Optional[str] datatype: the datatype of this scalar \
+    :param Optional[str] datatype: the datatype of this field \
         (GH_INTEGER, ...).
     :param Optional[str] access: the way the kernel accesses this \
-        scalar (GH_WRITE, ...).
+        field (GH_WRITE, ...).
+    :param Optional[str] function_space: the function space that this \
+        field is on (W0, ...).
 
     '''
-    # The name used to specify a scalar argument in LFRic metadata.
-    form = "GH_SCALAR"
-    # The relative positions of LFRic metadata. Metadata for a scalar
+    # The name used to specify a field argument in LFRic metadata.
+    form = "GH_FIELD"
+    # The relative positions of LFRic metadata. Metadata for a field
     # argument is provided in the following format 'arg_type(form,
-    # datatype, access)'. Therefore, for example, the index of the
-    # form argument (form_arg_index) is 0.
+    # datatype, access, function_space)'. Therefore, for example, the
+    # index of the form argument (form_arg_index) is 0.
     form_arg_index = 0
     datatype_arg_index = 1
     access_arg_index = 2
+    function_space_arg_index = 3
+
+    def __init__(self, datatype=None, access=None, function_space=None):
+        super().__init__(datatype, access)
+        if function_space is None:
+            self._function_space = function_space
+        else:
+            self.function_space = function_space
 
     @staticmethod
     def create_from_fparser2(fparser2_tree):
         '''Create an instance of this class from an fparser2 tree.
 
-        :param fparser2_tree: fparser2 tree containing the metadata \
-            for a scalar argument.
+        :param fparser2_tree: fparser2 tree capturing the metadata for \
+            a field argument.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
 
-        :returns: an instance of ScalarArg.
-        :rtype: :py:class:`psyclone.domain.lfric.kernel.ScalarArg`
+        :returns: an instance of FieldArgMetadata.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
 
         '''
-        ScalarArg.check_fparser2(fparser2_tree, "arg_type")
-        ScalarArg.check_nargs(fparser2_tree, nargs=3)
-        ScalarArg.check_first_arg(fparser2_tree, "Scalar")
-        datatype, access = ScalarArg.get_type_and_access(fparser2_tree)
-        ScalarArg.check_remaining_args(fparser2_tree, datatype, access)
-        return ScalarArg(datatype, access)
+        FieldArgMetadata.check_fparser2(fparser2_tree, "arg_type")
+        FieldArgMetadata.check_nargs(fparser2_tree, nargs=4)
+        FieldArgMetadata.check_first_arg(fparser2_tree, "Field")
+        datatype, access, function_space = \
+            FieldArgMetadata.get_type_access_and_fs(fparser2_tree)
+        FieldArgMetadata.check_remaining_args(
+            fparser2_tree, datatype, access, function_space)
+        return FieldArgMetadata(datatype, access, function_space)
 
     @classmethod
     def create_from_fortran_string(cls, fortran_string):
@@ -100,25 +112,19 @@ class ScalarArg(CommonArg):
         :returns: the metadata represented by this class as Fortran.
         :rtype: str
 
-        :raises ValueError: if one or more of the datatype or access \
-            values have not been set.
+        :raises ValueError: if one or more of the datatype, access or \
+            function_space values have not been set.
 
         '''
-        if not (self.datatype and self.access):
+        if not (self.datatype and self.access and self.function_space):
             raise ValueError(
-                f"Values for datatype and access must be "
+                f"Values for datatype, access and function_space must be "
                 f"provided before calling the fortran_string method, but "
-                f"found '{self.datatype}' and '{self.access}', respectively.")
+                f"found '{self.datatype}', '{self.access}' and "
+                f"'{self.function_space}', respectively.")
 
-        return f"arg_type({self.form}, {self.datatype}, {self.access})"
-
-    @property
-    def datatype(self):
-        '''
-        :returns: the datatype for this scalar argument.
-        :rtype: str
-        '''
-        return self._datatype
+        return (f"arg_type({self.form}, {self.datatype}, {self.access}, "
+                f"{self.function_space})")
 
     @staticmethod
     def check_datatype(value):
@@ -130,28 +136,10 @@ class ScalarArg(CommonArg):
 
         '''
         const = LFRicConstants()
-        if not value or value.lower() not in const.VALID_SCALAR_DATA_TYPES:
+        if not value or value.lower() not in const.VALID_FIELD_DATA_TYPES:
             raise ValueError(
-                f"The datatype descriptor metadata for a scalar should be one "
-                f"of {const.VALID_SCALAR_DATA_TYPES}, but found '{value}'.")
-
-    @datatype.setter
-    def datatype(self, value):
-        '''
-        :param str value: set the datatype to the \
-            specified value.
-        '''
-        self.check_datatype(value)
-        self._datatype = value
-
-    @property
-    def access(self):
-        '''
-        :returns: the access descriptor for this scalar \
-            argument.
-        :rtype: str
-        '''
-        return self._access
+                f"The datatype descriptor metadata for a field should be one "
+                f"of {const.VALID_FIELD_DATA_TYPES}, but found '{value}'.")
 
     @staticmethod
     def check_access(value):
@@ -160,20 +148,35 @@ class ScalarArg(CommonArg):
 
         :raises ValueError: if the provided value is not a valid \
             access type.
-        '''
 
+        '''
         const = LFRicConstants()
-        if not value or value.lower() not in const.VALID_SCALAR_ACCESS_TYPES:
+        if not value or value.lower() not in const.VALID_FIELD_ACCESS_TYPES:
             raise ValueError(
-                f"The access descriptor metadata for a scalar should be one "
-                f"of {const.VALID_SCALAR_ACCESS_TYPES}, but found '{value}'.")
+                f"The access descriptor metadata for a field should be one of "
+                f"{const.VALID_FIELD_ACCESS_TYPES}, but found '{value}'.")
 
-    @access.setter
-    def access(self, value):
+    @property
+    def function_space(self):
         '''
-        :param str value: set the access descriptor to the \
+        :returns: the function space for this field argument.
+        :rtype: str
+        '''
+        return self._function_space
+
+    @function_space.setter
+    def function_space(self, value):
+        '''
+        :param str value: set the function space to the \
             specified value.
 
+        :raises ValueError: if the provided value is not a valid \
+            function space.
+
         '''
-        self.check_access(value)
-        self._access = value
+        const = LFRicConstants()
+        if not value or value.lower() not in const.VALID_FUNCTION_SPACE_NAMES:
+            raise ValueError(
+                f"The function space metadata should be one of "
+                f"{const.VALID_FUNCTION_SPACE_NAMES}, but found '{value}'.")
+        self._function_space = value

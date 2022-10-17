@@ -33,21 +33,22 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing tests for the FieldVectorArg class.
+'''Module containing tests for the FieldVectorArgMetadata class.
 
 '''
 import pytest
 
-from psyclone.domain.lfric.kernel.field_vector_arg import FieldVectorArg
+from psyclone.domain.lfric.kernel.field_vector_arg_metadata import \
+    FieldVectorArgMetadata
 
 
 def test_init_noargs():
-    '''Test that a FieldVectorArg instance can be created successfully when no
-    arguments are provided.
+    '''Test that a FieldVectorArgMetadata instance can be created
+    successfully when no arguments are provided.
 
     '''
-    field_vector_arg = FieldVectorArg()
-    assert isinstance(field_vector_arg, FieldVectorArg)
+    field_vector_arg = FieldVectorArgMetadata()
+    assert isinstance(field_vector_arg, FieldVectorArgMetadata)
     assert field_vector_arg.form == "GH_FIELD"
     assert field_vector_arg._datatype is None
     assert field_vector_arg._access is None
@@ -57,38 +58,39 @@ def test_init_noargs():
 
 def test_init_invalid():
     '''Test that appropriate exceptions are raised if invalid initial
-    values are provided when constructing an instance of the FieldVectorArg
-    class. Only test one of the arguments for the base class.
+    values are provided when constructing an instance of the
+    FieldVectorArgMetadata class. Only test one of the arguments for
+    the base class.
 
     '''
     with pytest.raises(ValueError) as info:
-        _ = FieldVectorArg(datatype="invalid")
+        _ = FieldVectorArgMetadata(datatype="invalid")
     assert ("The datatype descriptor metadata for a field should be one of "
             "['gh_real', 'gh_integer'], but found 'invalid'."
             in str(info.value))
 
     with pytest.raises(TypeError) as info:
-        _ = FieldVectorArg(vector_length=1)
+        _ = FieldVectorArgMetadata(vector_length=1)
     assert ("The vector size should be a string but found int."
             in str(info.value))
 
     with pytest.raises(ValueError) as info:
-        _ = FieldVectorArg(vector_length="invalid")
+        _ = FieldVectorArgMetadata(vector_length="invalid")
     assert ("The vector size should be a string containing an integer, "
             "but found 'invalid'." in str(info.value))
 
     with pytest.raises(ValueError) as info:
-        _ = FieldVectorArg(vector_length="0")
+        _ = FieldVectorArgMetadata(vector_length="0")
     assert ("The vector size should be an integer greater than 1 but found 0."
             in str(info.value))
 
 
 def test_init_args():
     '''Test that valid initial values provided when constructing an
-    instance of FieldVectorArg are stored as expected.
+    instance of FieldVectorArgMetadata are stored as expected.
 
     '''
-    field_vector_arg = FieldVectorArg("GH_REAL", "GH_READ", "W0", "2")
+    field_vector_arg = FieldVectorArgMetadata("GH_REAL", "GH_READ", "W0", "2")
     assert field_vector_arg.form == "GH_FIELD"
     assert field_vector_arg._datatype == "GH_REAL"
     assert field_vector_arg._access == "GH_READ"
@@ -102,13 +104,14 @@ def test_create_from_fortran_string():
 
     '''
     with pytest.raises(ValueError) as info:
-        _ = FieldVectorArg.create_from_fortran_string("not valid")
+        _ = FieldVectorArgMetadata.create_from_fortran_string("not valid")
     assert ("Expected kernel metadata to be a Fortran Part_Ref, with "
             "the form 'arg_type(...)' but found 'not valid'."
             in str(info.value))
 
     fortran_string = "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)"
-    field_arg = FieldVectorArg.create_from_fortran_string(fortran_string)
+    field_arg = FieldVectorArgMetadata.create_from_fortran_string(
+        fortran_string)
     assert field_arg.form == "GH_FIELD"
     assert field_arg._datatype == "GH_REAL"
     assert field_arg._access == "GH_READ"
@@ -122,48 +125,48 @@ def test_create_from_fparser2():
 
     '''
     with pytest.raises(TypeError) as info:
-        _ = FieldVectorArg.create_from_fparser2("hello")
+        _ = FieldVectorArgMetadata.create_from_fparser2("hello")
     assert ("Expected kernel metadata to be encoded as an fparser2 "
             "Part_Ref object but found type 'str' with value 'hello'."
             in str(info.value))
 
-    fparser2_tree = FieldVectorArg.create_fparser2(
+    fparser2_tree = FieldVectorArgMetadata.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)")
     with pytest.raises(TypeError) as info:
-        _ = FieldVectorArg.create_from_fparser2(fparser2_tree)
+        _ = FieldVectorArgMetadata.create_from_fparser2(fparser2_tree)
     assert("The vector length metadata should be in the form "
            "'form*vector_length' but found 'GH_FIELD'." in str(info.value))
 
-    fparser2_tree = FieldVectorArg.create_fparser2(
+    fparser2_tree = FieldVectorArgMetadata.create_fparser2(
         "arg_type(GH_FEELED*3, GH_REAL, GH_READ, W0)")
     with pytest.raises(ValueError) as info:
-        _ = FieldVectorArg.create_from_fparser2(fparser2_tree)
+        _ = FieldVectorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("FieldVectors should have GH_FIELD in their first metadata "
             "argument, but found 'GH_FEELED'." in str(info.value))
 
-    fparser2_tree = FieldVectorArg.create_fparser2(
+    fparser2_tree = FieldVectorArgMetadata.create_fparser2(
         "arg_type(GH_FIELD*3, GH_UNREAL, GH_READ, W0)")
     with pytest.raises(ValueError) as info:
-        _ = FieldVectorArg.create_from_fparser2(fparser2_tree)
+        _ = FieldVectorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '1' for metadata 'arg_type(GH_FIELD * 3, "
             "GH_UNREAL, GH_READ, W0)'. The datatype descriptor metadata for "
             "a field should be one of ['gh_real', 'gh_integer'], but found "
             "'GH_UNREAL'." in str(info.value))
 
-    fparser2_tree = FieldVectorArg.create_fparser2(
+    fparser2_tree = FieldVectorArgMetadata.create_fparser2(
         "arg_type(GH_FIELD*3, GH_REAL, GH_ERROR, W0)")
     with pytest.raises(ValueError) as info:
-        _ = FieldVectorArg.create_from_fparser2(fparser2_tree)
+        _ = FieldVectorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '2' for metadata 'arg_type(GH_FIELD * 3, "
             "GH_REAL, GH_ERROR, W0)'. The access descriptor metadata for a "
             "field should be one of ['gh_read', 'gh_write', 'gh_readwrite', "
             "'gh_inc', 'gh_readinc'], but found 'GH_ERROR'."
             in str(info.value))
 
-    fparser2_tree = FieldVectorArg.create_fparser2(
+    fparser2_tree = FieldVectorArgMetadata.create_fparser2(
         "arg_type(GH_FIELD*3, GH_REAL, GH_READ, DOUBLE_U_ZERO)")
     with pytest.raises(ValueError) as info:
-        _ = FieldVectorArg.create_from_fparser2(fparser2_tree)
+        _ = FieldVectorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '3' for metadata 'arg_type(GH_FIELD * 3, "
             "GH_REAL, GH_READ, DOUBLE_U_ZERO)'. The function space metadata "
             "should be one of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', "
@@ -178,9 +181,10 @@ def test_create_from_fparser2():
             "'any_discontinuous_space_9', 'any_discontinuous_space_10'], "
             "but found 'DOUBLE_U_ZERO'." in str(info.value))
 
-    fparser2_tree = FieldVectorArg.create_fparser2(
+    fparser2_tree = FieldVectorArgMetadata.create_fparser2(
         "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)")
-    field_vector_arg = FieldVectorArg.create_from_fparser2(fparser2_tree)
+    field_vector_arg = FieldVectorArgMetadata.create_from_fparser2(
+        fparser2_tree)
     assert field_vector_arg.form == "GH_FIELD"
     assert field_vector_arg._datatype == "GH_REAL"
     assert field_vector_arg._access == "GH_READ"
@@ -193,12 +197,12 @@ def test_fortran_string():
     raise an exception if all of the required properties have not been
     set '''
     fortran_string = "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)"
-    field_vector_arg = FieldVectorArg.create_from_fortran_string(
+    field_vector_arg = FieldVectorArgMetadata.create_from_fortran_string(
         fortran_string)
     result = field_vector_arg.fortran_string()
     assert result == fortran_string
 
-    field_vector_arg = FieldVectorArg()
+    field_vector_arg = FieldVectorArgMetadata()
     with pytest.raises(ValueError) as info:
         _ = field_vector_arg.fortran_string()
     assert ("Values for datatype, access, function_space and vector_length "
@@ -213,7 +217,7 @@ def test_setter_getter():
     base class values.
 
     '''
-    field_arg = FieldVectorArg()
+    field_arg = FieldVectorArgMetadata()
     assert field_arg.form == "GH_FIELD"
 
     assert field_arg.datatype is None

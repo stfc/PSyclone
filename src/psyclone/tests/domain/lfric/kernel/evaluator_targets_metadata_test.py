@@ -63,8 +63,8 @@ def test_init_error():
     '''
     with pytest.raises(TypeError) as info:
         _ = EvaluatorTargetsMetadata(None)
-    assert ("evaluator_targets values should be provided as a list but found 'NoneType'."
-            in str(info.value))
+    assert ("evaluator_targets values should be provided as a list but "
+            "found 'NoneType'." in str(info.value))
 
 
 def test_fortran_string():
@@ -122,6 +122,7 @@ def test_setter_getter():
     metadata.evaluator_targets = values
     assert metadata._evaluator_targets == [value.lower() for value in values]
 
+
 def test_setter_errors():
     '''Test that the setter raises the expected exceptions.'''
 
@@ -138,7 +139,7 @@ def test_setter_errors():
     assert ("The evaluator_targets list should contain at least one entry, "
             "but it is empty." in str(info.value))
 
-    with pytest.raises(TypeError) as info:    
+    with pytest.raises(TypeError) as info:
         metadata.evaluator_targets = [None]
     assert ("The evaluator_targets list should be a list of str, but found "
             "'NoneType'." in str(info.value))

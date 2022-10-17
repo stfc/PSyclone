@@ -68,8 +68,8 @@ def test_init_error():
     '''
     with pytest.raises(TypeError) as info:
         _ = MetaFuncsMetadata(None)
-    assert ("meta_funcs values should be provided as a list but found 'NoneType'."
-            in str(info.value))
+    assert ("meta_funcs values should be provided as a list but found "
+            "'NoneType'." in str(info.value))
 
 
 def test_fortran_string():
@@ -95,13 +95,16 @@ def test_create_from_fortran_string():
     values = [meta_funcs_arg1, meta_funcs_arg2]
     values_list_str = [value.fortran_string() for value in values]
     values_str = ", ".join(values_list_str)
-    fortran_string = f"type(func_type) :: meta_funcs({len(values)}) = (/{values_str}/)\n"
+    fortran_string = (f"type(func_type) :: meta_funcs({len(values)}) = "
+                      f"(/{values_str}/)\n")
     metadata = MetaFuncsMetadata.create_from_fortran_string(
         fortran_string)
     assert isinstance(metadata.meta_funcs_args, list)
     assert len(metadata.meta_funcs_args) == 2
-    assert metadata.meta_funcs_args[0].fortran_string() == meta_funcs_arg1.fortran_string()
-    assert metadata.meta_funcs_args[1].fortran_string() == meta_funcs_arg2.fortran_string()
+    assert metadata.meta_funcs_args[0].fortran_string() == \
+        meta_funcs_arg1.fortran_string()
+    assert metadata.meta_funcs_args[1].fortran_string() == \
+        meta_funcs_arg2.fortran_string()
 
 
 @pytest.mark.parametrize("fortran_string, expected_list", [
@@ -156,7 +159,7 @@ def test_setter_errors():
     assert ("The meta_funcs list should contain at least one entry, "
             "but it is empty." in str(info.value))
 
-    with pytest.raises(TypeError) as info:    
+    with pytest.raises(TypeError) as info:
         metadata.meta_funcs_args = [None]
     assert ("The meta_funcs list should be a list containing objects of type "
             "MetaFuncsArgMetadata but found 'NoneType'." in str(info.value))

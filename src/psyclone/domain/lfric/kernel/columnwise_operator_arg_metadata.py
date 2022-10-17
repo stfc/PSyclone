@@ -33,15 +33,16 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing the ColumnwiseOperatorArg class which captures
+'''Module containing the ColumnwiseOperatorArgMetadata class which captures
 the metadata associated with a columnwise operator argument. Supports the
 creation, modification and Fortran output of a ColumnwiseOperator argument.
 
 '''
-from psyclone.domain.lfric.kernel.operator_arg import OperatorArg
+from psyclone.domain.lfric.kernel.operator_arg_metadata import \
+    OperatorArgMetadata
 
 
-class ColumnwiseOperatorArg(OperatorArg):
+class ColumnwiseOperatorArgMetadata(OperatorArgMetadata):
     '''Class to capture LFRic kernel metadata information for a Columnwise
     operator argument.
 
@@ -67,22 +68,25 @@ class ColumnwiseOperatorArg(OperatorArg):
             columnwise operator argument.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
 
-        :returns: an instance of ColumnwiseOperatorArg.
-        :rtype: :py:class:`psyclone.domain.lfric.kernel.ColumnwiseOperatorArg`
+        :returns: an instance of ColumnwiseOperatorArgMetadata.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.\
+            ColumnwiseOperatorArgMetadata`
 
         '''
-        ColumnwiseOperatorArg.check_fparser2(fparser2_tree, "arg_type")
-        ColumnwiseOperatorArg.check_nargs(fparser2_tree, nargs=5)
-        ColumnwiseOperatorArg.check_first_arg(
+        ColumnwiseOperatorArgMetadata.check_fparser2(fparser2_tree, "arg_type")
+        ColumnwiseOperatorArgMetadata.check_nargs(fparser2_tree, nargs=5)
+        ColumnwiseOperatorArgMetadata.check_first_arg(
             fparser2_tree, "ColumnwiseOperator")
-        datatype, access = ColumnwiseOperatorArg.get_type_and_access(
+        datatype, access = ColumnwiseOperatorArgMetadata.get_type_and_access(
             fparser2_tree)
-        function_space_to = ColumnwiseOperatorArg.get_arg(
-            fparser2_tree, ColumnwiseOperatorArg.function_space_to_arg_index)
-        function_space_from = ColumnwiseOperatorArg.get_arg(
-            fparser2_tree, ColumnwiseOperatorArg.function_space_from_arg_index)
-        ColumnwiseOperatorArg.check_remaining_args(
+        function_space_to = ColumnwiseOperatorArgMetadata.get_arg(
+            fparser2_tree,
+            ColumnwiseOperatorArgMetadata.function_space_to_arg_index)
+        function_space_from = ColumnwiseOperatorArgMetadata.get_arg(
+            fparser2_tree,
+            ColumnwiseOperatorArgMetadata.function_space_from_arg_index)
+        ColumnwiseOperatorArgMetadata.check_remaining_args(
             fparser2_tree, datatype, access, function_space_to,
             function_space_from)
-        return ColumnwiseOperatorArg(
+        return ColumnwiseOperatorArgMetadata(
             datatype, access, function_space_to, function_space_from)

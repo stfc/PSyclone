@@ -33,21 +33,22 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing tests for the OperatorArg class.
+'''Module containing tests for the OperatorArgMetadata class.
 
 '''
 import pytest
 
-from psyclone.domain.lfric.kernel.operator_arg import OperatorArg
+from psyclone.domain.lfric.kernel.operator_arg_metadata import \
+    OperatorArgMetadata
 
 
 def test_init_noargs():
-    '''Test that an OperatorArg instance can be created successfully when no
-    arguments are provided.
+    '''Test that an OperatorArgMetadata instance can be created
+    successfully when no arguments are provided.
 
     '''
-    operator_arg = OperatorArg()
-    assert isinstance(operator_arg, OperatorArg)
+    operator_arg = OperatorArgMetadata()
+    assert isinstance(operator_arg, OperatorArgMetadata)
     assert operator_arg.form == "GH_OPERATOR"
     assert operator_arg._datatype is None
     assert operator_arg._access is None
@@ -58,29 +59,29 @@ def test_init_noargs():
 def test_init_invalid():
     '''Test that appropriate exceptions are raised if invalid initial
     values are provided when constructing an instance of the
-    OperatorArg class.
+    OperatorArgMetadata class.
 
     '''
     with pytest.raises(ValueError) as info:
-        _ = OperatorArg(datatype="invalid")
+        _ = OperatorArgMetadata(datatype="invalid")
     assert ("The datatype descriptor metadata for an operator should be one "
             "of ['gh_real'], but found 'invalid'." in str(info.value))
 
     with pytest.raises(ValueError) as info:
-        _ = OperatorArg(access="invalid")
+        _ = OperatorArgMetadata(access="invalid")
     assert ("The access descriptor metadata for an operator should be one of "
             "['gh_read', 'gh_write', 'gh_readwrite'], but found 'invalid'."
             in str(info.value))
 
     with pytest.raises(ValueError) as info:
-        _ = OperatorArg(function_space_to="invalid")
+        _ = OperatorArgMetadata(function_space_to="invalid")
     assert ("The function_space_to metadata for an operator should be one of "
             "['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', "
             "'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi'], but "
             "found 'invalid'." in str(info.value))
 
     with pytest.raises(ValueError) as info:
-        _ = OperatorArg(function_space_from="invalid")
+        _ = OperatorArgMetadata(function_space_from="invalid")
     assert ("The function_space_from metadata for an operator should be one "
             "of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', "
             "'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi'], but "
@@ -89,10 +90,10 @@ def test_init_invalid():
 
 def test_init_args():
     '''Test that valid initial values provided when constructing an
-    instance of OperatorArg are stored as expected.
+    instance of OperatorArgMetadata are stored as expected.
 
     '''
-    operator_arg = OperatorArg("GH_REAL", "GH_READ", "W0", "W1")
+    operator_arg = OperatorArgMetadata("GH_REAL", "GH_READ", "W0", "W1")
     assert operator_arg.form == "GH_OPERATOR"
     assert operator_arg._datatype == "GH_REAL"
     assert operator_arg._access == "GH_READ"
@@ -106,13 +107,14 @@ def test_create_from_fortran_string():
 
     '''
     with pytest.raises(ValueError) as info:
-        _ = OperatorArg.create_from_fortran_string("not valid")
+        _ = OperatorArgMetadata.create_from_fortran_string("not valid")
     assert ("Expected kernel metadata to be a Fortran Part_Ref, with "
             "the form 'arg_type(...)' but found 'not valid'."
             in str(info.value))
 
     fortran_string = "arg_type(GH_OPERATOR, GH_REAL, GH_READ, W0, W1)"
-    operator_arg = OperatorArg.create_from_fortran_string(fortran_string)
+    operator_arg = OperatorArgMetadata.create_from_fortran_string(
+        fortran_string)
     assert operator_arg.form == "GH_OPERATOR"
     assert operator_arg._datatype == "GH_REAL"
     assert operator_arg._access == "GH_READ"
@@ -126,72 +128,72 @@ def test_create_from_fparser2():
 
     '''
     with pytest.raises(TypeError) as info:
-        _ = OperatorArg.create_from_fparser2("hello")
+        _ = OperatorArgMetadata.create_from_fparser2("hello")
     assert ("Expected kernel metadata to be encoded as an fparser2 "
             "Part_Ref object but found type 'str' with value 'hello'."
             in str(info.value))
 
-    fparser2_tree = OperatorArg.create_fparser2("hello(x)")
+    fparser2_tree = OperatorArgMetadata.create_fparser2("hello(x)")
     with pytest.raises(ValueError) as info:
-        _ = OperatorArg.create_from_fparser2(fparser2_tree)
+        _ = OperatorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("Expected kernel metadata to have the name 'arg_type' "
             "and be in the form 'arg_type(...)', but found 'hello(x)'."
             in str(info.value))
 
-    fparser2_tree = OperatorArg.create_fparser2("arg_type(x)")
+    fparser2_tree = OperatorArgMetadata.create_fparser2("arg_type(x)")
     with pytest.raises(ValueError) as info:
-        _ = OperatorArg.create_from_fparser2(fparser2_tree)
+        _ = OperatorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("Expected kernel metadata to have 5 arguments, but "
             "found 1 in 'arg_type(x)'." in str(info.value))
 
-    fparser2_tree = OperatorArg.create_fparser2(
+    fparser2_tree = OperatorArgMetadata.create_fparser2(
         "arg_type(GH_OPERATION, GH_REAL, GH_READ, W0, W1)")
     with pytest.raises(ValueError) as info:
-        _ = OperatorArg.create_from_fparser2(fparser2_tree)
+        _ = OperatorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("Operators should have GH_OPERATOR as their first metadata "
             "argument, but found 'GH_OPERATION'." in str(info.value))
 
-    fparser2_tree = OperatorArg.create_fparser2(
+    fparser2_tree = OperatorArgMetadata.create_fparser2(
         "arg_type(GH_OPERATOR, GH_UNREAL, GH_READ, W0, W1)")
     with pytest.raises(ValueError) as info:
-        _ = OperatorArg.create_from_fparser2(fparser2_tree)
+        _ = OperatorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '1' for metadata 'arg_type(GH_OPERATOR, "
             "GH_UNREAL, GH_READ, W0, W1)'. The datatype descriptor metadata "
             "for an operator should be one of ['gh_real'], but found "
             "'GH_UNREAL'." in str(info.value))
 
-    fparser2_tree = OperatorArg.create_fparser2(
+    fparser2_tree = OperatorArgMetadata.create_fparser2(
         "arg_type(GH_OPERATOR, GH_REAL, GH_ERROR, W0, W1)")
     with pytest.raises(ValueError) as info:
-        _ = OperatorArg.create_from_fparser2(fparser2_tree)
+        _ = OperatorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '2' for metadata 'arg_type(GH_OPERATOR, "
             "GH_REAL, GH_ERROR, W0, W1)'. The access descriptor metadata for "
             "an operator should be one of ['gh_read', 'gh_write', "
             "'gh_readwrite'], but found 'GH_ERROR'." in str(info.value))
 
-    fparser2_tree = OperatorArg.create_fparser2(
+    fparser2_tree = OperatorArgMetadata.create_fparser2(
         "arg_type(GH_OPERATOR, GH_REAL, GH_READ, XX, W1)")
     with pytest.raises(ValueError) as info:
-        _ = OperatorArg.create_from_fparser2(fparser2_tree)
+        _ = OperatorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '3' for metadata 'arg_type(GH_OPERATOR, "
             "GH_REAL, GH_READ, XX, W1)'. The function_space_to metadata for "
             "an operator should be one of ['w3', 'wtheta', 'w2v', 'w2vtrace', "
             "'w2broken', 'w0', 'w1', 'w2', 'w2trace', 'w2h', 'w2htrace', "
             "'any_w2', 'wchi'], but found 'XX'." in str(info.value))
 
-    fparser2_tree = OperatorArg.create_fparser2(
+    fparser2_tree = OperatorArgMetadata.create_fparser2(
         "arg_type(GH_OPERATOR, GH_REAL, GH_READ, W0, YY)")
     with pytest.raises(ValueError) as info:
-        _ = OperatorArg.create_from_fparser2(fparser2_tree)
+        _ = OperatorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '4' for metadata 'arg_type(GH_OPERATOR, "
             "GH_REAL, GH_READ, W0, YY)'. The function_space_from metadata for "
             "an operator should be one of ['w3', 'wtheta', 'w2v', 'w2vtrace', "
             "'w2broken', 'w0', 'w1', 'w2', 'w2trace', 'w2h', 'w2htrace', "
             "'any_w2', 'wchi'], but found 'YY'." in str(info.value))
 
-    fparser2_tree = OperatorArg.create_fparser2(
+    fparser2_tree = OperatorArgMetadata.create_fparser2(
         "arg_type(GH_OPERATOR, GH_REAL, GH_READ, W0, W1)")
-    operator_arg = OperatorArg.create_from_fparser2(fparser2_tree)
+    operator_arg = OperatorArgMetadata.create_from_fparser2(fparser2_tree)
     assert operator_arg.form == "GH_OPERATOR"
     assert operator_arg._datatype == "GH_REAL"
     assert operator_arg._access == "GH_READ"
@@ -204,11 +206,12 @@ def test_fortran_string():
     raising an exception if all of the required properties have not been
     set. '''
     fortran_string = "arg_type(GH_OPERATOR, GH_REAL, GH_READ, W0, W1)"
-    operator_arg = OperatorArg.create_from_fortran_string(fortran_string)
+    operator_arg = OperatorArgMetadata.create_from_fortran_string(
+        fortran_string)
     result = operator_arg.fortran_string()
     assert result == fortran_string
 
-    operator_arg = OperatorArg()
+    operator_arg = OperatorArgMetadata()
     with pytest.raises(ValueError) as info:
         _ = operator_arg.fortran_string()
     assert ("Values for datatype, access, function_space_to and "
@@ -220,7 +223,7 @@ def test_fortran_string():
 def test_setter_getter():
     '''Test that the setters and getters work as expected, including
     raising exceptions if values are invalid. '''
-    operator_arg = OperatorArg()
+    operator_arg = OperatorArgMetadata()
     assert operator_arg.form == "GH_OPERATOR"
 
     assert operator_arg.datatype is None

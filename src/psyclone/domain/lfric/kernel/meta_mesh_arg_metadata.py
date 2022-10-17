@@ -38,10 +38,10 @@ captures the argument values for the LFRic kernel
 META_MESH metadata.
 
 '''
-from psyclone.domain.lfric.kernel.common_arg import CommonArg
+from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
 
 
-class MetaMeshArgMetadata(CommonArg):
+class MetaMeshArgMetadata(CommonArgMetadata):
     ''' xxx '''
 
     def __init__(self, mesh):
@@ -69,7 +69,7 @@ class MetaMeshArgMetadata(CommonArg):
             raise Exception("Must be 1")
         mesh = MetaMeshArgMetadata.get_arg(fparser2_tree, 0)
         return MetaMeshArgMetadata(mesh)
-        
+
     def fortran_string(self):
         ''' xxx '''
         return(f"mesh_data_type({self.mesh})")

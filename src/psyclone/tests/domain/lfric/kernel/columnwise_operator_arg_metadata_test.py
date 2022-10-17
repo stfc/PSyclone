@@ -33,13 +33,13 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing tests for the ColumnwiseOperatorArg class.
+'''Module containing tests for the ColumnwiseOperatorArgMetadata class.
 
 '''
 import pytest
 
-from psyclone.domain.lfric.kernel.columnwise_operator_arg import \
-    ColumnwiseOperatorArg
+from psyclone.domain.lfric.kernel.columnwise_operator_arg_metadata import \
+    ColumnwiseOperatorArgMetadata
 
 
 def test_init_noargs():
@@ -47,8 +47,8 @@ def test_init_noargs():
     arguments are provided.
 
     '''
-    operator_arg = ColumnwiseOperatorArg()
-    assert isinstance(operator_arg, ColumnwiseOperatorArg)
+    operator_arg = ColumnwiseOperatorArgMetadata()
+    assert isinstance(operator_arg, ColumnwiseOperatorArgMetadata)
     assert operator_arg.form == "GH_COLUMNWISE_OPERATOR"
     assert operator_arg._datatype is None
     assert operator_arg._access is None
@@ -61,7 +61,8 @@ def test_init_args():
     instance of OperatorArg are stored as expected.
 
     '''
-    operator_arg = ColumnwiseOperatorArg("GH_REAL", "GH_READ", "W0", "W1")
+    operator_arg = ColumnwiseOperatorArgMetadata(
+        "GH_REAL", "GH_READ", "W0", "W1")
     assert operator_arg.form == "GH_COLUMNWISE_OPERATOR"
     assert operator_arg._datatype == "GH_REAL"
     assert operator_arg._access == "GH_READ"
@@ -75,14 +76,15 @@ def test_create_from_fortran_string():
 
     '''
     with pytest.raises(ValueError) as info:
-        _ = ColumnwiseOperatorArg.create_from_fortran_string("not valid")
+        _ = ColumnwiseOperatorArgMetadata.create_from_fortran_string(
+            "not valid")
     assert ("Expected kernel metadata to be a Fortran Part_Ref, with "
             "the form 'arg_type(...)' but found 'not valid'."
             in str(info.value))
 
     fortran_string = (
         "arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, W0, W1)")
-    operator_arg = ColumnwiseOperatorArg.create_from_fortran_string(
+    operator_arg = ColumnwiseOperatorArgMetadata.create_from_fortran_string(
         fortran_string)
     assert operator_arg.form == "GH_COLUMNWISE_OPERATOR"
     assert operator_arg._datatype == "GH_REAL"
@@ -96,17 +98,18 @@ def test_create_from_fparser2():
     expected. Test for exceptions as well as valid input.
 
     '''
-    fparser2_tree = ColumnwiseOperatorArg.create_fparser2(
+    fparser2_tree = ColumnwiseOperatorArgMetadata.create_fparser2(
         "arg_type(GH_UNWISE_OPERATOR, GH_REAL, GH_READ, W0, W1)")
     with pytest.raises(ValueError) as info:
-        _ = ColumnwiseOperatorArg.create_from_fparser2(fparser2_tree)
+        _ = ColumnwiseOperatorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("ColumnwiseOperators should have GH_COLUMNWISE_OPERATOR as their "
             "first metadata argument, but found 'GH_UNWISE_OPERATOR'."
             in str(info.value))
 
-    fparser2_tree = ColumnwiseOperatorArg.create_fparser2(
+    fparser2_tree = ColumnwiseOperatorArgMetadata.create_fparser2(
         "arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, W0, W1)")
-    operator_arg = ColumnwiseOperatorArg.create_from_fparser2(fparser2_tree)
+    operator_arg = ColumnwiseOperatorArgMetadata.create_from_fparser2(
+        fparser2_tree)
     assert operator_arg.form == "GH_COLUMNWISE_OPERATOR"
     assert operator_arg._datatype == "GH_REAL"
     assert operator_arg._access == "GH_READ"

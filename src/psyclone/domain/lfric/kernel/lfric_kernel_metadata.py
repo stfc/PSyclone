@@ -44,16 +44,18 @@ from fparser.two.utils import walk, get_child
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.lfric.kernel.columnwise_operator_arg import \
-    ColumnwiseOperatorArg
-from psyclone.domain.lfric.kernel.common_arg import CommonArg
+from psyclone.domain.lfric.kernel.columnwise_operator_arg_metadata import \
+    ColumnwiseOperatorArgMetadata
+from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
 from psyclone.domain.lfric.kernel.evaluator_targets_metadata import \
     EvaluatorTargetsMetadata
-from psyclone.domain.lfric.kernel.field_arg import FieldArg
-from psyclone.domain.lfric.kernel.field_vector_arg import FieldVectorArg
-from psyclone.domain.lfric.kernel.inter_grid_arg import InterGridArg
-from psyclone.domain.lfric.kernel.inter_grid_vector_arg import \
-    InterGridVectorArg
+from psyclone.domain.lfric.kernel.field_arg_metadata import FieldArgMetadata
+from psyclone.domain.lfric.kernel.field_vector_arg_metadata import \
+    FieldVectorArgMetadata
+from psyclone.domain.lfric.kernel.inter_grid_arg_metadata import \
+    InterGridArgMetadata
+from psyclone.domain.lfric.kernel.inter_grid_vector_arg_metadata import \
+    InterGridVectorArgMetadata
 from psyclone.domain.lfric.kernel.meta_args_metadata import \
     MetaArgsMetadata
 from psyclone.domain.lfric.kernel.meta_mesh_metadata import \
@@ -62,10 +64,11 @@ from psyclone.domain.lfric.kernel.meta_funcs_metadata import \
     MetaFuncsMetadata
 from psyclone.domain.lfric.kernel.operates_on_metadata import \
     OperatesOnMetadata
-from psyclone.domain.lfric.kernel.operator_arg import OperatorArg
+from psyclone.domain.lfric.kernel.operator_arg_metadata import \
+    OperatorArgMetadata
 from psyclone.domain.lfric.kernel.meta_ref_element_metadata import \
     MetaRefElementMetadata
-from psyclone.domain.lfric.kernel.scalar_arg import ScalarArg
+from psyclone.domain.lfric.kernel.scalar_arg_metadata import ScalarArgMetadata
 from psyclone.domain.lfric.kernel.shapes_metadata import ShapesMetadata
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
@@ -231,7 +234,8 @@ class LFRicKernelMetadata():
         kernel_metadata._meta_ref_element = None
         kernel_metadata._meta_mesh = None
 
-        for fparser2_node in walk(spec_part, Fortran2003.Data_Component_Def_Stmt):
+        for fparser2_node in walk(
+                spec_part, Fortran2003.Data_Component_Def_Stmt):
             # Is there a better way to find the required part of fparser2?
 
             if "operates_on" in (str(fparser2_node)).lower():
@@ -386,15 +390,15 @@ class LFRicKernelMetadata():
         meta_funcs = ""
         if self._meta_funcs:
             meta_funcs = f"  {self._meta_funcs.fortran_string()}"
-        
+
         meta_ref_element = ""
         if self._meta_ref_element:
             meta_ref_element = f"  {self._meta_ref_element.fortran_string()}"
-        
+
         meta_mesh = ""
         if self._meta_mesh:
             meta_mesh = f"  {self._meta_mesh.fortran_string()}"
-        
+
         result = (
             f"TYPE, PUBLIC, EXTENDS(kernel_type) :: {self.name}\n"
             f"{meta_args}"

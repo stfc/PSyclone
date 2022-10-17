@@ -83,7 +83,8 @@ class ShapesMetadata(CommonDeclarationMetadata):
 
         integer :: gh_shape = gh_quadrature_face
         integer :: gh_shape(2) = (/ gh_quadrature_face, gh_evaluator /)
-        integer, dimension(2) :: gh_shape = (/ gh_quadrature_face, gh_evaluator /)
+        integer, dimension(2) :: gh_shape = &
+                 (/ gh_quadrature_face, gh_evaluator /)
 
         :param fparser2_tree: fparser2 tree capturing the shapes metadata
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.\

@@ -33,30 +33,31 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing tests for the CommonArg class.
+'''Module containing tests for the CommonArgMetadata class.
 
 '''
 import pytest
 
 from fparser.two import Fortran2003
 
-from psyclone.domain.lfric.kernel.common_arg import CommonArg
+from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
 from psyclone.errors import InternalError
 
 
 # pylint: disable=abstract-class-instantiated
 def test_init_error():
-    '''Test that a CommonArg instance can't be created as it is abstract.
+    '''Test that a CommonArgMetadata instance can't be created as it is
+    abstract.
 
     '''
     with pytest.raises(TypeError) as info:
-        _ = CommonArg()
-    assert ("Can't instantiate abstract class CommonArg with abstract "
+        _ = CommonArgMetadata()
+    assert ("Can't instantiate abstract class CommonArgMetadata with abstract "
             "methods check_access, check_datatype" in str(info.value))
 
 
-class CheckArg(CommonArg):
-    '''A utility class that allows the abstract CommonArg class to be
+class CheckArg(CommonArgMetadata):
+    '''A utility class that allows the abstract CommonArgMetadata class to be
     tested.
 
     '''
@@ -69,8 +70,8 @@ class CheckArg(CommonArg):
 
     @staticmethod
     def check_datatype(value):
-        '''A concrete implementation of the abstract method in the CommonArg
-        class.
+        '''A concrete implementation of the abstract method in the
+        CommonArgMetadata class.
 
         :param str value: the value being passed into this method.
 
@@ -78,8 +79,8 @@ class CheckArg(CommonArg):
 
     @staticmethod
     def check_access(value):
-        '''A concrete implementation of the abstract method in the CommonArg
-        class.
+        '''A concrete implementation of the abstract method in the
+        CommonArgMetadata class.
 
         :param str value: the value being passed into this method.
 
@@ -87,10 +88,11 @@ class CheckArg(CommonArg):
 
 
 def test_init():
-    '''Test that the CommonArg class can be created when a concrete class
-    subclasses it. Also check that the CommonArg class stores the
-    datatype and access arguments supplied to it correctly and the
-    associated setter and getter methods work as expected.
+    '''Test that the CommonArgMetadata class can be created when a
+    concrete class subclasses it. Also check that the
+    CommonArgMetadata class stores the datatype and access arguments
+    supplied to it correctly and the associated setter and getter
+    methods work as expected.
 
     '''
     dummy = CheckArg()
@@ -105,8 +107,8 @@ def test_init():
 
 
 def test_create_fparser2():
-    '''Test that the create_fparser2 method in the CommonArg class works
-    as expected.
+    '''Test that the create_fparser2 method in the CommonArgMetadata class
+    works as expected.
 
     '''
     dummy = CheckArg()
@@ -127,7 +129,7 @@ def test_create_fparser2():
 
 
 def test_check_fparser2():
-    '''Test that the check_fparser2 method in the CommonArg class works
+    '''Test that the check_fparser2 method in the CommonArgMetadata class works
     as expected.
 
     '''
@@ -146,17 +148,10 @@ def test_check_fparser2():
             "the form 'arg_type(...)', but found 'braz_type(GH_FIELD, "
             "GH_REAL, GH_READ)'." in str(info.value))
 
-    #fparser_tree = dummy.create_fparser2(
-    #    "arg_type(GH_FIELD, GH_REAL, GH_READ)")
-    #with pytest.raises(ValueError) as info:
-    #    _ = dummy.check_fparser2(fparser_tree, "arg_type")
-    #assert ("Expected kernel metadata to have 4 arguments, but found 3 in "
-    #        "'arg_type(GH_FIELD, GH_REAL, GH_READ)'." in str(info.value))
-
 
 def test_check_first_arg():
-    '''Check that the check_first_arg method in the CommonArg class works
-    as expected
+    '''Check that the check_first_arg method in the CommonArgMetadata
+    class works as expected.
 
     '''
     fparser2_tree = CheckArg.create_fparser2("arg_type(first_arg)")
@@ -176,13 +171,13 @@ def test_check_first_arg():
 
 
 def test_check_remaining_args():
-    '''Check that the check_remaining_args method in the CommonArg class
-    works as expected
+    '''Check that the check_remaining_args method in the CommonArgMetadata
+    class works as expected.
 
     '''
     class DummyArg(CheckArg):
-        '''Utility class used to test the abstract CommonArg class (via the
-        CheckArg class)
+        '''Utility class used to test the abstract CommonArgMetadata class
+        (via the CheckArg class).
 
         :param str message: the message to use for an exception.
 
@@ -218,7 +213,7 @@ def test_check_remaining_args():
 
 
 def test_get_arg():
-    '''Test that the get_arg method in the CommonArg class works
+    '''Test that the get_arg method in the CommonArgMetadata class works
     as expected.
 
     '''
@@ -231,7 +226,7 @@ def test_get_arg():
 
 
 def test_get_type_and_access():
-    '''Test that the get_type_and_access method in the CommonArg class
+    '''Test that the get_type_and_access method in the CommonArgMetadata class
     works as expected.
 
     '''
@@ -244,8 +239,8 @@ def test_get_type_and_access():
 
 
 def test_get_type_access_and_fs():
-    '''Test that the get_type_access_and_fs method in the CommonArg class
-    works as expected.
+    '''Test that the get_type_access_and_fs method in the
+    CommonArgMetadata class works as expected.
 
     '''
     dummy = CheckArg()
@@ -259,8 +254,8 @@ def test_get_type_access_and_fs():
 
 
 def test_get_and_check_vector_length():
-    '''Test that the get_and_check_vector_length method in the CommonArg
-    class works as expected.
+    '''Test that the get_and_check_vector_length method in the
+    CommonArgMetadata class works as expected.
 
     '''
     dummy = CheckArg()
@@ -283,16 +278,15 @@ def test_check_methods():
     from the datatype and access setter methods respectively.
 
     '''
-    class Test(CommonArg):
-        '''A utility class that allow the abstract CommonArg class to be
-        tested.
+    class Test(CommonArgMetadata):
+        '''A utility class that allow the abstract CommonArgMetadata class to
+        be tested.
 
         '''
-
         @staticmethod
         def check_datatype(value):
             '''A concrete implementation of the abstract method in the
-            CommonArg class.
+            CommonArgMetadata class.
 
             :param str value: the value being passed into this method.
 
@@ -305,7 +299,7 @@ def test_check_methods():
         @staticmethod
         def check_access(value):
             '''A concrete implementation of the abstract method in the
-            CommonArg class.
+            CommonArgMetadata class.
 
             :param str value: the value being passed into this method.
 

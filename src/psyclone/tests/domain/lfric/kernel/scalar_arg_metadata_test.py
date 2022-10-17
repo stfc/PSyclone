@@ -33,21 +33,21 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing tests for the ScalarArg class.
+'''Module containing tests for the ScalarArgMetadata class.
 
 '''
 import pytest
 
-from psyclone.domain.lfric.kernel.scalar_arg import ScalarArg
+from psyclone.domain.lfric.kernel.scalar_arg_metadata import ScalarArgMetadata
 
 
 def test_init_noargs():
-    '''Test that a ScalarArg instance can be created successfully when no
-    arguments are provided.
+    '''Test that a ScalarArgMetadata instance can be created successfully
+    when no arguments are provided.
 
     '''
-    field_arg = ScalarArg()
-    assert isinstance(field_arg, ScalarArg)
+    field_arg = ScalarArgMetadata()
+    assert isinstance(field_arg, ScalarArgMetadata)
     assert field_arg.form == "GH_SCALAR"
     assert field_arg._datatype is None
     assert field_arg._access is None
@@ -55,28 +55,28 @@ def test_init_noargs():
 
 def test_init_invalid():
     '''Test that appropriate exceptions are raised if invalid initial
-    values are provided when constructing an instance of the ScalarArg
+    values are provided when constructing an instance of the ScalarArgMetadata
     class.
 
     '''
     with pytest.raises(ValueError) as info:
-        _ = ScalarArg(datatype="invalid")
+        _ = ScalarArgMetadata(datatype="invalid")
     assert ("The datatype descriptor metadata for a scalar should be one of "
             "['gh_real', 'gh_integer', 'gh_logical'], but found 'invalid'."
             in str(info.value))
 
     with pytest.raises(ValueError) as info:
-        _ = ScalarArg(access="invalid")
+        _ = ScalarArgMetadata(access="invalid")
     assert ("The access descriptor metadata for a scalar should be one of "
             "['gh_read'], but found 'invalid'." in str(info.value))
 
 
 def test_init_args():
     '''Test that valid initial values provided when constructing an
-    instance of ScalarArg are stored as expected.
+    instance of ScalarArgMetadata are stored as expected.
 
     '''
-    field_arg = ScalarArg("GH_REAL", "GH_READ")
+    field_arg = ScalarArgMetadata("GH_REAL", "GH_READ")
     assert field_arg.form == "GH_SCALAR"
     assert field_arg._datatype == "GH_REAL"
     assert field_arg._access == "GH_READ"
@@ -88,13 +88,13 @@ def test_create_from_fortran_string():
 
     '''
     with pytest.raises(ValueError) as info:
-        _ = ScalarArg.create_from_fortran_string("not valid")
+        _ = ScalarArgMetadata.create_from_fortran_string("not valid")
     assert ("Expected kernel metadata to be a Fortran Part_Ref, "
             "with the form 'arg_type(...)' but found 'not valid'."
             in str(info.value))
 
     fortran_string = "arg_type(GH_SCALAR, GH_REAL, GH_READ)"
-    field_arg = ScalarArg.create_from_fortran_string(fortran_string)
+    field_arg = ScalarArgMetadata.create_from_fortran_string(fortran_string)
     assert field_arg.form == "GH_SCALAR"
     assert field_arg._datatype == "GH_REAL"
     assert field_arg._access == "GH_READ"
@@ -106,52 +106,52 @@ def test_create_from_fparser2():
 
     '''
     with pytest.raises(TypeError) as info:
-        _ = ScalarArg.create_from_fparser2("hello")
+        _ = ScalarArgMetadata.create_from_fparser2("hello")
     assert ("Expected kernel metadata to be encoded as an fparser2 "
             "Part_Ref object but found type 'str' with value 'hello'."
             in str(info.value))
 
-    fparser2_tree = ScalarArg.create_fparser2("hello(x)")
+    fparser2_tree = ScalarArgMetadata.create_fparser2("hello(x)")
     with pytest.raises(ValueError) as info:
-        _ = ScalarArg.create_from_fparser2(fparser2_tree)
+        _ = ScalarArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("Expected kernel metadata to have the name 'arg_type' "
             "and be in the form 'arg_type(...)', but found 'hello(x)'."
             in str(info.value))
 
-    fparser2_tree = ScalarArg.create_fparser2("arg_type(x)")
+    fparser2_tree = ScalarArgMetadata.create_fparser2("arg_type(x)")
     with pytest.raises(ValueError) as info:
-        _ = ScalarArg.create_from_fparser2(fparser2_tree)
+        _ = ScalarArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("Expected kernel metadata to have 3 arguments, but "
             "found 1 in 'arg_type(x)'." in str(info.value))
 
-    fparser2_tree = ScalarArg.create_fparser2(
+    fparser2_tree = ScalarArgMetadata.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ)")
     with pytest.raises(ValueError) as info:
-        _ = ScalarArg.create_from_fparser2(fparser2_tree)
+        _ = ScalarArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("Scalars should have GH_SCALAR as their first metadata argument, "
             "but found 'GH_FIELD'." in str(info.value))
 
-    fparser2_tree = ScalarArg.create_fparser2(
+    fparser2_tree = ScalarArgMetadata.create_fparser2(
         "arg_type(GH_SCALAR, GH_UNREAL, GH_READ)")
     with pytest.raises(ValueError) as info:
-        _ = ScalarArg.create_from_fparser2(fparser2_tree)
+        _ = ScalarArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '1' for metadata 'arg_type(GH_SCALAR, "
             "GH_UNREAL, GH_READ)'. The datatype descriptor metadata for a "
             "scalar should be one of ['gh_real', 'gh_integer', "
             "'gh_logical'], but found 'GH_UNREAL'." in str(info.value))
 
-    fparser2_tree = ScalarArg.create_fparser2(
+    fparser2_tree = ScalarArgMetadata.create_fparser2(
         "arg_type(GH_SCALAR, GH_REAL, GH_ERROR)")
     with pytest.raises(ValueError) as info:
-        _ = ScalarArg.create_from_fparser2(fparser2_tree)
+        _ = ScalarArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '2' for metadata 'arg_type(GH_SCALAR, "
             "GH_REAL, GH_ERROR)'. The access descriptor metadata for a "
             "scalar should be one of ['gh_read'], but found 'GH_ERROR'."
             in str(info.value))
 
-    fparser2_tree = ScalarArg.create_fparser2(
+    fparser2_tree = ScalarArgMetadata.create_fparser2(
         "arg_type(GH_SCALAR, GH_REAL, GH_READ)")
-    field_arg = ScalarArg.create_from_fparser2(fparser2_tree)
+    field_arg = ScalarArgMetadata.create_from_fparser2(fparser2_tree)
     assert field_arg.form == "GH_SCALAR"
     assert field_arg._datatype == "GH_REAL"
     assert field_arg._access == "GH_READ"
@@ -162,11 +162,11 @@ def test_fortran_string():
     raise an exception if all of the required properties have not been
     set '''
     fortran_string = "arg_type(GH_SCALAR, GH_REAL, GH_READ)"
-    field_arg = ScalarArg.create_from_fortran_string(fortran_string)
+    field_arg = ScalarArgMetadata.create_from_fortran_string(fortran_string)
     result = field_arg.fortran_string()
     assert result == fortran_string
 
-    field_arg = ScalarArg()
+    field_arg = ScalarArgMetadata()
     with pytest.raises(ValueError) as info:
         _ = field_arg.fortran_string()
     assert ("Values for datatype and access must be provided "
@@ -177,7 +177,7 @@ def test_fortran_string():
 def test_setter_getter():
     '''Test that the setters and getters work as expected, including
     raising exceptions if values are invalid. '''
-    field_arg = ScalarArg()
+    field_arg = ScalarArgMetadata()
     assert field_arg.form == "GH_SCALAR"
 
     assert field_arg.datatype is None

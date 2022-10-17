@@ -91,9 +91,10 @@ class MetaRefElementMetadata(CommonDeclarationMetadata):
             MetaRefElementMetadata`
 
         '''
-        values_list = MetaRefElementMetadata.validate_derived_array_declaration(
-            fparser2_tree, "REFERENCE_ELEMENT_DATA_TYPE",
-            "META_REFERENCE_ELEMENT")
+        values_list = MetaRefElementMetadata.\
+            validate_derived_array_declaration(
+                fparser2_tree, "REFERENCE_ELEMENT_DATA_TYPE",
+                "META_REFERENCE_ELEMENT")
         meta_obj_list = []
         for value in values_list:
             meta_obj_list.append(
@@ -134,8 +135,8 @@ class MetaRefElementMetadata(CommonDeclarationMetadata):
         for value in values:
             if not isinstance(value, MetaRefElementArgMetadata):
                 raise TypeError(
-                    f"The meta_ref_element list should be a list containing objects "
-                    f"of type MetaRefElementArgMetadata but found "
+                    f"The meta_ref_element list should be a list containing "
+                    f"objects of type MetaRefElementArgMetadata but found "
                     f"'{type(value).__name__}'.")
         # Take a copy of the list so that it can't be modified
         # externally.

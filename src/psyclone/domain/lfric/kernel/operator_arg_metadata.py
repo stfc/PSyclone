@@ -33,16 +33,16 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing the OperatorArg class which captures the metadata
+'''Module containing the OperatorArgMetadata class which captures the metadata
 associated with an operator argument. Supports the creation, modification
 and Fortran output of a Operator argument.
 
 '''
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.lfric.kernel.scalar_arg import ScalarArg
+from psyclone.domain.lfric.kernel.scalar_arg_metadata import ScalarArgMetadata
 
 
-class OperatorArg(ScalarArg):
+class OperatorArgMetadata(ScalarArgMetadata):
     '''Class to capture LFRic kernel metadata information for an operator
     argument.
 
@@ -89,22 +89,23 @@ class OperatorArg(ScalarArg):
             an operator argument.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
 
-        :returns: an instance of OperatorArg.
-        :rtype: :py:class:`psyclone.domain.lfric.kernel.OperatorArg`
+        :returns: an instance of OperatorArgMetadata.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.OperatorArgMetadata`
 
         '''
-        OperatorArg.check_fparser2(fparser2_tree, "arg_type")
-        OperatorArg.check_nargs(fparser2_tree, nargs=5)
-        OperatorArg.check_first_arg(fparser2_tree, "Operator")
-        datatype, access = OperatorArg.get_type_and_access(fparser2_tree)
-        function_space_to = OperatorArg.get_arg(
-            fparser2_tree, OperatorArg.function_space_to_arg_index)
-        function_space_from = OperatorArg.get_arg(
-            fparser2_tree, OperatorArg.function_space_from_arg_index)
-        OperatorArg.check_remaining_args(
+        OperatorArgMetadata.check_fparser2(fparser2_tree, "arg_type")
+        OperatorArgMetadata.check_nargs(fparser2_tree, nargs=5)
+        OperatorArgMetadata.check_first_arg(fparser2_tree, "Operator")
+        datatype, access = OperatorArgMetadata.get_type_and_access(
+            fparser2_tree)
+        function_space_to = OperatorArgMetadata.get_arg(
+            fparser2_tree, OperatorArgMetadata.function_space_to_arg_index)
+        function_space_from = OperatorArgMetadata.get_arg(
+            fparser2_tree, OperatorArgMetadata.function_space_from_arg_index)
+        OperatorArgMetadata.check_remaining_args(
             fparser2_tree, datatype, access, function_space_to,
             function_space_from)
-        return OperatorArg(
+        return OperatorArgMetadata(
             datatype, access, function_space_to, function_space_from)
 
     @classmethod

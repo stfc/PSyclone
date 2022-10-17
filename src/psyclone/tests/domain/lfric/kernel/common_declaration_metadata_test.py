@@ -43,6 +43,7 @@ from fparser.two import Fortran2003
 from psyclone.domain.lfric.kernel.shapes_metadata import ShapesMetadata
 from psyclone.parse.utils import ParseError
 
+
 def test_init_invalid():
     '''Test that an exception is raised if invalid initial values are
     provided when constructing an instance of the ShapesMetadata
@@ -53,6 +54,7 @@ def test_init_invalid():
         _ = ShapesMetadata("invalid")
     assert ("shape values should be provided as a list but found 'str'."
             in str(info.value))
+
 
 def test_init():
     '''Test that valid initial values provided when constructing an
@@ -286,7 +288,7 @@ def test_setter_getter():
         shapes_metadata.shapes = []
     assert ("The shapes list should contain at least one entry, but it is "
             "empty." in str(info.value))
-    with pytest.raises(TypeError) as info:    
+    with pytest.raises(TypeError) as info:
         shapes_metadata.shapes = [None]
     assert ("shapes should be a list of str, but found 'NoneType'."
             in str(info.value))

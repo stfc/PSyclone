@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing the InterGridArg class which captures the metadata
+'''Module containing the InterGridArgMetadata class which captures the metadata
 associated with an intergrid argument. Supports the creation, modification
 and Fortran output of an intergrid argument.
 
@@ -41,10 +41,10 @@ and Fortran output of an intergrid argument.
 from fparser.two import Fortran2003
 
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.lfric.kernel.field_arg import FieldArg
+from psyclone.domain.lfric.kernel.field_arg_metadata import FieldArgMetadata
 
 
-class InterGridArg(FieldArg):
+class InterGridArgMetadata(FieldArgMetadata):
     '''Class to capture LFRic kernel metadata information for an intergrid
     argument.
 
@@ -83,21 +83,21 @@ class InterGridArg(FieldArg):
         :type fparser2_tree: \
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`
 
-        :returns: an instance of InterGridArg.
-        :rtype: :py:class:`psyclone.domain.lfric.kernel.InterGridArg`
+        :returns: an instance of InterGridArgMetadata.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.InterGridArgMetadata`
 
         '''
-        InterGridArg.check_fparser2(
+        InterGridArgMetadata.check_fparser2(
             fparser2_tree, "arg_type",
             encoding=Fortran2003.Structure_Constructor)
-        InterGridArg.check_nargs(fparser2_tree, nargs=5)
-        InterGridArg.check_first_arg(fparser2_tree, "InterGrid")
+        InterGridArgMetadata.check_nargs(fparser2_tree, nargs=5)
+        InterGridArgMetadata.check_first_arg(fparser2_tree, "InterGrid")
         datatype, access, function_space = \
-            InterGridArg.get_type_access_and_fs(fparser2_tree)
-        mesh_arg = InterGridArg.get_mesh_arg(fparser2_tree)
-        InterGridArg.check_remaining_args(
+            InterGridArgMetadata.get_type_access_and_fs(fparser2_tree)
+        mesh_arg = InterGridArgMetadata.get_mesh_arg(fparser2_tree)
+        InterGridArgMetadata.check_remaining_args(
             fparser2_tree, datatype, access, function_space, mesh_arg)
-        return InterGridArg(datatype, access, function_space, mesh_arg)
+        return InterGridArgMetadata(datatype, access, function_space, mesh_arg)
 
     @staticmethod
     def get_mesh_arg(fparser2_tree):
@@ -117,14 +117,14 @@ class InterGridArg(FieldArg):
 
         '''
         mesh_arg_lhs = fparser2_tree.children[1].\
-            children[InterGridArg.mesh_arg_index].children[0].tostr()
+            children[InterGridArgMetadata.mesh_arg_index].children[0].tostr()
         if not mesh_arg_lhs.lower() == "mesh_arg":
             raise ValueError(
-                f"At argument index {InterGridArg.mesh_arg_index} for "
+                f"At argument index {InterGridArgMetadata.mesh_arg_index} for "
                 f"metadata '{fparser2_tree}' expected the left hand side "
                 f"to be MESH_ARG but found '{mesh_arg_lhs}'.")
         mesh_arg = fparser2_tree.children[1].\
-            children[InterGridArg.mesh_arg_index].children[1].tostr()
+            children[InterGridArgMetadata.mesh_arg_index].children[1].tostr()
         return mesh_arg
 
     @classmethod

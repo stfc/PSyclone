@@ -33,21 +33,21 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing tests for the FieldArg class.
+'''Module containing tests for the FieldArgMetadata class.
 
 '''
 import pytest
 
-from psyclone.domain.lfric.kernel.field_arg import FieldArg
+from psyclone.domain.lfric.kernel.field_arg_metadata import FieldArgMetadata
 
 
 def test_init_noargs():
-    '''Test that a FieldArg instance can be created successfully when no
-    arguments are provided.
+    '''Test that a FieldArgMetadata instance can be created successfully
+    when no arguments are provided.
 
     '''
-    field_arg = FieldArg()
-    assert isinstance(field_arg, FieldArg)
+    field_arg = FieldArgMetadata()
+    assert isinstance(field_arg, FieldArgMetadata)
     assert field_arg.form == "GH_FIELD"
     assert field_arg._datatype is None
     assert field_arg._access is None
@@ -56,24 +56,24 @@ def test_init_noargs():
 
 def test_init_invalid():
     '''Test that appropriate exceptions are raised if invalid initial
-    values are provided when constructing an instance of the FieldArg
+    values are provided when constructing an instance of the FieldArgMetadata
     class.
 
     '''
     with pytest.raises(ValueError) as info:
-        _ = FieldArg(datatype="invalid")
+        _ = FieldArgMetadata(datatype="invalid")
     assert ("The datatype descriptor metadata for a field should be one of "
             "['gh_real', 'gh_integer'], but found 'invalid'."
             in str(info.value))
 
     with pytest.raises(ValueError) as info:
-        _ = FieldArg(access="invalid")
+        _ = FieldArgMetadata(access="invalid")
     assert ("The access descriptor metadata for a field should be one of "
             "['gh_read', 'gh_write', 'gh_readwrite', 'gh_inc', 'gh_readinc'],"
             " but found 'invalid'." in str(info.value))
 
     with pytest.raises(ValueError) as info:
-        _ = FieldArg(function_space="invalid")
+        _ = FieldArgMetadata(function_space="invalid")
     assert ("The function space metadata should be one of ['w3', 'wtheta', "
             "'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', "
             "'w2h', 'w2htrace', 'any_w2', 'wchi', 'any_space_1', "
@@ -90,10 +90,10 @@ def test_init_invalid():
 
 def test_init_args():
     '''Test that valid initial values provided when constructing an
-    instance of FieldArg are stored as expected.
+    instance of FieldArgMetadata are stored as expected.
 
     '''
-    field_arg = FieldArg("GH_REAL", "GH_READ", "W0")
+    field_arg = FieldArgMetadata("GH_REAL", "GH_READ", "W0")
     assert field_arg.form == "GH_FIELD"
     assert field_arg._datatype == "GH_REAL"
     assert field_arg._access == "GH_READ"
@@ -106,13 +106,13 @@ def test_create_from_fortran_string():
 
     '''
     with pytest.raises(ValueError) as info:
-        _ = FieldArg.create_from_fortran_string("not valid")
+        _ = FieldArgMetadata.create_from_fortran_string("not valid")
     assert ("Expected kernel metadata to be a Fortran Part_Ref, with "
             "the form 'arg_type(...)' but found 'not valid'."
             in str(info.value))
 
     fortran_string = "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)"
-    field_arg = FieldArg.create_from_fortran_string(fortran_string)
+    field_arg = FieldArgMetadata.create_from_fortran_string(fortran_string)
     assert field_arg.form == "GH_FIELD"
     assert field_arg._datatype == "GH_REAL"
     assert field_arg._access == "GH_READ"
@@ -125,54 +125,54 @@ def test_create_from_fparser2():
 
     '''
     with pytest.raises(TypeError) as info:
-        _ = FieldArg.create_from_fparser2("hello")
+        _ = FieldArgMetadata.create_from_fparser2("hello")
     assert ("Expected kernel metadata to be encoded as an fparser2 "
             "Part_Ref object but found type 'str' with value 'hello'."
             in str(info.value))
 
-    fparser2_tree = FieldArg.create_fparser2("hello(x)")
+    fparser2_tree = FieldArgMetadata.create_fparser2("hello(x)")
     with pytest.raises(ValueError) as info:
-        _ = FieldArg.create_from_fparser2(fparser2_tree)
+        _ = FieldArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("Expected kernel metadata to have the name 'arg_type' "
             "and be in the form 'arg_type(...)', but found 'hello(x)'."
             in str(info.value))
 
-    fparser2_tree = FieldArg.create_fparser2("arg_type(x)")
+    fparser2_tree = FieldArgMetadata.create_fparser2("arg_type(x)")
     with pytest.raises(ValueError) as info:
-        _ = FieldArg.create_from_fparser2(fparser2_tree)
+        _ = FieldArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("Expected kernel metadata to have 4 arguments, but "
             "found 1 in 'arg_type(x)'." in str(info.value))
 
-    fparser2_tree = FieldArg.create_fparser2(
+    fparser2_tree = FieldArgMetadata.create_fparser2(
         "arg_type(GH_FEELED, GH_REAL, GH_READ, W0)")
     with pytest.raises(ValueError) as info:
-        _ = FieldArg.create_from_fparser2(fparser2_tree)
+        _ = FieldArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("Fields should have GH_FIELD as their first metadata argument, "
             "but found 'GH_FEELED'." in str(info.value))
 
-    fparser2_tree = FieldArg.create_fparser2(
+    fparser2_tree = FieldArgMetadata.create_fparser2(
         "arg_type(GH_FIELD, GH_UNREAL, GH_READ, W0)")
     with pytest.raises(ValueError) as info:
-        _ = FieldArg.create_from_fparser2(fparser2_tree)
+        _ = FieldArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '1' for metadata 'arg_type(GH_FIELD, "
             "GH_UNREAL, GH_READ, W0)'. The datatype descriptor metadata for a "
             "field should be one of ['gh_real', 'gh_integer'], but found "
             "'GH_UNREAL'." in str(info.value))
 
-    fparser2_tree = FieldArg.create_fparser2(
+    fparser2_tree = FieldArgMetadata.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_ERROR, W0)")
     with pytest.raises(ValueError) as info:
-        _ = FieldArg.create_from_fparser2(fparser2_tree)
+        _ = FieldArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '2' for metadata 'arg_type(GH_FIELD, GH_REAL, "
             "GH_ERROR, W0)'. The access descriptor metadata for a field "
             "should be one of ['gh_read', 'gh_write', 'gh_readwrite', "
             "'gh_inc', 'gh_readinc'], but found 'GH_ERROR'."
             in str(info.value))
 
-    fparser2_tree = FieldArg.create_fparser2(
+    fparser2_tree = FieldArgMetadata.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, DOUBLE_U_ZERO)")
     with pytest.raises(ValueError) as info:
-        _ = FieldArg.create_from_fparser2(fparser2_tree)
+        _ = FieldArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '3' for metadata 'arg_type(GH_FIELD, GH_REAL, "
             "GH_READ, DOUBLE_U_ZERO)'. The function space metadata should be "
             "one of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', "
@@ -187,9 +187,9 @@ def test_create_from_fparser2():
             "'any_discontinuous_space_10'], but found 'DOUBLE_U_ZERO'."
             in str(info.value))
 
-    fparser2_tree = FieldArg.create_fparser2(
+    fparser2_tree = FieldArgMetadata.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)")
-    field_arg = FieldArg.create_from_fparser2(fparser2_tree)
+    field_arg = FieldArgMetadata.create_from_fparser2(fparser2_tree)
     assert field_arg.form == "GH_FIELD"
     assert field_arg._datatype == "GH_REAL"
     assert field_arg._access == "GH_READ"
@@ -201,11 +201,11 @@ def test_fortran_string():
     raise an exception if all of the required properties have not been
     set '''
     fortran_string = "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)"
-    field_arg = FieldArg.create_from_fortran_string(fortran_string)
+    field_arg = FieldArgMetadata.create_from_fortran_string(fortran_string)
     result = field_arg.fortran_string()
     assert result == fortran_string
 
-    field_arg = FieldArg()
+    field_arg = FieldArgMetadata()
     with pytest.raises(ValueError) as info:
         _ = field_arg.fortran_string()
     assert ("Values for datatype, access and function_space must be provided "
@@ -216,7 +216,7 @@ def test_fortran_string():
 def test_setter_getter():
     '''Test that the setters and getters work as expected, including
     raising exceptions if values are invalid. '''
-    field_arg = FieldArg()
+    field_arg = FieldArgMetadata()
     assert field_arg.form == "GH_FIELD"
 
     assert field_arg.datatype is None
