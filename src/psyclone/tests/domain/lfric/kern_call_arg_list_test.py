@@ -258,6 +258,12 @@ def test_kerncallarglist_stencil(fortran_writer):
         'map_w2(:,cmap(colour,cell))', 'ndf_w3', 'undf_w3',
         'map_w3(:,cmap(colour,cell))']
 
+    assert create_arg_list.nlayers_positions == [1]
+    assert create_arg_list.ndf_positions == [
+        KernCallArgList.NdfInfo(13, "w1"),
+        KernCallArgList.NdfInfo(16, "w2"),
+        KernCallArgList.NdfInfo(19, "w3")]
+
     check_psyir_results(create_arg_list, fortran_writer)
 
 
@@ -361,3 +367,6 @@ def test_kerncallarglist_scalar_literal(fortran_writer):
         'map_w2(:,cell)', 'diff_basis_w2_qr', 'ndf_w3', 'undf_w3',
         'map_w3(:,cell)', 'basis_w3_qr', 'diff_basis_w3_qr', 'np_xy_qr',
         'np_z_qr', 'weights_xy_qr', 'weights_z_qr']
+
+    assert create_arg_list.nqp_positions == [{'horizontal': 21,
+                                              'vertical': 22}]
