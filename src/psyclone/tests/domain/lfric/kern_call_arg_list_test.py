@@ -47,7 +47,7 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKern
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Reference
+from psyclone.psyir.nodes import Literal, Reference
 from psyclone.tests.utilities import get_base_path, get_invoke
 from psyclone.transformations import Dynamo0p3ColourTrans
 
@@ -327,3 +327,37 @@ def test_kerncallarglist_bcs_operator(fortran_writer):
         'ndf_aspc1_op_a', 'ndf_aspc2_op_a', 'boundary_dofs_op_a']
 
     check_psyir_results(create_arg_list, fortran_writer)
+
+
+def test_kerncallarglist_scalar_literal(fortran_writer):
+    ''' Check the handling of a scalar literal.
+    '''
+
+    psy, _ = get_invoke("int_real_literal_scalar.f90", TEST_API,
+                        dist_mem=False, idx=0)
+
+    schedule = psy.invokes.invoke_list[0].schedule
+    create_arg_list = KernCallArgList(schedule.kernels()[0])
+    create_arg_list.generate()
+    assert create_arg_list._arglist == [
+        'nlayers', 'f1_proxy%data', 'f2_proxy%data', 'm1_proxy%data', '1.0',
+        'm2_proxy%data', '2', 'ndf_w1', 'undf_w1', 'map_w1(:,cell)',
+        'basis_w1_qr', 'ndf_w2', 'undf_w2', 'map_w2(:,cell)',
+        'diff_basis_w2_qr', 'ndf_w3', 'undf_w3', 'map_w3(:,cell)',
+        'basis_w3_qr', 'diff_basis_w3_qr', 'np_xy_qr', 'np_z_qr',
+        'weights_xy_qr', 'weights_z_qr']
+
+    # There is a difference between the string version and the PSyIR
+    # representation: the latter has the precision appended to the constant
+    # (i.e. `2_i_def` vs `2` and `1.0_r_def` vs `1.0`).
+    result = []
+    for node in create_arg_list.psyir_arglist:
+        assert isinstance(node, (Literal, Reference))
+        result.append(fortran_writer(node))
+    assert result == [
+        'nlayers', 'f1_proxy%data', 'f2_proxy%data', 'm1_proxy%data',
+        '1.0_r_def', 'm2_proxy%data', '2_i_def', 'ndf_w1', 'undf_w1',
+        'map_w1(:,cell)', 'basis_w1_qr', 'ndf_w2', 'undf_w2',
+        'map_w2(:,cell)', 'diff_basis_w2_qr', 'ndf_w3', 'undf_w3',
+        'map_w3(:,cell)', 'basis_w3_qr', 'diff_basis_w3_qr', 'np_xy_qr',
+        'np_z_qr', 'weights_xy_qr', 'weights_z_qr']
