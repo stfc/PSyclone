@@ -33,18 +33,18 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab.
 
-'''Specialise generic PSyIR representing an invoke call withing the
-algorithm layer to an LFRic algorithm-layer-specific invoke call which
-uses specialised classes.
+'''Specialise generic PSyIR to LFRic algorithm-layer PSyIR. Currently
+we transform PSyIR invoke calls to LFRic algorithm-layer-specific
+invoke calls which uses specialised classes.
 
 '''
-from psyclone.domain.common.transformations import RaiseCall2InvokeTrans
+from psyclone.domain.common.transformations import RaisePSyIR2AlgTrans
 from psyclone.domain.lfric.algorithm.psyir import (
     LFRicBuiltinFunctorFactory, LFRicKernelFunctor, LFRicAlgorithmInvokeCall)
 from psyclone.psyir.nodes import ArrayReference
 
 
-class LFRicRaiseCall2InvokeTrans(RaiseCall2InvokeTrans):
+class RaisePSyIR2LFRicAlgTrans(RaisePSyIR2AlgTrans):
     '''Transform a generic PSyIR representation of an Algorithm-layer
     invoke call to an LFRic version with specialised domain-specific
     nodes.
@@ -88,15 +88,15 @@ class LFRicRaiseCall2InvokeTrans(RaiseCall2InvokeTrans):
                 for fp2_node in call_arg.get_ast_nodes:
                     # This child is a kernel or builtin
                     name = fp2_node.children[0].string
-                    args = RaiseCall2InvokeTrans._parse_args(call_arg,
-                                                             fp2_node)
+                    args = RaisePSyIR2AlgTrans._parse_args(call_arg,
+                                                           fp2_node)
                     name = fp2_node.children[0].string
                     try:
                         calls.append(factory.create(name, table, args))
                     except KeyError:
                         # No match for a builtin so create a user-defined
                         # kernel.
-                        type_symbol = RaiseCall2InvokeTrans._get_symbol(
+                        type_symbol = RaisePSyIR2AlgTrans._get_symbol(
                             call, fp2_node)
                         self._specialise_symbol(type_symbol)
                         calls.append(LFRicKernelFunctor.create(type_symbol,
@@ -107,4 +107,4 @@ class LFRicRaiseCall2InvokeTrans(RaiseCall2InvokeTrans):
         call.replace_with(invoke_call)
 
 
-__all__ = ['LFRicRaiseCall2InvokeTrans']
+__all__ = ['RaisePSyIR2LFRicAlgTrans']

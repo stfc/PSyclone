@@ -38,8 +38,10 @@
 import os
 import pytest
 
+from fparser import api as fpapi
 from psyclone.domain.lfric import KernCallInvokeArgList
 from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
+from psyclone.dynamo0p3 import DynKern
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Container, Routine
 from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol, DeferredType,
@@ -88,19 +90,19 @@ def create_alg_fixture():
     return LFRicAlg()
 
 
-def test_create_alg_mod_wrong_arg_type(lfric_alg):
+def test_create_alg_routine_wrong_arg_type(lfric_alg):
     '''
-    Test that _create_alg_mod() rejects arguments of the wrong type.
+    Test that create_alg_routine() rejects arguments of the wrong type.
     '''
     with pytest.raises(TypeError) as err:
-        lfric_alg._create_alg_mod(5)
+        lfric_alg.create_alg_routine(5)
     assert ("Supplied routine name must be a str but got 'int'" in
             str(err.value))
 
 
-def test_create_alg_mod(lfric_alg, fortran_writer):
-    ''' Test the correct operation of _create_alg_mod(). '''
-    psyir = lfric_alg._create_alg_mod("my_test_alg")
+def test_create_alg_routine(lfric_alg, fortran_writer):
+    ''' Test the correct operation of create_alg_routine(). '''
+    psyir = lfric_alg.create_alg_routine("my_test_alg")
     assert isinstance(psyir, Container)
 
     # TODO #284 ideally we'd test that the generated code compiles but that
@@ -112,7 +114,7 @@ def test_create_alg_mod(lfric_alg, fortran_writer):
     assert "use field_mod, only : field_type" in gen
     assert "use function_space_mod, only : function_space_type" in gen
     assert ("use function_space_collection_mod, only : "
-            "function_space_collection" in gen)
+            "function_space_collection\n" in gen)
     assert "use mesh_mod, only : mesh_type" in gen
     assert "type(mesh_type), pointer, intent(in) :: mesh" in gen
     assert "type(field_type), dimension(3), intent(in), optional :: chi" in gen
@@ -178,7 +180,7 @@ def test_initialise_field(lfric_alg, prog, fortran_writer):
     lfric_alg.initialise_field(prog, sym, "w2")
     gen = fortran_writer(prog)
     for idx in range(1, 4):
-        assert (f"call fieldv2({idx}) % initialise(vector_space="
+        assert (f"call fieldv2({idx}_i_def) % initialise(vector_space="
                 f"vector_space_w2_ptr, name='fieldv2')" in gen)
     # Third - invalid type.
     sym._datatype = ScalarType(ScalarType.Intrinsic.INTEGER, 4)
@@ -232,6 +234,52 @@ def test_initialise_quadrature_unsupported_shape(lfric_alg, prog):
         lfric_alg.initialise_quadrature(prog, sym, "gh_quadrature_xyz")
     assert ("Initialisation for quadrature of type 'gh_quadrature_xyz' is "
             "not yet implemented." in str(err.value))
+
+
+def test_kernel_from_metadata(lfric_alg):
+    '''
+    Tests for the kernel_from_metadata() utility.
+
+    '''
+    # Invalid parse tree should raise an error.
+    with pytest.raises(ValueError) as err:
+        lfric_alg.kernel_from_metadata("not fortran", "john")
+    assert ("Failed to find kernel 'john' in supplied code: 'not fortran'. "
+            "Is it a valid LFRic kernel?" in str(err.value))
+    code = '''\
+module testkern_mod
+
+  use argument_mod
+  use fs_continuity_mod
+  use kernel_mod
+  use constants_mod
+
+  implicit none
+
+  type, extends(kernel_type) :: testkern_type
+     type(arg_type), dimension(2) :: meta_args =        &
+          (/ arg_type(gh_scalar, gh_real, gh_read),     &
+             arg_type(gh_field,  gh_real, gh_inc,  w1)  &
+           /)
+     integer :: operates_on = cell_column
+   contains
+     procedure, nopass :: code => testkern_code
+  end type testkern_type
+
+contains
+
+  subroutine testkern_code()
+  end subroutine testkern_code
+end module testkern_mod
+'''
+    # Valid parse tree but wrong name.
+    ptree = fpapi.parse(code)
+    with pytest.raises(ValueError) as err:
+        lfric_alg.kernel_from_metadata(ptree, "john")
+    assert "Failed to find kernel 'john' in supplied code: '" in str(err.value)
+    # Valid parse tree and correct name.
+    kern = lfric_alg.kernel_from_metadata(ptree, "testkern_type")
+    assert isinstance(kern, DynKern)
 
 
 def test_construct_kernel_args(lfric_alg, prog, dynkern, fortran_writer):
@@ -298,6 +346,7 @@ def test_create_from_kernel_with_scalar(lfric_alg, fortran_writer):
                                                       "testkern_mod.F90"))
     code = fortran_writer(psyir)
     assert "module test_mod" in code
+    assert "use constants_mod, only : i_def, r_def" in code
     assert "real(kind=r_def) :: rscalar_1" in code
     assert ("    rscalar_1 = 1_i_def\n"
             "    call invoke(setval_c(field_2, 1.0_r_def), "
@@ -316,6 +365,7 @@ def test_create_from_kernel_with_vector(lfric_alg, fortran_writer):
         os.path.join(BASE_PATH,
                      "testkern_coord_w0_mod.f90"))
     code = fortran_writer(psyir)
+    assert "use constants_mod, only : i_def, r_def" in code
     assert '''\
     type(field_type) :: field_1
     type(field_type), dimension(3) :: field_2
@@ -324,11 +374,11 @@ def test_create_from_kernel_with_vector(lfric_alg, fortran_writer):
 
     assert ("    call field_1 % initialise(vector_space=vector_space_w0_ptr, "
             "name='field_1')\n"
-            "    call field_2(1) % initialise(vector_space="
+            "    call field_2(1_i_def) % initialise(vector_space="
             "vector_space_w0_ptr, name='field_2')\n"
-            "    call field_2(2) % initialise(vector_space="
+            "    call field_2(2_i_def) % initialise(vector_space="
             "vector_space_w0_ptr, name='field_2')\n"
-            "    call field_2(3) % initialise(vector_space="
+            "    call field_2(3_i_def) % initialise(vector_space="
             "vector_space_w0_ptr, name='field_2')\n"
             "    call field_3 % initialise(vector_space=vector_space_w0_ptr, "
             "name='field_3')\n"

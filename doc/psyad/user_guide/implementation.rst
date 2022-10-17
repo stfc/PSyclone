@@ -537,9 +537,7 @@ Test Harness
 In addition to generating the adjoint of a tangent-linear kernel, PSyAD
 is also able to :ref:`generate <test_harness_gen>` a test harness for
 that kernel that verifies that the generated adjoint is mathematically
-correct. Currently this option is only available for generic subroutines
-since LFRic kernels require arrays containing geometric information and
-look-up maps, both of which require special handling (Issue #1782).
+correct.
 
 This test harness code must perform the following steps:
 
@@ -560,12 +558,14 @@ Initialisation
 
 All arguments to the TL kernel are initialised with pseudo-random numbers
 in the interval :math:`[0.0,1.0]` using the Fortran `random_number` intrinsic
-function.
+function. If the LFRic API is selected then only scalar and field arguments
+are initialised in this way since arguments such as dof-maps contain
+essential information derived from the model configuration.
 
-.. note:: this initialisation will not be correct when a kernel contains
-	  indirection and is passed a mapping array. In such cases the mapping
-	  array will need initialising with meaningful values. This is the
-	  subject of Issue #1782.
+.. note:: Currently this means that fields containing geometric information
+	  such as coordinates or panel IDs are overwritten with pseudo-random
+	  data and consequently the test harness will not work for kernels
+	  with those arguments. Issue #1708 will address this.
 
 Inner Products
 --------------
@@ -581,6 +581,10 @@ latter will remain constant for both the TL and adjoint kernel calls
 they can be included in the inner-product compuation without affecting the
 correctness test). It is likely that this will require refinement in future,
 e.g. for kernels that have non-numeric arguments.
+
+For the LFRic API, only scalar and field arguments are currently included in
+the inner-product calculation. Issue #1864 will extend this to operator
+arguments.
 
 Comparing the Inner Products
 ----------------------------
@@ -604,11 +608,12 @@ there is an error and one of the inner products is zero or less than
 `tiny(1.0)`.
 
 By default, the overall test tolerance is set to `1500.0`. This is
-currently set as a constant in the `psyclone.psyad.tl2ad` module but
+currently set as a constant in the
+`psyclone.psyad.domain.common.adjoint_utils` module but
 will eventually be exposed as a configuration option (this is the
 subject of issue #1346).  This value is the one arrived at over time
 by the Met Office in the current adjoint-testing code. In that code,
-the vector of variables can be of order 200M in length (since it
+the vector of variables can be of order 200 million in length (since it
 involves values at all points of the 3D mesh) and therefore there is
 plenty of scope for numerical errors to accumulate. Whether this value
 is appropriate for LFRic kernels is yet to be determined.
