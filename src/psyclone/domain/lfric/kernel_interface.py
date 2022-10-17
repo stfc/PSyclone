@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,15 +31,14 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
+# Author R. W. Ford, STFC Daresbury Lab
 # Modified: I. Kavcic, Met Office
+#           A. R. Porter, STFC Daresbury Lab
 
 '''This module creates the expected arguments for an LFRic coded
 kernel based on the kernel metadata.
 
 '''
-from __future__ import absolute_import
-import six
 from psyclone.domain.lfric import ArgOrdering, LFRicConstants
 from psyclone.domain.lfric import psyir as lfric_psyir
 from psyclone.psyir.symbols import SymbolTable, ArgumentInterface
@@ -225,7 +224,7 @@ class KernelInterface(ArgOrdering):
         '''
         fs_name = argvect.function_space.orig_name
         undf_symbol = self._symbol_table.find_or_create_tag(
-            "undf_{0}".format(fs_name), fs=fs_name,
+            f"undf_{fs_name}", fs=fs_name,
             symbol_type=lfric_psyir.NumberOfUniqueDofsDataSymbol,
             interface=self._read_access)
 
@@ -234,14 +233,17 @@ class KernelInterface(ArgOrdering):
             field_class = self.vector_field_mapping[
                 argvect.intrinsic_type]
         except KeyError as info:
-            message = ("kernel interface does not support a vector field of "
-                       "type '{0}'.".format(argvect.intrinsic_type))
-            six.raise_from(NotImplementedError(message), info)
+            message = (f"kernel interface does not support a vector field of "
+                       f"type '{argvect.intrinsic_type}'.")
+            raise NotImplementedError(message) from info
         for idx in range(argvect.vector_size):
-            tag = "{0}_v{1}".format(argvect.name, idx)
+            tag = f"{argvect.name}_v{idx}"
             field_data_symbol = self._symbol_table.find_or_create_tag(
                 tag, symbol_type=field_class, dims=[Reference(undf_symbol)],
                 fs=fs_name, interface=interface)
+
+            self._arg_index_to_metadata_index[len(self._arglist)] = (
+                argvect.metadata_index)
             self._arglist.append(field_data_symbol)
 
     def field(self, arg, var_accesses=None):
@@ -263,19 +265,22 @@ class KernelInterface(ArgOrdering):
         '''
         fs_name = arg.function_space.orig_name
         undf_symbol = self._symbol_table.find_or_create_tag(
-            "undf_{0}".format(fs_name),
+            f"undf_{fs_name}",
             symbol_type=lfric_psyir.NumberOfUniqueDofsDataSymbol,
             fs=fs_name, interface=self._read_access)
 
         try:
             field_class = self.field_mapping[arg.intrinsic_type]
         except KeyError as info:
-            message = ("kernel interface does not support a field of type "
-                       "'{0}'.".format(arg.intrinsic_type))
-            six.raise_from(NotImplementedError(message), info)
+            message = (f"kernel interface does not support a field of type "
+                       f"'{arg.intrinsic_type}'.")
+            raise NotImplementedError(message) from info
         field_data_symbol = self._symbol_table.find_or_create_tag(
             arg.name, interface=ArgumentInterface(INTENT_MAPPING[arg.intent]),
             symbol_type=field_class, dims=[Reference(undf_symbol)], fs=fs_name)
+
+        self._arg_index_to_metadata_index[len(self._arglist)] = (
+            arg.metadata_index)
         self._arglist.append(field_data_symbol)
 
     def stencil_unknown_extent(self, arg, var_accesses=None):
@@ -343,12 +348,12 @@ class KernelInterface(ArgOrdering):
         '''
         fs_from_name = arg.function_space_from.orig_name
         ndf_symbol_from = self._symbol_table.find_or_create_tag(
-            "ndf_{0}".format(fs_from_name), fs=fs_from_name,
+            f"ndf_{fs_from_name}", fs=fs_from_name,
             symbol_type=lfric_psyir.NumberOfDofsDataSymbol,
             interface=self._read_access)
         fs_to_name = arg.function_space_to.orig_name
         ndf_symbol_to = self._symbol_table.find_or_create_tag(
-            "ndf_{0}".format(fs_to_name), fs=fs_to_name,
+            f"ndf_{fs_to_name}", fs=fs_to_name,
             symbol_type=lfric_psyir.NumberOfDofsDataSymbol,
             interface=self._read_access)
 
@@ -363,6 +368,9 @@ class KernelInterface(ArgOrdering):
                   Reference(ncells)],
             fs_from=fs_from_name, fs_to=fs_to_name,
             interface=ArgumentInterface(INTENT_MAPPING[arg.intent]))
+
+        self._arg_index_to_metadata_index[len(self._arglist)] = (
+            arg.metadata_index)
         self._arglist.append(op_arg_symbol)
 
     def cma_operator(self, arg, var_accesses=None):
@@ -406,9 +414,11 @@ class KernelInterface(ArgOrdering):
                 interface=ArgumentInterface(INTENT_MAPPING[scalar_arg.intent]))
         except KeyError as info:
             message = (
-                "scalar of type '{0}' not implemented in KernelInterface "
-                "class.".format(scalar_arg.intrinsic_type))
-            six.raise_from(NotImplementedError(message), info)
+                f"scalar of type '{scalar_arg.intrinsic_type}' not implemented"
+                f" in KernelInterface class.")
+            raise NotImplementedError(message) from info
+        self._arg_index_to_metadata_index[len(self._arglist)] = (
+            scalar_arg.metadata_index)
         self._arglist.append(symbol)
 
     def fs_common(self, function_space, var_accesses=None):
