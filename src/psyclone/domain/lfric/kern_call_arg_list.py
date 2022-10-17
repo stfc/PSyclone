@@ -625,7 +625,7 @@ class KernCallArgList(ArgOrdering):
         if self._kern.iterates_over == 'domain':
             # This kernel takes responsibility for iterating over cells so
             # pass the whole dofmap.
-            sym = self.add_array_reference(map_name, [":", ":", ":"],
+            sym = self.add_array_reference(map_name, [":", ":"],
                                            "integer")
             self.append(sym.name, var_accesses, var_access_name=sym.name)
         else:
