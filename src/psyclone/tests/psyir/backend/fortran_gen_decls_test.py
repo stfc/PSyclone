@@ -260,6 +260,7 @@ def test_gen_decls_routine(fortran_writer):
     '''
     # Check a user-defined routine symbol with an (unsupported)
     # ArgumentInterface
+    symbol_table = SymbolTable()
     rsym = RoutineSymbol("arg_sub", interface=ArgumentInterface())
     symbol_table.add(rsym)
     with pytest.raises(VisitorError) as info:
