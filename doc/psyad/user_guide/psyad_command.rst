@@ -177,6 +177,8 @@ produced for such a kernel is in the form of an Algorithm subroutine
 that must be called from within a full LFRic mini-app. Please see the
 :ref:`psyad_examples` for more information.
 
+.. _geom_kernel_args:
+
 Kernel Arguments Containing Geometric Information
 +++++++++++++++++++++++++++++++++++++++++++++++++
 
