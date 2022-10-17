@@ -259,12 +259,19 @@ class KernCallArgList(ArgOrdering):
         '''
         super().scalar(scalar_arg, var_accesses)
         if scalar_arg.is_literal:
+            literal = scalar_arg.name
             if scalar_arg.intrinsic_type == "integer":
                 datatype = psyir.LfricIntegerScalarDataType()
+                # TODO #1919: there should be a better way to avoid
+                # hardcoding the name
+                literal = literal.replace("_i_def", "")
             else:
                 datatype = psyir.LfricRealScalarDataType()
+                # TODO #1919: there should be a better way to avoid
+                # hardcoding the name
+                literal = literal.replace("_r_def", "")
 
-            self.psyir_append(Literal(scalar_arg.name, datatype))
+            self.psyir_append(Literal(literal, datatype))
         else:
             sym = self._symtab.lookup(scalar_arg.name)
             self.psyir_append(Reference(sym))

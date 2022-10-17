@@ -49,7 +49,7 @@ program int_real_literal_scalar
   type(quadrature_xyoz_type) :: qr
 
   call invoke(                                       &
-       testkern_qr_type(f1, f2, m1, 1.0, m2, 2, qr) &
+       testkern_qr_type(f1, f2, m1, 1.0_r_def, m2, 2_i_def, qr) &
           )
 
 end program int_real_literal_scalar

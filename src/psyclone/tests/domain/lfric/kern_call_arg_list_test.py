@@ -346,9 +346,9 @@ def test_kerncallarglist_scalar_literal(fortran_writer):
     create_arg_list = KernCallArgList(schedule.kernels()[0])
     create_arg_list.generate()
     assert create_arg_list._arglist == [
-        'nlayers', 'f1_proxy%data', 'f2_proxy%data', 'm1_proxy%data', '1.0',
-        'm2_proxy%data', '2', 'ndf_w1', 'undf_w1', 'map_w1(:,cell)',
-        'basis_w1_qr', 'ndf_w2', 'undf_w2', 'map_w2(:,cell)',
+        'nlayers', 'f1_proxy%data', 'f2_proxy%data', 'm1_proxy%data',
+        '1.0_r_def', 'm2_proxy%data', '2_i_def', 'ndf_w1', 'undf_w1',
+        'map_w1(:,cell)', 'basis_w1_qr', 'ndf_w2', 'undf_w2', 'map_w2(:,cell)',
         'diff_basis_w2_qr', 'ndf_w3', 'undf_w3', 'map_w3(:,cell)',
         'basis_w3_qr', 'diff_basis_w3_qr', 'np_xy_qr', 'np_z_qr',
         'weights_xy_qr', 'weights_z_qr']
