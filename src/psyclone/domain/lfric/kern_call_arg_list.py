@@ -270,7 +270,9 @@ class KernCallArgList(ArgOrdering):
                 # TODO #1919: there should be a better way to avoid
                 # hardcoding the name
                 literal = literal.replace("_r_def", "")
-
+            # TODO #1920: Negative literals have a space, which breaks
+            # the re test inside of the Literal constructor.
+            literal = literal.replace(" ", "")
             self.psyir_append(Literal(literal, datatype))
         else:
             sym = self._symtab.lookup(scalar_arg.name)
