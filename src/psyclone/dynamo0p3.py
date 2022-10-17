@@ -9119,7 +9119,6 @@ class DynKernelArgument(KernelArgument):
         self._vector_size = arg_meta_data.vector_size
         self._argument_type = arg_meta_data.argument_type
         self._stencil = None
-        self._metadata_idx = arg_meta_data.metadata_index
         if arg_meta_data.mesh:
             self._mesh = arg_meta_data.mesh.lower()
         else:
@@ -9592,15 +9591,6 @@ class DynKernelArgument(KernelArgument):
         if self._vector_size > 1:
             return self._name+"(1)"
         return self._name
-
-    @property
-    def metadata_index(self):
-        '''
-        :returns: the position of the corresponding argument descriptor in \
-                  the kernel metadata.
-        :rtype: int
-        '''
-        return self._metadata_idx
 
     def psyir_expression(self):
         '''
