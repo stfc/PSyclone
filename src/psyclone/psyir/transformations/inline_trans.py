@@ -38,13 +38,12 @@
 This module contains the InlineTrans transformation.
 
 '''
-
 from psyclone.errors import InternalError, LazyString
 from psyclone.psyGen import Transformation
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
     ArrayReference, Call, Range, Routine, Reference, CodeBlock,
-    Return, Literal, Assignment)
+    Return, Literal, Assignment, Container)
 from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol, ScalarType,
                                     ImportInterface)
 from psyclone.psyir.transformations.transformation_error import (
@@ -473,11 +472,8 @@ class InlineTrans(Transformation):
 
     @staticmethod
     def _find_routine(call_node):
-        '''
-        Searches for the definition of the routine that is being called by
+        '''Searches for the definition of the routine that is being called by
         the supplied Call.
-
-        Limited to routines that are present in the same source file.
 
         :param call_node: the Call that is to be inlined.
         :type call_node: :py:class:`psyclone.psyir.nodes.Call`
@@ -485,29 +481,81 @@ class InlineTrans(Transformation):
         :returns: the PSyIR for the target routine.
         :rtype: :py:class:`psyclone.psyir.nodes.Routine`
 
-        :raises TransformationError: if the RoutineSymbol is not local.
-        :raises TransformationError: if the routine symbol is local but the \
-            definition cannot be found.
+        :raises TransformationError: if the routine definition cannot be found.
 
         '''
         name = call_node.routine.name
         routine_sym = call_node.scope.symbol_table.lookup(name)
+
         if routine_sym.is_local:
             table = routine_sym.find_symbol_table(call_node)
             for routine in table.node.walk(Routine):
                 if routine.name == name:
                     return routine
-        else:
-            from psyclone.psyir.nodes import FileContainer
-            file_container = call_node.ancestor(FileContainer)
-            # TODO: Check what happens if there is no FileContainer
-            for routine in file_container.walk(Routine):
-                if routine.name == name:
+
+        elif routine_sym.is_unresolved:
+
+            # First check for any wildcard imports and see if they can
+            # be used to resolve the symbol.
+            current_table = call_node.scope.symbol_table
+            while current_table:
+                for container_symbol in current_table.containersymbols:
+                    if container_symbol.wildcard_import:
+                        routine = InlineTrans._find_routine_in_container(
+                            call_node, container_symbol)
+                        if routine:
+                            return routine
+                current_table = current_table.parent_symbol_table()
+
+            # Next check for any "raw" Routines, i.e. ones that are not
+            # in a Container.  Such Routines would exist in the PSyIR
+            # as a child of a FileContainer (if the PSyIR contains a
+            # FileContainer). Note, if the PSyIR does contain a
+            # FileContainer, it will be the root node of the PSyIR.
+            for routine in call_node.root.children:
+                if isinstance(routine, Routine) and routine.name == name:
                     return routine
+
+        elif routine_sym.is_import:
+            container_symbol = routine_sym.interface.container_symbol
+            routine = InlineTrans._find_routine_in_container(
+                call_node, container_symbol)
+            if routine:
+                return routine
 
         raise TransformationError(
             f"Failed to find the source for routine '{name}' and "
             f"therefore cannot inline it.")
+
+    @staticmethod
+    def _find_routine_in_container(
+            call_node, container_symbol):
+        ''' xxx '''
+        # The required Routine will exist within a Container and
+        # that Container could exist in the PSyIR as a child of a
+        # FileContainer (if the PSyIR contains a
+        # FileContainer). If the PSyIR does contain a
+        # FileContainer, it will be the root node of the PSyIR.
+        #
+        # The PSyIR does not currently capture whether a Routine
+        # within a Container is private or not. The assumption
+        # here is that a matching Routine will not be private.
+        routine_sym = call_node.routine
+        for container in call_node.root.children:
+            if (isinstance(container, Container) and
+                    container.name == container_symbol.name):
+                for routine in container.children:
+                    if (isinstance(routine, Routine) and
+                            routine.name == routine_sym.name):
+                        return routine
+                # The Container has been found but it does not
+                # contain the expected Routine. This could be
+                # because the Routine is imported from another
+                # Container. However, searching for a Routine via
+                # multiple Containers is not supported by this
+                # transformation, so stop the search.
+                return None
+        return None
 
 
 # For AutoAPI auto-documentation generation.
