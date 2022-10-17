@@ -38,6 +38,8 @@ captures the argument values for the LFRic kernel
 REFERENCE_ELEMENT metadata.
 
 '''
+from fparser.two import Fortran2003
+
 from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
 
 
@@ -58,7 +60,7 @@ class MetaRefElementArgMetadata(CommonArgMetadata):
     def create_from_fortran_string(fortran_string):
         ''' xxx '''
         fparser2_tree = MetaRefElementArgMetadata.create_fparser2(
-            fortran_string)
+            fortran_string, Fortran2003.Part_Ref)
         return MetaRefElementArgMetadata.create_from_fparser2(fparser2_tree)
 
     def create_from_fparser2(fparser2_tree):

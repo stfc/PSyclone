@@ -38,11 +38,14 @@ associated with a field argument. Supports the creation, modification
 and Fortran output of a Field argument.
 
 '''
+from fparser.two import Fortran2003
+
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
+from psyclone.domain.lfric.kernel.common_meta_arg_metadata import \
+    CommonMetaArgMetadata
 
 
-class FieldArgMetadata(CommonArgMetadata):
+class FieldArgMetadata(CommonMetaArgMetadata):
     '''Class to capture LFRic kernel metadata information for a field
     argument.
 
@@ -104,7 +107,8 @@ class FieldArgMetadata(CommonArgMetadata):
         :rtype: subclass of :py:class:`psyclone.domain.lfric.kernel.common_arg`
 
         '''
-        fparser2_tree = cls.create_fparser2(fortran_string)
+        fparser2_tree = cls.create_fparser2(
+            fortran_string, Fortran2003.Part_Ref)
         return cls.create_from_fparser2(fparser2_tree)
 
     def fortran_string(self):

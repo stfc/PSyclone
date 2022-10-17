@@ -38,6 +38,8 @@
 '''
 import pytest
 
+from fparser.two import Fortran2003
+
 from psyclone.domain.lfric.kernel.operator_arg_metadata import \
     OperatorArgMetadata
 
@@ -108,9 +110,8 @@ def test_create_from_fortran_string():
     '''
     with pytest.raises(ValueError) as info:
         _ = OperatorArgMetadata.create_from_fortran_string("not valid")
-    assert ("Expected kernel metadata to be a Fortran Part_Ref, with "
-            "the form 'arg_type(...)' but found 'not valid'."
-            in str(info.value))
+    assert ("Expected kernel metadata to be a Fortran Part_Ref, but "
+            "found 'not valid'." in str(info.value))
 
     fortran_string = "arg_type(GH_OPERATOR, GH_REAL, GH_READ, W0, W1)"
     operator_arg = OperatorArgMetadata.create_from_fortran_string(
@@ -133,28 +134,32 @@ def test_create_from_fparser2():
             "Part_Ref object but found type 'str' with value 'hello'."
             in str(info.value))
 
-    fparser2_tree = OperatorArgMetadata.create_fparser2("hello(x)")
+    fparser2_tree = OperatorArgMetadata.create_fparser2(
+        "hello(x)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = OperatorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("Expected kernel metadata to have the name 'arg_type' "
             "and be in the form 'arg_type(...)', but found 'hello(x)'."
             in str(info.value))
 
-    fparser2_tree = OperatorArgMetadata.create_fparser2("arg_type(x)")
+    fparser2_tree = OperatorArgMetadata.create_fparser2(
+        "arg_type(x)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = OperatorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("Expected kernel metadata to have 5 arguments, but "
             "found 1 in 'arg_type(x)'." in str(info.value))
 
     fparser2_tree = OperatorArgMetadata.create_fparser2(
-        "arg_type(GH_OPERATION, GH_REAL, GH_READ, W0, W1)")
+        "arg_type(GH_OPERATION, GH_REAL, GH_READ, W0, W1)",
+        Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = OperatorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("Operators should have GH_OPERATOR as their first metadata "
             "argument, but found 'GH_OPERATION'." in str(info.value))
 
     fparser2_tree = OperatorArgMetadata.create_fparser2(
-        "arg_type(GH_OPERATOR, GH_UNREAL, GH_READ, W0, W1)")
+        "arg_type(GH_OPERATOR, GH_UNREAL, GH_READ, W0, W1)",
+        Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = OperatorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '1' for metadata 'arg_type(GH_OPERATOR, "
@@ -163,7 +168,8 @@ def test_create_from_fparser2():
             "'GH_UNREAL'." in str(info.value))
 
     fparser2_tree = OperatorArgMetadata.create_fparser2(
-        "arg_type(GH_OPERATOR, GH_REAL, GH_ERROR, W0, W1)")
+        "arg_type(GH_OPERATOR, GH_REAL, GH_ERROR, W0, W1)",
+        Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = OperatorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '2' for metadata 'arg_type(GH_OPERATOR, "
@@ -172,7 +178,8 @@ def test_create_from_fparser2():
             "'gh_readwrite'], but found 'GH_ERROR'." in str(info.value))
 
     fparser2_tree = OperatorArgMetadata.create_fparser2(
-        "arg_type(GH_OPERATOR, GH_REAL, GH_READ, XX, W1)")
+        "arg_type(GH_OPERATOR, GH_REAL, GH_READ, XX, W1)",
+        Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = OperatorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '3' for metadata 'arg_type(GH_OPERATOR, "
@@ -182,7 +189,8 @@ def test_create_from_fparser2():
             "'any_w2', 'wchi'], but found 'XX'." in str(info.value))
 
     fparser2_tree = OperatorArgMetadata.create_fparser2(
-        "arg_type(GH_OPERATOR, GH_REAL, GH_READ, W0, YY)")
+        "arg_type(GH_OPERATOR, GH_REAL, GH_READ, W0, YY)",
+        Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = OperatorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '4' for metadata 'arg_type(GH_OPERATOR, "
@@ -192,7 +200,8 @@ def test_create_from_fparser2():
             "'any_w2', 'wchi'], but found 'YY'." in str(info.value))
 
     fparser2_tree = OperatorArgMetadata.create_fparser2(
-        "arg_type(GH_OPERATOR, GH_REAL, GH_READ, W0, W1)")
+        "arg_type(GH_OPERATOR, GH_REAL, GH_READ, W0, W1)",
+        Fortran2003.Part_Ref)
     operator_arg = OperatorArgMetadata.create_from_fparser2(fparser2_tree)
     assert operator_arg.form == "GH_OPERATOR"
     assert operator_arg._datatype == "GH_REAL"

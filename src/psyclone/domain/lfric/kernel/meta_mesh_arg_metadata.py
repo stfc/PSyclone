@@ -38,6 +38,8 @@ captures the argument values for the LFRic kernel
 META_MESH metadata.
 
 '''
+from fparser.two import Fortran2003
+
 from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
 
 
@@ -57,7 +59,8 @@ class MetaMeshArgMetadata(CommonArgMetadata):
 
     def create_from_fortran_string(fortran_string):
         ''' xxx '''
-        fparser2_tree = MetaMeshArgMetadata.create_fparser2(fortran_string)
+        fparser2_tree = MetaMeshArgMetadata.create_fparser2(
+            fortran_string, Fortran2003.Part_Ref)
         return MetaMeshArgMetadata.create_from_fparser2(fparser2_tree)
 
     def create_from_fparser2(fparser2_tree):

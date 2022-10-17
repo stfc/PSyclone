@@ -38,6 +38,8 @@
 '''
 import pytest
 
+from fparser.two import Fortran2003
+
 from psyclone.domain.lfric.kernel.field_arg_metadata import FieldArgMetadata
 
 
@@ -107,9 +109,8 @@ def test_create_from_fortran_string():
     '''
     with pytest.raises(ValueError) as info:
         _ = FieldArgMetadata.create_from_fortran_string("not valid")
-    assert ("Expected kernel metadata to be a Fortran Part_Ref, with "
-            "the form 'arg_type(...)' but found 'not valid'."
-            in str(info.value))
+    assert ("Expected kernel metadata to be a Fortran Part_Ref, but found "
+            "'not valid'." in str(info.value))
 
     fortran_string = "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)"
     field_arg = FieldArgMetadata.create_from_fortran_string(fortran_string)
@@ -130,28 +131,30 @@ def test_create_from_fparser2():
             "Part_Ref object but found type 'str' with value 'hello'."
             in str(info.value))
 
-    fparser2_tree = FieldArgMetadata.create_fparser2("hello(x)")
+    fparser2_tree = FieldArgMetadata.create_fparser2(
+        "hello(x)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = FieldArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("Expected kernel metadata to have the name 'arg_type' "
             "and be in the form 'arg_type(...)', but found 'hello(x)'."
             in str(info.value))
 
-    fparser2_tree = FieldArgMetadata.create_fparser2("arg_type(x)")
+    fparser2_tree = FieldArgMetadata.create_fparser2(
+        "arg_type(x)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = FieldArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("Expected kernel metadata to have 4 arguments, but "
             "found 1 in 'arg_type(x)'." in str(info.value))
 
     fparser2_tree = FieldArgMetadata.create_fparser2(
-        "arg_type(GH_FEELED, GH_REAL, GH_READ, W0)")
+        "arg_type(GH_FEELED, GH_REAL, GH_READ, W0)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = FieldArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("Fields should have GH_FIELD as their first metadata argument, "
             "but found 'GH_FEELED'." in str(info.value))
 
     fparser2_tree = FieldArgMetadata.create_fparser2(
-        "arg_type(GH_FIELD, GH_UNREAL, GH_READ, W0)")
+        "arg_type(GH_FIELD, GH_UNREAL, GH_READ, W0)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = FieldArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '1' for metadata 'arg_type(GH_FIELD, "
@@ -160,7 +163,7 @@ def test_create_from_fparser2():
             "'GH_UNREAL'." in str(info.value))
 
     fparser2_tree = FieldArgMetadata.create_fparser2(
-        "arg_type(GH_FIELD, GH_REAL, GH_ERROR, W0)")
+        "arg_type(GH_FIELD, GH_REAL, GH_ERROR, W0)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = FieldArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '2' for metadata 'arg_type(GH_FIELD, GH_REAL, "
@@ -170,7 +173,8 @@ def test_create_from_fparser2():
             in str(info.value))
 
     fparser2_tree = FieldArgMetadata.create_fparser2(
-        "arg_type(GH_FIELD, GH_REAL, GH_READ, DOUBLE_U_ZERO)")
+        "arg_type(GH_FIELD, GH_REAL, GH_READ, DOUBLE_U_ZERO)",
+        Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = FieldArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '3' for metadata 'arg_type(GH_FIELD, GH_REAL, "
@@ -188,7 +192,7 @@ def test_create_from_fparser2():
             in str(info.value))
 
     fparser2_tree = FieldArgMetadata.create_fparser2(
-        "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)")
+        "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)", Fortran2003.Part_Ref)
     field_arg = FieldArgMetadata.create_from_fparser2(fparser2_tree)
     assert field_arg.form == "GH_FIELD"
     assert field_arg._datatype == "GH_REAL"

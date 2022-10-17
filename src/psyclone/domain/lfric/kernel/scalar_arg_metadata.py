@@ -38,11 +38,14 @@ associated with a scalar argument. Supports the creation, modification
 and Fortran output of a Scalar argument.
 
 '''
+from fparser.two import Fortran2003
+
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
+from psyclone.domain.lfric.kernel.common_meta_arg_metadata import \
+    CommonMetaArgMetadata
 
 
-class ScalarArgMetadata(CommonArgMetadata):
+class ScalarArgMetadata(CommonMetaArgMetadata):
     '''Class to capture LFRic kernel metadata information for a scalar
     argument.
 
@@ -92,7 +95,8 @@ class ScalarArgMetadata(CommonArgMetadata):
         :rtype: subclass of :py:class:`psyclone.domain.lfric.kernel.common_arg`
 
         '''
-        fparser2_tree = cls.create_fparser2(fortran_string)
+        fparser2_tree = cls.create_fparser2(
+            fortran_string, Fortran2003.Part_Ref)
         return cls.create_from_fparser2(fparser2_tree)
 
     def fortran_string(self):

@@ -139,7 +139,7 @@ class InterGridArgMetadata(FieldArgMetadata):
 
         '''
         fparser2_tree = cls.create_fparser2(
-            fortran_string, encoding=Fortran2003.Structure_Constructor)
+            fortran_string, Fortran2003.Structure_Constructor)
         return cls.create_from_fparser2(fparser2_tree)
 
     def fortran_string(self):

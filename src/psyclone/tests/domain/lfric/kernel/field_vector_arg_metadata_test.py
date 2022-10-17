@@ -38,6 +38,8 @@
 '''
 import pytest
 
+from fparser.two import Fortran2003
+
 from psyclone.domain.lfric.kernel.field_vector_arg_metadata import \
     FieldVectorArgMetadata
 
@@ -105,9 +107,8 @@ def test_create_from_fortran_string():
     '''
     with pytest.raises(ValueError) as info:
         _ = FieldVectorArgMetadata.create_from_fortran_string("not valid")
-    assert ("Expected kernel metadata to be a Fortran Part_Ref, with "
-            "the form 'arg_type(...)' but found 'not valid'."
-            in str(info.value))
+    assert ("Expected kernel metadata to be a Fortran Part_Ref, but found "
+            "'not valid'." in str(info.value))
 
     fortran_string = "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)"
     field_arg = FieldVectorArgMetadata.create_from_fortran_string(
@@ -131,21 +132,21 @@ def test_create_from_fparser2():
             in str(info.value))
 
     fparser2_tree = FieldVectorArgMetadata.create_fparser2(
-        "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)")
+        "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)", Fortran2003.Part_Ref)
     with pytest.raises(TypeError) as info:
         _ = FieldVectorArgMetadata.create_from_fparser2(fparser2_tree)
     assert("The vector length metadata should be in the form "
            "'form*vector_length' but found 'GH_FIELD'." in str(info.value))
 
     fparser2_tree = FieldVectorArgMetadata.create_fparser2(
-        "arg_type(GH_FEELED*3, GH_REAL, GH_READ, W0)")
+        "arg_type(GH_FEELED*3, GH_REAL, GH_READ, W0)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = FieldVectorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("FieldVectors should have GH_FIELD in their first metadata "
             "argument, but found 'GH_FEELED'." in str(info.value))
 
     fparser2_tree = FieldVectorArgMetadata.create_fparser2(
-        "arg_type(GH_FIELD*3, GH_UNREAL, GH_READ, W0)")
+        "arg_type(GH_FIELD*3, GH_UNREAL, GH_READ, W0)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = FieldVectorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '1' for metadata 'arg_type(GH_FIELD * 3, "
@@ -154,7 +155,7 @@ def test_create_from_fparser2():
             "'GH_UNREAL'." in str(info.value))
 
     fparser2_tree = FieldVectorArgMetadata.create_fparser2(
-        "arg_type(GH_FIELD*3, GH_REAL, GH_ERROR, W0)")
+        "arg_type(GH_FIELD*3, GH_REAL, GH_ERROR, W0)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = FieldVectorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '2' for metadata 'arg_type(GH_FIELD * 3, "
@@ -164,7 +165,8 @@ def test_create_from_fparser2():
             in str(info.value))
 
     fparser2_tree = FieldVectorArgMetadata.create_fparser2(
-        "arg_type(GH_FIELD*3, GH_REAL, GH_READ, DOUBLE_U_ZERO)")
+        "arg_type(GH_FIELD*3, GH_REAL, GH_READ, DOUBLE_U_ZERO)",
+        Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = FieldVectorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '3' for metadata 'arg_type(GH_FIELD * 3, "
@@ -182,7 +184,7 @@ def test_create_from_fparser2():
             "but found 'DOUBLE_U_ZERO'." in str(info.value))
 
     fparser2_tree = FieldVectorArgMetadata.create_fparser2(
-        "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)")
+        "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)", Fortran2003.Part_Ref)
     field_vector_arg = FieldVectorArgMetadata.create_from_fparser2(
         fparser2_tree)
     assert field_vector_arg.form == "GH_FIELD"

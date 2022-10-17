@@ -37,6 +37,8 @@
 the argument values for the LFRic kernel META_FUNCS metadata.
 
 '''
+from fparser.two import Fortran2003
+
 from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
 
 
@@ -59,7 +61,8 @@ class MetaFuncsArgMetadata(CommonArgMetadata):
 
     def create_from_fortran_string(fortran_string):
         ''' xxx '''
-        fparser2_tree = MetaFuncsArgMetadata.create_fparser2(fortran_string)
+        fparser2_tree = MetaFuncsArgMetadata.create_fparser2(
+            fortran_string, Fortran2003.Part_Ref)
         return MetaFuncsArgMetadata.create_from_fparser2(fparser2_tree)
 
     def create_from_fparser2(fparser2_tree):

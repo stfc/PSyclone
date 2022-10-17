@@ -38,6 +38,8 @@ associated with a field vector argument. Supports the creation, modification
 and Fortran output of a Field Vector argument.
 
 '''
+from fparser.two import Fortran2003
+
 from psyclone.domain.lfric.kernel.field_arg_metadata import FieldArgMetadata
 
 
@@ -84,7 +86,8 @@ class FieldVectorArgMetadata(FieldArgMetadata):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.FieldVectorArgMetadata`
 
         '''
-        fparser2_tree = FieldVectorArgMetadata.create_fparser2(fortran_string)
+        fparser2_tree = FieldVectorArgMetadata.create_fparser2(
+            fortran_string, Fortran2003.Part_Ref)
         return FieldVectorArgMetadata.create_from_fparser2(fparser2_tree)
 
     @staticmethod
