@@ -623,7 +623,8 @@ class KernCallArgList(ArgOrdering):
         if self._kern.iterates_over == 'domain':
             # This kernel takes responsibility for iterating over cells so
             # pass the whole dofmap.
-            sym = self.add_array_reference(map_name, [":", ":"], "integer")
+            sym = self.add_array_reference(map_name, [":", ":", ":"],
+                                           "integer")
             self.append(sym.name, var_accesses, var_access_name=sym.name)
         else:
             # Pass the dofmap for the cell column
@@ -655,8 +656,8 @@ class KernCallArgList(ArgOrdering):
             sym = self.add_integer_reference(function_space.undf_name)
             self.append(sym.name, var_accesses)
             map_name = function_space.map_name
-            self.append(map_name, var_accesses)
-            self.add_integer_reference(map_name)
+            sym = self.add_array_reference(map_name, [":", ":"], "integer")
+            self.append(sym.name, var_accesses)
         else:
             # For the coarse mesh we only need undf and the dofmap for
             # the current column
