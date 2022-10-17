@@ -156,8 +156,9 @@ def test_create_from_fparser2():
         _ = FieldVectorArg.create_from_fparser2(fparser2_tree)
     assert ("At argument index '2' for metadata 'arg_type(GH_FIELD * 3, "
             "GH_REAL, GH_ERROR, W0)'. The access descriptor metadata for a "
-            "field should be one of ['gh_read', 'gh_write', 'gh_inc', "
-            "'gh_readinc'], but found 'GH_ERROR'." in str(info.value))
+            "field should be one of ['gh_read', 'gh_write', 'gh_readwrite', "
+            "'gh_inc', 'gh_readinc'], but found 'GH_ERROR'."
+            in str(info.value))
 
     fparser2_tree = FieldVectorArg.create_fparser2(
         "arg_type(GH_FIELD*3, GH_REAL, GH_READ, DOUBLE_U_ZERO)")

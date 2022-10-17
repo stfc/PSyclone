@@ -74,8 +74,8 @@ def test_init_invalid():
     with pytest.raises(ValueError) as info:
         _ = InterGridVectorArg(access="invalid")
     assert ("The access descriptor metadata for a field should be one of "
-            "['gh_read', 'gh_write', 'gh_inc', 'gh_readinc'], but found "
-            "'invalid'." in str(info.value))
+            "['gh_read', 'gh_write', 'gh_readwrite', 'gh_inc', 'gh_readinc'], "
+            "but found 'invalid'." in str(info.value))
 
     with pytest.raises(ValueError) as info:
         _ = InterGridVectorArg(function_space="invalid")
@@ -197,8 +197,8 @@ def test_create_from_fparser2():
     assert ("At argument index '2' for metadata 'arg_type(GH_FIELD * 3, "
             "GH_REAL, GH_RED, W0, mesh_arg = GH_COARSE)'. The access "
             "descriptor metadata for a field should be one of ['gh_read', "
-            "'gh_write', 'gh_inc', 'gh_readinc'], but found 'GH_RED'."
-            in str(info.value))
+            "'gh_write', 'gh_readwrite', 'gh_inc', 'gh_readinc'], but found "
+            "'GH_RED'." in str(info.value))
 
     fparser2_tree = InterGridVectorArg.create_fparser2(
         "arg_type(GH_FIELD*3, GH_REAL, GH_READ, XX, mesh_arg=GH_COARSE)",

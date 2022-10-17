@@ -69,8 +69,8 @@ def test_init_invalid():
     with pytest.raises(ValueError) as info:
         _ = FieldArg(access="invalid")
     assert ("The access descriptor metadata for a field should be one of "
-            "['gh_read', 'gh_write', 'gh_inc', 'gh_readinc'], but found "
-            "'invalid'." in str(info.value))
+            "['gh_read', 'gh_write', 'gh_readwrite', 'gh_inc', 'gh_readinc'],"
+            " but found 'invalid'." in str(info.value))
 
     with pytest.raises(ValueError) as info:
         _ = FieldArg(function_space="invalid")
@@ -165,8 +165,9 @@ def test_create_from_fparser2():
         _ = FieldArg.create_from_fparser2(fparser2_tree)
     assert ("At argument index '2' for metadata 'arg_type(GH_FIELD, GH_REAL, "
             "GH_ERROR, W0)'. The access descriptor metadata for a field "
-            "should be one of ['gh_read', 'gh_write', 'gh_inc', "
-            "'gh_readinc'], but found 'GH_ERROR'." in str(info.value))
+            "should be one of ['gh_read', 'gh_write', 'gh_readwrite', "
+            "'gh_inc', 'gh_readinc'], but found 'GH_ERROR'."
+            in str(info.value))
 
     fparser2_tree = FieldArg.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, DOUBLE_U_ZERO)")
@@ -234,8 +235,8 @@ def test_setter_getter():
     with pytest.raises(ValueError) as info:
         field_arg.access = "invalid"
     assert ("The access descriptor metadata for a field should be one of "
-            "['gh_read', 'gh_write', 'gh_inc', 'gh_readinc'], but found "
-            "'invalid'." in str(info.value))
+            "['gh_read', 'gh_write', 'gh_readwrite', 'gh_inc', 'gh_readinc'], "
+            "but found 'invalid'." in str(info.value))
 
     field_arg.access = "gh_read"
     assert field_arg.access == "gh_read"
