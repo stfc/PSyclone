@@ -343,7 +343,7 @@ class KernCallArgList(ArgOrdering):
                 mode = AccessType.READ
                 sym = self.add_integer_reference(name)
 
-            self.append(name, var_accesses, mode=mode,
+            self.append(sym.name, var_accesses, mode=mode,
                         metadata_posn=arg.metadata_index)
 
     def field_vector(self, argvect, var_accesses=None):
