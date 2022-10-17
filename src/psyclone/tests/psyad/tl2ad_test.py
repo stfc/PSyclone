@@ -157,20 +157,16 @@ def test_generate_adjoint_str_lfric_api(cmd_args):
     assert "subroutine adj_testkern_code" in result.lower()
 
 
-def test_generate_adjoint_str_function():
+def test_generate_adjoint_str_function(cmd_args):
     '''Test that an exception is raised if a function is found.'''
     tl_code = (
         "real function test(a)\n"
         "  real :: a\n"
         "  test = a\n"
         "end function test\n")
-    args = argparse.Namespace()
-    args.api = None
-    args.active = ["a", "test"]
-    args.gen_test = False
-    args.test_filename = ""
+    cmd_args.active = ["a", "test"]
     with pytest.raises(NotImplementedError) as info:
-        _, _ = generate_adjoint_str(tl_code, args)
+        _, _ = generate_adjoint_str(tl_code, cmd_args)
     assert ("PSyAD does not support tangent-linear code written as a "
             "function. Please re-write 'test' as a subroutine."
             in str(info.value))
