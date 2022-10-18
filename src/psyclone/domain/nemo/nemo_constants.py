@@ -44,7 +44,7 @@ from psyclone.configuration import Config
 
 
 # pylint: disable=too-few-public-methods
-class NemoConstants(object):
+class NemoConstants():
     '''This class stores all Nemo constants.
     It stores all values in class variables (to avoid re-evaluating them).
     At this stage it only contains the variables that might be used in

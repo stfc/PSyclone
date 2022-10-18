@@ -216,9 +216,9 @@ def test_search_path(monkeypatch, tmpdir):
     # to fail to find any file and thus raise an error. The error msg
     # then gives us the list of locations searched.
     monkeypatch.setattr("os.path.isfile", lambda arg: False)
+    # Store our working directory
+    oldpwd = tmpdir.chdir()
     try:
-        # Store our working directory
-        oldpwd = tmpdir.chdir()
         cwd = str(tmpdir)
         # Test when (we appear to be) both inside and outside a virtual
         # environment
@@ -243,8 +243,10 @@ def test_search_path(monkeypatch, tmpdir):
                                                   "psyclone"))
             assert share_idx != -1
             # share directory within package installation directory
-            pkg_share_dir = [os.path.join(os.path.dirname(psyclone_path),
-                "share", "psyclone") for psyclone_path in psyclone.__path__]
+            pkg_share_dir = [
+                os.path.join(
+                    os.path.dirname(psyclone_path), "share", "psyclone")
+                for psyclone_path in psyclone.__path__]
             pkg_share_idx = min(err_msg.find(dir) for dir in pkg_share_dir)
             assert pkg_share_idx != -1
             assert cwd_idx < home_idx
@@ -265,13 +267,14 @@ def test_search_env(monkeypatch, tmpdir):
     environment variable. It is important to use monkeypatch for manipulating
     PSYCLONE_CONFIG, since all other tests rely on this variable
     (see conftest.setup_psyclone_config).'''
+    oldpwd = tmpdir.chdir()
     try:
-        oldpwd = tmpdir.chdir()
         cwd = str(tmpdir)
         # Create a .psyclone/psyclone.cfg in the CWD
         cfg_dir = os.path.join(cwd, ".psyclone")
         os.mkdir(cfg_dir)
-        with open(os.path.join(cfg_dir, "psyclone.cfg"), "w") as cfile:
+        fname = os.path.join(cfg_dir, "psyclone.cfg")
+        with open(fname, "w", encoding="utf-8") as cfile:
             cfile.write(TEST_CONFIG)
         # Point PSYCLONE_CONFIG to a non-existent file - we should revert
         # to the normal search path in this case
@@ -282,7 +285,7 @@ def test_search_env(monkeypatch, tmpdir):
         assert "not_a_dir" not in name
         # Now point PSYCLONE_CONFIG to a file that does exist
         cfg_file = os.path.join(cwd, "another.cfg")
-        with open(cfg_file, "w") as cfile:
+        with open(cfg_file, "w", encoding="utf-8") as cfile:
             cfile.write(TEST_CONFIG)
         monkeypatch.setitem(os.environ, "PSYCLONE_CONFIG", cfg_file)
         name = Config.find_file()

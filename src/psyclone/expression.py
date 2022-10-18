@@ -15,7 +15,7 @@ import pyparsing as pparse
 pparse.ParserElement.enablePackrat()
 
 
-class ExpressionNode(object):
+class ExpressionNode():
     '''Base class for all expression tree nodes'''
 
     # pylint: disable=too-few-public-methods

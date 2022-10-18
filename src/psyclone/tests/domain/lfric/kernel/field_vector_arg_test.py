@@ -131,8 +131,8 @@ def test_create_from_fparser2():
         "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)")
     with pytest.raises(TypeError) as info:
         _ = FieldVectorArg.create_from_fparser2(fparser2_tree)
-    assert("The vector length metadata should be in the form "
-           "'form*vector_length' but found 'GH_FIELD'." in str(info.value))
+    assert ("The vector length metadata should be in the form "
+            "'form*vector_length' but found 'GH_FIELD'." in str(info.value))
 
     fparser2_tree = FieldVectorArg.create_fparser2(
         "arg_type(GH_FEELED*3, GH_REAL, GH_READ, W0)")

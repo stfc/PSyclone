@@ -160,6 +160,12 @@
 	57) PR #1901 towards #1892 and #1898. Add support for storing and
 	querying the index of a metadata argument.
 
+	58) PR #1884 for #1882. Extends the inlining transformation to support
+	inlining of functions.
+
+	59) PR #1912 for #1851. Fixes pycodestyle (2.9) errors/warnings for
+	with Python 3.10.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.

@@ -267,8 +267,8 @@ def test_create_from_fortran_error():
         "end type testkern_type\n")
     with pytest.raises(ParseError) as info:
         _ = LFRicKernelMetadata.create_from_fortran_string(invalid_metadata2)
-    assert("meta_args should be a list, but found 'invalid' in"
-           in str(info.value))
+    assert ("meta_args should be a list, but found 'invalid' in"
+            in str(info.value))
 
 
 @pytest.mark.parametrize("procedure_format", ["", "code =>"])
