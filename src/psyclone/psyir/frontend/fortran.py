@@ -47,7 +47,7 @@ from psyclone.psyir.nodes import Schedule, Assignment
 from psyclone.psyir.symbols import SymbolError, SymbolTable
 
 
-class FortranReader(object):
+class FortranReader():
     ''' PSyIR Fortran frontend. This frontend translates Fortran from a string
     or a file into PSyIR using the fparser2 utilities.
 

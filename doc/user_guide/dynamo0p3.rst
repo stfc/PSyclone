@@ -3730,11 +3730,15 @@ The **Dynamo0p3KernelConstTrans** transformation is only valid for the
 Dynamo0.3 API. This is because the properties that it makes constant
 are API specific.
 
-The Dynamo0.3-API-specific transformations currently available are given
-below. If the name of a transformation includes "Dynamo0p3" it means
-that the transformation is only valid for this particular API. If the
-name of the transformation includes "Dynamo" then it should work with
-all versions of the Dynamo API.
+The LFRic (dynamo0.3) API-specific transformations currently available
+are given below. Early transformations include "Dynamo0p3" or "Dynamo"
+in their name to indicate that these transformations are only valid
+for this particular API. More recent transformations typically include
+"LFRic" in their name to indicate the same restriction. However, more
+importantly, transformations that are specific to LFRic reside in the
+LFRic-specific "psyclone.domain/lfric/transformations"
+directory. Note, the early LFRic (dynamo0.3) API-specific
+transformations have not yet been migrated to this directory.
 
 .. note:: Only the loop-colouring and OpenMP transformations are currently
           supported for loops that contain inter-grid kernels. Attempting
@@ -3746,6 +3750,10 @@ all versions of the Dynamo API.
     :noindex:
 
 .. autoclass:: psyclone.domain.lfric.transformations.LFRicLoopFuseTrans
+    :members:
+    :noindex:
+
+.. autoclass:: psyclone.domain.lfric.transformations.RaisePSyIR2LFRicKernTrans
     :members:
     :noindex:
 

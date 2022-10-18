@@ -269,8 +269,8 @@ def test_search_env(monkeypatch, change_into_tmpdir):
     # Create a .psyclone/psyclone.cfg in the CWD
     cfg_dir = os.path.join(cwd, ".psyclone")
     os.mkdir(cfg_dir)
-    with open(os.path.join(cfg_dir, "psyclone.cfg"), "w",
-              encoding="utf-8") as cfile:
+    fname = os.path.join(cfg_dir, "psyclone.cfg")
+    with open(fname, "w", encoding="utf-8") as cfile:
         cfile.write(TEST_CONFIG)
     # Point PSYCLONE_CONFIG to a non-existent file - we should revert
     # to the normal search path in this case

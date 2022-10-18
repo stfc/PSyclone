@@ -1382,6 +1382,7 @@ class GOKernelArguments(Arguments):
         :param str argument_type: type of the appended argument.
 
         :raises TypeError: if the given name is not a string.
+
         '''
         if not isinstance(name, str):
             raise TypeError(
@@ -1389,8 +1390,11 @@ class GOKernelArguments(Arguments):
                 f"method should be a string, but found "
                 f"'{type(name).__name__}' instead.")
 
-        # Create a descriptor with the given type
-        descriptor = Descriptor(None, argument_type)
+        # Create a descriptor with the given type. `len(self.args)` gives the
+        # position in the argument list of the argument to which this
+        # descriptor corresponds. (This argument is appended in the code
+        # below.)
+        descriptor = Descriptor(None, argument_type, len(self.args))
 
         # Create the argument and append it to the argument list
         arg = Arg("variable", name)
@@ -1905,12 +1909,14 @@ class GOStencil():
 
 class GO1p0Descriptor(Descriptor):
     ''' Description of a GOcean 1.0 kernel argument, as obtained by
-    parsing the kernel meta-data.
+    parsing the kernel metadata.
 
     :param str kernel_name: the name of the kernel metadata type \
                             that contains this metadata.
     :param kernel_arg: the relevant part of the parser's AST.
     :type kernel_arg: :py:class:`psyclone.expression.FunctionVar`
+    :param int metadata_index: the postion of this argument in the list of \
+                               arguments specified in the metadata.
 
     :raises ParseError: if a kernel argument has an invalid grid-point type.
     :raises ParseError: for an unrecognised grid property.
@@ -1918,7 +1924,7 @@ class GO1p0Descriptor(Descriptor):
     :raises ParseError: for an invalid access argument.
 
     '''
-    def __init__(self, kernel_name, kernel_arg):
+    def __init__(self, kernel_name, kernel_arg, metadata_index):
         # pylint: disable=too-many-locals
         nargs = len(kernel_arg.args)
         stencil_info = None
@@ -1948,7 +1954,7 @@ class GO1p0Descriptor(Descriptor):
             else:
                 raise ParseError(f"Meta-data error in kernel {kernel_name}: "
                                  f"argument grid-point type is '{funcspace}' "
-                                 f"but must be one of {valid_func_spaces} ")
+                                 f"but must be one of {valid_func_spaces}")
 
         elif nargs == 2:
             # This kernel argument is a property of the grid. The grid
@@ -1980,12 +1986,14 @@ class GO1p0Descriptor(Descriptor):
             access_type = access_mapping[access]
         except KeyError as err:
             valid_names = api_config.get_valid_accesses_api()
-            raise ParseError(f"Meta-data error in kernel {kernel_name}: "
-                             f"argument access  is given as '{access}' but "
-                             f"must be one of {valid_names}") from err
+            raise ParseError(
+                f"Meta-data error in kernel {kernel_name}: argument access is "
+                f"given as '{access}' but must be one of {valid_names}"
+            ) from err
 
         # Finally we can call the __init__ method of our base class
-        super().__init__(access_type, funcspace, stencil=stencil_info,
+        super().__init__(access_type, funcspace, metadata_index,
+                         stencil=stencil_info,
                          argument_type=self._argument_type)
 
     def __str__(self):
@@ -2046,14 +2054,14 @@ class GOKernelType1p0(KernelType):
         # The list of kernel arguments
         self._arg_descriptors = []
         have_grid_prop = False
-        for init in self._inits:
+        for idx, init in enumerate(self._inits):
             if init.name != 'go_arg':
                 raise ParseError(f"Each meta_arg value must be of type "
                                  f"'go_arg' for the gocean1.0 api, but "
                                  f"found '{init.name}'")
             # Pass in the name of this kernel for the purposes
             # of error reporting
-            new_arg = GO1p0Descriptor(name, init)
+            new_arg = GO1p0Descriptor(name, init, idx)
             # Keep track of whether this kernel requires any
             # grid properties
             have_grid_prop = (have_grid_prop or

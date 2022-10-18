@@ -36,7 +36,7 @@
 import abc
 
 
-class LocalTransformation(object):
+class LocalTransformation():
     '''abstract baseclass for a transformation. Use of abc means it can
     not be instantiated.
 

@@ -45,18 +45,22 @@ import re
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.parse.algorithm import parse
+from psyclone.parse.algorithm import Arg, parse
+from psyclone.parse.kernel import Descriptor
 from psyclone.parse.utils import ParseError
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import PSyFactory
 from psyclone.gocean1p0 import (GOKern, GOLoop, GOKernelArgument,
-                                GOKernelGridArgument, GOBuiltInCallFactory,
-                                GOSymbolTable)
+                                GOKernelArguments, GOKernelGridArgument,
+                                GOBuiltInCallFactory, GOSymbolTable)
 from psyclone.tests.utilities import get_base_path, get_invoke
 from psyclone.tests.gocean_build import GOceanBuild
+from psyclone.psyir.nodes import (Node, StructureReference, Member,
+                                  StructureMember, Reference, Literal)
 from psyclone.psyir.symbols import (DeferredType, ContainerSymbol, DataSymbol,
                                     ImportInterface, INTEGER_TYPE,
-                                    ArgumentInterface)
+                                    ArgumentInterface, DataTypeSymbol,
+                                    ScalarType, SymbolTable)
 from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
 
 API = "gocean1.0"
@@ -1327,8 +1331,8 @@ def test06_kernel_invalid_access():
                            "test_files", "gocean1p0",
                            "test06_invoke_kernel_wrong_access.f90"),
               api="gocean1.0")
-    assert "compute_cu: argument access  is given as 'wrong' but must be one "\
-           "of ['go_read', 'go_readwrite', 'go_write']" in str(err.value)
+    assert ("compute_cu: argument access is given as 'wrong' but must be one "
+            "of ['go_read', 'go_readwrite', 'go_write']" in str(err.value))
 
 
 def test07_kernel_wrong_gridpt_type():
@@ -1421,6 +1425,268 @@ def test14_no_builtins():
     assert "Built-ins are not supported for the GOcean" in str(excinfo.value)
 
 
+def test_gokernelarguments_append():
+    ''' Check the GOcean specialisation of KernelArguments append method'''
+
+    # Parse a file to get an initialised GOKernelsArguments object
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    symtab = invoke.schedule.symbol_table
+    kernelcall = invoke.schedule.coded_kernels()[0]
+    argument_list = kernelcall.arguments
+    assert isinstance(argument_list, GOKernelArguments)
+
+    # Try append a non-string value
+    with pytest.raises(TypeError) as err:
+        argument_list.append(3, "space")
+    assert "The name parameter given to GOKernelArguments.append method " \
+           "should be a string, but found 'int' instead." in str(err.value)
+
+    # Append well-constructed arguments
+    argument_list.append(symtab.new_symbol("var1").name, "go_r_scalar")
+    argument_list.append(symtab.new_symbol("var2").name, "go_i_scalar")
+
+    assert isinstance(kernelcall.args[-1], GOKernelArgument)
+    assert isinstance(kernelcall.args[-2], GOKernelArgument)
+    assert kernelcall.args[-1].name == "var2"
+    assert kernelcall.args[-2].name == "var1"
+
+    # And the generated code looks as expected
+    generated_code = str(psy.gen)
+    assert "CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data," \
+           " var1, var2)" in generated_code
+
+
+def test_gokernelargument_infer_datatype():
+    ''' Check the GOcean specialisation of the infer_datatype works for each
+    possible type of KernelArgument. '''
+
+    # Parse an invoke with a scalar float and a field
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_scalar_float_arg.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernelcall = invoke.schedule.coded_kernels()[0]
+    argument_list = kernelcall.arguments
+
+    # The first argument is a scalar Real
+    datatype = argument_list.args[0].infer_datatype()
+    assert isinstance(datatype, ScalarType)
+    assert datatype.intrinsic == ScalarType.Intrinsic.REAL
+    assert datatype.precision.name == "go_wp"
+
+    # The second argument is a r2d_field (imported DataTypeSymbol)
+    assert isinstance(argument_list.args[1].infer_datatype(), DataTypeSymbol)
+    assert argument_list.args[1].infer_datatype().name == "r2d_field"
+
+    # Parse an invoke with a scalar int and a field
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_scalar_int_arg.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernelcall = invoke.schedule.coded_kernels()[0]
+    argument_list = kernelcall.arguments
+
+    # The first argument is a scalar Integer
+    assert argument_list.args[0].infer_datatype() == INTEGER_TYPE
+
+    # The second argument is a r2d_field (imported DataTypeSymbol)
+    assert isinstance(argument_list.args[1].infer_datatype(), DataTypeSymbol)
+    assert argument_list.args[1].infer_datatype().name == "r2d_field"
+
+    # Test an incompatible Kernel Argument
+    argument_list.args[0]._arg._space = "incompatible"
+    with pytest.raises(InternalError) as excinfo:
+        _ = argument_list.args[0].infer_datatype()
+    assert ("GOcean expects scalar arguments to be of 'go_r_scalar' or "
+            "'go_i_scalar' type but found 'incompatible'."
+            in str(excinfo.value))
+
+    argument_list.args[0]._arg._argument_type = "incompatible"
+    with pytest.raises(InternalError) as excinfo:
+        _ = argument_list.args[0].infer_datatype()
+    assert ("GOcean expects the Argument.argument_type() to be 'field' or "
+            "'scalar' but found 'incompatible'." in str(excinfo.value))
+
+
+def test_gokernelargument_intrinsic_type():
+    ''' Check that the GOcean specialisation of the intrinsic_type returns the
+    expected values. '''
+
+    # Parse an invoke with a scalar float and a field
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_scalar_float_arg.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernelcall = invoke.schedule.coded_kernels()[0]
+    argument_list = kernelcall.arguments.args
+    # First argument 'a_scalar' is a REAL
+    assert argument_list[0].intrinsic_type == "real"
+    # Second argument 'ssh_fld' is a derived type and doesn't have a single
+    # intrinsic type, so it returns an empty string
+    assert argument_list[1].intrinsic_type == ""
+    # Change the first argument metadata type to integer, and check the
+    # intrinsic_type value also changes
+    argument_list[0]._arg._space = "go_i_scalar"
+    assert argument_list[0].intrinsic_type == "integer"
+
+
+def test_gokernelarguments_psyir_expressions():
+    ''' Check the GOcean specialisation of psyir_expressions returns the
+    expected list of PSyIR expressions for each argument'''
+
+    # Parse an invoke with grid properties
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_grid_props.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernelcall = invoke.schedule.coded_kernels()[0]
+    argument_list = kernelcall.arguments.psyir_expressions()
+
+    # It has 2 indices arguments plus the kernel arguments
+    assert len(argument_list) == len(kernelcall.arguments.args) + 2
+
+    # Second argument is a reference to the symbol tagged contiguous_kidx
+    assert isinstance(argument_list[0], Reference)
+    assert (argument_list[0].symbol is
+            kernelcall.scope.symbol_table.lookup_with_tag("contiguous_kidx"))
+
+    # Second argument is a reference to the symbol tagged noncontiguous_kidx
+    assert isinstance(argument_list[1], Reference)
+    assert (argument_list[1].symbol is
+            kernelcall.scope.symbol_table.lookup_with_tag(
+                "noncontiguous_kidx"))
+
+    # Other arguments are also PSyIR expressions generated depending on the
+    # argument type. In this case it has 5 more arguments, all of them are
+    # structure references.
+    for argument in argument_list[2:7]:
+        assert isinstance(argument, StructureReference)
+
+
+def test_gokernelargument_psyir_expression():
+    ''' Check the GOcean specialisation of psyir_expression returns the
+    expected expression for any GOKernelArgument and GOKernelGridArguments'''
+
+    # Parse an invoke with grid properties
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_grid_props.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernelcall = invoke.schedule.coded_kernels()[0]
+    argument_list = kernelcall.arguments
+
+    # The first argument is a field
+    expr1 = argument_list.args[0].psyir_expression()
+    assert isinstance(expr1, StructureReference)
+    assert isinstance(expr1.member, Member)
+    assert expr1.member.name == "data"
+
+    # Third argument is a tmask grid property
+    expr2 = argument_list.args[2].psyir_expression()
+    assert isinstance(expr2, StructureReference)
+    assert isinstance(expr2.member, StructureMember)
+    assert isinstance(expr2.member.member, Member)
+    assert expr2.member.name == "grid"
+    assert expr2.member.member.name == "tmask"
+
+    # Parse an invoke with a scalar int and a field
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_scalar_int_arg.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernelcall = invoke.schedule.coded_kernels()[0]
+    argument_list = kernelcall.arguments
+
+    # The first argument is a scalar
+    expr3 = argument_list.args[0].psyir_expression()
+    assert isinstance(expr3, Reference)
+
+    # Test an incompatible Kernel Argument
+    argument_list.args[0]._arg._argument_type = "incompatible"
+    with pytest.raises(InternalError) as excinfo:
+        _ = argument_list.args[0].psyir_expression()
+    assert ("GOcean expects the Argument.argument_type() to be 'field' or "
+            "'scalar' but found 'incompatible'." in str(excinfo.value))
+
+
+def test_gokernelargument_constant_psyir_expression():
+    '''Test various constant arguments and their conversion to PSyIR.
+    '''
+
+    # Parse an invoke with a scalar int and a field
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_scalar_float_arg.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernelcall = invoke.schedule.coded_kernels()[0]
+    argument_list = kernelcall.arguments
+
+    for (const, intr_type) in [("1", ScalarType.Intrinsic.INTEGER),
+                               ("1.0", ScalarType.Intrinsic.REAL),
+                               ("1.0e+0", ScalarType.Intrinsic.REAL),
+                               ("1.0E-0", ScalarType.Intrinsic.REAL)]:
+        argument_list.args[0]._name = const
+        expr = argument_list.args[0].psyir_expression()
+        assert isinstance(expr, Literal)
+        assert expr.datatype.intrinsic == intr_type
+
+
+def test_gokernelargument_type(monkeypatch):
+    ''' Check the type property of the GOKernelArgument'''
+
+    # Create a dummy node with the symbol_table property
+    dummy_node = Node()
+    dummy_node.symbol_table = SymbolTable()
+
+    # Create a dummy GOKernelArgument
+    descriptor = Descriptor(None, "go_r_scalar", 0)
+    arg = Arg("variable", "arg", "arg")
+    argument = GOKernelArgument(descriptor, arg, dummy_node)
+
+    # If the descriptor does not have a type it defaults to 'scalar'
+    assert argument.argument_type == "scalar"
+
+    # Otherwise it returns the descriptor type
+    # Mock the descriptor type method
+    monkeypatch.setattr(argument._arg, "_argument_type", "descriptor_type")
+    assert argument.argument_type == "descriptor_type"
+
+
 def test_gosymboltable_conformity_check():
     '''Test that the expected exception is raised in method
     _check_gocean_conformity within GOSymbolTable when one or both of
@@ -1456,7 +1722,7 @@ def test_go_descriptor_str():
     kernel_call = invoke_info.calls[0].kcalls[0]
     arg_descriptors = kernel_call.ktype.arg_descriptors
 
-    assert "Descriptor(READ, go_r_scalar)" == str(arg_descriptors[0])
+    assert "Descriptor(READ, go_r_scalar, 0)" == str(arg_descriptors[0])
 
 
 def test_go_kerneltype_str():

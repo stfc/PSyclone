@@ -435,8 +435,8 @@ def test_scalar(monkeypatch):
     monkeypatch.setattr(scalar_arg, "_intrinsic_type", "invalid")
     with pytest.raises(NotImplementedError) as info:
         kernel_interface.scalar(scalar_arg)
-    assert("scalar of type 'invalid' not implemented in KernelInterface "
-           "class." in str(info.value))
+    assert ("scalar of type 'invalid' not implemented in KernelInterface "
+            "class." in str(info.value))
 
 
 def test_fs_common():
@@ -975,9 +975,8 @@ def test_quad_rule_error(monkeypatch):
     monkeypatch.setattr(kernel, "_qr_rules", ["invalid_shape"])
     with pytest.raises(InternalError) as info:
         kernel_interface.quad_rule()
-    assert(
-        "Unsupported quadrature shape 'invalid_shape' found in "
-        "kernel_interface." in str(info.value))
+    assert ("Unsupported quadrature shape 'invalid_shape' found in "
+            "kernel_interface." in str(info.value))
 
 
 def test_create_basis_errors(monkeypatch):
