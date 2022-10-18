@@ -192,9 +192,9 @@ def test_run_line_length(fortran_reader, monkeypatch, capsys, limit, mode):
         assert f"long_str = '{140*' '}'" in out
 
 
+@pytest.mark.usefixtures("change_into_tmpdir")
 @pytest.mark.parametrize("mode", ["alg", "stub"])
-def test_file_output(fortran_reader, monkeypatch, mode, change_into_tmpdir):
-    # pylint: disable=unused-argument
+def test_file_output(fortran_reader, monkeypatch, mode):
     ''' Check that the output of the generate() function is written to file
     if requested. We test for both the kernel-stub & algorithm generation. '''
 

@@ -41,6 +41,8 @@
 import os
 from pathlib import Path
 
+import pytest
+
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.parse.algorithm import parse
 from psyclone.psyir.nodes import Container
@@ -66,8 +68,8 @@ def test_gosched_parent():
     assert gsched.parent is cont
 
 
-def test_writetoread_dag(change_into_tmpdir, have_graphviz):
-    # pylint: disable=unused-argument
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_writetoread_dag(have_graphviz):
     ''' Test that the GOInvokeSchedule::dag() method works as expected when we
     have two kernels with a write -> read dependency.
     '''
@@ -93,8 +95,8 @@ def test_writetoread_dag(change_into_tmpdir, have_graphviz):
                 '[color=#00ff00]' in dot)
 
 
-def test_dag(change_into_tmpdir, have_graphviz):
-    # pylint: disable=unused-argument
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_dag(have_graphviz):
     ''' Test that the GOInvokeSchedule::dag() method works as expected '''
 
     _, invoke = get_invoke("nemolite2d_alg_mod.f90", API, idx=0)

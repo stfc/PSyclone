@@ -201,8 +201,8 @@ def test_missing_file(tmpdir):
     assert "not_a_file.cfg does not exist" in str(err.value)
 
 
-def test_search_path(monkeypatch, change_into_tmpdir):
-    # pylint: disable=unused-argument
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_search_path(monkeypatch):
     ''' Check that the search path for a configuration file is as
     expected. It is important to use monkeypatch for manipulating
     PSYCLONE_CONFIG, since all other tests rely on this variable
@@ -257,8 +257,8 @@ def test_search_path(monkeypatch, change_into_tmpdir):
             assert home_idx < share_idx
 
 
-def test_search_env(monkeypatch, change_into_tmpdir):
-    # pylint: disable=unused-argument
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_search_env(monkeypatch):
     ''' Check that we pick up the configuration file specified in an
     environment variable. It is important to use monkeypatch for manipulating
     PSYCLONE_CONFIG, since all other tests rely on this variable

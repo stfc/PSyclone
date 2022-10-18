@@ -79,8 +79,8 @@ def test_enable_disable_opencl_compilation(monkeypatch):
 
 
 # -----------------------------------------------------------------------------
-def test_compiler_works(monkeypatch, change_into_tmpdir):
-    # pylint: disable=unused-argument
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_compiler_works(monkeypatch):
     ''' Check that the specified compiler works for a hello-world
     example.'''
 
@@ -117,8 +117,8 @@ def test_compiler_works(monkeypatch, change_into_tmpdir):
 
 
 # -----------------------------------------------------------------------------
-def test_compiler_with_flags(change_into_tmpdir, monkeypatch):
-    # pylint: disable=unused-argument
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_compiler_with_flags(monkeypatch):
     ''' Check that we can pass through flags to the Fortran compiler.
     Since correct flags are compiler-dependent and hard to test,
     we pass something that is definitely not a flag and check that
@@ -153,8 +153,8 @@ def test_compiler_with_flags(change_into_tmpdir, monkeypatch):
 
 
 # -----------------------------------------------------------------------------
-def test_build_invalid_fortran(change_into_tmpdir, monkeypatch):
-    # pylint: disable=unused-argument
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_build_invalid_fortran(monkeypatch):
     ''' Check that we raise the expected error when attempting
     to compile some invalid Fortran. Skips test if --compile not
     supplied to py.test on command-line. '''
@@ -175,8 +175,8 @@ def test_build_invalid_fortran(change_into_tmpdir, monkeypatch):
 
 
 # -----------------------------------------------------------------------------
-def test_find_fortran_file(change_into_tmpdir):
-    # pylint: disable=unused-argument
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_find_fortran_file():
     ''' Check that our find_fortran_file routine raises the expected
     error if it can't find a matching file. Also check that it returns
     the correct name if the file does exist. '''
@@ -221,8 +221,8 @@ def test_compile_str(monkeypatch, tmpdir):
 
 
 # -----------------------------------------------------------------------------
-def test_code_compile(change_into_tmpdir, monkeypatch):
-    # pylint: disable=unused-argument
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_code_compile(monkeypatch):
     '''A dummy test of the underlying code_compiles function, which takes
     an AST. Note that the derived classes (GOceanBuild and LFRicBuild)
     will test this properly (especially when compilation is enabled),

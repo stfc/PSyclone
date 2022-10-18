@@ -78,8 +78,8 @@ def clear_region_name_cache():
 
 
 # -----------------------------------------------------------------------------
-def test_driver_creation1(change_into_tmpdir):
-    # pylint: disable=unused-argument
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_driver_creation1():
     '''Test that driver is created correctly for all variable access
     modes (input, input-output, output). Do not specify a region name,
     so test that the driver (including its filename) use the proper
@@ -159,8 +159,8 @@ def test_driver_creation1(change_into_tmpdir):
 
 
 # -----------------------------------------------------------------------------
-def test_driver_creation2(change_into_tmpdir):
-    # pylint: disable=unused-argument
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_driver_creation2():
     '''Verify that the region names are used when opening the file, and that
     constant loop boundaries work as expected.
 
@@ -241,8 +241,8 @@ def test_driver_creation2(change_into_tmpdir):
 
 
 # -----------------------------------------------------------------------------
-def test_rename_suffix_if_name_clash(change_into_tmpdir):
-    # pylint: disable=unused-argument
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_rename_suffix_if_name_clash():
     '''Test that driver is created correctly if there is a clash
     with the variable names, e.g. an output variable 'a', and
     an input variable 'a_post' - writing the output variable 'a'
@@ -532,8 +532,8 @@ def test_driver_creation_import_modules(fortran_reader):
 
 
 # -----------------------------------------------------------------------------
-def test_driver_node_verification(change_into_tmpdir):
-    # pylint: disable=unused-argument
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_driver_node_verification():
     '''Test that the create() method verifies the node list it receives
     and only accept the valid parameters.
 

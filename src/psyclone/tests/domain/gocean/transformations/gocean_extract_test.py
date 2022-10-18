@@ -406,9 +406,9 @@ def test_node_list_ompparallel_gocean1p0():
 # -----------------------------------------------------------------------------
 # Testing driver generation
 
+@pytest.mark.usefixtures("change_into_tmpdir")
 @pytest.mark.parametrize("create_driver", [None, False, True])
-def test_driver_generation_flag(change_into_tmpdir, create_driver):
-    # pylint: disable=unused-argument
+def test_driver_generation_flag(create_driver):
     '''Test that driver generation can be enabled and disabled, and
     that it is disabled by default. If create_driver is None, the
     default behaviour (don't create driver) is tested.
@@ -439,8 +439,8 @@ def test_driver_generation_flag(change_into_tmpdir, create_driver):
 
 
 # -----------------------------------------------------------------------------
-def test_driver_loop_variables(change_into_tmpdir):
-    # pylint: disable=unused-argument
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_driver_loop_variables():
     '''Test that loop variables are not stored. ATM this test
     fails because of #641.
 
@@ -475,8 +475,8 @@ def test_driver_loop_variables(change_into_tmpdir):
 
 
 # -----------------------------------------------------------------------------
-def test_driver_scalars(change_into_tmpdir, fortran_writer):
-    # pylint: disable=unused-argument
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_driver_scalars(fortran_writer):
     '''
     This tests the extraction and driver generated for scalars.
 
@@ -532,8 +532,8 @@ def test_driver_scalars(change_into_tmpdir, fortran_writer):
 
 
 # -----------------------------------------------------------------------------
-def test_driver_grid_properties(change_into_tmpdir, fortran_writer):
-    # pylint: disable=unused-argument
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_driver_grid_properties(fortran_writer):
     '''
     This tests the extraction and driver generated for grid properties.
 
@@ -594,8 +594,8 @@ def test_driver_grid_properties(change_into_tmpdir, fortran_writer):
 
 
 # -----------------------------------------------------------------------------
-def test_rename_region(change_into_tmpdir):
-    # pylint: disable=unused-argument
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_rename_region():
     '''
     This tests that an extract region can be renamed, and that the created
     driver will use the new names.
@@ -625,8 +625,8 @@ def test_rename_region(change_into_tmpdir):
 
 
 # -----------------------------------------------------------------------------
-def test_change_prefix(change_into_tmpdir, monkeypatch):
-    # pylint: disable=unused-argument
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_change_prefix(monkeypatch):
     '''
     This tests that the prefix of a gocean extract transformation
     can be changed, and that the new prefix is also used in the
