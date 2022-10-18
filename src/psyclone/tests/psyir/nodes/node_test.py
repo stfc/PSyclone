@@ -697,7 +697,7 @@ def test_node_dag_returns_digraph(monkeypatch):
     make this test independent of whether or not graphviz is installed by
     monkeypatching the psyir.nodes.node._graphviz_digraph_class function to
     return a fake digraph class type. '''
-    class FakeDigraph(object):
+    class FakeDigraph():
         ''' Fake version of graphviz.Digraph class with key methods
         implemented as noops. '''
         # pylint: disable=redefined-builtin
@@ -731,7 +731,7 @@ def test_node_dag_wrong_file_format(monkeypatch):
     graphviz is actually available by monkeypatching the
     psyir.nodes.node._graphviz_digraph_class function to return a fake digraph
     class type that mimics the error. '''
-    class FakeDigraph(object):
+    class FakeDigraph():
         ''' Fake version of graphviz.Digraph class that raises a ValueError
         when instantiated. '''
         # pylint: disable=redefined-builtin
@@ -1061,7 +1061,7 @@ def test_replace_with_named_context():
     node1 = Literal('1', INTEGER_TYPE)
     node2 = Literal('2', INTEGER_TYPE)
     node3 = Literal('3', INTEGER_TYPE)
-    parent_node = Call.create(RoutineSymbol("mycall"),[
+    parent_node = Call.create(RoutineSymbol("mycall"), [
         ("name1", node1),
         ("name2", node2),
         ("name3", node3),
@@ -1108,9 +1108,9 @@ def test_replace_with_error1():
     # be a DataNode.
     with pytest.raises(GenerationError) as info:
         loop.children[0].replace_with(new_node)
-    assert("Item 'Assignment' can't be child 0 of 'Loop'. The valid "
-           "format is: 'DataNode, DataNode, DataNode, Schedule'"
-           in str(info.value))
+    assert ("Item 'Assignment' can't be child 0 of 'Loop'. The valid "
+            "format is: 'DataNode, DataNode, DataNode, Schedule'"
+            in str(info.value))
 
 
 def test_replace_with_error2():
@@ -1124,19 +1124,19 @@ def test_replace_with_error2():
 
     with pytest.raises(TypeError) as info:
         node1.replace_with("hello")
-    assert("The argument node in method replace_with in the Node class "
-           "should be a Node but found 'str'." in str(info.value))
+    assert ("The argument node in method replace_with in the Node class "
+            "should be a Node but found 'str'." in str(info.value))
 
     with pytest.raises(GenerationError) as info:
         node1.replace_with(node2)
-    assert("This node should have a parent if its replace_with method "
-           "is called." in str(info.value))
+    assert ("This node should have a parent if its replace_with method "
+            "is called." in str(info.value))
 
     parent.children = [node1, node2]
     with pytest.raises(GenerationError) as info:
         node1.replace_with(node2)
-    assert("The parent of argument node in method replace_with in the Node "
-           "class should be None but found 'Schedule'." in str(info.value))
+    assert ("The parent of argument node in method replace_with in the Node "
+            "class should be None but found 'Schedule'." in str(info.value))
 
     node3 = Container("hello")
     with pytest.raises(GenerationError) as info:

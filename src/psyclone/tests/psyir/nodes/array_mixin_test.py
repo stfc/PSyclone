@@ -40,7 +40,7 @@
 import pytest
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import ArrayReference, ArrayOfStructuresReference, \
-    BinaryOperation, Range, Literal, Routine
+    BinaryOperation, Range, Literal, Routine, Assignment
 from psyclone.psyir.symbols import DataSymbol, DeferredType, ArrayType, \
     INTEGER_TYPE
 
@@ -80,14 +80,19 @@ def test_is_upper_lower_bound(fortran_reader):
     '''
     code = (
         "subroutine test()\n"
+        "use some_mod\n"
         "real a(10)\n"
+        "character(10) my_str\n"
         "a(1:10) = 0.0\n"
+        "my_str(2:2) = 'b'\n"
+        "var1(3:4) = 0\n"
         "end subroutine\n")
 
     # Return True as the literal values or the declaration and array
     # reference match.
     psyir = fortran_reader.psyir_from_source(code)
-    array_ref = psyir.children[0].children[0].lhs
+    assigns = psyir.walk(Assignment)
+    array_ref = assigns[0].lhs
     assert array_ref.is_lower_bound(0)
     assert array_ref.is_upper_bound(0)
 
@@ -104,6 +109,17 @@ def test_is_upper_lower_bound(fortran_reader):
     # array reference do not match.
     psyir = fortran_reader.psyir_from_source(code.replace("1:10", "2:9"))
     array_ref = psyir.children[0].children[0].lhs
+    assert not array_ref.is_lower_bound(0)
+    assert not array_ref.is_upper_bound(0)
+
+    # Return False if the symbol being referenced is of UnknownFortranType.
+    array_ref = assigns[1].lhs
+    assert not array_ref.is_lower_bound(0)
+    assert not array_ref.is_upper_bound(0)
+
+    # Return False if the symbol has no associated type information.
+    array_ref = assigns[2].lhs
+    assert not isinstance(array_ref.symbol, DataSymbol)
     assert not array_ref.is_lower_bound(0)
     assert not array_ref.is_upper_bound(0)
 

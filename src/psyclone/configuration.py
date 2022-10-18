@@ -65,8 +65,6 @@ _FILE_NAME = "psyclone.cfg"
 #          applied and only one version of the transformed kernel is created.
 VALID_KERNEL_NAMING_SCHEMES = ["multiple", "single"]
 
-# pylint: disable=too-many-lines
-
 
 # pylint: disable=too-many-lines
 class ConfigurationError(PSycloneError):
@@ -94,6 +92,10 @@ class Config:
     '''
     # Class variable to store the singleton instance
     _instance = None
+
+    # Static specification of a valid name for use in checking for
+    # variable names etc.
+    valid_name = re.compile(r'[a-zA-Z_][\w]*')
 
     # List of supported API by PSyclone
     _supported_api_list = ["dynamo0.3", "gocean1.0", "nemo"]
@@ -430,8 +432,9 @@ class Config:
 
         # Set up list of locations to search
         share_dir = os.path.join(sys.prefix, "share", "psyclone")
-        pkg_share_dir = [os.path.join(os.path.dirname(psyclone_path),
-            "share", "psyclone") for psyclone_path in psyclone.__path__]
+        pkg_share_dir = [
+            os.path.join(os.path.dirname(psyclone_path), "share", "psyclone")
+            for psyclone_path in psyclone.__path__]
 
         # 1. .psyclone/ in the CWD
         _file_paths = [os.path.join(os.getcwd(), ".psyclone")]

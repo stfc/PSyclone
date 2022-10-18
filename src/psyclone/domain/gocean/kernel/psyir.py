@@ -147,8 +147,6 @@ class GOceanKernelMetadata():
     :type name: Optional[str]
 
     '''
-    VALID_NAME = re.compile(r'[a-zA-Z_][\w]*')
-
     def __init__(self, iterates_over=None, index_offset=None, meta_args=None,
                  procedure_name=None, name=None):
         # Validate values using setters if they are not None
@@ -449,7 +447,8 @@ class GOceanKernelMetadata():
         :raises ValueError: if the name is not valid.
 
         '''
-        if not value or not GOceanKernelMetadata.VALID_NAME.match(value):
+        config = Config.get()
+        if not value or not config.valid_name.match(value):
             raise ValueError(
                 f"Expected name to be a valid value but found '{value}'.")
         self._name = value
@@ -530,7 +529,8 @@ class GOceanKernelMetadata():
         :param str value: set the procedure name specified in the \
             metadata to the specified value.
         '''
-        if not value or not GOceanKernelMetadata.VALID_NAME.match(value):
+        config = Config.get()
+        if not value or not config.valid_name.match(value):
             raise ValueError(
                 f"Expected procedure_name to be a valid value but found "
                 f"'{value}'.")
