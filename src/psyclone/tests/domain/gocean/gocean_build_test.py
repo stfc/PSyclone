@@ -118,14 +118,13 @@ def test_opencl_compiles(tmpdir, monkeypatch):
     '''Test that the OpenCL compilation works as expected.
 
     '''
-    opencl_enabled = Compile.TEST_COMPILE_OPENCL
     monkeypatch.setattr(Compile, "TEST_COMPILE_OPENCL", False)
     opencl_build = GOceanOpenCLBuild(tmpdir)
     assert opencl_build.code_compiles(None, None) is True
     monkeypatch.setattr(Compile, "TEST_COMPILE_OPENCL", True)
-    if not opencl_enabled:
-        # GOceanOpenCLBuild.code_compiles will call Compile._code_compiles.
-        # Since compilation is disabled, patch this function to just
-        # return True
-        monkeypatch.setattr(Compile, "_code_compiles", lambda a, b, c: True)
+
+    # GOceanOpenCLBuild.code_compiles will call Compile._code_compiles.
+    # In case that compilation is disabled, patch this function to just
+    # return True
+    monkeypatch.setattr(Compile, "_code_compiles", lambda a, b, c: True)
     assert opencl_build.code_compiles(None, None) is True

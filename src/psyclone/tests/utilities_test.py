@@ -60,7 +60,11 @@ def test_enable_disable_compilation(monkeypatch, capsys):
     '''Test the behaviour when disabling compilation ... even if
     compilation is enabled.
     '''
+    # We need to disable both compilation flags to fully disable
+    # compilation (since otherwise when OpenCL is enabled the
+    # infrastructure will still be compiled)
     monkeypatch.setattr(Compile, "TEST_COMPILE", False)
+    monkeypatch.setattr(Compile, "TEST_COMPILE_OPENCL", False)
     # Test that compile_file will do nothing if compilation is disabled:
     _compile = Compile()
     # Any of these commands would fail if the compiler would be
