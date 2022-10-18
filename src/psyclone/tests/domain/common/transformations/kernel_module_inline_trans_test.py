@@ -164,7 +164,9 @@ def test_validate_name_clashes():
             "module-inlined subroutines is not implemented "
             "yet.") in str(err.value)
 
-def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch, fortran_writer):
+
+def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch,
+                                               fortran_writer):
     ''' Test that the validate method refuses to transform a kernel which
     contains local variables that shadow a module name that would need to
     be brought into the subroutine scope.'''

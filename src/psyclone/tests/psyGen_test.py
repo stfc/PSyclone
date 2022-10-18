@@ -539,9 +539,11 @@ def test_codedkern_module_inline_gen_code(tmpdir):
     coded_kern.module_inline = True
 
     # Fail if local routine symbol does not already exist
-    with pytest.raises(KeyError) as err:
+    with pytest.raises(GenerationError) as err:
         gen = str(psy.gen)
-    assert "Could not find 'ru_code' in the Symbol Table." in str(err.value)
+    assert ("Cannot generate this kernel call to 'ru_code' because it "
+            "is marked as module-inline but no such subroutine exist in "
+            "this module." in str(err.value))
 
     # Create the symbol and try again, it now must succeed
     schedule.ancestor(Container).symbol_table.new_symbol(

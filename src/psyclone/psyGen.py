@@ -1509,6 +1509,8 @@ class CodedKern(Kern):
         :param parent: The parent of this kernel call in the f2pygen AST.
         :type parent: :py:class:`psyclone.f2pygen.LoopGen`
 
+        :raises GenerationError: if the call is module-inlined but the \
+            subroutine in not declared in this module.
         '''
         # If the kernel has been transformed then we rename it.
         if not self.module_inline:
@@ -1525,7 +1527,13 @@ class CodedKern(Kern):
                               funcnames=[self._name]))
         else:
             # If its inlined, the symbol must already exist
-            self.scope.symbol_table.lookup(self._name)
+            try:
+                self.scope.symbol_table.lookup(self._name)
+            except KeyError as err:
+                raise GenerationError(
+                    f"Cannot generate this kernel call to '{self.name}' "
+                    f"because it is marked as module-inline but no such "
+                    f"subroutine exist in this module.") from err
 
     def incremented_arg(self):
         ''' Returns the argument that has INC access. Raises a

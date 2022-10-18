@@ -184,6 +184,27 @@ def test_importinterface():
             "ContainerSymbol, but found 'str'." in str(info.value))
 
 
+def test_importinterface_container_symbol_getter_setter():
+    '''Test that the container_symbol getter and setter proprieties
+    retrieve and update the expected attribute and perform error checking.
+
+    '''
+    container_symbol = ContainerSymbol("my_mod")
+    import_interface = ImportInterface(container_symbol)
+    assert import_interface.container_symbol is container_symbol
+
+    # Check invalid setter
+    with pytest.raises(TypeError) as info:
+        import_interface.container_symbol = 3
+    assert ("ImportInterface container_symbol parameter must be of type "
+            "ContainerSymbol, but found 'int'." in str(info.value))
+
+    # Check valid setter and getter
+    container_symbol2 = ContainerSymbol("another_mod")
+    import_interface.container_symbol = container_symbol2
+    assert import_interface.container_symbol is container_symbol2
+
+
 def test_importinterface_copy():
     ''' Test the copy() method of ImportInterface. '''
     csym = ContainerSymbol("my_mod")
@@ -191,7 +212,7 @@ def test_importinterface_copy():
     new_interface = import_interface.copy()
     assert new_interface is not import_interface
     assert new_interface.container_symbol is csym
-    new_interface._container_symbol = ContainerSymbol("other_mod")
+    new_interface.container_symbol = ContainerSymbol("other_mod")
     assert import_interface.container_symbol is csym
 
 
@@ -294,7 +315,7 @@ def test_symbol_copy():
     assert new_sym.visibility == asym.visibility
     # Check that we can modify the interface of the new symbol without
     # affecting the original.
-    new_sym.interface._container_symbol = ContainerSymbol("other_mod")
+    new_sym.interface.container_symbol = ContainerSymbol("other_mod")
     assert asym.interface.container_symbol is csym
 
 

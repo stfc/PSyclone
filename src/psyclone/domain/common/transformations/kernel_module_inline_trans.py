@@ -139,9 +139,9 @@ class KernelModuleInlineTrans(Transformation):
 
         # We can't transform subroutines that shadow top-level symbol module
         # names, because we won't be able to bring this into the subroutine
+        symtab = kernel_schedule.ancestor(Container).symbol_table
         for scope in kernel_schedule.walk(ScopingNode):
             for symbol in scope.symbol_table.symbols:
-                symtab = kernel_schedule.ancestor(Container).symbol_table
                 for mod in symtab.containersymbols:
                     if symbol.name == mod.name and not \
                             isinstance(symbol, ContainerSymbol):
@@ -232,7 +232,7 @@ class KernelModuleInlineTrans(Transformation):
                 else:
                     # If it already exists, we know its a container (from the
                     # validation) so we just need to point to it
-                    symbol.interface._container_symbol = \
+                    symbol.interface.container_symbol = \
                         code_to_inline.symbol_table.lookup(module_symbol.name)
 
     def apply(self, node, options=None):
@@ -283,7 +283,7 @@ class KernelModuleInlineTrans(Transformation):
                             f"inlined subroutines is not implemented yet.")
 
         # Set the module-inline flag to avoid generating the kernel imports
-        # TODO #1823. If the kernel imports where generated at PSy-layer
+        # TODO #1823. If the kernel imports were generated at PSy-layer
         # creation time, we could just remove it here instead of setting a
         # flag.
         node.module_inline = True

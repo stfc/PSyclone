@@ -76,6 +76,9 @@ class Reference(DataNode):
         :rtype: bool
         '''
         is_eq = super().__eq__(other)
+        # TODO #1698. Is reference equality enough comparing the symbols by
+        # name? (Currently it is needed because symbol equality is not fully
+        # implemented)
         is_eq = is_eq and (self.symbol.name == other.symbol.name)
         return is_eq
 
