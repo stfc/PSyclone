@@ -60,7 +60,7 @@ from psyclone.psyir.nodes import (
     UnaryOperation, BinaryOperation, NaryOperation, IfBlock, Reference,
     ArrayReference, Container, Literal, Range, KernelSchedule,
     RegionDirective, StandaloneDirective, StructureReference,
-    ArrayOfStructuresReference, Call, Routine)
+    ArrayOfStructuresReference)
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, SymbolTable, RoutineSymbol, ArgumentInterface,
     SymbolError, ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE,
