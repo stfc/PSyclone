@@ -239,22 +239,23 @@ def test_search_path(monkeypatch):
         share_idx = err_msg.find(os.path.join(sys.prefix, "share",
                                               "psyclone"))
         assert share_idx != -1
-        assert cwd_idx < home_idx
+
         # share directory within package installation directory
         pkg_share_dir = [os.path.join(os.path.dirname(psyclone_path),
                                       "share", "psyclone")
                          for psyclone_path in psyclone.__path__]
         pkg_share_idx = min(err_msg.find(dir) for dir in pkg_share_dir)
         assert pkg_share_idx != -1
-        assert cwd_idx < home_idx
-        assert max(home_idx, share_idx) < pkg_share_idx
+
+        # Check the order of the various directories, which depends on
+        # whether we are in a virtualenv or not:
         if inside_venv:
             # When inside a virtual environment, the 'share' directory of
             # that environment takes precedence over the user's home
             # directory
-            assert share_idx < home_idx
+            assert cwd_idx < share_idx < home_idx < pkg_share_idx
         else:
-            assert home_idx < share_idx
+            assert cwd_idx < home_idx < share_idx < pkg_share_idx
 
 
 @pytest.mark.usefixtures("change_into_tmpdir")
