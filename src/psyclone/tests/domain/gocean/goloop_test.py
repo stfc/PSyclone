@@ -135,7 +135,7 @@ def test_goloop_create(monkeypatch):
             "['inner', 'outer']." in str(err.value))
 
     # Now trigger the second test: it must be a valid loop type according
-    # to VALID_LOOP_TYPES, not not 'inner' or 'outer', the only values
+    # to VALID_LOOP_TYPES, but not 'inner' or 'outer', the only values
     # the code can actually handle. So monkeypatch VALID_LOOP_TYPES:
     monkeypatch.setattr(GOceanConstants, "VALID_LOOP_TYPES",
                         ["inner", "outer", "other"])

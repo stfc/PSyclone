@@ -50,8 +50,7 @@ from psyclone.psyir.symbols import (DataSymbol, ArgumentInterface,
                                     ScalarType, ArrayType, INTEGER_TYPE,
                                     REAL_TYPE)
 from psyclone.tests.gocean_build import GOceanOpenCLBuild
-from psyclone.tests.utilities import (change_dir, Compile, get_base_path,
-                                      get_invoke)
+from psyclone.tests.utilities import (Compile, get_base_path, get_invoke)
 from psyclone.transformations import (TransformationError,
                                       KernelImportsToArguments)
 
@@ -79,6 +78,7 @@ API = "gocean1.0"
 
 
 # ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir")
 def test_opencl_compiler_works(kernel_outputdir):
     ''' Check that the specified compiler works for a hello-world
     opencl example. This is done in this file to alert the user
@@ -93,12 +93,11 @@ def test_opencl_compiler_works(kernel_outputdir):
     end program hello
     '''
 
-    with change_dir(kernel_outputdir):
-        with open("hello_world_opencl.f90", "w", encoding="utf-8") as ffile:
-            ffile.write(example_ocl_code)
-        GOceanOpenCLBuild(kernel_outputdir).\
-            compile_file("hello_world_opencl.f90",
-                         link=True)
+    with open("hello_world_opencl.f90", "w", encoding="utf-8") as ffile:
+        ffile.write(example_ocl_code)
+    GOceanOpenCLBuild(kernel_outputdir).\
+        compile_file("hello_world_opencl.f90",
+                     link=True)
 
 
 def test_transformation_name():

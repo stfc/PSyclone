@@ -94,7 +94,7 @@ def test_driver_creation1():
 
     etrans.apply(schedule.children[0], {'create_driver': True})
     # We are only interested in the driver, so ignore results.
-    str(psy.gen)
+    _ = psy.gen
 
     driver = Path("driver-psy_extract_example_with_various_"
                   "variable_access_patterns-invoke_0_compute_"
@@ -328,7 +328,7 @@ def test_rename_suffix_if_name_clash():
 
     # Check that *out_fld_post* (input/output) is declared correctly. It
     # must be declared twice: once for the input value using the original
-    # variable name, and once as output using the "_post1" suffix"
+    # variable name, and once as output using the "_post1" suffix.
     assert ('PreDeclareVariable("out_fld_post", out_fld_post)'
             in extract_code)
     assert ('PreDeclareVariable("out_fld_post_post1", out_fld_post)'
