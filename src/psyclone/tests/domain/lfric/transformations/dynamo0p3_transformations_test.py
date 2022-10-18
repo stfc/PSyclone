@@ -3234,9 +3234,8 @@ def test_no_global_sum_in_parallel_region():
         rtrans.apply(schedule.children)
         with pytest.raises(NotImplementedError) as excinfo:
             _ = str(psy.gen)
-        assert (
-            "Cannot correctly generate code for an OpenMP parallel region "
-            "containing children of different types") in str(excinfo.value)
+        assert ("Cannot correctly generate code for an OpenMP parallel region "
+                "containing children of different types") in str(excinfo.value)
 
 
 def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,

@@ -106,9 +106,9 @@ def test_validate():
 
     with pytest.raises(TransformationError) as excinfo:
         dummy.validate(operator)
-    assert("This transformation requires the operator to be part of an "
-           "assignment statement, but no such assignment was found."
-           in str(excinfo.value))
+    assert ("This transformation requires the operator to be part of an "
+            "assignment statement, but no such assignment was found."
+            in str(excinfo.value))
 
     reference = Reference(DataSymbol("fred", REAL_TYPE))
     _ = Assignment.create(lhs=reference, rhs=operator)
