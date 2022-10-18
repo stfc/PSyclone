@@ -238,8 +238,8 @@ def test_validate_range(fortran_reader):
     trans = Reference2ArrayRangeTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(reference)
-    assert("The supplied node should be a Reference but found "
-           "'ArrayReference'." in str(info.value))
+    assert ("The supplied node should be a Reference but found "
+            "'ArrayReference'." in str(info.value))
 
 
 def test_validate_query(fortran_reader):
@@ -310,8 +310,8 @@ def test_validate_structure(fortran_reader):
     trans = Reference2ArrayRangeTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(reference)
-    assert("The supplied node should be a Reference but found "
-           "'StructureReference'." in str(info.value))
+    assert ("The supplied node should be a Reference but found "
+            "'StructureReference'." in str(info.value))
 
 
 def test_apply_validate():

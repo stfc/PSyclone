@@ -55,7 +55,7 @@ def reset_infrastructure_compiled_flag():
     '''
     GOceanBuild._infrastructure_built = False
     saved_orig_path = GOceanBuild._compilation_path
-    yield()
+    yield
     GOceanBuild._compilation_path = saved_orig_path
 
 

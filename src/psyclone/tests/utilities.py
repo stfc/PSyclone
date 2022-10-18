@@ -109,7 +109,7 @@ def print_diffs(expected, actual):
 
 
 # =============================================================================
-class Compile(object):
+class Compile():
     '''This class provides compile functionality to the testing framework.
     It stores the name of the compiler, compiler flags, and a temporary
     directory used for test compiles. The temporary directory will be
