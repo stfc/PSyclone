@@ -44,7 +44,9 @@ from psyclone.psyGen import Transformation
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
     ArrayReference, Call, Range, Routine, Reference, CodeBlock,
-    Return, Literal, Assignment)
+    Return, Literal, Assignment, ArrayMember,
+    StructureReference, StructureMember)
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol, ScalarType,
                                     ImportInterface)
 from psyclone.psyir.transformations.transformation_error import (
@@ -170,9 +172,10 @@ class InlineTrans(Transformation):
         # actual arguments.
         dummy_args = routine_table.argument_list
         for ref in refs:
-            if ref.symbol in dummy_args:
-                ref.replace_with(
-                    node.children[dummy_args.index(ref.symbol)].copy())
+            # Check the parent is not None as some references are replaced
+            # during previous calls if they are array accesses
+            if ref.parent is not None:
+                self.replace_dummy_arg(ref, node, dummy_args)
 
         # Copy the nodes from the Routine into the call site.
         if isinstance(new_stmts[-1], Return):
@@ -202,6 +205,43 @@ class InlineTrans(Transformation):
             for child in new_stmts[1:]:
                 idx += 1
                 parent.addchild(child, idx)
+
+    def replace_dummy_arg(self, ref, node, dummy_args):
+        if ref.symbol in dummy_args:
+            if isinstance(ref, ArrayMixin) and not isinstance(node.children[dummy_args.index(ref.symbol)], ArrayMixin):
+                if isinstance(node.children[dummy_args.index(ref.symbol)], StructureReference):
+                    symbol = node.children[dummy_args.index(ref.symbol)].symbol
+                    members = []
+                    members.append(node.children[dummy_args.index(ref.symbol)].member.copy())
+                    childmember = node.children[dummy_args.index(ref.symbol)].member
+                    while isinstance(childmember, StructureMember):
+                        childmember = childmember.member
+                        members.append(childmember.copy())
+
+                    final_member = members[-1]
+                    indices = []
+                    for index in ref.walk(Reference):
+                        if index is not ref:
+                            self.replace_dummy_arg(index, node, dummy_args)
+                    for index in ref.indices:
+                        indices.append(index.copy())
+                    array_member = ArrayMember.create(final_member.name, indices)
+                    members[-1] = array_member
+                    replacement = StructureReference(symbol)
+                    for member in members:
+                        replacement.addchild(member)
+                    ref.replace_with(replacement)
+                elif isinstance(node.children[dummy_args.index(ref.symbol)], Reference):
+                    symbol = node.children[dummy_args.index(ref.symbol)].symbol
+                    indices = []
+                    for index in ref.indices:
+                        indices.append(index.copy())
+                    replacement = ArrayReference.create(symbol, indices)
+                    ref.replace_with(replacement)
+            else:
+                ref.replace_with(
+                    node.children[dummy_args.index(ref.symbol)].copy())
+
 
     @staticmethod
     def _inline_container_symbols(table, routine_table):
