@@ -59,7 +59,7 @@ class SymbolError(PSycloneError):
         self.value = "PSyclone SymbolTable error: "+str(value)
 
 
-class SymbolInterface(object):   # pylint: disable=too-few-public-methods
+class SymbolInterface():   # pylint: disable=too-few-public-methods
     ''' Abstract class of a Symbol Interface '''
 
     def copy(self):
@@ -212,7 +212,7 @@ class ArgumentInterface(SymbolInterface):
         return self.__class__(access=self.access)
 
 
-class Symbol(object):
+class Symbol():
     '''Generic Symbol item for the Symbol Table and PSyIR References.
     It has an immutable name label because it must always match with the
     key in the SymbolTable. If the symbol is private then it is only visible

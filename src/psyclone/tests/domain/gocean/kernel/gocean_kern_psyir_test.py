@@ -332,8 +332,8 @@ def test_create_metaargs():
     modified_metadata = METADATA.replace("meta_args", "ignore")
     with pytest.raises(ParseError) as info:
         _ = GOceanKernelMetadata.create_from_fortran_string(modified_metadata)
-    assert("'meta_args' was not found in TYPE, EXTENDS(kernel_type) :: "
-           "compute_cu" in str(info.value))
+    assert ("'meta_args' was not found in TYPE, EXTENDS(kernel_type) :: "
+            "compute_cu" in str(info.value))
 
     # not an array
     modified_metadata = METADATA.replace("meta_args", "ignore")
@@ -341,8 +341,8 @@ def test_create_metaargs():
         "  CONTAINS", "  integer :: meta_args = hello\n  contains")
     with pytest.raises(ParseError) as info:
         _ = GOceanKernelMetadata.create_from_fortran_string(modified_metadata)
-    assert("meta_args should be a list, but found 'hello' in 'TYPE, "
-           "EXTENDS(kernel_type) :: compute_cu" in str(info.value))
+    assert ("meta_args should be a list, but found 'hello' in 'TYPE, "
+            "EXTENDS(kernel_type) :: compute_cu" in str(info.value))
 
     # nargs is 3 but not field or scalar
     modified_metadata = METADATA.replace("GO_R_SCALAR", "INVALID")
@@ -352,17 +352,17 @@ def test_create_metaargs():
     constants = config.api_conf("gocean1.0").get_constants()
     field_grid_types = constants.VALID_FIELD_GRID_TYPES
     scalar_types = constants.VALID_SCALAR_TYPES
-    assert(f"Expected a 'meta_arg' entry with 3 arguments to either be a "
-           f"field or a scalar, but found 'invalid' as the second argument "
-           f"instead of '{field_grid_types}' (fields) or '{scalar_types}' "
-           f"(scalars)." in str(info.value))
+    assert (f"Expected a 'meta_arg' entry with 3 arguments to either be a "
+            f"field or a scalar, but found 'invalid' as the second argument "
+            f"instead of '{field_grid_types}' (fields) or '{scalar_types}' "
+            f"(scalars)." in str(info.value))
 
     # nargs not 2 or 3
     modified_metadata = METADATA.replace(", GO_GRID_AREA_T", "")
     with pytest.raises(ParseError) as info:
         _ = GOceanKernelMetadata.create_from_fortran_string(modified_metadata)
-    assert("'meta_args' should have either 2 or 3 arguments, but found 1 in "
-           "go_arg(GO_READ)." in str(info.value))
+    assert ("'meta_args' should have either 2 or 3 arguments, but found 1 in "
+            "go_arg(GO_READ)." in str(info.value))
 
 
 def test_getproperty_error():
@@ -464,8 +464,8 @@ def test_procedure_name():
     assert kernel_metadata.procedure_name == "new_code"
     with pytest.raises(ValueError) as info:
         kernel_metadata.procedure_name = "1invalid"
-    assert("Expected procedure_name to be a valid value but found "
-           "'1invalid'." in str(info.value))
+    assert ("Expected procedure_name to be a valid value but found "
+            "'1invalid'." in str(info.value))
 
 
 def test_metadata_name():
@@ -476,8 +476,8 @@ def test_metadata_name():
     assert kernel_metadata.name == "new_name"
     with pytest.raises(ValueError) as info:
         kernel_metadata.name = "1invalid"
-    assert("Expected name to be a valid value but found "
-           "'1invalid'." in str(info.value))
+    assert ("Expected name to be a valid value but found "
+            "'1invalid'." in str(info.value))
 
 
 # internal GridArg class

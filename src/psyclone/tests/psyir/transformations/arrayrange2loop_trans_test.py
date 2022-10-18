@@ -470,9 +470,9 @@ def test_apply_calls_validate():
     trans = ArrayRange2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.apply(None)
-    assert("Error in ArrayRange2LoopTrans transformation. The supplied node "
-           "argument should be a PSyIR Assignment, but found 'NoneType'."
-           in str(info.value))
+    assert ("Error in ArrayRange2LoopTrans transformation. The supplied node "
+            "argument should be a PSyIR Assignment, but found 'NoneType'."
+            in str(info.value))
 
 
 def test_str():
