@@ -165,14 +165,13 @@ def test_validate_name_clashes():
             "yet.") in str(err.value)
 
 
-def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch,
-                                               fortran_writer):
+def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     ''' Test that the validate method refuses to transform a kernel which
     contains local variables that shadow a module name that would need to
     be brought into the subroutine scope.'''
 
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean1.0",
-                             idx=0, dist_mem=False)
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean1.0",
+                           idx=0, dist_mem=False)
     schedule = invoke.schedule
     kern_call = schedule.children[1].loop_body[0].loop_body[0]
 

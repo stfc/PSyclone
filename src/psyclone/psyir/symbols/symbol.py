@@ -98,7 +98,7 @@ class ImportInterface(SymbolInterface):
 
     '''
     def __init__(self, container_symbol):
-        super(ImportInterface, self).__init__()
+        super().__init__()
         # Use error-checking setter
         self.container_symbol = container_symbol
 

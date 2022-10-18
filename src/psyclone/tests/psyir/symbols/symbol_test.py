@@ -360,10 +360,10 @@ def test_symbol_specialise_class_error(test_class, arg):
     asym = test_class("a")
     with pytest.raises(TypeError) as info:
         asym.specialise(arg)
-    assert ("The specialise method in 'a', an instance of '{0}', expects "
-            "the subclass argument to be a subclass of '{0}', but found "
-            "'{1}'.".format(test_class.__name__, arg.__name__)
-            in str(info.value))
+    assert (f"The specialise method in 'a', an instance of "
+            f"'{test_class.__name__}', expects the subclass argument to be a "
+            f"subclass of '{test_class.__name__}', but found "
+            f"'{arg.__name__}'." in str(info.value))
 
 
 @pytest.mark.parametrize("test_class", [Symbol, RoutineSymbol])
