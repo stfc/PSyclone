@@ -316,7 +316,6 @@ class SymbolTable():
         :param second: second item of the comparison.
         :type second: str | :py:class:`psyclone.psyir.symbols.Symbol`
 
-
         :returns: whether the two symbols names are the same.
         :rtype: bool
 
@@ -758,8 +757,6 @@ class SymbolTable():
         if not isinstance(new_symbol, Symbol):
             raise TypeError(f"Symbol to add must be of type Symbol but "
                             f"got '{type(new_symbol).__name__}'")
-        # The symbol table is not case sensitive so we must normalise the
-        # symbol names before comparing them.
         if not self._has_same_name(old_symbol, new_symbol):
             raise SymbolError(
                 f"Cannot swap symbols that have different names, got: "
