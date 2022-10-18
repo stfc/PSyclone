@@ -52,8 +52,6 @@ def my_test(name, parser, test_string, names=None):
     # ast.literal_eval can't be used here as the generated expression
     # calls constructors of user-defined objects
 
-    # Create and execute in a context with PSyclone's expressions available
-    # Unlike Python2 Python3's exec requries an explicit context
     context = {
         'BinaryOperator': BinaryOperator,
         'FunctionVar': FunctionVar,

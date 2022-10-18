@@ -56,26 +56,41 @@ end program hello
 '''
 
 
-def test_enable_disable_compilation(monkeypatch):
+def test_enable_disable_compilation(monkeypatch, capsys):
     '''Test the behaviour when disabling compilation ... even if
     compilation is enabled.
     '''
     monkeypatch.setattr(Compile, "TEST_COMPILE", False)
     # Test that compile_file will do nothing if compilation is disabled:
     _compile = Compile()
+    # Any of these commands would fail if the compiler would be
+    # started incorrectly.
     _compile.compile_file("nothing-to-compile")
     _compile.code_compiles(None)
     _compile.string_compiles("")
+
+    # Check that skip_if_compilation_disabled works as expected:
+    # modify the pytest.skip function to print the message, and
+    # then check that the message was printed to stdout:
+    monkeypatch.setattr(pytest, "skip", print)
     Compile.skip_if_compilation_disabled()
+    out, _ = capsys.readouterr()
+    assert "Need --compile option to run" in out
 
 
 # -----------------------------------------------------------------------------
-def test_enable_disable_opencl_compilation(monkeypatch):
+def test_enable_disable_opencl_compilation(monkeypatch, capsys):
     '''Test the behaviour when disabling opencl compilation ... even if
     compilation is enabled.
     '''
     monkeypatch.setattr(Compile, "TEST_COMPILE_OPENCL", False)
+    # Check that skip_if_compilation_disabled works as expected:
+    # modify the pytest.skip function to print the message, and
+    # then check that the message was printed to stdout:
+    monkeypatch.setattr(pytest, "skip", print)
     Compile.skip_if_opencl_compilation_disabled()
+    out, _ = capsys.readouterr()
+    assert "Need --compileopencl option to run" in out
 
 
 # -----------------------------------------------------------------------------
@@ -226,7 +241,7 @@ def test_code_compile(monkeypatch):
     '''A dummy test of the underlying code_compiles function, which takes
     an AST. Note that the derived classes (GOceanBuild and LFRicBuild)
     will test this properly (especially when compilation is enabled),
-    here we only to cover the other lines handling AST conversion. So,
+    here we only cover the other lines handling AST conversion. So,
     here we just use 'true' as 'compiler'.
     '''
     _, invoke_info = parse(os.path.join(os.path.
@@ -253,9 +268,9 @@ def test_code_compile(monkeypatch):
     # Now check compilation failure, which we simulate by
     # using 'false' as compiler:
     monkeypatch.setattr(_compile, "_f90", "false")
-    assert _compile.code_compiles(psy, dependencies=["something.cl",
-                                                     "hello_world.f90"]) \
-        is False
+    assert (_compile.code_compiles(psy, dependencies=["something.cl",
+                                                      "hello_world.f90"])
+            is False)
 
 
 # -----------------------------------------------------------------------------
@@ -269,7 +284,7 @@ def test_line_number():
 
 # -----------------------------------------------------------------------------
 def test_count_lines():
-    '''Tests the line number function.
+    '''Tests the count_lines function.
     '''
     assert count_lines("a\nbab\ncaaa", "a") == 3
     assert count_lines("a\nbab\ncaaa", "b") == 1
@@ -316,13 +331,13 @@ def test_get_invoke():
     # Test that invalid parameter combinations raise an exception:
     with pytest.raises(RuntimeError) as excinfo:
         get_invoke("does_not_exist", "nemo")
-    assert "Either the index or the name of the requested invoke must "\
-           "be specified" in str(excinfo.value)
+    assert ("Either the index or the name of the requested invoke must "
+            "be specified") in str(excinfo.value)
 
     with pytest.raises(RuntimeError) as excinfo:
         get_invoke("does_not_exist", "nemo", idx=0, name="name")
-    assert "Either the index or the name of the requested invoke must "\
-           "be specified" in str(excinfo.value)
+    assert ("Either the index or the name of the requested invoke must "
+            "be specified") in str(excinfo.value)
 
     # Test that a non-existent file raises the right exception
     with pytest.raises(ParseError) as excinfo:
