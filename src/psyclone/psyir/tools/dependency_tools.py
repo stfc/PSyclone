@@ -899,7 +899,7 @@ class DependencyTools():
         :param options: a dictionary with options for the dependency tools \
             which will also be used when creating the VariablesAccessInfo \
             instance if required.
-        :type param: Optional[Dict[str, Any]]
+        :type options: Optional[Dict[str, Any]]
         :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is \
             set to a True value, arrays used as first parameter to the \
             PSyIR operators lbound, ubound, or size will be reported as \

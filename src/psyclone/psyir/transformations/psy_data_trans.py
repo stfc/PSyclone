@@ -127,10 +127,12 @@ class PSyDataTrans(RegionTrans):
     # -------------------------------------------------------------------------
     def merge_in_default_options(self, options):
         '''This function returns a new dictionary which contains the default
-        options for this transformation plus any user-specified options.
+        options for this transformation plus al user-specified options.
         Any user-specified option will take precedence over the default
         values.
 
+        :param options: a dictionary with options for transformations.
+        :type options: Dict[str, Any]
         :returns: a new dictionary which merges the default options with \
             the user-specified options.
         :rtype: Dict[str:Any]
@@ -154,7 +156,7 @@ class PSyDataTrans(RegionTrans):
         :param nodes: a list of nodes.
         :type nodes: list of :py:obj:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Dict[str, Any]
         :param (str,str) options["region_name"]: an optional name to \
             use for this PSyData area, provided as a 2-tuple containing a \
             location name followed by a local name. The pair of strings \
@@ -214,7 +216,7 @@ class PSyDataTrans(RegionTrans):
         :type nodes: (list of) :py:class:`psyclone.psyir.nodes.Loop`
 
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
         :param str options["prefix"]: a prefix to use for the PSyData module \
             name (``PREFIX_psy_data_mod``) and the PSyDataType \
             (``PREFIX_PSYDATATYPE``) - a "_" will be added automatically. \
@@ -308,7 +310,7 @@ class PSyDataTrans(RegionTrans):
         :type nodes: :py:obj:`psyclone.psyir.nodes.Node` or list of \
                      :py:obj:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
         :param str options["prefix"]: a prefix to use for the PSyData module \
             name (``PREFIX_psy_data_mod``) and the PSyDataType \
             (``PREFIX_PSYDATATYPE``) - a "_" will be added automatically. \
