@@ -40,8 +40,8 @@
 ''' This module contains the implementation of the Reference node.'''
 
 from psyclone.core import AccessType, Signature
+# We cannot import from 'nodes' directly due to circular import
 from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.nodes.operation import Operation, BinaryOperation
 from psyclone.psyir.symbols import Symbol
 
 
@@ -161,15 +161,6 @@ class Reference(DataNode):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        if (self.parent and isinstance(self.parent, Operation) and
-                self.parent.operator in [BinaryOperation.Operator.LBOUND,
-                                         BinaryOperation.Operator.UBOUND]
-                and self.parent.children[0] is self):
-            # This reference is the first argument to a lbound or
-            # ubound intrinsic. These intrinsics do not access the
-            # array elements, they determine the array
-            # bounds. Therefore there is no data dependence.
-            return
         sig, all_indices = self.get_signature_and_indices()
         for indices in all_indices:
             for index in indices:
