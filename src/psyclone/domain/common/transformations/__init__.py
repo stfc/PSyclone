@@ -31,8 +31,17 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-from psyclone.domain.common.transformations.raise_call_2_invoke_trans import \
-    RaiseCall2InvokeTrans
+from psyclone.domain.common.transformations.raise_psyir_2_alg_trans import \
+    RaisePSyIR2AlgTrans
 from psyclone.domain.common.transformations.alg_invoke_2_psy_call_trans \
     import AlgInvoke2PSyCallTrans
 from psyclone.domain.common.transformations.alg_trans import AlgTrans
+from psyclone.domain.common.transformations.kernel_module_inline_trans import \
+    KernelModuleInlineTrans
+
+__all__ = [
+        "AlgInvoke2PSyCallTrans",
+        "AlgTrans",
+        "KernelModuleInlineTrans",
+        "RaiseCall2InvokeTrans",
+        ]

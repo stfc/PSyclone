@@ -31,9 +31,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and S. Siso STFC Daresbury Lab
-# Modified: J. Henrichs, Bureau of Meteorology,
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified: J. Henrichs, Bureau of Meteorology
 #           I. Kavcic, Met Office
+#           N. Nobre, STFC Daresbury Lab
 
 '''
 PSyclone configuration management module.
@@ -48,6 +49,7 @@ from collections import namedtuple
 import os
 import re
 import sys
+import psyclone
 
 from psyclone.errors import PSycloneError, InternalError
 
@@ -62,8 +64,6 @@ _FILE_NAME = "psyclone.cfg"
 #          more than once then the same transformation must always be
 #          applied and only one version of the transformed kernel is created.
 VALID_KERNEL_NAMING_SCHEMES = ["multiple", "single"]
-
-# pylint: disable=too-many-lines
 
 
 # pylint: disable=too-many-lines
@@ -92,6 +92,10 @@ class Config:
     '''
     # Class variable to store the singleton instance
     _instance = None
+
+    # Static specification of a valid name for use in checking for
+    # variable names etc.
+    valid_name = re.compile(r'[a-zA-Z_][\w]*')
 
     # List of supported API by PSyclone
     _supported_api_list = ["dynamo0.3", "gocean1.0", "nemo"]
@@ -408,6 +412,7 @@ class Config:
               <base-dir-of-virtual-env>/share/psyclone/
         - ${HOME}/.local/share/psyclone/
         - <system-install-prefix>/share/psyclone/
+        - <psyclone-installation-base>/share/psyclone/
 
         :returns: the fully-qualified path to the configuration file
         :rtype: str
@@ -427,6 +432,9 @@ class Config:
 
         # Set up list of locations to search
         share_dir = os.path.join(sys.prefix, "share", "psyclone")
+        pkg_share_dir = [
+            os.path.join(os.path.dirname(psyclone_path), "share", "psyclone")
+            for psyclone_path in psyclone.__path__]
 
         # 1. .psyclone/ in the CWD
         _file_paths = [os.path.join(os.getcwd(), ".psyclone")]
@@ -439,6 +447,8 @@ class Config:
         if not within_virtual_env():
             # 4. <python-installation-base>/share/psyclone/
             _file_paths.append(share_dir)
+        # 5. <psyclone-installation-base>/share/psyclone/
+        _file_paths.extend(pkg_share_dir)
 
         for cfile in [os.path.join(cdir, _FILE_NAME) for cdir in _file_paths]:
             if os.path.isfile(cfile):

@@ -74,6 +74,13 @@ def test_deferredtype_str():
     assert str(data_type) == "DeferredType"
 
 
+def test_deferredtype_eq():
+    '''Test the equality operator of DeferredType.'''
+    data_type1 = DeferredType()
+    assert data_type1 == DeferredType()
+    assert data_type1 != NoType()
+
+
 # NoType class
 
 def test_notype():
@@ -82,6 +89,15 @@ def test_notype():
     data_type = NoType()
     assert isinstance(data_type, NoType)
     assert str(data_type) == "NoType"
+
+
+def test_notype_eq():
+    '''Test the equality operator of NoType.'''
+    notype1 = NoType()
+    assert notype1 == NoType()
+    assert notype1 != DeferredType()
+    assert notype1 != ScalarType(ScalarType.Intrinsic.INTEGER,
+                                 ScalarType.Precision.SINGLE)
 
 
 # ScalarType class
@@ -173,7 +189,7 @@ def test_scalartype_not_equal():
     assert scalar_type4 != scalar_type
     # A ScalarType is not equal to an ArrayType
     atype = ArrayType(scalar_type4, [10])
-    assert atype != scalar_type4
+    assert scalar_type4 != atype
 
 
 def test_scalartype_invalid_intrinsic_type():
@@ -352,7 +368,7 @@ def test_arraytype_invalid_shape_dimension_1():
         _ = ArrayType(scalar_type, [Reference(symbol)])
     assert (
         "If a DataSymbol is referenced in a dimension declaration then it "
-        "should be a scalar integer or of UnknownType or DeferredType, but "
+        "should be an integer or of UnknownType or DeferredType, but "
         "'fred' is a 'Scalar<REAL, 4>'." in str(excinfo.value))
 
 
@@ -394,7 +410,7 @@ def test_arraytype_invalid_shape_dimension_3():
 def test_arraytype_invalid_shape_bounds():
     ''' Check that the ArrayType class raises the expected exception when
     one of the dimensions of the shape list is a tuple that does not contain
-    either an int or a DataNode.'''
+    either an int or a DataNode or is not a scalar.'''
     scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [(1, 4, 1)])
@@ -422,8 +438,15 @@ def test_arraytype_invalid_shape_bounds():
         _ = ArrayType(scalar_type, [(1, Reference(symbol))])
     assert (
         "If a DataSymbol is referenced in a dimension declaration then it "
-        "should be a scalar integer or of UnknownType or DeferredType, but "
+        "should be an integer or of UnknownType or DeferredType, but "
         "'fred' is a 'Scalar<REAL, 4>'." in str(excinfo.value))
+    array_type = ArrayType(INTEGER_TYPE, [10])
+    symbol = DataSymbol("jim", array_type)
+    with pytest.raises(TypeError) as excinfo:
+        _ = ArrayType(scalar_type, [(1, Reference(symbol))])
+    assert ("If a DataSymbol is referenced in a dimension declaration then it "
+            "should be a scalar but 'Reference[name:'jim']' is not." in
+            str(excinfo.value))
 
 
 def test_arraytype_shape_dim_from_parent_scope():
@@ -483,6 +506,30 @@ def test_arraytype_immutable():
         data_type.shape = []
 
 
+def test_arraytype_eq():
+    '''Test the equality operator for ArrayType.'''
+    scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
+    data_type1 = ArrayType(scalar_type, [10, 10])
+    assert data_type1 == ArrayType(scalar_type, [10, 10])
+    assert data_type1 != scalar_type
+    assert data_type1 == ArrayType(scalar_type, [10,
+                                                 Literal("10", INTEGER_TYPE)])
+    # Same type but different shape.
+    assert data_type1 != ArrayType(scalar_type, [10])
+    assert data_type1 != ArrayType(scalar_type, [10, 10, 5])
+    assert data_type1 != ArrayType(scalar_type, [10, 5])
+    assert data_type1 != ArrayType(scalar_type, [10, 5])
+    sym = DataSymbol("nx", INTEGER_TYPE)
+    assert data_type1 != ArrayType(scalar_type, [10, Reference(sym)])
+    # Same shape but different type.
+    dscalar_type = ScalarType(ScalarType.Intrinsic.REAL, 8)
+    assert data_type1 != ArrayType(dscalar_type, [10, 10])
+    iscalar_type = ScalarType(ScalarType.Intrinsic.INTEGER, 4)
+    assert data_type1 != ArrayType(iscalar_type, [10, 10])
+
+
+# UnknownFortranType tests
+
 def test_unknown_fortran_type():
     ''' Check the constructor and 'declaration' property of the
     UnknownFortranType class. '''
@@ -494,6 +541,34 @@ def test_unknown_fortran_type():
     utype = UnknownFortranType(decl)
     assert str(utype) == "UnknownFortranType('" + decl + "')"
     assert utype.declaration == decl
+
+
+def test_unknown_fortran_type_text():
+    '''
+    Check that the 'type_text' property returns the expected string and
+    that the result is cached.
+    '''
+    decl = "type(some_type) :: var"
+    utype = UnknownFortranType(decl)
+    text = utype.type_text
+    assert text == "TYPE(some_type)"
+    # Calling it a second time should just return the previously cached
+    # result.
+    assert utype.type_text is text
+    # Changing the declaration text should wipe the cache
+    utype.declaration = decl
+    assert utype.type_text is not text
+
+
+def test_unknown_fortran_type_eq():
+    '''Test the equality operator for UnknownFortranType.'''
+    decl = "type(some_type) :: var"
+    utype = UnknownFortranType(decl)
+    assert utype == UnknownFortranType(decl)
+    assert utype != NoType()
+    # Type is the same even if the variable name is different.
+    assert utype == UnknownFortranType("type(some_type) :: var1")
+    assert utype != UnknownFortranType("type(other_type) :: var")
 
 
 # StructureType tests
@@ -552,3 +627,32 @@ def test_create_structuretype():
     assert ("Each component must be specified using a 3-tuple of (name, "
             "type, visibility) but found a tuple with 2 members: ("
             "'george', " in str(err.value))
+
+
+def test_structuretype_eq():
+    '''Test the equality operator of StructureType.'''
+    stype = StructureType.create([
+        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+        ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE)])
+    assert stype == StructureType.create([
+        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+        ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE)])
+    # Something that is not a StructureType
+    assert stype != NoType()
+    # Component with a different name.
+    assert stype != StructureType.create([
+        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+        ("roger", REAL_TYPE, Symbol.Visibility.PRIVATE)])
+    # Component with a different type.
+    assert stype != StructureType.create([
+        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+        ("peggy", INTEGER_TYPE, Symbol.Visibility.PRIVATE)])
+    # Component with a different visibility.
+    assert stype != StructureType.create([
+        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+        ("peggy", REAL_TYPE, Symbol.Visibility.PUBLIC)])
+    # Different number of components.
+    assert stype != StructureType.create([
+        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+        ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE),
+        ("roger", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])

@@ -35,11 +35,10 @@
 # Modified I. Kavcic, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
-''' This module tests the support for LMA operators in the Dynamo 0.3 API
-using pytest. '''
+''' This module tests the support for LMA operators in the LFRic (Dynamo 0.3)
+    API using pytest.
 
-# imports
-from __future__ import absolute_import, print_function
+'''
 
 import copy
 import os
@@ -207,7 +206,7 @@ def test_ad_op_type_init_wrong_argument_type():
     wrong_arg = metadata._inits[1]
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(
-            wrong_arg, metadata.iterates_over)._init_operator(wrong_arg)
+            wrong_arg, metadata.iterates_over, 0)._init_operator(wrong_arg)
     assert ("Expected an operator argument but got an argument of type "
             "'gh_field'." in str(excinfo.value))
 
@@ -223,7 +222,7 @@ def test_ad_op_type_init_wrong_data_type():
     op_arg.args[1].name = "gh_integer"
     with pytest.raises(ParseError) as excinfo:
         LFRicArgDescriptor(
-            op_arg, metadata.iterates_over)._init_operator(op_arg)
+            op_arg, metadata.iterates_over, 0)._init_operator(op_arg)
     const = LFRicConstants()
     assert ("In the LFRic API the allowed data types for operator "
             "arguments are one of {0}, but found 'gh_integer' in "
@@ -308,7 +307,7 @@ def test_fs_descriptor_wrong_type():
             "constructors, all of type 'func_type'" in str(excinfo.value))
     # Check that the DynFuncDescriptor03 rejects it too
 
-    class FakeCls(object):
+    class FakeCls():
         ''' Class that just has a name property (which is not "func_type") '''
         name = "not-func-type"
 

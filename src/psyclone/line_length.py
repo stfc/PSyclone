@@ -24,7 +24,7 @@ def find_break_point(line, max_index, key_list):
         str(key_list) + "'")
 
 
-class FortLineLength(object):
+class FortLineLength():
 
     ''' This class take a free format fortran code as a string and
     line wraps any lines that are larger than the specified line
