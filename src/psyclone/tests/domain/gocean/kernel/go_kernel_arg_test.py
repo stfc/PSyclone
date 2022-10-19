@@ -261,7 +261,7 @@ def test_gokernelargument_type(monkeypatch):
     dummy_node.symbol_table = SymbolTable()
 
     # Create a dummy GOKernelArgument
-    descriptor = Descriptor(None, "go_r_scalar")
+    descriptor = Descriptor(None, "go_r_scalar", 0)
     arg = Arg("variable", "arg", "arg")
     argument = GOKernelArgument(descriptor, arg, dummy_node)
 
