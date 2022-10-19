@@ -92,7 +92,7 @@ def test_omptask_validate(fortran_reader):
     loops[1].children[3].children.append(CodeBlock([], None))
     with pytest.raises(GenerationError) as excinfo:
         trans.apply(loops[1])
-    assert ("OMPTaskDirective cannot be applied to a region containing "
+    assert ("OMPTaskTransformation cannot be applied to a region containing "
             "a code block" in str(excinfo.value))
 
 
@@ -112,11 +112,11 @@ def test_omptask_apply():
     parallel.apply(schedule.children[0])
 
     code = str(psy.gen)
+    print(code)
     assert (
         "    !$omp parallel default(shared), private(i,j)\n" +
         "      !$omp master\n" +
-        "      !$omp task private(j,i), firstprivate(cu_fld%internal%ystart," +
-        "cu_fld%internal%ystop,cu_fld%internal%xstart,cu_fld%internal%xstop)" +
+        "      !$omp task private(j,i), shared(cu_fld,p_fld,u_fld), depend(in: cu_fld%internal%ystart,cu_fld%internal%ystop,cu_fld%internal%xstart,cu_fld%internal%xstop,p_fld%data(:,:),u_fld%data(:,:)), depend(out: cu_fld%data(:,:))" + 
         "\n" + "      DO" in code)
     assert (
         "      END DO\n" +

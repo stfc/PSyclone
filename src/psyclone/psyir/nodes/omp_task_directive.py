@@ -43,7 +43,8 @@ import math
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import Reference, Assignment, IfBlock, \
                                  ArrayReference, ArrayOfStructuresReference, \
-                                 StructureReference
+                                 StructureReference, Call, ArrayMember
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.literal import Literal
@@ -54,6 +55,7 @@ from psyclone.psyir.nodes.omp_directives import OMPRegionDirective, \
     OMPSerialDirective, OMPParallelDirective
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.symbols import INTEGER_TYPE
+
 
 
 class OMPTaskDirective(OMPRegionDirective):
@@ -344,7 +346,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             ref_index = 1
             literal = node.children[0]
 
-        print(node, is_proxy)
         # We have some array access which is of the format:
         # array( Reference +/- Literal).
         # If the Reference is to a proxy (is_proxy is True) then we replace
@@ -439,13 +440,33 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     dim = len(index_list)
                     one = Literal(str(dim+1), INTEGER_TYPE)
                     # Find the arrayref
-                    arrayref = ref.parent.parent
+                    array_access_member = ref.ancestor(ArrayMember)
+                    if array_access_member is not None:
+                        start = ref.ancestor(StructureReference)
+                        members = []
+                        members.append(start.member.copy())
+                        childmember = start.member
+                        while(childmember is not array_access_member):
+                            childmember = childmember.member
+                            members.append(childmember.copy())
+
+                        sub_ref = StructureReference(start.symbol)
+                        for member in members:
+                            sub_ref.addchild(member)
+                        array_member = sub_ref.children[-1]
+                        num_child = len(array_member.children)
+                        array_member.pop_all_children()
+                        for i in range(num_child):
+                            array_member.addchild(one.copy())
+                    else:
+                        arrayref = ref.parent.parent
+                        sub_ref = Reference(arrayref.symbol)
                     lbound = BinaryOperation.create(
                             BinaryOperation.Operator.LBOUND,
-                            Reference(arrayref.symbol), one.copy())
+                            sub_ref.copy(), one.copy())
                     ubound = BinaryOperation.create(
                             BinaryOperation.Operator.UBOUND,
-                            Reference(arrayref.symbol), one.copy())
+                            sub_ref.copy(), one.copy())
                     full_range = Range.create(lbound, ubound)
                     index_list.append(full_range)
                 else:
@@ -696,6 +717,177 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         if sclause not in shared_list:
             shared_list.append(sclause)
 
+    def _evaluate_structure_with_array_reference_read(self, ref,
+                                                      array_access_member,
+                                                      private_list,
+                                                      firstprivate_list,
+                                                      shared_list,
+                                                      in_list):
+        '''
+        Evaluates a read-only access to an Array inside the task region, and
+        computes any data-sharing clauses and dependency clauses based upon the
+        access.
+
+        This is done by evaluating each of the array indices, and determining
+        whether they are:
+        1. A Literal index, in which case we need a dependency to that
+           specific section of the array.
+        2. A Reference index, in which case we need a dependency to the section
+           of the array represented by that Reference.
+        3. A Binary Operation, in which case the code calls
+          `_handle_index_binop` to evaluate any additional dependencies.
+
+        Once these have been computed, any new dependencies are added into the
+        in_list, and the array reference itself will be added to the
+        shared_list if not already present.
+
+        :param node: The Reference to be evaluated.
+        :type node: :py:class:`psyclone.psyir.nodes.Reference`
+        :param array_access_member: The ArrayMixin member child of the 
+                                    node.
+        :type array_access_member: \
+                :py:class:psyclone.psyir.nodes.array_mixin.ArrayMixin`
+        :param private_list: The list of private References used in this task
+                             region.
+        :type private_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param firstprivate_list: The list of firstprivate References used in
+                                  this task region.
+        :type firstprivate_list: List of
+                                 :py:class:`psyclone.psyir.nodes.Reference`
+        :param shared_list: The list of shared References for this task.
+        :type shared_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param in_list: The list of input References for this task.
+        :type in_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+
+        :raises GenerationError: If an array index is a shared variable.
+        :raises GenerationError: If an array index is not a Reference, Literal
+                                 or BinaryOperation.
+        '''
+
+        index_list = []
+
+        # Find the list of members we need to include in the final reference.
+        members = []
+        members.append(ref.member.copy())
+        childmember = ref.member
+        while(childmember is not array_access_member):
+            childmember = childmember.member
+            members.append(childmember.copy())
+
+        del members[-1]
+        sref_base = StructureReference(ref.symbol)
+        for member in members:
+            sref_base.addchild(member)
+
+        for dim, index in enumerate(array_access_member.indices):
+            # pylint: disable=unidiomatic-typecheck
+            if type(index) is Reference:
+                # Check whether the Reference is private
+                index_private = self._is_reference_private(index)
+                # Check whether the reference is to a child loop variable.
+                child_loop_vars = []
+                for child_loop in self.walk(Loop):
+                    if child_loop.variable not in self._proxy_loop_vars:
+                        child_loop_vars.append(child_loop.variable)
+
+                if index_private:
+                    if (index not in private_list and
+                            index not in firstprivate_list):
+                        firstprivate_list.append(index.copy())
+                    # Special case 1. If index belongs to a child loop
+                    # that is NOT a proxy for a parent loop, then we
+                    # can only do as well as guessing the entire range
+                    # of the loop is used.
+                    if index.symbol in child_loop_vars:
+                        # Return a :
+                        one = Literal(str(dim+1), INTEGER_TYPE)
+                        lbound_sref = sref_base.copy()
+                        mem = array_access_member.copy()
+                        num_child = len(mem.children)
+                        mem.pop_all_children()
+                        for i in range(num_child):
+                            mem.addchild(one.copy())
+                        lbound_sref.addchild(mem.copy())
+                        lbound = BinaryOperation.create(
+                                BinaryOperation.Operator.LBOUND,
+                                lbound_sref, one.copy())
+                        ubound_sref = sref_base.copy()
+                        ubound_sref.addchild(mem.copy())
+                        ubound = BinaryOperation.create(
+                                BinaryOperation.Operator.UBOUND,
+                                ubound_sref, one.copy())
+                        full_range = Range.create(lbound, ubound)
+                        index_list.append(full_range)
+                    elif index.symbol in self._proxy_loop_vars:
+                        # Special case 2. the index is a proxy for a parent
+                        # loop's variable. In this case, we add a reference to
+                        # the parent loop's value.
+                        parent_var =\
+                            self._proxy_loop_vars[index.symbol]['parent_var']
+                        parent_ref = Reference(parent_var)
+                        index_list.append(parent_ref)
+                    else:
+                        # Final case is just a generic Reference, in which case
+                        # just copy the Reference
+                        index_list.append(index.copy())
+                else:
+                    raise GenerationError(
+                            "Shared variable access used "
+                            "as an index inside an "
+                            "OMPTaskDirective which is not "
+                            f"supported. Variable name is {index}")
+            elif isinstance(index, BinaryOperation):
+                # Binary Operation check
+                # A single binary operation, e.g. a(i+1) can require
+                # multiple clauses to correctly handle.
+                self._handle_index_binop(index, index_list,
+                                         firstprivate_list,
+                                         private_list)
+            elif isinstance(index, Literal):
+                # Just place literal directly into the dependency clause.
+                index_list.append(index.copy())
+            else:
+                # Not allowed type appears
+                raise GenerationError(
+                        f"{type(index).__name__} object is not allowed to "
+                        "appear in an Array Index "
+                        "expression inside an "
+                        "OMPTaskDirective.")
+        # So we have a list of (lists of) indices
+        # [ [index1, index4], index2, index3] so convert these
+        # to an ArrayReference again.
+        # To create all combinations, we use itertools.product
+        # We have to create a new list which only contains lists.
+        # Add to in_list: name(index1, index2)
+        new_index_list = []
+        for element in index_list:
+            if isinstance(element, list):
+                new_index_list.append(element)
+            else:
+                new_index_list.append([element])
+        combinations = itertools.product(*new_index_list)
+
+
+        for temp_list in combinations:
+            # We need to make copies of the members as each
+            # member can only be the child of one ArrayRef
+            final_list = []
+            for element in temp_list:
+                final_list.append(element.copy())
+            final_member = ArrayMember.create(array_access_member.name,
+                                              list(final_list))
+            sref_copy = sref_base.copy()
+            sref_copy.addchild(final_member)
+            # Add dclause into the in_list if required
+            if sref_copy not in in_list:
+                in_list.append(sref_copy)
+        # Add to shared_list (for explicity)
+        sclause = Reference(ref.symbol)
+        if sclause not in shared_list:
+            shared_list.append(sclause)
+
+    # Untested but seems to work
+
     def _evaluate_readonly_reference(self, ref, private_list,
                                      firstprivate_list, shared_list, in_list):
         '''
@@ -723,16 +915,191 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                                              firstprivate_list, shared_list,
                                              in_list)
         elif isinstance(ref, StructureReference):
-            # This is treated the same as a Reference, except we have to
-            # create a Reference to the symbol to handle.
-            base_ref = Reference(ref.symbol)
-            self._evaluate_readonly_baseref(base_ref, private_list,
-                                            firstprivate_list,
-                                            in_list)
+            # If the StructureReference contains an ArrayMixin then
+            # we need to treat it differently, like an arrayref, however
+            # the code to handle an arrayref is not compatible with more
+            # than one ArrayMixin child
+            array_children = ref.walk(ArrayMixin)
+            if array_children is not None:
+                if len(array_children) > 1:
+                    # TODO Document
+                    raise IRGenerationError("Doesn't support a "
+                            "StructureReference child with multiple array "
+                            "accessing members.")
+                self._evaluate_structure_with_array_reference_read(
+                        ref, array_children[0], private_list,
+                        firstprivate_list, shared_list, in_list)
+            else:
+                # This is treated the same as a Reference, except we have to
+                # create a Reference to the symbol to handle.
+                base_ref = Reference(ref.symbol)
+                self._evaluate_readonly_baseref(base_ref, private_list,
+                                                firstprivate_list,
+                                                in_list)
         elif isinstance(ref, Reference):
             self._evaluate_readonly_baseref(ref, private_list,
                                             firstprivate_list,
                                             in_list)
+
+    def _evaluate_structure_with_array_reference_write(self, ref,
+                                                       array_access_member,
+                                                       private_list,
+                                                       firstprivate_list,
+                                                       shared_list,
+                                                       out_list):
+        '''
+        Evaluates a write access to an Array inside the task region, and
+        computes any data-sharing clauses and dependency clauses based upon the
+        access.
+
+        This is done by evaluating each of the array indices, and determining
+        whether they are:
+        1. A Literal index, in which case we need a dependency to that
+           specific section of the array.
+        2. A Reference index, in which case we need a dependency to the section
+           of the array represented by that Reference.
+        3. A Binary Operation, in which case the code calls
+          `_handle_index_binop` to evaluate any additional dependencies.
+
+        Once these have been computed, any new dependencies are added into the
+        out_list, and the array reference itself will be added to the
+        shared_list if not already present.
+
+        :param ref: The Reference to be evaluated.
+        :type ref: :py:class:`psyclone.psyir.nodes.Reference`
+        :param array_access_member: The ArrayMixin member child of the 
+                                    node.
+        :type array_access_member: \
+                :py:class:psyclone.psyir.nodes.array_mixin.ArrayMixin`
+        :param private_list: The list of private References used in this task
+                             region.
+        :type private_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param firstprivate_list: The list of firstprivate References used in
+                                  this task region.
+        :type firstprivate_list: List of
+                                 :py:class:`psyclone.psyir.nodes.Reference`
+        :param shared_list: The list of shared References for this task.
+        :type shared_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param out_list: The list of output References for this task.
+        :type out_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+
+        :raises GenerationError: If an array index is a shared variable.
+        '''
+        # We write to this arrayref, so its shared and depend out on
+        # the array.
+
+        # Find the list of members we need to include in the final reference.
+        members = []
+        members.append(ref.member.copy())
+        childmember = ref.member
+        while(childmember is not array_access_member):
+            childmember = childmember.member
+            members.append(childmember.copy())
+
+        del members[-1]
+        sref_base = StructureReference(ref.symbol)
+        for member in members:
+            sref_base.addchild(member)
+
+        # Arrays are always shared at the moment, so we ignore the possibility
+        # of it being private now.
+
+        index_list = []
+        # Work out the indices needed.
+        for dim, index in enumerate(array_access_member.indices):
+            if isinstance(index, Literal):
+                # Literals are just a value, just use the value.
+                index_list.append(index.copy())
+            elif isinstance(index, Reference):
+                index_private = self._is_reference_private(index)
+                # Check whether the reference is to a child loop variable.
+                child_loop_vars = []
+                for child_loop in self.walk(Loop):
+                    if child_loop.variable not in self._proxy_loop_vars:
+                        child_loop_vars.append(child_loop.variable)
+
+                if index_private:
+                    if (index not in private_list and
+                            index not in firstprivate_list):
+                        firstprivate_list.append(index.copy())
+                    # Special case 1. If index belongs to a child loop
+                    # that is NOT a proxy for a parent loop, then we
+                    # can only do as well as guessing the entire range
+                    # of the loop is used.
+                    if index.symbol in child_loop_vars:
+                        # Return a :
+                        one = Literal(str(dim+1), INTEGER_TYPE)
+                        lbound_sref = sref_base.copy()
+                        mem = array_access_member.copy()
+                        num_child = len(mem.children)
+                        mem.pop_all_children()
+                        for i in range(num_child):
+                            mem.addchild(one.copy())
+                        lbound_sref.addchild(mem.copy())
+                        lbound = BinaryOperation.create(
+                                BinaryOperation.Operator.LBOUND,
+                                lbound_sref, one.copy())
+                        ubound_sref = sref_base.copy()
+                        ubound_sref.addchild(mem.copy())
+                        ubound = BinaryOperation.create(
+                                BinaryOperation.Operator.UBOUND,
+                                ubound_sref, one.copy())
+                        full_range = Range.create(lbound, ubound)
+                        index_list.append(full_range)
+                    elif index.symbol in self._proxy_loop_vars:
+                        # Special case 2. the index is a proxy for a parent
+                        # loop's variable. In this case, we add a reference to
+                        # the parent loop's value.
+                        parent_var =\
+                            self._proxy_loop_vars[index.symbol]['parent_var']
+                        parent_ref = Reference(parent_var)
+                        index_list.append(parent_ref)
+                    else:
+                        # Final case is just a generic Reference, in which case
+                        # just copy the Reference
+                        index_list.append(index.copy())
+                else:
+                    raise GenerationError(
+                            "Shared variable access used "
+                            "as an index inside an "
+                            "OMPTaskDirective which is not "
+                            f"supported. Variable name is {index}")
+            elif isinstance(index, BinaryOperation):
+                self._handle_index_binop(index, index_list,
+                                         firstprivate_list,
+                                         private_list)
+
+        # So we have a list of (lists of) indices
+        # [ [index1, index4], index2, index3] so convert these
+        # to an ArrayReference again.
+        # To create all combinations, we use itertools.product
+        # We have to create a new list which only contains lists.
+        # Add to in_list: name(index1, index2)
+        new_index_list = []
+        for element in index_list:
+            if isinstance(element, list):
+                new_index_list.append(element)
+            else:
+                new_index_list.append([element])
+        combinations = itertools.product(*new_index_list)
+        for temp_list in combinations:
+            # We need to make copies of the members as each
+            # member can only be the child of one ArrayRef
+            final_list = []
+            for element in temp_list:
+                final_list.append(element.copy())
+            final_member = ArrayMember.create(array_access_member.name,
+                                              list(final_list))
+            sref_copy = sref_base.copy()
+            sref_copy.addchild(final_member)
+            # Add dclause into the out_list if required
+            if sref_copy not in out_list:
+                out_list.append(sref_copy)
+        # Add to shared_list (for explicity)
+        sclause = Reference(ref.symbol)
+        if sclause not in shared_list:
+            shared_list.append(sclause)
+
 
     def _evaluate_write_arrayref(self, ref, private_list, firstprivate_list,
                                  shared_list, out_list):
@@ -919,11 +1286,26 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             self._evaluate_write_arrayref(ref, private_list, firstprivate_list,
                                           shared_list, out_list)
         elif isinstance(ref, StructureReference):
-            # This is treated the same as a Reference, but we create a
-            # Reference to the symbol to handle.
-            base_ref = Reference(ref.symbol)
-            self._evaluate_write_baseref(base_ref, private_list,
-                                         shared_list, out_list)
+            # If the StructureReference contains an ArrayMixin then
+            # we need to treat it differently, like an arrayref, however
+            # the code to handle an arrayref is not compatible with more
+            # than one ArrayMixin child
+            array_children = ref.walk(ArrayMixin)
+            if array_children is not None:
+                if len(array_children) > 1:
+                    # TODO Document
+                    raise IRGenerationError("Doesn't support a "
+                            "StructureReference child with multiple array "
+                            "accessing members.")
+                self._evaluate_structure_with_array_reference_write(
+                        ref, array_children[0], private_list,
+                        firstprivate_list, shared_list, out_list)
+            else:
+                # This is treated the same as a Reference, but we create a
+                # Reference to the symbol to handle.
+                base_ref = Reference(ref.symbol)
+                self._evaluate_write_baseref(base_ref, private_list,
+                                             shared_list, out_list)
         elif isinstance(ref, Reference):
             self._evaluate_write_baseref(ref, private_list,
                                          shared_list, out_list)
@@ -1057,7 +1439,15 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             # If we have a StructureReference, then we need to only add the
             # base symbol to the lists
             if isinstance(ref, StructureReference):
-                ref = Reference(ref.symbol)
+                ref_copy = Reference(ref.symbol)
+                # start_val can't be written to in Fortran so if its a structure
+                # we should make it shared
+                # TODO Should the full StructureReference be depend(in:)?
+                if ref_copy not in shared_list:
+                    shared_list.append(ref_copy.copy())
+                if ref not in in_list:
+                    in_list.append(ref.copy())
+                ref = ref_copy
             if (ref not in firstprivate_list and ref not in private_list and
                     ref not in shared_list):
                 firstprivate_list.append(ref.copy())
@@ -1071,7 +1461,15 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             # If we have a StructureReference, then we need to only add the
             # base symbol to the lists
             if isinstance(ref, StructureReference):
-                ref = Reference(ref.symbol)
+                ref_copy = Reference(ref.symbol)
+                # stop_val can't be written to in Fortran so if its a structure
+                # we should make it shared
+                # TODO Should the full StructureReference be depend(in:)?
+                if ref_copy not in shared_list:
+                    shared_list.append(ref_copy.copy())
+                if ref not in in_list:
+                    in_list.append(ref.copy())
+                ref = ref_copy
             if (ref not in firstprivate_list and ref not in private_list and
                     ref not in shared_list):
                 firstprivate_list.append(ref.copy())
@@ -1085,7 +1483,15 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             # If we have a StructureReference, then we need to only add the
             # base symbol to the lists
             if isinstance(ref, StructureReference):
-                ref = Reference(ref.symbol)
+                ref_copy = Reference(ref.symbol)
+                # stop_val can't be written to in Fortran so if its a structure
+                # we should make it shared
+                # TODO Should the full StructureReference be depend(in:)?
+                if ref_copy not in shared_list:
+                    shared_list.append(ref_copy.copy())
+                if ref not in in_list:
+                    in_list.append(ref.copy())
+                ref = ref_copy
             if (ref not in firstprivate_list and ref not in private_list and
                     ref not in shared_list):
                 firstprivate_list.append(ref.copy())
@@ -1251,7 +1657,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         :param out_list: The list of output References for this task.
         :type out_list: List of :py:class:`psyclone.psyir.nodes.Reference`
         '''
-        from psyclone.psyGen import Kern
+#        from psyclone.psyGen import Kern
 
         # For the node, check if it is Loop, Assignment or IfBlock
         if isinstance(node, Assignment):
@@ -1266,10 +1672,10 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             # Resolve IfBlock
             self._evaluate_ifblock(node, private_list, firstprivate_list,
                                    shared_list, in_list, out_list)
-        elif isinstance(node, Kern):
-            pass
-            self._evaluate_kern(node, private_list, firstprivate_list,
-                                shared_list, in_list, out_list)
+#        elif isinstance(node, Kern):
+#            pass
+#            self._evaluate_kern(node, private_list, firstprivate_list,
+#                                shared_list, in_list, out_list)
 
         # All other node types are ignored (for now, maybe some error
         # checking might be useful, though I don't have rules on what isn't
@@ -1338,16 +1744,38 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         return (private_clause, firstprivate_clause, shared_clause, in_clause,
                 out_clause)
 
+    def _inline_kernels(self):
+        '''
+        Searches the PsyIR tree inside the directive and inline's any kern
+        objects found.
+        '''
+        from psyclone.psyGen import Kern
+        from psyclone.psyir.transformations.inline_trans import InlineTrans
+        from psyclone.transformations import KernelModuleInlineTrans
+
+        kerns = self.walk(Kern)
+        kintrans = KernelModuleInlineTrans()
+        intrans = InlineTrans()
+        for kern in kerns:
+            kintrans.apply(kern)
+            kern.lower_to_language_level()
+        
+        calls = self.walk(Call)
+        for call in calls:
+            intrans.apply(call)
+
+
     def lower_to_language_level(self):
         '''
         Lowers the structure of the PSyIR tree inside the Directive
         to generate the Clauses that are required for this Directive.
         '''
+        #Inline the Kernels
+        self._inline_kernels()
+
         # Create the clauses
         private_clause, firstprivate_clause, shared_clause, in_clause,\
             out_clause = self._compute_clauses()
-
-        print(f"Lowering {id(self)}")
 
         if len(self.children) < 2 or private_clause != self.children[1]:
             self.children[1] = private_clause
