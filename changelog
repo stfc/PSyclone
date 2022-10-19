@@ -175,6 +175,9 @@
 	lbound/ubound/size as read access. This fixes several issues with the
 	dependency tools.
 
+	62) PR #1867 for #1861. Significantly improves test coverage,
+	especially of the compilation-testing utilities.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
