@@ -112,10 +112,8 @@ class NemoAllArrayRange2LoopTrans(Transformation):
         try:
             while True:
                 trans.apply(node)
-        except TransformationError as err:
+        except TransformationError:
             pass
-            # TODO: A verbose option
-            # print(str(err))
 
     def __str__(self):
         return ("Convert all array ranges in a PSyIR assignment into "
