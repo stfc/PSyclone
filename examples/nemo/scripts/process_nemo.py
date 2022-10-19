@@ -107,7 +107,9 @@ if __name__ == "__main__":
     PARSER.add_argument('-x', dest='exit_on_error', action='store_true',
                         help="Exit immediately if PSyclone fails")
     PARSER.add_argument('-p', dest='profile', action='store_true',
-                        help="Add profiling instrumentation")
+                        help="Add profiling instrumentation to the "
+                             "PROFILE_ONLY list of files. Script-processed "
+                             "files are not affected by this argument.")
     ARGS = PARSER.parse_args()
 
     # Check whether the PSyclone command has been specified in an environment

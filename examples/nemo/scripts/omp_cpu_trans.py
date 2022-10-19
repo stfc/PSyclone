@@ -55,7 +55,7 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-    omp_target_trans = OMPParallelTrans()
+    omp_parallel_trans = OMPParallelTrans()
     omp_loop_trans = TransInfo().get_trans_name('OMPLoopTrans')
 
     print(f"Invokes found in {psy.name}:")
@@ -81,6 +81,10 @@ def trans(psy):
             print("Skipping", invoke.name)
             continue
 
+        if invoke.name in ("mpp_ini"):
+            print("Skipping", invoke.name)
+            continue
+
         enhance_tree_information(invoke.schedule)
 
         normalise_loops(
@@ -93,7 +97,7 @@ def trans(psy):
 
         insert_explicit_loop_parallelism(
                 invoke.schedule,
-                region_directive_trans=omp_target_trans,
+                region_directive_trans=omp_parallel_trans,
                 loop_directive_trans=omp_loop_trans,
                 collapse=False,
                 exclude_calls=psy.name != "psy_lib_fortran_psy",

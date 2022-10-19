@@ -59,9 +59,7 @@ def trans(psy):
     '''
     omp_target_trans = OMPTargetTrans()
     omp_loop_trans = TransInfo().get_trans_name('OMPLoopTrans')
-    # Disabling worksharing will produce the 'loop' directive which is better
-    # suited to map the work into the GPU
-    omp_loop_trans.omp_worksharing = False
+    omp_loop_trans.omp_directive = "loop"
 
     print(f"Invokes found in {psy.name}:")
     for invoke in psy.invokes.invoke_list:

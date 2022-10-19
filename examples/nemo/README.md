@@ -74,7 +74,10 @@ and OpenACC or OpenMP directives:
          -o OUT_DIR      Destination directory for processed source files
          -s SCRIPT_FILE  PSyclone transformation script
          -x              exit immediately if PSyclone fails
-         -p              add profiling instrumentation to the PROFILE_ONLY file list
+         -p              add profiling instrumentation to the PROFILE_ONLY file
+                         list. Note that files processed by the SCRIPT_FILE may
+                         be introducing profiling instrumentation as part of
+                         that script.
 
    In addition to the command-line flags, the script itself contains two
    variables that may be used to control its behaviour:
