@@ -166,6 +166,10 @@
 	59) PR #1912 for #1851. Fixes pycodestyle (2.9) errors/warnings for
 	with Python 3.10.
 
+	60) PR #1899 towards #1823. Refactors KernelModuleInlineTrans so that
+        the in-lining happens at transformation time rather than code-
+	generation time.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
