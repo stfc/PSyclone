@@ -763,10 +763,10 @@ last_edge_cell_all_colours)
           CALL ru_code(nlayers, b_proxy%data, a_proxy%data, istp, rdt, """
               "c_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
               "e_proxy(3)%data, ndf_w2, undf_w2, "
-              "map_w2(:,cmap(colour, cell)), "
+              "map_w2(:,cmap(colour,cell)), "
               "basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
-              "map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
-              "map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
+              "map_w3(:,cmap(colour,cell)), basis_w3_qr, ndf_w0, undf_w0, "
+              "map_w0(:,cmap(colour,cell)), basis_w0_qr, diff_basis_w0_qr, "
               """np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)
         END DO
         !$omp end parallel do

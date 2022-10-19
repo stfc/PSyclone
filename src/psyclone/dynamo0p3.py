@@ -1839,7 +1839,7 @@ class LFRicMeshProperties(DynCollection):
 
     '''
     def __init__(self, node):
-        super(LFRicMeshProperties, self).__init__(node)
+        super().__init__(node)
 
         # The (ordered) list of mesh properties required by this invoke or
         # kernel stub.
@@ -1864,7 +1864,9 @@ class LFRicMeshProperties(DynCollection):
         for prop in self._properties:
             self._symbol_table.find_or_create_tag(prop.name.lower())
 
-    def kern_args(self, stub=False, var_accesses=None):
+    def kern_args(self, stub=False, var_accesses=None,
+                  kern_call_arg_list=None):
+        # pylint: disable=too-many-locals, too-many-branches
         '''
         Provides the list of kernel arguments associated with the mesh
         properties that the kernel requires. Optionally adds variable
@@ -1876,6 +1878,10 @@ class LFRicMeshProperties(DynCollection):
             the information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        :param kern_call_arg_list: an optional KernCallArgList instance \
+            use to store PSyIR representation of the arguments.
+        :type kern_call_arg_list: \
+            Optional[:py:class:`psyclone.domain.lfric.KernCallArgList]
 
         :returns: the kernel arguments associated with the mesh properties.
         :rtype: list of str
@@ -1904,41 +1910,61 @@ class LFRicMeshProperties(DynCollection):
                     OUTWARD_NORMALS_TO_HORIZONTAL_FACES
                     in self._kernel.reference_element.properties)
                 if not has_nfaces:
-                    name = self._symbol_table.find_or_create_tag(
-                        "nfaces_re_h").name
+                    if kern_call_arg_list:
+                        sym = kern_call_arg_list.\
+                            add_integer_reference("nfaces_re_h")
+                        name = sym.name
+                    else:
+                        name = self._symbol_table.find_or_create_tag(
+                            "nfaces_re_h").name
                     arg_list.append(name)
                     if var_accesses is not None:
                         var_accesses.add_access(Signature(name),
                                                 AccessType.READ, self._kernel)
 
-                adj_face = self._symbol_table.find_or_create_tag(
-                    "adjacent_face").name
-                if var_accesses is not None:
+                adj_face = "adjacent_face"
+                if not stub and kern_call_arg_list:
+                    # Use the functionality in kern_call_arg_list to properly
+                    # declare the symbol and to create a PSyIR reference for it
+                    _, cell_ref = \
+                        kern_call_arg_list.cell_ref_name(var_accesses)
+                    adj_face_sym = kern_call_arg_list. \
+                        add_array_reference(adj_face,
+                                            [":", cell_ref],
+                                            "integer")
+                    # Update the name in case there was a clash
+                    adj_face = adj_face_sym.name
+                    if var_accesses:
+                        var_accesses.add_access(Signature(adj_face),
+                                                AccessType.READ, self._kernel,
+                                                [":", cell_ref])
+
+                if not stub:
+                    adj_face = self._symbol_table.find_or_create_tag(
+                        "adjacent_face").name
+                    cell_name = "cell"
+                    if self._kernel.is_coloured():
+                        colour_name = "colour"
+                        cmap_name = "cmap"
+                        adj_face += (f"(:,{cmap_name}({colour_name},"
+                                     f"{cell_name}))")
+                    else:
+                        adj_face += f"(:,{cell_name})"
+                arg_list.append(adj_face)
+
+                if var_accesses and not kern_call_arg_list:
                     # TODO #1320 Replace [1]
                     # The [1] just indicates that this variable is accessed
                     # as a rank 1 array. #1320 will improve this.
                     var_accesses.add_access(Signature(adj_face),
                                             AccessType.READ, self._kernel,
                                             [1])
-                if not stub:
-                    # This is a kernel call from within an invoke
-                    cell_name = "cell"
-                    if self._kernel.is_coloured():
-                        colour_name = "colour"
-                        cmap_name = "cmap"
-                        adj_face += "(:,{0}({1}, {2}))".format(
-                            cmap_name, colour_name, cell_name)
-                    else:
-                        adj_face += "(:,{0})".format(cell_name)
-                arg_list.append(adj_face)
-
             else:
                 raise InternalError(
-                    "kern_args: found unsupported mesh property '{0}' when "
-                    "generating arguments for kernel '{1}'. Only members of "
-                    "the MeshProperty Enum are permitted "
-                    "({2}).".format(
-                        str(prop), self._kernel.name, list(MeshProperty)))
+                    f"kern_args: found unsupported mesh property '{prop}' "
+                    f"when generating arguments for kernel "
+                    f"'{self._kernel.name}'. Only members of the MeshProperty "
+                    f"Enum are permitted ({list(MeshProperty)}).")
 
         return arg_list
 
@@ -4434,22 +4460,21 @@ class DynInterGrid():
         self.fine = fine_arg
 
         # Get a reference to the InvokeSchedule SymbolTable
-        symtab = self.coarse.call.root.symbol_table
+        symtab = self.coarse.call.ancestor(InvokeSchedule).symbol_table
 
         # Generate name for inter-mesh map
-        base_mmap_name = "mmap_{0}_{1}".format(fine_arg.name,
-                                               coarse_arg.name)
+        base_mmap_name = f"mmap_{fine_arg.name}_{coarse_arg.name}"
         self.mmap = symtab.find_or_create_tag(base_mmap_name).name
 
         # Generate name for ncell variables
         self.ncell_fine = symtab.find_or_create_tag(
-            "ncell_{0}".format(fine_arg.name)).name
+            f"ncell_{fine_arg.name}").name
         # No. of fine cells per coarse cell in x
         self.ncellpercellx = symtab.find_or_create_tag(
-            "ncpc_{0}_{1}_x".format(fine_arg.name, coarse_arg.name)).name
+            f"ncpc_{fine_arg.name}_{coarse_arg.name}_x").name
         # No. of fine cells per coarse cell in y
         self.ncellpercelly = symtab.find_or_create_tag(
-            "ncpc_{0}_{1}_y".format(fine_arg.name, coarse_arg.name)).name
+            f"ncpc_{fine_arg.name}_{coarse_arg.name}_y").name
         # Name for cell map
         base_name = "cell_map_" + coarse_arg.name
         self.cell_map = symtab.find_or_create_tag(base_name).name
@@ -7349,8 +7374,8 @@ class DynLoop(PSyLoop):
             for kern in kernels:
                 if not kern.ncolours_var:
                     raise InternalError(
-                        "All kernels within a loop over colours must have been"
-                        " coloured but kernel '{0}' has not".format(kern.name))
+                        f"All kernels within a loop over colours must have "
+                        f"been coloured but kernel '{kern.name}' has not")
             return ncolours
         if self._upper_bound_name == "ncolour":
             # Loop over cells of a particular colour when DM is disabled.
@@ -7366,20 +7391,19 @@ class DynLoop(PSyLoop):
             # Loop over cells of a particular colour when DM is enabled. The
             # LFRic API used here allows for colouring with redundant
             # computation.
+            sym_tab = self.ancestor(InvokeSchedule).symbol_table
             if halo_index:
                 # The colouring API provides a 2D array that holds the last
                 # halo cell for a given colour and halo depth.
                 depth = halo_index
             else:
                 # If no depth is specified then we go to the full halo depth
-                depth = self.ancestor(InvokeSchedule).symbol_table.\
-                    find_or_create_tag(
-                        f"max_halo_depth_{self._mesh_name}").name
+                depth = sym_tab.find_or_create_tag(
+                    f"max_halo_depth_{self._mesh_name}").name
             root_name = "last_halo_cell_all_colours"
             if self._kern.is_intergrid:
                 root_name += "_" + self._field_name
-            sym = self.ancestor(
-                InvokeSchedule).symbol_table.find_or_create_tag(root_name)
+            sym = sym_tab.find_or_create_tag(root_name)
             return f"{sym.name}(colour, {depth})"
         if self._upper_bound_name in ["ndofs", "nannexed"]:
             if Config.get().distributed_memory:
@@ -8919,9 +8943,12 @@ class DynKernelArguments(Arguments):
         # We have now completed the construction of the kernel arguments so
         # we can go back and update the names of any stencil size and/or
         # direction variable names to ensure there are no clashes.
-        if self._parent_call and hasattr(self._parent_call.root,
-                                         'symbol_table'):
-            symtab = self._parent_call.root.symbol_table
+        if self._parent_call:
+            inv_sched = self._parent_call.ancestor(InvokeSchedule)
+            if hasattr(inv_sched, "symbol_table"):
+                symtab = inv_sched.symbol_table
+            else:
+                symtab = SymbolTable()
         else:
             # TODO 719 The symtab is not connected to other parts of the
             # Stub generation.
@@ -9150,13 +9177,11 @@ class DynKernelArguments(Arguments):
         :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        symtab = self._parent_call.scope.symbol_table
+
+        # TODO check if this is correct
         create_arg_list = KernCallArgList(self._parent_call)
         create_arg_list.generate()
-        reader = FortranReader()
-        symtab = create_arg_list._symtab
-        l = [reader.psyir_from_expression(arg, symtab) for arg in self._raw_arg_list]
-        return [arg.psyir_expression() for arg in self.args]
+        return create_arg_list.psyir_arglist
 
     @property
     def acc_args(self):

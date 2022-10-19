@@ -48,10 +48,28 @@ from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynLoop
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
+from psyclone.psyir.nodes import Reference
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_ast, get_base_path, get_invoke
 
 TEST_API = "dynamo0.3"
+
+
+def check_psyir_results(create_arg_list, fortran_writer):
+    '''Helper function to check if the PSyIR representation of the arguments
+     is identical to the old style textual representation. It checks that each
+     member of the psyir_arglist is a Reference, and that the textural
+     representation matches the textual presentation (which was already
+     verified).
+
+     '''
+    # Check the PSyIR representation
+    result = []
+    for node in create_arg_list.psyir_arglist:
+        assert isinstance(node, Reference)
+        result.append(fortran_writer(node))
+
+    assert result == create_arg_list._arglist
 
 
 def test_argordering_append():
@@ -133,10 +151,9 @@ def test_unexpected_type_error(dist_mem):
         create_arg_list.generate()
     const = LFRicConstants()
     assert (
-        "ArgOrdering.generate(): Unexpected argument "
-        "type found. Expected one of '{0}' but found 'invalid'".
-        format(const.VALID_ARG_TYPE_NAMES)
-        in str(excinfo.value))
+        f"ArgOrdering.generate(): Unexpected argument "
+        f"type found. Expected one of '{const.VALID_ARG_TYPE_NAMES}' "
+        f"but found 'invalid'" in str(excinfo.value))
 
 
 def test_kernel_stub_invalid_scalar_argument():
@@ -155,12 +172,11 @@ def test_kernel_stub_invalid_scalar_argument():
     with pytest.raises(InternalError) as excinfo:
         create_arg_list.scalar(arg)
     const = LFRicConstants()
-    assert ("Expected argument type to be one of {0} but got "
-            "'invalid'".format(const.VALID_SCALAR_NAMES)
-            in str(excinfo.value))
+    assert (f"Expected argument type to be one of {const.VALID_SCALAR_NAMES} "
+            f"but got 'invalid'" in str(excinfo.value))
 
 
-def test_arg_ordering_generate_domain_kernel(dist_mem):
+def test_arg_ordering_generate_domain_kernel(dist_mem, fortran_writer):
     '''
     Check that the LFRic ArgOrdering class generates the expected arguments
     for a kernel that iterates over the 'domain'.
@@ -177,13 +193,16 @@ def test_arg_ordering_generate_domain_kernel(dist_mem):
 
     create_arg_list = KernCallArgList(kernel)
     assert create_arg_list._arglist == []
+    assert create_arg_list._psyir_arglist == []
     create_arg_list.generate()
     assert create_arg_list._arglist == [
         'nlayers', 'ncell_2d_no_halos', 'b', 'f1_proxy%data', 'ndf_w3',
         'undf_w3', 'map_w3']
 
+    check_psyir_results(create_arg_list, fortran_writer)
 
-def test_arg_ordering_generate_cma_kernel(dist_mem):
+
+def test_arg_ordering_generate_cma_kernel(dist_mem, fortran_writer):
     '''
     Check that the LFRic ArgOrdering class generates the expected arguments
     for a CMA kernel.
@@ -208,6 +227,11 @@ def test_arg_ordering_generate_cma_kernel(dist_mem):
         'cma_op1_gamma_m', 'cma_op1_gamma_p', 'ndf_adspc1_lma_op1',
         'cbanded_map_adspc1_lma_op1', 'ndf_adspc2_lma_op1',
         'cbanded_map_adspc2_lma_op1']
+
+    print(fortran_writer(schedule.parent))
+    print("OLD\n", psy.gen)
+
+    check_psyir_results(create_arg_list, fortran_writer)
 
 
 def test_arg_ordering_mdata_index():
@@ -293,6 +317,14 @@ def test_kerncallarglist_args_error(dist_mem):
         _ = create_arg_list.arglist
     assert (
         "The argument list in KernCallArgList "
+        "is empty. Has the generate() method been called?"
+        ) in str(excinfo.value)
+
+    # arglist method
+    with pytest.raises(InternalError) as excinfo:
+        _ = create_arg_list.psyir_arglist
+    assert (
+        "The PSyIR argument list in KernCallArgList "
         "is empty. Has the generate() method been called?"
         ) in str(excinfo.value)
 

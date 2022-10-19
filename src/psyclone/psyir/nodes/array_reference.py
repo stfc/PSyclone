@@ -39,9 +39,12 @@
 ''' This module contains the implementation of the ArrayReference node. '''
 
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
+from psyclone.psyir.nodes.literal import Literal
+from psyclone.psyir.nodes.operation import BinaryOperation
+from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import (DataSymbol, DeferredType, UnknownType,
-                                    ScalarType, ArrayType)
+                                    ScalarType, ArrayType, INTEGER_TYPE)
 from psyclone.errors import GenerationError
 
 
@@ -58,7 +61,8 @@ class ArrayReference(ArrayMixin, Reference):
     @staticmethod
     def create(symbol, indices):
         '''Create an ArrayReference instance given a symbol and a list of Node
-        array indices.
+        array indices. The special value ":" can be used as an index to
+        create the corresponding PSyIR Range that represents ":".
 
         :param symbol: the symbol that this array is associated with.
         :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
@@ -95,8 +99,18 @@ class ArrayReference(ArrayMixin, Reference):
                     f"'{len(symbol.shape)}'.")
 
         array = ArrayReference(symbol)
-        for child in indices:
-            array.addchild(child)
+        for ind, child in enumerate(indices):
+            if child == ":":
+                lbound = BinaryOperation.create(
+                    BinaryOperation.Operator.LBOUND,
+                    Reference(symbol), Literal(f"{ind+1}", INTEGER_TYPE))
+                ubound = BinaryOperation.create(
+                    BinaryOperation.Operator.UBOUND,
+                    Reference(symbol), Literal(f"{ind+1}", INTEGER_TYPE))
+                my_range = Range.create(lbound, ubound)
+                array.addchild(my_range)
+            else:
+                array.addchild(child)
         return array
 
     def __str__(self):

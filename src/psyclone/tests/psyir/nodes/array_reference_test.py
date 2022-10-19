@@ -510,3 +510,21 @@ def test_array_datatype(fortran_writer):
     # The easiest way to check the expression is to convert it to Fortran
     code = fortran_writer(upper)
     assert code == "(4 - 2) / 1 + 1"
+
+
+def test_array_create_colon(fortran_writer):
+    '''Test that the create method accepts ":" as shortcut to automatically
+    create a Range that represents ":".'''
+    test_sym = DataSymbol("test", ArrayType(REAL_TYPE, [10, 10]))
+    aref = ArrayReference.create(test_sym, [":", ":"])
+    # Check that each dimension is `lbound(...):ubound(...)`
+    for i in range(2):
+        assert isinstance(aref.children[i], Range)
+        assert isinstance(aref.children[i].children[1], BinaryOperation)
+        assert aref.children[i].children[0].operator == \
+               BinaryOperation.Operator.LBOUND
+        assert aref.children[i].children[1].operator == \
+               BinaryOperation.Operator.UBOUND
+
+    code = fortran_writer(aref)
+    assert code == "test(:,:)"
