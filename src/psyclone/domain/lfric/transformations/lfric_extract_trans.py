@@ -82,7 +82,7 @@ class LFRicExtractTrans(ExtractTrans):
 
         # First check constraints on Nodes in the node_list inherited from
         # the parent classes (ExtractTrans and RegionTrans)
-        super(LFRicExtractTrans, self).validate(node_list, options)
+        super().validate(node_list, options)
 
         # Check LFRicExtractTrans specific constraints
         for node in node_list:
@@ -93,6 +93,6 @@ class LFRicExtractTrans(ExtractTrans):
             ancestor = node.ancestor(DynLoop)
             if ancestor and ancestor.loop_type == 'colours':
                 raise TransformationError(
-                    "Error in {0} for Dynamo0.3 API: Extraction of a Loop "
-                    "over cells in a colour without its ancestor Loop over "
-                    "colours is not allowed.".format(str(self.name)))
+                    f"Error in {self.name} for Dynamo0.3 API: Extraction of a "
+                    f"Loop over cells in a colour without its ancestor Loop "
+                    f"over colours is not allowed.")
