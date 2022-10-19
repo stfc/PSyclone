@@ -68,7 +68,7 @@ def test_reference_equality():
     Check that the __eq__ method of the Reference class behaves as expected,
     i.e. == is true iff:
     1. Both are the same type (Reference)
-    2. They Reference the same symbol
+    2. They Reference the same symbol name
     '''
     symbol1 = DataSymbol("rname", INTEGER_SINGLE_TYPE)
     symbol2 = DataSymbol("rname2", INTEGER_SINGLE_TYPE)
@@ -83,7 +83,7 @@ def test_reference_equality():
     # Create another symbol with the same name (but not the same instance)
     symbol3 = DataSymbol("rname", INTEGER_SINGLE_TYPE)
     ref4 = Reference(symbol3)
-    assert ref1 != ref4
+    assert ref1 == ref4
 
 
 def test_reference_node_str():

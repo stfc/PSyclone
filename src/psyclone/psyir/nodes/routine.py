@@ -79,7 +79,7 @@ class Routine(Schedule, CommentableMixin):
     def __eq__(self, other):
         '''
         Checks whether two nodes are equal. Two Routine nodes are equal
-        if they haev the same name, same return symbol, same is_program and
+        if they have the same name, same return symbol, same is_program and
         the inherited __eq__ is True.
 
         :param object other: the object to check equality to.
