@@ -674,6 +674,15 @@ def test_node_digraph_no_graphviz(monkeypatch):
     dag_class = _graphviz_digraph_class()
     assert dag_class is None
 
+    # Now add a dummy class and define it to be 'graphviz',
+    # so we can also test the code executed when graphviz exists.
+    class Dummy:
+        '''Dummy class to test _graphciz_digraph_class.'''
+        Digraph = "DummyDigraph"
+    monkeypatch.setitem(sys.modules, 'graphviz', Dummy)
+    dag_class = _graphviz_digraph_class()
+    assert dag_class == "DummyDigraph"
+
 
 def test_node_dag_no_graphviz(tmpdir, monkeypatch):
     ''' Test that the dag generation returns None (and that no file is created)

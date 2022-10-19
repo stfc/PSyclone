@@ -32,21 +32,21 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Authors A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified work Copyright (c) 2018-2019 by J. Henrichs, Bureau of Meteorology
+# Modified by J. Henrichs, Bureau of Meteorology
 # Modified R. W. Ford, STFC Daresbury Lab
-# Modified: I. Kavcic, Met Office
+# Modified I. Kavcic, Met Office
 
 '''Tests for the GOLoop class.'''
 
-from __future__ import absolute_import, print_function
-
 import pytest
+
 from fparser.two.parser import ParserFactory
 
-from psyclone.errors import GenerationError
+from psyclone.domain.gocean import GOceanConstants
+from psyclone.errors import GenerationError, InternalError
 from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule
-from psyclone.psyir.nodes import Schedule, Reference, StructureReference, \
-    Node, Literal
+from psyclone.psyir.nodes import (Schedule, Reference, StructureReference,
+                                  Node, Literal)
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.tests.utilities import get_invoke
 
@@ -133,6 +133,20 @@ def test_goloop_create(monkeypatch):
                                field_space="go_cv")
     assert ("Error, loop_type value (invalid) is invalid. Must be one of "
             "['inner', 'outer']." in str(err.value))
+
+    # Now trigger the second test: it must be a valid loop type according
+    # to VALID_LOOP_TYPES, but not 'inner' or 'outer', the only values
+    # the code can actually handle. So monkeypatch VALID_LOOP_TYPES:
+    monkeypatch.setattr(GOceanConstants, "VALID_LOOP_TYPES",
+                        ["inner", "outer", "other"])
+    with pytest.raises(InternalError) as err:
+        goloop = GOLoop.create(parent=gosched,
+                               loop_type="other",
+                               field_name="cv_fld",
+                               iteration_space="go_internal_pts",
+                               field_space="go_cv")
+    assert ("While the loop type 'other' is valid, it is not yet supported."
+            in str(err.value))
 
 
 def test_goloop_properties_getters_and_setters():
