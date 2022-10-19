@@ -136,9 +136,9 @@ def test_datasymbol_specialise_and_process_arguments():
     with pytest.raises(ValueError) as error:
         sym4.specialise(DataSymbol, datatype=INTEGER_SINGLE_TYPE,
                         constant_value=3.14)
-    assert("This DataSymbol instance datatype is 'Scalar<INTEGER, SINGLE>' "
-           "meaning the constant value should be"
-           in str(error.value))
+    assert ("This DataSymbol instance datatype is 'Scalar<INTEGER, SINGLE>' "
+            "meaning the constant value should be"
+            in str(error.value))
 
 
 def test_datasymbol_can_be_printed():

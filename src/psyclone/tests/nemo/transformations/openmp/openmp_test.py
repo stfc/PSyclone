@@ -77,7 +77,7 @@ def test_omp_explicit_gen():
         "  real, dimension(jpi,jpj,jpk) :: umask\n"
         "\n"
         "  !$omp parallel do default(shared), private(ji,jj,jk), "
-        "schedule(static)\n"
+        "schedule(auto)\n"
         "  do jk = 1, jpk, 1\n"
         "    do jj = 1, jpj, 1\n"
         "      do ji = 1, jpi, 1\n"
@@ -206,7 +206,7 @@ def test_omp_do_code_gen():
                      .else_body[0].else_body[0].dir_body[0])
     gen_code = str(psy.gen).lower()
     correct = '''        !$omp parallel default(shared), private(ji,jj)
-        !$omp do schedule(static)
+        !$omp do schedule(auto)
         do jj = 1, jpj, 1
           do ji = 1, jpi, 1
             zdkt(ji,jj) = (ptb(ji,jj,jk - 1,jn) - ptb(ji,jj,jk,jn)) * \
@@ -233,7 +233,7 @@ def test_omp_do_within_if():
     expected = (
         "      else\n"
         "        !$omp parallel do default(shared), private(ji,jj), "
-        "schedule(static)\n"
+        "schedule(auto)\n"
         "        do jj = 1, jpj, 1\n"
         "          do ji = 1, jpi, 1\n"
         "            zdkt(ji,jj) = (ptb(ji,jj,jk - 1,jn) - "

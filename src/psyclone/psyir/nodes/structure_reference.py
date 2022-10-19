@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,18 +37,17 @@
 
 ''' This module contains the implementation of the StructureReference node. '''
 
-from __future__ import absolute_import
-import six
-
 from psyclone.core import Signature
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.array_member import ArrayMember
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_of_structures_member import \
     ArrayOfStructuresMember
 from psyclone.psyir.nodes.structure_member import StructureMember
-from psyclone.psyir.symbols import DataSymbol, DataTypeSymbol, StructureType, \
-    DeferredType, UnknownType
+from psyclone.psyir.symbols import (DataSymbol, DataTypeSymbol, StructureType,
+                                    ArrayType, DeferredType, ScalarType,
+                                    UnknownType)
 from psyclone.errors import InternalError
 
 
@@ -168,7 +167,7 @@ class StructureReference(Reference):
         if isinstance(members[-1], tuple):
             # An access to one or more array elements
             subref = ArrayMember.create(members[-1][0], members[-1][1])
-        elif isinstance(members[-1], six.string_types):
+        elif isinstance(members[-1], str):
             # A member access
             subref = Member(members[-1])
         else:
@@ -188,7 +187,7 @@ class StructureReference(Reference):
                 # This is an array access so we have an ArrayOfStructuresMember
                 subref = ArrayOfStructuresMember.create(
                     component[0], component[1], subref)
-            elif isinstance(component, six.string_types):
+            elif isinstance(component, str):
                 # No array access so just a StructureMember
                 subref = StructureMember.create(component, subref)
             else:
@@ -203,7 +202,7 @@ class StructureReference(Reference):
         return ref
 
     def __str__(self):
-        result = super(StructureReference, self).__str__()
+        result = super().__str__()
         for entity in self._children:
             result += "\n" + str(entity)
         return result
@@ -233,12 +232,111 @@ class StructureReference(Reference):
 
         '''
         # Get the signature of self:
-        my_sig, my_index = \
-            super(StructureReference, self).get_signature_and_indices()
+        my_sig, my_index = super().get_signature_and_indices()
         # Then the sub-signature of the member, and indices used:
         sub_sig, indices = self.children[0].get_signature_and_indices()
         # Combine signature and indices
         return (Signature(my_sig, sub_sig), my_index + indices)
+
+    @property
+    def datatype(self):
+        '''
+        Walks down the list of members making up this reference to determine
+        the type that it refers to.
+
+        In order to minimise code duplication, this method also supports
+        ArrayOfStructuresReference by simply allowing for the case where
+        the starting reference is to an Array.
+
+        :returns: the datatype of this reference.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+
+        :raises NotImplementedError: if the structure reference represents \
+                                     an array of arrays.
+        '''
+        dtype = self.symbol.datatype
+
+        if isinstance(dtype, ArrayType):
+            dtype = dtype.intrinsic
+
+        if isinstance(dtype, DataTypeSymbol):
+            dtype = dtype.datatype
+
+        if isinstance(dtype, (DeferredType, UnknownType)):
+            # We don't know the type of the symbol that defines the type
+            # of this structure.
+            return DeferredType()
+
+        # We do have the definition of this structure - walk down it.
+        cursor = self
+        cursor_type = dtype
+
+        # The next four lines are required when this method is called for an
+        # ArrayOfStructuresReference.
+        if isinstance(cursor, ArrayMixin):
+            # pylint: disable=protected-access
+            shape = cursor._get_effective_shape()
+        else:
+            shape = []
+
+        # Walk down the structure, collecting information on any array slices
+        # as we go.
+        while hasattr(cursor, "member"):
+            cursor = cursor.member
+            cursor_type = cursor_type.components[cursor.name].datatype
+            if isinstance(cursor_type, (UnknownType, DeferredType)):
+                return DeferredType()
+            if isinstance(cursor, ArrayMixin):
+                # pylint: disable=protected-access
+                shape.extend(cursor._get_effective_shape())
+
+        # We've reached the ultimate member of the structure access.
+        if shape:
+            if isinstance(cursor_type, ArrayType):
+                # It's of array type but does it represent a single element,
+                # a slice or a whole array? (We use `children` rather than
+                # `indices` so as to avoid having to check that `cursor` is
+                # an `ArrayMember`.)
+                if cursor.children:
+                    # It has indices so could be a single element or a slice.
+                    # pylint: disable=protected-access
+                    cursor_shape = cursor._get_effective_shape()
+                else:
+                    # No indices so it is an access to a whole array.
+                    cursor_shape = cursor_type.shape
+                if cursor_shape and shape != cursor_shape:
+                    # This ultimate access is an array but we've already
+                    # encountered one or more slices earlier in the access
+                    # expression.
+                    # TODO #1887. Allow the writer to be used in error messages
+                    # to be set in the Config object?
+                    # pylint: disable=import-outside-toplevel
+                    from psyclone.psyir.backend.fortran import FortranWriter
+                    fwriter = FortranWriter()
+                    raise NotImplementedError(
+                        f"Array of arrays not supported: the ultimate member "
+                        f"'{cursor.name}' of the StructureAccess represents "
+                        f"an array but other array notation is present in the "
+                        f"full access expression: '{fwriter(self)}'")
+                return ArrayType(cursor_type.intrinsic, shape)
+
+            return ArrayType(cursor_type, shape)
+
+        # We don't have an explicit array access (because `shape` is Falsey)
+        # but is the ultimate member itself an array?
+        if isinstance(cursor_type, ArrayType):
+            if not cursor.children:
+                # It is and there are no index expressions so we return the
+                # ArrayType.
+                return cursor_type
+            # We have an access to a single element of the array.
+            # Currently arrays of scalars are handled in a
+            # different way to all other types of array. Issue #1857 will
+            # fix this anomaly.
+            if isinstance(cursor_type.intrinsic, ScalarType.Intrinsic):
+                return ScalarType(cursor_type.intrinsic, cursor_type.precision)
+            return cursor_type.intrinsic
+        return cursor_type
 
 
 # For AutoAPI documentation generation

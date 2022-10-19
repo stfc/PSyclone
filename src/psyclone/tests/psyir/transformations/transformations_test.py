@@ -156,9 +156,9 @@ def test_omptaskloop_getters_and_setters():
     assert trans.omp_num_tasks == 32
     with pytest.raises(TransformationError) as err:
         trans.omp_grainsize = 32
-    assert("The grainsize and num_tasks clauses would both "
-           "be specified for this Taskloop transformation"
-           in str(err.value))
+    assert ("The grainsize and num_tasks clauses would both "
+            "be specified for this Taskloop transformation"
+            in str(err.value))
     trans.omp_num_tasks = None
     assert trans.omp_num_tasks is None
     trans.omp_grainsize = 32
@@ -173,9 +173,9 @@ def test_omptaskloop_getters_and_setters():
 
     with pytest.raises(TransformationError) as err:
         trans = OMPTaskloopTrans(grainsize=32, num_tasks=32)
-    assert("The grainsize and num_tasks clauses would both "
-           "be specified for this Taskloop transformation"
-           in str(err.value))
+    assert ("The grainsize and num_tasks clauses would both "
+            "be specified for this Taskloop transformation"
+            in str(err.value))
 
     with pytest.raises(TypeError) as err:
         trans = OMPTaskloopTrans(nogroup=32)
@@ -320,26 +320,28 @@ def test_omplooptrans_properties():
 
     # Check default values
     omplooptrans = OMPLoopTrans()
-    assert omplooptrans.omp_schedule == "static"
-    assert omplooptrans.omp_worksharing is True
+    assert omplooptrans.omp_schedule == "auto"
+    assert omplooptrans.omp_directive == "do"
 
     # Use setters with valid values
     omplooptrans.omp_schedule = "dynamic,2"
-    omplooptrans.omp_worksharing = False
+    omplooptrans.omp_directive = "paralleldo"
     assert omplooptrans.omp_schedule == "dynamic,2"
-    assert omplooptrans.omp_worksharing is False
+    assert omplooptrans.omp_directive == "paralleldo"
 
     # Setting things at the constructor also works
     omplooptrans = OMPLoopTrans(omp_schedule="dynamic,2",
-                                omp_worksharing=False)
+                                omp_directive="loop")
     assert omplooptrans.omp_schedule == "dynamic,2"
-    assert omplooptrans.omp_worksharing is False
+    assert omplooptrans.omp_directive == "loop"
 
     # Use setters with invalid values
     with pytest.raises(TypeError) as err:
-        omplooptrans.omp_worksharing = "invalid"
-    assert ("The OMPLoopTrans.omp_worksharing property must be a boolean but"
-            " found a 'str'." in str(err.value))
+        omplooptrans.omp_directive = "invalid"
+    assert ("The OMPLoopTrans.omp_directive property must be a str with "
+            "the value of ['do', 'paralleldo', 'teamsdistributeparalleldo', "
+            "'loop'] but found a 'str' with value 'invalid'."
+            in str(err.value))
 
     with pytest.raises(TypeError) as err:
         omplooptrans.omp_schedule = 3
@@ -452,7 +454,7 @@ def test_omplooptrans_apply(sample_psyir, fortran_writer):
     omplooptrans.apply(tree.walk(Loop)[0])
     assert isinstance(tree.walk(Loop)[0].parent, Schedule)
     assert isinstance(tree.walk(Loop)[0].parent.parent, OMPDoDirective)
-    assert tree.walk(Loop)[0].parent.parent._omp_schedule == 'static'
+    assert tree.walk(Loop)[0].parent.parent._omp_schedule == 'auto'
 
     # The omp_schedule can be changed
     omplooptrans = OMPLoopTrans(omp_schedule="dynamic,2")
@@ -465,8 +467,8 @@ def test_omplooptrans_apply(sample_psyir, fortran_writer):
     assert loop1.parent.parent._omp_schedule == 'dynamic,2'
     ompparalleltrans.apply(loop1.parent.parent)  # Needed for generation
 
-    # If omp_worksharing is False, it adds a OMPLoopDirective instead
-    omplooptrans = OMPLoopTrans(omp_worksharing=False)
+    # The omp_directive can be changed
+    omplooptrans = OMPLoopTrans(omp_directive="loop")
     loop2 = tree.walk(Loop, stop_type=Loop)[1]
     omplooptrans.apply(loop2, {'collapse': 2})
     assert isinstance(loop2.parent, Schedule)
@@ -607,9 +609,9 @@ def test_ompsingle_nested():
     single.apply(schedule[0])
     with pytest.raises(TransformationError) as err:
         single.apply(schedule[0])
-    assert("Transformation Error: Nodes of type 'OMPSingleDirective' cannot" +
-           " be enclosed by a OMPSingleTrans transformation"
-           in str(err.value))
+    assert ("Transformation Error: Nodes of type 'OMPSingleDirective' cannot"
+            " be enclosed by a OMPSingleTrans transformation"
+            in str(err.value))
 
 
 # Tests for OMPMasterTrans
@@ -638,9 +640,9 @@ def test_ompmaster_nested():
     assert schedule[0].dir_body[0] is node
     with pytest.raises(TransformationError) as err:
         master.apply(schedule[0])
-    assert("Transformation Error: Nodes of type 'OMPMasterDirective' cannot" +
-           " be enclosed by a OMPMasterTrans transformation"
-           in str(err.value))
+    assert ("Transformation Error: Nodes of type 'OMPMasterDirective' cannot"
+            " be enclosed by a OMPMasterTrans transformation"
+            in str(err.value))
 
 
 # Tests for ProfileTrans

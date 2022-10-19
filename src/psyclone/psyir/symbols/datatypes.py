@@ -39,15 +39,14 @@
 import abc
 from collections import OrderedDict, namedtuple
 from enum import Enum
-import six
+
 from psyclone.errors import InternalError
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.datasymbol import DataSymbol
 from psyclone.psyir.symbols.symbol import Symbol
 
 
-@six.add_metaclass(abc.ABCMeta)
-class DataType():
+class DataType(metaclass=abc.ABCMeta):
     '''Abstract base class from which all types are derived.'''
 
     @abc.abstractmethod
@@ -57,6 +56,15 @@ class DataType():
         :rtype: str
 
         '''
+
+    def __eq__(self, other):
+        '''
+        :param Any other: the object to check equality to.
+
+        :returns: whether this type is equal to the 'other' type.
+        :rtype: bool
+        '''
+        return type(other) is type(self)
 
 
 class DeferredType(DataType):
@@ -79,8 +87,7 @@ class NoType(DataType):
         return "NoType"
 
 
-@six.add_metaclass(abc.ABCMeta)
-class UnknownType(DataType):
+class UnknownType(DataType, metaclass=abc.ABCMeta):
     '''
     Indicates that a variable declaration is not supported by the PSyIR.
     This class is abstract and must be subclassed for each language
@@ -131,12 +138,81 @@ class UnknownFortranType(UnknownType):
 
     :param str declaration_txt: string containing the original variable \
                                 declaration.
-
-    :raises TypeError: if the supplied declaration_txt is not a str.
-
     '''
+    def __init__(self, declaration_txt):
+        super().__init__(declaration_txt)
+        # This will hold the Fortran type specification (as opposed to
+        # the whole declaration).
+        self._type_text = ""
+
     def __str__(self):
         return f"UnknownFortranType('{self._declaration}')"
+
+    @property
+    def declaration(self):
+        '''
+        This useless routine is required so that we can override the associated
+        setter method below.
+        '''
+        return super().declaration
+
+    @declaration.setter
+    def declaration(self, value):
+        '''
+        Sets the original declaration that this instance represents and
+        removes any cached type text.
+
+        :param str value: the original declaration.
+
+        '''
+        self._declaration = value[:]
+        self._type_text = ""
+
+    @property
+    def type_text(self):
+        '''
+        Parses the original Fortran declaration and uses the resulting
+        parse tree to extract the type information. This is returned in
+        text form and also cached.
+
+        TODO #1419 - alter Unknown(Fortran)Type so that it is only the
+        type information that is stored as a string. i.e. remove the name
+        of the variable being declared. Once that is done this method
+        won't be required.
+
+        :returns: the Fortran code specifying the type.
+        :rtype: str
+        '''
+        if self._type_text:
+            return self._type_text
+
+        # Encapsulate fparser2 functionality here.
+        # pylint:disable=import-outside-toplevel
+        from fparser.common.readfortran import FortranStringReader
+        from fparser.common.sourceinfo import FortranFormat
+        from fparser.two import Fortran2008
+        from fparser.two.parser import ParserFactory
+        string_reader = FortranStringReader(self._declaration)
+        # Set reader to free format.
+        string_reader.set_format(FortranFormat(True, False))
+        ParserFactory().create(std="f2008")
+        ptree = Fortran2008.Declaration_Construct(
+            string_reader)
+        self._type_text = str(ptree.children[0])
+
+        return self._type_text
+
+    def __eq__(self, other):
+        '''
+        :param Any other: the object to check equality to.
+
+        :returns: whether this type is equal to the 'other' type.
+        :rtype: bool
+        '''
+        if not super().__eq__(other):
+            return False
+
+        return other.type_text == self.type_text
 
 
 class ScalarType(DataType):
@@ -232,14 +308,13 @@ class ScalarType(DataType):
     def __eq__(self, other):
         '''
         :param Any other: the object to check equality to.
-        :returns: whether this scalar type is equal to the 'other' scalar type.
+
+        :returns: whether this type is equal to the 'other' type.
         :rtype: bool
         '''
-        # A ScalarType is not equal to e.g. an ArrayType.
-        if not type(other) is type(self):
+        if not super().__eq__(other):
             return False
-        # TODO #1799 - this method needs implementing for the other Types as
-        # currently we're not consistent.
+
         return (self.precision == other.precision and
                 self.intrinsic == other.intrinsic)
 
@@ -317,6 +392,9 @@ class ArrayType(DataType):
             if not isinstance(datatype, UnknownType):
                 self._intrinsic = datatype.intrinsic
                 self._precision = datatype.precision
+            else:
+                self._intrinsic = datatype
+                self._precision = None
         elif isinstance(datatype, DataTypeSymbol):
             self._intrinsic = datatype
             self._precision = None
@@ -418,7 +496,7 @@ class ArrayType(DataType):
             :raises TypeError: if the DataNode is not valid in this context.
 
             '''
-            # When issue #685 is addressed then check that the
+            # When issue #1799 is addressed then check that the
             # datatype returned is an int (or is unknown). For the
             # moment, just check that if the DataNode is a
             # Reference then the associated symbol is a scalar
@@ -426,16 +504,19 @@ class ArrayType(DataType):
             if isinstance(dim_node, Reference):
                 # Check the DataSymbol instance is a scalar
                 # integer or is unknown
-                symbol = dim_node.symbol
-                if not ((symbol.is_scalar and symbol.datatype.intrinsic ==
-                         ScalarType.Intrinsic.INTEGER) or
-                        isinstance(symbol.datatype,
-                                   (UnknownFortranType, DeferredType))):
+                dtype = dim_node.datatype
+                if isinstance(dtype, ArrayType) and dtype.shape:
                     raise TypeError(
                         f"If a DataSymbol is referenced in a dimension "
-                        f"declaration then it should be a scalar integer or "
+                        f"declaration then it should be a scalar but "
+                        f"'{dim_node}' is not.")
+                if not (isinstance(dtype, (UnknownType, DeferredType)) or
+                        dtype.intrinsic == ScalarType.Intrinsic.INTEGER):
+                    raise TypeError(
+                        f"If a DataSymbol is referenced in a dimension "
+                        f"declaration then it should be an integer or "
                         f"of UnknownType or DeferredType, but "
-                        f"'{symbol.name}' is a '{symbol.datatype}'.")
+                        f"'{dim_node.name}' is a '{dtype}'.")
                 # TODO #1089 - add check that any References are not to a
                 # local datasymbol that is not constant (as this would have
                 # no value).
@@ -506,6 +587,34 @@ class ArrayType(DataType):
                     f"ArrayBounds', or 'ArrayType.Extent', but found "
                     f"'{type(dimension).__name__}'.")
         return f"Array<{self._datatype}, shape=[{', '.join(dims)}]>"
+
+    def __eq__(self, other):
+        '''
+        :param Any other: the object to check equality to.
+
+        :returns: whether this ArrayType is equal to the 'other' ArrayType.
+        :rtype: bool
+        '''
+        if not super().__eq__(other):
+            return False
+
+        if (self.intrinsic != other.intrinsic or
+                self.precision != other.precision):
+            return False
+
+        if len(self.shape) != len(other.shape):
+            return False
+
+        # TODO #1799 - this implementation currently has some limitations.
+        # e.g. a(1:10) and b(2:11) have the same datatype (an array of 1
+        # dimension and 10 elements) but we will currently return false.
+        # One improvement could be to use the SymbolicMath to do the comparison
+        # but this won't resolve all cases as shape can be references.
+        for this_dim, other_dim in zip(self.shape, other.shape):
+            if this_dim != other_dim:
+                return False
+
+        return True
 
 
 class StructureType(DataType):
@@ -606,6 +715,24 @@ class StructureType(DataType):
         :rtype: :py:class:`psyclone.psyir.symbols.StructureType.ComponentType`
         '''
         return self._components[name]
+
+    def __eq__(self, other):
+        '''
+        :param Any other: the object to check equality to.
+
+        :returns: whether this StructureType is equal to the 'other' type.
+        :rtype: bool
+        '''
+        if not super().__eq__(other):
+            return False
+
+        if len(self.components) != len(other.components):
+            return False
+
+        if self.components != other.components:
+            return False
+
+        return True
 
 
 # Create common scalar datatypes
