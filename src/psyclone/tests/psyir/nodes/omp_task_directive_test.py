@@ -53,7 +53,7 @@ from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, \
     OMPGrainsizeClause, OMPNumTasksClause, OMPNogroupClause, \
     OMPTaskDirective, OMPPrivateClause, OMPDefaultClause,\
     OMPReductionClause, OMPFirstprivateClause, OMPSharedClause, \
-    OMPDependClause, OMPScheduleClause
+    OMPDependClause, OMPScheduleClause, DynamicOMPTaskDirective
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, SymbolTable, \
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE
 from psyclone.errors import InternalError, GenerationError
@@ -119,7 +119,7 @@ def test_omp_task_directive_1(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
     loop = loops[0]
     parent = loop.parent
@@ -152,6 +152,7 @@ def test_omp_task_directive_1(fortran_reader, fortran_writer):
   !$omp end parallel
 
 end subroutine my_subroutine\n'''
+    print(fortran_writer(tree))
     assert fortran_writer(tree) == correct
 
 
@@ -179,7 +180,7 @@ def test_omp_task_directive_2(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
     loop = loops[0]
     parent = loop.parent
@@ -218,7 +219,7 @@ def test_omp_task_directive_3(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
     loop = loops[1]
     parent = loop.parent
@@ -276,7 +277,7 @@ def test_omp_task_directive_4(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
     loop = loops[0].children[3].children[0]
     parent = loop.parent
@@ -333,7 +334,7 @@ def test_omp_task_directive_5(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
     loop = loops[0].children[3].children[0]
     parent = loop.parent
@@ -390,7 +391,7 @@ def test_omp_task_directive_6(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
     loop = loops[0].children[3].children[0]
     parent = loop.parent
@@ -452,7 +453,7 @@ def test_omp_task_directive_7(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop)
     loop = loops[1].children[3].children[0]
     parent = loop.parent
@@ -518,7 +519,7 @@ def test_omp_task_directive_8(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop)
     loop = loops[1].children[3].children[0]
     parent = loop.parent
@@ -581,7 +582,7 @@ def test_omp_task_directive_9(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
     loop = loops[0].children[3].children[0]
     parent = loop.parent
@@ -643,7 +644,7 @@ def test_omp_task_directive_10(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop)
     loop = loops[1].children[3].children[0]
     parent = loop.parent
@@ -710,7 +711,7 @@ def test_omp_task_directive_11(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop)
     loop = loops[1].children[3].children[0]
     parent = loop.parent
@@ -777,7 +778,7 @@ def test_omp_task_directive_12(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop)
     loop = loops[1].children[3].children[0]
     parent = loop.parent
@@ -844,7 +845,7 @@ def test_omp_task_directive_mul_index_fail(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop)
     loop = loops[1].children[3].children[0]
     parent = loop.parent
@@ -885,7 +886,7 @@ def test_omp_task_directive_refref_index_fail(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop)
     loop = loops[1].children[3].children[0]
     parent = loop.parent
@@ -924,7 +925,7 @@ def test_omp_task_directive_13(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
     loop = loops[0].children[3].children[0]
     parent = loop.parent
@@ -984,7 +985,7 @@ def test_omp_task_directive_write_index_shared(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
     loop = loops[0].children[3].children[3]
     parent = loop.parent
@@ -1025,7 +1026,7 @@ def test_omp_task_directive_read_index_shared(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
     loop = loops[0].children[3].children[3]
     parent = loop.parent
@@ -1067,7 +1068,7 @@ def test_omp_task_directive_14(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
     loop = loops[0].children[3].children[1]
     parent = loop.parent
@@ -1130,7 +1131,7 @@ def test_omp_task_directive_15(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
     loop = loops[0].children[3].children[1]
     parent = loop.parent
@@ -1196,7 +1197,7 @@ def test_omp_task_directive_16(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop)
     loop = loops[1].children[3].children[0]
     parent = loop.parent
@@ -1262,7 +1263,7 @@ def test_omp_task_directive_17(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop)
     loop = loops[1].children[3].children[0]
     parent = loop.parent
@@ -1323,7 +1324,7 @@ def test_omp_task_directive_18(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop)
     loop = loops[1].children[3].children[0]
     parent = loop.parent
@@ -1389,7 +1390,7 @@ def test_omp_task_directive_19(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop)
     loop = loops[1].children[3].children[0]
     parent = loop.parent
@@ -1454,7 +1455,7 @@ def test_omp_task_directive_20(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
     loop = loops[0].children[3].children[0]
     parent = loop.parent
@@ -1511,7 +1512,7 @@ def test_omp_task_directive_21(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
     loop = loops[0].children[3].children[0]
     parent = loop.parent
@@ -1571,7 +1572,7 @@ def test_omp_task_directive_shared_index(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
     loop = loops[0].children[3].children[1]
     parent = loop.parent
@@ -1606,7 +1607,7 @@ def test_omp_task_directive_non_loop(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
     loop = loops[0].children[3].children[0]
     parent = loop.parent
@@ -1646,7 +1647,7 @@ def test_omp_task_directive_multichild(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
     assign = loops[0].children[3].children[0]
     assign.detach()
@@ -1686,7 +1687,7 @@ def test_omp_task_directive_loop_start_array(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
     loop = loops[0].children[3].children[0]
     parent = loop.parent
@@ -1723,7 +1724,7 @@ def test_omp_task_directive_loop_stop_array(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
     loop = loops[0].children[3].children[0]
     parent = loop.parent
@@ -1760,7 +1761,7 @@ def test_omp_task_directive_loop_step_array(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
     loop = loops[0].children[3].children[0]
     parent = loop.parent
@@ -1800,7 +1801,7 @@ def test_omp_task_directive_22(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
     loop = loops[0].children[3].children[0]
     parent = loop.parent
@@ -1864,7 +1865,7 @@ def test_omp_task_directive_23(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
     loop = loops[0].children[3].children[0]
     parent = loop.parent
@@ -1924,7 +1925,7 @@ def test_omp_task_directive_24(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
     loop = loops[0].children[3].children[0].children[3].children[0]
     parent = loop.parent
@@ -1985,7 +1986,7 @@ def test_omp_task_directive_25(fortran_reader, fortran_writer):
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
     ltrans = OMPLoopTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop)
     ltrans.apply(loops[0])
     loop = loops[1].children[3].children[0]
@@ -2001,12 +2002,10 @@ def test_omp_task_directive_25(fortran_reader, fortran_writer):
   integer :: ii
   integer :: j
   integer :: k
-  integer :: th_idx
-  integer :: nthreads
 
   !$omp parallel default(shared), private(i,ii,k)
   !$omp single
-  !$omp do schedule(static)
+  !$omp do schedule(auto)
   do i = 1, 32, 1
     k = 1
   enddo
@@ -2025,6 +2024,7 @@ depend(out: j,a(i,k + 1))
   !$omp end parallel
 
 end subroutine my_subroutine\n'''
+    print(fortran_writer(tree))
     assert fortran_writer(tree) == correct
 
 
@@ -2049,7 +2049,7 @@ def test_omp_task_directive_26(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
     loop = loops[0].children[3].children[0]
     parent = loop.parent
@@ -2085,7 +2085,7 @@ def test_omp_task_directive_27(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
     loop = loops[0].children[3].children[0]
     parent = loop.parent
@@ -2123,7 +2123,7 @@ def test_omp_task_directive_28(fortran_reader, fortran_writer):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
-    tdir = OMPTaskDirective()
+    tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
     loop = loops[0].children[3].children[0]
     parent = loop.parent

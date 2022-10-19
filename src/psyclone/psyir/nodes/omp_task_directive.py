@@ -130,6 +130,25 @@ class OMPTaskDirective(OMPRegionDirective):
         # pylint: disable=no-self-use
         return "omp end task"
 
+    def validate_global_constraints(self):
+        '''
+        Perform validation checks that can only be done at code-generation
+        time.
+
+        :raises GenerationError: if this OMPTaskDirective is not \
+                                 enclosed within an OpenMP serial region.
+        '''
+        # It is only at the point of code generation that we can check for
+        # correctness (given that we don't mandate the order that a user
+        # can apply transformations to the code). A taskloop
+        # directive, we must have an OMPSerialDirective as an
+        # ancestor back up the tree.
+        if not self.ancestor(OMPSerialDirective):
+            raise GenerationError(
+                "OMPTaskDirective must be inside an OMP Serial region "
+                "but could not find an ancestor node.")
+
+
 class DynamicOMPTaskDirective(OMPTaskDirective):
     '''
     Class representing an OpenMP TASK directive in the PSyIR.
@@ -166,24 +185,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # symbols.
         self._in_kern = False
 
-
-    def validate_global_constraints(self):
-        '''
-        Perform validation checks that can only be done at code-generation
-        time.
-
-        :raises GenerationError: if this OMPTaskDirective is not \
-                                 enclosed within an OpenMP serial region.
-        '''
-        # It is only at the point of code generation that we can check for
-        # correctness (given that we don't mandate the order that a user
-        # can apply transformations to the code). A taskloop
-        # directive, we must have an OMPSerialDirective as an
-        # ancestor back up the tree.
-        if not self.ancestor(OMPSerialDirective):
-            raise GenerationError(
-                "OMPTaskDirective must be inside an OMP Serial region "
-                "but could not find an ancestor node.")
 
     def _find_parent_loop_vars(self):
         '''
@@ -920,7 +921,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             # the code to handle an arrayref is not compatible with more
             # than one ArrayMixin child
             array_children = ref.walk(ArrayMixin)
-            if array_children is not None:
+            if len(array_children) > 0:
                 if len(array_children) > 1:
                     # TODO Document
                     raise IRGenerationError("Doesn't support a "
@@ -1291,7 +1292,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             # the code to handle an arrayref is not compatible with more
             # than one ArrayMixin child
             array_children = ref.walk(ArrayMixin)
-            if array_children is not None:
+            if len(array_children) > 0:
                 if len(array_children) > 1:
                     # TODO Document
                     raise IRGenerationError("Doesn't support a "
@@ -1787,7 +1788,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             self.children[4] = in_clause
         if len(self.children) < 6 or out_clause != self.children[5]:
             self.children[5] = out_clause
-
         super().lower_to_language_level()
 
         #TODO Replace this node with an OMPTaskDirective
