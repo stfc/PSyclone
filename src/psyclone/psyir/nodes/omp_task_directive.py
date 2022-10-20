@@ -1782,7 +1782,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         '''
         from psyclone.psyGen import Kern
         from psyclone.psyir.transformations.inline_trans import InlineTrans
-        from psyclone.transformations import KernelModuleInlineTrans
+        from psyclone.domain.common.transformations import KernelModuleInlineTrans
 
         kerns = self.walk(Kern)
         kintrans = KernelModuleInlineTrans()
