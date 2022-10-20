@@ -152,7 +152,6 @@ def test_omp_task_directive_1(fortran_reader, fortran_writer):
   !$omp end parallel
 
 end subroutine my_subroutine\n'''
-    print(fortran_writer(tree))
     assert fortran_writer(tree) == correct
 
 
@@ -1429,7 +1428,6 @@ depend(in: ty), depend(out: k,ty)
   !$omp end parallel
 
 end subroutine my_subroutine\n'''
-    print(fortran_writer(tree))
     assert fortran_writer(tree) == correct
 
 
@@ -2024,7 +2022,6 @@ depend(out: j,a(i,k + 1))
   !$omp end parallel
 
 end subroutine my_subroutine\n'''
-    print(fortran_writer(tree))
     assert fortran_writer(tree) == correct
 
 
@@ -2146,7 +2143,7 @@ def test_omp_task_directive_28(fortran_reader, fortran_writer):
     !$omp task private(j,iu), firstprivate(i), shared(a,b), \
 depend(in: k,b(i + 1,:)), depend(out: a(i,:))
     do j = 1, 10, 1
-      iu = i + 1 
+      iu = i + 1
       a(i,j) = k
       a(i,j) = b(iu,j) + k
     enddo

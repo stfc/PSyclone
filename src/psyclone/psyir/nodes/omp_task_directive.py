@@ -369,7 +369,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             real_var = self._proxy_loop_vars[index_symbol]['parent_var']
 
             # Create a Reference to the real variable
-            real_ref = Reference(real_var)
+            real_ref = self._proxy_loop_vars[index_symbol]['parent_node'].copy() #Reference(real_var)
             # We have a Literal step value, and a Literal in
             # the Binary Operation. These Literals must both be
             # Integer types, so we will convert them to integers
@@ -660,7 +660,9 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         # the parent loop's value.
                         parent_var =\
                             self._proxy_loop_vars[index.symbol]['parent_var']
-                        parent_ref = Reference(parent_var)
+                        parent_ref = \
+                            self._proxy_loop_vars[index.symbol]['parent_node']\
+                            .copy()
                         index_list.append(parent_ref)
                     else:
                         # Final case is just a generic Reference, in which case
@@ -825,7 +827,9 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         # the parent loop's value.
                         parent_var =\
                             self._proxy_loop_vars[index.symbol]['parent_var']
-                        parent_ref = Reference(parent_var)
+                        parent_ref = \
+                            self._proxy_loop_vars[index.symbol]['parent_node']\
+                            .copy()
                         index_list.append(parent_ref)
                     else:
                         # Final case is just a generic Reference, in which case
@@ -1053,7 +1057,9 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         # the parent loop's value.
                         parent_var =\
                             self._proxy_loop_vars[index.symbol]['parent_var']
-                        parent_ref = Reference(parent_var)
+                        parent_ref = \
+                            self._proxy_loop_vars[index.symbol]['parent_node']\
+                            .copy()
                         index_list.append(parent_ref)
                     else:
                         # Final case is just a generic Reference, in which case
@@ -1183,7 +1189,9 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         # the parent loop's value.
                         parent_var =\
                             self._proxy_loop_vars[index.symbol]['parent_var']
-                        parent_ref = Reference(parent_var)
+                        parent_ref = \
+                            self._proxy_loop_vars[index.symbol]['parent_node']\
+                            .copy()
                         index_list.append(parent_ref)
                     else:
                         # Final case is just a generic Reference, in which case
@@ -1342,6 +1350,24 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
         # Evaluate RHS
         references = rhs.walk(Reference)
+
+        # If RHS involves a parent loop variable, then our lhs node is a proxy
+        # loop variable
+        added = False
+        for ref in references:
+            for index, parent_var in enumerate(self._parent_loop_vars):
+                if ref.symbol == parent_var:
+                    subdict = {}
+                    subdict['parent_var'] = parent_var
+                    subdict['parent_node'] = rhs.copy()
+                    subdict['loop'] = node
+                    subdict['parent_loop'] = self._parent_loops[index] # TODO
+
+                    self._proxy_loop_vars[lhs.symbol] = subdict
+                    added = True
+            if added:
+                break
+
         for ref in references:
             self._evaluate_readonly_reference(ref, private_list,
                                               firstprivate_list, shared_list,
@@ -1405,6 +1431,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     # Store the loop and parent_var
                     subdict = {}
                     subdict['parent_var'] = parent_var
+                    subdict['parent_node'] = Reference(parent_var)
                     subdict['loop'] = node
                     subdict['parent_loop'] = self._parent_loops[index]
 
@@ -1704,6 +1731,9 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         in_list = []
         out_list = []
 
+        # Reset this in case we already computed clauses before.
+        self._proxy_loop_vars = {}
+
         # Find all the parent loop variables
         self._find_parent_loop_vars()
 
@@ -1771,6 +1801,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         Lowers the structure of the PSyIR tree inside the Directive
         to generate the Clauses that are required for this Directive.
         '''
+
         #Inline the Kernels
         self._inline_kernels()
 
