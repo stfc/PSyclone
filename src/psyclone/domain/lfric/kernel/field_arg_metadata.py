@@ -88,7 +88,7 @@ class FieldArgMetadata(CommonMetaArgMetadata):
 
         '''
         FieldArgMetadata.check_fparser2(fparser2_tree, "arg_type")
-        FieldArgMetadata.check_nargs(fparser2_tree, nargs=4)
+        FieldArgMetadata.check_nargs(fparser2_tree, 4)
         FieldArgMetadata.check_first_arg(fparser2_tree, "Field")
         datatype, access, function_space = \
             FieldArgMetadata.get_type_access_and_fs(fparser2_tree)

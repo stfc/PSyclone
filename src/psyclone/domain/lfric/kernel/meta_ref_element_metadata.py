@@ -49,8 +49,8 @@ class MetaRefElementMetadata(CommonDeclarationMetadata):
     meta_ref_element metadata. This class supports the creation,
     modification and Fortran output of this metadata.
 
-    meta_ref_element metadata specifies whether any quadrature
-    or evaluator data is required for a given function space.
+    meta_ref_element metadata specifies properties of the reference
+    element.
 
     :param meta_ref_element_args: a list of meta_ref_element arguments.
     :type meta_ref_element_args: List[:py:class:`psyclone.domain.lfric.kernel.\
@@ -74,14 +74,16 @@ class MetaRefElementMetadata(CommonDeclarationMetadata):
         '''Create an instance of MetaRefElementMetadata from an fparser2
         tree.
 
-        LFRic meta ref element metadata is in array form. Two
+        LFRic meta reference element metadata is in array form. Two
         versions of the array form are supported:
 
-        type(func_type) :: meta_ref_element(1) = (/ ... /)
-        type(func_type), dimension(1) :: meta_ref_element = (/ ... /)
+        type(reference_element_data_type) :: &
+            meta_reference_element(1) = (/ ... /)
+        type(reference_element_data_type), dimension(1) :: &
+            meta_reference_element = (/ ... /)
 
         :param fparser2_tree: fparser2 tree capturing the meta \
-            ref element metadata.
+            reference element metadata.
 
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.\
             Data_Component_Def_Stmt`
@@ -104,7 +106,7 @@ class MetaRefElementMetadata(CommonDeclarationMetadata):
     @property
     def meta_ref_element_args(self):
         '''
-        :returns: a list of meta ref element argument objects.
+        :returns: a list of meta reference element argument objects.
         :rtype: List[:py:class:`psyclone.domain.lfric.kernel.\
             MetaRefElementArgMetadata`]
         '''

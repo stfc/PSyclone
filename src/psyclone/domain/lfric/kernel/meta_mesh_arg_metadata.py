@@ -40,51 +40,58 @@ META_MESH metadata.
 '''
 from fparser.two import Fortran2003
 
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
 
 
 class MetaMeshArgMetadata(CommonArgMetadata):
-    ''' xxx '''
+    '''Class to capture the LFRic kernel metadata information for a
+    meta_mesh argument.
 
+    :param str mesh: the name of the mesh property.
+
+    '''
     def __init__(self, mesh):
-        self._mesh = mesh
-
-    def check_access(_):
-        '''Not needed by this class '''
-        pass
-
-    def check_datatype(_):
-        ''' Not needed by this class '''
-        pass
-
-    def create_from_fortran_string(fortran_string):
-        ''' xxx '''
-        fparser2_tree = MetaMeshArgMetadata.create_fparser2(
-            fortran_string, Fortran2003.Part_Ref)
-        return MetaMeshArgMetadata.create_from_fparser2(fparser2_tree)
+        self.mesh = mesh
 
     def create_from_fparser2(fparser2_tree):
-        ''' xxx '''
+        '''Create an instance of this class from an fparser2 tree.
+
+        :param fparser2_tree: fparser2 tree containing the metadata \
+            for a meta_mesh argument.
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
+
+        :returns: an instance of this class.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.MetaMeshArgMetadata`
+
+        '''
         MetaMeshArgMetadata.check_fparser2(
             fparser2_tree, type_name="mesh_data_type")
-        nargs = MetaMeshArgMetadata.get_nargs(fparser2_tree)
-        if nargs != 1:
-            raise Exception("Must be 1")
+        MetaMeshArgMetadata.check_nargs(fparser2_tree, 1)
         mesh = MetaMeshArgMetadata.get_arg(fparser2_tree, 0)
         return MetaMeshArgMetadata(mesh)
 
     def fortran_string(self):
-        ''' xxx '''
+        '''
+        :returns: the metadata represented by this class as Fortran.
+        :rtype: str
+
+        '''
         return(f"mesh_data_type({self.mesh})")
 
     @property
     def mesh(self):
-        ''' xxx '''
+        '''
+        :returns: the mesh property for this meta_mesh argument.
+        :rtype: str
+        '''
         return self._mesh
 
     @mesh.setter
     def mesh(self, value):
-        ''' xxx '''
-        if value.lower() not in const.VALID_MESH_NAMES:
-            raise ValueError("invalid value")
+        '''
+        :param str value: set the mesh property to the specified value.
+        '''
+        const = LFRicConstants()
+        self.check_value(value, "mesh property", const.VALID_MESH_NAMES)
         self._mesh = value.lower()

@@ -105,7 +105,7 @@ class MetaFuncsMetadata(CommonDeclarationMetadata):
         :rtype: List[:py:class:`psyclone.domain.lfric.kernel.\
             MetaFuncsArgMetadata`]
         '''
-        return self._meta_funcs_args
+        return self._meta_funcs_args[:]
 
     @meta_funcs_args.setter
     def meta_funcs_args(self, values):
@@ -115,26 +115,8 @@ class MetaFuncsMetadata(CommonDeclarationMetadata):
         :type values: List[:py:class:`psyclone.domain.lfric.kernel.\
             MetaFuncsArgMetadata`]
 
-        raises TypeError: if the supplied value is not a list.
-        raises TypeError: if the supplied value is an empty list.
-        raises TypeError: if any entry in the list is not of the \
-            required type.
-
         '''
-        if not isinstance(values, list):
-            raise TypeError(f"meta_funcs values should be provided as "
-                            f"a list but found '{type(values).__name__}'.")
-        if not values:
-            raise TypeError(
-                "The meta_funcs list should contain at least one "
-                "entry, but it is empty.")
-        const = LFRicConstants()
-        for value in values:
-            if not isinstance(value, MetaFuncsArgMetadata):
-                raise TypeError(
-                    f"The meta_funcs list should be a list containing objects "
-                    f"of type MetaFuncsArgMetadata but found "
-                    f"'{type(value).__name__}'.")
+        self.validate_list(values, MetaFuncsArgMetadata)
         # Take a copy of the list so that it can't be modified
         # externally.
         self._meta_funcs_args = values[:]

@@ -64,12 +64,12 @@ class MetaArgsMetadata(CommonDeclarationMetadata):
     meta_args metadata. This class supports the creation,
     modification and Fortran output of this metadata.
 
-    meta_args metadata specifies whether any quadrature or evaluator
-    data is required for a given function space.
+    meta_args metadata specifies information about data that the
+    kernel code expects to be passed to it via its argument list.
 
     :param meta_args_args: a list of meta_args arguments.
     :type meta_args_args: List[:py:class:`psyclone.domain.lfric.kernel.\
-        CommonArgs`]
+        CommonArgMetadata`]
 
     '''
     def __init__(self, meta_args_args):
@@ -91,8 +91,8 @@ class MetaArgsMetadata(CommonDeclarationMetadata):
         LFRic meta args metadata is in array form. Two
         versions of the array form are supported:
 
-        type(func_type) :: meta_args(1) = (/ ... /)
-        type(func_type), dimension(1) :: meta_args = (/ ... /)
+        type(arg_type) :: meta_args(1) = (/ ... /)
+        type(arg_type), dimension(1) :: meta_args = (/ ... /)
 
         :param fparser2_tree: fparser2 tree capturing the meta \
             args metadata.
@@ -105,10 +105,6 @@ class MetaArgsMetadata(CommonDeclarationMetadata):
             MetaArgsMetadata`
 
         '''
-        # TODO We want to process args with fparser2 rather than
-        # string as things like nargs are potentially difficult with a
-        # string. It is OK for other classes? as they have single
-        # value args? Or change those too?
         values_list = MetaArgsMetadata.validate_derived_array_declaration(
             fparser2_tree, "ARG_TYPE", "META_ARGS")
 

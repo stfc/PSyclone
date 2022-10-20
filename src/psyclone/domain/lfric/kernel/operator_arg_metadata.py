@@ -96,7 +96,7 @@ class OperatorArgMetadata(ScalarArgMetadata):
 
         '''
         OperatorArgMetadata.check_fparser2(fparser2_tree, "arg_type")
-        OperatorArgMetadata.check_nargs(fparser2_tree, nargs=5)
+        OperatorArgMetadata.check_nargs(fparser2_tree, 5)
         OperatorArgMetadata.check_first_arg(fparser2_tree, "Operator")
         datatype, access = OperatorArgMetadata.get_type_and_access(
             fparser2_tree)

@@ -90,7 +90,7 @@ class InterGridArgMetadata(FieldArgMetadata):
         InterGridArgMetadata.check_fparser2(
             fparser2_tree, "arg_type",
             encoding=Fortran2003.Structure_Constructor)
-        InterGridArgMetadata.check_nargs(fparser2_tree, nargs=5)
+        InterGridArgMetadata.check_nargs(fparser2_tree, 5)
         InterGridArgMetadata.check_first_arg(fparser2_tree, "InterGrid")
         datatype, access, function_space = \
             InterGridArgMetadata.get_type_access_and_fs(fparser2_tree)

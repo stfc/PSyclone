@@ -45,23 +45,57 @@ from psyclone.errors import InternalError
 
 
 class CommonArgMetadata(CommonMetadata):
-    '''Abstract class to capture common LFRic kernel metadata.
+    '''Class to capture common LFRic kernel argument metadata.
 
     :param Optional[str] datatype: the datatype of this argument.
     :param Optional[str] access: the way the kernel accesses this \
         argument.
 
     '''
+    @classmethod
+    def create_from_fortran_string(cls, fortran_string):
+        '''Create an instance of this class from Fortran.
+
+        :param str fortran_string: a string containing the metadata in \
+            Fortran.
+
+        :returns: an instance of this class.
+        :rtype: subclass of \
+            :py:class:`python.domain.lfric.kernel.CommonArgMetadata`
+
+        '''
+        fparser2_tree = cls.create_fparser2(
+            fortran_string, Fortran2003.Part_Ref)
+        return cls.create_from_fparser2(fparser2_tree)
+
     @staticmethod
-    def check_nargs(fparser2_tree, nargs=4):
+    def check_value(value, name, valid_values):
+        '''Check that the value argument is one of the values in the
+        valid_values argument.
+
+        :param str value: the value to be checked.
+        :param str name: the name of the value.
+        :param valid_values: a list of valid values.
+        :type valid_values: List[str]
+
+        :raises ValueError: if the value is not one of the values in \
+            the valid_values list.
+
+        '''
+        if value.lower() not in valid_values:
+            raise ValueError(
+                f"The {name} value should be one of "
+                f"{const.VALID_FUNCTION_SPACES}, but found '{value}'.")
+
+    @staticmethod
+    def check_nargs(fparser2_tree, nargs):
         '''Checks that the metadata may has the number of arguments specified
         by the 'nargs' argument, otherwise an exception is raised.
 
         :param fparser2_tree: fparser2 tree capturing a metadata argument.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`
-        :param Optional[int] nargs: the number of expected arguments. \
-            Defaults to 4.
+        :param int nargs: the number of expected arguments.
 
         :raises ValueError: if the kernel metadata does not contain \
             the expected number of arguments (nargs).
@@ -111,7 +145,13 @@ class CommonArgMetadata(CommonMetadata):
 
     @staticmethod
     def get_nargs(fparser2_tree):
-        ''' xxx '''
+        '''Returns the number of metadata arguments found in the fparser2
+        tree.
+
+        :param fparser2_tree: fparser2 tree capturing the required metadata.
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
+        
+        '''
         return len(fparser2_tree.children[1].children)
 
     @staticmethod

@@ -155,20 +155,20 @@ def test_create_from_fparser2_error():
         fortran_string, Fortran2003.Data_Component_Def_Stmt)
     with pytest.raises(ParseError) as info:
         ShapesMetadata.create_from_fparser2(fparser2_tree)
-    assert ("The integer intrinsic in the Fortran representation of GH_SHAPE "
-            "metadata should only have at most one attribute and that "
-            "attribute should be 'dimension', but found 'INTEGER, POINTER :: "
-            "gh_shape = gh_evaluator'." in str(info.value))
+    assert ("The Fortran representation of GH_SHAPE metadata should only have "
+            "at most one attribute and that attribute should be 'dimension', "
+            "but found 'INTEGER, POINTER :: gh_shape = gh_evaluator'."
+            in str(info.value))
 
     fortran_string = "integer, dimension(2), pointer :: gh_shape = value"
     fparser2_tree = ShapesMetadata.create_fparser2(
         fortran_string, Fortran2003.Data_Component_Def_Stmt)
     with pytest.raises(ParseError) as info:
         ShapesMetadata.create_from_fparser2(fparser2_tree)
-    assert ("The integer intrinsic in the Fortran representation of GH_SHAPE "
-            "metadata should only have at most one attribute and that "
-            "attribute should be 'dimension', but found 'INTEGER, "
-            "DIMENSION(2), POINTER :: gh_shape = value'." in str(info.value))
+    assert ("The Fortran representation of GH_SHAPE metadata should only have "
+            "at most one attribute and that attribute should be 'dimension', "
+            "but found 'INTEGER, DIMENSION(2), POINTER :: gh_shape = value'."
+            in str(info.value))
 
     fortran_string = "integer, dimension(n) :: gh_shape = value"
     fparser2_tree = ShapesMetadata.create_fparser2(

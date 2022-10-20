@@ -44,47 +44,57 @@ from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
 
 
 class MetaRefElementArgMetadata(CommonArgMetadata):
-    ''' xxx '''
+    '''Class to capture the LFRic kernel metadata information for a
+    meta_reference_element argument.
 
+    :param str reference_element: the name of the reference_element property.
+
+    '''
     def __init__(self, reference_element):
         self._reference_element = reference_element
 
-    def check_access(_):
-        '''Not needed by this class '''
-        pass
-
-    def check_datatype(_):
-        ''' Not needed by this class '''
-        pass
-
-    def create_from_fortran_string(fortran_string):
-        ''' xxx '''
-        fparser2_tree = MetaRefElementArgMetadata.create_fparser2(
-            fortran_string, Fortran2003.Part_Ref)
-        return MetaRefElementArgMetadata.create_from_fparser2(fparser2_tree)
-
     def create_from_fparser2(fparser2_tree):
-        ''' xxx '''
+        '''Create an instance of this class from an fparser2 tree.
+
+        :param fparser2_tree: fparser2 tree containing the metadata \
+            for a meta_reference_element argument.
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
+
+        :returns: an instance of this class.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.\
+            MetaRefElementArgMetadata`
+
+        '''
         MetaRefElementArgMetadata.check_fparser2(
             fparser2_tree, type_name="reference_element_data_type")
-        nargs = MetaRefElementArgMetadata.get_nargs(fparser2_tree)
-        if nargs != 1:
-            raise Exception("Must be 1")
+        MetaRefElementArgMetadata.check_nargs(fparser2_tree, 1)
         reference_element = MetaRefElementArgMetadata.get_arg(fparser2_tree, 0)
         return MetaRefElementArgMetadata(reference_element)
 
     def fortran_string(self):
-        ''' xxx '''
+        '''
+        :returns: the metadata represented by this class as Fortran.
+        :rtype: str
+        '''
         return(f"reference_element_data_type({self.reference_element})")
 
     @property
     def reference_element(self):
-        ''' xxx '''
+        '''
+        :returns: the reference element property for this \
+            meta_reference_element argument.
+        :rtype: str
+
+        '''
         return self._reference_element
 
     @reference_element.setter
     def reference_element(self, value):
-        ''' xxx '''
-        if value.lower() not in const.VALID_REF_ELEMENT_NAMES:
-            raise ValueError("invalid value")
+        '''
+        :param str value: set the reference element property to the \
+            specified value.
+        '''
+        const = LFRicConstants()
+        self.check_value(
+            value, "reference element property", const.VALID_REF_ELEMENT_NAMES)
         self._reference_element = value.lower()

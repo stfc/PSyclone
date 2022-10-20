@@ -103,7 +103,7 @@ class FieldVectorArgMetadata(FieldArgMetadata):
 
         '''
         FieldVectorArgMetadata.check_fparser2(fparser2_tree, "arg_type")
-        FieldVectorArgMetadata.check_nargs(fparser2_tree, nargs=4)
+        FieldVectorArgMetadata.check_nargs(fparser2_tree, 4)
         FieldVectorArgMetadata.check_first_arg(
             fparser2_tree, "FieldVector", vector=True)
         vector_length = FieldVectorArgMetadata.get_and_check_vector_length(

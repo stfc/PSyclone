@@ -158,8 +158,8 @@ def test_init_args_error():
 
     with pytest.raises(TypeError) as info:
         _ = LFRicKernelMetadata(meta_funcs="invalid")
-    assert ("meta_funcs values should be provided as a list but found 'str'."
-            in str(info.value))
+    assert ("MetaFuncsMetadata values should be provided as a list but found "
+            "'str'." in str(info.value))
 
     with pytest.raises(TypeError) as info:
         _ = LFRicKernelMetadata(meta_ref_element="invalid")
@@ -168,8 +168,8 @@ def test_init_args_error():
 
     with pytest.raises(TypeError) as info:
         _ = LFRicKernelMetadata(meta_mesh="invalid")
-    assert ("meta_mesh values should be provided as a list but found 'str'."
-            in str(info.value))
+    assert ("MetaMeshMetadata values should be provided as a list but found "
+            "'str'." in str(info.value))
 
     with pytest.raises(ValueError) as info:
         _ = LFRicKernelMetadata(procedure_name="1_invalid")
@@ -591,7 +591,7 @@ def test_setter_getter_meta_funcs():
     assert metadata.meta_funcs is None
     with pytest.raises(TypeError) as info:
         metadata.meta_funcs = "invalid"
-    assert ("meta_funcs values should be provided as a list but "
+    assert ("MetaFuncsMetadata values should be provided as a list but "
             "found 'str'." in str(info.value))
     meta_funcs_arg = MetaFuncsArgMetadata("w0", basis_function=True)
     meta_funcs = [meta_funcs_arg]
@@ -625,7 +625,7 @@ def test_setter_getter_meta_mesh():
     assert metadata.meta_mesh is None
     with pytest.raises(TypeError) as info:
         metadata.meta_mesh = "invalid"
-    assert ("meta_mesh values should be provided as a list but "
+    assert ("MetaMeshMetadata values should be provided as a list but "
             "found 'str'." in str(info.value))
     meta_mesh_arg = MetaMeshArgMetadata("adjacent_face")
     meta_mesh = [meta_mesh_arg]

@@ -104,8 +104,8 @@ class ShapesMetadata(CommonDeclarationMetadata):
         # determine whether to call the array or scalar validation.
         ShapesMetadata.validate_node(
             fparser2_tree, Fortran2003.Data_Component_Def_Stmt)
-        ShapesMetadata.validate_datatype_name_value(
-            fparser2_tree, "INTEGER", "GH_SHAPE")
+        ShapesMetadata.validate_name_value(
+            fparser2_tree, "GH_SHAPE")
 
         const = LFRicConstants()
         valid_values = const.VALID_EVALUATOR_SHAPES

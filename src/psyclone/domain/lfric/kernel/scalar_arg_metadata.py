@@ -78,7 +78,7 @@ class ScalarArgMetadata(CommonMetaArgMetadata):
 
         '''
         ScalarArgMetadata.check_fparser2(fparser2_tree, "arg_type")
-        ScalarArgMetadata.check_nargs(fparser2_tree, nargs=3)
+        ScalarArgMetadata.check_nargs(fparser2_tree, 3)
         ScalarArgMetadata.check_first_arg(fparser2_tree, "Scalar")
         datatype, access = ScalarArgMetadata.get_type_and_access(fparser2_tree)
         ScalarArgMetadata.check_remaining_args(fparser2_tree, datatype, access)

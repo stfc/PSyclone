@@ -68,7 +68,7 @@ def test_init_error():
     '''
     with pytest.raises(TypeError) as info:
         _ = MetaFuncsMetadata(None)
-    assert ("meta_funcs values should be provided as a list but found "
+    assert ("MetaFuncsMetadata values should be provided as a list but found "
             "'NoneType'." in str(info.value))
 
 
@@ -151,20 +151,21 @@ def test_setter_errors():
 
     with pytest.raises(TypeError) as info:
         metadata.meta_funcs_args = "invalid"
-    assert ("meta_funcs values should be provided as a list but found "
+    assert ("MetaFuncsMetadata values should be provided as a list but found "
             "'str'." in str(info.value))
 
     with pytest.raises(TypeError) as info:
         metadata.meta_funcs_args = []
-    assert ("The meta_funcs list should contain at least one entry, "
+    assert ("The MetaFuncsMetadata list should contain at least one entry, "
             "but it is empty." in str(info.value))
 
     with pytest.raises(TypeError) as info:
         metadata.meta_funcs_args = [None]
-    assert ("The meta_funcs list should be a list containing objects of type "
-            "MetaFuncsArgMetadata but found 'NoneType'." in str(info.value))
+    assert ("The MetaFuncsMetadata list should be a list containing objects "
+            "of type MetaFuncsArgMetadata but found 'NoneType'."
+            in str(info.value))
 
     with pytest.raises(TypeError) as info:
         metadata.meta_funcs_args = ["invalid"]
-    assert ("The meta_funcs list should be a list containing objects of type "
-            "MetaFuncsArgMetadata but found 'str'." in str(info.value))
+    assert ("The MetaFuncsMetadata list should be a list containing objects "
+            "of type MetaFuncsArgMetadata but found 'str'." in str(info.value))

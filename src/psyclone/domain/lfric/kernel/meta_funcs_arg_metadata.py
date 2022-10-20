@@ -39,49 +39,56 @@ the argument values for the LFRic kernel META_FUNCS metadata.
 '''
 from fparser.two import Fortran2003
 
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
 
 
 class MetaFuncsArgMetadata(CommonArgMetadata):
-    ''' xxx '''
+    '''Class to capture the LFRic kernel metadata information for a
+    meta_funcs argument.
+
+    :param str function_space: the name of a function space.
+    :param bool basis_function: whether a basis_function is \
+        required. Defaults to False.
+    :param bool diff_basis_function: whether a differential basis \
+        function is required. Defaults to False.
+
+    '''
 
     def __init__(self, function_space, basis_function=False,
                  diff_basis_function=False):
-        self._function_space = function_space
-        self._basis_function = basis_function
-        self._diff_basis_function = diff_basis_function
-
-    def check_access(_):
-        '''Not needed by this class '''
-        pass
-
-    def check_datatype(_):
-        ''' Not needed by this class '''
-        pass
-
-    def create_from_fortran_string(fortran_string):
-        ''' xxx '''
-        fparser2_tree = MetaFuncsArgMetadata.create_fparser2(
-            fortran_string, Fortran2003.Part_Ref)
-        return MetaFuncsArgMetadata.create_from_fparser2(fparser2_tree)
+        self.function_space = function_space
+        self.basis_function = basis_function
+        self.diff_basis_function = diff_basis_function
+        self._check_constraints(basis_function, diff_basis_function)
 
     def create_from_fparser2(fparser2_tree):
-        ''' xxx '''
+        '''Create an instance of this class from an fparser2 tree.
+
+        :param fparser2_tree: fparser2 tree containing the metadata \
+            for a meta_funcs argument.
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
+
+        :returns: an instance of this class.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.MetaFuncsArgMetadata`
+
+        '''
         MetaFuncsArgMetadata.check_fparser2(
             fparser2_tree, type_name="func_type")
         nargs = MetaFuncsArgMetadata.get_nargs(fparser2_tree)
-        # must be at least 2 and at most 3
+        # There must be at least 2 and at most 3 arguments
         if nargs < 2:
-            raise Exception("Must have a function_space as first argument "
-                            "and at least one of ...")
+            raise ParseError(
+                f"There must be at least 2 arguments, a function_space and "
+                f"one of basis_function or diff_basis_function, but found "
+                f"'{nargs}' arguments.")
         if nargs > 3:
-            raise Exception("Must have at most 3 args, function_space, "
-                            "basis and diff_basis")
+            raise ParseError(
+                f"There must be at most 3 arguments, function_space, "
+                f"basis_function and diff_basis_function, but found "
+                f"'{nargs}'.")
         function_space = MetaFuncsArgMetadata.get_arg(fparser2_tree, 0)
-        from psyclone.domain.lfric import LFRicConstants
-        const = LFRicConstants()
-        if function_space.lower() not in const.VALID_FUNCTION_SPACES:
-            raise Exception("")
+
         basis_function = False
         diff_basis_function = False
         arg1 = MetaFuncsArgMetadata.get_arg(fparser2_tree, 1)
@@ -90,7 +97,9 @@ class MetaFuncsArgMetadata(CommonArgMetadata):
         elif arg1.lower() == "gh_diff_basis":
             diff_basis_function = True
         else:
-            raise Exception("")
+            raise ValueError(
+                f"The basis or differential basis value should be one of "
+                f"['gh_basis', 'gh_diff_basis'], but found '{arg1}'.")
         arg2 = None
         if nargs == 3:
             arg2 = MetaFuncsArgMetadata.get_arg(fparser2_tree, 2)
@@ -99,15 +108,25 @@ class MetaFuncsArgMetadata(CommonArgMetadata):
             elif arg2.lower() == "gh_diff_basis":
                 diff_basis_function = True
             else:
-                raise Exception(f"{arg2}")
+                raise ValueError(
+                    f"The basis or differential basis value should be one of "
+                    f"['gh_basis', 'gh_diff_basis'], but found '{arg2}'.")
             if arg1.lower() == arg2.lower():
-                raise Exception("")
+                raise ParseError(
+                    f"The same basis or differential basis function value "
+                    f"should not be repeated, but found '{arg1}' twice.")
+        MetaFuncsArgMetadata._check_constraints(
+            basis_function, diff_basis_function)
         return MetaFuncsArgMetadata(
             function_space, basis_function=basis_function,
             diff_basis_function=diff_basis_function)
 
     def fortran_string(self):
-        ''' xxx '''
+        '''
+        :returns: the metadata represented by this class as Fortran.
+        :rtype: str
+
+        '''
         args_str_list = [self._function_space]
         if self._basis_function:
             args_str_list.append("gh_basis")
@@ -118,12 +137,88 @@ class MetaFuncsArgMetadata(CommonArgMetadata):
 
     @property
     def function_space(self):
+        '''
+        :returns: the function space for this meta_funcs argument.
+        :rtype: str
+        '''
         return self._function_space
+
+    @function_space.setter
+    def function_space(self, value):
+        '''
+        :param str value: set the function space to the specified value.
+        '''
+        const = LFRicConstants()
+        self.check_value(value, "function_space", const.VALID_FUNCTION_SPACES)
+        self._function_space = value
 
     @property
     def basis_function(self):
+        '''
+        :returns: whether a basis function is required for this function \
+            space, or not.
+        :rtype: bool
+
+        '''
         return self._basis_function
+
+    @basis_function.setter
+    def basis_function(self, value):
+        '''
+        :param bool value: set the basis function to True or False.
+        '''
+        self._check_boolean(value)
+        self._basis_function = value
 
     @property
     def diff_basis_function(self):
+        '''
+        :returns: whether a differential basis function is required for this \
+            function space, or not.
+        :rtype: bool
+
+        '''
+        self._check_boolean(value)
         return self._diff_basis_function
+
+    @diff_basis_function.setter
+    def diff_basis_function(self, value):
+        '''
+        :param bool value: set the differential basis function to True \
+            or False.
+
+        '''
+        self._check_boolean(value)
+        self._diff_basis_function = value
+
+    @staticmethod
+    def _check_boolean(value):
+        '''
+        :param bool value: the value to validate.
+
+        :raises ValueError: if the provided value is not a boolean.
+
+        '''
+        if not isinstance(value, bool):
+            raise TypeError(
+                f"The value should be a boolean but found "
+                f"'{type(value).__name__}'.")
+
+    @staticmethod
+    def _check_constraints(basis_function, diff_basis_function):
+        '''Check that at least one of basis_function or diff_basis_function
+        have been set to True.
+
+        :param bool basis_function: whether a basis_function is \
+            required.
+        :param bool diff_basis_function: whether a differential basis \
+            function is required.
+
+        :param ValueError: if neither of basis_function or \
+            diff_basis_function are set to True.
+
+        '''
+        if not basis_function and not diff_basis_function:
+            raise ValueError(
+                "At least one of basis_function or diff_basis_function must "
+                "be set to True.")
