@@ -3863,8 +3863,8 @@ class Fparser2Reader(object):
             raise InternalError(
                 f"Routine '{name}' has arguments "
                 f"{[str(arg) for arg in arg_list]} but contains no "
-                f"variable declarations. Implicit declarations are not "
-                f"supported in PSyclone.")
+                f"variable declarations. Fortran implicit declarations are "
+                f"not supported in PSyclone.")
 
         self.process_declarations(routine, decl_list, arg_list)
 

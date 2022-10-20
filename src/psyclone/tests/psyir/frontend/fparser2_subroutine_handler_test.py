@@ -108,7 +108,29 @@ end subroutine'''
     with pytest.raises(InternalError) as err:
         _ = processor._subroutine_handler(subroutine, None)
     assert ("Routine 'sub1' has arguments ['idx'] but contains no variable "
-            "declarations" in str(err.value))
+            "declarations. Fortran implicit declarations are not supported in "
+            "PSyclone." in str(err.value))
+
+
+def test_subroutine_some_implicit_args(parser):
+    """Check that we raise the expected error when we encounter a
+    subroutine which has declarations but has omitted to declare one
+    of its arguments.
+
+    """
+    code = '''
+subroutine sub1(var, idx)
+    real, intent(in) :: var
+end subroutine'''
+    processor = Fparser2Reader()
+    reader = FortranStringReader(code)
+    parse_tree = parser(reader)
+    subroutine = parse_tree.children[0]
+    with pytest.raises(InternalError) as err:
+        _ = processor._subroutine_handler(subroutine, None)
+    err_msg = str(err.value)
+    assert "The kernel argument list" in err_msg
+    assert "Could not find 'idx' in the Symbol Table" in err_msg
 
 
 def test_function_handler(fortran_reader, fortran_writer):
