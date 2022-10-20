@@ -928,7 +928,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             if len(array_children) > 0:
                 if len(array_children) > 1:
                     # TODO Document
-                    raise IRGenerationError("Doesn't support a "
+                    raise GenerationError("Doesn't support a "
                             "StructureReference child with multiple array "
                             "accessing members.")
                 self._evaluate_structure_with_array_reference_read(
@@ -1303,7 +1303,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             if len(array_children) > 0:
                 if len(array_children) > 1:
                     # TODO Document
-                    raise IRGenerationError("Doesn't support a "
+                    raise GenerationError("Doesn't support a "
                             "StructureReference child with multiple array "
                             "accessing members.")
                 self._evaluate_structure_with_array_reference_write(
