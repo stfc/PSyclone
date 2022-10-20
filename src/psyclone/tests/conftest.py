@@ -197,6 +197,18 @@ def kernel_outputdir(tmpdir, monkeypatch):
     return tmpdir
 
 
+@pytest.fixture(scope="function")
+def change_into_tmpdir(tmpdir):
+    '''This fixture changes into a temporary working directory,
+    and changes automatically back at the end. '''
+    prev_dir = os.getcwd()
+    os.chdir(os.path.expanduser(tmpdir))
+    try:
+        yield tmpdir
+    finally:
+        os.chdir(prev_dir)
+
+
 @pytest.fixture(scope="function", name="fortran_reader")
 def fixture_fortran_reader():
     '''Create and return a FortranReader object with default settings.'''

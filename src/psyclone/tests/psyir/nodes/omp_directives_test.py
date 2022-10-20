@@ -849,8 +849,8 @@ def test_omp_taskloop_init():
     ''' Test the constructor of the OMPTaskloop directive'''
     with pytest.raises(GenerationError) as excinfo:
         OMPTaskloopDirective(grainsize=32, num_tasks=32)
-    assert("OMPTaskloopDirective must not have both grainsize and "
-           "numtasks clauses specified.") in str(excinfo.value)
+    assert ("OMPTaskloopDirective must not have both grainsize and "
+            "numtasks clauses specified.") in str(excinfo.value)
 
 
 @pytest.mark.parametrize("grainsize,num_tasks,nogroup,clauses",

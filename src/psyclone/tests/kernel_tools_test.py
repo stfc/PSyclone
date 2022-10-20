@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified: I. Kavcic, Met Office
+# Modified by J. Henrichs, Bureau of Meteorology
 
 ''' Tests for the psyclone-kern driver. '''
 
@@ -191,8 +192,9 @@ def test_run_line_length(fortran_reader, monkeypatch, capsys, limit, mode):
         assert f"long_str = '{140*' '}'" in out
 
 
+@pytest.mark.usefixtures("change_into_tmpdir")
 @pytest.mark.parametrize("mode", ["alg", "stub"])
-def test_file_output(fortran_reader, monkeypatch, mode, tmpdir):
+def test_file_output(fortran_reader, monkeypatch, mode):
     ''' Check that the output of the generate() function is written to file
     if requested. We test for both the kernel-stub & algorithm generation. '''
 
@@ -219,7 +221,7 @@ def test_file_output(fortran_reader, monkeypatch, mode, tmpdir):
     monkeypatch.setattr(algorithm.lfric_alg.LFRicAlg, "create_from_kernel",
                         fake_psyir_gen)
     monkeypatch.setattr(gen_kernel_stub, "generate", fake_gen)
-    tmpdir.chdir()
+
     kernel_tools.run(["-gen", mode, "-o", f"output_file_{mode}",
                       str("/does_not_exist")])
     with open(f"output_file_{mode}", "r", encoding="utf-8") as infile:

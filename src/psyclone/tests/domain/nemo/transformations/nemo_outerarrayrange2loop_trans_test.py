@@ -146,9 +146,9 @@ def test_apply_calls_validate():
     trans = NemoOuterArrayRange2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.apply(None)
-    assert("Error in NemoOuterArrayRange2LoopTrans transformation. The "
-           "supplied node argument should be a PSyIR Assignment, but "
-           "found 'NoneType'." in str(info.value))
+    assert ("Error in NemoOuterArrayRange2LoopTrans transformation. The "
+            "supplied node argument should be a PSyIR Assignment, but "
+            "found 'NoneType'." in str(info.value))
 
 
 def test_str():
@@ -178,9 +178,9 @@ def test_validate_assignment():
     trans = NemoOuterArrayRange2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(None)
-    assert("Error in NemoOuterArrayRange2LoopTrans transformation. The "
-           "supplied node argument should be a PSyIR Assignment, but "
-           "found 'NoneType'." in str(info.value))
+    assert ("Error in NemoOuterArrayRange2LoopTrans transformation. The "
+            "supplied node argument should be a PSyIR Assignment, but "
+            "found 'NoneType'." in str(info.value))
 
 
 def test_validate_array_reference(parser):
@@ -210,10 +210,10 @@ END subroutine data_ref
     trans = NemoOuterArrayRange2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(assignment)
-    assert("Transformation Error: Error in NemoOuterArrayRange2LoopTrans "
-           "transformation. The LHS of the supplied assignment node should be "
-           "a Reference that contains an array access somewhere in the "
-           "expression, but found 'CodeBlock[1 nodes]'." in str(info.value))
+    assert ("Transformation Error: Error in NemoOuterArrayRange2LoopTrans "
+            "transformation. The LHS of the supplied assignment node should be"
+            " a Reference that contains an array access somewhere in the "
+            "expression, but found 'CodeBlock[1 nodes]'." in str(info.value))
 
 
 # lhs array reference has a range
@@ -231,7 +231,7 @@ def test_validate_range():
     trans = NemoOuterArrayRange2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(assignment)
-    assert("Error in NemoOuterArrayRange2LoopTrans transformation. "
-           "The LHS of the supplied assignment node should be an expression "
-           "with an array that has a Range node, but found 'ArrayReference"
-           in str(info.value))
+    assert ("Error in NemoOuterArrayRange2LoopTrans transformation. "
+            "The LHS of the supplied assignment node should be an expression "
+            "with an array that has a Range node, but found 'ArrayReference"
+            in str(info.value))

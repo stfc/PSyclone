@@ -60,7 +60,7 @@ from psyclone.psyir.nodes import (
     UnaryOperation, BinaryOperation, NaryOperation, IfBlock, Reference,
     ArrayReference, Container, Literal, Range, KernelSchedule,
     RegionDirective, StandaloneDirective, StructureReference,
-    ArrayOfStructuresReference, Call, Routine)
+    ArrayOfStructuresReference)
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, SymbolTable, RoutineSymbol, ArgumentInterface,
     SymbolError, ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE,
@@ -624,14 +624,14 @@ def test_generate_schedule_unmatching_arguments(parser):
     # Test exception for unmatching argument list
     with pytest.raises(InternalError) as error:
         _ = processor.generate_schedule("dummy_code", ast)
-    assert("PSyclone internal error: The kernel argument list:\n"
-           "'['f1', 'f2', 'f3', 'f4']'\n"
-           "does not match the variable declarations:\n"
-           "REAL(KIND = wp), DIMENSION(:, :), INTENT(IN) :: f1\n"
-           "REAL(KIND = wp), DIMENSION(:, :), INTENT(OUT) :: f2\n"
-           "REAL(KIND = wp), DIMENSION(:, :) :: f3\n"
-           "Specific PSyIR error is \"Could not find 'f4' in the "
-           "Symbol Table.\"." in str(error.value))
+    assert ("PSyclone internal error: The kernel argument list:\n"
+            "'['f1', 'f2', 'f3', 'f4']'\n"
+            "does not match the variable declarations:\n"
+            "REAL(KIND = wp), DIMENSION(:, :), INTENT(IN) :: f1\n"
+            "REAL(KIND = wp), DIMENSION(:, :), INTENT(OUT) :: f2\n"
+            "REAL(KIND = wp), DIMENSION(:, :) :: f3\n"
+            "Specific PSyIR error is \"Could not find 'f4' in the "
+            "Symbol Table.\"." in str(error.value))
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -1475,7 +1475,7 @@ def test_parse_array_dimensions_attributes():
 
     # Explicit shape symbols can only be Literal or Symbol
     with pytest.raises(NotImplementedError) as error:
-        class UnrecognizedType(object):
+        class UnrecognizedType():
             '''Type guaranteed to not be part of the _parse_dimensions
             conditional type handler.'''
         fparser2spec.items[1].items[0].items[1].__class__ = UnrecognizedType
@@ -1684,7 +1684,7 @@ def test_parse_array_dimensions_unhandled(monkeypatch):
     def walk_ast_return(_1, _2, _3=None, _4=None):
         '''Function that returns a unique object that will not be part
         of the implemented handling in the walk method caller.'''
-        class Invalid(object):
+        class Invalid():
             '''Class that would be invalid to return from an fparser2 parse
             tree.'''
         newobject = Invalid()

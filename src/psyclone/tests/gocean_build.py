@@ -43,15 +43,20 @@ import os
 import subprocess
 import sys
 
-from psyclone.tests.utilities import Compile, CompileError
+from psyclone.tests.utilities import change_dir, Compile, CompileError
 
 
 class GOceanBuild(Compile):
     '''Build class for compiling test files for the GOcean1.0 api. It
     uses dl_esm_inf as included in the PSyclone distribution (as a
-    git submodule).
-    '''
+    git submodule). The very first time the constructor is called it will
+    compile the infrastructure library in a temporary, process-specific
+    location. These files will be used by all test compilations.
 
+    :param tmpdir: temporary directory, defaults to os.getcwd()
+    :type tmpdir: Optional[:py:class:`LocalPath`]
+
+    '''
     # A class variable to make sure we compile the infrastructure
     # file only once per process.
     _infrastructure_built = False
@@ -64,7 +69,7 @@ class GOceanBuild(Compile):
     # allows testing to modify this to trigger exceptions.
     _make_command = "make"
 
-    def __init__(self, tmpdir):
+    def __init__(self, tmpdir=None):
         super().__init__(tmpdir)
 
         base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -93,47 +98,46 @@ class GOceanBuild(Compile):
         :raises CompileError: If the compilation of dl_esm_inf fails.
         '''
 
-        old_pwd = self._tmpdir.chdir()
-        # Store the temporary path so that the compiled infrastructure
-        # files can be used by all test compilations later.
-        GOceanBuild._compilation_path = str(self._tmpdir)
+        with change_dir(self._tmpdir):
+            # Store the temporary path so that the compiled infrastructure
+            # files can be used by all test compilations later.
+            GOceanBuild._compilation_path = str(self._tmpdir)
 
-        dl_esm_inf_path = \
-            os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "../../../external/dl_esm_inf/finite_difference/src")
+            dl_esm_inf_path = \
+                os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "../../../external/dl_esm_inf/"
+                             "finite_difference/src")
 
-        fortcl_path = \
-            os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "../../../external/FortCL/src")
+            fortcl_path = \
+                os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "../../../external/FortCL/src")
 
-        arg_list = [GOceanBuild._make_command, f"F90={self._f90}",
-                    f"F90FLAGS={self._f90flags}",
-                    "-f", f"{dl_esm_inf_path}/Makefile"]
+            arg_list = [GOceanBuild._make_command, f"F90={self._f90}",
+                        f"F90FLAGS={self._f90flags}",
+                        "-f", f"{dl_esm_inf_path}/Makefile"]
 
-        arg_list_fortcl = [GOceanBuild._make_command, f"F90={self._f90}",
-                           f"F90FLAGS={self._f90flags}",
-                           "-f", f"{fortcl_path}/Makefile"]
-        try:
-            with subprocess.Popen(arg_list,
-                                  stdout=subprocess.PIPE,
-                                  stderr=subprocess.STDOUT) as build:
-                # stderr is redirected to stdout, so ignore stderr
-                (output, _) = build.communicate()
-            if Compile.TEST_COMPILE_OPENCL:
-                with subprocess.Popen(arg_list_fortcl,
+            arg_list_fortcl = [GOceanBuild._make_command, f"F90={self._f90}",
+                               f"F90FLAGS={self._f90flags}",
+                               "-f", f"{fortcl_path}/Makefile"]
+            try:
+                with subprocess.Popen(arg_list,
                                       stdout=subprocess.PIPE,
                                       stderr=subprocess.STDOUT) as build:
                     # stderr is redirected to stdout, so ignore stderr
                     (output, _) = build.communicate()
+                if Compile.TEST_COMPILE_OPENCL:
+                    with subprocess.Popen(arg_list_fortcl,
+                                          stdout=subprocess.PIPE,
+                                          stderr=subprocess.STDOUT) as build:
+                        # stderr is redirected to stdout, so ignore stderr
+                        (output, _) = build.communicate()
 
-        except OSError as err:
-            print(f"Failed to run: {' '.join(arg_list)}: ",
-                  file=sys.stderr)
-            print(f"Error was: {str(err)}", file=sys.stderr)
-            GOceanBuild._infrastructure_built = False
-            raise CompileError(str(err)) from err
-        finally:
-            old_pwd.chdir()
+            except OSError as err:
+                print(f"Failed to run: {' '.join(arg_list)}: ",
+                      file=sys.stderr)
+                print(f"Error was: {str(err)}", file=sys.stderr)
+                GOceanBuild._infrastructure_built = False
+                raise CompileError(str(err)) from err
 
         # Check the return code
         stat = build.returncode
