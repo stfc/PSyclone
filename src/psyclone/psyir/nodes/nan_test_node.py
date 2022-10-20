@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council
+# Copyright (c) 2020-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -67,7 +67,7 @@ class NanTestNode(PSyDataNode):
         :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
 
         '''
-        return super(NanTestNode, self).psy_data_body
+        return super().psy_data_body
 
     def gen_code(self, parent):
         # pylint: disable=arguments-differ
@@ -87,7 +87,8 @@ class NanTestNode(PSyDataNode):
         from psyclone.psyir.tools.dependency_tools import DependencyTools
         # Determine the variables to check:
         dep = DependencyTools()
-        input_list, output_list = dep.get_in_out_parameters(self)
+        input_list, output_list = \
+            dep.get_in_out_parameters(self, options=self.options)
 
         options = {'pre_var_list': input_list,
                    'post_var_list': output_list}
@@ -95,7 +96,7 @@ class NanTestNode(PSyDataNode):
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " NanTestStart"))
         parent.add(CommentGen(parent, ""))
-        super(NanTestNode, self).gen_code(parent, options)
+        super().gen_code(parent, options)
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " NanTestEnd"))
         parent.add(CommentGen(parent, ""))
@@ -117,7 +118,7 @@ class NanTestNode(PSyDataNode):
         options = {'pre_var_list': input_list,
                    'post_var_list': output_list}
 
-        return super(NanTestNode, self).lower_to_language_level(options)
+        return super().lower_to_language_level(options)
 
 
 # For AutoAPI documentation generation

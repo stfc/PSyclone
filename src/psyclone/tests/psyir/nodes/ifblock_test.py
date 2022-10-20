@@ -107,8 +107,8 @@ def test_ifblock_properties():
     # Condition can't be retrieved before it is added as a child.
     with pytest.raises(InternalError) as err:
         _ = ifblock.condition
-    assert("IfBlock malformed or incomplete. It should have "
-           "at least 2 children, but found 0." in str(err.value))
+    assert ("IfBlock malformed or incomplete. It should have "
+            "at least 2 children, but found 0." in str(err.value))
 
     ref1 = Reference(DataSymbol('condition1', BOOLEAN_TYPE),
                      parent=ifblock)
@@ -117,8 +117,8 @@ def test_ifblock_properties():
     # If_body can't be retrieved before is added as a child.
     with pytest.raises(InternalError) as err:
         _ = ifblock.if_body
-    assert("IfBlock malformed or incomplete. It should have "
-           "at least 2 children, but found 1." in str(err.value))
+    assert ("IfBlock malformed or incomplete. It should have "
+            "at least 2 children, but found 1." in str(err.value))
 
     sch = Schedule()
     ifblock.addchild(sch)

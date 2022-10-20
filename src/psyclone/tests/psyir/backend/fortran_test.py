@@ -198,13 +198,13 @@ def test_gen_datatype_absolute_precision(type_name, precision, fort_name):
         if precision in [32]:
             with pytest.raises(VisitorError) as excinfo:
                 gen_datatype(symbol.datatype, symbol.name)
-            assert ("Datatype '{0}' in symbol '{1}' supports fixed precision "
-                    "of [1, 2, 4, 8, 16] but found '{2}'."
-                    "".format(fort_name, symbol_name, precision)
+            assert (f"Datatype '{fort_name}' in symbol '{symbol_name}' "
+                    f"supports fixed precision of [1, 2, 4, 8, 16] but "
+                    f"found '{precision}'."
                     in str(excinfo.value))
         else:
             assert (gen_datatype(symbol.datatype, symbol.name) ==
-                    "{0}*{1}".format(fort_name, precision))
+                    f"{fort_name}*{precision}")
 
 
 @pytest.mark.parametrize(
@@ -225,12 +225,12 @@ def test_gen_datatype_absolute_precision_real(precision):
         if precision in [1, 2, 32]:
             with pytest.raises(VisitorError) as excinfo:
                 gen_datatype(symbol.datatype, symbol.name)
-            assert ("Datatype 'real' in symbol '{0}' supports fixed precision "
-                    "of [4, 8, 16] but found '{1}'."
-                    "".format(symbol_name, precision) in str(excinfo.value))
+            assert (f"Datatype 'real' in symbol '{symbol_name}' supports "
+                    f"fixed precision of [4, 8, 16] but found '{precision}'."
+                    in str(excinfo.value))
         else:
             assert (gen_datatype(symbol.datatype, symbol.name) ==
-                    "real*{0}".format(precision))
+                    f"real*{precision}")
 
 
 def test_gen_datatype_absolute_precision_character():
@@ -246,9 +246,9 @@ def test_gen_datatype_absolute_precision_character():
         symbol = DataSymbol(symbol_name, my_type)
         with pytest.raises(VisitorError) as excinfo:
             gen_datatype(symbol.datatype, symbol.name)
-        assert ("Explicit precision not supported for datatype '{0}' in "
-                "symbol '{1}' in Fortran backend."
-                "".format("character", symbol_name) in str(excinfo.value))
+        assert (f"Explicit precision not supported for datatype 'character' "
+                f"in symbol '{symbol_name}' in Fortran backend."
+                in str(excinfo.value))
 
 
 @pytest.mark.parametrize(
@@ -272,12 +272,12 @@ def test_gen_datatype_kind_precision(type_name, result):
         if type_name == ScalarType.Intrinsic.CHARACTER:
             with pytest.raises(VisitorError) as excinfo:
                 gen_datatype(my_type, symbol_name)
-            assert ("kind not supported for datatype '{0}' in symbol '{1}' "
-                    "in Fortran backend.".format("character", symbol_name)
+            assert (f"kind not supported for datatype 'character' in symbol "
+                    f"'{symbol_name}' in Fortran backend."
                     in str(excinfo.value))
         else:
             assert (gen_datatype(my_type, symbol_name) ==
-                    "{0}(kind={1})".format(result, precision_name))
+                    f"{result}(kind={precision_name})")
 
 
 def test_gen_datatype_derived_type():
@@ -552,9 +552,9 @@ def test_validate_named_args():
         ("name", Literal("1.0", REAL_TYPE)), Literal("2.0", REAL_TYPE)])
     with pytest.raises(VisitorError) as info:
         _validate_named_args(call)
-    assert("Fortran expects all named arguments to occur after all "
-           "positional arguments but this is not the case for "
-           "Call[name='hello']" in str(info.value))
+    assert ("Fortran expects all named arguments to occur after all "
+            "positional arguments but this is not the case for "
+            "Call[name='hello']" in str(info.value))
     # ok
     call = Call.create(RoutineSymbol("hello"), [
         Literal("1.0", REAL_TYPE), ("name", Literal("2.0", REAL_TYPE))])
@@ -868,7 +868,7 @@ def test_fw_filecontainer_error1(fortran_writer):
     file_container = FileContainer.create("None", symbol_table, [])
     with pytest.raises(VisitorError) as info:
         _ = fortran_writer(file_container)
-    assert(
+    assert (
         "In the Fortran backend, a file container should not have any "
         "symbols associated with it, but found 1." in str(info.value))
 
@@ -1044,7 +1044,7 @@ def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
     # Generate Fortran from the PSyIR schedule
     result = fortran_writer(schedule)
 
-    assert(
+    assert (
         "subroutine tmp(a, b, c)\n"
         "  use iso_c_binding, only : c_int\n"
         "  real, dimension(:), intent(out) :: a\n"
@@ -1068,7 +1068,7 @@ def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
                                           datatype=INTEGER_TYPE)
     # They should be promoted to the routine-scope level
     result = fortran_writer(schedule)
-    assert(
+    assert (
         "  integer, intent(in) :: c\n"
         "  integer :: symbol1\n"
         "  integer :: symbol2\n") in result
@@ -1088,7 +1088,7 @@ def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
     # But the back-end will promote them to routine-scope level with different
     # names
     result = fortran_writer(schedule)
-    assert(
+    assert (
         "  integer, intent(in) :: c\n"
         "  integer :: symbol1\n"
         "  integer :: symbol2\n"
@@ -1171,7 +1171,7 @@ def test_fw_routine_program(fortran_reader, fortran_writer, tmpdir):
     # Generate Fortran from PSyIR
     result = fortran_writer(psyir)
 
-    assert(
+    assert (
         "program test\n"
         "  real :: a\n\n"
         "  a = 0.0\n\n"
@@ -1197,7 +1197,7 @@ def test_fw_routine_function(fortran_reader, fortran_writer, tmpdir):
     container = fortran_reader.psyir_from_source(code)
     # Generate Fortran from PSyIR
     result = fortran_writer(container)
-    assert(
+    assert (
         "  contains\n"
         "  function tmp(b) result(val)\n"
         "    real :: b\n"
@@ -1247,19 +1247,19 @@ def test_fw_binaryoperator(fortran_writer, binary_intrinsic, tmpdir,
     '''
     # Generate fparser2 parse tree from Fortran code.
     code = (
-        "module test\n"
-        "contains\n"
-        "subroutine tmp(a, n)\n"
-        "  integer, intent(in) :: n\n"
-        "  real, intent(out) :: a(n)\n"
-        "    a = {0}(1.0,1.0)\n"
-        "end subroutine tmp\n"
-        "end module test").format(binary_intrinsic)
+        f"module test\n"
+        f"contains\n"
+        f"subroutine tmp(a, n)\n"
+        f"  integer, intent(in) :: n\n"
+        f"  real, intent(out) :: a(n)\n"
+        f"    a = {binary_intrinsic}(1.0,1.0)\n"
+        f"end subroutine tmp\n"
+        f"end module test")
     schedule = fortran_reader.psyir_from_source(code)
 
     # Generate Fortran from the PSyIR schedule
     result = fortran_writer(schedule)
-    assert "a = {0}(1.0, 1.0)".format(binary_intrinsic.upper()) in result
+    assert f"a = {binary_intrinsic.upper()}(1.0, 1.0)" in result
     assert Compile(tmpdir).string_compiles(result)
 
 

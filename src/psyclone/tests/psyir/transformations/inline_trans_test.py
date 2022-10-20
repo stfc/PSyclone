@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 '''This module tests the inlining transformation.
 '''
@@ -39,7 +40,7 @@
 import pytest
 
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Assignment, Call, Reference, Routine
+from psyclone.psyir.nodes import Call, Routine
 from psyclone.psyir.transformations import (InlineTrans,
                                             TransformationError)
 from psyclone.tests.utilities import Compile
@@ -617,6 +618,160 @@ def test_inline_non_local_import(fortran_reader, fortran_writer):
             "    i = i + trouble\n" in output)
 
 
+def test_apply_function(fortran_reader, fortran_writer, tmpdir):
+    '''Check that the apply() method works correctly for a simple call to
+    a function.
+
+    '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "  real :: a,b\n"
+        "  a = func(b)\n"
+        "  end subroutine run_it\n"
+        "  real function func(b)\n"
+        "    real :: b\n"
+        "    func = 2.0\n"
+        "  end function\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(routine)
+    output = fortran_writer(psyir)
+    expected = (
+        "  subroutine run_it()\n"
+        "    real :: a\n"
+        "    real :: b\n"
+        "    real :: inlined_func\n\n"
+        "    inlined_func = 2.0\n"
+        "    a = inlined_func")
+    assert expected in output
+    assert Compile(tmpdir).string_compiles(output)
+
+
+# Try two different forms of function declaration.
+@pytest.mark.parametrize("function_header", [
+    "  function func(b) result(x)\n    real :: x\n",
+    "  real function func(b) result(x)\n"])
+def test_apply_function_declare_name(
+        fortran_reader, fortran_writer, tmpdir, function_header):
+    '''Check that the apply() method works correctly for a simple call to
+    a function where the name of the return name differs from the
+    function name.
+
+    '''
+    code = (
+        f"module test_mod\n"
+        f"contains\n"
+        f"  subroutine run_it()\n"
+        f"  real :: a,b\n"
+        f"  a = func(b)\n"
+        f"  end subroutine run_it\n"
+        f"{function_header}"
+        f"    real :: b\n"
+        f"    x = 2.0\n"
+        f"  end function\n"
+        f"end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(routine)
+    output = fortran_writer(psyir)
+
+    expected = (
+        "  subroutine run_it()\n"
+        "    real :: a\n"
+        "    real :: b\n"
+        "    real :: inlined_x\n\n"
+        "    inlined_x = 2.0\n"
+        "    a = inlined_x")
+    assert expected in output
+    assert Compile(tmpdir).string_compiles(output)
+
+
+def test_apply_function_expression(fortran_reader, fortran_writer, tmpdir):
+    '''Check that the apply() method works correctly for a call to a
+    function that is within an expression.
+
+    '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "  real :: a,b\n"
+        "  a = (a*func(b)+2.0)/a\n"
+        "  end subroutine run_it\n"
+        "  real function func(b) result(x)\n"
+        "    real :: b\n"
+        "    b = b + 3.0\n"
+        "    x = b * 2.0\n"
+        "  end function\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(routine)
+    output = fortran_writer(psyir)
+    assert (
+        "    real :: b\n"
+        "    real :: inlined_x\n\n"
+        "    b = b + 3.0\n"
+        "    inlined_x = b * 2.0\n"
+        "    a = (a * inlined_x + 2.0) / a\n" in output)
+    assert Compile(tmpdir).string_compiles(output)
+
+
+def test_apply_multi_function(fortran_reader, fortran_writer, tmpdir):
+    '''Check that the apply() method works correctly when a function is
+    called twice but only one of these function calls is inlined.
+
+    '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "  real :: a,b,c\n"
+        "  a = func(b)\n"
+        "  c = func(a)\n"
+        "  end subroutine run_it\n"
+        "  real function func(b)\n"
+        "    real :: b\n"
+        "    func = 2.0\n"
+        "  end function\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(routine)
+    output = fortran_writer(psyir)
+    expected = (
+        "  subroutine run_it()\n"
+        "    real :: a\n"
+        "    real :: b\n"
+        "    real :: c\n"
+        "    real :: inlined_func\n\n"
+        "    inlined_func = 2.0\n"
+        "    a = inlined_func\n"
+        "    c = func(a)")
+    assert expected in output
+    assert Compile(tmpdir).string_compiles(output)
+
+    # inline again
+    routine = psyir.walk(Call)[0]
+    inline_trans.apply(routine)
+    output = fortran_writer(psyir)
+    expected = (
+        "    real :: inlined_func\n"
+        "    real :: inlined_func_1\n\n"
+        "    inlined_func = 2.0\n"
+        "    a = inlined_func\n"
+        "    inlined_func_1 = 2.0\n"
+        "    c = inlined_func_1")
+    assert expected in output
+
+
 def test_apply_validate():
     '''Test the apply method calls the validate method.'''
     inline_trans = InlineTrans()
@@ -793,51 +948,6 @@ def test_validate_unresolved_import(fortran_reader):
         inline_trans.validate(call)
     assert ("Routine 'sub' cannot be inlined because it accesses an "
             "un-resolved variable 'trouble'" in str(err.value))
-
-
-def test_validate_function(fortran_reader):
-    '''Test that the validate method rejects an attempt to inline a
-    function.
-
-    TODO #924: add support for function inlining.
-    '''
-    code = (
-        "module test_mod\n"
-        "contains\n"
-        "  subroutine run_it()\n"
-        "  integer :: i\n"
-        "  real :: a(10)\n"
-        "  do i=1,10\n"
-        "    a(i) = my_func(i)\n"
-        "  end do\n"
-        "  end subroutine run_it\n"
-        "  function my_func(idx)\n"
-        "    integer :: my_func\n"
-        "    integer, intent(in) :: idx\n"
-        "    my_func = 3*idx\n"
-        "  end function my_func\n"
-        "end module test_mod\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    routines = psyir.walk(Routine)
-    routine = routines[0]
-    # Currently the call to my_func() is identified as an array reference
-    # so we have to fix it before we can apply the transformation.
-    isym = routine.symbol_table.lookup("i")
-    func = psyir.children[0].symbol_table.lookup("my_func")
-    assign = routine.walk(Assignment)[0]
-    assign.rhs.replace_with(Call.create(func, [Reference(isym)]))
-    inline_trans = InlineTrans()
-    with pytest.raises(TransformationError) as err:
-        inline_trans.apply(assign.rhs)
-    assert ("Cannot inline routine 'my_func' as it has a return value "
-            "('my_func') - TODO #924." in str(err.value))
-    # Repeat the check but with an empty function.
-    callee = routines[1]
-    callee.children = []
-    with pytest.raises(TransformationError) as err:
-        inline_trans.apply(assign.rhs)
-    assert ("Cannot inline routine 'my_func' as it has a return value "
-            "('my_func') - TODO #924." in str(err.value))
 
 
 def test_validate_array_subsection(fortran_reader):

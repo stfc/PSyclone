@@ -43,7 +43,7 @@ from collections import OrderedDict
 import os
 import six
 
-from fparser.two import Fortran2003
+from fparser.two import Fortran2003, utils
 from fparser.two.utils import walk, BlockBase, StmtBase
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
@@ -59,6 +59,9 @@ from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     LocalInterface, ScalarType, ArrayType, DeferredType, UnknownType, \
     UnknownFortranType, StructureType, DataTypeSymbol, RoutineSymbol, \
     SymbolTable, NoType, INTEGER_TYPE
+
+# fparser dynamically generates classes which confuses pylint membership checks
+# pylint: disable=maybe-no-member
 
 #: The list of Fortran instrinsic functions that we know about (and can
 #: therefore distinguish from array accesses). These are taken from
@@ -490,7 +493,7 @@ def _copy_full_base_reference(node):
         # We use the depth computed for the original reference in order
         # to find the copy of 'node'.
         inner = arg
-        for step in range(depth-1):
+        for _ in range(depth-1):
             inner = inner.member
         # Change the innermost access to be a Member.
         inner.children[0] = Member(node.name, inner)
@@ -679,11 +682,11 @@ def get_literal_precision(fparser2_node, psyir_literal_parent):
         # Return the default precision
         try:
             data_name = CONSTANT_TYPE_MAP[type(fparser2_node)]
-        except KeyError:
+        except KeyError as err:
             raise NotImplementedError(
                 f"Could not process {type(fparser2_node).__name__}. Only "
                 f"'real', 'integer', 'logical' and 'character' intrinsic "
-                f"types are supported.")
+                f"types are supported.") from err
         return default_precision(data_name)
     try:
         # Precision is specified as an integer
@@ -844,7 +847,7 @@ def _get_arg_names(node_list):
     return arg_nodes, arg_names
 
 
-class Fparser2Reader(object):
+class Fparser2Reader():
     '''
     Class to encapsulate the functionality for processing the fparser2 AST and
     convert the nodes to PSyIR.
@@ -911,7 +914,6 @@ class Fparser2Reader(object):
         ('sum', NaryOperation.Operator.SUM)])
 
     def __init__(self):
-        from fparser.two import utils
         # Map of fparser2 node types to handlers (which are class methods)
         self.handlers = {
             Fortran2003.Assignment_Stmt: self._assignment_handler,
@@ -1144,9 +1146,9 @@ class Fparser2Reader(object):
             # TODO this if test can be removed once fparser/#211 is fixed
             # such that routine arguments are always contained in a
             # Dummy_Arg_List, even if there's only one of them.
-            from fparser.two.Fortran2003 import Dummy_Arg_List
             if isinstance(subroutine, Fortran2003.Subroutine_Subprogram) and \
-               isinstance(subroutine.children[0].children[2], Dummy_Arg_List):
+               isinstance(subroutine.children[0].children[2],
+                          Fortran2003.Dummy_Arg_List):
                 arg_list = subroutine.children[0].children[2].children
             else:
                 # Routine has no arguments
@@ -1155,8 +1157,7 @@ class Fparser2Reader(object):
             # Subroutine without declarations, continue with empty lists.
             decl_list = []
             arg_list = []
-        finally:
-            self.process_declarations(new_schedule, decl_list, arg_list)
+        self.process_declarations(new_schedule, decl_list, arg_list)
 
         try:
             sub_exec = _first_type_match(subroutine.content,
@@ -2155,10 +2156,10 @@ class Fparser2Reader(object):
                         f"'{symbol.name}' is in the SymbolTable but it is not "
                         f"an array as expected, so it can not be recovered as "
                         f"an array assignment.")
-            except KeyError:
+            except KeyError as err:
                 raise NotImplementedError(
                     f"Could not process '{stmtfn}'. Statement Function "
-                    f"declarations are not supported.")
+                    f"declarations are not supported.") from err
 
     @staticmethod
     def _process_precision(type_spec, psyir_parent):
@@ -2390,15 +2391,15 @@ class Fparser2Reader(object):
             data_symbol = _find_or_create_imported_symbol(
                 parent, variable_name, symbol_type=DataSymbol,
                 datatype=DeferredType())
-        except SymbolError:
+        except SymbolError as err:
             raise InternalError(
                 f"Loop-variable name '{variable_name}' is not declared and "
                 f"there are no unqualified use statements. This is currently "
-                f"unsupported.")
+                f"unsupported.") from err
         # The loop node is created with the _create_loop factory method as some
         # APIs require a specialised loop node type.
         loop = self._create_loop(parent, data_symbol)
-        loop._ast = node
+        loop.ast = node
 
         # Get the loop limits. These are given in a list which is the second
         # element of a tuple which is itself the second element of the items
@@ -2425,7 +2426,7 @@ class Fparser2Reader(object):
 
         # Create Loop body Schedule
         loop_body = Schedule(parent=loop)
-        loop_body._ast = node
+        loop_body.ast = node
         loop.addchild(loop_body)
         # Process loop body (ignore 'do' and 'end do' statements with [1:-1])
         self.process_nodes(parent=loop_body, nodes=node.content[1:-1])
@@ -3324,9 +3325,9 @@ class Fparser2Reader(object):
         operator_str = str(node.items[0]).lower()
         try:
             operator = Fparser2Reader.unary_operators[operator_str]
-        except KeyError:
+        except KeyError as err:
             # Operator not supported, it will produce a CodeBlock instead
-            raise NotImplementedError(operator_str)
+            raise NotImplementedError(operator_str) from err
 
         if isinstance(node.items[1], Fortran2003.Actual_Arg_Spec_List):
             if len(node.items[1].items) > 1:
@@ -3392,9 +3393,9 @@ class Fparser2Reader(object):
 
         try:
             operator = Fparser2Reader.binary_operators[operator_str]
-        except KeyError:
+        except KeyError as err:
             # Operator not supported, it will produce a CodeBlock instead
-            raise NotImplementedError(operator_str)
+            raise NotImplementedError(operator_str) from err
 
         binary_op = BinaryOperation(operator, parent=parent)
 
@@ -3436,9 +3437,9 @@ class Fparser2Reader(object):
         operator_str = str(node.items[0]).lower()
         try:
             operator = Fparser2Reader.nary_operators[operator_str]
-        except KeyError:
+        except KeyError as err:
             # Intrinsic not supported, it will produce a CodeBlock instead
-            raise NotImplementedError(operator_str)
+            raise NotImplementedError(operator_str) from err
 
         nary_op = NaryOperation(operator, parent=parent)
 
@@ -3985,8 +3986,7 @@ class Fparser2Reader(object):
             # program has no Specification_Part so has no
             # declarations. Continue with empty list.
             decl_list = []
-        finally:
-            self.process_declarations(routine, decl_list, [])
+        self.process_declarations(routine, decl_list, [])
 
         try:
             prog_exec = _first_type_match(node.content,

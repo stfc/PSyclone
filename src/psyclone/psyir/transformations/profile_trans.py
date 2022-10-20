@@ -74,4 +74,4 @@ class ProfileTrans(PSyDataTrans):
     excluded_node_types = (Return,)
 
     def __init__(self):
-        super(ProfileTrans, self).__init__(ProfileNode)
+        super().__init__(ProfileNode)

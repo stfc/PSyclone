@@ -173,7 +173,7 @@ class ACCDirective(Directive):
 # level interface to creating code and adding code to an existing ast
 
 
-class BaseGen(object):
+class BaseGen():
     ''' The base class for all classes that are responsible for generating
     distinct code elements (modules, subroutines, do loops etc.) '''
     def __init__(self, parent, root):

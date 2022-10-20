@@ -302,7 +302,7 @@ class ChildrenList(list):
         super(ChildrenList, self).reverse()
 
 
-class Node(object):
+class Node():
     '''
     Base class for a PSyIR node.
 
