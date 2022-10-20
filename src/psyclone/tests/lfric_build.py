@@ -43,15 +43,21 @@ import subprocess
 import sys
 
 
-from psyclone.tests.utilities import CompileError, Compile
+from psyclone.tests.utilities import change_dir, CompileError, Compile
 
 
 class LFRicBuild(Compile):
     '''Build class for compilation of test files for the LFRic api.
-    It uses the wrapper library from test_files/dynamo0p3/infrastructure
-    and will automatically compile those files once per process.
-    '''
+    It uses the wrapper library from test_files/dynamo0p3/infrastructure.
+    The very first time the constructor is called it will automatically
+    compile the infrastructure library in a temporary, process-specific
+    location. These files will be used by all test compilations of this
+    process.
 
+    :param tmpdir: temporary directory, defaults to os.getcwd()
+    :type tmpdir: Optional[:py:class:`LocalPath`]
+
+    '''
     # A class variable to make sure we compile the infrastructure
     # file only once per process.
     _infrastructure_built = False
@@ -65,13 +71,6 @@ class LFRicBuild(Compile):
     _make_command = "make"
 
     def __init__(self, tmpdir):
-        '''Constructor for the LFRic-specific compilation class.
-        The very first time the constructor is called it will compile
-        the infrastructure library in a temporary, process-specific
-        location. These files will be used by all test compilations.
-        :param tmpdir: Temporary directory to be used for output files.
-        :type tmpdir: :py:class:`LocalPath`
-        '''
         super().__init__(tmpdir)
 
         base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -106,22 +105,22 @@ class LFRicBuild(Compile):
         if not Compile.TEST_COMPILE:
             return
 
-        old_pwd = self._tmpdir.chdir()
-        # Store the temporary path so that the compiled infrastructure
-        # files can be used by all test compilations later.
-        LFRicBuild._compilation_path = str(self._tmpdir)
-        makefile = os.path.join(self._infrastructure_path, "Makefile")
-        arg_list = [LFRicBuild._make_command, "-f", makefile]
-        try:
-            with subprocess.Popen(arg_list, stdout=subprocess.PIPE,
-                                  stderr=subprocess.STDOUT) as build:
-                # stderr = stdout, so ignore stderr result:
-                (output, _) = build.communicate()
-        except OSError as err:
-            print(f"Failed to run: {' '.join(arg_list)}: ", file=sys.stderr)
-            raise CompileError(str(err)) from err
-        finally:
-            old_pwd.chdir()
+        with change_dir(self._tmpdir):
+            # Store the temporary path so that the compiled infrastructure
+            # files can be used by all test compilations later.
+            LFRicBuild._compilation_path = str(self._tmpdir)
+            makefile = os.path.join(self._infrastructure_path, "Makefile")
+            arg_list = [LFRicBuild._make_command, "-f", makefile]
+            try:
+                with subprocess.Popen(arg_list, stdout=subprocess.PIPE,
+                                      stderr=subprocess.STDOUT) as build:
+                    # stderr = stdout, so ignore stderr result:
+                    (output, _) = build.communicate()
+            except OSError as err:
+                print(f"Failed to run: {' '.join(arg_list)}: ",
+                      file=sys.stderr)
+                raise CompileError(str(err)) from err
+
         # Check the return code
         stat = build.returncode
         if stat != 0:

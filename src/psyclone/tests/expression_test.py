@@ -1,9 +1,44 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 ''' Module containing tests for the Fortran expression parser '''
 
-from __future__ import absolute_import
-import six
-from psyclone.expression import VAR_OR_FUNCTION, FORT_EXPRESSION, SLICING
+from psyclone.expression import (BinaryOperator, FunctionVar, Grouping,
+                                 LiteralArray, NamedArg, Slicing,
+                                 VAR_OR_FUNCTION, FORT_EXPRESSION, SLICING)
 
 
 def my_test(name, parser, test_string, names=None):
@@ -11,25 +46,22 @@ def my_test(name, parser, test_string, names=None):
     operations are equivalent to the identity. Note that whitespace is not
     preserved by the parsing operation, so the test_string must conform to
     the whitespace conventions of the unparser for the test to succeed.'''
-    # These imports are required in order for the exec in the code below
-    # to work. Pylint complains about those as unused variables
+
     pstr = parser.parseString(test_string)
     assert (str(pstr[0]) == test_string), "Failed to parse " + name + "."
     # ast.literal_eval can't be used here as the generated expression
     # calls constructors of user-defined objects
 
-    # Create and execute in a context with PSyclone's expressions available
-    # Unlike Python2 Python3's exec requries an explicit context
-    import psyclone.expression
     context = {
-        'BinaryOperator': psyclone.expression.BinaryOperator,
-        'FunctionVar': psyclone.expression.FunctionVar,
-        'Grouping': psyclone.expression.Grouping,
-        'LiteralArray': psyclone.expression.LiteralArray,
-        'NamedArg': psyclone.expression.NamedArg,
-        'Slicing': psyclone.expression.Slicing,
+        'BinaryOperator': BinaryOperator,
+        'FunctionVar': FunctionVar,
+        'Grouping': Grouping,
+        'LiteralArray': LiteralArray,
+        'NamedArg': NamedArg,
+        'Slicing': Slicing,
     }
-    six.exec_("pstr="+repr(pstr[0]), context)
+    # pylint: disable=exec-used
+    exec("pstr="+repr(pstr[0]), context)
     pstr = context['pstr']
 
     assert (str(pstr) == test_string), "Error in repr for " + name + "."
@@ -133,9 +165,13 @@ def test_group_operations():
 
 def test_literal_array():
     ''' Test parsing of a literal array '''
-    my_test("literal array",
-            FORT_EXPRESSION,
-            "[1, 2, 3]")
+    lit = my_test("literal array",
+                  FORT_EXPRESSION,
+                  "[1, 2, 3]")
+    assert lit[0] == '1'
+    assert lit[1] == '2'
+    assert lit[2] == '3'
+    assert len(lit) == 3
 
 
 def test_named_int_arg():
@@ -148,6 +184,8 @@ def test_named_logical_arg():
     named_arg = my_test("named logical arg", FORT_EXPRESSION,
                         "my_arg=.true.", names=["my_arg"])
     assert named_arg.value == ".true."
+    assert named_arg.name == "my_arg"
+    assert named_arg.is_string is False
 
 
 def test_named_real_arg():
@@ -163,6 +201,7 @@ def test_named_str_arg_single_quotes():
     named_arg = my_test("named arg single quotes", FORT_EXPRESSION,
                         "my_arg='funny'", names=["my_arg"])
     assert named_arg.value == "funny"
+    assert named_arg.is_string is True
 
 
 def test_named_str_arg_dble_quotes():

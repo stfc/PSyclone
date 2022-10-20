@@ -50,7 +50,7 @@ from psyclone.configuration import Config
 from psyclone.domain.lfric import KernCallArgList, LFRicConstants
 from psyclone.dynamo0p3 import DynHaloExchangeEnd, DynHaloExchangeStart, \
     DynInvokeSchedule, DynKern
-from psyclone.errors import InternalError, GenerationError
+from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.nemo import NemoInvokeSchedule
 from psyclone.psyGen import Transformation, CodedKern, Kern, InvokeSchedule, \
@@ -58,7 +58,7 @@ from psyclone.psyGen import Transformation, CodedKern, Kern, InvokeSchedule, \
 from psyclone.psyir.nodes import ACCDataDirective, ACCDirective, \
     ACCEnterDataDirective, ACCKernelsDirective, ACCLoopDirective, \
     ACCParallelDirective, ACCRoutineDirective, Assignment, CodeBlock, \
-    Directive, KernelSchedule, Loop, Node, OMPDeclareTargetDirective, \
+    Directive, Loop, Node, OMPDeclareTargetDirective, \
     OMPDirective, OMPMasterDirective, \
     OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective, \
     OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Reference, \
@@ -101,70 +101,7 @@ def check_intergrid(node):
                 f" is such a kernel.")
 
 
-class KernelTrans(Transformation):
-    # pylint: disable=abstract-method
-    '''
-    Base class for all Kernel transformations.
-
-    '''
-    @staticmethod
-    def validate(kern, options=None):
-        # pylint: disable=arguments-renamed
-        '''
-        Checks that the supplied node is a Kernel and that it is possible to
-        construct the PSyIR of its contents.
-
-        :param kern: the kernel which is the target of the transformation.
-        :type kern: :py:class:`psyclone.psyGen.Kern` or sub-class
-        :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
-
-        :raises TransformationError: if the target node is not a sub-class of \
-                                     psyGen.Kern.
-        :raises TransformationError: if the subroutine containing the \
-                                     implementation of the kernel cannot be \
-                                     found in the fparser2 Parse Tree.
-        :raises TransformationError: if the PSyIR cannot be constructed \
-                                     because there are symbols of unknown type.
-
-        '''
-
-        if not isinstance(kern, Kern):
-            raise TransformationError(
-                f"Target of a kernel transformation must be a sub-class of "
-                f"psyGen.Kern but got '{type(kern).__name__}'")
-
-        # Check that the PSyIR and associated Symbol table of the Kernel is OK.
-        # If this kernel contains symbols that are not captured in the PSyIR
-        # SymbolTable then this raises an exception.
-        try:
-            kernel_schedule = kern.get_kernel_schedule()
-        except GenerationError as error:
-            raise TransformationError(
-                f"Failed to create PSyIR for kernel '{kern.name}'. "
-                f"Cannot transform such a kernel.") from error
-        except SymbolError as err:
-            raise TransformationError(
-                f"Kernel '{kern.name}' contains accesses to data that are not "
-                f"present in the Symbol Table(s). Cannot "
-                f"transform such a kernel.") from err
-        # Check that all kernel symbols are declared in the kernel
-        # symbol table(s). At this point they may be declared in a
-        # container containing this kernel which is not supported.
-        for var in kernel_schedule.walk(Reference):
-            try:
-                var.scope.symbol_table.lookup(
-                    var.name, scope_limit=var.ancestor(KernelSchedule))
-            except KeyError as err:
-                raise TransformationError(
-                    f"Kernel '{kern.name}' contains accesses to data (variable"
-                    f" '{var.name}') that are not present in the Symbol Table"
-                    f"(s) within KernelSchedule scope. Cannot transform such a"
-                    f" kernel.") from err
-
-
 class OMPTaskloopTrans(ParallelLoopTrans):
-
     '''
     Adds an OpenMP taskloop directive to a loop. Only one of grainsize or
     num_tasks must be specified.
@@ -957,71 +894,6 @@ class ColourTrans(LoopTrans):
         # pylint: disable=no-self-use
         raise InternalError("_create_colours_loop() must be overridden in an "
                             "API-specific sub-class.")
-
-
-class KernelModuleInlineTrans(KernelTrans):
-    '''Switches on, or switches off, the inlining of a Kernel subroutine
-    into the PSy layer module. For example:
-
-    >>> invoke = ...
-    >>> schedule = invoke.schedule
-    >>>
-    >>> inline_trans = KernelModuleInlineTrans()
-    >>>
-    >>> inline_trans.apply(schedule.children[0].loop_body[0])
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-
-    .. warning ::
-        For this transformation to work correctly, the Kernel subroutine
-        must only use data that is passed in by argument, declared locally
-        or included via use association within the subroutine. Two
-        examples where in-lining will not work are:
-
-        #. A variable is declared within the module that ``contains`` the
-           Kernel subroutine and is then accessed within that Kernel;
-        #. A variable is included via use association at the module level
-           and accessed within the Kernel subroutine.
-
-        The transformation will reject attempts to in-line such kernels.
-    '''
-
-    def __str__(self):
-        return ("Inline (or cancel inline of) a kernel subroutine into the "
-                "PSy module")
-
-    @property
-    def name(self):
-        ''' Returns the name of this transformation as a string.'''
-        return "KernelModuleInline"
-
-    def apply(self, node, options=None):
-        '''Checks that the node is of the correct type (a Kernel) then marks
-        the Kernel to be inlined, or not, depending on the value of
-        the inline option. If the inline option is not passed the
-        Kernel is marked to be inlined.
-
-        :param node: the loop to transform.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
-        :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
-        :param bool options["inline"]: whether the kernel should be module\
-                inlined or not.
-
-        '''
-        self.validate(node, options)
-
-        if not options:
-            options = {}
-        inline = options.get("inline", True)
-
-        # set kernel's inline status
-        if node.module_inline == inline:
-            # issue a warning here when we implement logging
-            # print "Warning, Kernel inline is already set to "+str(inline)
-            pass
-        else:
-            node.module_inline = inline
 
 
 class Dynamo0p3ColourTrans(ColourTrans):
@@ -2913,28 +2785,28 @@ class KernelImportsToArguments(Transformation):
 
 
 # For Sphinx AutoAPI documentation generation
-__all__ = ["KernelTrans",
-           "OMPLoopTrans",
-           "ACCLoopTrans",
-           "OMPParallelLoopTrans",
-           "DynamoOMPParallelLoopTrans",
-           "GOceanOMPParallelLoopTrans",
-           "Dynamo0p3OMPLoopTrans",
-           "GOceanOMPLoopTrans",
-           "ColourTrans",
-           "KernelModuleInlineTrans",
-           "Dynamo0p3ColourTrans",
-           "ParallelRegionTrans",
-           "OMPSingleTrans",
-           "OMPMasterTrans",
-           "OMPParallelTrans",
-           "ACCParallelTrans",
-           "MoveTrans",
-           "Dynamo0p3RedundantComputationTrans",
-           "Dynamo0p3AsyncHaloExchangeTrans",
-           "Dynamo0p3KernelConstTrans",
-           "ACCEnterDataTrans",
-           "ACCRoutineTrans",
-           "ACCKernelsTrans",
-           "ACCDataTrans",
-           "KernelImportsToArguments"]
+__all__ = [
+   "ACCEnterDataTrans",
+   "ACCDataTrans",
+   "ACCKernelsTrans",
+   "ACCLoopTrans",
+   "ACCParallelTrans",
+   "ACCRoutineTrans",
+   "ColourTrans",
+   "Dynamo0p3AsyncHaloExchangeTrans",
+   "Dynamo0p3ColourTrans",
+   "Dynamo0p3KernelConstTrans",
+   "Dynamo0p3OMPLoopTrans",
+   "Dynamo0p3RedundantComputationTrans",
+   "DynamoOMPParallelLoopTrans",
+   "GOceanOMPLoopTrans",
+   "GOceanOMPParallelLoopTrans",
+   "KernelImportsToArguments",
+   "MoveTrans",
+   "OMPLoopTrans",
+   "OMPMasterTrans",
+   "OMPParallelLoopTrans",
+   "OMPParallelTrans",
+   "OMPSingleTrans",
+   "ParallelRegionTrans",
+]
