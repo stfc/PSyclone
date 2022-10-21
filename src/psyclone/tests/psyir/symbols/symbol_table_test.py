@@ -2172,3 +2172,37 @@ def test_has_same_name():
     # It can compare between symbols and strings
     assert SymbolTable._has_same_name(sym1, "NamE")
     assert not SymbolTable._has_same_name("name", different)
+
+
+def test_equality():
+    ''' Test that we can compare the equality of 2 symbol tables.
+
+    TODO #1698: The current implementation is not sensitive to tags, order
+    of arguments and visibilities.
+    '''
+
+    # An empty symbol table is equal to other empty symbol tables
+    symtab1 = SymbolTable()
+    symtab2 = SymbolTable()
+    assert symtab1 == symtab2
+
+    # Its not equal to any other type
+    assert symtab1 != 3
+
+    # If it has different symbols, its not equal
+    symtab1.new_symbol("s1", symbol_type=RoutineSymbol)
+    symtab2.new_symbol("s1", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+    assert symtab1 != symtab2
+
+    # If it has the same symbols is the same
+    symtab2 = symtab1.deep_copy()
+    assert symtab1 == symtab2
+
+    # If the lhs symbol_table has more symbols its not equal
+    symtab1.new_symbol("s2", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+    assert symtab1 != symtab2
+
+    # If the rhs symbol_table has more symbols its not equal
+    symtab2 = symtab1.deep_copy()
+    symtab2.new_symbol("s3")
+    assert symtab1 != symtab2

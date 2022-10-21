@@ -40,6 +40,7 @@ import os
 
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOInvokeSchedule, GOLoop
 from psyclone.psyGen import Transformation, args_filter, InvokeSchedule, \
@@ -52,7 +53,7 @@ from psyclone.psyir.nodes import Routine, Call, Reference, Literal, \
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, \
     ContainerSymbol, UnknownFortranType, ArgumentInterface, ImportInterface, \
     INTEGER_TYPE, CHARACTER_TYPE, ArrayType, BOOLEAN_TYPE, ScalarType
-from psyclone.transformations import TransformationError, KernelTrans
+from psyclone.transformations import TransformationError
 
 
 class GOOpenCLTrans(Transformation):
@@ -189,7 +190,7 @@ class GOOpenCLTrans(Transformation):
         # the kernels in this Schedule. Also check that none of them access
         # any form of global data (that is not a routine argument).
         for kern in node.kernels():
-            KernelTrans.validate(kern)
+            KernelModuleInlineTrans().validate(kern)
             ksched = kern.get_kernel_schedule()
             global_variables = ksched.symbol_table.imported_symbols
             if global_variables:

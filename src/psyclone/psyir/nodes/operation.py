@@ -39,17 +39,15 @@
 ''' This module contains the implementation of the Operation class and its
 sub-classes.'''
 
-import abc
+from abc import ABCMeta
 from enum import Enum
 import re
-import six
 
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.datanode import DataNode
 
 
-@six.add_metaclass(abc.ABCMeta)
-class Operation(DataNode):
+class Operation(DataNode, metaclass=ABCMeta):
     '''
     Abstract base class for PSyIR nodes representing operators.
 
@@ -73,7 +71,7 @@ class Operation(DataNode):
     _colour = "blue"
 
     def __init__(self, operator, parent=None):
-        super(Operation, self).__init__(parent=parent)
+        super().__init__(parent=parent)
 
         if not isinstance(operator, self.Operator):
             raise TypeError(
@@ -201,7 +199,7 @@ class Operation(DataNode):
         :returns: whether other is equal to self.
         :rtype: bool
         '''
-        is_eq = super(Operation, self).__eq__(other)
+        is_eq = super().__eq__(other)
         is_eq = is_eq and self.operator == other.operator
         is_eq = is_eq and self.argument_names == other.argument_names
 
@@ -294,7 +292,7 @@ class Operation(DataNode):
         # pylint: disable=protected-access
         self._reconcile()
         # copy
-        new_copy = super(Operation, self).copy()
+        new_copy = super().copy()
         # Fix invalid id's in _argument_names after copying.
         new_list = []
         for idx, child in enumerate(new_copy.children):
@@ -559,6 +557,30 @@ class BinaryOperation(Operation):
         binary_op.append_named_arg(lhs_name, lhs)
         binary_op.append_named_arg(rhs_name, rhs)
         return binary_op
+
+    def reference_accesses(self, var_accesses):
+        '''Get all reference access information from this node.
+        If the 'COLLECT-ARRAY-SHAPE-READS' options is set, it
+        will not report array accesses used as first parameter
+        in `lbound`, `ubound`, or `size` as 'read' accesses.
+
+        :param var_accesses: VariablesAccessInfo instance that stores the \
+            information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        '''
+        if not var_accesses.options("COLLECT-ARRAY-SHAPE-READS") \
+                and self.operator in [BinaryOperation.Operator.LBOUND,
+                                      BinaryOperation.Operator.UBOUND,
+                                      BinaryOperation.Operator.SIZE]:
+            # If shape accesses are not considered reads, ignore the first
+            # child (which is always the array being read)
+            for child in self._children[1:]:
+                child.reference_accesses(var_accesses)
+            return
+        for child in self._children:
+            child.reference_accesses(var_accesses)
 
 
 class NaryOperation(Operation):

@@ -1405,3 +1405,29 @@ class SymbolTable():
         self._node = node
         # pylint: disable=protected-access
         node._symbol_table = self
+
+    def __eq__(self, other):
+        '''
+        Checks whether two SymbolTables are equal.
+
+        # TODO 1698: Improve. Currently it uses a quick implementation
+        # that only checks that the view() lines of each symbol_table
+        # are exactly the same.
+        # The current implementation does not check tags, order
+        # of arguments or visibilities.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        # pylint: disable=unidiomatic-typecheck
+        if type(self) != type(other):
+            return False
+        this_lines = self.view().split('\n')
+        other_lines = other.view().split('\n')
+        for line in other_lines:
+            if line not in this_lines:
+                return False
+            this_lines.remove(line)
+        return len(this_lines) == 0
