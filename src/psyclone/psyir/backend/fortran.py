@@ -52,8 +52,7 @@ from psyclone.psyir.nodes import BinaryOperation, Call, CodeBlock, DataNode, \
     Literal, Operation, Range, Routine, Schedule, UnaryOperation
 from psyclone.psyir.symbols import ArgumentInterface, ArrayType, \
     ContainerSymbol, DataSymbol, DataTypeSymbol, DeferredType, RoutineSymbol, \
-    ScalarType, Symbol, SymbolTable, UnknownFortranType, UnknownType, \
-    UnresolvedInterface
+    ScalarType, Symbol, SymbolTable, UnknownFortranType, UnknownType
 
 
 # The list of Fortran instrinsic functions that we know about (and can
