@@ -335,8 +335,8 @@ class AdjointVisitor(PSyIRVisitor):
         # (on the assumption that the step is unitary, which it is in
         # most cases).
         offset = None
-        if not(isinstance(node.step_expr, Literal) and
-               node.step_expr.value.strip() in ["1", "-1"]):
+        if not (isinstance(node.step_expr, Literal) and
+                node.step_expr.value.strip() in ["1", "-1"]):
             # The loop step might not be unitary so compute an offset:
             # stop-start mod step
             fortran_writer = FortranWriter()

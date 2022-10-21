@@ -60,7 +60,7 @@ class VisitorError(PSycloneError):
         self.value = "Visitor Error: "+str(value)
 
 
-class PSyIRVisitor(object):
+class PSyIRVisitor():
     '''A generic PSyIR visitor. This is designed to be specialised by
     a particular back end. By default, global constraints are enforced by
     calling the `validate_global_constraints()` method of each Node visited.

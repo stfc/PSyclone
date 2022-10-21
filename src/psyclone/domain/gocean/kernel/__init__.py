@@ -37,4 +37,9 @@
 layer.
 
 '''
-from psyclone.domain.gocean.kernel.psyir import GOceanContainer, GOceanKernelMetadata
+from psyclone.domain.gocean.kernel.psyir import GOceanContainer, \
+    GOceanKernelMetadata
+
+__all__ = [
+    "GOceanKernelMetadata",
+]

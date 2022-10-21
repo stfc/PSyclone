@@ -38,11 +38,11 @@
 
 ''' This module contains the Routine node implementation.'''
 
-from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, NoType
-from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.symbols.symboltable import SymbolTable
+from psyclone.psyir.symbols.symbol_table import SymbolTable
 from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
+from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.schedule import Schedule
 
 
 class Routine(Schedule, CommentableMixin):
@@ -79,7 +79,7 @@ class Routine(Schedule, CommentableMixin):
     def __eq__(self, other):
         '''
         Checks whether two nodes are equal. Two Routine nodes are equal
-        if they haev the same name, same return symbol, same is_program and
+        if they have the same name, same return symbol, same is_program and
         the inherited __eq__ is True.
 
         :param object other: the object to check equality to.
