@@ -601,44 +601,6 @@ def test_omp_colouring_needed(monkeypatch, annexed, dist_mem):
     assert "Colouring is required" in str(excinfo.value)
 
 
-def test_check_seq_colours_omp_parallel_do(monkeypatch, annexed, dist_mem):
-    '''Test that we raise an error if the user attempts to apply an OpenMP
-    PARALLEL DO transformation to a loop over colours (since any such
-    loop must be sequential). We test when distributed memory is on or
-    off. We also test when annexed is False and True as it affects how
-    many halo exchanges are generated.
-
-    '''
-    config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
-    _, invoke = get_invoke("1.1.0_single_invoke_xyoz_qr.f90", TEST_API,
-                           name="invoke_0_testkern_qr_type",
-                           dist_mem=dist_mem)
-    schedule = invoke.schedule
-    if dist_mem:
-        if annexed:
-            index = 3
-        else:
-            index = 4
-    else:
-        index = 0
-
-    ctrans = Dynamo0p3ColourTrans()
-    otrans = DynamoOMPParallelLoopTrans()
-
-    # Colour the loop
-    ctrans.apply(schedule.children[index])
-
-    # Then erroneously attempt to apply OpenMP to the loop over
-    # colours
-    with pytest.raises(TransformationError) as excinfo:
-        otrans.apply(schedule.children[index])
-    assert "Error in DynamoOMPParallelLoopTrans" in str(excinfo.value)
-    assert "target loop is over colours" in str(excinfo.value)
-    assert "must be computed serially" in str(excinfo.value)
-
-
 def test_check_seq_colours_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
     '''Test that we raise an error if the user attempts to apply an OpenMP
     DO transformation to a loop over colours (since any such loop must

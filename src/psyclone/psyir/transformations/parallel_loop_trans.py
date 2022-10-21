@@ -90,6 +90,8 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         :type options: dictionary of string:values or None
         :param int options["collapse"]: number of nested loops to collapse \
                                         or None.
+        :param bool options["force"]: whether to force parallelisation of the \
+                target loop (i.e. ignore any dependence analysis).
 
         :raises TransformationError: if the \
                 :py:class:`psyclone.psyir.nodes.Loop` loop iterates over \
@@ -97,7 +99,8 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         :raises TransformationError: if 'collapse' is supplied with an \
                 invalid number of loops.
         :raises TransformationError: if there is a data dependency that \
-                prevents the parallelisation of the loop.
+                prevents the parallelisation of the loop unless \
+                `options["force"]` is True.
 
         '''
         # Check that the supplied node is a Loop and does not contain any
@@ -114,6 +117,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         if not options:
             options = {}
         collapse = options.get("collapse", None)
+        ignore_dep_analysis = options.get("force", False)
 
         # If 'collapse' is specified, check that it is an int and that the
         # loop nest has at least that number of loops in it
@@ -152,9 +156,14 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                     all_msg_str = [str(message) for message in
                                    dep_tools.get_all_messages()]
                     messages = "\n".join(all_msg_str)
-                    raise TransformationError(
-                        f"Dependency analysis failed with the following "
-                        f"messages:\n{messages}")
+                    if not ignore_dep_analysis:
+                        raise TransformationError(
+                            f"Dependency analysis failed with the following "
+                            f"messages:\n{messages}")
+                    # TODO #11. Log a warning that the dependence analysis
+                    # says that this loop cannot be parallelised but that
+                    # the user has opted to 'force' it.
+
         except (KeyError, InternalError):
             # LFRic still has symbols that don't exist in the symbol_table
             # until the gen_code() step, so the dependency analysis raises
