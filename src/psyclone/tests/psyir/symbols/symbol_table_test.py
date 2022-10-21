@@ -2151,3 +2151,24 @@ def test_attach():
     assert ("The symbol table is already bound to another scope (Schedule[]). "
             "Consider detaching or deepcopying the symbol table first."
             in str(err.value))
+
+
+def test_has_same_name():
+    ''' Test that the _has_same_name utility accepts strings and symbols and
+    returns whether the normalized names are the same.
+    '''
+    sym1 = Symbol('name')
+    sym2 = Symbol('NaMe')
+    different = Symbol('not_name')
+
+    # It can compare symbols
+    assert SymbolTable._has_same_name(sym1, sym2)
+    assert not SymbolTable._has_same_name(sym1, different)
+
+    # It can compare string
+    assert SymbolTable._has_same_name("naME", "NamE")
+    assert not SymbolTable._has_same_name("name", "NOT_NAME")
+
+    # It can compare between symbols and strings
+    assert SymbolTable._has_same_name(sym1, "NamE")
+    assert not SymbolTable._has_same_name("name", different)

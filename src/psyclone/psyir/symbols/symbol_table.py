@@ -1252,6 +1252,10 @@ class SymbolTable():
                         # local (not imported) properties
                         symbol_match.interface = interface
                         symbol_match.visibility = visibility
+                    if symbol_target:
+                        # If we were looking just for this symbol we don't need
+                        # to continue searching
+                        return
                 else:
                     if c_symbol.wildcard_import:
                         # This symbol is PUBLIC and inside a wildcard import,
@@ -1260,11 +1264,6 @@ class SymbolTable():
                         new_symbol.interface = ImportInterface(c_symbol)
                         new_symbol.visibility = self.default_visibility
                         self.add(new_symbol)
-
-                if symbol_target:
-                    # If we were looking just for this symbol we don't need
-                    # to continue searching
-                    return
 
         if symbol_target:
             raise KeyError(
