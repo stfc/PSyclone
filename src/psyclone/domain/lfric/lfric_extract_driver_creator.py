@@ -44,11 +44,13 @@ from __future__ import absolute_import
 import six
 
 from psyclone.configuration import Config
+from psyclone.domain.lfric import KernCallArgList
 from psyclone.errors import InternalError
+from psyclone.psyGen import Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import (Assignment, Call, FileContainer,
-                                  Literal, Reference, Routine,
+from psyclone.psyir.nodes import (ArrayReference, Assignment, Call,
+                                  FileContainer, Literal, Reference, Routine,
                                   StructureReference)
 from psyclone.psyir.symbols import (ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE,
                                     ContainerSymbol, DataSymbol,
@@ -84,6 +86,15 @@ class LFRicExtractDriverCreator:
                                ScalarType.Intrinsic.BOOLEAN: BOOLEAN_TYPE,
                                "real": real_type}
 
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def get_proxy_name_mapping(schedule):
+        proxy_name_mapping = {}
+        for kern in schedule.walk(Kern):
+            for arg in kern.args:
+                if arg.data_type == "field_type":
+                    proxy_name_mapping[arg.proxy_name] = arg.name
+        return proxy_name_mapping
     # -------------------------------------------------------------------------
     def create_flattened_symbol(self, flattened_name, reference, symbol_table,
                                 writer=FortranWriter()):
@@ -140,7 +151,7 @@ class LFRicExtractDriverCreator:
 
     # -------------------------------------------------------------------------
     def flatten_reference(self, old_reference, symbol_table,
-                          writer=FortranWriter()):
+                          proxy_name_mapping, writer=FortranWriter()):
         '''Replaces `old_reference` which is a structure type with a new
         simple Reference and a flattened name (replacing all % with _).
 
@@ -168,6 +179,8 @@ class LFRicExtractDriverCreator:
             fortran_string = sig.to_language()
         else:
             fortran_string = writer(old_reference)
+        fortran_string = proxy_name_mapping.get(fortran_string,
+                                                fortran_string)
         try:
             symbol = symbol_table.lookup_with_tag(fortran_string)
         except KeyError:
@@ -182,7 +195,7 @@ class LFRicExtractDriverCreator:
         old_reference.replace_with(Reference(symbol))
 
     # -------------------------------------------------------------------------
-    def add_all_kernel_symbols(self, sched, symbol_table,
+    def add_all_kernel_symbols(self, sched, symbol_table, proxy_name_mapping,
                                writer=FortranWriter()):
         '''This function adds all symbols used in `sched` to the symbol table.
         It uses GOcean-specific knowledge to declare fields and flatten their
@@ -205,11 +218,17 @@ class LFRicExtractDriverCreator:
 
         '''
         all_references = sched.walk(Reference)
+        for kernel in sched.walk(Kern):
+            call_arg_list = KernCallArgList(kernel)
+            call_arg_list.generate()
+            print(call_arg_list.psyir_arglist)
         # First we add all non-structure names to the symbol table. This way
         # the flattened name can be ensured not to clash with a variable name
         # used in the program.
         for reference in all_references:
-            # For now ignore structure names, which require flattening
+            # For now ignore structure names, which require flattening (which
+            # could introduce duplicated symbols, so they need to be processed
+            # after all existing symbols have been added.
             if isinstance(reference, StructureReference):
                 continue
             old_symbol = reference.symbol
@@ -221,12 +240,19 @@ class LFRicExtractDriverCreator:
                 continue
 
             # We found a new symbol, so we create a new symbol in the new
-            # symbol table here. GOcean does not support any arbitrary array
-            # as kernel argument (only fields and grid properties), so we
-            # only need to declare scalars here.
-            if not old_symbol.is_scalar and \
-                    old_symbol.datatype.name == "field_proxy_type":
+            # symbol table here.
+            if old_symbol.is_array:
+                intrinsic = self._default_types[old_symbol.datatype.intrinsic]
+                array_type = ArrayType(intrinsic,
+                                       [ArrayType.Extent.ATTRIBUTE] *
+                                       len(old_symbol.shape))
+                new_symbol = symbol_table.new_symbol(root_name=reference.name,
+                                                     tag=reference.name,
+                                                     symbol_type=DataSymbol,
+                                                     datatype=array_type)
+                reference.symbol = new_symbol
                 continue
+
             try:
                 new_type = self._default_types[old_symbol.datatype.intrinsic]
             except KeyError as err:
@@ -245,29 +271,27 @@ class LFRicExtractDriverCreator:
                                                  datatype=new_type)
             reference.symbol = new_symbol
 
-        # Now handle all derived type. In GOcean the only supported derived
-        # type is "r2d_field". This type might be used to access the field
-        # data, loop boundaries or other properties. We use the
-        # grid_properties information from the config file to identify which
-        # property is used. The name of a derived type is 'flattened', i.e.
-        # all '%' are replaced with '_', and this is then declared as a
-        # non-structured type. We also need to make sure that a flattened
-        # name does not clash with a variable declared by the user. We use
-        # the structured name (with '%') as tag to handle this.
+        # Now handle all derived type. The name of a derived type is
+        # 'flattened', i.e. all '%' are replaced with '_', and this is then
+        # declared as a non-structured type. We also need to make sure that a
+        # flattened name does not clash with a variable declared by the user.
+        # We use the structured name (with '%') as tag to handle this.
         for reference in all_references:
             if not isinstance(reference, StructureReference):
                 continue
             old_symbol = reference.symbol
-            if old_symbol.datatype.name != "field_proxy_type":
-                fortran_string = writer(reference)
-                raise InternalError(
-                    f"Error when constructing driver for '{sched.name}': "
-                    f"Unknown derived type '{old_symbol.datatype.name}' "
-                    f"in reference '{fortran_string}'.")
+            #if old_symbol.datatype._name != "field_proxy_type":
+            #    print("XX")
+            #    fortran_string = writer(reference)
+            #    raise InternalError(
+            #        f"Error when constructing driver for '{sched.name}': "
+            #        f"Unknown derived type '{old_symbol.datatype.name}' "
+            #        f"in reference '{fortran_string}'.")
             # We have a structure reference to a field, flatten it, and
             # replace the StructureReference with a new Reference to this
             # flattened name (e.g. `fld%data` becomes `fld_data`)
-            self.flatten_reference(reference, symbol_table, writer=writer)
+            self.flatten_reference(reference, symbol_table,
+                                   proxy_name_mapping, writer=writer)
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -303,7 +327,7 @@ class LFRicExtractDriverCreator:
     # -------------------------------------------------------------------------
     @staticmethod
     def create_read_in_code(program, psy_data, input_list, output_list,
-                            postfix):
+                            proxy_name_mapping, postfix):
         '''This function creates the code that reads in the NetCDF file
         produced during extraction. For each:
 
@@ -402,7 +426,8 @@ class LFRicExtractDriverCreator:
                                                symbol_type=DataSymbol,
                                                datatype=sym.datatype)
             LFRicExtractDriverCreator.add_call(program, read_var,
-                                               [Literal(post_name, CHARACTER_TYPE),
+                                               [Literal(post_name,
+                                                        CHARACTER_TYPE),
                                                 Reference(post_sym)])
 
             # Now if a variable is written to, but not read, the variable
@@ -580,13 +605,15 @@ class LFRicExtractDriverCreator:
         # The validation of the extract transform guarantees that all nodes
         # in the node list have the same parent.
         schedule_copy = nodes[0].parent.copy()
+        proxy_name_mapping = self.get_proxy_name_mapping(schedule_copy)
+
         from psyclone.f2pygen import ModuleGen
         psy_module = ModuleGen("dummy_mod")
         schedule_copy.invoke.gen_code(psy_module)
         schedule_copy.lower_to_language_level()
         self.import_modules(program, schedule_copy)
         self.add_all_kernel_symbols(schedule_copy, program_symbol_table,
-                                    writer)
+                                    proxy_name_mapping, writer)
 
         root_name = prefix + "psy_data"
         psy_data = program_symbol_table.new_symbol(root_name=root_name,
@@ -600,6 +627,7 @@ class LFRicExtractDriverCreator:
 
         output_symbols = self.create_read_in_code(program, psy_data,
                                                   input_list, output_list,
+                                                  proxy_name_mapping,
                                                   postfix)
         # Copy over all of the executable part of the extracted region
         #program.addchild(schedule_copy)
