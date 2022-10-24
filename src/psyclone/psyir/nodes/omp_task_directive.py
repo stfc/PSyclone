@@ -883,10 +883,13 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             final_member = ArrayMember.create(array_access_member.name,
                                               list(final_list))
             sref_copy = sref_base.copy()
-            sref_children = sref_copy
-            while isinstance(sref_children.children[0], Member):
-                sref_children = sref_children.children[0]
-            sref_children.parent.children[0] = final_member
+            if len(sref_copy.children) > 0:
+                sref_children = sref_copy
+                while isinstance(sref_children.children[0], Member):
+                    sref_children = sref_children.children[0]
+                sref_children.parent.children[0] = final_member
+            else:
+                sref_copy.addchild(final_member)
             # Add dclause into the in_list if required
             if sref_copy not in in_list:
                 in_list.append(sref_copy)
@@ -1102,10 +1105,13 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             final_member = ArrayMember.create(array_access_member.name,
                                               list(final_list))
             sref_copy = sref_base.copy()
-            sref_children = sref_copy
-            while isinstance(sref_children.children[0], Member):
-                sref_children = sref_children.children[0]
-            sref_children.parent.children[0] = final_member
+            if len(sref_copy.children) > 0:
+                sref_children = sref_copy
+                while isinstance(sref_children.children[0], Member):
+                    sref_children = sref_children.children[0]
+                sref_children.parent.children[0] = final_member
+            else:
+                sref_copy.addchild(final_member)
             # Add dclause into the out_list if required
             if sref_copy not in out_list:
                 out_list.append(sref_copy)

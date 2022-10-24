@@ -112,7 +112,6 @@ def test_omptask_apply():
     parallel.apply(schedule.children[0])
 
     code = str(psy.gen)
-    print(code)
     assert (
         "    !$omp parallel default(shared), private(i,j)\n" +
         "      !$omp master\n" +
