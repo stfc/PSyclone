@@ -45,6 +45,7 @@ from psyclone.psyir.nodes import Reference, Assignment, IfBlock, \
                                  ArrayReference, ArrayOfStructuresReference, \
                                  StructureReference, Call, ArrayMember
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
+from psyclone.psyir.nodes.array_of_structures_member import ArrayOfStructuresMember
 from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.literal import Literal
@@ -931,7 +932,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             # we need to treat it differently, like an arrayref, however
             # the code to handle an arrayref is not compatible with more
             # than one ArrayMixin child
-            array_children = ref.walk(ArrayMixin)
+            array_children = ref.walk((ArrayOfStructuresMember, ArrayMember))
             if len(array_children) > 0:
                 if len(array_children) > 1:
                     # TODO Document
@@ -1312,7 +1313,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             # we need to treat it differently, like an arrayref, however
             # the code to handle an arrayref is not compatible with more
             # than one ArrayMixin child
-            array_children = ref.walk(ArrayMixin)
+            array_children = ref.walk((ArrayOfStructuresMember, ArrayMember))
             if len(array_children) > 0:
                 if len(array_children) > 1:
                     # TODO Document
