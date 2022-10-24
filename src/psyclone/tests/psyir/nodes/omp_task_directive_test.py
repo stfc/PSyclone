@@ -2154,3 +2154,88 @@ depend(in: k,b(i + 1,:)), depend(out: a(i,:))
 
 end subroutine my_subroutine\n'''
     assert fortran_writer(tree) == correct
+
+
+def test_omp_task_directive_29(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly generates the correct code if
+    code contains a type within a type .'''
+    code = '''
+    subroutine my_subroutine()
+      type :: y
+        integer, dimension(3) :: jp
+      end type
+      type :: x
+        type(y) :: y
+      end type
+        integer :: i, ii
+        integer :: j, jj
+        integer :: k
+        type(x) :: ty
+        integer :: index
+
+        do i = 1, 10
+            index = i
+        end do
+        index = 1
+        do i = 1, 320, 32
+            do j = 1, 320, 32
+                do ii=i, i+32
+                    do jj = j,j+32
+                        k = ty%y%jp(index) + ii
+                        ty%y%jp(index+1) = ty%y%jp(index+1) - (1 - ty%y%jp(index+1))
+                    end do
+                end do
+            end do
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = DynamicOMPTaskDirective()
+    loops = tree.walk(Loop)
+    loop = loops[1].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(tree.children[0].children[:])
+    ptrans.apply(tree.children[0].children[:])
+    correct = '''subroutine my_subroutine()
+  type :: y
+    integer, dimension(3) :: jp
+  end type y
+  type :: x
+    type(y) :: y
+  end type x
+  integer :: i
+  integer :: ii
+  integer :: j
+  integer :: jj
+  integer :: k
+  type(x) :: ty
+  integer :: index
+
+  !$omp parallel default(shared), private(i,ii,index,j,jj)
+  !$omp single
+  do i = 1, 10, 1
+    index = i
+  enddo
+  index = 1
+  do i = 1, 320, 32
+    !$omp task private(j,ii,jj), firstprivate(i,index), shared(k,ty), depend(in: ty%y%jp(index),ty%y%jp(index + 1)), depend(out: k,ty%y%jp(index + 1))
+    do j = 1, 320, 32
+      do ii = i, i + 32, 1
+        do jj = j, j + 32, 1
+          k = ty%y%jp(index) + ii
+          ty%y%jp(index + 1) = ty%y%jp(index + 1) - (1 - ty%y%jp(index + 1))
+        enddo
+      enddo
+    enddo
+    !$omp end task
+  enddo
+  !$omp end single
+  !$omp end parallel
+
+end subroutine my_subroutine\n'''
+    assert fortran_writer(tree) == correct

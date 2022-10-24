@@ -49,6 +49,7 @@ from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.ranges import Range
+from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.omp_clauses import OMPPrivateClause, \
     OMPFirstprivateClause, OMPDependClause, OMPSharedClause
 from psyclone.psyir.nodes.omp_directives import OMPRegionDirective, \
@@ -882,7 +883,10 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             final_member = ArrayMember.create(array_access_member.name,
                                               list(final_list))
             sref_copy = sref_base.copy()
-            sref_copy.addchild(final_member)
+            sref_children = sref_copy
+            while isinstance(sref_children.children[0], Member):
+                sref_children = sref_children.children[0]
+            sref_children.parent.children[0] = final_member
             # Add dclause into the in_list if required
             if sref_copy not in in_list:
                 in_list.append(sref_copy)
@@ -1098,7 +1102,10 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             final_member = ArrayMember.create(array_access_member.name,
                                               list(final_list))
             sref_copy = sref_base.copy()
-            sref_copy.addchild(final_member)
+            sref_children = sref_copy
+            while isinstance(sref_children.children[0], Member):
+                sref_children = sref_children.children[0]
+            sref_children.parent.children[0] = final_member
             # Add dclause into the out_list if required
             if sref_copy not in out_list:
                 out_list.append(sref_copy)
