@@ -655,9 +655,6 @@ class LFRicExtractDriverCreator:
         schedule_copy = nodes[0].parent.copy()
         proxy_name_mapping = self.get_proxy_name_mapping(schedule_copy)
 
-        from psyclone.f2pygen import ModuleGen
-        psy_module = ModuleGen("dummy_mod")
-        schedule_copy.invoke.gen_code(psy_module)
         schedule_copy.lower_to_language_level()
         self.import_modules(program, schedule_copy)
         self.add_precision_symbols(program)
