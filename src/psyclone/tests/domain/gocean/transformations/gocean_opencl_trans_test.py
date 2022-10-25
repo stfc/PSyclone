@@ -38,21 +38,21 @@
 
 ''' Module containing tests for the PSyclone GOcean OpenCL transformation.'''
 
-from __future__ import absolute_import
 import os
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.domain.gocean.transformations import \
-    GOMoveIterationBoundariesInsideKernelTrans, GOOpenCLTrans
+from psyclone.domain.gocean.transformations import (
+    GOMoveIterationBoundariesInsideKernelTrans, GOOpenCLTrans)
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKernelSchedule
-from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
-    ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE
+from psyclone.psyir.symbols import (DataSymbol, ArgumentInterface,
+                                    ScalarType, ArrayType, INTEGER_TYPE,
+                                    REAL_TYPE)
 from psyclone.tests.gocean_build import GOceanOpenCLBuild
-from psyclone.tests.utilities import Compile, get_invoke
-from psyclone.transformations import TransformationError, \
-    KernelImportsToArguments
+from psyclone.tests.utilities import (Compile, get_base_path, get_invoke)
+from psyclone.transformations import (TransformationError,
+                                      KernelImportsToArguments)
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -63,17 +63,7 @@ def setup():
     the tests.'''
 
     Config._instance = None
-    # Each os.path.dirname() move up in the folder hierarchy
-    filepath = os.path.join(
-                   os.path.join(
-                       os.path.dirname(
-                           os.path.dirname(
-                               os.path.dirname(
-                                   os.path.dirname(
-                                       os.path.abspath(__file__))))),
-                       "test_files"),
-                   "gocean1p0")
-
+    filepath = get_base_path("gocean1.0")
     Config.get().api = "gocean1.0"
     Config.get()._include_paths = [filepath]
     yield
@@ -88,6 +78,7 @@ API = "gocean1.0"
 
 
 # ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir")
 def test_opencl_compiler_works(kernel_outputdir):
     ''' Check that the specified compiler works for a hello-world
     opencl example. This is done in this file to alert the user
@@ -101,15 +92,12 @@ def test_opencl_compiler_works(kernel_outputdir):
       write (*,*) "Hello"
     end program hello
     '''
-    old_pwd = kernel_outputdir.chdir()
-    try:
-        with open("hello_world_opencl.f90", "w", encoding="utf-8") as ffile:
-            ffile.write(example_ocl_code)
-        GOceanOpenCLBuild(kernel_outputdir).\
-            compile_file("hello_world_opencl.f90",
-                         link=True)
-    finally:
-        old_pwd.chdir()
+
+    with open("hello_world_opencl.f90", "w", encoding="utf-8") as ffile:
+        ffile.write(example_ocl_code)
+    GOceanOpenCLBuild(kernel_outputdir).\
+        compile_file("hello_world_opencl.f90",
+                     link=True)
 
 
 def test_transformation_name():

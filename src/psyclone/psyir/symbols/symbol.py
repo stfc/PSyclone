@@ -59,7 +59,7 @@ class SymbolError(PSycloneError):
         self.value = "PSyclone SymbolTable error: "+str(value)
 
 
-class SymbolInterface(object):   # pylint: disable=too-few-public-methods
+class SymbolInterface():   # pylint: disable=too-few-public-methods
     ''' Abstract class of a Symbol Interface '''
 
     def copy(self):
@@ -95,23 +95,12 @@ class ImportInterface(SymbolInterface):
     :type container_symbol: \
         :py:class:`psyclone.psyir.symbols.ContainerSymbol`
 
-    :raise TypeError: if the container_symbol is not a ContainerSymbol.
 
     '''
     def __init__(self, container_symbol):
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.symbols import ContainerSymbol
-
-        super(ImportInterface, self).__init__()
-
-        if not isinstance(container_symbol, ContainerSymbol):
-            raise TypeError(
-                f"ImportInterface container_symbol parameter must be of type"
-                f" ContainerSymbol, but found "
-                f"'{type(container_symbol).__name__}'.")
-
-        self._container_symbol = container_symbol
+        super().__init__()
+        # Use error-checking setter
+        self.container_symbol = container_symbol
 
     @property
     def container_symbol(self):
@@ -120,6 +109,27 @@ class ImportInterface(SymbolInterface):
         :rtype: :py:class:`psyclone.psyir.symbols.ContainerSymbol`
         '''
         return self._container_symbol
+
+    @container_symbol.setter
+    def container_symbol(self, value):
+        '''
+        :param value: the ContainerSymbol that imports the symbol with \
+            this interface.
+        :type value: :py:class:`psyclone.psyir.symbols.ContainerSymbol`
+
+        :raise TypeError: if the provided value is not a ContainerSymbol.
+        '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.symbols import ContainerSymbol
+
+        if not isinstance(value, ContainerSymbol):
+            raise TypeError(
+                f"ImportInterface container_symbol parameter must be of type"
+                f" ContainerSymbol, but found "
+                f"'{type(value).__name__}'.")
+
+        self._container_symbol = value
 
     def __str__(self):
         return f"Import(container='{self.container_symbol.name}')"
@@ -202,7 +212,7 @@ class ArgumentInterface(SymbolInterface):
         return self.__class__(access=self.access)
 
 
-class Symbol(object):
+class Symbol():
     '''Generic Symbol item for the Symbol Table and PSyIR References.
     It has an immutable name label because it must always match with the
     key in the SymbolTable. If the symbol is private then it is only visible

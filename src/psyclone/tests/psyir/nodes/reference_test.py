@@ -40,15 +40,14 @@
 ''' Performs py.test tests on the Reference PSyIR node. '''
 
 import pytest
+
 from psyclone.core.access_info import VariablesAccessInfo
 from psyclone.psyGen import GenerationError
-from psyclone.psyir.nodes import (
-    Reference, ArrayReference, Assignment,
-    Literal, BinaryOperation, Range, KernelSchedule)
-from psyclone.psyir.nodes.node import colored
-from psyclone.psyir.symbols import (
-    DataSymbol, ArrayType, ScalarType,
-    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, INTEGER_TYPE)
+from psyclone.psyir.nodes import (colored, Reference, Assignment, Literal,
+                                  KernelSchedule)
+from psyclone.psyir.symbols import (ArrayType, DataSymbol, INTEGER_SINGLE_TYPE,
+                                    REAL_SINGLE_TYPE,
+                                    REAL_TYPE, ScalarType)
 
 
 def test_reference_bad_init():
@@ -68,7 +67,7 @@ def test_reference_equality():
     Check that the __eq__ method of the Reference class behaves as expected,
     i.e. == is true iff:
     1. Both are the same type (Reference)
-    2. They Reference the same symbol
+    2. They Reference the same symbol name
     '''
     symbol1 = DataSymbol("rname", INTEGER_SINGLE_TYPE)
     symbol2 = DataSymbol("rname2", INTEGER_SINGLE_TYPE)
@@ -83,7 +82,7 @@ def test_reference_equality():
     # Create another symbol with the same name (but not the same instance)
     symbol3 = DataSymbol("rname", INTEGER_SINGLE_TYPE)
     ref4 = Reference(symbol3)
-    assert ref1 != ref4
+    assert ref1 == ref4
 
 
 def test_reference_node_str():
@@ -154,38 +153,6 @@ def test_reference_accesses():
     var_access_info = VariablesAccessInfo()
     reference.reference_accesses(var_access_info)
     assert (str(var_access_info)) == "test: READ"
-
-
-@pytest.mark.parametrize("operator_type", [BinaryOperation.Operator.LBOUND,
-                                           BinaryOperation.Operator.UBOUND])
-def test_reference_accesses_bounds(operator_type):
-    '''Test that the reference_accesses method behaves as expected when
-    the reference is the first argument to either the lbound or ubound
-    intrinsic as that is simply looking up the array bounds (therefore
-    var_access_info should be empty) and when the reference is the
-    second argument of either the lbound or ubound intrinsic (in which
-    case the access should be a read).
-
-    '''
-    # Note, one would usually expect UBOUND to provide the upper bound
-    # of a range but to simplify the test both LBOUND and UBOUND are
-    # used for the lower bound. This does not affect the test.
-    one = Literal("1", INTEGER_TYPE)
-    array_symbol = DataSymbol("test", ArrayType(REAL_TYPE, [10]))
-    array_ref1 = Reference(array_symbol)
-    array_ref2 = Reference(array_symbol)
-    array_access = ArrayReference.create(array_symbol, [one])
-
-    # test when first or second argument to LBOUND or UBOUND is an
-    # array reference
-    operator = BinaryOperation.create(operator_type, array_ref1, array_ref2)
-    array_access.children[0] = Range.create(operator, one.copy(), one.copy())
-    var_access_info = VariablesAccessInfo()
-    array_ref1.reference_accesses(var_access_info)
-    assert str(var_access_info) == ""
-    var_access_info = VariablesAccessInfo()
-    array_ref2.reference_accesses(var_access_info)
-    assert str(var_access_info) == "test: READ"
 
 
 def test_reference_can_be_copied():

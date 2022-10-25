@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -79,7 +79,22 @@ class ExtractTrans(PSyDataTrans):
     def __init__(self, node_class=ExtractNode):
         # This function is required to provide the appropriate default
         # node class.
-        super(ExtractTrans, self).__init__(node_class=node_class)
+        super().__init__(node_class=node_class)
+
+    # -------------------------------------------------------------------------
+    def get_default_options(self):
+        '''Returns a new dictionary with additional options, specific to the
+        transformation, that will be added to the user option. Any values
+        specified by the user will take precedence. For the extract
+        transformation, by default we want VariablesAccessInformation to
+        report array arguments to lbound, ubound and size as read accesses,
+        so we are certain these arrays will be included in the extraction.
+
+        :returns: a dictionary with additional options.
+        :rtype: Dict[str, Any]
+        '''
+
+        return {"COLLECT-ARRAY-SHAPE-READS": True}
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -123,7 +138,7 @@ class ExtractTrans(PSyDataTrans):
 
     # -------------------------------------------------------------------------
     def validate(self, node_list, options=None):
-        # pylint: disable=arguments-differ
+        # pylint: disable=arguments-renamed
         '''Performs validation checks specific to extract-based
         transformations.
 
@@ -189,4 +204,4 @@ class ExtractTrans(PSyDataTrans):
 
         # Performs validation checks specific to PSyData-based
         # transformations.
-        super(ExtractTrans, self).validate(node_list, options)
+        super().validate(node_list, options)

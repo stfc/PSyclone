@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council
+# Copyright (c) 2020-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,9 +40,12 @@ from __future__ import absolute_import
 
 import pytest
 
+from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import PSyDataNode
-from psyclone.psyir.transformations import PSyDataTrans, TransformationError
+from psyclone.psyir.transformations import (ExtractTrans, PSyDataTrans,
+                                            ReadOnlyVerifyTrans,
+                                            TransformationError)
 from psyclone.tests.utilities import get_invoke
 
 
@@ -171,3 +174,49 @@ def test_psy_data_get_unique_region_names():
         get_unique_region_name([invoke.schedule[0]], {})
     assert region_name == ('psy_single_invoke_different_iterates_over',
                            'invoke_0:compute_cv_code:r0')
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.parametrize("transformation",
+                         [ExtractTrans(), ReadOnlyVerifyTrans()])
+def test_trans_with_shape_function(monkeypatch, fortran_reader,
+                                   fortran_writer, transformation):
+    '''Tests that extraction of a region that uses an array-shape Fortran
+    intrinsic like lbound, ubound, or size do include these references.
+
+    '''
+    source = '''program test
+                integer :: ji, jk
+                integer, parameter :: jpi=10, jpk=10
+                real, dimension(jpi,jpi,jpk) :: umask, dummy
+                do jk = 1, ubound(dummy,1)
+                  umask(1,1,jk) = -1.0d0
+                end do
+                end program test'''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    # Child 0 is the program
+    loop = psyir.children[0].children[0]
+
+    # We need to disable distributed_memory for the extraction to work:
+    config = Config.get()
+    monkeypatch.setattr(config, "distributed_memory", False)
+
+    psyir_copy = psyir.copy()
+    transformation.apply(loop)
+    out = fortran_writer(psyir)
+    assert 'PreDeclareVariable("dummy", dummy)' in out
+    assert 'ProvideVariable("dummy", dummy)' in out
+
+    # Now check that the user can overwrite 'COLLECT-ARRAY-SHAPE-READS'
+    # =================================================================
+    # Since the original tree was modified, we now use the copy:
+
+    loop = psyir_copy.children[0].children[0]
+    # Disable array-shape-reads, which means 'dummy' should then not
+    # be in the list of input parameters anymore, and therefore
+    transformation.apply(loop, options={"COLLECT-ARRAY-SHAPE-READS": False})
+    out = fortran_writer(psyir_copy)
+    # No referene to 'dummy' should be in the created code:
+    assert 'PreDeclareVariable("dummy", dummy)' not in out
+    assert 'ProvideVariable("dummy", dummy)' not in out
