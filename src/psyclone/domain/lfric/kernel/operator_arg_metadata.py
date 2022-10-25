@@ -74,13 +74,11 @@ class OperatorArgMetadata(ScalarArgMetadata):
     def __init__(self, datatype=None, access=None, function_space_to=None,
                  function_space_from=None):
         super().__init__(datatype, access)
-        if function_space_to is None:
-            self._function_space_to = function_space_to
-        else:
+        self._function_space_to = None
+        self._function_space_from = None
+        if function_space_to is not None:
             self.function_space_to = function_space_to
-        if function_space_from is None:
-            self._function_space_from = function_space_from
-        else:
+        if function_space_from is not None:
             self.function_space_from = function_space_from
 
     @staticmethod

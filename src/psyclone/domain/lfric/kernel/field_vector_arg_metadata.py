@@ -70,9 +70,8 @@ class FieldVectorArgMetadata(FieldArgMetadata):
         super().__init__(
             datatype=datatype, access=access, function_space=function_space)
 
-        if vector_length is None:
-            self._vector_length = vector_length
-        else:
+        self._vector_length = None
+        if vector_length is not None:
             self.vector_length = vector_length
 
     @staticmethod

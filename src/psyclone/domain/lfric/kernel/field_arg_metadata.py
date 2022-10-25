@@ -70,9 +70,8 @@ class FieldArgMetadata(CommonMetaArgMetadata):
 
     def __init__(self, datatype=None, access=None, function_space=None):
         super().__init__(datatype, access)
-        if function_space is None:
-            self._function_space = function_space
-        else:
+        self._function_space = None
+        if function_space is not None:
             self.function_space = function_space
 
     @staticmethod

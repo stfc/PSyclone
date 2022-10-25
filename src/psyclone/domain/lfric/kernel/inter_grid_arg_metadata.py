@@ -72,9 +72,8 @@ class InterGridArgMetadata(FieldArgMetadata):
     def __init__(self, datatype=None, access=None, function_space=None,
                  mesh_arg=None):
         super().__init__(datatype, access, function_space)
-        if mesh_arg is None:
-            self._mesh_arg = mesh_arg
-        else:
+        self._mesh_arg = None
+        if mesh_arg is not None:
             self.mesh_arg = mesh_arg
 
     @staticmethod

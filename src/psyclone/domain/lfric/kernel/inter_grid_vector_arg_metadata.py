@@ -70,9 +70,8 @@ class InterGridVectorArgMetadata(InterGridArgMetadata):
                  mesh_arg=None, vector_length=None):
         super().__init__(datatype, access, function_space, mesh_arg)
 
-        if vector_length is None:
-            self._vector_length = vector_length
-        else:
+        self._vector_length = None
+        if vector_length is not None:
             self.vector_length = vector_length
 
     @staticmethod
