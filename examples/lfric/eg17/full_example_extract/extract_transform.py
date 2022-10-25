@@ -65,7 +65,7 @@ def trans(psy):
     invoke = psy.invokes.get("invoke_initialise_fields")
     schedule = invoke.schedule
     extract.apply(schedule.children,
-                  {"create_driver": False,
+                  {"create_driver": True,
                    "region_name": ("main", "init")})
 
     invoke = psy.invokes.get("invoke_testkern_w0")

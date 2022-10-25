@@ -42,7 +42,8 @@
 PSYROOT=../../../..
 
 # Set it to 'netcdf' to use the NetCDF writer
-TYPE?=standalone
+#TYPE?=standalone
+TYPE=netcdf
 
 include $(PSYROOT)/examples/common.mk
 
@@ -98,6 +99,23 @@ $(EXTRACT_LIB): $(LFRIC_LIB)
 main_psy.o:	testkern_w0_kernel_mod.o $(EXTRACT_LIB) $(LFRIC_LIB)
 main_alg.o:	main_psy.o
 testkern_w0_kernel_mod.o: $(LFRIC_LIB)
+
+driver-main-update:	F90FLAGS += -I $(EXTRACT_DIR)/..
+driver-main-update:	driver-main-update.o
+	$(F90) $(F90FLAGS)  driver-main-update.o       \
+		testkern_w0_kernel_mod.o                   \
+		$(EXTRACT_DIR)/../read_kernel_data_mod.o   \
+		-L$(LFRIC_PATH) -l$(LFRIC_NAME) $(LDFLAGS) \
+		-o driver-main-update
+
+driver-main-init:	F90FLAGS += -I $(EXTRACT_DIR)/..
+driver-main-init:	driver-main-init.o
+	$(F90) $(F90FLAGS)  driver-main-init.o         \
+		testkern_w0_kernel_mod.o                   \
+		$(EXTRACT_DIR)/../read_kernel_data_mod.o   \
+		-L$(LFRIC_PATH) -l$(LFRIC_NAME) $(LDFLAGS) \
+		-o driver-main-init
+
 
 %.o: %.F90
 	$(F90) $(F90FLAGS) -c $<
