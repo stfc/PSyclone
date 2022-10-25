@@ -76,21 +76,6 @@ class FieldVectorArgMetadata(FieldArgMetadata):
             self.vector_length = vector_length
 
     @staticmethod
-    def create_from_fortran_string(fortran_string):
-        '''Create an instance of this class from Fortran.
-
-        :param str fortran_string: a string containing the metadata in \
-            Fortran.
-
-        :returns: an instance of FieldVectorArgMetadata.
-        :rtype: :py:class:`psyclone.domain.lfric.kernel.FieldVectorArgMetadata`
-
-        '''
-        fparser2_tree = FieldVectorArgMetadata.create_fparser2(
-            fortran_string, Fortran2003.Part_Ref)
-        return FieldVectorArgMetadata.create_from_fparser2(fparser2_tree)
-
-    @staticmethod
     def create_from_fparser2(fparser2_tree):
         '''Create an instance of this class from an fparser2 tree.
 

@@ -84,21 +84,6 @@ class ScalarArgMetadata(CommonMetaArgMetadata):
         ScalarArgMetadata.check_remaining_args(fparser2_tree, datatype, access)
         return ScalarArgMetadata(datatype, access)
 
-    @classmethod
-    def create_from_fortran_string(cls, fortran_string):
-        '''Create an instance of this class from Fortran.
-
-        :param str fortran_string: a string containing the metadata in \
-            Fortran.
-
-        :returns: an instance of cls.
-        :rtype: subclass of :py:class:`psyclone.domain.lfric.kernel.common_arg`
-
-        '''
-        fparser2_tree = cls.create_fparser2(
-            fortran_string, Fortran2003.Part_Ref)
-        return cls.create_from_fparser2(fparser2_tree)
-
     def fortran_string(self):
         '''
         :returns: the metadata represented by this class as Fortran.
@@ -128,16 +113,10 @@ class ScalarArgMetadata(CommonMetaArgMetadata):
     def check_datatype(value):
         '''
         :param str value: the datatype to check for validity.
-
-        :raises ValueError: if the provided value is not a valid \
-            datatype descriptor.
-
         '''
         const = LFRicConstants()
-        if not value or value.lower() not in const.VALID_SCALAR_DATA_TYPES:
-            raise ValueError(
-                f"The datatype descriptor metadata for a scalar should be one "
-                f"of {const.VALID_SCALAR_DATA_TYPES}, but found '{value}'.")
+        ScalarArgMetadata.check_value(
+            value, "datatype descriptor", const.VALID_SCALAR_DATA_TYPES)
 
     @datatype.setter
     def datatype(self, value):
@@ -161,16 +140,10 @@ class ScalarArgMetadata(CommonMetaArgMetadata):
     def check_access(value):
         '''
         :param str value: the access descriptor to validate.
-
-        :raises ValueError: if the provided value is not a valid \
-            access type.
         '''
-
         const = LFRicConstants()
-        if not value or value.lower() not in const.VALID_SCALAR_ACCESS_TYPES:
-            raise ValueError(
-                f"The access descriptor metadata for a scalar should be one "
-                f"of {const.VALID_SCALAR_ACCESS_TYPES}, but found '{value}'.")
+        ScalarArgMetadata.check_value(
+            value, "access descriptor", const.VALID_SCALAR_ACCESS_TYPES)
 
     @access.setter
     def access(self, value):

@@ -63,14 +63,14 @@ def test_init_invalid():
     '''
     with pytest.raises(ValueError) as info:
         _ = ScalarArgMetadata(datatype="invalid")
-    assert ("The datatype descriptor metadata for a scalar should be one of "
-            "['gh_real', 'gh_integer', 'gh_logical'], but found 'invalid'."
+    assert ("The datatype descriptor value should be one of ['gh_real', "
+            "'gh_integer', 'gh_logical'], but found 'invalid'."
             in str(info.value))
 
     with pytest.raises(ValueError) as info:
         _ = ScalarArgMetadata(access="invalid")
-    assert ("The access descriptor metadata for a scalar should be one of "
-            "['gh_read'], but found 'invalid'." in str(info.value))
+    assert ("The access descriptor value should be one of ['gh_read'], but "
+            "found 'invalid'." in str(info.value))
 
 
 def test_init_args():
@@ -140,18 +140,17 @@ def test_create_from_fparser2():
     with pytest.raises(ValueError) as info:
         _ = ScalarArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '1' for metadata 'arg_type(GH_SCALAR, "
-            "GH_UNREAL, GH_READ)'. The datatype descriptor metadata for a "
-            "scalar should be one of ['gh_real', 'gh_integer', "
-            "'gh_logical'], but found 'GH_UNREAL'." in str(info.value))
+            "GH_UNREAL, GH_READ)'. The datatype descriptor value should be "
+            "one of ['gh_real', 'gh_integer', 'gh_logical'], but found "
+            "'GH_UNREAL'." in str(info.value))
 
     fparser2_tree = ScalarArgMetadata.create_fparser2(
         "arg_type(GH_SCALAR, GH_REAL, GH_ERROR)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = ScalarArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '2' for metadata 'arg_type(GH_SCALAR, "
-            "GH_REAL, GH_ERROR)'. The access descriptor metadata for a "
-            "scalar should be one of ['gh_read'], but found 'GH_ERROR'."
-            in str(info.value))
+            "GH_REAL, GH_ERROR)'. The access descriptor value should be one "
+            "of ['gh_read'], but found 'GH_ERROR'." in str(info.value))
 
     fparser2_tree = ScalarArgMetadata.create_fparser2(
         "arg_type(GH_SCALAR, GH_REAL, GH_READ)", Fortran2003.Part_Ref)
@@ -187,8 +186,8 @@ def test_setter_getter():
     assert field_arg.datatype is None
     with pytest.raises(ValueError) as info:
         field_arg.datatype = "invalid"
-    assert ("The datatype descriptor metadata for a scalar should be one of "
-            "['gh_real', 'gh_integer', 'gh_logical'], but found 'invalid'."
+    assert ("The datatype descriptor value should be one of ['gh_real', "
+            "'gh_integer', 'gh_logical'], but found 'invalid'."
             in str(info.value))
 
     field_arg.datatype = "gh_integer"
@@ -199,8 +198,8 @@ def test_setter_getter():
     assert field_arg.access is None
     with pytest.raises(ValueError) as info:
         field_arg.access = "invalid"
-    assert ("The access descriptor metadata for a scalar should be one of "
-            "['gh_read'], but found 'invalid'." in str(info.value))
+    assert ("The access descriptor value should be one of ['gh_read'], but "
+            "found 'invalid'." in str(info.value))
 
     field_arg.access = "gh_read"
     assert field_arg.access == "gh_read"

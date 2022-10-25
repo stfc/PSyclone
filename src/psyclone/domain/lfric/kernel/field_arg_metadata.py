@@ -125,25 +125,17 @@ class FieldArgMetadata(CommonMetaArgMetadata):
 
         '''
         const = LFRicConstants()
-        if not value or value.lower() not in const.VALID_FIELD_DATA_TYPES:
-            raise ValueError(
-                f"The datatype descriptor metadata for a field should be one "
-                f"of {const.VALID_FIELD_DATA_TYPES}, but found '{value}'.")
+        FieldArgMetadata.check_value(
+            value, "datatype descriptor", const.VALID_FIELD_DATA_TYPES)
 
     @staticmethod
     def check_access(value):
         '''
         :param str value: the access descriptor to validate.
-
-        :raises ValueError: if the provided value is not a valid \
-            access type.
-
         '''
         const = LFRicConstants()
-        if not value or value.lower() not in const.VALID_FIELD_ACCESS_TYPES:
-            raise ValueError(
-                f"The access descriptor metadata for a field should be one of "
-                f"{const.VALID_FIELD_ACCESS_TYPES}, but found '{value}'.")
+        FieldArgMetadata.check_value(
+            value, "access descriptor", const.VALID_FIELD_ACCESS_TYPES)
 
     @property
     def function_space(self):
@@ -158,14 +150,8 @@ class FieldArgMetadata(CommonMetaArgMetadata):
         '''
         :param str value: set the function space to the \
             specified value.
-
-        :raises ValueError: if the provided value is not a valid \
-            function space.
-
         '''
         const = LFRicConstants()
-        if not value or value.lower() not in const.VALID_FUNCTION_SPACE_NAMES:
-            raise ValueError(
-                f"The function space metadata should be one of "
-                f"{const.VALID_FUNCTION_SPACE_NAMES}, but found '{value}'.")
+        FieldArgMetadata.check_value(
+            value, "function space", const.VALID_FUNCTION_SPACE_NAMES)
         self._function_space = value

@@ -166,14 +166,8 @@ class InterGridArgMetadata(FieldArgMetadata):
         '''
         :param str value: set the mesh type to the \
             specified value.
-
-        raises ValueError: if the provided value is not a valid \
-            mesh_argument type (gh_coarse or gh_fine).
-
         '''
         const = LFRicConstants()
-        if not value or value.lower() not in const.VALID_MESH_TYPES:
-            raise ValueError(
-                f"The mesh_arg metadata for a mesh should be one of "
-                f"{const.VALID_MESH_TYPES}, but found '{value}'.")
+        InterGridArgMetadata.check_value(
+            value, "mesh_arg", const.VALID_MESH_TYPES)
         self._mesh_arg = value

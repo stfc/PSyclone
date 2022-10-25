@@ -110,21 +110,6 @@ class OperatorArgMetadata(ScalarArgMetadata):
         return OperatorArgMetadata(
             datatype, access, function_space_to, function_space_from)
 
-    @classmethod
-    def create_from_fortran_string(cls, fortran_string):
-        '''Create an instance of this class from Fortran.
-
-        :param str fortran_string: a string containing the metadata in \
-            Fortran.
-
-        :returns: an instance of cls.
-        :rtype: subclass of :py:class:`psyclone.domain.lfric.kernel.common_arg`
-
-        '''
-        fparser2_tree = cls.create_fparser2(
-            fortran_string, Fortran2003.Part_Ref)
-        return cls.create_from_fparser2(fparser2_tree)
-
     def fortran_string(self):
         ''':returns: the metadata represented by this class as Fortran.
         :rtype: str
@@ -150,33 +135,19 @@ class OperatorArgMetadata(ScalarArgMetadata):
     def check_access(value):
         '''
         :param str value: the access descriptor to validate.
-
-        :raises ValueError: if the provided value is not a valid \
-            access type.
         '''
-
         const = LFRicConstants()
-        if not value or value.lower() not in const.VALID_OPERATOR_ACCESS_TYPES:
-            raise ValueError(
-                f"The access descriptor metadata for an operator should be "
-                f"one of {const.VALID_OPERATOR_ACCESS_TYPES}, but found "
-                f"'{value}'.")
+        OperatorArgMetadata.check_value(
+            value, "access descriptor", const.VALID_OPERATOR_ACCESS_TYPES)
 
     @staticmethod
     def check_datatype(value):
         '''
         :param str value: the datatype to check for validity.
-
-        :raises ValueError: if the provided value is not a valid \
-            datatype descriptor.
-
         '''
         const = LFRicConstants()
-        if not value or value.lower() not in const.VALID_OPERATOR_DATA_TYPES:
-            raise ValueError(
-                f"The datatype descriptor metadata for an operator should be "
-                f"one of {const.VALID_OPERATOR_DATA_TYPES}, but found "
-                f"'{value}'.")
+        OperatorArgMetadata.check_value(
+            value, "datatype descriptor", const.VALID_OPERATOR_DATA_TYPES)
 
     @property
     def function_space_to(self):
@@ -198,10 +169,8 @@ class OperatorArgMetadata(ScalarArgMetadata):
 
         '''
         const = LFRicConstants()
-        if not value or value.lower() not in const.VALID_FUNCTION_SPACES:
-            raise ValueError(
-                f"The function_space_to metadata for an operator should be "
-                f"one of {const.VALID_FUNCTION_SPACES}, but found '{value}'.")
+        self.check_value(
+            value, "function_space_to", const.VALID_FUNCTION_SPACES)
         self._function_space_to = value
 
     @property
@@ -218,14 +187,8 @@ class OperatorArgMetadata(ScalarArgMetadata):
         '''
         :param str value: set the function space to the \
             specified value.
-
-        raises ValueError: if the provided value is not a valid \
-            function space.
-
         '''
         const = LFRicConstants()
-        if not value or value.lower() not in const.VALID_FUNCTION_SPACES:
-            raise ValueError(
-                f"The function_space_from metadata for an operator should be "
-                f"one of {const.VALID_FUNCTION_SPACES}, but found '{value}'.")
+        self.check_value(
+            value, "function_space_from", const.VALID_FUNCTION_SPACES)
         self._function_space_from = value

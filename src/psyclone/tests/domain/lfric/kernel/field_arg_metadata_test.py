@@ -64,19 +64,18 @@ def test_init_invalid():
     '''
     with pytest.raises(ValueError) as info:
         _ = FieldArgMetadata(datatype="invalid")
-    assert ("The datatype descriptor metadata for a field should be one of "
-            "['gh_real', 'gh_integer'], but found 'invalid'."
-            in str(info.value))
+    assert ("The datatype descriptor value should be one of ['gh_real', "
+            "'gh_integer'], but found 'invalid'." in str(info.value))
 
     with pytest.raises(ValueError) as info:
         _ = FieldArgMetadata(access="invalid")
-    assert ("The access descriptor metadata for a field should be one of "
-            "['gh_read', 'gh_write', 'gh_readwrite', 'gh_inc', 'gh_readinc'],"
+    assert ("The access descriptor value should be one of ['gh_read', "
+            "'gh_write', 'gh_readwrite', 'gh_inc', 'gh_readinc'],"
             " but found 'invalid'." in str(info.value))
 
     with pytest.raises(ValueError) as info:
         _ = FieldArgMetadata(function_space="invalid")
-    assert ("The function space metadata should be one of ['w3', 'wtheta', "
+    assert ("The function space value should be one of ['w3', 'wtheta', "
             "'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', "
             "'w2h', 'w2htrace', 'any_w2', 'wchi', 'any_space_1', "
             "'any_space_2', 'any_space_3', 'any_space_4', 'any_space_5', "
@@ -158,19 +157,18 @@ def test_create_from_fparser2():
     with pytest.raises(ValueError) as info:
         _ = FieldArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '1' for metadata 'arg_type(GH_FIELD, "
-            "GH_UNREAL, GH_READ, W0)'. The datatype descriptor metadata for a "
-            "field should be one of ['gh_real', 'gh_integer'], but found "
-            "'GH_UNREAL'." in str(info.value))
+            "GH_UNREAL, GH_READ, W0)'. The datatype descriptor value should "
+            "be one of ['gh_real', 'gh_integer'], but found 'GH_UNREAL'."
+            in str(info.value))
 
     fparser2_tree = FieldArgMetadata.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_ERROR, W0)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = FieldArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '2' for metadata 'arg_type(GH_FIELD, GH_REAL, "
-            "GH_ERROR, W0)'. The access descriptor metadata for a field "
-            "should be one of ['gh_read', 'gh_write', 'gh_readwrite', "
-            "'gh_inc', 'gh_readinc'], but found 'GH_ERROR'."
-            in str(info.value))
+            "GH_ERROR, W0)'. The access descriptor value should be one of "
+            "['gh_read', 'gh_write', 'gh_readwrite', 'gh_inc', 'gh_readinc'], "
+            "but found 'GH_ERROR'." in str(info.value))
 
     fparser2_tree = FieldArgMetadata.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, DOUBLE_U_ZERO)",
@@ -178,7 +176,7 @@ def test_create_from_fparser2():
     with pytest.raises(ValueError) as info:
         _ = FieldArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '3' for metadata 'arg_type(GH_FIELD, GH_REAL, "
-            "GH_READ, DOUBLE_U_ZERO)'. The function space metadata should be "
+            "GH_READ, DOUBLE_U_ZERO)'. The function space value should be "
             "one of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', "
             "'w1', 'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi', "
             "'any_space_1', 'any_space_2', 'any_space_3', 'any_space_4', "
@@ -226,9 +224,8 @@ def test_setter_getter():
     assert field_arg.datatype is None
     with pytest.raises(ValueError) as info:
         field_arg.datatype = "invalid"
-    assert ("The datatype descriptor metadata for a field should be one of "
-            "['gh_real', 'gh_integer'], but found 'invalid'."
-            in str(info.value))
+    assert ("The datatype descriptor value should be one of ['gh_real', "
+            "'gh_integer'], but found 'invalid'." in str(info.value))
 
     field_arg.datatype = "gh_integer"
     assert field_arg.datatype == "gh_integer"
@@ -238,8 +235,8 @@ def test_setter_getter():
     assert field_arg.access is None
     with pytest.raises(ValueError) as info:
         field_arg.access = "invalid"
-    assert ("The access descriptor metadata for a field should be one of "
-            "['gh_read', 'gh_write', 'gh_readwrite', 'gh_inc', 'gh_readinc'], "
+    assert ("The access descriptor value should be one of ['gh_read', "
+            "'gh_write', 'gh_readwrite', 'gh_inc', 'gh_readinc'], "
             "but found 'invalid'." in str(info.value))
 
     field_arg.access = "gh_read"
@@ -250,7 +247,7 @@ def test_setter_getter():
     assert field_arg.function_space is None
     with pytest.raises(ValueError) as info:
         field_arg.function_space = "invalid"
-    assert ("The function space metadata should be one of ['w3', 'wtheta', "
+    assert ("The function space value should be one of ['w3', 'wtheta', "
             "'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', "
             "'w2h', 'w2htrace', 'any_w2', 'wchi', 'any_space_1', "
             "'any_space_2', 'any_space_3', 'any_space_4', 'any_space_5', "
