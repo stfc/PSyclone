@@ -35,10 +35,10 @@
 # Modified by: R. W. Ford, STFC Daresbury Lab
 #              I. Kavcic, Met Office
 #              S. Siso, STFC Daresbury Lab
+#              J. Henrichs, Bureau of Meteorology
 
 ''' Module containing tests for kernel transformations. '''
 
-from __future__ import absolute_import, print_function
 import os
 import re
 import pytest
@@ -48,10 +48,9 @@ from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.generator import GenerationError
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Routine, FileContainer
-from psyclone.psyir.symbols import SymbolError
 from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import ACCRoutineTrans, \
-    Dynamo0p3KernelConstTrans, KernelModuleInlineTrans
+    Dynamo0p3KernelConstTrans
 
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
@@ -333,56 +332,3 @@ def test_builtin_no_trans():
         rtrans.apply(kernels[0])
     assert ("ACCRoutineTrans to a built-in kernel is not yet supported and "
             "kernel 'x_plus_y' is of type " in str(err.value))
-
-
-def test_no_inline_global_var():
-    ''' Check that we refuse to in-line a kernel that accesses a global
-    variable. '''
-    inline_trans = KernelModuleInlineTrans()
-    _, invoke = get_invoke("single_invoke_kern_with_global.f90",
-                           api="gocean1.0", idx=0)
-    sched = invoke.schedule
-    kernels = sched.walk(Kern)
-    with pytest.raises(TransformationError) as err:
-        inline_trans.apply(kernels[0])
-    assert ("'kernel_with_global_code' contains accesses to data (variable "
-            "'alpha') that are not present in the Symbol Table(s) "
-            "within KernelSchedule scope." in str(err.value))
-
-
-# Class KernelTrans
-
-# Method validate
-
-def test_kernel_trans_validate(monkeypatch):
-    '''Check that the validate method in the class KernelTrans raises an
-    exception if the reference is not found in any of the symbol
-    tables. KernelTrans can't be instantiated as it is abstract so use
-    a the subclass.
-
-    '''
-    kernel_trans = KernelModuleInlineTrans()
-    _, invoke = get_invoke("single_invoke_kern_with_global.f90",
-                           api="gocean1.0", idx=0)
-    sched = invoke.schedule
-    kernels = sched.walk(Kern)
-    kernel = kernels[0]
-
-    def raise_symbol_error():
-        '''Simple function that raises SymbolError.'''
-        raise SymbolError("error")
-    monkeypatch.setattr(kernel, "get_kernel_schedule", raise_symbol_error)
-    with pytest.raises(TransformationError) as err:
-        kernel_trans.apply(kernel)
-    assert ("'kernel_with_global_code' contains accesses to data that are "
-            "not present in the Symbol Table(s). Cannot transform such a "
-            "kernel." in str(err.value))
-
-    def raise_gen_error():
-        '''Simple function that raises GenerationError.'''
-        raise GenerationError("error")
-    monkeypatch.setattr(kernel, "get_kernel_schedule", raise_gen_error)
-    with pytest.raises(TransformationError) as err:
-        kernel_trans.apply(kernel)
-    assert ("Failed to create PSyIR for kernel 'kernel_with_global_code'. "
-            "Cannot transform such a kernel." in str(err.value))

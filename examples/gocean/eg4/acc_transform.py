@@ -38,9 +38,10 @@
 function via the -s option. Transforms all kernels in the invoke
 to have them compiled for an OpenACC accelerator. '''
 
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.transformations import ACCParallelTrans, \
     ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans, \
-    KernelImportsToArguments, KernelModuleInlineTrans
+    KernelImportsToArguments
 from psyclone.psyir.nodes import Loop
 
 

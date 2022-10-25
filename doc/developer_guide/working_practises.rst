@@ -131,32 +131,38 @@ alphabetical order):
 
 .. tabularcolumns:: |l|L|
 
-================ ==============================================================
-Fixture name   	 Description
-================ ==============================================================
-annexed        	 Supplies a test with the various possible values of the LFRic
-                 `annexed_dofs` option.
-dist_mem       	 Supplies a test with the various possible values of the
-                 `distributed-memory` option (only applicable to the LFRic and
-		 GOcean APIs currently). Also monkeypatches the global
-		 configuration object with the corresponding setting.
-fortran_reader   Provides a Fortran PSyIR front-end object to convert Fortran
-                 code snippets into PSyIR.
-fortran_writer   Provides a Fortran PSyIR back-end object to convert PSyIR
-                 trees into Fortran code.
-have_graphviz  	 True if the Python bindings to the graphviz package (used when
-                 generating DAG visualisations) are available. Does *not* check
-                 that the underlying graphviz library is installed.
-kernel_outputdir Sets the output directory used by PSyclone for transformed
-                 kernels to be `tmpdir` (a built-in pytest fixture) and then
-                 returns `tmpdir`. Any test that directly or indirectly causes
-                 kernels to be transformed needs to use this fixture in order
-                 to avoid having unwanted files created within the git working
-                 tree.
-parser           Creates an fparser2 parser for the Fortran2008 standard. This
-                 is an expensive operation so this fixture is only run once
-                 per test session.
-================ ==============================================================
+================== ==============================================================
+Fixture name       Description
+================== ==============================================================
+annexed            Supplies a test with the various possible values of the LFRic
+                   `annexed_dofs` option.
+change_into_tmpdir Using this fixture will change the current working directory
+                   of a test to a temporary directory. Which means that any files
+                   created during the test will not pollute the user's working
+                   directory. At the end of the test (even in case of a failure)
+                   the current working directory will be changed back to the
+                   original directory.
+dist_mem           Supplies a test with the various possible values of the
+                   `distributed-memory` option (only applicable to the LFRic and
+                   GOcean APIs currently). Also monkeypatches the global
+                   configuration object with the corresponding setting.
+fortran_reader     Provides a Fortran PSyIR front-end object to convert Fortran
+                   code snippets into PSyIR.
+fortran_writer     Provides a Fortran PSyIR back-end object to convert PSyIR
+                   trees into Fortran code.
+have_graphviz      True if the Python bindings to the graphviz package (used when
+                   generating DAG visualisations) are available. Does *not* check
+                   that the underlying graphviz library is installed.
+kernel_outputdir   Sets the output directory used by PSyclone for transformed
+                   kernels to be `tmpdir` (a built-in pytest fixture) and then
+                   returns `tmpdir`. Any test that directly or indirectly causes
+                   kernels to be transformed needs to use this fixture in order
+                   to avoid having unwanted files created within the git working
+                   tree.
+parser             Creates an fparser2 parser for the Fortran2008 standard. This
+                   is an expensive operation so this fixture is only run once
+                   per test session.
+================== ==============================================================
 
 In addition, there are two fixtures that are automatically run (just
 once) whenever a test session is begun. The first of these,

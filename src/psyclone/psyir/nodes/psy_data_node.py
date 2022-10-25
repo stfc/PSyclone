@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -110,10 +110,12 @@ class PSyDataNode(Statement):
 
     def __init__(self, ast=None, children=None, parent=None, options=None):
 
-        super(PSyDataNode, self).__init__(ast=ast, children=children,
-                                          parent=parent)
+        super().__init__(ast=ast, children=children, parent=parent)
         if not options:
             options = {}
+
+        # Store a copy of the options so the node can later access them
+        self._options = options.copy()
 
         # _prefix stores a prefix to be used with all external PSyData
         # symbols (i.e. data types and module name), used in the
@@ -211,6 +213,14 @@ class PSyDataNode(Statement):
         is_eq = is_eq and self.module_name == other.module_name
         is_eq = is_eq and self.region_name == other.region_name
         return is_eq
+
+    @property
+    def options(self):
+        ''':returns: the option dictionary of this class.
+        :rtype: Dict[str,Any]
+
+        '''
+        return self._options
 
     @property
     def prefix(self):
@@ -593,6 +603,7 @@ class PSyDataNode(Statement):
         self._add_call("PostEnd", parent)
 
     def lower_to_language_level(self, options=None):
+        # pylint: disable=too-many-branches, too-many-statements
         '''
         Lowers this node (and all children) to language-level PSyIR. The
         PSyIR tree is modified in-place. This PSyDataNode is replaced by a
