@@ -45,13 +45,11 @@ from psyclone.errors import InternalError
 
 
 class CommonArgMetadata(CommonMetadata):
-    '''Class to capture common LFRic kernel argument metadata.
+    '''Class to capture common LFRic kernel argument metadata.'''
+ 
+    # The fparser2 class that captures this metadata.
+    fparser2_class = Fortran2003.Part_Ref
 
-    :param Optional[str] datatype: the datatype of this argument.
-    :param Optional[str] access: the way the kernel accesses this \
-        argument.
-
-    '''
     @classmethod
     def create_from_fortran_string(cls, fortran_string):
         '''Create an instance of this class from Fortran.
@@ -64,8 +62,7 @@ class CommonArgMetadata(CommonMetadata):
             :py:class:`python.domain.lfric.kernel.CommonArgMetadata`
 
         '''
-        fparser2_tree = cls.create_fparser2(
-            fortran_string, Fortran2003.Part_Ref)
+        fparser2_tree = cls.create_fparser2(fortran_string, cls.fparser2_class)
         return cls.create_from_fparser2(fparser2_tree)
 
     @staticmethod
@@ -84,8 +81,8 @@ class CommonArgMetadata(CommonMetadata):
         '''
         if value.lower() not in valid_values:
             raise ValueError(
-                f"The {name} value should be one of "
-                f"{const.VALID_FUNCTION_SPACES}, but found '{value}'.")
+                f"The {name} value should be one of {valid_values}, but "
+                f"found '{value}'.")
 
     @staticmethod
     def check_nargs(fparser2_tree, nargs):

@@ -33,8 +33,8 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing the abstract CommonArgMetadata class which captures the
-metadata associated with a generic LFRic argument. Supports the
+'''Module containing the abstract CommonMetaArgMetadata class which captures the
+metadata associated with an LFRic meta_arg argument. Supports the
 creation, modification and Fortran output of such an argument.
 
 '''
@@ -61,13 +61,11 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
     form = ""
 
     def __init__(self, datatype=None, access=None):
-        if datatype is None:
-            self._datatype = datatype
-        else:
+        self._datatype = None
+        self._access = None
+        if datatype is not None:
             self.datatype = datatype
-        if access is None:
-            self._access = access
-        else:
+        if access is not None:
             self.access = access
 
     @classmethod

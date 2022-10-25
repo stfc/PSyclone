@@ -96,21 +96,6 @@ class FieldArgMetadata(CommonMetaArgMetadata):
             fparser2_tree, datatype, access, function_space)
         return FieldArgMetadata(datatype, access, function_space)
 
-    @classmethod
-    def create_from_fortran_string(cls, fortran_string):
-        '''Create an instance of this class from Fortran.
-
-        :param str fortran_string: a string containing the metadata in \
-            Fortran.
-
-        :returns: an instance of cls.
-        :rtype: subclass of :py:class:`psyclone.domain.lfric.kernel.common_arg`
-
-        '''
-        fparser2_tree = cls.create_fparser2(
-            fortran_string, Fortran2003.Part_Ref)
-        return cls.create_from_fparser2(fparser2_tree)
-
     def fortran_string(self):
         '''
         :returns: the metadata represented by this class as Fortran.

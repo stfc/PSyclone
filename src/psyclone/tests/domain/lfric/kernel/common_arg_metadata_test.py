@@ -41,175 +41,86 @@ import pytest
 from fparser.two import Fortran2003
 
 from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
-from psyclone.errors import InternalError
-
-
-# pylint: disable=abstract-class-instantiated
-def test_init_error():
-    '''Test that a CommonArgMetadata instance can't be created as it is
-    abstract.
-
-    '''
-    with pytest.raises(TypeError) as info:
-        _ = CommonArgMetadata()
-    assert ("Can't instantiate abstract class CommonArgMetadata with abstract "
-            "methods check_access, check_datatype" in str(info.value))
-
-
-class CheckArg(CommonArgMetadata):
-    '''A utility class that allows the abstract CommonArgMetadata class to be
-    tested.
-
-    '''
-    form = "sluglike"
-    form_arg_index = 0
-    vector_length_arg_index = 0
-    datatype_arg_index = 1
-    access_arg_index = 2
-    function_space_arg_index = 3
-
-    @staticmethod
-    def check_datatype(value):
-        '''A concrete implementation of the abstract method in the
-        CommonArgMetadata class.
-
-        :param str value: the value being passed into this method.
-
-        '''
-
-    @staticmethod
-    def check_access(value):
-        '''A concrete implementation of the abstract method in the
-        CommonArgMetadata class.
-
-        :param str value: the value being passed into this method.
-
-        '''
+from psyclone.domain.lfric.kernel.inter_grid_arg_metadata import \
+    InterGridArgMetadata
+from psyclone.domain.lfric.kernel.meta_mesh_arg_metadata import \
+    MetaMeshArgMetadata
 
 
 def test_init():
-    '''Test that the CommonArgMetadata class can be created when a
-    concrete class subclasses it. Also check that the
-    CommonArgMetadata class stores the datatype and access arguments
-    supplied to it correctly and the associated setter and getter
-    methods work as expected.
+    '''Test that the CommonArgMetadata class can be created.'''
+
+    common_arg_metadata = CommonArgMetadata()
+    assert isinstance(common_arg_metadata, CommonArgMetadata)
+
+
+def test_create_from_fortran_string():
+    '''Test the create_from_fortran_string() method. Test with two
+    subclasses that cover the two classes of fparser2 that are
+    required as part of this method a) Part_Ref and b)
+    Structure_Constructor.
 
     '''
-    dummy = CheckArg()
-    assert dummy._datatype is None
-    assert dummy._access is None
+    # Makes use of Fortran2003.Part_Ref.
+    meta = MetaMeshArgMetadata.create_from_fortran_string(
+        "mesh_data_type(adjacent_face)")
+    assert isinstance(meta, MetaMeshArgMetadata)
+    assert meta.mesh == "adjacent_face"
 
-    dummy = CheckArg(datatype="hello", access="there")
-    assert dummy._datatype == "hello"
-    assert dummy.datatype == "hello"
-    assert dummy._access == "there"
-    assert dummy.access == "there"
+    # Makes use of Fortran2003.Structure_Constructor.
+    meta = InterGridArgMetadata.create_from_fortran_string(
+        "arg_type(gh_field, gh_real, gh_read, w0, mesh_arg=gh_fine)")
+    assert isinstance(meta, InterGridArgMetadata)
+    assert meta.datatype == "gh_real"
 
 
-def test_create_fparser2():
-    '''Test that the create_fparser2 method in the CommonArgMetadata class
-    works as expected.
+def test_check_value():
+    '''Test that the check_value method works as expected.'''
 
-    '''
-    dummy = CheckArg()
-    fortran_string = "arg_type(GH_FIELD, GH_REAL, GH_READ)"
-    result = dummy.create_fparser2(fortran_string)
-    assert isinstance(result, Fortran2003.Part_Ref)
-
-    fortran_string = ("arg_type(GH_FIELD, GH_REAL, GH_READ, W0, "
-                      "gh_mesh=GH_COARSE)")
-    result = dummy.create_fparser2(
-        fortran_string, encoding=Fortran2003.Structure_Constructor)
-    assert isinstance(result, Fortran2003.Structure_Constructor)
+    CommonArgMetadata.check_value("hello", "metadata", ["hello"])
 
     with pytest.raises(ValueError) as info:
-        _ = dummy.create_fparser2("#!$%")
-    assert ("Expected kernel metadata to be a Fortran Part_Ref, with the "
-            "form 'arg_type(...)' but found '#!$%'." in str(info.value))
+        CommonArgMetadata.check_value("hello", "metadata", ["bonjour"])
+    assert ("The metadata value should be one of ['bonjour'], but found "
+            "'hello'." in str(info.value))
+
+
+def test_check_nargs():
+    '''Test that the check_nargs method works as expected.'''
+    fparser2_tree = CommonArgMetadata.create_fparser2(
+        "args(one, two, three)", Fortran2003.Part_Ref)
+    CommonArgMetadata.check_nargs(fparser2_tree, 3)
+    with pytest.raises(ValueError) as info:
+        CommonArgMetadata.check_nargs(fparser2_tree, 2)
+    assert ("Expected kernel metadata to have 2 arguments, but found 3 in "
+            "'args(one, two, three)'." in str(info.value))
 
 
 def test_check_fparser2():
-    '''Test that the check_fparser2 method in the CommonArgMetadata class works
-    as expected.
+    '''Test that the check_fparser2 method in the CommonArgMetadata class
+    works as expected.
 
     '''
-    dummy = CheckArg()
     with pytest.raises(TypeError) as info:
-        _ = dummy.check_fparser2(None, None)
+        _ = CommonArgMetadata.check_fparser2(None, None)
     assert ("Expected kernel metadata to be encoded as an fparser2 Part_Ref "
             "object but found type 'NoneType' with value 'None'."
             in str(info.value))
 
-    fparser_tree = dummy.create_fparser2(
-        "braz_type(GH_FIELD, GH_REAL, GH_READ)")
+    fparser_tree = CommonArgMetadata.create_fparser2(
+        "braz_type(GH_FIELD, GH_REAL, GH_READ)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
-        _ = dummy.check_fparser2(fparser_tree, "arg_type")
+        _ = CommonArgMetadata.check_fparser2(fparser_tree, "arg_type")
     assert ("Expected kernel metadata to have the name 'arg_type' and be in "
             "the form 'arg_type(...)', but found 'braz_type(GH_FIELD, "
             "GH_REAL, GH_READ)'." in str(info.value))
 
 
-def test_check_first_arg():
-    '''Check that the check_first_arg method in the CommonArgMetadata
-    class works as expected.
-
-    '''
-    fparser2_tree = CheckArg.create_fparser2("arg_type(first_arg)")
-    with pytest.raises(ValueError) as info:
-        CheckArg.check_first_arg(fparser2_tree, "MyTest")
-        assert ("MyTests should have sluglike as their first metadata "
-                "argument, but found 'first_arg'." in str(info.value))
-
-    fparser2_tree = CheckArg.create_fparser2("arg_type(first_arg*3)")
-    with pytest.raises(ValueError) as info:
-        CheckArg.check_first_arg(fparser2_tree, "MyTest", vector=True)
-        assert ("MyTests should have sluglike as their first metadata "
-                "argument, but found 'first_arg'." in str(info.value))
-
-    fparser2_tree = CheckArg.create_fparser2("arg_type(sluglike)")
-    CheckArg.check_first_arg(fparser2_tree, "MyTest")
-
-
-def test_check_remaining_args():
-    '''Check that the check_remaining_args method in the CommonArgMetadata
-    class works as expected.
-
-    '''
-    class DummyArg(CheckArg):
-        '''Utility class used to test the abstract CommonArgMetadata class
-        (via the CheckArg class).
-
-        :param str message: the message to use for an exception.
-
-        :raises ValueError: when instantiated.
-
-        '''
-        datatype_arg_index = 1
-        access_arg_index = 2
-        function_space_arg_index = 3
-        mesh_arg_index = 4
-        function_space_to_arg_index = 5
-        function_space_from_arg_index = 6
-
-        def __init__(self, message):
-            super().__init__()
-            raise ValueError(message)
-
-    for index, message in [(1, "datatype descriptor error"),
-                           (2, "access descriptor error"),
-                           (3, "function space error"),
-                           (4, "mesh_arg error"),
-                           (5, "function_space_to error"),
-                           (6, "function_space_from error")]:
-        with pytest.raises(ValueError) as info:
-            DummyArg.check_remaining_args("dummy", message)
-            assert (f"At argument index '{index}' for metadata 'dummy'. "
-                    f"{message}")
-
-    with pytest.raises(InternalError) as info:
-        DummyArg.check_remaining_args("dummy", "Unrecognised error")
-    assert ("Unexpected error message found 'Unrecognised error'"
-            in str(info.value))
+def test_get_nargs():
+    '''Test that the get_nargs method works as expected.'''
+    fparser2_tree = CommonArgMetadata.create_fparser2(
+        "args(one, two, three)", Fortran2003.Part_Ref)
+    assert CommonArgMetadata.get_nargs(fparser2_tree) == 3
 
 
 def test_get_arg():
@@ -217,110 +128,8 @@ def test_get_arg():
     as expected.
 
     '''
-    dummy = CheckArg()
-    fparser_tree = dummy.create_fparser2(
-        "arg_type(GH_FIELD, GH_REAL, GH_READ)")
-    assert dummy.get_arg(fparser_tree, 0) == "GH_FIELD"
-    assert dummy.get_arg(fparser_tree, 1) == "GH_REAL"
-    assert dummy.get_arg(fparser_tree, 2) == "GH_READ"
-
-
-def test_get_type_and_access():
-    '''Test that the get_type_and_access method in the CommonArgMetadata class
-    works as expected.
-
-    '''
-    dummy = CheckArg()
-    fparser_tree = dummy.create_fparser2(
-        "arg_type(GH_FIELD, GH_REAL, GH_READ)")
-    datatype, access = dummy.get_type_and_access(fparser_tree)
-    assert datatype == "GH_REAL"
-    assert access == "GH_READ"
-
-
-def test_get_type_access_and_fs():
-    '''Test that the get_type_access_and_fs method in the
-    CommonArgMetadata class works as expected.
-
-    '''
-    dummy = CheckArg()
-    fparser_tree = dummy.create_fparser2(
-        "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)")
-    datatype, access, function_space = dummy.get_type_access_and_fs(
-        fparser_tree)
-    assert datatype == "GH_REAL"
-    assert access == "GH_READ"
-    assert function_space == "W0"
-
-
-def test_get_and_check_vector_length():
-    '''Test that the get_and_check_vector_length method in the
-    CommonArgMetadata class works as expected.
-
-    '''
-    dummy = CheckArg()
-    fparser_tree = dummy.create_fparser2(
-        "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)")
-    with pytest.raises(TypeError) as info:
-        _ = dummy.get_and_check_vector_length(fparser_tree)
-    assert ("The vector length metadata should be in the form "
-            "'form*vector_length' but found 'GH_FIELD'."
-            in str(info.value))
-
-    fparser_tree = dummy.create_fparser2(
-        "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)")
-    vector_length = dummy.get_and_check_vector_length(fparser_tree)
-    assert vector_length == "3"
-
-
-def test_check_methods():
-    '''Check that the check_datatype and check_access methods get called
-    from the datatype and access setter methods respectively.
-
-    '''
-    class Test(CommonArgMetadata):
-        '''A utility class that allow the abstract CommonArgMetadata class to
-        be tested.
-
-        '''
-        @staticmethod
-        def check_datatype(value):
-            '''A concrete implementation of the abstract method in the
-            CommonArgMetadata class.
-
-            :param str value: the value being passed into this method.
-
-            :raises NotImplementedError: so we can check that the \
-                method is called.
-
-            '''
-            raise NotImplementedError("check_datatype")
-
-        @staticmethod
-        def check_access(value):
-            '''A concrete implementation of the abstract method in the
-            CommonArgMetadata class.
-
-            :param str value: the value being passed into this method.
-
-            :raises NotImplementedError: so we can check that the \
-                method is called.
-
-            '''
-            raise NotImplementedError("check_access")
-
-    test = Test()
-
-    # The setter calls the datatype setter which should call the
-    # check_datatype routine. The check_datatype routine has been set
-    # to raise an exception.
-    with pytest.raises(NotImplementedError) as info:
-        test.datatype = "dummy"
-    assert "check_datatype" in str(info.value)
-
-    # The setter calls the access setter which should call the
-    # check_access routine. The check_access routine has been set
-    # to raise an exception.
-    with pytest.raises(NotImplementedError) as info:
-        test.access = "dummy"
-    assert "check_access" in str(info.value)
+    fparser_tree = CommonArgMetadata.create_fparser2(
+        "arg_type(GH_FIELD, GH_REAL, GH_READ)", Fortran2003.Part_Ref)
+    assert CommonArgMetadata.get_arg(fparser_tree, 0) == "GH_FIELD"
+    assert CommonArgMetadata.get_arg(fparser_tree, 1) == "GH_REAL"
+    assert CommonArgMetadata.get_arg(fparser_tree, 2) == "GH_READ"

@@ -66,6 +66,9 @@ class InterGridArgMetadata(FieldArgMetadata):
     # to the parent classes and are inherited from them.
     mesh_arg_index = 4
 
+    # The fparser2 class that captures this metadata.
+    fparser2_class = Fortran2003.Structure_Constructor
+
     def __init__(self, datatype=None, access=None, function_space=None,
                  mesh_arg=None):
         super().__init__(datatype, access, function_space)
@@ -126,21 +129,6 @@ class InterGridArgMetadata(FieldArgMetadata):
         mesh_arg = fparser2_tree.children[1].\
             children[InterGridArgMetadata.mesh_arg_index].children[1].tostr()
         return mesh_arg
-
-    @classmethod
-    def create_from_fortran_string(cls, fortran_string):
-        '''Create an instance of this class from Fortran.
-
-        :param str fortran_string: a string containing the metadata in \
-            Fortran.
-
-        :returns: an instance of cls.
-        :rtype: subclass of :py:class:`psyclone.domain.lfric.kernel.common_arg`
-
-        '''
-        fparser2_tree = cls.create_fparser2(
-            fortran_string, Fortran2003.Structure_Constructor)
-        return cls.create_from_fparser2(fparser2_tree)
 
     def fortran_string(self):
         '''
