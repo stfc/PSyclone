@@ -101,14 +101,6 @@ class ScalarArgMetadata(CommonMetaArgMetadata):
 
         return f"arg_type({self.form}, {self.datatype}, {self.access})"
 
-    @property
-    def datatype(self):
-        '''
-        :returns: the datatype for this scalar argument.
-        :rtype: str
-        '''
-        return self._datatype
-
     @staticmethod
     def check_datatype(value):
         '''
@@ -118,24 +110,6 @@ class ScalarArgMetadata(CommonMetaArgMetadata):
         ScalarArgMetadata.check_value(
             value, "datatype descriptor", const.VALID_SCALAR_DATA_TYPES)
 
-    @datatype.setter
-    def datatype(self, value):
-        '''
-        :param str value: set the datatype to the \
-            specified value.
-        '''
-        self.check_datatype(value)
-        self._datatype = value
-
-    @property
-    def access(self):
-        '''
-        :returns: the access descriptor for this scalar \
-            argument.
-        :rtype: str
-        '''
-        return self._access
-
     @staticmethod
     def check_access(value):
         '''
@@ -144,13 +118,3 @@ class ScalarArgMetadata(CommonMetaArgMetadata):
         const = LFRicConstants()
         ScalarArgMetadata.check_value(
             value, "access descriptor", const.VALID_SCALAR_ACCESS_TYPES)
-
-    @access.setter
-    def access(self, value):
-        '''
-        :param str value: set the access descriptor to the \
-            specified value.
-
-        '''
-        self.check_access(value)
-        self._access = value

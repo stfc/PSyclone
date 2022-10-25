@@ -138,7 +138,6 @@ class InterGridVectorArgMetadata(InterGridArgMetadata):
     @vector_length.setter
     def vector_length(self, value):
         '''
-
         :param str value: set the intergrid vector length to the specified \
             value.
 

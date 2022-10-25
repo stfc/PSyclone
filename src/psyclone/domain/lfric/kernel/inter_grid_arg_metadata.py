@@ -153,10 +153,8 @@ class InterGridArgMetadata(FieldArgMetadata):
     @property
     def mesh_arg(self):
         '''
-
         :returns: the mesh type for this intergrid argument.
         :rtype: str
-
         '''
         return self._mesh_arg
 
