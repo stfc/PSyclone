@@ -56,7 +56,8 @@ from psyclone.psyir.symbols import (ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE,
                                     ContainerSymbol, DataSymbol,
                                     DataTypeSymbol, DeferredType,
                                     ImportInterface, INTEGER_TYPE,
-                                    REAL8_TYPE, RoutineSymbol, ScalarType)
+                                    INTEGER8_TYPE, REAL8_TYPE, RoutineSymbol,
+                                    ScalarType)
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations import ExtractTrans
 
@@ -95,6 +96,7 @@ class LFRicExtractDriverCreator:
                 if arg.data_type == "field_type":
                     proxy_name_mapping[arg.proxy_name] = arg.name
         return proxy_name_mapping
+
     # -------------------------------------------------------------------------
     def create_flattened_symbol(self, flattened_name, reference, symbol_table,
                                 writer=FortranWriter()):
@@ -491,6 +493,52 @@ class LFRicExtractDriverCreator:
             symbol_table.add(new_routine_sym)
 
     # -------------------------------------------------------------------------
+    def add_precision_symbols(self, program):
+        '''This function defines the LFRic precision symbols r_def and
+        i_def, after importing the required types from the Fortran intrinci
+        module. The actual type is picked depending on the setting of
+        self._default_types["real"/"integer"]
+
+        :param program: the PSyIR Routine to which any code must \
+            be added. It contains the symbol table to be used.
+        :type program: :py:class:`psyclone.psyir.nodes.Routine`
+
+        '''
+        symbol_table = program.scope.symbol_table
+        # Using the intrinsic module requires a ",". Just add this
+        # as part of the name, the writerthen produces the expected
+        # Fortran code (`use ,intrinsic::iso_fortran_env, only:`)
+        intrinsic_mod = ContainerSymbol(",intrinsic::iso_fortran_env")
+        symbol_table.add(intrinsic_mod)
+
+        # Add r_def:
+        if self._default_types["real"] == REAL8_TYPE:
+            name = "real64"
+        else:
+            name = "real32"
+        real_type = DataTypeSymbol(name, INTEGER_TYPE,
+                                   interface=ImportInterface(intrinsic_mod))
+        symbol_table.add(real_type)
+        symbol_table.new_symbol("r_def",
+                                symbol_type=DataSymbol,
+                                datatype=INTEGER_TYPE,
+                                constant_value=Reference(real_type))
+
+        # Add i_def:
+        if self._default_types["integer"] == INTEGER8_TYPE:
+            name = "int64"
+        else:
+            name = "int32"
+        int_type = DataTypeSymbol(name, INTEGER_TYPE,
+                                  interface=ImportInterface(intrinsic_mod))
+        symbol_table.add(int_type)
+
+        symbol_table.new_symbol("i_def",
+                                symbol_type=DataSymbol,
+                                datatype=INTEGER_TYPE,
+                                constant_value=Reference(int_type))
+
+    # -------------------------------------------------------------------------
     @staticmethod
     def add_result_tests(program, output_symbols):
         '''Adds tests to check that all output variables have the expected
@@ -612,6 +660,7 @@ class LFRicExtractDriverCreator:
         schedule_copy.invoke.gen_code(psy_module)
         schedule_copy.lower_to_language_level()
         self.import_modules(program, schedule_copy)
+        self.add_precision_symbols(program)
         self.add_all_kernel_symbols(schedule_copy, program_symbol_table,
                                     proxy_name_mapping, writer)
 
