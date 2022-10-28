@@ -46,15 +46,6 @@ class ColumnwiseOperatorArgMetadata(OperatorArgMetadata):
     '''Class to capture LFRic kernel metadata information for a Columnwise
     operator argument.
 
-    :param Optional[str] datatype: the datatype of this Columnwise \
-        Operator (GH_INTEGER, ...).
-    :param Optional[str] access: the way the kernel accesses this \
-        operator (GH_WRITE, ...).
-    :param Optional[str] function_space_to: the function space that this \
-        operator maps to (W0, ...).
-    :param Optional[str] function_space_from: the function space that this \
-        operator maps from (W0, ...).
-
     '''
     # The name used to specify a columnwise operator argument in LFRic
     # metadata.

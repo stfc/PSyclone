@@ -48,13 +48,13 @@ class InterGridVectorArgMetadata(InterGridArgMetadata):
     '''Class to capture LFRic kernel metadata information for an
     InterGridVector argument.
 
-    :param Optional[str] datatype: the datatype of this \
-        InterGridVector argument (GH_INTEGER, ...).
-    :param Optional[str] access: the way the kernel accesses this \
-        InterGridVector argument (GH_WRITE, ...).
-    :param Optional[str] function_space: the function space that this \
+    :param str datatype: the datatype of this InterGridVector argument \
+        (GH_INTEGER, ...).
+    :param str access: the way the kernel accesses this InterGridVector \
+        argument (GH_WRITE, ...).
+    :param str function_space: the function space that this \
         InterGridVector argument is on (W0, ...).
-    :param Optional[str] vector_length: the size of the vector.
+    :param str vector_length: the size of the vector.
 
     '''
     # The relative position of LFRic vector length metadata. Metadata
@@ -66,13 +66,10 @@ class InterGridVectorArgMetadata(InterGridArgMetadata):
     # are inherited from them.
     vector_length_arg_index = 0
 
-    def __init__(self, datatype=None, access=None, function_space=None,
-                 mesh_arg=None, vector_length=None):
+    def __init__(self, datatype, access, function_space, mesh_arg,
+                 vector_length):
         super().__init__(datatype, access, function_space, mesh_arg)
-
-        self._vector_length = None
-        if vector_length is not None:
-            self.vector_length = vector_length
+        self.vector_length = vector_length
 
     @staticmethod
     def create_from_fparser2(fparser2_tree):
@@ -107,21 +104,7 @@ class InterGridVectorArgMetadata(InterGridArgMetadata):
         '''
         :returns: the metadata represented by this class as Fortran.
         :rtype: str
-
-        :raises ValueError: if one or more of the datatype, access, \
-            function_space, mesh_arg or vecgtor_length values have not \
-            been set.
-
         '''
-        if not (self.datatype and self.access and self.function_space and
-                self.mesh_arg and self.vector_length):
-            raise ValueError(
-                f"Values for datatype, access, function_space, mesh_arg "
-                f"and vector_length must be provided before calling the "
-                f"fortran_string method, but found '{self.datatype}', "
-                f"'{self.access}', '{self.function_space}', "
-                f"'{self.mesh_arg}' and '{self.vector_length}', respectively.")
-
         return (f"arg_type({self.form}*{self.vector_length}, "
                 f"{self.datatype}, {self.access}, {self.function_space}, "
                 f"mesh_arg={self.mesh_arg})")

@@ -40,6 +40,7 @@ REFERENCE_ELEMENT metadata.
 '''
 from fparser.two import Fortran2003
 
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
 
 
@@ -51,7 +52,7 @@ class MetaRefElementArgMetadata(CommonArgMetadata):
 
     '''
     def __init__(self, reference_element):
-        self._reference_element = reference_element
+        self.reference_element = reference_element
 
     def create_from_fparser2(fparser2_tree):
         '''Create an instance of this class from an fparser2 tree.

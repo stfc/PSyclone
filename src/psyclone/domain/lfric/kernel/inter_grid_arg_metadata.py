@@ -48,14 +48,14 @@ class InterGridArgMetadata(FieldArgMetadata):
     '''Class to capture LFRic kernel metadata information for an intergrid
     argument.
 
-    :param Optional[str] datatype: the datatype of this InterGrid \
-        argument (GH_INTEGER, ...).
-    :param Optional[str] access: the way the kernel accesses this \
-        intergrid argument (GH_WRITE, ...).
-    :param Optional[str] function_space: the function space that this \
+    :param str datatype: the datatype of this InterGrid argument \
+        (GH_INTEGER, ...).
+    :param str access: the way the kernel accesses this intergrid \
+        argument (GH_WRITE, ...).
+    :param str function_space: the function space that this \
         InterGrid is on (W0, ...).
-    :param Optional[str] mesh_arg: the type of mesh that this \
-        InterGrid arg is on (coarse or fine).
+    :param str mesh_arg: the type of mesh that this InterGrid arg \
+        is on (coarse or fine).
 
     '''
     # The relative position of LFRic mesh metadata. Metadata for an
@@ -69,12 +69,9 @@ class InterGridArgMetadata(FieldArgMetadata):
     # The fparser2 class that captures this metadata.
     fparser2_class = Fortran2003.Structure_Constructor
 
-    def __init__(self, datatype=None, access=None, function_space=None,
-                 mesh_arg=None):
+    def __init__(self, datatype, access, function_space, mesh_arg):
         super().__init__(datatype, access, function_space)
-        self._mesh_arg = None
-        if mesh_arg is not None:
-            self.mesh_arg = mesh_arg
+        self.mesh_arg = mesh_arg
 
     @staticmethod
     def create_from_fparser2(fparser2_tree):
@@ -133,20 +130,7 @@ class InterGridArgMetadata(FieldArgMetadata):
         '''
         :returns: the metadata represented by this class as Fortran.
         :rtype: str
-
-        :raises ValueError: if one or more of the datatype, access, \
-            function_space or mesh_arg values have not been set.
-
         '''
-        if not (self.datatype and self.access and self.function_space and
-                self.mesh_arg):
-            raise ValueError(
-                f"Values for datatype, access, function_space and mesh_arg "
-                f"must be provided before calling the fortran_string method, "
-                f"but found '{self.datatype}', '{self.access}', "
-                f"'{self.function_space}' and '{self.mesh_arg}', "
-                f"respectively.")
-
         return (f"arg_type({self.form}, {self.datatype}, {self.access}, "
                 f"{self.function_space}, mesh_arg={self.mesh_arg})")
 

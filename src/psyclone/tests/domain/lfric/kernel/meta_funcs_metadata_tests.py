@@ -107,24 +107,18 @@ def test_create_from_fortran_string():
         meta_funcs_arg2.fortran_string()
 
 
-@pytest.mark.parametrize("fortran_string, expected_list", [
-    ("TYPE(FUNC_TYPE), dimension(2) :: meta_funcs = (/"
-     "func_type(w0, gh_basis), "
-     "func_type(w3, gh_diff_basis)/)",
-     ["func_type(w0, gh_basis)", "func_type(w3, gh_diff_basis)"]),
-    ("TYPE(FUNC_TYPE), dimension(2) :: meta_funcs = (/"
-     "func_type(w0, gh_basis), "
-     "func_type(w3, gh_diff_basis)/)",
-     ["func_type(w0, gh_basis)", "func_type(w3, gh_diff_basis)"])])
-def test_create_from_fparser2(fortran_string, expected_list):
+def test_create_from_fparser2():
     '''Test that the create_from_fparser2 method works as expected.'''
+
+    fortran_string = (
+        ("TYPE(FUNC_TYPE), dimension(2) :: meta_funcs = (/"
+         "func_type(w0, gh_basis), "
+         "func_type(w3, gh_diff_basis)/)")
     fparser2_tree = MetaFuncsMetadata.create_fparser2(
         fortran_string, Fortran2003.Data_Component_Def_Stmt)
     metadata = MetaFuncsMetadata.create_from_fparser2(fparser2_tree)
     assert isinstance(metadata, MetaFuncsMetadata)
-    results_list = [value.fortran_string() for value in
-                    metadata.meta_funcs_args]
-    assert results_list == expected_list
+    assert metadata.fortran_string() == fortran_string
 
 
 def test_setter_getter():

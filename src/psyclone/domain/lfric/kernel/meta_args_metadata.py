@@ -43,7 +43,8 @@ from fparser.two.utils import walk
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.columnwise_operator_arg_metadata import \
     ColumnwiseOperatorArgMetadata
-from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
+from psyclone.domain.lfric.kernel.common_meta_arg_metadata import \
+    CommonMetaArgMetadata
 from psyclone.domain.lfric.kernel.common_declaration_metadata import \
     CommonDeclarationMetadata
 from psyclone.domain.lfric.kernel.field_arg_metadata import FieldArgMetadata
@@ -69,7 +70,7 @@ class MetaArgsMetadata(CommonDeclarationMetadata):
 
     :param meta_args_args: a list of meta_args arguments.
     :type meta_args_args: List[:py:class:`psyclone.domain.lfric.kernel.\
-        CommonArgMetadata`]
+        CommonMetaArgMetadata`]
 
     '''
     def __init__(self, meta_args_args):
@@ -88,21 +89,17 @@ class MetaArgsMetadata(CommonDeclarationMetadata):
         '''Create an instance of MetaArgsMetadata from an fparser2
         tree.
 
-        LFRic meta args metadata is in array form. Two
-        versions of the array form are supported:
-
-        type(arg_type) :: meta_args(1) = (/ ... /)
-        type(arg_type), dimension(1) :: meta_args = (/ ... /)
-
         :param fparser2_tree: fparser2 tree capturing the meta \
             args metadata.
-
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.\
             Data_Component_Def_Stmt`
 
         :returns: an instance of MetaArgsMetadata.
         :rtype: :py:class:`psyclone.domain.lfric.kernel.\
             MetaArgsMetadata`
+
+        :raises ParseError: if an unknown MetaArgsArgMetadata argument \
+            is found.
 
         '''
         values_list = MetaArgsMetadata.validate_derived_array_declaration(
@@ -162,26 +159,8 @@ class MetaArgsMetadata(CommonDeclarationMetadata):
         :type values: List[:py:class:`psyclone.domain.lfric.kernel.\
             CommonArg`]
 
-        raises TypeError: if the supplied value is not a list.
-        raises TypeError: if the supplied value is an empty list.
-        raises TypeError: if any entry in the list is not of the \
-            required type.
-
         '''
-        if not isinstance(values, list):
-            raise TypeError(f"meta_args values should be provided as "
-                            f"a list but found '{type(values).__name__}'.")
-        if not values:
-            raise TypeError(
-                "The meta_args list should contain at least one "
-                "entry, but it is empty.")
-        const = LFRicConstants()
-        for value in values:
-            if not isinstance(value, CommonArgMetadata):
-                raise TypeError(
-                    f"The meta_args list should be a list containing objects "
-                    f"of type CommonArgMetadata but found "
-                    f"'{type(value).__name__}'.")
+        self.validate_list(values, CommonMetaArgMetadata)
         # Take a copy of the list so that it can't be modified
         # externally.
         self._meta_args_args = values[:]

@@ -60,13 +60,9 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
     function_space_arg_index = 3
     form = ""
 
-    def __init__(self, datatype=None, access=None):
-        self._datatype = None
-        self._access = None
-        if datatype is not None:
-            self.datatype = datatype
-        if access is not None:
-            self.access = access
+    def __init__(self, datatype, access):
+        self.datatype = datatype
+        self.access = access
 
     @classmethod
     def check_first_arg(cls, fparser2_tree, name, vector=False):

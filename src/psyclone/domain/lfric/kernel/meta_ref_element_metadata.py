@@ -74,17 +74,8 @@ class MetaRefElementMetadata(CommonDeclarationMetadata):
         '''Create an instance of MetaRefElementMetadata from an fparser2
         tree.
 
-        LFRic meta reference element metadata is in array form. Two
-        versions of the array form are supported:
-
-        type(reference_element_data_type) :: &
-            meta_reference_element(1) = (/ ... /)
-        type(reference_element_data_type), dimension(1) :: &
-            meta_reference_element = (/ ... /)
-
         :param fparser2_tree: fparser2 tree capturing the meta \
             reference element metadata.
-
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.\
             Data_Component_Def_Stmt`
 
@@ -120,26 +111,8 @@ class MetaRefElementMetadata(CommonDeclarationMetadata):
         :type values: List[:py:class:`psyclone.domain.lfric.kernel.\
             MetaRefElementArgMetadata`]
 
-        raises TypeError: if the supplied value is not a list.
-        raises TypeError: if the supplied value is an empty list.
-        raises TypeError: if any entry in the list is not of the \
-            required type.
-
         '''
-        if not isinstance(values, list):
-            raise TypeError(f"meta_ref_element values should be provided as "
-                            f"a list but found '{type(values).__name__}'.")
-        if not values:
-            raise TypeError(
-                "The meta_ref_element list should contain at least one "
-                "entry, but it is empty.")
-        const = LFRicConstants()
-        for value in values:
-            if not isinstance(value, MetaRefElementArgMetadata):
-                raise TypeError(
-                    f"The meta_ref_element list should be a list containing "
-                    f"objects of type MetaRefElementArgMetadata but found "
-                    f"'{type(value).__name__}'.")
+        self.validate_list(values, MetaRefElementArgMetadata)
         # Take a copy of the list so that it can't be modified
         # externally.
         self._meta_ref_element_args = values[:]

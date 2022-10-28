@@ -73,15 +73,8 @@ class MetaFuncsMetadata(CommonDeclarationMetadata):
         '''Create an instance of MetaFuncsMetadata from an fparser2
         tree.
 
-        LFRic meta funcs metadata is in array form. Two
-        versions of the array form are supported:
-
-        type(func_type) :: meta_funcs(1) = (/ ... /)
-        type(func_type), dimension(1) :: meta_funcs = (/ ... /)
-
         :param fparser2_tree: fparser2 tree capturing the meta \
             funcs metadata.
-
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.\
             Data_Component_Def_Stmt`
 

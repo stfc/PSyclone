@@ -47,13 +47,11 @@ class FieldVectorArgMetadata(FieldArgMetadata):
     '''Class to capture LFRic kernel metadata information for a field
     vector argument.
 
-    :param Optional[str] datatype: the datatype of this field \
-        (GH_INTEGER, ...).
-    :param Optional[str] access: the way the kernel accesses this \
-        field (GH_WRITE, ...).
-    :param Optional[str] function_space: the function space that this \
-        field is on (W0, ...).
-    :param Optional[str] vector_length: the size of the vector.
+    :param str datatype: the datatype of this field (GH_INTEGER, ...).
+    :param str access: the way the kernel accesses this field (GH_WRITE, ...).
+    :param str function_space: the function space that this field is on \
+        (W0, ...).
+    :param str vector_length: the size of the vector.
 
     '''
     # The relative position of LFRic vector length metadata. Metadata
@@ -65,14 +63,9 @@ class FieldVectorArgMetadata(FieldArgMetadata):
     # from them.
     vector_length_arg_index = 0
 
-    def __init__(self, datatype=None, access=None, function_space=None,
-                 vector_length=None):
-        super().__init__(
-            datatype=datatype, access=access, function_space=function_space)
-
-        self._vector_length = None
-        if vector_length is not None:
-            self.vector_length = vector_length
+    def __init__(self, datatype, access, function_space, vector_length):
+        super().__init__(datatype, access, function_space)
+        self.vector_length = vector_length
 
     @staticmethod
     def create_from_fparser2(fparser2_tree):
@@ -103,20 +96,7 @@ class FieldVectorArgMetadata(FieldArgMetadata):
         '''
         :returns: the metadata represented by this class as Fortran.
         :rtype: str
-
-        :raises ValueError: if all of the properties have not been \
-            set.
-
         '''
-        if not (self.datatype and self.access and self.function_space and
-                self.vector_length):
-            raise ValueError(
-                f"Values for datatype, access, function_space and "
-                f"vector_length must be provided before calling the "
-                f"fortran_string method, but found '{self.datatype}', "
-                f"'{self.access}', '{self.function_space}' and "
-                f"'{self.vector_length}', respectively.")
-
         return (f"arg_type({self.form}*{self.vector_length}, {self.datatype}, "
                 f"{self.access}, {self.function_space})")
 

@@ -49,12 +49,10 @@ class FieldArgMetadata(CommonMetaArgMetadata):
     '''Class to capture LFRic kernel metadata information for a field
     argument.
 
-    :param Optional[str] datatype: the datatype of this field \
-        (GH_INTEGER, ...).
-    :param Optional[str] access: the way the kernel accesses this \
-        field (GH_WRITE, ...).
-    :param Optional[str] function_space: the function space that this \
-        field is on (W0, ...).
+    :param str datatype: the datatype of this field (GH_INTEGER, ...).
+    :param str access: the way the kernel accesses this field (GH_WRITE, ...).
+    :param str function_space: the function space that this field is \
+        on (W0, ...).
 
     '''
     # The name used to specify a field argument in LFRic metadata.
@@ -68,11 +66,9 @@ class FieldArgMetadata(CommonMetaArgMetadata):
     access_arg_index = 2
     function_space_arg_index = 3
 
-    def __init__(self, datatype=None, access=None, function_space=None):
+    def __init__(self, datatype, access, function_space):
         super().__init__(datatype, access)
-        self._function_space = None
-        if function_space is not None:
-            self.function_space = function_space
+        self.function_space = function_space
 
     @staticmethod
     def create_from_fparser2(fparser2_tree):
@@ -99,18 +95,7 @@ class FieldArgMetadata(CommonMetaArgMetadata):
         '''
         :returns: the metadata represented by this class as Fortran.
         :rtype: str
-
-        :raises ValueError: if one or more of the datatype, access or \
-            function_space values have not been set.
-
         '''
-        if not (self.datatype and self.access and self.function_space):
-            raise ValueError(
-                f"Values for datatype, access and function_space must be "
-                f"provided before calling the fortran_string method, but "
-                f"found '{self.datatype}', '{self.access}' and "
-                f"'{self.function_space}', respectively.")
-
         return (f"arg_type({self.form}, {self.datatype}, {self.access}, "
                 f"{self.function_space})")
 

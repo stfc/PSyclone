@@ -49,11 +49,6 @@ class ScalarArgMetadata(CommonMetaArgMetadata):
     '''Class to capture LFRic kernel metadata information for a scalar
     argument.
 
-    :param Optional[str] datatype: the datatype of this scalar \
-        (GH_INTEGER, ...).
-    :param Optional[str] access: the way the kernel accesses this \
-        scalar (GH_WRITE, ...).
-
     '''
     # The name used to specify a scalar argument in LFRic metadata.
     form = "GH_SCALAR"
@@ -88,17 +83,7 @@ class ScalarArgMetadata(CommonMetaArgMetadata):
         '''
         :returns: the metadata represented by this class as Fortran.
         :rtype: str
-
-        :raises ValueError: if one or more of the datatype or access \
-            values have not been set.
-
         '''
-        if not (self.datatype and self.access):
-            raise ValueError(
-                f"Values for datatype and access must be "
-                f"provided before calling the fortran_string method, but "
-                f"found '{self.datatype}' and '{self.access}', respectively.")
-
         return f"arg_type({self.form}, {self.datatype}, {self.access})"
 
     @staticmethod

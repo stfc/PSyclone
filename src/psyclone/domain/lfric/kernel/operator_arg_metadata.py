@@ -48,14 +48,13 @@ class OperatorArgMetadata(ScalarArgMetadata):
     '''Class to capture LFRic kernel metadata information for an operator
     argument.
 
-    :param Optional[str] datatype: the datatype of this operator \
-        (GH_INTEGER, ...).
-    :param Optional[str] access: the way the kernel accesses this \
-        operator (GH_WRITE, ...).
-    :param Optional[str] function_space_to: the function space that \
-        this operator maps to (W0, ...).
-    :param Optional[str] function_space_from: the function space that \
-        this operator maps from (W0, ...).
+    :param str datatype: the datatype of this operator (GH_INTEGER, ...).
+    :param str access: the way the kernel accesses this operator \
+        (GH_WRITE, ...).
+    :param str function_space_to: the function space that this operator \
+        maps to (W0, ...).
+    :param str function_space_from: the function space that this \
+        operator maps from (W0, ...).
 
     '''
     # The name used to specify an operator argument in LFRic metadata.
@@ -71,15 +70,11 @@ class OperatorArgMetadata(ScalarArgMetadata):
     function_space_to_arg_index = 3
     function_space_from_arg_index = 4
 
-    def __init__(self, datatype=None, access=None, function_space_to=None,
-                 function_space_from=None):
+    def __init__(self, datatype, access, function_space_to,
+                 function_space_from):
         super().__init__(datatype, access)
-        self._function_space_to = None
-        self._function_space_from = None
-        if function_space_to is not None:
-            self.function_space_to = function_space_to
-        if function_space_from is not None:
-            self.function_space_from = function_space_from
+        self.function_space_to = function_space_to
+        self.function_space_from = function_space_from
 
     @staticmethod
     def create_from_fparser2(fparser2_tree):
@@ -109,23 +104,10 @@ class OperatorArgMetadata(ScalarArgMetadata):
             datatype, access, function_space_to, function_space_from)
 
     def fortran_string(self):
-        ''':returns: the metadata represented by this class as Fortran.
-        :rtype: str
-
-        :raises ValueError: if one or more of the datatype, access, \
-            function_space_to or function_space_from values have not \
-            been set.
-
         '''
-        if not (self.datatype and self.access and self.function_space_to and
-                self.function_space_from):
-            raise ValueError(
-                f"Values for datatype, access, function_space_to and "
-                f"function_space_from must be provided before calling the "
-                f"fortran_string method, but found '{self.datatype}', "
-                f"'{self.access}', '{self.function_space_to}' and "
-                f"'{self.function_space_from}', respectively.")
-
+        :returns: the metadata represented by this class as Fortran.
+        :rtype: str
+        '''
         return (f"arg_type({self.form}, {self.datatype}, {self.access}, "
                 f"{self.function_space_to}, {self.function_space_from})")
 

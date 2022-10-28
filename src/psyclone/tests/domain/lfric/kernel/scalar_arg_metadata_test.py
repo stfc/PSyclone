@@ -42,60 +42,14 @@ from fparser.two import Fortran2003
 
 from psyclone.domain.lfric.kernel.scalar_arg_metadata import ScalarArgMetadata
 
-
-def test_init_noargs():
-    '''Test that a ScalarArgMetadata instance can be created successfully
-    when no arguments are provided.
-
-    '''
-    field_arg = ScalarArgMetadata()
-    assert isinstance(field_arg, ScalarArgMetadata)
-    assert field_arg.form == "GH_SCALAR"
-    assert field_arg._datatype is None
-    assert field_arg._access is None
-
-
-def test_init_invalid():
-    '''Test that appropriate exceptions are raised if invalid initial
-    values are provided when constructing an instance of the ScalarArgMetadata
-    class.
-
-    '''
-    with pytest.raises(ValueError) as info:
-        _ = ScalarArgMetadata(datatype="invalid")
-    assert ("The datatype descriptor value should be one of ['gh_real', "
-            "'gh_integer', 'gh_logical'], but found 'invalid'."
-            in str(info.value))
-
-    with pytest.raises(ValueError) as info:
-        _ = ScalarArgMetadata(access="invalid")
-    assert ("The access descriptor value should be one of ['gh_read'], but "
-            "found 'invalid'." in str(info.value))
-
-
-def test_init_args():
-    '''Test that valid initial values provided when constructing an
-    instance of ScalarArgMetadata are stored as expected.
+    
+def test_create():
+    '''Test that an instance of ScalarArgMetadata can be created
+    successfully.
 
     '''
     field_arg = ScalarArgMetadata("GH_REAL", "GH_READ")
-    assert field_arg.form == "GH_SCALAR"
-    assert field_arg._datatype == "GH_REAL"
-    assert field_arg._access == "GH_READ"
-
-
-def test_create_from_fortran_string():
-    '''Test that the create_from_fortran_string static method works as
-    expected. Test for exceptions as well as valid input.
-
-    '''
-    with pytest.raises(ValueError) as info:
-        _ = ScalarArgMetadata.create_from_fortran_string("not valid")
-    assert ("Expected kernel metadata to be a Fortran Part_Ref, but found "
-            "'not valid'." in str(info.value))
-
-    fortran_string = "arg_type(GH_SCALAR, GH_REAL, GH_READ)"
-    field_arg = ScalarArgMetadata.create_from_fortran_string(fortran_string)
+    assert isinstance(field_arg, ScalarArgMetadata)
     assert field_arg.form == "GH_SCALAR"
     assert field_arg._datatype == "GH_REAL"
     assert field_arg._access == "GH_READ"
@@ -103,7 +57,8 @@ def test_create_from_fortran_string():
 
 def test_create_from_fparser2():
     '''Test that the create_from_fparser2 static method works as
-    expected. Test for exceptions as well as valid input.
+    expected. Test that all relevant check and get methods are called
+    by raising exceptions within them, as well as checking for valid input.
 
     '''
     with pytest.raises(TypeError) as info:
@@ -161,47 +116,28 @@ def test_create_from_fparser2():
 
 
 def test_fortran_string():
-    '''Test that the fortran_string method works as expected, including
-    raise an exception if all of the required properties have not been
-    set '''
+    '''Test that the fortran_string method works as expected.'''
+
     fortran_string = "arg_type(GH_SCALAR, GH_REAL, GH_READ)"
     field_arg = ScalarArgMetadata.create_from_fortran_string(fortran_string)
     result = field_arg.fortran_string()
     assert result == fortran_string
 
-    field_arg = ScalarArgMetadata()
+
+def test_check_datatype():
+    '''Test the check_datatype method works as expected.'''
+    ScalarArgMetadata.check_datatype("GH_REAL")
     with pytest.raises(ValueError) as info:
-        _ = field_arg.fortran_string()
-    assert ("Values for datatype and access must be provided "
-            "before calling the fortran_string method, but found 'None' "
-            "and 'None', respectively." in str(info.value))
-
-
-def test_setter_getter():
-    '''Test that the setters and getters work as expected, including
-    raising exceptions if values are invalid. '''
-    field_arg = ScalarArgMetadata()
-    assert field_arg.form == "GH_SCALAR"
-
-    assert field_arg.datatype is None
-    with pytest.raises(ValueError) as info:
-        field_arg.datatype = "invalid"
+        ScalarArgMetadata.check_datatype("invalid")
     assert ("The datatype descriptor value should be one of ['gh_real', "
             "'gh_integer', 'gh_logical'], but found 'invalid'."
             in str(info.value))
 
-    field_arg.datatype = "gh_integer"
-    assert field_arg.datatype == "gh_integer"
-    field_arg.datatype = "GH_INTEGER"
-    assert field_arg.datatype == "GH_INTEGER"
 
-    assert field_arg.access is None
+def test_check_access():
+    '''Test the check_access method works as expected.'''
+    ScalarArgMetadata.check_access("GH_READ")
     with pytest.raises(ValueError) as info:
-        field_arg.access = "invalid"
-    assert ("The access descriptor value should be one of ['gh_read'], but "
-            "found 'invalid'." in str(info.value))
-
-    field_arg.access = "gh_read"
-    assert field_arg.access == "gh_read"
-    field_arg.access = "GH_READ"
-    assert field_arg.access == "GH_READ"
+        ScalarArgMetadata.check_access("invalid")
+    assert ("The access descriptor value should be one of ['gh_read'], "
+            "but found 'invalid'." in str(info.value))
