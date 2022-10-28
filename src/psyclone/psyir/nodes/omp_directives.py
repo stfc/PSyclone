@@ -450,7 +450,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                         BinaryOperation.create(
                             BinaryOperation.BinaryOp.ADD,
                             start.copy(),
-                            Literal(f"{val}", INT_TYPE))
+                            Literal(f"{val}", INT_TYPE)))
             return output_list
         if step is None:
             # FIXME result for an assignment - does this make sense for sure?
