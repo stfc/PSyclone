@@ -43,6 +43,8 @@ nodes.'''
 
 
 import abc
+import itertools
+import sys
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType, VariablesAccessInfo
@@ -229,6 +231,684 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
     OpenMP SINGLE or OpenMP Master.
 
     '''
+
+    def _compare_literals(self, lit1, lit2):
+        # Check lit2 is a Literal
+        if not isinstance(lit2, Literal):
+            raise GenerationError("Literal index to dependency has calculated "
+                                  "dependency to a non-Literal index, which is"
+                                  " not currently supported in PSyclone.")
+        # If literals are not the same its fine, since a(1) is not a dependency
+        # to a(2), so as long as both are Literals this is ok.
+
+    def _compare_ranges(self, range1, range2):
+        # Check range2 is a Range
+        if not isinstance(range2, Range):
+            raise GenerationError("Range index to a dependency has calculated "
+                                  "dependency to a non-Range index, which is "
+                                  "not currently supported in PSyclone.")
+
+        # Both ranges need to be full ranges, i.e. start is BinaryOperation
+        # with operator LBOUND, stop is BinaryOperation with operator UBOUND
+        # step is Literal of value 1.
+        fullrange1 = (range1.start.operator == BinaryOperation.Operator.LBOUND)
+        fullrange1 = (fullrange1 and
+                      range1.stop.operator == BinaryOperation.Operator.UBOUND)
+        fullrange1 = (fullrange1 and
+                      isinstance(range1.step, Literal) and
+                      range1.step.value == "1")
+
+        fullrange2 = (range2.start.operator == BinaryOperation.Operator.LBOUND)
+        fullrange2 = (fullrange2 and
+                      range2.stop.operator == BinaryOperation.Operator.UBOUND)
+        fullrange2 = (fullrange2 and
+                      isinstance(range2.step, Literal) and
+                      range2.step.value == "1")
+
+        if not (fullrange1 and fullrange2):
+            raise GenerationError("Found a range index between dependencies "
+                                  "which does not cover the full array range, "
+                                  "which is not currently supported in "
+                                  "PSyclone (due to OpenMP limitations).")
+
+    def _compute_accesses(self, ref, preceding_nodes, task):
+        if isinstance(ref, Reference):
+            symbol = ref.symbol
+        else:
+            # Get the symbol out of the Binop, and store some other
+            # important information
+            if isinstance(ref.children[0], Literal):
+                if ref.operator == BinaryOperation.Operator.ADD:
+                    symbol = ref.children[1].symbol
+                    binop_val = int(ref.children[0].value)
+                    num_entries = 2
+                else:
+                    raise GenerationError("Found a dependency index that is "
+                                          "a BinaryOperation where the "
+                                          "format is Literal OP Reference "
+                                          "with a non-ADD operand "
+                                          "which is not supported.")
+            elif isinstance(ref.children[1], Literal):
+                if ref.operator == BinaryOperation.Operator.ADD:
+                    symbol = ref.children[0].symbol
+                    binop_val = int(ref.children[1].value)
+                    num_entries = 2
+                elif ref.operator == BinaryOperation.Operator.SUB:
+                    symbol = ref.children[0].symbol
+                    binop_val = 0-(int(ref.children[1].value))
+                    num_entries = 2
+                else:
+                    raise GenerationError("Found a dependency index that is "
+                                          "a BinaryOperation where the "
+                                          "Operator is neither ADD not SUB "
+                                          "which is not supported.")
+
+            elif isinstance(ref.children[0], BinaryOperation):
+                if ref.operator == BinaryOperation.Operator.ADD:
+                    symbol = ref.children[1].symbol
+                    binop = ref.children[0]
+                    if binop.operator != BinaryOpeartion.Operator.MUL:
+                        raise GenerationError(
+                                "Found a dependency index that is a "
+                                "BinaryOperation with a child "
+                                "BinaryOperation with a non-MUL operand "
+                                "which is not supported.")
+                    # These binary operations are format of Literal MUL Literal
+                    # where step_val is the 2nd literal and the multiplier
+                    # is the first literal
+                    if (not (isinstance(binop.children[0], Literal) and
+                             isinstance(binop.children[1], Literal))):
+                        raise GenerationError(
+                                "Found a dependency index that is a "
+                                "BinaryOperation with a child "
+                                "BinaryOperation with a non-Literal child "
+                                "which is not supported.")
+                    binop_val = int(binop.children[1].value)
+                    num_entries = int(binop.children[0].value)+1
+                else:
+                    raise GenerationError("Found a dependency index that is "
+                                          "a BinaryOperation where the "
+                                          "format is BinaryOpeartor OP "
+                                          "Reference with a non-ADD operand "
+                                          "which is not supported.")
+            elif isinstance(ref.children[1], BinaryOperation):
+                if ref.operator == BinaryOperation.Operator.ADD:
+                    symbol = ref.children[0].symbol
+                    binop = ref.children[1]
+                    if binop.operator != BinaryOpeartion.Operator.MUL:
+                        raise GenerationError(
+                                "Found a dependency index that is a "
+                                "BinaryOperation with a child "
+                                "BinaryOperation with a non-MUL operand "
+                                "which is not supported.")
+                    # These binary operations are format of Literal MUL Literal
+                    # where step_val is the 2nd literal and the multiplier
+                    # is the first literal
+                    if (not (isinstance(binop.children[0], Literal) and
+                             isinstance(binop.children[1], Literal))):
+                        raise GenerationError(
+                                "Found a dependency index that is a "
+                                "BinaryOperation with a child "
+                                "BinaryOperation with a non-Literal child "
+                                "which is not supported.")
+                    binop_val = int(binop.children[1].value)
+                    num_entries = int(binop.children[0].value)+1
+                elif ref.operator == BinaryOperation.Operator.SUB:
+                    symbol = ref.children[0].symbol
+                    binop = ref.children[1]
+                    if binop.operator != BinaryOpeartion.Operator.MUL:
+                        raise GenerationError(
+                                "Found a dependency index that is a "
+                                "BinaryOperation with a child "
+                                "BinaryOperation with a non-MUL operand "
+                                "which is not supported.")
+                    # These binary operations are format of Literal MUL Literal
+                    # where step_val is the 2nd literal and the multiplier
+                    # is the first literal
+                    if (not (isinstance(binop.children[0], Literal) and
+                             isinstance(binop.children[1], Literal))):
+                        raise GenerationError(
+                                "Found a dependency index that is a "
+                                "BinaryOperation with a child "
+                                "BinaryOperation with a non-Literal child "
+                                "which is not supported.")
+                    binop_val = -int(binop.children[1].value)
+                    num_entries = int(binop.children[0].value)+1
+                else:
+                    raise GenerationError("Found a dependency index that is "
+                                          "a BinaryOperation where the "
+                                          "format is Reference OP "
+                                          "BinaryOperation with a non-ADD, "
+                                          "non-SUB operand "
+                                          "which is not supported.")
+            else:
+                raise GenerationError("Found a dependency index that is a "
+                                      "BinaryOperation where neither child "
+                                      "is a Literal or BinaryOperation. "
+                                      "PSyclone can't validate "
+                                      "this dependency.")
+        for node in preceding_nodes:
+            # Only Assignment, Loop or Call nodes can modify the symbol in our
+            # Reference
+            if not isinstance(node, (Assignment, Loop, Call)):
+                continue
+            if isinstance(node, Call):
+                # FIXME Check if the Symbol is written to and if so then raise an
+                # error
+                assert False
+            if isinstance(node, Assignment) and node.lhs.symbol == ref.symbol:
+                # FIXME Check if this makes sense? Probably it does.
+                # Maybe only if rhs is Literal or Reference?
+                start = node.rhs.copy()
+            if isinstance(node, Loop) and node.variable == ref.symbol:
+                # If the loop is not an ancestor of the task then
+                # we don't currently support it.
+                ancestor_loop = task.ancestor(Loop, limit=self)
+                is_ancestor = False
+                while ancestor_loop is not None:
+                    if ancestor_loop == node:
+                        is_ancestor = True
+                        break
+                if not is_ancestor:
+                    raise GenerationError("Found an dependency index that "
+                                          "was updated as a Loop variable "
+                                          "that is not an ancestor Loop of "
+                                          "the task.")
+                # It has to be an ancestor loop, so we want to find the start,
+                # stop and step Nodes
+                start = node.start
+                stop = node.stop
+                step = node.step
+
+        # FIXME If ref is a binop we need to do something special too.
+        if isinstance(ref, BinaryOperation):
+            output_list = []
+            if step is None:
+                assert False
+            # FIXME Implement me.
+            if not isinstance(step, Literal):
+                raise GenerationError("Found a dependency index that is a "
+                                      "Loop variable with a non-Literal step "
+                                      "which we can't resolve in PSyclone.")
+            if (isinstance(start, Literal) and isinstance(stop, Literal)):
+                startval = int(start.value)
+                stopval = int(stop.value)
+                stepval = int(step.value)
+                for i in range(startval, stopval, stepval):
+                    x = i + binop_val
+                    output_list.append(Literal(f"{x}", INT_TYPE))
+                return output_list
+
+            first_val = BinaryOperation.create(
+                    BinaryOperation.BinaryOp.ADD,
+                    start.copy(),
+                    Literal(f"{binop_val}", INT_TYPE))
+            output_list.append(first_val)
+            for i in range(num_entries):
+                val = binop_val + i * step
+                output_list.append(
+                        BinaryOperation.create(
+                            BinaryOperation.BinaryOp.ADD,
+                            start.copy(),
+                            Literal(f"{val}", INT_TYPE))
+            return output_list
+        if step is None:
+            # FIXME result for an assignment - does this make sense for sure?
+            output_list = [start]
+            return output_list
+        else:
+            output_list = []
+            # If step is not a Literal then we probably can't resolve this
+            if not isinstance(step, Literal):
+                raise GenerationError("Found a dependency index that is a "
+                                      "Loop variable with a non-Literal step "
+                                      "which we can't resolve in PSyclone.")
+            # Special case when all are Literals
+            if (isinstance(start, Literal) and isinstance(stop, Literal)):
+                # FIXME Fill the output list with all values from start to stop
+                # incremented by step
+                startval = int(start.value)
+                stopval = int(stop.value)
+                stepval = int(step.value)
+                for i in range(startval, stopval, stepval):
+                    output_list.append(Literal(f"{i}", INT_TYPE))
+                return output_list
+
+            # If ref is a reference then we generate the first two values of
+            # the sequence only.
+            output_list.append(start.copy())
+            second_val = BinaryOperation.create(
+                    BinaryOperation.Operator.ADD,
+                    start.copy(),
+                    step.copy())
+            output_list.append(second_val)
+            return output_list
+
+    def _compare_ref_binop(self, ref1, ref2, task1, task2):
+        # In this case we have two Reference/BinaryOperation as indices.
+        # We need to attempt to find their value set and check the value
+        # set matches.
+
+        # Find all the nodes before these tasks
+        preceding_t1 = task1.preceding(reverse=True)
+        preceding_t2 = task2.preceding(reverse=True)
+        ref1_accesses = self._compute_accesses(ref1, preceding_t1, task1)
+        ref2_accesses = self._compute_accesses(ref2, preceding_t2, task2)
+        # FIXME How do we resolve accesses.
+
+        # If the first access in each accesses contains a Reference we 
+        # should check that both are to the same symbol
+        ref1_ref = ref1_accesses[0].walk(Reference)
+        ref2_ref = ref2_accesses[0].walk(Reference)
+        if len(ref1_ref) > 0 and len(ref2_ref) == 0:
+            # Raise error
+            assert False
+        if len(ref1_ref) == 0 and len(ref2_ref) > 0:
+            # Raise error
+            assert False
+        if ref1_ref[0] != ref2_ref:
+            # Raise error
+            assert False
+
+        from psyclone.psyir.backend.sympy_writer import SymPyWriter
+        # Now we know if there is a Reference, both are too the same Reference
+        if len(ref1_ref) > 0:
+            pass
+            # Handle reference case
+            values = []
+            for member in ref1_ref:
+                # If its a reference only we can ignore it as we know both
+                # feature the Reference.
+                if isinstance(member, Reference):
+                    continue
+                # We know its a BinaryOperation of the Reference and something.
+                # Take the second child of the BinaryOperation to compute
+                values.append(member.children[1])
+            sympy_ref1s = SymPyWriter.convert_to_sympy_expressions(values)
+
+            r1_min = sys.maxsize
+            r1_max = 0
+            values = []
+            for member in sympy_ref1s:
+                val = int(member)
+                values.append(val)
+                if val < r1_min:
+                    r1_min = val
+                if val > r1_max:
+                    r1_max = val
+
+            val2s = []
+            for member in ref2_ref:
+                # If its a reference only we can ignore it as we know both
+                # feature the Reference.
+                if isinstance(member, Reference):
+                    continue
+                # We know its a BinaryOperation of the Reference and something.
+                # Take the second child of the BinaryOperation to compute
+                val2s.append(member.children[1])
+
+            sympy_ref2s = SymPyWriter.convert_to_sympy_expressions(val2s)
+            for member in sympy_ref2s:
+                # If the value is between min and max of r1 then we check that
+                # the value is in the values list
+                val = int(member)
+                if val >= r1_min and val <= r1_max:
+                    if val not in values:
+                        # raise Error
+                        assert False
+        else:
+            # Handle no Reference case
+            # Find the min and max values of the first reference accesses
+            r1_min = sys.maxsize
+            r1_max = 0
+            # Convert the expressions to a sympy expression
+            sympy_ref1s = SymPyWriter.convert_to_sympy_expressions(ref1_ref)
+            values = []
+            for member in sympy_ref1s:
+                # Since we were all literals, the SymPyWriter converts this
+                # to a single value.
+                val = int(member)
+                values.append(val)
+                if val < r1_min:
+                    r1_min = val
+                if val > r1_max:
+                    r1_max = val
+
+            sympy_ref2s = SymPyWriter.convert_to_sympy_expressions(sympy_ref2s)
+            for member in sympy_ref2s:
+                # If the value is between min and max of r1 then we check that
+                # the value is in the values list
+                val = int(member)
+                if val >= r1_min and val <= r1_max:
+                    if val not in values:
+                        # raise Error
+                        assert False
+
+
+
+        assert False
+
+    def _check_task_dependencies(self):
+        '''
+            TODO
+        '''
+        from psyclone.psyir.nodes.omp_task_directive import OMPTaskDirective
+        tasks = self.walk(OMPTaskDirective)
+        # For now we disallow Tasks and Taskloop directives in the same Serial
+        # Region
+        if len(tasks) > 0 and len(self.walk(OMPTaskloopDirective)) > 0:
+            raise GenerationError("OMPTaskDirectives and OMPTaskloopDirectives"
+                                  " are not currently supported inside the "
+                                  "same parent serial region.")
+
+        # Also this doesn't work if there are Taskwaits for now
+        if len(tasks) > 0 and len(self.walk(OMPTaskwaitDirective)) > 0:
+            raise GenerationError("TODO Message")
+
+        pairs = itertools.combinations(tasks, 2)
+        for pair in pairs:
+            task1 = pair[0]
+            task2 = pair[1]
+
+            # Find all References in each tasks' depend clauses
+            # Should we cache these instead?
+            task1_in = task1.children[4].walk(Reference)
+            task1_out = task1.children[5].walk(Reference)
+
+            task2_in = task2.children[4].walk(Reference)
+            task2_out = task2.children[5].walk(Reference)
+
+            inout = itertools.product(task1_in, task2_out)
+            outin = itertools.product(task1_out, task2_in)
+            outout = itertools.product(task1_out, task2_out)
+
+            for mem in inout:
+                # Checking the symbol is the same works for non-structure
+                # References
+                if mem[0].symbol != mem[1].symbol:
+                    continue
+                # FIXME Can two Reference objects to the same
+                # symbol be different types?
+                # For structure reference we need to check they access
+                # the same member
+                if isinstance(mem[0], StructureReference):
+                    member = mem[0]
+                    member1 = mem[1]
+                    # We can't just do == on the Member child, as that
+                    # will recurse and check the array indices for any
+                    # ArrayMixin children
+                    while member.member is not None:
+                        member = member.member
+                        member1 = member1.member
+                        if member.name != member1.name:
+                            continue
+
+                # If we have (exactly) Reference objects we filter out
+                # non-matching ones with the symbol check, and matching ones
+                # are always valid since they are simple accesses.
+
+                # If we have a StructureReference with no ArrayMixin children
+                # then we can skip it, as it will be done
+                if isinstance(mem[0], StructureReference):
+                    if len(mem[0].walk(ArrayMixin)) == 0:
+                        continue
+
+                # All remaining objects are some sort of Array access
+                array1 = None
+                array2 = None
+                if isinstance(mem[0], ArrayReference):
+                    array1 = mem[0]
+                    array2 = mem[1]
+                else:
+                    # FIXME remove this check
+                    assert isinstance(mem[0], StructureReference)
+                    array1 = mem[0].walk(ArrayMixin)[0]
+                    array2 = mem[1].walk(ArrayMixin)[0]
+
+                for i, index in enumerate(array1.indices):
+                    if isinstance(index, Literal):
+                        self._compare_literals(index, array2.indices[i])
+                    elif isinstance(index, Range):
+                        self._compare_ranges(index, array2.indices[i])
+                    else:
+                        # The only remaining option is that the indices are
+                        # References or BinaryOperations
+                        self._compare_ref_binop(index, array2.indices[i], task1, task2)
+                    pass
+
+            for mem in outin:
+                if mem[0].symbol != mem[1].symbol:
+                    continue
+                pass
+
+            for mem in outout:
+                if mem[0].symbol != mem[1].symbol:
+                    continue
+                pass
+
+
+            assert False
+            array_product = itertools.product(task1_arrays, task2_arrays)
+            for product in array_product:
+                if product[0].symbol == product[1].symbol:
+                    # Need to compare indices in this case as we have two
+                    # dependencies on the same Array.
+                    # We know they have the same number of indices by
+                    # construction.
+                    for i, index in enumerate(product[0].indices):
+                        index2 = product[1].indices[i]
+                        # If they're not the same type (e.g. Reference
+                        # vs Literal) then we can't handle it for now.
+
+                        # FIXME This isn't quite correct. We can have 
+                        # Reference and Binop be comparable and ok. 
+                        if type(index) != type(index2):
+                            raise GenerationError("TODO Message")
+                        # If literal we can just check equality
+                        if (isinstance(index, Literal) and
+                                index != index2):
+                            raise GenerationError("TODO Message")
+
+                        # If they're both full ranges we can say its ok.
+                        if isinstance(index, Range):
+                            # Check they're both full ranges
+                            one = Literal("1", INT_TYPE)
+                            valid = isinstance(index1.children[0],
+                                               BinaryOperation)
+                            valid = valid and (index1.children[0].operator
+                                               == BinaryOperation.Operator.
+                                               LBOUND)
+                            valid = valid and isinstance(index1.children[1],
+                                                         BinaryOperation)
+                            valid = valid and (index1.children[1].operator
+                                               == BinaryOperation.Operator.
+                                               UBOUND)
+                            valid = valid and index1.children[2] == one
+                            valid = valid and isinstance(index2.children[0],
+                                                         BinaryOperation)
+                            valid = valid and (index2.children[0].operator
+                                               == BinaryOperation.Operator.
+                                               LBOUND)
+                            valid = valid and isinstance(index2.children[1],
+                                                         BinaryOperation)
+                            valid = valid and (index2.children[1].operator
+                                               == BinaryOperation.Operator.
+                                               UBOUND)
+                            valid = valid and index2.children[2] == one
+
+                            if not valid:
+                                raise GenerationError(
+                                        "Found incompatible Range operators "
+                                        "in task dependencies.")
+                            
+
+                        # If they're both references we have to
+                        # try to work out the value...
+                        if isinstance(index, Reference):
+                            # Find all the nodes before this task
+                            preceding_t1 = task1.preceding(reverse=True)
+                            preceding_t2 = task2.preceding(reverse=True)
+                            ref2_value = None
+                            ref2_step = None
+                            ref1_value = None
+                            ref1_step = None
+                            for node in preceding_t2:
+                                # If we hit task1 before writing to the symbol
+                                # then we can stop
+                                if node == task1:
+                                    break
+                                # If the node can't write to the symbol we can
+                                # skip it
+                                if not isinstance(node, (Assignment, Loop, Call)):
+                                    continue
+                                if isinstance(node, Call):
+                                    # Check if the Symbol is written to and
+                                    # if so then raise an error
+                                    assert False
+                                if (isinstance(node, Assignment) and 
+                                        node.lhs.symbol == product[0].symbol):
+                                    if not isinstance(node.rhs, Literal):
+                                        raise GenerationError(
+                                                "Couldn't compute the value "
+                                                "of a dependent reference ")
+                                    ref2_value = node.rhs
+                                if (isinstance(node, Loop) and node.variable
+                                        == product[0].symbol):
+                                    # TODO
+                                    # If the loop is an ancestor of the task
+                                    # then we do something special
+                                    ancestor_loop = task2.ancestor(Loop,
+                                            limit=self)
+                                    while ancestor_loop is not None:
+                                        if ancestor_loop == node:
+                                            break
+                                        ancestor_loop = ancestor_loop.ancestor(
+                                                Loop, limit=self)
+                                    if ancestor_loop is not None:
+                                        # The loop is an ancestor
+                                        # If the loop is an ancestor then we
+                                        # store the start value and the step
+                                        # value
+                                        start_val = node.start_expr
+                                        step_val = node.step_expr
+                                        if (not isinstance(start_val, Literal)
+                                            or not 
+                                            isinstance(step_val, Literal)):
+                                            raise GenerationError(
+                                            "Couldn't compute the value of a "
+                                            "dependent reference.")
+                                        ref2_value = node.start_expr
+                                        ref2_step = node.step_expr
+                                    else:
+                                        # The loop is not an ancestor
+                                        # Use the final value
+                                        stop_val = node.stop_expr
+                                        step_val = node.step_expr
+                                        if (not isinstance(stop_val, Literal)
+                                            or not 
+                                            isinstance(step_val, Literal)):
+                                            raise GenerationError(
+                                            "Couldn't compute the value of a "
+                                            "dependent reference.")
+                                        # Assuming this is an int for now
+                                        val = (int(stop_val.value) 
+                                                + int(step_val.value))
+                                        ref2_value = Literal(val, INT_TYPE)
+
+                            if ref2_value is None:
+                                # If we didn't set ref2 value then they have
+                                # the same value as we found task1
+                                continue
+                            for node in preceding_t1:
+                                # If we hit the serial region before writing to
+                                # the symbol then we can stop
+                                if node == self:
+                                    break
+                                # If the node can't write to the symbol we can
+                                # skip it
+                                if not isinstance(node, (Assignment, Loop, Call)):
+                                    continue
+                                if isinstance(node, Call):
+                                    # Check if the Symbol is written to and
+                                    # if so then raise an error
+                                    assert False
+                                if (isinstance(node, Assignment) and 
+                                        node.lhs.symbol == product[0].symbol):
+                                    if not isinstance(node.rhs, Literal):
+                                        raise GenerationError(
+                                                "Couldn't compute the value "
+                                                "of a dependent reference ")
+                                    ref1_value = node.rhs
+                                if (isinstance(node, Loop) and node.variable
+                                        == product[0].symbol):
+                                    # TODO
+                                    # If the loop is an ancestor of the task
+                                    # then we do something special
+                                    ancestor_loop = task1.ancestor(Loop,
+                                            limit=self)
+                                    while ancestor_loop is not None:
+                                        if ancestor_loop == node:
+                                            break
+                                        ancestor_loop = ancestor_loop.ancestor(
+                                                Loop, limit=self)
+                                    if ancestor_loop is not None:
+                                        # The loop is an ancestor
+                                        # If the loop is an ancestor then we
+                                        # store the start value and the step
+                                        # value
+                                        start_val = node.start_expr
+                                        step_val = node.step_expr
+                                        if (not isinstance(start_val, Literal)
+                                            or not 
+                                            isinstance(step_val, Literal)):
+                                            raise GenerationError(
+                                            "Couldn't compute the value of a "
+                                            "dependent reference.")
+                                        ref1_value = node.start_expr
+                                        ref1_step = node.step_expr
+                                    else:
+                                        # The loop is not an ancestor
+                                        # Use the final value
+                                        stop_val = node.stop_expr
+                                        step_val = node.step_expr
+                                        if (not isinstance(stop_val, Literal)
+                                            or not 
+                                            isinstance(step_val, Literal)):
+                                            raise GenerationError(
+                                            "Couldn't compute the value of a "
+                                            "dependent reference.")
+                                        # Assuming this is an int for now
+                                        val = (int(stop_val.value) 
+                                                + int(step_val.value))
+                                        ref1_value = Literal(val, INT_TYPE)
+
+                            # Computed the values now, need to check their validity.
+                            if ref1_value != ref2_value:
+                                raise GenerationError(
+                                        "Found unsolvable dependency between "
+                                        "OpenMP tasks")
+                            if (ref1_step is not None and 
+                                ref1_step != ref2_step):
+                                raise GenerationError(
+                                        "Found unsolvable dependency between "
+                                        "OpenMP tasks")
+
+                            # Otherwise we have a valid dependency, carry on.
+
+                        # If they're both binary operations then
+                        # god help me.
+                        if isinstance(index, BinaryOperation):
+                            assert False
+                    assert False
+                
+        assert True
+
+    def lower_to_language_level(self):
+        # Perform parent ops
+        super().lower_to_language_level()
+
+        # Check task dependencies are satisfiable.
+        self._check_task_dependencies()
 
     def validate_global_constraints(self):
         '''
