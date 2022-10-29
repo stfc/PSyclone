@@ -44,66 +44,14 @@ from psyclone.domain.lfric.kernel.inter_grid_vector_arg_metadata import \
     InterGridVectorArgMetadata
 
 
-def test_init_noargs():
-    '''Test that an InterGridVectorArgMetadata instance can be created
-    successfully when no arguments are provided.
-
-    '''
-    inter_grid_arg = InterGridVectorArgMetadata()
-    assert isinstance(inter_grid_arg, InterGridVectorArgMetadata)
-    assert inter_grid_arg.form == "GH_FIELD"
-    assert inter_grid_arg._datatype is None
-    assert inter_grid_arg._access is None
-    assert inter_grid_arg._function_space is None
-    assert inter_grid_arg._mesh_arg is None
-    assert inter_grid_arg._vector_length is None
-
-
-def test_init_invalid():
-    '''Test that appropriate exceptions are raised if invalid initial
-    values are provided when constructing an instance of the
-    InterGridVectorArgMetadata class.
-
-    '''
-    with pytest.raises(ValueError) as info:
-        _ = InterGridVectorArgMetadata(datatype="invalid")
-    assert ("The datatype descriptor value should be one of ['gh_real', "
-            "'gh_integer'], but found 'invalid'." in str(info.value))
-
-    with pytest.raises(ValueError) as info:
-        _ = InterGridVectorArgMetadata(access="invalid")
-    assert ("The access descriptor value should be one of ['gh_read', "
-            "'gh_write', 'gh_readwrite', 'gh_inc', 'gh_readinc'], but found "
-            "'invalid'." in str(info.value))
-
-    with pytest.raises(ValueError) as info:
-        _ = InterGridVectorArgMetadata(function_space="invalid")
-    assert ("The function space value should be one of ['w3', 'wtheta', "
-            "'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', "
-            "'w2h', 'w2htrace', 'any_w2', 'wchi', 'any_space_1', "
-            "'any_space_2', 'any_space_3', 'any_space_4', 'any_space_5', "
-            "'any_space_6', 'any_space_7', 'any_space_8', 'any_space_9', "
-            "'any_space_10', 'any_discontinuous_space_1', "
-            "'any_discontinuous_space_2', 'any_discontinuous_space_3', "
-            "'any_discontinuous_space_4', 'any_discontinuous_space_5', "
-            "'any_discontinuous_space_6', 'any_discontinuous_space_7', "
-            "'any_discontinuous_space_8', 'any_discontinuous_space_9', "
-            "'any_discontinuous_space_10'], but found 'invalid'."
-            in str(info.value))
-
-    with pytest.raises(ValueError) as info:
-        _ = InterGridVectorArgMetadata(mesh_arg="invalid")
-    assert ("The mesh_arg value should be one of ['gh_coarse', 'gh_fine'], "
-            "but found 'invalid'." in str(info.value))
-
-
-def test_init_args():
-    '''Test that valid initial values provided when constructing an
-    instance of InterGridVectorArgMetadata are stored as expected.
+def test_create():
+    '''Test that an instance of InterGridVectorArgMetadata can be created
+    successfully.
 
     '''
     inter_grid_arg = InterGridVectorArgMetadata(
         "GH_REAL", "GH_READ", "W0", "GH_FINE", "3")
+    assert isinstance(inter_grid_arg, InterGridVectorArgMetadata)
     assert inter_grid_arg.form == "GH_FIELD"
     assert inter_grid_arg._datatype == "GH_REAL"
     assert inter_grid_arg._access == "GH_READ"
@@ -112,31 +60,23 @@ def test_init_args():
     assert inter_grid_arg._vector_length == "3"
 
 
-def test_create_from_fortran_string():
-    '''Test that the create_from_fortran_string static method works as
-    expected. Test for exceptions as well as valid input.
+def test_init_invalid():
+    '''Test that an invalid vector length supplied to the constructor
+    raises the expected exception.
 
     '''
-    with pytest.raises(ValueError) as info:
-        _ = InterGridVectorArgMetadata.create_from_fortran_string("not valid")
-    assert ("Expected kernel metadata to be a Fortran Structure_Constructor, "
-            "but found 'not valid'." in str(info.value))
-
-    fortran_string = ("arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0, "
-                      "mesh_arg=GH_COARSE)")
-    inter_grid_arg = InterGridVectorArgMetadata.create_from_fortran_string(
-        fortran_string)
-    assert inter_grid_arg.form == "GH_FIELD"
-    assert inter_grid_arg._datatype == "GH_REAL"
-    assert inter_grid_arg._access == "GH_READ"
-    assert inter_grid_arg._function_space == "W0"
-    assert inter_grid_arg._mesh_arg == "GH_COARSE"
-    assert inter_grid_arg._vector_length == "3"
+    with pytest.raises(TypeError) as info:
+        _ = InterGridVectorArgMetadata(
+            "GH_REAL", "GH_READ", "W0", "GH_FINE", 3)
+    assert ("The vector size should be a string but found int."
+            in str(info.value))
 
 
 def test_create_from_fparser2():
     '''Test that the create_from_fparser2 static method works as
-    expected. Test for exceptions as well as valid input.
+    expected. Test that all relevant check and get methods are called
+    by raising exceptions within them, as well as checking for valid
+    input.
 
     '''
     with pytest.raises(TypeError) as info:
@@ -250,9 +190,8 @@ def test_create_from_fparser2():
 
 
 def test_fortran_string():
-    '''Test that the fortran_string method works as expected, including
-    raise an exception if all of the required properties have not been
-    set '''
+    '''Test that the fortran_string method works as expected.'''
+
     fortran_string = ("arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0, "
                       "mesh_arg=GH_FINE)")
     inter_grid_arg = InterGridVectorArgMetadata.create_from_fortran_string(
@@ -260,39 +199,24 @@ def test_fortran_string():
     result = inter_grid_arg.fortran_string()
     assert result == fortran_string
 
-    inter_grid_arg = InterGridVectorArgMetadata()
-    with pytest.raises(ValueError) as info:
-        _ = inter_grid_arg.fortran_string()
-    assert ("Values for datatype, access, function_space, mesh_arg and "
-            "vector_length must be provided before calling the "
-            "fortran_string method, but found 'None', 'None', 'None', "
-            "'None' and 'None', respectively." in str(info.value))
 
+def test_vector_length_setter_getter():
+    '''Test that the vector length setter and getter work as expected,
+    including raising an exception if the value is invalid.
 
-def test_setter_getter():
-    '''Test that the setters and getters work as expected, including
-    raising exceptions if values are invalid. '''
-    inter_grid_arg = InterGridVectorArgMetadata()
-    assert inter_grid_arg.form == "GH_FIELD"
+    '''
+    inter_grid_arg = InterGridVectorArgMetadata(
+        "GH_REAL", "GH_READ", "W0", "GH_FINE", "3")
 
     with pytest.raises(ValueError) as info:
-        inter_grid_arg.mesh_arg = "invalid"
-    assert ("The mesh_arg value should be one of ['gh_coarse', 'gh_fine'], "
+        inter_grid_arg.vector_length = "invalid"
+    assert ("The vector size should be a string containing an integer, "
             "but found 'invalid'." in str(info.value))
 
-    inter_grid_arg.mesh_arg = "GH_COARSE"
-    assert inter_grid_arg.mesh_arg == "GH_COARSE"
-    inter_grid_arg.mesh_arg = "GH_FINE"
-    assert inter_grid_arg.mesh_arg == "GH_FINE"
-
-    assert inter_grid_arg.vector_length is None
-    with pytest.raises(TypeError) as info:
-        inter_grid_arg.vector_length = 3
-    assert ("The vector size should be a string but found int."
-            in str(info.value))
     with pytest.raises(ValueError) as info:
-        inter_grid_arg.vector_length = "0"
-    assert ("The vector size should be an integer greater than 1 but found 0."
+        inter_grid_arg.vector_length = "1"
+    assert ("The vector size should be an integer greater than 1 but found 1."
             in str(info.value))
+
     inter_grid_arg.vector_length = "3"
     assert inter_grid_arg.vector_length == "3"

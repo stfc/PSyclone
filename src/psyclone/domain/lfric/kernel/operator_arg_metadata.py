@@ -112,15 +112,6 @@ class OperatorArgMetadata(ScalarArgMetadata):
                 f"{self.function_space_to}, {self.function_space_from})")
 
     @staticmethod
-    def check_access(value):
-        '''
-        :param str value: the access descriptor to validate.
-        '''
-        const = LFRicConstants()
-        OperatorArgMetadata.check_value(
-            value, "access descriptor", const.VALID_OPERATOR_ACCESS_TYPES)
-
-    @staticmethod
     def check_datatype(value):
         '''
         :param str value: the datatype to check for validity.
@@ -128,6 +119,15 @@ class OperatorArgMetadata(ScalarArgMetadata):
         const = LFRicConstants()
         OperatorArgMetadata.check_value(
             value, "datatype descriptor", const.VALID_OPERATOR_DATA_TYPES)
+
+    @staticmethod
+    def check_access(value):
+        '''
+        :param str value: the access descriptor to validate.
+        '''
+        const = LFRicConstants()
+        OperatorArgMetadata.check_value(
+            value, "access descriptor", const.VALID_OPERATOR_ACCESS_TYPES)
 
     @property
     def function_space_to(self):

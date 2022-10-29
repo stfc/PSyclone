@@ -42,7 +42,7 @@ from fparser.two import Fortran2003
 
 from psyclone.domain.lfric.kernel.scalar_arg_metadata import ScalarArgMetadata
 
-    
+
 def test_create():
     '''Test that an instance of ScalarArgMetadata can be created
     successfully.
@@ -58,7 +58,8 @@ def test_create():
 def test_create_from_fparser2():
     '''Test that the create_from_fparser2 static method works as
     expected. Test that all relevant check and get methods are called
-    by raising exceptions within them, as well as checking for valid input.
+    by raising exceptions within them, as well as checking for valid
+    input.
 
     '''
     with pytest.raises(TypeError) as info:

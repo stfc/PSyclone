@@ -44,49 +44,14 @@ from psyclone.domain.lfric.kernel.columnwise_operator_arg_metadata import \
     ColumnwiseOperatorArgMetadata
 
 
-def test_init_noargs():
-    '''Test that an OperatorArg instance can be created successfully when no
-    arguments are provided.
-
-    '''
-    operator_arg = ColumnwiseOperatorArgMetadata()
-    assert isinstance(operator_arg, ColumnwiseOperatorArgMetadata)
-    assert operator_arg.form == "GH_COLUMNWISE_OPERATOR"
-    assert operator_arg._datatype is None
-    assert operator_arg._access is None
-    assert operator_arg._function_space_to is None
-    assert operator_arg._function_space_from is None
-
-
-def test_init_args():
-    '''Test that valid initial values provided when constructing an
-    instance of OperatorArg are stored as expected.
+def test_create():
+    '''Test that an instance of ColumnwiseOperatorArgMetadata can be
+    created successfully.
 
     '''
     operator_arg = ColumnwiseOperatorArgMetadata(
         "GH_REAL", "GH_READ", "W0", "W1")
-    assert operator_arg.form == "GH_COLUMNWISE_OPERATOR"
-    assert operator_arg._datatype == "GH_REAL"
-    assert operator_arg._access == "GH_READ"
-    assert operator_arg._function_space_to == "W0"
-    assert operator_arg._function_space_from == "W1"
-
-
-def test_create_from_fortran_string():
-    '''Test that the create_from_fortran_string static method works as
-    expected. Test for exceptions as well as valid input.
-
-    '''
-    with pytest.raises(ValueError) as info:
-        _ = ColumnwiseOperatorArgMetadata.create_from_fortran_string(
-            "not valid")
-    assert ("Expected kernel metadata to be a Fortran Part_Ref, but found "
-            "'not valid'." in str(info.value))
-
-    fortran_string = (
-        "arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, W0, W1)")
-    operator_arg = ColumnwiseOperatorArgMetadata.create_from_fortran_string(
-        fortran_string)
+    assert isinstance(operator_arg, ColumnwiseOperatorArgMetadata)
     assert operator_arg.form == "GH_COLUMNWISE_OPERATOR"
     assert operator_arg._datatype == "GH_REAL"
     assert operator_arg._access == "GH_READ"
@@ -96,9 +61,32 @@ def test_create_from_fortran_string():
 
 def test_create_from_fparser2():
     '''Test that the create_from_fparser2 static method works as
-    expected. Test for exceptions as well as valid input.
+    expected. Test that all relevant check and get methods are called
+    by raising exceptions within them, as well as checking for valid
+    input.
 
     '''
+    with pytest.raises(TypeError) as info:
+        _ = ColumnwiseOperatorArgMetadata.create_from_fparser2("hello")
+    assert ("Expected kernel metadata to be encoded as an fparser2 "
+            "Part_Ref object but found type 'str' with value 'hello'."
+            in str(info.value))
+
+    fparser2_tree = ColumnwiseOperatorArgMetadata.create_fparser2(
+        "hello(x)", Fortran2003.Part_Ref)
+    with pytest.raises(ValueError) as info:
+        _ = ColumnwiseOperatorArgMetadata.create_from_fparser2(fparser2_tree)
+    assert ("Expected kernel metadata to have the name 'arg_type' "
+            "and be in the form 'arg_type(...)', but found 'hello(x)'."
+            in str(info.value))
+
+    fparser2_tree = ColumnwiseOperatorArgMetadata.create_fparser2(
+        "arg_type(x)", Fortran2003.Part_Ref)
+    with pytest.raises(ValueError) as info:
+        _ = ColumnwiseOperatorArgMetadata.create_from_fparser2(fparser2_tree)
+    assert ("Expected kernel metadata to have 5 arguments, but "
+            "found 1 in 'arg_type(x)'." in str(info.value))
+
     fparser2_tree = ColumnwiseOperatorArgMetadata.create_fparser2(
         "arg_type(GH_UNWISE_OPERATOR, GH_REAL, GH_READ, W0, W1)",
         Fortran2003.Part_Ref)
@@ -106,6 +94,50 @@ def test_create_from_fparser2():
         _ = ColumnwiseOperatorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("ColumnwiseOperators should have GH_COLUMNWISE_OPERATOR as their "
             "first metadata argument, but found 'GH_UNWISE_OPERATOR'."
+            in str(info.value))
+
+    fparser2_tree = ColumnwiseOperatorArgMetadata.create_fparser2(
+        "arg_type(GH_COLUMNWISE_OPERATOR, GH_UNREAL, GH_READ, W0, W1)",
+        Fortran2003.Part_Ref)
+    with pytest.raises(ValueError) as info:
+        _ = ColumnwiseOperatorArgMetadata.create_from_fparser2(fparser2_tree)
+    assert ("At argument index '1' for metadata 'arg_type("
+            "GH_COLUMNWISE_OPERATOR, GH_UNREAL, GH_READ, W0, W1)'. The "
+            "datatype descriptor value should be one of ['gh_real'], but "
+            "found 'GH_UNREAL'." in str(info.value))
+
+    fparser2_tree = ColumnwiseOperatorArgMetadata.create_fparser2(
+        "arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_ERROR, W0, W1)",
+        Fortran2003.Part_Ref)
+    with pytest.raises(ValueError) as info:
+        _ = ColumnwiseOperatorArgMetadata.create_from_fparser2(fparser2_tree)
+    assert ("At argument index '2' for metadata 'arg_type("
+            "GH_COLUMNWISE_OPERATOR, GH_REAL, GH_ERROR, W0, W1)'. The access "
+            "descriptor value should be one of ['gh_read', 'gh_write', "
+            "'gh_readwrite'], but found 'GH_ERROR'." in str(info.value))
+
+    fparser2_tree = ColumnwiseOperatorArgMetadata.create_fparser2(
+        "arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, XX, W1)",
+        Fortran2003.Part_Ref)
+    with pytest.raises(ValueError) as info:
+        _ = ColumnwiseOperatorArgMetadata.create_from_fparser2(fparser2_tree)
+    assert ("At argument index '3' for metadata 'arg_type("
+            "GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, XX, W1)'. The "
+            "function_space_to value should be one of ['w3', 'wtheta', "
+            "'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', "
+            "'w2h', 'w2htrace', 'any_w2', 'wchi'], but found 'XX'."
+            in str(info.value))
+
+    fparser2_tree = ColumnwiseOperatorArgMetadata.create_fparser2(
+        "arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, W0, YY)",
+        Fortran2003.Part_Ref)
+    with pytest.raises(ValueError) as info:
+        _ = ColumnwiseOperatorArgMetadata.create_from_fparser2(fparser2_tree)
+    assert ("At argument index '4' for metadata 'arg_type("
+            "GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, W0, YY)'. The "
+            "function_space_from value should be one of ['w3', 'wtheta', "
+            "'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', "
+            "'w2h', 'w2htrace', 'any_w2', 'wchi'], but found 'YY'."
             in str(info.value))
 
     fparser2_tree = ColumnwiseOperatorArgMetadata.create_fparser2(

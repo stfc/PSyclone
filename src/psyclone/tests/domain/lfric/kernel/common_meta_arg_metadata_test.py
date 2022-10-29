@@ -91,20 +91,13 @@ class CheckArg(CommonMetaArgMetadata):
 def test_init():
     '''Test that the CommonMetaArgMetadata class can be created when a
     concrete class subclasses it. Also check that the
-    CommonMetaArgMetadata class stores the datatype and access arguments
-    supplied to it correctly and the associated setter and getter
-    methods work as expected.
+    CommonMetaArgMetadata class stores the datatype and access
+    arguments supplied to it correctly.
 
     '''
-    dummy = CheckArg()
-    assert dummy._datatype is None
-    assert dummy._access is None
-
-    dummy = CheckArg(datatype="hello", access="there")
-    assert dummy._datatype == "hello"
-    assert dummy.datatype == "hello"
-    assert dummy._access == "there"
-    assert dummy.access == "there"
+    dummy = CheckArg("datatype", "access")
+    assert dummy._datatype == "datatype"
+    assert dummy._access == "access"
 
 
 def test_check_first_arg():
@@ -153,7 +146,7 @@ def test_check_remaining_args():
         function_space_from_arg_index = 6
 
         def __init__(self, message):
-            super().__init__()
+            super().__init__("datatype", "access")
             raise ValueError(message)
 
     for index, message in [(1, "datatype descriptor error"),
@@ -178,10 +171,9 @@ def test_get_type_and_access():
     CommonMetaArgMetadata class works as expected.
 
     '''
-    dummy = CheckArg()
-    fparser_tree = dummy.create_fparser2(
+    fparser_tree = CheckArg.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ)", Fortran2003.Part_Ref)
-    datatype, access = dummy.get_type_and_access(fparser_tree)
+    datatype, access = CheckArg.get_type_and_access(fparser_tree)
     assert datatype == "GH_REAL"
     assert access == "GH_READ"
 
@@ -191,10 +183,9 @@ def test_get_type_access_and_fs():
     CommonMetaArgMetadata class works as expected.
 
     '''
-    dummy = CheckArg()
-    fparser_tree = dummy.create_fparser2(
+    fparser_tree = CheckArg.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)", Fortran2003.Part_Ref)
-    datatype, access, function_space = dummy.get_type_access_and_fs(
+    datatype, access, function_space = CheckArg.get_type_access_and_fs(
         fparser_tree)
     assert datatype == "GH_REAL"
     assert access == "GH_READ"
@@ -206,18 +197,17 @@ def test_get_and_check_vector_length():
     CommonMetaArgMetadata class works as expected.
 
     '''
-    dummy = CheckArg()
-    fparser_tree = dummy.create_fparser2(
+    fparser_tree = CheckArg.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)", Fortran2003.Part_Ref)
     with pytest.raises(TypeError) as info:
-        _ = dummy.get_and_check_vector_length(fparser_tree)
+        _ = CheckArg.get_and_check_vector_length(fparser_tree)
     assert ("The vector length metadata should be in the form "
             "'form*vector_length' but found 'GH_FIELD'."
             in str(info.value))
 
-    fparser_tree = dummy.create_fparser2(
+    fparser_tree = CheckArg.create_fparser2(
         "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)", Fortran2003.Part_Ref)
-    vector_length = dummy.get_and_check_vector_length(fparser_tree)
+    vector_length = CheckArg.get_and_check_vector_length(fparser_tree)
     assert vector_length == "3"
 
 
@@ -226,9 +216,7 @@ def test_setter_getter():
     class work as expected.
 
     '''
-    dummy = CheckArg()
-    assert dummy._datatype is None
-    assert dummy._access is None
+    dummy = CheckArg(None, None)
 
     dummy.datatype = "cheese"
     assert dummy._datatype == "cheese"

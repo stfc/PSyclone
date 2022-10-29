@@ -44,88 +44,45 @@ from psyclone.domain.lfric.kernel.operator_arg_metadata import \
     OperatorArgMetadata
 
 
-def test_init_noargs():
-    '''Test that an OperatorArgMetadata instance can be created
-    successfully when no arguments are provided.
+def test_create():
+    '''Test that an instance of OperatorArgMetadata can be created
+    successfully.
 
     '''
-    operator_arg = OperatorArgMetadata()
+    operator_arg = OperatorArgMetadata("GH_REAL", "GH_READ", "W0", "W1")
     assert isinstance(operator_arg, OperatorArgMetadata)
     assert operator_arg.form == "GH_OPERATOR"
-    assert operator_arg._datatype is None
-    assert operator_arg._access is None
-    assert operator_arg._function_space_to is None
-    assert operator_arg._function_space_from is None
+    assert operator_arg._datatype == "GH_REAL"
+    assert operator_arg._access == "GH_READ"
+    assert operator_arg._function_space_to == "W0"
+    assert operator_arg._function_space_from == "W1"
 
 
 def test_init_invalid():
-    '''Test that appropriate exceptions are raised if invalid initial
-    values are provided when constructing an instance of the
-    OperatorArgMetadata class.
+    '''Test that invalid function spaces supplied to the constructor raise
+    the expected exceptions.
 
     '''
     with pytest.raises(ValueError) as info:
-        _ = OperatorArgMetadata(datatype="invalid")
-    assert ("The datatype descriptor value should be one of ['gh_real'], but "
-            "found 'invalid'." in str(info.value))
-
-    with pytest.raises(ValueError) as info:
-        _ = OperatorArgMetadata(access="invalid")
-    assert ("The access descriptor value should be one of ['gh_read', "
-            "'gh_write', 'gh_readwrite'], but found 'invalid'."
-            in str(info.value))
-
-    with pytest.raises(ValueError) as info:
-        _ = OperatorArgMetadata(function_space_to="invalid")
+        _ = OperatorArgMetadata("GH_REAL", "GH_READ", "invalid", "W1")
     assert ("The function_space_to value should be one of ['w3', 'wtheta', "
             "'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', "
             "'w2h', 'w2htrace', 'any_w2', 'wchi'], but found 'invalid'."
             in str(info.value))
 
     with pytest.raises(ValueError) as info:
-        _ = OperatorArgMetadata(function_space_from="invalid")
+        _ = OperatorArgMetadata("GH_REAL", "GH_READ", "W0", "invalid")
     assert ("The function_space_from value should be one of ['w3', 'wtheta', "
             "'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', "
             "'w2h', 'w2htrace', 'any_w2', 'wchi'], but found 'invalid'."
             in str(info.value))
 
 
-def test_init_args():
-    '''Test that valid initial values provided when constructing an
-    instance of OperatorArgMetadata are stored as expected.
-
-    '''
-    operator_arg = OperatorArgMetadata("GH_REAL", "GH_READ", "W0", "W1")
-    assert operator_arg.form == "GH_OPERATOR"
-    assert operator_arg._datatype == "GH_REAL"
-    assert operator_arg._access == "GH_READ"
-    assert operator_arg._function_space_to == "W0"
-    assert operator_arg._function_space_from == "W1"
-
-
-def test_create_from_fortran_string():
-    '''Test that the create_from_fortran_string static method works as
-    expected. Test for exceptions as well as valid input.
-
-    '''
-    with pytest.raises(ValueError) as info:
-        _ = OperatorArgMetadata.create_from_fortran_string("not valid")
-    assert ("Expected kernel metadata to be a Fortran Part_Ref, but "
-            "found 'not valid'." in str(info.value))
-
-    fortran_string = "arg_type(GH_OPERATOR, GH_REAL, GH_READ, W0, W1)"
-    operator_arg = OperatorArgMetadata.create_from_fortran_string(
-        fortran_string)
-    assert operator_arg.form == "GH_OPERATOR"
-    assert operator_arg._datatype == "GH_REAL"
-    assert operator_arg._access == "GH_READ"
-    assert operator_arg._function_space_to == "W0"
-    assert operator_arg._function_space_from == "W1"
-
-
 def test_create_from_fparser2():
     '''Test that the create_from_fparser2 static method works as
-    expected. Test for exceptions as well as valid input.
+    expected. Test that all relevant check and get methods are called
+    by raising exceptions within them, as well as checking for valid
+    input.
 
     '''
     with pytest.raises(TypeError) as info:
@@ -211,54 +168,41 @@ def test_create_from_fparser2():
 
 
 def test_fortran_string():
-    '''Test that the fortran_string method works as expected, including
-    raising an exception if all of the required properties have not been
-    set. '''
+    '''Test that the fortran_string method works as expected.'''
+
     fortran_string = "arg_type(GH_OPERATOR, GH_REAL, GH_READ, W0, W1)"
     operator_arg = OperatorArgMetadata.create_from_fortran_string(
         fortran_string)
     result = operator_arg.fortran_string()
     assert result == fortran_string
 
-    operator_arg = OperatorArgMetadata()
+
+def test_check_datatype():
+    '''Test the check_datatype method works as expected.'''
+    OperatorArgMetadata.check_datatype("GH_REAL")
     with pytest.raises(ValueError) as info:
-        _ = operator_arg.fortran_string()
-    assert ("Values for datatype, access, function_space_to and "
-            "function_space_from must be provided before calling the "
-            "fortran_string method, but found 'None', 'None', 'None' "
-            "and 'None', respectively." in str(info.value))
-
-
-def test_setter_getter():
-    '''Test that the setters and getters work as expected, including
-    raising exceptions if values are invalid. '''
-    operator_arg = OperatorArgMetadata()
-    assert operator_arg.form == "GH_OPERATOR"
-
-    assert operator_arg.datatype is None
-    with pytest.raises(ValueError) as info:
-        operator_arg.datatype = "invalid"
+        OperatorArgMetadata.check_datatype("invalid")
     assert ("The datatype descriptor value should be one of ['gh_real'], "
             "but found 'invalid'." in str(info.value))
 
-    operator_arg.datatype = "gh_real"
-    assert operator_arg.datatype == "gh_real"
-    operator_arg.datatype = "GH_REAL"
-    assert operator_arg.datatype == "GH_REAL"
 
-    assert operator_arg.access is None
+def test_check_access():
+    '''Test the check_access method works as expected.'''
+    OperatorArgMetadata.check_access("GH_READ")
     with pytest.raises(ValueError) as info:
-        operator_arg.access = "invalid"
+        OperatorArgMetadata.check_access("invalid")
     assert ("The access descriptor value should be one of ['gh_read', "
             "'gh_write', 'gh_readwrite'], but found 'invalid'."
             in str(info.value))
 
-    operator_arg.access = "gh_read"
-    assert operator_arg.access == "gh_read"
-    operator_arg.access = "GH_READ"
-    assert operator_arg.access == "GH_READ"
 
-    assert operator_arg.function_space_to is None
+def test_setter_getter():
+    '''Test that the two function space setters and getters work as
+    expected, including raising exceptions if values are invalid.
+
+    '''
+    operator_arg = OperatorArgMetadata("GH_REAL", "GH_READ", "W0", "W1")
+
     with pytest.raises(ValueError) as info:
         operator_arg.function_space_to = "invalid"
     assert ("The function_space_to value should be one of ['w3', 'wtheta', "
@@ -266,12 +210,11 @@ def test_setter_getter():
             "'w2h', 'w2htrace', 'any_w2', 'wchi'], but found 'invalid'."
             in str(info.value))
 
-    operator_arg.function_space_to = "w0"
-    assert operator_arg.function_space_to == "w0"
-    operator_arg.function_space_to = "W0"
-    assert operator_arg.function_space_to == "W0"
+    operator_arg.function_space_to = "w2"
+    assert operator_arg.function_space_to == "w2"
+    operator_arg.function_space_to = "W2"
+    assert operator_arg.function_space_to == "W2"
 
-    assert operator_arg.function_space_from is None
     with pytest.raises(ValueError) as info:
         operator_arg.function_space_from = "invalid"
     assert ("The function_space_from value should be one of ['w3', 'wtheta', "
@@ -279,7 +222,7 @@ def test_setter_getter():
             "'w2h', 'w2htrace', 'any_w2', 'wchi'], but found 'invalid'."
             in str(info.value))
 
-    operator_arg.function_space_from = "w1"
-    assert operator_arg.function_space_from == "w1"
-    operator_arg.function_space_from = "W1"
-    assert operator_arg.function_space_from == "W1"
+    operator_arg.function_space_from = "w3"
+    assert operator_arg.function_space_from == "w3"
+    operator_arg.function_space_from = "W3"
+    assert operator_arg.function_space_from == "W3"

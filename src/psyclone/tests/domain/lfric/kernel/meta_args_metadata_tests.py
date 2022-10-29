@@ -69,13 +69,13 @@ def test_init_error():
     '''
     with pytest.raises(TypeError) as info:
         _ = MetaArgsMetadata(None)
-    assert ("meta_args values should be provided as a list but found "
+    assert ("MetaArgsMetadata values should be provided as a list but found "
             "'NoneType'." in str(info.value))
 
 
 def test_fortran_string():
     '''Test that the fortran_string method works as expected.'''
-    meta_args_arg = FieldArg("GH_REAL", "GH_INC", "W0")
+    meta_args_arg = FieldArgMetadata("GH_REAL", "GH_INC", "W0")
     values = [meta_args_arg]
     metadata = MetaArgsMetadata(values)
     fortran_string = metadata.fortran_string()
@@ -153,20 +153,22 @@ def test_setter_errors():
 
     with pytest.raises(TypeError) as info:
         metadata.meta_args_args = "invalid"
-    assert ("meta_args values should be provided as a list but found "
+    assert ("MetaArgsMetadata values should be provided as a list but found "
             "'str'." in str(info.value))
 
     with pytest.raises(TypeError) as info:
         metadata.meta_args_args = []
-    assert ("The meta_args list should contain at least one entry, "
+    assert ("The MetaArgsMetadata list should contain at least one entry, "
             "but it is empty." in str(info.value))
 
     with pytest.raises(TypeError) as info:
         metadata.meta_args_args = [None]
-    assert ("The meta_args list should be a list containing objects of type "
-            "CommonArg but found 'NoneType'." in str(info.value))
+    assert ("The MetaArgsMetadata list should be a list containing objects "
+            "of type CommonMetaArgMetadata but found 'NoneType'."
+            in str(info.value))
 
     with pytest.raises(TypeError) as info:
         metadata.meta_args_args = ["invalid"]
-    assert ("The meta_args list should be a list containing objects of type "
-            "CommonArg but found 'str'." in str(info.value))
+    assert ("The MetaArgsMetadata list should be a list containing objects "
+            "of type CommonMetaArgMetadata but found 'str'."
+            in str(info.value))

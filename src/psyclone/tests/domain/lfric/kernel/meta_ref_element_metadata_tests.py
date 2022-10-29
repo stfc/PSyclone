@@ -52,7 +52,8 @@ def test_init():
     and that its initial values as stored as expected.
 
     '''
-    meta_ref_element_arg = MetaRefElementArgMetadata("normals_to_horizontal_faces")
+    meta_ref_element_arg = MetaRefElementArgMetadata(
+        "normals_to_horizontal_faces")
     values = [meta_ref_element_arg]
     metadata = MetaRefElementMetadata(values)
     assert isinstance(metadata, MetaRefElementMetadata)
@@ -68,13 +69,14 @@ def test_init_error():
     '''
     with pytest.raises(TypeError) as info:
         _ = MetaRefElementMetadata(None)
-    assert ("MetaRefElementMetadata values should be provided as a list but found "
-            "'NoneType'." in str(info.value))
+    assert ("MetaRefElementMetadata values should be provided as a list but "
+            "found 'NoneType'." in str(info.value))
 
 
 def test_fortran_string():
     '''Test that the fortran_string method works as expected.'''
-    meta_ref_element_arg = MetaRefElementArgMetadata("normals_to_vertical_faces")
+    meta_ref_element_arg = MetaRefElementArgMetadata(
+        "normals_to_vertical_faces")
     values = [meta_ref_element_arg]
     metadata = MetaRefElementMetadata(values)
     fortran_string = metadata.fortran_string()
@@ -90,12 +92,14 @@ def test_create_from_fortran_string():
 
     '''
     meta_ref_element_arg1 = MetaRefElementArgMetadata("normals_to_faces")
-    meta_ref_element_arg2 = MetaRefElementArgMetadata("outward_normals_to_horizontal_faces")
+    meta_ref_element_arg2 = MetaRefElementArgMetadata(
+        "outward_normals_to_horizontal_faces")
     values = [meta_ref_element_arg1, meta_ref_element_arg2]
     values_list_str = [value.fortran_string() for value in values]
     values_str = ", ".join(values_list_str)
-    fortran_string = (f"type(reference_element_data_type) :: meta_reference_element({len(values)}) = "
-                      f"(/{values_str}/)\n")
+    fortran_string = (
+        f"type(reference_element_data_type) :: meta_reference_element("
+        f"{len(values)}) = (/{values_str}/)\n")
     metadata = MetaRefElementMetadata.create_from_fortran_string(
         fortran_string)
     assert isinstance(metadata.meta_ref_element_args, list)
@@ -127,7 +131,8 @@ def test_setter_getter():
     metadata = MetaRefElementMetadata(values)
     assert metadata.meta_ref_element_args == values
     # Check that the getter makes a copy of the list
-    assert metadata.meta_ref_element_args is not metadata._meta_ref_element_args
+    assert (metadata.meta_ref_element_args is not
+            metadata._meta_ref_element_args)
 
     metadata.meta_ref_element_values = values
     assert metadata._meta_ref_element_args == values
@@ -143,21 +148,22 @@ def test_setter_errors():
 
     with pytest.raises(TypeError) as info:
         metadata.meta_ref_element_args = "invalid"
-    assert ("MetaRefElementMetadata values should be provided as a list but found "
-            "'str'." in str(info.value))
+    assert ("MetaRefElementMetadata values should be provided as a list "
+            "but found 'str'." in str(info.value))
 
     with pytest.raises(TypeError) as info:
         metadata.meta_ref_element_args = []
-    assert ("The MetaRefElementMetadata list should contain at least one entry, "
-            "but it is empty." in str(info.value))
+    assert ("The MetaRefElementMetadata list should contain at least one "
+            "entry, but it is empty." in str(info.value))
 
     with pytest.raises(TypeError) as info:
         metadata.meta_ref_element_args = [None]
-    assert ("The MetaRefElementMetadata list should be a list containing objects "
-            "of type MetaRefElementArgMetadata but found 'NoneType'."
+    assert ("The MetaRefElementMetadata list should be a list containing "
+            "objects of type MetaRefElementArgMetadata but found 'NoneType'."
             in str(info.value))
 
     with pytest.raises(TypeError) as info:
         metadata.meta_ref_element_args = ["invalid"]
-    assert ("The MetaRefElementMetadata list should be a list containing objects "
-            "of type MetaRefElementArgMetadata but found 'str'." in str(info.value))
+    assert ("The MetaRefElementMetadata list should be a list containing "
+            "objects of type MetaRefElementArgMetadata but found 'str'."
+            in str(info.value))

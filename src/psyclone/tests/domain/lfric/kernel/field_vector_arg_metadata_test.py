@@ -44,54 +44,13 @@ from psyclone.domain.lfric.kernel.field_vector_arg_metadata import \
     FieldVectorArgMetadata
 
 
-def test_init_noargs():
-    '''Test that a FieldVectorArgMetadata instance can be created
-    successfully when no arguments are provided.
-
-    '''
-    field_vector_arg = FieldVectorArgMetadata()
-    assert isinstance(field_vector_arg, FieldVectorArgMetadata)
-    assert field_vector_arg.form == "GH_FIELD"
-    assert field_vector_arg._datatype is None
-    assert field_vector_arg._access is None
-    assert field_vector_arg._function_space is None
-    assert field_vector_arg._vector_length is None
-
-
-def test_init_invalid():
-    '''Test that appropriate exceptions are raised if invalid initial
-    values are provided when constructing an instance of the
-    FieldVectorArgMetadata class. Only test one of the arguments for
-    the base class.
-
-    '''
-    with pytest.raises(ValueError) as info:
-        _ = FieldVectorArgMetadata(datatype="invalid")
-    assert ("The datatype descriptor value should be one of ['gh_real', "
-            "'gh_integer'], but found 'invalid'." in str(info.value))
-
-    with pytest.raises(TypeError) as info:
-        _ = FieldVectorArgMetadata(vector_length=1)
-    assert ("The vector size should be a string but found int."
-            in str(info.value))
-
-    with pytest.raises(ValueError) as info:
-        _ = FieldVectorArgMetadata(vector_length="invalid")
-    assert ("The vector size should be a string containing an integer, "
-            "but found 'invalid'." in str(info.value))
-
-    with pytest.raises(ValueError) as info:
-        _ = FieldVectorArgMetadata(vector_length="0")
-    assert ("The vector size should be an integer greater than 1 but found 0."
-            in str(info.value))
-
-
-def test_init_args():
-    '''Test that valid initial values provided when constructing an
-    instance of FieldVectorArgMetadata are stored as expected.
+def test_create():
+    '''Test that an instance of FieldVectorArgMetadata can be created
+    successfully.
 
     '''
     field_vector_arg = FieldVectorArgMetadata("GH_REAL", "GH_READ", "W0", "2")
+    assert isinstance(field_vector_arg, FieldVectorArgMetadata)
     assert field_vector_arg.form == "GH_FIELD"
     assert field_vector_arg._datatype == "GH_REAL"
     assert field_vector_arg._access == "GH_READ"
@@ -99,29 +58,22 @@ def test_init_args():
     assert field_vector_arg._vector_length == "2"
 
 
-def test_create_from_fortran_string():
-    '''Test that the create_from_fortran_string static method works as
-    expected. Test for exceptions as well as valid input.
+def test_init_invalid():
+    '''Test that an invalid vector length supplied to the constructor
+    raises the expected exception.
 
     '''
-    with pytest.raises(ValueError) as info:
-        _ = FieldVectorArgMetadata.create_from_fortran_string("not valid")
-    assert ("Expected kernel metadata to be a Fortran Part_Ref, but found "
-            "'not valid'." in str(info.value))
-
-    fortran_string = "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)"
-    field_arg = FieldVectorArgMetadata.create_from_fortran_string(
-        fortran_string)
-    assert field_arg.form == "GH_FIELD"
-    assert field_arg._datatype == "GH_REAL"
-    assert field_arg._access == "GH_READ"
-    assert field_arg._function_space == "W0"
-    assert field_arg._vector_length == "3"
+    with pytest.raises(TypeError) as info:
+        _ = FieldVectorArgMetadata("GH_REAL", "GH_READ", "W0", 1)
+    assert ("The vector size should be a string but found int."
+            in str(info.value))
 
 
 def test_create_from_fparser2():
     '''Test that the create_from_fparser2 static method works as
-    expected. Test for exceptions as well as valid input.
+    expected. Test that all relevant check and get methods are called
+    by raising exceptions within them, as well as checking for valid
+    input.
 
     '''
     with pytest.raises(TypeError) as info:
@@ -193,54 +145,31 @@ def test_create_from_fparser2():
 
 
 def test_fortran_string():
-    '''Test that the fortran_string method works as expected, including
-    raise an exception if all of the required properties have not been
-    set '''
+    '''Test that the fortran_string method works as expected.'''
+
     fortran_string = "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)"
     field_vector_arg = FieldVectorArgMetadata.create_from_fortran_string(
         fortran_string)
     result = field_vector_arg.fortran_string()
     assert result == fortran_string
 
-    field_vector_arg = FieldVectorArgMetadata()
-    with pytest.raises(ValueError) as info:
-        _ = field_vector_arg.fortran_string()
-    assert ("Values for datatype, access, function_space and vector_length "
-            "must be provided before calling the fortran_string method, but "
-            "found 'None', 'None', 'None' and 'None', respectively."
-            in str(info.value))
 
-
-def test_setter_getter():
-    '''Test that the setters and getters work as expected, including
-    raising exceptions if values are invalid. Only test some of the
-    base class values.
+def test_vector_length_setter_getter():
+    '''Test that the vector length setter and getter work as expected,
+    including raising an exception if the value is invalid.
 
     '''
-    field_arg = FieldVectorArgMetadata()
-    assert field_arg.form == "GH_FIELD"
+    field_vector_arg = FieldVectorArgMetadata("GH_REAL", "GH_READ", "W0", "2")
 
-    assert field_arg.datatype is None
     with pytest.raises(ValueError) as info:
-        field_arg.datatype = "invalid"
-    assert ("The datatype descriptor value should be one of ['gh_real', "
-            "'gh_integer'], but found 'invalid'." in str(info.value))
-
-    field_arg.datatype = "gh_integer"
-    assert field_arg.datatype == "gh_integer"
-    field_arg.datatype = "GH_INTEGER"
-    assert field_arg.datatype == "GH_INTEGER"
-
-    assert field_arg.vector_length is None
-    with pytest.raises(ValueError) as info:
-        field_arg.vector_length = "invalid"
+        field_vector_arg.vector_length = "invalid"
     assert ("The vector size should be a string containing an integer, "
             "but found 'invalid'." in str(info.value))
 
     with pytest.raises(ValueError) as info:
-        field_arg.vector_length = "1"
+        field_vector_arg.vector_length = "1"
     assert ("The vector size should be an integer greater than 1 but found 1."
             in str(info.value))
 
-    field_arg.vector_length = "3"
-    assert field_arg.vector_length == "3"
+    field_vector_arg.vector_length = "3"
+    assert field_vector_arg.vector_length == "3"

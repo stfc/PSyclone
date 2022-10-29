@@ -153,8 +153,8 @@ def test_init_args_error():
 
     with pytest.raises(TypeError) as info:
         _ = LFRicKernelMetadata(meta_args="error")
-    assert ("meta_args values should be provided as a list but found 'str'."
-            in str(info.value))
+    assert ("MetaArgsMetadata values should be provided as a list but found "
+            "'str'." in str(info.value))
 
     with pytest.raises(TypeError) as info:
         _ = LFRicKernelMetadata(meta_funcs="invalid")
@@ -163,7 +163,7 @@ def test_init_args_error():
 
     with pytest.raises(TypeError) as info:
         _ = LFRicKernelMetadata(meta_ref_element="invalid")
-    assert ("meta_ref_element values should be provided as a list but "
+    assert ("MetaRefElementMetadata values should be provided as a list but "
             "found 'str'." in str(info.value))
 
     with pytest.raises(TypeError) as info:
@@ -565,16 +565,16 @@ def test_setter_getter_meta_args():
     assert metadata.meta_args is None
     with pytest.raises(TypeError) as info:
         metadata.meta_args = "error"
-    assert ("meta_args values should be provided as a list but found 'str'."
-            in str(info.value))
+    assert ("MetaArgsMetadata values should be provided as a list but found "
+            "'str'." in str(info.value))
     with pytest.raises(TypeError) as info:
         metadata.meta_args = []
-    assert ("The meta_args list should contain at least one entry, but it "
-            "is empty." in str(info.value))
+    assert ("The MetaArgsMetadata list should contain at least one entry, "
+            "but it is empty." in str(info.value))
     with pytest.raises(TypeError) as info:
         metadata.meta_args = ["error"]
-    assert ("The meta_args list should be a list containing objects of type "
-            "CommonArgMetadata but found 'str'." in str(info.value))
+    assert ("The MetaArgsMetadata list should be a list containing objects of "
+            "type CommonMetaArgMetadata but found 'str'." in str(info.value))
 
     scalar_arg = ScalarArgMetadata("GH_REAL", "GH_READ")
     meta_args = [scalar_arg]
@@ -608,7 +608,7 @@ def test_setter_getter_meta_ref_element():
     assert metadata.meta_ref_element is None
     with pytest.raises(TypeError) as info:
         metadata.meta_ref_element = "invalid"
-    assert ("meta_ref_element values should be provided as a list but "
+    assert ("MetaRefElementMetadata values should be provided as a list but "
             "found 'str'." in str(info.value))
     meta_ref_element_arg = MetaRefElementArgMetadata("normals_to_faces")
     meta_ref_element = [meta_ref_element_arg]

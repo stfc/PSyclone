@@ -43,85 +43,35 @@ from fparser.two import Fortran2003
 from psyclone.domain.lfric.kernel.field_arg_metadata import FieldArgMetadata
 
 
-def test_init_noargs():
-    '''Test that a FieldArgMetadata instance can be created successfully
-    when no arguments are provided.
-
-    '''
-    field_arg = FieldArgMetadata()
-    assert isinstance(field_arg, FieldArgMetadata)
-    assert field_arg.form == "GH_FIELD"
-    assert field_arg._datatype is None
-    assert field_arg._access is None
-    assert field_arg._function_space is None
-
-
-def test_init_invalid():
-    '''Test that appropriate exceptions are raised if invalid initial
-    values are provided when constructing an instance of the FieldArgMetadata
-    class.
-
-    '''
-    with pytest.raises(ValueError) as info:
-        _ = FieldArgMetadata(datatype="invalid")
-    assert ("The datatype descriptor value should be one of ['gh_real', "
-            "'gh_integer'], but found 'invalid'." in str(info.value))
-
-    with pytest.raises(ValueError) as info:
-        _ = FieldArgMetadata(access="invalid")
-    assert ("The access descriptor value should be one of ['gh_read', "
-            "'gh_write', 'gh_readwrite', 'gh_inc', 'gh_readinc'],"
-            " but found 'invalid'." in str(info.value))
-
-    with pytest.raises(ValueError) as info:
-        _ = FieldArgMetadata(function_space="invalid")
-    assert ("The function space value should be one of ['w3', 'wtheta', "
-            "'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', "
-            "'w2h', 'w2htrace', 'any_w2', 'wchi', 'any_space_1', "
-            "'any_space_2', 'any_space_3', 'any_space_4', 'any_space_5', "
-            "'any_space_6', 'any_space_7', 'any_space_8', 'any_space_9', "
-            "'any_space_10', 'any_discontinuous_space_1', "
-            "'any_discontinuous_space_2', 'any_discontinuous_space_3', "
-            "'any_discontinuous_space_4', 'any_discontinuous_space_5', "
-            "'any_discontinuous_space_6', 'any_discontinuous_space_7', "
-            "'any_discontinuous_space_8', 'any_discontinuous_space_9', "
-            "'any_discontinuous_space_10'], but found 'invalid'."
-            in str(info.value))
-
-
-def test_init_args():
-    '''Test that valid initial values provided when constructing an
-    instance of FieldArgMetadata are stored as expected.
+def test_create():
+    '''Test that an instance of FieldArgMetadata can be created
+    successfully.
 
     '''
     field_arg = FieldArgMetadata("GH_REAL", "GH_READ", "W0")
+    assert isinstance(field_arg, FieldArgMetadata)
     assert field_arg.form == "GH_FIELD"
     assert field_arg._datatype == "GH_REAL"
     assert field_arg._access == "GH_READ"
     assert field_arg._function_space == "W0"
 
 
-def test_create_from_fortran_string():
-    '''Test that the create_from_fortran_string static method works as
-    expected. Test for exceptions as well as valid input.
+def test_init_invalid():
+    '''Test that an invalid function space supplied to the constructor
+    raises the expected exception.
 
     '''
-    with pytest.raises(ValueError) as info:
-        _ = FieldArgMetadata.create_from_fortran_string("not valid")
-    assert ("Expected kernel metadata to be a Fortran Part_Ref, but found "
-            "'not valid'." in str(info.value))
-
-    fortran_string = "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)"
-    field_arg = FieldArgMetadata.create_from_fortran_string(fortran_string)
-    assert field_arg.form == "GH_FIELD"
-    assert field_arg._datatype == "GH_REAL"
-    assert field_arg._access == "GH_READ"
-    assert field_arg._function_space == "W0"
+    with pytest.raises(TypeError) as info:
+        _ = FieldArgMetadata("GH_REAL", "GH_READ", None)
+    assert ("The function space value should be of type str, but found "
+            "'NoneType'." in str(info.value))
 
 
 def test_create_from_fparser2():
     '''Test that the create_from_fparser2 static method works as
-    expected. Test for exceptions as well as valid input.
+    expected. Test that all relevant check and get methods are called
+    by raising exceptions within them, as well as checking for valid
+    input.
 
     '''
     with pytest.raises(TypeError) as info:
@@ -199,52 +149,39 @@ def test_create_from_fparser2():
 
 
 def test_fortran_string():
-    '''Test that the fortran_string method works as expected, including
-    raise an exception if all of the required properties have not been
-    set '''
+    '''Test that the fortran_string method works as expected.'''
+
     fortran_string = "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)"
     field_arg = FieldArgMetadata.create_from_fortran_string(fortran_string)
     result = field_arg.fortran_string()
     assert result == fortran_string
 
-    field_arg = FieldArgMetadata()
+
+def test_check_datatype():
+    '''Test the check_datatype method works as expected.'''
+    FieldArgMetadata.check_datatype("GH_REAL")
     with pytest.raises(ValueError) as info:
-        _ = field_arg.fortran_string()
-    assert ("Values for datatype, access and function_space must be provided "
-            "before calling the fortran_string method, but found 'None', "
-            "'None' and 'None', respectively." in str(info.value))
-
-
-def test_setter_getter():
-    '''Test that the setters and getters work as expected, including
-    raising exceptions if values are invalid. '''
-    field_arg = FieldArgMetadata()
-    assert field_arg.form == "GH_FIELD"
-
-    assert field_arg.datatype is None
-    with pytest.raises(ValueError) as info:
-        field_arg.datatype = "invalid"
+        FieldArgMetadata.check_datatype("invalid")
     assert ("The datatype descriptor value should be one of ['gh_real', "
             "'gh_integer'], but found 'invalid'." in str(info.value))
 
-    field_arg.datatype = "gh_integer"
-    assert field_arg.datatype == "gh_integer"
-    field_arg.datatype = "GH_INTEGER"
-    assert field_arg.datatype == "GH_INTEGER"
 
-    assert field_arg.access is None
+def test_check_access():
+    '''Test the check_access method works as expected.'''
+    FieldArgMetadata.check_access("GH_READ")
     with pytest.raises(ValueError) as info:
-        field_arg.access = "invalid"
+        FieldArgMetadata.check_access("invalid")
     assert ("The access descriptor value should be one of ['gh_read', "
             "'gh_write', 'gh_readwrite', 'gh_inc', 'gh_readinc'], "
             "but found 'invalid'." in str(info.value))
 
-    field_arg.access = "gh_read"
-    assert field_arg.access == "gh_read"
-    field_arg.access = "GH_READ"
-    assert field_arg.access == "GH_READ"
 
-    assert field_arg.function_space is None
+def test_function_space_setter_getter():
+    '''Test that the function space setter and getter work as expected,
+    including raising an exception if the value is invalid.
+
+    '''
+    field_arg = FieldArgMetadata("GH_REAL", "GH_READ", "W0")
     with pytest.raises(ValueError) as info:
         field_arg.function_space = "invalid"
     assert ("The function space value should be one of ['w3', 'wtheta', "
@@ -259,7 +196,7 @@ def test_setter_getter():
             "'any_discontinuous_space_8', 'any_discontinuous_space_9', "
             "'any_discontinuous_space_10'], but found 'invalid'."
             in str(info.value))
-    field_arg.function_space = "w0"
-    assert field_arg.function_space == "w0"
-    field_arg.function_space = "W0"
-    assert field_arg.function_space == "W0"
+    field_arg.function_space = "w3"
+    assert field_arg.function_space == "w3"
+    field_arg.function_space = "W3"
+    assert field_arg.function_space == "W3"

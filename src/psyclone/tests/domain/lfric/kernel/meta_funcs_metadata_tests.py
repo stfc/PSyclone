@@ -111,9 +111,8 @@ def test_create_from_fparser2():
     '''Test that the create_from_fparser2 method works as expected.'''
 
     fortran_string = (
-        ("TYPE(FUNC_TYPE), dimension(2) :: meta_funcs = (/"
-         "func_type(w0, gh_basis), "
-         "func_type(w3, gh_diff_basis)/)")
+        "type(FUNC_TYPE) :: META_FUNCS(2) = (/func_type(w0, gh_basis), "
+        "func_type(w3, gh_diff_basis)/)\n")
     fparser2_tree = MetaFuncsMetadata.create_fparser2(
         fortran_string, Fortran2003.Data_Component_Def_Stmt)
     metadata = MetaFuncsMetadata.create_from_fparser2(fparser2_tree)

@@ -79,6 +79,11 @@ def test_check_value():
 
     CommonArgMetadata.check_value("hello", "metadata", ["hello"])
 
+    with pytest.raises(TypeError) as info:
+        CommonArgMetadata.check_value(None, "metadata", ["bonjour"])
+    assert ("The metadata value should be of type str, but found 'NoneType'."
+            in str(info.value))
+
     with pytest.raises(ValueError) as info:
         CommonArgMetadata.check_value("hello", "metadata", ["bonjour"])
     assert ("The metadata value should be one of ['bonjour'], but found "

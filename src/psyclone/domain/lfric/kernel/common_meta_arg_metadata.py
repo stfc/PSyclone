@@ -33,9 +33,10 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing the abstract CommonMetaArgMetadata class which captures the
-metadata associated with an LFRic meta_arg argument. Supports the
-creation, modification and Fortran output of such an argument.
+'''Module containing the abstract CommonMetaArgMetadata class which
+captures the metadata associated with an LFRic meta_arg
+argument. Supports the creation, modification and Fortran output of
+such an argument.
 
 '''
 from abc import ABC, abstractmethod

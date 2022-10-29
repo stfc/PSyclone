@@ -46,7 +46,7 @@ from psyclone.errors import InternalError
 
 class CommonArgMetadata(CommonMetadata):
     '''Class to capture common LFRic kernel argument metadata.'''
- 
+
     # The fparser2 class that captures this metadata.
     fparser2_class = Fortran2003.Part_Ref
 
@@ -75,10 +75,14 @@ class CommonArgMetadata(CommonMetadata):
         :param valid_values: a list of valid values.
         :type valid_values: List[str]
 
+        :raises TypeError: if the value is not a string.
         :raises ValueError: if the value is not one of the values in \
             the valid_values list.
 
         '''
+        if not isinstance(value, str):
+            raise TypeError(f"The {name} value should be of type str, but "
+                            f"found '{type(value).__name__}'.")
         if value.lower() not in valid_values:
             raise ValueError(
                 f"The {name} value should be one of {valid_values}, but "
@@ -147,7 +151,7 @@ class CommonArgMetadata(CommonMetadata):
 
         :param fparser2_tree: fparser2 tree capturing the required metadata.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
-        
+
         '''
         return len(fparser2_tree.children[1].children)
 

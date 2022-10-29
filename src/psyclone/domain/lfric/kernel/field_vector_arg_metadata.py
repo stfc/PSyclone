@@ -111,11 +111,12 @@ class FieldVectorArgMetadata(FieldArgMetadata):
 
     @vector_length.setter
     def vector_length(self, value):
-        '''
-        :param str value: set the field vector length to the specified \
+        ''':param str value: set the field vector length to the specified \
             value.
 
         :raises TypeError: if the provided value is not of type str.
+        :raises ValueError: if the provided value is not a string \
+            containing an integer.
         :raises ValueError: if the provided value is not greater than 1.
 
         '''
