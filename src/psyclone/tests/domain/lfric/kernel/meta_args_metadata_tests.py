@@ -107,26 +107,37 @@ def test_create_from_fortran_string():
         meta_args_arg2.fortran_string()
 
 
-@pytest.mark.parametrize("fortran_string, expected_list", [
-    ("TYPE(ARG_TYPE), dimension(2) :: meta_args = (/"
-     "arg_type(GH_SCALAR, GH_REAL, GH_READ), "
-     "arg_type(GH_FIELD, GH_REAL, GH_WRITE, W0)/)",
-     ["arg_type(gh_scalar, gh_real, gh_read)",
-      "arg_type(gh_field, gh_real, gh_write, w0)"]),
-    ("TYPE(ARG_TYPE), dimension(2) :: meta_args = (/"
-     "arg_type(GH_SCALAR, GH_REAL, GH_READ), "
-     "arg_type(GH_FIELD, GH_REAL, GH_WRITE, W0)/)",
-     ["arg_type(gh_scalar, gh_real, gh_read)",
-      "arg_type(gh_field, gh_real, gh_write, w0)"])])
-def test_create_from_fparser2(fortran_string, expected_list):
+def test_create_from_fparser2_error():
+    '''Test that the create_from_fparser2 method raises the expected
+    exception.
+
+    '''
+    fortran_string = (
+        "type(ARG_TYPE) :: META_ARGS(1) = (/arg_type(GH_UNKNOWN)/)")
+    fparser2_tree = MetaArgsMetadata.create_fparser2(
+        fortran_string, Fortran2003.Data_Component_Def_Stmt)
+    with pytest.raises(ParseError) as info:
+        _ = MetaArgsMetadata.create_from_fparser2(fparser2_tree)
+    assert ("Expected a 'meta_arg' entry to be a field, a scalar or an "
+            "operator, but found 'arg_type(GH_UNKNOWN)" in str(info.value))
+
+
+def test_create_from_fparser2():
     '''Test that the create_from_fparser2 method works as expected.'''
+    fortran_string = (
+        "type(ARG_TYPE) :: META_ARGS(7) = (/"
+        "arg_type(GH_SCALAR, GH_REAL, GH_READ), "
+        "arg_type(GH_OPERATOR, GH_REAL, GH_READ, W0, W1), "
+        "arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, W0, W1), "
+        "arg_type(GH_FIELD, GH_REAL, GH_WRITE, W0), "
+        "arg_type(GH_FIELD*3, GH_REAL, GH_WRITE, W0), "
+        "arg_type(GH_FIELD, GH_REAL, GH_WRITE, W0, mesh_arg=GH_FINE), "
+        "arg_type(GH_FIELD*3, GH_REAL, GH_WRITE, W0, mesh_arg=GH_FINE)/)\n")
     fparser2_tree = MetaArgsMetadata.create_fparser2(
         fortran_string, Fortran2003.Data_Component_Def_Stmt)
     metadata = MetaArgsMetadata.create_from_fparser2(fparser2_tree)
     assert isinstance(metadata, MetaArgsMetadata)
-    results_list = [value.fortran_string().lower() for value in
-                    metadata.meta_args_args]
-    assert results_list == expected_list
+    assert metadata.fortran_string() == fortran_string
 
 
 def test_setter_getter():

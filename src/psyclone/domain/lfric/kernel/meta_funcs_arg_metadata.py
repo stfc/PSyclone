@@ -41,6 +41,7 @@ from fparser.two import Fortran2003
 
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
+from psyclone.parse.utils import ParseError
 
 
 class MetaFuncsArgMetadata(CommonArgMetadata):
@@ -54,13 +55,16 @@ class MetaFuncsArgMetadata(CommonArgMetadata):
         function is required. Defaults to False.
 
     '''
-
     def __init__(self, function_space, basis_function=False,
                  diff_basis_function=False):
         self.function_space = function_space
-        self.basis_function = basis_function
+        # The setters for basis_function and diff_basis_function check
+        # for consistent values between the two. The
+        # diff_basis_function has not been set yet so the
+        # basis_function setter should not be used here.
+        self.check_boolean(basis_function, "basis_function argument")
+        self._basis_function = basis_function
         self.diff_basis_function = diff_basis_function
-        self._check_constraints(basis_function, diff_basis_function)
 
     def create_from_fparser2(fparser2_tree):
         '''Create an instance of this class from an fparser2 tree.
@@ -150,7 +154,7 @@ class MetaFuncsArgMetadata(CommonArgMetadata):
         '''
         const = LFRicConstants()
         self.check_value(value, "function_space", const.VALID_FUNCTION_SPACES)
-        self._function_space = value
+        self._function_space = value.lower()
 
     @property
     def basis_function(self):
@@ -167,7 +171,8 @@ class MetaFuncsArgMetadata(CommonArgMetadata):
         '''
         :param bool value: set the basis function to True or False.
         '''
-        self._check_boolean(value)
+        self.check_boolean(value, "basis_function argument")
+        self._check_constraints(value, self._diff_basis_function)
         self._basis_function = value
 
     @property
@@ -178,7 +183,6 @@ class MetaFuncsArgMetadata(CommonArgMetadata):
         :rtype: bool
 
         '''
-        self._check_boolean(value)
         return self._diff_basis_function
 
     @diff_basis_function.setter
@@ -188,21 +192,9 @@ class MetaFuncsArgMetadata(CommonArgMetadata):
             or False.
 
         '''
-        self._check_boolean(value)
+        self.check_boolean(value, "diff_basis_function argument")
+        self._check_constraints(self._basis_function, value)
         self._diff_basis_function = value
-
-    @staticmethod
-    def _check_boolean(value):
-        '''
-        :param bool value: the value to validate.
-
-        :raises ValueError: if the provided value is not a boolean.
-
-        '''
-        if not isinstance(value, bool):
-            raise TypeError(
-                f"The value should be a boolean but found "
-                f"'{type(value).__name__}'.")
 
     @staticmethod
     def _check_constraints(basis_function, diff_basis_function):

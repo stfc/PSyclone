@@ -123,7 +123,9 @@ class MetaArgsMetadata(CommonDeclarationMetadata):
                 intergrid_arg = False
                 if nargs == 5:
                     fifth_arg = meta_arg.children[1].children[4]
-                    intergrid_arg = fifth_arg.children[0].string == "mesh_arg"
+                    intergrid_arg = (
+                        fifth_arg.children and
+                        fifth_arg.children[0].string.lower() == "mesh_arg")
 
                 if intergrid_arg and vector_arg:
                     arg = InterGridVectorArgMetadata.create_from_fparser2(

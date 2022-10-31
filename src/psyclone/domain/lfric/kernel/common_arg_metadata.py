@@ -66,6 +66,20 @@ class CommonArgMetadata(CommonMetadata):
         return cls.create_from_fparser2(fparser2_tree)
 
     @staticmethod
+    def check_boolean(value, name):
+        '''
+        :param bool value: the value to validate.
+        :param str name: the name of the entity being checked.
+
+        :raises TypeError: if the provided value is not a boolean.
+
+        '''
+        if not isinstance(value, bool):
+            raise TypeError(
+                f"The {name} should be a boolean but found "
+                f"'{type(value).__name__}'.")
+
+    @staticmethod
     def check_value(value, name, valid_values):
         '''Check that the value argument is one of the values in the
         valid_values argument.

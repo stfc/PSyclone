@@ -74,6 +74,15 @@ def test_create_from_fortran_string():
     assert meta.datatype == "gh_real"
 
 
+def test_check_boolean():
+    '''Test that the check_boolean method works as expected.'''
+
+    with pytest.raises(TypeError) as info:
+        CommonArgMetadata.check_boolean("hello", "test")
+    assert "The test should be a boolean but found 'str'." in str(info.value)
+    CommonArgMetadata.check_boolean(True, "")
+
+
 def test_check_value():
     '''Test that the check_value method works as expected.'''
 
