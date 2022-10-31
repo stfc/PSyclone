@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,24 +31,18 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''Module containing py.test tests for the transformation of the PSy
    representation of NEMO code using the OpenACC enterdata directive.
 
 '''
 
-from __future__ import print_function, absolute_import
-
 import os
-import pytest
 
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import ACCEnterDataTrans, ACCKernelsTrans
-from psyclone.psyir.transformations import ACCUpdateTrans
-from psyclone.tests.utilities import Compile, get_invoke
 
 
 # Constants

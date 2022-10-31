@@ -447,7 +447,6 @@ end SUBROUTINE tra_ldf_iso
     acc_kernels.apply(schedule[0].if_body[0])
     acc_update.apply(schedule)
     gen_code = str(psy.gen).lower()
-    print(gen_code)
     assert ("  if (l_ptr) then\n"
             "    !$acc kernels\n"
             "    zftv(:,:,:) = 0.0d0\n"
