@@ -38,7 +38,8 @@ captures the common functionality for the LFRic kernel declaration
 metadata.
 
 Declaration metadata is captured as an fparser2 class hierarchy in the
-following form:
+following form. The code in this file assumes this form when
+traversing an fparser2 tree.
 
 Data_Component_Def_Stmt
     [0] Intrinsic_Type_Spec
@@ -85,11 +86,8 @@ Data_Component_Def_Stmt
         ...
 
 '''
-from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
-from fparser.two.parser import ParserFactory
 
-from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.common_metadata import CommonMetadata
 from psyclone.parse.utils import ParseError
 
@@ -97,6 +95,7 @@ from psyclone.parse.utils import ParseError
 class CommonDeclarationMetadata(CommonMetadata):
     '''Class to capture common LFRic kernel declaration metadata.'''
 
+    @staticmethod
     def scalar_declaration_string(datatype, name, value):
         '''Return the Fortran declaration associated with the datatype, name
         and value arguments.
@@ -108,6 +107,7 @@ class CommonDeclarationMetadata(CommonMetadata):
         '''
         return f"{datatype} :: {name} = {value}\n"
 
+    @staticmethod
     def array_declaration_string(datatype, name, values):
         '''Return the Fortran declaration associated with the datatype, name
         and value arguments.
@@ -121,9 +121,10 @@ class CommonDeclarationMetadata(CommonMetadata):
         num_values = len(values)
         return f"{datatype} :: {name}({num_values}) = (/{values_str}/)\n"
 
+    @staticmethod
     def type_declaration_string(datatype, name, values):
         '''Return the Fortran declaration associated with the datatype, name
-        and value arguments.
+        and values arguments.
 
         :param str datatype: the name of the Fortran datatype.
         :param str name: the name of the variable.
@@ -149,8 +150,11 @@ class CommonDeclarationMetadata(CommonMetadata):
         '''
         fparser2_tree = cls.create_fparser2(
             fortran_string, Fortran2003.Data_Component_Def_Stmt)
+        # pylint: disable=no-member
         return cls.create_from_fparser2(fparser2_tree)
+        # pylint: enable=no-member
 
+    @staticmethod
     def validate_scalar_value(value, valid_values, name):
         '''Check that the value argument is one of the values supplied in the
         valid_values list.
@@ -169,8 +173,9 @@ class CommonDeclarationMetadata(CommonMetadata):
                 f"value (one of {valid_values}) "
                 f"but found '{value}'.")
 
+    @staticmethod
     def validate_node(fparser2_node, encoding):
-        '''Check that the supplied fparser2 node is of the type specified by
+        '''Check that the supplied fparser2_node is of the type specified by
         the encoding argument.
 
         :param fparser2_node: an fparser2 node.
@@ -191,12 +196,13 @@ class CommonDeclarationMetadata(CommonMetadata):
                 f"'{type(fparser2_node).__name__}' with value "
                 f"'{str(fparser2_node)}'.")
 
+    @staticmethod
     def _validate_derived(fparser2_tree, type_name, name):
         '''Check that the supplied fparser2 tree captures the declaration of a
         derived type of type type_name.
 
-        :param fparser2_node: an fparser2 node.
-        :type fparser2_node: subclass of \
+        :param fparser2_tree: an fparser2 tree.
+        :type fparser2_tree: subclass of \
             :py:class:`fparser.two.Fortran2003.Base`
         :param str type_name: the expected type name.
         :param str name: the name of the associated metadata.
@@ -217,8 +223,9 @@ class CommonDeclarationMetadata(CommonMetadata):
                 f"In Fortran, {name} metadata should be encoded as a "
                 f"'type({type_name})', but found "
                 f"'{str(fparser2_tree.children[0])}' in "
-                "'{str(fparser2_tree)}'.")
+                f"'{str(fparser2_tree)}'.")
 
+    @staticmethod
     def _validate_intrinsic(fparser2_tree, type_name, name):
         '''Check that the supplied fparser2 tree captures the declaration of
         an intrinsic type of type type_name.
@@ -246,6 +253,7 @@ class CommonDeclarationMetadata(CommonMetadata):
                 f"{type_name}, but found '{str(fparser2_tree.children[0])}' "
                 f"in '{str(fparser2_tree)}'.")
 
+    @staticmethod
     def validate_name_value(fparser2_tree, name):
         '''Check that the supplied variable declaration captured as an
         fparser2 tree declares a single variable with the name being
@@ -288,6 +296,7 @@ class CommonDeclarationMetadata(CommonMetadata):
                 f"{name} should be set to a value but none was found, in "
                 f"'{str(fparser2_tree)}'.")
 
+    @staticmethod
     def validate_intrinsic_scalar_declaration(
             fparser2_tree, datatype, name, valid_values):
         '''Check that the supplied variable declaration captured as an
@@ -338,6 +347,7 @@ class CommonDeclarationMetadata(CommonMetadata):
             scalar_value, valid_values, name)
         return scalar_value
 
+    @staticmethod
     def validate_intrinsic_array_declaration(
             fparser2_tree, datatype, name, valid_values):
         '''Check that the supplied variable declaration captured as an
@@ -370,6 +380,7 @@ class CommonDeclarationMetadata(CommonMetadata):
                 value, valid_values, name)
         return values_list
 
+    @staticmethod
     def validate_derived_array_declaration(
             fparser2_tree, type_name, name, valid_values=None):
         '''Check that the supplied variable declaration captured as an
@@ -403,6 +414,7 @@ class CommonDeclarationMetadata(CommonMetadata):
                     value, valid_values, name)
         return values_list
 
+    @staticmethod
     def _validate_array(fparser2_tree, name):
         '''Check that the supplied variable declaration captured as an
         fparser2 tree is a one dimensional array.
@@ -522,4 +534,4 @@ class CommonDeclarationMetadata(CommonMetadata):
                 raise TypeError(
                     f"The {cls.__name__} list should be a list containing "
                     f"objects of type {expected_type.__name__} but found "
-                    f"'{type(value).__name__}'.")
+                    f"'{value}', which is of type '{type(value).__name__}'.")

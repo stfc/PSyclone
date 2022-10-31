@@ -40,52 +40,52 @@ import pytest
 
 from fparser.two import Fortran2003
 
+from psyclone.domain.lfric.kernel.common_declaration_metadata import \
+    CommonDeclarationMetadata
+from psyclone.domain.lfric.kernel.meta_funcs_arg_metadata import \
+    MetaFuncsArgMetadata
 from psyclone.domain.lfric.kernel.shapes_metadata import ShapesMetadata
 from psyclone.parse.utils import ParseError
 
 
-def test_init_invalid():
-    '''Test that an exception is raised if invalid initial values are
-    provided when constructing an instance of the ShapesMetadata
-    class.
+def test_scalar_declaration_string():
+    '''Test that the scalar_declaration_string method behaves as
+    expected.
 
     '''
-    with pytest.raises(TypeError) as info:
-        _ = ShapesMetadata("invalid")
-    assert ("shape values should be provided as a list but found 'str'."
-            in str(info.value))
+    result = CommonDeclarationMetadata.scalar_declaration_string(
+        "datatype", "name", "value")
+    assert result == "datatype :: name = value\n"
 
 
-def test_init():
-    '''Test that valid initial values provided when constructing an
-    instance of ShapesMetadata are stored as expected.
+def test_array_declaration_string():
+    '''Test that the array_declaration_string method behaves as
+    expected.
 
     '''
-    shape_values = ["gh_quadrature_XYoZ", "gh_evaluator"]
-    shapes_metadata = ShapesMetadata(shape_values)
-    assert shapes_metadata._shapes == [value.lower() for value in shape_values]
+    result = CommonDeclarationMetadata.array_declaration_string(
+        "datatype", "name", ["value1", "value2"])
+    assert result == "datatype :: name(2) = (/value1, value2/)\n"
 
 
-def test_fortran_string():
-    '''Test that the fortran_string method works as expected.'''
+def test_type_declaration_string():
+    '''Test that the type_declaration_string method behaves as
+    expected. Make use of the existing MetaFuncsArgMetadata class to
+    perform the test.
 
-    shape_values = ["gh_quadrature_XYoZ"]
-    shapes_metadata = ShapesMetadata(shape_values)
-    fortran_string = shapes_metadata.fortran_string()
-    expected = ("INTEGER :: GH_SHAPE = gh_quadrature_xyoz\n")
-    assert fortran_string == expected
-
-    shape_values = ["gh_quadrature_XYoZ", "gh_evaluator"]
-    shapes_metadata = ShapesMetadata(shape_values)
-    fortran_string = shapes_metadata.fortran_string()
-    expected = (
-        "INTEGER :: GH_SHAPE(2) = (/gh_quadrature_xyoz, gh_evaluator/)\n")
-    assert fortran_string == expected
+    '''
+    args = [MetaFuncsArgMetadata("w0", basis_function=True),
+            MetaFuncsArgMetadata("w1", basis_function=True)]
+    result = CommonDeclarationMetadata.type_declaration_string(
+        "datatype", "name", args)
+    assert (result == "type(datatype) :: name(2) = "
+            "(/func_type(w0, gh_basis), func_type(w1, gh_basis)/)\n")
 
 
 def test_create_from_fortran_string():
-    '''Test that the create_from_fortran_string method works as
-    expected.
+    '''Test that the create_from_fortran_string method behaves as
+    expected. Make use of the existing ShapesMetadata subclass to
+    perform the test.
 
     '''
     fortran_string = "integer :: gh_shape = gh_evaluator"
@@ -94,207 +94,422 @@ def test_create_from_fortran_string():
     assert shapes_metadata.shapes == ["gh_evaluator"]
 
 
-def test_create_fparser2():
-    '''Test that the create_from_fortran_string method works as
+def test_validate_scalar_value():
+    '''Test that the validate_scalar_value method behaves as
     expected.
 
     '''
-    fortran_string = "invalid"
     with pytest.raises(ValueError) as info:
-        _ = ShapesMetadata.create_fparser2(
-            fortran_string, Fortran2003.Data_Component_Def_Stmt)
-    assert ("Expected kernel metadata to be a Fortran "
-            "Data_Component_Def_Stmt, but found 'invalid'." in str(info.value))
-
-    fortran_string = "INTEGER :: gh_shape = gh_quadrature_XYoZ"
-    fparser2_tree = ShapesMetadata.create_fparser2(
-        fortran_string, Fortran2003.Data_Component_Def_Stmt)
-    assert str(fparser2_tree) == fortran_string
+        CommonDeclarationMetadata.validate_scalar_value(
+            "invalid", ["value1", "value2"], "my_metadata")
+    assert ("The my_metadata metadata should be a recognised value (one of "
+            "['value1', 'value2']) but found 'invalid'." in str(info.value))
+    CommonDeclarationMetadata.validate_scalar_value(
+            "Value2", ["value1", "value2"], "")
 
 
-def test_create_from_fparser2_error():
-    '''Test that the create_from_fparser2 method raises the expected
-    exceptions when supplied with invalid input.
+def test_validate_node():
+    '''Test that the validate_node method behaves as expected.'''
+
+    with pytest.raises(TypeError) as info:
+        CommonDeclarationMetadata.validate_node(
+            Fortran2003.Name("hello"), Fortran2003.Comment)
+    assert("Expected kernel metadata to be encoded as an fparser2 Comment "
+           "object but found type 'Name' with value 'hello'."
+           in str(info.value))
+    CommonDeclarationMetadata.validate_node(
+        Fortran2003.Name("hello"), Fortran2003.Name)
+
+
+def test_validate_derived():
+    '''Test that the validate_derived method behaves as expected.'''
+
+    # Child is not declaration_type_spec (it is intrinsic_type_space).
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "integer :: my_var")
+    with pytest.raises(TypeError) as info:
+        CommonDeclarationMetadata._validate_derived(
+            fparser2_tree, "my_type", "metadata_name")
+    assert ("In Fortran, metadata_name metadata should be encoded as a "
+            "'type(my_type)', but found 'INTEGER' in 'INTEGER :: my_var'."
+            in str(info.value))
+
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "type(my_type) :: my_var")
+
+    # Incorrect type name.
+    with pytest.raises(TypeError) as info:
+        CommonDeclarationMetadata._validate_derived(
+            fparser2_tree, "invalid_type", "metadata_name")
+    assert ("In Fortran, metadata_name metadata should be encoded as a "
+            "'type(invalid_type)', but found 'TYPE(my_type)' in "
+            "'TYPE(my_type) :: my_var'." in str(info.value))
+
+    CommonDeclarationMetadata._validate_derived(
+        fparser2_tree, "my_type", "metadata_name")
+
+
+def test_validate_intrinsic():
+    '''Test that the validate_intrinsic method behaves as expected.'''
+
+    # Child is not intrinsic_type_spec (it is declaration_type_spec).
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "type(my_type) :: my_var")
+    with pytest.raises(TypeError) as info:
+        CommonDeclarationMetadata._validate_intrinsic(
+            fparser2_tree, "integer", "my_metadata")
+    assert ("In Fortran, my_metadata metadata should be encoded as an "
+            "integer, but found 'TYPE(my_type)' in 'TYPE(my_type) :: my_var'."
+            in str(info.value))
+
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "integer :: my_var")
+
+    # Incorrect intrinsic type.
+    with pytest.raises(TypeError) as info:
+        CommonDeclarationMetadata._validate_intrinsic(
+            fparser2_tree, "real", "my_metadata")
+    assert ("In Fortran, my_metadata metadata should be encoded as an real, "
+            "but found 'INTEGER' in 'INTEGER :: my_var'." in str(info.value))
+
+    CommonDeclarationMetadata._validate_intrinsic(
+        fparser2_tree, "integer", "my_metadata")
+
+
+def test_validate_name_value():
+    '''Test that the validate_name_value method behaves as expected.'''
+
+    # More than one variable declared.
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "integer :: var1, var2\n")
+    with pytest.raises(ParseError) as info:
+        CommonDeclarationMetadata.validate_name_value(
+            fparser2_tree, "my_var")
+    assert ("In Fortran, my_var metadata should only contain a single "
+            "variable, but found '2' in 'INTEGER :: var1, var2'."
+            in str(info.value))
+
+    # Incorrect variable name.
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "integer :: invalid\n")
+    with pytest.raises(ValueError) as info:
+        CommonDeclarationMetadata.validate_name_value(
+            fparser2_tree, "my_var")
+    assert ("In Fortran, my_var metadata should be encoded as a variable "
+            "called my_var, but found 'invalid' in 'INTEGER :: invalid'."
+            in str(info.value))
+
+    # No initial value.
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "integer :: my_var\n")
+    with pytest.raises(ParseError) as info:
+        CommonDeclarationMetadata.validate_name_value(
+            fparser2_tree, "my_var")
+    assert ("my_var should be set to a value but none was found, in "
+            "'INTEGER :: my_var'." in str(info.value))
+
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "integer :: my_var = value\n")
+    CommonDeclarationMetadata.validate_name_value(fparser2_tree, "my_var")
+
+
+def test_validate_intrinsic_scalar_declaration():
+    '''Test that the validate_intrinsic_scalar_declaration method behaves
+    as expected.
 
     '''
+    # Calls validate_node.
+    fparser2_tree = Fortran2003.Name("hello")
     with pytest.raises(TypeError) as info:
-        ShapesMetadata.create_from_fparser2(None)
+        CommonDeclarationMetadata.validate_intrinsic_scalar_declaration(
+            fparser2_tree, "integer", "my_var", ["value1", "value2"])
     assert ("Expected kernel metadata to be encoded as an fparser2 "
-            "Data_Component_Def_Stmt object but found type 'NoneType' with "
-            "value 'None'." in str(info.value))
+            "Data_Component_Def_Stmt object but found type 'Name' with "
+            "value 'hello'." in str(info.value))
 
-    fortran_string = "real :: gh_shape = value"
-    fparser2_tree = ShapesMetadata.create_fparser2(
-        fortran_string, Fortran2003.Data_Component_Def_Stmt)
+    # Calls _validate_intrinsic.
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "type(my_type) :: my_var")
     with pytest.raises(TypeError) as info:
-        ShapesMetadata.create_from_fparser2(fparser2_tree)
-    assert ("In Fortran, GH_SHAPE metadata should be encoded as an INTEGER, "
-            "but found 'REAL' in 'REAL :: gh_shape = value'."
+        CommonDeclarationMetadata.validate_intrinsic_scalar_declaration(
+            fparser2_tree, "integer", "my_var", ["value1", "value2"])
+    assert ("In Fortran, my_var metadata should be encoded as an integer, "
+            "but found 'TYPE(my_type)' in 'TYPE(my_type) :: my_var'."
             in str(info.value))
 
-    fortran_string = "integer :: gh_shape, gh_shape2"
-    fparser2_tree = ShapesMetadata.create_fparser2(
-        fortran_string, Fortran2003.Data_Component_Def_Stmt)
+    # Calls validate_name_value.
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "integer :: my_var")
     with pytest.raises(ParseError) as info:
-        ShapesMetadata.create_from_fparser2(fparser2_tree)
-    assert ("In Fortran, GH_SHAPE metadata should only contain a single "
-            "variable, but found '2' in 'INTEGER :: gh_shape, gh_shape2'."
-            in str(info.value))
+        CommonDeclarationMetadata.validate_intrinsic_scalar_declaration(
+            fparser2_tree, "integer", "my_var", ["value1", "value2"])
+    assert ("Parse Error: my_var should be set to a value but none was "
+            "found, in 'INTEGER :: my_var'." in str(info.value))
 
-    fortran_string = "integer :: gh_ship"
-    fparser2_tree = ShapesMetadata.create_fparser2(
-        fortran_string, Fortran2003.Data_Component_Def_Stmt)
-    with pytest.raises(ValueError) as info:
-        ShapesMetadata.create_from_fparser2(fparser2_tree)
-    assert ("In Fortran, GH_SHAPE metadata should be encoded as a variable "
-            "called GH_SHAPE, but found 'gh_ship' in 'INTEGER :: gh_ship'."
-            in str(info.value))
-
-    fortran_string = "integer, pointer :: gh_shape = gh_evaluator"
-    fparser2_tree = ShapesMetadata.create_fparser2(
-        fortran_string, Fortran2003.Data_Component_Def_Stmt)
+    # Has additional attributes.
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "integer, pointer :: my_var = value1")
     with pytest.raises(ParseError) as info:
-        ShapesMetadata.create_from_fparser2(fparser2_tree)
-    assert ("The Fortran representation of GH_SHAPE metadata should only have "
-            "at most one attribute and that attribute should be 'dimension', "
-            "but found 'INTEGER, POINTER :: gh_shape = gh_evaluator'."
-            in str(info.value))
+        CommonDeclarationMetadata.validate_intrinsic_scalar_declaration(
+            fparser2_tree, "integer", "my_var", ["value1", "value2"])
+    assert ("The integer intrinsic in the Fortran representation of my_var "
+            "metadata should have no attributes, but found 'POINTER' in "
+            "'INTEGER, POINTER :: my_var = value1'." in str(info.value))
 
-    fortran_string = "integer, dimension(2), pointer :: gh_shape = value"
-    fparser2_tree = ShapesMetadata.create_fparser2(
-        fortran_string, Fortran2003.Data_Component_Def_Stmt)
+    # Is an array.
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "integer :: my_var(1) = (/value1/)")
     with pytest.raises(ParseError) as info:
-        ShapesMetadata.create_from_fparser2(fparser2_tree)
-    assert ("The Fortran representation of GH_SHAPE metadata should only have "
-            "at most one attribute and that attribute should be 'dimension', "
-            "but found 'INTEGER, DIMENSION(2), POINTER :: gh_shape = value'."
+        CommonDeclarationMetadata.validate_intrinsic_scalar_declaration(
+            fparser2_tree, "integer", "my_var", ["value1", "value2"])
+    assert ("The integer intrinsic in the Fortran representation of my_var "
+            "metadata should not be declared as an array, but found '1' in "
+            "'INTEGER :: my_var(1) = (/value1/)'." in str(info.value))
+
+    # Calls validate_scalar_value.
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "integer :: my_var = invalid")
+    with pytest.raises(ValueError) as info:
+        CommonDeclarationMetadata.validate_intrinsic_scalar_declaration(
+            fparser2_tree, "integer", "my_var", ["value1", "value2"])
+    assert ("The my_var metadata should be a recognised value (one of "
+            "['value1', 'value2']) but found 'invalid'." in str(info.value))
+
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "integer :: my_var = value2\n")
+    result = CommonDeclarationMetadata.validate_intrinsic_scalar_declaration(
+        fparser2_tree, "integer", "my_var", ["value1", "value2"])
+    assert result == "value2"
+
+
+def test_validate_intrinsic_array_declaration():
+    '''Test that the validate_intrinsic_array_declaration method behaves
+    as expected.
+
+    '''
+    # Calls validate_node.
+    fparser2_tree = Fortran2003.Name("hello")
+    with pytest.raises(TypeError) as info:
+        CommonDeclarationMetadata.validate_intrinsic_array_declaration(
+            fparser2_tree, "integer", "my_var", ["value1", "value2"])
+    assert ("Expected kernel metadata to be encoded as an fparser2 "
+            "Data_Component_Def_Stmt object but found type 'Name' with "
+            "value 'hello'." in str(info.value))
+
+    # Calls _validate_intrinsic.
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "type(my_type) :: my_var(2)")
+    with pytest.raises(TypeError) as info:
+        CommonDeclarationMetadata.validate_intrinsic_array_declaration(
+            fparser2_tree, "integer", "my_var", ["value1", "value2"])
+    assert ("In Fortran, my_var metadata should be encoded as an integer, "
+            "but found 'TYPE(my_type)' in 'TYPE(my_type) :: my_var(2)'."
             in str(info.value))
 
-    fortran_string = "integer, dimension(n) :: gh_shape = value"
-    fparser2_tree = ShapesMetadata.create_fparser2(
-        fortran_string, Fortran2003.Data_Component_Def_Stmt)
-    with pytest.raises(ValueError) as info:
-        ShapesMetadata.create_from_fparser2(fparser2_tree)
-    assert ("If the Fortran representation of GH_SHAPE metadata is an array, "
-            "it should be one-dimensional with an integer value for the "
-            "dimension extent, but found 'n' in 'INTEGER, DIMENSION(n) :: "
-            "gh_shape = value'." in str(info.value))
+    # Calls validate_name_value.
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "integer :: my_var(2)")
+    with pytest.raises(ParseError) as info:
+        CommonDeclarationMetadata.validate_intrinsic_array_declaration(
+            fparser2_tree, "integer", "my_var", ["value1", "value2"])
+    assert ("Parse Error: my_var should be set to a value but none was "
+            "found, in 'INTEGER :: my_var(2)'." in str(info.value))
 
-    # Use the alternate form of array declaration to check that is
-    # also working with exceptions
-    fortran_string = "integer :: gh_shape(1,1) = value"
-    fparser2_tree = ShapesMetadata.create_fparser2(
-        fortran_string, Fortran2003.Data_Component_Def_Stmt)
-    with pytest.raises(ValueError) as info:
-        ShapesMetadata.create_from_fparser2(fparser2_tree)
-    assert ("If the Fortran representation of GH_SHAPE metadata is an array, "
-            "it should be one-dimensional with an integer value for the "
-            "dimension extent, but found '1, 1' in 'INTEGER :: "
-            "gh_shape(1, 1) = value'." in str(info.value))
+    # Calls _validate_array.
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "integer :: my_var")
+    with pytest.raises(ParseError) as info:
+        CommonDeclarationMetadata.validate_intrinsic_array_declaration(
+            fparser2_tree, "integer", "my_var", ["value1", "value2"])
+    assert ("Parse Error: my_var should be set to a value but none was "
+            "found, in 'INTEGER :: my_var'." in str(info.value))
 
-    fortran_string = "integer, dimension(0) :: gh_shape = value"
-    fparser2_tree = ShapesMetadata.create_fparser2(
-        fortran_string, Fortran2003.Data_Component_Def_Stmt)
+    # Calls validate_scalar_value.
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "integer :: my_var(1) = (/invalid/)")
     with pytest.raises(ValueError) as info:
-        ShapesMetadata.create_from_fparser2(fparser2_tree)
+        CommonDeclarationMetadata.validate_intrinsic_array_declaration(
+            fparser2_tree, "integer", "my_var", ["value1", "value2"])
+    assert ("The my_var metadata should be a recognised value (one of "
+            "['value1', 'value2']) but found 'invalid'." in str(info.value))
+
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "integer :: my_var(2) = (/value1, value2/)")
+    result = CommonDeclarationMetadata.validate_intrinsic_array_declaration(
+        fparser2_tree, "integer", "my_var", ["value1", "value2"])
+    assert result == ["value1", "value2"]
+
+
+def test_validate_derived_array_declaration():
+    '''Test that the validate_derived_array_declaration method behaves
+    as expected.
+
+    '''
+    # Calls validate_node.
+    fparser2_tree = Fortran2003.Name("hello")
+    with pytest.raises(TypeError) as info:
+        CommonDeclarationMetadata.validate_derived_array_declaration(
+            fparser2_tree, "integer", "my_var", ["value1", "value2"])
+    assert ("Expected kernel metadata to be encoded as an fparser2 "
+            "Data_Component_Def_Stmt object but found type 'Name' with "
+            "value 'hello'." in str(info.value))
+
+    # Calls _validate_derived.
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "integer :: my_var")
+    with pytest.raises(TypeError) as info:
+        CommonDeclarationMetadata.validate_derived_array_declaration(
+            fparser2_tree, "my_type", "my_var", ["value1", "value2"])
+    assert ("In Fortran, my_var metadata should be encoded as a "
+            "'type(my_type)', but found 'INTEGER' in 'INTEGER :: my_var'."
+            in str(info.value))
+
+    # Calls validate_name_value.
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "type(my_type) :: my_var")
+    with pytest.raises(ParseError) as info:
+        CommonDeclarationMetadata.validate_derived_array_declaration(
+            fparser2_tree, "my_type", "my_var", ["value1", "value2"])
+    assert ("Parse Error: my_var should be set to a value but none was "
+            "found, in 'TYPE(my_type) :: my_var'." in str(info.value))
+
+    # Calls _validate_array.
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "type(my_type) :: my_var = value")
+    with pytest.raises(ParseError) as info:
+        CommonDeclarationMetadata.validate_derived_array_declaration(
+            fparser2_tree, "my_type", "my_var", ["value1", "value2"])
+    assert ("No dimension declarations found in 'TYPE(my_type) :: my_var "
+            "= value'." in str(info.value))
+
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "type(my_type) :: my_var(1) = (/invalid/)")
+
+    # Calls validate_scalar_value.
+    with pytest.raises(ValueError) as info:
+        CommonDeclarationMetadata.validate_derived_array_declaration(
+            fparser2_tree, "my_type", "my_var", ["value1", "value2"])
+    assert ("The my_var metadata should be a recognised value (one of "
+            "['value1', 'value2']) but found 'invalid'." in str(info.value))
+
+    # OK with no validation.
+    result = CommonDeclarationMetadata.validate_derived_array_declaration(
+        fparser2_tree, "my_type", "my_var")
+    assert result == ["invalid"]
+
+    # OK with validation.
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "type(my_type) :: my_var(2) = (/value1, value2/)")
+    result = CommonDeclarationMetadata.validate_derived_array_declaration(
+        fparser2_tree, "my_type", "my_var", ["value1", "value2"])
+    assert result == ["value1", "value2"]
+
+
+def test_validate_array():
+    '''Test that the _validate_array method behaves as expected.'''
+
+    # Invalid attribute.
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "integer, pointer :: my_var")
+    with pytest.raises(ParseError) as info:
+        CommonDeclarationMetadata._validate_array(
+            fparser2_tree, "metadata_name")
+    assert ("Parse Error: The Fortran representation of metadata_name "
+            "metadata should only have at most one attribute and that "
+            "attribute should be 'dimension', but found 'INTEGER, "
+            "POINTER :: my_var'." in str(info.value))
+
+    # Not an array.
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "integer :: my_var")
+    with pytest.raises(ParseError) as info:
+        CommonDeclarationMetadata._validate_array(
+            fparser2_tree, "metadata_name")
+    assert ("No dimension declarations found in 'INTEGER :: my_var'."
+            in str(info.value))
+
+    # Multi-dimensional array.
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "integer :: my_var(2,2)")
+    with pytest.raises(ValueError) as info:
+        CommonDeclarationMetadata._validate_array(
+            fparser2_tree, "metadata_name")
+    assert ("If the Fortran representation of metadata_name metadata is "
+            "an array, it should be one-dimensional with an integer value "
+            "for the dimension extent, but found '2, 2' in 'INTEGER :: "
+            "my_var(2, 2)'." in str(info.value))
+
+    # Non-integer array extent.
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "integer :: my_var(n)")
+    with pytest.raises(ValueError) as info:
+        CommonDeclarationMetadata._validate_array(
+            fparser2_tree, "metadata_name")
+    assert ("If the Fortran representation of metadata_name metadata is "
+            "an array, it should be one-dimensional with an integer value "
+            "for the dimension extent, but found 'n' in 'INTEGER :: "
+            "my_var(n)'." in str(info.value))
+
+    # Array extent is less than 1.
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "integer :: my_var(0)")
+    with pytest.raises(ValueError) as info:
+        CommonDeclarationMetadata._validate_array(
+            fparser2_tree, "metadata_name")
     assert ("The array extent should be at least 1, but found '0' in "
-            "'INTEGER, DIMENSION(0) :: gh_shape = value'." in str(info.value))
+            "'INTEGER :: my_var(0)'." in str(info.value))
 
-    fortran_string = "integer :: gh_shape"
-    fparser2_tree = ShapesMetadata.create_fparser2(
-        fortran_string, Fortran2003.Data_Component_Def_Stmt)
+    # Not initialised to a list of values.
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "integer :: my_var(1) = value")
+    with pytest.raises(ValueError) as info:
+        CommonDeclarationMetadata._validate_array(
+            fparser2_tree, "metadata_name")
+    assert ("Expected metadata_name to be set to a list of values, but "
+            "found 'value' in 'INTEGER :: my_var(1) = value'."
+            in str(info.value))
+
+    # Array extent and list length do not match.
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "integer :: my_var(3) = (/value1, value2/)")
     with pytest.raises(ParseError) as info:
-        ShapesMetadata.create_from_fparser2(fparser2_tree)
-    assert ("GH_SHAPE should be set to a value but none was found, in "
-            "'INTEGER :: gh_shape'." in str(info.value))
-
-    fortran_string = "integer :: gh_shape(1) = gh_evaluator"
-    fparser2_tree = ShapesMetadata.create_fparser2(
-        fortran_string, Fortran2003.Data_Component_Def_Stmt)
-    with pytest.raises(ValueError) as info:
-        ShapesMetadata.create_from_fparser2(fparser2_tree)
-    assert ("Expected GH_SHAPE to be set to a list of values, but found "
-            "'gh_evaluator' in 'INTEGER :: gh_shape(1) = gh_evaluator'."
+        CommonDeclarationMetadata._validate_array(
+            fparser2_tree, "metadata_name")
+    assert ("The array extent '3' and number of metadata_name values '2' "
+            "differ in 'INTEGER :: my_var(3) = (/value1, value2/)'."
             in str(info.value))
 
-    fortran_string = "integer :: gh_shape(1) = (/ invalid /)"
-    fparser2_tree = ShapesMetadata.create_fparser2(
-        fortran_string, Fortran2003.Data_Component_Def_Stmt)
-    with pytest.raises(ValueError) as info:
-        ShapesMetadata.create_from_fparser2(fparser2_tree)
-    assert ("The GH_SHAPE metadata should be a recognised value (one of "
-            "['gh_quadrature_xyoz', 'gh_quadrature_face', "
-            "'gh_quadrature_edge', 'gh_evaluator']) but found 'invalid'."
-            in str(info.value))
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "integer :: my_var(2) = (/value1, value2/)")
+    result = CommonDeclarationMetadata._validate_array(
+        fparser2_tree, "metadata_name")
+    assert result == ["value1", "value2"]
 
-    fortran_string = "integer :: gh_shape(2) = (/ gh_evaluator /)"
-    fparser2_tree = ShapesMetadata.create_fparser2(
-        fortran_string, Fortran2003.Data_Component_Def_Stmt)
-    with pytest.raises(ParseError) as info:
-        ShapesMetadata.create_from_fparser2(fparser2_tree)
-    assert ("The array extent '2' and number of GH_SHAPE values '1' differ "
-            "in 'INTEGER :: gh_shape(2) = (/gh_evaluator/)'."
-            in str(info.value))
-
-    fortran_string = "integer :: gh_shape = invalid"
-    fparser2_tree = ShapesMetadata.create_fparser2(
-        fortran_string, Fortran2003.Data_Component_Def_Stmt)
-    with pytest.raises(ValueError) as info:
-        ShapesMetadata.create_from_fparser2(fparser2_tree)
-    assert ("The GH_SHAPE metadata should be a recognised value (one of "
-            "['gh_quadrature_xyoz', 'gh_quadrature_face', "
-            "'gh_quadrature_edge', 'gh_evaluator']) but found 'invalid'."
-            in str(info.value))
+    fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
+        "integer, dimension(2) :: my_var = (/value1, value2/)")
+    result = CommonDeclarationMetadata._validate_array(
+        fparser2_tree, "metadata_name")
+    assert result == ["value1", "value2"]
 
 
-@pytest.mark.parametrize("fortran_string, expected_shapes_list", [
-    ("INTEGER :: gh_shape = gh_quadrature_XYoZ", ["gh_quadrature_xyoz"]),
-    ("INTEGER, dimension(1) :: gh_shape = (/gh_quadrature_edge/)",
-     ["gh_quadrature_edge"]),
-    ("INTEGER :: gh_shape(2) = (/gh_quadrature_face, gh_evaluator/)",
-     ["gh_quadrature_face", "gh_evaluator"])])
-def test_create_from_fparser2(fortran_string, expected_shapes_list):
-    '''Test that the create_from_fparser2 method works as expected.'''
-    fparser2_tree = ShapesMetadata.create_fparser2(
-        fortran_string, Fortran2003.Data_Component_Def_Stmt)
-    shapes_metadata = ShapesMetadata.create_from_fparser2(fparser2_tree)
-    assert isinstance(shapes_metadata, ShapesMetadata)
-    assert shapes_metadata.shapes == expected_shapes_list
+def test_validate_list():
+    '''Test that the validate_list method behaves as expected.'''
 
-
-def test_setter_getter():
-    '''Test that the setters and getters work as expected.'''
-    shape_values = ["gh_evaluator", "gh_quadrature_face"]
-    shapes_metadata = ShapesMetadata(shape_values)
-    assert shapes_metadata.shapes == shape_values
-    # Check that the getter makes a copy of the list
-    assert shapes_metadata.shapes is not shapes_metadata._shapes
-
-    shape_values = ["gh_quadrature_xyoz", "gh_quadrature_edge"]
-    shapes_metadata.shapes = shape_values
-    assert shapes_metadata._shapes == shape_values
-    # Check that the setter makes a copy of the list
-    assert shapes_metadata._shapes is not shape_values
-
-    shape_values = ["gh_quadrature_XYoZ", "GH_QUADRATURE_EDGE"]
-    shapes_metadata.shapes = shape_values
-    assert shapes_metadata._shapes == [value.lower() for value in shape_values]
-
+    # Not a list.
     with pytest.raises(TypeError) as info:
-        shapes_metadata.shapes = "invalid"
-    assert ("shape values should be provided as a list but found 'str'."
-            in str(info.value))
+        CommonDeclarationMetadata.validate_list(None, str)
+    assert ("CommonDeclarationMetadata values should be provided as a list "
+            "but found 'NoneType'." in str(info.value))
+
+    # Empty list.
     with pytest.raises(TypeError) as info:
-        shapes_metadata.shapes = []
-    assert ("The shapes list should contain at least one entry, but it is "
-            "empty." in str(info.value))
+        CommonDeclarationMetadata.validate_list([], str)
+    assert ("The CommonDeclarationMetadata list should contain at least "
+            "one entry, but it is empty." in str(info.value))
+
+    # Invalid list member types.
     with pytest.raises(TypeError) as info:
-        shapes_metadata.shapes = [None]
-    assert ("shapes should be a list of str, but found 'NoneType'."
-            in str(info.value))
-    with pytest.raises(ValueError) as info:
-        shapes_metadata.shapes = ["invalid"]
-    assert ("The shape metadata should be a recognised value (one of "
-            "['gh_quadrature_xyoz', 'gh_quadrature_face', "
-            "'gh_quadrature_edge', 'gh_evaluator']) but found 'invalid'."
+        CommonDeclarationMetadata.validate_list(["hello", 1], str)
+    assert ("The CommonDeclarationMetadata list should be a list containing "
+            "objects of type str but found '1', which is of type 'int'."
             in str(info.value))
