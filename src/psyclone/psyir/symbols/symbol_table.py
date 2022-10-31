@@ -306,6 +306,24 @@ class SymbolTable():
         new_key = key.lower()
         return new_key
 
+    @classmethod
+    def _has_same_name(cls, first, second):
+        ''' Compare if two symbols have the same normalized name. For
+        convenience it accepts symbols and strings.
+
+        :param first: first item of the comparison.
+        :type first: str | :py:class:`psyclone.psyir.symbols.Symbol`
+        :param second: second item of the comparison.
+        :type second: str | :py:class:`psyclone.psyir.symbols.Symbol`
+
+        :returns: whether the two symbols names are the same.
+        :rtype: bool
+
+        '''
+        string1 = first if isinstance(first, str) else first.name
+        string2 = second if isinstance(second, str) else second.name
+        return cls._normalize(string1) == cls._normalize(string2)
+
     def new_symbol(self, root_name=None, tag=None, shadowing=False,
                    symbol_type=None, **symbol_init_args):
         ''' Create a new symbol. Optional root_name and shadowing
@@ -552,7 +570,7 @@ class SymbolTable():
             if symbol.name not in self._symbols:
                 raise KeyError(f"Symbol '{symbol.name}' is not in the symbol "
                                f"table.")
-        if symbol1.name == symbol2.name:
+        if self._has_same_name(symbol1.name, symbol2.name):
             raise ValueError(f"The symbols should have different names, but "
                              f"found '{symbol1.name}' for both.")
 
@@ -739,10 +757,7 @@ class SymbolTable():
         if not isinstance(new_symbol, Symbol):
             raise TypeError(f"Symbol to add must be of type Symbol but "
                             f"got '{type(new_symbol).__name__}'")
-        # The symbol table is not case sensitive so we must normalise the
-        # symbol names before comparing them.
-        if (self._normalize(old_symbol.name) !=
-                self._normalize(new_symbol.name)):
+        if not self._has_same_name(old_symbol, new_symbol):
             raise SymbolError(
                 f"Cannot swap symbols that have different names, got: "
                 f"'{old_symbol.name}' and '{new_symbol.name}'")
@@ -1091,8 +1106,9 @@ class SymbolTable():
             # the same tag.
             local_instance = self.lookup(imported_var.name)
             if not (local_instance.is_import and
-                    local_instance.interface.container_symbol.name ==
-                    external_container_name):
+                    self._has_same_name(
+                        local_instance.interface.container_symbol,
+                        external_container_name)):
                 raise KeyError(
                     f"Couldn't copy '{imported_var}' into the SymbolTable. The"
                     f" name '{imported_var.name}' is already used by another "
@@ -1183,7 +1199,8 @@ class SymbolTable():
 
                 # If we are just resolving a single specific symbol we don't
                 # need to process this symbol unless the name matches.
-                if symbol_target and symbol.name != symbol_target.name:
+                if symbol_target and not self._has_same_name(
+                                            symbol, symbol_target):
                     continue
 
                 # This Symbol matches the name of a symbol in the current table
@@ -1235,7 +1252,6 @@ class SymbolTable():
                         # local (not imported) properties
                         symbol_match.interface = interface
                         symbol_match.visibility = visibility
-
                     if symbol_target:
                         # If we were looking just for this symbol we don't need
                         # to continue searching
