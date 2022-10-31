@@ -31,8 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
-# Modified: R. W. Ford, STFC Daresbury Lab
+# Authors: A. R. Porter, R. W. Ford and A. Chalk, STFC Daresbury Lab
 
 '''
 This module contains the InlineTrans transformation.
@@ -207,40 +206,69 @@ class InlineTrans(Transformation):
                 parent.addchild(child, idx)
 
     def replace_dummy_arg(self, ref, node, dummy_args):
-        if ref.symbol in dummy_args:
-            if isinstance(ref, ArrayMixin) and not isinstance(node.children[dummy_args.index(ref.symbol)], ArrayMixin):
-                if isinstance(node.children[dummy_args.index(ref.symbol)], StructureReference):
-                    symbol = node.children[dummy_args.index(ref.symbol)].symbol
-                    members = []
-                    members.append(node.children[dummy_args.index(ref.symbol)].member.copy())
-                    childmember = node.children[dummy_args.index(ref.symbol)].member
-                    while isinstance(childmember, StructureMember):
-                        childmember = childmember.member
-                        members.append(childmember.copy())
+        '''
+        Replaces a reference to a dummy argument with the corresponding
+        reference from the call site.
 
-                    final_member = members[-1]
-                    indices = []
-                    for index in ref.walk(Reference):
-                        if index is not ref:
-                            self.replace_dummy_arg(index, node, dummy_args)
-                    for index in ref.indices:
-                        indices.append(index.copy())
-                    array_member = ArrayMember.create(final_member.name, indices)
-                    members[-1] = array_member
-                    replacement = StructureReference(symbol)
-                    for member in members:
-                        replacement.addchild(member)
-                    ref.replace_with(replacement)
-                elif isinstance(node.children[dummy_args.index(ref.symbol)], Reference):
-                    symbol = node.children[dummy_args.index(ref.symbol)].symbol
-                    indices = []
-                    for index in ref.indices:
-                        indices.append(index.copy())
-                    replacement = ArrayReference.create(symbol, indices)
-                    ref.replace_with(replacement)
-            else:
-                ref.replace_with(
-                    node.children[dummy_args.index(ref.symbol)].copy())
+        :param ref: the reference to update.
+        :type ref: 
+        :param node:
+        :type node:
+        :param dummy_args: the dummy arguments of the called routine.
+        :type dummy_args:
+
+        '''
+        if ref.symbol not in dummy_args:
+            # The supplied reference is not to a dummy argument.
+            return
+
+        if not (isinstance(ref, ArrayMixin) and
+                not isinstance(node.children[dummy_args.index(ref.symbol)],
+                               ArrayMixin)):
+            # There's no indexing to worry about so we can simply copy the
+            # reference from the call site.
+            ref.replace_with(
+                node.children[dummy_args.index(ref.symbol)].copy())
+            return
+
+        if isinstance(node.children[dummy_args.index(ref.symbol)], StructureReference):
+            symbol = node.children[dummy_args.index(ref.symbol)].symbol
+            members = []
+            members.append(node.children[dummy_args.index(ref.symbol)].member.copy())
+            childmember = node.children[dummy_args.index(ref.symbol)].member
+            members[0].pop_all_children()
+            while isinstance(childmember, StructureMember):
+                childmember.detach()
+                childmember = childmember.member
+                members.append(childmember.copy())
+                members[-1].detach()
+                childmember.detach()
+
+            final_member = members[-1]
+            indices = []
+            for index in ref.walk(Reference):
+                if index is not ref:
+                    self.replace_dummy_arg(index, node, dummy_args)
+            for index in ref.indices:
+                indices.append(index.copy())
+            array_member = ArrayMember.create(final_member.name, indices)
+            members[-1] = array_member
+            replacement = StructureReference(symbol)
+            add_to = replacement
+            for member in members:
+                add_to.addchild(member)
+                add_to = add_to.children[-1]
+                while isinstance(add_to, StructureMember) and len(add_to.children) > 0:
+                    add_to = add_to.member
+            ref.replace_with(replacement)
+
+        elif isinstance(node.children[dummy_args.index(ref.symbol)], Reference):
+            symbol = node.children[dummy_args.index(ref.symbol)].symbol
+            indices = []
+            for index in ref.indices:
+                indices.append(index.copy())
+            replacement = ArrayReference.create(symbol, indices)
+            ref.replace_with(replacement)
 
 
     @staticmethod
