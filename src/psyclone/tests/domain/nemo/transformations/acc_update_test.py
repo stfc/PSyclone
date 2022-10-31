@@ -64,7 +64,7 @@ def test_validate():
 
     with pytest.raises(TransformationError) as err:
         trans.validate(Schedule(parent=ACCKernelsDirective()))
-    assert ("Cannot apply the ACCUpdateTrans to nodes that are already "
+    assert ("Cannot apply the ACCUpdateTrans to nodes that are "
             "within an OpenACC compute region." in str(err.value))
 
 

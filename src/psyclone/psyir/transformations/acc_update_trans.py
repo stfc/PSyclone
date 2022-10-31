@@ -344,18 +344,19 @@ class ACCUpdateTrans(Transformation):
         # that may launch device kernels, we conservatively assume a dependency
         # for all variables in the host region regardless of access type.
         if any(stmt.walk(self._brk_nodes) for stmt in dep_stmts):
-            return host_sig
+            return host_sig.copy()
 
         kern_sig = set()
 
-        for acc in (stmt.walk(self._acc_compute) for stmt in dep_stmts):
-            # Kernel outputs are both input and output dependency candidates.
-            # The latter is since we must guarantee no kernel write is
-            # overwritten by an earlier host write whose update device
-            # directive could appear later.
-            kern_sig.update(acc.out_kernel_references)
-            if acss_type == OUT:
-                kern_sig.update(acc.in_kernel_references)
+        for stmt in dep_stmts:
+            for acc in stmt.walk(self._acc_compute):
+                # Kernel outputs are both input and output dependency candidates.
+                # The latter is since we must guarantee no kernel write is
+                # overwritten by an earlier host write whose update device
+                # directive could appear later.
+                kern_sig.update(acc.out_kernel_references)
+                if acss_type == OUT:
+                    kern_sig.update(acc.in_kernel_references)
 
         return host_sig.intersection(kern_sig)
 
@@ -390,11 +391,11 @@ class ACCUpdateTrans(Transformation):
         # undefined until this point. 
         if acss_type == IN:
             direction = "host"
-            if not update_pos:
+            if update_pos is None:
                 update_pos = 0
         elif acss_type == OUT:
             direction = "device"
-            if not update_pos:
+            if update_pos is None:
                 update_pos = len(sched.children)
 
         # Check preceding and succeeding schedule positions for existing update
