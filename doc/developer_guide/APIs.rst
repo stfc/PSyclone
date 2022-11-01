@@ -1088,6 +1088,128 @@ reductions in the ``GlobalSum`` class in ``psyGen.py``. Conversions from
 available as symbols, which is being implemented as a part of the mixed
 precision support.
 
+Kernel Metadata
+---------------
+
+LFRic captures its kernel metadata in a set of classes. These classes
+allow access to the metadata in a simple, structured way. They also
+allow the metadata to be modified, new metadata to be created and
+metadata to be loaded from its Fortran representation as well as being
+written back out to its Fortran representation.
+
+
+Classes
++++++++
+
+The class to capture overall metadata is `LFRicKernelMetadata`. This
+class makes use of separate classes for each of the metadata
+declarations, such as `MetaArgsMetadata` and `MetaFuncsMetadata`. If
+necessary, the declaration classes make use of further classes which
+specify the individual metadata entries, such as `ScalarArgMetadata`
+and `MetaFuncsArgMetadata`. Where possible, common functionality is
+captured in a hierarchy of subclasses.
+
+At the moment the metadata classes used in the GOcean API are distinct
+from the ones used in the LFRic API. Any common functionality between
+the two will be shared using common classes in the future.
+
+Reading and Writing
++++++++++++++++++++
+
+Each class can load metadata from its Fortran representation via a
+Fortran string. This allows parts of the metadata to be loaded at a
+time or all of the metadata to be loaded in one go. Each class can
+also write out its metadata as a Fortran string. For example
+::
+
+    fortran_string = "func_type(w0, gh_basis_function)"
+    funcs_arg = MetaFuncsArgMetadata.create_from_fortran_string(fortran_string)
+    fortran_string = funcs_arg.fortran_string()
+
+    fortran_string = (
+        "type(func_type) :: meta_funcs(1) = "
+	"(/func_type(w0, gh_basis_function)/)\n")
+    meta_funcs = MetaFuncsMetadata.create_from_fortran_string(fortran_string)
+    fortran_string = meta_funcs.fortran_string()
+
+    fortran_string = "..."
+    lfric_metadata = LFRicKernelMetadata.create_from_fortran_string(
+        fortran_string)
+    fortran_string = lfric_metadata.fortran_string()
+
+Each class can also load metadata from an fparser2 tree
+representation. The examples below make use of a utility method to
+transform from a fortran string to a fparser2 tree. However, in
+practice loading from an fparser2 tree will only be used if the tree
+already exists.
+::
+
+    fortran_string = "func_type(w0, gh_basis_function)"
+    fparser2_tree = MetaFuncsArgsMetadata.create_fparser2(
+        fortran_string, Fortran2003.Part_Ref)
+    funcs_arg = MetaFuncsArgMetadata.create_from_fparser2(fparser2_tree)
+    fortran_string = funcs_arg.fortran_string()
+
+    fortran_string = (
+        "type(func_type) :: meta_funcs(1) = "
+	"(/func_type(w0, gh_basis_function)/)\n")
+    fparser2_tree = MetaFuncsMetadata.create_fparser2(
+        fortran_string, Fortran2003.Data_Component_Def_Stmt)
+    meta_funcs = MetaFuncsMetadata.create_from_fparser2(fparser2_tree)
+    fortran_string = meta_funcs.fortran_string()
+
+    fortran_string = "..."
+    fparser2_tree = LFRicKernelMetadata.create_fparser2(
+        fortran_string, Fortran2003.Derived_Type_Def)
+    lfric_metadata = LFRicKernelMetadata.create_from_fparser2(fparser2_tree)
+    fortran_string = lfric_metadata.fortran_string()
+
+
+Creating Metadata
++++++++++++++++++
+
+The classes can be used to create metadata, rather than reading it
+from existing metadata. For example
+::
+
+    field_arg = FieldArgMetadata("GH_REAL", "GH_READ", "W0")
+    meta_funcs_arg = MetaFuncsArgMetadata("W0", basis_function=True)
+    lfric_metadata = LFRicKernelMetadata(
+        operates_on="DOMAIN", meta_args=[field_arg],
+        meta_funcs=[meta_funcs_arg], procedure_name="KERN_CODE",
+        name="kern_type")
+    fortran_string = lfric_metadata.fortran_string()
+
+
+Modifying Metadata
+++++++++++++++++++
+
+All of the metadata class values have setters which allows the
+metadata to be simply modified. For example
+::
+
+    field_arg = FieldArgMetadata("GH_REAL", "GH_READ", "W0")
+    field_arg.datatype = "GH_INTEGER"
+    field_arg.function_space = "W3"
+
+
+Validation
+++++++++++
+
+All input values are validated against the valid set of values that
+could be used in the particular context. For example, the access type
+for a field argument can be one of `gh_read`, `gh_write`,
+`gh_readwrite`, `gh_inc` and `gh_readinc`. Valid values are stored in
+the `LFRicConstants` class within
+`psyclone.domain.lfric.lfric_constants`. An invalid value will cause
+an exception that indicates the problem in a user friendly way.
+
+At the moment there is no constraint checking between different
+metadata values. For example, if a `meta_func` entry is specified for
+the `w0` function space then at least one of the the `meta_arg`
+arguments must be on the `w0` function space. However, this is not
+checked in the current implementation.
+
 GOcean1.0
 =========
 
