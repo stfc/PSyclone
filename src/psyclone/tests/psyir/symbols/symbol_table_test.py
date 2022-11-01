@@ -1858,6 +1858,39 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
     assert a_2.visibility == Symbol.Visibility.PRIVATE
 
 
+def test_resolve_imports_different_capitalization(
+        fortran_reader, tmpdir, monkeypatch):
+    ''' Tests that the SymbolTable resolve_imports method works as expected
+    when importing symbols with different name capitalizations '''
+
+    # Set up include_path to import the proper modules
+    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+
+    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module a_mod
+            integer :: SOME_name
+        end module a_Mod
+        ''')
+    psyir = fortran_reader.psyir_from_source('''
+        module test_mod
+            use a_mod, only: some_NAME
+            private :: Some_namE
+            contains
+            subroutine test()
+                somE_Name = soMe_name + 1
+            end subroutine test
+        end module test_mod
+    ''')
+    subroutine = psyir.walk(Routine)[0]
+    subroutine.parent.symbol_table.resolve_imports()
+    symbol = subroutine.symbol_table.lookup("SOME_NAME")
+    # Datatype and visibility are correct despite different capitalizations
+    assert symbol.datatype == INTEGER_TYPE
+    assert symbol.visibility == Symbol.Visibility.PRIVATE
+
+
 def test_resolve_imports_name_clashes(fortran_reader, tmpdir, monkeypatch):
     ''' Tests the SymbolTable resolve_imports method raises the appropriate
     errors when it finds name clashes. '''
@@ -2118,6 +2151,27 @@ def test_attach():
     assert ("The symbol table is already bound to another scope (Schedule[]). "
             "Consider detaching or deepcopying the symbol table first."
             in str(err.value))
+
+
+def test_has_same_name():
+    ''' Test that the _has_same_name utility accepts strings and symbols and
+    returns whether the normalized names are the same.
+    '''
+    sym1 = Symbol('name')
+    sym2 = Symbol('NaMe')
+    different = Symbol('not_name')
+
+    # It can compare symbols
+    assert SymbolTable._has_same_name(sym1, sym2)
+    assert not SymbolTable._has_same_name(sym1, different)
+
+    # It can compare string
+    assert SymbolTable._has_same_name("naME", "NamE")
+    assert not SymbolTable._has_same_name("name", "NOT_NAME")
+
+    # It can compare between symbols and strings
+    assert SymbolTable._has_same_name(sym1, "NamE")
+    assert not SymbolTable._has_same_name("name", different)
 
 
 def test_equality():
