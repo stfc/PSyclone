@@ -53,6 +53,7 @@ from psyclone.f2pygen import (AssignGen, UseGen, DeclGen, DirectiveGen,
                               CommentGen)
 from psyclone.psyir.nodes.assignment import Assignment
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
+from psyclone.psyir.nodes.array_reference import ArrayReference
 from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.directive import StandaloneDirective, \
     RegionDirective
