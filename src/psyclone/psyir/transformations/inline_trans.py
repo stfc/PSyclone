@@ -42,9 +42,9 @@ from psyclone.errors import InternalError, LazyString
 from psyclone.psyGen import Transformation
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
-    ArrayReference, Call, Range, Routine, Reference, CodeBlock,
-    Return, Literal, Assignment, ArrayMember,
-    StructureReference, StructureMember)
+    ArrayReference, ArrayOfStructuresReference, Call, Range, Routine,
+    Reference, CodeBlock, Return, Literal, Assignment,
+    StructureReference)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol, ScalarType,
                                     ImportInterface)
@@ -207,20 +207,27 @@ class InlineTrans(Transformation):
 
     def replace_dummy_arg(self, ref, call_node, dummy_args):
         '''
-        Replaces a reference to a dummy argument with the corresponding
-        reference from the call site.
+        Combines a Reference to a dummy argument with the corresponding
+        Reference from the call site to make a new Reference for use in the
+        inlined code. If the supplied Reference is not to a dummy argument
+        then it is returned unchanged.
 
         :param ref: the reference to update.
-        :type ref: 
+        :type ref: :py:class:`psyclone.psyir.nodes.Reference`
         :param call_node: the call site.
         :type call_node: :py:class:`psyclone.psyir.nodes.Call`
         :param dummy_args: the dummy arguments of the called routine.
-        :type dummy_args:
+        :type dummy_args: List[:py:class:`psyclone.psyir.nodes.Reference`]
 
+        :returns: the replacement reference.
+        :rtype: :py:class:`psyclone.psyir.nodes.Reference`
+
+        :raises InternalError: if the actual and dummy references both \
+                               represent array-element accessors.
         '''
         if ref.symbol not in dummy_args:
             # The supplied reference is not to a dummy argument.
-            return
+            return ref
 
         actual_arg = call_node.children[dummy_args.index(ref.symbol)]
 
@@ -234,9 +241,9 @@ class InlineTrans(Transformation):
             #   ...
             #   var = 0.0
             ref.replace_with(actual_arg.copy())
-            return
+            return ref
 
-        # Local reference is not simple, e.g.:
+        # Local reference is not simple but the actual argument is, e.g.:
         #
         # call my_sub(my_struc)
         #
@@ -245,10 +252,102 @@ class InlineTrans(Transformation):
         #   var%data(i,j) = 0.0
         if type(actual_arg) is Reference:
             ref.symbol = actual_arg.symbol
-            return
+            return ref
 
-        #import pdb; pdb.set_trace()
-        assert 0
+        # Neither the actual or local references are simple, e.g.:
+        #
+        # call my_sub(my_struc%grid(:,2,:), 10)
+        #
+        # subroutine my_sub(grid, ngrids)
+        #   ...
+        #   do igrid = 1, ngrids
+        #     do jgrid = ...
+        #     do i = 1, 10
+        #       do j = 1, 10
+        #         grid(igrid, jgrid)%data(i,j) = 0.0
+        #
+        # The assignment in the inlined code should become:
+        #
+        #         my_struc%grid(igrid,2,jgrid)%data(i,j) = 0.0
+
+        # So, the head of the local reference needs to be replaced by the
+        # head of the actual reference (e.g. grid => my_struc%grid) and then
+        # any ranges in the actual reference need to be replaced by the
+        # corresponding index expressions in the local reference.
+
+        top_indices = None
+        local_indices = None
+        if isinstance(actual_arg, ArrayMixin):
+            top_indices = actual_arg.indices
+        if isinstance(ref, ArrayMixin):
+            local_indices = ref.indices
+
+        members = []
+        local_idx_posn = 0
+        for cursor in (actual_arg, ref):
+            while hasattr(cursor, "member"):
+                cursor = cursor.member
+                if hasattr(cursor, "indices"):
+                    new_indices = []
+                    for idx in cursor.indices:
+                        # TODO - this handling of a Range is duplicated.
+                        if isinstance(idx, Range):
+                            new_idx = local_indices[local_idx_posn].copy()
+                            new_indices.append(self.replace_dummy_arg(
+                                new_idx, call_node, dummy_args))
+                            local_idx_posn += 1
+                        else:
+                            new_indices.append(idx.copy())
+                    members.append((cursor.name, new_indices))
+                else:
+                    members.append(cursor.name)
+
+        if members:
+            if top_indices:
+                new_ref = ArrayOfStructuresReference.create(actual_arg.symbol,
+                                                            top_indices,
+                                                            members)
+            else:
+                new_ref = StructureReference.create(actual_arg.symbol,
+                                                    members)
+        else:
+            # One or both must be just array accesses. This means that the
+            # actual argument contains a slice. (The PSyIR does not explicitly
+            # support pointers and in Fortran, an array of pointers to arrays
+            # can only be achieved through having an array of structures.)
+            local_idx_posn = 0
+            ranges = call_node.walk(Range)
+            if ranges:
+                new_indices = []
+                for idx in top_indices:
+                    # TODO - this handling of a Range is duplicated.
+                    if isinstance(idx, Range):
+                        new_idx = local_indices[local_idx_posn].copy()
+                        new_indices.append(self.replace_dummy_arg(
+                            new_idx, call_node,
+                            dummy_args))
+                        local_idx_posn += 1
+                    else:
+                        new_indices.append(idx.copy())
+            else:
+                if top_indices and local_indices:
+                    raise InternalError(
+                        f"The reference to '{ref.symbol.name}' in the call to "
+                        f"'{call_node.name}' is an array access but there is "
+                        f"also an array access to the corresponding dummy "
+                        f"argument in that routine. This should not be "
+                        f"possible.")
+                # The local index expressions must be inlined at the call site.
+                new_indices = []
+                for idx in new_indices:
+                    new_indices.append(
+                        self.replace_dummy_arg(idx, call_node, dummy_args))
+                # Call-site index expressions can just be copied.
+                for idx in top_indices:
+                    new_indices.append(idx.copy())
+            new_ref = ArrayReference.create(actual_arg.symbol, new_indices)
+        ref.replace_with(new_ref)
+        return new_ref
 
     @staticmethod
     def _inline_container_symbols(table, routine_table):

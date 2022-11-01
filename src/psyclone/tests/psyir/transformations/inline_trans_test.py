@@ -257,9 +257,9 @@ def test_apply_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
         "contains\n"
         "  subroutine run_it()\n"
         "  integer :: i\n"
-        "  real :: a(10,10)\n"
+        "  real :: a(5,10,10)\n"
         "  do i=1,10\n"
-        "    call sub(a(:,i))\n"
+        "    call sub(a(1,:,i))\n"
         "  end do\n"
         "  end subroutine run_it\n"
         "  subroutine sub(x)\n"
@@ -277,8 +277,8 @@ def test_apply_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
     output = fortran_writer(psyir)
     assert ("    do i = 1, 10, 1\n"
             "      do i_1 = 1, 10, 1\n"
-            "        a(i_1, i) = 2.0*i_1\n"
-            "      end do\n" in output)
+            "        a(1,i_1,i) = 2.0 * i_1\n"
+            "      enddo\n" in output)
     assert Compile(tmpdir).string_compiles(output)
 
 
@@ -312,6 +312,45 @@ def test_apply_struct_array_arg(fortran_reader, fortran_writer, tmpdir):
     assert ("    do i = 1, 10, 1\n"
             "      a(i) = 1.0\n"
             "      grid%data(i) = 2.0 * grid%data(i)\n"
+            "    enddo\n" in output)
+    assert Compile(tmpdir).string_compiles(output)
+
+
+def test_apply_struct_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
+    '''Check that apply works correctly when the actual argument is an
+    array slice within a structure.'''
+    code = (
+        f"module test_mod\n"
+        f"{MY_TYPE}"
+        f"contains\n"
+        f"  subroutine run_it()\n"
+        f"  integer :: i\n"
+        f"  real :: a(10)\n"
+        f"  type(my_type) :: grid\n"
+        f"  grid%data(:) = 1.0\n"
+        f"  do i=1,10\n"
+        f"    a(i) = 1.0\n"
+        f"    call sub(grid%data(1:5))\n"
+        f"  end do\n"
+        f"  end subroutine run_it\n"
+        f"  subroutine sub(x)\n"
+        f"    real, dimension(:), intent(inout) :: x\n"
+        f"    integer ji\n"
+        f"    do ji = 1, 5\n"
+        f"      x(ji) = 2.0*x(ji)\n"
+        f"    end do\n"
+        f"  end subroutine sub\n"
+        f"end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(routine)
+    output = fortran_writer(psyir)
+    assert ("    do i = 1, 10, 1\n"
+            "      a(i) = 1.0\n"
+            "      do ji = 1, 5, 1\n"
+            "        grid%data(ji) = 2.0 * grid%data(ji)\n"
+            "      enddo\n"
             "    enddo\n" in output)
     assert Compile(tmpdir).string_compiles(output)
 
