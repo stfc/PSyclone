@@ -273,9 +273,9 @@ end SUBROUTINE tra_ldf_iso
     gen_code = str(psy.gen).lower()
     # Loop variable should not be copied to device
     assert "device(ji)" not in gen_code
-    # TODO Currently jpi is copied to and from. We need a list of variables
-    # that are written just once and are read-only thereafter. Such variables
-    # will be written on the CPU (e.g. after reading from namelist).
+    # TODO #1872: Currently jpi is copied to and from. We need a list of
+    # variables that are written just once and are read-only thereafter. Such
+    # variables will be written on the CPU (e.g. after reading from namelist).
     assert ("  !$acc update if_present host(jpi,start,step,zftv)\n"
             "  zftv(:,:,:) = 0.0d0\n"
             "  !$acc update if_present device(zftv)\n"
@@ -286,8 +286,8 @@ end SUBROUTINE tra_ldf_iso
             "    zftv(ji,:,:) = 1.0d0\n"
             "    zftw(ji,:,:) = -1.0d0\n"
             "    !$acc update if_present device(zftv,zftw)\n") in gen_code
-    # TODO All of these variables are actually local to the subroutine so
-    # should not be copied back.
+    # TODO #1872: All of these variables are actually local to the subroutine
+    # so should not be copied back to the device.
     assert ("  !$acc update if_present host(jpi,tmask,zftu)\n"
             "  zftu(:,:,1) = 1.0d0\n"
             "  tmask(:,:) = jpi\n"
