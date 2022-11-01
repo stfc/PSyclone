@@ -36,7 +36,7 @@
 from psyclone.errors import GenerationError
 from psyclone.psyir.transformations.parallel_loop_trans import\
     ParallelLoopTrans
-from psyclone.psyir.nodes import CodeBlock
+from psyclone.psyir.nodes import CodeBlock, Call
 from psyclone.psyir.nodes import DynamicOMPTaskDirective
 from psyclone.psyir.transformations.transformation_error import \
         TransformationError
@@ -102,6 +102,26 @@ class OMPTaskTrans(ParallelLoopTrans):
         _directive = DynamicOMPTaskDirective(children=children)
         return _directive
 
+    def _inline_kernels(self, node):
+        '''
+        Searches the PsyIR tree inside the directive and inline's any kern
+        objects found.
+        '''
+        from psyclone.psyGen import Kern
+        from psyclone.psyir.transformations.inline_trans import InlineTrans
+        from psyclone.domain.common.transformations import KernelModuleInlineTrans
+
+        kerns = node.walk(Kern)
+        kintrans = KernelModuleInlineTrans()
+        intrans = InlineTrans()
+        for kern in kerns:
+            kintrans.apply(kern)
+            kern.lower_to_language_level()
+
+        calls = node.walk(Call)
+        for call in calls:
+            intrans.apply(call)
+
     def apply(self, node, options=None):
         '''Apply the OMPTaskTrans to the specified node in a Schedule.
 
@@ -129,4 +149,5 @@ class OMPTaskTrans(ParallelLoopTrans):
         '''
         if not options:
             options = {}
+        self._inline_kernels(node)
         super(OMPTaskTrans, self).apply(node, options)

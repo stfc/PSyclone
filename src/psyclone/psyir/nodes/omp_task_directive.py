@@ -1698,27 +1698,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         return (private_clause, firstprivate_clause, shared_clause, in_clause,
                 out_clause)
 
-    def _inline_kernels(self):
-        '''
-        Searches the PsyIR tree inside the directive and inline's any kern
-        objects found.
-        '''
-        from psyclone.psyGen import Kern
-        from psyclone.psyir.transformations.inline_trans import InlineTrans
-        from psyclone.domain.common.transformations import KernelModuleInlineTrans
-
-        kerns = self.walk(Kern)
-        kintrans = KernelModuleInlineTrans()
-        intrans = InlineTrans()
-        for kern in kerns:
-            kintrans.apply(kern)
-            kern.lower_to_language_level()
-        
-        calls = self.walk(Call)
-        for call in calls:
-            intrans.apply(call)
-
-
     def lower_to_language_level(self):
         '''
         Lowers the structure of the PSyIR tree inside the Directive
@@ -1726,7 +1705,8 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         '''
 
         #Inline the Kernels
-        self._inline_kernels()
+        # FIXME If we find a Kern or Call child then we abort.
+#        self._inline_kernels()
 
         # Create the clauses
         private_clause, firstprivate_clause, shared_clause, in_clause,\

@@ -61,7 +61,7 @@ from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
     OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause, OMPPrivateClause,\
     OMPDefaultClause, OMPReductionClause, OMPScheduleClause
 from psyclone.psyir.nodes.operation import BinaryOperation
-from psyclone.psyir.nodes.range import Range
+from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
