@@ -57,7 +57,6 @@ the process of attempting to create the largest possible Kernel region.
 Tested with the NVIDIA HPC SDK version 22.5.
 '''
 
-from __future__ import print_function
 import logging
 from utils import add_profiling
 from psyclone.errors import InternalError
@@ -65,7 +64,7 @@ from psyclone.nemo import NemoInvokeSchedule, NemoKern, NemoLoop
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import IfBlock, CodeBlock, Schedule, \
     ArrayReference, Assignment, BinaryOperation, Loop, \
-    Literal, Return, Call, ACCDirective, ACCLoopDirective
+    Literal, Return, Call, ACCLoopDirective
 from psyclone.psyir.transformations import TransformationError, ProfileTrans
 
 # Get the PSyclone transformations we will use

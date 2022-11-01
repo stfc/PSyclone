@@ -52,7 +52,7 @@ from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, \
     Reference, OMPDeclareTargetDirective, OMPNowaitClause, \
     OMPGrainsizeClause, OMPNumTasksClause, OMPNogroupClause, \
     OMPPrivateClause, OMPDefaultClause, OMPReductionClause, \
-    OMPScheduleClause, OMPTeamsDistributeParallelDoDirective, CodeBlock
+    OMPScheduleClause, OMPTeamsDistributeParallelDoDirective
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, SymbolTable, \
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE
 from psyclone.errors import InternalError, GenerationError

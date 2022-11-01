@@ -46,6 +46,7 @@ from psyclone.transformations import OMPDeclareTargetTrans
 
 PROFILING_ENABLED = True
 
+
 def trans(psy):
     ''' Add OpenMP Target and Loop directives to all loops, including the
     implicit ones, to parallelise the code and execute it in an acceleration
@@ -64,7 +65,6 @@ def trans(psy):
     print(f"Invokes found in {psy.name}:")
     for invoke in psy.invokes.invoke_list:
         print(invoke.name)
-
 
         if PROFILING_ENABLED:
             add_profiling(invoke.schedule.children)
@@ -90,8 +90,10 @@ def trans(psy):
             print("Skipping", invoke.name)
             continue
 
-        # TODO #1841:
-        # NVFORTRAN-S-0083-Vector expression used where scalar expression required
+        # TODO #1841: This file has a bug in the array-range-to-loop
+        # transformation that leads to the following compiler error
+        # NVFORTRAN-S-0083-Vector expression used where scalar expression
+        # required
         if invoke.name in ("blk_oce"):
             print("Skipping", invoke.name)
             continue
@@ -117,6 +119,9 @@ def trans(psy):
                 region_directive_trans=omp_target_trans,
                 loop_directive_trans=omp_loop_trans,
                 collapse=True,
+                # We exclude loops with calls when parallelising, with the
+                # exception being lib_fortran where we have marked the
+                # called functions as GPU-enabled
                 exclude_calls=psy.name != "psy_lib_fortran_psy",
         )
 

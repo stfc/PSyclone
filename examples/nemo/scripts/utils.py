@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
@@ -32,13 +31,14 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: S. Siso, STFC Daresbury Lab
+# Authors: A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 
 ''' Utilities file to parallelise Nemo code. '''
 
 from psyclone.psyir.nodes import Loop, Assignment, Directive, Container, \
     Reference, CodeBlock, Call, Return, IfBlock, Routine
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, ArrayType
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
+    ArrayType
 from psyclone.psyir.transformations import HoistLoopBoundExprTrans, \
     HoistTrans, ProfileTrans, HoistLocalArraysTrans, Reference2ArrayRangeTrans
 from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
@@ -55,6 +55,7 @@ PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
                     "sum", "sign_", "ddpdd"]
 
 VERBOSE = False
+
 
 def enhance_tree_information(schedule):
     ''' Resolve imports in order to populate relevant datatype on the
@@ -89,7 +90,8 @@ def enhance_tree_information(schedule):
     # Manually set the datatype of some integer and real variables that are
     # important for performance
     for reference in schedule.walk(Reference):
-        if reference.symbol.name in ('jpi', 'jpim1', 'jpj', 'jpjm1', 'jp_tem', 'jp_sal', 'jpkm1'):
+        if reference.symbol.name in ('jpi', 'jpim1', 'jpj', 'jpjm1', 'jp_tem'
+                                     'jp_sal', 'jpkm1'):
             if not isinstance(reference.symbol, DataSymbol):
                 reference.symbol.specialise(DataSymbol, datatype=INTEGER_TYPE)
         elif reference.symbol.name in ('rn_avt_rnf', 'rau0'):
@@ -97,10 +99,13 @@ def enhance_tree_information(schedule):
                 reference.symbol.specialise(DataSymbol, datatype=REAL_TYPE)
         elif reference.symbol.name in ('tmask'):
             if not isinstance(reference.symbol, DataSymbol):
-                reference.symbol.specialise(DataSymbol, datatype=
-                    ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE,
-                                          ArrayType.Extent.ATTRIBUTE,
-                                          ArrayType.Extent.ATTRIBUTE]))
+                reference.symbol.specialise(
+                    DataSymbol,
+                    datatype=ArrayType(REAL_TYPE, [
+                        ArrayType.Extent.ATTRIBUTE,
+                        ArrayType.Extent.ATTRIBUTE,
+                        ArrayType.Extent.ATTRIBUTE]))
+
 
 def normalise_loops(
         schedule,
@@ -229,10 +234,11 @@ def insert_explicit_loop_parallelism(
                 # If it is a dependent (e.g. triangular) loop, it can not be
                 # collapsed
                 dependent_of_previous_variable = False
-                for bound in next_loop.children[0:2]:
+                for bound in (next_loop.start, next_loop.stop, next_loop.step):
                     for ref in bound.walk(Reference):
                         if ref.symbol in previous_variables:
                             dependent_of_previous_variable = True
+                            break
                 if dependent_of_previous_variable:
                     break
 
@@ -241,6 +247,7 @@ def insert_explicit_loop_parallelism(
             # Add collapse clause to the parent directive
             if num_nested_loops > 1:
                 loop.parent.parent.collapse = num_nested_loops
+
 
 def add_profiling(children):
     '''
@@ -259,14 +266,14 @@ def add_profiling(children):
     for child in children[:]:
         # Do we want this node to be included in a profiling region?
         if child.walk((Directive, Return)):
-            # It contains OpenACC so we put what we have so far inside a
-            # profiling region
+            # It contains a directive or return statement so we put what we
+            # have so far inside a profiling region.
             add_profile_region(node_list)
             # A node that is not included in a profiling region marks the
             # end of the current candidate region so reset the list.
             node_list = []
             # Now we go down a level and try again without attempting to put
-            # profiling below OpenACC directives or within Assignments
+            # profiling below directives or within Assignments
             if isinstance(child, IfBlock):
                 add_profiling(child.if_body)
                 add_profiling(child.else_body)

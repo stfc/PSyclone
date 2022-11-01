@@ -44,6 +44,7 @@ from psyclone.transformations import OMPParallelTrans
 
 PROFILING_ENABLED = False
 
+
 def trans(psy):
     ''' Add OpenMP Parallel and Do directives to all loops, including the
     implicit ones.
