@@ -52,6 +52,7 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import (AssignGen, UseGen, DeclGen, DirectiveGen,
                               CommentGen)
 from psyclone.psyir.nodes.assignment import Assignment
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.directive import StandaloneDirective, \
     RegionDirective
@@ -65,6 +66,7 @@ from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
+from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.symbols import INTEGER_TYPE
 
@@ -311,7 +313,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 if ref.operator == BinaryOperation.Operator.ADD:
                     symbol = ref.children[1].symbol
                     binop = ref.children[0]
-                    if binop.operator != BinaryOpeartion.Operator.MUL:
+                    if binop.operator != BinaryOperation.Operator.MUL:
                         raise GenerationError(
                                 "Found a dependency index that is a "
                                 "BinaryOperation with a child "
@@ -332,14 +334,14 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 else:
                     raise GenerationError("Found a dependency index that is "
                                           "a BinaryOperation where the "
-                                          "format is BinaryOpeartor OP "
+                                          "format is BinaryOperator OP "
                                           "Reference with a non-ADD operand "
                                           "which is not supported.")
             elif isinstance(ref.children[1], BinaryOperation):
                 if ref.operator == BinaryOperation.Operator.ADD:
                     symbol = ref.children[0].symbol
                     binop = ref.children[1]
-                    if binop.operator != BinaryOpeartion.Operator.MUL:
+                    if binop.operator != BinaryOperation.Operator.MUL:
                         raise GenerationError(
                                 "Found a dependency index that is a "
                                 "BinaryOperation with a child "
@@ -360,7 +362,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 elif ref.operator == BinaryOperation.Operator.SUB:
                     symbol = ref.children[0].symbol
                     binop = ref.children[1]
-                    if binop.operator != BinaryOpeartion.Operator.MUL:
+                    if binop.operator != BinaryOperation.Operator.MUL:
                         raise GenerationError(
                                 "Found a dependency index that is a "
                                 "BinaryOperation with a child "
