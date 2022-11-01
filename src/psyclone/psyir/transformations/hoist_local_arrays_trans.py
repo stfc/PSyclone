@@ -142,8 +142,6 @@ class HoistLocalArraysTrans(Transformation):
             # No automatic arrays found so nothing to do.
             return
 
-        # arefs will hold the list of array references to be allocated.
-        arefs = []
         # Get the reversed tags map so that we can lookup the tag (if any)
         # associated with the symbol being hoisted.
         tags_dict = node.symbol_table.get_reverse_tags_dict()
@@ -173,22 +171,22 @@ class HoistLocalArraysTrans(Transformation):
             # new memory allocation statement.
             dim_list = [Range.create(dim.lower.copy(), dim.upper.copy())
                         for dim in orig_shape]
-            arefs.append(ArrayReference.create(sym, dim_list))
+            aref = ArrayReference.create(sym, dim_list)
 
-        freader = FortranReader()
-        fwriter = FortranWriter()
-        # TODO #1366: we have to use a CodeBlock in order to query whether or
-        # not the array has been allocated already.
-        code = f"allocated({automatic_arrays[0].name})"
-        expr = freader.psyir_from_expression(code, node.symbol_table)
-        if_expr = UnaryOperation.create(UnaryOperation.Operator.NOT, expr)
-        # TODO #1366: we also have to use a CodeBlock for the allocate().
-        alloc_arg = ",".join(fwriter(aref) for aref in arefs)
-        body = [freader.psyir_from_statement(f"allocate({alloc_arg})",
-                                             node.symbol_table)]
-        # Insert the conditional allocation at the start of the supplied
-        # routine.
-        node.children.insert(0, IfBlock.create(if_expr, body))
+            freader = FortranReader()
+            fwriter = FortranWriter()
+            # TODO #1366: we have to use a CodeBlock in order to query whether
+            # or not the array has been allocated already.
+            code = f"allocated({sym.name})"
+            expr = freader.psyir_from_expression(code, node.symbol_table)
+            if_expr = UnaryOperation.create(UnaryOperation.Operator.NOT, expr)
+            # TODO #1366: we also have to use a CodeBlock for the allocate().
+            alloc_arg = fwriter(aref)
+            body = [freader.psyir_from_statement(f"allocate({alloc_arg})",
+                                                 node.symbol_table)]
+            # Insert the conditional allocation at the start of the supplied
+            # routine.
+            node.children.insert(0, IfBlock.create(if_expr, body))
 
         # Finally, remove the hoisted symbols (and any associated tags)
         # from the routine scope.

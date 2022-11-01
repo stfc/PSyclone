@@ -190,8 +190,11 @@ def test_apply_multi_arrays(fortran_reader, fortran_writer):
     assert "real, allocatable, dimension(:,:), private :: a" in code
     assert "integer, allocatable, dimension(:,:), private :: mask" in code
     assert (
+        "    if (.not.allocated(mask)) then\n"
+        "      allocate(mask(1 : jpi, 1 : jpj))\n"
+        "    end if\n"
         "    if (.not.allocated(a)) then\n"
-        "      allocate(a(1 : nx, 1 : ny), mask(1 : jpi, 1 : jpj))\n"
+        "      allocate(a(1 : nx, 1 : ny))\n"
         "    end if\n"
         "    a(:,:) = 1.0\n" in code)
 
