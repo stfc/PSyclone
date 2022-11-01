@@ -43,13 +43,12 @@ from __future__ import absolute_import
 
 import six
 
-from psyclone.configuration import Config
 from psyclone.domain.lfric import KernCallArgList
 from psyclone.errors import InternalError
-from psyclone.psyGen import Kern
+from psyclone.psyGen import InvokeSchedule, Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import (ArrayReference, Assignment, Call,
+from psyclone.psyir.nodes import (Assignment, Call,
                                   FileContainer, Literal, Reference, Routine,
                                   StructureReference)
 from psyclone.psyir.symbols import (ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE,
@@ -129,13 +128,23 @@ class LFRicExtractDriverCreator:
         :rtype: :py:class:`psyclone.psyir.symbol.DataSymbol`
 
         '''
-        flattened_name = symbol_table.next_available_name(flattened_name)
-
-        base_type = self._default_types['real']
-        # This must be a LFRic fiels, which becomes a 1d-array:
-        array = ArrayType(base_type, [ArrayType.Extent.DEFERRED])
-        new_symbol = DataSymbol(flattened_name, array)
-        return new_symbol
+        data_type = reference.symbol.datatype
+        if isinstance(data_type, ArrayType):
+            if data_type.intrinsic.name == "integer_field_proxy_type":
+                base_type = self._default_types['integer']
+                array = ArrayType(base_type, [ArrayType.Extent.DEFERRED])
+                new_symbol = DataSymbol(flattened_name, array)
+                return new_symbol
+            print("OOPS")
+        elif data_type.name == "field_proxy_type":
+            flattened_name = symbol_table.next_available_name(flattened_name)
+            base_type = self._default_types['real']
+            # This must be a LFRic fiels, which becomes a 1d-array:
+            array = ArrayType(base_type, [ArrayType.Extent.DEFERRED])
+            new_symbol = DataSymbol(flattened_name, array)
+            return new_symbol
+        print("OOPS")
+        return None
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -174,15 +183,28 @@ class LFRicExtractDriverCreator:
         # with a user variable if the user uses `fld` and `fld_data`).
         # Furthermore, the netcdf file declares the variable without `%data`,
         # so removing `%data` here also simplifies code creation later on.
+
+        data_type = old_reference.symbol.datatype
         signature, _ = old_reference.get_signature_and_indices()
-        if signature[-1] == "data":
-            # Remove %data
-            sig = signature[:-1]
-            fortran_string = sig.to_language()
+        if isinstance(data_type, ArrayType):
+            if data_type.intrinsic.name in ["integer_field_proxy_type"]:
+                # Format: some_var_proxy(n)%data
+                sig = signature[:-1]
+                fortran_string = sig.to_language()
+                fortran_string = proxy_name_mapping.get(fortran_string,
+                                                        fortran_string)
+                index = old_reference.indices[0].value
+                fortran_string = f"{fortran_string}_{index}"
         else:
-            fortran_string = writer(old_reference)
-        fortran_string = proxy_name_mapping.get(fortran_string,
-                                                fortran_string)
+            if signature[-1] == "data":
+                # Remove %data
+                sig = signature[:-1]
+                fortran_string = sig.to_language()
+            else:
+                fortran_string = writer(old_reference)
+            fortran_string = proxy_name_mapping.get(fortran_string,
+                                                    fortran_string)
+
         try:
             symbol = symbol_table.lookup_with_tag(fortran_string)
         except KeyError:
@@ -219,6 +241,7 @@ class LFRicExtractDriverCreator:
             is supported.
 
         '''
+        # pylint: disable=too-many-locals
         all_references = sched.walk(Reference)
         for kernel in sched.walk(Kern):
             call_arg_list = KernCallArgList(kernel)
@@ -328,8 +351,9 @@ class LFRicExtractDriverCreator:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def create_read_in_code(program, psy_data, input_list, output_list,
-                            proxy_name_mapping, postfix):
+    def create_read_in_code(program, psy_data, original_symbol_table,
+                            input_list, output_list, postfix):
+        # pylint: disable=too-many-arguments
         '''This function creates the code that reads in the NetCDF file
         produced during extraction. For each:
 
@@ -394,6 +418,17 @@ class LFRicExtractDriverCreator:
             # variables have References, and will already have been declared
             # in the symbol table (in add_all_kernel_symbols).
             sig_str = str(signature)
+            orig_sym = original_symbol_table.lookup(sig_str)
+            if orig_sym.is_array and \
+                    orig_sym.datatype.intrinsic.name == "field_type":
+                upper = int(orig_sym.datatype.shape[0].upper.value)
+                for i in range(1, upper+1):
+                    sym = symbol_table.lookup_with_tag(f"{sig_str}_{i}")
+                    name_lit = Literal(sig_str, CHARACTER_TYPE)
+                    LFRicExtractDriverCreator.add_call(program, read_var,
+                                                       [name_lit,
+                                                        Reference(sym)])
+                continue
             try:
                 sym = symbol_table.lookup_with_tag(sig_str)
             except KeyError:
@@ -623,7 +658,6 @@ class LFRicExtractDriverCreator:
         # We need to provide the prefix to the validation function:
         extract_trans.validate(nodes, options={"prefix": prefix})
 
-
         dep = DependencyTools()
         #if not input_list and not output_list:
         input_list, output_list = dep.get_in_out_parameters(nodes)
@@ -653,6 +687,8 @@ class LFRicExtractDriverCreator:
         # The validation of the extract transform guarantees that all nodes
         # in the node list have the same parent.
         schedule_copy = nodes[0].parent.copy()
+        invoke_sched = nodes[0].ancestor(InvokeSchedule)
+        original_symbol_table = invoke_sched.symbol_table
         proxy_name_mapping = self.get_proxy_name_mapping(schedule_copy)
 
         schedule_copy.lower_to_language_level()
@@ -672,11 +708,11 @@ class LFRicExtractDriverCreator:
                       [module_str, region_str])
 
         output_symbols = self.create_read_in_code(program, psy_data,
+                                                  original_symbol_table,
                                                   input_list, output_list,
-                                                  proxy_name_mapping,
                                                   postfix)
         # Copy over all of the executable part of the extracted region
-        #program.addchild(schedule_copy)
+        # program.addchild(schedule_copy)
         all_children = schedule_copy.pop_all_children()
         for child in all_children:
             program.addchild(child)
