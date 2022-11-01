@@ -345,11 +345,10 @@ end subroutine lbc_update
 
 
 def test_loop_host_overwriting(parser):
-    ''' Test the application of ACCUpdateTrans to host code containing a
-    loop which contains a kernel such that, until we move variables instead of
-    whole directives, will force an update host directive for zftv to be
-    erroneously placed textually after a host statement modifying zftv, but
-    before the update device directive which would guarantee correctness. '''
+    ''' Test the placement of update directives when a loop contains a host
+    statement writing the same variable as a host statement outside the loop.
+    The host statememnt inside the loop is placed before a kernel writing a
+    variable said statement uses as input. '''
     code = '''
 SUBROUTINE tra_ldf_iso()
   INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2, start=2, step=2
@@ -426,7 +425,7 @@ end SUBROUTINE tra_ldf_iso
 
 def test_if_update_device(parser):
     ''' Test the placement of update device directives when an IfBlock contains
-     a host statement writing the same variable as a subsequent kernel. '''
+     a host statement writing the same variable as a preceding kernel. '''
     code = '''
 SUBROUTINE tra_ldf_iso()
   INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2

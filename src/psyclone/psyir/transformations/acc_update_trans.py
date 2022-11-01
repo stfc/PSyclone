@@ -301,14 +301,18 @@ class ACCUpdateTrans(Transformation):
 
                 # If within loop body, we must cover loop-carried dependencies.
                 # If within if stmt, update device directives can only be moved
-                # out if an update host directive for the same variable - which
-                # always exists as all outputs are inputs - has already been
-                # moved out as well. This happens if and only if there's no
-                # textually preceding kernel within the if stmt which writes
-                # that variable. Since that variable would appear in loop_sync
-                # as part of the outputs of all textually preceding kernels, we
-                # may simply place an update device directive inside the if
-                # statement for those variables in loop_sync.
+                # out, i.e. executed unconditionally, if an update host
+                # directive for the same variable - which always exists as all
+                # outputs are inputs - has already been moved out as well. This
+                # happens if and only if there's no textually preceding kernel
+                # within the if stmt which writes that variable. Since that
+                # variable would appear in loop_sync as part of the outputs of
+                # any textually preceding kernels, we may simply place an
+                # update device directive inside the if statement for those
+                # variables in loop_sync. loop_sync also includes the outputs
+                # of this host region which are inputs of any textually
+                # preceding kernels but, even though these might not need to
+                # be updated here, i.e. conditionally, they can safely be.
                 if isinstance(sched.parent, Loop) or \
                    isinstance(sched.parent, IfBlock) and acss_type == OUT:
                     self._place_update(sched, update_pos, loop_sync, acss_type)
