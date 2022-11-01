@@ -52,11 +52,11 @@ def test_create():
     inter_grid_arg = InterGridArgMetadata(
         "GH_REAL", "GH_READ", "W0", "GH_FINE")
     assert isinstance(inter_grid_arg, InterGridArgMetadata)
-    assert inter_grid_arg.form == "GH_FIELD"
-    assert inter_grid_arg._datatype == "GH_REAL"
-    assert inter_grid_arg._access == "GH_READ"
-    assert inter_grid_arg._function_space == "W0"
-    assert inter_grid_arg._mesh_arg == "GH_FINE"
+    assert inter_grid_arg.form == "gh_field"
+    assert inter_grid_arg._datatype == "gh_real"
+    assert inter_grid_arg._access == "gh_read"
+    assert inter_grid_arg._function_space == "w0"
+    assert inter_grid_arg._mesh_arg == "gh_fine"
 
 
 def test_init_invalid():
@@ -103,7 +103,7 @@ def test_create_from_fparser2():
         encoding=Fortran2003.Structure_Constructor)
     with pytest.raises(ValueError) as info:
         _ = InterGridArgMetadata.create_from_fparser2(fparser2_tree)
-    assert ("InterGrids should have GH_FIELD as their first metadata "
+    assert ("InterGrids should have gh_field as their first metadata "
             "argument, but found 'GH_FEELED'." in str(info.value))
 
     fparser2_tree = InterGridArgMetadata.create_fparser2(
@@ -168,11 +168,11 @@ def test_create_from_fparser2():
     fparser2_tree = InterGridArgMetadata.create_fparser2(
         metadata, encoding=Fortran2003.Structure_Constructor)
     inter_grid_arg = InterGridArgMetadata.create_from_fparser2(fparser2_tree)
-    assert inter_grid_arg.form == "GH_FIELD"
-    assert inter_grid_arg._datatype == "GH_REAL"
-    assert inter_grid_arg._access == "GH_READ"
-    assert inter_grid_arg._function_space == "W0"
-    assert inter_grid_arg._mesh_arg == "GH_COARSE"
+    assert inter_grid_arg.form == "gh_field"
+    assert inter_grid_arg._datatype == "gh_real"
+    assert inter_grid_arg._access == "gh_read"
+    assert inter_grid_arg._function_space == "w0"
+    assert inter_grid_arg._mesh_arg == "gh_coarse"
 
 
 def test_get_mesh_arg():
@@ -204,7 +204,7 @@ def test_fortran_string():
     inter_grid_arg = InterGridArgMetadata.create_from_fortran_string(
         fortran_string)
     result = inter_grid_arg.fortran_string()
-    assert result == fortran_string
+    assert result == fortran_string.lower()
 
 
 def test_mesh_arg_setter_getter():
@@ -221,6 +221,6 @@ def test_mesh_arg_setter_getter():
             "but found 'invalid'." in str(info.value))
 
     inter_grid_arg.mesh_arg = "GH_COARSE"
-    assert inter_grid_arg.mesh_arg == "GH_COARSE"
+    assert inter_grid_arg.mesh_arg == "gh_coarse"
     inter_grid_arg.mesh_arg = "GH_FINE"
-    assert inter_grid_arg.mesh_arg == "GH_FINE"
+    assert inter_grid_arg.mesh_arg == "gh_fine"

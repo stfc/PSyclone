@@ -485,13 +485,13 @@ def test_fortran_string():
     expected = (
         "TYPE, PUBLIC, EXTENDS(kernel_type) :: testkern_type\n"
         "  type(ARG_TYPE) :: META_ARGS(7) = (/"
-        "arg_type(GH_SCALAR, gh_real, gh_read), "
-        "arg_type(GH_FIELD, gh_real, gh_inc, w1), "
-        "arg_type(GH_FIELD*3, gh_real, gh_read, w2), "
-        "arg_type(GH_FIELD, gh_real, gh_read, w2, mesh_arg=gh_coarse), "
-        "arg_type(GH_FIELD*3, gh_real, gh_read, w2, mesh_arg=gh_fine), "
-        "arg_type(GH_OPERATOR, gh_real, gh_read, w2, w3), "
-        "arg_type(GH_COLUMNWISE_OPERATOR, gh_real, gh_read, w3, w0)/)\n"
+        "arg_type(gh_scalar, gh_real, gh_read), "
+        "arg_type(gh_field, gh_real, gh_inc, w1), "
+        "arg_type(gh_field*3, gh_real, gh_read, w2), "
+        "arg_type(gh_field, gh_real, gh_read, w2, mesh_arg=gh_coarse), "
+        "arg_type(gh_field*3, gh_real, gh_read, w2, mesh_arg=gh_fine), "
+        "arg_type(gh_operator, gh_real, gh_read, w2, w3), "
+        "arg_type(gh_columnwise_operator, gh_real, gh_read, w3, w0)/)\n"
         "  type(FUNC_TYPE) :: META_FUNCS(2) = (/func_type(w1, gh_basis), "
         "func_type(w2, gh_basis, gh_diff_basis)/)\n"
         "  type(REFERENCE_ELEMENT_DATA_TYPE) :: META_REFERENCE_ELEMENT(2) "
@@ -574,7 +574,8 @@ def test_setter_getter_meta_args():
     with pytest.raises(TypeError) as info:
         metadata.meta_args = ["error"]
     assert ("The MetaArgsMetadata list should be a list containing objects of "
-            "type CommonMetaArgMetadata but found 'str'." in str(info.value))
+            "type CommonMetaArgMetadata but found 'error', which is of type "
+            "'str'." in str(info.value))
 
     scalar_arg = ScalarArgMetadata("GH_REAL", "GH_READ")
     meta_args = [scalar_arg]

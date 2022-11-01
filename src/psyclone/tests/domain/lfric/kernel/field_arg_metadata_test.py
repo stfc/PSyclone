@@ -50,10 +50,10 @@ def test_create():
     '''
     field_arg = FieldArgMetadata("GH_REAL", "GH_READ", "W0")
     assert isinstance(field_arg, FieldArgMetadata)
-    assert field_arg.form == "GH_FIELD"
-    assert field_arg._datatype == "GH_REAL"
-    assert field_arg._access == "GH_READ"
-    assert field_arg._function_space == "W0"
+    assert field_arg.form == "gh_field"
+    assert field_arg._datatype == "gh_real"
+    assert field_arg._access == "gh_read"
+    assert field_arg._function_space == "w0"
 
 
 def test_init_invalid():
@@ -99,7 +99,7 @@ def test_create_from_fparser2():
         "arg_type(GH_FEELED, GH_REAL, GH_READ, W0)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = FieldArgMetadata.create_from_fparser2(fparser2_tree)
-    assert ("Fields should have GH_FIELD as their first metadata argument, "
+    assert ("Fields should have gh_field as their first metadata argument, "
             "but found 'GH_FEELED'." in str(info.value))
 
     fparser2_tree = FieldArgMetadata.create_fparser2(
@@ -142,10 +142,10 @@ def test_create_from_fparser2():
     fparser2_tree = FieldArgMetadata.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)", Fortran2003.Part_Ref)
     field_arg = FieldArgMetadata.create_from_fparser2(fparser2_tree)
-    assert field_arg.form == "GH_FIELD"
-    assert field_arg._datatype == "GH_REAL"
-    assert field_arg._access == "GH_READ"
-    assert field_arg._function_space == "W0"
+    assert field_arg.form == "gh_field"
+    assert field_arg._datatype == "gh_real"
+    assert field_arg._access == "gh_read"
+    assert field_arg._function_space == "w0"
 
 
 def test_fortran_string():
@@ -154,7 +154,7 @@ def test_fortran_string():
     fortran_string = "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)"
     field_arg = FieldArgMetadata.create_from_fortran_string(fortran_string)
     result = field_arg.fortran_string()
-    assert result == fortran_string
+    assert result == fortran_string.lower()
 
 
 def test_check_datatype():
@@ -199,4 +199,4 @@ def test_function_space_setter_getter():
     field_arg.function_space = "w3"
     assert field_arg.function_space == "w3"
     field_arg.function_space = "W3"
-    assert field_arg.function_space == "W3"
+    assert field_arg.function_space == "w3"

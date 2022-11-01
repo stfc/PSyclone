@@ -126,13 +126,13 @@ def test_create_from_fparser2():
     '''Test that the create_from_fparser2 method works as expected.'''
     fortran_string = (
         "type(ARG_TYPE) :: META_ARGS(7) = (/"
-        "arg_type(GH_SCALAR, GH_REAL, GH_READ), "
-        "arg_type(GH_OPERATOR, GH_REAL, GH_READ, W0, W1), "
-        "arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, W0, W1), "
-        "arg_type(GH_FIELD, GH_REAL, GH_WRITE, W0), "
-        "arg_type(GH_FIELD*3, GH_REAL, GH_WRITE, W0), "
-        "arg_type(GH_FIELD, GH_REAL, GH_WRITE, W0, mesh_arg=GH_FINE), "
-        "arg_type(GH_FIELD*3, GH_REAL, GH_WRITE, W0, mesh_arg=GH_FINE)/)\n")
+        "arg_type(gh_scalar, gh_real, gh_read), "
+        "arg_type(gh_operator, gh_real, gh_read, w0, w1), "
+        "arg_type(gh_columnwise_operator, gh_real, gh_read, w0, w1), "
+        "arg_type(gh_field, gh_real, gh_write, w0), "
+        "arg_type(gh_field*3, gh_real, gh_write, w0), "
+        "arg_type(gh_field, gh_real, gh_write, w0, mesh_arg=gh_fine), "
+        "arg_type(gh_field*3, gh_real, gh_write, w0, mesh_arg=gh_fine)/)\n")
     fparser2_tree = MetaArgsMetadata.create_fparser2(
         fortran_string, Fortran2003.Data_Component_Def_Stmt)
     metadata = MetaArgsMetadata.create_from_fparser2(fparser2_tree)
@@ -175,11 +175,11 @@ def test_setter_errors():
     with pytest.raises(TypeError) as info:
         metadata.meta_args_args = [None]
     assert ("The MetaArgsMetadata list should be a list containing objects "
-            "of type CommonMetaArgMetadata but found 'NoneType'."
-            in str(info.value))
+            "of type CommonMetaArgMetadata but found 'None', which is of "
+            "type 'NoneType'." in str(info.value))
 
     with pytest.raises(TypeError) as info:
         metadata.meta_args_args = ["invalid"]
     assert ("The MetaArgsMetadata list should be a list containing objects "
-            "of type CommonMetaArgMetadata but found 'str'."
-            in str(info.value))
+            "of type CommonMetaArgMetadata but found 'invalid', which is of "
+            "type 'str'." in str(info.value))

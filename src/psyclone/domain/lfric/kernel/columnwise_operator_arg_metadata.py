@@ -49,7 +49,7 @@ class ColumnwiseOperatorArgMetadata(OperatorArgMetadata):
     '''
     # The name used to specify a columnwise operator argument in LFRic
     # metadata.
-    form = "GH_COLUMNWISE_OPERATOR"
+    form = "gh_columnwise_operator"
 
     @staticmethod
     def create_from_fparser2(fparser2_tree):

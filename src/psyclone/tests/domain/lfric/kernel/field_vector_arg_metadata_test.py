@@ -51,10 +51,10 @@ def test_create():
     '''
     field_vector_arg = FieldVectorArgMetadata("GH_REAL", "GH_READ", "W0", "2")
     assert isinstance(field_vector_arg, FieldVectorArgMetadata)
-    assert field_vector_arg.form == "GH_FIELD"
-    assert field_vector_arg._datatype == "GH_REAL"
-    assert field_vector_arg._access == "GH_READ"
-    assert field_vector_arg._function_space == "W0"
+    assert field_vector_arg.form == "gh_field"
+    assert field_vector_arg._datatype == "gh_real"
+    assert field_vector_arg._access == "gh_read"
+    assert field_vector_arg._function_space == "w0"
     assert field_vector_arg._vector_length == "2"
 
 
@@ -93,7 +93,7 @@ def test_create_from_fparser2():
         "arg_type(GH_FEELED*3, GH_REAL, GH_READ, W0)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = FieldVectorArgMetadata.create_from_fparser2(fparser2_tree)
-    assert ("FieldVectors should have GH_FIELD in their first metadata "
+    assert ("FieldVectors should have gh_field in their first metadata "
             "argument, but found 'GH_FEELED'." in str(info.value))
 
     fparser2_tree = FieldVectorArgMetadata.create_fparser2(
@@ -137,10 +137,10 @@ def test_create_from_fparser2():
         "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)", Fortran2003.Part_Ref)
     field_vector_arg = FieldVectorArgMetadata.create_from_fparser2(
         fparser2_tree)
-    assert field_vector_arg.form == "GH_FIELD"
-    assert field_vector_arg._datatype == "GH_REAL"
-    assert field_vector_arg._access == "GH_READ"
-    assert field_vector_arg._function_space == "W0"
+    assert field_vector_arg.form == "gh_field"
+    assert field_vector_arg._datatype == "gh_real"
+    assert field_vector_arg._access == "gh_read"
+    assert field_vector_arg._function_space == "w0"
     assert field_vector_arg._vector_length == "3"
 
 
@@ -151,7 +151,7 @@ def test_fortran_string():
     field_vector_arg = FieldVectorArgMetadata.create_from_fortran_string(
         fortran_string)
     result = field_vector_arg.fortran_string()
-    assert result == fortran_string
+    assert result == fortran_string.lower()
 
 
 def test_vector_length_setter_getter():

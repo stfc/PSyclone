@@ -52,11 +52,11 @@ def test_create():
     operator_arg = ColumnwiseOperatorArgMetadata(
         "GH_REAL", "GH_READ", "W0", "W1")
     assert isinstance(operator_arg, ColumnwiseOperatorArgMetadata)
-    assert operator_arg.form == "GH_COLUMNWISE_OPERATOR"
-    assert operator_arg._datatype == "GH_REAL"
-    assert operator_arg._access == "GH_READ"
-    assert operator_arg._function_space_to == "W0"
-    assert operator_arg._function_space_from == "W1"
+    assert operator_arg.form == "gh_columnwise_operator"
+    assert operator_arg._datatype == "gh_real"
+    assert operator_arg._access == "gh_read"
+    assert operator_arg._function_space_to == "w0"
+    assert operator_arg._function_space_from == "w1"
 
 
 def test_create_from_fparser2():
@@ -92,7 +92,7 @@ def test_create_from_fparser2():
         Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = ColumnwiseOperatorArgMetadata.create_from_fparser2(fparser2_tree)
-    assert ("ColumnwiseOperators should have GH_COLUMNWISE_OPERATOR as their "
+    assert ("ColumnwiseOperators should have gh_columnwise_operator as their "
             "first metadata argument, but found 'GH_UNWISE_OPERATOR'."
             in str(info.value))
 
@@ -145,8 +145,8 @@ def test_create_from_fparser2():
         Fortran2003.Part_Ref)
     operator_arg = ColumnwiseOperatorArgMetadata.create_from_fparser2(
         fparser2_tree)
-    assert operator_arg.form == "GH_COLUMNWISE_OPERATOR"
-    assert operator_arg._datatype == "GH_REAL"
-    assert operator_arg._access == "GH_READ"
-    assert operator_arg._function_space_to == "W0"
-    assert operator_arg._function_space_from == "W1"
+    assert operator_arg.form == "gh_columnwise_operator"
+    assert operator_arg._datatype == "gh_real"
+    assert operator_arg._access == "gh_read"
+    assert operator_arg._function_space_to == "w0"
+    assert operator_arg._function_space_from == "w1"

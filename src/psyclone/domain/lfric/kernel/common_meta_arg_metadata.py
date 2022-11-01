@@ -213,7 +213,7 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
             specified value.
         '''
         self.check_datatype(value)
-        self._datatype = value
+        self._datatype = value.lower()
 
     @staticmethod
     @abstractmethod
@@ -236,4 +236,4 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
 
         '''
         self.check_access(value)
-        self._access = value
+        self._access = value.lower()

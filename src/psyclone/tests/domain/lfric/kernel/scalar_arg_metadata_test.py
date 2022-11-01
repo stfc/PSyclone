@@ -50,9 +50,9 @@ def test_create():
     '''
     field_arg = ScalarArgMetadata("GH_REAL", "GH_READ")
     assert isinstance(field_arg, ScalarArgMetadata)
-    assert field_arg.form == "GH_SCALAR"
-    assert field_arg._datatype == "GH_REAL"
-    assert field_arg._access == "GH_READ"
+    assert field_arg.form == "gh_scalar"
+    assert field_arg._datatype == "gh_real"
+    assert field_arg._access == "gh_read"
 
 
 def test_create_from_fparser2():
@@ -88,7 +88,7 @@ def test_create_from_fparser2():
         "arg_type(GH_FIELD, GH_REAL, GH_READ)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = ScalarArgMetadata.create_from_fparser2(fparser2_tree)
-    assert ("Scalars should have GH_SCALAR as their first metadata argument, "
+    assert ("Scalars should have gh_scalar as their first metadata argument, "
             "but found 'GH_FIELD'." in str(info.value))
 
     fparser2_tree = ScalarArgMetadata.create_fparser2(
@@ -111,15 +111,15 @@ def test_create_from_fparser2():
     fparser2_tree = ScalarArgMetadata.create_fparser2(
         "arg_type(GH_SCALAR, GH_REAL, GH_READ)", Fortran2003.Part_Ref)
     field_arg = ScalarArgMetadata.create_from_fparser2(fparser2_tree)
-    assert field_arg.form == "GH_SCALAR"
-    assert field_arg._datatype == "GH_REAL"
-    assert field_arg._access == "GH_READ"
+    assert field_arg.form == "gh_scalar"
+    assert field_arg._datatype == "gh_real"
+    assert field_arg._access == "gh_read"
 
 
 def test_fortran_string():
     '''Test that the fortran_string method works as expected.'''
 
-    fortran_string = "arg_type(GH_SCALAR, GH_REAL, GH_READ)"
+    fortran_string = "arg_type(gh_scalar, gh_real, gh_read)"
     field_arg = ScalarArgMetadata.create_from_fortran_string(fortran_string)
     result = field_arg.fortran_string()
     assert result == fortran_string

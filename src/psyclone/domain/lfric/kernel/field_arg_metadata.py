@@ -56,7 +56,7 @@ class FieldArgMetadata(CommonMetaArgMetadata):
 
     '''
     # The name used to specify a field argument in LFRic metadata.
-    form = "GH_FIELD"
+    form = "gh_field"
     # The relative positions of LFRic metadata. Metadata for a field
     # argument is provided in the following format 'arg_type(form,
     # datatype, access, function_space)'. Therefore, for example, the
@@ -138,4 +138,4 @@ class FieldArgMetadata(CommonMetaArgMetadata):
         const = LFRicConstants()
         FieldArgMetadata.check_value(
             value, "function space", const.VALID_FUNCTION_SPACE_NAMES)
-        self._function_space = value
+        self._function_space = value.lower()

@@ -51,11 +51,11 @@ def test_create():
     '''
     operator_arg = OperatorArgMetadata("GH_REAL", "GH_READ", "W0", "W1")
     assert isinstance(operator_arg, OperatorArgMetadata)
-    assert operator_arg.form == "GH_OPERATOR"
-    assert operator_arg._datatype == "GH_REAL"
-    assert operator_arg._access == "GH_READ"
-    assert operator_arg._function_space_to == "W0"
-    assert operator_arg._function_space_from == "W1"
+    assert operator_arg.form == "gh_operator"
+    assert operator_arg._datatype == "gh_real"
+    assert operator_arg._access == "gh_read"
+    assert operator_arg._function_space_to == "w0"
+    assert operator_arg._function_space_from == "w1"
 
 
 def test_init_invalid():
@@ -111,7 +111,7 @@ def test_create_from_fparser2():
         Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = OperatorArgMetadata.create_from_fparser2(fparser2_tree)
-    assert ("Operators should have GH_OPERATOR as their first metadata "
+    assert ("Operators should have gh_operator as their first metadata "
             "argument, but found 'GH_OPERATION'." in str(info.value))
 
     fparser2_tree = OperatorArgMetadata.create_fparser2(
@@ -160,11 +160,11 @@ def test_create_from_fparser2():
         "arg_type(GH_OPERATOR, GH_REAL, GH_READ, W0, W1)",
         Fortran2003.Part_Ref)
     operator_arg = OperatorArgMetadata.create_from_fparser2(fparser2_tree)
-    assert operator_arg.form == "GH_OPERATOR"
-    assert operator_arg._datatype == "GH_REAL"
-    assert operator_arg._access == "GH_READ"
-    assert operator_arg._function_space_to == "W0"
-    assert operator_arg._function_space_from == "W1"
+    assert operator_arg.form == "gh_operator"
+    assert operator_arg._datatype == "gh_real"
+    assert operator_arg._access == "gh_read"
+    assert operator_arg._function_space_to == "w0"
+    assert operator_arg._function_space_from == "w1"
 
 
 def test_fortran_string():
@@ -174,7 +174,7 @@ def test_fortran_string():
     operator_arg = OperatorArgMetadata.create_from_fortran_string(
         fortran_string)
     result = operator_arg.fortran_string()
-    assert result == fortran_string
+    assert result == fortran_string.lower()
 
 
 def test_check_datatype():
@@ -213,7 +213,7 @@ def test_setter_getter():
     operator_arg.function_space_to = "w2"
     assert operator_arg.function_space_to == "w2"
     operator_arg.function_space_to = "W2"
-    assert operator_arg.function_space_to == "W2"
+    assert operator_arg.function_space_to == "w2"
 
     with pytest.raises(ValueError) as info:
         operator_arg.function_space_from = "invalid"
@@ -225,4 +225,4 @@ def test_setter_getter():
     operator_arg.function_space_from = "w3"
     assert operator_arg.function_space_from == "w3"
     operator_arg.function_space_from = "W3"
-    assert operator_arg.function_space_from == "W3"
+    assert operator_arg.function_space_from == "w3"

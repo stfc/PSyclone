@@ -155,10 +155,11 @@ def test_setter_errors():
     with pytest.raises(TypeError) as info:
         metadata.meta_funcs_args = [None]
     assert ("The MetaFuncsMetadata list should be a list containing objects "
-            "of type MetaFuncsArgMetadata but found 'NoneType'."
-            in str(info.value))
+            "of type MetaFuncsArgMetadata but found 'None', which is of "
+            "type 'NoneType'." in str(info.value))
 
     with pytest.raises(TypeError) as info:
         metadata.meta_funcs_args = ["invalid"]
     assert ("The MetaFuncsMetadata list should be a list containing objects "
-            "of type MetaFuncsArgMetadata but found 'str'." in str(info.value))
+            "of type MetaFuncsArgMetadata but found 'invalid', which is of "
+            "type 'str'." in str(info.value))

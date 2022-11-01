@@ -148,10 +148,11 @@ def test_setter_errors():
     with pytest.raises(TypeError) as info:
         metadata.meta_mesh_args = [None]
     assert ("The MetaMeshMetadata list should be a list containing objects "
-            "of type MetaMeshArgMetadata but found 'NoneType'."
-            in str(info.value))
+            "of type MetaMeshArgMetadata but found 'None', which is of "
+            "type 'NoneType'." in str(info.value))
 
     with pytest.raises(TypeError) as info:
         metadata.meta_mesh_args = ["invalid"]
     assert ("The MetaMeshMetadata list should be a list containing objects "
-            "of type MetaMeshArgMetadata but found 'str'." in str(info.value))
+            "of type MetaMeshArgMetadata but found 'invalid', which is of "
+            "type 'str'." in str(info.value))

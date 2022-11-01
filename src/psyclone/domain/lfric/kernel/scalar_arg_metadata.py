@@ -51,7 +51,7 @@ class ScalarArgMetadata(CommonMetaArgMetadata):
 
     '''
     # The name used to specify a scalar argument in LFRic metadata.
-    form = "GH_SCALAR"
+    form = "gh_scalar"
     # The relative positions of LFRic metadata. Metadata for a scalar
     # argument is provided in the following format 'arg_type(form,
     # datatype, access)'. Therefore, for example, the index of the

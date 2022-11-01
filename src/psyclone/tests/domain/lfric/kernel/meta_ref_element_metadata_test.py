@@ -159,11 +159,11 @@ def test_setter_errors():
     with pytest.raises(TypeError) as info:
         metadata.meta_ref_element_args = [None]
     assert ("The MetaRefElementMetadata list should be a list containing "
-            "objects of type MetaRefElementArgMetadata but found 'NoneType'."
-            in str(info.value))
+            "objects of type MetaRefElementArgMetadata but found 'None', "
+            "which is of type 'NoneType'." in str(info.value))
 
     with pytest.raises(TypeError) as info:
         metadata.meta_ref_element_args = ["invalid"]
     assert ("The MetaRefElementMetadata list should be a list containing "
-            "objects of type MetaRefElementArgMetadata but found 'str'."
-            in str(info.value))
+            "objects of type MetaRefElementArgMetadata but found 'invalid', "
+            "which is of type 'str'." in str(info.value))

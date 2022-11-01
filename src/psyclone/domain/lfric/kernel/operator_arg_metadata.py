@@ -58,7 +58,7 @@ class OperatorArgMetadata(ScalarArgMetadata):
 
     '''
     # The name used to specify an operator argument in LFRic metadata.
-    form = "GH_OPERATOR"
+    form = "gh_operator"
     # The relative positions of LFRic function-space-to and
     # function-space-from metadata. Metadata for an operator argument
     # is provided in the following format 'arg_type(form, datatype,
@@ -151,7 +151,7 @@ class OperatorArgMetadata(ScalarArgMetadata):
         const = LFRicConstants()
         self.check_value(
             value, "function_space_to", const.VALID_FUNCTION_SPACES)
-        self._function_space_to = value
+        self._function_space_to = value.lower()
 
     @property
     def function_space_from(self):
@@ -171,4 +171,4 @@ class OperatorArgMetadata(ScalarArgMetadata):
         const = LFRicConstants()
         self.check_value(
             value, "function_space_from", const.VALID_FUNCTION_SPACES)
-        self._function_space_from = value
+        self._function_space_from = value.lower()

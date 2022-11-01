@@ -216,7 +216,7 @@ def test_setter_getter():
     class work as expected.
 
     '''
-    dummy = CheckArg(None, None)
+    dummy = CheckArg("invalid", "invalid")
 
     dummy.datatype = "cheese"
     assert dummy._datatype == "cheese"

@@ -151,4 +151,4 @@ class InterGridArgMetadata(FieldArgMetadata):
         const = LFRicConstants()
         InterGridArgMetadata.check_value(
             value, "mesh_arg", const.VALID_MESH_TYPES)
-        self._mesh_arg = value
+        self._mesh_arg = value.lower()
