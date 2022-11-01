@@ -35,10 +35,10 @@
 # Modified by: R. W. Ford, STFC Daresbury Lab
 #              I. Kavcic, Met Office
 #              S. Siso, STFC Daresbury Lab
+#              J. Henrichs, Bureau of Meteorology
 
 ''' Module containing tests for kernel transformations. '''
 
-from __future__ import absolute_import, print_function
 import os
 import re
 import pytest
