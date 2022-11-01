@@ -318,7 +318,7 @@ class StructureReference(Reference):
                         f"'{cursor.name}' of the StructureAccess represents "
                         f"an array but other array notation is present in the "
                         f"full access expression: '{fwriter(self)}'")
-                return ArrayType(cursor_type.intrinsic, shape)
+                return ArrayType(cursor_type, shape)
 
             return ArrayType(cursor_type, shape)
 

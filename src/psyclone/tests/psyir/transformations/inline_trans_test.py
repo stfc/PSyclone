@@ -221,8 +221,10 @@ def test_apply_struct_arg(fortran_reader, fortran_writer, tmpdir):
         f"  subroutine run_it()\n"
         f"  integer :: i\n"
         f"  type(my_type) :: var\n"
+        f"  type(my_type) :: var_list(10)\n"
         f"  do i=1,10\n"
         f"    call sub(var, i)\n"
+        f"    call sub(var_list(i), i)\n"
         f"  end do\n"
         f"  end subroutine run_it\n"
         f"  subroutine sub(x, ivar)\n"
@@ -235,14 +237,19 @@ def test_apply_struct_arg(fortran_reader, fortran_writer, tmpdir):
         f"  end subroutine sub\n"
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
-    routine = psyir.walk(Call)[0]
+    routines = psyir.walk(Call)
     inline_trans = InlineTrans()
-    inline_trans.apply(routine)
+    inline_trans.apply(routines[0])
+    inline_trans.apply(routines[1])
     output = fortran_writer(psyir)
     assert ("    do i = 1, 10, 1\n"
+            "      do i_2 = 1, 10, 1\n"
+            "        var%data(i_2) = 2.0 * i\n"
+            "      enddo\n"
             "      do i_1 = 1, 10, 1\n"
-            "        var%data(i_1) = 2.0 * i\n"
-            "      enddo\n" in output)
+            "        var_list(i)%data(i_1) = 2.0 * i\n"
+            "      enddo\n"
+            "    enddo\n" in output)
     assert Compile(tmpdir).string_compiles(output)
 
 
@@ -284,19 +291,24 @@ def test_apply_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
 
 def test_apply_struct_array_arg(fortran_reader, fortran_writer, tmpdir):
     '''Check that apply works correctly when the actual argument is an
-    array within a structure.'''
+    array element within a structure.'''
     code = (
         f"module test_mod\n"
         f"{MY_TYPE}"
         f"contains\n"
         f"  subroutine run_it()\n"
-        f"  integer :: i\n"
+        f"  integer :: i, ig\n"
         f"  real :: a(10)\n"
         f"  type(my_type) :: grid\n"
+        f"  type(my_type), dimension(5) :: grid_list\n"
         f"  grid%data(:) = 1.0\n"
         f"  do i=1,10\n"
         f"    a(i) = 1.0\n"
         f"    call sub(grid%data(i))\n"
+        f"  end do\n"
+        f"  do i=1,10\n"
+        f"    ig = min(i, 5)\n"
+        f"    call sub(grid_list(ig)%data(i))\n"
         f"  end do\n"
         f"  end subroutine run_it\n"
         f"  subroutine sub(x)\n"
@@ -305,13 +317,18 @@ def test_apply_struct_array_arg(fortran_reader, fortran_writer, tmpdir):
         f"  end subroutine sub\n"
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
-    routine = psyir.walk(Call)[0]
+    routines = psyir.walk(Call)
     inline_trans = InlineTrans()
-    inline_trans.apply(routine)
-    output = fortran_writer(psyir)
+    inline_trans.apply(routines[0])
+    inline_trans.apply(routines[1])
+    output = fortran_writer(psyir).lower()
     assert ("    do i = 1, 10, 1\n"
             "      a(i) = 1.0\n"
             "      grid%data(i) = 2.0 * grid%data(i)\n"
+            "    enddo\n" in output)
+    assert ("    do i = 1, 10, 1\n"
+            "      ig = min(i, 5)\n"
+            "      grid_list(ig)%data(i) = 2.0 * grid_list(ig)%data(i)\n"
             "    enddo\n" in output)
     assert Compile(tmpdir).string_compiles(output)
 
@@ -330,7 +347,7 @@ def test_apply_struct_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
         f"  grid%data(:) = 1.0\n"
         f"  do i=1,10\n"
         f"    a(i) = 1.0\n"
-        f"    call sub(grid%data(1:5))\n"
+        f"    call sub(grid%data(:))\n"
         f"  end do\n"
         f"  end subroutine run_it\n"
         f"  subroutine sub(x)\n"
@@ -1107,22 +1124,29 @@ def test_validate_array_subsection(fortran_reader):
     '''Test that the validate method rejects an attempt to inline a routine
     if any of its arguments are array subsections.'''
     code = (
-        "module test_mod\n"
-        "contains\n"
-        "subroutine main\n"
-        "  REAL A(100, 100)\n"
-        "  CALL S(A(26:,2:))\n"
-        "end subroutine\n"
-        "subroutine s(x)\n"
-        "  real :: x(:, :)\n"
-        "  x(:,:) = 0.0\n"
-        "end subroutine\n"
-        "end module\n")
+        f"module test_mod\n"
+        f"{MY_TYPE}"
+        f"contains\n"
+        f"subroutine main\n"
+        f"  real A(100, 100)\n"
+        f"  type(my_type) :: var\n"
+        f"  call S(A(26:,2:))\n"
+        f"  call s(var%data(3:10))\n"
+        f"end subroutine\n"
+        f"subroutine s(x)\n"
+        f"  real :: x(:, :)\n"
+        f"  x(:,:) = 0.0\n"
+        f"end subroutine\n"
+        f"end module\n")
     psyir = fortran_reader.psyir_from_source(code)
-    call = psyir.walk(Call)[0]
+    calls = psyir.walk(Call)
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
-        inline_trans.apply(call)
+        inline_trans.apply(calls[0])
+    assert ("Cannot inline routine 's' because argument 'a(26:,2:)' is an "
+            "array subsection (TODO #924)" in str(err.value))
+    with pytest.raises(TransformationError) as err:
+        inline_trans.apply(calls[1])
     assert ("Cannot inline routine 's' because argument 'a(26:,2:)' is an "
             "array subsection (TODO #924)" in str(err.value))
 

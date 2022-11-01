@@ -47,7 +47,7 @@ from psyclone.psyir.nodes import (
     StructureReference)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol, ScalarType,
-                                    ImportInterface)
+                                    RoutineSymbol, ImportInterface)
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 
@@ -278,7 +278,7 @@ class InlineTrans(Transformation):
         top_indices = None
         local_indices = None
         if isinstance(actual_arg, ArrayMixin):
-            top_indices = actual_arg.indices
+            top_indices = [idx.copy() for idx in actual_arg.indices]
         if isinstance(ref, ArrayMixin):
             local_indices = ref.indices
 
@@ -423,6 +423,7 @@ class InlineTrans(Transformation):
             been updated to refer to a Container at the call site.
 
         '''
+        routine_name = routine_table.node.name
         dummy_args = routine_table.argument_list
 
         for old_sym in routine_table.symbols:
@@ -431,6 +432,12 @@ class InlineTrans(Transformation):
                 # We've dealt with Container symbols in
                 # _inline_container_symbols() and we deal with dummy arguments
                 # in apply().
+                continue
+
+            if old_sym.name == routine_name and isinstance(old_sym,
+                                                           RoutineSymbol):
+                # We don't want or need the symbol representing the routine
+                # that is being inlined.
                 continue
 
             old_name = old_sym.name
@@ -580,42 +587,43 @@ class InlineTrans(Transformation):
         visitor = FortranWriter()
         for dummy_arg, actual_arg in zip(routine_table.argument_list,
                                          node.children):
-            # TODO #1799 this really needs the `datatype` method that is
-            # planned for all reference nodes.
-            if isinstance(actual_arg, ArrayReference):
-                rank = 0
-                for idx, expr in enumerate(actual_arg.indices):
-                    if isinstance(expr, Range):
-                        rank += 1
-                        # TODO #924 add a method to Range that returns the
-                        # PSyIR expression for the number of elements it
-                        # contains. This can then be compared with the shape of
-                        # the dummy argument.
-                        if not actual_arg.is_full_range(idx):
-                            # It's OK to use the loop variable in the lambda
-                            # definition because if we get to this point then
-                            # we're going to quit the loop.
-                            # pylint: disable=cell-var-from-loop
+            dummy_rank = 0
+            actual_rank = 0
+            if not isinstance(actual_arg, Reference):
+                # TODO #1799 this really needs the `datatype` method to be
+                # extended to support all nodes. For now we have to skip
+                # anything that's not a Reference.
+                continue
+
+            if hasattr(dummy_arg.datatype, "shape"):
+                dummy_rank = len(dummy_arg.datatype.shape)
+            if hasattr(actual_arg.datatype, "shape"):
+                actual_rank = len(actual_arg.datatype.shape)
+            if dummy_rank != actual_rank:
+                # It's OK to use the loop variable in the lambda definition
+                # because if we get to this point then we're going to quit
+                # the loop.
+                # pylint: disable=cell-var-from-loop
+                raise TransformationError(LazyString(
+                        lambda: f"Cannot inline routine '{routine.name}' "
+                        f"because it reshapes an argument: actual argument "
+                        f"'{visitor(actual_arg)}' has rank {actual_rank} but "
+                        f"the corresponding dummy argument, '{dummy_arg.name}'"
+                        f", has rank {dummy_rank}"))
+            if actual_rank:
+                ranges = actual_arg.walk(Range)
+                for rge in ranges:
+                    if rge.parent is actual_arg:
+                        if not actual_arg.is_full_range(
+                                actual_arg.indices.index(rge)):
                             raise TransformationError(LazyString(
                                 lambda: f"Cannot inline routine "
                                 f"'{routine.name}' because argument "
                                 f"'{visitor(actual_arg)}' is "
                                 f"an array subsection (TODO #924)."))
-                if isinstance(dummy_arg.datatype, ScalarType):
-                    dummy_rank = 0
-                else:
-                    dummy_rank = len(dummy_arg.datatype.shape)
-                if rank != dummy_rank:
-                    # It's OK to use the loop variable in the lambda definition
-                    # because if we get to this point then we're going to quit
-                    # the loop.
-                    # pylint: disable=cell-var-from-loop
-                    raise TransformationError(LazyString(
-                        lambda: f"Cannot inline routine '{routine.name}' "
-                        f"because it reshapes an argument: actual argument "
-                        f"'{visitor(actual_arg)}' has rank {rank} but the "
-                        f"corresponding dummy argument, '{dummy_arg.name}', "
-                        f"has rank {len(dummy_arg.datatype.shape)}"))
+                    else:
+                        # Have a range in an indirect access.
+                        raise TransformationError("TODO")
 
     @staticmethod
     def _find_routine(call_node):

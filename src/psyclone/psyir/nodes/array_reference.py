@@ -41,7 +41,7 @@
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import (DataSymbol, DeferredType, UnknownType,
-                                    ScalarType, ArrayType)
+                                    DataTypeSymbol, ScalarType, ArrayType)
 from psyclone.errors import GenerationError
 
 
@@ -114,6 +114,8 @@ class ArrayReference(ArrayMixin, Reference):
         shape = self._get_effective_shape()
         if shape:
             return ArrayType(self.symbol.datatype, shape)
+        if isinstance(self.symbol.datatype.intrinsic, DataTypeSymbol):
+            return self.symbol.datatype.intrinsic
         # TODO #1857: Really we should just be able to return
         # self.symbol.datatype here but currently arrays of scalars are
         # handled in a different way to all other types of array.
