@@ -331,6 +331,7 @@ class NemoLoop(PSyLoop):
         return None
 
 
+# TODO #1872: Avoid the duplication below and move to src/psyclone/domain/nemo
 class NemoACCEnterDataDirective(ACCEnterDataDirective):
     '''
     NEMO-specific support for the OpenACC enter data directive.
