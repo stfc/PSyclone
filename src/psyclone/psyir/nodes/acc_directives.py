@@ -98,18 +98,21 @@ class ACCRegionDirective(ACCDirective, RegionDirective):
     @property
     def kernel_references(self):
         '''
-        Returns a set of the references (whether to arrays or objects)
+        Returns a set or a 2-tuple of sets of the input (first entry) and
+        output (second entry) references (whether to arrays or objects)
         required by the Kernel call(s) that are children of this directive.
         This is the set of quantities that must be available on the remote
         device (probably a GPU) before the parallel region can be begun.
 
-        :returns: set of variable names
-        :rtype: Set[str] or Set[:py:class:`psyclone.Core.Signature`]
+        :returns: set or 2-tuple of input and output sets of variable names
+        :rtype: Set[str] or Tuple[Set[:py:class:`psyclone.core.Signature`],
+                                  Set[:py:class:`psyclone.core.Signature`]]
         '''
 
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynInvokeSchedule
-        from psyclone.gocean1p0 import GOInvokeSchedule
+        from psyclone.dynamo0p3   import DynInvokeSchedule
+        from psyclone.gocean1p0   import GOInvokeSchedule
+        from psyclone.psyir.tools import DependencyTools
 
         if self.ancestor((DynInvokeSchedule, GOInvokeSchedule)):
             # Look-up the kernels that are children of this node
@@ -117,42 +120,10 @@ class ACCRegionDirective(ACCDirective, RegionDirective):
             for call in self.kernels():
                 for arg in call.arguments.acc_args:
                     sig_set.add(arg)
-        else:
-            sig_set = set().union(self.in_kernel_references,
-                                  self.out_kernel_references)
-        return sig_set
+            return sig_set
 
-    @property
-    def in_kernel_references(self):
-        '''
-        Returns a set of the input references (whether to arrays or objects)
-        required by the Kernel call(s) that are children of this directive.
-
-        :returns: set of variable names
-        :rtype: Set[str] or Set[:py:class:`psyclone.Core.Signature`]
-        '''
-
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.tools import DependencyTools
-
-        inputs, _ = DependencyTools().get_in_out_parameters(self.children)
-        return inputs
-
-    @property
-    def out_kernel_references(self):
-        '''
-        Returns a set of the output references (whether to arrays or objects)
-        required by the Kernel call(s) that are children of this directive.
-
-        :returns: set of variable names
-        :rtype: Set[str] or Set[:py:class:`psyclone.Core.Signature`]
-        '''
-
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.tools import DependencyTools
-
-        _, outputs = DependencyTools().get_in_out_parameters(self.children)
-        return outputs
+        inp, out = DependencyTools().get_in_out_parameters(self.children)
+        return (set(inp), set(out))
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -254,7 +225,10 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         # TODO GOcean grid properties are duplicated in this set under
         # different names (the OpenACC deep copy support should spot this).
         for pdir in self._acc_dirs:
-            self._sig_set.update(pdir.kernel_references)
+            try:
+                self._sig_set.update(pdir.kernel_references)
+            except TypeError:
+                self._sig_set.update(*pdir.kernel_references)
 
         super().lower_to_language_level()
 

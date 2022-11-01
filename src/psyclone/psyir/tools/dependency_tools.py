@@ -882,7 +882,7 @@ class DependencyTools():
         :returns: a 2-tuple of two lists, the first one containing \
             the input parameters, the second the output parameters.
         :rtype: Tuple[List[:py:class:`psyclone.core.Signature`],
-                      List[:py:class:`psyclone.core.Signature`])
+                      List[:py:class:`psyclone.core.Signature`]]
 
         '''
         variables_info = VariablesAccessInfo(node_list)

@@ -42,8 +42,7 @@ is returned to the device in time for the execution of compute regions.
 
 from psyclone.core import Signature
 from psyclone.psyGen import InvokeSchedule, Transformation
-from psyclone.psyir.nodes import (Call, CodeBlock, IfBlock, Loop, Routine,
-                                  Schedule,
+from psyclone.psyir.nodes import (Call, CodeBlock, IfBlock, Loop, Schedule,
                                   ACCEnterDataDirective, ACCUpdateDirective,
                                   ACCKernelsDirective, ACCParallelDirective)
 from psyclone.psyir.tools import DependencyTools
@@ -129,9 +128,6 @@ class ACCUpdateTrans(Transformation):
 
         '''
         self.validate(node, options)
-
-        routine = node.ancestor(Routine, include_self=True)
-        self._routine_name = routine.name if routine else ""
 
         # Call the routine that recursively adds updates to all Schedules
         # within the supplied Schedule.
@@ -335,7 +331,7 @@ class ACCUpdateTrans(Transformation):
         requires synchronisation because of accesses in the compute regions
         within the statements in dep_stmts.
 
-        :param dep_stmts: list of statements which may include compute regions. 
+        :param dep_stmts: list of statements which may include compute regions.
         :type dep_stmts: List[:py:class:`psyclone.psyir.nodes.Statement`]
         :param host_sig: access signature(s) that need to be synchronised \
                          with the accelerator device.
@@ -354,13 +350,13 @@ class ACCUpdateTrans(Transformation):
 
         for stmt in dep_stmts:
             for acc in stmt.walk(self._acc_compute):
-                # Kernel outputs are both input and output dependency candidates.
+                # Kernel outputs can be both input and output dependencies.
                 # The latter is since we must guarantee no kernel write is
                 # overwritten by an earlier host write whose update device
                 # directive could appear later.
-                kern_sig.update(acc.out_kernel_references)
+                kern_sig.update(acc.kernel_references[OUT])
                 if acss_type == OUT:
-                    kern_sig.update(acc.in_kernel_references)
+                    kern_sig.update(acc.kernel_references[IN])
 
         return host_sig.intersection(kern_sig)
 
@@ -392,7 +388,7 @@ class ACCUpdateTrans(Transformation):
         # Specify the data movement direction with the right clause depending
         # on the access type. When the update directive can be placed at the
         # edge of the schedule, the position of the directive, update_pos, is
-        # undefined until this point. 
+        # undefined until this point.
         if acss_type == IN:
             direction = "host"
             if update_pos is None:
