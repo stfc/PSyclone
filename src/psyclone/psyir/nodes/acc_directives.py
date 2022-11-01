@@ -889,6 +889,17 @@ class ACCUpdateDirective(ACCStandaloneDirective):
 
 
 def _sig_set_to_string(sig_set):
+    '''
+    Converts the provided set of signatures in a lexically sorted
+    string of comma-separated signatures which also includes, for signatures
+    that represent variables of a derived type, the composing subsignatures.
+
+    :param sig_set: set of signature(s) to include in the string.
+    :type sig_set: Set[:py:class:`psyclone.core.Signature`]
+    :returns: a lexically sorted string of comma-separated (sub)signatures.
+    :rtype: str
+
+    '''
     names = set()
     for sig in sig_set:
         if isinstance(sig, str):
