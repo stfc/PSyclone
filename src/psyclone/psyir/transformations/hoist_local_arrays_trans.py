@@ -43,8 +43,9 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (Routine, Container, ArrayReference, Range,
                                   FileContainer, IfBlock, UnaryOperation,
-                                  CodeBlock, ACCRoutineDirective)
-from psyclone.psyir.symbols import ArrayType, Symbol
+                                  CodeBlock, ACCRoutineDirective, Literal,
+                                  BinaryOperation, Reference)
+from psyclone.psyir.symbols import ArrayType, Symbol, INTEGER_TYPE
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 
@@ -178,12 +179,44 @@ class HoistLocalArraysTrans(Transformation):
             # TODO #1366: we have to use a CodeBlock in order to query whether
             # or not the array has been allocated already.
             code = f"allocated({sym.name})"
-            expr = freader.psyir_from_expression(code, node.symbol_table)
-            if_expr = UnaryOperation.create(UnaryOperation.Operator.NOT, expr)
+            allocated_expr = freader.psyir_from_expression(code, node.symbol_table)
+            if_expr = UnaryOperation.create(
+                        UnaryOperation.Operator.NOT, allocated_expr)
+
+            # Add runtime checks to verify that the boundaries haven't changed
+            # (we skip literals as we know they can't have changed)
+            for idx, dim in enumerate(orig_shape):
+                if not isinstance(dim.lower, Literal):
+                    expr = BinaryOperation.create(
+                            BinaryOperation.Operator.NE,
+                            BinaryOperation.create(
+                                BinaryOperation.Operator.LBOUND,
+                                Reference(sym),
+                                Literal(str(idx+1), INTEGER_TYPE)),
+                            dim.lower)
+                    if_expr = BinaryOperation.create(
+                                BinaryOperation.Operator.OR,
+                                if_expr, expr)
+                if not isinstance(dim.upper, Literal):
+                    expr = BinaryOperation.create(
+                            BinaryOperation.Operator.NE,
+                            BinaryOperation.create(
+                                BinaryOperation.Operator.UBOUND,
+                                Reference(sym),
+                                Literal(str(idx+1), INTEGER_TYPE)),
+                            dim.upper)
+                    if_expr = BinaryOperation.create(
+                                BinaryOperation.Operator.OR,
+                                if_expr, expr)
+
             # TODO #1366: we also have to use a CodeBlock for the allocate().
             alloc_arg = fwriter(aref)
-            body = [freader.psyir_from_statement(f"allocate({alloc_arg})",
-                                                 node.symbol_table)]
+            body = [
+                IfBlock.create(allocated_expr.copy(), [
+                    freader.psyir_from_statement(f"deallocate({sym.name})",
+                                                 node.symbol_table)]),
+                freader.psyir_from_statement(f"allocate({alloc_arg})",
+                                             node.symbol_table)]
             # Insert the conditional allocation at the start of the supplied
             # routine.
             node.children.insert(0, IfBlock.create(if_expr, body))
