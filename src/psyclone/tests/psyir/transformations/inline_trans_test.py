@@ -45,6 +45,11 @@ from psyclone.psyir.transformations import (InlineTrans,
                                             TransformationError)
 from psyclone.tests.utilities import Compile
 
+MY_TYPE = ("  type my_type\n"
+           "    integer :: idx\n"
+           "    real, dimension(10) :: data\n"
+           "  end type my_type\n")
+
 # init
 
 
@@ -165,31 +170,140 @@ def test_apply_array_arg(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(output)
 
 
-def test_apply_struct_array_arg(fortran_reader, fortran_writer, tmpdir):
-    '''Check that apply works correctly when the actual argument is an
-    array within a structure.'''
+def test_apply_array_access(fortran_reader, fortran_writer, tmpdir):
+    '''
+    Check that the apply method works correctly when an array is passed
+    into the routine and then indexed within it.
+
+    '''
     code = (
         "module test_mod\n"
-        "  type my_type\n"
-        "    integer :: idx\n"
-        "    real, dimension(10) :: data\n"
-        "  end type my_type\n"
         "contains\n"
         "  subroutine run_it()\n"
         "  integer :: i\n"
         "  real :: a(10)\n"
-        "  type(my_type) :: grid\n"
-        "  grid%data(:) = 1.0\n"
         "  do i=1,10\n"
-        "    a(i) = 1.0\n"
-        "    call sub(grid%data(i))\n"
+        "    call sub(a, i)\n"
+        "  end do\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(x, ivar)\n"
+        "    real, intent(inout), dimension(10) :: x\n"
+        "    integer, intent(in) :: ivar\n"
+        "    integer :: i\n"
+        "    do i = 1, 10\n"
+        "      x(i) = 2.0*ivar\n"
+        "    end do\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(routine)
+    output = fortran_writer(psyir)
+    assert ("    do i = 1, 10, 1\n"
+            "      do i_1 = 1, 10, 1\n"
+            "        a(i_1) = 2.0 * i\n"
+            "      enddo\n" in output)
+    assert Compile(tmpdir).string_compiles(output)
+
+
+def test_apply_struct_arg(fortran_reader, fortran_writer, tmpdir):
+    '''
+    Check that the apply() method works correctly when the routine argument
+    is a StructureReference containing an ArrayMember which is accessed inside
+    the routine.
+
+    '''
+    code = (
+        f"module test_mod\n"
+        f"{MY_TYPE}"
+        f"contains\n"
+        f"  subroutine run_it()\n"
+        f"  integer :: i\n"
+        f"  type(my_type) :: var\n"
+        f"  do i=1,10\n"
+        f"    call sub(var, i)\n"
+        f"  end do\n"
+        f"  end subroutine run_it\n"
+        f"  subroutine sub(x, ivar)\n"
+        f"    type(my_type), intent(inout) :: x\n"
+        f"    integer, intent(in) :: ivar\n"
+        f"    integer :: i\n"
+        f"    do i = 1, 10\n"
+        f"      x%data(i) = 2.0*ivar\n"
+        f"    end do\n"
+        f"  end subroutine sub\n"
+        f"end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(routine)
+    output = fortran_writer(psyir)
+    assert ("    do i = 1, 10, 1\n"
+            "      do i_1 = 1, 10, 1\n"
+            "        var%data(i_1) = 2.0 * i\n"
+            "      enddo\n" in output)
+    assert Compile(tmpdir).string_compiles(output)
+
+
+def test_apply_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
+    '''
+    Check that the apply() method works correctly when an array slice is
+    passed to a routine and then accessed within it.
+
+    '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "  integer :: i\n"
+        "  real :: a(10,10)\n"
+        "  do i=1,10\n"
+        "    call sub(a(:,i))\n"
         "  end do\n"
         "  end subroutine run_it\n"
         "  subroutine sub(x)\n"
-        "    real, intent(inout) :: x\n"
-        "    x = 2.0*x\n"
+        "    real, intent(inout), dimension(10) :: x\n"
+        "    integer :: i\n"
+        "    do i = 1, 10\n"
+        "      x(i) = 2.0*i\n"
+        "    end do\n"
         "  end subroutine sub\n"
         "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(routine)
+    output = fortran_writer(psyir)
+    assert ("    do i = 1, 10, 1\n"
+            "      do i_1 = 1, 10, 1\n"
+            "        a(i_1, i) = 2.0*i_1\n"
+            "      end do\n" in output)
+    assert Compile(tmpdir).string_compiles(output)
+
+
+def test_apply_struct_array_arg(fortran_reader, fortran_writer, tmpdir):
+    '''Check that apply works correctly when the actual argument is an
+    array within a structure.'''
+    code = (
+        f"module test_mod\n"
+        f"{MY_TYPE}"
+        f"contains\n"
+        f"  subroutine run_it()\n"
+        f"  integer :: i\n"
+        f"  real :: a(10)\n"
+        f"  type(my_type) :: grid\n"
+        f"  grid%data(:) = 1.0\n"
+        f"  do i=1,10\n"
+        f"    a(i) = 1.0\n"
+        f"    call sub(grid%data(i))\n"
+        f"  end do\n"
+        f"  end subroutine run_it\n"
+        f"  subroutine sub(x)\n"
+        f"    real, intent(inout) :: x\n"
+        f"    x = 2.0*x\n"
+        f"  end subroutine sub\n"
+        f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Call)[0]
     inline_trans = InlineTrans()

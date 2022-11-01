@@ -417,15 +417,16 @@ class ArrayMixin(metaclass=abc.ABCMeta):
 
             elif isinstance(idx_expr, Reference):
                 dtype = idx_expr.datatype
-                if dtype.shape:
+                if isinstance(dtype, ArrayType):
                     # An array slice can be defined by a 1D slice of another
                     # array, e.g. `a(b(1:4))`.
-                    if len(dtype.shape) > 1:
+                    indirect_array_shape = dtype._get_effective_shape
+                    if len(indirect_array_shape) > 1:
                         raise InternalError(
                             f"An array defining a slice of a dimension of "
                             f"another array must be 1D but '{idx_expr.name}' "
                             f"used to index into '{self.name}' has "
-                            f"{len(dtype.shape)} dimensions.")
+                            f"{len(indirect_array_shape)} dimensions.")
                     shape.append(_num_elements(dtype.shape[0]))
             elif isinstance(idx_expr, (Call, Operation, CodeBlock)):
                 # We can't yet straightforwardly query the type of a function

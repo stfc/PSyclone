@@ -205,15 +205,15 @@ class InlineTrans(Transformation):
                 idx += 1
                 parent.addchild(child, idx)
 
-    def replace_dummy_arg(self, ref, node, dummy_args):
+    def replace_dummy_arg(self, ref, call_node, dummy_args):
         '''
         Replaces a reference to a dummy argument with the corresponding
         reference from the call site.
 
         :param ref: the reference to update.
         :type ref: 
-        :param node:
-        :type node:
+        :param call_node: the call site.
+        :type call_node: :py:class:`psyclone.psyir.nodes.Call`
         :param dummy_args: the dummy arguments of the called routine.
         :type dummy_args:
 
@@ -222,54 +222,33 @@ class InlineTrans(Transformation):
             # The supplied reference is not to a dummy argument.
             return
 
-        if not (isinstance(ref, ArrayMixin) and
-                not isinstance(node.children[dummy_args.index(ref.symbol)],
-                               ArrayMixin)):
-            # There's no indexing to worry about so we can simply copy the
-            # reference from the call site.
-            ref.replace_with(
-                node.children[dummy_args.index(ref.symbol)].copy())
+        actual_arg = call_node.children[dummy_args.index(ref.symbol)]
+
+        # If the local reference is a simple Reference then we can just
+        # replace it with the actual argument.
+        # pylint: disable=unidiomatic-typecheck
+        if type(ref) is Reference:
+            # call my_sub(my_struc%data(i,j))
+            #
+            # subroutine my_sub(var)
+            #   ...
+            #   var = 0.0
+            ref.replace_with(actual_arg.copy())
             return
 
-        if isinstance(node.children[dummy_args.index(ref.symbol)], StructureReference):
-            symbol = node.children[dummy_args.index(ref.symbol)].symbol
-            members = []
-            members.append(node.children[dummy_args.index(ref.symbol)].member.copy())
-            childmember = node.children[dummy_args.index(ref.symbol)].member
-            members[0].pop_all_children()
-            while isinstance(childmember, StructureMember):
-                childmember.detach()
-                childmember = childmember.member
-                members.append(childmember.copy())
-                members[-1].detach()
-                childmember.detach()
+        # Local reference is not simple, e.g.:
+        #
+        # call my_sub(my_struc)
+        #
+        # subroutine my_sub(var)
+        #   ...
+        #   var%data(i,j) = 0.0
+        if type(actual_arg) is Reference:
+            ref.symbol = actual_arg.symbol
+            return
 
-            final_member = members[-1]
-            indices = []
-            for index in ref.walk(Reference):
-                if index is not ref:
-                    self.replace_dummy_arg(index, node, dummy_args)
-            for index in ref.indices:
-                indices.append(index.copy())
-            array_member = ArrayMember.create(final_member.name, indices)
-            members[-1] = array_member
-            replacement = StructureReference(symbol)
-            add_to = replacement
-            for member in members:
-                add_to.addchild(member)
-                add_to = add_to.children[-1]
-                while isinstance(add_to, StructureMember) and len(add_to.children) > 0:
-                    add_to = add_to.member
-            ref.replace_with(replacement)
-
-        elif isinstance(node.children[dummy_args.index(ref.symbol)], Reference):
-            symbol = node.children[dummy_args.index(ref.symbol)].symbol
-            indices = []
-            for index in ref.indices:
-                indices.append(index.copy())
-            replacement = ArrayReference.create(symbol, indices)
-            ref.replace_with(replacement)
-
+        #import pdb; pdb.set_trace()
+        assert 0
 
     @staticmethod
     def _inline_container_symbols(table, routine_table):
