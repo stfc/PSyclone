@@ -203,8 +203,6 @@ class LFRicKernelMetadata():
 
         :raises ValueError: if kernel metadata is not a Fortran \
             derived type.
-        :raises ParseError: if the meta_args extracted from the \
-            fortran_string is not a list.
         :raises ParseError: if one of the meta_args entries is an \
             unexpected type.
 

@@ -54,20 +54,14 @@ from psyclone.domain.lfric.kernel.inter_grid_vector_arg_metadata import \
     InterGridVectorArgMetadata
 from psyclone.domain.lfric.kernel.lfric_kernel_metadata import \
     LFRicKernelMetadata
-from psyclone.domain.lfric.kernel.meta_mesh_metadata import \
-    MetaMeshMetadata
 from psyclone.domain.lfric.kernel.meta_mesh_arg_metadata import \
     MetaMeshArgMetadata
 from psyclone.domain.lfric.kernel.meta_funcs_arg_metadata import \
     MetaFuncsArgMetadata
-from psyclone.domain.lfric.kernel.meta_funcs_metadata import \
-    MetaFuncsMetadata
 from psyclone.domain.lfric.kernel.operates_on_metadata import \
     OperatesOnMetadata
 from psyclone.domain.lfric.kernel.operator_arg_metadata import \
     OperatorArgMetadata
-from psyclone.domain.lfric.kernel.meta_ref_element_metadata import \
-    MetaRefElementMetadata
 from psyclone.domain.lfric.kernel.meta_ref_element_arg_metadata import \
     MetaRefElementArgMetadata
 from psyclone.domain.lfric.kernel.scalar_arg_metadata import ScalarArgMetadata
@@ -348,6 +342,17 @@ def test_create_from_fortran_error():
         _ = LFRicKernelMetadata.create_from_fortran_string("hello")
     assert ("Expected kernel metadata to be a Fortran derived type, but "
             "found 'hello'." in str(info.value))
+
+    metadata = (
+        "type, extends(kernel_type) :: testkern_type\n"
+        "   integer :: invalid_var = invalid_value\n"
+        "end type testkern_type\n")
+    with pytest.raises(ParseError) as info:
+        _ = LFRicKernelMetadata.create_from_fortran_string(metadata)
+    assert ("Found unexpected metadata declaration 'INTEGER :: invalid_var = "
+            "invalid_value' in 'TYPE, EXTENDS(kernel_type) :: testkern_type\n"
+            "  INTEGER :: invalid_var = invalid_value\nEND TYPE "
+            "testkern_type'." in str(info.value))
 
 
 def test_lower_to_psyir():
