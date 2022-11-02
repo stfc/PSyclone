@@ -252,9 +252,12 @@ class ACCUpdateTrans(Transformation):
             while host_sig:
                 # Most conservative position for a new update directive at this
                 # schedule, i.e. that closest to the host region. This is used
-                # as a boundary to compute textual and loop-carried
-                # dependencies. It is also the position for the update
-                # directive used by those variables with textual dependencies.
+                # as a boundary to compute textual dependencies, i.e. between
+                # a pair of statements within no loop or the same iteration of
+                # a loop, and loop-carried dependencies, i.e. between a pair of
+                # statements on different iterations of a loop.
+                # It is also the position for the update directive used by
+                # those variables with textual dependencies.
                 # Perhaps, eventually, specially if we adopt the async clause,
                 # it may be benefecial to textually move update host directives
                 # earlier within the schedule as much as legally possible to
