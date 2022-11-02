@@ -41,10 +41,6 @@ import pytest
 from fparser.two import Fortran2003
 
 from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
-from psyclone.domain.lfric.kernel.inter_grid_arg_metadata import \
-    InterGridArgMetadata
-from psyclone.domain.lfric.kernel.meta_mesh_arg_metadata import \
-    MetaMeshArgMetadata
 
 
 def test_init():
@@ -52,26 +48,6 @@ def test_init():
 
     common_arg_metadata = CommonArgMetadata()
     assert isinstance(common_arg_metadata, CommonArgMetadata)
-
-
-def test_create_from_fortran_string():
-    '''Test the create_from_fortran_string() method. Test with two
-    subclasses that cover the two classes of fparser2 that are
-    required as part of this method a) Part_Ref and b)
-    Structure_Constructor.
-
-    '''
-    # Makes use of Fortran2003.Part_Ref.
-    meta = MetaMeshArgMetadata.create_from_fortran_string(
-        "mesh_data_type(adjacent_face)")
-    assert isinstance(meta, MetaMeshArgMetadata)
-    assert meta.mesh == "adjacent_face"
-
-    # Makes use of Fortran2003.Structure_Constructor.
-    meta = InterGridArgMetadata.create_from_fortran_string(
-        "arg_type(gh_field, gh_real, gh_read, w0, mesh_arg=gh_fine)")
-    assert isinstance(meta, InterGridArgMetadata)
-    assert meta.datatype == "gh_real"
 
 
 def test_check_boolean():

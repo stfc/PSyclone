@@ -340,7 +340,7 @@ def test_create_from_fortran_error():
     '''
     with pytest.raises(ValueError) as info:
         _ = LFRicKernelMetadata.create_from_fortran_string("hello")
-    assert ("Expected kernel metadata to be a Fortran derived type, but "
+    assert ("Expected kernel metadata to be a Fortran Derived_Type_Def, but "
             "found 'hello'." in str(info.value))
 
     metadata = (

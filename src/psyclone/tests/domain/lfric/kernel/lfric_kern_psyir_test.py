@@ -114,7 +114,7 @@ def test_lfrickernelcontainer_create():
     assert container.children == []
     with pytest.raises(ValueError) as info:
         _ = LFRicKernelMetadata.create_from_fortran_string("Not valid")
-    assert ("Expected kernel metadata to be a Fortran derived type, but "
+    assert ("Expected kernel metadata to be a Fortran Derived_Type_Def, but "
             "found 'Not valid'." in str(str(info.value)))
 
 

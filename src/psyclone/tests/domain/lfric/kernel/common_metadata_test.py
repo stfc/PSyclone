@@ -41,6 +41,10 @@ import pytest
 from fparser.two import Fortran2003
 
 from psyclone.domain.lfric.kernel.common_metadata import CommonMetadata
+from psyclone.domain.lfric.kernel.meta_mesh_arg_metadata import \
+    MetaMeshArgMetadata
+from psyclone.domain.lfric.kernel.lfric_kernel_metadata import \
+    LFRicKernelMetadata
 
 
 def test_init():
@@ -48,6 +52,22 @@ def test_init():
 
     common_metadata = CommonMetadata()
     assert isinstance(common_metadata, CommonMetadata)
+
+
+def test_check_fparser2():
+    '''Test that the check_fparser2 method in the CommonMetadata class
+    works as expected.
+
+    '''
+    fortran_string = "program test\nend program"
+    _ = CommonMetadata.check_fparser2(fortran_string, Fortran2003.Program)
+
+    fortran_string = "invalid"
+    with pytest.raises(TypeError) as info:
+        _ = CommonMetadata.check_fparser2(fortran_string, Fortran2003.Program)
+    assert ("Expected kernel metadata to be encoded as an fparser2 Program "
+            "object but found type 'str' with value 'program test\nend "
+            "program'." in str(info.value))
 
 
 def test_create_fparser2():
@@ -64,3 +84,21 @@ def test_create_fparser2():
         _ = CommonMetadata.create_fparser2("#!$%", encoding)
     assert ("Expected kernel metadata to be a Fortran Part_Ref, but found "
             "'#!$%'." in str(info.value))
+
+    with pytest.raises(ValueError) as info:
+        _ = LFRicKernelMetadata.create_fparser2(
+            "hello", Fortran2003.Derived_Type_Def)
+    assert ("Expected kernel metadata to be a Fortran Derived_Type_Def, "
+            "but found 'hello'." in str(info.value))
+
+
+def test_create_from_fortran_string():
+    '''Test the create_from_fortran_string() method. Test with an example
+    subclass (MetaMeshArgMetadata).
+
+    '''
+    # Makes use of Fortran2003.Part_Ref.
+    meta = MetaMeshArgMetadata.create_from_fortran_string(
+        "mesh_data_type(adjacent_face)")
+    assert isinstance(meta, MetaMeshArgMetadata)
+    assert meta.mesh == "adjacent_face"

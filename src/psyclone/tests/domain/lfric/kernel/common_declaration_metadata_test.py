@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing tests for the ShapesMetadata class.
+'''Module containing tests for the CommonDeclarationMetadata class.
 
 '''
 import pytest
@@ -44,7 +44,6 @@ from psyclone.domain.lfric.kernel.common_declaration_metadata import \
     CommonDeclarationMetadata
 from psyclone.domain.lfric.kernel.meta_funcs_arg_metadata import \
     MetaFuncsArgMetadata
-from psyclone.domain.lfric.kernel.shapes_metadata import ShapesMetadata
 from psyclone.parse.utils import ParseError
 
 
@@ -82,18 +81,6 @@ def test_type_declaration_string():
             "(/func_type(w0, gh_basis), func_type(w1, gh_basis)/)\n")
 
 
-def test_create_from_fortran_string():
-    '''Test that the create_from_fortran_string method behaves as
-    expected. Make use of the existing ShapesMetadata subclass to
-    perform the test.
-
-    '''
-    fortran_string = "integer :: gh_shape = gh_evaluator"
-    shapes_metadata = ShapesMetadata.create_from_fortran_string(
-        fortran_string)
-    assert shapes_metadata.shapes == ["gh_evaluator"]
-
-
 def test_validate_scalar_value():
     '''Test that the validate_scalar_value method behaves as
     expected.
@@ -121,6 +108,7 @@ def test_validate_node():
         Fortran2003.Name("hello"), Fortran2003.Name)
 
 
+@pytest.mark.usefixtures("parser")
 def test_validate_derived():
     '''Test that the validate_derived method behaves as expected.'''
 
@@ -149,6 +137,7 @@ def test_validate_derived():
         fparser2_tree, "my_type", "metadata_name")
 
 
+@pytest.mark.usefixtures("parser")
 def test_validate_intrinsic():
     '''Test that the validate_intrinsic method behaves as expected.'''
 
@@ -176,6 +165,7 @@ def test_validate_intrinsic():
         fparser2_tree, "integer", "my_metadata")
 
 
+@pytest.mark.usefixtures("parser")
 def test_validate_name_value():
     '''Test that the validate_name_value method behaves as expected.'''
 
@@ -213,6 +203,7 @@ def test_validate_name_value():
     CommonDeclarationMetadata.validate_name_value(fparser2_tree, "my_var")
 
 
+@pytest.mark.usefixtures("parser")
 def test_validate_intrinsic_scalar_declaration():
     '''Test that the validate_intrinsic_scalar_declaration method behaves
     as expected.
@@ -282,6 +273,7 @@ def test_validate_intrinsic_scalar_declaration():
     assert result == "value2"
 
 
+@pytest.mark.usefixtures("parser")
 def test_validate_intrinsic_array_declaration():
     '''Test that the validate_intrinsic_array_declaration method behaves
     as expected.
@@ -340,6 +332,7 @@ def test_validate_intrinsic_array_declaration():
     assert result == ["value1", "value2"]
 
 
+@pytest.mark.usefixtures("parser")
 def test_validate_derived_array_declaration():
     '''Test that the validate_derived_array_declaration method behaves
     as expected.
@@ -405,6 +398,7 @@ def test_validate_derived_array_declaration():
     assert result == ["value1", "value2"]
 
 
+@pytest.mark.usefixtures("parser")
 def test_validate_array():
     '''Test that the _validate_array method behaves as expected.'''
 

@@ -46,6 +46,7 @@ from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.columnwise_operator_arg_metadata import \
     ColumnwiseOperatorArgMetadata
+from psyclone.domain.lfric.kernel.common_metadata import CommonMetadata
 from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
 from psyclone.domain.lfric.kernel.evaluator_targets_metadata import \
     EvaluatorTargetsMetadata
@@ -75,7 +76,7 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyir.symbols import DataTypeSymbol, UnknownFortranType
 
 
-class LFRicKernelMetadata():
+class LFRicKernelMetadata(CommonMetadata):
     '''Contains LFRic kernel metadata. This class supports kernel
     metadata creation, modification, loading from a fortran string,
     writing to a fortran string, raising from existing language-level
@@ -116,6 +117,9 @@ class LFRicKernelMetadata():
     :type name: Optional[str]
 
     '''
+    # The fparser2 class that captures this metadata.
+    fparser2_class = Fortran2003.Derived_Type_Def
+    
     def __init__(self, operates_on=None, shapes=None, evaluator_targets=None,
                  meta_args=None, meta_funcs=None, meta_ref_element=None,
                  meta_mesh=None, procedure_name=None, name=None):
@@ -191,50 +195,29 @@ class LFRicKernelMetadata():
             datatype.declaration)
 
     @staticmethod
-    def create_from_fortran_string(fortran_string):
-        '''Create a new instance of LFRicKernelMetadata populated with
-        metadata stored in a fortran string.
+    def create_from_fparser2(fparser2_tree):
+        '''Create an instance of this class from an fparser2 tree.
 
-        :param str fortran_string: the metadata stored as Fortran.
+        :param fparser2_tree: fparser2 tree containing the metadata \
+            for an LFRic Kernel.
+        :type fparser2_tree: \
+            :py:class:`fparser.two.Fortran2003.Derived_Type_Ref`
 
         :returns: an instance of LFRicKernelMetadata.
         :rtype: :py:class:`psyclone.domain.lfric.kernel.psyir.\
             LFRicKernelMetadata`
 
-        :raises ValueError: if kernel metadata is not a Fortran \
-            derived type.
         :raises ParseError: if one of the meta_args entries is an \
             unexpected type.
 
         '''
-        # RF TODO: This method needs proper validation - It could also
-        # call create_from_psyir like other classes do and the
-        # validation done there intead of here.
+        LFRicKernelMetadata.check_fparser2(
+            fparser2_tree, Fortran2003.Derived_Type_Def)
 
         kernel_metadata = LFRicKernelMetadata()
 
-        # Ensure the Fortran2003 parser is initialised.
-        _ = ParserFactory().create(std="f2003")
-        reader = FortranStringReader(fortran_string)
-        try:
-            spec_part = Fortran2003.Derived_Type_Def(reader)
-        except Fortran2003.NoMatchError:
-            # pylint: disable=raise-missing-from
-            raise ValueError(
-                f"Expected kernel metadata to be a Fortran derived type, but "
-                f"found '{fortran_string}'.")
-
-        kernel_metadata._operates_on = None
-        kernel_metadata._meta_args = None
-        kernel_metadata._meta_funcs = None
-        kernel_metadata._shapes = None
-        kernel_metadata._evaluator_targets = None
-        kernel_metadata._meta_ref_element = None
-        kernel_metadata._meta_mesh = None
-
         for fparser2_node in walk(
-                spec_part, Fortran2003.Data_Component_Def_Stmt):
-            # Is there a better way to find the required part of fparser2?
+                fparser2_tree, Fortran2003.Data_Component_Def_Stmt):
 
             if "operates_on" in (str(fparser2_node)).lower():
                 # the value of operates on (CELL_COLUMN, ...)
@@ -263,11 +246,11 @@ class LFRicKernelMetadata():
             else:
                 raise ParseError(
                     f"Found unexpected metadata declaration "
-                    f"'{str(fparser2_node)}' in '{str(spec_part)}'.")
+                    f"'{str(fparser2_node)}' in '{str(fparser2_tree)}'.")
 
-        kernel_metadata.name = spec_part.children[0].children[1].tostr()
+        kernel_metadata.name = fparser2_tree.children[0].children[1].tostr()
         kernel_metadata.procedure_name = LFRicKernelMetadata._get_property(
-            spec_part, "code").string
+            fparser2_tree, "code").string
 
         return kernel_metadata
 

@@ -95,6 +95,9 @@ from psyclone.parse.utils import ParseError
 class CommonDeclarationMetadata(CommonMetadata):
     '''Class to capture common LFRic kernel declaration metadata.'''
 
+    # The fparser2 class that captures this metadata.
+    fparser2_class = Fortran2003.Data_Component_Def_Stmt
+
     @staticmethod
     def scalar_declaration_string(datatype, name, value):
         '''Return the Fortran declaration associated with the datatype, name
@@ -136,23 +139,6 @@ class CommonDeclarationMetadata(CommonMetadata):
         num_values = len(values)
         return (
             f"type({datatype}) :: {name}({num_values}) = (/{values_str}/)\n")
-
-    @classmethod
-    def create_from_fortran_string(cls, fortran_string):
-        '''Create an instance of this class from Fortran.
-
-        :param str fortran_string: a string containing the metadata in \
-            Fortran.
-
-        :returns: an instance of ShapesMetadata
-        :rtype: :py:class:`psyclone.domain.lfric.kernel.ShapesMetadata`
-
-        '''
-        fparser2_tree = cls.create_fparser2(
-            fortran_string, Fortran2003.Data_Component_Def_Stmt)
-        # pylint: disable=no-member
-        return cls.create_from_fparser2(fparser2_tree)
-        # pylint: enable=no-member
 
     @staticmethod
     def validate_scalar_value(value, valid_values, name):

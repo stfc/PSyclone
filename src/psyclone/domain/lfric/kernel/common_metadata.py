@@ -40,7 +40,7 @@ common functionality for LFRic kernel metadata.
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
-
+from fparser.two.utils import NoMatchError, FortranSyntaxError
 
 # TODO issue #1886. This class and its subclasses may have
 # commonalities with the GOcean metadata processing.
@@ -48,6 +48,26 @@ class CommonMetadata:
     '''Class to capture common LFRic kernel metadata.'''
 
     @staticmethod
+    def check_fparser2(fparser2_tree, encoding):
+        '''Checks that the fparser2 tree is valid.
+
+        :param fparser2_tree: fparser2 tree capturing a metadata argument.
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Base`
+        :param encoding: class in which the fparser2 tree should \
+            be encoded.
+        :type encoding: :py:class:`fparser.two.Fortran2003.Base
+
+        :raises TypeError: if the fparser2_tree argument is not of the \
+            type specified by the encoding argument.
+
+        '''
+        if not isinstance(fparser2_tree, encoding):
+            raise TypeError(
+                f"Expected kernel metadata to be encoded as an "
+                f"fparser2 {encoding.__name__} object but found type "
+                f"'{type(fparser2_tree).__name__}' with value "
+                f"'{str(fparser2_tree)}'.")
+
     def create_fparser2(fortran_string, encoding):
         '''Creates an fparser2 tree from a Fortran string. The resultant
         parent node of the tree will be the same type as the encoding
@@ -70,9 +90,28 @@ class CommonMetadata:
         '''
         _ = ParserFactory().create(std="f2003")
         reader = FortranStringReader(fortran_string)
-        fparser2_tree = encoding(reader)
-        if not fparser2_tree:
+        match = True
+        try:
+            fparser2_tree = encoding(reader)
+        except (NoMatchError, FortranSyntaxError):
+            match = False
+        if not match or not fparser2_tree:
             raise ValueError(
                 f"Expected kernel metadata to be a Fortran "
                 f"{encoding.__name__}, but found '{fortran_string}'.")
         return fparser2_tree
+
+    @classmethod
+    def create_from_fortran_string(cls, fortran_string):
+        '''Create an instance of this class from Fortran.
+
+        :param str fortran_string: a string containing the metadata in \
+            Fortran.
+
+        :returns: an instance of this class.
+        :rtype: subclass of \
+            :py:class:`python.domain.lfric.kernel.CommonMetadata`
+
+        '''
+        fparser2_tree = cls.create_fparser2(fortran_string, cls.fparser2_class)
+        return cls.create_from_fparser2(fparser2_tree)

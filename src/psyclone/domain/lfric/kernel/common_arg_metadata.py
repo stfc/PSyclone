@@ -50,21 +50,6 @@ class CommonArgMetadata(CommonMetadata):
     # The fparser2 class that captures this metadata.
     fparser2_class = Fortran2003.Part_Ref
 
-    @classmethod
-    def create_from_fortran_string(cls, fortran_string):
-        '''Create an instance of this class from Fortran.
-
-        :param str fortran_string: a string containing the metadata in \
-            Fortran.
-
-        :returns: an instance of this class.
-        :rtype: subclass of \
-            :py:class:`python.domain.lfric.kernel.CommonArgMetadata`
-
-        '''
-        fparser2_tree = cls.create_fparser2(fortran_string, cls.fparser2_class)
-        return cls.create_from_fparser2(fparser2_tree)
-
     @staticmethod
     def check_boolean(value, name):
         '''
@@ -146,12 +131,8 @@ class CommonArgMetadata(CommonMetadata):
             the form arg_type(...).
 
         '''
-        if not isinstance(fparser2_tree, encoding):
-            raise TypeError(
-                f"Expected kernel metadata to be encoded as an "
-                f"fparser2 {encoding.__name__} object but found type "
-                f"'{type(fparser2_tree).__name__}' with value "
-                f"'{str(fparser2_tree)}'.")
+        CommonMetadata.check_fparser2(fparser2_tree, encoding)
+
         if not fparser2_tree.children[0].tostr().lower() == type_name:
             raise ValueError(
                 f"Expected kernel metadata to have the name "
