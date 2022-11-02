@@ -37,26 +37,13 @@
 kernel-layer-specific class that captures the LFRic kernel metadata.
 
 '''
-from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
-from fparser.two.parser import ParserFactory
 from fparser.two.utils import walk, get_child
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.lfric.kernel.columnwise_operator_arg_metadata import \
-    ColumnwiseOperatorArgMetadata
 from psyclone.domain.lfric.kernel.common_metadata import CommonMetadata
-from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
 from psyclone.domain.lfric.kernel.evaluator_targets_metadata import \
     EvaluatorTargetsMetadata
-from psyclone.domain.lfric.kernel.field_arg_metadata import FieldArgMetadata
-from psyclone.domain.lfric.kernel.field_vector_arg_metadata import \
-    FieldVectorArgMetadata
-from psyclone.domain.lfric.kernel.inter_grid_arg_metadata import \
-    InterGridArgMetadata
-from psyclone.domain.lfric.kernel.inter_grid_vector_arg_metadata import \
-    InterGridVectorArgMetadata
 from psyclone.domain.lfric.kernel.meta_args_metadata import \
     MetaArgsMetadata
 from psyclone.domain.lfric.kernel.meta_mesh_metadata import \
@@ -65,11 +52,8 @@ from psyclone.domain.lfric.kernel.meta_funcs_metadata import \
     MetaFuncsMetadata
 from psyclone.domain.lfric.kernel.operates_on_metadata import \
     OperatesOnMetadata
-from psyclone.domain.lfric.kernel.operator_arg_metadata import \
-    OperatorArgMetadata
 from psyclone.domain.lfric.kernel.meta_ref_element_metadata import \
     MetaRefElementMetadata
-from psyclone.domain.lfric.kernel.scalar_arg_metadata import ScalarArgMetadata
 from psyclone.domain.lfric.kernel.shapes_metadata import ShapesMetadata
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
@@ -119,7 +103,7 @@ class LFRicKernelMetadata(CommonMetadata):
     '''
     # The fparser2 class that captures this metadata.
     fparser2_class = Fortran2003.Derived_Type_Def
-    
+
     def __init__(self, operates_on=None, shapes=None, evaluator_targets=None,
                  meta_args=None, meta_funcs=None, meta_ref_element=None,
                  meta_mesh=None, procedure_name=None, name=None):
@@ -219,9 +203,10 @@ class LFRicKernelMetadata(CommonMetadata):
         for fparser2_node in walk(
                 fparser2_tree, Fortran2003.Data_Component_Def_Stmt):
 
+            # pylint: disable=protected-access
             if "operates_on" in (str(fparser2_node)).lower():
                 # the value of operates on (CELL_COLUMN, ...)
-                kernel_metadata._operates_on = OperatesOnMetadata.\
+                kernel_metadata.operates_on = OperatesOnMetadata.\
                     create_from_fparser2(fparser2_node)
             elif "meta_args" in (str(fparser2_node)).lower():
                 kernel_metadata._meta_args = MetaArgsMetadata.\
@@ -247,10 +232,11 @@ class LFRicKernelMetadata(CommonMetadata):
                 raise ParseError(
                     f"Found unexpected metadata declaration "
                     f"'{str(fparser2_node)}' in '{str(fparser2_tree)}'.")
+            # pylint: enable=protected-access
 
         kernel_metadata.name = fparser2_tree.children[0].children[1].tostr()
-        kernel_metadata.procedure_name = LFRicKernelMetadata._get_property(
-            fparser2_tree, "code").string
+        kernel_metadata.procedure_name = \
+            LFRicKernelMetadata._get_procedure_name(fparser2_tree)
 
         return kernel_metadata
 
@@ -265,79 +251,47 @@ class LFRicKernelMetadata(CommonMetadata):
             str(self.name), UnknownFortranType(self.fortran_string()))
 
     @staticmethod
-    def _get_property(spec_part, property_name):
-        '''Internal utility that gets the property 'property_name' from an
-        fparser2 tree capturing LFRic metadata. It is assumed that
-        the code property is part of a type bound procedure and that
-        the other properties are part of the data declarations.
+    def _get_procedure_name(spec_part):
+        '''Internal utility that extracts the procedure name from an
+        fparser2 tree that captures LFRic metadata.
 
         :param spec_part: the fparser2 parse tree containing the metadata.
         :type spec_part: :py:class:`fparser.two.Fortran2003.Derived_Type_Def`
-        :param str property_name: the name of the property whose value \
-            is being extracted from the metadata.
 
         :returns: the value of the property.
-        :rtype: :py:class:`fparser.two.Fortran2003.Name | \
-            :py:class:`fparser.two.Fortran2003.Array_Constructor`
+        :rtype: Optional[str]
 
         :raises ParseError: if the metadata is invalid.
 
         '''
-        # TODO issue #1879. What to do if we have an interface.
-        if property_name.lower() == "code":
-            # The value of 'code' should be found in a type bound
-            # procedure (after the contains keyword)
-            type_bound_procedure = get_child(
-                spec_part, Fortran2003.Type_Bound_Procedure_Part)
-            if not type_bound_procedure:
-                raise ParseError(
-                    f"No type-bound procedure found within a 'contains' "
-                    f"section in '{spec_part}'.")
-            if len(type_bound_procedure.children) != 2:
-                raise ParseError(
-                    f"Expecting a type-bound procedure, but found "
-                    f"'{spec_part}'.")
-            specific_binding = type_bound_procedure.children[1]
-            if not isinstance(specific_binding, Fortran2003.Specific_Binding):
-                raise ParseError(
-                    f"Expecting a specific binding for the type-bound "
-                    f"procedure, but found '{specific_binding}' in "
-                    f"'{spec_part}'.")
-            binding_name = specific_binding.children[3]
-            procedure_name = specific_binding.children[4]
-            if binding_name.string.lower() != "code" and procedure_name:
-                raise ParseError(
-                    f"Expecting the type-bound procedure binding-name to be "
-                    f"'code' if there is a procedure name, but found "
-                    f"'{str(binding_name)}' in '{spec_part}'.")
-            if not procedure_name:
-                # Support the alternative metadata format that does
-                # not include 'code =>'
-                procedure_name = binding_name
-            return procedure_name
-
-        # The 'property_name' will be declared within Component_Part.
-        component_part = get_child(spec_part, Fortran2003.Component_Part)
-        if not component_part:
+        # The value of 'code' should be found in a type bound
+        # procedure (after the contains keyword)
+        type_bound_procedure = get_child(
+            spec_part, Fortran2003.Type_Bound_Procedure_Part)
+        if not type_bound_procedure:
+            return None
+        if len(type_bound_procedure.children) != 2:
             raise ParseError(
-                f"No declarations were found in the kernel metadata: "
+                f"Expecting a type-bound procedure, but found "
                 f"'{spec_part}'.")
-        # Each name/value pair will be contained within a Component_Decl
-        for component_decl in walk(component_part, Fortran2003.Component_Decl):
-            # Component_Decl(Name('name') ...)
-            name = component_decl.children[0].string
-            if name.lower() == property_name.lower():
-                # The value will be contained in a Component_Initialization
-                comp_init = get_child(
-                    component_decl, Fortran2003.Component_Initialization)
-                if not comp_init:
-                    raise ParseError(
-                        f"No value for property {property_name} was found "
-                        f"in '{spec_part}'.")
-                # Component_Initialization('=', Name('name'))
-                return comp_init.children[1]
-        raise ParseError(
-            f"'{property_name}' was not found in {str(spec_part)}.")
+        specific_binding = type_bound_procedure.children[1]
+        if not isinstance(specific_binding, Fortran2003.Specific_Binding):
+            raise ParseError(
+                f"Expecting a specific binding for the type-bound "
+                f"procedure, but found '{specific_binding}' in "
+                f"'{spec_part}'.")
+        binding_name = specific_binding.children[3]
+        procedure_name = specific_binding.children[4]
+        if binding_name.string.lower() != "code" and procedure_name:
+            raise ParseError(
+                f"Expecting the type-bound procedure binding-name to be "
+                f"'code' if there is a procedure name, but found "
+                f"'{str(binding_name)}' in '{spec_part}'.")
+        if not procedure_name:
+            # Support the alternative metadata format that does
+            # not include 'code =>'
+            procedure_name = binding_name
+        return procedure_name.string
 
     def fortran_string(self):
         '''
@@ -403,8 +357,7 @@ class LFRicKernelMetadata(CommonMetadata):
         '''
         if self._operates_on is None:
             return None
-        else:
-            return self._operates_on.operates_on
+        return self._operates_on.operates_on
 
     @operates_on.setter
     def operates_on(self, value):
@@ -424,8 +377,7 @@ class LFRicKernelMetadata(CommonMetadata):
         '''
         if self._shapes is None:
             return None
-        else:
-            return self._shapes.shapes
+        return self._shapes.shapes
 
     @shapes.setter
     def shapes(self, values):
@@ -446,8 +398,7 @@ class LFRicKernelMetadata(CommonMetadata):
         '''
         if self._evaluator_targets is None:
             return None
-        else:
-            return self._evaluator_targets.evaluator_targets
+        return self._evaluator_targets.evaluator_targets
 
     @evaluator_targets.setter
     def evaluator_targets(self, values):
@@ -470,8 +421,7 @@ class LFRicKernelMetadata(CommonMetadata):
         '''
         if self._meta_args is None:
             return None
-        else:
-            return self._meta_args.meta_args_args
+        return self._meta_args.meta_args_args
 
     @meta_args.setter
     def meta_args(self, values):
@@ -494,8 +444,7 @@ class LFRicKernelMetadata(CommonMetadata):
         '''
         if self._meta_funcs is None:
             return None
-        else:
-            return self._meta_funcs.meta_funcs_args
+        return self._meta_funcs.meta_funcs_args
 
     @meta_funcs.setter
     def meta_funcs(self, values):
@@ -518,8 +467,7 @@ class LFRicKernelMetadata(CommonMetadata):
         '''
         if self._meta_ref_element is None:
             return None
-        else:
-            return self._meta_ref_element.meta_ref_element_args
+        return self._meta_ref_element.meta_ref_element_args
 
     @meta_ref_element.setter
     def meta_ref_element(self, values):
@@ -542,8 +490,7 @@ class LFRicKernelMetadata(CommonMetadata):
         '''
         if self._meta_mesh is None:
             return None
-        else:
-            return self._meta_mesh.meta_mesh_args
+        return self._meta_mesh.meta_mesh_args
 
     @meta_mesh.setter
     def meta_mesh(self, values):

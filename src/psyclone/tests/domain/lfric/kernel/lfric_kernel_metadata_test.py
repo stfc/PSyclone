@@ -368,23 +368,11 @@ def test_lower_to_psyir():
     assert symbol.datatype.declaration == metadata.fortran_string()
 
 
-def test_getpropertyerror(fortran_reader):
+def test_get_procedure_name_error(fortran_reader):
     '''Test that all the exceptions are raised as expected in the
-    _get_property method.
+    _get_procedure_name method.
 
     '''
-    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
-    datatype = kernel_psyir.children[0].symbol_table.lookup(
-        "testkern_type").datatype
-    metadata = LFRicKernelMetadata()
-    reader = FortranStringReader(datatype.declaration)
-    spec_part = Fortran2003.Derived_Type_Def(reader)
-    del spec_part.children[2]
-    with pytest.raises(ParseError) as info:
-        metadata._get_property(spec_part, "code")
-    assert ("No type-bound procedure found within a 'contains' section in"
-            in str(info.value))
-
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM.replace(
         "procedure, nopass :: code => testkern_code", ""))
     datatype = kernel_psyir.children[0].symbol_table.lookup(
@@ -393,7 +381,7 @@ def test_getpropertyerror(fortran_reader):
     reader = FortranStringReader(datatype.declaration)
     spec_part = Fortran2003.Derived_Type_Def(reader)
     with pytest.raises(ParseError) as info:
-        metadata._get_property(spec_part, "code")
+        metadata._get_procedure_name(spec_part)
     assert "Expecting a type-bound procedure, but found" in str(info.value)
 
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
@@ -405,7 +393,7 @@ def test_getpropertyerror(fortran_reader):
     binding = spec_part.children[2]
     binding.children[1] = binding.children[0]
     with pytest.raises(ParseError) as info:
-        metadata._get_property(spec_part, "code")
+        metadata._get_procedure_name(spec_part)
     assert ("Expecting a specific binding for the type-bound procedure, "
             "but found" in str(info.value))
 
@@ -417,43 +405,16 @@ def test_getpropertyerror(fortran_reader):
     reader = FortranStringReader(datatype.declaration)
     spec_part = Fortran2003.Derived_Type_Def(reader)
     with pytest.raises(ParseError) as info:
-        metadata._get_property(spec_part, "code")
+        metadata._get_procedure_name(spec_part)
     assert ("Expecting the type-bound procedure binding-name to be 'code' "
             "if there is a procedure name, but found 'hode'"
             in str(info.value))
 
-    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
-    datatype = kernel_psyir.children[0].symbol_table.lookup(
-        "testkern_type").datatype
-    metadata = LFRicKernelMetadata()
-    reader = FortranStringReader(datatype.declaration)
-    spec_part = Fortran2003.Derived_Type_Def(reader)
-    del spec_part.children[1]
-    with pytest.raises(ParseError) as info:
-        metadata._get_property(spec_part, "operates_on")
-    assert ("No declarations were found in the kernel metadata:"
-            in str(info.value))
 
-    kernel_psyir = fortran_reader.psyir_from_source(
-        PROGRAM.replace("= cell_column", ""))
-    datatype = kernel_psyir.children[0].symbol_table.lookup(
-        "testkern_type").datatype
-    metadata = LFRicKernelMetadata()
-    reader = FortranStringReader(datatype.declaration)
-    spec_part = Fortran2003.Derived_Type_Def(reader)
-    with pytest.raises(ParseError) as info:
-        metadata._get_property(spec_part, "operates_on")
-    assert ("No value for property operates_on was found in "
-            in str(info.value))
-
-    with pytest.raises(ParseError) as info:
-        metadata._get_property(spec_part, "not_a_property")
-    assert "'not_a_property' was not found in" in str(info.value)
-
-
-def test_getproperty(fortran_reader):
+def test_get_procedure_name(fortran_reader):
     '''Test utility function that takes metadata in an fparser2 tree and
-    returns the value associated with the supplied property name.
+    returns the procedure metadata name, or None is there is no
+    procedure name.
 
     '''
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
@@ -462,14 +423,13 @@ def test_getproperty(fortran_reader):
     metadata = LFRicKernelMetadata()
     reader = FortranStringReader(datatype.declaration)
     spec_part = Fortran2003.Derived_Type_Def(reader)
-    assert metadata._get_property(spec_part, "code").string == \
+    assert metadata._get_procedure_name(spec_part) == \
         "testkern_code"
-    assert metadata._get_property(spec_part, "operates_on").string == \
-        "cell_column"
-    with pytest.raises(ParseError) as info:
-        metadata._get_property(spec_part, "not_found")
-    assert ("'not_found' was not found in TYPE, EXTENDS(kernel_type) :: "
-            "testkern_type" in str(info.value))
+
+    # No procedure name
+    del spec_part.children[2]
+    result = metadata._get_procedure_name(spec_part)
+    assert result is None
 
 
 def test_fortran_string():

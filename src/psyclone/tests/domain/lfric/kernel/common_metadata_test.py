@@ -60,14 +60,15 @@ def test_check_fparser2():
 
     '''
     fortran_string = "program test\nend program"
-    _ = CommonMetadata.check_fparser2(fortran_string, Fortran2003.Program)
+    fparser2_tree = CommonMetadata.create_fparser2(
+        fortran_string, Fortran2003.Program)
+    _ = CommonMetadata.check_fparser2(fparser2_tree, Fortran2003.Program)
 
-    fortran_string = "invalid"
     with pytest.raises(TypeError) as info:
-        _ = CommonMetadata.check_fparser2(fortran_string, Fortran2003.Program)
+        _ = CommonMetadata.check_fparser2("invalid", Fortran2003.Program)
     assert ("Expected kernel metadata to be encoded as an fparser2 Program "
-            "object but found type 'str' with value 'program test\nend "
-            "program'." in str(info.value))
+            "object but found type 'str' with value 'invalid'."
+            in str(info.value))
 
 
 def test_create_fparser2():
