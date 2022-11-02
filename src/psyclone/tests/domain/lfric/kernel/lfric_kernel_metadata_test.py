@@ -273,15 +273,17 @@ def test_create_from_psyir_error():
 
 
 @pytest.mark.parametrize("procedure_format", ["", "code =>"])
-def test_create_from_fortran(procedure_format):
+def test_create_from_fparser2(procedure_format):
     '''Test that an instance of the LFRicKernelMetadata class can be
-    created from Fortran. Test with all optional metadata. Test using
-    standard and alternative (no 'code =>') format for procedure
-    metadata.
+    created from Fortran encoded as an fparser2 tree. Test with all
+    optional metadata. Test using standard and alternative (no 'code
+    =>') format for procedure metadata.
 
     '''
     fortran_metadata = METADATA.replace(procedure_format, "")
-    metadata = LFRicKernelMetadata.create_from_fortran_string(fortran_metadata)
+    fparser2_tree = LFRicKernelMetadata.create_fparser2(
+        fortran_metadata, Fortran2003.Derived_Type_Def)
+    metadata = LFRicKernelMetadata.create_from_fparser2(fparser2_tree)
     assert isinstance(metadata, LFRicKernelMetadata)
     assert metadata.operates_on == "cell_column"
     assert metadata.shapes == ["gh_quadrature_xyoz"]
@@ -313,9 +315,10 @@ def test_create_from_fortran(procedure_format):
     assert metadata.name == "testkern_type"
 
 
-def test_create_from_fortran_no_optional():
+def test_create_from_fparser2_no_optional():
     '''Test that an instance of the LFRicKernelMetadata class can be
-    created from Fortran. Test with no optional metadata.
+    created from Fortran encoded as an fparser2 tree. Test with no
+    optional metadata.
 
     '''
     metadata = (
@@ -327,32 +330,59 @@ def test_create_from_fortran_no_optional():
         "   procedure, nopass :: code => testkern_code\n"
         "end type testkern_type\n")
 
-    metadata = LFRicKernelMetadata.create_from_fortran_string(metadata)
+    fparser2_tree = LFRicKernelMetadata.create_fparser2(
+        metadata, Fortran2003.Derived_Type_Def)
+    metadata = LFRicKernelMetadata.create_from_fparser2(fparser2_tree)
     assert metadata.shapes is None
     assert metadata.evaluator_targets is None
     assert metadata.meta_funcs is None
 
 
-def test_create_from_fortran_error():
+def test_create_from_fparser2_error():
     '''Test that the expected exceptions are raised when invalid input is
-    provided to the create_from_fortran_string method.
+    provided to the create_from_fparser2 method.
 
     '''
-    with pytest.raises(ValueError) as info:
-        _ = LFRicKernelMetadata.create_from_fortran_string("hello")
-    assert ("Expected kernel metadata to be a Fortran Derived_Type_Def, but "
-            "found 'hello'." in str(info.value))
+    # from check_fparser2 method
+    with pytest.raises(TypeError) as info:
+        _ = LFRicKernelMetadata.create_from_fparser2("hello")
+    assert ("Expected kernel metadata to be encoded as an fparser2 "
+            "Derived_Type_Def object but found type 'str' with value "
+            "'hello'." in str(info.value))
 
+    # invalid metadata declaration
     metadata = (
         "type, extends(kernel_type) :: testkern_type\n"
         "   integer :: invalid_var = invalid_value\n"
         "end type testkern_type\n")
+    fparser2_tree = LFRicKernelMetadata.create_fparser2(
+        metadata, Fortran2003.Derived_Type_Def)
     with pytest.raises(ParseError) as info:
-        _ = LFRicKernelMetadata.create_from_fortran_string(metadata)
+        _ = LFRicKernelMetadata.create_from_fparser2(fparser2_tree)
     assert ("Found unexpected metadata declaration 'INTEGER :: invalid_var = "
             "invalid_value' in 'TYPE, EXTENDS(kernel_type) :: testkern_type\n"
             "  INTEGER :: invalid_var = invalid_value\nEND TYPE "
             "testkern_type'." in str(info.value))
+
+    # no 'extends(kernel_type)'
+    fparser2_tree = LFRicKernelMetadata.create_fparser2(METADATA.replace(
+        ", extends(kernel_type)", ""), Fortran2003.Derived_Type_Def)
+    with pytest.raises(ParseError) as info:
+        _ = LFRicKernelMetadata.create_from_fparser2(fparser2_tree)
+    assert ("The metadata type declaration should extend kernel_type, but "
+            "found 'TYPE :: testkern_type' in TYPE :: "
+            "testkern_type\n  TYPE(arg_type), DIMENSION(7)" in str(info.value))
+
+    # metadata type extends incorrect type
+    fparser2_tree = LFRicKernelMetadata.create_fparser2(METADATA.replace(
+        "kernel_type", "invalid_type"), Fortran2003.Derived_Type_Def)
+    with pytest.raises(ParseError) as info:
+        _ = LFRicKernelMetadata.create_from_fparser2(fparser2_tree)
+    print(str(info.value))
+    assert ("The metadata type declaration should extend kernel_type, but "
+            "found 'TYPE, EXTENDS(invalid_type) :: testkern_type' in TYPE, "
+            "EXTENDS(invalid_type) :: testkern_type\n  TYPE(arg_type), "
+            "DIMENSION(7)" in str(info.value))
 
 
 def test_lower_to_psyir():

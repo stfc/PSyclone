@@ -193,6 +193,7 @@ class LFRicKernelMetadata(CommonMetadata):
 
         :raises ParseError: if one of the meta_args entries is an \
             unexpected type.
+        :raises ParseError: if the metadata type does not extend kernel_type.
 
         '''
         LFRicKernelMetadata.check_fparser2(
@@ -206,7 +207,7 @@ class LFRicKernelMetadata(CommonMetadata):
             # pylint: disable=protected-access
             if "operates_on" in (str(fparser2_node)).lower():
                 # the value of operates on (CELL_COLUMN, ...)
-                kernel_metadata.operates_on = OperatesOnMetadata.\
+                kernel_metadata._operates_on = OperatesOnMetadata.\
                     create_from_fparser2(fparser2_node)
             elif "meta_args" in (str(fparser2_node)).lower():
                 kernel_metadata._meta_args = MetaArgsMetadata.\
@@ -235,6 +236,15 @@ class LFRicKernelMetadata(CommonMetadata):
             # pylint: enable=protected-access
 
         kernel_metadata.name = fparser2_tree.children[0].children[1].tostr()
+
+        attribute_list = fparser2_tree.children[0].children[0]
+        str_attribute_list = str(attribute_list).lower() \
+            if attribute_list else ""
+        if (attribute_list is None or
+                "extends(kernel_type)" not in str_attribute_list):
+            raise ParseError(
+                f"The metadata type declaration should extend kernel_type, "
+                f"but found '{fparser2_tree.children[0]}' in {fparser2_tree}.")
         kernel_metadata.procedure_name = \
             LFRicKernelMetadata._get_procedure_name(fparser2_tree)
 
