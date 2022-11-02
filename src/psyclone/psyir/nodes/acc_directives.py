@@ -864,7 +864,7 @@ class ACCUpdateDirective(ACCStandaloneDirective):
 
 def _sig_set_to_string(sig_set):
     '''
-    Converts the provided set of signatures in a lexically sorted
+    Converts the provided set of signatures into a lexically sorted
     string of comma-separated signatures which also includes, for signatures
     that represent variables of a derived type, the composing subsignatures.
 

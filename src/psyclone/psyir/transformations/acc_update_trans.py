@@ -399,7 +399,7 @@ class ACCUpdateTrans(Transformation):
                 update_pos = len(sched.children)
 
         # Check preceding and succeeding schedule positions for existing update
-        # directives, coalescencing with existing directives if possible.
+        # directives, coalescing with existing directives if possible.
         # If at the beginning or at the end of the schedule, we may go out of
         # bounds, thus the try statement.
         for update_offset in (-1, 0):
