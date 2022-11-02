@@ -98,15 +98,16 @@ class ACCRegionDirective(ACCDirective, RegionDirective):
     @property
     def kernel_references(self):
         '''
-        Returns a set or a 2-tuple of sets of the input (first entry) and
-        output (second entry) references (whether to arrays or objects)
-        required by the Kernel call(s) that are children of this directive.
-        This is the set of quantities that must be available on the remote
+        Returns a 1-tuple or a 2-tuple of sets depending on the working API.
+        If a 1-tuple, the set includes both input and output references
+        (whether to arrays or objects) required by the Kernel call(s) that are
+        children of this directive. If a 2-tuple, the first entry is the set of
+        input references and the second entry is the set of output references.
+        The set(s) describe the quantities that must be available on the remote
         device (probably a GPU) before the parallel region can be begun.
 
-        :returns: set or 2-tuple of input and output sets of variable names
-        :rtype: Set[str] or Tuple[Set[:py:class:`psyclone.core.Signature`],
-                                  Set[:py:class:`psyclone.core.Signature`]]
+        :returns: 1-tuple or 2-tuple of input and output sets of variable names
+        :rtype: Tuple[Set[:py:class:`psyclone.core.Signature`]]
         '''
 
         # pylint: disable=import-outside-toplevel
@@ -120,7 +121,7 @@ class ACCRegionDirective(ACCDirective, RegionDirective):
             for call in self.kernels():
                 for arg in call.arguments.acc_args:
                     sig_set.add(arg)
-            return sig_set
+            return (sig_set, )
 
         inp, out = DependencyTools().get_in_out_parameters(self.children)
         return (set(inp), set(out))
@@ -225,10 +226,7 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         # TODO GOcean grid properties are duplicated in this set under
         # different names (the OpenACC deep copy support should spot this).
         for pdir in self._acc_dirs:
-            try:
-                self._sig_set.update(pdir.kernel_references)
-            except TypeError:
-                self._sig_set.update(*pdir.kernel_references)
+            self._sig_set.update(*pdir.kernel_references)
 
         super().lower_to_language_level()
 

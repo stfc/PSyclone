@@ -40,6 +40,7 @@ kept up-to-date on the host for the execution of host code and that data
 is returned to the device in time for the execution of compute regions.
 '''
 
+# pylint: disable=unused-import
 from psyclone.core import Signature
 from psyclone.psyGen import InvokeSchedule, Transformation
 from psyclone.psyir.nodes import (Call, CodeBlock, IfBlock, Loop, Schedule,
@@ -81,7 +82,7 @@ class ACCUpdateTrans(Transformation):
         self._acc_compute = (ACCParallelDirective, ACCKernelsDirective)
         # Assume Call nodes may (and CodeBlocks may not) call routines whose
         # (part of their) bodies execute on the device.
-        self._brk_nodes = (Call, )
+        self._may_compute = (Call, )
 
         super().__init__()
 
@@ -150,12 +151,12 @@ class ACCUpdateTrans(Transformation):
         for child in sched[:]:
             if isinstance(child, self._acc_ignore):
                 continue
-            if not child.walk(self._acc_compute + self._brk_nodes):
+            if not child.walk(self._acc_compute + self._may_compute):
                 node_list.append(child)
             else:
                 self._add_update_directives(node_list)
                 node_list.clear()
-                if isinstance(child, self._brk_nodes):
+                if isinstance(child, self._may_compute):
                     # Conservatively add an update host statement just before
                     # the Call node since, first, any temporary operands need
                     # to be up to date and, second, since in pass-by-value
@@ -328,7 +329,7 @@ class ACCUpdateTrans(Transformation):
     def _sync_sig(self, dep_stmts, host_sig, acss_type):
         '''
         Retrieves, amongst the host region signatures in host_sig, those that
-        requires synchronisation because of accesses in the compute regions
+        require synchronisation because of accesses in the compute regions
         within the statements in dep_stmts.
 
         :param dep_stmts: list of statements which may include compute regions.
@@ -337,15 +338,16 @@ class ACCUpdateTrans(Transformation):
                          with the accelerator device.
         :type host_sig: Set[:py:class:`psyclone.core.Signature`]
         :param int acss_type: the access type from the point of view of the
-                              host, either IN or OUT.
+                              host, either IN (read) or OUT (write).
 
         '''
         # If there is a statement (e.g. a call) among the dependent statements
         # that may launch device kernels, we conservatively assume a dependency
         # for all variables in the host region regardless of access type.
-        if any(stmt.walk(self._brk_nodes) for stmt in dep_stmts):
+        if any(stmt.walk(self._may_compute) for stmt in dep_stmts):
             return host_sig.copy()
 
+        # Set of all signatures in compute kernels that may require syncing.
         kern_sig = set()
 
         for stmt in dep_stmts:
@@ -376,7 +378,7 @@ class ACCUpdateTrans(Transformation):
                               host, either IN or OUT.
 
         '''
-        # pylint: disable=import-outside-toplevel
+        # pylint: disable=import-outside-toplevel, redefined-outer-name
         from psyclone.nemo import NemoInvokeSchedule
         if sched.ancestor(NemoInvokeSchedule, include_self=True):
             from psyclone.nemo import NemoACCUpdateDirective as \
