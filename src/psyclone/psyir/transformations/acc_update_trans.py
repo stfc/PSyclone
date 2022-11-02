@@ -228,10 +228,10 @@ class ACCUpdateTrans(Transformation):
         # (resp. device) if it is on the device (resp. host).
         global IN, OUT
         IN, OUT = 0, 1
-        for acss_type, host_sig in enumerate((inputs, outputs)):
-            if acss_type == IN:
+        for mode, host_sig in enumerate((inputs, outputs)):
+            if mode == IN:
                 node_index, node_offset =  0, 0
-            elif acss_type == OUT:
+            elif mode == OUT:
                 node_index, node_offset = -1, 1
 
             child = node_list[node_index]
@@ -264,9 +264,9 @@ class ACCUpdateTrans(Transformation):
                 # leverage overlapping communication and computation.
                 update_pos = sched.children.index(child) + node_offset
 
-                if acss_type == IN:
+                if mode == IN:
                     beg, end = None, update_pos
-                elif acss_type == OUT:
+                elif mode == OUT:
                     beg, end = update_pos, None
 
                 # The inability to place variables in update directives in
@@ -278,8 +278,8 @@ class ACCUpdateTrans(Transformation):
                 # Second, we find which of the variables in the host region
                 # require synchronisation at the current schedule, i.e. those
                 # that are used in the compute regions within those statements.
-                text_sync = self._sync_sig(text_dep_stmts, host_sig, acss_type)
-                loop_sync = self._sync_sig(loop_dep_stmts, host_sig, acss_type)
+                text_sync = self._sig_to_sync(text_dep_stmts, host_sig, mode)
+                loop_sync = self._sig_to_sync(loop_dep_stmts, host_sig, mode)
 
                 # Those variables that require both textual and, if within a
                 # loop, also loop-carried synchronisation, need only be updated
@@ -291,7 +291,7 @@ class ACCUpdateTrans(Transformation):
                 # directives, but not quite for update host directives, where
                 # placing the directive earlier and adding the async clause
                 # might perform better.
-                self._place_update(sched, update_pos, text_sync, acss_type)
+                self._place_update(sched, update_pos, text_sync, mode)
                 host_sig.difference_update(text_sync)
 
                 # All the remaining variables that need synchronisation at this
@@ -314,14 +314,14 @@ class ACCUpdateTrans(Transformation):
                 # preceding kernels but, even though these might not need to
                 # be updated here, i.e. conditionally, they can safely be.
                 if isinstance(sched.parent, Loop) or \
-                   isinstance(sched.parent, IfBlock) and acss_type == OUT:
-                    self._place_update(sched, update_pos, loop_sync, acss_type)
+                   isinstance(sched.parent, IfBlock) and mode == OUT:
+                    self._place_update(sched, update_pos, loop_sync, mode)
                     host_sig.difference_update(loop_sync)
 
                 # This schedule is the body of a routine and, at least until we
                 # can do interprocedural analysis, this is the end of the road.
                 if isinstance(sched, InvokeSchedule):
-                    self._place_update(sched, update_pos, host_sig, acss_type)
+                    self._place_update(sched, update_pos, host_sig, mode)
                     break
 
                 # Move up the code tree to the next deepest ancestor schedule.
@@ -329,7 +329,7 @@ class ACCUpdateTrans(Transformation):
                 while not isinstance(sched, Schedule):
                     child, sched = child.parent, sched.parent
 
-    def _sync_sig(self, dep_stmts, host_sig, acss_type):
+    def _sig_to_sync(self, dep_stmts, host_sig, mode):
         '''
         Retrieves, amongst the host region signatures in host_sig, those that
         require synchronisation because of accesses in the compute regions
@@ -340,13 +340,13 @@ class ACCUpdateTrans(Transformation):
         :param host_sig: access signature(s) that need to be synchronised \
                          with the accelerator device.
         :type host_sig: Set[:py:class:`psyclone.core.Signature`]
-        :param int acss_type: the access type from the point of view of the
-                              host, either IN (read) or OUT (write).
+        :param int mode: the access mode from the point of view of the host,
+                         either IN (read) or OUT (write).
 
         '''
         # If there is a statement (e.g. a call) among the dependent statements
         # that may launch device kernels, we conservatively assume a dependency
-        # for all variables in the host region regardless of access type.
+        # for all variables in the host region regardless of access mode.
         if any(stmt.walk(self._may_compute) for stmt in dep_stmts):
             return host_sig.copy()
 
@@ -360,16 +360,16 @@ class ACCUpdateTrans(Transformation):
                 # overwritten by an earlier host write whose update device
                 # directive could appear later.
                 kern_sig.update(acc.kernel_references[OUT])
-                if acss_type == OUT:
+                if mode == OUT:
                     kern_sig.update(acc.kernel_references[IN])
 
         return host_sig.intersection(kern_sig)
 
-    def _place_update(self, sched, update_pos, host_sig, acss_type):
+    def _place_update(self, sched, update_pos, host_sig, mode):
         '''
         Places, avoiding redundancy where possible, an update directive in the
         provided schedule, at the requested position, for the requested
-        variables and access type.
+        variables and access mode.
 
         :param sched: the schedule in which to add the directive.
         :type sched: :py:class:`psyclone.psyir.nodes.Schedule`
@@ -377,8 +377,8 @@ class ACCUpdateTrans(Transformation):
         :param host_sig: the access signature(s) that need to be synchronised \
                          with the accelerator device.
         :type host_sig: Set[:py:class:`psyclone.core.Signature`]
-        :param int acss_type: the access type from the point of view of the
-                              host, either IN or OUT.
+        :param int mode: the access mode from the point of view of the host,
+                         either IN (read) or OUT (write).
 
         '''
         # pylint: disable=import-outside-toplevel, redefined-outer-name
@@ -391,14 +391,14 @@ class ACCUpdateTrans(Transformation):
         host_sig = host_sig.copy()
 
         # Specify the data movement direction with the right clause depending
-        # on the access type. When the update directive can be placed at the
+        # on the access mode. When the update directive can be placed at the
         # edge of the schedule, the position of the directive, update_pos, is
         # undefined until this point.
-        if acss_type == IN:
+        if mode == IN:
             direction = "host"
             if update_pos is None:
                 update_pos = 0
-        elif acss_type == OUT:
+        elif mode == OUT:
             direction = "device"
             if update_pos is None:
                 update_pos = len(sched.children)
