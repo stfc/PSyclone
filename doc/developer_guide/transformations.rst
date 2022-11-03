@@ -94,7 +94,9 @@ Raising Transformations for the LFRic API
 
 .. autoclass:: psyclone.domain.lfric.transformations.LFRicAlgTrans
 
-.. autoclass:: psyclone.domain.lfric.transformations.LFRicRaiseCall2InvokeTrans
+.. autoclass:: psyclone.domain.lfric.transformations.RaisePSyIR2LFRicAlgTrans
+
+.. autoclass:: psyclone.domain.lfric.transformations.RaisePSyIR2LFRicKernTrans
 
 Algorithm Transformations
 =========================
@@ -115,6 +117,15 @@ therefore there is a specialised class for this:
 
 .. autoclass:: psyclone.domain.lfric.transformations.LFRicAlgInvoke2PSyCallTrans
 
+Kernel Transformations for the GOCean and LFRic APIs
+----------------------------------------------------
+
+The LFRic RaisePSyIR2LFRicKernTrans and GOcean
+RaisePSyIR2GOceanKernTrans translate generic PSyIR to LFRic-specific
+Kernel PSyIR. At the moment these transformations are limited to
+creating Python classes for LFRic or GOcean kernel metadata,
+respectively. These classes allow easy reading, modification, creation
+and writing back of generic Kernel PSyIR.
 
 OpenACC
 =======

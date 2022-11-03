@@ -438,15 +438,38 @@ class VariablesAccessInfo(dict):
     another.
 
     :param nodes: optional, a single PSyIR node or list of nodes from \
-                  which to initialise this object.
-    :type nodes: None, :py:class:`psyclone.psyir.nodes.Node` or\
-                 List[:py:class:`psyclone.psyir.nodes.Node`]
+        which to initialise this object.
+    :type nodes: Optional[:py:class:psyclone.psyir.nodes.Node | \
+        List[:py:class:`psyclone.psyir.nodes.Node`]]
+    :param options: a dictionary with options to influence which variable \
+        accesses are to be collected.
+    :type options: Dict[str, Any]
+    :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is set \
+        to a True value, arrays used as first parameter to the PSyIR query \
+        operators lbound, ubound, or size will be reported as 'read'.
+        Otherwise, these accesses will be ignored.
 
     '''
-    def __init__(self, nodes=None):
+
+    # List of valid options. Note that only the options method checks this,
+    # since it is convenient to pass in options from the DependencyTools
+    # that might contain options for these tools.
+    _VALID_OPTIONS = ["COLLECT-ARRAY-SHAPE-READS"]
+
+    def __init__(self, nodes=None, options=None):
         # This dictionary stores the mapping of signatures to the
         # corresponding SingleVariableAccessInfo instance.
         dict.__init__(self)
+
+        if options:
+            if not isinstance(options, dict):
+                raise InternalError(f"The options argument for "
+                                    f"VariablesAccessInfo must be a "
+                                    f"dictionary or None, but got "
+                                    f"'{type(options).__name__}'.")
+            self._options = options.copy()
+        else:
+            self._options = {}
 
         # Stores the current location information
         self._location = 0
@@ -505,6 +528,30 @@ class VariablesAccessInfo(dict):
                     mode = "WRITE"
             output_list.append(f"{signature}: {mode}")
         return ", ".join(output_list)
+
+    def options(self, key=None):
+        '''Returns the value of the options for a specified key,
+        or None if the key is not specified in the options. If no
+        key is specified, the whole option dictionary is returned.
+
+        :param key: the option to query, or None if all options should \
+            be returned.
+        :type key: Optional[str]
+
+        :returns: the value of the option or the whole option dictionary.
+        :rtype: Any
+
+        :raises InternalError: if an invalid key is specified.
+
+        '''
+        if key:
+            if key not in VariablesAccessInfo._VALID_OPTIONS:
+                raise InternalError(f"Option key '{key}' is invalid, it "
+                                    f"must be one of "
+                                    f"{VariablesAccessInfo._VALID_OPTIONS}"
+                                    f".")
+            return self._options.get(key, None)
+        return self._options
 
     @property
     def location(self):

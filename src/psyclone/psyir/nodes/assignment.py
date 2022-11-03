@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -141,8 +141,9 @@ class Assignment(Statement):
         '''
         # It is important that a new instance is used to handle the LHS,
         # since a check in 'change_read_to_write' makes sure that there
-        # is only one access to the variable!
-        accesses_left = VariablesAccessInfo()
+        # is only one access to the variable! Also forward the options
+        # from the original object to the new object.
+        accesses_left = VariablesAccessInfo(options=var_accesses.options())
         self.lhs.reference_accesses(accesses_left)
         # Now change the (one) access to the assigned variable to be WRITE:
         sig, _ = self.lhs.get_signature_and_indices()

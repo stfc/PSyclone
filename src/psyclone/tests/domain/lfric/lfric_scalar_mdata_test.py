@@ -41,7 +41,6 @@ Module containing pytest tests for the general LFRic scalar arguments
 functionality (e.g. metadata, parsing, invoke calls).
 '''
 
-from __future__ import absolute_import, print_function
 import os
 import pytest
 import fparser
@@ -102,7 +101,7 @@ def test_ad_scalar_init_wrong_argument_type():
     wrong_arg = metadata._inits[3]
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(
-            wrong_arg, metadata.iterates_over)._init_scalar(wrong_arg)
+            wrong_arg, metadata.iterates_over, 0)._init_scalar(wrong_arg)
     assert ("Expected a scalar argument but got an argument of type "
             "'gh_operator'." in str(excinfo.value))
 
@@ -180,7 +179,7 @@ def test_ad_scalar_init_wrong_data_type(monkeypatch):
         value=LFRicConstants.VALID_ARG_DATA_TYPES + ["gh_double"])
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(
-            scalar_arg, metadata.iterates_over)._init_scalar(scalar_arg)
+            scalar_arg, metadata.iterates_over, 0)._init_scalar(scalar_arg)
     assert ("Expected one of {0} as the scalar data type but got 'gh_double'.".
             format(const.VALID_SCALAR_DATA_TYPES) in
             str(excinfo.value))

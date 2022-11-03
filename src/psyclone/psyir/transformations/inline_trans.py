@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 '''
 This module contains the InlineTrans transformation.
@@ -43,7 +44,7 @@ from psyclone.psyGen import Transformation
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
     ArrayReference, Call, Range, Routine, Reference, CodeBlock,
-    Return, Literal)
+    Return, Literal, Assignment)
 from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol, ScalarType,
                                     ImportInterface)
 from psyclone.psyir.transformations.transformation_error import (
@@ -52,8 +53,9 @@ from psyclone.psyir.transformations.transformation_error import (
 
 class InlineTrans(Transformation):
     '''
-    This transformation takes a Call and replaces it with the body of the
-    target routine. It is used as follows:
+    This transformation takes a Call (which may have a return value)
+    and replaces it with the body of the target routine. It is used as
+    follows:
 
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.frontend.fortran import FortranReader
@@ -99,7 +101,6 @@ class InlineTrans(Transformation):
         supported and will result in a TransformationError:
 
         * the routine is not in the same file as the call;
-        * the routine has a return value;
         * the routine contains an early Return statement;
         * the routine has a named argument;
         * the call to the routine passes array subsections;
@@ -179,13 +180,28 @@ class InlineTrans(Transformation):
             # remove it from the list.
             del new_stmts[-1]
 
-        parent = node.parent
-        idx = node.position
-
-        node.replace_with(new_stmts[0])
-        for child in new_stmts[1:]:
-            idx += 1
-            parent.addchild(child, idx)
+        if routine.return_symbol:
+            # This is a function
+            assignment = node.ancestor(Assignment)
+            parent = assignment.parent
+            idx = assignment.position-1
+            for child in new_stmts:
+                idx += 1
+                parent.addchild(child, idx)
+            table = parent.scope.symbol_table
+            # Avoid a potential name clash with the original function
+            table.rename_symbol(
+                routine.return_symbol, table.next_available_name(
+                    f"inlined_{routine.return_symbol.name}"))
+            node.replace_with(Reference(routine.return_symbol))
+        else:
+            # This is a call
+            parent = node.parent
+            idx = node.position
+            node.replace_with(new_stmts[0])
+            for child in new_stmts[1:]:
+                idx += 1
+                parent.addchild(child, idx)
 
     @staticmethod
     def _inline_container_symbols(table, routine_table):
@@ -310,9 +326,6 @@ class InlineTrans(Transformation):
         '''
         Checks that the supplied node is a valid target for inlining.
 
-        Routines with a return value (AKA functions in Fortran) are currently
-        rejected: TODO #924.
-
         :param node: target PSyIR node.
         :type node: subclass of :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
@@ -349,11 +362,6 @@ class InlineTrans(Transformation):
 
         # Check that we can find the source of the routine being inlined.
         routine = self._find_routine(node)
-
-        if routine.return_symbol:
-            raise TransformationError(
-                f"Cannot inline routine '{routine.name}' as it has a return "
-                f"value ('{routine.return_symbol.name}') - TODO #924.")
 
         if not routine.children or isinstance(routine.children[0], Return):
             # An empty routine is fine.

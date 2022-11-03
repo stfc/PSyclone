@@ -211,8 +211,8 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
             if arg.__class__ is Reference:
                 symbol = arg.symbol
                 # This symbol should be a 1D array
-                if not(isinstance(symbol, DataSymbol) and symbol.is_array and
-                       len(symbol.shape) == 1):
+                if not (isinstance(symbol, DataSymbol) and symbol.is_array and
+                        len(symbol.shape) == 1):
                     raise TransformationError(
                         f"The DotProduct2CodeTrans transformation only "
                         f"supports the transformation of a dotproduct "

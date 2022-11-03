@@ -238,7 +238,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.KernelModuleInlineTrans
+.. autoclass:: psyclone.domain.common.transformations.KernelModuleInlineTrans
     :members: apply
     :noindex:
 
@@ -313,8 +313,8 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.OMPLoopTrans
-    :members: apply, omp_schedule, omp_worksharing
+.. autoclass:: psyclone.psyir.transformations.OMPLoopTrans
+    :members: apply, omp_schedule, omp_directive
     :noindex:
 
 ####
@@ -428,6 +428,14 @@ can be found in the API-specific sections).
              on PSyIR Real scalar data and does not check whether or not
              this is the case. Once issue #658 is on master then this
              limitation can be fixed.
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.Sum2CodeTrans
+      :members: apply
+      :noindex:
+
+####
 
 Algorithm-layer
 ---------------

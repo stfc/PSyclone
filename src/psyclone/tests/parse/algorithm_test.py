@@ -846,7 +846,7 @@ def test_kernelcall_repr():
 
     '''
 
-    class KtypeDummy(object):
+    class KtypeDummy():
         '''A fake KernelType class which provides the required variables to
         allow the BuiltInCall class to be instantiated and __repr__
         called.
@@ -869,7 +869,7 @@ def test_builtincall_repr():
 
     '''
 
-    class KtypeDummy(object):
+    class KtypeDummy():
         '''A fake KernelType class which provides the required variables to
         allow the BuiltInCall class to be instantiated and __repr__
         called.

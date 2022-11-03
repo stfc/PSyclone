@@ -39,26 +39,28 @@
 '''Tests for PSy-layer code generation that are specific to the
 GOcean 1.0 API.'''
 
-from __future__ import absolute_import, print_function
 import os
 import re
+
 import pytest
+
 from psyclone.configuration import Config
-from psyclone.parse.algorithm import parse, Arg
+from psyclone.parse.algorithm import Arg, parse
 from psyclone.parse.kernel import Descriptor
 from psyclone.parse.utils import ParseError
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import PSyFactory
-from psyclone.gocean1p0 import GOKern, GOLoop, \
-    GOKernelArgument, GOKernelArguments, GOKernelGridArgument, \
-    GOBuiltInCallFactory, GOSymbolTable
-from psyclone.tests.utilities import get_invoke
+from psyclone.gocean1p0 import (GOKern, GOLoop, GOKernelArgument,
+                                GOKernelArguments, GOKernelGridArgument,
+                                GOBuiltInCallFactory, GOSymbolTable)
+from psyclone.tests.utilities import get_base_path, get_invoke
 from psyclone.tests.gocean_build import GOceanBuild
-from psyclone.psyir.symbols import SymbolTable, DeferredType, \
-    ContainerSymbol, DataSymbol, ImportInterface, ScalarType, INTEGER_TYPE, \
-    ArgumentInterface, DataTypeSymbol
-from psyclone.psyir.nodes import Node, StructureReference, Member, \
-    StructureMember, Reference, Literal
+from psyclone.psyir.nodes import (Node, StructureReference, Member,
+                                  StructureMember, Reference, Literal)
+from psyclone.psyir.symbols import (DeferredType, ContainerSymbol, DataSymbol,
+                                    ImportInterface, INTEGER_TYPE,
+                                    ArgumentInterface, DataTypeSymbol,
+                                    ScalarType, SymbolTable)
 from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
 
 API = "gocean1.0"
@@ -1329,8 +1331,8 @@ def test06_kernel_invalid_access():
                            "test_files", "gocean1p0",
                            "test06_invoke_kernel_wrong_access.f90"),
               api="gocean1.0")
-    assert "compute_cu: argument access  is given as 'wrong' but must be one "\
-           "of ['go_read', 'go_readwrite', 'go_write']" in str(err.value)
+    assert ("compute_cu: argument access is given as 'wrong' but must be one "
+            "of ['go_read', 'go_readwrite', 'go_write']" in str(err.value))
 
 
 def test07_kernel_wrong_gridpt_type():
@@ -1672,7 +1674,7 @@ def test_gokernelargument_type(monkeypatch):
     dummy_node.symbol_table = SymbolTable()
 
     # Create a dummy GOKernelArgument
-    descriptor = Descriptor(None, "go_r_scalar")
+    descriptor = Descriptor(None, "go_r_scalar", 0)
     arg = Arg("variable", "arg", "arg")
     argument = GOKernelArgument(descriptor, arg, dummy_node)
 
@@ -1706,3 +1708,33 @@ def test_gosymboltable_conformity_check():
         symbol_table._check_gocean_conformity()
     assert ("GOcean 1.0 API kernels first argument should be a scalar integer "
             "but got 'DeferredType'." in str(excinfo.value))
+
+
+def test_go_descriptor_str():
+    '''Tests  the __str__ function of a GO1p0Descriptor.
+    '''
+    # Parse an existing kernel to create the required kernel_call
+    # type.
+    _, invoke_info = parse(os.path.join(get_base_path(API),
+                                        "single_invoke_scalar_float_arg.f90"),
+                           api=API)
+
+    kernel_call = invoke_info.calls[0].kcalls[0]
+    arg_descriptors = kernel_call.ktype.arg_descriptors
+
+    assert "Descriptor(READ, go_r_scalar, 0)" == str(arg_descriptors[0])
+
+
+def test_go_kerneltype_str():
+    '''Tests  the __str__ function of a GOKernelType1p0.
+    '''
+    # Parse an existing kernel to create the required kernel_call
+    # type.
+    _, invoke_info = parse(os.path.join(get_base_path(API),
+                                        "single_invoke_scalar_float_arg.f90"),
+                           api=API)
+
+    kernel_call = invoke_info.calls[0].kcalls[0]
+
+    assert ("GOcean 1.0 kernel bc_ssh, index-offset = go_offset_ne, "
+            "iterates-over = go_all_pts" == str(kernel_call.ktype))
