@@ -226,6 +226,9 @@ class ACCUpdateTrans(Transformation):
 
         # Copy any data that is accessed by this host region to the host
         # (resp. device) if it is on the device (resp. host).
+        # We distinguish between two access modes, IN (read) and OUT (write).
+        # In this function, these two parameters are used to determine the
+        # access mode of data references on the host, as per the value of mode.
         global IN, OUT
         IN, OUT = 0, 1
         for mode, host_sig in enumerate((inputs, outputs)):
@@ -253,9 +256,9 @@ class ACCUpdateTrans(Transformation):
                 # Most conservative position for a new update directive at this
                 # schedule, i.e. that closest to the host region. This is used
                 # as a boundary to compute textual dependencies, i.e. between
-                # a pair of statements within no loop or the same iteration of
-                # a loop, and loop-carried dependencies, i.e. between a pair of
-                # statements on different iterations of a loop.
+                # a pair of statements not within a loop or the same iteration
+                # of a loop, and loop-carried dependencies, i.e. between a pair
+                # of statements on different iterations of a loop.
                 # It is also the position for the update directive used by
                 # those variables with textual dependencies.
                 # Perhaps, eventually, specially if we adopt the async clause,
