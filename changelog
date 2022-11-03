@@ -167,7 +167,7 @@
 	with Python 3.10.
 
 	60) PR #1899 towards #1823. Refactors KernelModuleInlineTrans so that
-        the in-lining happens at transformation time rather than code-
+	the in-lining happens at transformation time rather than code-
 	generation time.
 
 	61) PR #1852 for #1750. Adds an option to VariablesAccessInfo to
@@ -177,6 +177,12 @@
 
 	62) PR #1867 for #1861. Significantly improves test coverage,
 	especially of the compilation-testing utilities.
+
+	63) PR #1924 for #1923. Fix issues building Developer and Reference
+	guides.
+
+	64) PR #1913 for #1848. Fix issues with case-sensitivity in the
+	SymbolTables.resolve_imports method.
 
 release 2.3.1 17th of June 2022
 

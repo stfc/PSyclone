@@ -43,5 +43,5 @@ __all__ = [
         "AlgInvoke2PSyCallTrans",
         "AlgTrans",
         "KernelModuleInlineTrans",
-        "RaiseCall2InvokeTrans",
+        "RaisePSyIR2AlgTrans",
         ]
