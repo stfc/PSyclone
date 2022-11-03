@@ -53,8 +53,9 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import PSyIRVisitor
 from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, Container, \
     Routine, Call, OMPDoDirective
-from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, Symbol, \
-    ContainerSymbol, ImportInterface, ArgumentInterface, DeferredType
+from psyclone.psyir.symbols import (ArrayType, DataSymbol, RoutineSymbol,
+                                    Symbol, ContainerSymbol, ImportInterface,
+                                    ArgumentInterface, DeferredType)
 from psyclone.psyir.symbols.datatypes import UnknownFortranType
 
 # The types of 'intent' that an argument to a Fortran subroutine
@@ -2179,9 +2180,17 @@ class Argument():
                 argument_access = ArgumentInterface.Access.READWRITE
 
                 # Find the tag or create a new symbol with expected attributes
+                data_type = self.infer_datatype()
+                # In case of LFRic field vector, declare it as array.
+                # This is a fix for #1930, but we might want a better
+                # solution to avoid LFRic-specific code here.
+                # pylint: disable=no-member
+                if hasattr(self, 'vector_size') and self.vector_size > 1:
+                    data_type = ArrayType(data_type, [self.vector_size])
+
                 new_argument = symtab.find_or_create_tag(
                     tag, root_name=self._orig_name, symbol_type=DataSymbol,
-                    datatype=self.infer_datatype(),
+                    datatype=data_type,
                     interface=ArgumentInterface(argument_access))
                 self._name = new_argument.name
 
