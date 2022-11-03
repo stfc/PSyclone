@@ -893,9 +893,9 @@ def test_validate_calls_find_routine(fortran_reader):
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
-    assert ("Failed to find the source code of the unresolved routine "
-            "'test_mod' after trying wildcard imports '['some_mod']' and "
-            "all routines that are not in containers." in str(err.value))
+    assert ("Failed to find the source code of the unresolved routine 'sub' "
+            "after trying wildcard imports from ['some_mod'] and all "
+            "routines that are not in containers." in str(err.value))
 
 
 def test_validate_return_stmt(fortran_reader):
@@ -1162,8 +1162,8 @@ def test_find_routine_local(fortran_reader):
 
 def test_find_routine_missing_exception(fortran_reader):
     '''Test that the expected exception is raised if the Call's Routine
-    symbol has a local interface but the the Routine can't be found in
-    the PSyIR.
+    symbol has a local interface but the Routine can't be found in the
+    PSyIR.
 
     '''
     code = (
@@ -1226,9 +1226,9 @@ def test_find_routine_raw_to_module_exception(fortran_reader):
     assert call.routine.is_unresolved
     with pytest.raises(TransformationError) as info:
         _ = inline_trans._find_routine(call)
-    assert ("Failed to find the source code of the unresolved routine "
-            "'inline_mod' after trying wildcard imports '[]' and all "
-            "routines that are not in containers." in str(info.value))
+    assert ("Failed to find the source code of the unresolved routine 'sub' "
+            "after trying wildcard imports from [] and all routines that are "
+            "not in containers." in str(info.value))
 
 
 def test_find_routine_unresolved_exception(fortran_reader):
@@ -1250,9 +1250,9 @@ def test_find_routine_unresolved_exception(fortran_reader):
     assert call.routine.is_unresolved
     with pytest.raises(TransformationError) as info:
         _ = inline_trans._find_routine(call)
-    assert ("Failed to find the source code of the unresolved routine 'sub2' "
-            "after trying wildcard imports '['inline_mod']' and all routines "
-            "that are not in containers." in str(info.value))
+    assert ("Failed to find the source code of the unresolved routine 'sub' "
+            "after trying wildcard imports from ['inline_mod'] and all "
+            "routines that are not in containers." in str(info.value))
 
 
 def test_find_routine_import(fortran_reader):
@@ -1282,14 +1282,14 @@ def test_find_routine_import_exception(fortran_reader):
     assert call.routine.is_import
     with pytest.raises(TransformationError) as info:
         _ = inline_trans._find_routine(call)
-    assert ("Failed to find the source for the imported routine 'sub' and "
-            "therefore cannot inline it." in str(info.value))
+    assert ("Failed to find the source for routine 'sub' imported from "
+            "'inline_mod' and therefore cannot inline it." in str(info.value))
 
 
 def test_find_routine_module_to_raw_exception(fortran_reader):
     '''Test that the routine raises the expected exception if the call
-    imports the routine and another routine with the same name is
-    found as a raw subroutine.
+    imports the routine and the routine can't be found, even in the
+    presence of a 'raw' subroutine with the same name.
 
     '''
     code = f"{CALL_IN_SUB_USE}{SUB}"
@@ -1299,8 +1299,8 @@ def test_find_routine_module_to_raw_exception(fortran_reader):
     assert call.routine.is_import
     with pytest.raises(TransformationError) as info:
         _ = inline_trans._find_routine(call)
-    assert ("Failed to find the source for the imported routine 'sub' and "
-            "therefore cannot inline it." in str(info.value))
+    assert ("Failed to find the source for routine 'sub' imported from "
+            "'inline_mod' and therefore cannot inline it." in str(info.value))
 
 
 def test_find_routine_exception(fortran_reader, monkeypatch):
@@ -1339,7 +1339,7 @@ def test_find_routine_in_container_no_container(fortran_reader):
 def test_find_routine_in_container_no_file_container(fortran_reader):
     '''Test that None is returned when the Container associated with the
     supplied container symbol is not found in the PSyIR and the root
-    not is not a FileContainer.
+    is not a FileContainer.
 
     '''
     psyir = fortran_reader.psyir_from_source(CALL_IN_SUB_USE)
@@ -1426,7 +1426,9 @@ def test_find_routine_in_container_recurse_wildcard(fortran_reader):
 def test_find_routine_in_container_private_routine_not_found(fortran_reader):
     '''Test that None is returned when the required Routine is not found
     in the Container associated with the supplied container symbol, as
-    it is private.
+    it is private. This situation should not arise as it is invalid to
+    try to import a private routine. However, there are currrently no
+    checks for this when creating PSyIR.
 
     '''
     private_sub_in_module = SUB_IN_MODULE.replace(

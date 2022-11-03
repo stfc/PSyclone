@@ -487,20 +487,18 @@ class InlineTrans(Transformation):
 
         '''
         name = call_node.routine.name
-        # TODO routine_sym = call_node.routine ????
-        routine_sym = call_node.scope.symbol_table.lookup(name)
+        routine_sym = call_node.routine
 
         if routine_sym.is_local:
             table = routine_sym.find_symbol_table(call_node)
             for routine in table.node.walk(Routine):
-                if routine.name == name:
+                if routine.name.lower() == name.lower():
                     return routine
-            else:
-                raise InternalError(
-                    f"Failed to find the source code of the local routine "
-                    f"'{routine_sym.name}'.")
+            raise InternalError(
+                f"Failed to find the source code of the local routine "
+                f"'{routine_sym.name}'.")
 
-        elif routine_sym.is_unresolved:
+        if routine_sym.is_unresolved:
 
             # First check for any wildcard imports and see if they can
             # be used to resolve the symbol.
@@ -522,34 +520,35 @@ class InlineTrans(Transformation):
             # FileContainer). Note, if the PSyIR does contain a
             # FileContainer, it will be the root node of the PSyIR.
             for routine in call_node.root.children:
-                if isinstance(routine, Routine) and routine.name == name:
+                if (isinstance(routine, Routine) and
+                        routine.name.lower() == name.lower()):
                     return routine
-            else:
-                raise TransformationError(
-                    f"Failed to find the source code of the unresolved "
-                    f"routine '{routine.name}' after trying wildcard imports "
-                    f"'{wildcard_names}' and all routines that are not in "
-                    f"containers.")
+            raise TransformationError(
+                f"Failed to find the source code of the unresolved "
+                f"routine '{name}' after trying wildcard imports from "
+                f"{wildcard_names} and all routines that are not in "
+                f"containers.")
 
-        elif routine_sym.is_import:
+        if routine_sym.is_import:
             container_symbol = routine_sym.interface.container_symbol
             routine = InlineTrans._find_routine_in_container(
                 call_node, container_symbol)
             if routine:
                 return routine
             raise TransformationError(
-                f"Failed to find the source for the imported routine "
-                f"'{routine_sym.name}' and therefore cannot inline it.")
-        else:
-            raise InternalError(
-                f"Routine Symbol '{routine_sym.name}' is not local, "
-                f"unresolved or imported.")
+                f"Failed to find the source for routine '{routine_sym.name}' "
+                f"imported from '{container_symbol.name}' and therefore "
+                f"cannot inline it.")
+
+        raise InternalError(
+            f"Routine Symbol '{routine_sym.name}' is not local, "
+            f"unresolved or imported.")
 
     @staticmethod
     def _find_routine_in_container(call_node, container_symbol):
         '''Searches for the definition of a routine that is being called by
-        the supplied Call. This routine must exist within a container
-        specified by the supplied container symbol.
+        the supplied Call. If present, this routine must exist within a
+        container specified by the supplied container symbol.
 
         :param call_node: the Call that is to be inlined.
         :type call_node: :py:class:`psyclone.psyir.nodes.Call`
@@ -558,7 +557,7 @@ class InlineTrans(Transformation):
         :type container_symbol: \
             :py:class:`psyclone.psyir.symbols.ContainerSymbol`
 
-        :returns: the PSyIR for the target routine.
+        :returns: the PSyIR for the target routine, if found.
         :rtype: Optional[:py:class:`psyclone.psyir.nodes.Routine`]
 
         '''
@@ -570,10 +569,11 @@ class InlineTrans(Transformation):
         call_routine_sym = call_node.routine
         for container in call_node.root.children:
             if (isinstance(container, Container) and
-                    container.name == container_symbol.name):
+                    container.name.lower() == container_symbol.name.lower()):
                 for routine in container.children:
                     if (isinstance(routine, Routine) and
-                            routine.name == call_routine_sym.name):
+                            routine.name.lower() ==
+                            call_routine_sym.name.lower()):
                         # Check this routine is public
                         routine_sym = container.symbol_table.lookup(
                             routine.name)
@@ -584,13 +584,15 @@ class InlineTrans(Transformation):
 
                 # Look in the import that names the routine if there is one.
                 table = container.symbol_table
-                for symbol in table.symbols:
-                    if symbol.name == call_routine_sym.name and \
-                           symbol.is_import:
+                try:
+                    routine_sym = table.lookup(call_routine_sym.name)
+                    if routine_sym.is_import:
                         child_container_symbol = \
-                            symbol.interface.container_symbol
+                            routine_sym.interface.container_symbol
                         return (InlineTrans._find_routine_in_container(
                             call_node, child_container_symbol))
+                except KeyError:
+                    pass
 
                 # Look in any wildcard imports.
                 for child_container_symbol in table.containersymbols:
@@ -599,7 +601,9 @@ class InlineTrans(Transformation):
                             call_node, child_container_symbol)
                         if result:
                             return result
+                # The required Symbol was not found in the Container.
                 return None
+        # The specified Container was not found in the PSyIR.
         return None
 
 
