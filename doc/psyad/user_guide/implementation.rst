@@ -562,9 +562,8 @@ function. If the LFRic API is selected then only scalar and field arguments
 are initialised in this way since arguments such as dof-maps contain
 essential information derived from the model configuration. In addition,
 those arguments flagged by the user (see :ref:`geom_kernel_args`) as
-containing geometric information (such
-as mesh coordinates or panel IDs) are passed through to the kernel from the
-Algorithm layer without modification.
+containing geometric information (i.e. mesh coordinates or panel IDs) are
+passed through to the kernel from the Algorithm layer without modification.
 
 Inner Products
 --------------
