@@ -9119,8 +9119,6 @@ class DynKernelArguments(Arguments):
         :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-
-        # TODO check if this is correct
         create_arg_list = KernCallArgList(self._parent_call)
         create_arg_list.generate()
         return create_arg_list.psyir_arglist

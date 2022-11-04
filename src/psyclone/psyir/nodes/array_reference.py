@@ -38,6 +38,7 @@
 
 ''' This module contains the implementation of the ArrayReference node. '''
 
+from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.operation import BinaryOperation
@@ -45,7 +46,6 @@ from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import (DataSymbol, DeferredType, UnknownType,
                                     ScalarType, ArrayType, INTEGER_TYPE)
-from psyclone.errors import GenerationError
 
 
 class ArrayReference(ArrayMixin, Reference):
@@ -66,8 +66,8 @@ class ArrayReference(ArrayMixin, Reference):
 
         :param symbol: the symbol that this array is associated with.
         :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
-        :param indices: a list of Nodes describing the array indices.
-        :type indices: list of :py:class:`psyclone.psyir.nodes.Node`
+        :param indices: a list of Nodes or ":" describing the array indices.
+        :type indices: List[Union[:py:class:`psyclone.psyir.nodes.Node`,":"]]
 
         :returns: an ArrayReference instance.
         :rtype: :py:class:`psyclone.psyir.nodes.ArrayReference`
