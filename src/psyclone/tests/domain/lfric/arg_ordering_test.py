@@ -228,9 +228,6 @@ def test_arg_ordering_generate_cma_kernel(dist_mem, fortran_writer):
         'cbanded_map_adspc1_lma_op1', 'ndf_adspc2_lma_op1',
         'cbanded_map_adspc2_lma_op1']
 
-    print(fortran_writer(schedule.parent))
-    print("OLD\n", psy.gen)
-
     check_psyir_results(create_arg_list, fortran_writer)
 
 
