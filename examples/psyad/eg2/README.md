@@ -38,12 +38,6 @@ In this case, the adjoint of the tangent-linear kernel is written to
 
 ## Using the generated test harness in the LFRic skeleton mini-app
 
-> **Warning**
-> Currently the generated test harness *WILL NOT WORK* if the TL kernel
-> takes either the coordinate field (`chi`) or panel IDs as arguments
-> (`tl_vorticity_advection_kernel_mod.F90` is one example). This is the
-> subject of Issue #1708.
-
 These instructions assume that you have a local, compiled version of LFRic
 in `<lfric-root>` and that the directory containing this file is `<work-dir>`.
 

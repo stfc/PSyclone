@@ -109,6 +109,18 @@ def main(args):
     # the user wants us to generate it.
     generate_test = args.gen_test or args.test_filename
 
+    # Check the command-line arguments for consistency.
+    if args.api != "dynamo0.3":
+        if args.coord_arg:
+            logger.error(
+                "The '-coord-arg' argument is only applicable to the LFRic "
+                "('dynamo0.3') API.")
+            sys.exit(1)
+        if args.panel_id_arg:
+            logger.error("The '-panel-id-arg' argument is only applicable to "
+                         "the LFRic ('dynamo0.3') API.")
+            sys.exit(1)
+
     # TL Fortran code
     filename = args.filename
     logger.info("Reading kernel file %s", filename)
@@ -123,7 +135,10 @@ def main(args):
     try:
         # Create the adjoint (and associated test framework if requested)
         ad_fortran_str, test_fortran_str = generate_adjoint_str(
-            tl_fortran_str, args)
+            tl_fortran_str, args.active, api=args.api,
+            coord_arg_index=args.coord_arg,
+            panel_id_arg_index=args.panel_id_arg,
+            create_test=generate_test)
     except TangentLinearError as info:
         print(str(info.value))
         sys.exit(1)

@@ -151,9 +151,9 @@ def test_generate_adjoint_str_lfric_api(cmd_args):
     testkern = os.path.join(LFRIC_TEST_FILES_DIR, "tl_testkern_mod.F90")
     with open(testkern, mode="r", encoding="utf-8") as kfile:
         tl_code = kfile.read()
-    cmd_args.api = "dynamo0.3"
-    cmd_args.active = ["xi", "u", "res_dot_product", "curl_u"]
-    result, _ = generate_adjoint_str(tl_code, cmd_args)
+    result, _ = generate_adjoint_str(tl_code,
+                                     ["xi", "u", "res_dot_product", "curl_u"],
+                                     api="dynamo0.3")
     assert "subroutine adj_testkern_code" in result.lower()
 
 
