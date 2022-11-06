@@ -2,7 +2,7 @@ TL_DIR = tangent_linear
 TL_TWEAKED_DIR = tangent_linear_tweaked
 AD_PARTIAL_DIR = adjoint_partial
 
-all: ${AD_PARTIAL_DIR}/ad_dg_inc_matrix_vector_kernel_mod.F90 ${AD_PARTIAL_DIR}/ad_moist_dyn_mass_kernel_mod.F90 ${AD_PARTIAL_DIR}/ad_project_eos_pressure_kernel_mod.F90 ${AD_PARTIAL_DIR}/ad_hydrostatic_kernel_mod.F90 ${AD_PARTIAL_DIR}/ad_transpose_matrix_vector_kernel_mod.F90 ${AD_PARTIAL_DIR}/ad_kinetic_energy_gradient_kernel_mod.F90 ${AD_PARTIAL_DIR}/ad_vorticity_advection_kernel_mod.F90 ${AD_PARTIAL_DIR}/ad_moist_dyn_gas_kernel_mod.F90 ${AD_PARTIAL_DIR}/ad_pressure_gradient_bd_kernel_mod.F90
+all: ${AD_PARTIAL_DIR}/ad_dg_inc_matrix_vector_kernel_mod.F90 ${AD_PARTIAL_DIR}/ad_moist_dyn_mass_kernel_mod.F90 ${AD_PARTIAL_DIR}/ad_project_eos_pressure_kernel_mod.F90 ${AD_PARTIAL_DIR}/ad_hydrostatic_kernel_mod.F90 ${AD_PARTIAL_DIR}/ad_transpose_matrix_vector_kernel_mod.F90 ${AD_PARTIAL_DIR}/ad_kinetic_energy_gradient_kernel_mod.F90 ${AD_PARTIAL_DIR}/ad_vorticity_advection_kernel_mod.F90 ${AD_PARTIAL_DIR}/ad_moist_dyn_gas_kernel_mod.F90 ${AD_PARTIAL_DIR}/ad_pressure_gradient_bd_kernel_mod.F90 ${AD_PARTIAL_DIR}/ad_matrix_vector_kernel_mod.F90
 
 # Kernels that psyad can process
 
@@ -23,6 +23,9 @@ ${AD_PARTIAL_DIR}/ad_transpose_matrix_vector_kernel_mod.F90: ${TL_DIR}/transpose
 
 ${AD_PARTIAL_DIR}/ad_pressure_gradient_bd_kernel_mod.F90: ${TL_DIR}/tl_pressure_gradient_bd_kernel_mod.F90
 	psyad $< -oad $@ -a r_u_bd exner pressure_gradient_bd_e bdary_term exner_av theta_v_at_fquad theta_v_e exner_e exner_next_e theta moist_dyn_tot moist_dyn_gas
+
+${AD_PARTIAL_DIR}/ad_matrix_vector_kernel_mod.F90: ${TL_DIR}/matrix_vector_kernel_mod.F90
+	psyad $< -oad $@ -a lhs x lhs_e x_e
 
 # Kernels that psyad can process after the code has been tweaked
 
