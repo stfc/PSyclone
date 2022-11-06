@@ -81,14 +81,14 @@ def test_is_upper_lower_bound(fortran_reader):
     code = (
         "subroutine test()\n"
         "use some_mod\n"
-        "real a(10)\n"
+        "real a(n)\n"
         "character(10) my_str\n"
-        "a(1:10) = 0.0\n"
+        "a(1:n) = 0.0\n"
         "my_str(2:2) = 'b'\n"
         "var1(3:4) = 0\n"
         "end subroutine\n")
 
-    # Return True as the literal values or the declaration and array
+    # Return True as the symbolic values of the declaration and array
     # reference match.
     psyir = fortran_reader.psyir_from_source(code)
     assigns = psyir.walk(Assignment)
@@ -105,9 +105,9 @@ def test_is_upper_lower_bound(fortran_reader):
     assert not array_ref.is_lower_bound(0)
     assert not array_ref.is_upper_bound(0)
 
-    # Return False as the literal values of the array declaration and
+    # Return False as the values of the array declaration and
     # array reference do not match.
-    psyir = fortran_reader.psyir_from_source(code.replace("1:10", "2:9"))
+    psyir = fortran_reader.psyir_from_source(code.replace("1:n", "2:n-1"))
     array_ref = psyir.children[0].children[0].lhs
     assert not array_ref.is_lower_bound(0)
     assert not array_ref.is_upper_bound(0)
