@@ -238,7 +238,7 @@ def test_main_invalid_filename(capsys, caplog):
     file specified by filename does not exist.
 
     '''
-    with caplog.at_level(logging.ERROR):
+    with caplog.at_level(logging.ERROR, "psyclone.psyad.main"):
         with pytest.raises(SystemExit) as info:
             main(["-a", "var", "--", "does_not_exist.f90"])
     assert str(info.value) == "1"
@@ -428,7 +428,7 @@ def test_main_geom_args_api(tmpdir, geom_arg, capsys, caplog):
     filename_in = str(tmpdir.join("tl.f90"))
     with open(filename_in, "w", encoding='utf-8') as my_file:
         my_file.write(TEST_MOD)
-    with caplog.at_level(logging.ERROR):
+    with caplog.at_level(logging.ERROR, "psyclone.psyad.main"):
         with pytest.raises(SystemExit) as err:
             main([filename_in, "-a", "field", geom_arg, "0"])
     assert str(err.value) == "1"
@@ -458,7 +458,7 @@ def test_main_verbose(tmpdir, capsys, caplog):
     filename_out = str(tmpdir.join("ad.f90"))
     with open(filename_in, "w", encoding='utf-8') as my_file:
         my_file.write(tl_code)
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO, "psyclone.psyad.main"):
         main([filename_in, "-v", "-a", "a", "-oad", filename_out])
 
     output, error = capsys.readouterr()
@@ -478,7 +478,7 @@ def test_main_otest_verbose(tmpdir, caplog):
     harness_out = str(tmpdir.join("harness.f90"))
     with open(filename_in, "w", encoding='utf-8') as my_file:
         my_file.write(TEST_MOD)
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO, "psyclone.psyad.main"):
         main([filename_in, "-v", "-a", "field", "-oad", filename_out, "-otest",
               harness_out])
     assert "Writing test harness for adjoint kernel to file" in caplog.text
