@@ -4549,7 +4549,7 @@ def test_multi_builtin_single_invoke(tmpdir, monkeypatch, annexed, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:
-        assert(
+        assert (
             "    SUBROUTINE invoke_0(asum, f1, f2, b)\n"
             "      USE scalar_mod, ONLY: scalar_type\n"
             "      USE mesh_mod, ONLY: mesh_type\n"

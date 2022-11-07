@@ -242,14 +242,6 @@ multiple kernel calls within an OpenMP region) must sub-class the
     :private-members:
     :noindex:
 
-Finally, those transformations that act on a Kernel must sub-class the
-``KernelTrans`` class:
-
-.. autoclass:: psyclone.transformations.KernelTrans
-   :members:
-   :private-members:
-   :noindex:
-
 In all cases, the `apply` method of any sub-class *must* ensure that
 the `validate` method of the parent class is called.
 

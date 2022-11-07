@@ -68,7 +68,7 @@ class GOceanExtractTrans(ExtractTrans):
     '''
 
     def __init__(self):
-        super(GOceanExtractTrans, self).__init__(ExtractNode)
+        super().__init__(ExtractNode)
         # Set the integer and real types to use. If required, the constructor
         # could take a parameter to change these.
 
@@ -105,7 +105,7 @@ class GOceanExtractTrans(ExtractTrans):
 
         # First check constraints on Nodes in the node_list inherited from
         # the parent classes (ExtractTrans and RegionTrans)
-        super(GOceanExtractTrans, self).validate(node_list, options)
+        super().validate(node_list, options)
 
         # Check GOceanExtractTrans specific constraints
         for node in node_list:
@@ -115,9 +115,9 @@ class GOceanExtractTrans(ExtractTrans):
             ancestor = node.ancestor(GOLoop)
             if ancestor and ancestor.loop_type == 'outer':
                 raise TransformationError(
-                    "Error in {0}: Application to an "
-                    "inner Loop without its ancestor outer Loop is not "
-                    "allowed.".format(str(self.name)))
+                    f"Error in {self.name}: Application to an "
+                    f"inner Loop without its ancestor outer Loop is not "
+                    f"allowed.")
 
     # ------------------------------------------------------------------------
     def apply(self, nodes, options=None):
@@ -152,19 +152,17 @@ class GOceanExtractTrans(ExtractTrans):
             is required (and is supported by the runtime library).
 
         '''
-        if options is None:
-            my_options = {}
-        else:
-            # We will add a default prefix, so create a copy to avoid
-            # changing the user's options:
-            my_options = options.copy()
+
+        my_options = self.merge_in_default_options(options)
 
         dep = DependencyTools()
         nodes = self.get_node_list(nodes)
         region_name = self.get_unique_region_name(nodes, my_options)
         my_options["region_name"] = region_name
         my_options["prefix"] = my_options.get("prefix", "extract")
-        input_list, output_list = dep.get_in_out_parameters(nodes)
+
+        input_list, output_list = dep.get_in_out_parameters(nodes,
+                                                            options=my_options)
         # Determine a unique postfix to be used for output variables
         # that avoid any name clashes
         postfix = ExtractTrans.determine_postfix(input_list,
@@ -182,4 +180,4 @@ class GOceanExtractTrans(ExtractTrans):
                                               prefix=my_options["prefix"],
                                               region_name=region_name)
 
-        super(GOceanExtractTrans, self).apply(nodes, my_options)
+        super().apply(nodes, my_options)

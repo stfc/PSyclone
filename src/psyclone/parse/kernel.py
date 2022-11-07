@@ -513,7 +513,7 @@ class Descriptor():
                 f"{self.metadata_index})")
 
 
-class KernelProcedure(object):
+class KernelProcedure():
     '''
     Captures the parse tree and name of a kernel subroutine.
 
@@ -784,7 +784,7 @@ def getkerneldescriptors(name, ast, var_name='meta_args', var_type=None):
     return inits
 
 
-class KernelType(object):
+class KernelType():
     '''Base class for describing Kernel Metadata.
 
     This contains the name of the elemental procedure and metadata associated

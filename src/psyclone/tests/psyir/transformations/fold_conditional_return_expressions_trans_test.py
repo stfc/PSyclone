@@ -58,9 +58,9 @@ def test_validation():
     trans = FoldConditionalReturnExpressionsTrans()
     with pytest.raises(TransformationError) as info:
         trans.apply(None)
-    assert("Error in FoldConditionalReturnExpressionsTrans transformation. "
-           "This transformation can only be applied to 'Routine' nodes, but "
-           "found 'NoneType'." in str(info.value))
+    assert ("Error in FoldConditionalReturnExpressionsTrans transformation. "
+            "This transformation can only be applied to 'Routine' nodes, but "
+            "found 'NoneType'." in str(info.value))
 
 
 SUB_IN1 = (

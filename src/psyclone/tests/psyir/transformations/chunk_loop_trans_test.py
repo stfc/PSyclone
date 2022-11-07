@@ -168,9 +168,9 @@ def test_chunkloop_trans_validate4():
     parent._variable = lvar
     with pytest.raises(TransformationError) as excinfo:
         chunktrans.validate(parent)
-    assert("Cannot apply a ChunkLoopTrans to this loop because the boundary "
-           "variable 'lvar' is written to inside the loop body.") in \
-        str(excinfo.value)
+    assert ("Cannot apply a ChunkLoopTrans to this loop because the boundary "
+            "variable 'lvar' is written to inside the loop body."
+            in str(excinfo.value))
 
     # Construct a loop that writes to the variable used for the initial value
     symbol_table = SymbolTable()
@@ -197,9 +197,9 @@ def test_chunkloop_trans_validate4():
     parent._variable = lvar
     with pytest.raises(TransformationError) as excinfo:
         chunktrans.validate(parent)
-    assert("Cannot apply a ChunkLoopTrans to this loop because the boundary "
-           "variable 'ivar' is written to inside the loop body.") in \
-        str(excinfo.value)
+    assert ("Cannot apply a ChunkLoopTrans to this loop because the boundary "
+            "variable 'ivar' is written to inside the loop body."
+            in str(excinfo.value))
 
     # Construct a loop that writes to the variable used for the final value
     symbol_table = SymbolTable()
@@ -226,9 +226,9 @@ def test_chunkloop_trans_validate4():
     parent._variable = lvar
     with pytest.raises(TransformationError) as excinfo:
         chunktrans.validate(parent)
-    assert("Cannot apply a ChunkLoopTrans to this loop because the boundary "
-           "variable 'ivar' is written to inside the loop body.") in \
-        str(excinfo.value)
+    assert ("Cannot apply a ChunkLoopTrans to this loop because the boundary "
+            "variable 'ivar' is written to inside the loop body."
+            in str(excinfo.value))
 
 
 def test_chunkloop_trans_validate5():

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council
+# Copyright (c) 2019-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@
 transformations.
 '''
 
-from __future__ import absolute_import
+from pathlib import Path
 
 import pytest
 
@@ -406,15 +406,15 @@ def test_node_list_ompparallel_gocean1p0():
 # -----------------------------------------------------------------------------
 # Testing driver generation
 
+@pytest.mark.usefixtures("change_into_tmpdir")
 @pytest.mark.parametrize("create_driver", [None, False, True])
-def test_driver_generation_flag(tmpdir, create_driver):
+def test_driver_generation_flag(create_driver):
     '''Test that driver generation can be enabled and disabled, and
     that it is disabled by default. If create_driver is None, the
     default behaviour (don't create driver) is tested.
 
     '''
     # Use tmpdir so that the driver is created in tmp
-    tmpdir.chdir()
 
     etrans = GOceanExtractTrans()
     psy, invoke = get_invoke("driver_test.f90",
@@ -429,24 +429,22 @@ def test_driver_generation_flag(tmpdir, create_driver):
     # We are only interested in the potentially triggered driver-creation.
     str(psy.gen)
 
-    driver = tmpdir.join("driver-psy_extract_example_with_various_variable_"
-                         "access_patterns-invoke_0_compute_kernel:compute_"
-                         "kernel_code:r0.f90")
+    driver = Path("driver-psy_extract_example_with_various_"
+                  "variable_access_patterns-invoke_0_compute_"
+                  "kernel:compute_kernel_code:r0.f90")
     # When create_driver is None, as a default no driver should be created.
     # Since "None or False" is "False", this simple test can be used in all
     # three cases.
-    assert driver.isfile() == (create_driver or False)
+    assert driver.is_file() == (create_driver or False)
 
 
 # -----------------------------------------------------------------------------
-def test_driver_loop_variables(tmpdir):
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_driver_loop_variables():
     '''Test that loop variables are not stored. ATM this test
     fails because of #641.
 
     '''
-    # Use tmpdir so that the driver is created in tmp
-    tmpdir.chdir()
-
     etrans = GOceanExtractTrans()
     psy, invoke = get_invoke("driver_test.f90",
                              GOCEAN_API, idx=0, dist_mem=False)
@@ -456,13 +454,13 @@ def test_driver_loop_variables(tmpdir):
     # We are only interested in the driver, so ignore results.
     str(psy.gen)
 
-    driver = tmpdir.join("driver-psy_extract_example_with_various_variable_"
-                         "access_patterns-invoke_0_compute_kernel:compute_"
-                         "kernel_code:r0.f90")
+    driver = Path("driver-psy_extract_example_with_various_"
+                  "variable_access_patterns-invoke_0_compute_"
+                  "kernel:compute_kernel_code:r0.f90")
 
-    assert driver.isfile()
+    assert driver.is_file()
 
-    with open(str(driver), "r") as driver_file:
+    with open(driver, "r", encoding="utf-8") as driver_file:
         driver_code = driver_file.read()
 
     # Since atm types are not handled, scalars are actually considered
@@ -477,12 +475,13 @@ def test_driver_loop_variables(tmpdir):
 
 
 # -----------------------------------------------------------------------------
-def test_driver_scalars(tmpdir, fortran_writer):
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_driver_scalars(fortran_writer):
     '''
     This tests the extraction and driver generated for scalars.
+
     '''
     # Use tmpdir so that the driver is created in tmp
-    tmpdir.chdir()
 
     etrans = GOceanExtractTrans()
     psy, invoke = get_invoke("single_invoke_scalar_float_arg.f90",
@@ -495,11 +494,12 @@ def test_driver_scalars(tmpdir, fortran_writer):
     extract_code = fortran_writer(psy.container)
 
     # Test the handling of scalar parameter in extraction code:
-    expected_lines = ['use extract_psy_data_mod, only : extract_PSyDataType',
-                      'CALL extract_psy_data % PreDeclareVariable("a_scalar", '
-                      'a_scalar)',
-                      'CALL extract_psy_data % ProvideVariable("a_scalar", '
-                      'a_scalar)']
+    expected_lines = ['use extract_psy_data_mod, only : '
+                      'extract_PSyDataType',
+                      'CALL extract_psy_data % PreDeclareVariable('
+                      '"a_scalar", a_scalar)',
+                      'CALL extract_psy_data % ProvideVariable('
+                      '"a_scalar", a_scalar)']
 
     # Check that the above lines occur in the same order. There might be
     # other lines between the expected lines, which will be ignored in
@@ -508,17 +508,18 @@ def test_driver_scalars(tmpdir, fortran_writer):
 
     # Now test the created driver:
     # ----------------------------
-    driver_name = tmpdir.join("driver-psy_single_invoke_scalar_float_test-"
-                              "invoke_0_bc_ssh:bc_ssh_code:r0.f90")
-    with open(str(driver_name), "r") as driver_file:
+    driver_name = ("driver-psy_single_invoke_scalar_float_test-"
+                   "invoke_0_bc_ssh:bc_ssh_code:r0.f90")
+    with open(str(driver_name), "r", encoding="utf-8") as driver_file:
         driver_code = driver_file.read()
 
-    expected_lines = ['use extract_psy_data_mod, only : extract_PSyDataType',
+    expected_lines = ['use extract_psy_data_mod, only : '
+                      'extract_PSyDataType',
                       'type(extract_psydatatype) extract_psy_data',
                       'INTEGER :: xstop',
                       'REAL(KIND=8) :: a_scalar',
-                      'CALL extract_psy_data%OpenRead("kernel_scalar_float", '
-                      '"bc_ssh_code")',
+                      'CALL extract_psy_data%OpenRead("'
+                      'kernel_scalar_float", "bc_ssh_code")',
                       'CALL extract_psy_data%ReadVariable("a_scalar", '
                       'a_scalar)']
 
@@ -531,12 +532,13 @@ def test_driver_scalars(tmpdir, fortran_writer):
 
 
 # -----------------------------------------------------------------------------
-def test_driver_grid_properties(tmpdir, fortran_writer):
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_driver_grid_properties(fortran_writer):
     '''
     This tests the extraction and driver generated for grid properties.
+
     '''
     # Use tmpdir so that the driver is created in tmp
-    tmpdir.chdir()
 
     etrans = GOceanExtractTrans()
     psy, invoke = get_invoke("single_invoke_scalar_float_arg.f90",
@@ -549,8 +551,9 @@ def test_driver_grid_properties(tmpdir, fortran_writer):
     extract_code = fortran_writer(psy.container)
 
     # Test the handling of scalar and array grid properties
-    expected_lines = ['CALL extract_psy_data % PreDeclareVariable("ssh_fld%'
-                      'grid%subdomain%internal%xstop", ssh_fld % grid % '
+    expected_lines = ['CALL extract_psy_data % PreDeclareVariable("'
+                      'ssh_fld%grid%subdomain%internal%xstop", '
+                      'ssh_fld % grid % '
                       'subdomain % internal % xstop)',
                       'CALL extract_psy_data % PreDeclareVariable('
                       '"ssh_fld%grid%tmask", ssh_fld % grid % tmask)',
@@ -567,9 +570,9 @@ def test_driver_grid_properties(tmpdir, fortran_writer):
 
     # Now test the created driver:
     # ----------------------------
-    driver_name = tmpdir.join("driver-psy_single_invoke_scalar_float_test-"
-                              "invoke_0_bc_ssh:bc_ssh_code:r0.f90")
-    with open(str(driver_name), "r") as driver_file:
+    driver_name = ("driver-psy_single_invoke_scalar_float_test-"
+                   "invoke_0_bc_ssh:bc_ssh_code:r0.f90")
+    with open(str(driver_name), "r", encoding="utf-8") as driver_file:
         driver_code = driver_file.read()
 
     expected_lines = ['integer :: ssh_fld_grid_subdomain_internal_xstop',
@@ -591,20 +594,22 @@ def test_driver_grid_properties(tmpdir, fortran_writer):
 
 
 # -----------------------------------------------------------------------------
-def test_rename_region(tmpdir):
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_rename_region():
     '''
     This tests that an extract region can be renamed, and that the created
     driver will use the new names.
+
     '''
     # Use tmpdir so that the driver is created in tmp
-    tmpdir.chdir()
 
     etrans = GOceanExtractTrans()
     psy, invoke = get_invoke("single_invoke_scalar_float_arg.f90",
                              GOCEAN_API, idx=0, dist_mem=False)
 
     etrans.apply(invoke.schedule.children[0],
-                 {'create_driver': True, 'region_name': ("main", "update")})
+                 {'create_driver': True,
+                  'region_name': ("main", "update")})
 
     # Test that the extraction code contains the right names
     assert 'CALL extract_psy_data % PreStart("main", "update", 8, 3)' \
@@ -612,21 +617,23 @@ def test_rename_region(tmpdir):
 
     # Now test if the created driver has the right name, and will open the
     # right file:
-    driver_name = tmpdir.join("driver-main-update.f90")
-    with open(str(driver_name), "r") as driver_file:
+    driver_name = "driver-main-update.f90"
+    with open(driver_name, "r", encoding="utf-8") as driver_file:
         driver_code = driver_file.read()
-    assert "call extract_psy_data%OpenRead('main', 'update')" in driver_code
+    assert ("call extract_psy_data%OpenRead('main', 'update')"
+            in driver_code)
 
 
 # -----------------------------------------------------------------------------
-def test_change_prefix(tmpdir, monkeypatch):
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_change_prefix(monkeypatch):
     '''
     This tests that the prefix of a gocean extract transformation
     can be changed, and that the new prefix is also used in the
     created driver.
+
     '''
     # Use tmpdir so that the driver is created in tmp
-    tmpdir.chdir()
 
     psy, invoke = get_invoke("single_invoke_scalar_float_arg.f90",
                              GOCEAN_API, idx=0, dist_mem=False)
@@ -647,7 +654,7 @@ def test_change_prefix(tmpdir, monkeypatch):
         in gen
 
     # Now test if the created driver has the right prefix:
-    driver_name = tmpdir.join("driver-main-update.f90")
-    with open(str(driver_name), "r") as driver_file:
+    driver_name = "driver-main-update.f90"
+    with open(str(driver_name), "r", encoding="utf-8") as driver_file:
         driver_code = driver_file.read()
     assert "call NEW_psy_data%OpenRead('main', 'update')" in driver_code

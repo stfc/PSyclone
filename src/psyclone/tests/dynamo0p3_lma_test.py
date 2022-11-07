@@ -307,7 +307,7 @@ def test_fs_descriptor_wrong_type():
             "constructors, all of type 'func_type'" in str(excinfo.value))
     # Check that the DynFuncDescriptor03 rejects it too
 
-    class FakeCls(object):
+    class FakeCls():
         ''' Class that just has a name property (which is not "func_type") '''
         name = "not-func-type"
 

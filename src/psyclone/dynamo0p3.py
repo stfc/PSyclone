@@ -149,7 +149,7 @@ def qr_basis_alloc_args(first_dim, basis_fn):
 # ---------- Classes -------------------------------------------------------- #
 
 
-class DynFuncDescriptor03(object):
+class DynFuncDescriptor03():
     ''' The Dynamo 0.3 API includes a function-space descriptor as
     well as an argument descriptor which is not supported by the base
     classes. This class captures the information specified in a
@@ -221,7 +221,7 @@ class DynFuncDescriptor03(object):
         return res
 
 
-class RefElementMetaData(object):
+class RefElementMetaData():
     '''
     Class responsible for parsing reference-element meta-data and storing
     the properties that a kernel requires.
@@ -307,7 +307,7 @@ class MeshProperty(Enum):
     NCELL_2D_NO_HALOS = 3
 
 
-class MeshPropertiesMetaData(object):
+class MeshPropertiesMetaData():
     '''
     Parses any mesh-property kernel metadata and stores the properties that
     a kernel requires.
@@ -1152,7 +1152,7 @@ class DynamoInvokes(Invokes):
         Invokes.__init__(self, alg_calls, DynInvoke, psy)
 
 
-class DynCollection(object):
+class DynCollection():
     '''
     Base class for managing the declaration and initialisation of a
     group of related entities within an Invoke or Kernel stub
@@ -3895,7 +3895,7 @@ class DynCMAOperators(DynCollection):
                                intent=intent, entity_decls=[op_name]))
 
 
-class DynMeshes(object):
+class DynMeshes():
     '''
     Holds all mesh-related information (including colour maps if
     required).  If there are no inter-grid kernels then there is only
@@ -4418,7 +4418,7 @@ class DynMeshes(object):
         return self._ig_kernels
 
 
-class DynInterGrid(object):
+class DynInterGrid():
     '''
     Holds information on quantities required by an inter-grid kernel.
 
@@ -6507,7 +6507,7 @@ class DynHaloExchangeEnd(DynHaloExchange):
         self._halo_exchange_name = "halo_exchange_finish"
 
 
-class HaloDepth(object):
+class HaloDepth():
     '''Determines how much of the halo a read to a field accesses (the
     halo depth).
 
@@ -8659,7 +8659,7 @@ class DynKern(CodedKern):
                 f" kernel '{self.name}'. Expecting a scalar or an array.")
 
 
-class FSDescriptor(object):
+class FSDescriptor():
     ''' Provides information about a particular function space used by
     a meta-funcs entry in the kernel metadata. '''
 
@@ -8685,7 +8685,7 @@ class FSDescriptor(object):
         return self._descriptor.function_space_name
 
 
-class FSDescriptors(object):
+class FSDescriptors():
     ''' Contains a collection of FSDescriptor objects and methods
     that provide information across these objects. We have one
     FSDescriptor for each meta-funcs entry in the kernel
@@ -8779,7 +8779,7 @@ def check_args(call):
                 qr_arg_count))
 
 
-class DynStencil(object):
+class DynStencil():
     ''' Provides stencil information about a Dynamo argument '''
     def __init__(self, name):
         self._name = name
@@ -9961,7 +9961,7 @@ class DynKernelArgument(KernelArgument):
             f"'{str(self)}' is not a scalar, field or operator argument")
 
 
-class DynKernCallFactory(object):
+class DynKernCallFactory():
     ''' Create the necessary framework for a Dynamo kernel call.
     This consists of a Loop over cells containing a call to the
     user-supplied kernel routine.
