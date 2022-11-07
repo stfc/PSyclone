@@ -220,6 +220,28 @@ def test_validate_parent(fortran_reader):
             "has a parent (FileContainer)." in str(info.value))
 
 
+def test_validate_missing_routine(fortran_reader):
+    '''
+    Test that validate() raises the expected error if the Container does not
+    have a subroutine that implements the kernel.
+
+    '''
+    code = (
+        f"module dummy\n"
+        f"{METADATA}"
+        f"contains\n"
+        f"  subroutine kern_code()\n"
+        f"  end subroutine kern_code\n"
+        f"end module dummy\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    kern_trans = RaisePSyIR2GOceanKernTrans("compute_cu")
+    with pytest.raises(TransformationError) as info:
+        kern_trans.validate(psyir)
+    assert ("The Container in which the metadata symbol resides does not "
+            "contain the routine that it names as implementing the kernel "
+            "('compute_cu_code')" in str(info.value))
+
+
 def test_validate_ok(fortran_reader):
     '''Test that the validate method accepts valid psyir.'''
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
