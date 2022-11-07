@@ -329,19 +329,19 @@ end module testkern_mod
     # Inconsistent function space.
     with pytest.raises(ValueError) as err:
         _validate_geom_arg(kern, 2, "var", ["w2"], None)
-    assert ("If present, the 'var' field argument to kernel 'testkern_code' is"
-            " expected to be on the ['w2'] space but the argument at the "
+    assert ("The 'var' field argument to kernel 'testkern_code' is expected "
+            "to be on one of the ['w2'] spaces but the argument at the "
             "specified position (2) is on the 'w1' space" in str(err.value))
     # Inconsistent vector length.
     with pytest.raises(ValueError) as err:
         _validate_geom_arg(kern, 3, "var", ["w1"], 3)
-    assert ("the 'var' field argument to kernel 'testkern_code' is expected "
+    assert ("The 'var' field argument to kernel 'testkern_code' is expected "
             "to be a field vector of length 3 but the argument at the "
             "specified position (3) has a length of 2" in str(err.value))
     # Inconsistent vector length.
     with pytest.raises(ValueError) as err:
         _validate_geom_arg(kern, 3, "var", ["w1"], 1)
-    assert ("the 'var' field argument to kernel 'testkern_code' is expected "
+    assert ("The 'var' field argument to kernel 'testkern_code' is expected "
             "to be a field but the argument at the specified position (3) is "
             "a field vector of length 2" in str(err.value))
     # Everything validates OK.
