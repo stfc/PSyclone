@@ -42,7 +42,7 @@ the LFRic API.'''
 
 from psyclone.configuration import Config
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import KernelModuleInlineTrans
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 
 
 # The version of the API that the tests in this file

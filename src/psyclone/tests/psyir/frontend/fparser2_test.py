@@ -58,11 +58,11 @@ from psyclone.psyir.frontend.fparser2 import (
 from psyclone.psyir.nodes import (
     Schedule, CodeBlock, Assignment, Return,
     UnaryOperation, BinaryOperation, NaryOperation, IfBlock, Reference,
-    ArrayReference, Container, Literal, Range, KernelSchedule,
-    RegionDirective, StandaloneDirective, StructureReference,
+    ArrayReference, Literal, Range, KernelSchedule,
+    RegionDirective, Routine, StandaloneDirective, StructureReference,
     ArrayOfStructuresReference)
 from psyclone.psyir.symbols import (
-    DataSymbol, ContainerSymbol, SymbolTable, RoutineSymbol, ArgumentInterface,
+    DataSymbol, ContainerSymbol, SymbolTable, ArgumentInterface,
     SymbolError, ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE,
     UnknownFortranType, DeferredType, Symbol, UnresolvedInterface,
     ImportInterface, BOOLEAN_TYPE)
