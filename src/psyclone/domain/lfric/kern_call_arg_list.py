@@ -268,11 +268,15 @@ class KernCallArgList(ArgOrdering):
                 # TODO #1919: there should be a better way to avoid
                 # hardcoding the name
                 literal = literal.replace("_i_def", "")
-            else:
+            elif scalar_arg.intrinsic_type == "real":
                 datatype = psyir.LfricRealScalarDataType()
                 # TODO #1919: there should be a better way to avoid
                 # hardcoding the name
                 literal = literal.replace("_r_def", "")
+            else:
+                raise InternalError(f"Unexpected intrinsic type "
+                                    f"'{scalar_arg.intrinsic_type}'"
+                                    f" in scalar().")
             # TODO #1920: Negative literals have a space, which breaks
             # the re test inside of the Literal constructor.
             literal = literal.replace(" ", "")
