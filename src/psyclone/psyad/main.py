@@ -111,12 +111,12 @@ def main(args):
 
     # Check the command-line arguments for consistency.
     if args.api != "dynamo0.3":
-        if args.coord_arg:
+        if args.coord_arg is not None:
             logger.error(
                 "The '-coord-arg' argument is only applicable to the LFRic "
                 "('dynamo0.3') API.")
             sys.exit(1)
-        if args.panel_id_arg:
+        if args.panel_id_arg is not None:
             logger.error("The '-panel-id-arg' argument is only applicable to "
                          "the LFRic ('dynamo0.3') API.")
             sys.exit(1)

@@ -417,6 +417,26 @@ def test_main_otest_option(tmpdir, capsys, extra_args):
     assert EXPECTED_HARNESS_CODE in data.lower()
 
 
+@pytest.mark.parametrize("geom_arg", ["-coord-arg", "-panel-id-arg"])
+def test_main_geom_args_api(tmpdir, geom_arg, capsys, caplog):
+    '''
+    Test that the main() function rejects attempts to specify any geometry
+    arguments if the API != dynamo0.3 (LFRic).
+
+    '''
+    filename_in = str(tmpdir.join("tl.f90"))
+    with open(filename_in, "w", encoding='utf-8') as my_file:
+        my_file.write(TEST_MOD)
+    with pytest.raises(SystemExit) as err:
+        main([filename_in, "-a", "field", geom_arg, "0"])
+    assert str(err.value) == "1"
+    output, error = capsys.readouterr()
+    assert error == ""
+    assert output == ""
+    assert (f"The '{geom_arg}' argument is only applicable to the LFRic "
+            f"('dynamo0.3') API" in caplog.text)
+
+
 # -v output
 @pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
                    "github actions.", strict=False)
