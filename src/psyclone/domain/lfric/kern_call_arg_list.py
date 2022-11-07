@@ -153,8 +153,8 @@ class KernCallArgList(ArgOrdering):
                                           datatype=user_type_symbol)
         return sym
 
-    def add_user_type(self, module_name, user_type, member_list, name,
-                      tag=None):
+    def append_user_type(self, module_name, user_type, member_list, name,
+                         tag=None):
         # pylint: disable=too-many-arguments
         '''Creates a reference to a variable of a user-defined type. If
         required, the required import statements will all be generated.
@@ -423,8 +423,8 @@ class KernCallArgList(ArgOrdering):
                     mode=arg.access, metadata_posn=arg.metadata_index)
 
         # Add an access to field_proxy%data:
-        self.add_user_type("field_mod", "field_proxy_type", ["data"],
-                           arg.proxy_name)
+        self.append_user_type("field_mod", "field_proxy_type", ["data"],
+                              arg.proxy_name)
 
     def stencil_unknown_extent(self, arg, var_accesses=None):
         '''Add stencil information to the argument list associated with the
@@ -587,13 +587,13 @@ class KernCallArgList(ArgOrdering):
         # TODO we should only be including ncell_3d once in the argument
         # list but this adds it for every operator
         # This argument is always read only:
-        self.add_user_type("operator_mod", "operator_proxy_type",
-                           ["ncell_3d"], arg.proxy_name_indexed)
+        self.append_user_type("operator_mod", "operator_proxy_type",
+                              ["ncell_3d"], arg.proxy_name_indexed)
         self.append(arg.proxy_name_indexed + "%ncell_3d", var_accesses,
                     mode=AccessType.READ)
 
-        self.add_user_type("operator_mod", "operator_proxy_type",
-                           ["local_stencil"], arg.proxy_name_indexed)
+        self.append_user_type("operator_mod", "operator_proxy_type",
+                              ["local_stencil"], arg.proxy_name_indexed)
         # The access mode of `local_stencil` is taken from the meta-data:
         self.append(arg.proxy_name_indexed + "%local_stencil", var_accesses,
                     mode=arg.access, metadata_posn=arg.metadata_index)
