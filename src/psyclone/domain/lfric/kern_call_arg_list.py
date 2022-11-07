@@ -587,12 +587,13 @@ class KernCallArgList(ArgOrdering):
         # TODO we should only be including ncell_3d once in the argument
         # list but this adds it for every operator
         # This argument is always read only:
-        self.append_user_type("operator_mod", "operator_proxy_type",
+        operator = LFRicConstants().DATA_TYPE_MAP["operator"]
+        self.append_user_type(operator["module"], operator["proxy_type"],
                               ["ncell_3d"], arg.proxy_name_indexed)
         self.append(arg.proxy_name_indexed + "%ncell_3d", var_accesses,
                     mode=AccessType.READ)
 
-        self.append_user_type("operator_mod", "operator_proxy_type",
+        self.append_user_type(operator["module"], operator["proxy_type"],
                               ["local_stencil"], arg.proxy_name_indexed)
         # The access mode of `local_stencil` is taken from the meta-data:
         self.append(arg.proxy_name_indexed + "%local_stencil", var_accesses,
