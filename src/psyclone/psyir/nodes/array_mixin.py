@@ -49,7 +49,7 @@ from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.operation import Operation, BinaryOperation
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import SymbolError
+from psyclone.psyir.symbols import SymbolError, DataSymbol
 from psyclone.psyir.symbols.datatypes import (ScalarType, ArrayType,
                                               INTEGER_TYPE)
 
@@ -151,6 +151,10 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         if isinstance(lower, Literal):
             try:
                 symbol = self.scope.symbol_table.lookup(self.name)
+                if not isinstance(symbol, DataSymbol):
+                    # We don't have any type information on this symbol
+                    # (probably because it originates from a wildcard import).
+                    return False
                 datatype = symbol.datatype
                 # Check that the symbol is of ArrayType. (It may be of
                 # UnknownFortranType if the symbol is of e.g. character type.)
@@ -215,6 +219,10 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         if isinstance(upper, Literal):
             try:
                 symbol = self.scope.symbol_table.lookup(self.name)
+                if not isinstance(symbol, DataSymbol):
+                    # We don't have any type information on this symbol
+                    # (probably because it originates from a wildcard import).
+                    return False
                 datatype = symbol.datatype
                 # Check that the symbol is of ArrayType. (It may be of
                 # UnknownFortranType if the symbol is of e.g. character type.)

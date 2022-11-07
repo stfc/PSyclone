@@ -41,7 +41,6 @@
     and generation. The classes in this method need to be specialised for a
     particular API and implementation. '''
 
-from __future__ import print_function, absolute_import
 from collections import OrderedDict
 import abc
 import six
@@ -2175,7 +2174,7 @@ class DataAccess(object):
         return self._covered
 
 
-class Argument(object):
+class Argument():
     '''
     Argument base class. Captures information on an argument that is passed
     to a Kernel from an Invoke.
@@ -2191,6 +2190,7 @@ class Argument(object):
     :type access: str
 
     '''
+    # pylint: disable=too-many-instance-attributes
     def __init__(self, call, arg_info, access):
         self._call = call
         if arg_info is not None:
@@ -2631,9 +2631,24 @@ class Argument(object):
 
 
 class KernelArgument(Argument):
+    '''
+    This class provides information about individual kernel-call
+    arguments as specified by the kernel argument metadata and the
+    kernel invocation in the Algorithm layer.
+
+    :param arg: information obtained from the metadata for this kernel \
+                argument.
+    :type arg: :py:class:`psyclone.parse.kernel.Descriptor`
+    :param arg_info: information on how this argument is specified in \
+                     the Algorithm layer.
+    :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
+    :param call: the PSyIR kernel node to which this argument pertains.
+    :type call: :py:class:`psyclone.psyGen.Kern`
+
+    '''
     def __init__(self, arg, arg_info, call):
         self._arg = arg
-        Argument.__init__(self, call, arg_info, arg.access)
+        super().__init__(call, arg_info, arg.access)
 
     @property
     def space(self):
@@ -2648,6 +2663,15 @@ class KernelArgument(Argument):
     def is_scalar(self):
         ''':returns: whether this variable is a scalar variable or not.
         :rtype: bool'''
+
+    @property
+    def metadata_index(self):
+        '''
+        :returns: the position of the corresponding argument descriptor in \
+                  the kernel metadata.
+        :rtype: int
+        '''
+        return self._arg.metadata_index
 
 
 class TransInfo(object):
