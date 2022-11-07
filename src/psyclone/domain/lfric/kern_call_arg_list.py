@@ -858,16 +858,21 @@ class KernCallArgList(ArgOrdering):
                     f"{supported_qr_shapes}.")
             # Now define the arguments using PSyIR:
             for arg in rule.kernel_args:
-                # Remove "_PSY_NAME" which was added to all variable names:
+                # Each rule has a `psy_name` (e.g. qr_xyoz), which is appended
+                # to all variable names (e.g. np_xy_qr_xyoz). Remove this
+                # suffix to get the 'generic' name, from which we derive
+                # the correct type:
                 generic_name = arg[:-len(rule.psy_name)-1]
-                # nedges, nedges_qr, nedges_qr_edge
                 if generic_name in ["np_xy", "np_z", "nfaces", "np_xyz",
                                     "nedges"]:
-                    self.append_integer_reference(arg, )
+                    # np_xy, np_z, nfaces, np_xyz, nedges are all integers:
+                    self.append_integer_reference(arg)
                 elif generic_name in ["weights_xy", "weights_z"]:
+                    # 1d arrays:
                     # TODO # 1910: These should be pointers
                     self.append_array_reference(arg, [":"], "real")
                 elif generic_name in ["weights_xyz"]:
+                    # 2d arrays:
                     # TODO #1910: These should be pointers
                     self.append_array_reference(arg, [":", ":"], "real")
                 else:
