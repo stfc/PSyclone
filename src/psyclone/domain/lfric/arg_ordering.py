@@ -187,9 +187,6 @@ class ArgOrdering:
             # Either the symbol doesn't exist, or it doesn't have a type yet.
             # Create a DataSymbol for this kernel argument.
             datatype = psyir.LfricIntegerScalarDataType()
-            consts = LFRicConstants()
-            precision_name = consts.SCALAR_PRECISION_MAP["integer"]
-            psyir.add_lfric_precision_symbol(self._symtab, precision_name)
             if sym is not None:
                 # The symbol exists, but is not a DataSymbol. So we need to
                 # properly declare this symbol now by removing the old symbol,
@@ -250,10 +247,6 @@ class ArgOrdering:
                 raise InternalError(f"Unsupported data type "
                                     f"'{intrinsic_type}' in "
                                     f"get_array_reference")
-            consts = LFRicConstants()
-            precision_name = consts.SCALAR_PRECISION_MAP[intrinsic_type]
-            psyir.add_lfric_precision_symbol(self._symtab,
-                                             precision_name)
             array_type = ArrayType(datatype,
                                    [ArrayType.Extent.ATTRIBUTE]*len(indices))
             tag = array_name

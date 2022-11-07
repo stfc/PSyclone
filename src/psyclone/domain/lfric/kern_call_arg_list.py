@@ -109,22 +109,9 @@ class KernCallArgList(ArgOrdering):
         try:
             # Check if the module is already declared:
             module = self._symtab.lookup(module_name)
-            # Get the symbol table in which the module is declared
-            mod_sym_tab = module.find_symbol_table(self._kern)
-            # If the module is declared in a different (outer) scope,
-            # still add the module to this (local) symbol table, so
-            # the subroutine does not rely on outer module imports.
-            if mod_sym_tab is not self._symtab:
-                module = None
         except KeyError:
-            module = None
-
-        if module is None:
-            # Shadowing allows to declare the module, even if it is
-            # already defined in an outer scope.
             module = \
                 self._symtab.new_symbol(module_name,
-                                        shadowing=True,
                                         symbol_type=ContainerSymbol)
 
         # Get the symbol table in which the module is declared:
