@@ -43,7 +43,7 @@ from a PSyIR tree. '''
 from fparser.two import Fortran2003
 
 from psyclone.core import Signature
-from psyclone.errors import InternalError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
@@ -1431,13 +1431,16 @@ class FortranWriter(LanguageWriter):
             body += self._visit(child)
         self._depth -= 1
 
-        if node.iteration_space == "domain":
-            # If a kernel iterates over a domain, then there is
+        # A generation error is raised if variable is not defined. This
+        # happens in LFRic kernel that iterate over a domain.
+        try:
+            variable_name = node.variable.name
+        except GenerationError:
+            # If a kernel iterates over a domain - there is
             # no loop. But the loop node is maintained since it handles halo
             # exchanges. So just return the body in this case
             return body
 
-        variable_name = node.variable.name
         return (
             f"{self._nindent}do {variable_name} = {start}, {stop}, {step}\n"
             f"{body}"
@@ -1589,7 +1592,7 @@ class FortranWriter(LanguageWriter):
             val = self._visit(clause)
             # Some clauses return empty strings if they should not
             # generate any output (e.g. private clause with no children).
-            if val != "":
+            if not val == "":
                 clause_list.append(val)
         # Add a space only if there are clauses
         if len(clause_list) > 0:
