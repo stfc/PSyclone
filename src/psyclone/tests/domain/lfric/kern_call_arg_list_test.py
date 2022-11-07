@@ -44,6 +44,7 @@ import pytest
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.domain.lfric import KernCallArgList
 from psyclone.errors import GenerationError, InternalError
+from psyclone.domain.lfric import psyir as lfric_psyir
 from psyclone.dynamo0p3 import DynKern
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -374,6 +375,14 @@ def test_kerncallarglist_scalar_literal(fortran_writer):
     assert args[3].is_scalar
     create_arg_list.scalar(args[3])
     assert create_arg_list.arglist[-1] == "1.0_r_def"
+
+    # Check the handling of logical types:
+    args[3]._intrinsic_type = "logical"
+    args[3]._name = "true"
+    create_arg_list.scalar(args[3])
+    lit = create_arg_list.psyir_arglist[-1]
+    assert isinstance(lit, Literal)
+    assert isinstance(lit.datatype, lfric_psyir.LfricLogicalScalarDataType)
 
     # Now set the intrinsic type to be invalid:
     args[3]._intrinsic_type = "invalid"

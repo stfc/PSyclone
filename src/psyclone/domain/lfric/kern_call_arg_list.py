@@ -256,27 +256,29 @@ class KernCallArgList(ArgOrdering):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: if a scalar of type other than real \
-            or integer is found.
+        :raises NotImplementedError: if a scalar of type other than real, \
+            logical, or integer is found.
 
         '''
         super().scalar(scalar_arg, var_accesses)
         if scalar_arg.is_literal:
+            const = LFRicConstants()
             literal = scalar_arg.name
-            if scalar_arg.intrinsic_type == "integer":
+            intrinsic = scalar_arg.intrinsic_type
+            if intrinsic == "integer":
                 datatype = psyir.LfricIntegerScalarDataType()
-                # TODO #1919: there should be a better way to avoid
-                # hardcoding the name
-                literal = literal.replace("_i_def", "")
-            elif scalar_arg.intrinsic_type == "real":
+            elif intrinsic == "real":
                 datatype = psyir.LfricRealScalarDataType()
-                # TODO #1919: there should be a better way to avoid
-                # hardcoding the name
-                literal = literal.replace("_r_def", "")
+            elif intrinsic == "logical":
+                datatype = psyir.LfricLogicalScalarDataType()
             else:
                 raise InternalError(f"Unexpected intrinsic type "
                                     f"'{scalar_arg.intrinsic_type}'"
                                     f" in scalar().")
+            precision = const.SCALAR_PRECISION_MAP[intrinsic]
+            # The precision must be removed from a Literal, otherwise
+            # an exception is raised.
+            literal = literal.replace(f"_{precision}", "")
             # TODO #1920: Negative literals have a space, which breaks
             # the re test inside of the Literal constructor.
             literal = literal.replace(" ", "")
