@@ -8890,6 +8890,7 @@ class DynKernelArguments(Arguments):
             if hasattr(inv_sched, "symbol_table"):
                 symtab = inv_sched.symbol_table
             else:
+                # This can happen in stub generation.
                 symtab = SymbolTable()
         else:
             # TODO 719 The symtab is not connected to other parts of the
