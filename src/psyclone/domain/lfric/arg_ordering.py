@@ -218,7 +218,7 @@ class ArgOrdering:
 
         '''
         sym = self.get_integer_symbol(name, tag)
-        self._psyir_arglist.append(Reference(sym))
+        self.psyir_append(Reference(sym))
         return sym
 
     def get_array_reference(self, array_name, indices, intrinsic_type):

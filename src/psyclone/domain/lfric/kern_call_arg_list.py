@@ -188,7 +188,7 @@ class KernCallArgList(ArgOrdering):
 
         '''
         cell_ref_name, ref = self.cell_ref_name(var_accesses)
-        self._psyir_arglist.append(ref)
+        self.psyir_append(ref)
         self.append(cell_ref_name)
 
     def cell_map(self, var_accesses=None):
