@@ -1592,7 +1592,7 @@ class FortranWriter(LanguageWriter):
             val = self._visit(clause)
             # Some clauses return empty strings if they should not
             # generate any output (e.g. private clause with no children).
-            if not val == "":
+            if val != "":
                 clause_list.append(val)
         # Add a space only if there are clauses
         if len(clause_list) > 0:
