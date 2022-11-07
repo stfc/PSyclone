@@ -1183,25 +1183,6 @@ class GOKern(CodedKern):
         return self._kern_schedule
 
 
-class GOFparser2Reader(Fparser2Reader):
-    '''
-    TODO - remove this class?
-
-    Sub-classes the Fparser2Reader with GOcean 1.0 specific
-    functionality.
-    '''
-    @staticmethod
-    def _create_schedule(name):
-        '''
-        Create an empty KernelSchedule.
-
-        :param str name: Name of the subroutine represented by the kernel.
-        :returns: New GOKernelSchedule empty object.
-        :rtype: py:class:`psyclone.gocean1p0.GOKernelSchedule`
-        '''
-        return GOKernelSchedule(name)
-
-
 class GOKernelArguments(Arguments):
     '''Provides information about GOcean kernel-call arguments
     collectively, as specified by the kernel argument metadata. This
@@ -2351,7 +2332,8 @@ class GOHaloExchange(HaloExchange):
 # For Sphinx AutoAPI documentation generation
 __all__ = ['GOPSy', 'GOInvokes', 'GOInvoke', 'GOInvokeSchedule', 'GOLoop',
            'GOBuiltInCallFactory', 'GOKernCallFactory', 'GOKern',
-           'GOFparser2Reader', 'GOKernelArguments', 'GOKernelArgument',
+           #'GOFparser2Reader',
+           'GOKernelArguments', 'GOKernelArgument',
            'GOKernelGridArgument', 'GOStencil', 'GO1p0Descriptor',
            'GOKernelType1p0', 'GOACCEnterDataDirective', 'GOSymbolTable',
            'GOKernelSchedule', 'GOHaloExchange']
