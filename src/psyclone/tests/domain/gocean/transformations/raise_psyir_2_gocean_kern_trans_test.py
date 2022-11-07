@@ -161,10 +161,12 @@ def test_validate_keyerror(fortran_reader):
     '''
     my_program = (f"module dummy\n"
                   f"contains\n"
-                  f"subroutine dummy1()\n"
-                  f"end subroutine\n"
+                  f"  subroutine dummy1()\n"
+                  f"  end subroutine\n"
                   f"  subroutine dummy2()\n"
                   f"{METADATA}"
+                  f"  end subroutine\n"
+                  f"  subroutine compute_cu_code()\n"
                   f"  end subroutine\n"
                   f"end module\n")
     kernel_psyir = fortran_reader.psyir_from_source(my_program)

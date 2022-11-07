@@ -72,7 +72,7 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Literal, Schedule, KernelSchedule, \
     StructureReference, BinaryOperation, Reference, Call, Assignment, \
     ACCEnterDataDirective, ACCParallelDirective, \
-    ACCKernelsDirective, Container, ACCUpdateDirective
+    ACCKernelsDirective, Container, ACCUpdateDirective, Routine
 from psyclone.psyir.symbols import SymbolTable, ScalarType, INTEGER_TYPE, \
     DataSymbol, RoutineSymbol, ContainerSymbol, DeferredType, DataTypeSymbol, \
     UnresolvedInterface, BOOLEAN_TYPE, REAL_TYPE
@@ -1041,6 +1041,9 @@ class GOKern(CodedKern):
     '''
     def __init__(self, call, parent=None):
         super().__init__(GOKernelArguments, call, parent, check=False)
+        # Store the name of this kernel type (i.e. the name of the
+        # Fortran derived type containing its metadata).
+        self._metadata_name = call.ktype.name
         # Pull out the grid index-offset that this kernel expects and
         # store it here. This is used to check that all of the kernels
         # invoked by an application are using compatible index offsets.
@@ -1163,22 +1166,16 @@ class GOKern(CodedKern):
         '''
         if self._kern_schedule is None:
             astp = Fparser2Reader()
-            schedules = astp.get_routine_schedules(self.name, self.ast)
-            if len(schedules) > 1:
-                raise GenerationError(
-                    f"The GOcean API only supports a 1-to-1 mapping between "
-                    f"kernel name and implementation but found "
-                    f"{len(schedules)} routines for kernel '{self.name}'.")
-            sched = schedules[0]
-            # This is really raising the PSyIR to GO PSyIR and should be part
-            # of a transformation TODO.
-            gotable = GOSymbolTable.create_from_table(sched.symbol_table)
-            gokernsched = GOKernelSchedule(sched.name,
-                                           symbol_table=gotable.detach())
-            for child in sched.pop_all_children():
-                gokernsched.addchild(child)
-            sched.replace_with(gokernsched)
-            self._kern_schedule = gokernsched
+            psyir = astp.generate_psyir(self.ast)
+            from psyclone.domain.gocean.transformations import RaisePSyIR2GOceanKernTrans
+            raise_trans = RaisePSyIR2GOceanKernTrans(self._metadata_name)
+            raise_trans.apply(psyir)
+            for routine in psyir.walk(Routine):
+                if routine.name == self.name:
+                    break
+            else:
+                raise TransformationError("oh dear")
+            self._kern_schedule = routine
             # TODO: Validate kernel with metadata (issue #288).
         return self._kern_schedule
 
