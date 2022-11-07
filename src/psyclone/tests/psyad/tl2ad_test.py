@@ -37,7 +37,6 @@
 within the psyad directory.
 
 '''
-import argparse
 import logging
 import os
 import pytest
@@ -70,32 +69,13 @@ TL_CODE = (
     "end module my_mod\n"
 )
 
-
-@pytest.fixture(name="cmd_args")
-def create_cmd_args_fixture():
-    '''
-    pytest fixture that creates a fake Namespace object.
-
-    :returns: Namespace object containing command-line settings.
-    :rtype: :py:class:`argparse.Namespace`
-
-    '''
-    args = argparse.Namespace()
-    args.api = ""
-    args.active = []
-    args.gen_test = False
-    args.test_filename = ""
-    args.coord_arg = None
-    args.panel_id_arg = None
-    return args
-
 # generate_adjoint_str function
 
 
 # expected output
 @pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
                    "github actions.", strict=False)
-def test_generate_adjoint_str(caplog, cmd_args):
+def test_generate_adjoint_str(caplog):
     '''Test that the generate_adjoint_str() function works as expected
     including logging.
 
@@ -112,16 +92,15 @@ def test_generate_adjoint_str(caplog, cmd_args):
         "  b = b + a\n"
         "  a = 0.0\n\n"
         "end program test_adj\n")
-    cmd_args.active = ["a", "b"]
     with caplog.at_level(logging.INFO):
-        result, test_harness = generate_adjoint_str(tl_code, cmd_args)
+        result, test_harness = generate_adjoint_str(tl_code, ["a", "b"])
 
     assert caplog.text == ""
     assert expected in result
     assert test_harness == ""
 
     with caplog.at_level(logging.DEBUG):
-        result, test_harness = generate_adjoint_str(tl_code, cmd_args)
+        result, test_harness = generate_adjoint_str(tl_code, ["a", "b"])
 
     assert tl_code in caplog.text
     assert ("PSyIR\n"
@@ -142,7 +121,7 @@ def test_generate_adjoint_str(caplog, cmd_args):
     assert test_harness == ""
 
 
-def test_generate_adjoint_str_lfric_api(cmd_args):
+def test_generate_adjoint_str_lfric_api():
     '''
     Check that specifying the LFRic (dynamo0p3) API to the generate_adjoint_str
     routine works as expected.
@@ -157,37 +136,34 @@ def test_generate_adjoint_str_lfric_api(cmd_args):
     assert "subroutine adj_testkern_code" in result.lower()
 
 
-def test_generate_adjoint_str_function(cmd_args):
+def test_generate_adjoint_str_function():
     '''Test that an exception is raised if a function is found.'''
     tl_code = (
         "real function test(a)\n"
         "  real :: a\n"
         "  test = a\n"
         "end function test\n")
-    cmd_args.active = ["a", "test"]
     with pytest.raises(NotImplementedError) as info:
-        _, _ = generate_adjoint_str(tl_code, cmd_args)
+        _, _ = generate_adjoint_str(tl_code, ["a", "test"])
     assert ("PSyAD does not support tangent-linear code written as a "
             "function. Please re-write 'test' as a subroutine."
             in str(info.value))
 
 
-def test_generate_adjoint_str_wrong_api(cmd_args):
+def test_generate_adjoint_str_wrong_api():
     '''Test that an exception is raised for an unsupported API.'''
     tl_code = (
         "program test\n"
         "integer :: a,b\n"
         "a = b\n"
         "end program test\n")
-    cmd_args.api = "gocean1.0"
-    cmd_args.active = ["a", "b"]
     with pytest.raises(NotImplementedError) as err:
-        generate_adjoint_str(tl_code, cmd_args)
+        generate_adjoint_str(tl_code, ["a", "b"], api="gocean1.0")
     assert ("PSyAD only supports generic routines/programs or LFRic "
             "(dynamo0.3) kernels but got API 'gocean1.0'" in str(err.value))
 
 
-def test_generate_adjoint_str_trans(cmd_args):
+def test_generate_adjoint_str_trans():
     '''Test that the generate_adjoint_str() function successfully calls
     the preprocess_trans() function.
 
@@ -212,37 +188,34 @@ def test_generate_adjoint_str_trans(cmd_args):
         "  enddo\n"
         "  res_dot_product = 0.0\n\n"
         "end program adj_test\n")
-    cmd_args.active = ["a", "b", "res_dot_product"]
-    result, test_harness = generate_adjoint_str(tl_code, cmd_args)
+    result, test_harness = generate_adjoint_str(tl_code,
+                                                ["a", "b", "res_dot_product"])
     assert expected in result
     assert not test_harness
 
 
-def test_generate_adjoint_str_generate_harness_no_api(cmd_args):
+def test_generate_adjoint_str_generate_harness_no_api():
     '''Test the create_test option to generate_adjoint_str() when no
     API is specified.'''
-    cmd_args.gen_test = True
-    cmd_args.active = ["field"]
-    result, harness = generate_adjoint_str(TL_CODE, cmd_args)
+    result, harness = generate_adjoint_str(TL_CODE, ["field"],
+                                           create_test=True)
     assert "subroutine adj_kern(field)\n" in result
     assert "program adj_test\n" in harness
     assert "! Call the tangent-linear kernel\n" in harness
     assert "end program adj_test\n" in harness
 
 
-def test_generate_adjoint_str_generate_harness_invalid_api(cmd_args):
+def test_generate_adjoint_str_generate_harness_invalid_api():
     '''Test that passing an unsupported API to generate_adjoint_str()
     raises the expected error.'''
-    cmd_args.api = "gocean1.0"
-    cmd_args.gen_test = True
-    cmd_args.active = ["field"]
     with pytest.raises(NotImplementedError) as err:
-        _ = generate_adjoint_str(TL_CODE, cmd_args)
+        _ = generate_adjoint_str(TL_CODE, ["field"], api="gocean1.0",
+                                 create_test=True)
     assert ("PSyAD only supports generic routines/programs or LFRic "
             "(dynamo0.3) kernels but got API 'gocean1.0'" in str(err.value))
 
 
-def test_generate_adjoint_str_generate_harness_lfric(cmd_args):
+def test_generate_adjoint_str_generate_harness_lfric():
     '''Test the create_test option to generate_adjoint_str() when the
     LFRic (dynamo0p3) API is specified.'''
     tl_code = (
@@ -268,10 +241,9 @@ def test_generate_adjoint_str_generate_harness_lfric(cmd_args):
         "  end subroutine testkern_code\n"
         "end module testkern_mod\n"
     )
-    cmd_args.active = ["field"]
-    cmd_args.gen_test = True
-    cmd_args.api = "dynamo0.3"
-    result, harness = generate_adjoint_str(tl_code, cmd_args)
+    result, harness = generate_adjoint_str(tl_code, ["field"],
+                                           create_test=True,
+                                           api="dynamo0.3")
     assert ("subroutine adj_testkern_code(nlayers, field, ndf_w3, "
             "undf_w3, map_w3)\n" in result)
     assert "module adjoint_test_mod\n" in harness
