@@ -231,15 +231,16 @@ def test_main_no_separator(capsys):
 
 
 # invalid filename
-@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
-                   "github actions.", strict=False)
+#@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
+#                   "github actions.", strict=False)
 def test_main_invalid_filename(capsys, caplog):
     '''Test that the the main() function raises an exception if the
     file specified by filename does not exist.
 
     '''
-    with pytest.raises(SystemExit) as info:
-        main(["-a", "var", "--", "does_not_exist.f90"])
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(SystemExit) as info:
+            main(["-a", "var", "--", "does_not_exist.f90"])
     assert str(info.value) == "1"
     output, error = capsys.readouterr()
     assert output == ""
@@ -427,8 +428,9 @@ def test_main_geom_args_api(tmpdir, geom_arg, capsys, caplog):
     filename_in = str(tmpdir.join("tl.f90"))
     with open(filename_in, "w", encoding='utf-8') as my_file:
         my_file.write(TEST_MOD)
-    with pytest.raises(SystemExit) as err:
-        main([filename_in, "-a", "field", geom_arg, "0"])
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(SystemExit) as err:
+            main([filename_in, "-a", "field", geom_arg, "0"])
     assert str(err.value) == "1"
     output, error = capsys.readouterr()
     assert error == ""
@@ -438,8 +440,8 @@ def test_main_geom_args_api(tmpdir, geom_arg, capsys, caplog):
 
 
 # -v output
-@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
-                   "github actions.", strict=False)
+#@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
+#                   "github actions.", strict=False)
 def test_main_verbose(tmpdir, capsys, caplog):
     '''Test that the the main() function outputs additional information if
     the -v flag is set. Actually -v seems to have no effect here as
@@ -456,7 +458,7 @@ def test_main_verbose(tmpdir, capsys, caplog):
     filename_out = str(tmpdir.join("ad.f90"))
     with open(filename_in, "w", encoding='utf-8') as my_file:
         my_file.write(tl_code)
-    with caplog.at_level(logging.DEBUG):
+    with caplog.at_level(logging.INFO):
         main([filename_in, "-v", "-a", "a", "-oad", filename_out])
 
     output, error = capsys.readouterr()
@@ -468,8 +470,6 @@ def test_main_verbose(tmpdir, capsys, caplog):
     assert "/ad.f90" in caplog.text
 
 
-@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
-                   "github actions.", strict=False)
 def test_main_otest_verbose(tmpdir, caplog):
     ''' Test that the -otest option combined with -v generates the expected
     logging output. '''
@@ -478,11 +478,8 @@ def test_main_otest_verbose(tmpdir, caplog):
     harness_out = str(tmpdir.join("harness.f90"))
     with open(filename_in, "w", encoding='utf-8') as my_file:
         my_file.write(TEST_MOD)
-    with caplog.at_level(logging.DEBUG):
-        main([filename_in, "-v", "-oad", filename_out, "-otest", harness_out])
-    assert ("Creating test harness for TL kernel 'kern' and AD kernel "
-            "'kern_adj'" in caplog.text)
-    assert "Created test-harness program named 'adj_test'" in caplog.text
-    assert "end program adj_test" in caplog.text
+    with caplog.at_level(logging.INFO):
+        main([filename_in, "-v", "-a", "field", "-oad", filename_out, "-otest",
+              harness_out])
     assert "Writing test harness for adjoint kernel to file" in caplog.text
     assert "/harness.f90" in caplog.text
