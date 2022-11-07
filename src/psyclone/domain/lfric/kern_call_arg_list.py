@@ -423,7 +423,7 @@ class KernCallArgList(ArgOrdering):
                     mode=arg.access, metadata_posn=arg.metadata_index)
 
         # Add an access to field_proxy%data:
-        self.append_user_type("field_mod", "field_proxy_type", ["data"],
+        self.append_user_type(arg.module_name, arg.proxy_data_type, ["data"],
                               arg.proxy_name)
 
     def stencil_unknown_extent(self, arg, var_accesses=None):
