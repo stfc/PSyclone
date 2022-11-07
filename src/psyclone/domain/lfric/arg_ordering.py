@@ -246,6 +246,10 @@ class ArgOrdering:
                 datatype = psyir.LfricRealScalarDataType()
             elif intrinsic_type == "integer":
                 datatype = psyir.LfricIntegerScalarDataType()
+            else:
+                raise InternalError(f"Unsupported data type "
+                                    f"'{intrinsic_type}' in "
+                                    f"get_array_reference")
             consts = LFRicConstants()
             precision_name = consts.SCALAR_PRECISION_MAP[intrinsic_type]
             psyir.add_lfric_precision_symbol(self._symtab,
