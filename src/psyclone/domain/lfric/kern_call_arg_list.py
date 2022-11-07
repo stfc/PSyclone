@@ -383,8 +383,8 @@ class KernCallArgList(ArgOrdering):
         '''
         # First declare the proxy as a 1d-array:
         lit_ind = Literal(str(argvect.vector_size), INTEGER_SINGLE_TYPE)
-        sym = self.get_user_type("integer_field_mod",
-                                 "integer_field_proxy_type",
+        sym = self.get_user_type(argvect.module_name,
+                                 argvect.proxy_data_type,
                                  argvect.proxy_name, shape=[lit_ind])
 
         # the range function below returns values from
