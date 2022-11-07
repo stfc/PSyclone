@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council
+# Copyright (c) 2020-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -60,7 +60,9 @@ def test_psy_data_node_constructor():
     assert psy_node._var_name == ""
     assert psy_node._module_name is None
     assert psy_node._region_name is None
+    assert psy_node.options == {}
     psy_node = PSyDataNode(options={"prefix": "profile"})
+    assert psy_node.options == {"prefix": "profile"}
     assert psy_node._prefix == "profile_"
     assert psy_node.fortran_module == "profile_psy_data_mod"
     assert psy_node.type_name == "profile_PSyDataType"

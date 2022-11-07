@@ -42,7 +42,7 @@ from psyclone.errors import InternalError, FieldNotFoundError, GenerationError
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 
 
-class FunctionSpace(object):
+class FunctionSpace():
     '''
     Manages the name of a function space. If it is an any_space or
     any_discontinuous_space then its name is mangled such that it is unique

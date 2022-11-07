@@ -65,9 +65,9 @@ def test_validation():
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     with pytest.raises(TransformationError) as info:
         trans.apply(None)
-    assert("Error in GOMoveIterationBoundariesInsideKernelTrans "
-           "transformation. This transformation can only be applied to "
-           "'GOKern' nodes, but found 'NoneType'." in str(info.value))
+    assert ("Error in GOMoveIterationBoundariesInsideKernelTrans "
+            "transformation. This transformation can only be applied to "
+            "'GOKern' nodes, but found 'NoneType'." in str(info.value))
 
 
 def test_go_move_iteration_boundaries_inside_kernel_trans():

@@ -113,7 +113,7 @@ def parse(alg_filename, api="", invoke_name="invoke", kernel_paths=None,
 
 
 # pylint: disable=too-many-instance-attributes
-class Parser(object):
+class Parser():
     '''Supports the parsing of PSyclone conformant algorithm code within a
     file and extraction of relevant information for any 'invoke' calls
     contained within the code.
@@ -861,7 +861,7 @@ def create_var_name(arg_parse_tree):
 # Section 3: Classes holding algorithm information.
 
 
-class FileInfo(object):
+class FileInfo():
     '''Captures information about the algorithm file and the invoke calls
     found within the contents of the file.
 
@@ -895,7 +895,7 @@ class FileInfo(object):
         return self._calls
 
 
-class InvokeCall(object):
+class InvokeCall():
     '''Keeps information about an individual invoke call.
 
     :param kcalls: Information about the kernels specified in the \
@@ -943,7 +943,7 @@ class InvokeCall(object):
         return self._kcalls
 
 
-class ParsedCall(object):
+class ParsedCall():
     '''Base class for information about a user-supplied or built-in
     kernel.
 
@@ -1085,7 +1085,7 @@ class BuiltInCall(ParsedCall):
         return "BuiltInCall('{0}', {1})".format(self.ktype.name, self.args)
 
 
-class Arg(object):
+class Arg():
     '''Description of an argument as obtained from parsing kernel or
     builtin arguments within invokes in a PSyclone algorithm code.
 
