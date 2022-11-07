@@ -204,7 +204,7 @@ class ArgOrdering:
                                               datatype=datatype)
         return sym
 
-    def add_integer_reference(self, name, tag=None):
+    def append_integer_reference(self, name, tag=None):
         '''This function adds a reference to an integer variable to the list
         of PSyIR nodes. If the symbol does not exist, it will be added to the
         symbol table. It also returns the symbol.
@@ -275,7 +275,7 @@ class ArgOrdering:
             ref = ArrayReference.create(sym, indices)
         return ref
 
-    def add_array_reference(self, array_name, indices, intrinsic_type):
+    def append_array_reference(self, array_name, indices, intrinsic_type):
         '''This function adds an array reference. If there is no symbol with
         the given tag, a new array symbol will be defined using the given
         intrinsic_type. If a symbol already exists but has no type, it will
@@ -787,7 +787,7 @@ class ArgOrdering:
 
         '''
         # There is currently one argument: "ndf"
-        sym = self.add_integer_reference(function_space.ndf_name)
+        sym = self.append_integer_reference(function_space.ndf_name)
         self.append(sym.name, var_accesses)
 
     def fs_compulsory_field(self, function_space, var_accesses=None):
@@ -919,7 +919,7 @@ class ArgOrdering:
         # Note that the necessary ndf values will already have been added
         # to the argument list as they are mandatory for every function
         # space that appears in the meta-data.
-        sym = self.add_integer_reference(function_space.cbanded_map_name)
+        sym = self.append_integer_reference(function_space.cbanded_map_name)
         self.append(sym.name, var_accesses)
 
     def indirection_dofmap(self, function_space, operator=None,

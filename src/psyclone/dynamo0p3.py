@@ -1911,7 +1911,7 @@ class LFRicMeshProperties(DynCollection):
                 if not has_nfaces:
                     if kern_call_arg_list:
                         sym = kern_call_arg_list.\
-                            add_integer_reference("nfaces_re_h")
+                            append_integer_reference("nfaces_re_h")
                         name = sym.name
                     else:
                         name = self._symbol_table.find_or_create_tag(
@@ -1928,9 +1928,9 @@ class LFRicMeshProperties(DynCollection):
                     _, cell_ref = \
                         kern_call_arg_list.cell_ref_name(var_accesses)
                     adj_face_sym = kern_call_arg_list. \
-                        add_array_reference(adj_face,
-                                            [":", cell_ref],
-                                            "integer")
+                        append_array_reference(adj_face,
+                                               [":", cell_ref],
+                                               "integer")
                     # Update the name in case there was a clash
                     adj_face = adj_face_sym.name
                     if var_accesses:
