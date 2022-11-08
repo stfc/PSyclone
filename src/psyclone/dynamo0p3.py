@@ -1878,7 +1878,7 @@ class LFRicMeshProperties(DynCollection):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         :param kern_call_arg_list: an optional KernCallArgList instance \
-            use to store PSyIR representation of the arguments.
+            used to store PSyIR representation of the arguments.
         :type kern_call_arg_list: \
             Optional[:py:class:`psyclone.domain.lfric.KernCallArgList]
 
