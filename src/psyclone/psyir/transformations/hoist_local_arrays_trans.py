@@ -147,6 +147,11 @@ class HoistLocalArraysTrans(Transformation):
         # associated with the symbol being hoisted.
         tags_dict = node.symbol_table.get_reverse_tags_dict()
 
+        # Fortran reader and writer needed to manipulate Codeblocks in the
+        # following loop
+        freader = FortranReader()
+        fwriter = FortranWriter()
+
         for sym in automatic_arrays:
             # Keep a copy of the original shape of the array.
             orig_shape = sym.datatype.shape[:]
@@ -174,8 +179,6 @@ class HoistLocalArraysTrans(Transformation):
                         for dim in orig_shape]
             aref = ArrayReference.create(sym, dim_list)
 
-            freader = FortranReader()
-            fwriter = FortranWriter()
             # TODO #1366: we have to use a CodeBlock in order to query whether
             # or not the array has been allocated already.
             code = f"allocated({sym.name})"
@@ -193,7 +196,7 @@ class HoistLocalArraysTrans(Transformation):
                                 BinaryOperation.Operator.LBOUND,
                                 Reference(sym),
                                 Literal(str(idx+1), INTEGER_TYPE)),
-                            dim.lower)
+                            dim.lower.copy())
                     if_expr = BinaryOperation.create(
                                 BinaryOperation.Operator.OR,
                                 if_expr, expr)
@@ -204,7 +207,7 @@ class HoistLocalArraysTrans(Transformation):
                                 BinaryOperation.Operator.UBOUND,
                                 Reference(sym),
                                 Literal(str(idx+1), INTEGER_TYPE)),
-                            dim.upper)
+                            dim.upper.copy())
                     if_expr = BinaryOperation.create(
                                 BinaryOperation.Operator.OR,
                                 if_expr, expr)
