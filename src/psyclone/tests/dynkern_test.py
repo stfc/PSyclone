@@ -197,6 +197,30 @@ def test_get_kernel_schedule_mixed_precision():
         assert sched.name == f"mixed_code_{8*precision}"
 
 
+def test_get_kernel_sched_mixed_precision_no_match(monkeypatch):
+    '''
+    Test that we get the expected error if there's no matching implementation
+    for a mixed-precision kernel.
+
+    '''
+    _, invoke = get_invoke("26.8_mixed_precision_args.f90", TEST_API,
+                           name="invoke_0", dist_mem=False)
+    sched = invoke.schedule
+    kernels = sched.walk(DynKern, stop_type=DynKern)
+
+    # To simplify things we just monkeypatch the 'validate_kernel_code_args'
+    # method so that it never succeeds.
+    def fake_validate(_1, _2):
+        raise GenerationError("Just a test")
+
+    monkeypatch.setattr(DynKern, "validate_kernel_code_args",
+                        fake_validate)
+    with pytest.raises(GenerationError) as err:
+        _ = kernels[0].get_kernel_schedule()
+    assert ("Failed to find a kernel implementation with an interface that "
+            "matches the invoke of 'mixed_code'" in str(err.value))
+
+
 def test_validate_kernel_code_args(monkeypatch):
     '''Test that a coded kernel that conforms to the expected kernel
     metadadata is validated successfully. Also check that the

@@ -607,6 +607,54 @@ def test_get_routine_schedules_unmatching_arguments(parser):
             "Symbol Table.\"." in str(error.value))
 
 
+@pytest.mark.parametrize("interface_code",
+                         ["        module procedure dummy_code_32\n"
+                          "        module procedure dummy_CODE_64\n",
+                          "        module procedure dummy_code_32, "
+                          "dummy_codE_64\n",
+                          "        procedure dummy_code_32\n"
+                          "        procedure Dummy_Code_64\n"])
+def test_get_routine_schedules_interface(interface_code, parser):
+    '''
+    Test that get_routine_schedules returns a schedule for each routine named
+    in an interface. We test various ways of specifying the procedures in
+    an interface.
+
+    '''
+    dummy_kernel_metadata = f'''
+    module dummy_mod
+      use kernel_mod
+      type, extends(kernel_type) :: dummy_type
+         type(arg_type) meta_args(3) =                              &
+              (/ arg_type(gh_field, gh_real, gh_write,     w3),     &
+                 arg_type(gh_field, gh_real, gh_readwrite, wtheta), &
+                 arg_type(gh_field, gh_real, gh_inc,       w1)      &
+               /)
+         integer :: operates_on = cell_column
+      end type dummy_type
+
+      interface dummy_code
+        {interface_code}
+      end interface dummy_code
+
+    contains
+     subroutine dummy_CODE_32(f1)
+        real*4, dimension(:,:), intent(in)  :: f1
+      end subroutine dummy_code_32
+     subroutine dummy_code_64(f1)
+        real*8, dimension(:,:), intent(in)  :: f1
+      end subroutine dummy_code_64
+    end module dummy_mod
+    '''
+    reader = FortranStringReader(dummy_kernel_metadata)
+    ast = parser(reader)
+    processor = Fparser2Reader()
+    scheds = processor.get_routine_schedules("dummy_code", ast)
+    assert len(scheds) == 2
+    assert scheds[0].name.lower() == "dummy_code_32"
+    assert scheds[1].name.lower() == "dummy_code_64"
+
+
 @pytest.mark.usefixtures("f2008_parser")
 def test_process_declarations():
     '''Test that process_declarations method of Fparser2Reader

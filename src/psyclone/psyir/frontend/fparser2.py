@@ -1099,32 +1099,29 @@ class Fparser2Reader():
 
         '''
         psyir = self.generate_psyir(module_ast)
+        lname = name.lower()
 
         # Check for an interface block
         actual_names = []
         interfaces = walk(module_ast, Fortran2003.Interface_Block)
         if interfaces:
             for interface in interfaces:
-                if interface.children[0].children[0].string == name:
+                if interface.children[0].children[0].string.lower() == lname:
                     # We have an interface block with the name of the routine
                     # we are searching for.
                     procs = walk(interface, Fortran2003.Procedure_Stmt)
                     for proc in procs:
-                        if (not isinstance(proc.children[0],
-                                           Fortran2003.Procedure_Name_List) or
-                                len(proc.children[0].children) != 1):
-                            raise GenerationError("huh")
-                        actual_names.append(
-                            proc.children[0].children[0].string)
+                        for child in proc.children[0].children:
+                            actual_names.append(child.string.lower())
                     break
         if not actual_names:
             # No interface block was found so we proceed to search for a
             # routine with the original name that we were passed.
-            actual_names = [name]
+            actual_names = [lname]
 
         routines = psyir.walk(Routine)
         selected_routines = [routine for routine in routines
-                             if routine.name in actual_names]
+                             if routine.name.lower() in actual_names]
 
         if not selected_routines:
             raise GenerationError(f"Unexpected kernel AST. Could not find "
