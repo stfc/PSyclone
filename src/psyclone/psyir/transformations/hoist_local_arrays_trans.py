@@ -188,6 +188,7 @@ class HoistLocalArraysTrans(Transformation):
 
             # Add runtime checks to verify that the boundaries haven't changed
             # (we skip literals as we know they can't have changed)
+            check_added = False
             for idx, dim in enumerate(orig_shape):
                 if not isinstance(dim.lower, Literal):
                     expr = BinaryOperation.create(
@@ -200,6 +201,7 @@ class HoistLocalArraysTrans(Transformation):
                     if_expr = BinaryOperation.create(
                                 BinaryOperation.Operator.OR,
                                 if_expr, expr)
+                    check_added = True
                 if not isinstance(dim.upper, Literal):
                     expr = BinaryOperation.create(
                             BinaryOperation.Operator.NE,
@@ -211,15 +213,21 @@ class HoistLocalArraysTrans(Transformation):
                     if_expr = BinaryOperation.create(
                                 BinaryOperation.Operator.OR,
                                 if_expr, expr)
+                    check_added = True
 
-            # TODO #1366: we also have to use a CodeBlock for the allocate().
-            alloc_arg = fwriter(aref)
-            body = [
-                IfBlock.create(allocated_expr.copy(), [
-                    freader.psyir_from_statement(f"deallocate({sym.name})",
-                                                 node.symbol_table)]),
-                freader.psyir_from_statement(f"allocate({alloc_arg})",
-                                             node.symbol_table)]
+            # TODO #1366: we also have to use a CodeBlock for the allocate()
+            # and deallocate() inside the conditional body.
+            body = []
+            if check_added:
+                body.append(
+                    IfBlock.create(
+                        allocated_expr.copy(),
+                        [freader.psyir_from_statement(
+                            f"deallocate({sym.name})",
+                            node.symbol_table)]))
+            body.append(
+                freader.psyir_from_statement(f"allocate({fwriter(aref)})",
+                                             node.symbol_table))
             # Insert the conditional allocation at the start of the supplied
             # routine.
             node.children.insert(0, IfBlock.create(if_expr, body))

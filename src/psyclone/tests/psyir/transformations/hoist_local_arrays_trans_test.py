@@ -110,9 +110,6 @@ def test_apply_1d_known(fortran_reader, fortran_writer, tmpdir):
     code = fortran_writer(psyir).lower()
     assert "real, allocatable, dimension(:), private :: a\n" in code
     assert ("    if (.not.allocated(a)) then\n"
-            "      if (allocated(a)) then\n"
-            "        deallocate(a)\n"
-            "      end if\n"
             "      allocate(a(1 : 10))\n"
             "    end if\n"
             "    do i = 1, 10, 1\n" in code)
@@ -214,10 +211,8 @@ def test_apply_runtime_checks(fortran_reader, fortran_writer, tmpdir):
             "      end if\n"
             "      allocate(b(nx : ny, nx : ny))\n"
             "    end if\n" in code)
+    # Unneeded inner condition is not inserted
     assert ("    if (.not.allocated(c)) then\n"
-            "      if (allocated(c)) then\n"
-            "        deallocate(c)\n"
-            "      end if\n"
             "      allocate(c(3 : 4, 5 : 6))\n"
             "    end if\n" in code)
     assert Compile(tmpdir).string_compiles(code)
