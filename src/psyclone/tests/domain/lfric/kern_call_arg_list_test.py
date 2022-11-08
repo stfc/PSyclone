@@ -44,6 +44,7 @@ import pytest
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.domain.lfric import KernCallArgList
 from psyclone.errors import GenerationError, InternalError
+from psyclone.domain.lfric import psyir as lfric_psyir
 from psyclone.dynamo0p3 import DynKern
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -353,9 +354,8 @@ def test_kerncallarglist_scalar_literal(fortran_writer):
         'basis_w3_qr', 'diff_basis_w3_qr', 'np_xy_qr', 'np_z_qr',
         'weights_xy_qr', 'weights_z_qr']
 
-    # There is a difference between the string version and the PSyIR
-    # representation: the latter has the precision appended to the constant
-    # (i.e. `2_i_def` vs `2` and `1.0_r_def` vs `1.0`).
+    # We can't use check_psyir_results here, since two nodes are are
+    # Literals and not References.
     result = []
     for node in create_arg_list.psyir_arglist:
         assert isinstance(node, (Literal, Reference))
@@ -367,6 +367,26 @@ def test_kerncallarglist_scalar_literal(fortran_writer):
         'map_w2(:,cell)', 'diff_basis_w2_qr', 'ndf_w3', 'undf_w3',
         'map_w3(:,cell)', 'basis_w3_qr', 'diff_basis_w3_qr', 'np_xy_qr',
         'np_z_qr', 'weights_xy_qr', 'weights_z_qr']
-
     assert create_arg_list.nqp_positions == [{'horizontal': 21,
                                               'vertical': 22}]
+
+    args = schedule.kernels()[0].arguments.args
+    # The third argument is a scalar:
+    assert args[3].is_scalar
+    create_arg_list.scalar(args[3])
+    assert create_arg_list.arglist[-1] == "1.0_r_def"
+
+    # Check the handling of logical types:
+    args[3]._intrinsic_type = "logical"
+    args[3]._name = "true"
+    create_arg_list.scalar(args[3])
+    lit = create_arg_list.psyir_arglist[-1]
+    assert isinstance(lit, Literal)
+    assert isinstance(lit.datatype, lfric_psyir.LfricLogicalScalarDataType)
+
+    # Now set the intrinsic type to be invalid:
+    args[3]._intrinsic_type = "invalid"
+    with pytest.raises(InternalError) as err:
+        create_arg_list.scalar(args[3])
+    assert ("Unexpected intrinsic type 'invalid' in scalar()"
+            in str(err.value))

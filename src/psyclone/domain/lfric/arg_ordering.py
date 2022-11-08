@@ -78,23 +78,27 @@ class ArgOrdering:
             self._symtab = invoke_sched.symbol_table
         else:
             self._symtab = SymbolTable()
+
+        # TODO #1934 Completely remove the usage of strings, instead
+        # use the PSyIR representation.
         self._arglist = []
 
         # This stores the PSyIR representation of the arguments
         self._psyir_arglist = []
         self._arg_index_to_metadata_index = {}
 
-    def psyir_append(self, reference):
-        '''Appends a reference to the PSyIR argument list.
+    def psyir_append(self, node):
+        '''Appends a PSyIR node to the PSyIR argument list.
 
-        :param reference: the reference to append.
-        :type reference: :py:class:`psyclone.psyir.nodes.reference`
+        :param node: the reference to append.
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        self._psyir_arglist.append(reference)
+        self._psyir_arglist.append(node)
 
     def append(self, var_name, var_accesses=None, var_access_name=None,
                mode=AccessType.READ, metadata_posn=None):
+        # pylint: disable=too-many-arguments
         '''Appends the specified variable name to the list of all arguments and
         stores the mapping between the position of this actual argument and
         the corresponding metadata entry. If var_accesses is given, it will
@@ -183,13 +187,10 @@ class ArgOrdering:
             # Either the symbol doesn't exist, or it doesn't have a type yet.
             # Create a DataSymbol for this kernel argument.
             datatype = psyir.LfricIntegerScalarDataType()
-            consts = LFRicConstants()
-            precision_name = consts.SCALAR_PRECISION_MAP["integer"]
-            psyir.add_lfric_precision_symbol(self._symtab, precision_name)
             if sym is not None:
                 # The symbol exists, but is not a DataSymbol. So we need to
                 # properly declare this symbol now by removing the old symbol,
-                # and adding a new symbol with the same name and tag in:
+                # and adding a new symbol with the same name and tag:
                 new_sym = DataSymbol(sym.name, datatype=datatype)
                 self._symtab.remove(sym)
                 self._symtab.add(new_sym, tag=tag)
@@ -200,9 +201,9 @@ class ArgOrdering:
                                               datatype=datatype)
         return sym
 
-    def add_integer_reference(self, name, tag=None):
+    def append_integer_reference(self, name, tag=None):
         '''This function adds a reference to an integer variable to the list
-        of PSyIR nodes. If the symbol does not exit, it will be added to the
+        of PSyIR nodes. If the symbol does not exist, it will be added to the
         symbol table. It also returns the symbol.
 
         :param str name: name of the integer variable to declare.
@@ -210,21 +211,18 @@ class ArgOrdering:
         :type tag: Optional[str]
 
         :returns: the symbol to which a reference was added.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         sym = self.get_integer_symbol(name, tag)
-        self._psyir_arglist.append(Reference(sym))
+        self.psyir_append(Reference(sym))
         return sym
 
     def get_array_reference(self, array_name, indices, intrinsic_type):
-        '''This function adds an array reference. If there is no sumbol with
-        the given tag, a new array symbol will be defined using the given
+        '''This function creates an array reference. If there is no symbol
+        with the given tag, a new array symbol will be defined using the given
         intrinsic_type. If a symbol already exists but has no type, it will
-        be replaced. The created reference is added to the list of PSyIR
-        expressions, and the symbol is returned to the user
-        but also returned to the user (so the name of the
-        created symbol can be queried).
+        be replaced.
 
         :param str array_name: the name and tag of the array.
         :param indices: the indices to be used in the PSyIR reference. It \
@@ -245,10 +243,10 @@ class ArgOrdering:
                 datatype = psyir.LfricRealScalarDataType()
             elif intrinsic_type == "integer":
                 datatype = psyir.LfricIntegerScalarDataType()
-            consts = LFRicConstants()
-            precision_name = consts.SCALAR_PRECISION_MAP[intrinsic_type]
-            psyir.add_lfric_precision_symbol(self._symtab,
-                                             precision_name)
+            else:
+                raise InternalError(f"Unsupported data type "
+                                    f"'{intrinsic_type}' in "
+                                    f"get_array_reference")
             array_type = ArrayType(datatype,
                                    [ArrayType.Extent.ATTRIBUTE]*len(indices))
             tag = array_name
@@ -270,14 +268,12 @@ class ArgOrdering:
             ref = ArrayReference.create(sym, indices)
         return ref
 
-    def add_array_reference(self, array_name, indices, intrinsic_type):
-        '''This function adds an array reference. If there is no sumbol with
+    def append_array_reference(self, array_name, indices, intrinsic_type):
+        '''This function adds an array reference. If there is no symbol with
         the given tag, a new array symbol will be defined using the given
         intrinsic_type. If a symbol already exists but has no type, it will
         be replaced. The created reference is added to the list of PSyIR
-        expressions, and the symbol is returned to the user
-        but also returned to the user (so the name of the
-        created symbol can be queried).
+        expressions, and the symbol is returned to the user.
 
         :param str array_name: the name and tag of the array.
         :param indices: the indices to be used in the PSyIR reference. It \
@@ -328,7 +324,7 @@ class ArgOrdering:
         :raises InternalError: if the generate() method has not been called.
 
         '''
-        if not self._generate_called:
+        if not self._psyir_arglist:
             raise InternalError(
                 f"The PSyIR argument list in {type(self).__name__} is empty. "
                 f"Has the generate() method been called?")
@@ -784,7 +780,7 @@ class ArgOrdering:
 
         '''
         # There is currently one argument: "ndf"
-        sym = self.add_integer_reference(function_space.ndf_name)
+        sym = self.append_integer_reference(function_space.ndf_name)
         self.append(sym.name, var_accesses)
 
     def fs_compulsory_field(self, function_space, var_accesses=None):
@@ -916,7 +912,7 @@ class ArgOrdering:
         # Note that the necessary ndf values will already have been added
         # to the argument list as they are mandatory for every function
         # space that appears in the meta-data.
-        sym = self.add_integer_reference(function_space.cbanded_map_name)
+        sym = self.append_integer_reference(function_space.cbanded_map_name)
         self.append(sym.name, var_accesses)
 
     def indirection_dofmap(self, function_space, operator=None,

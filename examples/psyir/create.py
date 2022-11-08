@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council
+# Copyright (c) 2019-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -128,13 +128,7 @@ def create_psyir_tree():
     naryoperation_named = NaryOperation.create(
         oper, [one(), unaryoperation.copy(), ("dim", one()), ("mask", zero())])
 
-    # Array reference using a range
-    lbound = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
-                                    Reference(array), int_one())
-    ubound = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
-                                    Reference(array), int_one())
-    my_range = Range.create(lbound, ubound)
-    tmparray = ArrayReference.create(array, [my_range])
+    tmparray = ArrayReference.create(array, [":"])
 
     # Assignments
     assign1 = Assignment.create(tmp1(), zero())

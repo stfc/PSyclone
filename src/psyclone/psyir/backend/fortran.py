@@ -52,8 +52,7 @@ from psyclone.psyir.nodes import BinaryOperation, Call, CodeBlock, DataNode, \
     Literal, Operation, Range, Routine, Schedule, UnaryOperation
 from psyclone.psyir.symbols import ArgumentInterface, ArrayType, \
     ContainerSymbol, DataSymbol, DataTypeSymbol, DeferredType, RoutineSymbol, \
-    ScalarType, Symbol, SymbolTable, UnknownFortranType, UnknownType, \
-    UnresolvedInterface
+    ScalarType, Symbol, SymbolTable, UnknownFortranType, UnknownType
 
 
 # The list of Fortran instrinsic functions that we know about (and can
@@ -906,22 +905,6 @@ class FortranWriter(LanguageWriter):
         routine_symbols = [symbol for symbol in symbol_table.symbols
                            if isinstance(symbol, RoutineSymbol)]
         for sym in routine_symbols:
-            if (isinstance(sym.interface, UnresolvedInterface) and
-                    sym.name.upper() not in FORTRAN_INTRINSICS):
-                if not wildcard_imports_checked:
-                    has_wildcard_import = symbol_table.has_wildcard_imports()
-                    wildcard_imports_checked = True
-                if not has_wildcard_import:
-                    if "%" in sym.name:
-                        # TODO #1495 - calls to type-bound procedures are not
-                        # yet supported in the PSyIR.
-                        continue
-                    raise VisitorError(
-                        f"Routine symbol '{sym.name}' does not have an "
-                        f"ImportInterface or LocalInterface, is not a Fortran "
-                        f"intrinsic and there is no wildcard import which "
-                        f"could bring it into scope. This is not supported by "
-                        f"the Fortran back-end.")
             if isinstance(sym.interface, ArgumentInterface):
                 raise VisitorError(
                     f"Routine symbol '{sym.name}' is passed as an argument "
@@ -1592,7 +1575,7 @@ class FortranWriter(LanguageWriter):
             val = self._visit(clause)
             # Some clauses return empty strings if they should not
             # generate any output (e.g. private clause with no children).
-            if not val == "":
+            if val != "":
                 clause_list.append(val)
         # Add a space only if there are clauses
         if len(clause_list) > 0:

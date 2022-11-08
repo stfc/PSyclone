@@ -37,6 +37,9 @@
 
 '''This module implements a class that manages the argument for a kernel
 call. It especially adds all implicitly required parameters.
+It creates the argument in two formats: first as a list of strings, but also
+as a list of PSyIR nodes. TODO #1930: the support for the string format
+should be removed as we migrate to use PSyIR in LFRic.
 '''
 
 from collections import namedtuple
@@ -106,22 +109,9 @@ class KernCallArgList(ArgOrdering):
         try:
             # Check if the module is already declared:
             module = self._symtab.lookup(module_name)
-            # Get the symbol table in which the module is declared
-            mod_sym_tab = module.find_symbol_table(self._kern)
-            # If the module is declared in a different (outer) scope,
-            # still add the module to this (local) symbol table, so
-            # the subroutine does not rely on outer module imports.
-            if mod_sym_tab is not self._symtab:
-                module = None
         except KeyError:
-            module = None
-
-        if module is None:
-            # Shadowing allows to declare the module, even if it is
-            # already defined in an outer scope.
             module = \
                 self._symtab.new_symbol(module_name,
-                                        shadowing=True,
                                         symbol_type=ContainerSymbol)
 
         # Get the symbol table in which the module is declared:
@@ -150,8 +140,8 @@ class KernCallArgList(ArgOrdering):
                                           datatype=user_type_symbol)
         return sym
 
-    def add_user_type(self, module_name, user_type, member_list, name,
-                      tag=None):
+    def append_user_type(self, module_name, user_type, member_list, name,
+                         tag=None):
         # pylint: disable=too-many-arguments
         '''Creates a reference to a variable of a user-defined type. If
         required, the required import statements will all be generated.
@@ -185,7 +175,7 @@ class KernCallArgList(ArgOrdering):
 
         '''
         cell_ref_name, ref = self.cell_ref_name(var_accesses)
-        self._psyir_arglist.append(ref)
+        self.psyir_append(ref)
         self.append(cell_ref_name)
 
     def cell_map(self, var_accesses=None):
@@ -207,22 +197,22 @@ class KernCallArgList(ArgOrdering):
 
         # Add the cell map to our argument list
         cell_ref_name, cell_ref = self.cell_ref_name(var_accesses)
-        sym = self.add_array_reference(base_name, [":", ":", cell_ref],
-                                       "integer")
+        sym = self.append_array_reference(base_name, [":", ":", cell_ref],
+                                          "integer")
         self.append(f"{sym.name}(:,:,{cell_ref_name})",
                     var_accesses=var_accesses)
 
         # No. of fine cells per coarse cell in x
         base_name = f"ncpc_{farg.name}_{carg.name}_x"
-        sym = self.add_integer_reference(base_name)
+        sym = self.append_integer_reference(base_name)
         self.append(sym.name, var_accesses)
         # No. of fine cells per coarse cell in y
         base_name = f"ncpc_{farg.name}_{carg.name}_y"
-        sym = self.add_integer_reference(base_name)
+        sym = self.append_integer_reference(base_name)
         self.append(sym.name, var_accesses)
         # No. of columns in the fine mesh
         base_name = f"ncell_{farg.name}"
-        sym = self.add_integer_reference(base_name)
+        sym = self.append_integer_reference(base_name)
         self.append(sym.name, var_accesses)
 
     def mesh_height(self, var_accesses=None):
@@ -237,7 +227,7 @@ class KernCallArgList(ArgOrdering):
         '''
         if self._kern.iterates_over not in ["cell_column", "domain"]:
             return
-        nlayers_symbol = self.add_integer_reference("nlayers")
+        nlayers_symbol = self.append_integer_reference("nlayers")
         self.append(nlayers_symbol.name, var_accesses)
         self._nlayers_positions.append(self.num_args)
 
@@ -253,23 +243,29 @@ class KernCallArgList(ArgOrdering):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: if a scalar of type other than real \
-            or integer is found.
+        :raises NotImplementedError: if a scalar of type other than real, \
+            logical, or integer is found.
 
         '''
         super().scalar(scalar_arg, var_accesses)
         if scalar_arg.is_literal:
+            const = LFRicConstants()
             literal = scalar_arg.name
-            if scalar_arg.intrinsic_type == "integer":
+            intrinsic = scalar_arg.intrinsic_type
+            if intrinsic == "integer":
                 datatype = psyir.LfricIntegerScalarDataType()
-                # TODO #1919: there should be a better way to avoid
-                # hardcoding the name
-                literal = literal.replace("_i_def", "")
-            else:
+            elif intrinsic == "real":
                 datatype = psyir.LfricRealScalarDataType()
-                # TODO #1919: there should be a better way to avoid
-                # hardcoding the name
-                literal = literal.replace("_r_def", "")
+            elif intrinsic == "logical":
+                datatype = psyir.LfricLogicalScalarDataType()
+            else:
+                raise InternalError(f"Unexpected intrinsic type "
+                                    f"'{scalar_arg.intrinsic_type}'"
+                                    f" in scalar().")
+            precision = const.SCALAR_PRECISION_MAP[intrinsic]
+            # The precision must be removed from a Literal, otherwise
+            # an exception is raised.
+            literal = literal.replace(f"_{precision}", "")
             # TODO #1920: Negative literals have a space, which breaks
             # the re test inside of the Literal constructor.
             literal = literal.replace(" ", "")
@@ -297,7 +293,7 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        sym = self.add_integer_reference("ncell_2d")
+        sym = self.append_integer_reference("ncell_2d")
         self.append(sym.name, var_accesses)
 
     def _mesh_ncell2d_no_halos(self, var_accesses=None):
@@ -311,7 +307,7 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        ncell_symbol = self.add_integer_reference("ncell_2d_no_halos")
+        ncell_symbol = self.append_integer_reference("ncell_2d_no_halos")
         self.append(ncell_symbol.name, var_accesses)
 
     def cma_operator(self, arg, var_accesses=None):
@@ -344,13 +340,17 @@ class KernCallArgList(ArgOrdering):
                 # Matrix is a pointer to a 3d array
                 # REAL(KIND=r_solver), pointer:: cma_op1_matrix(:,:,:)
                 #    = > null()
-                # TODO 1910
+                # TODO #1910: Type of symbol constructed for this argument will
+                # be wrong since pointers are not supported in the PSyIR. This
+                # will need to be fixed before the PSy layer can be correctly
+                # generated by a PSyIR backend.
                 mode = arg.access
-                sym = self.add_array_reference(name, [":", ":", ":"], "real")
+                sym = self.append_array_reference(name, [":", ":", ":"],
+                                                  "real")
             else:
                 # All other variables are scalar integers
                 mode = AccessType.READ
-                sym = self.add_integer_reference(name)
+                sym = self.append_integer_reference(name)
 
             self.append(sym.name, var_accesses, mode=mode,
                         metadata_posn=arg.metadata_index)
@@ -370,8 +370,8 @@ class KernCallArgList(ArgOrdering):
         '''
         # First declare the proxy as a 1d-array:
         lit_ind = Literal(str(argvect.vector_size), INTEGER_SINGLE_TYPE)
-        sym = self.get_user_type("integer_field_mod",
-                                 "integer_field_proxy_type",
+        sym = self.get_user_type(argvect.module_name,
+                                 argvect.proxy_data_type,
                                  argvect.proxy_name, shape=[lit_ind])
 
         # the range function below returns values from
@@ -382,7 +382,7 @@ class KernCallArgList(ArgOrdering):
             lit_ind = Literal(str(idx), INTEGER_SINGLE_TYPE)
             ref = ArrayOfStructuresReference.create(sym, [lit_ind], ["data"])
             self.psyir_append(ref)
-            text = sym.name + "(" + str(idx) + ")%data"
+            text = f"{sym.name}({idx})%data"
             self.append(text, metadata_posn=argvect.metadata_index)
 
         if var_accesses is not None:
@@ -410,8 +410,8 @@ class KernCallArgList(ArgOrdering):
                     mode=arg.access, metadata_posn=arg.metadata_index)
 
         # Add an access to field_proxy%data:
-        self.add_user_type("field_mod", "field_proxy_type", ["data"],
-                           arg.proxy_name)
+        self.append_user_type(arg.module_name, arg.proxy_data_type, ["data"],
+                              arg.proxy_name)
 
     def stencil_unknown_extent(self, arg, var_accesses=None):
         '''Add stencil information to the argument list associated with the
@@ -432,7 +432,7 @@ class KernCallArgList(ArgOrdering):
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_size_name(self._symtab, arg)
         cell_name, cell_ref = self.cell_ref_name(var_accesses)
-        self.add_array_reference(var_name, [cell_ref], "integer")
+        self.append_array_reference(var_name, [cell_ref], "integer")
         self.append(f"{var_name}({cell_name})", var_accesses,
                     var_access_name=var_name)
 
@@ -455,7 +455,7 @@ class KernCallArgList(ArgOrdering):
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_size_name(self._symtab, arg)
         cell_name, cell_ref = self.cell_ref_name(var_accesses)
-        sym = self.add_array_reference(var_name, [":", cell_ref], "integer")
+        sym = self.append_array_reference(var_name, [":", cell_ref], "integer")
         name = f"{sym.name}(:,{cell_name})"
         self.append(name, var_accesses, var_access_name=sym.name)
 
@@ -482,7 +482,7 @@ class KernCallArgList(ArgOrdering):
         unique_tag = DynStencils.stencil_unique_str(arg, "length")
         root_name = arg.name + "_max_branch_length"
 
-        sym = self.add_integer_reference(root_name, tag=unique_tag)
+        sym = self.append_integer_reference(root_name, tag=unique_tag)
         self.append(sym.name, var_accesses)
 
     def stencil_unknown_direction(self, arg, var_accesses=None):
@@ -500,8 +500,8 @@ class KernCallArgList(ArgOrdering):
 
         '''
         # the direction of the stencil is not known so pass the value in
-        name = arg.stencil.direction_arg.varname   # f3_direction
-        self.add_integer_reference(name, f"AlgArgs_{name}")
+        name = arg.stencil.direction_arg.varname
+        self.append_integer_reference(name, f"AlgArgs_{name}")
         self.append(name, var_accesses)
 
     def stencil(self, arg, var_accesses=None):
@@ -524,7 +524,7 @@ class KernCallArgList(ArgOrdering):
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_name(self._symtab, arg)
         cell_name, cell_ref = self.cell_ref_name(var_accesses)
-        self.add_array_reference(var_name, [":", ":", cell_ref], "integer")
+        self.append_array_reference(var_name, [":", ":", cell_ref], "integer")
         self.append(f"{var_name}(:,:,{cell_name})", var_accesses,
                     var_access_name=var_name)
 
@@ -554,8 +554,8 @@ class KernCallArgList(ArgOrdering):
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_name(self._symtab, arg)
         cell_name, cell_ref = self.cell_ref_name(var_accesses)
-        sym = self.add_array_reference(var_name, [":", ":", ":", cell_ref],
-                                       "integer")
+        sym = self.append_array_reference(var_name, [":", ":", ":", cell_ref],
+                                          "integer")
         name = f"{sym.name}(:,:,:,{cell_name})"
         self.append(name, var_accesses, var_access_name=var_name)
 
@@ -574,13 +574,14 @@ class KernCallArgList(ArgOrdering):
         # TODO we should only be including ncell_3d once in the argument
         # list but this adds it for every operator
         # This argument is always read only:
-        self.add_user_type("operator_mod", "operator_proxy_type",
-                           ["ncell_3d"], arg.proxy_name_indexed)
+        operator = LFRicConstants().DATA_TYPE_MAP["operator"]
+        self.append_user_type(operator["module"], operator["proxy_type"],
+                              ["ncell_3d"], arg.proxy_name_indexed)
         self.append(arg.proxy_name_indexed + "%ncell_3d", var_accesses,
                     mode=AccessType.READ)
 
-        self.add_user_type("operator_mod", "operator_proxy_type",
-                           ["local_stencil"], arg.proxy_name_indexed)
+        self.append_user_type(operator["module"], operator["proxy_type"],
+                              ["local_stencil"], arg.proxy_name_indexed)
         # The access mode of `local_stencil` is taken from the meta-data:
         self.append(arg.proxy_name_indexed + "%local_stencil", var_accesses,
                     mode=arg.access, metadata_posn=arg.metadata_index)
@@ -618,21 +619,21 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        sym = self.add_integer_reference(function_space.undf_name)
+        sym = self.append_integer_reference(function_space.undf_name)
         self.append(sym.name, var_accesses)
 
         map_name = function_space.map_name
         if self._kern.iterates_over == 'domain':
             # This kernel takes responsibility for iterating over cells so
             # pass the whole dofmap.
-            sym = self.add_array_reference(map_name, [":", ":"],
-                                           "integer")
+            sym = self.append_array_reference(map_name, [":", ":"],
+                                              "integer")
             self.append(sym.name, var_accesses, var_access_name=sym.name)
         else:
             # Pass the dofmap for the cell column
             cell_name, cell_ref = self.cell_ref_name(var_accesses)
-            sym = self.add_array_reference(map_name, [":", cell_ref],
-                                           "integer")
+            sym = self.append_array_reference(map_name, [":", cell_ref],
+                                              "integer")
             self.append(f"{sym.name}(:,{cell_name})",
                         var_accesses, var_access_name=sym.name)
 
@@ -655,10 +656,10 @@ class KernCallArgList(ArgOrdering):
             # For the fine mesh, we need ndf, undf and the *whole*
             # dofmap
             self.fs_common(function_space, var_accesses=var_accesses)
-            sym = self.add_integer_reference(function_space.undf_name)
+            sym = self.append_integer_reference(function_space.undf_name)
             self.append(sym.name, var_accesses)
             map_name = function_space.map_name
-            sym = self.add_array_reference(map_name, [":", ":"], "integer")
+            sym = self.append_array_reference(map_name, [":", ":"], "integer")
             self.append(sym.name, var_accesses)
         else:
             # For the coarse mesh we only need undf and the dofmap for
@@ -681,8 +682,8 @@ class KernCallArgList(ArgOrdering):
         '''
         for rule in self._kern.qr_rules.values():
             basis_name = function_space.get_basis_name(qr_var=rule.psy_name)
-            sym = self.add_array_reference(basis_name, [":", ":", ":", ":"],
-                                           "real")
+            sym = self.append_array_reference(basis_name, [":", ":", ":", ":"],
+                                              "real")
             self.append(sym.name, var_accesses)
 
         if "gh_evaluator" in self._kern.eval_shapes:
@@ -694,8 +695,8 @@ class KernCallArgList(ArgOrdering):
                 # function space
                 fspace = self._kern.eval_targets[fs_name][0]
                 basis_name = function_space.get_basis_name(on_space=fspace)
-                sym = self.add_array_reference(basis_name, [":", ":", ":"],
-                                               "real")
+                sym = self.append_array_reference(basis_name, [":", ":", ":"],
+                                                  "real")
                 self.append(sym.name, var_accesses)
 
     def diff_basis(self, function_space, var_accesses=None):
@@ -715,8 +716,8 @@ class KernCallArgList(ArgOrdering):
         for rule in self._kern.qr_rules.values():
             diff_basis_name = function_space.get_diff_basis_name(
                 qr_var=rule.psy_name)
-            sym = self.add_array_reference(diff_basis_name,
-                                           [":", ":", ":", ":"], "real")
+            sym = self.append_array_reference(diff_basis_name,
+                                              [":", ":", ":", ":"], "real")
             self.append(sym.name, var_accesses)
 
         if "gh_evaluator" in self._kern.eval_shapes:
@@ -729,8 +730,8 @@ class KernCallArgList(ArgOrdering):
                 fspace = self._kern.eval_targets[fs_name][0]
                 diff_basis_name = function_space.get_diff_basis_name(
                     on_space=fspace)
-                sym = self.add_array_reference(diff_basis_name,
-                                               [":", ":", ":"], "real")
+                sym = self.append_array_reference(diff_basis_name,
+                                                  [":", ":", ":"], "real")
                 self.append(sym.name, var_accesses)
 
     def field_bcs_kernel(self, function_space, var_accesses=None):
@@ -763,8 +764,8 @@ class KernCallArgList(ArgOrdering):
                 f"from which to look-up boundary dofs for kernel "
                 f"{self._kern.name} but got '{farg.argument_type}'")
 
-        base_name = "boundary_dofs_" + farg.name   # boundary_dofs_a
-        sym = self.add_array_reference(base_name, [":", ":"], "integer")
+        base_name = "boundary_dofs_" + farg.name
+        sym = self.append_array_reference(base_name, [":", ":"], "integer")
         self.append(sym.name, var_accesses)
 
     def operator_bcs_kernel(self, function_space, var_accesses=None):
@@ -784,7 +785,7 @@ class KernCallArgList(ArgOrdering):
         # Checks for this are performed in ArgOrdering.generate()
         op_arg = self._kern.arguments.args[0]
         base_name = "boundary_dofs_" + op_arg.name
-        sym = self.add_array_reference(base_name, [":", ":"], "integer")
+        sym = self.append_array_reference(base_name, [":", ":"], "integer")
         self.append(sym.name, var_accesses)
 
     def mesh_properties(self, var_accesses=None):
@@ -842,20 +843,25 @@ class KernCallArgList(ArgOrdering):
                     f"quad_rule: no support implemented for quadrature with a "
                     f"shape of '{shape}'. Supported shapes are: "
                     f"{supported_qr_shapes}.")
-            # Now define the types
+            # Now define the arguments using PSyIR:
             for arg in rule.kernel_args:
-                # Remove "_PSY_NAME" which was added to all variable names:
+                # Each rule has a `psy_name` (e.g. qr_xyoz), which is appended
+                # to all variable names (e.g. np_xy_qr_xyoz). Remove this
+                # suffix to get the 'generic' name, from which we derive
+                # the correct type:
                 generic_name = arg[:-len(rule.psy_name)-1]
-                # nedges, nedges_qr, nedges_qr_edge
                 if generic_name in ["np_xy", "np_z", "nfaces", "np_xyz",
                                     "nedges"]:
-                    self.add_integer_reference(arg, )
+                    # np_xy, np_z, nfaces, np_xyz, nedges are all integers:
+                    self.append_integer_reference(arg)
                 elif generic_name in ["weights_xy", "weights_z"]:
+                    # 1d arrays:
                     # TODO # 1910: These should be pointers
-                    self.add_array_reference(arg, [":"], "real")
+                    self.append_array_reference(arg, [":"], "real")
                 elif generic_name in ["weights_xyz"]:
+                    # 2d arrays:
                     # TODO #1910: These should be pointers
-                    self.add_array_reference(arg, [":", ":"], "real")
+                    self.append_array_reference(arg, [":", ":"], "real")
                 else:
                     raise InternalError(f"Found invalid kernel argument "
                                         f"'{arg}'.")

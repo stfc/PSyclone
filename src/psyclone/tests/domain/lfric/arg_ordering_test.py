@@ -48,7 +48,8 @@ from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynLoop
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Reference
+from psyclone.psyir.nodes import ArrayReference, Literal, Reference
+from psyclone.psyir.symbols import INTEGER_TYPE
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_ast, get_base_path, get_invoke
 
@@ -99,6 +100,40 @@ def test_argordering_append():
     arg_list.append("john", var_access_name="john_walker",
                     var_accesses=vinfo, mode=AccessType.WRITE)
     assert vinfo.is_written(Signature("john_walker"))
+
+
+def test_argordering_get_array_reference():
+    '''
+    Tests for the get_array_reference() method of ArgOrdering.
+
+    '''
+
+    psy, _ = get_invoke("1.0.1_single_named_invoke.f90",
+                        TEST_API, 0)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kern = schedule.walk(DynKern)[0]
+    arg_list = ArgOrdering(kern)
+
+    # First test access using an index, e.g. `array(1)`
+    one = Literal("1", INTEGER_TYPE)
+    ref = arg_list.get_array_reference("array1", [one], "real")
+    assert isinstance(ref, ArrayReference)
+    ref = arg_list.get_array_reference("array2", [":"], "integer")
+    assert not isinstance(ref, ArrayReference)
+
+    # Now test access using ":" only, e.g. `array(:)` -> this should
+    # be returned just a reference to `array`
+    ref = arg_list.get_array_reference("array3", [":", ":"], "real")
+    assert isinstance(ref, Reference)
+    assert not isinstance(ref, ArrayReference)
+    ref = arg_list.get_array_reference("array4", [":", ":"], "integer")
+    assert isinstance(ref, Reference)
+    assert not isinstance(ref, ArrayReference)
+
+    with pytest.raises(InternalError) as err:
+        arg_list.get_array_reference("does-not-exist", [":"], "invalid")
+    assert ("Unsupported data type 'invalid' in get_array_reference"
+            in str(err.value))
 
 
 def test_argordering_extend():
@@ -227,9 +262,6 @@ def test_arg_ordering_generate_cma_kernel(dist_mem, fortran_writer):
         'cma_op1_gamma_m', 'cma_op1_gamma_p', 'ndf_adspc1_lma_op1',
         'cbanded_map_adspc1_lma_op1', 'ndf_adspc2_lma_op1',
         'cbanded_map_adspc2_lma_op1']
-
-    print(fortran_writer(schedule.parent))
-    print("OLD\n", psy.gen)
 
     check_psyir_results(create_arg_list, fortran_writer)
 

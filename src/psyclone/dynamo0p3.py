@@ -1879,7 +1879,7 @@ class LFRicMeshProperties(DynCollection):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         :param kern_call_arg_list: an optional KernCallArgList instance \
-            use to store PSyIR representation of the arguments.
+            used to store PSyIR representation of the arguments.
         :type kern_call_arg_list: \
             Optional[:py:class:`psyclone.domain.lfric.KernCallArgList]
 
@@ -1912,7 +1912,7 @@ class LFRicMeshProperties(DynCollection):
                 if not has_nfaces:
                     if kern_call_arg_list:
                         sym = kern_call_arg_list.\
-                            add_integer_reference("nfaces_re_h")
+                            append_integer_reference("nfaces_re_h")
                         name = sym.name
                     else:
                         name = self._symbol_table.find_or_create_tag(
@@ -1929,9 +1929,9 @@ class LFRicMeshProperties(DynCollection):
                     _, cell_ref = \
                         kern_call_arg_list.cell_ref_name(var_accesses)
                     adj_face_sym = kern_call_arg_list. \
-                        add_array_reference(adj_face,
-                                            [":", cell_ref],
-                                            "integer")
+                        append_array_reference(adj_face,
+                                               [":", cell_ref],
+                                               "integer")
                     # Update the name in case there was a clash
                     adj_face = adj_face_sym.name
                     if var_accesses:
@@ -8948,6 +8948,7 @@ class DynKernelArguments(Arguments):
             if hasattr(inv_sched, "symbol_table"):
                 symtab = inv_sched.symbol_table
             else:
+                # This can happen in stub generation.
                 symtab = SymbolTable()
         else:
             # TODO 719 The symtab is not connected to other parts of the
@@ -9177,8 +9178,6 @@ class DynKernelArguments(Arguments):
         :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-
-        # TODO check if this is correct
         create_arg_list = KernCallArgList(self._parent_call)
         create_arg_list.generate()
         return create_arg_list.psyir_arglist
