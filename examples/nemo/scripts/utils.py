@@ -43,6 +43,7 @@ from psyclone.psyir.transformations import HoistLoopBoundExprTrans, \
     HoistTrans, ProfileTrans, HoistLocalArraysTrans, Reference2ArrayRangeTrans
 from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
 from psyclone.transformations import TransformationError
+from psyclone.psyir.tools import DependencyTools
 
 
 # If routine names contain these substrings then we do not profile them
@@ -165,7 +166,7 @@ def normalise_loops(
                 except TransformationError:
                     pass
 
-    # TODO: In order to perform better on the GPU, nested loops with two
+    # TODO #1928: In order to perform better on the GPU, nested loops with two
     # sibling inner loops need to be fused or apply loop fission to the
     # top level. This would allow the collapse clause to be applied.
 
@@ -195,6 +196,7 @@ def insert_explicit_loop_parallelism(
     :param collapse: whether to insert directive on loops with Calls or \
         CodeBlocks in their loop body.
     '''
+    dep_tools = DependencyTools()
 
     # Add the parallel directives in each loop
     for loop in schedule.walk(Loop):
@@ -230,11 +232,14 @@ def insert_explicit_loop_parallelism(
                     break
 
                 next_loop = next_loop.loop_body.children[0]
+                if not isinstance(next_loop, Loop):
+                    break
 
                 # If it is a dependent (e.g. triangular) loop, it can not be
                 # collapsed
                 dependent_of_previous_variable = False
-                for bound in (next_loop.start, next_loop.stop, next_loop.step):
+                for bound in (next_loop.start_expr, next_loop.stop_expr,
+                              next_loop.step_expr):
                     for ref in bound.walk(Reference):
                         if ref.symbol in previous_variables:
                             dependent_of_previous_variable = True
@@ -242,7 +247,9 @@ def insert_explicit_loop_parallelism(
                 if dependent_of_previous_variable:
                     break
 
-                # Check if next_loop is parallelisable?
+                # Check that the next loop has no loop-carried dependencies
+                if not dep_tools.can_loop_be_parallelised(next_loop):
+                    break
 
             # Add collapse clause to the parent directive
             if num_nested_loops > 1:

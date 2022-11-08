@@ -67,9 +67,9 @@ def trans(psy):
             add_profiling(invoke.schedule.children)
 
         # The ptr_sf and sbc_dyc symbols have a wrong symbol type
-        if psy.name in ("psy_diaptr_psy", "psy_sbccpl_psy"):
-            print("Here Skipping", invoke.name)
-            continue
+        #if psy.name in ("psy_diaptr_psy", "psy_sbccpl_psy"):
+        #    print("Here Skipping", invoke.name)
+        #    continue
 
         # TODO #1841: NVFORTRAN-S-0083-Vector expression used where scalar
         # expression required
@@ -79,10 +79,6 @@ def trans(psy):
 
         # The following files makes the ECMWF compilation fail
         if psy.name in ("psy_eosbn2_psy", "psy_diadct_psy", "psy_sbcblk_psy"):
-            print("Skipping", invoke.name)
-            continue
-
-        if invoke.name in ("mpp_ini"):
             print("Skipping", invoke.name)
             continue
 
@@ -100,7 +96,12 @@ def trans(psy):
                 invoke.schedule,
                 region_directive_trans=omp_parallel_trans,
                 loop_directive_trans=omp_loop_trans,
+                # Collapse may be useful in some architecture/compiler
                 collapse=False,
+                # Currently if there is a call we don't parallelise because we
+                # expect the subroutine to already be parallelised. lib_fortran
+                # is the only exception because we know it only has calls to
+                # functions without internal loops.
                 exclude_calls=psy.name != "psy_lib_fortran_psy",
         )
 

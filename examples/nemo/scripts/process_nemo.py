@@ -82,6 +82,8 @@ EXCLUDED_FILES = [
     "mpp_io.f90",
     # There is a bug on a WHERE fparser2 frontend processing
     "sbccpl.f90",
+    # TODO #1902: Excluded to avoid HoistLocalArraysTrans bug
+    "mpp_ini.f90",
 
     # TODO # 1142: The following issue only affects the ECMWF Nemo code.
     # Currently we have to manually uncomment the line below to process ECMWF

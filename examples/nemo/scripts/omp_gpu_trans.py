@@ -73,17 +73,6 @@ def trans(psy):
         if psy.name.startswith("psy_obs_"):
             print("Skipping", invoke.name)
             continue
-        if psy.name in ("psy_diaobs_psy", "psy_stopar_psy", "psy_diawri_psy"):
-            print("Skipping", invoke.name)
-            continue
-
-        # diaptr ptr_sf is considered and array instead of a function call
-        # because it is an interface.
-        # sbc_dyc is is considered and array instead of a function call because
-        # it is imported.
-        if psy.name in ("psy_diaptr_psy", "psy_sbccpl_psy"):
-            print("Skipping", invoke.name)
-            continue
 
         # TODO 1837: Has a TRIM intrinsic that can not be offloaded
         if invoke.name in ("cpl_oasis3_cpl_freq"):
@@ -99,6 +88,10 @@ def trans(psy):
             continue
 
         enhance_tree_information(invoke.schedule)
+
+        if invoke.name[0] == "t" and not invoke.name.startswith("tra"):
+            print("HERE Skipping ", invoke.name)
+            continue
 
         normalise_loops(
                 invoke.schedule,
@@ -118,6 +111,7 @@ def trans(psy):
                 invoke.schedule,
                 region_directive_trans=omp_target_trans,
                 loop_directive_trans=omp_loop_trans,
+                # Collapse is necessary to give GPUs enough parallel items
                 collapse=True,
                 # We exclude loops with calls when parallelising, with the
                 # exception being lib_fortran where we have marked the
