@@ -34,11 +34,12 @@
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified I. Kavcic and A. Coughtrie, Met Office
 #          C.M. Maynard, Met Office / University of Reading
-# Modified J. Henrichs, Bureau of Meteorology
+# MOdified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk, STFC Daresbury Lab
 
-''' Tests of transformations with the LFRic (Dynamo) API. '''
+''' Tests of transformations with the Dynamo 0.3 API '''
 
+from __future__ import absolute_import, print_function
 import inspect
 from importlib import import_module
 import pytest

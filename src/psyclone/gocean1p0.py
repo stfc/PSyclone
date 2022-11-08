@@ -1162,27 +1162,26 @@ class GOKern(CodedKern):
             cannot be found in the associated Fortran parse tree.
 
         '''
-        if self._kern_schedule is None:
-            # Construct the PSyIR of the Fortran parse tree.
-            astp = Fparser2Reader()
-            psyir = astp.generate_psyir(self.ast)
-            # pylint: disable=import-outside-toplevel
-            from psyclone.domain.gocean.transformations import (
-                RaisePSyIR2GOceanKernTrans)
-            raise_trans = RaisePSyIR2GOceanKernTrans(self._metadata_name)
-            raise_trans.apply(psyir)
-            for routine in psyir.walk(Routine):
-                if routine.name == self.name:
-                    break
-            else:
-                # This should not be possible because
-                # RaisePSyIR2GOceanKernTrans.validate() should have picked
-                # this up already.
-                raise InternalError(
-                    f"Failed to find kernel routine '{self.name}' in raised "
-                    f"PSyIR. This should have been caught by the raising "
-                    f"transformation.")
-            self._kern_schedule = routine
+        if self._kern_schedule:
+            return self._kern_schedule
+
+        # Construct the PSyIR of the Fortran parse tree.
+        astp = Fparser2Reader()
+        psyir = astp.generate_psyir(self.ast)
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.gocean.transformations import (
+            RaisePSyIR2GOceanKernTrans)
+        raise_trans = RaisePSyIR2GOceanKernTrans(self._metadata_name)
+        raise_trans.apply(psyir)
+        for routine in psyir.walk(Routine):
+            if routine.name == self.name:
+                break
+        else:
+            raise InternalError(
+                f"Failed to find kernel routine '{self.name}' in raised PSyIR."
+                f" This should have been caught by the validate method of "
+                f"RaisePSyIR2GOceanKernTrans.")
+        self._kern_schedule = routine
 
         return self._kern_schedule
 
@@ -2214,11 +2213,13 @@ class GOSymbolTable(SymbolTable):
         '''
         Create a GOSymbolTable instance from the supplied SymbolTable.
 
-        :param old_table:
-        :type old_table:
+        :param old_table: the generic SymbolTable from which to create a new \
+                          GOSymbolTable.
+        :type old_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
-        :returns:
-        :rtype:
+        :returns: a new GOSymbolTable containing copies of all of the symbols \
+                  in the supplied table.
+        :rtype: :py:class:`psyclone.gocean1p0.GOSymbolTable`
 
         '''
         new_st = GOSymbolTable()
@@ -2336,7 +2337,6 @@ class GOHaloExchange(HaloExchange):
 # For Sphinx AutoAPI documentation generation
 __all__ = ['GOPSy', 'GOInvokes', 'GOInvoke', 'GOInvokeSchedule', 'GOLoop',
            'GOBuiltInCallFactory', 'GOKernCallFactory', 'GOKern',
-           #'GOFparser2Reader',
            'GOKernelArguments', 'GOKernelArgument',
            'GOKernelGridArgument', 'GOStencil', 'GO1p0Descriptor',
            'GOKernelType1p0', 'GOACCEnterDataDirective', 'GOSymbolTable',
