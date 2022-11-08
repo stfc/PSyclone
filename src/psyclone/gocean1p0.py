@@ -1155,28 +1155,35 @@ class GOKern(CodedKern):
 
     def get_kernel_schedule(self):
         '''
-        Returns a PSyIR Schedule representing the GOcean kernel code.
-
-        :return: Schedule representing the kernel code.
+        :returns: a schedule representing the GOcean kernel code.
         :rtype: :py:class:`psyclone.gocean1p0.GOKernelSchedule`
 
-        :raises GenerationError: if more than one match for the supplied \
-            kernel is found in the associated Fortran code.
+        :raises InternalError: if the subroutine implementing this kernel
+            cannot be found in the associated Fortran parse tree.
 
         '''
         if self._kern_schedule is None:
+            # Construct the PSyIR of the Fortran parse tree.
             astp = Fparser2Reader()
             psyir = astp.generate_psyir(self.ast)
-            from psyclone.domain.gocean.transformations import RaisePSyIR2GOceanKernTrans
+            # pylint: disable=import-outside-toplevel
+            from psyclone.domain.gocean.transformations import (
+                RaisePSyIR2GOceanKernTrans)
             raise_trans = RaisePSyIR2GOceanKernTrans(self._metadata_name)
             raise_trans.apply(psyir)
             for routine in psyir.walk(Routine):
                 if routine.name == self.name:
                     break
             else:
-                raise TransformationError("oh dear")
+                # This should not be possible because
+                # RaisePSyIR2GOceanKernTrans.validate() should have picked
+                # this up already.
+                raise InternalError(
+                    f"Failed to find kernel routine '{self.name}' in raised "
+                    f"PSyIR. This should have been caught by the raising "
+                    f"transformation.")
             self._kern_schedule = routine
-            # TODO: Validate kernel with metadata (issue #288).
+
         return self._kern_schedule
 
 

@@ -231,6 +231,7 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
         gotable = GOSymbolTable.create_from_table(routine.symbol_table)
         gokernsched = GOKernelSchedule(metadata.procedure_name,
                                        symbol_table=gotable.detach())
+        # TODO: Validate kernel with metadata (issue #288)
         for child in routine.pop_all_children():
             gokernsched.addchild(child)
         routine.replace_with(gokernsched)
