@@ -13,7 +13,7 @@ ${ADJ_PARTIAL_DIR}/adj_moist_dyn_mass_kernel_mod.F90: ${TL_DIR}/tl_moist_dyn_mas
 	psyad $< -oad $@ -a moist_dyn_tot mr_v mr_cl mr_r mr_ci mr_s mr_g mr_v_at_dof mr_cl_at_dof mr_r_at_dof mr_ci_at_dof mr_s_at_dof mr_g_at_dof
 
 ${ADJ_PARTIAL_DIR}/adj_project_eos_pressure_kernel_mod.F90: ${TL_DIR}/tl_project_eos_pressure_kernel_mod.F90
-	psyad $< -oad $@ -a exner rho exner_e r_exner exner_at_quad rho_at_quad rho_e
+	psyad $< -oad $@ -a exner rho exner_e r_exner exner_at_quad rho_at_quad rho_e # theta theta_vd_e theta_vd_at_quad moist_dyn_gas
 
 ${ADJ_PARTIAL_DIR}/adj_hydrostatic_kernel_mod.F90: ${TL_DIR}/tl_hydrostatic_kernel_mod.F90
 	psyad $< -oad $@ -a r_u exner theta grad_term exner_at_quad theta_v_at_quad res_dot_product grad_theta_v_at_quad theta_v_e exner_e moist_dyn_tot moist_dyn_gas
