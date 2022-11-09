@@ -50,7 +50,7 @@ class LFRicSymbolTable(SymbolTable):
     '''
     # pylint: disable=abstract-method
 
-    def get_or_create_integer_symbol(self, name, tag=None):
+    def find_or_create_integer_symbol(self, name, tag=None):
         '''This function returns a symbol for an integer reference. If the
         symbol should not already exist in the symbol table, it will
         be returned, otherwise a new symbol will be created.

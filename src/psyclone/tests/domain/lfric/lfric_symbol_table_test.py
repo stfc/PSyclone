@@ -44,10 +44,10 @@ from psyclone.psyir.symbols import (DataSymbol, REAL_DOUBLE_TYPE,
 TEST_API = "dynamo0.3"
 
 
-def test_get_or_create_integer():
-    '''Checks the get_or_create_integer convenience function. '''
+def test_find_or_create_integer():
+    '''Checks the find_or_create_integer convenience function. '''
     symbol_table = LFRicSymbolTable()
-    sym_i = symbol_table.get_or_create_integer_symbol("i")
+    sym_i = symbol_table.find_or_create_integer_symbol("i")
     assert isinstance(sym_i, Symbol)
     assert sym_i.name == "i"
     # pylint: disable=no-member
@@ -61,12 +61,12 @@ def test_get_or_create_integer():
     assert "Could not find the tag 'i' in the Symbol Table" in str(err.value)
 
     # If we call the same function again, we must get the same symbol.
-    sym_i2 = symbol_table.get_or_create_integer_symbol("i")
+    sym_i2 = symbol_table.find_or_create_integer_symbol("i")
     assert sym_i2 is sym_i
 
     # Now create a variable with the same name, but a tag. In this case the
     # name of the created symbol must be different:
-    sym_i_tag = symbol_table.get_or_create_integer_symbol("i", tag="i")
+    sym_i_tag = symbol_table.find_or_create_integer_symbol("i", tag="i")
     assert sym_i_tag is not sym_i
     assert sym_i_tag.name != sym_i.name
 
@@ -74,21 +74,21 @@ def test_get_or_create_integer():
     assert sym_i_tag2 is sym_i_tag
 
 
-def test_get_or_create_integer_errors():
-    '''Tests various error conditions of get_or_create_integer_symbol.'''
+def test_find_or_create_integer_errors():
+    '''Tests various error conditions of find_or_create_integer_symbol.'''
 
     symbol_table = LFRicSymbolTable()
     routine = RoutineSymbol('routine')
     symbol_table.add(routine)
 
     with pytest.raises(TypeError) as err:
-        symbol_table.get_or_create_integer_symbol("routine")
+        symbol_table.find_or_create_integer_symbol("routine")
     assert ("Symbol routine already exists, but is not a DataTypeSymbol"
             in str(err.value))
 
     symbol_table.new_symbol("real", symbol_type=DataSymbol,
                             datatype=REAL_DOUBLE_TYPE)
     with pytest.raises(TypeError) as err:
-        symbol_table.get_or_create_integer_symbol("real")
+        symbol_table.find_or_create_integer_symbol("real")
     assert ("Symbol real already exists, but is not an integer"
             in str(err.value))
