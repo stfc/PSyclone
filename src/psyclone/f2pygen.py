@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021 and Technology Facilities Council.
+# Copyright (c) 2017-2022 and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -141,7 +141,7 @@ class OMPDirective(Directive):
     '''
     def __init__(self, root, line, position, dir_type):
         self._types = ["parallel do", "parallel", "do", "master", "single",
-                       "taskloop", "taskwait"]
+                       "taskloop", "taskwait", "declare"]
         self._positions = ["begin", "end"]
 
         super(OMPDirective, self).__init__(root, line, position, dir_type)
@@ -163,7 +163,7 @@ class ACCDirective(Directive):
                          'loop').
     '''
     def __init__(self, root, line, position, dir_type):
-        self._types = ["parallel", "kernels", "enter data", "loop"]
+        self._types = ["parallel", "kernels", "enter data", "loop", "routine"]
         self._positions = ["begin", "end"]
 
         super(ACCDirective, self).__init__(root, line, position, dir_type)
@@ -173,7 +173,7 @@ class ACCDirective(Directive):
 # level interface to creating code and adding code to an existing ast
 
 
-class BaseGen(object):
+class BaseGen():
     ''' The base class for all classes that are responsible for generating
     distinct code elements (modules, subroutines, do loops etc.) '''
     def __init__(self, parent, root):

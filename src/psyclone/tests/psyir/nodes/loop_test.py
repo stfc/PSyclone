@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,15 +41,15 @@
 from __future__ import absolute_import
 import os
 import pytest
+from psyclone.errors import InternalError, GenerationError
+from psyclone.parse.algorithm import parse
+from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Loop, Literal, Schedule, Return, Assignment, \
     Reference
 from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, \
-    INTEGER_SINGLE_TYPE, INTEGER_TYPE, ArrayType, REAL_TYPE
-from psyclone.psyGen import PSyFactory
-from psyclone.errors import InternalError, GenerationError
-from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.tests.utilities import get_invoke, check_links
-from psyclone.parse.algorithm import parse
+    INTEGER_SINGLE_TYPE, INTEGER_TYPE, ArrayType, REAL_TYPE, \
+    SymbolTable
+from psyclone.tests.utilities import check_links
 
 
 def test_loop_init():
@@ -59,17 +59,8 @@ def test_loop_init():
     '''
     loop = Loop()
     assert loop.parent is None
-    assert loop._valid_loop_types == []
     assert loop.annotations == []
-    assert loop._loop_type is None
-    assert loop._field is None
-    assert loop._field_name is None
-    assert loop._field_space is None
-    assert loop._iteration_space is None
-    assert loop._kern is None
-    assert loop._iterates_over == "unknown"
     assert loop._variable is None
-    assert loop._id == ""
 
     # valid variable
     loop = Loop(variable=DataSymbol("var", INTEGER_TYPE))
@@ -83,11 +74,6 @@ def test_loop_init():
     assert ("variable property in Loop class should be a DataSymbol but "
             "found 'str'.") in str(excinfo.value)
 
-    # valid_loop_types. Note, there is no error checking for this
-    # variable in the Loop class.
-    loop = Loop(valid_loop_types=["a"])
-    assert loop.valid_loop_types == ["a"]
-
     parent = Schedule()
     loop = Loop(parent=parent)
     assert loop.parent is parent
@@ -98,7 +84,6 @@ def test_loop_init():
 
 
 def test_loop_navigation_properties():
-    # pylint: disable=too-many-statements
     ''' Tests the start_expr, stop_expr, step_expr and loop_body
     setter and getter properties.
 
@@ -158,19 +143,6 @@ def test_loop_navigation_properties():
     assert loop.step_expr.value == "newstep"
 
 
-def test_loop_invalid_type():
-    ''' Tests assigning an invalid type to a Loop object. '''
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0,
-                           dist_mem=False)
-    sched = invoke.schedule
-    loop = sched.children[0].loop_body[0]
-    assert isinstance(loop, Loop)
-    with pytest.raises(GenerationError) as err:
-        loop.loop_type = "not_a_valid_type"
-    assert ("loop_type value (not_a_valid_type) is invalid. Must be one of "
-            "['inner', 'outer']" in str(err.value))
-
-
 def test_loop_gen_code():
     ''' Check that the Loop gen_code method prints the proper loop '''
     base_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -182,7 +154,9 @@ def test_loop_gen_code():
 
     # By default DynLoop has step = 1 and it is not printed in the Fortran DO
     gen = str(psy.gen)
-    assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
+    assert "loop0_start = 1" in gen
+    assert "loop0_stop = mesh%get_last_halo_cell(1)" in gen
+    assert "DO cell=loop0_start,loop0_stop" in gen
 
     # Change step to 2
     loop = psy.invokes.get('invoke_important_invoke').schedule[4]
@@ -190,7 +164,7 @@ def test_loop_gen_code():
 
     # Now it is printed in the Fortran DO with the expression  ",2" at the end
     gen = str(psy.gen)
-    assert "DO cell=1,mesh%get_last_halo_cell(1),2" in gen
+    assert "DO cell=loop0_start,loop0_stop,2" in gen
 
 
 def test_invalid_loop_annotations():
@@ -208,7 +182,7 @@ def test_invalid_loop_annotations():
     assert test_loop.annotations == ['was_single_stmt', 'was_where']
 
 
-def test_loop_create():
+def test_loop_create(fortran_writer):
     '''Test that the create method in the Loop class correctly
     creates a Loop instance.
 
@@ -225,7 +199,7 @@ def test_loop_create():
     assert isinstance(schedule, Schedule)
     check_links(loop, [start, stop, step, schedule])
     check_links(schedule, [child_node])
-    result = FortranWriter().loop_node(loop)
+    result = fortran_writer.loop_node(loop)
     assert result == "do i = 0, 1, 1\n  tmp = i\nenddo\n"
 
 
@@ -396,10 +370,46 @@ def test_variable_getter():
             "found 'NoneType'.") in str(excinfo.value)
 
 
-def test_halo_read_access_is_abstract():
-    '''Check that the generic _halo_read_access method is abstract'''
-    loop = Loop()
-    with pytest.raises(NotImplementedError) as excinfo:
-        _ = loop._halo_read_access(None)
-    assert ("This method needs to be implemented by the APIs that support "
-            "distributed memory.") in str(excinfo.value)
+def test_loop_equality():
+    '''Test the __eq__ method of Loop'''
+    # We need to manually set the same SymbolTable instance in both directives
+    # for their equality to be True
+    symboltable = SymbolTable()
+    # Set up the symbols
+    tmp = DataSymbol("tmp", REAL_SINGLE_TYPE)
+    i_sym = DataSymbol("i", REAL_SINGLE_TYPE)
+
+    # Create two equal loops
+    loop_sym = DataSymbol("i", INTEGER_SINGLE_TYPE)
+    sched1 = Schedule(symbol_table=symboltable)
+    start = Literal("0", INTEGER_SINGLE_TYPE)
+    stop = Literal("1", INTEGER_SINGLE_TYPE)
+    step = Literal("1", INTEGER_SINGLE_TYPE)
+    child_node = Assignment.create(
+        Reference(tmp),
+        Reference(i_sym))
+    sched1.addchild(child_node)
+    loop1 = Loop.create(loop_sym,
+                        start, stop, step, [])
+    loop1.children[3].detach()
+    loop1.addchild(sched1, 3)
+    start2 = start.copy()
+    stop2 = stop.copy()
+    step2 = step.copy()
+    sched2 = Schedule()
+    # Make sure it has the same ST instance, providing it as a constructor
+    # parameter would create a copy and not use the same instance.
+    sched2._symbol_table = symboltable
+    child_node2 = Assignment.create(
+        Reference(tmp),
+        Reference(i_sym))
+    sched2.addchild(child_node2)
+    loop2 = Loop.create(loop_sym,
+                        start2, stop2, step2, [])
+    loop2.children[3].detach()
+    loop2.addchild(sched2, 3)
+    assert loop1 == loop2
+
+    # Set different variables
+    loop2.variable = DataSymbol("k", INTEGER_SINGLE_TYPE)
+    assert loop1 != loop2

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified: I. Kavcic, Met Office
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 '''
 Module containing pytest tests for the reference-element functionality
@@ -83,7 +84,7 @@ end module testkern_refelem_mod
 def setup():
     '''Make sure that all tests here use Dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
-    yield()
+    yield
     Config._instance = None
 
 
@@ -327,3 +328,20 @@ def test_all_faces_refelem_gen(tmpdir):
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3,"
             " map_w3(:,cell), nfaces_re, out_normals_to_faces, "
             "normals_to_faces)" in gen)
+
+
+def test_refelem_no_rdef(tmpdir):
+    '''Check that the PSy-layer declares r_def if there is a reference
+    element specified in the metadata but the arguments are not of
+    type r_def. This is required as array arguments associated with the
+    reference element have precision r_def. In this example there is a
+    field of type r_solver.
+
+    '''
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "23.5_ref_elem_mixed_prec.f90"), api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+    gen = str(psy.gen).lower()
+    assert "use constants_mod, only: r_def, i_def" in gen

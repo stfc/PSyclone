@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified: A. R. Porter, S. Siso and R. W. Ford, STFC Daresbury Laboratory
+# Modified: A. R. Porter, S. Siso, R. W. Ford and N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module implements a PSyData node, i.e. a node that at code
@@ -110,10 +110,12 @@ class PSyDataNode(Statement):
 
     def __init__(self, ast=None, children=None, parent=None, options=None):
 
-        super(PSyDataNode, self).__init__(ast=ast, children=children,
-                                          parent=parent)
+        super().__init__(ast=ast, children=children, parent=parent)
         if not options:
             options = {}
+
+        # Store a copy of the options so the node can later access them
+        self._options = options.copy()
 
         # _prefix stores a prefix to be used with all external PSyData
         # symbols (i.e. data types and module name), used in the
@@ -126,10 +128,9 @@ class PSyDataNode(Statement):
         # https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#psy-data
         if prefix and prefix not in Config.get().valid_psy_data_prefixes:
             raise InternalError(
-                "Invalid 'prefix' parameter: found '{0}', expected one of {1} "
-                "as defined in {2}".format(
-                    prefix, Config.get().valid_psy_data_prefixes,
-                    Config.get().filename))
+                f"Invalid 'prefix' parameter: found '{prefix}', expected one "
+                f"of {Config.get().valid_psy_data_prefixes} as defined in "
+                f"{Config.get().filename}")
         if not prefix:
             self._prefix = ""
         else:
@@ -195,6 +196,72 @@ class PSyDataNode(Statement):
             self.set_region_identifier(self._module_name,
                                        self._region_name)
 
+    def __eq__(self, other):
+        '''
+        Checks the equality of this PSyDataNode with other. PSyDataNodes are
+        equal if they are the same type, and have the same prefix, var_name,
+        module_name and region_name.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super().__eq__(other)
+        is_eq = is_eq and self.prefix == other.prefix
+        is_eq = is_eq and self.var_name == other.var_name
+        is_eq = is_eq and self.module_name == other.module_name
+        is_eq = is_eq and self.region_name == other.region_name
+        return is_eq
+
+    @property
+    def options(self):
+        ''':returns: the option dictionary of this class.
+        :rtype: Dict[str,Any]
+
+        '''
+        return self._options
+
+    @property
+    def prefix(self):
+        '''
+        Returns the _prefix member of this PSyDataNode.
+
+        :returns: the _prefix member of this PSyDataNode.
+        :rtype: str
+        '''
+        return self._prefix
+
+    @property
+    def var_name(self):
+        '''
+        Returns the _var_name member of this PSyDataNode.
+
+        :returns: the _var_name of this PSyDataNode.
+        :rtype: str
+        '''
+        return self._var_name
+
+    @property
+    def module_name(self):
+        '''
+        Returns the _module_name of this PSyDataNode.
+
+        :returns: the _module_name of this PSyDataNode.
+        :rtype: str
+        '''
+        return self._module_name
+
+    @property
+    def region_name(self):
+        '''
+        Returns the _region_name of this PSyDataNode.
+
+        :returns: the _region_name of this PSyDataNode.
+        :rtype: str
+        '''
+        return self._region_name
+
     @classmethod
     def create(cls, children, symbol_table, ast=None, options=None):
         '''
@@ -230,19 +297,19 @@ class PSyDataNode(Statement):
 
         '''
         if not isinstance(children, list):
-            raise TypeError("Error in PSyDataNode.create(). The 'children' "
-                            "argument must be a list (of PSyIR nodes) but got "
-                            "'{0}'".format(type(children).__name__))
+            raise TypeError(f"Error in PSyDataNode.create(). The 'children' "
+                            f"argument must be a list (of PSyIR nodes) but "
+                            f"got '{type(children).__name__}'")
         if children and not all(isinstance(child, Node) for child in children):
             raise TypeError(
-                "Error in PSyDataNode.create(). The 'children' argument must "
-                "be a list of PSyIR nodes but it contains: {0}".format(
-                    [type(child).__name__ for child in children]))
+                f"Error in PSyDataNode.create(). The 'children' argument must "
+                f"be a list of PSyIR nodes but it contains: "
+                f"{[type(child).__name__ for child in children]}")
         if not isinstance(symbol_table, SymbolTable):
             raise TypeError(
-                "Error in PSyDataNode.create(). The 'symbol_table' argument "
-                "must be an instance of psyir.symbols.SymbolTable but got "
-                "'{0}'.".format(type(symbol_table).__name__))
+                f"Error in PSyDataNode.create(). The 'symbol_table' argument "
+                f"must be an instance of psyir.symbols.SymbolTable but got "
+                f"'{type(symbol_table).__name__}'.")
 
         data_node = cls(ast=ast, options=options)
         data_node.generate_symbols(symbol_table)
@@ -288,8 +355,7 @@ class PSyDataNode(Statement):
             self._var_name = symbol_table.next_available_name(
                 self._psy_data_symbol_with_prefix)
             psydata_type = UnknownFortranType(
-                "type({0}), save, target :: {1}".format(self.type_name,
-                                                        self._var_name))
+                f"type({self.type_name}), save, target :: {self._var_name}")
             symbol_table.new_symbol(self._var_name, symbol_type=DataSymbol,
                                     datatype=psydata_type,
                                     visibility=Symbol.Visibility.PRIVATE)
@@ -347,9 +413,9 @@ class PSyDataNode(Statement):
         ''' Returns a string representation of the subtree starting at
         this node. '''
         return_list = \
-            ["{0}Start[var={1}]".format(self._text_name, self._var_name)] + \
+            [f"{self._text_name}Start[var={self._var_name}]"] + \
             [str(child) for child in self.psy_data_body.children] + \
-            ["{0}End[var={1}]".format(self._text_name, self._var_name)]
+            [f"{self._text_name}End[var={self._var_name}]"]
 
         return "\n".join(return_list)
 
@@ -385,9 +451,9 @@ class PSyDataNode(Statement):
         if len(self.children) != 1 or not \
            isinstance(self.children[0], Schedule):
             raise InternalError(
-                "PSyData node malformed or incomplete. It should have a "
-                "single Schedule as a child but found: {0}"
-                .format([type(child).__name__ for child in self.children]))
+                f"PSyData node malformed or incomplete. It should have a "
+                f"single Schedule as a child but found: "
+                f"{[type(child).__name__ for child in self.children]}")
         return self.children[0]
 
     # -------------------------------------------------------------------------
@@ -401,9 +467,7 @@ class PSyDataNode(Statement):
         :param arguments: optional arguments for the method call.
         :type arguments: list of str or None
         '''
-        call = CallGen(parent,
-                       "{0}%{1}".format(self._var_name, name),
-                       arguments)
+        call = CallGen(parent, f"{self._var_name}%{name}", arguments)
         parent.add(call)
 
     # -------------------------------------------------------------------------
@@ -454,12 +518,18 @@ class PSyDataNode(Statement):
             if len(kerns) == 1:
                 # This PSyData region only has one kernel within it,
                 # so append the kernel name.
-                region_name += ":{0}".format(kerns[0].name)
+                region_name += f":{kerns[0].name}"
             # Add a region index to ensure uniqueness when there are
             # multiple regions in an invoke.
             psy_data_nodes = self.root.walk(PSyDataNode)
-            idx = psy_data_nodes.index(self)
-            region_name += ":r{0}".format(idx)
+            # We can't just use .index on the list because we are searching
+            # by identity, not by equality.
+            idx = None
+            for index, node in enumerate(psy_data_nodes):
+                if node is self:
+                    idx = index
+                    break
+            region_name += f":r{idx}"
 
         if not options:
             options = {}
@@ -484,8 +554,8 @@ class PSyDataNode(Statement):
         parent.add(var_decl)
 
         self._add_call("PreStart", parent,
-                       ["\"{0}\"".format(module_name),
-                        "\"{0}\"".format(region_name),
+                       [f"\"{module_name}\"",
+                        f"\"{region_name}\"",
                         len(pre_variable_list),
                         len(post_variable_list)])
         self.set_region_identifier(module_name, region_name)
@@ -507,19 +577,16 @@ class PSyDataNode(Statement):
         if has_var:
             for var_name in pre_variable_list:
                 self._add_call("PreDeclareVariable", parent,
-                               ["\"{0}{1}\"".format(var_name, pre_suffix),
-                                var_name])
+                               [f"\"{var_name}{pre_suffix}\"", var_name])
             for var_name in post_variable_list:
                 self._add_call("PreDeclareVariable", parent,
-                               ["\"{0}{1}\"".format(var_name, post_suffix),
-                                var_name])
+                               [f"\"{var_name}{post_suffix}\"", var_name])
 
             self._add_call("PreEndDeclaration", parent)
 
             for var_name in pre_variable_list:
                 self._add_call("ProvideVariable", parent,
-                               ["\"{0}{1}\"".format(var_name, pre_suffix),
-                                var_name])
+                               [f"\"{var_name}{pre_suffix}\"", var_name])
 
             self._add_call("PreEnd", parent)
 
@@ -531,12 +598,12 @@ class PSyDataNode(Statement):
             self._add_call("PostStart", parent)
             for var_name in post_variable_list:
                 self._add_call("ProvideVariable", parent,
-                               ["\"{0}{1}\"".format(var_name, post_suffix),
-                                var_name])
+                               [f"\"{var_name}{post_suffix}\"", var_name])
 
         self._add_call("PostEnd", parent)
 
     def lower_to_language_level(self, options=None):
+        # pylint: disable=too-many-branches, too-many-statements
         '''
         Lowers this node (and all children) to language-level PSyIR. The
         PSyIR tree is modified in-place. This PSyDataNode is replaced by a
@@ -588,7 +655,7 @@ class PSyDataNode(Statement):
 
             ParserFactory().create(std="f2008")
             reader = FortranStringReader(
-                "CALL {0}%{1}{2}".format(typename, methodname, argument_str))
+                f"CALL {typename}%{methodname}{argument_str}")
             # Tell the reader that the source is free format
             reader.set_format(FortranFormat(True, False))
             fp2_node = Fortran2003.Call_Stmt(reader)
@@ -601,8 +668,8 @@ class PSyDataNode(Statement):
         routine_schedule = self.ancestor(Routine)
         if routine_schedule is None:
             raise GenerationError(
-                "A PSyDataNode must be inside a Routine context when lowering "
-                "but '{0}' is not.".format(self))
+                f"A PSyDataNode must be inside a Routine context when "
+                f"lowering but '{self}' is not.")
 
         self.generate_symbols(routine_schedule.symbol_table)
 
@@ -623,7 +690,7 @@ class PSyDataNode(Statement):
                 if (isinstance(node, PSyDataNode) or
                         "psy-data-start" in node.annotations):
                     region_idx += 1
-            region_name = "r{0}".format(region_idx)
+            region_name = f"r{region_idx}"
 
         if not options:
             options = {}
@@ -640,8 +707,8 @@ class PSyDataNode(Statement):
         # psydata region.
         start_call = gen_type_bound_call(
             self._var_name, "PreStart",
-            ["\"{0}\"".format(module_name),
-             "\"{0}\"".format(region_name),
+            [f"\"{module_name}\"",
+             f"\"{region_name}\"",
              len(pre_variable_list),
              len(post_variable_list)],
             ["psy-data-start"])
@@ -664,13 +731,13 @@ class PSyDataNode(Statement):
             for var_name in pre_variable_list:
                 call = gen_type_bound_call(
                     self._var_name, "PreDeclareVariable",
-                    ["\"{0}{1}\"".format(var_name, pre_suffix), var_name])
+                    [f"\"{var_name}{pre_suffix}\"", var_name])
                 self.parent.children.insert(self.position, call)
 
             for var_name in post_variable_list:
                 call = gen_type_bound_call(
                     self._var_name, "PreDeclareVariable",
-                    ["\"{0}{1}\"".format(var_name, post_suffix), var_name])
+                    [f"\"{var_name}{post_suffix}\"", var_name])
                 self.parent.children.insert(self.position, call)
 
             call = gen_type_bound_call(self._var_name, "PreEndDeclaration")
@@ -679,7 +746,7 @@ class PSyDataNode(Statement):
             for var_name in pre_variable_list:
                 call = gen_type_bound_call(
                     self._var_name, "ProvideVariable",
-                    ["\"{0}{1}\"".format(var_name, pre_suffix), var_name])
+                    [f"\"{var_name}{pre_suffix}\"", var_name])
                 self.parent.children.insert(self.position, call)
 
             call = gen_type_bound_call(self._var_name, "PreEnd")
@@ -697,7 +764,7 @@ class PSyDataNode(Statement):
             for var_name in post_variable_list:
                 call = gen_type_bound_call(
                     self._var_name, "ProvideVariable",
-                    ["\"{0}{1}\"".format(var_name, post_suffix), var_name])
+                    [f"\"{var_name}{post_suffix}\"", var_name])
                 self.parent.children.insert(self.position, call)
 
         # PSyData end call

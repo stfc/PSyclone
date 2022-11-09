@@ -31,8 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Laboratory
-# Modified: A. R. Porter, STFC Daresbury Laboratory
+# Author: R. W. Ford, STFC Daresbury Lab
+# Modified: A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 '''Module providing an abstract class which provides some generic
 functionality required by transformations of PSyIR intrinsic operators
@@ -64,8 +64,8 @@ class Operator2CodeTrans(Transformation):
         self._operators = None
 
     def __str__(self):
-        return ("Convert the PSyIR {0} intrinsic to equivalent PSyIR "
-                "code.".format(self._operator_name.upper()))
+        return (f"Convert the PSyIR {self._operator_name.upper()} intrinsic "
+                f"to equivalent PSyIR code.")
 
     @property
     def name(self):
@@ -74,7 +74,7 @@ class Operator2CodeTrans(Transformation):
         :rtype:str
 
         '''
-        return "{0}2CodeTrans".format(self._operator_name.title())
+        return f"{self._operator_name.title()}2CodeTrans"
 
     def validate(self, node, options=None):
         '''Perform various checks to ensure that it is valid to apply
@@ -96,22 +96,22 @@ class Operator2CodeTrans(Transformation):
         # Check that the node is one of the expected types.
         if not isinstance(node, self._classes):
             raise TransformationError(
-                "Error in {0} transformation. The supplied node argument is "
-                "not a {1} operator, found '{2}'."
-                "".format(self.name, self._operator_name,
-                          type(node).__name__))
+                f"Error in {self.name} transformation. The supplied node "
+                f"argument is not a {self._operator_name} operator, found "
+                f"'{type(node).__name__}'.")
         if node.operator not in self._operators:
+            oper_names = list(set([oper.name for oper in self._operators]))
             raise TransformationError(
-                "Error in {0} transformation. The supplied node operator is "
-                "invalid, found '{1}'."
-                "".format(self.name, str(node.operator)))
+                f"Error in {self.name} transformation. The supplied node "
+                f"operator is invalid, found '{node.operator}', but expected "
+                f"one of '{oper_names}'.")
         # Check that there is an Assignment node that is an ancestor
         # of this Operation.
         if not node.ancestor(Assignment):
             raise TransformationError(
-                "Error in {0} transformation. This transformation requires "
-                "the operator to be part of an assignment statement, "
-                "but no such assignment was found.".format(self.name))
+                f"Error in {self.name} transformation. This transformation "
+                f"requires the operator to be part of an assignment "
+                f"statement, but no such assignment was found.")
 
     @abc.abstractmethod
     def apply(self, node, options=None):

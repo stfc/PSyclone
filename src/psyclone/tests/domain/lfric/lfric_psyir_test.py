@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
+# Author R. W. Ford, STFC Daresbury Lab
+# Modified S. Siso, STFC Daresbury Lab
 
 '''Test that the LFRic-specific PSyIR classes are created and declared
 correctly'''
@@ -41,7 +42,7 @@ import pytest
 from psyclone.domain.lfric import psyir as lfric_psyir
 from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, \
     ImportInterface, ScalarType, LocalInterface, ArgumentInterface, \
-    ArrayType
+    ArrayType, Symbol, SymbolTable, INTEGER_TYPE
 from psyclone.psyir.nodes import Reference, Literal
 
 
@@ -109,8 +110,8 @@ def test_scalar_literals():
                       lfric_psyir.LfricDimension)
     with pytest.raises(ValueError) as info:
         lfric_psyir.LfricDimension("2")
-    assert("An LFRic dimension object must be '1' or '3', but found '2'."
-           in str(info.value))
+    assert ("An LFRic dimension object must be '1' or '3', but found '2'."
+            in str(info.value))
     # LFRIC_SCALAR_DIMENSION instance
     assert isinstance(lfric_psyir.LFRIC_SCALAR_DIMENSION,
                       lfric_psyir.LfricDimension)
@@ -365,6 +366,7 @@ def test_specific_scalar_symbols(symbol, generic_symbol, attribute_map):
       [Reference(
           lfric_psyir.NumberOfQrPointsInEdgesDataSymbol(
               "qr",
+              visibility=Symbol.Visibility.PRIVATE,
               interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {})])
 def test_arrays(data_type, symbol, scalar_type, dims, attribute_map):
@@ -388,9 +390,8 @@ def test_arrays(data_type, symbol, scalar_type, dims, attribute_map):
     # Wrong number of dims
     with pytest.raises(TypeError) as info:
         _ = data_type([])
-    assert ("{0} expected the number of supplied dimensions to be {1} but "
-            "found 0.".format(type(lfric_datatype).__name__, len(dims))
-            in str(info.value))
+    assert (f"{type(lfric_datatype).__name__} expected the number of supplied "
+            f"dimensions to be {len(dims)} but found 0." in str(info.value))
     # Datasymbol creation
     args = list(attribute_map.values())
     lfric_symbol = symbol("symbol", dims, *args)
@@ -420,6 +421,7 @@ def test_arrays(data_type, symbol, scalar_type, dims, attribute_map):
       [Reference(
           lfric_psyir.NumberOfUniqueDofsDataSymbol(
               "ndofs", "w1",
+              visibility=Symbol.Visibility.PUBLIC,
               interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {"fs": "w1"}),
      (lfric_psyir.LogicalVectorFieldDataDataSymbol,
@@ -427,6 +429,7 @@ def test_arrays(data_type, symbol, scalar_type, dims, attribute_map):
       [Reference(
           lfric_psyir.NumberOfUniqueDofsDataSymbol(
               "ndofs", "w2",
+              visibility=Symbol.Visibility.PRIVATE,
               interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {"fs": "w2"})])
 def test_vector_fields(symbol, parent_symbol, dims, attribute_map):
@@ -439,3 +442,39 @@ def test_vector_fields(symbol, parent_symbol, dims, attribute_map):
     lfric_symbol = symbol("symbol", dims, *args)
     assert isinstance(lfric_symbol, parent_symbol)
     assert lfric_symbol.name == "symbol"
+
+
+def test_add_lfric_precision_symbol():
+    ''' Test that the add_lfric_precision_symbol() routine rejects invalid
+    precision symbols and otherwise works as expected. '''
+    table = SymbolTable()
+    # Unrecognised name of precision.
+    with pytest.raises(ValueError) as err:
+        lfric_psyir.add_lfric_precision_symbol(table, "r_wrong")
+    assert "'r_wrong' is not a recognised LFRic precision" in str(err.value)
+    # Symbol already exists but not imported from any container.
+    wrong_r_def = DataSymbol("r_def", INTEGER_TYPE)
+    table.add(wrong_r_def)
+    with pytest.raises(ValueError) as err:
+        lfric_psyir.add_lfric_precision_symbol(table, "r_def")
+    assert ("symbol 'r_def' already exists in the supplied symbol table but "
+            "is not imported from the LFRic constants module" in
+            str(err.value))
+    # A symbol with the right name but imported from the wrong container.
+    wrong_csym = ContainerSymbol("not_constants_mod")
+    table.add(wrong_csym)
+    wrong_l_def = DataSymbol("l_def", INTEGER_TYPE,
+                             interface=ImportInterface(wrong_csym))
+    table.add(wrong_l_def)
+    with pytest.raises(ValueError) as err:
+        lfric_psyir.add_lfric_precision_symbol(table, "l_def")
+    assert ("symbol 'l_def' already exists in the supplied symbol table but "
+            "is not imported from the LFRic constants module" in
+            str(err.value))
+    # A valid name that's not already present.
+    lfric_psyir.add_lfric_precision_symbol(table, "i_def")
+    idef = table.lookup("i_def")
+    assert idef.interface.container_symbol is lfric_psyir.CONSTANTS_MOD
+    # Repeating the call does not change anything.
+    lfric_psyir.add_lfric_precision_symbol(table, "i_def")
+    assert table.lookup("i_def") is idef

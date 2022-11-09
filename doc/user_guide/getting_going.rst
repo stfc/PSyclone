@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2021, Science and Technology Facilities Council.
+.. Copyright (c) 2017-2022, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -63,12 +63,12 @@ PyPI using ``pip install``, see :ref:`getting-going-env-pypi` for
 more detailed information.
 
 Alternatively, PSyclone can be downloaded from GitHub - either see |release|
-in the ``Releases`` `tab <https://github.com/stfc/PSyclone/releases>`_
+in the ``Tags`` `tab <https://github.com/stfc/PSyclone/tags>`_
 on the PSyclone page or download and extract the latest release of
 PSyclone directly, e.g.
 
 .. parsed-literal::
-   > wget https://github.com/stfc/PSyclone/archive/\ |release|\ .tar.gz
+   > wget \https://github.com/stfc/PSyclone/archive/\ |release|\ .tar.gz
    > tar zxf \ |release|\ .tar.gz
    > ls
    PSyclone-\ |release|\
@@ -113,8 +113,7 @@ to do a user-local install instead then supply the ``--user`` flag::
    > pip install --user psyclone
 
 PSyclone can also be installed to a specific location using ``--install-option``
-(see ``pip``
-`documentation <https://pip.pypa.io/en/stable/reference/pip_install/#install-install-option>`_
+(see ``pip`` `documentation <https://pip.pypa.io/en/stable/cli/pip_install/>`_
 for more detailed information)::
 
    > pip install --install-option="--prefix=/my/install/path" psyclone==X.Y.Z
@@ -203,7 +202,7 @@ for instance the script directory is usually called ``Scripts`` instead
 of ``bin`` and the modules directory ``Lib`` instead of ``lib``.
 
 Installation in an `Anaconda Python
-<https://www.anaconda.com/products/individual>`_ environment on
+<https://www.anaconda.com/products/distribution>`_ environment on
 Windows also needs to be done using ``pip`` as ``conda install`` for
 PSyclone is currently not supported.
 
@@ -213,13 +212,13 @@ Dependencies
 ------------
 
 PSyclone is written in Python so needs Python 3 to be installed on the
-target machine. PSyclone is regularly tested with Python 3.6 and 3.8
+target machine. PSyclone is regularly tested with Python 3.6, 3.8 and 3.10
 but should work with any version >= 3.6. (The last PSyclone release to
 support Python 2.7 was version 2.1.0.)
 
-PSyclone immediately relies on four external Python packages; ``six``,
-``configparser``, ``fparser`` and ``pyparsing``. (Note that the
-use of ``six`` is being phased out now that Python 2.7 is not
+PSyclone immediately relies on five external Python packages; ``six``,
+``configparser``, ``fparser``, ``sympy``, and ``pyparsing``. (Note that
+the use of ``six`` is being phased out now that Python 2.7 is not
 supported.) The easiest way to satisfy the Python dependencies is to
 use the `PyPI installation <https://packaging.python.org/installing>`_
 and ``pip``.
@@ -328,7 +327,41 @@ you can instruct ``pip`` to do a user-local install:
 Alternatively, you could follow `these instructions
 <https://github.com/pyparsing/pyparsing>`_.
 
-graphviz
+
+SymPy
+^^^^^
+
+PSyclone requires ``sympy``, a library for symbolic mathematics. PSyclone
+uses ``sympy`` to reason about expression being equal or not, e.g. ``i+j``
+and ``j+i``. PSyclone has been tested with ``sympy`` versions 1.7.1.
+
+You can test whether ``sympy`` is already installed on your machine by
+typing ``import sympy`` from the Python command line. If ``sympy``
+is installed, this command will complete successfully. If ``sympy`` is
+installed you can check its version by typing
+``sympy.__version__`` after successfully importing it.
+
+If ``sympy`` is not installed on your system then it may be installed
+from the Python Package Index using ``pip``:
+::
+
+   > pip install sympy
+
+Should you wish to, uninstalling is simply performed by doing:
+::
+
+   > pip uninstall sympy
+
+If you do not have sufficient privileges for a system-wide install then
+you can instruct ``pip`` to do a user-local install:
+::
+
+   > pip install --user sympy
+
+Alternatively, you could follow the instructions on the `SymPy web page
+<https://docs.sympy.org/latest/install.html>`_.
+
+Graphviz
 ^^^^^^^^
 
 The data dependencies of a PSyIR schedule determine the validity of

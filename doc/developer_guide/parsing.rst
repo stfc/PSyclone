@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2021, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2022, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -43,13 +43,60 @@
 Parsing Code
 ############
 
-The PSyclone `parse` module is responsible for parsing science
-(algorithm and kernel) code and extracting the required information
-for the algorithm translation and PSy generation phases.
+The original way to parse code is to use the PSyclone `parse` module
+which is responsible for parsing science (algorithm and kernel) code
+and extracting the required information for the algorithm translation
+and PSy generation phases.
 
-The `parse` module contains modules for parsing algorithm
-(`algorithm.py`) and kernel (`kernel.py`) code as well as a utility
-module (`utils.py`) for common functionality.
+The original approach is gradually being replaced by the use of the
+PSyIR and its front-ends and back-ends. In the new PSyIR approach the
+kernel and algorithm code is first parsed into PSyIR. The kernel and
+algorithm code is then 'raised' into domain-specific PSyIR which
+encodes domain-specific concepts.
+
+This new approach also applies to parsing metadata. The kernel
+metadata is parsed into PSyIR at the same time as the kernel code. The
+PSyIR does not understand the structure of kernel metadata so the
+metadata is actually captured as string within a PSyIR
+UnknownFortranType. A 'raising' transformation is then used to create
+Python classes that capture the kernel metadata.
+
+The current status is that the GOcean API uses PSyIR to capture and
+output algorithm code. This is achieved by first reading the algorithm
+file into generic PSyIR, then specialising the PSyIR (raising) to have
+GOcean-specific classes for invoke and kernel calls, then applying any
+transformations if required, then 'lowering' the GOcean-specific
+classes back down to generic PSyIR (which also translates invokes and
+kernel calls to an appropriate call to the PSy-layer) and finally
+using the Fortran back-end to output the tranformed code. The same
+approach is in development for algorithm-layer code for the LFRic API,
+but currently the original approach is used.
+
+The LFRic and GOcean APIs also use PSyIR to capture kernel code
+and its associated metadata. As with algorithm code, this is achieved
+by first reading the kernel file into generic PSyIR, then specialising
+the PSyIR (raising) to have API-specific classes using the
+RaisePSyIR2LFRicKernelTrans and RaisePSyIR2GOceanKernelTrans
+transformation, respectively.
+
+At the moment the PSyIR is not used by PSyclone to capture metadata,
+the original approach described below continues to be used. In the new
+approach the specialised kernel metadata classes validate the
+API-specific metadata and provide the metadata values in a simple
+form. As the PSyIR does not understand the structure of kernel
+metadata the specialised classes parse the associated codeblock and
+underlying fparser2 tree. These classes also provide a simple way to
+modify the metadata values which will be useful for cases such as
+generating adjoint kernels using psyad (see the :ref:`user guide
+<psyad_user_guide:introduction>` for more details). The classes also
+allow the simple creation of new metadata. In the future the use of
+Kernel PSyIR and the Algorithm PSyIR will replace the original
+approach. The relevant code can be seen in generator.py.
+
+In the original approach the `parse` module contains modules for
+parsing algorithm (`algorithm.py`) and kernel (`kernel.py`) code as
+well as a utility module (`utils.py`) for common functionality. This
+approach is discussed further in the following sections.
 
 Parsing Algorithm Code
 ======================
@@ -146,12 +193,11 @@ create the appropriate `Arg` instance. Previously we relied on the
 Mixed Precision
 ===============
 
-Support for mixed precision kernels is being added to PSyclone but is
-still work-in-progress (see #1277). The approach being taken is for
-the user to provide kernels with a generic interface and
-precision-specific implementations. As the PSyclone kernel metadata
-does not specify precision, this does not need to change. The actual
-precision being used will be specified by the scientist in the
+Support for mixed precision kernels has been added to PSyclone. The
+approach being taken is for the user to provide kernels with a generic
+interface and precision-specific implementations. As the PSyclone kernel
+metadata does not specify precision, this does not need to change. The
+actual precision being used will be specified by the scientist in the
 algorithm layer (by declaring variables with appropriate precision).
 
 .. highlight:: fortran

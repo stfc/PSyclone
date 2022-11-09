@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: Joerg Henrichs, Bureau of Meteorology
-# Modifications: A. R. Porter and R. W. Ford, STFC Daresbury Laboratory
+# Modified: A. R. Porter, R. W. Ford and S. Siso, STFC Daresbury Laboratory
 
 '''This module tests the various classes in core.access_info.'''
 
@@ -118,7 +118,10 @@ def test_variable_access_info():
     assert str(vai) == "var_name:"
     assert vai.is_written() is False
     assert vai.is_read() is False
+
     assert vai.all_accesses == []
+    assert vai.all_read_accesses == []
+    assert vai.all_write_accesses == []
     assert vai.signature == Signature("var_name")
 
     vai.add_access_with_location(AccessType.READ, 2, Node(),
@@ -126,10 +129,14 @@ def test_variable_access_info():
     assert str(vai) == "var_name:READ(2)"
     assert vai.is_read()
     assert vai.is_read_only()
+    assert vai.all_read_accesses == [vai[0]]
+    assert vai.all_write_accesses == []
     vai.change_read_to_write()
     assert not vai.is_read()
     assert vai.is_written()
     assert not vai.is_read_only()
+    assert vai.all_read_accesses == []
+    assert vai.all_write_accesses == [vai[0]]
 
     # Now we have one write access, which we should not be able to
     # change to write again:
@@ -155,6 +162,8 @@ def test_variable_access_info():
     vai.add_access_with_location(AccessType.WRITE, 3, Node(),
                                  component_indices=None)
     assert vai.is_read_only() is False
+    assert vai.all_read_accesses == [vai[1]]
+    assert vai.all_write_accesses == [vai[0], vai[2]]
 
 
 # -----------------------------------------------------------------------------
@@ -363,6 +372,11 @@ def test_variables_access_info_errors():
     assert "Cannot add '[[]]' with length 1 as indices for 'a%b' which "\
            "requires 2 elements." in str(err.value)
 
+    with pytest.raises(InternalError) as err:
+        _ = VariablesAccessInfo(options=1)
+    assert ("The options argument for VariablesAccessInfo must be a "
+            "dictionary or None, but got 'int'." in str(err.value))
+
 
 # -----------------------------------------------------------------------------
 def test_component_indices_auto_extension():
@@ -463,9 +477,9 @@ def test_constructor(fortran_reader):
         end subroutine tmp
         end module test'''
     psyir = fortran_reader.psyir_from_source(code)
-    schedule = psyir.children[0].children[0]
-    node1 = schedule[0]
-    node2 = schedule[1]
+    assignments = psyir.walk(Assignment)
+    node1 = assignments[0]
+    node2 = assignments[1]
     vai1 = VariablesAccessInfo(node1)
     assert str(vai1) == "a: WRITE, b: READ, c: READ"
     vai2 = VariablesAccessInfo([node1, node2])
@@ -502,10 +516,8 @@ def test_derived_type_scalar(fortran_reader):
           a%b = b%c/c%d%e
         end subroutine tmp
         end module test'''
-    schedule = fortran_reader.psyir_from_source(code).children[0]
-    node1 = schedule.children[0][0]
+    node1 = fortran_reader.psyir_from_source(code).walk(Assignment)[0]
     vai1 = VariablesAccessInfo(node1)
-    assert isinstance(node1, Assignment)
     assert str(vai1) == "a%b: WRITE, b%c: READ, c%d%e: READ"
 
 
@@ -548,21 +560,19 @@ def to_fortran(writer, index_expression):
 def test_derived_type_array(array, indices, fortran_writer, fortran_reader):
     '''This function tests the handling of derived array types.
     '''
-    code = '''module test
+    code = f'''module test
         contains
         subroutine tmp()
           use my_mod
           !use my_mod, only: something
           !type(something) :: a, b, c
           integer :: i, j, k
-          c(i)%e(j,k) = {0}
+          c(i)%e(j,k) = {array}
         end subroutine tmp
-        end module test'''.format(array)
+        end module test'''
 
-    schedule = fortran_reader.psyir_from_source(code).children[0]
-    node1 = schedule.children[0][0]
+    node1 = fortran_reader.psyir_from_source(code).walk(Assignment)[0]
     vai1 = VariablesAccessInfo(node1)
-    assert isinstance(node1, Assignment)
     assert str(vai1) == "a%b%c: READ, c%e: WRITE, i: READ, j: READ, k: READ"
 
     # Verify that the index expression is correct. Convert the index
@@ -597,10 +607,7 @@ def test_symbol_array_detection(fortran_reader):
 
     # For 'a' we don't have access information, nor symbol table information
     access_info_a = vai[Signature("a")]
-    with pytest.raises(ValueError) as error:
-        sym_a.is_array_access(access_info=access_info_a)
-    assert "No array information is available for the symbol 'a'" \
-        in str(error.value)
+    assert not sym_a.is_array_access(access_info=access_info_a)
 
     # For the access to 'b' we will find array access information:
     access_info_b = vai[Signature("b")]
@@ -629,3 +636,49 @@ def test_symbol_array_detection(fortran_reader):
     b_is_array = sym_b.is_array_access(access_info=access_info_b,
                                        index_variable="j")
     assert not b_is_array
+
+
+# -----------------------------------------------------------------------------
+def test_variables_access_info_options():
+    '''Test handling of options for VariablesAccessInfo.
+    '''
+    vai = VariablesAccessInfo(options={'COLLECT-ARRAY-SHAPE-READS': True})
+
+    assert vai.options("COLLECT-ARRAY-SHAPE-READS") is True
+    assert vai.options() == {'COLLECT-ARRAY-SHAPE-READS': True}
+    with pytest.raises(InternalError) as err:
+        vai.options("invalid")
+    assert ("Option key 'invalid' is invalid, it must be one of "
+            "['COLLECT-ARRAY-SHAPE-READS']." in str(err.value))
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.parametrize("function", ["size", "lbound", "ubound"])
+def test_variables_access_info_shape_bounds(fortran_reader, function):
+    '''Test that access to an array using shape, or lbound/ubound can be
+    disables using options
+    '''
+    code = f'''module test
+        contains
+        subroutine tmp()
+          real, dimension(:,:), allocatable:: a
+          integer :: n
+          n = {function}(a, 1)
+        end subroutine tmp
+        end module test'''
+    psyir = fortran_reader.psyir_from_source(code)
+    node1 = psyir.walk(Assignment)[0]
+
+    # By default, array shape accesses are not reads.
+    vai = VariablesAccessInfo(node1)
+    assert str(vai) == "n: WRITE"
+
+    # Check that explicitly disabling array shape reads works:
+    vai = VariablesAccessInfo(node1,
+                              options={"COLLECT-ARRAY-SHAPE-READS": False})
+    assert str(vai) == "n: WRITE"
+
+    # Check that we can enable collection of array shape reads:
+    vai = VariablesAccessInfo(node1,
+                              options={"COLLECT-ARRAY-SHAPE-READS": True})
+    assert str(vai) == "a: READ, n: WRITE"

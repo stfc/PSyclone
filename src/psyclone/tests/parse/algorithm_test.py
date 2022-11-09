@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -224,7 +224,7 @@ def test_parser_invokeinfo_containers(tmpdir, code, name):
 def test_parser_invokeinfo_datatypes():
     '''Test that the invoke_info method in the Parser class captures the
     required datatype information for "standard" fields, operators and
-    scalars i.e. defined as field_type, operator_type and r_def
+    scalars i.e. defined as field_type, operator_type and i_def
     respectively. We also capture the datatype of quadrature but don't
     care. field_type is actually a vector which shows that the code
     works with arrays as well as individual types.
@@ -237,32 +237,39 @@ def test_parser_invokeinfo_datatypes():
     args = info.calls[0].kcalls[0].args
     assert args[0]._datatype == ("operator_type", None)
     assert args[1]._datatype == ("field_type", None)
-    assert args[2]._datatype == ("real", "r_def")
+    assert args[2]._datatype == ("integer", "i_def")
     assert args[3]._datatype == ("quadrature_xyoz_type", None)
 
 
 def test_parser_invokeinfo_datatypes_mixed():
-    '''Test that the invoke_info method in the Parser class captures the
-    required datatype information with mixed-precision fields,
-    operators and scalars e.g. defined as r_solver_field_type,
-    r_solver_operator_type and r_solver respectively.
+    '''Test that the 'invoke_info' method in the Parser class captures the
+    required datatype information with mixed-precision fields, scalars
+    and operators, e.g. defined as 'r_solver_field_type', 'r_solver'
+    and 'r_solver_operator_type' respectively.
 
     Also tests that the datatype information is always lower case
     irrespective of the case of the declaration and argument. This
     covers the situation where the variable is declared and used with
-    different case e.g. real a\n call invoke(kern(A)).
+    different case e.g. 'real a\n call invoke(kern(A))'.
 
     '''
     alg_filename = os.path.join(
-        LFRIC_BASE_PATH, "26.1_mixed_precision.f90")
+        LFRIC_BASE_PATH, "26.8_mixed_precision_args.f90")
     parser = Parser(kernel_paths=[LFRIC_BASE_PATH])
     alg_parse_tree = parse_fp2(alg_filename)
     info = parser.invoke_info(alg_parse_tree)
-    args = info.calls[0].kcalls[0].args
-    assert args[0]._datatype == ("r_solver_operator_type", None)
-    assert args[1]._datatype == ("r_solver_field_type", None)
-    assert args[2]._datatype == ("real", "r_solver")
-    assert args[3]._datatype == ("quadrature_xyoz_type", None)
+    args0 = info.calls[0].kcalls[0].args
+    args1 = info.calls[0].kcalls[1].args
+    args2 = info.calls[0].kcalls[2].args
+    assert args0[0]._datatype == ("real", "r_def")
+    assert args0[1]._datatype == ("field_type", None)
+    assert args0[2]._datatype == ("operator_type", None)
+    assert args1[0]._datatype == ("real", "r_solver")
+    assert args1[1]._datatype == ("r_solver_field_type", None)
+    assert args1[2]._datatype == ("r_solver_operator_type", None)
+    assert args2[0]._datatype == ("real", "r_tran")
+    assert args2[1]._datatype == ("r_tran_field_type", None)
+    assert args2[2]._datatype == ("operator_type", None)
 
 
 def test_parser_invokeinfo_datatypes_self():
@@ -335,7 +342,7 @@ def test_parser_invokeinfo_internalerror():
     parser = Parser(kernel_paths=[LFRIC_BASE_PATH])
     alg_parse_tree = parse_fp2(alg_filename)
     # Modify parse tree to make it invalid
-    alg_parse_tree.children[0].children[1].children[9].items = ["hello"]
+    alg_parse_tree.children[0].children[1].children[5].items = ["hello"]
     with pytest.raises(InternalError) as info:
         parser.invoke_info(alg_parse_tree)
     assert (
@@ -567,10 +574,12 @@ def test_getkernel_invalid_arg(monkeypatch):
         in str(excinfo.value)
 
 
-@pytest.mark.parametrize('content',
-                         ["1.0", "1.0_r_def", "1_i_def", "- 1.0", "- 1",
-                          "1.0 * 1.0", "(1.0 * 1.0)"])
-def test_getkernel_isliteral(content):
+@pytest.mark.parametrize('content,datatype',
+                         [("1.0", ("real", None)),
+                          ("1.0_r_def", ("real", "r_def")),
+                          ("1", ("integer", None)),
+                          ("1_i_def", ("integer", "i_def"))])
+def test_getkernel_isliteral(content, datatype):
     '''Test that the get_kernel function recognises the possible forms of
     literal argument and returns them correctly.
 
@@ -584,7 +593,47 @@ def test_getkernel_isliteral(content):
     assert arg.is_literal()
     assert arg.text == content
     assert arg.varname is None
-    assert arg._datatype is None
+    assert arg._datatype == datatype
+
+
+@pytest.mark.parametrize('content,datatype', [
+    ("- 1.0", ("real", None)), ("- 1", ("integer", None)),
+    ("1.0 * 1.0", ("real", None)),
+    ("(1_i_def * 1_i_def)", ("integer", "i_def")),
+    ("(1.0_r_solver * 1.0_r_solver)", ("real", "r_solver")),
+    ("(1.0_r_tran * 1.0_r_tran)", ("real", "r_tran")),
+    ("(1.0_r_def + 2.0_r_def) * 2.0_r_def", ("real", "r_def"))])
+def test_getkernel_isliteral_expr(content, datatype):
+    '''Test that the get_kernel function recognises the possible forms of
+    literal expression and returns them correctly.
+
+    '''
+    tree = Structure_Constructor("sub({0})".format(content))
+    kern_name, args = get_kernel(tree, "dummy.f90", {})
+    assert kern_name == "sub"
+    assert len(args) == 1
+    arg = args[0]
+    assert isinstance(arg, Arg)
+    assert arg.is_literal()
+    assert arg.text == content
+    assert arg.varname is None
+    assert arg._datatype == datatype
+
+
+def test_getkernel_isliteral_expr_error():
+    '''Test that the get_kernel function raises the expected exception if
+    the literal expression contains a mix of different literal
+    datatypes.
+
+    '''
+    tree = Structure_Constructor("sub(1.0_r_def*1.0_r_solver)")
+    with pytest.raises(NotImplementedError) as info:
+        _, _ = get_kernel(tree, "dummy.f90", {})
+    assert ("Found two non-matching literals within an expression "
+            "('1.0_r_def * 1.0_r_solver') passed into an invoke from the "
+            "algorithm layer. '('real', 'r_solver')' and '('real', 'r_def')' "
+            "do not match. This is not supported in PSyclone."
+            in str(info.value))
 
 
 @pytest.mark.parametrize('content',
@@ -643,6 +692,39 @@ def test_getkernel_proc_component(content):
         kernel, "dummy.f90", {"a_b": ("info"), "b": ("info")})
     arg = args[0]
     assert arg._datatype == ("info")
+
+
+def test_getkernel_proc_component_data_ref():
+    '''Test that the get_kernel function recognises a complex datatype
+    that could potentially be a collection (but is not).
+
+    '''
+    tree = Call_Stmt("call x(y(self%vec_type(1)%vector(1)))")
+    kernel = tree.children[1].children[0]
+    kern_name, args = get_kernel(kernel, "dummy.f90", {})
+    assert kern_name == "y"
+    assert len(args) == 1
+    assert isinstance(args[0], Arg)
+    assert args[0].form == "variable"
+    assert args[0].is_literal() is False
+    assert args[0].text == "self % vec_type(1) % vector(1)"
+    assert args[0].varname == "self_vec_type_vector"
+
+
+def test_getkernel_proc_component_collection():
+    '''Test that the get_kernel function recognises a collection and
+    returns it in the expected way.
+
+    '''
+    parser = Parser(api="dynamo0.3")
+    _, info = parser.parse(os.path.join(
+        LFRIC_BASE_PATH, "1.6.2_single_invoke_1_int_from_derived_type.f90"))
+    collection_arg = info.calls[0].kcalls[0].args[1]
+    assert isinstance(collection_arg, Arg)
+    assert collection_arg.form == "collection"
+    assert collection_arg.is_literal() is False
+    assert collection_arg.text == "my_obj % iflag"
+    assert collection_arg.varname == "my_obj_iflag"
 
 
 def test_getkernel_proccomponent_error():
@@ -764,7 +846,7 @@ def test_kernelcall_repr():
 
     '''
 
-    class KtypeDummy(object):
+    class KtypeDummy():
         '''A fake KernelType class which provides the required variables to
         allow the BuiltInCall class to be instantiated and __repr__
         called.
@@ -787,7 +869,7 @@ def test_builtincall_repr():
 
     '''
 
-    class KtypeDummy(object):
+    class KtypeDummy():
         '''A fake KernelType class which provides the required variables to
         allow the BuiltInCall class to be instantiated and __repr__
         called.
@@ -812,7 +894,8 @@ def test_arg_unknown():
         _ = Arg("invalid", "0.0")
     assert (
         "Unknown arg type provided. Expected one of ['literal', 'variable', "
-        "'indexed_variable'] but found 'invalid'.") in str(excinfo.value)
+        "'indexed_variable', 'collection'] but found 'invalid'."
+        in str(excinfo.value))
 
 
 def test_arg_str():

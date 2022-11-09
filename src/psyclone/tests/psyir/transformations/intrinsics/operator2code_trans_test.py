@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -52,8 +52,12 @@ def test_create():
     '''Check that Operator2CodeTrans is abstract.'''
     with pytest.raises(TypeError) as excinfo:
         _ = Operator2CodeTrans()
+    msg = str(excinfo.value)
+    # Have to split this check as Python >= 3.10 spots that 'method'
+    # should be singular.
     assert ("Can't instantiate abstract class Operator2CodeTrans with "
-            "abstract methods apply" in str(excinfo.value))
+            "abstract method" in msg)
+    assert " apply" in msg
 
 
 class DummyTrans(Operator2CodeTrans):
@@ -102,9 +106,9 @@ def test_validate():
 
     with pytest.raises(TransformationError) as excinfo:
         dummy.validate(operator)
-    assert("This transformation requires the operator to be part of an "
-           "assignment statement, but no such assignment was found."
-           in str(excinfo.value))
+    assert ("This transformation requires the operator to be part of an "
+            "assignment statement, but no such assignment was found."
+            in str(excinfo.value))
 
     reference = Reference(DataSymbol("fred", REAL_TYPE))
     _ = Assignment.create(lhs=reference, rhs=operator)
@@ -117,6 +121,7 @@ def test_validate():
     with pytest.raises(TransformationError) as excinfo:
         dummy.validate(UnaryOperation(UnaryOperation.Operator.SIN, var))
     assert ("Error in Hello2CodeTrans transformation. The supplied node "
-            "operator is invalid, found 'Operator.SIN'." in str(excinfo.value))
+            "operator is invalid, found 'Operator.SIN', but expected one "
+            "of '['ABS']'." in str(excinfo.value))
 
     dummy.validate(operator)

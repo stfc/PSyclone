@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors I. Kavcic, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
-# Modified by S. Siso, STFC Daresbury Lab
+# Modified by R. W. Ford and S. Siso, STFC Daresbury Lab
 
 '''This module contains the LFRic-specific implementation of the ExtractTrans
 transformation.
@@ -63,9 +63,9 @@ class LFRicExtractTrans(ExtractTrans):
     >>>
     >>> # Apply LFRicExtractTrans transformation to selected Nodes
     >>> etrans.apply(schedule.children[0:3])
-    >>> schedule.view()
-    '''
+    >>> print(schedule.view())
 
+    '''
     def validate(self, node_list, options=None):
         ''' Perform Dynamo0.3 API specific validation checks before applying
         the transformation.
@@ -82,7 +82,7 @@ class LFRicExtractTrans(ExtractTrans):
 
         # First check constraints on Nodes in the node_list inherited from
         # the parent classes (ExtractTrans and RegionTrans)
-        super(LFRicExtractTrans, self).validate(node_list, options)
+        super().validate(node_list, options)
 
         # Check LFRicExtractTrans specific constraints
         for node in node_list:
@@ -93,6 +93,6 @@ class LFRicExtractTrans(ExtractTrans):
             ancestor = node.ancestor(DynLoop)
             if ancestor and ancestor.loop_type == 'colours':
                 raise TransformationError(
-                    "Error in {0} for Dynamo0.3 API: Extraction of a Loop "
-                    "over cells in a colour without its ancestor Loop over "
-                    "colours is not allowed.".format(str(self.name)))
+                    f"Error in {self.name} for Dynamo0.3 API: Extraction of a "
+                    f"Loop over cells in a colour without its ancestor Loop "
+                    f"over colours is not allowed.")

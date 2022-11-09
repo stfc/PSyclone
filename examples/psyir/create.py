@@ -123,6 +123,11 @@ def create_psyir_tree():
     oper = NaryOperation.Operator.MAX
     naryoperation = NaryOperation.create(oper, [tmp1(), tmp2(), one()])
 
+    # Operation with named args
+    oper = NaryOperation.Operator.SUM
+    naryoperation_named = NaryOperation.create(
+        oper, [one(), unaryoperation.copy(), ("dim", one()), ("mask", zero())])
+
     # Array reference using a range
     lbound = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
                                     Reference(array), int_one())
@@ -137,10 +142,12 @@ def create_psyir_tree():
     assign3 = Assignment.create(tmp2(), binaryoperation)
     assign4 = Assignment.create(tmp1(), tmp2())
     assign5 = Assignment.create(tmp1(), naryoperation)
-    assign6 = Assignment.create(tmparray, two())
+    assign6 = Assignment.create(tmp2(), naryoperation_named)
+    assign7 = Assignment.create(tmparray, two())
 
-    # Call
-    call = Call.create(routine_symbol, [tmp1(), binaryoperation.copy()])
+    # Call with named argument
+    call = Call.create(
+        routine_symbol, [tmp1(), binaryoperation.copy(), ("option", one())])
 
     # If statement
     if_condition = BinaryOperation.create(BinaryOperation.Operator.GT,
@@ -153,7 +160,8 @@ def create_psyir_tree():
 
     # Routine
     routine = Routine.create(
-        "work", symbol_table, [assign1, call, assign2, loop, assign5, assign6])
+        "work", symbol_table,
+        [assign1, call, assign2, loop, assign5, assign6, assign7])
 
     # Container
     container_symbol_table = SymbolTable()

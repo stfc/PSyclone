@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2021, Science and Technology Facilities Council.
+.. Copyright (c) 2021-2022, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -38,8 +38,10 @@
 Introduction
 ============
 
-PSyAD is PSyclone's Adjoint code generator. PSyAD takes an LFRic
-tangent linear kernel and translates it into its adjoint.
+PSyAD is PSyclone's Adjoint code generator. PSyAD takes a
+tangent linear kernel and translates it into its adjoint. A kernel may
+either be a generic subroutine/program or a
+:ref:`user_guide:dynamo0.3-kernel` that conforms to the LFRic (dynamo0.3) API .
 
 Examples
 ========
@@ -51,9 +53,7 @@ set-up necessary for getting PSyAD to work.
 Adjoint and Test Harness Generation
 -----------------------------------
 
-Since PSyAD functionality is still in its infancy, there is currently
-only one, simple example. This may be found in the ``examples/psyad``
-directory. It demonstrates the use of PSyAD to create the adjoint of a
-kernel containing a sequence of statements as well as a test harness
-for that adjoint. See the ``README.md`` file in that directory for
-full details.
+PSyAD is currently able to transform generic tangent-linear routines
+plus some of the LFRic tangent-linear kernels. There are two examples
+available in the ``examples/psyad`` directory. See the ``README.md`` file in
+that directory for full details.

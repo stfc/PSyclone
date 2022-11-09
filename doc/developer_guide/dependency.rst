@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
    BSD 3-Clause License
 
-   Copyright (c) 2021, Science and Technology Facilities Council.
+   Copyright (c) 2021-2022, Science and Technology Facilities Council.
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -319,6 +319,26 @@ combine two `VariablesAccessInfo` objects into one. It is up to the user to
 keep track of which statements (PSyIR nodes) a given `VariablesAccessInfo`
 instance is holding information about.
 
+
+VariablesAccessInfo Options
++++++++++++++++++++++++++++
+
+By default, `VariablesAccessInfo` will not report the first argument of
+the PSyIR operators `lbound`, `ubound`, or `size` as read accesses,
+since these functions do not actually access the content of the array,
+they only query the size. If these accesses are required (e.g. in kernel
+extraction this could be important if an array is only used in these
+intrinsic - a driver would still need these arrays in order to query
+the size), the optional `options` parameter of the `VariablesAccessInfo`
+constructor can be used: add the key
+`COLLECT-ARRAY-SHAPE-READS` and set it to true::
+
+    vai = VariablesAccessInfo(options={'COLLECT-ARRAY-SHAPE-READS': True})
+
+In this case all arrays specified as first parameter to one of the
+PSyIR operators above will be reported as read access.
+
+
 SingleVariableAccessInfo
 ------------------------
 The class `VariablesAccessInfo` uses a dictionary of
@@ -587,22 +607,24 @@ until we find accesses that would prevent parallelisation:
           code.
 
 Dependency Tools
-----------------
+================
 
 PSyclone contains a class that builds upon the data-dependency functionality
-to provide useful tools for dependency analaysis. It especially provides
-messages for the user to indicate why parallelisation was not possible.
+to provide useful tools for dependency analysis. It especially provides
+messages for the user to indicate why parallelisation was not possible. It
+uses `SymPy` internally to compare expressions symbolically.
 
 .. autoclass:: psyclone.psyir.tools.dependency_tools.DependencyTools
     :members:
 
-.. note:: There is limited support for detecting index expression that are
-    identical because of the commutative law, e.g. `i+k` and `k+i` would be
-    considered equal. But this only applies if two items are switched that
-    are part of the same PSyIR node. An expression like `i+k+1` is stored as
-    `(i+k)+1`, so if it is compared with `i+1+k` they are not considered to
-    be equal, because `i+1` and `i+k` are not the same. See issue #533.
 
+.. note:: PSyclone provides :ref:`user_guide:replace_induction_variable_trans`,
+          a transformation that can be very useful to improve the ability of
+          the dependency analysis to provide useful information. It is
+          recommended to run this transformation on a copy of the tree, since
+          the transformation might prevent other optimisations. For example,
+          it will set the values of removed variables at the end of the loop,
+          which can prevent loop fusion etc to work as expected.
 
 An example of how to use this class is shown below. It takes a list of statements
 (i.e. nodes in the PSyIR), and adds 'OMP DO' directives around loops that

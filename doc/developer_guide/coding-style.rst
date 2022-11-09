@@ -95,8 +95,9 @@ removing one variable, or refactoring the code to create two functions.
 
 Additional rules that apply:
 
-  #) All setter and getter functions must be declared as property and
-     setter to allow them to be used without parentheses::
+  #) All setter and getter functions (that do not do any significant work)
+     must be declared as property and setter to allow them to be used
+     without parentheses::
 
         @property
         def ast_end(self):
@@ -160,7 +161,8 @@ Interface Description
 #####################
 
 
-The interface to any new or modified routine in PSyclone must be fully documented using Sphinx mark-up. An example of how to do this is shown below:
+The interface to any new or modified routine in PSyclone must be fully
+documented using Sphinx mark-up. An example of how to do this is shown below:
 
     .. literalinclude:: interface_example.py
 
@@ -185,16 +187,15 @@ Some important details:
                                a capital letter, and end with a full stop.
          parameter description Start the parameter description with a lowercase 
                                letter and end with a full stop. The parameter type
-                               declaration must start with a lowercase letter, and
-                               no punctuation at then end. References to other
+                               declaration must follow `PEP 483
+			       <https://peps.python.org/pep-0483/>`_ with no
+			       punctuation at the end. References to other
                                classes within PSyclone should be written as
                                ``:py:class:`psyclone.filename.Class```.
          return value          The description of the return value should start with
                                a lowercase letter, and end with a full stop. The type
-                               can either be a lower case one word entry
-                               (``:py:class:`psyclone.filename.Class```, 'int'
-                               etc), or can also be a full sentence, then starting
-                               with a capital letter and full punctuation.
+                               must follow `PEP 483
+			       <https://peps.python.org/pep-0483/>`_.
          exceptions            These must start with a lower case letter, and end
                                with a full stop.
          ===================== ======================================================

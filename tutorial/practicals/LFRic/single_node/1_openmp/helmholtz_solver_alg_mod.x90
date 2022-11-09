@@ -9,7 +9,8 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications Copyright (c) 2017, Science and Technology Facilities Council
+! Modifications Copyright (c) 2017-2022, Science and Technology Facilities
+! Council
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -66,13 +67,13 @@ contains
     type(field_type),                intent(in)    :: p
 
     type(operator_type), pointer :: m3_exner_star => null(), &
-                                    div_star => null(), &
                                     compound_div => null(), &
                                     ptheta2 => null(), &
                                     p3theta => null()
     real(kind=r_def)             :: timestep_term
     real(kind=r_def)             :: sum
     type(field_type),    pointer :: mt_lumped_inv => null()
+    type(field_type) :: div_star
 
     call invoke( setval_c(grad_p, 0.0_r_def),                                &
                  scaled_matrix_vector_kernel_type(grad_p, p, div_star,       &

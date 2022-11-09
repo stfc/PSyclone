@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,20 +41,18 @@ Module containing pytest tests for the general LFRic scalar arguments
 functionality (e.g. metadata, parsing, invoke calls).
 '''
 
-from __future__ import absolute_import, print_function
 import os
 import pytest
-import six
 import fparser
 from fparser import api as fpapi
 from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone.dynamo0p3 import (DynKern, DynKernMetadata,
                                 LFRicScalarArgs, LFRicConstants)
+from psyclone.errors import InternalError, GenerationError
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import PSyFactory
-from psyclone.errors import InternalError, GenerationError
+from psyclone.psyGen import FORTRAN_INTENT_NAMES, PSyFactory
 
 # Constants
 BASE_PATH = os.path.join(
@@ -103,7 +101,7 @@ def test_ad_scalar_init_wrong_argument_type():
     wrong_arg = metadata._inits[3]
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(
-            wrong_arg, metadata.iterates_over)._init_scalar(wrong_arg)
+            wrong_arg, metadata.iterates_over, 0)._init_scalar(wrong_arg)
     assert ("Expected a scalar argument but got an argument of type "
             "'gh_operator'." in str(excinfo.value))
 
@@ -181,7 +179,7 @@ def test_ad_scalar_init_wrong_data_type(monkeypatch):
         value=LFRicConstants.VALID_ARG_DATA_TYPES + ["gh_double"])
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(
-            scalar_arg, metadata.iterates_over)._init_scalar(scalar_arg)
+            scalar_arg, metadata.iterates_over, 0)._init_scalar(scalar_arg)
     assert ("Expected one of {0} as the scalar data type but got 'gh_double'.".
             format(const.VALID_SCALAR_DATA_TYPES) in
             str(excinfo.value))
@@ -311,7 +309,7 @@ def test_arg_descriptor_scalar(scalar_ind, scalar_type):
     assert scalar_descriptor.vector_size == 0
 
 
-def test_lfricscalars_call_err():
+def test_lfricscalars_call_err1():
     ''' Check that the LFRicScalarArgs constructor raises the expected
     internal error if it encounters an unrecognised intrinsic type of
     scalar when generating a kernel call.
@@ -329,12 +327,72 @@ def test_lfricscalars_call_err():
     scalar_arg._intrinsic_type = "double-type"
     with pytest.raises(InternalError) as err:
         LFRicScalarArgs(invoke)._invoke_declarations(ModuleGen(name="my_mod"))
-    test_str = str(err.value)
-    if six.PY2:
-        test_str = test_str.replace("u'", "'")
     assert ("Found unsupported intrinsic types for the scalar arguments "
             "['a'] to Invoke 'invoke_0_testkern_three_scalars_type'. "
-            "Supported types are ['real', 'integer', 'logical']." in test_str)
+            "Supported types are ['real', 'integer', 'logical']."
+            in str(err.value))
+
+
+def test_lfricscalars_call_err2():
+    '''Check that LFRicScalarArgs _create_declarations method raises the
+    expected internal errors for real, integer and logical scalars if
+    neither invoke nor kernel is set.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "1.7_single_invoke_3scalar.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    scalar_args = LFRicScalarArgs(invoke)
+    node = ModuleGen("prog")
+    # Set up information that _create_declarations requires. Note,
+    # this method also calls _create_declarations.
+    scalar_args._invoke_declarations(node)
+
+    # Sabotage code so that a call to _create declarations raises the
+    # required exceptions.
+    scalar_args._invoke = None
+
+    # The first exception comes from real scalars.
+    with pytest.raises(InternalError) as error:
+        scalar_args._create_declarations(node)
+    assert ("Expected the declaration of real scalar kernel arguments to be "
+            "for either an invoke or a kernel stub, but it is neither."
+            in str(error.value))
+
+    # Remove real scalars so we get the exception for integer scalars.
+    for intent in FORTRAN_INTENT_NAMES:
+        scalar_args._real_scalars[intent] = None
+    with pytest.raises(InternalError) as error:
+        scalar_args._create_declarations(node)
+    assert ("Expected the declaration of integer scalar kernel arguments to "
+            "be for either an invoke or a kernel stub, but it is neither."
+            in str(error.value))
+
+    # Remove integer scalars so we get the exception for logical scalars.
+    for intent in FORTRAN_INTENT_NAMES:
+        scalar_args._integer_scalars[intent] = None
+    with pytest.raises(InternalError) as error:
+        scalar_args._create_declarations(node)
+    assert ("Expected the declaration of logical scalar kernel arguments to "
+            "be for either an invoke or a kernel stub, but it is neither."
+            in str(error.value))
+
+
+def test_lfricscalarargs_mp():
+    '''Check that the precision of a new scalar integer datatype is
+    declared in the psy-layer.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "1.6.4_scalar_mixed_prec.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    code = str(psy.gen)
+    assert "USE constants_mod, ONLY: roo_def, i_def" in code
 
 
 def test_dyninvoke_uniq_declns_intent_scalar():
@@ -444,10 +502,11 @@ def test_scalar_arg_lfricconst_properties(monkeypatch):
     const = LFRicConstants()
     monkeypatch.setattr(scalar_arg, "_intrinsic_type", "tabby")
     with pytest.raises(InternalError) as err:
-        scalar_arg._init_data_type_properties()
-    assert ("Expected one of {0} intrinsic types for a scalar "
-            "argument but found 'tabby'.".
-            format(const.VALID_INTRINSIC_TYPES)) in str(err.value)
+        scalar_arg._init_data_type_properties(None)
+    assert (f"Expected one of {const.VALID_INTRINSIC_TYPES} intrinsic types "
+            f"for a scalar argument but found 'tabby' in the metadata of "
+            f"kernel testkern_qr_code for argument lscalar_6."
+            in str(err.value))
 
 
 def test_scalar_reduction_lfricconst_properties():

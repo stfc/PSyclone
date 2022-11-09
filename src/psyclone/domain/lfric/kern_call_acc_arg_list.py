@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -204,10 +204,26 @@ class KernCallAccArgList(KernCallArgList):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
+        if self._kern.iterates_over != "cell_column":
+            return
         self.append(function_space.undf_name, var_accesses)
         # The base class only adds one dimension to the list, while OpenACC
-        # needs the whole field, so we cannot call the base class
+        # needs the whole field, so we cannot call the base class.
         self.append(function_space.map_name, var_accesses)
+
+    def scalar(self, scalar_arg, var_accesses=None):
+        '''
+        Override the default implementation as there's no need to specify
+        scalars for an OpenACC data region.
+
+        :param scalar_arg: the kernel argument.
+        :type scalar_arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :param var_accesses: optional VariablesAccessInfo instance that \
+            stores information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        '''
 
 
 # ============================================================================

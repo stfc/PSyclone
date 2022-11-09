@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,12 +31,13 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
-# Modified I. Kavcic Met Office
-# Modified by J. Henrichs, Bureau of Meteorology
+# Author: R. W. Ford STFC Daresbury Lab
+# Modified: I. Kavcic Met Office
+#           J. Henrichs, Bureau of Meteorology
+#           A. R. Porter, STFC Daresbury Laboratory
 
 '''This module tests the DynKern class within dynamo0p3 using
-pytest. A the moment the tests here do not fully cover DynKern as
+pytest. At the moment the tests here do not fully cover DynKern as
 tests for other classes end up covering the rest.'''
 
 # pylint: disable=no-name-in-module
@@ -48,17 +49,19 @@ import pytest
 from fparser import api as fpapi
 
 import psyclone
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-from psyclone.errors import InternalError, GenerationError
+from psyclone.core import AccessType
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, REAL_TYPE, \
-    INTEGER_TYPE, ArrayType
-from psyclone.psyir.nodes import KernelSchedule, Reference
 from psyclone.domain.lfric.psyir import LfricRealScalarDataSymbol, \
     RealFieldDataDataSymbol, LfricIntegerScalarDataSymbol, \
     NumberOfUniqueDofsDataSymbol
+from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynLoop
+from psyclone.errors import InternalError, GenerationError
+from psyclone.parse.algorithm import parse
+from psyclone.psyGen import PSyFactory
+from psyclone.psyir.nodes import KernelSchedule, Reference
+from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, REAL_TYPE, \
+    INTEGER_TYPE, ArrayType
+from psyclone.transformations import Dynamo0p3ColourTrans
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 TEST_API = "dynamo0.3"
@@ -316,3 +319,76 @@ def test_validate_kernel_code_arg(monkeypatch):
     assert (
         "unexpected argument type found for 'scalar' in kernel 'dummy'. "
         "Expecting a scalar or an array." in str(info.value))
+
+
+def test_kern_last_cell_all_colours_errors(monkeypatch):
+    ''' Tests for the checks in the last_cell_all_colours property
+    of DynKern. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    kern = sched.walk(DynKern)[0]
+    # Kernel is not coloured.
+    with pytest.raises(InternalError) as err:
+        _ = kern.last_cell_all_colours
+    assert "'testkern_code' is not inside a coloured loop" in str(err.value)
+    # Monkeypatch the Kernel so that it appears to be coloured.
+    monkeypatch.setattr(kern, "is_coloured", lambda: True)
+    kern._is_intergrid = True
+    with pytest.raises(InternalError) as err:
+        _ = kern.last_cell_all_colours
+    assert ("Colourmap information for kernel 'testkern_code' has not yet "
+            "been initialised" in str(err.value))
+
+
+def test_kern_last_cell_all_colours():
+    ''' Tests for the last_cell_all_colours property of DynKern. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    loop = sched.walk(DynLoop)[0]
+    # Apply a colouring transformation to the loop.
+    trans = Dynamo0p3ColourTrans()
+    trans.apply(loop)
+    # We have to perform code generation as that sets-up the symbol table.
+    # pylint:disable=pointless-statement
+    psy.gen
+    assert loop.kernel.last_cell_all_colours == "last_halo_cell_all_colours"
+
+
+def test_kern_last_cell_all_colours_intergrid():
+    ''' Test the last_cell_all_colours property for an inter-grid DynKern. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "22.1_intergrid_restrict.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    loop = sched.walk(DynLoop)[0]
+    # Apply a colouring transformation to the loop.
+    trans = Dynamo0p3ColourTrans()
+    trans.apply(loop)
+    # We have to perform code generation as that sets-up the symbol table.
+    # pylint:disable=pointless-statement
+    psy.gen
+    assert (loop.kernel.last_cell_all_colours ==
+            "last_edge_cell_all_colours_field1")
+
+
+def test_kern_all_updates_are_writes():
+    ''' Tests for the 'all_updates_are_writes' property of DynKern. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    loop = sched.walk(DynLoop)[0]
+    # The only argument updated by this kernel has GH_INC access.
+    assert not loop.kernel.all_updates_are_writes
+    # Patch the kernel so that a different argument has GH_WRITE access.
+    loop.kernel.args[2]._access = AccessType.WRITE
+    # There is still a GH_INC argument.
+    assert not loop.kernel.all_updates_are_writes
+    # Change the GH_INC to be GH_WRITE.
+    loop.kernel.args[1]._access = AccessType.WRITE
+    assert loop.kernel.all_updates_are_writes

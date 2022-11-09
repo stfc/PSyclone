@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council
+# Copyright (c) 2019-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,22 +31,18 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Lab.
-# Modified by: A. R. Porter, STFC Daresbury Lab.
+# Author: R. W. Ford, STFC Daresbury Lab
+# Modified by: A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 '''SIR PSyIR backend. Generates SIR code from PSyIR nodes. Currently
 limited to PSyIR Kernel schedules as PSy-layer PSyIR already has a
 gen() method to generate Fortran.
 
 '''
-from __future__ import absolute_import
-
-import six
-
 from psyclone.nemo import NemoLoop, NemoKern
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.nodes import ArrayReference, BinaryOperation, Literal, \
-    Reference, UnaryOperation
+    Reference, UnaryOperation, NaryOperation
 from psyclone.psyir.symbols import ScalarType
 
 # Mapping from PSyIR data types to SIR types.
@@ -83,6 +79,10 @@ def gen_stencil(node):
             "".format(type(node)))
     dims = ["0", "0", "0"]
     for idx, child in enumerate(node.children):
+    #rf         f"gen_stencil expected an ArrayReference as input but found "
+    #rf         f"'{type(node)}'.")
+    #rf dims = []
+    #rf for child in node.children:
         if isinstance(child, Reference):
             dims[idx] = "0" # *** Not needed now!!!
         elif isinstance(child, BinaryOperation):
@@ -94,18 +94,15 @@ def gen_stencil(node):
                     dims[idx] = child.children[1].value
                 else:
                     raise VisitorError(
-                        "gen_stencil unsupported stencil operator found "
-                        "'{0}'. Expecting '+' or '-'."
-                        "".format(child.operator.name))
+                        f"gen_stencil unsupported stencil operator found "
+                        f"'{child.operator.name}'. Expecting '+' or '-'.")
             else:
                 raise VisitorError(
-                    "gen_stencil unsupported stencil index found '{0}'."
-                    "".format(str(child)))
+                    f"gen_stencil unsupported stencil index found '{child}'.")
         else:
             raise VisitorError(
-                "gen_stencil unsupported (non-stencil) index found '{0}'."
-                "".format(str(child)))
-    return "[{0}]".format(", ".join(dims))
+               f"gen_stencil unsupported (non-stencil) index found '{child}'.")
+    return f"[{', '.join(dims)}]"
 
 
 class SIRWriter(PSyIRVisitor):
@@ -126,8 +123,7 @@ class SIRWriter(PSyIRVisitor):
     '''
     def __init__(self, skip_nodes=False, indent_string="  ",
                  initial_indent_depth=0):
-        super(SIRWriter, self).__init__(skip_nodes, indent_string,
-                                        initial_indent_depth)
+        super().__init__(skip_nodes, indent_string, initial_indent_depth)
         # The _field_names variable stores the unique field names
         # found in the PSyIR. This is required as the SIR declares
         # field names after the computation.
@@ -162,15 +158,14 @@ class SIRWriter(PSyIRVisitor):
         '''
         if not self._skip_nodes:
             raise VisitorError(
-                "Class SIRWriter method node_node(), unsupported node "
-                "found '{0}'".format(type(node)))
-        result = "{0}[ {1} start ]\n".format(self._nindent,
-                                             type(node).__name__)
+                f"Class SIRWriter method node_node(), unsupported node "
+                f"found '{type(node)}'")
+        result = f"{self._nindent}[ {type(node).__name__} start ]\n"
         self._depth += 1
         for child in node.children:
             result += self._visit(child)
         self._depth -= 1
-        result += "{0}[ {1} end ]\n".format(self._nindent, type(node).__name__)
+        result += f"{self._nindent}[ {type(node).__name__} end ]\n"
         return result
 
     def nemoloop_node(self, loop_node):
@@ -279,13 +274,17 @@ class SIRWriter(PSyIRVisitor):
         result = ("{0}k_interval = {1}\n".format(
             self._nindent, make_k_interval_str))
         result += ("{0}body_ast = make_ast([\n".format(self._nindent))
+        #rf # The interval values are hardcoded for the moment (see #470).
+        #rf result = f"{self._nindent}interval = "\
+        #rf          f"make_interval(Interval.Start, Interval.End, 0, 0)\n"
+        #rf result += f"{self._nindent}body_ast = make_ast([\n"
         self._depth += 1
         result += self.nemokern_node(loop_content[0])
         self._depth -= 1
         # Remove the trailing comma if there is one as this is the
         # last entry in make_ast.
         result = result.rstrip(",\n") + "\n"
-        result += "{0}])\n".format(self._nindent)
+        result += f"{self._nindent}])\n"
         # For the moment there is a hard coded assumption that the
         # vertical looping is in the forward (1..n) direction (see
         # #470).
@@ -294,6 +293,9 @@ class SIRWriter(PSyIRVisitor):
             "body_ast, k_interval, VerticalRegion.Forward, IRange={1}, JRange={2}))\n\n"
             "".format(self._nindent, make_i_interval_str, make_j_interval_str))
         
+        #rf result += f"{self._nindent}vertical_region_fns.append("\
+        #rf           f"make_vertical_region_decl_stmt(body_ast, interval, "\
+        #rf           f"VerticalRegion.Forward))\n"
         return result
 
     def nemokern_node(self, node):
@@ -385,6 +387,15 @@ class SIRWriter(PSyIRVisitor):
             "{0}{1}{1}stencil_name,\n"
             "{0}{1}{1}make_ast(vertical_region_fns),\n"
             "{0}{1}{1}[".format(self._nindent, self._indent))
+        #rf result += f"{exec_statements}\n"
+        #rf # The file name is hard coded at the moment.
+        #rf result += (self._nindent + "hir = make_sir(stencil_name+\".cpp\", "
+        #rf            "AST.GridType.Value(\"Cartesian\"), [\n"
+        #rf            + self._nindent + self._indent + "make_stencil(\n"
+        #rf            + self._nindent + self._indent * 2 + "stencil_name,\n"
+        #rf            + self._nindent + self._indent * 2
+        #rf            + "make_ast(vertical_region_fns),\n"
+        #rf            + self._nindent + self._indent * 2 + "[")
         functions = []
         for name in self._field_names:
             # field reference is ArrayReference
@@ -413,6 +424,11 @@ class SIRWriter(PSyIRVisitor):
                 "".format(name, dims, temporary_text))
         # Scalar temporaries can be declared as field temporaries as
         # the Dawn backend works out what is required.
+        #rf         f"make_field(\"{name}\", make_field_dimensions_cartesian())")
+        #rf # The current assumption is that scalars are temporaries. This
+        #rf # is not necessarily correct and this problem is captured in
+        #rf # issue #521. Scalar temporaries can be declared as field
+        #rf # temporaries as the Dawn backend works out what is required.
         for name in self._scalar_names:
             # scalar_ref is Reference
             scalar_ref = self._scalars[name]
@@ -441,6 +457,11 @@ class SIRWriter(PSyIRVisitor):
             "backend=dawn4py.CodeGenBackend.GridTools)\n")
         result += "print(code)"
 
+        #rf         f"make_field(\"{name}\", make_field_dimensions_cartesian(), "
+        #rf         f"is_temporary=True)")
+        #rf result += ", ".join(functions)
+        #rf result += "]\n"
+        #rf result += f"{self._nindent}{self._indent})\n{self._nindent}])\n"
         return result
 
     def assignment_node(self, node):
@@ -458,12 +479,11 @@ class SIRWriter(PSyIRVisitor):
         lhs = self._visit(node.lhs)
         rhs = self._visit(node.rhs)
         self._depth -= 1
-        result = ("{0}make_assignment_stmt(\n{1},\n{2}"
-                  "".format(self._nindent, lhs, rhs))
+        result = f"{self._nindent}make_assignment_stmt(\n{lhs},\n{rhs}"
         # For better formatting, remove the newline if one exists.
         result = result.rstrip("\n")
         result += ",\n"
-        result += "{0}{1}\"=\"),\n".format(self._nindent, self._indent)
+        result += f"{self._nindent}{self._indent}\"=\"),\n"
         return result
 
     def binaryoperation_node(self, node):
@@ -480,6 +500,15 @@ class SIRWriter(PSyIRVisitor):
         operator to SIR.
 
         '''
+        # Specify any PSyIR intrinsic operators as these are typically
+        # mapped to SIR functions and are therefore treated
+        # differently to other operators.
+        intrinsic_operators = [
+            BinaryOperation.Operator.MIN, BinaryOperation.Operator.MAX,
+            BinaryOperation.Operator.SIGN]
+
+        # Specify the mapping of PSyIR binary operators to SIR binary
+        # operators.
         binary_operators = {
             BinaryOperation.Operator.ADD: '+',
             BinaryOperation.Operator.SUB: '-',
@@ -493,25 +522,44 @@ class SIRWriter(PSyIRVisitor):
             BinaryOperation.Operator.GE: '>=',
             BinaryOperation.Operator.GT: '>',
             BinaryOperation.Operator.AND: '&&',
-            BinaryOperation.Operator.OR: '||'}
+            BinaryOperation.Operator.OR: '||',
+            BinaryOperation.Operator.MIN: 'math::min',
+            BinaryOperation.Operator.MAX: 'math::max',
+            BinaryOperation.Operator.SIGN: 'math::sign'}
 
         self._depth += 1
         lhs = self._visit(node.children[0])
         try:
             oper = binary_operators[node.operator]
         except KeyError as err:
-            six.raise_from(VisitorError(
-                "Method binaryoperation_node in class SIRWriter, unsupported "
-                "operator '{0}' found.".format(str(node.operator))),
-                err)
+            raise VisitorError(
+                f"Method binaryoperation_node in class SIRWriter, unsupported "
+                f"operator '{node.operator}' found.") from err
         rhs = self._visit(node.children[1])
         self._depth -= 1
-        result = "{0}make_binary_operator(\n{1}".format(self._nindent, lhs)
-        # For better formatting, remove the newline if one exists.
-        result = result.rstrip("\n")
-        result += ",\n"
-        result += ("{0}{1}\"{2}\",\n{3}\n{0}{1})\n"
-                   "".format(self._nindent, self._indent, oper, rhs))
+
+        if node.operator in intrinsic_operators:
+            if node.operator is BinaryOperation.Operator.SIGN:
+                # This is a special case as the implementation of SIGN
+                # in the PSyIR (which uses the Fortran implementation)
+                # is different to that in SIR (which uses the C
+                # implementation).
+                # [F] SIGN(A,B) == [C] FABS(A)*SIGN(B)
+                c_abs_fun = (f"make_fun_call_expr(\"math::fabs\", "
+                             f"[{lhs.strip()}])")
+                c_sign_fun = (f"make_fun_call_expr(\"math::sign\", "
+                              f"[{rhs.strip()}])")
+                result = (f"make_binary_operator({c_abs_fun}, "
+                          f"\"*\", {c_sign_fun})")
+            else:
+                result = (f"{self._nindent}{self._indent}make_fun_call_expr("
+                          f"\"{oper}\", [{lhs.strip()}], [{rhs.strip()}])")
+        else:
+            result = f"{self._nindent}make_binary_operator(\n{lhs}"
+            # For better formatting, remove the newline if one exists.
+            result = result.rstrip("\n") + ",\n"
+            result += f"{self._nindent}{self._indent}\"{oper}\",\n{rhs}\n"\
+                f"{self._nindent}{self._indent})\n"
         return result
 
     def reference_node(self, node):
@@ -540,8 +588,7 @@ class SIRWriter(PSyIRVisitor):
         self._scalar_names.add(node.name)
         self._scalars[node.name] = node
 
-        return "{0}make_field_access_expr(\"{1}\")".format(self._nindent,
-                                                           node.name)
+        return f"{self._nindent}make_field_access_expr(\"{node.name}\")"
 
     def arrayreference_node(self, node):
         '''This method is called when an ArrayReference instance is found in
@@ -555,8 +602,8 @@ class SIRWriter(PSyIRVisitor):
 
         '''
         stencil = gen_stencil(node)
-        result = ("{0}make_field_access_expr(\"{1}\", {2})"
-                  "".format(self._nindent, node.name, stencil))
+        result = f"{self._nindent}make_field_access_expr(\"{node.name}\", "\
+                 f"{stencil})"
         # _field_names is a set so duplicates will be ignored. It
         # captures all unique field names as the SIR declares field
         # names after the computation.
@@ -579,13 +626,12 @@ class SIRWriter(PSyIRVisitor):
         try:
             datatype = TYPE_MAP_TO_SIR[node.datatype.intrinsic]
         except KeyError as err:
-            six.raise_from(VisitorError(
-                "PSyIR type '{0}' has no representation in the SIR backend."
-                "".format(str(node.datatype))),
-                err)
+            raise VisitorError(
+                f"PSyIR type '{node.datatype}' has no representation in the "
+                f"SIR backend.") from err
 
-        return ("{0}make_literal_access_expr(\"{1}\", {2})"
-                "".format(self._nindent, result, datatype))
+        return f"{self._nindent}make_literal_access_expr(\"{result}\", "\
+               f"{datatype})"
 
     def unaryoperation_node(self, node):
         '''This method is called when a UnaryOperation instance is found in
@@ -602,16 +648,25 @@ class SIRWriter(PSyIRVisitor):
         a literal (as only -<literal> is currently supported).
 
         '''
-        # Currently only '-' is supported in the SIR mapping.
+        # Currently only '-' and intrinsics are supported in the SIR mapping.
+        intrinsic_operators = [UnaryOperation.Operator.ABS]
+
         unary_operators = {
-            UnaryOperation.Operator.MINUS: '-'}
+            UnaryOperation.Operator.MINUS: '-',
+            UnaryOperation.Operator.ABS: 'math::fabs'}
         try:
             oper = unary_operators[node.operator]
         except KeyError as err:
-            six.raise_from(VisitorError(
-                "Method unaryoperation_node in class SIRWriter, unsupported "
-                "operator '{0}' found.".format(str(node.operator))),
-                err)
+            raise VisitorError(
+                f"Method unaryoperation_node in class SIRWriter, unsupported "
+                f"operator '{node.operator}' found.") from err
+
+        if node.operator in intrinsic_operators:
+            rhs = self._visit(node.children[0])
+            result = (f"{self._nindent}{self._indent}make_fun_call_expr("
+                      f"\"{oper}\", [{rhs.strip()}])")
+            return result
+
         if isinstance(node.children[0], Literal):
             # The unary minus operator is being applied to a
             # literal. This is a special case as the literal value can
@@ -622,12 +677,12 @@ class SIRWriter(PSyIRVisitor):
                 # The '-' operator can only be applied to REAL and INTEGER
                 # datatypes.
                 raise VisitorError(
-                    "PSyIR type '{0}' does not work with the '-' operator."
-                    "".format(str(literal.datatype)))
+                    f"PSyIR type '{literal.datatype}' does not work with the "
+                    f"'-' operator.")
             result = literal.value
             datatype = TYPE_MAP_TO_SIR[literal.datatype.intrinsic]
-            return ("{0}make_literal_access_expr(\"{1}{2}\", {3})"
-                    "".format(self._nindent, oper, result, datatype))
+            return f"{self._nindent}make_literal_access_expr(\"{oper}{result}"\
+                   f"\", {datatype})"
 
         # The unary minus operator is being applied to something that
         # is not a literal. Default to REAL as we currently have no
@@ -635,13 +690,12 @@ class SIRWriter(PSyIRVisitor):
         # -1.0 * x.
         datatype = TYPE_MAP_TO_SIR[ScalarType.Intrinsic.REAL]
         self._depth += 1
-        lhs = "{0}make_literal_access_expr(\"-1.0\", {1})".format(
-            self._nindent, datatype)
-        operator = "{0}\"*\"".format(self._nindent)
+        lhs = f"{self._nindent}make_literal_access_expr(\"-1.0\", {datatype})"
+        operator = f"{self._nindent}\"*\""
         rhs = self._visit(node.children[0])
         self._depth -= 1
-        result = "{0}make_binary_operator(\n{1},\n{2},\n{3})\n".format(
-            self._nindent, lhs, operator, rhs)
+        result = f"{self._nindent}make_binary_operator"\
+                 f"(\n{lhs},\n{operator},\n{rhs})\n"
         return result
 
     def ifblock_node(self, node):
@@ -656,21 +710,20 @@ class SIRWriter(PSyIRVisitor):
 
         '''
         cond_expr = self._visit(node.condition)
-        cond_part = ("make_expr_stmt({0})"
-                     "".format(cond_expr.lstrip().rstrip(",\n")))
+        cond_part = "make_expr_stmt(" + cond_expr.lstrip().rstrip(",\n") + ")"
 
         then_statements = self._visit(node.if_body).lstrip().rstrip(",\n")
-        then_part = "make_block_stmt([{0}])".format(then_statements)
+        then_part = "make_block_stmt([" + then_statements + "])"
 
         if node.else_body:
             else_statements = self._visit(node.else_body)
-            else_part = ("make_block_stmt([{0}])"
-                         "".format(else_statements.lstrip().rstrip(",\n")))
+            else_part = "make_block_stmt([" + \
+                        else_statements.lstrip().rstrip(",\n") + "])"
         else:
             else_part = "None"
 
-        return ("{0}make_if_stmt({1}, {2}, {3}),\n"
-                "".format(self._nindent, cond_part, then_part, else_part))
+        return f"{self._nindent}make_if_stmt({cond_part}, {then_part}, "\
+               f"{else_part}),\n"
 
     def schedule_node(self, node):
         '''This method is called when a Schedule instance is found in the
@@ -691,4 +744,45 @@ class SIRWriter(PSyIRVisitor):
         result = ""
         for child in node.children:
             result += self._visit(child)
+        return result
+
+    def naryoperation_node(self, node):
+        '''This method is called when an NaryOperation instance is found in
+        the PSyIR tree.
+
+        :param node: a NaryOperation PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.NaryOperation`
+
+        :returns: the SIR Python code.
+        :rtype: str
+
+        :raises VisitorError: if there is no mapping from the PSyIR \
+            operator to SIR.
+
+        '''
+        # Specify the mapping of PSyIR nary operators to SIR nary
+        # operators. The assumption here is that the nary operators
+        # are SIR intrinsics.
+        nary_operators = {
+            NaryOperation.Operator.MIN: 'math::min',
+            NaryOperation.Operator.MAX: 'math::max'}
+
+        try:
+            oper = nary_operators[node.operator]
+        except KeyError as err:
+            oper_names = [operator.name for operator in nary_operators]
+            raise VisitorError(
+                f"Method naryoperation_node in class SIRWriter, unsupported "
+                f"operator '{node.operator}' found. Expected one of "
+                f"'{oper_names}'.") from err
+
+        arg_list = []
+        self._depth += 1
+        for child in node.children:
+            arg_list.append(f"[{self._visit(child).strip()}]")
+        self._depth -= 1
+        arg_str = ", ".join(arg_list)
+        # The assumption here is that the supported operators are intrinsics
+        result = (f"{self._nindent}{self._indent}make_fun_call_expr("
+                  f"\"{oper}\", {arg_str})")
         return result

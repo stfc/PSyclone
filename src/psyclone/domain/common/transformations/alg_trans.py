@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,15 +31,15 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''Specialise generic PSyIR representing an algorithm layer to a
 PSyclone algorithm-layer-specific PSyIR which uses specialised classes.
 
 '''
+from psyclone.domain.common.transformations import RaisePSyIR2AlgTrans
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Call, Routine, Container
-from psyclone.domain.common.transformations import InvokeCallTrans
 from psyclone.psyir.transformations import TransformationError
 
 
@@ -49,7 +49,7 @@ class AlgTrans(Transformation):
 
     '''
     def __init__(self):
-        self._invoke_trans = InvokeCallTrans()
+        self._invoke_trans = RaisePSyIR2AlgTrans()
 
     def validate(self, node, options=None):
         '''Validate the supplied PSyIR tree.
@@ -58,7 +58,7 @@ class AlgTrans(Transformation):
         :type node: :py:class:`psyclone.psyir.node.Routine` or \
             :py:class:`psyclone.psyir.node.Container`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, str]]
 
         :raises TransformationError: if the supplied node argument is \
             not a Routine or a Container.
@@ -93,15 +93,6 @@ class AlgTrans(Transformation):
             if call.routine.name.lower() == "invoke":
                 self._invoke_trans.apply(call, idx, options=options)
                 idx += 1
-
-    @property
-    def name(self):
-        '''
-        :returns: a name identifying this transformation.
-        :rtype: str
-
-        '''
-        return "AlgTrans"
 
 
 __all__ = ['AlgTrans']

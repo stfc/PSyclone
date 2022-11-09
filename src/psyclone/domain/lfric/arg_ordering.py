@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,6 @@
 kernel calls.
 '''
 
-from __future__ import print_function, absolute_import
 import abc
 
 from psyclone.core import AccessType, Signature
@@ -47,7 +46,7 @@ from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import GenerationError, InternalError
 
 
-class ArgOrdering(object):
+class ArgOrdering:
     # pylint: disable=too-many-public-methods
     # TODO: #845 Check that all implicit variables have the right type.
     '''Base class capturing the arguments, type and ordering of data in
@@ -67,14 +66,17 @@ class ArgOrdering(object):
         self._kern = kern
         self._generate_called = False
         self._arglist = []
+        self._arg_index_to_metadata_index = {}
 
     def append(self, var_name, var_accesses=None, var_access_name=None,
-               mode=AccessType.READ):
-        '''Appends the specified variable name to the list of all arguments.
-        If var_accesses is given, it will also record the access to the
-        variable. The name of the variable accessed can be overwritten by
-        specifying var_access_name. By default it is assumed that access
-        mode is READ (which can be set with mode).
+               mode=AccessType.READ, metadata_posn=None):
+        '''Appends the specified variable name to the list of all arguments and
+        stores the mapping between the position of this actual argument and
+        the corresponding metadata entry. If var_accesses is given, it will
+        also record the access to the variable. The name of the variable
+        accessed can be overwritten by specifying var_access_name. By default
+        it is assumed that access mode is READ (which can be set with
+        ``mode``).
 
         :param str var_name: the name of the variable.
         :param var_accesses: optional class to store variable access \
@@ -87,9 +89,16 @@ class ArgOrdering(object):
             recorded for field).
         :param mode: optional access mode (defaults to READ).
         :type mode: :py:class:`psyclone.core.access_type.AccessType`
+        :param int metadata_posn: the location of the corresponding entry in \
+            the list of arguments in the kernel metadata (if any).
 
         '''
+        # Keep track of which metadata argument this actual argument
+        # corresponds to.
+        self._arg_index_to_metadata_index[len(self._arglist)] = metadata_posn
+
         self._arglist.append(var_name)
+
         if var_accesses is not None:
             if var_access_name:
                 var_accesses.add_access(Signature(var_access_name), mode,
@@ -99,7 +108,7 @@ class ArgOrdering(object):
                                         self._kern)
 
     def extend(self, list_var_name, var_accesses=None,
-               mode=AccessType.READ):
+               mode=AccessType.READ, list_metadata_posn=None):
         '''Appends all variable names in the argument list to the list of
         all arguments. If var_accesses is given, it will also record the
         access to the variables. By default any access will be recorded as a
@@ -113,13 +122,17 @@ class ArgOrdering(object):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         :param mode: optional access mode (defaults to READ).
-        :type mode: :py:class:`psyclone.core.access_type.AccessType`
+        :type mode: Optional[:py:class:`psyclone.core.access_type.AccessType`]
+        :param Optional[List[int]] list_metadata_posn: list of metadata \
+            argument positions.
 
         '''
-        self._arglist.extend(list_var_name)
-        if var_accesses:
-            for var_name in list_var_name:
-                var_accesses.add_access(Signature(var_name), mode, self._kern)
+        for idx, var in enumerate(list_var_name):
+            if list_metadata_posn:
+                self.append(var, var_accesses=var_accesses, mode=mode,
+                            metadata_posn=list_metadata_posn[idx])
+            else:
+                self.append(var, mode=mode, var_accesses=var_accesses)
 
     @property
     def num_args(self):
@@ -142,10 +155,25 @@ class ArgOrdering(object):
         '''
         if not self._generate_called:
             raise InternalError(
-                "The argument list in {0} is empty. "
-                "Has the generate() method been called?"
-                .format(type(self).__name__))
+                f"The argument list in {type(self).__name__} is empty. "
+                f"Has the generate() method been called?")
         return self._arglist
+
+    def metadata_index_from_actual_index(self, idx):
+        '''
+        Returns the index of the entry in the meta_args list from which the
+        actual subroutine argument at `idx` originated.
+
+        :param int idx: the index of an actual argument to the kernel \
+                        subroutine.
+
+        :returns: the 0-indexed position of the corresponding metadata entry.
+        :rtype: int
+
+        :raises KeyError: if no entry for the specified argument exists.
+
+        '''
+        return self._arg_index_to_metadata_index[idx]
 
     def generate(self, var_accesses=None):
         # pylint: disable=too-many-statements, too-many-branches
@@ -251,10 +279,9 @@ class ArgOrdering(object):
                 self.scalar(arg, var_accesses=var_accesses)
             else:
                 raise GenerationError(
-                    "ArgOrdering.generate(): Unexpected argument type found. "
-                    "Expected one of '{0}' but found '{1}'".
-                    format(const.VALID_ARG_TYPE_NAMES,
-                           arg.argument_type))
+                    f"ArgOrdering.generate(): Unexpected argument type found. "
+                    f"Expected one of '{const.VALID_ARG_TYPE_NAMES}' but "
+                    f"found '{arg.argument_type}'")
         # For each function space (in the order they appear in the
         # metadata arguments)
         for unique_fs in self._kern.arguments.unique_fss:
@@ -305,21 +332,22 @@ class ArgOrdering(object):
             # operator as argument
             if len(self._kern.arguments.args) > 1:
                 raise GenerationError(
-                    "Kernel {0} has {1} arguments when it should only have 1 "
-                    "(an LMA operator)".format(self._kern.name,
-                                               len(self._kern.arguments.args)))
+                    f"Kernel {self._kern.name} has "
+                    f"{len(self._kern.arguments.args)} arguments when it "
+                    f"should only have 1 (an LMA operator)")
             op_arg = self._kern.arguments.args[0]
             if op_arg.argument_type != "gh_operator":
                 raise GenerationError(
-                    "Expected an LMA operator from which to look-up boundary "
-                    "dofs but kernel {0} has argument {1}.".
-                    format(self._kern.name, op_arg.argument_type))
+                    f"Expected an LMA operator from which to look-up boundary "
+                    f"dofs but kernel {self._kern.name} has argument "
+                    f"{op_arg.argument_type}.")
             if op_arg.access != AccessType.READWRITE:
                 raise GenerationError(
-                    "Kernel {0} is recognised as a kernel which applies "
-                    "boundary conditions to an operator. However its operator "
-                    "argument has access {1} rather than gh_readwrite.".
-                    format(self._kern.name, op_arg.access.api_specific_name()))
+                    f"Kernel {self._kern.name} is recognised as a kernel which"
+                    f" applies boundary conditions to an operator. However its"
+                    f" operator argument has access "
+                    f"{op_arg.access.api_specific_name()} rather than "
+                    f"gh_readwrite.")
             self.operator_bcs_kernel(op_arg.function_space_to,
                                      var_accesses=var_accesses)
 
@@ -335,7 +363,6 @@ class ArgOrdering(object):
         if self._kern.qr_required:
             self.quad_rule(var_accesses=var_accesses)
 
-    @abc.abstractmethod
     def cell_position(self, var_accesses=None):
         '''Add cell position information.
 
@@ -346,7 +373,6 @@ class ArgOrdering(object):
 
         '''
 
-    @abc.abstractmethod
     def cell_map(self, var_accesses=None):
         '''Add cell-map and related cell counts (for inter-grid kernels)
         to the argument list. If supplied it also stores these accesses to the
@@ -359,7 +385,6 @@ class ArgOrdering(object):
 
         '''
 
-    @abc.abstractmethod
     def mesh_height(self, var_accesses=None):
         '''Add mesh height (nlayers) to the argument list and if supplied
         stores this access in var_accesses.
@@ -371,7 +396,6 @@ class ArgOrdering(object):
 
         '''
 
-    @abc.abstractmethod
     def _mesh_ncell2d(self, var_accesses=None):
         '''Add the number of columns in the mesh (including halos) to the
         argument list and stores this access in var_accesses (if supplied).
@@ -383,7 +407,6 @@ class ArgOrdering(object):
 
         '''
 
-    @abc.abstractmethod
     def _mesh_ncell2d_no_halos(self, var_accesses=None):
         '''Add the number of columns in the mesh (excluding halos) to the
         argument list and stores this access in var_accesses (if supplied).
@@ -565,11 +588,12 @@ class ArgOrdering(object):
         const = LFRicConstants()
         if not scalar_arg.is_scalar:
             raise InternalError(
-                "Expected argument type to be one of {0} but got '{1}'".
-                format(const.VALID_SCALAR_NAMES,
-                       scalar_arg.argument_type))
+                f"Expected argument type to be one of "
+                f"{const.VALID_SCALAR_NAMES} but got "
+                f"'{scalar_arg.argument_type}'")
 
-        self.append(scalar_arg.name, var_accesses, mode=scalar_arg.access)
+        self.append(scalar_arg.name, var_accesses, mode=scalar_arg.access,
+                    metadata_posn=scalar_arg.metadata_index)
 
     def fs_common(self, function_space, var_accesses=None):
         '''Add function-space related arguments common to LMA operators and
@@ -588,7 +612,6 @@ class ArgOrdering(object):
         ndf_name = function_space.ndf_name
         self.append(ndf_name, var_accesses)
 
-    @abc.abstractmethod
     def fs_compulsory_field(self, function_space, var_accesses=None):
         '''Add compulsory arguments associated with this function space to
         the list. If supplied it also stores this access in var_accesses.

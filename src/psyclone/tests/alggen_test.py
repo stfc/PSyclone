@@ -1,7 +1,8 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+#
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,10 +38,14 @@
 ''' Tests for the algorithm generation (re-writing) as implemented
     in alg_gen.py '''
 
-from __future__ import absolute_import, print_function
 import os
 import pytest
-from psyclone.alg_gen import NoInvokesError, adduse
+
+from fparser.common.readfortran import FortranStringReader
+from fparser.two import Fortran2003
+from fparser.two.utils import walk
+
+from psyclone import alg_gen
 from psyclone.configuration import Config
 from psyclone.generator import generate, GenerationError
 from psyclone.errors import InternalError
@@ -50,7 +55,7 @@ from psyclone.errors import InternalError
 def setup():
     '''Make sure that all tests here use dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
-    yield()
+    yield
     Config._instance = None
 
 
@@ -62,9 +67,10 @@ def test_single_function_invoke():
     ''' single kernel specified in an invoke call'''
     alg, _ = generate(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                       api="dynamo0.3")
-    gen = str(alg)
-    assert "USE single_invoke_psy, ONLY: invoke_0_testkern_type" in gen
-    assert "CALL invoke_0_testkern_type(a, f1, f2, m1, m2)" in gen
+    gen = str(alg).lower()
+    assert "use single_invoke_psy, only: invoke_0_testkern_type" in gen
+    assert "call invoke_0_testkern_type(a, f1, f2, m1, m2)" in gen
+    assert "use testkern_mod" not in gen
 
 
 def test_single_function_named_invoke():
@@ -135,9 +141,10 @@ def test_single_function_invoke_qr():
     alg, _ = generate(os.path.join(BASE_PATH,
                                    "1.1.0_single_invoke_xyoz_qr.f90"),
                       api="dynamo0.3")
-    gen = str(alg)
-    assert "USE testkern_qr, ONLY: testkern_qr_type" in gen
-    assert ("CALL invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp, qr)"
+    gen = str(alg).lower()
+    assert "use testkern_qr" not in gen
+    assert "use single_invoke_psy, only: invoke_0_testkern_qr_type" in gen
+    assert ("call invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp, qr)"
             in gen)
 
 
@@ -154,12 +161,17 @@ def test_single_function_multi_invokes():
     ''' three invokes, each containing a single function '''
     alg, _ = generate(os.path.join(BASE_PATH, "3_multi_invokes.f90"),
                       api="dynamo0.3")
-    gen = str(alg)
-    assert "USE testkern_mod, ONLY: testkern_type" in gen
-    assert "USE testkern_qr, ONLY: testkern_qr_type" in gen
-    assert "CALL invoke_0_testkern_type(a, f1, f2, m1, m2)" in gen
-    assert "CALL invoke_2_testkern_type(a, f1, f2, m1, m2)" in gen
-    assert ("CALL invoke_1_testkern_qr_type(f1, f2, m1, a, m2, istp, qr)"
+    gen = str(alg).lower()
+    # Use statements for kernels should have been removed.
+    assert "use testkern_mod" not in gen
+    assert "use testkern_qr" not in gen
+    # Use statements for PSy-layer routines should have been added.
+    assert "use multi_invokes_psy, only: invoke_0_testkern_type" in gen
+    assert "use multi_invokes_psy, only: invoke_2_testkern_type" in gen
+    assert "use multi_invokes_psy, only: invoke_1_testkern_qr_type" in gen
+    assert "call invoke_0_testkern_type(a, f1, f2, m1, m2)" in gen
+    assert "call invoke_2_testkern_type(a, f1, f2, m1, m2)" in gen
+    assert ("call invoke_1_testkern_qr_type(f1, f2, m1, a, m2, istp, qr)"
             in gen)
 
 
@@ -170,15 +182,17 @@ def test_named_multi_invokes():
         os.path.join(BASE_PATH,
                      "3.2_multi_functions_multi_named_invokes.f90"),
         api="dynamo0.3")
-    gen = str(alg)
-    assert "USE testkern_mod, ONLY: testkern_type" in gen
-    assert "USE testkern_qr, ONLY: testkern_qr_type" in gen
-    assert ("USE multi_functions_multi_invokes_psy, ONLY: "
+    gen = str(alg).lower()
+    # Use statements for kernels should have been removed.
+    assert "use testkern_mod" not in gen
+    assert "use testkern_qr" not in gen
+    # Use statements for PSy-layer routines should have been added.
+    assert ("use multi_functions_multi_invokes_psy, only: "
             "invoke_my_first" in gen)
-    assert ("USE multi_functions_multi_invokes_psy, ONLY: "
+    assert ("use multi_functions_multi_invokes_psy, only: "
             "invoke_my_second" in gen)
-    assert "CALL invoke_my_first(a, f1, f2," in gen
-    assert "CALL invoke_my_second(f1, f2, m1, a, m2" in gen
+    assert "call invoke_my_first(a, f1, f2," in gen
+    assert "call invoke_my_second(f1, f2, m1, a, m2" in gen
 
 
 def test_multi_function_multi_invokes():
@@ -187,7 +201,6 @@ def test_multi_function_multi_invokes():
         os.path.join(BASE_PATH, "3.1_multi_functions_multi_invokes.f90"),
         api="dynamo0.3")
     gen = str(alg)
-    print(gen)
     assert "USE multi_functions_multi_invokes_psy, ONLY: invoke_1" in gen
     assert "USE multi_functions_multi_invokes_psy, ONLY: invoke_0" in gen
     assert "CALL invoke_0(a, f1, f2, m1, m2, istp, qr)" in gen
@@ -199,11 +212,13 @@ def test_multi_function_invoke_qr():
     requires a quadrature rule'''
     alg, _ = generate(os.path.join(
         BASE_PATH, "1.3_multi_invoke_qr.f90"), api="dynamo0.3")
-    gen = str(alg)
-    print(gen)
-    assert "USE testkern_qr, ONLY: testkern_qr_type" in gen
-    assert "USE testkern_mod, ONLY: testkern_type" in gen
-    assert "CALL invoke_0(f1, f2, m1, a, m2, istp, m3, f3, qr)" in gen
+    gen = str(alg).lower()
+    # Use statements for kernels should have been removed.
+    assert "use testkern_qr" not in gen
+    assert "use testkern_mod" not in gen
+    # Use statement for PSy-layer routines should have been added.
+    assert "use multi_invoke_qr_psy, only: invoke_0" in gen
+    assert "call invoke_0(f1, f2, m1, a, m2, istp, m3, f3, qr)" in gen
 
 
 def test_invoke_argnames():
@@ -211,7 +226,6 @@ def test_invoke_argnames():
     alg, _ = generate(os.path.join(
         BASE_PATH, "5_alg_field_array.f90"), api="dynamo0.3")
     gen = str(alg)
-    print(gen)
     assert "USE single_function_psy, ONLY: invoke_0" in gen
     assert ("CALL invoke_0(f0(1), f1(1, 1), f1(2, index), b(1), "
             "f1(index, index2(index3)), iflag(2), a(index1), "
@@ -250,7 +264,6 @@ def test_deref_derived_type_args():
                      "1.6.2_single_invoke_1_int_from_derived_type.f90"),
         api="dynamo0.3")
     gen = str(alg)
-    print(gen)
     assert (
         "CALL invoke_0(f1, my_obj % iflag, f2, m1, m2, my_obj % get_flag(), "
         "my_obj % get_flag(switch), my_obj % get_flag(int_wrapper % data))"
@@ -266,41 +279,10 @@ def test_multi_deref_derived_type_args():
                      "1.6.3_single_invoke_multiple_derived_types.f90"),
         api="dynamo0.3")
     gen = str(alg)
-    print(gen)
     assert (
         "CALL invoke_0(f1, obj_a % iflag, f2, m1, m2, obj_b % iflag, "
-        "obj_a % obj_b, obj_b % obj_a)"
+        "obj_a % obj_b % iflag, obj_b % obj_a % iflag)"
         in gen)
-
-
-def test_op_and_scalar_and_qr_derived_type_args():
-    ''' Test the case where the operator, scalar and qr arguments to a
-    kernel are all supplied by de-referencing derived types. '''
-    alg, _ = generate(
-        os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                     "test_files", "dynamo0p3",
-                     "10.6.1_operator_no_field_scalar_deref.f90"),
-        api="dynamo0.3")
-    gen = str(alg)
-
-    assert (
-        "CALL invoke_0_testkern_operator_nofield_scalar_type("
-        "opbox % my_mapping, box % b(1), qr % init_quadrature_symmetrical"
-        "(3_i_def, qrl_gauss))" in gen)
-
-
-def test_vector_field_arg_deref():
-    ''' Test that we generate a correct invoke call when a kernel
-    argument representing a field vector is obtained by de-referencing a
-    derived type '''
-    alg, _ = generate(
-        os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                     "test_files", "dynamo0p3",
-                     "8.1_vector_field_deref.f90"),
-        api="dynamo0.3")
-    gen = str(alg)
-
-    assert "CALL invoke_0_testkern_coord_w0_type(f1, box % chi, f2)" in gen
 
 
 def test_single_stencil():
@@ -318,8 +300,8 @@ def test_single_stencil_broken():
     path = os.path.join(BASE_PATH, "19.2_single_stencil_broken.f90")
     with pytest.raises(GenerationError) as excinfo:
         _, _ = generate(path, api="dynamo0.3")
-        assert "expected '5' arguments in the algorithm layer but found '4'" \
-               in str(excinfo.value)
+    assert ("expected '5' arguments in the algorithm layer but found '4'"
+            in str(excinfo.value))
 
 
 def test_single_stencil_xory1d():
@@ -328,7 +310,6 @@ def test_single_stencil_xory1d():
     path = os.path.join(BASE_PATH, "19.3_single_stencil_xory1d.f90")
     alg, _ = generate(path, api="dynamo0.3")
     output = str(alg)
-    print(output)
     assert ("CALL invoke_0_testkern_stencil_xory1d_type(f1, f2, "
             "f3, f4, f2_extent, f2_direction)") in output
 
@@ -349,7 +330,6 @@ def test_single_stencil_xory1d_literal():
         BASE_PATH, "19.5_single_stencil_xory1d_literal.f90")
     alg, _ = generate(path, api="dynamo0.3")
     output = str(alg)
-    print(output)
     assert ("CALL invoke_0_testkern_stencil_xory1d_type(f1, f2, "
             "f3, f4)") in output
 
@@ -359,7 +339,6 @@ def test_multiple_stencils():
     path = os.path.join(BASE_PATH, "19.7_multiple_stencils.f90")
     alg, _ = generate(path, api="dynamo0.3")
     output = str(alg)
-    print(output)
     assert ("CALL invoke_0_testkern_stencil_multi_type(f1, f2, "
             "f3, f4, f2_extent, f3_extent, f3_direction)") in output
 
@@ -370,7 +349,6 @@ def test_multiple_stencil_same_name_direction():
     path = os.path.join(BASE_PATH, "19.9_multiple_stencils_same_name.f90")
     alg, _ = generate(path, api="dynamo0.3")
     output = str(alg)
-    print(output)
     assert ("CALL invoke_0_testkern_stencil_multi_2_type(f1, f2, "
             "f3, f4, extent, direction)") in output
 
@@ -380,7 +358,6 @@ def test_multiple_kernels_stencils():
     path = os.path.join(BASE_PATH, "19.10_multiple_kernels_stencils.f90")
     alg, _ = generate(path, api="dynamo0.3")
     output = str(alg)
-    print(output)
     assert "USE multiple_stencil_psy, ONLY: invoke_0" in output
     assert ("CALL invoke_0(f1, f2, f3, f4, f2_extent, f3_extent, extent, "
             "f3_direction, direction)") in output
@@ -393,7 +370,6 @@ def test_multiple_stencil_same_name_case():
         BASE_PATH, "19.11_multiple_stencils_mixed_case.f90")
     alg, _ = generate(path, api="dynamo0.3")
     output = str(alg)
-    print(output)
     assert ("CALL invoke_0_testkern_stencil_multi_2_type(f1, f2, "
             "f3, f4, extent, direction)") in output
 
@@ -404,8 +380,8 @@ def test_single_stencil_xory1d_scalar():
     path = os.path.join(BASE_PATH, "19.6_single_stencil_xory1d_value.f90")
     with pytest.raises(GenerationError) as excinfo:
         _, _ = generate(path, api="dynamo0.3")
-        assert ("literal is not a valid value for a stencil direction"
-                in str(excinfo.value))
+    assert ("literal is not a valid value for a stencil direction"
+            in str(excinfo.value))
 
 
 def test_multiple_stencil_same_name():
@@ -413,49 +389,18 @@ def test_multiple_stencil_same_name():
     path = os.path.join(BASE_PATH, "19.8_multiple_stencils_same_name.f90")
     alg, _ = generate(path, api="dynamo0.3")
     output = str(alg)
-    print(output)
     assert ("CALL invoke_0_testkern_stencil_multi_type(f1, f2, "
             "f3, f4, extent, f3_direction)") in output
 
 
-def test_single_invoke_dynamo0p1():
-    ''' Test for correct code transformation for a single function
-        specified in an invoke call for the dynamo0.1 API. We use the
-        generate function as parse and PSyFactory need to be called before
-        AlgGen so it is simpler to use this. '''
-
-    alg, _ = generate(
-        os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                     "test_files", "dynamo0p1", "algorithm",
-                     "1_single_function.f90"), api="dynamo0.1")
-    gen = str(alg)
-    assert "USE psy_single_function, ONLY: invoke_0_testkern_type" in gen
-    assert "CALL invoke_0_testkern_type(f1, f2, m1)" in gen
-
-
-def test_zero_invoke_dynamo0p1():
-    ''' Test that an exception is raised if the specified file does
-        not contain any actual invoke() calls. We use the generate
-        function as parse and PSyFactory need to be called before
-        AlgGen so it is simpler to use this. '''
-    with pytest.raises(NoInvokesError):
-        _, _ = generate(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", "dynamo0p1", "missing_invokes.f90"),
-            api="dynamo0.1")
-
-
-# sample code for use in subsequent adduse tests.
-
-
+# Sample code for use in subsequent _adduse tests.
 CODE = ("program test\n"
         "  integer :: i\n"
         "  i=0\n"
         "end program test\n")
 
-# utility function for parsing code, used in subsequent adduse tests.
 
-
+# Utility function for parsing code, used in subsequent _adduse tests.
 def get_parse_tree(code, parser):
     '''Utility function that takes Fortran code as a string and returns an
     fparser2 parse tree of the code. Pass in an instance of the parser
@@ -470,11 +415,63 @@ def get_parse_tree(code, parser):
     :rtype: :py:class:`fparser.two.utils.Base`
 
     '''
-    from fparser.common.readfortran import FortranStringReader
     reader = FortranStringReader(code)
     return parser(reader)
 
-# function adduse tests These should be moved in #240.
+
+# Function _rm_kernel_use_stmts tests. These will be removed once the LFRic
+# algorithm layer uses PSyIR (#1618).
+
+
+def test_rm_kernel_use_stmts(parser):
+    '''Tests for the _rm_kernel_use_stmts() method.'''
+    code = ("program test\n"
+            "  use my_kernel_mod, only: my_kernel_type\n"
+            "  use kernel2_mod, only: kernel2_type, something_else\n"
+            "contains\n"
+            "  subroutine my_sub()\n"
+            "    use a_kernel_mod, only: a_kernel_type\n"
+            "  end subroutine my_sub\n"
+            "end program test\n")
+    parse_tree = get_parse_tree(code, parser)
+    # An empty list of kernel names should be fine.
+    alg_gen._rm_kernel_use_stmts([], parse_tree)
+    gen = str(parse_tree).lower()
+    assert "use my_kernel_mod, only: my_kernel_type" in gen
+    assert "use kernel2_mod, only: kernel2_type, something_else" in gen
+    assert "use a_kernel_mod, only: a_kernel_type" in gen
+    # A kernel name that doesn't exist should be fine (because we need to
+    # support builtins).
+    alg_gen._rm_kernel_use_stmts(["my_builtin"], parse_tree)
+    gen = str(parse_tree).lower()
+    assert "use my_kernel_mod, only: my_kernel_type" in gen
+    assert "use kernel2_mod, only: kernel2_type, something_else" in gen
+    # Check that the use associated with a named kernel is removed.
+    alg_gen._rm_kernel_use_stmts(["my_kernel_type"], parse_tree)
+    gen = str(parse_tree).lower()
+    assert "my_kernel_type" not in gen
+    assert "use kernel2_mod, only: kernel2_type, something_else" in gen
+    # Check that a use statement is not removed if it imports symbols other
+    # than the named kernel.
+    alg_gen._rm_kernel_use_stmts(["kernel2_type"], parse_tree)
+    gen = str(parse_tree).lower()
+    assert "use kernel2_mod, only: kernel2_type, something_else" in gen
+    alg_gen._rm_kernel_use_stmts(["kernel2_type", "something_else"],
+                                 parse_tree)
+    # One Specification_Part should have been removed entirely.
+    assert len(walk(parse_tree, Fortran2003.Specification_Part)) == 1
+    gen = str(parse_tree).lower()
+    assert "kernel2_type" not in gen
+    assert "something_else" not in gen
+    # Finally, check for the use in the nested subroutine.
+    assert "use a_kernel_mod, only: a_kernel_type" in gen
+    alg_gen._rm_kernel_use_stmts(["a_kernel_type"], parse_tree)
+    assert not walk(parse_tree, Fortran2003.Specification_Part)
+    gen = str(parse_tree).lower()
+    assert "a_kernel_type" not in gen
+
+# Function adduse tests. These will be removed once the LFRic algorithm
+# layer uses PSyIR (#1618).
 
 
 @pytest.mark.parametrize("location", [None, "lilliput"])
@@ -485,7 +482,7 @@ def test_adduse_invalid_location(location):
     '''
     name = "my_use"
     with pytest.raises(GenerationError) as excinfo:
-        adduse(location, name)
+        alg_gen._adduse(location, name)
     assert ("Location argument must be a sub-class of fparser.two.utils.Base "
             "but got: " in str(excinfo.value))
 
@@ -500,7 +497,7 @@ def test_adduse_only_names1(parser):
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
-    adduse(location, name, only=True, funcnames=["a", "b", "c"])
+    alg_gen._adduse(location, name, only=True, funcnames=["a", "b", "c"])
     assert "PROGRAM test\n  USE my_use, ONLY: a, b, c\n  INTEGER :: i\n" \
         in str(parse_tree)
 
@@ -519,7 +516,7 @@ def test_adduse_only_names2(parser):
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
-    adduse(location, name, only=True, funcnames=["a", "b", "c"])
+    alg_gen._adduse(location, name, only=True, funcnames=["a", "b", "c"])
     assert ("SUBROUTINE test\n  USE my_use, ONLY: a, b, c\n"
             "  INTEGER :: i\n") in str(parse_tree)
 
@@ -538,7 +535,7 @@ def test_adduse_only_names3(parser):
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
-    adduse(location, name, only=True, funcnames=["a", "b", "c"])
+    alg_gen._adduse(location, name, only=True, funcnames=["a", "b", "c"])
     assert ("INTEGER FUNCTION test()\n  USE my_use, ONLY: a, b, c\n"
             "  INTEGER :: i\n") in str(parse_tree)
 
@@ -552,7 +549,7 @@ def test_adduse_only_nonames(parser):
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
-    adduse(location, name, only=True)
+    alg_gen._adduse(location, name, only=True)
     assert "PROGRAM test\n  USE my_use, ONLY:\n  INTEGER :: i\n" \
         in str(parse_tree)
 
@@ -566,7 +563,7 @@ def test_adduse_noonly_names(parser):
     parse_tree = get_parse_tree(CODE, parser)
     location = parse_tree.content[0].content[0]
     name = "my_use"
-    adduse(location, name, funcnames=["a", "b", "c"])
+    alg_gen._adduse(location, name, funcnames=["a", "b", "c"])
     assert ("PROGRAM test\n  USE my_use, ONLY: a, b, c\n"
             "  INTEGER :: i\n") in str(parse_tree)
 
@@ -581,7 +578,7 @@ def test_adduse_onlyfalse_names(parser):
     location = parse_tree.content[0].content[0]
     name = "my_use"
     with pytest.raises(GenerationError) as excinfo:
-        adduse(location, name, only=False, funcnames=["a", "b", "c"])
+        alg_gen._adduse(location, name, only=False, funcnames=["a", "b", "c"])
     assert ("If the 'funcnames' argument is provided and has content, "
             "then the 'only' argument must not be set to "
             "'False'.") in str(excinfo.value)
@@ -597,7 +594,7 @@ def test_adduse_noonly_nonames(parser):
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
-    adduse(location, name)
+    alg_gen._adduse(location, name)
     assert "PROGRAM test\n  USE my_use\n  INTEGER :: i\n" \
         in str(parse_tree)
 
@@ -616,7 +613,7 @@ def test_adduse_noprogparent(parser):
     name = "my_use"
 
     with pytest.raises(GenerationError) as excinfo:
-        adduse(location, name)
+        alg_gen._adduse(location, name)
     assert ("The specified location is invalid as it has no parent in the "
             "parse tree that is a program, module, subroutine or "
             "function.") in str(excinfo.value)
@@ -635,7 +632,7 @@ def test_adduse_unsupportedparent1(parser):
     name = "my_use"
 
     with pytest.raises(NotImplementedError) as excinfo:
-        adduse(location, name)
+        alg_gen._adduse(location, name)
     assert ("Currently support is limited to program, subroutine and "
             "function.") in str(excinfo.value)
 
@@ -655,7 +652,7 @@ def test_adduse_nospec(parser):
     name = "my_use"
 
     with pytest.raises(InternalError) as excinfo:
-        adduse(location, name)
+        alg_gen._adduse(location, name)
     assert ("The second child of the parent code (content[1]) is expected "
             "to be a specification part but found 'End_Program_Stmt"
             "('PROGRAM', Name('test'))'.") in str(excinfo.value)

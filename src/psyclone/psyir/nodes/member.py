@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified by: R. W. Ford, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
+# Modified by A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the Member node.'''
@@ -75,14 +76,27 @@ class Member(Node):
         if (parent and
                 not isinstance(parent, (StructureReference, StructureMember))):
             raise TypeError(
-                "The parent of a {0} must be either a "
-                "(ArrayOf)Structure(s)Reference or (ArrayOf)Structure(s)Member"
-                " but found '{1}'.".format(type(self).__name__,
-                                           type(parent).__name__))
+                f"The parent of a {type(self).__name__} must be either a "
+                f"(ArrayOf)Structure(s)Reference or (ArrayOf)Structure(s)"
+                f"Member but found '{type(parent).__name__}'.")
 
         super(Member, self).__init__(parent=parent)
         # Store the name of the component that this member represents
         self._component_name = member_name
+
+    def __eq__(self, other):
+        '''
+        Members are assumed to be equivalent if they have the same
+        component name associated with them, and are the same type.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super().__eq__(other)
+        is_eq = is_eq and self.name == other.name
+        return is_eq
 
     @property
     def name(self):
@@ -105,6 +119,15 @@ class Member(Node):
 
     def __str__(self):
         return self.node_str(False)
+
+    @property
+    def is_array(self):
+        ''':returns: if this member is an array.
+        :rtype: bool
+
+        '''
+        # pylint: disable=no-self-use
+        return False
 
     def get_signature_and_indices(self):
         ''':returns: the Signature of this member access, and a list \

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2021, Science and Technology Facilities Council.
+! Copyright (c) 2017-2022, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 ! -----------------------------------------------------------------------------
 ! Author: I. Kavcic, Met Office
 ! Modified: A. R. Porter, STFC Daresbury Laboratory
+! Modified: R. W. Ford, STFC Daresbury Laboratory
 
 program single_invoke
 
@@ -48,7 +49,7 @@ program single_invoke
   integer(i_def)   :: i_scalar
 
   type :: my_type
-     integer :: a_scalar
+     integer(i_def) :: a_scalar
   end type my_type
   type(my_type) :: my_var
 

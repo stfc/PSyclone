@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -78,12 +78,18 @@ from psyclone.psyir.nodes.directive import Directive, StandaloneDirective, \
 from psyclone.psyir.nodes.acc_directives import ACCDirective, \
     ACCLoopDirective, ACCEnterDataDirective, ACCParallelDirective, \
     ACCKernelsDirective, ACCDataDirective, ACCUpdateDirective, \
-    ACCStandaloneDirective, ACCRegionDirective
+    ACCStandaloneDirective, ACCRegionDirective, ACCRoutineDirective
 from psyclone.psyir.nodes.omp_directives import OMPDirective, OMPDoDirective, \
     OMPParallelDirective, OMPParallelDoDirective, OMPSingleDirective, \
     OMPMasterDirective, OMPSerialDirective, OMPTaskloopDirective, \
     OMPTaskwaitDirective, OMPStandaloneDirective, OMPRegionDirective, \
-    OMPTargetDirective, OMPLoopDirective
+    OMPTargetDirective, OMPLoopDirective, OMPDeclareTargetDirective, \
+    OMPTeamsDistributeParallelDoDirective
+from psyclone.psyir.nodes.clause import Clause, OperandClause
+from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
+    OMPNogroupClause, OMPNowaitClause, OMPNumTasksClause, OMPPrivateClause, \
+    OMPDefaultClause, OMPReductionClause, OMPScheduleClause, \
+    OMPFirstprivateClause, OMPSharedClause, OMPDependClause
 
 
 # The entities in the __all__ list are made available to import directly from
@@ -97,6 +103,7 @@ __all__ = [
         'Assignment',
         'BinaryOperation',
         'Call',
+        'Clause',
         'CodeBlock',
         'Container',
         'DataNode',
@@ -107,6 +114,7 @@ __all__ = [
         'Member',
         'NaryOperation',
         'Node',
+        'OperandClause',
         'Operation',
         'Range',
         'Reference',
@@ -139,6 +147,7 @@ __all__ = [
         'ACCLoopDirective',
         'ACCKernelsDirective',
         'ACCUpdateDirective',
+        'ACCRoutineDirective',
         'OMPDirective',
         'OMPRegionDirective',
         'OMPStandaloneDirective',
@@ -151,5 +160,19 @@ __all__ = [
         'OMPParallelDoDirective',
         'OMPTaskwaitDirective',
         'OMPTargetDirective',
-        'OMPLoopDirective'
+        'OMPLoopDirective',
+        'OMPDeclareTargetDirective',
+        'OMPTeamsDistributeParallelDoDirective',
+        # OMP Clause Nodes
+        'OMPGrainsizeClause',
+        'OMPNogroupClause',
+        'OMPNowaitClause',
+        'OMPNumTasksClause',
+        'OMPPrivateClause',
+        'OMPDefaultClause',
+        'OMPReductionClause',
+        'OMPScheduleClause',
+        'OMPFirstprivateClause',
+        'OMPSharedClause',
+        'OMPDependClause'
         ]

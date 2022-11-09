@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -135,15 +135,17 @@ def test_symbol_str():
     '''Test that a Symbol instance can be stringified'''
 
     sym = Symbol("my_symbol")
-    assert str(sym) == "my_symbol"
+    assert str(sym) == "my_symbol: Symbol<Local>"
 
 
 def test_symbolinterface():
-    '''Test we can create a SymbolInterface instance. This does nothing so
-    needs no further testing.
+    '''Test we can create a SymbolInterface instance and make a copy of it.
 
     '''
-    _ = SymbolInterface()
+    inter1 = SymbolInterface()
+    inter2 = inter1.copy()
+    assert isinstance(inter2, SymbolInterface)
+    assert inter2 is not inter1
 
 
 def test_localinterface():
@@ -165,7 +167,7 @@ def test_unresolvedinterface():
 
 
 def test_importinterface():
-    '''Test that we can create an Import Interface successfully, that is
+    '''Test that we can create an Import Interface successfully, that it
     raises the expected exception if the container_symbol attribute is
     of the wrong type, that the container symbol property and str
     method work as expected.
@@ -182,6 +184,38 @@ def test_importinterface():
             "ContainerSymbol, but found 'str'." in str(info.value))
 
 
+def test_importinterface_container_symbol_getter_setter():
+    '''Test that the container_symbol getter and setter proprieties
+    retrieve and update the expected attribute and perform error checking.
+
+    '''
+    container_symbol = ContainerSymbol("my_mod")
+    import_interface = ImportInterface(container_symbol)
+    assert import_interface.container_symbol is container_symbol
+
+    # Check invalid setter
+    with pytest.raises(TypeError) as info:
+        import_interface.container_symbol = 3
+    assert ("ImportInterface container_symbol parameter must be of type "
+            "ContainerSymbol, but found 'int'." in str(info.value))
+
+    # Check valid setter and getter
+    container_symbol2 = ContainerSymbol("another_mod")
+    import_interface.container_symbol = container_symbol2
+    assert import_interface.container_symbol is container_symbol2
+
+
+def test_importinterface_copy():
+    ''' Test the copy() method of ImportInterface. '''
+    csym = ContainerSymbol("my_mod")
+    import_interface = ImportInterface(csym)
+    new_interface = import_interface.copy()
+    assert new_interface is not import_interface
+    assert new_interface.container_symbol is csym
+    new_interface.container_symbol = ContainerSymbol("other_mod")
+    assert import_interface.container_symbol is csym
+
+
 def test_argumentinterface_init():
     '''Check that the ArgumentInterface can be created successfully and
     has the expected values. Also checks the access property and that
@@ -192,7 +226,6 @@ def test_argumentinterface_init():
     argument_interface = ArgumentInterface()
     assert argument_interface._access == ArgumentInterface.Access.UNKNOWN
     assert argument_interface.access == argument_interface._access
-    assert argument_interface._pass_by_value is False
 
     argument_interface = ArgumentInterface(ArgumentInterface.Access.READ)
     assert argument_interface._access == ArgumentInterface.Access.READ
@@ -225,7 +258,20 @@ def test_argumentinterface_str():
     '''Test that an ArgumentInterface instance can be stringified'''
 
     argument_interface = ArgumentInterface()
-    assert str(argument_interface) == "Argument(pass-by-value=False)"
+    assert str(argument_interface) == "Argument(Access.UNKNOWN)"
+
+    argument_interface = ArgumentInterface(ArgumentInterface.Access.WRITE)
+    assert str(argument_interface) == "Argument(Access.WRITE)"
+
+
+def test_argumentinterface_copy():
+    ''' Test the copy() method of ArgumentInterface. '''
+    arg_interface = ArgumentInterface(access=ArgumentInterface.Access.WRITE)
+    new_interface = arg_interface.copy()
+    assert new_interface.access == ArgumentInterface.Access.WRITE
+    # Check that we can modify the copy without affecting the original
+    new_interface.access = ArgumentInterface.Access.READ
+    assert arg_interface.access == ArgumentInterface.Access.WRITE
 
 
 def test_find_symbol_table():
@@ -264,8 +310,13 @@ def test_symbol_copy():
     new_sym = asym.copy()
     assert new_sym is not asym
     assert new_sym.name == asym.name
-    assert new_sym.interface == asym.interface
+    assert isinstance(new_sym.interface, ImportInterface)
+    assert new_sym.interface.container_symbol is csym
     assert new_sym.visibility == asym.visibility
+    # Check that we can modify the interface of the new symbol without
+    # affecting the original.
+    new_sym.interface.container_symbol = ContainerSymbol("other_mod")
+    assert asym.interface.container_symbol is csym
 
 
 def test_symbol_copy_properties():
@@ -292,10 +343,10 @@ def test_symbol_specialise():
     # pylint: disable = unidiomatic-typecheck
     asym = Symbol("a")
     assert type(asym) is Symbol
-    assert str(asym) == "a"
+    assert str(asym) == "a: Symbol<Local>"
     asym.specialise(RoutineSymbol)
     assert type(asym) is RoutineSymbol
-    assert str(asym) == "a : RoutineSymbol <NoType>"
+    assert str(asym) == "a: RoutineSymbol<NoType>"
 
 
 @pytest.mark.parametrize("test_class", [Symbol, RoutineSymbol])
@@ -309,10 +360,10 @@ def test_symbol_specialise_class_error(test_class, arg):
     asym = test_class("a")
     with pytest.raises(TypeError) as info:
         asym.specialise(arg)
-    assert ("The specialise method in 'a', an instance of '{0}', expects "
-            "the subclass argument to be a subclass of '{0}', but found "
-            "'{1}'.".format(test_class.__name__, arg.__name__)
-            in str(info.value))
+    assert (f"The specialise method in 'a', an instance of "
+            f"'{test_class.__name__}', expects the subclass argument to be a "
+            f"subclass of '{test_class.__name__}', but found "
+            f"'{arg.__name__}'." in str(info.value))
 
 
 @pytest.mark.parametrize("test_class", [Symbol, RoutineSymbol])
@@ -398,7 +449,7 @@ def test_symbol_resolve_deferred(monkeypatch):
     assert new_sym.is_import
 
 
-def test_symbol_array_handling(fortran_reader):
+def test_symbol_array_handling():
     '''Verifies the handling of arrays together with access information.
 
     '''
@@ -412,9 +463,6 @@ def test_symbol_array_handling(fortran_reader):
     assert "No array information is available for the symbol 'a'." \
         in str(error.value)
 
-    # Import additional tests from access_info_test to reach 100% coverage
-    # for the is_array_access function. Import these tests locally only.
-    # pylint: disable=import-outside-toplevel
-    from psyclone.tests.core.access_info_test import \
-        test_symbol_array_detection
-    test_symbol_array_detection(fortran_reader)
+    # A generic symbol (no datatype) without an explicit array access
+    # expression is not considered to have array access.
+    assert not asym.is_array_access()

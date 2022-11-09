@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,13 +31,13 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# Authors: A. R. Porter and N. Nobre, STFC Daresbury Lab
+#          J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module contains pytest tests for the ArrayOfStructuresReference
     class. '''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.tests.utilities import check_links
 from psyclone.psyir import symbols, nodes
@@ -119,7 +119,7 @@ def test_asr_create_errors(component_symbol):
     here. '''
     with pytest.raises(TypeError) as err:
         _ = nodes.ArrayOfStructuresReference.create(1, [], [])
-    assert ("'symbol' argument to ArrayOfStructuresReference.create() should "
+    assert ("'symbol' argument to ArrayOfStructuresReference.create() must "
             "be a DataSymbol but found 'int'" in str(err.value))
     scalar_symbol = symbols.DataSymbol("scalar", symbols.INTEGER_TYPE)
     with pytest.raises(TypeError) as err:
@@ -153,3 +153,56 @@ def test_ast_str():
     assert (str(asref) == "ArrayOfStructuresReference[name:'grid']\n"
             "Member[name:'nx']\n"
             "Literal[value:'2', Scalar<INTEGER, UNDEFINED>]")
+
+
+def test_ast_is_array():
+    ''' Test that an ArrayOfStructuresReference is marked as being an array.
+    '''
+    grid_type = symbols.StructureType.create([
+        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
+    grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
+    grid_array_type = symbols.ArrayType(grid_type_symbol, [5])
+    ssym = symbols.DataSymbol("grid", grid_array_type)
+    asref = nodes.ArrayOfStructuresReference.create(
+        ssym, [nodes.Literal("2", symbols.INTEGER_TYPE)], ["nx"])
+    assert asref.is_array
+
+
+def test_asr_datatype():
+    '''Test that the datatype property works correctly for
+    ArrayOfStructuresReference. (The actual implementation is in
+    StructureReference.)'''
+    one = nodes.Literal("1", symbols.INTEGER_TYPE)
+    two = nodes.Literal("2", symbols.INTEGER_TYPE)
+
+    ndofs = symbols.DataSymbol("ndofs", symbols.INTEGER_TYPE)
+    atype = symbols.ArrayType(symbols.REAL_TYPE,
+                              [nodes.Reference(ndofs), nodes.Reference(ndofs)])
+    grid_type = symbols.StructureType.create([
+        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC),
+        ("data", atype, symbols.Symbol.Visibility.PUBLIC)])
+    grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
+    grid_array_type = symbols.ArrayType(grid_type_symbol, [5])
+    ssym = symbols.DataSymbol("grid", grid_array_type)
+    # Reference to a single member of the array of structures and to the "nx"
+    # member of it.
+    asref = nodes.ArrayOfStructuresReference.create(
+        ssym, [two.copy()], ["nx"])
+    assert asref.datatype == symbols.INTEGER_TYPE
+    # Reference to a range of members of the array of structures and to the
+    # "nx" member of each.
+    my_range = nodes.Range.create(two.copy(),
+                                  nodes.Literal("3", symbols.INTEGER_TYPE))
+    asref2 = nodes.ArrayOfStructuresReference.create(
+        ssym, [my_range], ["nx"])
+    assert isinstance(asref2.datatype, symbols.ArrayType)
+    assert asref2.datatype.intrinsic == symbols.ScalarType.Intrinsic.INTEGER
+    assert len(asref2.datatype.shape) == 1
+    assert asref2.datatype.shape[0].lower == one
+    assert isinstance(asref2.datatype.shape[0].upper, nodes.BinaryOperation)
+    # Reference to a single member of the array of structures and to the "data"
+    # member of it which is itself an array.
+    asref3 = nodes.ArrayOfStructuresReference.create(
+        ssym, [one.copy()], ["data"])
+    assert isinstance(asref3.datatype, symbols.ArrayType)
+    assert len(asref3.datatype.shape) == 2

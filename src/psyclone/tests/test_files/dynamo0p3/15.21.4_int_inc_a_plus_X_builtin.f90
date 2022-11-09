@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2021, Science and Technology Facilities Council.
+! Copyright (c) 2021-2022, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,7 @@ program single_invoke
   implicit none
 
   type(integer_field_type) :: f1
-  real(i_def)              :: a
+  integer(i_def)           :: a
 
   a = 2
 

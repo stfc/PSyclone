@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,13 +39,11 @@
 call. It especially adds all implicitly required parameters.
 '''
 
-from __future__ import print_function, absolute_import
-
 from collections import namedtuple
 
 from psyclone import psyGen
 from psyclone.core import AccessType, Signature
-from psyclone.domain.lfric import (ArgOrdering, LFRicConstants)
+from psyclone.domain.lfric import ArgOrdering, LFRicConstants
 from psyclone.errors import GenerationError, InternalError
 
 
@@ -65,7 +63,7 @@ class KernCallArgList(ArgOrdering):
     NdfInfo = namedtuple("NdfInfo", ["position", "function_space"])
 
     def __init__(self, kern):
-        super(KernCallArgList, self).__init__(kern)
+        super().__init__(kern)
         self._nlayers_positions = []
         self._nqp_positions = []
         self._ndf_positions = []
@@ -101,19 +99,18 @@ class KernCallArgList(ArgOrdering):
         base_name = "cell_map_" + carg.name
         map_name = self._symtab.find_or_create_tag(base_name).name
         # Add the cell map to our argument list
-        self.append("{0}(:,:,{1})".format(map_name,
-                                          self._cell_ref_name(var_accesses)),
+        self.append(f"{map_name}(:,:,{self._cell_ref_name(var_accesses)})",
                     var_accesses=var_accesses)
         # No. of fine cells per coarse cell in x
-        base_name = "ncpc_{0}_{1}_x".format(farg.name, carg.name)
+        base_name = f"ncpc_{farg.name}_{carg.name}_x"
         ncellpercellx = self._symtab.find_or_create_tag(base_name).name
         self.append(ncellpercellx, var_accesses)
         # No. of fine cells per coarse cell in y
-        base_name = "ncpc_{0}_{1}_y".format(farg.name, carg.name)
+        base_name = f"ncpc_{farg.name}_{carg.name}_y"
         ncellpercelly = self._symtab.find_or_create_tag(base_name).name
         self.append(ncellpercelly, var_accesses)
         # No. of columns in the fine mesh
-        base_name = "ncell_{0}".format(farg.name)
+        base_name = f"ncell_{farg.name}"
         ncell_fine = self._symtab.find_or_create_tag(base_name).name
         self.append(ncell_fine, var_accesses)
 
@@ -127,6 +124,8 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
+        if self._kern.iterates_over not in ["cell_column", "domain"]:
+            return
         nlayers_name = self._symtab.find_or_create_tag("nlayers").name
         self.append(nlayers_name, var_accesses)
         self._nlayers_positions.append(self.num_args)
@@ -192,12 +191,14 @@ class KernCallArgList(ArgOrdering):
         for component in components:
             name = self._symtab.find_or_create_tag(
                 arg.name + "_" + component).name
-            # Matrix is an output parameter, the rest are input
+            # Matrix takes the access from the declaration of the argument
+            # (i.e. read, write, ...), the rest are always read-only parameters
             if component == "matrix":
-                mode = AccessType.WRITE
+                mode = arg.access
             else:
                 mode = AccessType.READ
-            self.append(name, var_accesses, mode=mode)
+            self.append(name, var_accesses, mode=mode,
+                        metadata_posn=arg.metadata_index)
 
     def field_vector(self, argvect, var_accesses=None):
         '''Add the field vector associated with the argument 'argvect' to the
@@ -217,7 +218,8 @@ class KernCallArgList(ArgOrdering):
         # require in our Fortran code
         for idx in range(1, argvect.vector_size + 1):
             text = argvect.proxy_name + "(" + str(idx) + ")%data"
-            self.append(text)
+            self.append(text, metadata_posn=argvect.metadata_index)
+
         if var_accesses is not None:
             # We add the whole field-vector, not the individual accesses.
             var_accesses.add_access(Signature(argvect.name), argvect.access,
@@ -236,10 +238,11 @@ class KernCallArgList(ArgOrdering):
 
         '''
         text = arg.proxy_name + "%data"
+
         # Add the field object arg%name and not just the proxy part
         # as being read.
         self.append(text, var_accesses, var_access_name=arg.name,
-                    mode=arg.access)
+                    mode=arg.access, metadata_posn=arg.metadata_index)
 
     def stencil_unknown_extent(self, arg, var_accesses=None):
         '''Add stencil information to the argument list associated with the
@@ -259,7 +262,7 @@ class KernCallArgList(ArgOrdering):
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_size_name(self._symtab, arg)
-        name = "{0}({1})".format(var_name, self._cell_ref_name(var_accesses))
+        name = f"{var_name}({self._cell_ref_name(var_accesses)})"
         self.append(name, var_accesses, var_access_name=var_name)
 
     def stencil_2d_unknown_extent(self, arg, var_accesses=None):
@@ -280,8 +283,7 @@ class KernCallArgList(ArgOrdering):
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_size_name(self._symtab, arg)
-        name = "{0}(:,{1})".format(var_name,
-                                   self._cell_ref_name(var_accesses))
+        name = f"{var_name}(:,{self._cell_ref_name(var_accesses)})"
         self.append(name, var_accesses, var_access_name=var_name)
 
     def stencil_2d_max_extent(self, arg, var_accesses=None):
@@ -342,8 +344,7 @@ class KernCallArgList(ArgOrdering):
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_name(self._symtab, arg)
-        name = "{0}(:,:,{1})".format(var_name,
-                                     self._cell_ref_name(var_accesses))
+        name = f"{var_name}(:,:,{self._cell_ref_name(var_accesses)})"
         self.append(name, var_accesses, var_access_name=var_name)
 
     def stencil_2d(self, arg, var_accesses=None):
@@ -371,8 +372,7 @@ class KernCallArgList(ArgOrdering):
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_name(self._symtab, arg)
-        name = "{0}(:,:,:,{1})".format(var_name,
-                                       self._cell_ref_name(var_accesses))
+        name = f"{var_name}(:,:,:,{self._cell_ref_name(var_accesses)})"
         self.append(name, var_accesses, var_access_name=var_name)
 
     def operator(self, arg, var_accesses=None):
@@ -389,10 +389,13 @@ class KernCallArgList(ArgOrdering):
         '''
         # TODO we should only be including ncell_3d once in the argument
         # list but this adds it for every operator
+        # This argument is always read only:
         self.append(arg.proxy_name_indexed + "%ncell_3d", var_accesses,
                     mode=AccessType.READ)
+
+        # The access mode of `local_stencil` is taken from the meta-data:
         self.append(arg.proxy_name_indexed + "%local_stencil", var_accesses,
-                    mode=AccessType.WRITE)
+                    mode=arg.access, metadata_posn=arg.metadata_index)
 
     def fs_common(self, function_space, var_accesses=None):
         '''Add function-space related arguments common to LMA operators and
@@ -407,7 +410,9 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        super(KernCallArgList, self).fs_common(function_space, var_accesses)
+        if self._kern.iterates_over not in ["cell_column", "domain"]:
+            return
+        super().fs_common(function_space, var_accesses)
         self._ndf_positions.append(
             KernCallArgList.NdfInfo(position=self.num_args,
                                     function_space=function_space.orig_name))
@@ -431,12 +436,10 @@ class KernCallArgList(ArgOrdering):
         if self._kern.iterates_over == 'domain':
             # This kernel takes responsibility for iterating over cells so
             # pass the whole dofmap.
-            self.append("{0}".format(map_name),
-                        var_accesses, var_access_name=map_name)
+            self.append(f"{map_name}", var_accesses, var_access_name=map_name)
         else:
             # Pass the dofmap for the cell column
-            self.append("{0}(:,{1})".format(map_name,
-                                            self._cell_ref_name(var_accesses)),
+            self.append(f"{map_name}(:,{self._cell_ref_name(var_accesses)})",
                         var_accesses, var_access_name=map_name)
 
     def fs_intergrid(self, function_space, var_accesses=None):
@@ -553,10 +556,9 @@ class KernCallArgList(ArgOrdering):
         const = LFRicConstants()
         if not farg.is_field:
             raise GenerationError(
-                "Expected an argument of {0} type from which to look-up "
-                "boundary dofs for kernel {1} but got '{2}'".
-                format(const.VALID_FIELD_NAMES,
-                       self._kern.name, farg.argument_type))
+                f"Expected an argument of {const.VALID_FIELD_NAMES} type "
+                f"from which to look-up boundary dofs for kernel "
+                f"{self._kern.name} but got '{farg.argument_type}'")
 
         base_name = "boundary_dofs_" + farg.name
         name = self._symtab.find_or_create_tag(base_name).name
@@ -634,9 +636,9 @@ class KernCallArgList(ArgOrdering):
                 self.extend(rule.kernel_args, var_accesses)
             else:
                 raise NotImplementedError(
-                    "quad_rule: no support implemented for quadrature with a "
-                    "shape of '{0}'. Supported shapes are: {1}.".format(
-                        shape, supported_qr_shapes))
+                    f"quad_rule: no support implemented for quadrature with a "
+                    f"shape of '{shape}'. Supported shapes are: "
+                    f"{supported_qr_shapes}.")
 
     @property
     def nlayers_positions(self):

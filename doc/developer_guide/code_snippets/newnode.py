@@ -79,7 +79,7 @@ def example():
     # assignment = Assignment()
     # assignment.addchild(mynode)
 
-    psyir_schedule.view()
+    print(psyir_schedule.view())
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2021, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2022, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -35,18 +35,11 @@
 
 .. testsetup::
 
-    # TODO 1238: This is not necessary anymore once we can explicitly
-    #            disable colouring.
-    import psyclone.psyir.nodes.node
-    def new_colored(text, _):
-        return text
-
-    # Disable colouring in output to allow passing of tests
-    psyclone.psyir.nodes.node.colored = new_colored
-
-    # Define SOURCE_FILE to point to an existing gocean 1.0 file.
-    SOURCE_FILE = ("../../src/psyclone/tests/test_files/"
+    # Define GOCEAN_SOURCE_FILE to point to an existing gocean 1.0 file.
+    GOCEAN_SOURCE_FILE = ("../../src/psyclone/tests/test_files/"
         "gocean1p0/test11_different_iterates_over_one_invoke.f90")
+    # Define NEMO_SOURCE_FILE to point to an existing nemo file.
+    NEMO_SOURCE_FILE = ("../../examples/nemo/code/tra_adv.F90")
 
 
 Transformations
@@ -55,45 +48,20 @@ Transformations
 Kernel Transformations
 ======================
 
-PSyclone is able to perform kernel transformations. Currently it has
-two ways to apply transformations: by directly manipulating the
-language AST or by translating the language AST to PSyIR, applying the
-transformation in the PSyIR and using one of the back-ends to generate
-the resulting code.
-
-For now, both methods only support the fparser2 AST for kernel code.
-This AST is obtained by converting the fparser1 AST (stored
-when the kernel code was originally parsed to process the meta-data)
-back into a Fortran string and then parsing that with fparser2.
-(Note that in future we intend to adopt fparser2 throughout PSyclone so that
-this translation between ASTs will be unnecessary.)
-The `ast` property of the `psyclone.psyGen.Kern` class is responsible
-for performing this translation the first time it is called. It also
-stores the resulting AST in `Kern._fp2_ast` for return by future calls.
-
-See `psyclone.transformations.ACCRoutineTrans` for an example of directly
-manipulating the fparser2 AST.
-
-Alternatively, one can call the `psyclone.psyGen.CodedKern.get_kernel_schedule()`
-to generate the PSyIR representation of the kernel code. 
+PSyclone is able to perform kernel transformations by obtaining the PSyIR
+representation of the kernel with:
 
 .. automethod:: psyclone.psyGen.CodedKern.get_kernel_schedule
-
-The language AST to PSyIR transformation is done using a PSyIR front-end.
-This are found in the `psyclone.psyir.frontend` module. 
-The only currently available front-end is `Fparser2Reader` but this can
-be specialized for by the application APIs (e.g. Nemo has `NemoFparser2Reader`
-sub-class).
-The naming convention used for the PSyIR front-ends is
-<API><languageAST>Reader.
-
-.. autoclass:: psyclone.psyir.frontend.fparser2.Fparser2Reader
-    :members:
 
 The result of `psyclone.psyGen.Kern.get_kernel_schedule` is a
 `psyclone.psyir.nodes.KernelSchedule` which is a specialisation of the
 `Routine` class with the `is_program` and `return_type` properties set to
 `False` and `None`, respectively.
+
+In addition to modifying the kernel PSyIR with the desired transformations,
+the `modified` flag of the `CodedKern` node has to be set. This will let
+PSyclone know which kernel files it may have to rename and rewrite
+during the code generation.
 
 Raising Transformations
 =======================
@@ -126,7 +94,38 @@ Raising Transformations for the LFRic API
 
 .. autoclass:: psyclone.domain.lfric.transformations.LFRicAlgTrans
 
-.. autoclass:: psyclone.domain.lfric.transformations.LFRicInvokeCallTrans
+.. autoclass:: psyclone.domain.lfric.transformations.RaisePSyIR2LFRicAlgTrans
+
+.. autoclass:: psyclone.domain.lfric.transformations.RaisePSyIR2LFRicKernTrans
+
+Algorithm Transformations
+=========================
+
+In order to generate the transformed version of the algorithm with normal
+subroutine calls to PSy-layer routines, PSyclone provides a transformation that
+converts an individual ``AlgorithmInvokeCall`` into a ``Call`` to an
+appropriate subroutine:
+
+.. autoclass:: psyclone.domain.common.transformations.AlgInvoke2PSyCallTrans
+
+Algorithm Transformations for the LFRic API
+-------------------------------------------
+
+Since the LFRic API has the concept of Builtin kernels, there is more work
+to do when transforming an invoke into a call to a PSy layer routine and
+therefore there is a specialised class for this:
+
+.. autoclass:: psyclone.domain.lfric.transformations.LFRicAlgInvoke2PSyCallTrans
+
+Kernel Transformations for the GOCean and LFRic APIs
+----------------------------------------------------
+
+The LFRic RaisePSyIR2LFRicKernTrans and GOcean
+RaisePSyIR2GOceanKernTrans translate generic PSyIR to LFRic-specific
+Kernel PSyIR. At the moment these transformations are limited to
+creating Python classes for LFRic or GOcean kernel metadata,
+respectively. These classes allow easy reading, modification, creation
+and writing back of generic Kernel PSyIR.
 
 OpenACC
 =======
@@ -177,16 +176,6 @@ PSyclone is able to generate an OpenCL :cite:`opencl` version of
 PSy-layer code for the GOcean 1.0 API and its associated kernels.
 Such code may then be executed on devices such as GPUs and FPGAs
 (Field-Programmable Gate Arrays).
-
-Since OpenCL code is very different to that which PSyclone
-normally generates, its creation is handled by ``gen_ocl`` methods
-instead of the normal ``gen_code``. There is work in progress to
-deprecate both of these generation methods and let the
-``psyclone.domain.gocean.transformations.GOOpenCLTrans``
-transformation handle the code modification entirely in PSyIR.
-However, for the time being the transformation only modifies part of
-the schedule and sets the  ``InvokeSchedule.opencl`` flag, which
-in turn triggers the ``gen_ocl`` path at generation time.
 
 The PSyKAl model of calling kernels for pre-determined iteration
 spaces is a natural fit to OpenCL's concept of an
@@ -329,17 +318,9 @@ issues:
 3) at the moment, to test whether two loop ranges are the same, we
    first check whether they both access the full bounds of the
    array. If so we assume that they are the same (otherwise the code
-   will not run). If this is not the case then we check whether the
-   string versions of the ranges are the same. This approach supports
-   arbitrarily complex array ranges that are identical but if they
-   differ at all then the ranges are assumed to be different. For
-   example ``range(1:n+1:1)`` and ``range(1:1+n:1)`` are assumed to be
-   different. Some form of symbolic analyis might be useful to address
-   this. A less powerful alternative would be to support checking
-   whether two node hierarchies are the same by checking each level of
-   the hierarchy, with levels that support commutitivity checking each
-   option. This is similar to the approach taken in ``math_equal()`` in
-   the ``Node`` base-class.
+   will not run). If this is not the case, then PSyclone uses :ref:`SymPy`
+   for comparing ranges, which will consider the two ranges
+   ``range(1:n+1:1)`` and ``range(1:1+n:1)`` to be equal.
 
 4) there is a test for non-elementwise operations on the rhs of an
    assignment as it is not possible to turn this into an explicit

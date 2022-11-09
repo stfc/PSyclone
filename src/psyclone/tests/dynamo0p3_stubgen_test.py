@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,13 +35,10 @@
 # Modified I. Kavcic, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
-''' This module tests the Dynamo 0.3 kernel-stub generator using pytest. '''
-
-# imports
-from __future__ import absolute_import, print_function
+''' This module tests the LFRic (Dynamo 0.3) kernel-stub generator using
+    pytest. '''
 
 import os
-from subprocess import Popen, PIPE, STDOUT
 import pytest
 
 import fparser
@@ -63,7 +60,7 @@ TEST_API = "dynamo0.3"
 def setup():
     '''Make sure that all tests here use dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
-    yield()
+    yield
     Config._instance = None
 
 
@@ -110,7 +107,7 @@ SIMPLE = (
     "    CONTAINS\n"
     "    SUBROUTINE simple_code(nlayers, field_1_w1, ndf_w1, undf_w1,"
     " map_w1)\n"
-    "      USE constants_mod, ONLY: r_def, i_def\n"
+    "      USE constants_mod\n"
     "      IMPLICIT NONE\n"
     "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
     "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"
@@ -168,9 +165,8 @@ def test_load_meta_wrong_type():
     with pytest.raises(GenerationError) as excinfo:
         kernel.load_meta(metadata)
     const = LFRicConstants()
-    assert ("DynKern.load_meta() expected one of {0} but found "
-            "'gh_hedge'".format(const.VALID_ARG_TYPE_NAMES)
-            in str(excinfo.value))
+    assert (f"DynKern.load_meta() expected one of {const.VALID_ARG_TYPE_NAMES}"
+            f" but found 'gh_hedge'" in str(excinfo.value))
 
 
 def test_intent():
@@ -186,7 +182,7 @@ def test_intent():
         "    CONTAINS\n"
         "    SUBROUTINE dummy_code(nlayers, field_1_w3, field_2_w1, "
         "field_3_w1, ndf_w3, undf_w3, map_w3, ndf_w1, undf_w1, map_w1)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"
@@ -258,7 +254,7 @@ def test_spaces():
         "ndf_w2v, undf_w2v, map_w2v, ndf_w2htrace, undf_w2htrace, "
         "map_w2htrace, ndf_w2vtrace, undf_w2vtrace, map_w2vtrace, "
         "ndf_wchi, undf_wchi, map_wchi)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
@@ -365,7 +361,7 @@ def test_any_spaces():
         "ndf_adspc1_field_1, undf_adspc1_field_1, map_adspc1_field_1, "
         "ndf_aspc7_field_2, undf_aspc7_field_2, map_aspc7_field_2, "
         "ndf_adspc4_field_3, undf_adspc4_field_3, map_adspc4_field_3)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_adspc1_field_1\n"
@@ -421,7 +417,7 @@ def test_vectors():
         "    CONTAINS\n"
         "    SUBROUTINE dummy_code(nlayers, field_1_w0_v1, "
         "field_1_w0_v2, field_1_w0_v3, ndf_w0, undf_w0, map_w0)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
@@ -473,7 +469,7 @@ def test_enforce_bc_kernel_stub_gen():
         "    SUBROUTINE enforce_bc_code(nlayers, field_1_aspc1_field_1, "
         "ndf_aspc1_field_1, undf_aspc1_field_1, map_aspc1_field_1, "
         "boundary_dofs_field_1)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_aspc1_field_1\n"
@@ -508,7 +504,7 @@ def test_enforce_op_bc_kernel_stub_gen():
         "    SUBROUTINE enforce_operator_bc_code(cell, nlayers, "
         "op_1_ncell_3d, op_1, ndf_aspc1_op_1, ndf_aspc2_op_1, "
         "boundary_dofs_op_1)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_aspc1_op_1, "
@@ -642,7 +638,7 @@ def test_sub_name():
         "    CONTAINS\n"
         "    SUBROUTINE dummy_code(nlayers, field_1_w1, "
         "ndf_w1, undf_w1, map_w1)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"
@@ -653,31 +649,3 @@ def test_sub_name():
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
     assert output in str(generated_code)
-
-
-def test_kernel_stub_usage():
-    ''' Check that the kernel-stub generator prints a usage message
-    if no arguments are supplied '''
-
-    usage_msg = (
-        "usage: genkernelstub [-h] [-o OUTFILE] [-api API] [-l] filename\n"
-        )
-
-    # We use the Popen constructor here rather than check_output because
-    # the latter is only available in Python 2.7 onwards.
-    out = Popen(['genkernelstub'],
-                stdout=PIPE,
-                stderr=STDOUT).communicate()[0]
-    assert usage_msg in out.decode('utf-8')
-
-
-def test_kernel_stub_gen_cmd_line():
-    ''' Check that we can call the kernel-stub generator from the
-    command line '''
-    # We use the Popen constructor here rather than check_output because
-    # the latter is only available in Python 2.7 onwards.
-    out = Popen(["genkernelstub",
-                 os.path.join(BASE_PATH, "simple.f90")],
-                stdout=PIPE).communicate()[0]
-
-    assert SIMPLE in out.decode('utf-8')

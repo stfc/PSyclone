@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council.
+# Copyright (c) 2018-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,26 +33,26 @@
 # ----------------------------------------------------------------------------
 # Authors A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified by R. W. Ford, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 # ----------------------------------------------------------------------------
 
 ''' Module containing tests for the PSyclone GOcean OpenCL transformation.'''
 
-from __future__ import absolute_import
 import os
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.domain.gocean.transformations import \
-    GOMoveIterationBoundariesInsideKernelTrans, GOOpenCLTrans
+from psyclone.domain.gocean.transformations import (
+    GOMoveIterationBoundariesInsideKernelTrans, GOOpenCLTrans)
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKernelSchedule
-from psyclone.psyir.backend.opencl import OpenCLWriter
-from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
-    ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE
-from psyclone.tests.gocean1p0_build import GOcean1p0OpenCLBuild
-from psyclone.tests.utilities import Compile, get_invoke
-from psyclone.transformations import TransformationError, \
-    KernelImportsToArguments
+from psyclone.psyir.symbols import (DataSymbol, ArgumentInterface,
+                                    ScalarType, ArrayType, INTEGER_TYPE,
+                                    REAL_TYPE)
+from psyclone.tests.gocean_build import GOceanOpenCLBuild
+from psyclone.tests.utilities import (Compile, get_base_path, get_invoke)
+from psyclone.transformations import (TransformationError,
+                                      KernelImportsToArguments)
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -63,20 +63,10 @@ def setup():
     the tests.'''
 
     Config._instance = None
-    # Each os.path.dirname() move up in the folder hierarchy
-    filepath = os.path.join(
-                   os.path.join(
-                       os.path.dirname(
-                           os.path.dirname(
-                               os.path.dirname(
-                                   os.path.dirname(
-                                       os.path.abspath(__file__))))),
-                       "test_files"),
-                   "gocean1p0")
-
+    filepath = get_base_path("gocean1.0")
     Config.get().api = "gocean1.0"
     Config.get()._include_paths = [filepath]
-    yield()
+    yield
     # At the end of every tests make sure that we wipe the Config object
     # so we get a fresh/default one for any further test (and not a
     # left-over one from a test here).
@@ -88,6 +78,7 @@ API = "gocean1.0"
 
 
 # ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir")
 def test_opencl_compiler_works(kernel_outputdir):
     ''' Check that the specified compiler works for a hello-world
     opencl example. This is done in this file to alert the user
@@ -101,15 +92,12 @@ def test_opencl_compiler_works(kernel_outputdir):
       write (*,*) "Hello"
     end program hello
     '''
-    old_pwd = kernel_outputdir.chdir()
-    try:
-        with open("hello_world_opencl.f90", "w") as ffile:
-            ffile.write(example_ocl_code)
-        GOcean1p0OpenCLBuild(kernel_outputdir).\
-            compile_file("hello_world_opencl.f90",
-                         link=True)
-    finally:
-        old_pwd.chdir()
+
+    with open("hello_world_opencl.f90", "w", encoding="utf-8") as ffile:
+        ffile.write(example_ocl_code)
+    GOceanOpenCLBuild(kernel_outputdir).\
+        compile_file("hello_world_opencl.f90",
+                     link=True)
 
 
 def test_transformation_name():
@@ -151,20 +139,20 @@ def test_ocl_apply(kernel_outputdir):
         in str(err.value)
 
     ocl.apply(schedule)
-    assert schedule.opencl
 
     gen = str(psy.gen)
     assert "USE clfortran" in gen
-    # Check that the new kernel files have been generated
+
+    # Check that the new kernel file have been generated
     kernel_files = os.listdir(str(kernel_outputdir))
-    assert len(kernel_files) == 2
-    assert "kernel_ne_offset_compute_cv_0.cl" in kernel_files
-    assert "kernel_scalar_int_bc_ssh_0.cl" in kernel_files
-    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+    assert len(kernel_files) == 1
+    assert "opencl_kernels_0.cl" in kernel_files
+    assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
 @pytest.mark.parametrize("debug_mode", [True, False])
-def test_invoke_use_stmts_and_decls(kernel_outputdir, monkeypatch, debug_mode):
+def test_invoke_use_stmts_and_decls(kernel_outputdir, monkeypatch, debug_mode,
+                                    fortran_writer):
     ''' Test that generating code for OpenCL results in the correct
     module use statements and declarations. '''
     api_config = Config.get().api_conf("gocean1.0")
@@ -180,40 +168,45 @@ def test_invoke_use_stmts_and_decls(kernel_outputdir, monkeypatch, debug_mode):
 
     otrans = GOOpenCLTrans()
     otrans.apply(sched)
-    generated_code = str(psy.gen).lower()
-    expected = "subroutine invoke_0_compute_cu(cu_fld, p_fld, u_fld)\n"
+    generated_code = fortran_writer(sched).lower()
+
+    assert ("use fortcl, only : get_cmd_queues, get_kernel_by_name"
+            in generated_code)
+    assert "use clfortran" in generated_code
+    assert "use iso_c_binding" in generated_code
 
     # When in debug mode, import also the check_status function
     if debug_mode:
-        expected += "      use ocl_utils_mod, only: check_status\n"
+        assert "use ocl_utils_mod, only : check_status" in generated_code
+    else:
+        assert "use ocl_utils_mod, only : check_status" not in generated_code
 
-    expected += '''\
-      use fortcl, only: get_num_cmd_queues, get_cmd_queues, get_kernel_by_name
-      use clfortran
-      use iso_c_binding
-      type(r2d_field), intent(inout), target :: cu_fld, p_fld, u_fld
-      integer ystop
-      integer ystart
-      integer xstop
-      integer xstart
-      integer i
-      integer j
-      integer(kind=c_size_t), target :: localsize(2)
-      integer(kind=c_size_t), target :: globalsize(2)
-      integer(kind=c_intptr_t) u_fld_cl_mem
-      integer(kind=c_intptr_t) p_fld_cl_mem
-      integer(kind=c_intptr_t) cu_fld_cl_mem
-      integer(kind=c_intptr_t), target, save :: kernel_compute_cu_code
-      logical, save :: first_time = .true.
-      integer ierr
-      integer(kind=c_intptr_t), pointer, save :: cmd_queues(:)
-      integer, save :: num_cmd_queues
-      '''
-    assert expected in generated_code
-    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+    assert "type(r2d_field), intent(inout) :: cu_fld" in generated_code
+    assert "type(r2d_field), intent(inout) :: p_fld" in generated_code
+    assert "type(r2d_field), intent(inout) :: u_fld" in generated_code
+    assert "integer :: j" in generated_code
+    assert "integer :: i" in generated_code
+    assert "integer :: ystop" in generated_code
+    assert "integer :: ystart" in generated_code
+    assert "integer :: xstop" in generated_code
+    assert "integer :: xstart" in generated_code
+
+    assert "integer(kind=c_size_t), target :: localsize(2)" in generated_code
+    assert "integer(kind=c_size_t), target :: globalsize(2)" in generated_code
+    assert "integer(kind=c_intptr_t) :: u_fld_cl_mem" in generated_code
+    assert "integer(kind=c_intptr_t) :: p_fld_cl_mem" in generated_code
+    assert "integer(kind=c_intptr_t) :: cu_fld_cl_mem" in generated_code
+    assert ("integer(kind=c_intptr_t), target, save :: kernel_compute_cu_code"
+            in generated_code)
+    assert "logical, save :: first_time = .true." in generated_code
+    assert "integer :: ierr" in generated_code
+    assert ("integer(kind=c_intptr_t), pointer, save :: cmd_queues(:)"
+            in generated_code)
+
+    assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
-def test_invoke_opencl_initialisation(kernel_outputdir):
+def test_invoke_opencl_initialisation(kernel_outputdir, fortran_writer):
     ''' Test that generating code for OpenCL results in the correct
     OpenCL first time initialisation code '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
@@ -226,58 +219,64 @@ def test_invoke_opencl_initialisation(kernel_outputdir):
 
     otrans = GOOpenCLTrans()
     otrans.apply(sched)
-    generated_code = str(psy.gen).lower()
+    generated_code = fortran_writer(sched).lower()
 
     # Test that the necessary variables are declared at the beginning
     # of the invoke
-    expected = '''\
-      integer(kind=c_size_t), target :: localsize(2)
-      integer(kind=c_size_t), target :: globalsize(2)
-      integer(kind=c_intptr_t) u_fld_cl_mem
-      integer(kind=c_intptr_t) p_fld_cl_mem
-      integer(kind=c_intptr_t) cu_fld_cl_mem
-      integer(kind=c_intptr_t), target, save :: kernel_compute_cu_code
-      logical, save :: first_time = .true.
-      integer ierr
-      integer(kind=c_intptr_t), pointer, save :: cmd_queues(:)
-      integer, save :: num_cmd_queues'''
-    assert expected in generated_code
+    assert "integer(kind=c_size_t), target :: localsize(2)" in generated_code
+    assert "integer(kind=c_size_t), target :: globalsize(2)" in generated_code
+    assert "integer(kind=c_intptr_t) :: u_fld_cl_mem" in generated_code
+    assert "integer(kind=c_intptr_t) :: p_fld_cl_mem" in generated_code
+    assert "integer(kind=c_intptr_t) :: cu_fld_cl_mem" in generated_code
+    assert ("integer(kind=c_intptr_t), target, save :: kernel_compute_cu_code"
+            in generated_code)
+    assert "logical, save :: first_time = .true." in generated_code
+    assert "integer :: ierr" in generated_code
+    assert ("integer(kind=c_intptr_t), pointer, save :: cmd_queues(:)"
+            in generated_code)
 
     # Test that a conditional 'first_time' code is generated with the
     # expected initialisation statements:
     # - Call psy_init
-    # - Set num_cmd_queues and cmd_queues pointers
+    # - Set cmd_queues pointers
     # - OpenCL kernel setters
     # - Initialization of all OpenCL field buffers
     # - Call set_arg of the kernels (with necessary boundary and cl_mem
     #   buffers initialisation)
     # - Write data into the OpenCL buffers
     expected = '''\
-      if (first_time) then
-        first_time = .false.
-        call psy_init
-        num_cmd_queues = get_num_cmd_queues()
-        cmd_queues => get_cmd_queues()
-        kernel_compute_cu_code = get_kernel_by_name("compute_cu_code")
-        call initialise_device_buffer(cu_fld)
-        call initialise_device_buffer(p_fld)
-        call initialise_device_buffer(u_fld)
-        xstart = cu_fld % internal % xstart
-        xstop = cu_fld % internal % xstop
-        ystart = cu_fld % internal % ystart
-        ystop = cu_fld % internal % ystop
-        cu_fld_cl_mem = transfer(cu_fld % device_ptr, cu_fld_cl_mem)
-        p_fld_cl_mem = transfer(p_fld % device_ptr, p_fld_cl_mem)
-        u_fld_cl_mem = transfer(u_fld % device_ptr, u_fld_cl_mem)
-        call compute_cu_code_set_args(kernel_compute_cu_code, cu_fld_cl_mem, \
+  ! initialise opencl runtime, kernels and buffers
+  if (first_time) then
+    call psy_init()
+    cmd_queues => get_cmd_queues()
+    kernel_compute_cu_code = get_kernel_by_name('compute_cu_code')
+    call initialise_device_buffer(cu_fld)
+    call initialise_device_buffer(p_fld)
+    call initialise_device_buffer(u_fld)
+    ! do a set_args now so subsequent writes place the data appropriately
+    cu_fld_cl_mem = transfer(cu_fld%device_ptr, cu_fld_cl_mem)
+    p_fld_cl_mem = transfer(p_fld%device_ptr, p_fld_cl_mem)
+    u_fld_cl_mem = transfer(u_fld%device_ptr, u_fld_cl_mem)
+    call compute_cu_code_set_args(kernel_compute_cu_code, cu_fld_cl_mem, \
 p_fld_cl_mem, u_fld_cl_mem, xstart - 1, xstop - 1, ystart - 1, ystop - 1)
-        call cu_fld % write_to_device
-        call p_fld % write_to_device
-        call u_fld % write_to_device
-      end if'''
-
+    ! write data to the device'''
     assert expected in generated_code
-    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+
+    # The write_to_device() can appear in any order in the following 3 lines
+    lines = generated_code.split('\n')
+    idx = lines.index('    ! write data to the device')
+    candidates = '\n'.join(lines[idx+1:idx+4])
+    assert "call u_fld%write_to_device()" in candidates
+    assert "call cu_fld%write_to_device()" in candidates
+    assert "call p_fld%write_to_device()" in candidates
+
+    # Just before the end of the subroutine first_time is set to False
+    expected = '''\
+  first_time = .false.
+
+end subroutine'''
+    assert expected in generated_code
+    assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
@@ -318,8 +317,9 @@ c_sizeof(field%grid%'''
     assert expected in generated_code
 
     for grid_property in check_properties:
-        code = ("field%grid%{0}_device = transfer(create_ronly_buffer("
-                "size_in_bytes), field%grid%{0}_device)".format(grid_property))
+        code = (f"field%grid%{grid_property}_device = transfer("
+                f"create_ronly_buffer(size_in_bytes), "
+                f"field%grid%{grid_property}_device)")
         assert code in generated_code
 
     # Check that device grid write routine is generated
@@ -347,49 +347,55 @@ c_sizeof(field%grid%area_t(1,1))'''
     assert expected in generated_code
 
     for grid_property in check_properties:
-        code = ("      cl_mem = transfer(field%grid%{0}_device, cl_mem)\n"
-                "      ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,"
-                "cl_true,0_8,size_in_bytes,c_loc(field%grid%{0}),0,"
-                "c_null_ptr,c_null_ptr)\n      call check_status("
-                "'clenqueuewritebuffer {0}_device', ierr)\n"
-                "".format(grid_property))
+        code = (f"      cl_mem = transfer(field%grid%{grid_property}_device, "
+                f"cl_mem)\n"
+                f"      ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,"
+                f"cl_true,0_8,size_in_bytes,c_loc(field%grid%{grid_property}),"
+                f"0,c_null_ptr,c_null_ptr)\n"
+                f"      call check_status('clenqueuewritebuffer "
+                f"{grid_property}_device', ierr)\n")
         assert code in generated_code
 
     # Check that during the first time set-up the previous routines are called
     # for a kernel which contains a grid property access.
     expected = '''
+      xstart = out_fld%internal%xstart
+      xstop = out_fld%internal%xstop
+      ystart = out_fld%internal%ystart
+      ystop = out_fld%internal%ystop
+      ! initialise opencl runtime, kernels and buffers
       if (first_time) then
-        first_time = .false.
         call psy_init
-        num_cmd_queues = get_num_cmd_queues()
         cmd_queues => get_cmd_queues()
-        kernel_compute_kernel_code = get_kernel_by_name("compute_kernel_code")
+        kernel_compute_kernel_code = get_kernel_by_name('compute_kernel_code')
         call initialise_device_buffer(out_fld)
         call initialise_device_buffer(in_out_fld)
         call initialise_device_buffer(in_fld)
         call initialise_device_buffer(dx)
         call initialise_grid_device_buffers(in_fld)
-        xstart = out_fld % internal % xstart
-        xstop = out_fld % internal % xstop
-        ystart = out_fld % internal % ystart
-        ystop = out_fld % internal % ystop
-        out_fld_cl_mem = transfer(out_fld % device_ptr, out_fld_cl_mem)
-        in_out_fld_cl_mem = \
-transfer(in_out_fld % device_ptr, in_out_fld_cl_mem)
-        in_fld_cl_mem = transfer(in_fld % device_ptr, in_fld_cl_mem)
-        dx_cl_mem = transfer(dx % device_ptr, dx_cl_mem)
-        gphiu_cl_mem = transfer(in_fld % grid % gphiu_device, gphiu_cl_mem)
+        ! do a set_args now so subsequent writes place the data appropriately
+        out_fld_cl_mem = transfer(out_fld%device_ptr, out_fld_cl_mem)
+        in_out_fld_cl_mem = transfer(in_out_fld%device_ptr, in_out_fld_cl_mem)
+        in_fld_cl_mem = transfer(in_fld%device_ptr, in_fld_cl_mem)
+        dx_cl_mem = transfer(dx%device_ptr, dx_cl_mem)
+        gphiu_cl_mem = transfer(in_fld%grid%gphiu_device, gphiu_cl_mem)
         call compute_kernel_code_set_args(kernel_compute_kernel_code, \
 out_fld_cl_mem, in_out_fld_cl_mem, in_fld_cl_mem, dx_cl_mem, \
-in_fld % grid % dx, gphiu_cl_mem, xstart - 1, xstop - 1, ystart - 1, \
+in_fld%grid%dx, gphiu_cl_mem, xstart - 1, xstop - 1, ystart - 1, \
 ystop - 1)
-        call out_fld % write_to_device
-        call in_out_fld % write_to_device
-        call in_fld % write_to_device
-        call dx % write_to_device
-        call write_grid_buffers(in_fld)
-      end if'''
+        ! write data to the device'''
     assert expected in generated_code
+
+    # The write_to_device() can appear in any order in the following 5 lines
+    lines = generated_code.split('\n')
+    idx = lines.index('        ! write data to the device')
+    candidates = '\n'.join(lines[idx+1:idx+6])
+    assert "call out_fld%write_to_device" in candidates
+    assert "call in_out_fld%write_to_device" in candidates
+    assert "call in_fld%write_to_device" in candidates
+    assert "call dx%write_to_device" in candidates
+    assert "call write_grid_buffers(in_fld)" in candidates
+
     # TODO 284: Currently this example cannot be compiled because it needs to
     # import a module which won't be found on kernel_outputdir
 
@@ -525,7 +531,7 @@ field%device_ptr)
 
     end subroutine initialise_device_buffer'''
     assert expected in generated_code
-    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+    assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
 def test_psy_init_defaults(kernel_outputdir):
@@ -558,7 +564,7 @@ def test_psy_init_defaults(kernel_outputdir):
 
     END SUBROUTINE psy_init'''
     assert expected in generated_code
-    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+    assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
 def test_psy_init_multiple_kernels(kernel_outputdir):
@@ -595,7 +601,7 @@ def test_psy_init_multiple_kernels(kernel_outputdir):
     # Check that add_kernels is provided with the total number of kernels
     assert "CALL add_kernels(2, kernel_names)" in generated_code
 
-    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(
+    assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(
             psy, dependencies=["model_mod.f90"])
 
 
@@ -637,7 +643,7 @@ def test_psy_init_multiple_devices_per_node(kernel_outputdir, monkeypatch):
 
     END SUBROUTINE psy_init'''
     assert expected in generated_code
-    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+    assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
 def test_psy_init_with_options(kernel_outputdir):
@@ -659,7 +665,7 @@ def test_psy_init_with_options(kernel_outputdir):
     generated_code = str(psy.gen)
     assert "CALL ocl_env_init(5, ocl_device_num, .true., .true.)\n" \
         in generated_code
-    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+    assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
 @pytest.mark.parametrize("debug_mode", [True, False])
@@ -680,39 +686,18 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
     otrans.apply(sched)
     generated_code = str(psy.gen)
 
-    # Set the boundaries for this kernel
-    expected = '''
-      xstart = cu_fld % internal % xstart
-      xstop = cu_fld % internal % xstop
-      ystart = cu_fld % internal % ystart
-      ystop = cu_fld % internal % ystop'''
-
-    # Cast dl_esm_inf pointers to cl_mem handlers
-    expected += '''
-      cu_fld_cl_mem = TRANSFER(cu_fld % device_ptr, cu_fld_cl_mem)
-      p_fld_cl_mem = TRANSFER(p_fld % device_ptr, p_fld_cl_mem)
-      u_fld_cl_mem = TRANSFER(u_fld % device_ptr, u_fld_cl_mem)'''
-
-    # Call the set_args subroutine with the boundaries corrected for the
-    # OpenCL 0-indexing
-    expected += '''
-      CALL compute_cu_code_set_args(kernel_compute_cu_code, \
-cu_fld_cl_mem, p_fld_cl_mem, u_fld_cl_mem, \
-xstart - 1, xstop - 1, \
-ystart - 1, ystop - 1)'''
-
     # Set up globalsize and localsize values
-    expected += '''
-      globalsize = (/p_fld % grid % nx, p_fld % grid % ny/)
+    expected = '''
+      globalsize = (/p_fld%grid%nx, p_fld%grid%ny/)
       localsize = (/64, 1/)'''
 
     if debug_mode:
         # Check that the globalsize first dimension is a multiple of
         # the localsize first dimension
         expected += '''
-      IF (MOD(p_fld % grid % nx, 64) .NE. 0) THEN
-        CALL check_status("Global size is not a multiple of local size \
-(mandatory in OpenCL < 2.0).", - 1)
+      IF (MOD(p_fld%grid%nx, 64) /= 0) THEN
+        CALL check_status('Global size is not a multiple of local size \
+(mandatory in OpenCL < 2.0).', -1)
       END IF'''
 
     if debug_mode:
@@ -722,7 +707,22 @@ ystart - 1, ystop - 1)'''
       ierr = clFinish(cmd_queues(1))
       CALL check_status('Errors before compute_cu_code launch', ierr)'''
 
+    # Cast dl_esm_inf pointers to cl_mem handlers
     expected += '''
+      cu_fld_cl_mem = TRANSFER(cu_fld%device_ptr, cu_fld_cl_mem)
+      p_fld_cl_mem = TRANSFER(p_fld%device_ptr, p_fld_cl_mem)
+      u_fld_cl_mem = TRANSFER(u_fld%device_ptr, u_fld_cl_mem)'''
+
+    # Call the set_args subroutine with the boundaries corrected for the
+    # OpenCL 0-indexing
+    expected += '''
+      CALL compute_cu_code_set_args(kernel_compute_cu_code, \
+cu_fld_cl_mem, p_fld_cl_mem, u_fld_cl_mem, \
+xstart - 1, xstop - 1, \
+ystart - 1, ystop - 1)'''
+
+    expected += '''
+      ! Launch the kernel
       ierr = clEnqueueNDRangeKernel(cmd_queues(1), kernel_compute_cu_code, \
 2, C_NULL_PTR, C_LOC(globalsize), C_LOC(localsize), 0, C_NULL_PTR, \
 C_NULL_PTR)'''
@@ -736,9 +736,10 @@ C_NULL_PTR)'''
       CALL check_status('Errors during compute_cu_code', ierr)'''
 
     assert expected in generated_code
-    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+    assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
+@pytest.mark.usefixtures("kernel_outputdir")
 def test_opencl_kernel_boundaries_validation():
     ''' Check that the OpenCL transformation can not be applied if the
     kernel loop doesn't iterate the whole grid.
@@ -843,9 +844,9 @@ def test_opencl_multi_invoke_options_validation(option_to_check):
     otrans.apply(invoke1_schedule, options={option_to_check: False})
     with pytest.raises(TransformationError) as err:
         otrans.apply(invoke2_schedule, options={option_to_check: True})
-    assert ("Can't generate an OpenCL Invoke with {0}='True' since a previous "
-            "transformation used a different value, and their OpenCL "
-            "environments must match.".format(option_to_check)
+    assert (f"Can't generate an OpenCL Invoke with {option_to_check}='True' "
+            f"since a previous transformation used a different value, and "
+            f"their OpenCL environments must match."
             in str(err.value))
 
 
@@ -881,11 +882,10 @@ def test_opencl_options_effects():
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
-    otrans = GOOpenCLTrans()
-    otrans.apply(sched)
-
     # Change kernel local_size to 4
     sched.coded_kernels()[0].set_opencl_options({'local_size': 4})
+    otrans = GOOpenCLTrans()
+    otrans.apply(sched)
     generated_code = str(psy.gen)
     assert "localsize = (/4, 1/)" in generated_code
 
@@ -895,11 +895,10 @@ def test_opencl_options_effects():
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
-    otrans = GOOpenCLTrans()
-    otrans.apply(sched)
-
     # Change kernel queue number to 2 (the barrier should then also go up to 2)
     sched.coded_kernels()[0].set_opencl_options({'queue_number': 2})
+    otrans = GOOpenCLTrans()
+    otrans.apply(sched)
     generated_code = str(psy.gen)
     assert "ierr = clEnqueueNDRangeKernel(cmd_queues(2), " \
         "kernel_compute_cu_code, 2, C_NULL_PTR, C_LOC(globalsize), " \
@@ -952,11 +951,11 @@ def test_multiple_command_queues(dist_mem):
 
     kernelbarrier = '''
       ierr = clFinish(cmd_queues(2))
-      ierr = clEnqueueNDRangeKernel'''
+      p_fld_cl_mem = TRANSFER(p_fld%device_ptr, p_fld_cl_mem)'''
 
     haloexbarrier = '''
       ierr = clFinish(cmd_queues(2))
-      CALL cu_fld % halo_exchange(depth = 1)'''
+      CALL cu_fld%halo_exchange(1)'''
 
     if dist_mem:
         # In distributed memory the command_queue synchronisation happens
@@ -1032,7 +1031,7 @@ def test_set_kern_args(kernel_outputdir):
     assert generated_code.count("SUBROUTINE time_smooth_code_set_args("
                                 "kernel_obj, u_fld, unew_fld, uold_fld, "
                                 "xstart_1, xstop_1, ystart_1, ystop_1)") == 1
-    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+    assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
@@ -1133,7 +1132,7 @@ tmask, xstart, xstop_1, ystart, ystop)
     # instance of the symbol is not declared in the symbol table. Issue #798
     # should fix this problem. This is not essential for the purpose of this
     # test that just checks that a_scalar argument is generated appropriately
-    # assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+    # assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
 def test_set_arg_const_scalar():
@@ -1149,86 +1148,6 @@ def test_set_arg_const_scalar():
     assert ("Cannot generate OpenCL for Invokes that contain kernel arguments"
             " which are a literal, but found the literal '0' used as an "
             "argument in invoke 'invoke_0_bc_ssh'." in str(err.value))
-
-
-@pytest.mark.usefixtures("kernel_outputdir")
-def test_opencl_kernel_code_generation():
-    ''' Tests that gen_ocl method of the GOcean Kernel Schedule generates
-    the expected OpenCL code. Note this test doesn't prepare the kernel to
-    conform to OpenCL GOcean expected interface, see
-    test_opencl_prepared_kernel_code_generation for that.
-    '''
-    psy, _ = get_invoke("single_invoke.f90", API, idx=0, dist_mem=False)
-    sched = psy.invokes.invoke_list[0].schedule
-    kernel = sched.children[0].loop_body[0].loop_body[0]  # compute_cu kernel
-    kschedule = kernel.get_kernel_schedule()
-
-    expected_code = (
-        "__kernel void compute_cu_code(\n"
-        "  __global double * restrict cu,\n"
-        "  __global double * restrict p,\n"
-        "  __global double * restrict u\n"
-        "  ){\n"
-        "  int cuLEN1 = get_global_size(0);\n"
-        "  int cuLEN2 = get_global_size(1);\n"
-        "  int pLEN1 = get_global_size(0);\n"
-        "  int pLEN2 = get_global_size(1);\n"
-        "  int uLEN1 = get_global_size(0);\n"
-        "  int uLEN2 = get_global_size(1);\n"
-        "  int i = get_global_id(0);\n"
-        "  int j = get_global_id(1);\n"
-        "  cu[i + j * cuLEN1] = ((0.5e0 * (p[(i + 1) + j * pLEN1]"
-        " + p[i + j * pLEN1])) * u[i + j * uLEN1]);\n"
-        "}\n\n"
-        )
-
-    openclwriter = OpenCLWriter()
-    assert expected_code == openclwriter(kschedule)
-
-
-@pytest.mark.usefixtures("kernel_outputdir")
-def test_opencl_code_generation_with_boundary_mask():
-    ''' Tests that OpenCL kernel generated after applying the
-    GOMoveIterationBoundariesInsideKernelTrans has the 4 boundary values as
-    kernel arguments and has a masking statement at the beginning of the
-    executable code.
-    '''
-    psy, _ = get_invoke("single_invoke.f90", API, idx=0, dist_mem=False)
-    sched = psy.invokes.invoke_list[0].schedule
-    kernel = sched.children[0].loop_body[0].loop_body[0]  # compute_cu kernel
-    trans = GOMoveIterationBoundariesInsideKernelTrans()
-    trans.apply(kernel)
-    kschedule = kernel.get_kernel_schedule()
-
-    expected_code = (
-        "__kernel void compute_cu_code(\n"
-        "  __global double * restrict cu,\n"
-        "  __global double * restrict p,\n"
-        "  __global double * restrict u,\n"
-        "  int xstart,\n"
-        "  int xstop,\n"
-        "  int ystart,\n"
-        "  int ystop\n"
-        "  ){\n"
-        "  int cuLEN1 = get_global_size(0);\n"
-        "  int cuLEN2 = get_global_size(1);\n"
-        "  int pLEN1 = get_global_size(0);\n"
-        "  int pLEN2 = get_global_size(1);\n"
-        "  int uLEN1 = get_global_size(0);\n"
-        "  int uLEN2 = get_global_size(1);\n"
-        "  int i = get_global_id(0);\n"
-        "  int j = get_global_id(1);\n"
-        "  if ((((i < xstart) || (i > xstop)) || ((j < ystart) ||"
-        " (j > ystop)))) {\n"
-        "    return;\n"
-        "  }\n"
-        "  cu[i + j * cuLEN1] = ((0.5e0 * (p[(i + 1) + j * pLEN1]"
-        " + p[i + j * pLEN1])) * u[i + j * uLEN1]);\n"
-        "}\n\n"
-        )
-
-    openclwriter = OpenCLWriter()
-    assert expected_code == openclwriter(kschedule)
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
@@ -1254,10 +1173,8 @@ def test_opencl_kernel_missing_boundary_symbol(monkeypatch):
     otrans = GOOpenCLTrans()
     # We skip validation as in this test we purposefully want to have the issue
     monkeypatch.setattr(otrans, "validate", lambda x, y: None)
-    otrans.apply(sched)
-
     with pytest.raises(GenerationError) as err:
-        _ = psy.gen  # Generates the OpenCL kernels as a side-effect.
+        otrans.apply(sched)
     assert ("Boundary symbol tag 'xstop_compute_cu_code' not found while "
             "generating the OpenCL code for kernel 'compute_cu_code'. Make "
             "sure to apply the GOMoveIterationBoundariesInsideKernelTrans "
@@ -1265,7 +1182,8 @@ def test_opencl_kernel_missing_boundary_symbol(monkeypatch):
 
 
 def test_opencl_kernel_output_file(kernel_outputdir):
-    '''Check that an OpenCL file named modulename_kernelname_0 is generated.
+    '''Check that a new OpenCL file named opencl_kernels_{suffix}.cl is
+    generated.
     '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
@@ -1275,32 +1193,16 @@ def test_opencl_kernel_output_file(kernel_outputdir):
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
 
-    otrans = GOOpenCLTrans()
-    otrans.apply(sched)
-    _ = psy.gen  # Generates the OpenCL kernels as a side-effect.
-
-    assert os.path.exists(
-        os.path.join(str(kernel_outputdir), "compute_cu_compute_cu_0.cl"))
-
-
-def test_opencl_kernel_output_file_with_suffix(kernel_outputdir):
-    '''Check that an OpenCL file named modulename_kernelname_0 is
-    generated without the _code suffix in the kernelname
-    '''
-    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
-    sched = psy.invokes.invoke_list[0].schedule
-    # Currently, moving the boundaries inside the kernel is a prerequisite
-    # for the GOcean gen_ocl() code generation.
-    trans = GOMoveIterationBoundariesInsideKernelTrans()
-    for kernel in sched.coded_kernels():
-        trans.apply(kernel)
+    # Create a opencl_kernels_0.cl so another name is needed for the new file
+    filename = os.path.join(str(kernel_outputdir), "opencl_kernels_0.cl")
+    with open(filename, "w", encoding="utf-8") as myfile:
+        myfile.write("This file exists!")
 
     otrans = GOOpenCLTrans()
-    otrans.apply(sched)
-    _ = psy.gen  # Generates the OpenCL kernels as a side-effect.
+    otrans.apply(sched)  # Generates the OpenCL kernels as a side-effect.
 
     assert os.path.exists(
-        os.path.join(str(kernel_outputdir), "compute_cu_compute_cu_0.cl"))
+        os.path.join(str(kernel_outputdir), "opencl_kernels_1.cl"))
 
 
 def test_symtab_implementation_for_opencl():

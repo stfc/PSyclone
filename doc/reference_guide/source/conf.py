@@ -21,14 +21,14 @@ import subprocess
 # -- Project information -----------------------------------------------------
 
 project = 'Reference Guide'
-copyright = ('2019-2021, R. W. Ford, J. Henrichs, I. Kavcic, A. R. Porter, '
+copyright = ('2019-2022, R. W. Ford, J. Henrichs, I. Kavcic, A. R. Porter, '
              ' S. Siso')
 author = 'R. W. Ford, J. Henrichs, I. Kavcic, A. R. Porter, S. Siso'
 
 # The short X.Y version
 version = ''
 # The full version, including alpha/beta/rc tags
-release = '2.1.0'
+release = '2.3.1'
 
 
 # -- General configuration ---------------------------------------------------
@@ -67,7 +67,7 @@ master_doc = 'index'
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = "en"
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.

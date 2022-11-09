@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,18 +36,18 @@
 
 
 ''' Module which performs pytest set-up so that we can specify
-    command-line options '''
-
-from __future__ import absolute_import
+    command-line options. Also creates certain test fixtures. '''
 
 import os
+import copy
 import pytest
 
 from fparser.two.parser import ParserFactory
+from fparser.two.symbol_table import SYMBOL_TABLES
 from psyclone.configuration import Config
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.tests.gocean1p0_build import GOcean1p0Build
+from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import Compile
 
@@ -56,13 +56,6 @@ from psyclone.tests.utilities import Compile
 @pytest.fixture(scope="module", params=[False, True])
 def annexed(request):
     ''' Return the content of params in turn '''
-    return request.param
-
-
-@pytest.fixture(scope="module", params=[False, True])
-def dist_mem(request):
-    ''' Fixture for testing with and without distributed memory.
-        Returns the content of params in turn. '''
     return request.param
 
 
@@ -114,12 +107,38 @@ def setup_psyclone_config():
         os.environ["PSYCLONE_CONFIG"] = config_file
 
 
+@pytest.fixture(name="config_instance", scope="function", autouse=True)
+def config_fixture(monkeypatch):
+    ''' A fixture that ensures every test gets its own copy of the Config
+    'singleton'. Otherwise, settings can leak between tests.
+
+    '''
+    orig_config = Config.get()
+    new_config = copy.copy(orig_config)
+    monkeypatch.setattr(Config, "_instance", new_config)
+    yield new_config
+    monkeypatch.undo()
+
+
+@pytest.fixture(scope="function", params=[False, True])
+def dist_mem(request, monkeypatch, config_instance):
+    ''' Fixture for testing with and without distributed memory. Monkeypatches
+    the test-local copy of the Config object (provided by the `config_instance`
+    fixture) with the appropriate setting for distributed memory, returns that
+    setting and then finally undoes the monkeypatching.
+
+    '''
+    monkeypatch.setattr(config_instance, "_distributed_mem", request.param)
+    yield request.param
+    monkeypatch.undo()
+
+
 @pytest.fixture(scope="session", autouse=True)
 def infra_compile(tmpdir_factory, request):
     '''A per-session initialisation function that sets the compilation flags
     in the Compile class based on command line options for --compile,
     --compileopencl, --f90, --f90flags. Then makes sure that the
-    infrastructure files for the dynamo0p3 and gocean1p0 APIs are compiled
+    infrastructure files for the dynamo0p3 and gocean APIs are compiled
     (if compilation was enabled).
     '''
     Compile.store_compilation_flags(request.config)
@@ -135,21 +154,39 @@ def infra_compile(tmpdir_factory, request):
     LFRicBuild(tmpdir)
 
     tmpdir = tmpdir_factory.mktemp('dl_esm_inf')
-    GOcean1p0Build(tmpdir)
+    GOceanBuild(tmpdir)
 
 
-@pytest.fixture(scope="session")
-def parser():
+@pytest.fixture(name="_session_parser", scope="session")
+def _session_parser():
     '''
     Creates and returns an fparser object. Since this is expensive we only
-    do this once per test session (scope="session" above).
+    do this once per test session (scope="session" above). This fixture is
+    only intended to be used in the 'public' fixture `parser` below.
+
+    TODO #1188 - move this to tests/psyir/frontend/conftest.py.
+
+    '''
+    return ParserFactory().create(std="f2008")
+
+
+@pytest.fixture(scope="function")
+def parser(_session_parser):
+    '''
+    Returns the session fparser object but clears any existing symbol tables
+    before doing so.
+
+    TODO #1188 - as part of isolating fparser usage to the PSyIR frontend,
+    this fixture will be removed and replaced by the one in
+    tests/psyir/frontend/conftest.py.
 
     Note: If this fixture is not used to get the fparser parse tree but is
     used as just a step in getting the PSyIR, use the fortran_reader fixture
     below.
 
     '''
-    return ParserFactory().create(std="f2008")
+    SYMBOL_TABLES.clear()
+    return _session_parser
 
 
 @pytest.fixture(scope="function")
@@ -158,6 +195,18 @@ def kernel_outputdir(tmpdir, monkeypatch):
     config = Config.get()
     monkeypatch.setattr(config, "_kernel_output_dir", str(tmpdir))
     return tmpdir
+
+
+@pytest.fixture(scope="function")
+def change_into_tmpdir(tmpdir):
+    '''This fixture changes into a temporary working directory,
+    and changes automatically back at the end. '''
+    prev_dir = os.getcwd()
+    os.chdir(os.path.expanduser(tmpdir))
+    try:
+        yield tmpdir
+    finally:
+        os.chdir(prev_dir)
 
 
 @pytest.fixture(scope="function", name="fortran_reader")

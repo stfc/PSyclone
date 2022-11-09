@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -56,31 +56,33 @@ class CreateNemoKernelTrans(Transformation):
     >>> from psyclone.domain.nemo.transformations import CreateNemoKernelTrans
     >>> code = '''
     ... subroutine sub()
-    ...   integer :: ji, tmp(10)
+    ...   integer :: ji
+    ...   real :: tmp(10)
     ...   do ji=1, 10
-    ...     tmp(ji) = 2*ji
+    ...     tmp(ji) = 2.0*ji
     ...   end do
     ... end subroutine sub'''
     >>> psyir = FortranReader().psyir_from_source(code)
     >>> loop = psyir.walk(Loop)[0]
     >>> trans = CreateNemoKernelTrans()
     >>> trans.apply(loop.loop_body)
-    >>> psyir.view()
-    FileContainer[None]
-        Routine[name:'sub']
-            0: Loop[type='None', field_space='None', it_space='None']
-                Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-                Literal[value:'10', Scalar<INTEGER, UNDEFINED>]
-                Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-                Schedule[]
-                    0: InlinedKern[]
-                        Schedule[]
-                            0: Assignment[]
-                                ArrayReference[name:'tmp']
-                                    Reference[name:'ji']
-                                BinaryOperation[operator:'MUL']
-                                    Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
-                                    Reference[name:'ji']
+    >>> print(psyir.view(colour=False, indent="  "))
+    FileContainer[]
+      Routine[name:'sub']
+        0: Loop[variable='ji']
+          Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+          Literal[value:'10', Scalar<INTEGER, UNDEFINED>]
+          Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+          Schedule[]
+            0: InlinedKern[]
+              Schedule[]
+                0: Assignment[]
+                  ArrayReference[name:'tmp']
+                    Reference[name:'ji']
+                  BinaryOperation[operator:'MUL']
+                    Literal[value:'2.0', Scalar<REAL, UNDEFINED>]
+                    Reference[name:'ji']
+    <BLANKLINE>
 
     The resulting Schedule contains a NemoKern (displayed as an
     'InlinedKern' by the view() method).

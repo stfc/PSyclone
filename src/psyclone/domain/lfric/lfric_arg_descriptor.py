@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,6 @@ and properties.
 '''
 
 # Imports
-from __future__ import print_function, absolute_import
 
 import os
 import six
@@ -69,9 +68,10 @@ class LFRicArgDescriptor(Descriptor):
                      field or operator).
     :type arg_type: :py:class:`psyclone.expression.FunctionVar` or \
                     :py:class:`psyclone.expression.BinaryOperator`
-    :param operates_on: value of operates_on from the parsed kernel metadata \
-                        (used for validation).
-    :type operates_on: str
+    :param str operates_on: value of operates_on from the parsed kernel \
+                            metadata (used for validation).
+    :param int metadata_index: position of this argument in the list of \
+                               arguments specified in the metadata.
 
     :raises ParseError: if a 'meta_arg' entry is not of 'arg_type' type.
     :raises ParseError: if the first argument of a 'meta_arg' entry is not \
@@ -91,7 +91,7 @@ class LFRicArgDescriptor(Descriptor):
 
     # ----------------------------------------------------------------------- #
 
-    def __init__(self, arg_type, operates_on):
+    def __init__(self, arg_type, operates_on, metadata_index):
         # pylint: disable=too-many-branches, too-many-statements
         self._arg_type = arg_type
         # Initialise properties
@@ -213,10 +213,10 @@ class LFRicArgDescriptor(Descriptor):
                 "should not get to here.".format(arg_type))
 
         # Initialise the parent class
-        super(LFRicArgDescriptor,
-              self).__init__(self._access_type, self._function_space1,
-                             stencil=self._stencil, mesh=self._mesh,
-                             argument_type=self._argument_type)
+        super().__init__(self._access_type, self._function_space1,
+                         metadata_index, stencil=self._stencil,
+                         mesh=self._mesh,
+                         argument_type=self._argument_type)
 
     def _validate_vector_size(self, separator, arg_type):
         '''
@@ -306,7 +306,8 @@ class LFRicArgDescriptor(Descriptor):
                             [READ, WRITE, READWRITE]).
         :raises ParseError: if a field on a continuous function space \
                             passed to a kernel that operates on cell-columns \
-                            does not have a valid access (one of [READ, INC]).
+                            does not have a valid access (one of [READ, WRITE,\
+                            INC, READINC]).
         :raises ParseError: if the kernel operates on the domain and is \
                             passed a field on a continuous space.
         :raises InternalError: if an invalid value for operates_on is \
@@ -391,8 +392,11 @@ class LFRicArgDescriptor(Descriptor):
         # Test allowed accesses for fields
         field_disc_accesses = [AccessType.READ, AccessType.WRITE,
                                AccessType.READWRITE]
-        field_cont_accesses = [AccessType.READ, AccessType.INC,
-                               AccessType.READINC]
+        # Note that although WRITE is permitted for fields on continuous
+        # function spaces, kernels that specify this must guarantee to write
+        # the same value to any given shared entity, independent of iteration.
+        field_cont_accesses = [AccessType.READ, AccessType.WRITE,
+                               AccessType.INC, AccessType.READINC]
         # Convert generic access types to GH_* names for error messages
         api_config = Config.get().api_conf(API)
         rev_access_mapping = api_config.get_reverse_access_mapping()

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2020, Science and Technology Facilities Council.
+# Copyright (c) 2018-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -96,12 +96,12 @@ ${PROFILE_LIB}:
 # Listing psy.f90 before kernels ensures that PSyclone is run to generate
 # the transformed kernels.
 single.exe: ${INF_LIB} psy.f90 kernels psy.o alg_gen.o
-	${F90} ${LDFLAGS} inc_field_*mod.o psy.o alg_gen.o ${INF_LIB} -o single.exe
+	${F90} ${F90FLAGS} ${LDFLAGS} inc_field_*mod.o psy.o alg_gen.o ${INF_LIB} -o single.exe
 
 # Listing psy_prof.f90 before kernels ensures that PSyclone is run to generate
 # the transformed kernels.
 single_prof.exe: ${INF_LIB} ${PROFILE_LIB} psy_prof.f90 kernels psy_prof.o alg_prof.o
-	${F90} ${LDFLAGS} inc_field_*mod.o psy_prof.o alg_prof.o ${INF_LIB} \
+	${F90} ${F90FLAGS} ${LDFLAGS} inc_field_*mod.o psy_prof.o alg_prof.o ${INF_LIB} \
 ${PROFILE_LIB} ${NVTX_LINK} -o single.exe
 
 psy.f90 alg_gen.f90: alg.f90

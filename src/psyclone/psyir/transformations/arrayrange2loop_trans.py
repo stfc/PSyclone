@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Author R. W. Ford and N. Nobre, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''Module providing a transformation from a PSyIR Array Range to a
 PSyIR Loop. This could be useful for e.g. performance reasons, to
@@ -41,12 +42,14 @@ not support array ranges.
 '''
 
 from __future__ import absolute_import
+
+from psyclone.core import SymbolicMaths
 from psyclone.psyGen import Transformation
+from psyclone.psyir.nodes import Loop, Range, Reference, ArrayReference, \
+    Assignment, Operation, BinaryOperation
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
-from psyclone.psyir.nodes import Loop, Range, Reference, ArrayReference, \
-    Assignment, Node, Operation, BinaryOperation
 
 
 class ArrayRange2LoopTrans(Transformation):
@@ -65,7 +68,7 @@ class ArrayRange2LoopTrans(Transformation):
     >>> from psyclone.psyir.transformations import ArrayRange2LoopTrans, \
     >>>     TransformationError
     >>>
-    >>> schedule.view()
+    >>> print(schedule.view())
     >>> trans = ArrayRange2LoopTrans()
     >>> for assignment in schedule.walk(Assignment):
     >>>     while True:
@@ -73,37 +76,9 @@ class ArrayRange2LoopTrans(Transformation):
     >>>             trans.apply(assignment)
     >>>         except TransformationError:
     >>>             break
-    >>> schedule.view()
+    >>> print(schedule.view())
 
     '''
-    @staticmethod
-    def string_compare(node1, node2):
-        '''Utility function to determine whether two node hierarchies are the
-        same by comparing their string representations.
-
-        :param node1: the first node involved in the comparison.
-        :type node1: :py:class:`psyclone.psyir.nodes.Node`
-        :param node2: the second node involved in the comparison.
-        :type node2: :py:class:`psyclone.psyir.nodes.Node`
-
-        :returns: True if the string representations are the same and \
-            False otherwise.
-        :rtype: bool
-
-        :raises: TypeError if the arguments are the wrong type.
-
-        '''
-        if not isinstance(node1, Node):
-            raise TypeError(
-                "The first argument to the string_compare method should be a "
-                "Node but found '{0}'.".format(type(node1).__name__))
-        if not isinstance(node2, Node):
-            raise TypeError(
-                "The second argument to the string_compare method should be a "
-                "Node but found '{0}'.".format(type(node2).__name__))
-        node1_str = "".join([str(node) for node in node1.walk(Node)])
-        node2_str = "".join([str(node) for node in node2.walk(Node)])
-        return node1_str == node2_str
 
     @staticmethod
     def same_range(array1, idx1, array2, idx2):
@@ -134,50 +109,48 @@ class ArrayRange2LoopTrans(Transformation):
             wrong type.
 
         '''
+        # pylint: disable=too-many-branches
         if not isinstance(array1, ArrayReference):
             raise TypeError(
-                "The first argument to the same_range() method should be an "
-                "ArrayReference but found '{0}'.".format(
-                    type(array1).__name__))
+                f"The first argument to the same_range() method should be an "
+                f"ArrayReference but found '{type(array1).__name__}'.")
         if not isinstance(idx1, int):
             raise TypeError(
-                "The second argument to the same_range() method should be an "
-                "int but found '{0}'.".format(type(idx1).__name__))
+                f"The second argument to the same_range() method should be an "
+                f"int but found '{type(idx1).__name__}'.")
         if not isinstance(array2, ArrayReference):
             raise TypeError(
-                "The third argument to the same_range() method should be an "
-                "ArrayReference but found '{0}'.".format(
-                    type(array2).__name__))
+                f"The third argument to the same_range() method should be an "
+                f"ArrayReference but found '{type(array2).__name__}'.")
         if not isinstance(idx2, int):
             raise TypeError(
-                "The fourth argument to the same_range() method should be an "
-                "int but found '{0}'.".format(type(idx2).__name__))
+                f"The fourth argument to the same_range() method should be an "
+                f"int but found '{type(idx2).__name__}'.")
         if not idx1 < len(array1.children):
             raise IndexError(
-                "The value of the second argument to the same_range() method "
-                "'{0}' should be less than the number of dimensions '{1}' in "
-                "the associated array 'array1'."
-                "".format(idx1, len(array1.children)))
+                f"The value of the second argument to the same_range() method "
+                f"'{idx1}' should be less than the number of dimensions "
+                f"'{len(array1.children)}' in the associated array 'array1'.")
         if not idx2 < len(array2.children):
             raise IndexError(
-                "The value of the fourth argument to the same_range() method "
-                "'{0}' should be less than the number of dimensions '{1}' in "
-                "the associated array 'array2'."
-                "".format(idx2, len(array2.children)))
+                f"The value of the fourth argument to the same_range() method "
+                f"'{idx2}' should be less than the number of dimensions "
+                f"'{len(array2.children)}' in the associated array 'array2'.")
         if not isinstance(array1.children[idx1], Range):
             raise TypeError(
-                "The child of the first array argument at the specified index "
-                "({0}) should be a Range node, but found '{1}'."
-                "".format(idx1, type(array1.children[idx1]).__name__))
+                f"The child of the first array argument at the specified index"
+                f" ({idx1}) should be a Range node, but found "
+                f"'{type(array1.children[idx1]).__name__}'.")
         if not isinstance(array2.children[idx2], Range):
             raise TypeError(
-                "The child of the second array argument at the specified "
-                "index ({0}) should be a Range node, but found '{1}'."
-                "".format(idx2, type(array2.children[idx2]).__name__))
+                f"The child of the second array argument at the specified "
+                f"index ({idx2}) should be a Range node, but found "
+                f"'{type(array2.children[idx2]).__name__}'.")
 
         range1 = array1.children[idx1]
         range2 = array2.children[idx2]
 
+        sym_maths = SymbolicMaths.get()
         # compare lower bounds
         if array1.is_lower_bound(idx1) and array2.is_lower_bound(idx2):
             # Both array1 and array2 use the lbound() intrinsic to
@@ -193,14 +166,11 @@ class ArrayRange2LoopTrans(Transformation):
             # dimension. In this case assume that the ranges are
             # different (although they could potentially be the same).
             return False
-        elif not ArrayRange2LoopTrans.string_compare(
-                range1.start, range2.start):
+        elif not sym_maths.equal(range1.start, range2.start):
             # Neither array1 nor array2 use the lbound() intrinsic to
             # specify the lower bound of the array dimension. Try to
             # determine if they are the same by matching the
-            # text. Some form of symbolic matching would be better
-            # here, or at least something similar to the math_equal
-            # approach.
+            # text. Use symbolic maths to do the comparison.
             return False
 
         # compare upper bounds
@@ -218,17 +188,14 @@ class ArrayRange2LoopTrans(Transformation):
             # dimension. In this case assume that the ranges are
             # different (although they could potentially be the same).
             return False
-        elif not ArrayRange2LoopTrans.string_compare(range1.stop, range2.stop):
+        elif not sym_maths.equal(range1.stop, range2.stop):
             # Neither array1 nor array2 use the ubound() intrinsic to
-            # specify the upper bound of the array dimension. Try to
-            # determine if they are the same by matching the
-            # text. Some form of symbolic matching would be better
-            # here, or at least something similar to the math_equal
-            # approach.
+            # specify the upper bound of the array dimension. Use
+            # symbolic maths to check if they are equal.
             return False
 
         # compare steps
-        if not ArrayRange2LoopTrans.string_compare(range1.step, range2.step):
+        if not sym_maths.equal(range1.step, range2.step):
             return False
 
         # Everything matches.
@@ -307,22 +274,22 @@ class ArrayRange2LoopTrans(Transformation):
         '''
         if not isinstance(node, Assignment):
             raise TransformationError(
-                "Error in {0} transformation. The supplied node argument "
-                "should be a PSyIR Assignment, but found '{1}'."
-                "".format(self.name, type(node).__name__))
+                f"Error in {self.name} transformation. The supplied node "
+                f"argument should be a PSyIR Assignment, but found "
+                f"'{type(node).__name__}'.")
 
         if not isinstance(node.lhs, ArrayReference):
             raise TransformationError(
-                "Error in {0} transformation. The lhs of the supplied "
-                "Assignment node should be a PSyIR ArrayReference, but "
-                "found '{1}'.".format(self.name, type(node.lhs).__name__))
+                f"Error in {self.name} transformation. The lhs of the "
+                f"supplied Assignment node should be a PSyIR ArrayReference, "
+                f"but found '{type(node.lhs).__name__}'.")
 
         if not [dim for dim in node.lhs.children if isinstance(dim, Range)]:
             raise TransformationError(
-                "Error in {0} transformation. The lhs of the supplied "
-                "Assignment node should be a PSyIR ArrayReference with at "
-                "least one of its dimensions being a Range, but found None "
-                "in '{1}'.".format(self.name, str(node.lhs)))
+                f"Error in {self.name} transformation. The lhs of the supplied"
+                f" Assignment node should be a PSyIR ArrayReference with at "
+                f"least one of its dimensions being a Range, but found None "
+                f"in '{node.lhs}'.")
 
         # If an operator on the rhs only returns an array then we are
         # not able to turn the assignment into an explicit loop. At
@@ -335,10 +302,9 @@ class ArrayRange2LoopTrans(Transformation):
         if [operation for operation in node.rhs.walk(Operation)
                 if operation.operator in [BinaryOperation.Operator.MATMUL]]:
             raise TransformationError(
-                "Error in {0} transformation. The rhs of the supplied "
-                "Assignment node '{1}' contains the MATMUL operator which "
-                "can't be performed elementwise."
-                "".format(self.name, str(node.rhs)))
+                f"Error in {self.name} transformation. The rhs of the "
+                f"supplied Assignment node '{node.rhs}' contains the MATMUL "
+                f"operator which can't be performed elementwise.")
 
         # Find the outermost range for the array on the lhs of the
         # assignment and save its index.
@@ -363,14 +329,13 @@ class ArrayRange2LoopTrans(Transformation):
                         # can't safely replace this range with a
                         # loop iterator.
                         raise TransformationError(
-                            "The ArrayRange2LoopTrans transformation only "
-                            "supports ranges that are known to be the "
-                            "same as each other but array access '{0}' "
-                            "dimension {1} and '{2}' dimension {3} are "
-                            "either different or can't be determined in the "
-                            "assignment '{4}'."
-                            "".format(node.lhs.name, lhs_index, array.name,
-                                      idx, str(node)))
+                            f"The ArrayRange2LoopTrans transformation only "
+                            f"supports ranges that are known to be the "
+                            f"same as each other but array access "
+                            f"'{node.lhs.name}' dimension {lhs_index} and "
+                            f"'{array.name}' dimension {idx} are either "
+                            f"different or can't be determined in the "
+                            f"assignment '{node}'.")
                     break
 
 

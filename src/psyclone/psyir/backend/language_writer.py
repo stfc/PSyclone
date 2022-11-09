@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified: N. Nobre, STFC Daresbury Lab
 
 
 '''PSyIR visitor layer that provides convenient functions that can be reused
@@ -79,13 +80,12 @@ class LanguageWriter(PSyIRVisitor):
                                              check_global_constraints)
         if not isinstance(array_parenthesis, tuple) or \
                 len(array_parenthesis) != 2:
-            raise TypeError("Invalid array-parenthesis parameter, must be "
-                            "a tuple of two strings, got '{0}'."
-                            .format(array_parenthesis))
+            raise TypeError(f"Invalid array-parenthesis parameter, must be "
+                            f"a tuple of two strings, got "
+                            f"'{array_parenthesis}'.")
         if not isinstance(structure_character, str):
-            raise TypeError("Invalid structure_character parameter, must be "
-                            "a string, got '{0}'."
-                            .format(array_parenthesis))
+            raise TypeError(f"Invalid structure_character parameter, must be "
+                            f"a string, got '{array_parenthesis}'.")
 
         self._array_parenthesis = array_parenthesis
         self._structure_character = structure_character
@@ -140,13 +140,11 @@ class LanguageWriter(PSyIRVisitor):
         '''
         if not node.children:
             raise VisitorError(
-                "Incomplete ArrayReference node (for symbol '{0}') found: "
-                "must have one or more children.".format(node.name))
+                f"Incomplete ArrayReference node (for symbol '{node.name}') "
+                f"found: must have one or more children.")
         args = self.gen_indices(node.children, node.name)
-        result = "{0}{2}{1}{3}".format(node.name,
-                                       ",".join(args),
-                                       self._array_parenthesis[0],
-                                       self._array_parenthesis[1])
+        result = f"{node.name}{self._array_parenthesis[0]}"\
+                 f"{','.join(args)}{self._array_parenthesis[1]}"
         return result
 
     # ------------------------------------------------------------------------
@@ -166,15 +164,14 @@ class LanguageWriter(PSyIRVisitor):
         '''
         if len(node.children) != 1:
             raise VisitorError(
-                "A StructureReference must have a single child but the "
-                "reference to symbol '{0}' has {1}.".format(
-                    node.name, len(node.children)))
+                f"A StructureReference must have a single child but the "
+                f"reference to symbol '{node.name}' has {len(node.children)}.")
         if not isinstance(node.children[0], Member):
             raise VisitorError(
-                "A StructureReference must have a single child which is a "
-                "sub-class of Member but the reference to symbol '{0}' has a "
-                "child of type '{1}'".format(node.name,
-                                             type(node.children[0]).__name__))
+                f"A StructureReference must have a single child which is a "
+                f"sub-class of Member but the reference to symbol "
+                f"'{node.name}' has a child of type "
+                f"'{type(node.children[0]).__name__}'")
         result = node.symbol.name + self._structure_character + \
             self._visit(node.children[0])
         return result
@@ -203,9 +200,8 @@ class LanguageWriter(PSyIRVisitor):
                 # If the node has more children, any additional children are
                 # array indices. Add the indices to the output string:
                 indices = self.gen_indices(node.children[1:], node.name)
-                result += "{0}{1}{2}".format(self._array_parenthesis[0],
-                                             ",".join(indices),
-                                             self._array_parenthesis[1])
+                result += f"{self._array_parenthesis[0]}{','.join(indices)}"\
+                          f"{self._array_parenthesis[1]}"
             # Now add the first child, which is the member that is being
             # accessed, to the output string
             result += self._structure_character + self._visit(node.children[0])
@@ -214,9 +210,8 @@ class LanguageWriter(PSyIRVisitor):
             # (which exist since this was tested above) as indices to the
             # output string.
             args = self.gen_indices(node.children, node.name)
-            result += "{0}{1}{2}".format(self._array_parenthesis[0],
-                                         ",".join(args),
-                                         self._array_parenthesis[1])
+            result += f"{self._array_parenthesis[0]}{','.join(args)}"\
+                      f"{self._array_parenthesis[1]}"
         return result
 
     # ------------------------------------------------------------------------
@@ -237,14 +232,13 @@ class LanguageWriter(PSyIRVisitor):
         '''
         if len(node.children) < 2:
             raise VisitorError(
-                "An ArrayOfStructuresReference must have at least two children"
-                " but found {0}".format(len(node.children)))
+                f"An ArrayOfStructuresReference must have at least two "
+                f"children but found {len(node.children)}")
 
         if not isinstance(node.children[0], Member):
             raise VisitorError(
-                "An ArrayOfStructuresReference must have a Member as its "
-                "first child but found '{0}'".format(
-                    type(node.children[0]).__name__))
+                f"An ArrayOfStructuresReference must have a Member as its "
+                f"first child but found '{type(node.children[0]).__name__}'")
 
         # Generate the array reference. We need to skip over the first child
         # (as that refers to the member of the derived type being accessed).
@@ -253,6 +247,30 @@ class LanguageWriter(PSyIRVisitor):
         result = (node.symbol.name + self._array_parenthesis[0] +
                   ",".join(args) + self._array_parenthesis[1] +
                   self._structure_character + self._visit(node.children[0]))
+        return result
+
+    # ------------------------------------------------------------------------
+    def clause_node(self, node):
+        '''This method is called when a Clause instance is found in the
+        PSyIR tree. It returns the clause and its children as a string.
+
+        :param node: a Clause PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.Clause`
+
+        :returns: the code for this node.
+        :rtype: str
+
+        '''
+        result = node.clause_string
+
+        if len(node.children) > 0:
+            result = result + "("
+            child_list = []
+            for child in node.children:
+                child_list.append(self._visit(child))
+            result = result + ",".join(child_list)
+            result = result + ")"
+
         return result
 
 

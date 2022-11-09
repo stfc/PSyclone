@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,8 @@
 ''' This module contains the CodeBlock node implementation.'''
 
 from enum import Enum
+from fparser.two import Fortran2003
+from fparser.two.utils import walk
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
 
@@ -100,6 +102,23 @@ class CodeBlock(Statement, DataNode):
         # Store the structure of the code block.
         self._structure = structure
 
+    def __eq__(self, other):
+        '''
+        Checks whether two nodes are equal. Two CodeBlock nodes are equal
+        if they are the same type, their ast_nodes lists are equal (which
+        means the same instance) and have the same structure.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super().__eq__(other)
+        is_eq = is_eq and self.get_ast_nodes == other.get_ast_nodes
+        is_eq = is_eq and self.structure == other.structure
+
+        return is_eq
+
     @property
     def structure(self):
         '''
@@ -132,5 +151,13 @@ class CodeBlock(Statement, DataNode):
         return self.coloured_name(colour) + \
             "[" + str(list(map(type, self._fp2_nodes))) + "]"
 
+    def get_symbol_names(self):
+        '''
+        :returns: the list of symbol names used inside the CodeBock.
+        :rtype: list of str
+        '''
+        parse_tree = self.get_ast_nodes
+        return [node.string for node in walk(parse_tree, Fortran2003.Name)]
+
     def __str__(self):
-        return "CodeBlock[{0} nodes]".format(len(self._fp2_nodes))
+        return f"CodeBlock[{len(self._fp2_nodes)} nodes]"

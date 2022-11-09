@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Literal PSyIR node. '''
@@ -42,8 +43,7 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import ScalarType, ArrayType, \
-    REAL_DOUBLE_TYPE, INTEGER_SINGLE_TYPE, BOOLEAN_TYPE, CHARACTER_TYPE, \
-    REAL_TYPE, INTEGER_TYPE
+    REAL_DOUBLE_TYPE, INTEGER_SINGLE_TYPE, BOOLEAN_TYPE, CHARACTER_TYPE
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.node import colored
 
@@ -230,30 +230,13 @@ def test_literal_can_be_copied():
     assert literal.value == "1"
 
 
-def test_literal_math_equal():
-    '''Test that the math_equal() function behaves as expected.'''
+def test_literal_equality():
+    ''' Test the __eq__ method of the Literal node. '''
+    literal = Literal("1", INTEGER_SINGLE_TYPE)
+    literal2 = Literal("1", INTEGER_SINGLE_TYPE)
+    literal3 = Literal("10", INTEGER_SINGLE_TYPE)
+    literal4 = Literal("1", REAL_DOUBLE_TYPE)
 
-    one = Literal("1.0", REAL_TYPE)
-    two = Literal("2.0", REAL_TYPE)
-    assert one.math_equal(one)
-    assert not one.math_equal(None)
-    assert not one.math_equal(two)
-
-
-@pytest.mark.xfail(message="issue #1321. math_equal() for literal is not "
-                   "robust")
-def test_literal_math_equal_reps():
-    '''test that the math_equal() function works with different
-    representations and datatypes.
-
-    '''
-    one = Literal("1.0", REAL_TYPE)
-    another_one = Literal("1.00", REAL_TYPE)
-    yet_another_one = Literal("1", REAL_TYPE)
-    one_with_precision = Literal("1.0", REAL_DOUBLE_TYPE)
-    one_different_type = Literal("1", INTEGER_TYPE)
-
-    assert one.math_equal(another_one)
-    assert one.math_equal(yet_another_one)
-    assert not one.math_equal(one_with_precision)
-    assert not yet_another_one.math_equal(one_different_type)
+    assert literal == literal2
+    assert literal != literal3
+    assert literal != literal4

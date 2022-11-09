@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,15 +38,14 @@
 
 ''' Performs py.test tests of the ArrayReference PSyIR node. '''
 
-from __future__ import absolute_import
 import pytest
+from psyclone.errors import GenerationError, InternalError
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.nodes import Reference, ArrayReference, Assignment, \
     Literal, BinaryOperation, Range, KernelSchedule
-from psyclone.psyir.symbols import DataSymbol, ArrayType, \
+from psyclone.psyir.symbols import DataSymbol, ArrayType, ScalarType, \
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, INTEGER_TYPE
-from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
 
 
@@ -65,11 +64,14 @@ def test_array_can_be_printed():
     '''Test that an ArrayReference instance can always be printed (i.e. is
     initialised fully)'''
     kschedule = KernelSchedule("kname")
-    symbol = DataSymbol("aname", INTEGER_SINGLE_TYPE)
+    symbol = DataSymbol("aname", ArrayType(INTEGER_SINGLE_TYPE, [10]))
     kschedule.symbol_table.add(symbol)
     assignment = Assignment()
-    array = ArrayReference(symbol, assignment)
+    array = ArrayReference(symbol, parent=assignment)
     assert "ArrayReference[name:'aname']\n" in str(array)
+    array2 = ArrayReference.create(symbol, [Literal("1", INTEGER_TYPE)])
+    assert ("ArrayReference[name:'aname']\nLiteral[value:'1', "
+            "Scalar<INTEGER, UNDEFINED>]" in str(array2))
 
 
 def test_array_create():
@@ -89,6 +91,20 @@ def test_array_create():
     assert result == "temp(i,j,1)"
 
 
+def test_array_is_array():
+    '''Test that an ArrayReference is marked as being an array.
+
+    '''
+    array_type = ArrayType(REAL_SINGLE_TYPE, [10, 10, 10])
+    symbol_temp = DataSymbol("temp", array_type)
+    symbol_i = DataSymbol("i", INTEGER_SINGLE_TYPE)
+    symbol_j = DataSymbol("j", INTEGER_SINGLE_TYPE)
+    children = [Reference(symbol_i), Reference(symbol_j),
+                Literal("1", INTEGER_SINGLE_TYPE)]
+    array = ArrayReference.create(symbol_temp, children)
+    assert array.is_array is True
+
+
 def test_array_create_invalid1():
     '''Test that the create method in the ArrayReference class raises an
     exception if the provided symbol is not an array.
@@ -101,8 +117,8 @@ def test_array_create_invalid1():
                 Literal("1", INTEGER_SINGLE_TYPE)]
     with pytest.raises(GenerationError) as excinfo:
         _ = ArrayReference.create(symbol_temp, children)
-    assert ("expecting the symbol to be an array, not a scalar."
-            in str(excinfo.value))
+    assert ("expecting the symbol 'temp' to be an array, but found "
+            "'Scalar<REAL, SINGLE>'." in str(excinfo.value))
 
 
 def test_array_create_invalid2():
@@ -119,9 +135,9 @@ def test_array_create_invalid2():
                 Literal("1", INTEGER_SINGLE_TYPE)]
     with pytest.raises(GenerationError) as excinfo:
         _ = ArrayReference.create(symbol_temp, children)
-    assert ("the symbol should have the same number of dimensions as indices "
-            "(provided in the 'indices' argument). Expecting '3' but found "
-            "'1'." in str(excinfo.value))
+    assert ("the symbol 'temp' should have the same number of dimensions as "
+            "indices (provided in the 'indices' argument). Expecting '3' but "
+            "found '1'." in str(excinfo.value))
 
 
 def test_array_create_invalid3():
@@ -441,30 +457,56 @@ def test_array_indices():
     array._children = [one.copy(), "hello"]
     with pytest.raises(InternalError) as err:
         _ = array.indices
-    assert ("ArrayReference malformed or incomplete: child 1 must by a "
-            "psyir.nodes.DataNode or Range representing an array-index "
-            "expression but found 'str'" in str(err.value))
+    assert ("ArrayReference malformed or incomplete: child 1 of array 'test' "
+            "must be a psyir.nodes.DataNode or Range representing an array-"
+            "index expression but found 'str'" in str(err.value))
     # Remove the children altogether
     array._children = []
     with pytest.raises(InternalError) as err:
         _ = array.indices
     assert ("ArrayReference malformed or incomplete: must have one or more "
-            "children representing array-index expressions but found none"
-            in str(err.value))
+            "children representing array-index expressions but array 'test' "
+            "has none" in str(err.value))
 
 
-def test_array_matching_access():
-    ''' Test the _matching_access() method for an ArrayReference. '''
+def test_array_same_array():
+    ''' Test the is_same_array() method for an ArrayReference. '''
     one = Literal("1", INTEGER_TYPE)
     two = Literal("2", INTEGER_TYPE)
     test_sym = DataSymbol("test",
                           ArrayType(REAL_TYPE, [10]))
     array = ArrayReference.create(test_sym, [one])
     # Something other than a Reference won't match
-    assert array._matching_access(one) is False
+    assert array.is_same_array(one) is False
     # An ArrayReference should match
-    array2 = ArrayReference(test_sym, [two])
-    assert array._matching_access(array2) is True
+    array2 = ArrayReference.create(test_sym, [two])
+    assert array.is_same_array(array2) is True
     # A Reference to the array symbol should also match
     bare_array = Reference(test_sym)
-    assert array._matching_access(bare_array) is True
+    assert array.is_same_array(bare_array) is True
+
+
+def test_array_datatype(fortran_writer):
+    '''Test the datatype() method for an ArrayReference.'''
+    test_sym = DataSymbol("test", ArrayType(REAL_TYPE, [10]))
+    one = Literal("1", INTEGER_TYPE)
+    two = Literal("2", INTEGER_TYPE)
+    four = Literal("4", INTEGER_TYPE)
+    # Reference to a single element of an array.
+    aref = ArrayReference.create(test_sym, [one])
+    assert aref.datatype == REAL_TYPE
+    # Reference to a 1D sub-array of a 2D array.
+    test_sym2d = DataSymbol("test", ArrayType(REAL_TYPE, [10, 8]))
+    bref = ArrayReference.create(test_sym2d, [two.copy(),
+                                              Range.create(two.copy(),
+                                                           four.copy())])
+    assert isinstance(bref.datatype, ArrayType)
+    assert bref.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    assert len(bref.datatype.shape) == 1
+    # The sub-array will have a lower bound of one.
+    assert bref.datatype.shape[0].lower == one
+    upper = bref.datatype.shape[0].upper
+    assert isinstance(upper, BinaryOperation)
+    # The easiest way to check the expression is to convert it to Fortran
+    code = fortran_writer(upper)
+    assert code == "(4 - 2) / 1 + 1"

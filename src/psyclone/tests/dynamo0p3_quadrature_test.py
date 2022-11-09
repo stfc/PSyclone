@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -65,7 +65,7 @@ API = "dynamo0.3"
 def setup():
     '''Make sure that all tests here use dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
-    yield()
+    yield
     Config._instance = None
 
 
@@ -82,6 +82,11 @@ def test_field_xyoz(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+    module_declns = (
+        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE field_mod, ONLY: field_type, field_proxy_type\n")
+    assert module_declns in generated_code
+
     output_decls = (
         "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp,"
         " qr)\n"
@@ -95,6 +100,7 @@ def test_field_xyoz(tmpdir):
         "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
         "      TYPE(quadrature_xyoz_type), intent(in) :: qr\n"
         "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      REAL(KIND=r_def), allocatable :: basis_w1_qr(:,:,:,:), "
         "diff_basis_w2_qr(:,:,:,:), basis_w3_qr(:,:,:,:), "
         "diff_basis_w3_qr(:,:,:,:)\n"
@@ -126,6 +132,7 @@ def test_field_xyoz(tmpdir):
         "      ! Create a mesh object\n"
         "      !\n"
         "      mesh => f1_proxy%vspace%get_mesh()\n"
+        "      max_halo_depth_mesh = mesh%get_halo_depth()\n"
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
@@ -182,6 +189,11 @@ def test_field_xyoz(tmpdir):
         "      CALL qr%compute_function(DIFF_BASIS, m2_proxy%vspace, "
         "diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n"
         "      !\n"
+        "      ! Set-up all of the loop bounds\n"
+        "      !\n"
+        "      loop0_start = 1\n"
+        "      loop0_stop = mesh%get_last_halo_cell(1)\n"
+        "      !\n"
         "      ! Call kernels and communication routines\n"
         "      !\n"
         "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
@@ -200,7 +212,7 @@ def test_field_xyoz(tmpdir):
         "        CALL m2_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
         "      !\n"
-        "      DO cell=1,mesh%get_last_halo_cell(1)\n"
+        "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
         "        CALL testkern_qr_code(nlayers, f1_proxy%data, f2_proxy%data, "
         "m1_proxy%data, a, m2_proxy%data, istp, ndf_w1, undf_w1, "
@@ -274,6 +286,11 @@ def test_face_qr(tmpdir, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
     generated_code = str(psy.gen)
 
+    module_declns = (
+        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE field_mod, ONLY: field_type, field_proxy_type\n")
+    assert module_declns in generated_code
+
     output_decls = (
         "      USE testkern_qr_faces_mod, ONLY: testkern_qr_faces_code\n"
         "      USE quadrature_face_mod, ONLY: quadrature_face_type, "
@@ -285,6 +302,7 @@ def test_face_qr(tmpdir, dist_mem):
         "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
         "      TYPE(quadrature_face_type), intent(in) :: qr\n"
         "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      REAL(KIND=r_def), allocatable :: basis_w1_qr(:,:,:,:), "
         "diff_basis_w2_qr(:,:,:,:), basis_w3_qr(:,:,:,:), "
         "diff_basis_w3_qr(:,:,:,:)\n"
@@ -316,6 +334,7 @@ def test_face_qr(tmpdir, dist_mem):
         init_output += ("      ! Create a mesh object\n"
                         "      !\n"
                         "      mesh => f1_proxy%vspace%get_mesh()\n"
+                        "      max_halo_depth_mesh = mesh%get_halo_depth()\n"
                         "      !\n")
     init_output += (
         "      ! Look-up dofmaps for each function space\n"
@@ -371,9 +390,14 @@ def test_face_qr(tmpdir, dist_mem):
         "ndf_w3, basis_w3_qr)\n"
         "      CALL qr%compute_function(DIFF_BASIS, m2_proxy%vspace, "
         "diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n"
-        "      !\n")
+        "      !\n"
+        "      ! Set-up all of the loop bounds\n"
+        "      !\n"
+        "      loop0_start = 1\n")
     if dist_mem:
         init_output2 += (
+            "      loop0_stop = mesh%get_last_halo_cell(1)\n"
+            "      !\n"
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
@@ -394,15 +418,13 @@ def test_face_qr(tmpdir, dist_mem):
             "      !\n")
     else:
         init_output2 += (
+            "      loop0_stop = f1_proxy%vspace%get_ncell()\n"
+            "      !\n"
             "      ! Call our kernels\n")
     assert init_output2 in generated_code
-    if dist_mem:
-        compute_output = (
-            "      DO cell=1,mesh%get_last_halo_cell(1)\n")
-    else:
-        compute_output = (
-            "      DO cell=1,f1_proxy%vspace%get_ncell()\n")
-    compute_output += (
+
+    compute_output = (
+        "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
         "        CALL testkern_qr_faces_code(nlayers, f1_proxy%data, "
         "f2_proxy%data, "
@@ -772,7 +794,7 @@ def test_qr_basis_stub():
         "ndf_w2htrace, undf_w2htrace, map_w2htrace, basis_w2htrace_qr_xyoz, "
         "ndf_w2vtrace, basis_w2vtrace_qr_xyoz, np_xy_qr_xyoz, np_z_qr_xyoz, "
         "weights_xy_qr_xyoz, weights_z_qr_xyoz)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"

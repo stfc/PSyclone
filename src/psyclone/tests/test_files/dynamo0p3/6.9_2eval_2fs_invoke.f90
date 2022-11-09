@@ -1,5 +1,8 @@
-!-------------------------------------------------------------------------------
-! Copyright (c) 2018-2020, Science and Technology Facilities Council
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Copyright (c) 2018-2022, Science and Technology Facilities Council
+! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -26,8 +29,9 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 !-------------------------------------------------------------------------------
-! Author: A. R. Porter STFC Daresbury Lab
-! Modified: I. Kavcic Met Office
+! Author: A. R. Porter, STFC Daresbury Lab
+! Modified: I. Kavcic, Met Office
+! Modified: R. W. Ford, STFC Daresbury Lab
 
 program eval_invoke
 
@@ -38,7 +42,7 @@ program eval_invoke
 
   implicit none
 
-  type(field_type) :: f0, f1
+  type(field_type) :: f0, f1, g0, g1
 
   call invoke( testkern_eval_2fs_type(f0, f1), &
                testkern_eval_2fs_type(g0, g1))

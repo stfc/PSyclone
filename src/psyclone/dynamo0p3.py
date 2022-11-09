@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified I. Kavcic and A. Coughtrie, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 
 ''' This module implements the PSyclone Dynamo 0.3 API by 1)
     specialising the required base classes in parser.py (KernelType) and
@@ -43,7 +44,6 @@
     Argument). '''
 
 # Imports
-from __future__ import print_function, absolute_import
 import abc
 import os
 from enum import Enum
@@ -56,15 +56,16 @@ from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric.lfric_builtins import (
     LFRicBuiltInCallFactory, LFRicBuiltIn, BUILTIN_MAP)
+from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, KernStubArgList,
                                    LFRicArgDescriptor, KernelInterface,
                                    LFRicConstants)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
-                              DeallocateGen, DeclGen, DirectiveGen, DoGen,
-                              IfThenGen, ModuleGen, SubroutineGen, TypeDeclGen,
-                              UseGen)
+                              DeallocateGen, DeclGen, DoGen, IfThenGen,
+                              ModuleGen, SubroutineGen, TypeDeclGen, UseGen,
+                              PSyIRGen)
 from psyclone.parse.algorithm import Arg, KernelCall
 from psyclone.parse.kernel import KernelType, getkerneldescriptors
 from psyclone.parse.utils import ParseError
@@ -74,8 +75,8 @@ from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
                              CodedKern)
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
-                                  ACCEnterDataDirective,
-                                  OMPParallelDoDirective)
+                                  ArrayReference, ACCEnterDataDirective,
+                                  ACCRegionDirective, OMPRegionDirective)
 from psyclone.psyir.symbols import (
     INTEGER_TYPE, INTEGER_SINGLE_TYPE, DataSymbol, SymbolTable, ScalarType,
     DeferredType, DataTypeSymbol, ContainerSymbol, ImportInterface, ArrayType)
@@ -146,7 +147,7 @@ def qr_basis_alloc_args(first_dim, basis_fn):
 # ---------- Classes -------------------------------------------------------- #
 
 
-class DynFuncDescriptor03(object):
+class DynFuncDescriptor03():
     ''' The Dynamo 0.3 API includes a function-space descriptor as
     well as an argument descriptor which is not supported by the base
     classes. This class captures the information specified in a
@@ -218,7 +219,7 @@ class DynFuncDescriptor03(object):
         return res
 
 
-class RefElementMetaData(object):
+class RefElementMetaData():
     '''
     Class responsible for parsing reference-element meta-data and storing
     the properties that a kernel requires.
@@ -304,7 +305,7 @@ class MeshProperty(Enum):
     NCELL_2D_NO_HALOS = 3
 
 
-class MeshPropertiesMetaData(object):
+class MeshPropertiesMetaData():
     '''
     Parses any mesh-property kernel metadata and stores the properties that
     a kernel requires.
@@ -413,9 +414,9 @@ class DynKernMetadata(KernelType):
 
         # parse the arg_type metadata
         self._arg_descriptors = []
-        for arg_type in self._inits:
+        for idx, arg_type in enumerate(self._inits):
             self._arg_descriptors.append(
-                LFRicArgDescriptor(arg_type, self.iterates_over))
+                LFRicArgDescriptor(arg_type, self.iterates_over, idx))
 
         # Get a list of the Type declarations in the metadata
         type_declns = [cline for cline in self._ktype.content if
@@ -1027,17 +1028,38 @@ class DynamoPSy(PSy):
         # the "use" statements in modules that contain PSy-layer routines.
         const = LFRicConstants()
         const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-        infmod_list = [const_mod, const.DATA_TYPE_MAP["field"]["module"],
-                       const.DATA_TYPE_MAP["integer_field"]["module"],
-                       const.DATA_TYPE_MAP["operator"]["module"]]
+        infmod_list = [const_mod]
+        # Add all field and operator modules that might be used in the
+        # algorithm layer. These do not appear in the code unless a
+        # variable is added to the "only" part of the
+        # '_infrastructure_modules' map.
+        for data_type_info in const.DATA_TYPE_MAP.values():
+            infmod_list.append(data_type_info["module"])
+
+        # This also removes any duplicates from infmod_list
         self._infrastructure_modules = OrderedDict(
             (k, set()) for k in infmod_list)
-        # Get configuration for valid argument kinds (start with
-        # 'real' and 'integer' kinds)
+
+        kind_names = set()
+
+        # The infrastructure declares integer types with default
+        # precision so always add this.
         api_config = Config.get().api_conf("dynamo0.3")
-        self._infrastructure_modules[const_mod] = {
-            api_config.default_kind["real"],
-            api_config.default_kind["integer"]}
+        kind_names.add(api_config.default_kind["integer"])
+
+        # Datatypes declare precision information themselves. However,
+        # that is not the case for literals. Therefore deal
+        # with these separately here.
+        for invoke in self.invokes.invoke_list:
+            schedule = invoke.schedule
+            for kernel in schedule.kernels():
+                for arg in kernel.args:
+                    if arg.is_literal:
+                        kind_names.add(arg.precision)
+        # Add precision names to the dictionary storing the required
+        # LFRic constants. Sort the names so that all versions of
+        # Python return the same order (for testing purposes).
+        self._infrastructure_modules[const_mod] = list(sorted(kind_names))
 
     @property
     def name(self):
@@ -1082,6 +1104,12 @@ class DynamoPSy(PSy):
         # Create an empty PSy layer module
         psy_module = ModuleGen(self.name)
 
+        # If the container has a Routine that is not an InvokeSchedule
+        # it should also be added to the generated module.
+        for routine in self.container.children:
+            if not isinstance(routine, InvokeSchedule):
+                psy_module.add(PSyIRGen(psy_module, routine))
+
         # Add all invoke-specific information
         self.invokes.gen_code(psy_module)
 
@@ -1122,7 +1150,7 @@ class DynamoInvokes(Invokes):
         Invokes.__init__(self, alg_calls, DynInvoke, psy)
 
 
-class DynCollection(object):
+class DynCollection():
     '''
     Base class for managing the declaration and initialisation of a
     group of related entities within an Invoke or Kernel stub
@@ -2019,7 +2047,25 @@ class LFRicMeshProperties(DynCollection):
         :raises InternalError: if an unsupported mesh property is encountered.
 
         '''
-        if not self._properties:
+        const = LFRicConstants()
+        # Since colouring is applied via transformations, we have to check for
+        # it now, rather than when this class was first constructed.
+        need_colour_limits = False
+        need_colour_halo_limits = False
+        for call in self._calls:
+            if call.is_coloured() and not call.is_intergrid:
+                loop = call.parent.parent
+                # Record whether or not this coloured loop accesses the halo.
+                if loop.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
+                    need_colour_halo_limits = True
+                else:
+                    need_colour_limits = True
+
+        if not self._properties and not (need_colour_limits or
+                                         need_colour_halo_limits):
+            # If no mesh properties are required and there's no colouring
+            # (which requires a mesh object to lookup loop bounds) then we
+            # need do nothing.
             return
 
         parent.add(CommentGen(parent, ""))
@@ -2047,10 +2093,20 @@ class LFRicMeshProperties(DynCollection):
                                      rhs=mesh+"%get_ncells_2d()"))
             else:
                 raise InternalError(
-                    "Found unsupported mesh property '{0}' when generating "
-                    "initialisation code. Only members of the "
-                    "MeshProperty Enum are permitted "
-                    "({1})".format(str(prop), list(MeshProperty)))
+                    f"Found unsupported mesh property '{str(prop)}' when "
+                    f"generating initialisation code. Only members of the "
+                    f"MeshProperty Enum are permitted ({list(MeshProperty)})")
+
+        if need_colour_halo_limits:
+            lhs = self._symbol_table.find_or_create_tag(
+                "last_halo_cell_all_colours").name
+            rhs = f"{mesh}%get_last_halo_cell_all_colours()"
+            parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
+        if need_colour_limits:
+            lhs = self._symbol_table.find_or_create_tag(
+                "last_edge_cell_all_colours").name
+            rhs = f"{mesh}%get_last_edge_cell_all_colours()"
+            parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
 
 
 class DynReferenceElement(DynCollection):
@@ -2257,9 +2313,14 @@ class DynReferenceElement(DynCollection):
 
         # Declare the necessary arrays
         array_decls = [arr + "(:,:)" for arr in self._arg_properties.keys()]
-        parent.add(DeclGen(parent, datatype="real",
-                           kind=api_config.default_kind["real"],
+        my_kind = api_config.default_kind["real"]
+        parent.add(DeclGen(parent, datatype="real", kind=my_kind,
                            allocatable=True, entity_decls=array_decls))
+        const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
+        const_mod_list = self._invoke.invokes.psy. \
+            infrastructure_modules[const_mod]
+        if my_kind not in const_mod_list:
+            const_mod_list.append(my_kind)
 
     def _stub_declarations(self, parent):
         '''
@@ -2800,21 +2861,26 @@ class LFRicFields(DynCollection):
                 format(list(fld_multi_type), self._invoke.name,
                        const.VALID_FIELD_DATA_TYPES))
 
-        # Add the Invoke subroutine argument declarations for real
-        # and integer fields
-        if real_field_arg_list:
-            fld_type = real_field_args[0].data_type
-            fld_mod = real_field_args[0].module_name
+        # Create a field argument map that splits the (real and
+        # integer) fields into their different datatypes.
+        field_datatype_map = OrderedDict()
+        for arg in real_field_args + int_field_args:
+            try:
+                field_datatype_map[
+                    (arg.data_type, arg.module_name)].append(arg)
+            except KeyError:
+                # This datatype has not been seen before so create a
+                # new entry
+                field_datatype_map[(arg.data_type, arg.module_name)] = [arg]
+
+        # Add the Invoke subroutine argument declarations for the
+        # different fields types. They are declared as intent "in" as
+        # they contain a pointer to the data that is modified.
+        for fld_type, fld_mod in field_datatype_map:
+            args = field_datatype_map[(fld_type, fld_mod)]
+            arg_list = [arg.declaration_name for arg in args]
             parent.add(TypeDeclGen(parent, datatype=fld_type,
-                                   entity_decls=real_field_arg_list,
-                                   intent="in"))
-            (self._invoke.invokes.psy.
-             infrastructure_modules[fld_mod].add(fld_type))
-        if int_field_arg_list:
-            fld_type = int_field_args[0].data_type
-            fld_mod = int_field_args[0].module_name
-            parent.add(TypeDeclGen(parent, datatype=fld_type,
-                                   entity_decls=int_field_arg_list,
+                                   entity_decls=arg_list,
                                    intent="in"))
             (self._invoke.invokes.psy.
              infrastructure_modules[fld_mod].add(fld_type))
@@ -3069,47 +3135,59 @@ class DynProxies(DynCollection):
         '''
         # Declarations of real and integer field proxies
         const = LFRicConstants()
-        # Real field proxies
+        # Filter field arguments by intrinsic type
         real_field_args = self._invoke.unique_declarations(
             argument_types=const.VALID_FIELD_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_real"])
-        real_field_proxy_decs = [arg.proxy_declaration_name for
-                                 arg in real_field_args]
-        if real_field_proxy_decs:
-            fld_type = real_field_args[0].proxy_data_type
-            fld_mod = real_field_args[0].module_name
-            parent.add(TypeDeclGen(parent,
-                                   datatype=fld_type,
-                                   entity_decls=real_field_proxy_decs))
-            (self._invoke.invokes.psy.infrastructure_modules[fld_mod].
-             add(fld_type))
-        # Integer field proxies
         int_field_args = self._invoke.unique_declarations(
             argument_types=const.VALID_FIELD_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_integer"])
-        int_field_proxy_decs = [arg.proxy_declaration_name for
-                                arg in int_field_args]
-        if int_field_proxy_decs:
-            fld_type = int_field_args[0].proxy_data_type
-            fld_mod = int_field_args[0].module_name
-            parent.add(TypeDeclGen(parent,
-                                   datatype=fld_type,
-                                   entity_decls=int_field_proxy_decs))
-            (self._invoke.invokes.psy.infrastructure_modules[fld_mod].
-             add(fld_type))
+
+        # Create a field argument map that splits the (real and
+        # integer) fields into their different datatypes for their
+        # proxy's
+        field_datatype_map = OrderedDict()
+        for arg in real_field_args + int_field_args:
+            try:
+                field_datatype_map[
+                    (arg.proxy_data_type, arg.module_name)].append(arg)
+            except KeyError:
+                # This datatype has not been seen before so create a
+                # new entry
+                field_datatype_map[
+                    (arg.proxy_data_type, arg.module_name)] = [arg]
+
+        # Add the Invoke subroutine declarations for the different
+        # field-type proxies
+        for (fld_type, fld_mod), args in field_datatype_map.items():
+            arg_list = [arg.proxy_declaration_name for arg in args]
+            parent.add(TypeDeclGen(parent, datatype=fld_type,
+                                   entity_decls=arg_list))
+            (self._invoke.invokes.psy.
+             infrastructure_modules[fld_mod].add(fld_type))
 
         # Declarations of LMA operator proxies
         op_args = self._invoke.unique_declarations(
             argument_types=["gh_operator"])
-        op_proxy_decs = [arg.proxy_declaration_name for arg in op_args]
-        if op_proxy_decs:
-            op_type = op_args[0].proxy_data_type
-            op_mod = op_args[0].module_name
-            parent.add(TypeDeclGen(parent,
-                                   datatype=op_type,
-                                   entity_decls=op_proxy_decs))
+        # Filter operators by their proxy datatype
+        operators_datatype_map = OrderedDict()
+        for op_arg in op_args:
+            try:
+                operators_datatype_map[op_arg.proxy_data_type].append(op_arg)
+            except KeyError:
+                # This proxy datatype has not been seen before so
+                # create new entry
+                operators_datatype_map[op_arg.proxy_data_type] = [op_arg]
+        # Declare the operator proxies
+        for operator_datatype, operators_list in \
+                operators_datatype_map.items():
+            operators_names = [arg.proxy_declaration_name for
+                               arg in operators_list]
+            parent.add(TypeDeclGen(parent, datatype=operator_datatype,
+                                   entity_decls=operators_names))
+            op_mod = operators_list[0].module_name
             (self._invoke.invokes.psy.infrastructure_modules[op_mod].
-             add(op_type))
+             add(operator_datatype))
 
         # Declarations of CMA operator proxies
         cma_op_args = self._invoke.unique_declarations(
@@ -3238,6 +3316,78 @@ class DynCellIterators(DynCollection):
                 parent, lhs=self._nlayers_name,
                 rhs=self._first_var.proxy_name_indexed + "%" +
                 self._first_var.ref_name() + "%get_nlayers()"))
+
+
+class LFRicLoopBounds(DynCollection):
+    '''
+    Handles all variables required for specifying loop limits within a
+    PSy-layer routine.
+
+    '''
+    def _invoke_declarations(self, parent):
+        '''
+        Only needed because method is virtual in parent class.
+
+        :param parent: the f2pygen node representing the PSy-layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+
+    def initialise(self, parent):
+        '''
+        Updates the f2pygen AST so that all of the variables holding the lower
+        and upper bounds of all loops in an Invoke are initialised.
+
+        :param parent: the f2pygen node representing the PSy-layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        loops = self._invoke.schedule.loops()
+
+        if not loops:
+            return
+
+        parent.add(CommentGen(parent, ""))
+        parent.add(CommentGen(parent, " Set-up all of the loop bounds"))
+        parent.add(CommentGen(parent, ""))
+
+        sym_table = self._invoke.schedule.symbol_table
+        config = Config.get()
+        api_config = config.api_conf("dynamo0.3")
+
+        for idx, loop in enumerate(loops):
+            root_name = f"loop{idx}_start"
+            try:
+                lbound = sym_table.lookup_with_tag(root_name)
+            except KeyError:
+                # TODO #1258 the loop bound symbol should be of
+                # precision 'i_def'.
+                lbound = sym_table.new_symbol(root_name=root_name,
+                                              tag=root_name,
+                                              symbol_type=DataSymbol,
+                                              datatype=INTEGER_TYPE)
+            parent.add(AssignGen(parent, lhs=lbound.name,
+                                 rhs=loop._lower_bound_fortran()))
+            entities = [lbound.name]
+
+            if loop.loop_type != "colour":
+                root_name = f"loop{idx}_stop"
+                try:
+                    ubound = sym_table.lookup_with_tag(root_name)
+                except KeyError:
+                    # TODO #1258 the loop bound symbol should be of
+                    # precision 'i_def'.
+                    ubound = sym_table.new_symbol(root_name=root_name,
+                                                  tag=root_name,
+                                                  symbol_type=DataSymbol,
+                                                  datatype=INTEGER_TYPE)
+                entities.append(ubound.name)
+                parent.add(AssignGen(parent, lhs=ubound.name,
+                                     rhs=loop._upper_bound_fortran()))
+
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               entity_decls=entities))
 
 
 class LFRicScalarArgs(DynCollection):
@@ -3369,26 +3519,57 @@ class LFRicScalarArgs(DynCollection):
         self._create_declarations(parent)
 
     def _create_declarations(self, parent):
-        '''
-        Add declarations for the scalar arguments.
+        '''Add declarations for the scalar arguments.
 
         :param parent: the f2pygen node in which to insert declarations \
                        (Invoke or Kernel).
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
+        :raises InternalError: if neither self._invoke nor \
+            self._kernel are set.
+
         '''
         const = LFRicConstants()
+        const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
+        const_mod_list = None
+        if self._invoke:
+            const_mod_list = self._invoke.invokes.psy. \
+                infrastructure_modules[const_mod]
         # Real scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
             if self._real_scalars[intent]:
-                dtype = self._real_scalars[intent][0].intrinsic_type
-                dkind = self._real_scalars[intent][0].precision
-                real_scalar_names = [arg.declaration_name for arg
-                                     in self._real_scalars[intent]]
-                parent.add(
-                    DeclGen(parent, datatype=dtype, kind=dkind,
-                            entity_decls=real_scalar_names,
-                            intent=intent))
+                # Filter scalars based on precision
+                real_scalars_precision_map = OrderedDict()
+                for real_scalar in self._real_scalars[intent]:
+                    try:
+                        real_scalars_precision_map[
+                            real_scalar.precision].append(real_scalar)
+                    except KeyError:
+                        # This precision has not been seen before so
+                        # create a new entry
+                        real_scalars_precision_map[
+                            real_scalar.precision] = [real_scalar]
+                # Declare scalars
+                for real_scalar_kind, real_scalars_list in \
+                        real_scalars_precision_map.items():
+                    real_scalar_type = real_scalars_list[0].intrinsic_type
+                    real_scalar_names = [arg.declaration_name for arg
+                                         in real_scalars_list]
+                    parent.add(
+                        DeclGen(parent, datatype=real_scalar_type,
+                                kind=real_scalar_kind,
+                                entity_decls=real_scalar_names,
+                                intent=intent))
+                    if self._invoke:
+                        if real_scalar_kind not in const_mod_list:
+                            const_mod_list.append(real_scalar_kind)
+                    elif self._kernel:
+                        self._kernel.argument_kinds.add(real_scalar_kind)
+                    else:
+                        raise InternalError(
+                            "Expected the declaration of real scalar kernel "
+                            "arguments to be for either an invoke or a "
+                            "kernel stub, but it is neither.")
 
         # Integer scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
@@ -3401,24 +3582,38 @@ class LFRicScalarArgs(DynCollection):
                     DeclGen(parent, datatype=dtype, kind=dkind,
                             entity_decls=integer_scalar_names,
                             intent=intent))
+                if self._invoke:
+                    if dkind not in const_mod_list:
+                        const_mod_list.append(dkind)
+                elif self._kernel:
+                    self._kernel.argument_kinds.add(dkind)
+                else:
+                    raise InternalError(
+                        "Expected the declaration of integer scalar kernel "
+                        "arguments to be for either an invoke or a "
+                        "kernel stub, but it is neither.")
 
         # Logical scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
             if self._logical_scalars[intent]:
                 dtype = self._logical_scalars[intent][0].intrinsic_type
                 dkind = self._logical_scalars[intent][0].precision
-                if self._invoke:
-                    const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-                    (self._invoke.invokes.psy.
-                     infrastructure_modules[const_mod].add(dkind))
-                if self._kernel:
-                    self._kernel.argument_kinds.add(dkind)
                 logical_scalar_names = [arg.declaration_name for arg
                                         in self._logical_scalars[intent]]
                 parent.add(
                     DeclGen(parent, datatype=dtype, kind=dkind,
                             entity_decls=logical_scalar_names,
                             intent=intent))
+                if self._invoke:
+                    if dkind not in const_mod_list:
+                        const_mod_list.append(dkind)
+                elif self._kernel:
+                    self._kernel.argument_kinds.add(dkind)
+                else:
+                    raise InternalError(
+                        "Expected the declaration of logical scalar kernel "
+                        "arguments to be for either an invoke or a "
+                        "kernel stub, but it is neither.")
 
 
 class DynLMAOperators(DynCollection):
@@ -3471,16 +3666,25 @@ class DynLMAOperators(DynCollection):
         # Add the Invoke subroutine argument declarations for operators
         op_args = self._invoke.unique_declarations(
             argument_types=["gh_operator"])
-        # Create a list of operator names
-        op_arg_list = [arg.declaration_name for arg in op_args]
-        if op_arg_list:
-            op_type = op_args[0].data_type
-            op_mod = op_args[0].module_name
-            parent.add(TypeDeclGen(parent, datatype=op_type,
-                                   entity_decls=op_arg_list,
-                                   intent="in"))
+        # Filter operators by their datatype
+        operators_datatype_map = OrderedDict()
+        for op_arg in op_args:
+            try:
+                operators_datatype_map[op_arg.data_type].append(op_arg)
+            except KeyError:
+                # This datatype has not been seen before so create new entry
+                operators_datatype_map[op_arg.data_type] = [op_arg]
+        # Declare the operators
+        for op_datatype, op_list in operators_datatype_map.items():
+            operators_names = [arg.declaration_name for arg in op_list]
+            parent.add(TypeDeclGen(
+                parent, datatype=op_datatype,
+                entity_decls=operators_names, intent="in"))
+            op_mod = op_list[0].module_name
+            # Record that we will need to import this operator
+            # datatype from the appropriate infrastructure module
             (self._invoke.invokes.psy.infrastructure_modules[op_mod].
-             add(op_type))
+             add(op_datatype))
 
 
 class DynCMAOperators(DynCollection):
@@ -3624,6 +3828,16 @@ class DynCMAOperators(DynCollection):
             parent.add(DeclGen(parent, datatype=cma_dtype,
                                kind=cma_kind, pointer=True,
                                entity_decls=[cma_name+"(:,:,:) => null()"]))
+            const = LFRicConstants()
+            const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
+            const_mod_list = self._invoke.invokes.psy. \
+                infrastructure_modules[const_mod]
+            if cma_kind not in const_mod_list:
+                # Record that we will need to import the kind of this
+                # cma operator from the appropriate infrastructure
+                # module
+                const_mod_list.append(cma_kind)
+
             # Declare the associated integer parameters
             param_names = []
             for param in self._cma_ops[op_name]["params"]:
@@ -3679,7 +3893,7 @@ class DynCMAOperators(DynCollection):
                                intent=intent, entity_decls=[op_name]))
 
 
-class DynMeshes(object):
+class DynMeshes():
     '''
     Holds all mesh-related information (including colour maps if
     required).  If there are no inter-grid kernels then there is only
@@ -3707,12 +3921,14 @@ class DynMeshes(object):
         # names.
         self._ig_kernels = OrderedDict()
         # List of names of unique mesh variables referenced in the Invoke
-        self._mesh_names = []
+        self._mesh_tag_names = []
         # Whether or not the associated Invoke requires colourmap information
         self._needs_colourmap = False
+        self._needs_colourmap_halo = False
         # Keep a reference to the InvokeSchedule so we can check for colouring
         # later
         self._schedule = invoke.schedule
+        self._symbol_table = self._schedule.symbol_table
         # Set used to generate a list of the unique mesh objects
         _name_set = set()
 
@@ -3729,13 +3945,11 @@ class DynMeshes(object):
         # any non-intergrid kernels so that we can generate a verbose error
         # message if necessary.
         non_intergrid_kernels = []
-        requires_mesh = False
         for call in self._schedule.coded_kernels():
 
-            if (call.reference_element.properties or
-                    call.mesh.properties or call.iterates_over == "domain" or
-                    call.cma_operation):
-                requires_mesh = True
+            if (call.reference_element.properties or call.mesh.properties or
+                    call.iterates_over == "domain" or call.cma_operation):
+                _name_set.add("mesh")
 
             if not call.is_intergrid:
                 non_intergrid_kernels.append(call)
@@ -3751,13 +3965,11 @@ class DynMeshes(object):
 
             # Create an object to capture info. on this inter-grid kernel
             # and store in our dictionary
-            self._ig_kernels[call.name] = DynInterGrid(fine_arg, coarse_arg)
+            self._ig_kernels[id(call)] = DynInterGrid(fine_arg, coarse_arg)
 
             # Create and store the names of the associated mesh objects
-            _name_set.add(self._schedule.symbol_table.find_or_create_tag(
-                "mesh_{0}".format(fine_arg.name)).name)
-            _name_set.add(self._schedule.symbol_table.find_or_create_tag(
-                "mesh_{0}".format(coarse_arg.name)).name)
+            _name_set.add("mesh_{0}".format(fine_arg.name))
+            _name_set.add("mesh_{0}".format(coarse_arg.name))
 
         # If we found a mixture of both inter-grid and non-inter-grid kernels
         # then we reject the invoke()
@@ -3769,59 +3981,152 @@ class DynMeshes(object):
                     ", ".join([call.name for call in non_intergrid_kernels]),
                     invoke.name))
 
-        # If we didn't have any inter-grid kernels but distributed memory
-        # is enabled then we will still need a mesh object if we have one or
-        # more kernels that operate on cell-columns. We also require a mesh
-        # object if any of the kernels require properties of either the
-        # reference element or the mesh. (Colourmaps also require a mesh
-        # object but that is handled in _colourmap_init().)
-        if not _name_set:
-            if (requires_mesh or (Config.get().distributed_memory and
-                                  not invoke.operates_on_dofs_only)):
-                _name_set.add(self._schedule.symbol_table.find_or_create_tag(
-                    "mesh").name)
+        # If distributed memory is enabled then we will need at least
+        # one mesh object if we have one or more kernels that operate
+        # on cell-columns or are doing redundant computation for a
+        # kernel that operates on dofs. Since the latter condition
+        # comes about through the application of a transformation, we
+        # don't yet know whether or not a mesh is required. Therefore,
+        # the only solution is to assume that a mesh object is
+        # required if distributed memory is enabled. We also require a
+        # mesh object if any of the kernels require properties of
+        # either the reference element or the mesh. (Colourmaps also
+        # require a mesh object but that is handled in _colourmap_init().)
+        if not _name_set and Config.get().distributed_memory:
+            # We didn't already have a requirement for a mesh so add one now.
+            _name_set.add("mesh")
 
-        # Convert the set of mesh names to a list and store
-        self._mesh_names = sorted(_name_set)
+        self._add_mesh_symbols(list(_name_set))
+
+    def _add_mesh_symbols(self, mesh_tags):
+        '''
+        Add DataSymbols for the supplied list of mesh names and store the
+        corresponding list of tags.
+
+        A ContainerSymbol is created for the LFRic mesh module and a TypeSymbol
+        for the mesh type. If distributed memory is enabled then a DataSymbol
+        to hold the maximum halo depth is created for each mesh.
+
+        :param mesh_tags: tag names for every mesh object required.
+        :type mesh_tags: list of str
+
+        '''
+        if not mesh_tags:
+            return
+
+        self._mesh_tag_names = sorted(mesh_tags)
+
+        # Look up the names of the module and type for the mesh object
+        # from the LFRic constants class.
+        const = LFRicConstants()
+        mmod = const.MESH_TYPE_MAP["mesh"]["module"]
+        mtype = const.MESH_TYPE_MAP["mesh"]["type"]
+        # Create a Container symbol for the module
+        csym = self._symbol_table.find_or_create_tag(
+            mmod, symbol_type=ContainerSymbol)
+        # Create a TypeSymbol for the mesh type
+        mtype_sym = self._symbol_table.find_or_create_tag(
+            mtype, symbol_type=DataTypeSymbol,
+            datatype=DeferredType(),
+            interface=ImportInterface(csym))
+
+        name_list = []
+        for name in mesh_tags:
+            name_list.append(self._symbol_table.find_or_create_tag(
+                name, symbol_type=DataSymbol, datatype=mtype_sym).name)
+
+        if Config.get().distributed_memory:
+            # If distributed memory is enabled then we require a variable
+            # holding the maximum halo depth for each mesh.
+            for name in mesh_tags:
+                # TODO #1258 this variable should have precision 'i_def'.
+                self._symbol_table.find_or_create_tag(f"max_halo_depth_{name}",
+                                                      symbol_type=DataSymbol,
+                                                      datatype=INTEGER_TYPE)
 
     def _colourmap_init(self):
         '''
         Sets-up information on any required colourmaps. This cannot be done
         in the constructor since colouring is applied by Transformations
         and happens after the Schedule has already been constructed.
+
         '''
+        const = LFRicConstants()
+        have_non_intergrid = False
+
+        array_type_1d = ArrayType(INTEGER_TYPE, [ArrayType.Extent.DEFERRED])
+
+        array_type_2d = ArrayType(INTEGER_TYPE, [ArrayType.Extent.DEFERRED,
+                                                 ArrayType.Extent.DEFERRED])
         for call in [call for call in self._schedule.coded_kernels() if
                      call.is_coloured()]:
             # Keep a record of whether or not any kernels (loops) in this
-            # invoke have been coloured
-            self._needs_colourmap = True
+            # invoke have been coloured and, if so, whether the associated loop
+            # goes into the halo.
+            if (call.parent.parent.upper_bound_name in
+                    const.HALO_ACCESS_LOOP_BOUNDS):
+                self._needs_colourmap_halo = True
+            else:
+                self._needs_colourmap = True
 
-            if call.is_intergrid:
-                # This is an inter-grid kernel so look-up the names of
-                # the colourmap variables associated with the coarse
-                # mesh (since that determines the iteration space).
-                carg_name = self._ig_kernels[call.name].coarse.name
-                # Colour map
-                base_name = "cmap_" + carg_name
-                colour_map = \
-                    self._schedule.symbol_table.find_or_create_tag(base_name) \
-                                               .name
-                # No. of colours
-                base_name = "ncolour_" + carg_name
-                ncolours = \
-                    self._schedule.symbol_table.find_or_create_tag(base_name)\
-                                               .name
-                # Add these names into the dictionary entry for this
-                # inter-grid kernel
-                self._ig_kernels[call.name].colourmap = colour_map
-                self._ig_kernels[call.name].ncolours_var = ncolours
+            if not call.is_intergrid:
+                have_non_intergrid = True
+                continue
 
-        if not self._mesh_names and self._needs_colourmap:
+            # This is an inter-grid kernel so look-up the names of
+            # the colourmap variables associated with the coarse
+            # mesh (since that determines the iteration space).
+            carg_name = self._ig_kernels[id(call)].coarse.name
+            # Colour map
+            base_name = "cmap_" + carg_name
+            colour_map = self._schedule.symbol_table.find_or_create_tag(
+                base_name, symbol_type=DataSymbol,
+                datatype=array_type_2d).name
+            # No. of colours
+            # TODO #1258 this variable should have precision 'i_def'.
+            base_name = "ncolour_" + carg_name
+            ncolours = self._schedule.symbol_table.find_or_create_tag(
+                base_name, symbol_type=DataSymbol,
+                datatype=INTEGER_TYPE).name
+            # Array holding the last halo or edge cell of a given colour
+            # and halo depth.
+            if Config.get().distributed_memory:
+                base_name = "last_halo_cell_all_colours_" + carg_name
+                last_cell = self._schedule.symbol_table.find_or_create_tag(
+                    base_name, symbol_type=DataSymbol,
+                    datatype=array_type_2d).name
+            else:
+                base_name = "last_edge_cell_all_colours_" + carg_name
+                last_cell = self._schedule.symbol_table.find_or_create_tag(
+                    base_name, symbol_type=DataSymbol,
+                    datatype=array_type_1d).name
+            # Add these names into the dictionary entry for this
+            # inter-grid kernel
+            self._ig_kernels[id(call)].colourmap = colour_map
+            self._ig_kernels[id(call)].ncolours_var = ncolours
+            self._ig_kernels[id(call)].last_cell_var = last_cell
+
+        if have_non_intergrid and (self._needs_colourmap or
+                                   self._needs_colourmap_halo):
             # There aren't any inter-grid kernels but we do need colourmap
             # information and that means we'll need a mesh object
-            mesh_name = \
-                self._schedule.symbol_table.find_or_create_tag("mesh").name
-            self._mesh_names.append(mesh_name)
+            self._add_mesh_symbols(["mesh"])
+            colour_map = self._schedule.symbol_table.find_or_create_tag(
+                "cmap", symbol_type=DataSymbol, datatype=array_type_2d).name
+            # No. of colours
+            # TODO #1258 this variable should have precision 'i_def'.
+            ncolours = self._schedule.symbol_table.find_or_create_tag(
+                "ncolour", symbol_type=DataSymbol, datatype=INTEGER_TYPE).name
+            if self._needs_colourmap_halo:
+                dtype = array_type_2d
+                self._symbol_table.find_or_create_tag(
+                    "last_halo_cell_all_colours", symbol_type=DataSymbol,
+                    datatype=dtype)
+            if self._needs_colourmap:
+                dtype = array_type_1d
+                self._symbol_table.find_or_create_tag(
+                    "last_edge_cell_all_colours", symbol_type=DataSymbol,
+                    datatype=dtype)
 
     def declarations(self, parent):
         '''
@@ -3843,16 +4148,26 @@ class DynMeshes(object):
         mmod = const.MESH_TYPE_MAP["mesh"]["module"]
         mmap_type = const.MESH_TYPE_MAP["mesh_map"]["type"]
         mmap_mod = const.MESH_TYPE_MAP["mesh_map"]["module"]
-        if self._mesh_names:
+        if self._mesh_tag_names:
+            name = self._symbol_table.lookup_with_tag(mtype).name
             parent.add(UseGen(parent, name=mmod, only=True,
-                              funcnames=[mtype]))
+                              funcnames=[name]))
         if self._ig_kernels:
             parent.add(UseGen(parent, name=mmap_mod, only=True,
                               funcnames=[mmap_type]))
-        # Declare the mesh object(s)
-        for name in self._mesh_names:
+        # Declare the mesh object(s) and associated halo depths
+        for tag_name in self._mesh_tag_names:
+            name = self._symbol_table.lookup_with_tag(tag_name).name
             parent.add(TypeDeclGen(parent, pointer=True, datatype=mtype,
                                    entity_decls=[name + " => null()"]))
+            # For each mesh we also need the maximum halo depth.
+            if Config.get().distributed_memory:
+                name = self._symbol_table.lookup_with_tag(
+                    f"max_halo_depth_{tag_name}").name
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind=api_config.default_kind["integer"],
+                                   entity_decls=[name]))
+
         # Declare the inter-mesh map(s) and cell map(s)
         for kern in self._ig_kernels.values():
             parent.add(TypeDeclGen(parent, pointer=True,
@@ -3881,8 +4196,20 @@ class DynMeshes(object):
                     DeclGen(parent, datatype="integer",
                             kind=api_config.default_kind["integer"],
                             entity_decls=[kern.ncolours_var]))
+                decln = kern.last_cell_var
+                if Config.get().distributed_memory:
+                    # If DM is enabled then the cell-count array is 2D because
+                    # it has a halo-depth dimension.
+                    decln += "(:,:)"
+                else:
+                    decln += "(:)"
+                parent.add(
+                    DeclGen(parent, datatype="integer", allocatable=True,
+                            kind=api_config.default_kind["integer"],
+                            entity_decls=[decln]))
 
-        if not self._ig_kernels and self._needs_colourmap:
+        if not self._ig_kernels and (self._needs_colourmap or
+                                     self._needs_colourmap_halo):
             # There aren't any inter-grid kernels but we do need
             # colourmap information
             base_name = "cmap"
@@ -3900,33 +4227,55 @@ class DynMeshes(object):
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                entity_decls=[ncolours]))
+            if self._needs_colourmap_halo:
+                last_cell = self._symbol_table.find_or_create_tag(
+                    "last_halo_cell_all_colours")
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind=api_config.default_kind["integer"],
+                                   allocatable=True,
+                                   entity_decls=[last_cell.name+"(:,:)"]))
+            if self._needs_colourmap:
+                last_cell = self._symbol_table.find_or_create_tag(
+                    "last_edge_cell_all_colours")
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind=api_config.default_kind["integer"],
+                                   allocatable=True,
+                                   entity_decls=[last_cell.name+"(:)"]))
 
     def initialise(self, parent):
         '''
-        Initialise parameters specific to inter-grid kernels
+        Initialise parameters specific to inter-grid kernels.
 
-        :param parent: the parent node to which to add the initialisations
+        :param parent: the parent node to which to add the initialisations.
         :type parent: an instance of :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
         # pylint: disable=too-many-branches
         # If we haven't got any need for a mesh in this invoke then we
         # don't do anything
-        if len(self._mesh_names) == 0:
+        if not self._mesh_tag_names:
             return
 
         parent.add(CommentGen(parent, ""))
 
-        if len(self._mesh_names) == 1:
+        if len(self._mesh_tag_names) == 1:
             # We only require one mesh object which means that this invoke
             # contains no inter-grid kernels (which would require at least 2)
             parent.add(CommentGen(parent, " Create a mesh object"))
             parent.add(CommentGen(parent, ""))
             rhs = "%".join([self._first_var.proxy_name_indexed,
                             self._first_var.ref_name(), "get_mesh()"])
-            parent.add(AssignGen(parent, pointer=True,
-                                 lhs=self._mesh_names[0], rhs=rhs))
-            if self._needs_colourmap:
+            mesh_name = self._symbol_table.lookup_with_tag(
+                self._mesh_tag_names[0]).name
+            parent.add(AssignGen(parent, pointer=True, lhs=mesh_name, rhs=rhs))
+            if Config.get().distributed_memory:
+                # If distributed memory is enabled then we need the maximum
+                # halo depth.
+                depth_name = self._symbol_table.lookup_with_tag(
+                    f"max_halo_depth_{self._mesh_tag_names[0]}").name
+                parent.add(AssignGen(parent, lhs=depth_name,
+                                     rhs=f"{mesh_name}%get_halo_depth()"))
+            if self._needs_colourmap or self._needs_colourmap_halo:
                 parent.add(CommentGen(parent, ""))
                 parent.add(CommentGen(parent, " Get the colourmap"))
                 parent.add(CommentGen(parent, ""))
@@ -3938,12 +4287,10 @@ class DynMeshes(object):
                                                .name
                 # Get the number of colours
                 parent.add(AssignGen(
-                    parent, lhs=ncolour,
-                    rhs="{0}%get_ncolours()".format(self._mesh_names[0])))
+                    parent, lhs=ncolour, rhs=f"{mesh_name}%get_ncolours()"))
                 # Get the colour map
                 parent.add(AssignGen(parent, pointer=True, lhs=colour_map,
-                                     rhs=self._mesh_names[0] +
-                                     "%get_colour_map()"))
+                                     rhs=f"{mesh_name}%get_colour_map()"))
             return
 
         parent.add(CommentGen(
@@ -3957,11 +4304,12 @@ class DynMeshes(object):
 
         # Loop over the DynInterGrid objects in our dictionary
         for dig in self._ig_kernels.values():
-            # We need pointers to both the coarse and the fine mesh
+            # We need pointers to both the coarse and the fine mesh as well
+            # as the maximum halo depth for each.
             fine_mesh = self._schedule.symbol_table.find_or_create_tag(
-                "mesh_{0}".format(dig.fine.name)).name
+                f"mesh_{dig.fine.name}").name
             coarse_mesh = self._schedule.symbol_table.find_or_create_tag(
-                "mesh_{0}".format(dig.coarse.name)).name
+                f"mesh_{dig.coarse.name}").name
             if fine_mesh not in initialised:
                 initialised.append(fine_mesh)
                 parent.add(
@@ -3970,7 +4318,13 @@ class DynMeshes(object):
                               rhs="%".join([dig.fine.proxy_name_indexed,
                                             dig.fine.ref_name(),
                                             "get_mesh()"])))
+                if Config.get().distributed_memory:
+                    max_halo_f_mesh = (
+                        self._schedule.symbol_table.find_or_create_tag(
+                            f"max_halo_depth_mesh_{dig.fine.name}").name)
 
+                    parent.add(AssignGen(parent, lhs=max_halo_f_mesh,
+                                         rhs=f"{fine_mesh}%get_halo_depth()"))
             if coarse_mesh not in initialised:
                 initialised.append(coarse_mesh)
                 parent.add(
@@ -3979,6 +4333,13 @@ class DynMeshes(object):
                               rhs="%".join([dig.coarse.proxy_name_indexed,
                                             dig.coarse.ref_name(),
                                             "get_mesh()"])))
+                if Config.get().distributed_memory:
+                    max_halo_c_mesh = (
+                        self._schedule.symbol_table.find_or_create_tag(
+                            f"max_halo_depth_mesh_{dig.coarse.name}").name)
+                    parent.add(AssignGen(
+                        parent, lhs=max_halo_c_mesh,
+                        rhs=f"{coarse_mesh}%get_halo_depth()"))
             # We also need a pointer to the mesh map which we get from
             # the coarse mesh
             if dig.mmap not in initialised:
@@ -4038,6 +4399,12 @@ class DynMeshes(object):
                 parent.add(AssignGen(parent, lhs=dig.colourmap,
                                      pointer=True,
                                      rhs=coarse_mesh + "%get_colour_map()"))
+                if Config.get().distributed_memory:
+                    name = "%get_last_halo_cell_all_colours()"
+                else:
+                    name = "%get_last_edge_cell_all_colours()"
+                parent.add(AssignGen(parent, lhs=dig.last_cell_var,
+                                     rhs=coarse_mesh + name))
 
     @property
     def intergrid_kernels(self):
@@ -4049,7 +4416,7 @@ class DynMeshes(object):
         return self._ig_kernels
 
 
-class DynInterGrid(object):
+class DynInterGrid():
     '''
     Holds information on quantities required by an inter-grid kernel.
 
@@ -4090,6 +4457,8 @@ class DynInterGrid(object):
         self.colourmap = ""
         # Name of the variable holding the number of colours
         self.ncolours_var = ""
+        # Name of the variable holding the last cell of a particular colour
+        self.last_cell_var = ""
 
 
 class DynBasisFunctions(DynCollection):
@@ -4373,31 +4742,35 @@ class DynBasisFunctions(DynCollection):
                                dimension=",".join(basis_arrays[basis]),
                                entity_decls=[basis]))
 
+        const = LFRicConstants()
+
         for shape in self._qr_vars:
             qr_name = "_qr_" + shape.split("_")[-1]
             if shape == "gh_quadrature_xyoz":
-                parent.add(DeclGen(parent, datatype="real",
-                                   kind=api_config.default_kind["real"],
-                                   intent="in", dimension="np_xy"+qr_name,
-                                   entity_decls=["weights_xy"+qr_name]))
-                parent.add(DeclGen(parent, datatype="real",
-                                   kind=api_config.default_kind["real"],
-                                   intent="in", dimension="np_z"+qr_name,
-                                   entity_decls=["weights_z"+qr_name]))
+                datatype = const.QUADRATURE_TYPE_MAP[shape]["intrinsic"]
+                kind = const.QUADRATURE_TYPE_MAP[shape]["kind"]
+                parent.add(DeclGen(
+                    parent, datatype=datatype, kind=kind,
+                    intent="in", dimension="np_xy"+qr_name,
+                    entity_decls=["weights_xy"+qr_name]))
+                parent.add(DeclGen(
+                    parent, datatype=datatype, kind=kind,
+                    intent="in", dimension="np_z"+qr_name,
+                    entity_decls=["weights_z"+qr_name]))
             elif shape == "gh_quadrature_face":
-                parent.add(DeclGen(parent, datatype="real",
-                                   kind=api_config.default_kind["real"],
-                                   intent="in",
-                                   dimension=",".join(["np_xyz"+qr_name,
-                                                       "nfaces"+qr_name]),
-                                   entity_decls=["weights_xyz"+qr_name]))
+                parent.add(DeclGen(
+                    parent,
+                    datatype=const.QUADRATURE_TYPE_MAP[shape]["intrinsic"],
+                    kind=const.QUADRATURE_TYPE_MAP[shape]["kind"], intent="in",
+                    dimension=",".join(["np_xyz"+qr_name, "nfaces"+qr_name]),
+                    entity_decls=["weights_xyz"+qr_name]))
             elif shape == "gh_quadrature_edge":
-                parent.add(DeclGen(parent, datatype="real",
-                                   kind=api_config.default_kind["real"],
-                                   intent="in",
-                                   dimension=",".join(["np_xyz"+qr_name,
-                                                       "nedges"+qr_name]),
-                                   entity_decls=["weights_xyz"+qr_name]))
+                parent.add(DeclGen(
+                    parent,
+                    datatype=const.QUADRATURE_TYPE_MAP[shape]["intrinsic"],
+                    kind=const.QUADRATURE_TYPE_MAP[shape]["kind"], intent="in",
+                    dimension=",".join(["np_xyz"+qr_name, "nedges"+qr_name]),
+                    entity_decls=["weights_xyz"+qr_name]))
             else:
                 raise InternalError(
                     "Quadrature shapes other than {0} are not yet "
@@ -4498,10 +4871,19 @@ class DynBasisFunctions(DynCollection):
                 rhs="%".join([arg.proxy_name_indexed, arg.ref_name(fspace),
                               "get_nodes()"]),
                 pointer=True))
+            my_kind = api_config.default_kind["real"]
             parent.add(DeclGen(parent, datatype="real",
-                               kind=api_config.default_kind["real"],
+                               kind=my_kind,
                                pointer=True,
                                entity_decls=[nodes_name+"(:,:) => null()"]))
+            const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
+            const_mod_list = self._invoke.invokes.psy. \
+                infrastructure_modules[const_mod]
+            if my_kind not in const_mod_list:
+                # Record that we will need to import the kind for a
+                # pointer declaration (associated with a function
+                # space) from the appropriate infrastructure module
+                const_mod_list.append(my_kind)
 
         if self._basis_fns:
             parent.add(CommentGen(parent, ""))
@@ -4550,10 +4932,16 @@ class DynBasisFunctions(DynCollection):
 
         # declare the basis function arrays
         if basis_declarations:
-            parent.add(DeclGen(parent, datatype="real",
-                               kind=api_config.default_kind["real"],
+            my_kind = api_config.default_kind["real"]
+            parent.add(DeclGen(parent, datatype="real", kind=my_kind,
                                allocatable=True,
                                entity_decls=basis_declarations))
+            const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
+            const_mod_list = self._invoke.invokes.psy. \
+                infrastructure_modules[const_mod]
+            # Default kind (r_def) will always already exist due to
+            # arrays associated with gh_shape, so there is no need to
+            # declare it here.
 
         # Compute the values for any basis arrays
         self._compute_basis_fns(parent)
@@ -4714,10 +5102,22 @@ class DynBasisFunctions(DynCollection):
                                   for name in self.qr_dim_vars["xyoz"]]))
             decl_list = [name+"_"+qr_arg_name+"(:) => null()"
                          for name in self.qr_weight_vars["xyoz"]]
+            const = LFRicConstants()
+            datatype = \
+                const.QUADRATURE_TYPE_MAP["gh_quadrature_xyoz"]["intrinsic"]
+            kind = const.QUADRATURE_TYPE_MAP["gh_quadrature_xyoz"]["kind"]
             parent.add(
-                DeclGen(parent, datatype="real",
-                        kind=api_config.default_kind["real"],
+                DeclGen(parent, datatype=datatype, kind=kind,
                         pointer=True, entity_decls=decl_list))
+            const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
+            const_mod_list = self._invoke.invokes.psy. \
+                infrastructure_modules[const_mod]
+            if kind not in const_mod_list:
+                # Record that we will need to import the kind for a
+                # declaration (associated with quadrature) from
+                # the appropriate infrastructure module
+                const_mod_list.append(kind)
+
             # Get the quadrature proxy
             proxy_name = qr_arg_name + "_proxy"
             parent.add(
@@ -4790,10 +5190,20 @@ class DynBasisFunctions(DynCollection):
             decl_list = [
                 symbol_table.find_or_create_tag(name+"_"+qr_arg_name).name
                 + "(:,:) => null()" for name in self.qr_weight_vars[qr_type]]
+            const = LFRicConstants()
+            datatype = const.QUADRATURE_TYPE_MAP[quadrature_name]["intrinsic"]
+            kind = const.QUADRATURE_TYPE_MAP[quadrature_name]["kind"]
             parent.add(
-                DeclGen(parent, datatype="real", pointer=True,
-                        kind=api_config.default_kind["real"],
+                DeclGen(parent, datatype=datatype, pointer=True, kind=kind,
                         entity_decls=decl_list))
+            const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
+            const_mod_list = self._invoke.invokes.psy. \
+                infrastructure_modules[const_mod]
+            if kind not in const_mod_list:
+                # Record that we will need to import the kind for a
+                # declaration (associated with quadrature) from the
+                # appropriate infrastructure module
+                const_mod_list.append(kind)
             # Get the quadrature proxy
             proxy_name = symbol_table.find_or_create_tag(
                 qr_arg_name+"_proxy").name
@@ -5145,6 +5555,10 @@ class DynInvoke(Invoke):
         # Properties of the mesh
         self.mesh_properties = LFRicMeshProperties(self)
 
+        # Manage the variables used to store the upper and lower limits of
+        # all loops in this Invoke.
+        self.loop_bounds = LFRicLoopBounds(self)
+
         # Extend arg list with stencil information
         self._alg_unique_args.extend(self.stencil.unique_alg_vars)
 
@@ -5253,7 +5667,7 @@ class DynInvoke(Invoke):
                          self.boundary_conditions, self.evaluators,
                          self.proxies, self.cell_iterators,
                          self.reference_element_properties,
-                         self.mesh_properties,
+                         self.mesh_properties, self.loop_bounds,
                          self.run_time_checks]:
             entities.declarations(invoke_sub)
 
@@ -5286,7 +5700,7 @@ class DynInvoke(Invoke):
                          self.cma_ops, self.boundary_conditions,
                          self.function_spaces, self.evaluators,
                          self.reference_element_properties,
-                         self.mesh_properties]:
+                         self.mesh_properties, self.loop_bounds]:
             entities.initialise(invoke_sub)
 
         # Now that everything is initialised and checked, we can call
@@ -5407,7 +5821,7 @@ class DynGlobalSum(GlobalSum):
         parent.add(AssignGen(parent, lhs=name, rhs=sum_name+"%get_sum()"))
 
 
-def _create_depth_list(halo_info_list):
+def _create_depth_list(halo_info_list, sym_table):
     '''Halo exchanges may have more than one dependency. This method
     simplifies multiple dependencies to remove duplicates and any
     obvious redundancy. For example, if one dependency is for depth=1
@@ -5421,6 +5835,9 @@ def _create_depth_list(halo_info_list):
     :param halo_info_list: a list containing halo access information \
         derived from all read fields dependent on this halo exchange.
     :type: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloReadAccess`
+    :param sym_table: the symbol table of the enclosing InvokeSchedule.
+    :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
     :returns: a list containing halo depth information derived from \
         the halo access information.
     :rtype: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloDepth`
@@ -5428,8 +5845,8 @@ def _create_depth_list(halo_info_list):
     '''
     # pylint: disable=too-many-branches
     depth_info_list = []
-    # first look to see if all field dependencies are
-    # annexed_only. If so we only care about annexed dofs
+    # First look to see if all field dependencies are
+    # annexed_only. If so we only care about annexed dofs.
     annexed_only = True
     for halo_info in halo_info_list:
         if not (halo_info.annexed_only or
@@ -5438,73 +5855,74 @@ def _create_depth_list(halo_info_list):
             # There are two cases when we only care about accesses to
             # annexed dofs. 1) when annexed_only is set and 2) when
             # the halo depth is 1 but we only depend on annexed dofs
-            # being up-to-date (needs_clean_outer is False)
+            # being up-to-date (needs_clean_outer is False).
             annexed_only = False
             break
     if annexed_only:
-        depth_info = HaloDepth()
+        depth_info = HaloDepth(sym_table)
         depth_info.set_by_value(max_depth=False, var_depth="",
                                 literal_depth=1, annexed_only=True,
                                 max_depth_m1=False)
         return [depth_info]
-    # next look to see if one of the field dependencies specifies
+    # Next look to see if one of the field dependencies specifies
     # a max_depth access. If so the whole halo region is accessed
     # so we do not need to be concerned with other accesses.
     max_depth_m1 = False
     for halo_info in halo_info_list:
         if halo_info.max_depth:
             if halo_info.needs_clean_outer:
-                # found a max_depth access so we only need one
-                # HaloDepth entry
-                depth_info = HaloDepth()
+                # Found a max_depth access so we only need one
+                # HaloDepth entry.
+                depth_info = HaloDepth(sym_table)
                 depth_info.set_by_value(max_depth=True, var_depth="",
                                         literal_depth=0, annexed_only=False,
                                         max_depth_m1=False)
                 return [depth_info]
-            # remember that we found a max_depth-1 access
+            # Remember that we found a max_depth-1 access.
             max_depth_m1 = True
 
     if max_depth_m1:
-        # we have at least one max_depth-1 access.
-        depth_info = HaloDepth()
+        # We have at least one max_depth-1 access.
+        depth_info = HaloDepth(sym_table)
         depth_info.set_by_value(max_depth=False, var_depth="",
                                 literal_depth=0, annexed_only=False,
                                 max_depth_m1=True)
         depth_info_list.append(depth_info)
 
     for halo_info in halo_info_list:
-        # go through the halo information associated with each
-        # read dependency, skipping any max_depth-1 accesses
+        # Go through the halo information associated with each
+        # read dependency, skipping any max_depth-1 accesses.
         if halo_info.max_depth and not halo_info.needs_clean_outer:
             continue
         var_depth = halo_info.var_depth
         literal_depth = halo_info.literal_depth
         if literal_depth and not halo_info.needs_clean_outer:
-            # decrease depth by 1 if we don't care about the outermost
-            # access
+            # Decrease depth by 1 if we don't care about the outermost
+            # access.
             literal_depth -= 1
         match = False
         # check whether we match with existing depth information
         for depth_info in depth_info_list:
             if depth_info.var_depth == var_depth and not match:
-                # this dependence uses the same variable to
+                # This dependence uses the same variable to
                 # specify its depth as an existing one, or both do
                 # not have a variable so we only have a
                 # literal. Therefore we only need to update the
                 # literal value with the maximum of the two
-                # (e.g. var_name,1 and var_name,2 => var_name,2)
+                # (e.g. var_name,1 and var_name,2 => var_name,2).
                 depth_info.literal_depth = max(
                     depth_info.literal_depth, literal_depth)
                 match = True
                 break
         if not match:
-            # no matches were found with existing entries so
-            # create a new one
-            depth_info = HaloDepth()
-            depth_info.set_by_value(max_depth=False, var_depth=var_depth,
-                                    literal_depth=literal_depth,
-                                    annexed_only=False, max_depth_m1=False)
-            depth_info_list.append(depth_info)
+            # No matches were found with existing entries so create a
+            # new one (unless no 'var_depth' and 'literal_depth' is 0).
+            if var_depth or literal_depth > 0:
+                depth_info = HaloDepth(sym_table)
+                depth_info.set_by_value(max_depth=False, var_depth=var_depth,
+                                        literal_depth=literal_depth,
+                                        annexed_only=False, max_depth_m1=False)
+                depth_info_list.append(depth_info)
     return depth_info_list
 
 
@@ -5607,7 +6025,8 @@ class DynHaloExchange(HaloExchange):
         # get our halo information
         halo_info_list = self._compute_halo_read_info(ignore_hex_dep)
         # use the halo information to generate depth information
-        depth_info_list = _create_depth_list(halo_info_list)
+        depth_info_list = _create_depth_list(halo_info_list,
+                                             self._symbol_table)
         return depth_info_list
 
     def _compute_halo_read_info(self, ignore_hex_dep=False):
@@ -5675,8 +6094,8 @@ class DynHaloExchange(HaloExchange):
             raise InternalError(
                 "Internal logic error. There should be at least one read "
                 "dependence for a halo exchange.")
-        return [HaloReadAccess(read_dependency) for read_dependency
-                in read_dependencies]
+        return [HaloReadAccess(read_dependency, self._symbol_table) for
+                read_dependency in read_dependencies]
 
     def _compute_halo_write_info(self):
         '''Determines how much of the halo has been cleaned from any previous
@@ -5698,7 +6117,7 @@ class DynHaloExchange(HaloExchange):
                 "Internal logic error. There should be at most one write "
                 "dependence for a halo exchange. Found "
                 "'{0}'".format(str(len(write_dependencies))))
-        return HaloWriteAccess(write_dependencies[0])
+        return HaloWriteAccess(write_dependencies[0], self._symbol_table)
 
     def required(self, ignore_hex_dep=False):
         '''Determines whether this halo exchange is definitely required
@@ -5905,7 +6324,7 @@ class DynHaloExchange(HaloExchange):
 
         '''
         if self.vector_index:
-            ref = "(" + str(self.vector_index) + ")"
+            ref = f"({self.vector_index})"
         else:
             ref = ""
         _, known = self.required()
@@ -6086,11 +6505,15 @@ class DynHaloExchangeEnd(DynHaloExchange):
         self._halo_exchange_name = "halo_exchange_finish"
 
 
-class HaloDepth(object):
+class HaloDepth():
     '''Determines how much of the halo a read to a field accesses (the
-    halo depth)
+    halo depth).
+
+    :param sym_table: the symbol table of the enclosing InvokeSchedule.
+    :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
     '''
-    def __init__(self):
+    def __init__(self, sym_table):
         # literal_depth is used to store any known (literal) component
         # of the depth of halo that is accessed. It may not be the
         # full depth as there may also be an additional var_depth
@@ -6115,6 +6538,9 @@ class HaloDepth(object):
         # annexed only is True if the only access in the halo is for
         # annexed dofs
         self._annexed_only = False
+        # Keep a reference to the symbol table so that we can look-up
+        # variables holding the maximum halo depth.
+        self._symbol_table = sym_table
 
     @property
     def annexed_only(self):
@@ -6175,8 +6601,7 @@ class HaloDepth(object):
     def literal_depth(self, value):
         ''' Set the known fixed (literal) depth of halo access.
 
-        :parameter value: Set the known fixed (literal) halo access depth.
-        :type value: int
+        :param int value: Set the known fixed (literal) halo access depth.
 
         '''
         self._literal_depth = value
@@ -6210,16 +6635,22 @@ class HaloDepth(object):
         as a string'''
         depth_str = ""
         if self.max_depth:
-            depth_str += "mesh%get_halo_depth()"
+            max_depth = self._symbol_table.lookup_with_tag(
+                "max_halo_depth_mesh")
+            depth_str += max_depth.name
         elif self.max_depth_m1:
-            depth_str += "mesh%get_halo_depth()-1"
+            max_depth = self._symbol_table.lookup_with_tag(
+                "max_halo_depth_mesh")
+            depth_str += f"{max_depth.name}-1"
         else:
             if self.var_depth:
                 depth_str += self.var_depth
                 if self.literal_depth:
-                    depth_str += "+"
-            if self.literal_depth:
-                depth_str += str(self.literal_depth)
+                    # Ignores depth == 0
+                    depth_str += f"+{self.literal_depth}"
+            elif self.literal_depth is not None:
+                # Returns depth if depth has any value, including 0
+                depth_str = str(self.literal_depth)
         return depth_str
 
 
@@ -6271,17 +6702,17 @@ def halo_check_arg(field, access_types):
 class HaloWriteAccess(HaloDepth):
     '''Determines how much of a field's halo is written to (the halo depth)
     when a field is accessed in a particular kernel within a
-    particular loop nest
+    particular loop nest.
+
+    :param field: the field that we are concerned with.
+    :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
+    :param sym_table: the symbol table associated with the scoping region \
+                      that contains this halo access.
+    :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
     '''
-    def __init__(self, field):
-        '''
-        :param field: the field that we are concerned with
-        :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
-
-        '''
-
-        HaloDepth.__init__(self)
+    def __init__(self, field, sym_table):
+        HaloDepth.__init__(self, sym_table)
         self._compute_from_field(field)
 
     @property
@@ -6353,16 +6784,17 @@ class HaloWriteAccess(HaloDepth):
 class HaloReadAccess(HaloDepth):
     '''Determines how much of a field's halo is read (the halo depth) and
     additionally the access pattern (the stencil) when a field is
-    accessed in a particular kernel within a particular loop nest
+    accessed in a particular kernel within a particular loop nest.
+
+    :param field: the field for which we want information.
+    :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :param sym_table: the symbol table associated with the scoping region \
+                      that contains this halo access.
+    :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
     '''
-    def __init__(self, field):
-        '''
-        :param field: the field that we want to get information on
-        :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-
-        '''
-        HaloDepth.__init__(self)
+    def __init__(self, field, sym_table):
+        HaloDepth.__init__(self, sym_table)
         self._stencil_type = None
         self._needs_clean_outer = None
         self._compute_from_field(field)
@@ -6443,9 +6875,8 @@ class HaloReadAccess(HaloDepth):
                 # loop redundant computation is to the maximum depth
                 self._max_depth = True
         elif loop.upper_bound_name == "ncolour":
-            # currenty coloured loops are always transformed from
-            # cell_halo depth 1 loops
-            self._literal_depth = 1
+            # Loop is coloured but does not access the halo.
+            pass
         elif loop.upper_bound_name in ["ncells", "nannexed"]:
             if field.descriptor.stencil:
                 # no need to worry about annexed dofs (if they exist)
@@ -6454,8 +6885,11 @@ class HaloReadAccess(HaloDepth):
                 # halos)
                 pass
             else:  # there is no stencil
-                if field.discontinuous:
-                    # There are only local accesses
+                if (field.discontinuous or call.iterates_over == "dof" or
+                        call.all_updates_are_writes):
+                    # There are only local accesses or the kernel is of the
+                    # special form where any iteration is guaranteed to write
+                    # the same value to a given shared entity.
                     pass
                 else:
                     # This is a continuous field which therefore
@@ -6520,25 +6954,24 @@ class HaloReadAccess(HaloDepth):
                 self._var_depth = "2*" + self._var_depth
 
 
-class DynLoop(Loop):
+class DynLoop(PSyLoop):
     '''
-    The LFRic-specific Loop class. This passes the LFRic-specific
+    The LFRic-specific PSyLoop class. This passes the LFRic-specific
     loop information to the base class so it creates the one
     we require.  Creates LFRic-specific loop bounds when the code is
     being generated.
 
-    :param parent: the parent of this Node in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param str loop_type: the type (iteration space) of this loop.
+    :param kwargs: additional keyword arguments provided to the PSyIR node.
+    :type kwargs: unwrapped dict.
 
     :raises InternalError: if an unrecognised loop_type is specified.
 
     '''
     # pylint: disable=too-many-instance-attributes
-    def __init__(self, parent=None, loop_type=""):
+    def __init__(self, loop_type="", **kwargs):
         const = LFRicConstants()
-        super(DynLoop, self).__init__(parent=parent,
-                                      valid_loop_types=const.VALID_LOOP_TYPES)
+        super().__init__(valid_loop_types=const.VALID_LOOP_TYPES, **kwargs)
         self.loop_type = loop_type
 
         # Set our variable at initialisation as it might be required
@@ -6668,13 +7101,27 @@ class DynLoop(Loop):
                 elif (self.field_space.orig_name in
                       const.CONTINUOUS_FUNCTION_SPACES):
                     # Must iterate out to L1 halo for continuous quantities
-                    self.set_upper_bound("cell_halo", index=1)
+                    # unless the only arguments that are updated all have
+                    # 'GH_WRITE' access. The only time such an access is
+                    # permitted for a field on a continuous space is when the
+                    # kernel is implemented such that any writes to a given
+                    # shared dof are guaranteed to write the same value. There
+                    # is therefore no need to iterate into the L1 halo in order
+                    # to get correct values for annexed dofs.
+                    if not kern.all_updates_are_writes:
+                        self.set_upper_bound("cell_halo", index=1)
+                    else:
+                        self.set_upper_bound("ncells")
                 elif (self.field_space.orig_name in
                       const.VALID_ANY_SPACE_NAMES):
                     # We don't know whether any_space is continuous or not
                     # so we have to err on the side of caution and assume that
-                    # it is.
-                    self.set_upper_bound("cell_halo", index=1)
+                    # it is. Again, if the only arguments that are updated have
+                    # 'GH_WRITE' access then we can relax this condition.
+                    if not kern.all_updates_are_writes:
+                        self.set_upper_bound("cell_halo", index=1)
+                    else:
+                        self.set_upper_bound("ncells")
                 else:
                     raise GenerationError(
                         "Unexpected function space found. Expecting one of "
@@ -6750,6 +7197,8 @@ class DynLoop(Loop):
         '''
         Create the associated Fortran code for the type of lower bound.
 
+        TODO: Issue #440. lower_bound_fortran should generate PSyIR.
+
         :returns: the Fortran code for the lower bound.
         :rtype: str
 
@@ -6792,20 +7241,13 @@ class DynLoop(Loop):
         return mesh_obj_name + "%get_last_" + prev_space_name + "_cell(" \
             + prev_space_index_str + ")+1"
 
-    def _upper_bound_fortran(self):
-        ''' Create the associated fortran code for the type of upper bound
-
-        :return: Fortran code for the upper bound of this loop
-        :rtype: str
-
+    @property
+    def _mesh_name(self):
         '''
-        # pylint: disable=too-many-branches, too-many-return-statements
-        # precompute halo_index as a string as we use it in more than
-        # one of the if clauses
-        halo_index = ""
-        if self._upper_bound_halo_depth:
-            halo_index = str(self._upper_bound_halo_depth)
-
+        :returns: the name of the mesh variable from which to get the bounds \
+                  for this loop.
+        :rtype: str
+        '''
         # We must allow for self._kern being None (as it will be for
         # a built-in).
         if self._kern and self._kern.is_intergrid:
@@ -6815,14 +7257,32 @@ class DynLoop(Loop):
             # determines the iteration space of this kernel and that
             # is set-up to be the one on the coarse mesh (in
             # DynKernelArguments.iteration_space_arg()).
-            mesh_name = "mesh_" + self._field_name
+            tag_name = "mesh_" + self._field_name
         else:
             # It's not an inter-grid kernel so there's only one mesh
-            mesh_name = "mesh"
-        # Use InvokeSchedule SymbolTable to share the same symbol for all
-        # Loops in the Invoke.
-        mesh = self.ancestor(InvokeSchedule).symbol_table.\
-            find_or_create_tag(mesh_name).name
+            tag_name = "mesh"
+
+        # The symbol for the mesh will already have been added to the
+        # symbol table associated with the InvokeSchedule.
+        return self.ancestor(InvokeSchedule).symbol_table.\
+            lookup_with_tag(tag_name).name
+
+    def _upper_bound_fortran(self):
+        ''' Create the Fortran code that gives the appropriate upper bound
+        value for this type of loop.
+
+        TODO: Issue #440. upper_bound_fortran should generate PSyIR.
+
+        :returns: Fortran code for the upper bound of this loop.
+        :rtype: str
+
+        '''
+        # pylint: disable=too-many-branches, too-many-return-statements
+        # precompute halo_index as a string as we use it in more than
+        # one of the if clauses
+        halo_index = ""
+        if self._upper_bound_halo_depth:
+            halo_index = str(self._upper_bound_halo_depth)
 
         if self._upper_bound_name == "ncolours":
             # Loop over colours
@@ -6843,59 +7303,67 @@ class DynLoop(Loop):
             # Loop over cells of a particular colour when DM is disabled.
             # We use the same, DM API as that returns sensible values even
             # when running without MPI.
-            return "{0}%get_last_edge_cell_per_colour(colour)".format(mesh)
+            root_name = "last_edge_cell_all_colours"
+            if self._kern.is_intergrid:
+                root_name += "_" + self._field_name
+            sym = self.ancestor(
+                InvokeSchedule).symbol_table.find_or_create_tag(root_name)
+            return f"{sym.name}(colour)"
         if self._upper_bound_name == "colour_halo":
             # Loop over cells of a particular colour when DM is enabled. The
             # LFRic API used here allows for colouring with redundant
             # computation.
-            append = ""
             if halo_index:
-                # The colouring API support an additional optional
-                # argument which specifies the depth of the halo to
-                # which the coloured loop computes. If no argument is
-                # supplied it is assumed that the coloured loop
-                # computes to the full depth of the halo (whatever that
-                # may be).
-                append = ","+halo_index
-            return ("{0}%get_last_halo_cell_per_colour(colour"
-                    "{1})".format(mesh, append))
+                # The colouring API provides a 2D array that holds the last
+                # halo cell for a given colour and halo depth.
+                depth = halo_index
+            else:
+                # If no depth is specified then we go to the full halo depth
+                depth = self.ancestor(InvokeSchedule).symbol_table.\
+                    find_or_create_tag(
+                        f"max_halo_depth_{self._mesh_name}").name
+            root_name = "last_halo_cell_all_colours"
+            if self._kern.is_intergrid:
+                root_name += "_" + self._field_name
+            sym = self.ancestor(
+                InvokeSchedule).symbol_table.find_or_create_tag(root_name)
+            return f"{sym.name}(colour, {depth})"
         if self._upper_bound_name in ["ndofs", "nannexed"]:
             if Config.get().distributed_memory:
                 if self._upper_bound_name == "ndofs":
-                    result = self.field.proxy_name_indexed + "%" + \
-                             self.field.ref_name() + "%get_last_dof_owned()"
+                    result = (f"{self.field.proxy_name_indexed}%"
+                              f"{self.field.ref_name()}%get_last_dof_owned()")
                 else:  # nannexed
-                    result = self.field.proxy_name_indexed + "%" + \
-                             self.field.ref_name() + "%get_last_dof_annexed()"
+                    result = (
+                        f"{self.field.proxy_name_indexed}%"
+                        f"{self.field.ref_name()}%get_last_dof_annexed()")
             else:
                 result = self._kern.undf_name
             return result
         if self._upper_bound_name == "ncells":
             if Config.get().distributed_memory:
-                result = mesh + "%get_last_edge_cell()"
+                result = f"{self._mesh_name}%get_last_edge_cell()"
             else:
-                result = self.field.proxy_name_indexed + "%" + \
-                    self.field.ref_name() + "%get_ncell()"
+                result = (f"{self.field.proxy_name_indexed}%"
+                          f"{self.field.ref_name()}%get_ncell()")
             return result
         if self._upper_bound_name == "cell_halo":
             if Config.get().distributed_memory:
-                return "{0}%get_last_halo_cell({1})".format(mesh,
-                                                            halo_index)
+                return f"{self._mesh_name}%get_last_halo_cell({halo_index})"
             raise GenerationError(
                 "'cell_halo' is not a valid loop upper bound for "
                 "sequential/shared-memory code")
         if self._upper_bound_name == "dof_halo":
             if Config.get().distributed_memory:
-                return "{0}%{1}%get_last_dof_halo({2})".format(
-                    self.field.proxy_name_indexed, self.field.ref_name(),
-                    halo_index)
+                return (f"{self.field.proxy_name_indexed}%"
+                        f"{self.field.ref_name()}%get_last_dof_halo("
+                        f"{halo_index})")
             raise GenerationError(
                 "'dof_halo' is not a valid loop upper bound for "
                 "sequential/shared-memory code")
         if self._upper_bound_name == "inner":
             if Config.get().distributed_memory:
-                return "{0}%get_last_inner_cell({1})".format(mesh,
-                                                             halo_index)
+                return f"{self._mesh_name}%get_last_inner_cell({halo_index})"
             raise GenerationError(
                 "'inner' is not a valid loop upper bound for "
                 "sequential/shared-memory code")
@@ -6951,6 +7419,14 @@ class DynLoop(Loop):
                     # An upper bound that is part of the halo means
                     # that the halo might be accessed.
                     return True
+                if (not arg.discontinuous and
+                        self.kernel.iterates_over == "cell_column" and
+                        self.kernel.all_updates_are_writes and
+                        self._upper_bound_name == "ncells"):
+                    # This is the special case of a kernel that guarantees to
+                    # write the same value to any given dof, irrespective of
+                    # cell column.
+                    return False
                 if not arg.discontinuous and \
                    self._upper_bound_name in ["ncells", "nannexed"]:
                     # Annexed dofs may be accessed. Return False if we
@@ -7006,7 +7482,7 @@ class DynLoop(Loop):
         # optional argument.
         required, _ = exchange.required(ignore_hex_dep=True)
         if not required:
-            exchange.parent.children.remove(exchange)
+            exchange.detach()
         else:
             # The halo exchange we have added may be replacing an
             # existing one. If so, the one being replaced will be the
@@ -7028,7 +7504,7 @@ class DynLoop(Loop):
                             "for field {0}, a subsequent dependent halo "
                             "exchange was found. This should never happen."
                             "".format(exchange.field.name))
-                    first_dep_call.parent.children.remove(first_dep_call)
+                    first_dep_call.detach()
 
     def _add_halo_exchange(self, halo_field):
         '''Internal helper method to add (a) halo exchange call(s) immediately
@@ -7073,8 +7549,7 @@ class DynLoop(Loop):
                             halo_exchange = dep_arg.call
                             required, _ = halo_exchange.required()
                             if not required:
-                                halo_exchange.parent.children.remove(
-                                    halo_exchange)
+                                halo_exchange.detach()
 
     def create_halo_exchanges(self):
         '''Add halo exchanges before this loop as required by fields within
@@ -7131,155 +7606,203 @@ class DynLoop(Loop):
                     # or not
                     self._add_halo_exchange(halo_field)
 
+    @property
+    def start_expr(self):
+        '''
+        :returns: the PSyIR for the lower bound of this loop.
+        :rtype: :py:class:`psyclone.psyir.Node`
+
+        '''
+        inv_sched = self.ancestor(InvokeSchedule)
+        sym_table = inv_sched.symbol_table
+        loops = inv_sched.loops()
+        posn = None
+        for index, loop in enumerate(loops):
+            if loop is self:
+                posn = index
+                break
+        lbound = sym_table.lookup_with_tag(f"loop{posn}_start")
+        return Reference(lbound)
+
+    @property
+    def stop_expr(self):
+        '''
+        :returns: the PSyIR for the upper bound of this loop.
+        :rtype: :py:class:`psyclone.psyir.Node`
+
+        '''
+        inv_sched = self.ancestor(InvokeSchedule)
+        sym_table = inv_sched.symbol_table
+
+        if self._loop_type == "colour":
+            # If this loop is over all cells of a given colour then we must
+            # lookup the loop bound as it depends on the current colour.
+            parent_loop = self.ancestor(Loop)
+            colour_var = parent_loop.variable
+
+            asym = sym_table.lookup(self.kernel.last_cell_all_colours)
+            const = LFRicConstants()
+
+            if self.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
+                if self._upper_bound_halo_depth:
+                    # TODO: #696 Add kind (precision) once the
+                    # DynInvokeSchedule constructor has been extended to
+                    # create the necessary symbols.
+                    halo_depth = Literal(str(self._upper_bound_halo_depth),
+                                         INTEGER_TYPE)
+                else:
+                    # We need to go to the full depth of the halo.
+                    root_name = "mesh"
+                    if self.kernels()[0].is_intergrid:
+                        root_name += f"_{self._field_name}"
+                    depth_sym = sym_table.lookup_with_tag(
+                        f"max_halo_depth_{root_name}")
+                    halo_depth = Reference(depth_sym)
+
+                return ArrayReference.create(asym, [Reference(colour_var),
+                                                    halo_depth])
+            return ArrayReference.create(asym, [Reference(colour_var)])
+
+        # This isn't a 'colour' loop so we have already set-up a
+        # variable that holds the upper bound.
+        loops = inv_sched.loops()
+        posn = None
+        for index, loop in enumerate(loops):
+            if loop is self:
+                posn = index
+                break
+        ubound = sym_table.lookup_with_tag(f"loop{posn}_stop")
+        return Reference(ubound)
+
     def gen_code(self, parent):
-        '''Work out the appropriate loop bounds and variable name
-        depending on the loop type and then call the base class to
-        generate the code.
+        ''' Call the base class to generate the code and then add any
+        required halo exchanges.
 
         :param parent: an f2pygen object that will be the parent of \
-        f2pygen objects created in this method
+            f2pygen objects created in this method.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
         :raises GenerationError: if a loop over colours is within an \
-        OpenMP parallel region (as it must be serial)
+            OpenMP parallel region (as it must be serial).
 
         '''
         # pylint: disable=too-many-statements, too-many-branches
         # Check that we're not within an OpenMP parallel region if
         # we are a loop over colours.
         if self._loop_type == "colours" and self.is_openmp_parallel():
-            raise GenerationError("Cannot have a loop over "
-                                  "colours within an OpenMP "
-                                  "parallel region.")
+            raise GenerationError("Cannot have a loop over colours within an "
+                                  "OpenMP parallel region.")
 
         if self._loop_type != "null":
-            # Generate the upper and lower loop bounds
-            # TODO: Issue #440. upper/lower_bound_fortran should generate PSyIR
-            # TODO: Issue #696. Add kind (precision) when the support in the
-            #                   Literal class is implemented.
-            self.start_expr = Literal(self._lower_bound_fortran(),
-                                      INTEGER_TYPE, parent=self)
-            self.stop_expr = Literal(self._upper_bound_fortran(),
-                                     INTEGER_TYPE, parent=self)
-
-            super(DynLoop, self).gen_code(parent)
+            super().gen_code(parent)
         else:
             # This is a 'null' loop and therefore we do not actually generate
             # a loop - we go on down to the children instead.
             for child in self.loop_body.children:
                 child.gen_code(parent)
 
-        # pylint: disable=too-many-nested-blocks
-        if Config.get().distributed_memory and self._loop_type != "colour":
-            # Set halo clean/dirty for all fields that are modified
-            fields = self.unique_modified_args("gh_field")
+        if not (Config.get().distributed_memory and
+                self._loop_type != "colour"):
+            # No need to add halo exchanges so we are done.
+            return
 
-            if fields:
-                parent.add(CommentGen(parent, ""))
-                if self._loop_type != "null":
-                    prev_node_name = "loop"
+        # Set halo clean/dirty for all fields that are modified
+        if not self.unique_modified_args("gh_field"):
+            return
+
+        if self.ancestor((ACCRegionDirective, OMPRegionDirective)):
+            # We cannot include calls to set halos dirty/clean within OpenACC
+            # regions. This is handled by the appropriate Directive class
+            # instead.
+            # TODO #1755 can this check be made more general (e.g. to include
+            # Extraction regions)?
+            return
+
+        parent.add(CommentGen(parent, ""))
+        if self._loop_type != "null":
+            prev_node_name = "loop"
+        else:
+            prev_node_name = "kernel"
+        parent.add(CommentGen(parent, f" Set halos dirty/clean for fields "
+                              f"modified in the above {prev_node_name}"))
+        parent.add(CommentGen(parent, ""))
+
+        self.gen_mark_halos_clean_dirty(parent)
+
+        parent.add(CommentGen(parent, ""))
+
+    def gen_mark_halos_clean_dirty(self, parent):
+        '''
+        Generates the necessary code to mark halo regions for all modified
+        fields as clean or dirty following execution of this loop.
+
+        :param parent: the node in the f2pygen AST to which to add content.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
+        # Set halo clean/dirty for all fields that are modified
+        fields = self.unique_modified_args("gh_field")
+
+        sym_table = self.ancestor(InvokeSchedule).symbol_table
+
+        # First set all of the halo dirty unless we are
+        # subsequently going to set all of the halo clean
+        for field in fields:
+            # The HaloWriteAccess class provides information about how the
+            # supplied field is accessed within its parent loop
+            hwa = HaloWriteAccess(field, sym_table)
+            if not hwa.max_depth or hwa.dirty_outer:
+                # output set dirty as some of the halo will not be set to clean
+                if field.vector_size > 1:
+                    # the range function below returns values from 1 to the
+                    # vector size which is what we require in our Fortran code
+                    for index in range(1, field.vector_size+1):
+                        parent.add(CallGen(parent, name=field.proxy_name +
+                                           f"({index})%set_dirty()"))
                 else:
-                    prev_node_name = "kernel"
-                parent.add(
-                    CommentGen(parent, " Set halos dirty/clean for fields "
-                               "modified in the above {0}".format(
-                                   prev_node_name)))
-                parent.add(CommentGen(parent, ""))
-                use_omp_master = False
-                if self.is_openmp_parallel():
-                    if not self.ancestor(OMPParallelDoDirective):
-                        use_omp_master = True
-                        # I am within an OpenMP Do directive so protect
-                        # set_dirty() and set_clean() with OpenMP Master
-                        parent.add(DirectiveGen(parent, "omp", "begin",
-                                                "master", ""))
-                # first set all of the halo dirty unless we are
-                # subsequently going to set all of the halo clean
-                for field in fields:
-                    # The HaloWriteAccess class provides information
-                    # about how the supplied field is accessed within
-                    # its parent loop
-                    hwa = HaloWriteAccess(field)
-                    if not hwa.max_depth or hwa.dirty_outer:
-                        # output set dirty as some of the halo will
-                        # not be set to clean
-                        if field.vector_size > 1:
-                            # the range function below returns values from
-                            # 1 to the vector size which is what we
-                            # require in our Fortran code
-                            for index in range(1, field.vector_size+1):
-                                parent.add(CallGen(parent,
-                                                   name=field.proxy_name +
-                                                   "(" + str(index) +
-                                                   ")%set_dirty()"))
-                        else:
-                            parent.add(CallGen(parent, name=field.proxy_name +
-                                               "%set_dirty()"))
-                # now set appropriate parts of the halo clean where
-                # redundant computation has been performed
-                for field in fields:
-                    # The HaloWriteAccess class provides information
-                    # about how the supplied field is accessed within
-                    # its parent loop
-                    hwa = HaloWriteAccess(field)
-                    if hwa.literal_depth:
-                        # halo access(es) is/are to a fixed depth
-                        halo_depth = hwa.literal_depth
-                        if hwa.dirty_outer:
-                            halo_depth -= 1
-                        if halo_depth > 0:
-                            if field.vector_size > 1:
-                                # the range function below returns
-                                # values from 1 to the vector size
-                                # which is what we require in our
-                                # Fortran code
-                                for index in range(1, field.vector_size+1):
-                                    parent.add(
-                                        CallGen(parent,
-                                                name="{0}({1})%set_clean"
-                                                "({2})".format(
-                                                    field.proxy_name,
-                                                    str(index),
-                                                    halo_depth)))
-                            else:
-                                parent.add(
-                                    CallGen(parent,
-                                            name="{0}%set_clean({1})".
-                                            format(field.proxy_name,
-                                                   halo_depth)))
-                    elif hwa.max_depth:
-                        # halo accesses(s) is/are to the full halo
-                        # depth (-1 if continuous)
-                        halo_depth = "mesh%get_halo_depth()"
-                        if hwa.dirty_outer:
-                            # a continuous field iterating over
-                            # cells leaves the outermost halo
-                            # dirty
-                            halo_depth += "-1"
-                        if field.vector_size > 1:
-                            # the range function below returns
-                            # values from 1 to the vector size
-                            # which is what we require in our
-                            # Fortran code
-                            for index in range(1, field.vector_size+1):
-                                call = CallGen(parent,
-                                               name="{0}({1})%set_clean("
-                                               "{2})".format(
-                                                   field.proxy_name,
-                                                   str(index),
-                                                   halo_depth))
-                                parent.add(call)
-                        else:
-                            call = CallGen(parent, name="{0}%set_clean("
-                                           "{1})".format(field.proxy_name,
-                                                         halo_depth))
-                            parent.add(call)
+                    parent.add(CallGen(parent, name=field.proxy_name +
+                                       "%set_dirty()"))
+            # Now set appropriate parts of the halo clean where
+            # redundant computation has been performed.
+            if hwa.literal_depth:
+                # halo access(es) is/are to a fixed depth
+                halo_depth = hwa.literal_depth
+                if hwa.dirty_outer:
+                    halo_depth -= 1
+                if halo_depth > 0:
+                    if field.vector_size > 1:
+                        # The range function below returns values from 1 to the
+                        # vector size, as required in our Fortran code.
+                        for index in range(1, field.vector_size+1):
+                            parent.add(CallGen(
+                                parent, name=f"{field.proxy_name}({index})%"
+                                f"set_clean({halo_depth})"))
+                    else:
+                        parent.add(CallGen(
+                            parent, name=f"{field.proxy_name}%set_clean("
+                            f"{halo_depth})"))
+            elif hwa.max_depth:
+                # halo accesses(s) is/are to the full halo
+                # depth (-1 if continuous)
+                halo_depth = sym_table.lookup_with_tag(
+                    "max_halo_depth_mesh").name
 
-                if use_omp_master:
-                    # I am within an OpenMP Do directive so protect
-                    # set_dirty() and set_clean() with OpenMP Master
-                    parent.add(DirectiveGen(parent, "omp", "end",
-                                            "master", ""))
-                parent.add(CommentGen(parent, ""))
+                if hwa.dirty_outer:
+                    # a continuous field iterating over cells leaves the
+                    # outermost halo dirty
+                    halo_depth += "-1"
+                if field.vector_size > 1:
+                    # the range function below returns values from 1 to the
+                    # vector size which is what we require in our Fortran code
+                    for index in range(1, field.vector_size+1):
+                        call = CallGen(parent,
+                                       name=f"{field.proxy_name}({index})%"
+                                       f"set_clean({halo_depth})")
+                        parent.add(call)
+                else:
+                    call = CallGen(parent, name=f"{field.proxy_name}%"
+                                   f"set_clean({halo_depth})")
+                    parent.add(call)
 
 
 class DynKern(CodedKern):
@@ -7437,7 +7960,7 @@ class DynKern(CodedKern):
                     # Add a quadrature argument for each required quadrature
                     # rule.
                     args.append(Arg("variable", "qr_"+shape))
-        self._setup(ktype, "dummy_name", args, None)
+        self._setup(ktype, "dummy_name", args, None, check=False)
 
     def _setup_basis(self, kmetadata):
         '''
@@ -7453,9 +7976,8 @@ class DynKern(CodedKern):
                 self._eval_shapes = kmetadata.eval_shapes[:]
                 break
 
-    def _setup(self, ktype, module_name, args, parent):
-        '''
-        Internal setup of kernel information.
+    def _setup(self, ktype, module_name, args, parent, check=True):
+        '''Internal setup of kernel information.
 
         :param ktype: object holding information on the parsed metadata for \
                       this kernel.
@@ -7468,12 +7990,14 @@ class DynKern(CodedKern):
         :param parent: the parent of this kernel call in the generated \
                        AST (will be a loop object).
         :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
+        :param bool check: whether to check for consistency between the \
+            kernel metadata and the algorithm layer. Defaults to True.
 
         '''
         # pylint: disable=too-many-branches, too-many-locals
         CodedKern.__init__(self, DynKernelArguments,
                            KernelCall(module_name, ktype, args),
-                           parent, check=False)
+                           parent, check)
         # Remove "_code" from the name if it exists to determine the
         # base name which (if dynamo0.3 naming conventions are
         # followed) is used as the root for the module and subroutine
@@ -7602,8 +8126,37 @@ class DynKern(CodedKern):
         '''
         Getter for the name of the colourmap associated with this kernel call.
 
-        :return: name of the colourmap (Fortran array)
+        :returns: name of the colourmap (Fortran array).
         :rtype: str
+
+        :raises InternalError: if this kernel is not coloured or the \
+                               dictionary of inter-grid kernels and \
+                               colourmaps has not been constructed.
+
+        '''
+        if not self.is_coloured():
+            raise InternalError(f"Kernel '{self.name}' is not inside a "
+                                f"coloured loop.")
+        if self._is_intergrid:
+            invoke = self.ancestor(InvokeSchedule).invoke
+            if id(self) not in invoke.meshes.intergrid_kernels:
+                raise InternalError(
+                    f"Colourmap information for kernel '{self.name}' has "
+                    f"not yet been initialised")
+            cmap = invoke.meshes.intergrid_kernels[id(self)].colourmap
+        else:
+            cmap = self.scope.symbol_table.lookup_with_tag("cmap").name
+        return cmap
+
+    @property
+    def last_cell_all_colours(self):
+        '''
+        Getter for the name of the array holding the index of the last cell of
+        each colour.
+
+        :returns: name of the array.
+        :rtype: str
+
         :raises InternalError: if this kernel is not coloured or the \
                                dictionary of inter-grid kernels and \
                                colourmaps has not been constructed.
@@ -7613,14 +8166,21 @@ class DynKern(CodedKern):
                                 "loop.".format(self.name))
         if self._is_intergrid:
             invoke = self.ancestor(InvokeSchedule).invoke
-            if self.name not in invoke.meshes.intergrid_kernels:
+            if id(self) not in invoke.meshes.intergrid_kernels:
                 raise InternalError(
                     "Colourmap information for kernel '{0}' has not yet "
                     "been initialised".format(self.name))
-            cmap = invoke.meshes.intergrid_kernels[self.name].colourmap
+            return invoke.meshes.intergrid_kernels[id(self)].last_cell_var
+
+        const = LFRicConstants()
+
+        if (self.ancestor(Loop).upper_bound_name in
+                const.HALO_ACCESS_LOOP_BOUNDS):
+            return self.scope.symbol_table.lookup_with_tag(
+                "last_halo_cell_all_colours").name
         else:
-            cmap = self.scope.symbol_table.lookup_with_tag("cmap").name
-        return cmap
+            return self.scope.symbol_table.lookup_with_tag(
+                "last_edge_cell_all_colours").name
 
     @property
     def ncolours_var(self):
@@ -7638,11 +8198,11 @@ class DynKern(CodedKern):
                                 "loop.".format(self.name))
         if self._is_intergrid:
             invoke = self.ancestor(InvokeSchedule).invoke
-            if self.name not in invoke.meshes.intergrid_kernels:
+            if id(self) not in invoke.meshes.intergrid_kernels:
                 raise InternalError(
                     "Colourmap information for kernel '{0}' has not yet "
                     "been initialised".format(self.name))
-            ncols = invoke.meshes.intergrid_kernels[self.name].ncolours_var
+            ncols = invoke.meshes.intergrid_kernels[id(self)].ncolours_var
         else:
             ncols = self.scope.symbol_table.lookup_with_tag("ncolour").name
         return ncols
@@ -7699,6 +8259,22 @@ class DynKern(CodedKern):
         :rtype: :py:class`psyclone.dynamo0p3.MeshPropertiesMetaData`
         '''
         return self._mesh_properties
+
+    @property
+    def all_updates_are_writes(self):
+        '''
+        :returns: True if all of the arguments updated by this kernel have \
+                  'GH_WRITE' access, False otherwise.
+        :rtype: bool
+
+        '''
+        if self.is_intergrid:
+            # This is not a special kernel
+            return False
+        accesses = set(arg.access for arg in self.args)
+        all_writes = AccessType.all_write_accesses()
+        all_writes.remove(AccessType.WRITE)
+        return (not accesses.intersection(set(all_writes)))
 
     def local_vars(self):
         ''' Returns the names used by the Kernel that vary from one
@@ -7764,12 +8340,11 @@ class DynKern(CodedKern):
                          LFRicMeshProperties]:
             entities(self).declarations(sub_stub)
 
-        # Add "use" statement with kinds (precisions) of all arguments
+        # Add wildcard "use" statement for all supported argument
+        # kinds (precisions)
         sub_stub.add(
             UseGen(sub_stub,
-                   name=const.UTILITIES_MOD_MAP["constants"]["module"],
-                   only=True, funcnames=sorted(list(self._argument_kinds),
-                                               reverse=True)))
+                   name=const.UTILITIES_MOD_MAP["constants"]["module"]))
 
         # Create the arglist
         create_arg_list = KernStubArgList(self)
@@ -7862,8 +8437,7 @@ class DynKern(CodedKern):
         then checked for consistency with the kernel metadata
         here. The Schedule is just generated on first invocation, this
         allows us to retain transformations that may subsequently be
-        applied to the Schedule (but will not adapt to transformations
-        applied to the fparser2 AST).
+        applied to the Schedule.
 
         Once issue #935 is implemented, this routine will return the
         PSyIR Schedule using LFRic-specific PSyIR where possible.
@@ -7917,9 +8491,19 @@ class DynKern(CodedKern):
         # 2: Check that the properties of each argument matches
         for idx, kern_code_arg in enumerate(kern_code_args):
             interface_arg = interface_args[idx]
-            self._validate_kernel_code_arg(kern_code_arg, interface_arg)
+            try:
+                alg_idx = interface_info.metadata_index_from_actual_index(idx)
+                alg_arg = self.arguments.args[alg_idx]
+            except KeyError:
+                # There's no algorithm argument directly associated with this
+                # kernel argument. (We only care about the data associated
+                # with scalar, field and operator arguments.)
+                alg_arg = None
+            self._validate_kernel_code_arg(kern_code_arg, interface_arg,
+                                           alg_arg)
 
-    def _validate_kernel_code_arg(self, kern_code_arg, interface_arg):
+    def _validate_kernel_code_arg(self, kern_code_arg, interface_arg,
+                                  alg_arg=None):
         '''Internal method to check that the supplied argument descriptions
         match and raise appropriate exceptions if not.
 
@@ -7927,6 +8511,12 @@ class DynKern(CodedKern):
         :type kern_code_arg: :py:class:`psyclone.psyir.symbols.DataSymbol`
         :param interface_arg: expected argument.
         :type interface_arg: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param alg_arg: the associated argument in the Algorithm layer. Note \
+            that only kernel arguments holding the data associated with \
+            scalar, field and operator arguments directly correspond to \
+            arguments that appear in the Algorithm layer.
+        :type alg_arg: \
+            Optional[:py:class`psyclone.dynamo0p3.DynKernelArgument`]
 
         :raises GenerationError: if the contents of the arguments do \
             not match.
@@ -7942,7 +8532,7 @@ class DynKern(CodedKern):
                 "in kernel '{2}' but the LFRic API expects '{3}'."
                 "".format(kern_code_arg.name, actual_datatype,
                           self.name, expected_datatype))
-        # 2: precision
+        # 2a: precision
         actual_precision = kern_code_arg.datatype.precision
         expected_precision = interface_arg.datatype.precision
         if actual_precision.name != expected_precision.name:
@@ -7951,6 +8541,12 @@ class DynKern(CodedKern):
                 "in kernel '{2}' but the LFRic API expects '{3}'."
                 "".format(kern_code_arg.name, actual_precision.name,
                           self.name, expected_precision.name))
+        # 2b: precision at compile time
+        if alg_arg:
+            # TODO #1892 - check that precision derived from algorithm layer
+            # matches the subroutine interface.
+            pass
+
         # 3: intent
         actual_intent = kern_code_arg.interface.access
         expected_intent = interface_arg.interface.access
@@ -8021,7 +8617,7 @@ class DynKern(CodedKern):
                     kern_code_arg.name, self.name))
 
 
-class FSDescriptor(object):
+class FSDescriptor():
     ''' Provides information about a particular function space used by
     a meta-funcs entry in the kernel metadata. '''
 
@@ -8047,7 +8643,7 @@ class FSDescriptor(object):
         return self._descriptor.function_space_name
 
 
-class FSDescriptors(object):
+class FSDescriptors():
     ''' Contains a collection of FSDescriptor objects and methods
     that provide information across these objects. We have one
     FSDescriptor for each meta-funcs entry in the kernel
@@ -8141,7 +8737,7 @@ def check_args(call):
                 qr_arg_count))
 
 
-class DynStencil(object):
+class DynStencil():
     ''' Provides stencil information about a Dynamo argument '''
     def __init__(self, name):
         self._name = name
@@ -8187,10 +8783,12 @@ class DynKernelArguments(Arguments):
     :type call: :py:class:`psyclone.parse.KernelCall`
     :param parent_call: the kernel-call object.
     :type parent_call: :py:class:`psyclone.dynamo0p3.DynKern`
+    :param bool check: whether to check for consistency between the \
+        kernel metadata and the algorithm layer. Defaults to True.
 
     :raises GenerationError: if the kernel meta-data specifies stencil extent.
     '''
-    def __init__(self, call, parent_call):
+    def __init__(self, call, parent_call, check=True):
         # pylint: disable=too-many-branches
         if False:  # pylint: disable=using-constant-test
             # For pyreverse
@@ -8208,7 +8806,7 @@ class DynKernelArguments(Arguments):
         idx = 0
         for arg in call.ktype.arg_descriptors:
             dyn_argument = DynKernelArgument(self, arg, call.args[idx],
-                                             parent_call)
+                                             parent_call, check)
             idx += 1
             if dyn_argument.descriptor.stencil:
                 # Create a stencil object and store a reference to it in our
@@ -8505,13 +9103,15 @@ class DynKernelArgument(KernelArgument):
     :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
     :param call: the kernel object with which this argument is associated.
     :type call: :py:class:`psyclone.dynamo0p3.DynKern`
+    :param bool check: whether to check for consistency between the \
+        kernel metadata and the algorithm layer. Defaults to True.
 
     :raises InternalError: for an unsupported metadata in the argument \
                            descriptor data type.
 
     '''
     # pylint: disable=too-many-public-methods, too-many-instance-attributes
-    def __init__(self, kernel_args, arg_meta_data, arg_info, call):
+    def __init__(self, kernel_args, arg_meta_data, arg_info, call, check=True):
         # Keep a reference to DynKernelArguments object that contains
         # this argument. This permits us to manage name-mangling for
         # any-space function spaces.
@@ -8563,12 +9163,15 @@ class DynKernelArgument(KernelArgument):
         # only function space is not passed to a kernel that modifies
         # it. Note, issue #79 is also related to this.
         KernelArgument.__init__(self, arg_meta_data, arg_info, call)
-
         # Argument proxy data type (if/as defined in LFRic infrastructure)
         self._proxy_data_type = None
         # Set up kernel argument information for scalar, field and operator
         # arguments: precision, module name, data type and proxy data type
-        self._init_data_type_properties()
+        self._init_data_type_properties(arg_info, check)
+        # Complete the initialisation of the argument (after
+        # _init_data_type_properties() so the precision info etc is
+        # already set up)
+        self._complete_init(arg_info)
 
     def ref_name(self, function_space=None):
         '''
@@ -8632,76 +9235,277 @@ class DynKernelArgument(KernelArgument):
             "DynKernelArgument.ref_name(fs): Found unsupported argument "
             "type '{0}'.".format(self._argument_type))
 
-    def _init_data_type_properties(self):
-        '''
-        Set up kernel argument information from LFRicConstants: precision,
+    def _init_data_type_properties(self, arg_info, check=True):
+        '''Set up kernel argument information from LFRicConstants: precision,
         data type, proxy data type and module name. This is currently
         supported for scalar, field and operator arguments.
 
+        :param arg_info: information on how this argument is specified \
+            in the Algorithm layer.
+        :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
+        :param bool check: whether to use the algorithm \
+            information. Optional argument that defaults to True.
+
+        '''
+        alg_datatype_info = None
+        if arg_info:
+            alg_datatype_info = arg_info._datatype
+        alg_datatype = None
+        alg_precision = None
+        if alg_datatype_info:
+            alg_datatype, alg_precision = alg_datatype_info
+
+        const = LFRicConstants()
+        if arg_info and arg_info.form == "collection":
+            try:
+                alg_datatype = const.FIELD_VECTOR_TO_FIELD_MAP[alg_datatype]
+            except KeyError:
+                # The collection datatype is not recognised or supported.
+                alg_datatype = None
+
+        if self.is_scalar:
+            self._init_scalar_properties(alg_datatype, alg_precision,
+                                         check)
+        elif self.is_field:
+            self._init_field_properties(alg_datatype, check)
+        elif self.is_operator:
+            self._init_operator_properties(alg_datatype, check)
+        else:
+            raise InternalError(
+                f"Supported argument types are scalar, field and operator, "
+                f"but the argument '{self.name}' in kernel "
+                f"'{self._call.name}' is none of these.")
+
+    def _init_scalar_properties(
+            self, alg_datatype, alg_precision, check=True):
+        '''Set up the properties of this scalar using algorithm datatype
+        information if it is available.
+
+        :param alg_datatype: the datatype of this argument as \
+            specified in the algorithm layer or None if it is not \
+            known.
+        :type alg_datatype: str or NoneType
+        :param alg_precision: the precision of this argument as \
+            specified in the algorithm layer or None if it is not \
+            known.
+        :type alg_precision: str or NoneType
+        :param bool check: whether to use the algorithm \
+            information. Optional argument that defaults to True.
+
+        :raises InternalError: if the intrinsic type of the scalar is \
+            not supported.
+        :raises GenerationError: if the datatype specified in the \
+            algorithm layer is inconsistent with the kernel metadata.
+        :raises GenerationError: if the datatype for a gh_scalar \
+            could not be found in the algorithm layer.
+        :raises NotImplementedError: if the scalar is a reduction and \
+            its intrinsic type is not real.
+        :raises GenerationError: if the scalar is a reduction and is \
+            not declared with default precision.
+
         '''
         const = LFRicConstants()
+        # Check the type of scalar defined in the metadata is supported.
+        if self.intrinsic_type not in const.VALID_INTRINSIC_TYPES:
+            raise InternalError(
+                f"Expected one of {const.VALID_INTRINSIC_TYPES} intrinsic "
+                f"types for a scalar argument but found "
+                f"'{self.intrinsic_type}' in the metadata of kernel "
+                f"{self._call.name} for argument {self.name}.")
 
-        # All supported scalars have the same metadata, 'GH_SCALAR', so we
-        # check by their intrinsic type
-        if self.is_scalar:
+        # Check the metadata and algorithm types are consistent if
+        # the algorithm information is available and is not being ignored.
+        if check and alg_datatype and \
+           alg_datatype != self.intrinsic_type:
+            raise GenerationError(
+                f"The kernel metadata for argument '{self.name}' in "
+                f"kernel '{self._call.name}' specifies this argument "
+                f"should be a scalar of type '{self.intrinsic_type}' but "
+                f"in the algorithm layer it is defined as a "
+                f"'{alg_datatype}'.")
 
-            if self.intrinsic_type not in const.VALID_INTRINSIC_TYPES:
-                raise InternalError(
-                    "Expected one of {0} intrinsic types for a scalar "
-                    "argument but found '{1}'.".
-                    format(const.VALID_INTRINSIC_TYPES, self.intrinsic_type))
-            if self.intrinsic_type == "real" and self.access in \
-               AccessType.get_valid_reduction_modes():
-                # Set 'real' scalar reduction properties as defined in
-                # the LFRic infrastructure
-                self._precision = const.DATA_TYPE_MAP["reduction"]["kind"]
-                self._data_type = const.DATA_TYPE_MAP["reduction"]["type"]
-                self._proxy_data_type = const.DATA_TYPE_MAP[
-                    "reduction"]["proxy_type"]
-                self._module_name = const.DATA_TYPE_MAP["reduction"]["module"]
+        # If the algorithm information is not being ignored and
+        # the datatype is known in the algorithm layer and it is
+        # not a literal then its precision should also be defined.
+        if check and alg_datatype and not alg_precision and \
+           not self.is_literal:
+            raise GenerationError(
+                f"LFRic coding standards require scalars to have "
+                f"their precision defined in the algorithm layer but "
+                f"'{self.name}' in '{self._call.name}' does not.")
+
+        if self.access in AccessType.get_valid_reduction_modes():
+            # Treat reductions separately to other scalars as it
+            # is expected that they should match the precision of
+            # the field they are reducing. At the moment there is
+            # an assumption that the precision will always be a
+            # particular value (the default), see issue #1570.
+
+            # Only real reductions are supported.
+            if not self.intrinsic_type == "real":
+                raise NotImplementedError(
+                    "Reductions for datatypes other than real are not yet "
+                    "supported in PSyclone.")
+
+            expected_precision = const.DATA_TYPE_MAP["reduction"]["kind"]
+            # If the algorithm information is not being ignored
+            # then check that the expected precision and the
+            # precision defined in the algorithn layer are
+            # the same.
+            if check and alg_precision and \
+               alg_precision != expected_precision:
+                raise GenerationError(
+                    f"This scalar is a reduction which assumes precision "
+                    f"of type '{expected_precision}' but the algorithm "
+                    f"declares this scalar with precision "
+                    f"'{alg_precision}'.")
+
+            # Use the default 'real' scalar reduction properties.
+            self._precision = expected_precision
+            self._data_type = const.DATA_TYPE_MAP["reduction"]["type"]
+            self._proxy_data_type = const.DATA_TYPE_MAP[
+                "reduction"]["proxy_type"]
+            self._module_name = const.DATA_TYPE_MAP["reduction"]["module"]
+        else:
+            # This is a scalar that is not part of a reduction.
+
+            if check and alg_precision:
+                # Use the algorithm precision if it is available
+                # and not being ignored.
+                self._precision = alg_precision
             else:
-                # Set read-only scalar precision
+                # Use default precision for this datatype if the
+                # algorithm precision is either not avaiable or is
+                # being ignored.
                 self._precision = const.SCALAR_PRECISION_MAP[
                     self.intrinsic_type]
 
-        # All supported fields have the same metadata, 'GH_FIELD', so we
-        # check by their intrinsic type
-        if self.is_field:
+    def _init_field_properties(self, alg_datatype, check=True):
+        '''Set up the properties of this field using algorithm datatype
+        information if it is available.
 
-            if self.intrinsic_type == "real":
+        :param alg_datatype: the datatype of this argument as \
+            specified in the algorithm layer or None if it is not \
+            known.
+        :type alg_datatype: str or NoneType
+        :param bool check: whether to use the algorithm \
+            information. Optional argument that defaults to True.
+
+        :raises GenerationError: if the datatype for a gh_field \
+            could not be found in the algorithm layer.
+        :raises GenerationError: if the datatype specified in the \
+            algorithm layer is inconsistent with the kernel metadata.
+        :raises InternalError: if the intrinsic type of the field is \
+            not supported (i.e. is not real or integer).
+
+        '''
+        const = LFRicConstants()
+        argtype = None
+        # If the algorithm information is not being ignored then
+        # it must be available.
+        if check and not alg_datatype:
+            raise GenerationError(
+                f"It was not possible to determine the field type from "
+                f"the algorithm layer for argument '{self.name}' in "
+                f"kernel '{self._call.name}'.")
+
+        # If the algorithm information is not being ignored then
+        # check the metadata and algorithm type are consistent and
+        # that the metadata specifies a supported intrinsic type.
+        if self.intrinsic_type == "real":
+            if not check:
+                # Use the default as we are ignoring any algorithm info
                 argtype = "field"
-            elif self.intrinsic_type == "integer":
-                argtype = "integer_field"
+            elif alg_datatype == "field_type":
+                argtype = "field"
+            elif alg_datatype == "r_solver_field_type":
+                argtype = "r_solver_field"
+            elif alg_datatype == "r_tran_field_type":
+                argtype = "r_tran_field"
             else:
-                raise InternalError(
-                    "Expected one of {0} intrinsic types for a field "
-                    "argument but found '{1}'.".
-                    format(const.VALID_FIELD_INTRINSIC_TYPES,
-                           self.intrinsic_type))
-            # Set field properties as defined in the LFRic infrastructure
-            self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
-            self._data_type = const.DATA_TYPE_MAP[argtype]["type"]
-            self._proxy_data_type = const.DATA_TYPE_MAP[argtype]["proxy_type"]
-            self._module_name = const.DATA_TYPE_MAP[argtype]["module"]
+                raise GenerationError(
+                    f"The metadata for argument '{self.name}' in kernel "
+                    f"'{self._call.name}' specifies that this is a real "
+                    f"field, however it is declared as a "
+                    f"'{alg_datatype}' in the algorithm code.")
 
-        # All supported operators have the same intrinsic type, 'real', so we
-        # check by their argument type
-        if self.is_operator:
+        elif self.intrinsic_type == "integer":
+            if check and alg_datatype != "integer_field_type":
+                raise GenerationError(
+                    f"The metadata for argument '{self.name}' in kernel "
+                    f"'{self._call.name}' specifies that this is an "
+                    f"integer field, however it is declared as a "
+                    f"'{alg_datatype}' in the algorithm code.")
+            argtype = "integer_field"
+        else:
+            raise InternalError(
+                f"Expected one of {const.VALID_FIELD_INTRINSIC_TYPES} "
+                f"intrinsic types for a field argument but found "
+                f"'{self.intrinsic_type}'.")
+        self._data_type = const.DATA_TYPE_MAP[argtype]["type"]
+        self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
+        self._proxy_data_type = const.DATA_TYPE_MAP[argtype]["proxy_type"]
+        self._module_name = const.DATA_TYPE_MAP[argtype]["module"]
 
-            if self.argument_type == "gh_operator":
+    def _init_operator_properties(self, alg_datatype, check=True):
+        '''Set up the properties of this operator using algorithm datatype
+        information if it is available.
+
+        :param alg_datatype: the datatype of this argument as \
+            specified in the algorithm layer or None if it is not \
+            known.
+        :type alg_datatype: str or NoneType
+        :param bool check: whether to use the algorithm \
+            information. Optional argument that defaults to True.
+        :raises GenerationError: if the datatype for a gh_operator \
+            could not be found in the algorithm layer (and check is \
+            True).
+        :raises GenerationError: if the datatype specified in the \
+            algorithm layer is inconsistent with the kernel metadata.
+        :raises InternalError: if this argument is not an operator.
+
+        '''
+        const = LFRicConstants()
+        argtype = None
+        if self.argument_type == "gh_operator":
+            if not check:
+                # Use the default as we are ignoring any algorithm info
                 argtype = "operator"
-            elif self.argument_type == "gh_columnwise_operator":
-                argtype = "columnwise_operator"
+            elif not alg_datatype:
+                # Raise an exception as we require algorithm
+                # information to determine the precision of the
+                # operator
+                raise GenerationError(
+                    f"It was not possible to determine the operator type "
+                    f"from the algorithm layer for argument '{self.name}' "
+                    f"in kernel '{self._call.name}'.")
+            elif alg_datatype == "operator_type":
+                argtype = "operator"
+            elif alg_datatype == "r_solver_operator_type":
+                argtype = "r_solver_operator"
             else:
-                raise InternalError(
-                    "Expected 'gh_operator' or 'gh_columnwise_operator' "
-                    "argument type but found '{0}'.".
-                    format(self.argument_type))
-            # Set operator properties as defined in the LFRic infrastructure
-            self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
-            self._data_type = const.DATA_TYPE_MAP[argtype]["type"]
-            self._proxy_data_type = const.DATA_TYPE_MAP[argtype]["proxy_type"]
-            self._module_name = const.DATA_TYPE_MAP[argtype]["module"]
+                raise GenerationError(
+                    f"The metadata for argument '{self.name}' in kernel "
+                    f"'{self._call.name}' specifies that this is an "
+                    f"operator, however it is declared as a "
+                    f"'{alg_datatype}' in the algorithm code.")
+        elif self.argument_type == "gh_columnwise_operator":
+            if check and alg_datatype and \
+               alg_datatype != "columnwise_operator_type":
+                raise GenerationError(
+                    f"The metadata for argument '{self.name}' in kernel "
+                    f"'{self._call.name}' specifies that this is a "
+                    f"columnwise operator, however it is declared as a "
+                    f"'{alg_datatype}' in the algorithm code.")
+            argtype = "columnwise_operator"
+        else:
+            raise InternalError(
+                f"Expected 'gh_operator' or 'gh_columnwise_operator' "
+                f"argument type but found '{self.argument_type}'.")
+        self._data_type = const.DATA_TYPE_MAP[argtype]["type"]
+        self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
+        self._proxy_data_type = const.DATA_TYPE_MAP[argtype]["proxy_type"]
+        self._module_name = const.DATA_TYPE_MAP[argtype]["module"]
 
     @property
     def is_scalar(self):
@@ -9038,18 +9842,12 @@ class DynKernelArgument(KernelArgument):
         :raises NotImplementedError: if an unsupported argument type is found.
 
         '''
-        const = LFRicConstants()
-
         # We want to put any Container symbols in the outermost scope so find
         # the corresponding symbol table.
         symbol_table = self._call.scope.symbol_table
         root_table = symbol_table
         while root_table.parent_symbol_table():
             root_table = root_table.parent_symbol_table()
-
-        proxy_str = ""
-        if proxy:
-            proxy_str = "_proxy"
 
         def _find_or_create_type(mod_name, type_name):
             '''
@@ -9075,27 +9873,18 @@ class DynKernelArgument(KernelArgument):
                         ))
 
         if self.is_scalar:
-
             # Find or create the DataType for the appropriate scalar type.
             if self.intrinsic_type == "real":
-                if self.access in AccessType.get_valid_reduction_modes():
-                    # Set 'real' scalar reduction properties as defined in
-                    # the LFRic infrastructure
-                    kind_name = const.DATA_TYPE_MAP["reduction"]["kind"]
-                else:
-                    # Set read-only 'real' scalar precision
-                    kind_name = const.SCALAR_PRECISION_MAP["real"]
                 prim_type = ScalarType.Intrinsic.REAL
             elif self.intrinsic_type == "integer":
-                kind_name = const.SCALAR_PRECISION_MAP["integer"]
                 prim_type = ScalarType.Intrinsic.INTEGER
             elif self.intrinsic_type == "logical":
-                kind_name = const.SCALAR_PRECISION_MAP["logical"]
                 prim_type = ScalarType.Intrinsic.BOOLEAN
             else:
                 raise NotImplementedError(
-                    "Unsupported scalar type '{0}'".format(
-                        self.intrinsic_type))
+                    f"Unsupported scalar type '{self.intrinsic_type}'")
+
+            kind_name = self.precision
             try:
                 kind_symbol = symbol_table.lookup(kind_name)
             except KeyError:
@@ -9116,48 +9905,21 @@ class DynKernelArgument(KernelArgument):
                 root_table.add(kind_symbol)
             return ScalarType(prim_type, kind_symbol)
 
-        if self.is_field:
-
-            # Find or create the DataTypeSymbol for the appropriate field type.
-            if self.intrinsic_type == "real":
-                argtype = "field"
-            elif self.intrinsic_type == "integer":
-                argtype = "integer_field"
+        if self.is_field or self.is_operator:
+            # Find or create the DataTypeSymbol for the appropriate
+            # field or operator type.
+            mod_name = self._module_name
+            if proxy:
+                type_name = self._proxy_data_type
             else:
-                raise NotImplementedError(
-                    "Fields may only be of 'real' or 'integer' type but found "
-                    "'{0}'".format(self.intrinsic_type))
-
-            mod_name = const.DATA_TYPE_MAP[argtype]["module"]
-            type_name = "{0}{1}_type".format(argtype, proxy_str)
-
-            return _find_or_create_type(mod_name, type_name)
-
-        if self.is_operator:
-
-            # Find or create the DataTypeSymbol for the appropriate operator
-            # type.
-            if self.argument_type == "gh_operator":
-                argtype = "operator"
-            elif self.argument_type == "gh_columnwise_operator":
-                argtype = "columnwise_operator"
-            else:
-                raise NotImplementedError(
-                    "Operators may only be of 'gh_operator' or 'gh_columnwise_"
-                    "operator' type but found '{0}'".format(
-                        self.argument_type))
-
-            mod_name = const.DATA_TYPE_MAP[argtype]["module"]
-            type_name = "{0}{1}_type".format(argtype, proxy_str)
-
+                type_name = self._data_type
             return _find_or_create_type(mod_name, type_name)
 
         raise NotImplementedError(
-            "'{0}' is not a scalar, field or operator argument"
-            "".format(str(self)))
+            f"'{str(self)}' is not a scalar, field or operator argument")
 
 
-class DynKernCallFactory(object):
+class DynKernCallFactory():
     ''' Create the necessary framework for a Dynamo kernel call.
     This consists of a Loop over cells containing a call to the
     user-supplied kernel routine.

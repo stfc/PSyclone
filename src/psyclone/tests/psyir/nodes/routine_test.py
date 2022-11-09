@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,13 +32,15 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the pytest tests for the Routine class. '''
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal
+from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
+    ScopingNode
 from psyclone.psyir.symbols import (REAL_TYPE, DataSymbol,
                                     SymbolTable, RoutineSymbol)
 from psyclone.tests.utilities import check_links
@@ -96,6 +98,31 @@ def test_routine_name_setter():
     # Check that the 'own_routine_symbol' tag has been updated
     assert node.symbol_table.lookup_with_tag('own_routine_symbol').name == \
         "goodbye"
+
+
+def test_routine_name_setter_preexisting_tag():
+    ''' Check that if the routine is initialized with a SymbolTable that
+    already contains a 'own_routine_symbol' tag, the names must match.'''
+
+    node = Routine("hello")
+    symtab = node.symbol_table
+
+    # Creating a routine that will try to set the routine name to 'bye' while
+    # having a differently named 'own_routine_symbol' tag in the symbol table
+    with pytest.raises(KeyError) as err:
+        node2 = Routine("bye", symbol_table=symtab.deep_copy())
+    assert ("Can't assign bye as the routine name because its symbol table "
+            "contains a symbol (hello: RoutineSymbol<NoType>) already tagged "
+            "as 'own_routine_symbol'." in str(err.value))
+
+    # But it is fine if the name is the same
+    node2 = Routine("hello", symbol_table=symtab.deep_copy())
+    # The new routine has a new instance of the symbol table
+    assert node2.symbol_table is not node.symbol_table
+    # And successive name changes are also fine
+    node2.name = "bye"
+    assert node2.symbol_table.lookup_with_tag("own_routine_symbol").name == \
+        "bye"
 
 
 def test_routine_return_symbol_setter():
@@ -156,12 +183,6 @@ def test_routine_create_invalid():
         "child of children argument in create method of Routine class "
         "should be a PSyIR Node but found 'str'." in str(excinfo.value))
 
-    # return_symbol is not a Symbol
-    with pytest.raises(TypeError) as excinfo:
-        _ = Routine.create("mod_name", symbol_table, [], return_symbol="wrong")
-    assert ("Routine return-symbol should be a DataSymbol but found 'str'" in
-            str(excinfo.value))
-
 
 def test_routine_create():
     '''Test that the create method correctly creates a Routine instance. '''
@@ -171,9 +192,81 @@ def test_routine_create():
     assignment = Assignment.create(Reference(symbol),
                                    Literal("0.0", REAL_TYPE))
     kschedule = Routine.create("mod_name", symbol_table, [assignment],
-                               is_program=True, return_symbol=symbol)
+                               is_program=True, return_symbol_name=symbol.name)
     assert isinstance(kschedule, Routine)
     check_links(kschedule, [assignment])
     assert kschedule.symbol_table is symbol_table
+    assert symbol_table.node is kschedule
     assert kschedule.is_program
     assert kschedule.return_symbol is symbol
+
+
+def test_routine_equality(monkeypatch):
+    ''' Test the __eq__ method for Routines.'''
+    # In this test we disable the routine parent (ScopingNode) __eq__
+    # test, which is already tested in the appropriate test file.
+    monkeypatch.setattr(ScopingNode, "__eq__", lambda x, y: True)
+
+    symbol_table = SymbolTable()
+    symbol = DataSymbol("tmp", REAL_TYPE)
+    symbol_table.add(symbol)
+    assignment = Assignment.create(Reference(symbol),
+                                   Literal("0.0", REAL_TYPE))
+    assignment2 = Assignment.create(Reference(symbol),
+                                    Literal("0.0", REAL_TYPE))
+
+    ksched1 = Routine.create("mod_name", symbol_table, [assignment],
+                             is_program=True, return_symbol_name=symbol.name)
+    ksched2 = Routine.create("mod_name", symbol_table.deep_copy(),
+                             [assignment2], is_program=True)
+    # In this case we still need to associate to the same symbol table because
+    # the return symbol must point to the exact same instance.
+    ksched2._symbol_table = symbol_table
+    ksched2.return_symbol = symbol
+    assert ksched1 == ksched2
+
+    # Test non-equality if different names.
+    assignment2.detach()
+    ksched3 = Routine.create("mod_name", symbol_table.deep_copy(),
+                             [assignment2], is_program=True,
+                             return_symbol_name=symbol.name)
+    # Workaround for the routine name
+    ksched3.name = "mod_name2"
+
+    assert ksched1 != ksched3
+
+    # Reset the name so we can create more routines
+    ksched3.name = "mod_name"
+
+    # Test non-equality if different is_program status
+    assignment2.detach()
+    ksched4 = Routine.create("mod_name", symbol_table.deep_copy(),
+                             [assignment2], is_program=False,
+                             return_symbol_name=symbol.name)
+    assert ksched1 != ksched4
+
+    # Test non-equality if different return symbols
+    assignment2.detach()
+    ksched5 = Routine.create("mod_name", symbol_table.deep_copy(),
+                             [assignment2], is_program=True,
+                             return_symbol_name=None)
+    assert ksched1 != ksched5
+
+
+def test_routine_copy():
+    '''Test that the copy method correctly creates an equivalent Routine
+    instance. '''
+    # Create a function
+    symbol_table = SymbolTable()
+    routine = Routine.create("my_func", symbol_table, [])
+    symbol = DataSymbol("my_result", REAL_TYPE)
+    routine.symbol_table.add(symbol)
+    routine.return_symbol = symbol
+
+    # After a copy the symbol tables are separate and the return symbol
+    # references a internal copy of the symbol
+    routine2 = routine.copy()
+    assert routine2.symbol_table is not routine.symbol_table
+    assert routine2.symbol_table.node is routine2
+    assert routine2.return_symbol in routine2.symbol_table.symbols
+    assert routine2.return_symbol not in routine.symbol_table.symbols

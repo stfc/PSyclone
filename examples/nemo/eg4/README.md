@@ -1,39 +1,6 @@
-.. -----------------------------------------------------------------------------
-.. BSD 3-Clause License
-..
-.. Copyright (c) 2019-2021, Science and Technology Facilities Council.
-.. All rights reserved.
-..
-.. Redistribution and use in source and binary forms, with or without
-.. modification, are permitted provided that the following conditions are met:
-..
-.. * Redistributions of source code must retain the above copyright notice, this
-..   list of conditions and the following disclaimer.
-..
-.. * Redistributions in binary form must reproduce the above copyright notice,
-..   this list of conditions and the following disclaimer in the documentation
-..   and/or other materials provided with the distribution.
-..
-.. * Neither the name of the copyright holder nor the names of its
-..   contributors may be used to endorse or promote products derived from
-..   this software without specific prior written permission.
-..
-.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-.. POSSIBILITY OF SUCH DAMAGE.
-.. -----------------------------------------------------------------------------
-.. Written by: R. W. Ford, STFC Daresbury Lab
-
 # PSyclone NEMO Example 4 - SIR
+
+**Author:** R. W. Ford, STFC Daresbury Lab
 
 The SIR and its Dawn back-end include three simple (Python Interface)
 examples. In this directory these three examples are provided in
@@ -66,18 +33,25 @@ intrinsics to equivalent PSyIR code before translating to SIR (as SIR
 does not support intrinsics).
 
 A third additional example (`tra_adv_compute.F90`) is the
-computational part of the tracer advection benchmark and this shows
-how much of the code can currently be translated (with the parts that
-can't be translated being modified or commented out).
+computational part of the tracer advection benchmark.
 
 To test the `copy_stencil.f90`, `hori_diff.f90`,
-`tridiagonal_solve.f90` and `if_example.f90` examples run:
+`tridiagonal_solve.f90`, `if_example.f90` and `intrinsic_example.f90`
+examples run:
 
 ```sh
 > psyclone -s ./sir_trans.py -api nemo <filename> -opsy /dev/null
 ```
 
-To test the `intrinsic_example.f90` and `tra_adv_compute.F90` examples run:
+To test the `tra_adv_compute.F90` example run:
+
+```sh
+> psyclone -s ./sir_trans_loop.py -api nemo tra_adv_compute.F90 -opsy /dev/null
+```
+
+The above examples will keep any intrinsics in the generated SIR
+output. To remove these intrinsics in the `intrinsic_example.f90` and
+`tra_adv_compute.F90` examples you can run:
 
 ```sh
 > psyclone -s ./sir_trans_all.py -api nemo <filename> -opsy /dev/null
@@ -128,27 +102,42 @@ To build Dawn with Python support:
    offset and loop ordering for the vertical.
 2. There are no checks that the loops conform to the NEMO lat.lon.levs
    convention.
-3. The only unary operator currently supported is '-'.
-4. Loops must be triply nested.
+3. Loops must be triply nested.
 
-**********************
+## Licence
 
-Installing Dawn ...
+-----------------------------------------------------------------------------
 
-sudo apt install git cmake g++ libeckit-dev llvm clang \
-llvm-dev libclang-dev libclang-cpp10-dev \
-python3-dev libboost-dev
-# sudo apt install nvidia-cuda-toolkit
+BSD 3-Clause License
 
-git clone https://github.com/MeteoSwiss-APN/dawn.git
-cd dawn
-mkdir build
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
-cd build
-make -j4
-sudo pip install dawn
-export PATH=/home/rupert/.local/bin:$PATH
-export PSYCLONE_CONFIG=/home/rupert/proj/PSyclone/config/psyclone.cfg
-cd ~/proj/PSyclone/examples/nemo/eg4
-psyclone -api nemo -s ./sir_trans_all.py tra_adv... -oalg /dev/null -opsy /dev/null > tra_adv.py
-python3 tra_adv.py > tra_adv.cu
+Copyright (c) 2019-2022, Science and Technology Facilities Council.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+* Neither the name of the copyright holder nor the names of its
+  contributors may be used to endorse or promote products derived from
+  this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+-----------------------------------------------------------------------------

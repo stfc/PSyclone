@@ -45,7 +45,8 @@ from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import ArrayReference, Assignment, BinaryOperation, \
     CodeBlock, IfBlock, Literal, Node, Reference, Return, Schedule, \
-    UnaryOperation
+    UnaryOperation, Loop, OMPTaskloopDirective, OMPMasterDirective, \
+    OMPParallelDirective
 from psyclone.psyir.symbols import ArgumentInterface, ArrayType, \
     BOOLEAN_TYPE, CHARACTER_TYPE, DataSymbol, INTEGER_TYPE, REAL_TYPE
 
@@ -90,8 +91,8 @@ def test_cw_gen_declaration():
     symbol._datatype = "invalid"
     with pytest.raises(NotImplementedError) as error:
         _ = cwriter.gen_declaration(symbol)
-    assert "Could not generate the C definition for the variable 'dummy2', " \
-        "type 'invalid' is currently not supported." in str(error.value)
+    assert "Could not generate C definition for variable 'dummy2', " \
+        "type 'invalid' is not yet supported." in str(error.value)
 
 
 def test_cw_gen_local_variable(monkeypatch):
@@ -201,15 +202,15 @@ def test_cw_ifblock():
     cwriter = CWriter()
     with pytest.raises(VisitorError) as err:
         _ = cwriter(ifblock)
-    assert("IfBlock malformed or incomplete. It should have "
-           "at least 2 children, but found 0." in str(err.value))
+    assert ("IfBlock malformed or incomplete. It should have "
+            "at least 2 children, but found 0." in str(err.value))
 
     # Add the if condition
     ifblock.addchild(Reference(DataSymbol('a', REAL_TYPE)))
     with pytest.raises(VisitorError) as err:
         _ = cwriter(ifblock)
-    assert("IfBlock malformed or incomplete. It should have "
-           "at least 2 children, but found 1." in str(err.value))
+    assert ("IfBlock malformed or incomplete. It should have "
+            "at least 2 children, but found 1." in str(err.value))
 
     # Fill the if_body
     ifblock.addchild(Schedule(parent=ifblock))
@@ -275,8 +276,8 @@ def test_cw_unaryoperator():
     unary_operation = UnaryOperation(UnaryOperation.Operator.MINUS)
     with pytest.raises(VisitorError) as err:
         _ = cwriter(unary_operation)
-    assert("UnaryOperation malformed or incomplete. It should have "
-           "exactly 1 child, but found 0." in str(err.value))
+    assert ("UnaryOperation malformed or incomplete. It should have "
+            "exactly 1 child, but found 0." in str(err.value))
 
     # Add child
     ref1 = Literal("a", CHARACTER_TYPE, unary_operation)
@@ -302,7 +303,7 @@ def test_cw_unaryoperator():
         assert cwriter(unary_operation) in expected
 
     # Test that an unsupported operator raises an error
-    class Unsupported(object):
+    class Unsupported():
         ''' Mock Unsupported object '''
 
     unary_operation._operator = Unsupported
@@ -323,8 +324,8 @@ def test_cw_binaryoperator():
     binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
     with pytest.raises(VisitorError) as err:
         _ = cwriter(binary_operation)
-    assert("BinaryOperation malformed or incomplete. It should have "
-           "exactly 2 children, but found 0." in str(err.value))
+    assert ("BinaryOperation malformed or incomplete. It should have "
+            "exactly 2 children, but found 0." in str(err.value))
 
     # Test with children
     ref1 = Reference(DataSymbol("a", REAL_TYPE))
@@ -355,7 +356,7 @@ def test_cw_binaryoperator():
         assert cwriter(binary_operation) == expected
 
     # Test that an unsupported operator raises a error
-    class Unsupported(object):
+    class Unsupported():
         '''Dummy class'''
         def __init__(self):
             pass
@@ -495,3 +496,44 @@ def test_cw_arraystructureref(fortran_reader):
         _ = cwriter._visit(array_ref)
     assert "An ArrayOfStructuresReference must have a Member as its first " \
            "child but found 'Literal'" in str(err.value)
+
+
+def test_cw_directive_with_clause(fortran_reader):
+    '''Test that a PSyIR directive with clauses is translated to
+    the required C code.
+
+    '''
+    cwriter = CWriter()
+    # Generate PSyIR from Fortran code.
+    code = (
+        "program test\n"
+        "  integer, parameter :: n=20\n"
+        "  integer :: i\n"
+        "  real :: a(n)\n"
+        "  do i=1,n\n"
+        "    a(i) = 0.0\n"
+        "  end do\n"
+        "end program test")
+    container = fortran_reader.psyir_from_source(code)
+    schedule = container.children[0]
+    loops = schedule.walk(Loop)
+    loop = loops[0].detach()
+    directive = OMPTaskloopDirective(children=[loop], num_tasks=32,
+                                     nogroup=True)
+    master = OMPMasterDirective(children=[directive])
+    parallel = OMPParallelDirective.create(children=[master])
+    schedule.addchild(parallel, 0)
+    assert '''#pragma omp parallel default(shared), private(i)
+{
+  #pragma omp master
+  {
+    #pragma omp taskloop num_tasks(32), nogroup
+    {
+      for(i=1; i<=n; i+=1)
+      {
+        a[i] = 0.0;
+      }
+    }
+  }
+}
+''' in cwriter(schedule.children[0])

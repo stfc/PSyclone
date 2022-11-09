@@ -111,9 +111,9 @@ various ways in which PSyclone can be used.)
    ```
 
 2. Use the supplied Makefile to run PSyclone and generate the transformed
-   code (just type `make`). If you examine the generated Fortran in `psy.f90`
-   you should see that ACC Kernels Directive nodes have been added to the
-   Schedule, e.g.:
+   code (just type `make tra_adv.exe`). If you examine the generated Fortran
+   in `psy_openacc.f90` you should see that ACC Kernels Directive nodes have
+   been added to the Schedule, e.g.:
    ```fortran
     DO jt = 1, it
       !$ACC KERNELS

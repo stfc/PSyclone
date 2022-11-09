@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2018, Science and Technology Facilities Council
+! Copyright (c) 2017-2022, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 ! -----------------------------------------------------------------------------
 ! Author A. R. Porter, STFC Daresbury Lab
 ! Modified I. Kavcic Met Office
+! Modified R. W. Ford. STFC Daresbury Lab.
 
 program enforce_bc_kernel_example
 
@@ -40,8 +41,9 @@ program enforce_bc_kernel_example
   ! as boundary layer information is not currently described
   ! in the API. Therefore, for the moment, users can add this kernel
   ! when they want to enforce boundary conditions
-
+  use field_mod, only : field_type
   use enforce_bc_kernel_mod, only : enforce_bc_kernel_type
+  type(field_type) :: a
 
   call invoke(enforce_bc_kernel_type(a))
 

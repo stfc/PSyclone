@@ -265,30 +265,6 @@ def test_transform():
     assert isinstance(ArrayRange2LoopTrans(), Transformation)
 
 
-def test_string_compare():
-    '''Check that the string_compare utility function in
-    ArrayRange2LoopTrans works as expected.
-
-    '''
-    with pytest.raises(TypeError) as info:
-        ArrayRange2LoopTrans.string_compare(None, None)
-    assert (
-        "The first argument to the string_compare method should be a Node "
-        "but found 'NoneType'." in str(info.value))
-
-    with pytest.raises(TypeError) as info:
-        ArrayRange2LoopTrans.string_compare(Node(), None)
-    assert (
-        "The second argument to the string_compare method should be a Node "
-        "but found 'NoneType'." in str(info.value))
-
-    node1 = Literal("1.0", REAL_TYPE)
-    node2 = BinaryOperation.create(BinaryOperation.Operator.MUL, node1, node1)
-    node3 = BinaryOperation.create(BinaryOperation.Operator.MAX, node2, node2)
-    assert ArrayRange2LoopTrans.string_compare(node3, node3) is True
-    assert ArrayRange2LoopTrans.string_compare(node3, node2) is False
-
-
 def test_same_range():
     '''Test that the same_range utility function behaves in the expected
     way.
@@ -349,7 +325,7 @@ def test_same_range():
     array_x_2 = create_array_x(SymbolTable())
     assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is True
 
-    # steps are different (calls string_compare)
+    # steps are different
     tmp = array_x_2.children[0].step
     array_x_2.children[0].step = Literal("2", INTEGER_TYPE)
     assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
@@ -363,7 +339,7 @@ def test_same_range():
     array_x_2.children[0].stop = Literal("2", INTEGER_TYPE)
     assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
 
-    # neither use upper bound and are different (calls string_compare)
+    # neither use upper bound and are different
     tmp2 = array_x.children[0].stop
     array_x.children[0].stop = Literal("1", INTEGER_TYPE)
     assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
@@ -377,7 +353,7 @@ def test_same_range():
     array_x_2.children[0].start = Literal("1", INTEGER_TYPE)
     assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
 
-    # neither use lower bound and are different (calls string_compare)
+    # neither use lower bound and are different
     array_x.children[0].start = Literal("2", INTEGER_TYPE)
     assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
 
@@ -494,9 +470,9 @@ def test_apply_calls_validate():
     trans = ArrayRange2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.apply(None)
-    assert("Error in ArrayRange2LoopTrans transformation. The supplied node "
-           "argument should be a PSyIR Assignment, but found 'NoneType'."
-           in str(info.value))
+    assert ("Error in ArrayRange2LoopTrans transformation. The supplied node "
+            "argument should be a PSyIR Assignment, but found 'NoneType'."
+            in str(info.value))
 
 
 def test_str():

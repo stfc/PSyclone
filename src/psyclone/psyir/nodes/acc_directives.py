@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic,    Met Office
 #         C.M. Maynard, Met Office / University of Reading
 #         J. Henrichs, Bureau of Meteorology
@@ -44,19 +44,18 @@ nodes.'''
 from __future__ import absolute_import
 import abc
 import six
+from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.codeblock import CodeBlock
-from psyclone.psyir.nodes.directive import StandaloneDirective, \
-    RegionDirective
-from psyclone.psyir.nodes.routine import Routine
+from psyclone.psyir.nodes.directive import StandaloneDirective, RegionDirective
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.symbols import DataSymbol, ScalarType
-from psyclone.core import AccessType, VariablesAccessInfo
 
 
 @six.add_metaclass(abc.ABCMeta)
 class ACCDirective():
+    # pylint: disable=too-few-public-methods
     '''
     Base mixin class for all OpenACC directive statements.
 
@@ -84,21 +83,71 @@ class ACCRegionDirective(ACCDirective, RegionDirective):
             regions are not supported.
 
         '''
-        super(ACCRegionDirective, self).validate_global_constraints()
+        # We need to make sure to call the right constructor here:
+        # pylint: disable=bad-super-call
+        super(RegionDirective, self).validate_global_constraints()
 
         data_nodes = self.walk((PSyDataNode, CodeBlock))
         if data_nodes:
             raise GenerationError(
-                "Cannot include CodeBlocks or calls to PSyData routines within"
-                " OpenACC regions but found {0} within a region enclosed "
-                "by an '{1}'".format(
-                    [type(node).__name__ for node in data_nodes],
-                    type(self).__name__))
+                f"Cannot include CodeBlocks or calls to PSyData routines "
+                f"within OpenACC regions but found "
+                f"{[type(node).__name__ for node in data_nodes]} within a "
+                f"region enclosed by an '{type(self).__name__}'")
+
+    @property
+    def kernel_references(self):
+        '''
+        Returns a set of the references (whether to arrays or objects)
+        required by the Kernel call(s) that are children of this directive.
+        This is the set of quantities that must be available on the remote
+        device (probably a GPU) before the parallel region can be begun.
+
+        :returns: set of variable names
+        :rtype: Set[str]
+        '''
+        variables = set()
+
+        # Look-up the kernels that are children of this node
+        for call in self.kernels():
+            for arg in call.arguments.acc_args:
+                variables.add(arg)
+        return variables
 
 
 @six.add_metaclass(abc.ABCMeta)
 class ACCStandaloneDirective(ACCDirective, StandaloneDirective):
     ''' Base class for all standalone OpenACC directive statements. '''
+
+
+class ACCRoutineDirective(ACCStandaloneDirective):
+    ''' Class representing a "!$ACC routine" OpenACC directive in PSyIR. '''
+
+    def gen_code(self, parent):
+        '''Generate the fortran ACC Routine Directive and any associated
+        code.
+
+        :param parent: the parent Node in the Schedule to which to add our \
+                       content.
+        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
+        '''
+        # Check the constraints are correct
+        self.validate_global_constraints()
+
+        # Generate the code for this Directive
+        parent.add(DirectiveGen(parent, "acc", "begin", "routine", ""))
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "acc routine". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the opening statement of this directive.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        return "acc routine"
 
 
 class ACCEnterDataDirective(ACCStandaloneDirective):
@@ -110,19 +159,18 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
 
     :param children: list of nodes which this directive should \
                      have as children.
-    :type children: list of :py:class:`psyclone.psyir.nodes.Node`.
+    :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
     :param parent: the node in the InvokeSchedule to which to add this \
                    directive as a child.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
     '''
     def __init__(self, children=None, parent=None):
-        super(ACCEnterDataDirective, self).__init__(children=children,
-                                                    parent=parent)
+        super().__init__(children=children, parent=parent)
         self._acc_dirs = None  # List of parallel directives
 
-        # The _variables_to_copy are computed dynamically until the
+        # The _sig_list are computed dynamically until the
         # _node_lowered flag is set to True, after that re-use the stored ones.
-        self._variables_to_copy = []
+        self._sig_list = set()
         self._node_lowered = False
 
     def gen_code(self, parent):
@@ -135,40 +183,18 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         :raises GenerationError: if no data is found to copy in.
 
         '''
-        from psyclone.psyGen import InvokeSchedule
         self.validate_global_constraints()
+        self.lower_to_language_level()
+        # Leverage begin_string() to raise an exception if there are no
+        # variables to copyin but discard the generated string since it is
+        # incompatible with class DirectiveGen() we are using below.
+        self.begin_string()
 
-        # We must generate a list of all of the fields accessed by
-        # OpenACC kernels (calls within an OpenACC parallel or kernels
-        # directive)
-        # 1. Find all parallel and kernels directives. We store this list for
-        #    later use in any sub-class.
-        self._acc_dirs = self.ancestor(InvokeSchedule).walk(
-                (ACCParallelDirective, ACCKernelsDirective))
-        # 2. For each directive, loop over each of the fields used by
-        #    the kernels it contains (this list is given by ref_list)
-        #    and add it to our list if we don't already have it
-        var_list = []
-        # TODO grid properties are effectively duplicated in this list (but
-        # the OpenACC deep-copy support should spot this).
-        for pdir in self._acc_dirs:
-            for var in pdir.ref_list:
-                if var not in var_list:
-                    var_list.append(var)
-        # 3. Convert this list of objects into a comma-delimited string
-        var_str = ",".join(var_list)
-        # 4. Add the enter data directive.
-        if var_str:
-            copy_in_str = "copyin("+var_str+")"
-        else:
-            # There should be at least one variable to copyin.
-            raise GenerationError(
-                "ACCEnterData directive did not find any data to copyin. "
-                "Perhaps there are no ACCParallel or ACCKernels directives "
-                "within the region.")
+        # Add the enter data directive.
+        copy_in_str = "copyin(" + ",".join(sorted(self._sig_list)) + ")"
         parent.add(DirectiveGen(parent, "acc", "begin", "enter data",
                                 copy_in_str))
-        # 5. Call an API-specific subclass of this class in case
+        # Call an API-specific subclass of this class in case
         # additional declarations are required.
         self.data_on_device(parent)
         parent.add(CommentGen(parent, ""))
@@ -179,28 +205,25 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         PSyIR constructs.
 
         '''
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import InvokeSchedule
+
         if not self._node_lowered:
-            # We must generate a list of all of the fields accessed by
-            # OpenACC kernels (calls within an OpenACC parallel or kernels
-            # directive)
+            # We must generate a list of all of the fields accessed by OpenACC
+            # kernels (calls within an OpenACC parallel or kernels directive)
             # 1. Find all parallel and kernels directives. We store this list
             # for later use in any sub-class.
             self._acc_dirs = self.ancestor(InvokeSchedule).walk(
                     (ACCParallelDirective, ACCKernelsDirective))
-            # 2. For each directive, loop over each of the fields used by
-            #    the kernels it contains (this list is given by ref_list)
-            #    and add it to our list if we don't already have it
-            self._variables_to_copy = []
-            # TODO grid properties are effectively duplicated in this list (but
-            # the OpenACC deep-copy support should spot this).
+            # 2. For each directive, add the fields used by the kernels it
+            # contains (as given by kernel_references) and add it to our set.
+            # TODO GOcean grid properties are duplicated in this set under
+            # different names (the OpenACC deep copy support should spot this).
             for pdir in self._acc_dirs:
-                for var in pdir.ref_list:
-                    if var not in self._variables_to_copy:
-                        self._variables_to_copy.append(var)
+                self._sig_list.update(pdir.kernel_references)
             self._node_lowered = True
 
-        super(ACCEnterDataDirective, self).lower_to_language_level()
+        super().lower_to_language_level()
 
     def begin_string(self):
         '''Returns the beginning statement of this directive. The visitor is
@@ -210,18 +233,16 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         :rtype: str
 
         '''
-        # The enter data clauses are given by the _variables_to_copy list
-        var_str = ",".join(self._variables_to_copy)
-        if var_str:
-            copy_in_str = "copyin("+var_str+")"
-        else:
+        if not self._sig_list:
             # There should be at least one variable to copyin.
             raise GenerationError(
                 "ACCEnterData directive did not find any data to copyin. "
                 "Perhaps there are no ACCParallel or ACCKernels directives "
-                "within the region.")
+                "within the region?")
 
-        return "acc enter data " + copy_in_str
+        # Variables need lexicographic sorting since sets guarantee no ordering
+        # and members of composite variables must appear later in deep copies.
+        return f"acc enter data copyin({','.join(sorted(self._sig_list))})"
 
     def data_on_device(self, parent):
         '''
@@ -243,39 +264,6 @@ class ACCParallelDirective(ACCRegionDirective):
     a DataDirective.
 
     '''
-    def validate_global_constraints(self):
-        '''
-        Check that the PSyIR tree containing this node is valid. Since we
-        use 'default(present)', this node must either be the child of an
-        ACCDataDirective or the parent Schedule must contain an
-        ACCEnterDataDirective before this one.
-
-        :raises GenerationError: if this ACCParallel node is not preceded by \
-            an ACCEnterDataDirective and is not the child of an \
-            ACCDataDirective.
-
-        '''
-        # We can't use Node.ancestor() because the enter data directive does
-        # not have children. Instead, we go back up to the Schedule and
-        # walk down from there.
-        routine = self.ancestor(Routine)
-        nodes = routine.walk(ACCEnterDataDirective)
-        # Check that any enter-data directive comes before this parallel
-        # directive
-        if nodes and nodes[0].abs_position > self.abs_position:
-            raise GenerationError(
-                "An ACC parallel region must be preceded by an ACC enter-"
-                "data directive but in '{0}' this is not the case.".
-                format(routine.name))
-
-        if not nodes and not self.ancestor(ACCDataDirective):
-            raise GenerationError(
-                "An ACC parallel region must either be preceded by an ACC "
-                "enter data directive or enclosed within an ACC data region "
-                "but in '{0}' this is not the case.".format(routine.name))
-
-        super(ACCParallelDirective, self).validate_global_constraints()
-
     def gen_code(self, parent):
         '''
         Generate the elements of the f2pygen AST for this Node in the Schedule.
@@ -294,12 +282,13 @@ class ACCParallelDirective(ACCRegionDirective):
 
         parent.add(DirectiveGen(parent, *self.end_string().split()))
 
+        self.gen_post_region_code(parent)
+
     def begin_string(self):
         '''
         Returns the beginning statement of this directive, i.e.
-        "acc parallel" plus any qualifiers. The backend is responsible
-        for adding the correct characters to mark this as a directive (e.g.
-        "!$").
+        "acc parallel" plus any qualifiers. The backend is responsible for
+        adding the correct characters to mark this as a directive (e.g. "!$").
 
         :returns: the opening statement of this directive.
         :rtype: str
@@ -321,34 +310,13 @@ class ACCParallelDirective(ACCRegionDirective):
         return "acc end parallel"
 
     @property
-    def ref_list(self):
-        '''
-        Returns a list of the references (whether to arrays or objects)
-        required by the Kernel call(s) that are children of this
-        directive. This is the list of quantities that must be
-        available on the remote device (probably a GPU) before
-        the parallel region can be begun.
-
-        :returns: list of variable names
-        :rtype: list of str
-        '''
-        variables = []
-
-        # Look-up the kernels that are children of this node
-        for call in self.kernels():
-            for arg in call.arguments.acc_args:
-                if arg not in variables:
-                    variables.append(arg)
-        return variables
-
-    @property
     def fields(self):
         '''
         Returns a list of the names of field objects required by the Kernel
         call(s) that are children of this directive.
 
         :returns: list of names of field arguments.
-        :rtype: list of str
+        :rtype: List[str]
         '''
         # Look-up the kernels that are children of this node
         fld_list = []
@@ -363,22 +331,95 @@ class ACCLoopDirective(ACCRegionDirective):
     '''
     Class managing the creation of a '!$acc loop' OpenACC directive.
 
-    :param children: list of nodes that will be children of this directive.
-    :type children: list of :py:class:`psyclone.psyir.nodes.Node`.
-    :param parent: the node in the Schedule to which to add this directive.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`.
     :param int collapse: Number of nested loops to collapse into a single \
                          iteration space or None.
     :param bool independent: Whether or not to add the `independent` clause \
                              to the loop directive.
+    :param bool sequential: whether or not to add the `seq` clause to the \
+                            loop directive.
+    :param kwargs: additional keyword arguments provided to the super class.
+    :type kwargs: unwrapped dict.
     '''
-    def __init__(self, children=None, parent=None, collapse=None,
-                 independent=True, sequential=False):
-        self._collapse = collapse
+    def __init__(self, collapse=None, independent=True, sequential=False,
+                 **kwargs):
+        self.collapse = collapse
         self._independent = independent
         self._sequential = sequential
-        super(ACCLoopDirective, self).__init__(children=children,
-                                               parent=parent)
+        super().__init__(**kwargs)
+
+    def __eq__(self, other):
+        '''
+        Checks whether two nodes are equal. Two ACCLoopDirective nodes are
+        equal if their collapse, independent and sequential members are equal.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super().__eq__(other)
+        is_eq = is_eq and self.collapse == other.collapse
+        is_eq = is_eq and self.independent == other.independent
+        is_eq = is_eq and self.sequential == other.sequential
+
+        return is_eq
+
+    @property
+    def collapse(self):
+        ''' Returns the number of nested loops to collapse into a single
+        iteration space for this node.
+
+        :returns: the number of nested loops to collapse into a single \
+                  iteration space for this node.
+        :rtype: int or None
+        '''
+        return self._collapse
+
+    @collapse.setter
+    def collapse(self, value):
+        '''
+        :param value: optional number of nested loop to collapse into a \
+            single iteration space to parallelise. Defaults to None.
+        :type value: Optional[int]
+
+        :raises TypeError: if the collapse value given is not an integer \
+            or NoneType.
+        :raises ValueError: if the collapse integer given is not positive.
+
+        '''
+        if value is not None and not isinstance(value, int):
+            raise TypeError(
+                f"The ACCLoopDirective collapse clause must be a positive "
+                f"integer or None, but value '{value}' has been given.")
+
+        if value is not None and value <= 0:
+            raise ValueError(
+                f"The ACCLoopDirective collapse clause must be a positive "
+                f"integer or None, but value '{value}' has been given.")
+
+        self._collapse = value
+
+    @property
+    def independent(self):
+        ''' Returns whether the independent clause will be added to this
+        loop directive.
+
+        :returns: whether the independent clause will be added to this loop \
+                  directive.
+        :rtype: bool
+        '''
+        return self._independent
+
+    @property
+    def sequential(self):
+        '''
+        Returns whether or not to add the `seq` clause to the loop directive.
+
+        :returns: whether or not the `seq` clause is added to this loop \
+                  directive.
+        :rtype: bool
+        '''
+        return self._sequential
 
     def node_str(self, colour=True):
         '''
@@ -391,10 +432,9 @@ class ACCLoopDirective(ACCRegionDirective):
         :rtype: str
         '''
         text = self.coloured_name(colour)
-        text += "[sequential={0},".format(self._sequential)
-        text += "collapse={0},".format(self._collapse)
-        text += "independent={0}".format(self._independent)
-        text += "]"
+        text += f"[sequential={self._sequential},"
+        text += f"collapse={self._collapse},"
+        text += f"independent={self._independent}]"
         return text
 
     def validate_global_constraints(self):
@@ -415,7 +455,7 @@ class ACCLoopDirective(ACCRegionDirective):
                 "ACCLoopDirective must have an ACCParallelDirective or "
                 "ACCKernelsDirective as an ancestor in the Schedule")
 
-        super(ACCLoopDirective, self).validate_global_constraints()
+        super().validate_global_constraints()
 
     def gen_code(self, parent):
         '''
@@ -461,7 +501,7 @@ class ACCLoopDirective(ACCRegionDirective):
             if self._independent:
                 clauses.append("independent")
             if self._collapse:
-                clauses.append("collapse({0})".format(self._collapse))
+                clauses.append(f"collapse({self._collapse})")
         return " ".join(clauses)
 
     def end_string(self):
@@ -483,8 +523,7 @@ class ACCKernelsDirective(ACCRegionDirective):
 
     :param children: the PSyIR nodes to be enclosed in the Kernels region \
                      and which are therefore children of this node.
-    :type children: list of sub-classes of \
-                    :py:class:`psyclone.psyir.nodes.Node`
+    :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
     :param parent: the parent of this node in the PSyIR.
     :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
     :param bool default_present: whether or not to add the "default(present)" \
@@ -494,9 +533,34 @@ class ACCKernelsDirective(ACCRegionDirective):
 
     '''
     def __init__(self, children=None, parent=None, default_present=True):
-        super(ACCKernelsDirective, self).__init__(children=children,
-                                                  parent=parent)
+        super().__init__(children=children, parent=parent)
         self._default_present = default_present
+
+    def __eq__(self, other):
+        '''
+        Checks whether two nodes are equal. Two ACCKernelsDirective nodes are
+        equal if their default_present members are equal.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super().__eq__(other)
+        is_eq = is_eq and self.default_present == other.default_present
+
+        return is_eq
+
+    @property
+    def default_present(self):
+        ''' Returns whether the "default(present)" clause is added to the
+        kernels directive.
+
+        :returns: whether the "default(present)" clause is added to the \
+                  kernels directive.
+        :rtype: bool
+        '''
+        return self._default_present
 
     def gen_code(self, parent):
         '''
@@ -516,28 +580,10 @@ class ACCKernelsDirective(ACCRegionDirective):
                                 *self.begin_string().split()[1:]))
         for child in self.children:
             child.gen_code(parent)
+
         parent.add(DirectiveGen(parent, *self.end_string().split()))
 
-    @property
-    def ref_list(self):
-        '''
-        Returns a list of the references (whether to arrays or objects)
-        required by the Kernel call(s) that are children of this
-        directive. This is the list of quantities that must be
-        available on the remote device (probably a GPU) before
-        the parallel region can be begun.
-
-        :returns: list of variable names
-        :rtype: list of str
-        '''
-        variables = []
-
-        # Look-up the kernels that are children of this node
-        for call in self.kernels():
-            for arg in call.arguments.acc_args:
-                if arg not in variables:
-                    variables.append(arg)
-        return variables
+        self.gen_post_region_code(parent)
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
@@ -603,13 +649,13 @@ class ACCDataDirective(ACCRegionDirective):
 
             :param signatures: the list of Signatures for which to create \
                 entries in the list.
-            :type signatures: list of :py:class:`psyclone.core.Signature`
+            :type signatures: List[:py:class:`psyclone.core.Signature`]
             :param var_accesses: object holding details on all variable \
                 accesses in the region to which the data-access clause applies.
             :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
 
             :returns: list of variable accesses.
-            :rtype: list of str
+            :rtype: List[str]
 
             '''
             access_list = []
@@ -671,14 +717,14 @@ class ACCDataDirective(ACCRegionDirective):
         writers_list = sorted(list(writers - readwrites))
         readwrites_list = sorted(list(readwrites))
         if readers_list:
-            result += " copyin({0})".format(
-                ",".join(_create_access_list(readers_list, var_accesses)))
+            result += f""" copyin({",".join(
+                _create_access_list(readers_list, var_accesses))})"""
         if writers_list:
-            result += " copyout({0})".format(
-                ",".join(_create_access_list(writers_list, var_accesses)))
+            result += f""" copyout({",".join(
+                _create_access_list(writers_list, var_accesses))})"""
         if readwrites_list:
-            result += " copy({0})".format(",".join(
-                _create_access_list(readwrites_list, var_accesses)))
+            result += f""" copy({",".join(
+                _create_access_list(readwrites_list, var_accesses))})"""
 
         return result
 
@@ -694,52 +740,85 @@ class ACCDataDirective(ACCRegionDirective):
 
 class ACCUpdateDirective(ACCStandaloneDirective):
     ''' Class representing the !$ACC UPDATE directive of OpenACC in the PSyIR.
-    It includes a direction attribute that can be set to 'host' or 'device' and
-    the symbol that is being updated.
+    It includes a direction attribute that can be set to 'self', 'host' or
+    'device' and the symbol that is being updated.
 
     :param symbol: the symbol to synchronise with the accelerator.
-    :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`.
+    :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
     :param str direction: the direction of the synchronisation.
-    :param children: list of nodes which this directive should \
-                     have as children.
-    :type children: list of :py:class:`psyclone.psyir.nodes.Node`.
+    :param children: list of nodes which the directive should have as children.
+    :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
     :param parent: the node in the InvokeSchedule to which to add this \
                    directive as a child.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
 
     :raises ValueError: if the direction argument is not a string with \
-                            value 'host' or 'device'.
+                        value 'self', 'host' or 'device'.
     :raises TypeError: if the symbol is not a DataSymbol.
 
     '''
 
-    _VALID_DIRECTIONS = ("host", "device")
+    _VALID_DIRECTIONS = ("self", "host", "device")
 
     def __init__(self, symbol, direction, children=None, parent=None):
-        super(ACCUpdateDirective, self).__init__(children=children,
-                                                 parent=parent)
+        super().__init__(children=children, parent=parent)
         if not isinstance(direction, six.string_types) or direction not in \
                 self._VALID_DIRECTIONS:
             raise ValueError(
-                "The ACCUpdateDirective direction argument must be a string "
-                "with any of the values in '{0}' but found '{1}'.".format(
-                    self._VALID_DIRECTIONS, direction))
+                f"The ACCUpdateDirective direction argument must be a string "
+                f"with any of the values in '{self._VALID_DIRECTIONS}' "
+                f"but found '{direction}'.")
 
         if not isinstance(symbol, DataSymbol):
             raise TypeError(
-                "The ACCUpdateDirective symbol argument must be a 'DataSymbol"
-                "' but found '{0}'.".format(type(symbol).__name__))
+                f"The ACCUpdateDirective symbol argument must be a 'DataSymbol"
+                f"' but found '{type(symbol).__name__}'.")
 
         self._direction = direction
         self._symbol = symbol
 
+    def __eq__(self, other):
+        '''
+        Checks whether two nodes are equal. Two ACCUpdateDirective nodes are
+        equal if their direction and symbol members are equal.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super().__eq__(other)
+        is_eq = is_eq and self.direction == other.direction
+        is_eq = is_eq and self.symbol == other.symbol
+
+        return is_eq
+
+    @property
+    def direction(self):
+        '''
+        Returns the direction of the synchronisation.
+
+        :returns: the direction of the synchronisation.
+        :rtype: str
+        '''
+        return self._direction
+
+    @property
+    def symbol(self):
+        '''
+        Returns the symbol to synchronise with the accelerator.
+
+        :returns: the symbol to synchronise with the accelerator.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        '''
+        return self._symbol
+
     def begin_string(self):
         '''
         Returns the beginning statement of this directive, i.e.
-        "acc update host(symbol)". The backend is responsible
-        for adding the correct characters to mark this as a directive (e.g.
-        "!$").
+        "acc update host(symbol)". The backend is responsible for adding the
+        correct characters to mark this as a directive (e.g. "!$").
 
         :returns: the opening statement of this directive.
         :rtype: str
@@ -752,4 +831,4 @@ class ACCUpdateDirective(ACCStandaloneDirective):
 __all__ = ["ACCRegionDirective", "ACCEnterDataDirective",
            "ACCParallelDirective", "ACCLoopDirective", "ACCKernelsDirective",
            "ACCDataDirective", "ACCUpdateDirective", "ACCStandaloneDirective",
-           "ACCDirective"]
+           "ACCDirective", "ACCRoutineDirective"]

@@ -1,18 +1,19 @@
-# PSyclone Stub Generation
+# PSyclone Kernel Stub Generation
 
-PSyclone provides a utility to generate a Kernel's argument list and
-its datatypes from the Kernel metadata. This is useful for people
+PSyclone provides a utility, `psyclone-kern`, that is able to
+take Kernel metadata and generate an appropriate Fortran subroutine
+with the correct arguments and datatypes. This is useful for people
 developing new Kernels or modifying existing ones to make sure their
 implementation has the correct number and type of arguments.
 
-This directory gives an example of the use of the Kernel stub
-generator. This particular example defines a Kernel with four fields,
-3 of which have a stencil access.
+This directory gives an example of the use of `psyclone-kern` for
+Kernel stub generation. This particular example defines a Kernel with
+four fields, 3 of which have a stencil access.
 
 To run this example type:
 
 ```sh
-genkernelstub testkern_stencil_multi_mod.f90
+psyclone-kern -gen stub ./testkern_stencil_multi_mod.f90
 ```
 
 More Kernel examples can be found in the following directory, most of
@@ -23,5 +24,5 @@ which start wth the name `testkern`:
 For example:
 
 ```sh
-genkernelstub ../../src/psyclone/tests/test_files/dynamo0p3/testkern_qr.F90
+psyclone-kern -gen stub ../../src/psyclone/tests/test_files/dynamo0p3/testkern_qr.F90
 ```

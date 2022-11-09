@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -69,7 +69,6 @@ from psyclone.parse.utils import check_api, check_line_length, ParseError, \
 # Section 1: parse the algorithm file
 
 
-# pylint: disable=too-many-arguments
 def parse(alg_filename, api="", invoke_name="invoke", kernel_paths=None,
           line_length=False):
     '''Takes a PSyclone conformant algorithm file as input and outputs a
@@ -114,7 +113,7 @@ def parse(alg_filename, api="", invoke_name="invoke", kernel_paths=None,
 
 
 # pylint: disable=too-many-instance-attributes
-class Parser(object):
+class Parser():
     '''Supports the parsing of PSyclone conformant algorithm code within a
     file and extraction of relevant information for any 'invoke' calls
     contained within the code.
@@ -252,7 +251,7 @@ class Parser(object):
         # Dict holding a 2-tuple consisting of type and precision
         # information for each variable declared in the algorithm
         # file, indexed by variable name.
-        self._arg_type_defns = dict()
+        self._arg_type_defns = {}
         invoke_calls = []
 
         # Find all invoke calls and capture information about
@@ -662,15 +661,15 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
     # pylint: disable=too-many-branches
     if not isinstance(parse_tree, (Part_Ref, Structure_Constructor)):
         raise InternalError(
-            "algorithm.py:get_kernel: Expected a parse tree (type Part_Ref "
-            "or Structure_Constructor) but found instance of '{0}'."
-            "".format(type(parse_tree)))
+            f"algorithm.py:get_kernel: Expected a parse tree (type Part_Ref "
+            f"or Structure_Constructor) but found instance of "
+            f"'{type(parse_tree)}'.")
 
     if len(parse_tree.items) != 2:
         raise InternalError(
-            "algorithm.py:get_kernel: Expected Part_Ref or "
-            "Structure_Constructor to have 2 children "
-            "but found {0}.".format(len(parse_tree.items)))
+            f"algorithm.py:get_kernel: Expected Part_Ref or "
+            f"Structure_Constructor to have 2 children "
+            f"but found {len(parse_tree.items)}.")
 
     kernel_name = str(parse_tree.items[0])
 
@@ -687,7 +686,15 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
     for argument in argument_list:
         if isinstance(argument, (Real_Literal_Constant, Int_Literal_Constant)):
             # A simple constant e.g. 1.0, or 1_i_def
-            arguments.append(Arg('literal', argument.tostr().lower()))
+            precision = argument.children[1]
+            if precision:
+                precision = str(precision)
+            if isinstance(argument, Real_Literal_Constant):
+                datatype = ("real", precision)
+            else:
+                datatype = ("integer", precision)
+            arguments.append(Arg('literal', argument.tostr().lower(),
+                                 datatype=datatype))
         elif isinstance(argument, Name):
             # A simple variable e.g. arg
             full_text = str(argument).lower()
@@ -726,46 +733,82 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
                     # Data_Ref otherwise always has a Name on the rhs
                     # (3rd argument).
                     raise InternalError(
-                        "The third argument to to a Proc_Component_Ref is "
-                        "expected to be a Name, but found '{0}'."
-                        "".format(type(argument.children[2]).__name__))
+                        f"The third argument to to a Proc_Component_Ref is "
+                        f"expected to be a Name, but found "
+                        f"'{type(argument.children[2]).__name__}'.")
             elif isinstance(argument, Data_Ref):
                 rhs_node = argument.children[-1]
                 if isinstance(rhs_node, Part_Ref):
                     rhs_node = rhs_node.children[0]
                 if not isinstance(rhs_node, Name):
                     raise InternalError(
-                        "The last child of a Data_Ref is expected to be "
-                        "a Name or a Part_Ref whose first child is a "
-                        "Name, but found '{0}'."
-                        "".format(type(rhs_node).__name__))
+                        f"The last child of a Data_Ref is expected to be "
+                        f"a Name or a Part_Ref whose first child is a "
+                        f"Name, but found '{type(rhs_node).__name__}'.")
                 arg = rhs_node.string.lower()
             datatype = arg_type_defns.get(arg)
             full_text = argument.tostr().lower()
             var_name = create_var_name(argument).lower()
-            arguments.append(Arg('variable', full_text,
-                                 varname=var_name, datatype=datatype))
+            collection_type = None
+            if not datatype and isinstance(argument, Data_Ref):
+                # This could be a collection of some sort.
+                # Find the name of the parent type.
+                collection = argument.children[-2]
+                if isinstance(collection, Part_Ref):
+                    collection = collection.children[0]
+                if isinstance(collection, Name):
+                    collection_type = arg_type_defns.get(
+                        collection.tostr().lower())
+            if collection_type:
+                arguments.append(
+                    Arg('collection', full_text,
+                        varname=var_name, datatype=collection_type))
+            else:
+                arguments.append(Arg('variable', full_text,
+                                     varname=var_name, datatype=datatype))
         elif isinstance(argument, (Level_2_Unary_Expr, Add_Operand,
                                    Parenthesis)):
             # An expression e.g. -1, 1*n, ((1*n)/m). Note, for some
             # reason Add_Operation represents binary expressions in
             # fparser2.  Walk the tree to look for an argument.
-            if not walk(argument, Name):
-                # This is a literal so store the full expression as a
-                # string
-                arguments.append(Arg('literal', argument.tostr().lower()))
-            else:
+            if walk(argument, Name):
                 raise NotImplementedError(
-                    "algorithm.py:get_kernel: Expressions containing "
-                    "variables are not yet supported '{0}', value '{1}', "
-                    "kernel '{2}' in file '{3}'.".format(
-                        type(argument), str(argument), parse_tree,
-                        alg_filename))
+                    f"algorithm.py:get_kernel: Expressions containing "
+                    f"variables are not yet supported '{type(argument)}', "
+                    f"value '{str(argument)}', kernel '{parse_tree}' in "
+                    f"file '{alg_filename}'.")
+            # This is a literal so store the full expression as a
+            # string.
+            candidate_datatype = None
+            for literal in walk(
+                # Determine datatype and precision.
+                    argument, (Real_Literal_Constant,
+                               Int_Literal_Constant)):
+                precision = literal.children[1]
+                if precision:
+                    precision = str(precision)
+                if isinstance(literal, Real_Literal_Constant):
+                    datatype = ("real", precision)
+                else:  # it's an Int_Literal_Constant
+                    datatype = ("integer", precision)
+
+                if not candidate_datatype:
+                    # This is the first candidate
+                    candidate_datatype = datatype
+                elif candidate_datatype != datatype:
+                    raise NotImplementedError(
+                        f"Found two non-matching literals within an "
+                        f"expression ('{str(argument)}') passed into an "
+                        f"invoke from the algorithm layer. '{datatype}' and "
+                        f"'{candidate_datatype}' do not match. This is not "
+                        f"supported in PSyclone.")
+            arguments.append(Arg('literal', argument.tostr().lower(),
+                                 datatype=datatype))
         else:
             raise InternalError(
-                "algorithm.py:get_kernel: Unsupported argument structure "
-                "'{0}', value '{1}', kernel '{2}' in file '{3}'.".format(
-                    type(argument), str(argument), parse_tree, alg_filename))
+                f"algorithm.py:get_kernel: Unsupported argument structure "
+                f"'{type(argument)}', value '{str(argument)}', kernel "
+                f"'{parse_tree}' in file '{alg_filename}'.")
 
     return kernel_name, arguments
 
@@ -818,7 +861,7 @@ def create_var_name(arg_parse_tree):
 # Section 3: Classes holding algorithm information.
 
 
-class FileInfo(object):
+class FileInfo():
     '''Captures information about the algorithm file and the invoke calls
     found within the contents of the file.
 
@@ -852,7 +895,7 @@ class FileInfo(object):
         return self._calls
 
 
-class InvokeCall(object):
+class InvokeCall():
     '''Keeps information about an individual invoke call.
 
     :param kcalls: Information about the kernels specified in the \
@@ -900,7 +943,7 @@ class InvokeCall(object):
         return self._kcalls
 
 
-class ParsedCall(object):
+class ParsedCall():
     '''Base class for information about a user-supplied or built-in
     kernel.
 
@@ -1042,7 +1085,7 @@ class BuiltInCall(ParsedCall):
         return "BuiltInCall('{0}', {1})".format(self.ktype.name, self.args)
 
 
-class Arg(object):
+class Arg():
     '''Description of an argument as obtained from parsing kernel or
     builtin arguments within invokes in a PSyclone algorithm code.
 
@@ -1063,7 +1106,7 @@ class Arg(object):
     supported types as specified in the local form_options list.
 
     '''
-    form_options = ["literal", "variable", "indexed_variable"]
+    form_options = ["literal", "variable", "indexed_variable", "collection"]
 
     def __init__(self, form, text, varname=None, datatype=None):
         self._form = form
@@ -1071,16 +1114,16 @@ class Arg(object):
         self._varname = varname
         if form not in Arg.form_options:
             raise InternalError(
-                "algorithm.py:Alg:__init__: Unknown arg type provided. "
-                "Expected one of {0} but found "
-                "'{1}'.".format(str(Arg.form_options), form))
+                f"algorithm.py:Alg:__init__: Unknown arg type provided. "
+                f"Expected one of {str(Arg.form_options)} but found "
+                f"'{form}'.")
         # A tuple containing information about the datatype and
         # precision of this argument, or None if there is none.
         self._datatype = datatype
 
     def __str__(self):
-        return "Arg(form='{0}',text='{1}',varname='{2}')". \
-            format(self._form, self._text, str(self._varname))
+        return (f"Arg(form='{self._form}',text='{self._text}',"
+                f"varname='{self._varname}')")
 
     @property
     def form(self):

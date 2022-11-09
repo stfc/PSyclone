@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,19 +31,17 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# Author: A. R. Porter and N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the ArrayOfStructuresReference
 node. '''
 
-from __future__ import absolute_import
-
 # Circular import if only '...nodes' is used:
-from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir import symbols
-from psyclone.psyir.nodes.array_of_structures_mixin import \
-    ArrayOfStructuresMixin
+from psyclone.psyir.nodes.array_of_structures_mixin import (
+    ArrayOfStructuresMixin)
+from psyclone.psyir.nodes.structure_reference import StructureReference
 
 
 class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
@@ -98,9 +96,8 @@ class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
         '''
         if not isinstance(symbol, symbols.DataSymbol):
             raise TypeError(
-                "The 'symbol' argument to ArrayOfStructuresReference.create() "
-                "should be a DataSymbol but found '{0}'.".format(
-                    type(symbol).__name__))
+                f"The 'symbol' argument to ArrayOfStructuresReference.create()"
+                f" must be a DataSymbol but found '{type(symbol).__name__}'.")
         if isinstance(symbol.datatype, symbols.ArrayType):
             base_type = symbol.datatype.intrinsic
         elif isinstance(symbol.datatype, (symbols.DeferredType,
@@ -108,15 +105,15 @@ class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
             base_type = symbol.datatype
         else:
             raise TypeError(
-                "An ArrayOfStructuresReference must refer to a symbol of "
-                "ArrayType, DeferredType or UnknownType but symbol '{0}' has "
-                "type '{1}".format(symbol.name, symbol.datatype))
+                f"An ArrayOfStructuresReference must refer to a symbol of "
+                f"ArrayType, DeferredType or UnknownType but symbol "
+                f"'{symbol.name}' has type '{symbol.datatype}")
         if not isinstance(indices, list) or not indices:
             raise TypeError(
-                "The 'indices' argument to "
-                "ArrayOfStructuresReference.create() must be a list "
-                "containing at least one array-index expression but this is "
-                "missing for symbol '{0}'".format(symbol.name))
+                f"The 'indices' argument to "
+                f"ArrayOfStructuresReference.create() must be a list "
+                f"containing at least one array-index expression but this is "
+                f"missing for symbol '{symbol.name}'")
 
         # First use the StructureReference _create class method to create a
         # reference to the base structure of the array.

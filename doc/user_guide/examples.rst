@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2021, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2022, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -56,7 +56,7 @@ what each example does and how to run each example please see the
 Alternatively, some of the examples have associated Jupyter notebooks
 that may be launched with Binder on `MyBinder <https://mybinder.org/>`_.
 This is most easily done by following the links from the top-level
-`README <https://github.com/stfc/PSyclone#try-it-on-binder>`_.
+`README <https://github.com/stfc/PSyclone#user-content-try-it-on-binder>`_.
 
 For the purposes of correctness checking, the whole suite of examples
 may be executed using Gnu ``make`` (this functionality is used by GitHub
@@ -174,9 +174,9 @@ NetCDF
 ~~~~~~
 
 Some examples require NetCDF for compilation. Installation of NetCDF
-is described in details in
+is described in detail in
 `the hands-on practicals documentation
-<https://github.com/stfc/PSyclone/tree/master/tutorial/practicals#netcdf-library-lfric-examples>`_.
+<https://github.com/stfc/PSyclone/tree/master/tutorial/practicals#user-content-netcdf-library-lfric-examples>`_.
 
 GOcean
 ------
@@ -243,23 +243,21 @@ Example 5.1: Kernel data extraction
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 This example shows the use of kernel data extraction in PSyclone.
 It instruments each of the two invokes in the example program
-with the PSyData-based kernel extraction code.
-It uses the dl_esm_inf-specific extraction library ``netcdf``
-(``lib/extract/netcdf/dl_esm_inf``), and needs NetCDF to be
-available (including ``nf-config`` to detect installation-specific
-paths). You need to compile the NetCDF extraction library
-(see :ref:`psyke_netcdf`).
-The ``Makefile`` in this example will link with the compiled NetCDF
-extraction library and NetCDF. You can execute the created
-binary and it will create two output NetCDF files, one for
-each of the two invokes.
+with the PSyData-based kernel extraction code. Detailed compilation
+instructions are in the ``README.md`` file, including how to switch
+from using the stand-alone extraction library to the NetCDF-based one
+(see :ref:`extraction_libraries` for details).
 
-It will also create two stand-alone driver programs (one for
-each invoke), that will read the corresponding NetCDF file,
-and then executes the original code.
+The ``Makefile`` in this example will create the binary that extracts
+the data at run time, as well as two driver programs that can read in
+the extracted data, call the kernel, and compare the results. These
+driver programs are independent of the dl_esm_inf infrastructure library.
+These drivers can only read the corresponding file format, i.e. a NetCDF
+driver program cannot read in extraction data that is based on Fortran IO
+and vice versa.
 
-.. note:: At this stage the driver program will not compile
-    (see issue #644).
+.. note:: At this stage the driver program still needs the infrastructure
+     library when compiling the kernels, see #1757.
 
 Example 5.2: Profiling
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -481,35 +479,34 @@ better job when optimising the code.
 Example 14: OpenACC
 ^^^^^^^^^^^^^^^^^^^
 
-Example of adding OpenACC directives in the dynamo0.3 API. This is a
-work in progress so the generated code may not work as
-expected. However it is never-the-less useful as a starting
-point. Three scripts are provided.
+Example of adding OpenACC directives in the dynamo0.3 API.
+A single transformation script (``acc_parallel_dm.py``) is provided
+which demonstrates how to add OpenACC Loop, Parallel and Enter Data
+directives to the PSy-layer. It supports distributed memory being
+switched on by placing an OpenACC Parallel directive around each
+OpenACC Loop directive, rather than having one for the whole invoke.
+This approach avoids having halo exchanges within an OpenACC Parallel
+region. The script also uses :ref:`ACCRoutineTrans <available_kernel_trans>`
+to transform the one user-supplied kernel through
+the addition of an ``!$acc routine`` directive. This ensures that the
+compiler builds a version suitable for execution on the accelerator (GPU).
 
-The first script (``acc_kernels.py``) shows how to add OpenACC Kernels
-directives to the PSy-layer. This example only works with distributed
-memory switched off as the OpenACC Kernels transformation does not yet
-support halo exchanges within an OpenACC Kernels region.
+The generated code has two problems:
 
-The second script (``acc_parallel.py``)shows how to add OpenACC Loop,
-Parallel and Enter Data directives to the PSy-layer. Again this
-example only works with distributed memory switched off as the OpenACC
-Parallel transformation does not support halo exchanges within an
-OpenACC Parallel region.
+ 1. There are no checks on whether loops are safe to parallelise or not,
+    it is just assumed they are - i.e. support for colouring or locking
+    is not yet implemented.
+ 2. Although the user-supplied kernel is transformed so as to have the
+    necessary ``!$acc routine`` directive, the associated (but unnecessary)
+    ``use`` statement in the transformed Algorithym layer still uses the
+    name of the original, untransformed kernel (issue #1724).
 
-The third script (``acc_parallel_dm.py``) is the same as the second
-except that it does support distributed memory being switched on by
-placing an OpenACC Parallel directive around each OpenACC Loop
-directive, rather than having one for the whole invoke. This approach
-avoids having halo exchanges within an OpenACC Parallel region.
-
-The generated code has a number of problems including 1) it does not
-modify the kernels to include the OpenACC Routine directive, 2) a
-loop's upper bound is computed via a derived type (this should be
-computed beforehand) 3) set_dirty and set_clean calls are placed
-within an OpenACC Parallel directive and 4) there are no checks on
-whether loops are parallel or not, it is just assumed they are -
-i.e. support for colouring or locking is not yet implemented.
+Since no colouring is required in this case, the generated Alg layer
+may be fixed by hand (by simply deleting the offending ``use`` statement)
+and the resulting code compiled and run on GPU. However, performance will
+be very poor as, with the limited optimisations and directives currently
+applied, the NVIDIA compiler refuses to run the user-supplied kernel in
+parallel.
 
 Example 15: CPU Optimisation of Matvec
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -569,7 +566,7 @@ to the previous example, but uses NetCDF to read the initial grid
 from the NetCDF file ``mesh_BiP128x16-400x100.nc``.
 Installation of NetCDF is described in
 `the hands-on practicals documentation
-<https://github.com/stfc/PSyclone/tree/master/tutorial/practicals#netcdf-library-lfric-examples>`_.
+<https://github.com/stfc/PSyclone/tree/master/tutorial/practicals#user-content-netcdf-library-lfric-examples>`_.
 The code can be compiled with ``make compile``, and
 the binary executed with either ``make run`` or ``./example``.
 
@@ -580,7 +577,7 @@ The example in the subdirectory ``full_example_extract`` shows the
 use of :ref:`kernel extraction <psyke>`. It requires the
 installation of a NetCDF development environment (see
 `here
-<https://github.com/stfc/PSyclone/tree/master/tutorial/practicals#netcdf-library-lfric-examples>`_
+<https://github.com/stfc/PSyclone/tree/master/tutorial/practicals#user-content-netcdf-library-lfric-examples>`_
 for installing NetCDF).
 The code can be compiled with ``make compile``, and
 the binary executed with either ``make run`` or ``./extract``
@@ -595,19 +592,42 @@ kernel call. For example:
     ./extract
     ncdump ./main-update.nc | less
 
-Example 18: Incrementing a Continuous Field After Reading It
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Example 18: Special Accesses of Continuous Fields - Incrementing After Reading and Writing Before (Potentially) Reading
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Example of a ``GH_READINC`` access. A kernel with ``GH_READINC``
-access first reads the field data and then increments the field
-data. This contrasts with a ``GH_INC`` access which simply increments
-the field data. As an increment is effectively a read followed by
-a write, it may not be clear why we need to distinguish between these
-cases. The reason for distinguishing is that the ``GH_INC`` access is
-able to remove a halo exchange, or at least reduce its depth by one,
-in certain circumstances, whereas a ``GH_READINC`` is not able to take
-advantage of this optimisation.
+Example containing one kernel with a ``GH_READINC`` access and one
+with a ``GH_WRITE`` access, both for continuous fields. A kernel with
+``GH_READINC`` access first reads the field data and then increments
+the field data. This contrasts with a ``GH_INC`` access which simply
+increments the field data. As an increment is effectively a read
+followed by a write, it may not be clear why we need to distinguish
+between these cases. The reason for distinguishing is that the
+``GH_INC`` access is able to remove a halo exchange (or at least
+reduce its depth by one) in certain circumstances, whereas a
+``GH_READINC`` is not able to take advantage of this optimisation.
 
+A kernel with a ``GH_WRITE`` access for a continuous field must guarantee to
+write the same value to a given shared DoF, independent of which cell
+is being updated. As :ref:`described <dev_guide:iterators_continuous>`
+in the Developer Guide, this means that annexed DoFs are computed
+correctly without the need to iterate into the L1 halo and thus can
+remove the need for halo exchanges on those fields that are read.
+
+.. _lfric_alg_gen_example:
+
+Example 20: Algorithm Generation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Illustration of the use of the ``psyclone-kern`` tool to create an
+algorithm layer for a kernel. A makefile is provide that also
+runs ``psyclone`` to create an executable program from the generated
+algorithm layer and original kernel code. To see the generated
+algorithm layer run:
+
+.. code-block:: bash
+
+    cd eg20/
+    psyclone-kern -gen alg ../code/testkern_mod.F90
 
 NEMO
 ----
@@ -641,7 +661,8 @@ Demonstrates that simple Fortran code examples which conform to the
 NEMO API can be transformed to the Stencil Intermediate Representation
 (SIR). The SIR is the front-end language to DAWN
 (https://github.com/MeteoSwiss-APN/dawn), a tool which generates
-optimised cuda, or gridtools code. Thus these simple Fortran examples
+optimised cuda, or gridtools code. Thus various simple Fortran
+examples and the computational part of the tracer-advection benchmark
 can be transformed to optimised cuda and/or gridtools code by using
 PSyclone and then DAWN.
 

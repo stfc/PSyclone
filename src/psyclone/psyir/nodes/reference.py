@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,14 +34,14 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the Reference node.'''
 
-from __future__ import absolute_import
-from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.nodes.operation import Operation, BinaryOperation
 from psyclone.core import AccessType, Signature
+# We cannot import from 'nodes' directly due to circular import
+from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols import Symbol
 
 
@@ -51,8 +51,8 @@ class Reference(DataNode):
 
     :param symbol: the symbol being referenced.
     :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
-    :param parent: the parent node of this Reference in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node` or NoneType
+    :param kwargs: additional keyword arguments provided to the super class.
+    :type kwargs: unwrapped dict.
 
     '''
     # Textual description of the node.
@@ -60,9 +60,36 @@ class Reference(DataNode):
     _text_name = "Reference"
     _colour = "yellow"
 
-    def __init__(self, symbol, parent=None):
-        super(Reference, self).__init__(parent=parent)
+    def __init__(self, symbol, **kwargs):
+        super().__init__(**kwargs)
         self.symbol = symbol
+
+    def __eq__(self, other):
+        '''
+        Checks equivalence of two References. References are considered
+        equivalent if they are the same type of Reference and their symbol
+        name is the same.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super().__eq__(other)
+        # TODO #1698. Is reference equality enough comparing the symbols by
+        # name? (Currently it is needed because symbol equality is not fully
+        # implemented)
+        is_eq = is_eq and (self.symbol.name == other.symbol.name)
+        return is_eq
+
+    @property
+    def is_array(self):
+        ''':returns: if this reference is an array.
+        :rtype: bool
+
+        '''
+        # pylint: disable=no-self-use
+        return False
 
     @property
     def symbol(self):
@@ -85,8 +112,8 @@ class Reference(DataNode):
         '''
         if not isinstance(symbol, Symbol):
             raise TypeError(
-                "The Reference symbol setter expects a PSyIR Symbol object "
-                "but found '{0}'.".format(type(symbol).__name__))
+                f"The Reference symbol setter expects a PSyIR Symbol object "
+                f"but found '{type(symbol).__name__}'.")
         self._symbol = symbol
 
     @property
@@ -108,21 +135,10 @@ class Reference(DataNode):
         :return: text description of this node.
         :rtype: str
         '''
-        return self.coloured_name(colour) + "[name:'" + self.name + "']"
+        return f"{self.coloured_name(colour)}[name:'{self.name}']"
 
     def __str__(self):
         return self.node_str(False)
-
-    def math_equal(self, other):
-        ''':param other: the node to compare self with.
-        :type other: py:class:`psyclone.psyir.nodes.Node`
-
-        :returns: True if the self has the same results as other.
-        :rtype: bool
-        '''
-        if not super(Reference, self).math_equal(other):
-            return False
-        return self.name == other.name
 
     def get_signature_and_indices(self):
         ''':returns: the Signature of this reference, and \
@@ -145,20 +161,19 @@ class Reference(DataNode):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        if (self.parent and isinstance(self.parent, Operation) and
-                self.parent.operator in [BinaryOperation.Operator.LBOUND,
-                                         BinaryOperation.Operator.UBOUND] and
-                self.parent.children.index(self) == 0):
-            # This reference is the first argument to a lbound or
-            # ubound intrinsic. These intrinsics do not access the
-            # array elements, they determine the array
-            # bounds. Therefore there is no data dependence.
-            return
         sig, all_indices = self.get_signature_and_indices()
         for indices in all_indices:
             for index in indices:
                 index.reference_accesses(var_accesses)
         var_accesses.add_access(sig, AccessType.READ, self, all_indices)
+
+    @property
+    def datatype(self):
+        '''
+        :returns: the datatype of this reference.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+        '''
+        return self.symbol.datatype
 
 
 # For AutoAPI documentation generation

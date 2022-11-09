@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,15 +37,13 @@
 ''' This module contains pytest tests for LFRic kernels which operate on
     the 'domain'. '''
 
-from __future__ import absolute_import
 import os
 import pytest
 from fparser import api as fpapi
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
-from psyclone.configuration import Config
 from psyclone.dynamo0p3 import DynKernMetadata
+from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
+from psyclone.psyGen import PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
 
 BASE_PATH = os.path.join(
@@ -53,14 +51,6 @@ BASE_PATH = os.path.join(
         os.path.abspath(__file__)))),
     "test_files", "dynamo0p3")
 TEST_API = "dynamo0.3"
-
-
-@pytest.fixture(scope="module", autouse=True)
-def setup():
-    '''Make sure that all tests here use dynamo0.3 as API.'''
-    Config.get().api = TEST_API
-    yield()
-    Config._instance = None
 
 
 def test_domain_kernel():
@@ -366,6 +356,7 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
                 "      call testkern_domain_code(nlayers, ncell_2d_no_halos, "
                 "b, f1_proxy%data, ndf_w3, undf_w3, map_w3)\n")
     if dist_mem:
+        assert "loop1_stop = mesh%get_last_halo_cell(1)\n" in gen_code
         expected += ("      !\n"
                      "      ! set halos dirty/clean for fields modified in "
                      "the above kernel\n"
@@ -385,10 +376,10 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
                      "      end if\n"
                      "      !\n"
                      "      call f1_proxy%halo_exchange(depth=1)\n"
-                     "      !\n"
-                     "      do cell=1,mesh%get_last_halo_cell(1)\n")
+                     "      !\n")
     else:
-        expected += "      do cell=1,f2_proxy%vspace%get_ncell()\n"
+        assert "loop1_stop = f2_proxy%vspace%get_ncell()\n" in gen_code
+    expected += "      do cell=loop1_start,loop1_stop\n"
     assert expected in gen_code
 
     expected = (

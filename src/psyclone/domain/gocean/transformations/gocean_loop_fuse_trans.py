@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@
 
 from psyclone.psyir.transformations import LoopFuseTrans, TransformationError
 import psyclone.gocean1p0
-import psyclone.gocean0p1
 
 
 class GOceanLoopFuseTrans(LoopFuseTrans):
@@ -53,12 +52,12 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
     >>> ast, invokeInfo = parse("shallow_alg.f90")
     >>> psy = PSyFactory("gocean1.0").create(invokeInfo)
     >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> schedule.view()
+    >>> print(schedule.view())
     >>>
     >>> from psyclone.transformations import GOceanLoopFuseTrans
     >>> ftrans = GOceanLoopFuseTrans()
     >>> ftrans.apply(schedule[0], schedule[1])
-    >>> schedule.view()
+    >>> print(schedule.view())
 
     '''
     def __str__(self):
@@ -84,55 +83,20 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
         :raises TransformationError: if invalid parameters are passed in.
 
         '''
-
-        # Either both nodes are gocean1.0 loop nodes, or both
-        # nodes are gocean0.1 loop nodes, otherwise raise an exception:
-        if not ((isinstance(node1, psyclone.gocean0p1.GOLoop) and
-                 isinstance(node2, psyclone.gocean0p1.GOLoop)) or
-                (isinstance(node1, psyclone.gocean1p0.GOLoop) and
-                 isinstance(node2, psyclone.gocean1p0.GOLoop))):
-            raise TransformationError("Error in {0} transformation. "
-                                      "Both nodes must be of the same "
-                                      "GOLoop class.".format(self.name))
+        if not (isinstance(node1, psyclone.gocean1p0.GOLoop) and
+                isinstance(node2, psyclone.gocean1p0.GOLoop)):
+            raise TransformationError(f"Error in {self.name} transformation. "
+                                      f"Both nodes must be of the same "
+                                      f"GOLoop class.")
 
         super(GOceanLoopFuseTrans, self).validate(node1, node2,
                                                   options=options)
 
         if node1.field_space != node2.field_space:
             raise TransformationError(
-                "Error in {0} transformation. Cannot "
-                "fuse loops that are over different grid-point types: "
-                "{1} {2}".format(self.name, node1.field_space,
-                                 node2.field_space))
-
-    def apply(self, node1, node2, options=None):
-        ''' Fuses two `psyclone.gocean1p0.GOLoop` loops after performing
-        validity checks by calling :py:meth:`LoopFuseTrans.apply` method
-        of the base class.
-
-        :param node1: the first Node representing a GOLoop.
-        :type node1: :py:class:`psyclone.gocean1p0.GOLoop`
-        :param node2: the second Node representing a GOLoop.
-        :type node2: :py:class:`psyclone.gocean1p0.GOLoop`
-        :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
-
-        :raises TransformationError: if the supplied loops are over \
-                                     different grid-point types.
-        :raises TransformationError: if there is an unexpected exception.
-
-        '''
-        # Validate first
-        self.validate(node1, node2, options=options)
-
-        # Now check for GOcean-specific constraints before applying
-        # the transformation
-        try:
-            LoopFuseTrans.apply(self, node1, node2, options)
-        except Exception as err:
-            raise TransformationError(
-                "Error in {0} transformation. Unexpected exception: {1}".
-                format(self.name, err))
+                f"Error in {self.name} transformation. Cannot "
+                f"fuse loops that are over different grid-point types: "
+                f"{node1.field_space} and {node2.field_space}")
 
 
 # For automatic documentation generation

@@ -1,7 +1,7 @@
 !-------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2021, Science and Technology Facilities Council
+! Copyright (c) 2021-2022, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,29 +31,23 @@
 ! -----------------------------------------------------------------------------
 ! Author: R. W. Ford, STFC Daresbury Lab
 !
-! Mixed precision example where an operator, field and scalar with
+! Mixed precision example where a field and scalar with
 ! precision r_solver are passed to a kernel.
 
-program operator_example
+program r_solver_example
 
-  use constants_mod,                 only : i_def, r_solver
-  use fs_continuity_mod,             only : W0
-  use function_space_collection_mod, only : function_space_collection
-  use quadrature_xyoz_mod,           only : quadrature_xyoz_type
-  use testkern_operator_mod,         only : testkern_operator_type
-
+  use constants_mod,      only : r_solver
   use r_solver_field_mod, only : r_solver_field_type
-  use r_solver_operator_mod, only : r_solver_operator_type
-  use constants_mod, only : r_solver
+  use field_mod,          only : field_type
+  use testkern_mod,       only : testkern_type
   
   implicit none
 
-  type(r_solver_FIELD_type)           :: COORD(3)
-  type(r_solver_operator_TYPE)        :: MM_w0
-  type(Quadrature_xyoz_type), pointer :: qr => null
-  real(R_solver)                      :: a
+  type(r_solver_FIELD_type)   :: f1, f2
+  type(FIELD_type)            :: f3, f4
+  real(R_solver)              :: a
 
   a = 1.0_r_solver
-  call invoke(testkern_operator_type(mm_W0, coord, A, Qr))
+  call invoke(testkern_type(A, f1, f2, f3, f4))
 
-end program operator_example
+end program r_solver_example

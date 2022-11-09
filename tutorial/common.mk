@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -60,10 +60,10 @@ ifeq (,$(wildcard ${PSYCLONE_DIR}/config/psyclone.cfg))
   # Failed to find the configuration file so don't attempt to specify it.
   # Will be picked up from default locations or $PSYCLONE_CONFIG.
   PSYCLONE ?= psyclone
-  KERNEL_STUB_GEN ?= genkernelstub
+  KERNEL_STUB_GEN ?= "psyclone-kern -gen stub"
 else
   PSYCLONE ?= psyclone -l output --config ${PSYCLONE_DIR}/config/psyclone.cfg
-  KERNEL_STUB_GEN ?= PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg genkernelstub
+  KERNEL_STUB_GEN ?= "PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg psyclone-kern -gen stub"
 endif
 
 .PHONY: transform compile run clean allclean notebook ${NOTEBOOK_FILES}

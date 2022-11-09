@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,9 +43,9 @@ from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Routine, FileContainer, UnaryOperation, \
-    BinaryOperation, Literal
+    BinaryOperation, Literal, Assignment, CodeBlock
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, \
-    ScalarType, SymbolError, ContainerSymbol
+    ScalarType, SymbolError, ContainerSymbol, DeferredType
 
 
 # The 'contiguous' keyword is just valid with Fortran 2008
@@ -162,7 +162,37 @@ def test_fortran_psyir_from_expression_invalid(fortran_reader):
             str(err.value))
 
 
-def test_fortran_psyir_from_file(tmpdir_factory):
+def test_psyir_from_statement(fortran_reader):
+    ''' Check the correct operation of the psyir_from_statement() method. '''
+    table = SymbolTable()
+    table.new_symbol("a", symbol_type=DataSymbol, datatype=DeferredType())
+    table.new_symbol("b", symbol_type=DataSymbol, datatype=DeferredType())
+    psyir = fortran_reader.psyir_from_statement("a=b", table)
+    assert isinstance(psyir, Assignment)
+    psyir = fortran_reader.psyir_from_statement("allocate(a)", table.detach())
+    assert isinstance(psyir, CodeBlock)
+    assert psyir.structure == CodeBlock.Structure.STATEMENT
+
+
+def test_psyir_from_statement_invalid(fortran_reader):
+    ''' Test that the psyir_from_statement method raises the expected error
+    when given something that is not a statement. '''
+    with pytest.raises(TypeError) as err:
+        fortran_reader.psyir_from_statement("blah", None)
+    assert ("Must be supplied with a valid SymbolTable but got 'NoneType'"
+            in str(err.value))
+    table = SymbolTable()
+    with pytest.raises(ValueError) as err:
+        fortran_reader.psyir_from_statement("blah", table)
+    assert ("Supplied source does not represent a Fortran statement: 'blah'"
+            in str(err.value))
+    with pytest.raises(SymbolError) as err:
+        fortran_reader.psyir_from_statement("a=b", table)
+    assert ("Statement 'a=b' contains symbols which are not present in any "
+            "symbol table" in str(err.value))
+
+
+def test_fortran_psyir_from_file(fortran_reader, tmpdir_factory):
     ''' Test that the psyir_from_file method reads and parses to PSyIR
     the specified file. '''
     filename = str(tmpdir_factory.mktemp('frontend_test').join("testfile.f90"))
@@ -170,11 +200,18 @@ def test_fortran_psyir_from_file(tmpdir_factory):
         wfile.write(CODE)
 
     # Check with a proper file
-    fortran_reader = FortranReader()
     file_container = fortran_reader.psyir_from_file(filename)
     assert isinstance(file_container, FileContainer)
     subroutine = file_container.children[0]
     assert isinstance(subroutine, Routine)
+
+    # Check with an empty file
+    filename = str(tmpdir_factory.mktemp('frontend_test').join("empty.f90"))
+    with open(filename, "w") as wfile:
+        wfile.write("")
+    file_container = fortran_reader.psyir_from_file(filename)
+    assert isinstance(file_container, FileContainer)
+    assert file_container.name == "None"
 
     # Check with a file that doesn't exist
     filename = str(tmpdir_factory.mktemp('frontend_test').join("Idontexist"))

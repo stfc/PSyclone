@@ -42,8 +42,8 @@
         BOOLEAN_TYPE
     from psyclone.psyir.nodes import Reference
 
-PSyIR Types, Symbols and Data dependencies
-##########################################
+PSyIR Types and Symbols
+#######################
 
 DataTypes
 =========
@@ -68,6 +68,10 @@ symbol has not yet been resolved. Since ``UnknownType`` captures the
 original, unsupported symbol declaration, it is subclassed for each
 language for which a PSyIR frontend exists. Currently therefore this
 is limited to ``UnknownFortranType``.
+
+.. warning:: Checking for equality between Type objects is currently
+	     only implemented for ``ScalarType``. This will be
+	     completed in #1799.
 
 It was decided to include datatype intrinsic as an attribute of ScalarType
 rather than subclassing. So, for example, a 4-byte real scalar is

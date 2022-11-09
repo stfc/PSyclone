@@ -1,49 +1,7 @@
-# PSyclone PSyAD Example: creating an adjoint kernel and test harness.
-
-**Author:** A. R. Porter, STFC Daresbury Lab
-**Modified by:** R. W. Ford, STFC Daresbury Lab
-
-In order to use PSyclone you must first install it, ideally with pip.
-See `../../../README.md` for more details.
-
-This example demonstrates the use of PSyAD to create the adjoint of a
-simple kernel (contained in `testkern_mod.f90`).
-It also demonstrates the creation of a test harness for the adjoint kernel.
-
-PSyAD can be run in the directory containing this file by executing, e.g.
-
-```sh
-make
-```
-
-Alternatively, PSyAD may be run from the command line as:
-
-```sh
-psyad -t -otest test_harness.f90 -oad testkernadj_mod.f90 testkern_mod.f90
-```
-
-This will generate two new files, `testkernadj_mod.f90` and `test_harness.f90`.
-
-The Makefile also supports the `compile` target which will build
-the kernel, its adjoint and the test harness. The `run` target will execute
-the test harness giving output something like:
-
-```sh
-Running PSyAD-generated test harness...
- Test of adjoint of 'testkern_code' passed: diff =    0.0000000000000000
-...done.
-```
-
-Note, you may find that the test fails, but if so the diff should be
-relatively small.
-
-## Licence
-
------------------------------------------------------------------------------
-
+<!--
 BSD 3-Clause License
 
-Copyright (c) 2021, Science and Technology Facilities Council.
+Copyright (c) 2021-2022, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -73,4 +31,24 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
-------------------------------------------------------------------------------
+Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+-->
+
+# PSyAD Examples
+
+This directory contains various examples of the use of PSyAD to
+transform tangent linear code to its adjoint. See the READMEs in the
+individual example directories for further details.
+
+## Example 1
+
+Simple, generic tangent linear example which is translated to its
+adjoint form. A test harness is also generated which may be compiled
+and executed to validate the adjoint.
+
+## Example 2
+
+An LFRic example using the kernel that computes the tangent-linear of
+the hydrostatic balance term. A test harness for this kernel can also
+be generated. However, it must be incorporated into an LFRic mini-app
+in order to be compiled and executed.

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2021, Science and Technology Facilities Council
+! Copyright (c) 2017-2022, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,7 @@ program multikernel_invokes_7
 
   implicit none
 
-  type(field_type)           :: a, b, c, d, e(3), f, g
+  type(field_type)           :: a, b, c, d, e(3), f, g, h
   real(r_def)                :: ascalar, rdt
   integer(i_def)             :: istp
   type(quadrature_xyoz_type) :: qr
