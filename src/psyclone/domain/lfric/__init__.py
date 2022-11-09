@@ -52,6 +52,7 @@ from psyclone.domain.lfric.kern_call_invoke_arg_list import \
     KernCallInvokeArgList
 from psyclone.domain.lfric.kern_stub_arg_list import KernStubArgList
 from psyclone.domain.lfric.kernel_interface import KernelInterface
+from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:
@@ -65,4 +66,5 @@ __all__ = [
     'KernelInterface',
     'KernStubArgList',
     'LFRicArgDescriptor',
-    'LFRicConstants']
+    'LFRicConstants',
+    'LFRicSymbolTable']
