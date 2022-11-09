@@ -412,7 +412,7 @@ class DynKernMetadata(KernelType):
         # set to True if all the checks in _validate_inter_grid() pass.
         self._is_intergrid = False
 
-        # parse the arg_type metadata
+        # Parse the arg_type metadata
         self._arg_descriptors = []
         for idx, arg_type in enumerate(self._inits):
             self._arg_descriptors.append(
@@ -433,7 +433,7 @@ class DynKernMetadata(KernelType):
                     break
 
         self._func_descriptors = []
-        # populate a list of function descriptor objects which we
+        # Populate a list of function descriptor objects which we
         # return via the func_descriptors method.
         arg_fs_names = []
         for descriptor in self._arg_descriptors:
@@ -443,21 +443,21 @@ class DynKernMetadata(KernelType):
         for func_type in func_types:
             descriptor = DynFuncDescriptor03(func_type)
             fs_name = descriptor.function_space_name
-            # check that function space names in meta_funcs are specified in
+            # Check that function space names in meta_funcs are specified in
             # meta_args
             if fs_name not in arg_fs_names:
                 raise ParseError(
-                    "In the dynamo0.3 API all function spaces specified in "
-                    "meta_funcs must exist in meta_args, but '{0}' breaks "
-                    "this rule in ...\n'{1}'.".
-                    format(fs_name, self._ktype.content))
+                    f"In the LFRic API all function spaces specified in "
+                    f"meta_funcs must exist in 'meta_args', but "
+                    f"'{str(fs_name)}' breaks this rule in ...\n'"
+                    f"{str(self._ktype.content)}'.")
             if fs_name not in used_fs_names:
                 used_fs_names.append(fs_name)
             else:
                 raise ParseError(
-                    "In the dynamo0.3 API function spaces specified in "
-                    "meta_funcs must be unique, but '{0}' is replicated."
-                    .format(fs_name))
+                    f"In the LFRic API function spaces specified in "
+                    f"meta_funcs must be unique, but '{str(fs_name)}' "
+                    f"is replicated.")
 
             const = LFRicConstants()
             # Check that a valid shape has been specified if
@@ -467,23 +467,22 @@ class DynKernMetadata(KernelType):
                     need_evaluator = True
                     if not self._eval_shapes:
                         raise ParseError(
-                            "In the Dynamo0.3 API any kernel requiring "
-                            "quadrature or an evaluator ({0}) must also "
-                            "supply the shape of that evaluator by setting "
-                            "'gh_shape' in the kernel meta-data but "
-                            "this is missing for kernel '{1}'".
-                            format(const.VALID_EVALUATOR_NAMES,
-                                   self.name))
+                            f"In the LFRic API any kernel requiring "
+                            f"quadrature or an evaluator "
+                            f"({str(const.VALID_EVALUATOR_NAMES)}) must also "
+                            f"supply the shape of that evaluator by setting "
+                            f"'gh_shape' in the kernel meta-data but "
+                            f"this is missing for kernel '{str(self.name)}'.")
                     shape_set = set(self._eval_shapes)
                     if not shape_set.issubset(
                             set(const.VALID_EVALUATOR_SHAPES)):
                         raise ParseError(
-                            "In the Dynamo0.3 API a kernel requiring either "
-                            "quadrature or an evaluator must request one or "
-                            "more valid gh_shapes (one of {0}) but got '{1}' "
-                            "for kernel '{2}'".
-                            format(const.VALID_EVALUATOR_SHAPES,
-                                   self._eval_shapes, self.name))
+                            f"In the LFRic API a kernel requiring either "
+                            f"quadrature or an evaluator must request one or "
+                            f"more valid 'gh_shape's (one of "
+                            f"{str(const.VALID_EVALUATOR_SHAPES)}) but got "
+                            f"'{str(self._eval_shapes)}' for "
+                            f"kernel '{str(self.name)}'.")
 
             self._func_descriptors.append(descriptor)
 
@@ -517,7 +516,7 @@ class DynKernMetadata(KernelType):
 
     def _validate(self, need_evaluator):
         '''
-        Check that the meta-data conforms to Dynamo 0.3 rules for a
+        Check that the meta-data conforms to LFRic rules for a
         user-provided kernel or a built-in
 
         :param bool need_evaluator: whether this kernel requires an \
