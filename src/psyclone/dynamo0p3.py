@@ -448,7 +448,7 @@ class DynKernMetadata(KernelType):
             if fs_name not in arg_fs_names:
                 raise ParseError(
                     f"In the LFRic API all function spaces specified in "
-                    f"meta_funcs must exist in 'meta_args', but "
+                    f"'meta_funcs' must exist in 'meta_args', but "
                     f"'{str(fs_name)}' breaks this rule in ...\n'"
                     f"{str(self._ktype.content)}'.")
             if fs_name not in used_fs_names:

@@ -118,10 +118,11 @@ def test_ad_op_type_invalid_data_type():
     const = LFRicConstants()
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("In the LFRic API the 2nd argument of a 'meta_arg' entry should "
-            "be a valid data type (one of {0}), but found 'gh_clear' in "
-            "'arg_type(gh_operator, gh_clear, gh_read, w2)'.".
-            format(const.VALID_SCALAR_DATA_TYPES) in str(excinfo.value))
+    assert (f"In the LFRic API the 2nd argument of a 'meta_arg' entry "
+            f"should be a valid data type (one of "
+            f"{str(const.VALID_SCALAR_DATA_TYPES)}), but found 'gh_clear' "
+            f"in 'arg_type(gh_operator, gh_clear, gh_read, w2)'."
+            in str(excinfo.value))
 
 
 def test_ad_op_type_too_few_args():
@@ -135,9 +136,9 @@ def test_ad_op_type_too_few_args():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     const = LFRicConstants()
-    assert ("'meta_arg' entry must have 5 arguments if its first "
-            "argument is an operator (one of {0})".
-            format(const.VALID_OPERATOR_NAMES) in str(excinfo.value))
+    assert (f"'meta_arg' entry must have 5 arguments if its first "
+            f"argument is an operator (one of "
+            f"{str(const.VALID_OPERATOR_NAMES)})" in str(excinfo.value))
 
 
 def test_ad_op_type_too_many_args():
@@ -224,11 +225,11 @@ def test_ad_op_type_init_wrong_data_type():
         LFRicArgDescriptor(
             op_arg, metadata.iterates_over, 0)._init_operator(op_arg)
     const = LFRicConstants()
-    assert ("In the LFRic API the allowed data types for operator "
-            "arguments are one of {0}, but found 'gh_integer' in "
-            "'arg_type(gh_operator, gh_integer, gh_read, w2, w2)'.".
-            format(const.VALID_OPERATOR_DATA_TYPES) in
-            str(excinfo.value))
+    assert (f"In the LFRic API the allowed data types for operator "
+            f"arguments are one of {str(const.VALID_OPERATOR_DATA_TYPES)}, "
+            f"but found 'gh_integer' in "
+            f"'arg_type(gh_operator, gh_integer, gh_read, w2, w2)'."
+            in str(excinfo.value))
 
 
 def test_ad_op_type_wrong_access():
@@ -385,8 +386,8 @@ def test_fsdesc_fs_not_in_argdesc():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert 'function spaces specified in meta_funcs must exist in ' + \
-        'meta_args' in str(excinfo.value)
+    assert ("function spaces specified in 'meta_funcs' must exist in "
+            "'meta_args'" in str(excinfo.value))
 
 
 def test_invoke_uniq_declns_valid_access_op():
