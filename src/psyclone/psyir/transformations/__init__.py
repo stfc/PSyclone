@@ -134,6 +134,6 @@ __all__ = ['ArrayRange2LoopTrans',
            'FoldConditionalReturnExpressionsTrans',
            'HoistTrans',
            'OMPTaskwaitTrans',
-           'OwnerComputesTrans']
+           'OwnerComputesTrans',
            'ReplaceInductionVariablesTrans',
            'TransformationError']

@@ -74,6 +74,7 @@ class OwnerComputesTrans(Transformation):
             # restructure loop taking account of offset
             # restructure write accesses taking account of offset
             # same for read accesses.
+            pass
 
     def validate(self, node, options=None):
         '''Checks that the supplied node is a valid target for a hoist

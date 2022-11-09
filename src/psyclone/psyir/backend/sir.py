@@ -203,6 +203,8 @@ class SIRWriter(PSyIRVisitor):
                     else:
                         print ("Operator not supported {0}".format(type(expr.children[1])))
                         exit(1)
+                elif isinstance(expr, BinaryOperation) and expr.operator in [BinaryOperation.Operator.LBOUND, BinaryOperation.Operator.UBOUND]:
+                    return 0
                 else:
                     print ("bounds not supported", expr, name)
                     exit(1)
