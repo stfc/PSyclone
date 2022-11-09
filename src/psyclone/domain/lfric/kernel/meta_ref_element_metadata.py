@@ -58,6 +58,7 @@ class MetaRefElementMetadata(CommonDeclarationMetadata):
 
     '''
     def __init__(self, meta_ref_element_args):
+        super().__init__()
         self.meta_ref_element_args = meta_ref_element_args
 
     def fortran_string(self):

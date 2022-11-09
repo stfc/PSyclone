@@ -51,11 +51,12 @@ class EvaluatorTargetsMetadata(CommonDeclarationMetadata):
     this is specified using the gh_evaluator_targets
     metadata.
 
-    :param evaluator_targets: a list of evaluator_targets values
+    :param evaluator_targets: a list of function-space names.
     :type evaluator_targets: List[str]
 
     '''
     def __init__(self, evaluator_targets):
+        super().__init__()
         self.evaluator_targets = evaluator_targets
 
     def fortran_string(self):
@@ -79,7 +80,6 @@ class EvaluatorTargetsMetadata(CommonDeclarationMetadata):
 
         :param fparser2_tree: fparser2 tree capturing the evaluator \
             targets metadata.
-
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.\
             Data_Component_Def_Stmt`
 
@@ -98,7 +98,8 @@ class EvaluatorTargetsMetadata(CommonDeclarationMetadata):
     @property
     def evaluator_targets(self):
         '''
-        :returns: a list of evaluator targets values.
+        :returns: a list of evaluator targets values (names of \
+            function spaces).
         :rtype: List[str]
         '''
         return self._evaluator_targets[:]
@@ -109,31 +110,12 @@ class EvaluatorTargetsMetadata(CommonDeclarationMetadata):
         :param values: set the evaluator_targets metadata to the \
             supplied list of values.
         :type values: List[str]
-
-        raises TypeError: if the supplied value is not a list.
-        raises TypeError: if the supplied value is an empty list.
-        raises TypeError: if any entry in the list is not of the \
-            required type.
-
         '''
-        if not isinstance(values, list):
-            raise TypeError(f"evaluator_targets values should be provided as "
-                            f"a list but found '{type(values).__name__}'.")
-        if not values:
-            raise TypeError(
-                "The evaluator_targets list should contain at least one "
-                "entry, but it is empty.")
         const = LFRicConstants()
+        EvaluatorTargetsMetadata.validate_list(values, str)
         for value in values:
-            if not isinstance(value, str):
-                raise TypeError(
-                    f"The evaluator_targets list should be a list of str, "
-                    f"but found '{type(value).__name__}'.")
-            if value.lower() not in const.VALID_FUNCTION_SPACES:
-                raise ValueError(
-                    f"The evaluator_targets metadata should be a recognised "
-                    f"value (one of {const.VALID_FUNCTION_SPACES}) "
-                    f"but found '{value}'.")
+            EvaluatorTargetsMetadata.validate_scalar_value(
+                value, const.VALID_FUNCTION_SPACES, "evaluator_targets")
         # Take a copy of the list so that it can't be modified
         # externally. Also make all values lower case.
         self._evaluator_targets = [value.lower() for value in values]

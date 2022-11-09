@@ -41,7 +41,6 @@ creation, modification and Fortran output of such an argument.
 from fparser.two import Fortran2003
 
 from psyclone.domain.lfric.kernel.common_metadata import CommonMetadata
-from psyclone.errors import InternalError
 
 
 class CommonArgMetadata(CommonMetadata):
@@ -65,29 +64,6 @@ class CommonArgMetadata(CommonMetadata):
                 f"'{type(value).__name__}'.")
 
     @staticmethod
-    def check_value(value, name, valid_values):
-        '''Check that the value argument is one of the values in the
-        valid_values argument.
-
-        :param str value: the value to be checked.
-        :param str name: the name of the value.
-        :param valid_values: a list of valid values.
-        :type valid_values: List[str]
-
-        :raises TypeError: if the value is not a string.
-        :raises ValueError: if the value is not one of the values in \
-            the valid_values list.
-
-        '''
-        if not isinstance(value, str):
-            raise TypeError(f"The {name} value should be of type str, but "
-                            f"found '{type(value).__name__}'.")
-        if value.lower() not in valid_values:
-            raise ValueError(
-                f"The {name} value should be one of {valid_values}, but "
-                f"found '{value}'.")
-
-    @staticmethod
     def check_nargs(fparser2_tree, nargs):
         '''Checks that the metadata may has the number of arguments specified
         by the 'nargs' argument, otherwise an exception is raised.
@@ -109,11 +85,11 @@ class CommonArgMetadata(CommonMetadata):
                 f"'{str(fparser2_tree)}'.")
 
     @staticmethod
-    def check_fparser2(fparser2_tree, type_name,
-                       encoding=Fortran2003.Part_Ref):
+    def check_fparser2_arg(fparser2_tree, type_name,
+                           encoding=Fortran2003.Part_Ref):
         '''Checks that the fparser2 tree is valid. The metadata will be in the
         form of a Fortran2003 Part_Ref or a Fortran2003
-        Structure_Constructor.
+        Structure_Constructor which captures a metadata argument.
 
         :param fparser2_tree: fparser2 tree capturing a metadata argument.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
@@ -125,8 +101,6 @@ class CommonArgMetadata(CommonMetadata):
             :py:class:`fparser.two.Fortran2003.Part_Ref` | \
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`]
 
-        :raises TypeError: if the fparser2_tree argument is not of the \
-            type specified by the encoding argument.
         :raises ValueError: if the kernel metadata is not in \
             the form arg_type(...).
 

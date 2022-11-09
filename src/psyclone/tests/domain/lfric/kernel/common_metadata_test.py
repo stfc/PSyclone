@@ -48,10 +48,14 @@ from psyclone.domain.lfric.kernel.lfric_kernel_metadata import \
 
 
 def test_init():
-    '''Test that a CommonMetadata instance can be created.'''
+    '''Test that a CommonMetadata instance can't be created as it is
+    abstract.
 
-    common_metadata = CommonMetadata()
-    assert isinstance(common_metadata, CommonMetadata)
+    '''
+    with pytest.raises(TypeError) as info:
+        _ = CommonMetadata()
+    assert ("Can't instantiate abstract class CommonMetadata with "
+            "abstract methods create_from_fparser2" in str(info.value))
 
 
 def test_check_fparser2():
@@ -69,6 +73,24 @@ def test_check_fparser2():
     assert ("Expected kernel metadata to be encoded as an fparser2 Program "
             "object but found type 'str' with value 'invalid'."
             in str(info.value))
+
+
+def test_validate_scalar_value():
+    '''Test that the validate_scalar_value method behaves as
+    expected.
+
+    '''
+    with pytest.raises(TypeError) as info:
+        CommonMetadata.validate_scalar_value(None, None, None)
+    assert ("The None value should be of type str, but found 'NoneType'."
+            in str(info.value))
+    with pytest.raises(ValueError) as info:
+        CommonMetadata.validate_scalar_value(
+            "invalid", ["value1", "value2"], "my_metadata")
+    assert ("The my_metadata metadata should be a recognised value (one of "
+            "['value1', 'value2']) but found 'invalid'." in str(info.value))
+    CommonMetadata.validate_scalar_value(
+            "Value2", ["value1", "value2"], "")
 
 
 def test_create_fparser2():

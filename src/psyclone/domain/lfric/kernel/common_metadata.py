@@ -37,15 +37,20 @@
 common functionality for LFRic kernel metadata.
 
 '''
+from abc import ABC, abstractmethod
+
 from fparser.common.readfortran import FortranStringReader
-from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
 from fparser.two.utils import NoMatchError, FortranSyntaxError
 
+
 # TODO issue #1886. This class and its subclasses may have
 # commonalities with the GOcean metadata processing.
-class CommonMetadata:
-    '''Class to capture common LFRic kernel metadata.'''
+class CommonMetadata(ABC):
+    '''Abstract class to capture common LFRic kernel metadata.'''
+
+    # The fparser2 class that captures this metadata.
+    fparser2_class = None
 
     @staticmethod
     def check_fparser2(fparser2_tree, encoding):
@@ -68,6 +73,30 @@ class CommonMetadata:
                 f"'{type(fparser2_tree).__name__}' with value "
                 f"'{str(fparser2_tree)}'.")
 
+    @staticmethod
+    def validate_scalar_value(value, valid_values, name):
+        '''Check that the value argument is one of the values supplied in the
+        valid_values list.
+
+        :param str value: the value being checked.
+        :param List[str] valid_values: a list of valid values.
+        :param str name: the name of the metadata being checked
+
+        :raises TypeError: if the value is not a string.
+        :raises ValueError: if the supplied value is not one of the \
+            values in the valid_values list.
+
+        '''
+        if not isinstance(value, str):
+            raise TypeError(f"The {name} value should be of type str, but "
+                            f"found '{type(value).__name__}'.")
+        if value.lower() not in valid_values:
+            raise ValueError(
+                f"The {name} metadata should be a recognised "
+                f"value (one of {valid_values}) "
+                f"but found '{value}'.")
+
+    @staticmethod
     def create_fparser2(fortran_string, encoding):
         '''Creates an fparser2 tree from a Fortran string. The resultant
         parent node of the tree will be the same type as the encoding
@@ -115,3 +144,10 @@ class CommonMetadata:
         '''
         fparser2_tree = cls.create_fparser2(fortran_string, cls.fparser2_class)
         return cls.create_from_fparser2(fparser2_tree)
+
+    @staticmethod
+    @abstractmethod
+    def create_from_fparser2(fparser2_tree):
+        '''Create an instance of this class from an fparser2 tree.
+
+        '''

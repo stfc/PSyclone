@@ -96,17 +96,18 @@ def test_create_from_fparser2():
     with pytest.raises(ValueError) as info:
         _ = ScalarArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '1' for metadata 'arg_type(GH_SCALAR, "
-            "GH_UNREAL, GH_READ)'. The datatype descriptor value should be "
-            "one of ['gh_real', 'gh_integer', 'gh_logical'], but found "
-            "'GH_UNREAL'." in str(info.value))
+            "GH_UNREAL, GH_READ)'. The datatype descriptor metadata "
+            "should be a recognised value (one of ['gh_real', 'gh_integer', "
+            "'gh_logical']) but found 'GH_UNREAL'." in str(info.value))
 
     fparser2_tree = ScalarArgMetadata.create_fparser2(
         "arg_type(GH_SCALAR, GH_REAL, GH_ERROR)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = ScalarArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '2' for metadata 'arg_type(GH_SCALAR, "
-            "GH_REAL, GH_ERROR)'. The access descriptor value should be one "
-            "of ['gh_read'], but found 'GH_ERROR'." in str(info.value))
+            "GH_REAL, GH_ERROR)'. The access descriptor metadata should be "
+            "a recognised value (one of ['gh_read']) but found 'GH_ERROR'."
+            in str(info.value))
 
     fparser2_tree = ScalarArgMetadata.create_fparser2(
         "arg_type(GH_SCALAR, GH_REAL, GH_READ)", Fortran2003.Part_Ref)
@@ -130,9 +131,9 @@ def test_check_datatype():
     ScalarArgMetadata.check_datatype("GH_REAL")
     with pytest.raises(ValueError) as info:
         ScalarArgMetadata.check_datatype("invalid")
-    assert ("The datatype descriptor value should be one of ['gh_real', "
-            "'gh_integer', 'gh_logical'], but found 'invalid'."
-            in str(info.value))
+    assert ("The datatype descriptor metadata should be a recognised value "
+            "(one of ['gh_real', 'gh_integer', 'gh_logical']) but found "
+            "'invalid'." in str(info.value))
 
 
 def test_check_access():
@@ -140,5 +141,5 @@ def test_check_access():
     ScalarArgMetadata.check_access("GH_READ")
     with pytest.raises(ValueError) as info:
         ScalarArgMetadata.check_access("invalid")
-    assert ("The access descriptor value should be one of ['gh_read'], "
-            "but found 'invalid'." in str(info.value))
+    assert ("The access descriptor metadata should be a recognised value "
+            "(one of ['gh_read']) but found 'invalid'." in str(info.value))

@@ -65,17 +65,17 @@ def test_init_invalid():
     '''
     with pytest.raises(ValueError) as info:
         _ = OperatorArgMetadata("GH_REAL", "GH_READ", "invalid", "W1")
-    assert ("The function_space_to value should be one of ['w3', 'wtheta', "
-            "'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', "
-            "'w2h', 'w2htrace', 'any_w2', 'wchi'], but found 'invalid'."
-            in str(info.value))
+    assert ("The function_space_to metadata should be a recognised value "
+            "(one of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', "
+            "'w1', 'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi']) "
+            "but found 'invalid'." in str(info.value))
 
     with pytest.raises(ValueError) as info:
         _ = OperatorArgMetadata("GH_REAL", "GH_READ", "W0", "invalid")
-    assert ("The function_space_from value should be one of ['w3', 'wtheta', "
-            "'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', "
-            "'w2h', 'w2htrace', 'any_w2', 'wchi'], but found 'invalid'."
-            in str(info.value))
+    assert ("The function_space_from metadata should be a recognised value "
+            "(one of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', "
+            "'w1', 'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi']) "
+            "but found 'invalid'." in str(info.value))
 
 
 def test_create_from_fparser2():
@@ -120,9 +120,9 @@ def test_create_from_fparser2():
     with pytest.raises(ValueError) as info:
         _ = OperatorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '1' for metadata 'arg_type(GH_OPERATOR, "
-            "GH_UNREAL, GH_READ, W0, W1)'. The datatype descriptor value "
-            "should be one of ['gh_real'], but found 'GH_UNREAL'."
-            in str(info.value))
+            "GH_UNREAL, GH_READ, W0, W1)'. The datatype descriptor metadata "
+            "should be a recognised value (one of ['gh_real']) but found "
+            "'GH_UNREAL'." in str(info.value))
 
     fparser2_tree = OperatorArgMetadata.create_fparser2(
         "arg_type(GH_OPERATOR, GH_REAL, GH_ERROR, W0, W1)",
@@ -130,9 +130,9 @@ def test_create_from_fparser2():
     with pytest.raises(ValueError) as info:
         _ = OperatorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '2' for metadata 'arg_type(GH_OPERATOR, "
-            "GH_REAL, GH_ERROR, W0, W1)'. The access descriptor value "
-            "should be one of ['gh_read', 'gh_write', 'gh_readwrite'], but "
-            "found 'GH_ERROR'." in str(info.value))
+            "GH_REAL, GH_ERROR, W0, W1)'. The access descriptor metadata "
+            "should be a recognised value (one of ['gh_read', 'gh_write', "
+            "'gh_readwrite']) but found 'GH_ERROR'." in str(info.value))
 
     fparser2_tree = OperatorArgMetadata.create_fparser2(
         "arg_type(GH_OPERATOR, GH_REAL, GH_READ, XX, W1)",
@@ -140,10 +140,11 @@ def test_create_from_fparser2():
     with pytest.raises(ValueError) as info:
         _ = OperatorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '3' for metadata 'arg_type(GH_OPERATOR, "
-            "GH_REAL, GH_READ, XX, W1)'. The function_space_to value "
-            "should be one of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', "
-            "'w0', 'w1', 'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', "
-            "'wchi'], but found 'XX'." in str(info.value))
+            "GH_REAL, GH_READ, XX, W1)'. The function_space_to metadata "
+            "should be a recognised value (one of ['w3', 'wtheta', 'w2v', "
+            "'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', 'w2h', "
+            "'w2htrace', 'any_w2', 'wchi']) but found 'XX'."
+            in str(info.value))
 
     fparser2_tree = OperatorArgMetadata.create_fparser2(
         "arg_type(GH_OPERATOR, GH_REAL, GH_READ, W0, YY)",
@@ -151,10 +152,11 @@ def test_create_from_fparser2():
     with pytest.raises(ValueError) as info:
         _ = OperatorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '4' for metadata 'arg_type(GH_OPERATOR, "
-            "GH_REAL, GH_READ, W0, YY)'. The function_space_from value "
-            "should be one of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', "
-            "'w0', 'w1', 'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', "
-            "'wchi'], but found 'YY'." in str(info.value))
+            "GH_REAL, GH_READ, W0, YY)'. The function_space_from metadata "
+            "should be a recognised value (one of ['w3', 'wtheta', 'w2v', "
+            "'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', 'w2h', "
+            "'w2htrace', 'any_w2', 'wchi']) but found 'YY'."
+            in str(info.value))
 
     fparser2_tree = OperatorArgMetadata.create_fparser2(
         "arg_type(GH_OPERATOR, GH_REAL, GH_READ, W0, W1)",
@@ -182,8 +184,8 @@ def test_check_datatype():
     OperatorArgMetadata.check_datatype("GH_REAL")
     with pytest.raises(ValueError) as info:
         OperatorArgMetadata.check_datatype("invalid")
-    assert ("The datatype descriptor value should be one of ['gh_real'], "
-            "but found 'invalid'." in str(info.value))
+    assert ("The datatype descriptor metadata should be a recognised value "
+            "(one of ['gh_real']) but found 'invalid'." in str(info.value))
 
 
 def test_check_access():
@@ -191,9 +193,9 @@ def test_check_access():
     OperatorArgMetadata.check_access("GH_READ")
     with pytest.raises(ValueError) as info:
         OperatorArgMetadata.check_access("invalid")
-    assert ("The access descriptor value should be one of ['gh_read', "
-            "'gh_write', 'gh_readwrite'], but found 'invalid'."
-            in str(info.value))
+    assert ("The access descriptor metadata should be a recognised value "
+            "(one of ['gh_read', 'gh_write', 'gh_readwrite']) but found "
+            "'invalid'." in str(info.value))
 
 
 def test_setter_getter():
@@ -205,10 +207,10 @@ def test_setter_getter():
 
     with pytest.raises(ValueError) as info:
         operator_arg.function_space_to = "invalid"
-    assert ("The function_space_to value should be one of ['w3', 'wtheta', "
-            "'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', "
-            "'w2h', 'w2htrace', 'any_w2', 'wchi'], but found 'invalid'."
-            in str(info.value))
+    assert ("The function_space_to metadata should be a recognised value "
+            "(one of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', "
+            "'w1', 'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi']) "
+            "but found 'invalid'." in str(info.value))
 
     operator_arg.function_space_to = "w2"
     assert operator_arg.function_space_to == "w2"
@@ -217,10 +219,10 @@ def test_setter_getter():
 
     with pytest.raises(ValueError) as info:
         operator_arg.function_space_from = "invalid"
-    assert ("The function_space_from value should be one of ['w3', 'wtheta', "
-            "'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', "
-            "'w2h', 'w2htrace', 'any_w2', 'wchi'], but found 'invalid'."
-            in str(info.value))
+    assert ("The function_space_from metadata should be a recognised value "
+            "(one of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', "
+            "'w1', 'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi']) "
+            "but found 'invalid'." in str(info.value))
 
     operator_arg.function_space_from = "w3"
     assert operator_arg.function_space_from == "w3"

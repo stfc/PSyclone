@@ -46,14 +46,14 @@ from psyclone.domain.lfric.kernel.evaluator_targets_metadata import \
     EvaluatorTargetsMetadata
 from psyclone.domain.lfric.kernel.meta_args_metadata import \
     MetaArgsMetadata
-from psyclone.domain.lfric.kernel.meta_mesh_metadata import \
-    MetaMeshMetadata
 from psyclone.domain.lfric.kernel.meta_funcs_metadata import \
     MetaFuncsMetadata
-from psyclone.domain.lfric.kernel.operates_on_metadata import \
-    OperatesOnMetadata
+from psyclone.domain.lfric.kernel.meta_mesh_metadata import \
+    MetaMeshMetadata
 from psyclone.domain.lfric.kernel.meta_ref_element_metadata import \
     MetaRefElementMetadata
+from psyclone.domain.lfric.kernel.operates_on_metadata import \
+    OperatesOnMetadata
 from psyclone.domain.lfric.kernel.shapes_metadata import ShapesMetadata
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
@@ -66,9 +66,21 @@ class LFRicKernelMetadata(CommonMetadata):
     writing to a fortran string, raising from existing language-level
     PSyIR and lowering to language-level PSyIR.
 
+    :param operates_on: the name of the quantity that this kernel is \
+        intended to iterate over.
+    :type operates_on: Optional[str]
+    :param shapes: if a kernel requires basis or differential-basis \
+        functions then the metadata must also specify the set of points on \
+        which these functions are required. This information is provided \
+        by the gh_shape component of the metadata.
+    :type shapes: Optional[List[str]]
+    :param evaluator_targets: the function spaces on which an \
+        evaluator is required.
+    :type evaluator_targets: Optional[List[str]]
     :param meta_args: a list of 'meta_arg' objects which capture the \
         metadata values of the kernel arguments.
-    :type meta_args: List[:py:class:`psyclone.domain.lfric.kernel.CommonArg`]
+    :type meta_args: Optional[List[:py:class:`psyclone.domain.lfric.kernel.\
+        CommonArgMetadata`]]
     :param meta_funcs: a list of 'meta_func' objects which capture whether \
         quadrature or evaluator data is required for a given function space.
     :type meta_funcs: Optional[List[:py:class:`psyclone.domain.lfric.kernel.\
@@ -76,24 +88,13 @@ class LFRicKernelMetadata(CommonMetadata):
     :param meta_ref_element: a kernel that requires properties \
         of the reference element in LFRic specifies those properties \
         through the meta_reference_element metadata entry.
-    :type meta_ref_element: :py:class:`psyclone.domain.lfric.kernel.\
-        RefElementArgMetadata`
+    :type meta_ref_element: Optional[:py:class:`psyclone.domain.lfric.kernel.\
+        RefElementArgMetadata`]
     :param meta_mesh: a kernel that requires properties of the LFRic \
         mesh object specifies those properties through the meta_mesh \
         metadata entry.
-    :type meta_mesh: :py:class:`psyclone.domain.lfric.kernel.\
-        MetaMeshArgMetadata`
-    :param shapes: if a kernel requires basis or differential-basis \
-        functions then the metadata must also specify the set of points on \
-        which these functions are required. This information is provided \
-        by the gh_shape component of the metadata.
-    :type shapes: List[str]
-    :param evaluator_targets: the function spaces on which an \
-        evaluator is required.
-    :type evaluator_targets: List[str]
-    :param operates_on: the name of the quantity that this kernel is \
-        intended to iterate over.
-    :type operates_on: Optional[str]
+    :type meta_mesh: Optional[:py:class:`psyclone.domain.lfric.kernel.\
+        MetaMeshArgMetadata`]
     :param procedure_name: the name of the kernel procedure to call.
     :type procedure_name: Optional[str]
     :param name: the name of the symbol to use for the metadata in \
@@ -107,6 +108,7 @@ class LFRicKernelMetadata(CommonMetadata):
     def __init__(self, operates_on=None, shapes=None, evaluator_targets=None,
                  meta_args=None, meta_funcs=None, meta_ref_element=None,
                  meta_mesh=None, procedure_name=None, name=None):
+        super().__init__()
         # Initialise internal variables
         self._operates_on = None
         self._shapes = None
@@ -203,30 +205,30 @@ class LFRicKernelMetadata(CommonMetadata):
 
         for fparser2_node in walk(
                 fparser2_tree, Fortran2003.Data_Component_Def_Stmt):
-
+            fortran_string = str(fparser2_node).lower()
             # pylint: disable=protected-access
-            if "operates_on" in (str(fparser2_node)).lower():
+            if "operates_on" in fortran_string:
                 # the value of operates on (CELL_COLUMN, ...)
                 kernel_metadata._operates_on = OperatesOnMetadata.\
                     create_from_fparser2(fparser2_node)
-            elif "meta_args" in (str(fparser2_node)).lower():
+            elif "meta_args" in fortran_string:
                 kernel_metadata._meta_args = MetaArgsMetadata.\
                     create_from_fparser2(fparser2_node)
-            elif "meta_funcs" in (str(fparser2_node)).lower():
+            elif "meta_funcs" in fortran_string:
                 kernel_metadata._meta_funcs = MetaFuncsMetadata.\
                     create_from_fparser2(fparser2_node)
-            elif "gh_shape" in (str(fparser2_node)).lower():
+            elif "gh_shape" in fortran_string:
                 # the gh_shape values (gh_quadrature_XYoZ, ...)
                 kernel_metadata._shapes = ShapesMetadata.create_from_fparser2(
                     fparser2_node)
-            elif "gh_evaluator_targets" in (str(fparser2_node)).lower():
+            elif "gh_evaluator_targets" in fortran_string:
                 # the gh_evaluator_targets values (w0, w1, ...)
                 kernel_metadata._evaluator_targets = EvaluatorTargetsMetadata.\
                     create_from_fparser2(fparser2_node)
-            elif "meta_reference_element" in (str(fparser2_node)).lower():
+            elif "meta_reference_element" in fortran_string:
                 kernel_metadata._meta_ref_element = MetaRefElementMetadata.\
                     create_from_fparser2(fparser2_node)
-            elif "meta_mesh" in (str(fparser2_node)).lower():
+            elif "meta_mesh" in fortran_string:
                 kernel_metadata._meta_mesh = MetaMeshMetadata.\
                     create_from_fparser2(fparser2_node)
             else:

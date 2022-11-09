@@ -62,8 +62,8 @@ def test_init_error():
     '''
     with pytest.raises(TypeError) as info:
         _ = ShapesMetadata(None)
-    assert ("shape values should be provided as a list but found 'NoneType'."
-            in str(info.value))
+    assert ("ShapesMetadata values should be provided as a list but found "
+            "'NoneType'." in str(info.value))
 
 
 def test_fortran_string():
@@ -137,17 +137,18 @@ def test_setter_errors():
 
     with pytest.raises(TypeError) as info:
         shapes_metadata.shapes = "invalid"
-    assert ("shape values should be provided as a list but found 'str'."
-            in str(info.value))
+    assert ("ShapesMetadata values should be provided as a list but found "
+            "'str'." in str(info.value))
 
     with pytest.raises(TypeError) as info:
         shapes_metadata.shapes = []
-    assert ("The shapes list should contain at least one entry, but it is "
-            "empty." in str(info.value))
+    assert ("The ShapesMetadata list should contain at least one entry, but "
+            "it is empty." in str(info.value))
 
     with pytest.raises(TypeError) as info:
         shapes_metadata.shapes = [None]
-    assert ("shapes should be a list of str, but found 'NoneType'."
+    assert ("The ShapesMetadata list should be a list containing objects of "
+            "type str but found 'None', which is of type 'NoneType'."
             in str(info.value))
 
     with pytest.raises(ValueError) as info:

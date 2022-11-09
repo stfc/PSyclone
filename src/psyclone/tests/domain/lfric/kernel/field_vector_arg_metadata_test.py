@@ -101,18 +101,19 @@ def test_create_from_fparser2():
     with pytest.raises(ValueError) as info:
         _ = FieldVectorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '1' for metadata 'arg_type(GH_FIELD * 3, "
-            "GH_UNREAL, GH_READ, W0)'. The datatype descriptor value "
-            "should be one of ['gh_real', 'gh_integer'], but found "
-            "'GH_UNREAL'." in str(info.value))
+            "GH_UNREAL, GH_READ, W0)'. The datatype descriptor metadata "
+            "should be a recognised value (one of ['gh_real', 'gh_integer']) "
+            "but found 'GH_UNREAL'." in str(info.value))
 
     fparser2_tree = FieldVectorArgMetadata.create_fparser2(
         "arg_type(GH_FIELD*3, GH_REAL, GH_ERROR, W0)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = FieldVectorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '2' for metadata 'arg_type(GH_FIELD * 3, "
-            "GH_REAL, GH_ERROR, W0)'. The access descriptor value should be "
-            "one of ['gh_read', 'gh_write', 'gh_readwrite', 'gh_inc', "
-            "'gh_readinc'], but found 'GH_ERROR'." in str(info.value))
+            "GH_REAL, GH_ERROR, W0)'. The access descriptor metadata should "
+            "be a recognised value (one of ['gh_read', 'gh_write', "
+            "'gh_readwrite', 'gh_inc', 'gh_readinc']) but found 'GH_ERROR'."
+            in str(info.value))
 
     fparser2_tree = FieldVectorArgMetadata.create_fparser2(
         "arg_type(GH_FIELD*3, GH_REAL, GH_READ, DOUBLE_U_ZERO)",
@@ -120,17 +121,17 @@ def test_create_from_fparser2():
     with pytest.raises(ValueError) as info:
         _ = FieldVectorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '3' for metadata 'arg_type(GH_FIELD * 3, "
-            "GH_REAL, GH_READ, DOUBLE_U_ZERO)'. The function space value "
-            "should be one of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', "
-            "'w0', 'w1', 'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', "
-            "'wchi', 'any_space_1', 'any_space_2', 'any_space_3', "
-            "'any_space_4', 'any_space_5', 'any_space_6', 'any_space_7', "
-            "'any_space_8', 'any_space_9', 'any_space_10', "
+            "GH_REAL, GH_READ, DOUBLE_U_ZERO)'. The function space metadata "
+            "should be a recognised value (one of ['w3', 'wtheta', 'w2v', "
+            "'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', 'w2h', "
+            "'w2htrace', 'any_w2', 'wchi', 'any_space_1', 'any_space_2', "
+            "'any_space_3', 'any_space_4', 'any_space_5', 'any_space_6', "
+            "'any_space_7', 'any_space_8', 'any_space_9', 'any_space_10', "
             "'any_discontinuous_space_1', 'any_discontinuous_space_2', "
             "'any_discontinuous_space_3', 'any_discontinuous_space_4', "
             "'any_discontinuous_space_5', 'any_discontinuous_space_6', "
             "'any_discontinuous_space_7', 'any_discontinuous_space_8', "
-            "'any_discontinuous_space_9', 'any_discontinuous_space_10'], "
+            "'any_discontinuous_space_9', 'any_discontinuous_space_10']) "
             "but found 'DOUBLE_U_ZERO'." in str(info.value))
 
     fparser2_tree = FieldVectorArgMetadata.create_fparser2(

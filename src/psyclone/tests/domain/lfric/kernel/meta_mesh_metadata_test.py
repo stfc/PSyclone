@@ -78,8 +78,8 @@ def test_fortran_string():
     metadata = MetaMeshMetadata(values)
     fortran_string = metadata.fortran_string()
     expected = (
-        f"type(MESH_DATA_TYPE) :: META_MESH(1) = "
-        f"(/{meta_mesh_arg.fortran_string()}/)\n")
+        f"type(MESH_DATA_TYPE) :: META_MESH(1) = (/ &\n"
+        f"    {meta_mesh_arg.fortran_string()}/)\n")
     assert fortran_string == expected
 
 
@@ -106,8 +106,8 @@ def test_create_from_fparser2():
     '''Test that the create_from_fparser2 method works as expected.'''
 
     fortran_string = (
-        "type(MESH_DATA_TYPE) :: META_MESH(1) = "
-        "(/mesh_data_type(adjacent_face)/)\n")
+        "type(MESH_DATA_TYPE) :: META_MESH(1) = (/ &\n"
+        "    mesh_data_type(adjacent_face)/)\n")
     fparser2_tree = MetaMeshMetadata.create_fparser2(
         fortran_string, Fortran2003.Data_Component_Def_Stmt)
     metadata = MetaMeshMetadata.create_from_fparser2(fparser2_tree)

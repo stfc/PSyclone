@@ -63,7 +63,7 @@ def test_init_error():
     '''
     with pytest.raises(TypeError) as info:
         _ = EvaluatorTargetsMetadata(None)
-    assert ("evaluator_targets values should be provided as a list but "
+    assert ("EvaluatorTargetsMetadata values should be provided as a list but "
             "found 'NoneType'." in str(info.value))
 
 
@@ -131,17 +131,18 @@ def test_setter_errors():
 
     with pytest.raises(TypeError) as info:
         metadata.evaluator_targets = "invalid"
-    assert ("evaluator_targets values should be provided as a list but found "
-            "'str'." in str(info.value))
+    assert ("EvaluatorTargetsMetadata values should be provided as a list "
+            "but found 'str'." in str(info.value))
 
     with pytest.raises(TypeError) as info:
         metadata.evaluator_targets = []
-    assert ("The evaluator_targets list should contain at least one entry, "
-            "but it is empty." in str(info.value))
+    assert ("The EvaluatorTargetsMetadata list should contain at least one "
+            "entry, but it is empty." in str(info.value))
 
     with pytest.raises(TypeError) as info:
         metadata.evaluator_targets = [None]
-    assert ("The evaluator_targets list should be a list of str, but found "
+    assert ("The EvaluatorTargetsMetadata list should be a list containing "
+            "objects of type str but found 'None', which is of type "
             "'NoneType'." in str(info.value))
 
     with pytest.raises(ValueError) as info:

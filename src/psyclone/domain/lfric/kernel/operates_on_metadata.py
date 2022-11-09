@@ -55,6 +55,7 @@ class OperatesOnMetadata(CommonDeclarationMetadata):
 
     '''
     def __init__(self, operates_on):
+        super().__init__()
         self.operates_on = operates_on
 
     def fortran_string(self):
@@ -103,18 +104,8 @@ class OperatesOnMetadata(CommonDeclarationMetadata):
         '''
         :param str value: sets the operates_on metadata to the \
             supplied value.
-
-        raises TypeError: if the value is not of the required type.
-
         '''
-        if not isinstance(value, str):
-            raise TypeError(
-                f"The OPERATES_ON metadata should be a str, but found "
-                f"'{type(value).__name__}'.")
         const = LFRicConstants()
-        if value.lower() not in const.USER_KERNEL_ITERATION_SPACES:
-            raise ValueError(
-                f"The OPERATES_ON metadata should be a recognised "
-                f"value (one of {const.USER_KERNEL_ITERATION_SPACES}) "
-                f"but found '{value}'.")
+        OperatesOnMetadata.validate_scalar_value(
+            value, const.VALID_ITERATION_SPACES, "OPERATES_ON")
         self._operates_on = value.lower()

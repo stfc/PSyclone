@@ -89,11 +89,12 @@ def test_create_from_fparser2():
         "reference_element_data_type(invalid)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = MetaRefElementArgMetadata.create_from_fparser2(fparser2_tree)
-    assert ("The reference element property value should be one of "
-            "['normals_to_horizontal_faces', 'normals_to_vertical_faces', "
-            "'normals_to_faces', 'outward_normals_to_horizontal_faces', "
+    assert ("The reference element property metadata should be a recognised "
+            "value (one of ['normals_to_horizontal_faces', "
+            "'normals_to_vertical_faces', 'normals_to_faces', "
+            "'outward_normals_to_horizontal_faces', "
             "'outward_normals_to_vertical_faces', "
-            "'outward_normals_to_faces'], but found 'invalid'."
+            "'outward_normals_to_faces']) but found 'invalid'."
             in str(info.value))
 
     fparser2_tree = MetaRefElementArgMetadata.create_fparser2(
@@ -121,11 +122,12 @@ def test_reference_element_setter_getter():
     ref_element_arg = MetaRefElementArgMetadata("normals_to_faces")
     with pytest.raises(ValueError) as info:
         ref_element_arg.reference_element = "invalid"
-    assert ("The reference element property value should be one of "
-            "['normals_to_horizontal_faces', 'normals_to_vertical_faces', "
-            "'normals_to_faces', 'outward_normals_to_horizontal_faces', "
+    assert ("The reference element property metadata should be a recognised "
+            "value (one of ['normals_to_horizontal_faces', "
+            "'normals_to_vertical_faces', 'normals_to_faces', "
+            "'outward_normals_to_horizontal_faces', "
             "'outward_normals_to_vertical_faces', "
-            "'outward_normals_to_faces'], but found 'invalid'."
+            "'outward_normals_to_faces']) but found 'invalid'."
             in str(info.value))
     ref_element_arg.reference_element = "outward_normals_to_faces"
     assert ref_element_arg.reference_element == "outward_normals_to_faces"

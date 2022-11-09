@@ -38,8 +38,6 @@ associated with a field argument. Supports the creation, modification
 and Fortran output of a Field argument.
 
 '''
-from fparser.two import Fortran2003
-
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.common_meta_arg_metadata import \
     CommonMetaArgMetadata
@@ -82,7 +80,7 @@ class FieldArgMetadata(CommonMetaArgMetadata):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
 
         '''
-        FieldArgMetadata.check_fparser2(fparser2_tree, "arg_type")
+        FieldArgMetadata.check_fparser2_arg(fparser2_tree, "arg_type")
         FieldArgMetadata.check_nargs(fparser2_tree, 4)
         FieldArgMetadata.check_first_arg(fparser2_tree, "Field")
         datatype, access, function_space = \
@@ -109,8 +107,8 @@ class FieldArgMetadata(CommonMetaArgMetadata):
 
         '''
         const = LFRicConstants()
-        FieldArgMetadata.check_value(
-            value, "datatype descriptor", const.VALID_FIELD_DATA_TYPES)
+        FieldArgMetadata.validate_scalar_value(
+            value, const.VALID_FIELD_DATA_TYPES, "datatype descriptor")
 
     @staticmethod
     def check_access(value):
@@ -118,8 +116,8 @@ class FieldArgMetadata(CommonMetaArgMetadata):
         :param str value: the access descriptor to validate.
         '''
         const = LFRicConstants()
-        FieldArgMetadata.check_value(
-            value, "access descriptor", const.VALID_FIELD_ACCESS_TYPES)
+        FieldArgMetadata.validate_scalar_value(
+            value, const.VALID_FIELD_ACCESS_TYPES, "access descriptor")
 
     @property
     def function_space(self):
@@ -136,6 +134,6 @@ class FieldArgMetadata(CommonMetaArgMetadata):
             specified value.
         '''
         const = LFRicConstants()
-        FieldArgMetadata.check_value(
-            value, "function space", const.VALID_FUNCTION_SPACE_NAMES)
+        FieldArgMetadata.validate_scalar_value(
+            value, const.VALID_FUNCTION_SPACE_NAMES, "function space")
         self._function_space = value.lower()

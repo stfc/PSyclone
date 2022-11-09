@@ -57,6 +57,7 @@ class MetaFuncsArgMetadata(CommonArgMetadata):
     '''
     def __init__(self, function_space, basis_function=False,
                  diff_basis_function=False):
+        super().__init__()
         self.function_space = function_space
         # The setters for basis_function and diff_basis_function check
         # for consistent values between the two. The
@@ -77,7 +78,7 @@ class MetaFuncsArgMetadata(CommonArgMetadata):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.MetaFuncsArgMetadata`
 
         '''
-        MetaFuncsArgMetadata.check_fparser2(
+        MetaFuncsArgMetadata.check_fparser2_arg(
             fparser2_tree, type_name="func_type")
         nargs = MetaFuncsArgMetadata.get_nargs(fparser2_tree)
         # There must be at least 2 and at most 3 arguments
@@ -153,7 +154,8 @@ class MetaFuncsArgMetadata(CommonArgMetadata):
         :param str value: set the function space to the specified value.
         '''
         const = LFRicConstants()
-        self.check_value(value, "function_space", const.VALID_FUNCTION_SPACES)
+        self.validate_scalar_value(
+            value, const.VALID_FUNCTION_SPACES, "function_space")
         self._function_space = value.lower()
 
     @property

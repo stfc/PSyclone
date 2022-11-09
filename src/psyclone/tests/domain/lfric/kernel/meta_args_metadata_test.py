@@ -80,8 +80,8 @@ def test_fortran_string():
     metadata = MetaArgsMetadata(values)
     fortran_string = metadata.fortran_string()
     expected = (
-        f"type(ARG_TYPE) :: META_ARGS(1) = "
-        f"(/{meta_args_arg.fortran_string()}/)\n")
+        f"type(ARG_TYPE) :: META_ARGS(1) = (/ &\n"
+        f"    {meta_args_arg.fortran_string()}/)\n")
     assert fortran_string == expected
 
 
@@ -125,14 +125,15 @@ def test_create_from_fparser2_error():
 def test_create_from_fparser2():
     '''Test that the create_from_fparser2 method works as expected.'''
     fortran_string = (
-        "type(ARG_TYPE) :: META_ARGS(7) = (/"
-        "arg_type(gh_scalar, gh_real, gh_read), "
-        "arg_type(gh_operator, gh_real, gh_read, w0, w1), "
-        "arg_type(gh_columnwise_operator, gh_real, gh_read, w0, w1), "
-        "arg_type(gh_field, gh_real, gh_write, w0), "
-        "arg_type(gh_field*3, gh_real, gh_write, w0), "
-        "arg_type(gh_field, gh_real, gh_write, w0, mesh_arg=gh_fine), "
-        "arg_type(gh_field*3, gh_real, gh_write, w0, mesh_arg=gh_fine)/)\n")
+        "type(ARG_TYPE) :: META_ARGS(7) = (/ &\n"
+        "    arg_type(gh_scalar, gh_real, gh_read), &\n"
+        "    arg_type(gh_operator, gh_real, gh_read, w0, w1), &\n"
+        "    arg_type(gh_columnwise_operator, gh_real, gh_read, w0, w1), &\n"
+        "    arg_type(gh_field, gh_real, gh_write, w0), &\n"
+        "    arg_type(gh_field*3, gh_real, gh_write, w0), &\n"
+        "    arg_type(gh_field, gh_real, gh_write, w0, mesh_arg=gh_fine), &\n"
+        "    arg_type(gh_field*3, gh_real, gh_write, w0, "
+        "mesh_arg=gh_fine)/)\n")
     fparser2_tree = MetaArgsMetadata.create_fparser2(
         fortran_string, Fortran2003.Data_Component_Def_Stmt)
     metadata = MetaArgsMetadata.create_from_fparser2(fparser2_tree)

@@ -83,7 +83,7 @@ class InterGridVectorArgMetadata(InterGridArgMetadata):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.InterGridArg`
 
         '''
-        InterGridVectorArgMetadata.check_fparser2(
+        InterGridVectorArgMetadata.check_fparser2_arg(
             fparser2_tree, "arg_type",
             encoding=Fortran2003.Structure_Constructor)
         InterGridVectorArgMetadata.check_nargs(fparser2_tree, 5)

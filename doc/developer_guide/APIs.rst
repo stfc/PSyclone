@@ -1184,7 +1184,7 @@ from existing metadata. For example
 Modifying Metadata
 ++++++++++++++++++
 
-All of the metadata class values have setters which allows the
+All of the metadata class values have setters which allow the
 metadata to be simply modified. For example
 ::
 

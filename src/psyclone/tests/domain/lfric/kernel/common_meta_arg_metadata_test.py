@@ -87,8 +87,20 @@ class CheckArg(CommonMetaArgMetadata):
 
         '''
 
+    @staticmethod
+    def create_from_fparser2(fparser2_tree):
+        '''A concrete implementation of the abstract method in the
+        CommonMetadata class.
+
+        :param fparser2_tree: fparser2 tree containing the metadata \
+            for a scalar argument.
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Base`
+
+        '''
+
 
 def test_init():
+
     '''Test that the CommonMetaArgMetadata class can be created when a
     concrete class subclasses it. Also check that the
     CommonMetaArgMetadata class stores the datatype and access

@@ -82,7 +82,7 @@ def test_fortran_string():
     fortran_string = metadata.fortran_string()
     expected = (
         f"type(REFERENCE_ELEMENT_DATA_TYPE) :: META_REFERENCE_ELEMENT(1) = "
-        f"(/{meta_ref_element_arg.fortran_string()}/)\n")
+        f"(/ &\n    {meta_ref_element_arg.fortran_string()}/)\n")
     assert fortran_string == expected
 
 
@@ -114,9 +114,10 @@ def test_create_from_fparser2():
     '''Test that the create_from_fparser2 method works as expected.'''
 
     fortran_string = (
-        "type(REFERENCE_ELEMENT_DATA_TYPE) :: META_REFERENCE_ELEMENT(2) = (/"
-        "reference_element_data_type(normals_to_horizontal_faces), "
-        "reference_element_data_type(normals_to_vertical_faces)/)\n")
+        "type(REFERENCE_ELEMENT_DATA_TYPE) :: META_REFERENCE_ELEMENT(2) = "
+        "(/ &\n"
+        "    reference_element_data_type(normals_to_horizontal_faces), &\n"
+        "    reference_element_data_type(normals_to_vertical_faces)/)\n")
     fparser2_tree = MetaRefElementMetadata.create_fparser2(
         fortran_string, Fortran2003.Data_Component_Def_Stmt)
     metadata = MetaRefElementMetadata.create_from_fparser2(fparser2_tree)

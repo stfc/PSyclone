@@ -116,7 +116,8 @@ def test_init_args():
     # For some reason the equality test does not work for meta_funcs,
     # so use the fortran output instead to check for validity.
     assert (meta._meta_funcs.fortran_string() ==
-            "type(FUNC_TYPE) :: META_FUNCS(1) = (/func_type(w0, gh_basis)/)\n")
+            "type(FUNC_TYPE) :: META_FUNCS(1) = (/ &\n"
+            "    func_type(w0, gh_basis)/)\n")
     assert meta.meta_ref_element == [meta_ref_element_arg]
     assert meta.meta_mesh == [meta_mesh_arg]
     assert meta.procedure_name == "KERN_CODE"
@@ -132,17 +133,17 @@ def test_init_args_error():
         _ = LFRicKernelMetadata(operates_on="invalid")
     print(str(info.value))
     assert ("The OPERATES_ON metadata should be a recognised value "
-            "(one of ['cell_column', 'domain']) but found 'invalid'."
+            "(one of ['cell_column', 'domain', 'dof']) but found 'invalid'."
             in str(info.value))
 
     with pytest.raises(TypeError) as info:
         _ = LFRicKernelMetadata(shapes="invalid")
-    assert ("shape values should be provided as a list but found 'str'."
-            in str(info.value))
+    assert ("ShapesMetadata values should be provided as a list but found "
+            "'str'." in str(info.value))
 
     with pytest.raises(TypeError) as info:
         _ = LFRicKernelMetadata(evaluator_targets="invalid")
-    assert ("evaluator_targets values should be provided as a list but "
+    assert ("EvaluatorTargetsMetadata values should be provided as a list but "
             "found 'str'." in str(info.value))
 
     with pytest.raises(TypeError) as info:
@@ -479,21 +480,23 @@ def test_fortran_string():
     result = metadata.fortran_string()
     expected = (
         "TYPE, PUBLIC, EXTENDS(kernel_type) :: testkern_type\n"
-        "  type(ARG_TYPE) :: META_ARGS(7) = (/"
-        "arg_type(gh_scalar, gh_real, gh_read), "
-        "arg_type(gh_field, gh_real, gh_inc, w1), "
-        "arg_type(gh_field*3, gh_real, gh_read, w2), "
-        "arg_type(gh_field, gh_real, gh_read, w2, mesh_arg=gh_coarse), "
-        "arg_type(gh_field*3, gh_real, gh_read, w2, mesh_arg=gh_fine), "
-        "arg_type(gh_operator, gh_real, gh_read, w2, w3), "
-        "arg_type(gh_columnwise_operator, gh_real, gh_read, w3, w0)/)\n"
-        "  type(FUNC_TYPE) :: META_FUNCS(2) = (/func_type(w1, gh_basis), "
-        "func_type(w2, gh_basis, gh_diff_basis)/)\n"
-        "  type(REFERENCE_ELEMENT_DATA_TYPE) :: META_REFERENCE_ELEMENT(2) "
-        "= (/reference_element_data_type(normals_to_horizontal_faces), "
-        "reference_element_data_type(normals_to_vertical_faces)/)\n"
-        "  type(MESH_DATA_TYPE) :: META_MESH(1) = "
-        "(/mesh_data_type(adjacent_face)/)\n"
+        "  type(ARG_TYPE) :: META_ARGS(7) = (/ &\n"
+        "    arg_type(gh_scalar, gh_real, gh_read), &\n"
+        "    arg_type(gh_field, gh_real, gh_inc, w1), &\n"
+        "    arg_type(gh_field*3, gh_real, gh_read, w2), &\n"
+        "    arg_type(gh_field, gh_real, gh_read, w2, mesh_arg=gh_coarse), &\n"
+        "    arg_type(gh_field*3, gh_real, gh_read, w2, mesh_arg=gh_fine), &\n"
+        "    arg_type(gh_operator, gh_real, gh_read, w2, w3), &\n"
+        "    arg_type(gh_columnwise_operator, gh_real, gh_read, w3, w0)/)\n"
+        "  type(FUNC_TYPE) :: META_FUNCS(2) = (/ &\n"
+        "    func_type(w1, gh_basis), &\n"
+        "    func_type(w2, gh_basis, gh_diff_basis)/)\n"
+        "  type(REFERENCE_ELEMENT_DATA_TYPE) :: "
+        "META_REFERENCE_ELEMENT(2) = (/ &\n"
+        "    reference_element_data_type(normals_to_horizontal_faces), &\n"
+        "    reference_element_data_type(normals_to_vertical_faces)/)\n"
+        "  type(MESH_DATA_TYPE) :: META_MESH(1) = (/ &\n"
+        "    mesh_data_type(adjacent_face)/)\n"
         "  INTEGER :: GH_SHAPE = gh_quadrature_xyoz\n"
         "  INTEGER :: GH_EVALUATOR_TARGETS(2) = (/w0, w3/)\n"
         "  INTEGER :: OPERATES_ON = cell_column\n"
@@ -513,7 +516,7 @@ def test_setter_getter_operates_on():
     with pytest.raises(ValueError) as info:
         metadata.operates_on = "invalid"
     assert ("The OPERATES_ON metadata should be a recognised value "
-            "(one of ['cell_column', 'domain']) but found "
+            "(one of ['cell_column', 'domain', 'dof']) but found "
             "'invalid'." in str(info.value))
     metadata.operates_on = "DOMAIN"
     assert metadata.operates_on == "domain"
@@ -528,8 +531,8 @@ def test_setter_getter_shapes():
     assert metadata.shapes is None
     with pytest.raises(TypeError) as info:
         metadata.shapes = "invalid"
-    assert ("shape values should be provided as a list but found 'str'."
-            in str(info.value))
+    assert ("ShapesMetadata values should be provided as a list but found "
+            "'str'." in str(info.value))
     shapes = ["gh_quadrature_face", "gh_evaluator"]
     metadata.shapes = shapes
     assert metadata.shapes == shapes
@@ -544,7 +547,7 @@ def test_setter_getter_evaluator_targets():
     assert metadata.evaluator_targets is None
     with pytest.raises(TypeError) as info:
         metadata.evaluator_targets = "invalid"
-    assert ("evaluator_targets values should be provided as a list but "
+    assert ("EvaluatorTargetsMetadata values should be provided as a list but "
             "found 'str'." in str(info.value))
     evaluator_targets = ["w0", "w1", "w2", "w3"]
     metadata.evaluator_targets = evaluator_targets

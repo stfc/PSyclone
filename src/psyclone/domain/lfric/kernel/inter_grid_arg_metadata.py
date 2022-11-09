@@ -86,7 +86,7 @@ class InterGridArgMetadata(FieldArgMetadata):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.InterGridArgMetadata`
 
         '''
-        InterGridArgMetadata.check_fparser2(
+        InterGridArgMetadata.check_fparser2_arg(
             fparser2_tree, "arg_type",
             encoding=Fortran2003.Structure_Constructor)
         InterGridArgMetadata.check_nargs(fparser2_tree, 5)
@@ -149,6 +149,6 @@ class InterGridArgMetadata(FieldArgMetadata):
             specified value.
         '''
         const = LFRicConstants()
-        InterGridArgMetadata.check_value(
-            value, "mesh_arg", const.VALID_MESH_TYPES)
+        InterGridArgMetadata.validate_scalar_value(
+            value, const.VALID_MESH_TYPES, "mesh_arg")
         self._mesh_arg = value.lower()

@@ -58,6 +58,7 @@ class MetaFuncsMetadata(CommonDeclarationMetadata):
 
     '''
     def __init__(self, meta_funcs_args):
+        super().__init__()
         self.meta_funcs_args = meta_funcs_args
 
     def fortran_string(self):

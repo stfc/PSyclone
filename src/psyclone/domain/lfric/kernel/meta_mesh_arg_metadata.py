@@ -52,6 +52,7 @@ class MetaMeshArgMetadata(CommonArgMetadata):
 
     '''
     def __init__(self, mesh):
+        super().__init__()
         self.mesh = mesh
 
     def create_from_fparser2(fparser2_tree):
@@ -65,7 +66,7 @@ class MetaMeshArgMetadata(CommonArgMetadata):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.MetaMeshArgMetadata`
 
         '''
-        MetaMeshArgMetadata.check_fparser2(
+        MetaMeshArgMetadata.check_fparser2_arg(
             fparser2_tree, type_name="mesh_data_type")
         MetaMeshArgMetadata.check_nargs(fparser2_tree, 1)
         mesh = MetaMeshArgMetadata.get_arg(fparser2_tree, 0)
@@ -93,5 +94,5 @@ class MetaMeshArgMetadata(CommonArgMetadata):
         :param str value: set the mesh property to the specified value.
         '''
         const = LFRicConstants()
-        self.check_value(value, "mesh property", const.VALID_MESH_NAMES)
+        self.validate_scalar_value(value, const.VALID_MESH_NAMES, "mesh property")
         self._mesh = value.lower()

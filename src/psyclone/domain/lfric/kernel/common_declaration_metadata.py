@@ -35,7 +35,8 @@
 
 '''Module containing the CommonDeclarationMetadata base class which
 captures the common functionality for the LFRic kernel declaration
-metadata.
+metadata i.e. metadata that is specified by the declaration of a
+variable within the Fortran derived type that captures the metadata.
 
 Declaration metadata is captured as an fparser2 class hierarchy in the
 following form. The code in this file assumes this form when
@@ -134,30 +135,12 @@ class CommonDeclarationMetadata(CommonMetadata):
         :param List[str] values: a list of variable values.
 
         '''
-        values_str_list = [value.fortran_string() for value in values]
-        values_str = ", ".join(values_str_list)
+        values_str_list = [f"    {value.fortran_string()}" for value in values]
+        values_str = ", &\n".join(values_str_list)
         num_values = len(values)
         return (
-            f"type({datatype}) :: {name}({num_values}) = (/{values_str}/)\n")
-
-    @staticmethod
-    def validate_scalar_value(value, valid_values, name):
-        '''Check that the value argument is one of the values supplied in the
-        valid_values list.
-
-        :param str value: the value being checked.
-        :param List[str] valid_values: a list of valid values.
-        :param str name: the name of the metadata being checked
-
-        :raises ValueError: if the supplied value is not one of the \
-            values in the valid_values list.
-
-        '''
-        if value.lower() not in valid_values:
-            raise ValueError(
-                f"The {name} metadata should be a recognised "
-                f"value (one of {valid_values}) "
-                f"but found '{value}'.")
+            f"type({datatype}) :: {name}({num_values}) = "
+            f"(/ &\n{values_str}/)\n")
 
     @staticmethod
     def validate_node(fparser2_node, encoding):
@@ -206,8 +189,8 @@ class CommonDeclarationMetadata(CommonMetadata):
                 fparser2_tree.children[0].children[1].string.lower() ==
                 type_name.lower()):
             raise TypeError(
-                f"In Fortran, {name} metadata should be encoded as a "
-                f"'type({type_name})', but found "
+                f"In its Fortran form, {name} metadata should be encoded "
+                f"as a 'type({type_name})', but found "
                 f"'{str(fparser2_tree.children[0])}' in "
                 f"'{str(fparser2_tree)}'.")
 
@@ -235,9 +218,10 @@ class CommonDeclarationMetadata(CommonMetadata):
                 fparser2_tree.children[0].children[0].lower() ==
                 type_name.lower()):
             raise TypeError(
-                f"In Fortran, {name} metadata should be encoded as an "
-                f"{type_name}, but found '{str(fparser2_tree.children[0])}' "
-                f"in '{str(fparser2_tree)}'.")
+                f"In its Fortran form, {name} metadata should be encoded as "
+                f"an {type_name}, but found "
+                f"'{str(fparser2_tree.children[0])}' in "
+                f"'{str(fparser2_tree)}'.")
 
     @staticmethod
     def validate_name_value(fparser2_tree, name):
@@ -266,13 +250,14 @@ class CommonDeclarationMetadata(CommonMetadata):
         num_vars = len(component_decl_list.children)
         if num_vars != 1:
             raise ParseError(
-                f"In Fortran, {name} metadata should only contain a single "
-                f"variable, but found '{num_vars}' in '{str(fparser2_tree)}'.")
+                f"In its Fortran form, {name} metadata should only contain "
+                f"a single variable, but found '{num_vars}' in "
+                f"'{str(fparser2_tree)}'.")
         var_declaration = component_decl_list.children[0]
         var_str = var_declaration.children[0].string
         if var_str.lower() != name.lower():
             raise ValueError(
-                f"In Fortran, {name} metadata should be encoded as a "
+                f"In its Fortran form, {name} metadata should be encoded as a "
                 f"variable called {name}, but found '{var_str}' "
                 f"in '{str(fparser2_tree)}'.")
         # The variable should be initialised.

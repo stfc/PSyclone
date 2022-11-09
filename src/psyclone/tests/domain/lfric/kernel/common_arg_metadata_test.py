@@ -46,8 +46,10 @@ from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
 def test_init():
     '''Test that the CommonArgMetadata class can be created.'''
 
-    common_arg_metadata = CommonArgMetadata()
-    assert isinstance(common_arg_metadata, CommonArgMetadata)
+    with pytest.raises(TypeError) as info:
+        _ = CommonArgMetadata()
+    assert ("Can't instantiate abstract class CommonArgMetadata with "
+            "abstract methods create_from_fparser2" in str(info.value))
 
 
 def test_check_boolean():
@@ -57,22 +59,6 @@ def test_check_boolean():
         CommonArgMetadata.check_boolean("hello", "test")
     assert "The test should be a boolean but found 'str'." in str(info.value)
     CommonArgMetadata.check_boolean(True, "")
-
-
-def test_check_value():
-    '''Test that the check_value method works as expected.'''
-
-    CommonArgMetadata.check_value("hello", "metadata", ["hello"])
-
-    with pytest.raises(TypeError) as info:
-        CommonArgMetadata.check_value(None, "metadata", ["bonjour"])
-    assert ("The metadata value should be of type str, but found 'NoneType'."
-            in str(info.value))
-
-    with pytest.raises(ValueError) as info:
-        CommonArgMetadata.check_value("hello", "metadata", ["bonjour"])
-    assert ("The metadata value should be one of ['bonjour'], but found "
-            "'hello'." in str(info.value))
 
 
 def test_check_nargs():
@@ -86,13 +72,13 @@ def test_check_nargs():
             "'args(one, two, three)'." in str(info.value))
 
 
-def test_check_fparser2():
-    '''Test that the check_fparser2 method in the CommonArgMetadata class
-    works as expected.
+def test_check_fparser2_arg():
+    '''Test that the check_fparser2_arg method in the CommonArgMetadata
+    class works as expected.
 
     '''
     with pytest.raises(TypeError) as info:
-        _ = CommonArgMetadata.check_fparser2(None, None)
+        _ = CommonArgMetadata.check_fparser2_arg(None, None)
     assert ("Expected kernel metadata to be encoded as an fparser2 Part_Ref "
             "object but found type 'NoneType' with value 'None'."
             in str(info.value))
@@ -100,7 +86,7 @@ def test_check_fparser2():
     fparser_tree = CommonArgMetadata.create_fparser2(
         "braz_type(GH_FIELD, GH_REAL, GH_READ)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
-        _ = CommonArgMetadata.check_fparser2(fparser_tree, "arg_type")
+        _ = CommonArgMetadata.check_fparser2_arg(fparser_tree, "arg_type")
     assert ("Expected kernel metadata to have the name 'arg_type' and be in "
             "the form 'arg_type(...)', but found 'braz_type(GH_FIELD, "
             "GH_REAL, GH_READ)'." in str(info.value))

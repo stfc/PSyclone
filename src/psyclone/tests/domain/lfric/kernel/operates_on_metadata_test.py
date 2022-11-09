@@ -63,8 +63,8 @@ def test_init_error():
     '''
     with pytest.raises(TypeError) as info:
         _ = OperatesOnMetadata(None)
-    assert ("The OPERATES_ON metadata should be a str, but found 'NoneType'."
-            in str(info.value))
+    assert ("The OPERATES_ON value should be of type str, but found "
+            "'NoneType'." in str(info.value))
 
 
 def test_fortran_string():
@@ -120,11 +120,11 @@ def test_setter_errors():
 
     with pytest.raises(TypeError) as info:
         operates_on_metadata.operates_on = None
-    assert ("The OPERATES_ON metadata should be a str, but found 'NoneType'."
-            in str(info.value))
+    assert ("The OPERATES_ON value should be of type str, but found "
+            "'NoneType'." in str(info.value))
 
     with pytest.raises(ValueError) as info:
         operates_on_metadata.operates_on = "invalid"
     assert ("The OPERATES_ON metadata should be a recognised value (one of "
-            "['cell_column', 'domain']) but found 'invalid'."
+            "['cell_column', 'domain', 'dof']) but found 'invalid'."
             in str(info.value))

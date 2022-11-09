@@ -72,7 +72,7 @@ class ScalarArgMetadata(CommonMetaArgMetadata):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.ScalarArgMetadata`
 
         '''
-        ScalarArgMetadata.check_fparser2(fparser2_tree, "arg_type")
+        ScalarArgMetadata.check_fparser2_arg(fparser2_tree, "arg_type")
         ScalarArgMetadata.check_nargs(fparser2_tree, 3)
         ScalarArgMetadata.check_first_arg(fparser2_tree, "Scalar")
         datatype, access = ScalarArgMetadata.get_type_and_access(fparser2_tree)
@@ -92,8 +92,8 @@ class ScalarArgMetadata(CommonMetaArgMetadata):
         :param str value: the datatype to check for validity.
         '''
         const = LFRicConstants()
-        ScalarArgMetadata.check_value(
-            value, "datatype descriptor", const.VALID_SCALAR_DATA_TYPES)
+        ScalarArgMetadata.validate_scalar_value(
+            value, const.VALID_SCALAR_DATA_TYPES, "datatype descriptor")
 
     @staticmethod
     def check_access(value):
@@ -101,5 +101,5 @@ class ScalarArgMetadata(CommonMetaArgMetadata):
         :param str value: the access descriptor to validate.
         '''
         const = LFRicConstants()
-        ScalarArgMetadata.check_value(
-            value, "access descriptor", const.VALID_SCALAR_ACCESS_TYPES)
+        ScalarArgMetadata.validate_scalar_value(
+            value, const.VALID_SCALAR_ACCESS_TYPES, "access descriptor")

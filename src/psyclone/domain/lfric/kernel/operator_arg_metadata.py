@@ -88,7 +88,7 @@ class OperatorArgMetadata(ScalarArgMetadata):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.OperatorArgMetadata`
 
         '''
-        OperatorArgMetadata.check_fparser2(fparser2_tree, "arg_type")
+        OperatorArgMetadata.check_fparser2_arg(fparser2_tree, "arg_type")
         OperatorArgMetadata.check_nargs(fparser2_tree, 5)
         OperatorArgMetadata.check_first_arg(fparser2_tree, "Operator")
         datatype, access = OperatorArgMetadata.get_type_and_access(
@@ -117,8 +117,8 @@ class OperatorArgMetadata(ScalarArgMetadata):
         :param str value: the datatype to check for validity.
         '''
         const = LFRicConstants()
-        OperatorArgMetadata.check_value(
-            value, "datatype descriptor", const.VALID_OPERATOR_DATA_TYPES)
+        OperatorArgMetadata.validate_scalar_value(
+            value, const.VALID_OPERATOR_DATA_TYPES, "datatype descriptor")
 
     @staticmethod
     def check_access(value):
@@ -126,8 +126,8 @@ class OperatorArgMetadata(ScalarArgMetadata):
         :param str value: the access descriptor to validate.
         '''
         const = LFRicConstants()
-        OperatorArgMetadata.check_value(
-            value, "access descriptor", const.VALID_OPERATOR_ACCESS_TYPES)
+        OperatorArgMetadata.validate_scalar_value(
+            value, const.VALID_OPERATOR_ACCESS_TYPES, "access descriptor")
 
     @property
     def function_space_to(self):
@@ -149,8 +149,8 @@ class OperatorArgMetadata(ScalarArgMetadata):
 
         '''
         const = LFRicConstants()
-        self.check_value(
-            value, "function_space_to", const.VALID_FUNCTION_SPACES)
+        self.validate_scalar_value(
+            value, const.VALID_FUNCTION_SPACES, "function_space_to")
         self._function_space_to = value.lower()
 
     @property
@@ -169,6 +169,6 @@ class OperatorArgMetadata(ScalarArgMetadata):
             specified value.
         '''
         const = LFRicConstants()
-        self.check_value(
-            value, "function_space_from", const.VALID_FUNCTION_SPACES)
+        self.validate_scalar_value(
+            value, const.VALID_FUNCTION_SPACES, "function_space_from")
         self._function_space_from = value.lower()

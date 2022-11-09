@@ -79,8 +79,8 @@ def test_fortran_string():
     metadata = MetaFuncsMetadata(values)
     fortran_string = metadata.fortran_string()
     expected = (
-        f"type(FUNC_TYPE) :: META_FUNCS(1) = "
-        f"(/{meta_funcs_arg.fortran_string()}/)\n")
+        f"type(FUNC_TYPE) :: META_FUNCS(1) = (/ &\n"
+        f"    {meta_funcs_arg.fortran_string()}/)\n")
     assert fortran_string == expected
 
 
@@ -111,8 +111,9 @@ def test_create_from_fparser2():
     '''Test that the create_from_fparser2 method works as expected.'''
 
     fortran_string = (
-        "type(FUNC_TYPE) :: META_FUNCS(2) = (/func_type(w0, gh_basis), "
-        "func_type(w3, gh_diff_basis)/)\n")
+        "type(FUNC_TYPE) :: META_FUNCS(2) = (/ &\n"
+        "    func_type(w0, gh_basis), &\n"
+        "    func_type(w3, gh_diff_basis)/)\n")
     fparser2_tree = MetaFuncsMetadata.create_fparser2(
         fortran_string, Fortran2003.Data_Component_Def_Stmt)
     metadata = MetaFuncsMetadata.create_from_fparser2(fparser2_tree)

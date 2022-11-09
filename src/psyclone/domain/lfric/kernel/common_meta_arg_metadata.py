@@ -46,7 +46,7 @@ from psyclone.errors import InternalError
 
 
 class CommonMetaArgMetadata(CommonArgMetadata, ABC):
-    '''Abstract class to capture common LFRic kernel metadata.
+    '''Abstract class to capture common aspects of LFRic kernel metadata.
 
     :param Optional[str] datatype: the datatype of this argument.
     :param Optional[str] access: the way the kernel accesses this \
@@ -62,6 +62,7 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
     form = ""
 
     def __init__(self, datatype, access):
+        super().__init__()
         self.datatype = datatype
         self.access = access
 

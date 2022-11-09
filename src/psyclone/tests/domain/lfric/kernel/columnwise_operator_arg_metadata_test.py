@@ -103,8 +103,8 @@ def test_create_from_fparser2():
         _ = ColumnwiseOperatorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '1' for metadata 'arg_type("
             "GH_COLUMNWISE_OPERATOR, GH_UNREAL, GH_READ, W0, W1)'. The "
-            "datatype descriptor value should be one of ['gh_real'], but "
-            "found 'GH_UNREAL'." in str(info.value))
+            "datatype descriptor metadata should be a recognised value (one "
+            "of ['gh_real']) but found 'GH_UNREAL'." in str(info.value))
 
     fparser2_tree = ColumnwiseOperatorArgMetadata.create_fparser2(
         "arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_ERROR, W0, W1)",
@@ -113,8 +113,9 @@ def test_create_from_fparser2():
         _ = ColumnwiseOperatorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '2' for metadata 'arg_type("
             "GH_COLUMNWISE_OPERATOR, GH_REAL, GH_ERROR, W0, W1)'. The access "
-            "descriptor value should be one of ['gh_read', 'gh_write', "
-            "'gh_readwrite'], but found 'GH_ERROR'." in str(info.value))
+            "descriptor metadata should be a recognised value (one of "
+            "['gh_read', 'gh_write', 'gh_readwrite']) but found 'GH_ERROR'."
+            in str(info.value))
 
     fparser2_tree = ColumnwiseOperatorArgMetadata.create_fparser2(
         "arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, XX, W1)",
@@ -123,10 +124,10 @@ def test_create_from_fparser2():
         _ = ColumnwiseOperatorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '3' for metadata 'arg_type("
             "GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, XX, W1)'. The "
-            "function_space_to value should be one of ['w3', 'wtheta', "
-            "'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', "
-            "'w2h', 'w2htrace', 'any_w2', 'wchi'], but found 'XX'."
-            in str(info.value))
+            "function_space_to metadata should be a recognised value (one of "
+            "['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', "
+            "'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi']) but "
+            "found 'XX'." in str(info.value))
 
     fparser2_tree = ColumnwiseOperatorArgMetadata.create_fparser2(
         "arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, W0, YY)",
@@ -135,10 +136,10 @@ def test_create_from_fparser2():
         _ = ColumnwiseOperatorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '4' for metadata 'arg_type("
             "GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, W0, YY)'. The "
-            "function_space_from value should be one of ['w3', 'wtheta', "
-            "'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', "
-            "'w2h', 'w2htrace', 'any_w2', 'wchi'], but found 'YY'."
-            in str(info.value))
+            "function_space_from metadata should be a recognised value (one "
+            "of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', "
+            "'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi']) but "
+            "found 'YY'." in str(info.value))
 
     fparser2_tree = ColumnwiseOperatorArgMetadata.create_fparser2(
         "arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, W0, W1)",

@@ -52,6 +52,7 @@ class MetaRefElementArgMetadata(CommonArgMetadata):
 
     '''
     def __init__(self, reference_element):
+        super().__init__()
         self.reference_element = reference_element
 
     def create_from_fparser2(fparser2_tree):
@@ -66,7 +67,7 @@ class MetaRefElementArgMetadata(CommonArgMetadata):
             MetaRefElementArgMetadata`
 
         '''
-        MetaRefElementArgMetadata.check_fparser2(
+        MetaRefElementArgMetadata.check_fparser2_arg(
             fparser2_tree, type_name="reference_element_data_type")
         MetaRefElementArgMetadata.check_nargs(fparser2_tree, 1)
         reference_element = MetaRefElementArgMetadata.get_arg(fparser2_tree, 0)
@@ -96,6 +97,6 @@ class MetaRefElementArgMetadata(CommonArgMetadata):
             specified value.
         '''
         const = LFRicConstants()
-        self.check_value(
-            value, "reference element property", const.VALID_REF_ELEMENT_NAMES)
+        self.validate_scalar_value(
+            value, const.VALID_REF_ELEMENT_NAMES, "reference element property")
         self._reference_element = value.lower()

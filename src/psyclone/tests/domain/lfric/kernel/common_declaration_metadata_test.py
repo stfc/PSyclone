@@ -77,22 +77,9 @@ def test_type_declaration_string():
             MetaFuncsArgMetadata("w1", basis_function=True)]
     result = CommonDeclarationMetadata.type_declaration_string(
         "datatype", "name", args)
-    assert (result == "type(datatype) :: name(2) = "
-            "(/func_type(w0, gh_basis), func_type(w1, gh_basis)/)\n")
-
-
-def test_validate_scalar_value():
-    '''Test that the validate_scalar_value method behaves as
-    expected.
-
-    '''
-    with pytest.raises(ValueError) as info:
-        CommonDeclarationMetadata.validate_scalar_value(
-            "invalid", ["value1", "value2"], "my_metadata")
-    assert ("The my_metadata metadata should be a recognised value (one of "
-            "['value1', 'value2']) but found 'invalid'." in str(info.value))
-    CommonDeclarationMetadata.validate_scalar_value(
-            "Value2", ["value1", "value2"], "")
+    assert (result == "type(datatype) :: name(2) = (/ &\n"
+            "    func_type(w0, gh_basis), &\n"
+            "    func_type(w1, gh_basis)/)\n")
 
 
 def test_validate_node():
@@ -118,8 +105,8 @@ def test_validate_derived():
     with pytest.raises(TypeError) as info:
         CommonDeclarationMetadata._validate_derived(
             fparser2_tree, "my_type", "metadata_name")
-    assert ("In Fortran, metadata_name metadata should be encoded as a "
-            "'type(my_type)', but found 'INTEGER' in 'INTEGER :: my_var'."
+    assert ("In its Fortran form, metadata_name metadata should be encoded as "
+            "a 'type(my_type)', but found 'INTEGER' in 'INTEGER :: my_var'."
             in str(info.value))
 
     fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
@@ -129,8 +116,8 @@ def test_validate_derived():
     with pytest.raises(TypeError) as info:
         CommonDeclarationMetadata._validate_derived(
             fparser2_tree, "invalid_type", "metadata_name")
-    assert ("In Fortran, metadata_name metadata should be encoded as a "
-            "'type(invalid_type)', but found 'TYPE(my_type)' in "
+    assert ("In its Fortran form, metadata_name metadata should be encoded "
+            "as a 'type(invalid_type)', but found 'TYPE(my_type)' in "
             "'TYPE(my_type) :: my_var'." in str(info.value))
 
     CommonDeclarationMetadata._validate_derived(
@@ -147,9 +134,9 @@ def test_validate_intrinsic():
     with pytest.raises(TypeError) as info:
         CommonDeclarationMetadata._validate_intrinsic(
             fparser2_tree, "integer", "my_metadata")
-    assert ("In Fortran, my_metadata metadata should be encoded as an "
-            "integer, but found 'TYPE(my_type)' in 'TYPE(my_type) :: my_var'."
-            in str(info.value))
+    assert ("In its Fortran form, my_metadata metadata should be encoded as "
+            "an integer, but found 'TYPE(my_type)' in 'TYPE(my_type) :: "
+            "my_var'." in str(info.value))
 
     fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
         "integer :: my_var")
@@ -158,8 +145,9 @@ def test_validate_intrinsic():
     with pytest.raises(TypeError) as info:
         CommonDeclarationMetadata._validate_intrinsic(
             fparser2_tree, "real", "my_metadata")
-    assert ("In Fortran, my_metadata metadata should be encoded as an real, "
-            "but found 'INTEGER' in 'INTEGER :: my_var'." in str(info.value))
+    assert ("In its Fortran form, my_metadata metadata should be encoded as "
+            "an real, but found 'INTEGER' in 'INTEGER :: my_var'."
+            in str(info.value))
 
     CommonDeclarationMetadata._validate_intrinsic(
         fparser2_tree, "integer", "my_metadata")
@@ -175,8 +163,8 @@ def test_validate_name_value():
     with pytest.raises(ParseError) as info:
         CommonDeclarationMetadata.validate_name_value(
             fparser2_tree, "my_var")
-    assert ("In Fortran, my_var metadata should only contain a single "
-            "variable, but found '2' in 'INTEGER :: var1, var2'."
+    assert ("In its Fortran form, my_var metadata should only contain a "
+            "single variable, but found '2' in 'INTEGER :: var1, var2'."
             in str(info.value))
 
     # Incorrect variable name.
@@ -185,9 +173,9 @@ def test_validate_name_value():
     with pytest.raises(ValueError) as info:
         CommonDeclarationMetadata.validate_name_value(
             fparser2_tree, "my_var")
-    assert ("In Fortran, my_var metadata should be encoded as a variable "
-            "called my_var, but found 'invalid' in 'INTEGER :: invalid'."
-            in str(info.value))
+    assert ("In its Fortran form, my_var metadata should be encoded as a "
+            "variable called my_var, but found 'invalid' in 'INTEGER :: "
+            "invalid'." in str(info.value))
 
     # No initial value.
     fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
@@ -224,8 +212,8 @@ def test_validate_intrinsic_scalar_declaration():
     with pytest.raises(TypeError) as info:
         CommonDeclarationMetadata.validate_intrinsic_scalar_declaration(
             fparser2_tree, "integer", "my_var", ["value1", "value2"])
-    assert ("In Fortran, my_var metadata should be encoded as an integer, "
-            "but found 'TYPE(my_type)' in 'TYPE(my_type) :: my_var'."
+    assert ("In its Fortran form, my_var metadata should be encoded as an "
+            "integer, but found 'TYPE(my_type)' in 'TYPE(my_type) :: my_var'."
             in str(info.value))
 
     # Calls validate_name_value.
@@ -294,9 +282,9 @@ def test_validate_intrinsic_array_declaration():
     with pytest.raises(TypeError) as info:
         CommonDeclarationMetadata.validate_intrinsic_array_declaration(
             fparser2_tree, "integer", "my_var", ["value1", "value2"])
-    assert ("In Fortran, my_var metadata should be encoded as an integer, "
-            "but found 'TYPE(my_type)' in 'TYPE(my_type) :: my_var(2)'."
-            in str(info.value))
+    assert ("In its Fortran form, my_var metadata should be encoded as an "
+            "integer, but found 'TYPE(my_type)' in 'TYPE(my_type) :: "
+            "my_var(2)'." in str(info.value))
 
     # Calls validate_name_value.
     fparser2_tree = Fortran2003.Data_Component_Def_Stmt(
@@ -353,7 +341,7 @@ def test_validate_derived_array_declaration():
     with pytest.raises(TypeError) as info:
         CommonDeclarationMetadata.validate_derived_array_declaration(
             fparser2_tree, "my_type", "my_var", ["value1", "value2"])
-    assert ("In Fortran, my_var metadata should be encoded as a "
+    assert ("In its Fortran form, my_var metadata should be encoded as a "
             "'type(my_type)', but found 'INTEGER' in 'INTEGER :: my_var'."
             in str(info.value))
 

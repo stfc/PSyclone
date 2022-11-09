@@ -60,6 +60,7 @@ class ShapesMetadata(CommonDeclarationMetadata):
 
     '''
     def __init__(self, shapes):
+        super().__init__()
         self.shapes = shapes
 
     def fortran_string(self):
@@ -141,32 +142,12 @@ class ShapesMetadata(CommonDeclarationMetadata):
         :param values: set the shapes metdata to the supplied list of \
             values.
         :type values: List[str]
-
-        raises TypeError: if the supplied value is not a list.
-        raises TypeError: if the supplied value is an empty list.
-        raises TypeError: if any entry in the list is not of the \
-            required type.
-
         '''
-        if not isinstance(values, list):
-            raise TypeError(f"shape values should be provided as a list but "
-                            f"found '{type(values).__name__}'.")
-        if not values:
-            raise TypeError(
-                "The shapes list should contain at least one entry, but "
-                "it is empty.")
         const = LFRicConstants()
-        valid_values = const.VALID_EVALUATOR_SHAPES
+        ShapesMetadata.validate_list(values, str)
         for value in values:
-            if not isinstance(value, str):
-                raise TypeError(
-                    f"shapes should be a list of str, "
-                    f"but found '{type(value).__name__}'.")
-            if value.lower() not in valid_values:
-                raise ValueError(
-                    f"The shape metadata should be a recognised "
-                    f"value (one of {valid_values}) "
-                    f"but found '{value}'.")
+            ShapesMetadata.validate_scalar_value(
+                value, const.VALID_EVALUATOR_SHAPES, "shape")
         # Take a copy of the list so that it can't be modified
         # externally. Also make all values lower case.
         self._shapes = [value.lower() for value in values]

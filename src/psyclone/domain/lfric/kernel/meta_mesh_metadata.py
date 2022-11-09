@@ -57,6 +57,7 @@ class MetaMeshMetadata(CommonDeclarationMetadata):
 
     '''
     def __init__(self, meta_mesh_args):
+        super().__init__()
         self.meta_mesh_args = meta_mesh_args
 
     def fortran_string(self):
