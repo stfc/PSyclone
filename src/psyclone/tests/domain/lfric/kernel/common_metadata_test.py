@@ -52,10 +52,12 @@ def test_init():
     abstract.
 
     '''
+    # pylint: disable=abstract-class-instantiated
     with pytest.raises(TypeError) as info:
         _ = CommonMetadata()
     assert ("Can't instantiate abstract class CommonMetadata with "
             "abstract methods create_from_fparser2" in str(info.value))
+    # pylint: enable=abstract-class-instantiated
 
 
 def test_check_fparser2():

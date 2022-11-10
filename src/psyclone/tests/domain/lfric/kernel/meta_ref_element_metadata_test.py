@@ -44,7 +44,6 @@ from psyclone.domain.lfric.kernel.meta_ref_element_metadata import \
     MetaRefElementMetadata
 from psyclone.domain.lfric.kernel.meta_ref_element_arg_metadata import \
     MetaRefElementArgMetadata
-from psyclone.parse.utils import ParseError
 
 
 def test_init():

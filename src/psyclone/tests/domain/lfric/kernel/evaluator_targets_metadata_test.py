@@ -42,7 +42,6 @@ from fparser.two import Fortran2003
 
 from psyclone.domain.lfric.kernel.evaluator_targets_metadata import \
     EvaluatorTargetsMetadata
-from psyclone.parse.utils import ParseError
 
 
 def test_init():

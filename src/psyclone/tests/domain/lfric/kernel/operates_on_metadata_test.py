@@ -42,7 +42,6 @@ from fparser.two import Fortran2003
 
 from psyclone.domain.lfric.kernel.operates_on_metadata import \
     OperatesOnMetadata
-from psyclone.parse.utils import ParseError
 
 
 def test_init():

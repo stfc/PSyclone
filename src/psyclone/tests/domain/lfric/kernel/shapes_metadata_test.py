@@ -41,7 +41,6 @@ import pytest
 from fparser.two import Fortran2003
 
 from psyclone.domain.lfric.kernel.shapes_metadata import ShapesMetadata
-from psyclone.parse.utils import ParseError
 
 
 def test_init():

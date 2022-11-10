@@ -46,10 +46,12 @@ from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
 def test_init():
     '''Test that the CommonArgMetadata class can be created.'''
 
+    # pylint: disable=abstract-class-instantiated
     with pytest.raises(TypeError) as info:
         _ = CommonArgMetadata()
     assert ("Can't instantiate abstract class CommonArgMetadata with "
             "abstract methods create_from_fparser2" in str(info.value))
+    # pylint: enable=abstract-class-instantiated
 
 
 def test_check_boolean():

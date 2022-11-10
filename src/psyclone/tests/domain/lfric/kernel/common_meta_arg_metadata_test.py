@@ -52,7 +52,7 @@ def test_init_error():
 
     '''
     with pytest.raises(TypeError) as info:
-        _ = CommonMetaArgMetadata()
+        _ = CommonMetaArgMetadata(None, None)
     assert ("Can't instantiate abstract class CommonMetaArgMetadata with "
             "abstract methods check_access, check_datatype" in str(info.value))
 
