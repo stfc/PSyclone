@@ -40,8 +40,7 @@ import pytest
 
 from fparser.two import Fortran2003
 
-from psyclone.domain.lfric.kernel.operates_on_metadata import \
-    OperatesOnMetadata
+from psyclone.domain.lfric.kernel import OperatesOnMetadata
 
 
 def test_init():

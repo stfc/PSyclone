@@ -40,11 +40,9 @@ import pytest
 
 from fparser.two import Fortran2003
 
-from psyclone.domain.lfric.kernel.field_arg_metadata import FieldArgMetadata
-from psyclone.domain.lfric.kernel.field_vector_arg_metadata import \
-    FieldVectorArgMetadata
-from psyclone.domain.lfric.kernel.meta_args_metadata import MetaArgsMetadata
-from psyclone.domain.lfric.kernel.scalar_arg_metadata import ScalarArgMetadata
+from psyclone.domain.lfric.kernel import (
+    FieldArgMetadata, FieldVectorArgMetadata, MetaArgsMetadata,
+    ScalarArgMetadata)
 from psyclone.parse.utils import ParseError
 
 

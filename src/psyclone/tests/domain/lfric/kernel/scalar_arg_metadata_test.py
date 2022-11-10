@@ -40,7 +40,7 @@ import pytest
 
 from fparser.two import Fortran2003
 
-from psyclone.domain.lfric.kernel.scalar_arg_metadata import ScalarArgMetadata
+from psyclone.domain.lfric.kernel import ScalarArgMetadata
 
 
 def test_create():

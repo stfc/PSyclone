@@ -40,8 +40,7 @@ import pytest
 
 from fparser.two import Fortran2003
 
-from psyclone.domain.lfric.kernel.meta_ref_element_arg_metadata import \
-    MetaRefElementArgMetadata
+from psyclone.domain.lfric.kernel import MetaRefElementArgMetadata
 
 
 def test_create():

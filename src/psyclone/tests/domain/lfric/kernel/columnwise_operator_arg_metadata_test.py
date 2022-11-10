@@ -40,8 +40,7 @@ import pytest
 
 from fparser.two import Fortran2003
 
-from psyclone.domain.lfric.kernel.columnwise_operator_arg_metadata import \
-    ColumnwiseOperatorArgMetadata
+from psyclone.domain.lfric.kernel import ColumnwiseOperatorArgMetadata
 
 
 def test_create():

@@ -40,7 +40,7 @@ import pytest
 
 from fparser.two import Fortran2003
 
-from psyclone.domain.lfric.kernel.shapes_metadata import ShapesMetadata
+from psyclone.domain.lfric.kernel import ShapesMetadata
 
 
 def test_init():

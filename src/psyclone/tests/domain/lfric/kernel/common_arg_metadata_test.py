@@ -40,7 +40,7 @@ import pytest
 
 from fparser.two import Fortran2003
 
-from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
+from psyclone.domain.lfric.kernel import CommonArgMetadata
 
 
 def test_init():

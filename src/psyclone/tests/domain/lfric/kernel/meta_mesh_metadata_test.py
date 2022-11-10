@@ -40,10 +40,7 @@ import pytest
 
 from fparser.two import Fortran2003
 
-from psyclone.domain.lfric.kernel.meta_mesh_arg_metadata import \
-    MetaMeshArgMetadata
-from psyclone.domain.lfric.kernel.meta_mesh_metadata import \
-    MetaMeshMetadata
+from psyclone.domain.lfric.kernel import MetaMeshArgMetadata, MetaMeshMetadata
 
 
 def test_init():

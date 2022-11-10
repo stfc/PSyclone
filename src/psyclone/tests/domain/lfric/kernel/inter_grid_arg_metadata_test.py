@@ -40,8 +40,7 @@ import pytest
 
 from fparser.two import Fortran2003
 
-from psyclone.domain.lfric.kernel.inter_grid_arg_metadata import \
-    InterGridArgMetadata
+from psyclone.domain.lfric.kernel import InterGridArgMetadata
 
 
 def test_create():

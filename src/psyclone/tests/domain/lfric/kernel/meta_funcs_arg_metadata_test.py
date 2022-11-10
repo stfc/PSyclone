@@ -40,8 +40,7 @@ import pytest
 
 from fparser.two import Fortran2003
 
-from psyclone.domain.lfric.kernel.meta_funcs_arg_metadata import \
-    MetaFuncsArgMetadata
+from psyclone.domain.lfric.kernel import MetaFuncsArgMetadata
 from psyclone.parse.utils import ParseError
 
 

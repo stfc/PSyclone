@@ -40,8 +40,7 @@ import pytest
 
 from fparser.two import Fortran2003
 
-from psyclone.domain.lfric.kernel.operator_arg_metadata import \
-    OperatorArgMetadata
+from psyclone.domain.lfric.kernel import OperatorArgMetadata
 
 
 def test_create():

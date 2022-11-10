@@ -40,8 +40,7 @@ import pytest
 
 from fparser.two import Fortran2003
 
-from psyclone.domain.lfric.kernel.evaluator_targets_metadata import \
-    EvaluatorTargetsMetadata
+from psyclone.domain.lfric.kernel import EvaluatorTargetsMetadata
 
 
 def test_init():

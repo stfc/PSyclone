@@ -41,31 +41,12 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 
-from psyclone.domain.lfric.kernel.columnwise_operator_arg_metadata import \
-    ColumnwiseOperatorArgMetadata
-from psyclone.domain.lfric.kernel.evaluator_targets_metadata import \
-    EvaluatorTargetsMetadata
-from psyclone.domain.lfric.kernel.field_arg_metadata import FieldArgMetadata
-from psyclone.domain.lfric.kernel.field_vector_arg_metadata import \
-    FieldVectorArgMetadata
-from psyclone.domain.lfric.kernel.inter_grid_arg_metadata import \
-    InterGridArgMetadata
-from psyclone.domain.lfric.kernel.inter_grid_vector_arg_metadata import \
-    InterGridVectorArgMetadata
-from psyclone.domain.lfric.kernel.lfric_kernel_metadata import \
-    LFRicKernelMetadata
-from psyclone.domain.lfric.kernel.meta_mesh_arg_metadata import \
-    MetaMeshArgMetadata
-from psyclone.domain.lfric.kernel.meta_funcs_arg_metadata import \
-    MetaFuncsArgMetadata
-from psyclone.domain.lfric.kernel.operates_on_metadata import \
-    OperatesOnMetadata
-from psyclone.domain.lfric.kernel.operator_arg_metadata import \
-    OperatorArgMetadata
-from psyclone.domain.lfric.kernel.meta_ref_element_arg_metadata import \
-    MetaRefElementArgMetadata
-from psyclone.domain.lfric.kernel.scalar_arg_metadata import ScalarArgMetadata
-from psyclone.domain.lfric.kernel.shapes_metadata import ShapesMetadata
+from psyclone.domain.lfric.kernel import (
+    ColumnwiseOperatorArgMetadata, EvaluatorTargetsMetadata, FieldArgMetadata,
+    FieldVectorArgMetadata, InterGridArgMetadata, InterGridVectorArgMetadata,
+    LFRicKernelMetadata, MetaMeshArgMetadata, MetaFuncsArgMetadata,
+    OperatesOnMetadata, OperatorArgMetadata, MetaRefElementArgMetadata,
+    ScalarArgMetadata, ShapesMetadata)
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.symbols import DataTypeSymbol, REAL_TYPE, \

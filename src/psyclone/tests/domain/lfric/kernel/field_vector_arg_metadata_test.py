@@ -40,8 +40,7 @@ import pytest
 
 from fparser.two import Fortran2003
 
-from psyclone.domain.lfric.kernel.field_vector_arg_metadata import \
-    FieldVectorArgMetadata
+from psyclone.domain.lfric.kernel import FieldVectorArgMetadata
 
 
 def test_create():

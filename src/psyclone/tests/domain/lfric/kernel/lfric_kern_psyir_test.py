@@ -41,9 +41,8 @@ Kernel PSyIR to language-level PSyIR.
 '''
 import pytest
 
-from psyclone.domain.lfric.kernel.lfric_kernel_metadata import \
-    LFRicKernelMetadata
-from psyclone.domain.lfric.kernel.psyir import LFRicKernelContainer
+from psyclone.domain.lfric.kernel import (
+    LFRicKernelMetadata, LFRicKernelContainer)
 from psyclone.domain.lfric.transformations.raise_psyir_2_lfric_kern_trans \
     import RaisePSyIR2LFRicKernTrans
 from psyclone.psyir.nodes import Container
