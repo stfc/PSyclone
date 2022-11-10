@@ -3405,30 +3405,16 @@ class LFRicLoopBounds(DynCollection):
 
         for idx, loop in enumerate(loops):
             root_name = f"loop{idx}_start"
-            try:
-                lbound = sym_table.lookup_with_tag(root_name)
-            except KeyError:
-                # TODO #1258 the loop bound symbol should be of
-                # precision 'i_def'.
-                lbound = sym_table.new_symbol(root_name=root_name,
-                                              tag=root_name,
-                                              symbol_type=DataSymbol,
-                                              datatype=INTEGER_TYPE)
+            lbound = sym_table.find_or_create_integer_symbol(root_name,
+                                                             tag=root_name)
             parent.add(AssignGen(parent, lhs=lbound.name,
                                  rhs=loop._lower_bound_fortran()))
             entities = [lbound.name]
 
             if loop.loop_type != "colour":
                 root_name = f"loop{idx}_stop"
-                try:
-                    ubound = sym_table.lookup_with_tag(root_name)
-                except KeyError:
-                    # TODO #1258 the loop bound symbol should be of
-                    # precision 'i_def'.
-                    ubound = sym_table.new_symbol(root_name=root_name,
-                                                  tag=root_name,
-                                                  symbol_type=DataSymbol,
-                                                  datatype=INTEGER_TYPE)
+                ubound = sym_table.find_or_create_integer_symbol(root_name,
+                                                                 tag=root_name)
                 entities.append(ubound.name)
                 parent.add(AssignGen(parent, lhs=ubound.name,
                                      rhs=loop._upper_bound_fortran()))
@@ -4089,10 +4075,9 @@ class DynMeshes():
             # If distributed memory is enabled then we require a variable
             # holding the maximum halo depth for each mesh.
             for name in mesh_tags:
-                # TODO #1258 this variable should have precision 'i_def'.
-                self._symbol_table.find_or_create_tag(f"max_halo_depth_{name}",
-                                                      symbol_type=DataSymbol,
-                                                      datatype=INTEGER_TYPE)
+                var_name = f"max_halo_depth_{name}"
+                self._symbol_table.find_or_create_integer_symbol(
+                    var_name, tag=var_name)
 
     def _colourmap_init(self):
         '''
@@ -7672,16 +7657,8 @@ class DynLoop(PSyLoop):
                 posn = index
                 break
         root_name = f"loop{posn}_start"
-        try:
-            lbound = sym_table.lookup_with_tag(root_name)
-        except KeyError:
-            # TODO #1258 the loop bound symbol should be of
-            # precision 'i_def'.
-            lbound = sym_table.new_symbol(root_name=root_name,
-                                          tag=root_name,
-                                          symbol_type=DataSymbol,
-                                          datatype=INTEGER_TYPE)
-
+        lbound = sym_table.find_or_create_integer_symbol(root_name,
+                                                         tag=root_name)
         self.children[0] = Reference(lbound)
         return self.children[0]
 
@@ -7736,16 +7713,8 @@ class DynLoop(PSyLoop):
                 posn = index
                 break
         root_name = f"loop{posn}_stop"
-        try:
-            ubound = sym_table.lookup_with_tag(root_name)
-        except KeyError:
-            # TODO #1258 the loop bound symbol should be of
-            # precision 'i_def'.
-            ubound = sym_table.new_symbol(root_name=root_name,
-                                          tag=root_name,
-                                          symbol_type=DataSymbol,
-                                          datatype=INTEGER_TYPE)
-
+        ubound = sym_table.find_or_create_integer_symbol(root_name,
+                                                         tag=root_name)
         self.children[1] = Reference(ubound)
         return self.children[1]
 

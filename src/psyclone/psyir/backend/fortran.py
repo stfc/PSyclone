@@ -1111,8 +1111,10 @@ class FortranWriter(LanguageWriter):
         # The PSyIR has nested scopes but Fortran only supports declaring
         # variables at the routine level scope. For this reason, at this
         # point we have to unify all declarations and resolve possible name
-        # clashes that appear when merging the scopes.
-        whole_routine_scope = SymbolTable()
+        # clashes that appear when merging the scopes. Make sure we use
+        # the same SymbolTable class used in the base class to get an
+        # API-specific table here:
+        whole_routine_scope = type(node.symbol_table)()
 
         own_symbol = node.symbol_table.lookup_with_tag("own_routine_symbol")
         for schedule in node.walk(Schedule):
