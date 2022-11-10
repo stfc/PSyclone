@@ -48,6 +48,8 @@ from psyclone.psyir.nodes import (Call, CodeBlock, IfBlock, Loop, Schedule,
                                   ACCKernelsDirective, ACCParallelDirective)
 from psyclone.psyir.tools import DependencyTools
 
+# We distinguish between two access modes, IN (read) and OUT (write).
+IN, OUT = 0, 1
 
 class ACCUpdateTrans(Transformation):
     '''
@@ -226,11 +228,8 @@ class ACCUpdateTrans(Transformation):
 
         # Copy any data that is accessed by this host region to the host
         # (resp. device) if it is on the device (resp. host).
-        # We distinguish between two access modes, IN (read) and OUT (write).
-        # In this function, these two parameters are used to determine the
-        # access mode of data references on the host, as per the value of mode.
-        global IN, OUT
-        IN, OUT = 0, 1
+        # In this function, IN and OUT are used to determine the access mode of
+        # data references on the host, as per the value of mode.
         for mode, host_sig in enumerate((inputs, outputs)):
             if mode == IN:
                 node_index, node_offset =  0, 0
