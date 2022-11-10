@@ -5122,7 +5122,7 @@ class DynBasisFunctions(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        # pylint: disable=no-self-use,unused-argument
+        # pylint: disable=unused-argument
         # This shape is not yet supported so we do nothing
         return
 
@@ -5197,7 +5197,7 @@ class DynBasisFunctions(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        # pylint: disable=no-self-use,unused-argument
+        # pylint: disable=unused-argument
         # This shape is not yet supported so we do nothing
         return
 
