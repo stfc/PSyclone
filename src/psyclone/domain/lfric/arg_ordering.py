@@ -169,7 +169,8 @@ class ArgOrdering:
     def append_integer_reference(self, name, tag=None):
         '''This function adds a reference to an integer variable to the list
         of PSyIR nodes. If the symbol does not exist, it will be added to the
-        symbol table. It also returns the symbol.
+        symbol table. If no tag is specified, is uses the name as tag. It also
+        returns the symbol.
 
         :param str name: name of the integer variable to declare.
         :param tag: optional tag of the integer variable to declare.
@@ -179,6 +180,8 @@ class ArgOrdering:
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
+        if tag is None:
+            tag = name
         sym = self._symtab.find_or_create_integer_symbol(name, tag)
         self.psyir_append(Reference(sym))
         return sym
