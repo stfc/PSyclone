@@ -46,7 +46,7 @@ from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric import LFRicConstants, psyir
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import ArrayReference, Reference
-from psyclone.psyir.symbols import ArrayType, DataSymbol, SymbolTable
+from psyclone.psyir.symbols import ArrayType, DataSymbol
 
 
 class ArgOrdering:
@@ -77,7 +77,10 @@ class ArgOrdering:
         if invoke_sched:
             self._symtab = invoke_sched.symbol_table
         else:
-            self._symtab = SymbolTable()
+            # Avoid circular dependency
+            # pylint: disable=import-outside-toplevel
+            from psyclone.domain.lfric import LFRicSymbolTable
+            self._symtab = LFRicSymbolTable()
 
         # TODO #1934 Completely remove the usage of strings, instead
         # use the PSyIR representation.
@@ -165,8 +168,9 @@ class ArgOrdering:
 
     def get_integer_symbol(self, name, tag=None):
         '''This function returns a symbol for an integer reference. If the
-        symbol should not already exist in the symbol table, it will
-        be properly declared and added to the table.
+        symbol should already exist in the symbol table, it will
+        be returned, otherwise a new symbol will be created. If no
+        tag is specified, the name will be used as tag.
 
         :param str name: name of the integer variable to declare.
         :param tag: optional tag of the integer variable to declare.
@@ -178,28 +182,7 @@ class ArgOrdering:
         '''
         if not tag:
             tag = name
-        try:
-            sym = self._symtab.lookup_with_tag(tag)
-        except KeyError:
-            sym = None
-
-        if sym is None or not isinstance(sym, DataSymbol):
-            # Either the symbol doesn't exist, or it doesn't have a type yet.
-            # Create a DataSymbol for this kernel argument.
-            datatype = psyir.LfricIntegerScalarDataType()
-            if sym is not None:
-                # The symbol exists, but is not a DataSymbol. So we need to
-                # properly declare this symbol now by removing the old symbol,
-                # and adding a new symbol with the same name and tag:
-                new_sym = DataSymbol(sym.name, datatype=datatype)
-                self._symtab.remove(sym)
-                self._symtab.add(new_sym, tag=tag)
-                sym = new_sym
-            else:
-                sym = self._symtab.new_symbol(name, tag=tag,
-                                              symbol_type=DataSymbol,
-                                              datatype=datatype)
-        return sym
+        return self._symtab.find_or_create_integer_symbol(name, tag)
 
     def append_integer_reference(self, name, tag=None):
         '''This function adds a reference to an integer variable to the list

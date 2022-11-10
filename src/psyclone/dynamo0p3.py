@@ -60,7 +60,7 @@ from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, KernStubArgList,
                                    LFRicArgDescriptor, KernelInterface,
-                                   LFRicConstants)
+                                   LFRicConstants, LFRicSymbolTable)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeallocateGen, DeclGen, DoGen, IfThenGen,
@@ -76,9 +76,10 @@ from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
                                   ArrayReference, ACCEnterDataDirective,
-                                  ACCRegionDirective, OMPRegionDirective)
+                                  ACCRegionDirective, OMPRegionDirective,
+                                  ScopingNode)
 from psyclone.psyir.symbols import (
-    INTEGER_TYPE, INTEGER_SINGLE_TYPE, DataSymbol, SymbolTable, ScalarType,
+    INTEGER_TYPE, INTEGER_SINGLE_TYPE, DataSymbol, ScalarType,
     DeferredType, DataTypeSymbol, ContainerSymbol, ImportInterface, ArrayType)
 
 # pylint: disable=too-many-lines
@@ -1021,6 +1022,8 @@ class DynamoPSy(PSy):
 
     '''
     def __init__(self, invoke_info):
+        # Make sure the scoping node creates LFRicSymbolTables
+        ScopingNode._symbol_table_class = LFRicSymbolTable
         PSy.__init__(self, invoke_info)
         self._invokes = DynamoInvokes(invoke_info.calls, self)
         # Initialise the dictionary that holds the names of the required
@@ -1177,7 +1180,7 @@ class DynCollection():
             self._kernel = node
             # TODO 719 The symbol table is not connected to other parts of
             # the Stub generation.
-            self._symbol_table = SymbolTable()
+            self._symbol_table = LFRicSymbolTable()
             # We only have a single kernel call in this case
             self._calls = [node]
         else:
@@ -1437,7 +1440,7 @@ class DynStencils(DynCollection):
         '''
         root_name = arg.name + "_max_branch_length"
         unique = DynStencils.stencil_unique_str(arg, "length")
-        return symtab.find_or_create_tag(unique, root_name).name
+        return symtab.find_or_create_integer_symbol(root_name, tag=unique).name
 
     def _unique_max_branch_length_vars(self):
         '''
@@ -1489,7 +1492,7 @@ class DynStencils(DynCollection):
         '''
         root_name = arg.name+"_direction"
         unique = DynStencils.stencil_unique_str(arg, "direction")
-        return symtab.find_or_create_tag(unique, root_name).name
+        return symtab.find_or_create_integer_symbol(root_name, tag=unique).name
 
     @property
     def _unique_extent_vars(self):
@@ -1861,7 +1864,15 @@ class LFRicMeshProperties(DynCollection):
 
         # Store properties in symbol table
         for prop in self._properties:
-            self._symbol_table.find_or_create_tag(prop.name.lower())
+            name_lower = prop.name.lower()
+            if prop.name in ["NCELL_2D", "NCELL_2D_NO_HALOS"]:
+                # This is an integer:
+                self._symbol_table.find_or_create_integer_symbol(
+                    name_lower, tag=name_lower)
+            else:
+                # E.g.: adjacent_face
+                self._symbol_table.find_or_create_tag(
+                    name_lower)
 
     def kern_args(self, stub=False, var_accesses=None,
                   kern_call_arg_list=None):
@@ -1914,8 +1925,9 @@ class LFRicMeshProperties(DynCollection):
                             append_integer_reference("nfaces_re_h")
                         name = sym.name
                     else:
-                        name = self._symbol_table.find_or_create_tag(
-                            "nfaces_re_h").name
+                        name = self._symbol_table.\
+                            find_or_create_integer_symbol(
+                                "nfaces_re_h", tag="nfaces_re_h").name
                     arg_list.append(name)
                     if var_accesses is not None:
                         var_accesses.add_access(Signature(name),
@@ -1998,13 +2010,15 @@ class LFRicMeshProperties(DynCollection):
                                    kind=api_config.default_kind["integer"],
                                    pointer=True, entity_decls=[adj_face]))
             elif prop == MeshProperty.NCELL_2D_NO_HALOS:
-                name = self._symbol_table.find_or_create_tag(
-                    "ncell_2d_no_halos").name
+                name = self._symbol_table.find_or_create_integer_symbol(
+                    "ncell_2d_no_halos",
+                    tag="ncell_2d_no_halos").name
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind=api_config.default_kind["integer"],
                                    entity_decls=[name]))
             elif prop == MeshProperty.NCELL_2D:
-                name = self._symbol_table.find_or_create_tag("ncell_2d").name
+                name = self._symbol_table.find_or_create_integer_symbol(
+                    "ncell_2d", tag="ncell_2d").name
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind=api_config.default_kind["integer"],
                                    entity_decls=[name]))
@@ -2042,15 +2056,18 @@ class LFRicMeshProperties(DynCollection):
                     "adjacent_face").name
                 # 'nfaces_re_h' will have been declared by the
                 # DynReferenceElement class.
+                dimension = self._symbol_table.\
+                    find_or_create_integer_symbol("nfaces_re_h",
+                                                  tag="nfaces_re_h").name
                 parent.add(
                     DeclGen(
                         parent, datatype="integer",
                         kind=api_config.default_kind["integer"],
-                        dimension=self._symbol_table.find_or_create_tag(
-                            "nfaces_re_h").name,
+                        dimension=dimension,
                         intent="in", entity_decls=[adj_face]))
             elif prop == MeshProperty.NCELL_2D:
-                ncell_2d = self._symbol_table.find_or_create_tag("ncell_2d")
+                ncell_2d = self._symbol_table.find_or_create_integer_symbol(
+                    "ncell_2d", tag="ncell_2d")
                 parent.add(
                     DeclGen(parent, datatype="integer",
                             kind=api_config.default_kind["integer"],
@@ -2108,13 +2125,14 @@ class LFRicMeshProperties(DynCollection):
                                      rhs=mesh+"%get_adjacent_face()"))
 
             elif prop == MeshProperty.NCELL_2D_NO_HALOS:
-                name = self._symbol_table.find_or_create_tag(
-                    "ncell_2d_no_halos").name
+                name = self._symbol_table.find_or_create_integer_symbol(
+                    "ncell_2d_no_halos", tag="ncell_2d_no_halos").name
                 parent.add(AssignGen(parent, lhs=name,
                                      rhs=mesh+"%get_last_edge_cell()"))
 
             elif prop == MeshProperty.NCELL_2D:
-                name = self._symbol_table.find_or_create_tag("ncell_2d").name
+                name = self._symbol_table.find_or_create_integer_symbol(
+                    "ncell_2d", tag="ncell_2d").name
                 parent.add(AssignGen(parent, lhs=name,
                                      rhs=mesh+"%get_ncells_2d()"))
             else:
@@ -2208,19 +2226,22 @@ class DynReferenceElement(DynCollection):
                 RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES
                 in self._properties or
                 self._nfaces_h_required):
-            self._nfaces_h_name = symtab.find_or_create_tag("nfaces_re_h").name
+            self._nfaces_h_name = symtab.find_or_create_integer_symbol(
+                "nfaces_re_h", tag="nfaces_re_h").name
         # Provide no. of vertical faces if required
         if (RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES
                 in self._properties or
                 RefElementMetaData.Property.OUTWARD_NORMALS_TO_VERTICAL_FACES
                 in self._properties):
-            self._nfaces_v_name = symtab.find_or_create_tag("nfaces_re_v").name
+            self._nfaces_v_name = symtab.find_or_create_integer_symbol(
+                "nfaces_re_v", tag="nfaces_re_v").name
         # Provide no. of all faces if required
         if (RefElementMetaData.Property.NORMALS_TO_FACES
                 in self._properties or
                 RefElementMetaData.Property.OUTWARD_NORMALS_TO_FACES
                 in self._properties):
-            self._nfaces_name = symtab.find_or_create_tag("nfaces_re").name
+            self._nfaces_name = symtab.find_or_create_integer_symbol(
+                "nfaces_re", tag="nfaces_re").name
 
         # Now the arrays themselves, in the order specified in the
         # kernel metadata (in the case of a kernel stub)
@@ -2364,7 +2385,8 @@ class DynReferenceElement(DynCollection):
 
         # Declare the necessary scalars (duplicates are ignored by parent.add)
         scalars = list(self._arg_properties.values())
-        nfaces_h = self._symbol_table.find_or_create_tag("nfaces_re_h").name
+        nfaces_h = self._symbol_table.find_or_create_integer_symbol(
+            "nfaces_re_h", tag="nfaces_re_h").name
         if self._nfaces_h_required and nfaces_h not in scalars:
             scalars.append(nfaces_h)
 
@@ -3273,10 +3295,10 @@ class DynCellIterators(DynCollection):
 
     '''
     def __init__(self, kern_or_invoke):
-        super(DynCellIterators, self).__init__(kern_or_invoke)
+        super().__init__(kern_or_invoke)
 
-        self._nlayers_name = \
-            self._symbol_table.find_or_create_tag("nlayers").name
+        self._nlayers_name = self._symbol_table.\
+            find_or_create_integer_symbol("nlayers", tag="nlayers").name
 
         # Store a reference to the first field/operator object that
         # we can use to look-up nlayers in the PSy layer.
@@ -3867,8 +3889,14 @@ class DynCMAOperators(DynCollection):
             # Declare the associated integer parameters
             param_names = []
             for param in self._cma_ops[op_name]["params"]:
-                param_names.append(self._symbol_table.find_or_create_tag(
-                    op_name+"_"+param).name)
+                name = op_name + "_" + param
+                if param in ["bandwidth", "ncol", "nrow", "alpha", "beta",
+                             "gamma_m", "gamma_p"]:
+                    sym = self._symbol_table.find_or_create_integer_symbol(
+                        name, tag=name)
+                else:
+                    sym = self._symbol_table.find_or_create_tag(name)
+                param_names.append(sym.name)
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                entity_decls=param_names))
@@ -4466,14 +4494,17 @@ class DynInterGrid():
         self.mmap = symtab.find_or_create_tag(base_mmap_name).name
 
         # Generate name for ncell variables
-        self.ncell_fine = symtab.find_or_create_tag(
-            f"ncell_{fine_arg.name}").name
+        name = f"ncell_{fine_arg.name}"
+        self.ncell_fine = symtab.find_or_create_integer_symbol(
+            name, tag=name).name
         # No. of fine cells per coarse cell in x
-        self.ncellpercellx = symtab.find_or_create_tag(
-            f"ncpc_{fine_arg.name}_{coarse_arg.name}_x").name
+        name = f"ncpc_{fine_arg.name}_{coarse_arg.name}_x"
+        self.ncellpercellx = symtab.find_or_create_integer_symbol(
+            name, tag=name).name
         # No. of fine cells per coarse cell in y
-        self.ncellpercelly = symtab.find_or_create_tag(
-            f"ncpc_{fine_arg.name}_{coarse_arg.name}_y").name
+        name = f"ncpc_{fine_arg.name}_{coarse_arg.name}_y"
+        self.ncellpercelly = symtab.find_or_create_integer_symbol(
+            name, tag=name).name
         # Name for cell map
         base_name = "cell_map_" + coarse_arg.name
         self.cell_map = symtab.find_or_create_tag(base_name).name
@@ -5190,10 +5221,10 @@ class DynBasisFunctions(DynCollection):
         '''
         if qr_type not in ["face", "edge"]:
             raise InternalError(
-                "_initialise_face_or_edge_qr: qr_type argument must be either "
-                "'face' or 'edge' but got: '{0}'".format(qr_type))
+                f"_initialise_face_or_edge_qr: qr_type argument must be "
+                f"either 'face' or 'edge' but got: '{qr_type}'")
 
-        quadrature_name = "gh_quadrature_" + qr_type
+        quadrature_name = f"gh_quadrature_{qr_type}"
 
         if quadrature_name not in self._qr_vars:
             return
@@ -5206,7 +5237,8 @@ class DynBasisFunctions(DynCollection):
             # of quadrature points by appending the name of the quadrature
             # argument
             decl_list = [
-                symbol_table.find_or_create_tag(name+"_"+qr_arg_name).name
+                symbol_table.find_or_create_integer_symbol(
+                    name+"_"+qr_arg_name, tag=name+"_"+qr_arg_name).name
                 for name in self.qr_dim_vars[qr_type]]
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
@@ -7023,13 +7055,8 @@ class DynLoop(PSyLoop):
                     "'dof' or '' (for cell-columns).".format(self.loop_type))
 
             symtab = self.scope.symbol_table
-            try:
-                self.variable = symtab.lookup_with_tag(tag)
-            except KeyError:
-                # TODO #696 - each loop variable should have KIND i_def.
-                self.variable = symtab.new_symbol(
-                    suggested_name, tag, symbol_type=DataSymbol,
-                    datatype=INTEGER_TYPE)
+            self.variable = symtab.find_or_create_integer_symbol(
+                suggested_name, tag)
 
         # Pre-initialise the Loop children  # TODO: See issue #440
         self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
@@ -7926,7 +7953,7 @@ class DynKern(CodedKern):
         create_arg_list = KernCallArgList(self)
         create_arg_list.generate(var_accesses)
 
-        super(DynKern, self).reference_accesses(var_accesses)
+        super().reference_accesses(var_accesses)
         # Set the current location index to the next location, since after
         # this kernel a new statement starts.
         var_accesses.next_location()
@@ -8029,6 +8056,7 @@ class DynKern(CodedKern):
                 break
 
     def _setup(self, ktype, module_name, args, parent, check=True):
+        # pylint: disable=too-many-arguments
         '''Internal setup of kernel information.
 
         :param ktype: object holding information on the parsed metadata for \
@@ -8096,7 +8124,7 @@ class DynKern(CodedKern):
             if qr_arg.varname:
                 tag = "AlgArgs_" + qr_arg.text
                 qr_name = self.ancestor(InvokeSchedule).symbol_table.\
-                    find_or_create_tag(tag, qr_arg.varname).name
+                    find_or_create_integer_symbol(qr_arg.varname, tag=tag).name
             else:
                 # If we don't have a name then we must be doing kernel-stub
                 # generation so create a suitable name.
@@ -8891,11 +8919,11 @@ class DynKernelArguments(Arguments):
                 symtab = inv_sched.symbol_table
             else:
                 # This can happen in stub generation.
-                symtab = SymbolTable()
+                symtab = LFRicSymbolTable()
         else:
             # TODO 719 The symtab is not connected to other parts of the
             # Stub generation.
-            symtab = SymbolTable()
+            symtab = LFRicSymbolTable()
         const = LFRicConstants()
         for arg in self._args:
             if not arg.descriptor.stencil:
@@ -8917,7 +8945,8 @@ class DynKernelArguments(Arguments):
                     # it is unique in the PSy layer
                     tag = "AlgArgs_" + arg.stencil.direction_arg.text
                     root = arg.stencil.direction_arg.varname
-                    new_name = symtab.find_or_create_tag(tag, root).name
+                    new_name = symtab.find_or_create_integer_symbol(
+                        root, tag=tag).name
                     arg.stencil.direction_arg.varname = new_name
 
         self._dofs = []
@@ -8959,9 +8988,9 @@ class DynKernelArguments(Arguments):
                 if function_space:
                     if func_space_name == function_space.orig_name:
                         return arg, function_space
-        raise FieldNotFoundError("DynKernelArguments:get_arg_on_space_name: "
-                                 "there is no field or operator with function "
-                                 "space {0}".format(func_space_name))
+        raise FieldNotFoundError(f"DynKernelArguments:get_arg_on_space_name: "
+                                 f"there is no field or operator with "
+                                 f"function space {func_space_name}")
 
     def get_arg_on_space(self, func_space):
         '''
