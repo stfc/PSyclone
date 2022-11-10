@@ -184,6 +184,9 @@
 	64) PR #1913 for #1848. Fix issues with case-sensitivity in the
 	SymbolTables.resolve_imports method.
 
+	65) PR #1917 for #1916. Extends InlineTrans to support calls to
+	routines in different Containers.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
