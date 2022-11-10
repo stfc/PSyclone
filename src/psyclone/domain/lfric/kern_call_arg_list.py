@@ -936,9 +936,11 @@ class KernCallArgList(ArgOrdering):
         :rtype: Tuple[str, py:class:`psyclone.psyir.nodes.Reference`]
 
         '''
-        cell_sym = self.get_integer_symbol("cell", "cell_loop_idx")
+        cell_sym = self._symtab.find_or_create_integer_symbol(
+            "cell", tag="cell_loop_idx")
         if self._kern.is_coloured():
-            colour_sym = self.get_integer_symbol("colour", "colours_loop_idx")
+            colour_sym = self._symtab.find_or_create_integer_symbol(
+                "colour", tag="colours_loop_idx")
             array_ref = self.get_array_reference("cmap",
                                                  [Reference(colour_sym),
                                                   Reference(cell_sym)],
