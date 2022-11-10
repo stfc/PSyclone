@@ -37,7 +37,6 @@
 the values for the LFRic kernel meta_mesh metadata.
 
 '''
-from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.common_declaration_metadata import \
     CommonDeclarationMetadata
 from psyclone.domain.lfric.kernel.meta_mesh_arg_metadata import \
@@ -49,7 +48,8 @@ class MetaMeshMetadata(CommonDeclarationMetadata):
     meta_mesh metadata. This class supports the creation,
     modification and Fortran output of this metadata.
 
-    meta_mesh metadata specifies properties of the LFRic mesh object.
+    meta_mesh metadata specifies properties of the LFRic mesh object
+    that are required by a kernel.
 
     :param meta_mesh_args: a list of meta_mesh arguments.
     :type meta_mesh_args: List[:py:class:`psyclone.domain.lfric.kernel.\
@@ -62,10 +62,10 @@ class MetaMeshMetadata(CommonDeclarationMetadata):
 
     def fortran_string(self):
         '''
-         :returns: the meta_mesh metadata as Fortran.
-         :rtype: str
+        :returns: the meta_mesh metadata as Fortran.
+        :rtype: str
         '''
-        return MetaMeshMetadata.type_declaration_string(
+        return self.type_declaration_string(
             "MESH_DATA_TYPE", "META_MESH", self._meta_mesh_args)
 
     @staticmethod

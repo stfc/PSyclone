@@ -37,7 +37,6 @@
 the values for the LFRic kernel meta_funcs metadata.
 
 '''
-from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.common_declaration_metadata import \
     CommonDeclarationMetadata
 from psyclone.domain.lfric.kernel.meta_funcs_arg_metadata import \
@@ -63,10 +62,10 @@ class MetaFuncsMetadata(CommonDeclarationMetadata):
 
     def fortran_string(self):
         '''
-         :returns: the meta_funcs metadata as Fortran.
-         :rtype: str
+        :returns: the meta_funcs metadata as Fortran.
+        :rtype: str
         '''
-        return MetaFuncsMetadata.type_declaration_string(
+        return self.type_declaration_string(
             "FUNC_TYPE", "META_FUNCS", self._meta_funcs_args)
 
     @staticmethod

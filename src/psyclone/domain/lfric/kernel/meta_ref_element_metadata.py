@@ -37,7 +37,6 @@
 the values for the LFRic kernel meta_ref_element metadata.
 
 '''
-from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.common_declaration_metadata import \
     CommonDeclarationMetadata
 from psyclone.domain.lfric.kernel.meta_ref_element_arg_metadata import \
@@ -63,10 +62,10 @@ class MetaRefElementMetadata(CommonDeclarationMetadata):
 
     def fortran_string(self):
         '''
-         :returns: the meta_ref_element metadata as Fortran.
-         :rtype: str
+        :returns: the meta_ref_element metadata as Fortran.
+        :rtype: str
         '''
-        return MetaRefElementMetadata.type_declaration_string(
+        return self.type_declaration_string(
             "REFERENCE_ELEMENT_DATA_TYPE", "META_REFERENCE_ELEMENT",
             self._meta_ref_element_args)
 

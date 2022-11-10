@@ -42,7 +42,6 @@ from fparser.two import Fortran2003
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.common_declaration_metadata import \
     CommonDeclarationMetadata
-from psyclone.parse.utils import ParseError
 
 
 class ShapesMetadata(CommonDeclarationMetadata):
@@ -71,9 +70,8 @@ class ShapesMetadata(CommonDeclarationMetadata):
         if len(self.shapes) == 1:
             return ShapesMetadata.scalar_declaration_string(
                 "INTEGER", "GH_SHAPE", self.shapes[0])
-        else:
-            return ShapesMetadata.array_declaration_string(
-                "INTEGER", "GH_SHAPE", self.shapes)
+        return ShapesMetadata.array_declaration_string(
+            "INTEGER", "GH_SHAPE", self.shapes)
 
     @staticmethod
     def create_from_fparser2(fparser2_tree):
@@ -114,11 +112,11 @@ class ShapesMetadata(CommonDeclarationMetadata):
         component_decl_list = fparser2_tree.children[2]
         gh_shape_declaration = component_decl_list.children[0]
         if fparser2_tree.children[1] or gh_shape_declaration.children[1]:
-            # This is probably the array form
+            # This is not the scalar form so check for the array form.
             shapes_list = ShapesMetadata.validate_intrinsic_array_declaration(
                 fparser2_tree, "INTEGER", "GH_SHAPE", valid_values)
         else:
-            # This is probably the scalar form
+            # Check for the scalar form.
             shapes_value = ShapesMetadata.\
                 validate_intrinsic_scalar_declaration(
                     fparser2_tree, "INTEGER", "GH_SHAPE", valid_values)

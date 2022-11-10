@@ -100,7 +100,7 @@ def test_create_from_fparser2_errors():
         "func_type(x)", Fortran2003.Part_Ref)
     with pytest.raises(ParseError) as info:
         _ = MetaFuncsArgMetadata.create_from_fparser2(fparser2_tree)
-    assert ("There must be at least 2 arguments, a function_space and one "
+    assert ("There must be at least 2 arguments: a function_space and one "
             "of basis_function or diff_basis_function, but found '1' "
             "arguments." in str(info.value))
 
@@ -108,31 +108,34 @@ def test_create_from_fparser2_errors():
         "func_type(x, y, z, a)", Fortran2003.Part_Ref)
     with pytest.raises(ParseError) as info:
         _ = MetaFuncsArgMetadata.create_from_fparser2(fparser2_tree)
-    assert ("There must be at most 3 arguments, function_space, "
+    assert ("There must be at most 3 arguments: function_space, "
             "basis_function and diff_basis_function, but found '4'."
             in str(info.value))
 
+    # the validity of the function space is checked in the constructor
+    # - after the validity of the basis function values.
     fparser2_tree = MetaFuncsArgMetadata.create_fparser2(
         "func_type(invalid, x)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = MetaFuncsArgMetadata.create_from_fparser2(fparser2_tree)
-    assert ("The basis or differential basis value should be one of "
-            "['gh_basis', 'gh_diff_basis'], but found 'x'." in str(info.value))
+    assert ("The basis or differential basis metadata should be a recognised "
+            "value (one of ['gh_basis', 'gh_diff_basis']) but found 'x'."
+            in str(info.value))
 
     fparser2_tree = MetaFuncsArgMetadata.create_fparser2(
         "func_type(W0, invalid)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = MetaFuncsArgMetadata.create_from_fparser2(fparser2_tree)
-    assert ("The basis or differential basis value should be one of "
-            "['gh_basis', 'gh_diff_basis'], but found 'invalid'."
+    assert ("The basis or differential basis metadata should be a recognised "
+            "value (one of ['gh_basis', 'gh_diff_basis']) but found 'invalid'."
             in str(info.value))
 
     fparser2_tree = MetaFuncsArgMetadata.create_fparser2(
         "func_type(W0, GH_BASIS, invalid)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = MetaFuncsArgMetadata.create_from_fparser2(fparser2_tree)
-    assert ("The basis or differential basis value should be one of "
-            "['gh_basis', 'gh_diff_basis'], but found 'invalid'."
+    assert ("The basis or differential basis metadata should be a recognised "
+            "value (one of ['gh_basis', 'gh_diff_basis']) but found 'invalid'."
             in str(info.value))
 
     fparser2_tree = MetaFuncsArgMetadata.create_fparser2(

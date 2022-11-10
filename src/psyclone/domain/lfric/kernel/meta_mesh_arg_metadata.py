@@ -38,8 +38,6 @@ captures the argument values for the LFRic kernel
 META_MESH metadata.
 
 '''
-from fparser.two import Fortran2003
-
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
 
@@ -55,6 +53,7 @@ class MetaMeshArgMetadata(CommonArgMetadata):
         super().__init__()
         self.mesh = mesh
 
+    @staticmethod
     def create_from_fparser2(fparser2_tree):
         '''Create an instance of this class from an fparser2 tree.
 
@@ -76,9 +75,8 @@ class MetaMeshArgMetadata(CommonArgMetadata):
         '''
         :returns: the metadata represented by this class as Fortran.
         :rtype: str
-
         '''
-        return(f"mesh_data_type({self.mesh})")
+        return f"mesh_data_type({self.mesh})"
 
     @property
     def mesh(self):
@@ -94,5 +92,6 @@ class MetaMeshArgMetadata(CommonArgMetadata):
         :param str value: set the mesh property to the specified value.
         '''
         const = LFRicConstants()
-        self.validate_scalar_value(value, const.VALID_MESH_NAMES, "mesh property")
+        self.validate_scalar_value(
+            value, const.VALID_MESH_NAMES, "mesh property")
         self._mesh = value.lower()

@@ -267,6 +267,10 @@ class LFRicKernelMetadata(CommonMetadata):
         '''Internal utility that extracts the procedure name from an
         fparser2 tree that captures LFRic metadata.
 
+        TODO Issue #1946: potentially update the metadata to capture
+        interface names as well as the interface itself. The procedure
+        name will then no longer be optional.
+
         :param spec_part: the fparser2 parse tree containing the metadata.
         :type spec_part: :py:class:`fparser.two.Fortran2003.Derived_Type_Def`
 
@@ -314,14 +318,12 @@ class LFRicKernelMetadata(CommonMetadata):
             operates_on and procedure_name have not been set.
 
         '''
-        if not (self.operates_on and self._meta_args and
-                self.procedure_name and self.name):
+        if not (self.operates_on and self._meta_args and self.name):
             raise ValueError(
-                f"Values for operates_on, meta_args, procedure_name and name "
+                f"Values for operates_on, meta_args and name "
                 f"must be provided before calling the fortran_string method, "
-                f"but found '{self.operates_on}', '{self._meta_args}', "
-                f"'{self.procedure_name}' and '{self.name}' "
-                f"respectively.")
+                f"but found '{self.operates_on}', '{self._meta_args}' "
+                f"and '{self.name}' respectively.")
 
         operates_on = f"  {self._operates_on.fortran_string()}"
         meta_args = f"  {self._meta_args.fortran_string()}"
@@ -346,6 +348,15 @@ class LFRicKernelMetadata(CommonMetadata):
         if self._meta_mesh:
             meta_mesh = f"  {self._meta_mesh.fortran_string()}"
 
+        # TODO Issue #1946: potentially update the metadata to capture
+        # interface names as well as the interface itself. The
+        # procedure name will then no longer be optional.
+        procedure = ""
+        if self.procedure_name:
+            procedure = (
+                f"  CONTAINS\n"
+                f"    PROCEDURE, NOPASS :: {self.procedure_name}\n")
+
         result = (
             f"TYPE, PUBLIC, EXTENDS(kernel_type) :: {self.name}\n"
             f"{meta_args}"
@@ -355,8 +366,7 @@ class LFRicKernelMetadata(CommonMetadata):
             f"{shapes}"
             f"{evaluator_targets}"
             f"{operates_on}"
-            f"  CONTAINS\n"
-            f"    PROCEDURE, NOPASS :: {self.procedure_name}\n"
+            f"{procedure}"
             f"END TYPE {self.name}\n")
         return result
 
@@ -526,18 +536,21 @@ class LFRicKernelMetadata(CommonMetadata):
     @procedure_name.setter
     def procedure_name(self, value):
         '''
-        :param str value: set the kernel procedure name in the \
+        :param Optional[str] value: set the kernel procedure name in the \
             metadata to the specified value.
 
         :raises ValueError: if the metadata has an invalid value.
 
         '''
-        config = Config.get()
-        if not value or not config.valid_name.match(value):
-            raise ValueError(
-                f"Expected procedure_name to be a valid Fortran name but "
-                f"found '{value}'.")
-        self._procedure_name = value
+        if value is None:
+            self._procedure_name = None
+        else:
+            config = Config.get()
+            if not value or not config.valid_name.match(value):
+                raise ValueError(
+                    f"Expected procedure_name to be a valid Fortran name but "
+                    f"found '{value}'.")
+            self._procedure_name = value
 
     @property
     def name(self):

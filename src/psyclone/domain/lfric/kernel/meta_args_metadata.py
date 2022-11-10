@@ -40,7 +40,6 @@ the values for the LFRic kernel meta_args metadata.
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
 
-from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.columnwise_operator_arg_metadata import \
     ColumnwiseOperatorArgMetadata
 from psyclone.domain.lfric.kernel.common_meta_arg_metadata import \
@@ -79,10 +78,10 @@ class MetaArgsMetadata(CommonDeclarationMetadata):
 
     def fortran_string(self):
         '''
-         :returns: the meta_args metadata as Fortran.
-         :rtype: str
+        :returns: the meta_args metadata as Fortran.
+        :rtype: str
         '''
-        return MetaArgsMetadata.type_declaration_string(
+        return self.type_declaration_string(
             "ARG_TYPE", "META_ARGS", self._meta_args_args)
 
     @staticmethod
@@ -103,9 +102,8 @@ class MetaArgsMetadata(CommonDeclarationMetadata):
             is found.
 
         '''
-        values_list = MetaArgsMetadata.validate_derived_array_declaration(
+        MetaArgsMetadata.validate_derived_array_declaration(
             fparser2_tree, "ARG_TYPE", "META_ARGS")
-
         args = walk(fparser2_tree, Fortran2003.Ac_Value_List)
         meta_args_args = []
         for meta_arg in args[0].children:
@@ -119,7 +117,7 @@ class MetaArgsMetadata(CommonDeclarationMetadata):
                 arg = ColumnwiseOperatorArgMetadata.create_from_fparser2(
                     meta_arg)
             elif "gh_field" in form:
-                vector_arg = "gh_field" in form and "*" in form
+                vector_arg = "*" in form
                 nargs = len(meta_arg.children[1].children)
                 intergrid_arg = False
                 if nargs == 5:

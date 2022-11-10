@@ -471,9 +471,9 @@ def test_fortran_string():
     instance = LFRicKernelMetadata()
     with pytest.raises(ValueError) as info:
         instance.fortran_string()
-    assert ("Values for operates_on, meta_args, procedure_name and name must "
+    assert ("Values for operates_on, meta_args and name must "
             "be provided before calling the fortran_string method, but found "
-            "'None', 'None', 'None' and 'None' respectively."
+            "'None', 'None' and 'None' respectively."
             in str(info.value))
 
     metadata = LFRicKernelMetadata.create_from_fortran_string(METADATA)
@@ -502,6 +502,41 @@ def test_fortran_string():
         "  INTEGER :: OPERATES_ON = cell_column\n"
         "  CONTAINS\n"
         "    PROCEDURE, NOPASS :: testkern_code\n"
+        "END TYPE testkern_type\n")
+    assert result == expected
+
+
+def test_fortran_string_no_procedure():
+    '''Test that the metadata can be written out as a fortran string when
+    there is no procedure name supplied.
+
+    '''
+    metadata = LFRicKernelMetadata.create_from_fortran_string(
+        METADATA.replace(
+            " contains\n   procedure, nopass :: code => testkern_code\n", ""))
+    result = metadata.fortran_string()
+    expected = (
+        "TYPE, PUBLIC, EXTENDS(kernel_type) :: testkern_type\n"
+        "  type(ARG_TYPE) :: META_ARGS(7) = (/ &\n"
+        "    arg_type(gh_scalar, gh_real, gh_read), &\n"
+        "    arg_type(gh_field, gh_real, gh_inc, w1), &\n"
+        "    arg_type(gh_field*3, gh_real, gh_read, w2), &\n"
+        "    arg_type(gh_field, gh_real, gh_read, w2, mesh_arg=gh_coarse), &\n"
+        "    arg_type(gh_field*3, gh_real, gh_read, w2, mesh_arg=gh_fine), &\n"
+        "    arg_type(gh_operator, gh_real, gh_read, w2, w3), &\n"
+        "    arg_type(gh_columnwise_operator, gh_real, gh_read, w3, w0)/)\n"
+        "  type(FUNC_TYPE) :: META_FUNCS(2) = (/ &\n"
+        "    func_type(w1, gh_basis), &\n"
+        "    func_type(w2, gh_basis, gh_diff_basis)/)\n"
+        "  type(REFERENCE_ELEMENT_DATA_TYPE) :: "
+        "META_REFERENCE_ELEMENT(2) = (/ &\n"
+        "    reference_element_data_type(normals_to_horizontal_faces), &\n"
+        "    reference_element_data_type(normals_to_vertical_faces)/)\n"
+        "  type(MESH_DATA_TYPE) :: META_MESH(1) = (/ &\n"
+        "    mesh_data_type(adjacent_face)/)\n"
+        "  INTEGER :: GH_SHAPE = gh_quadrature_xyoz\n"
+        "  INTEGER :: GH_EVALUATOR_TARGETS(2) = (/w0, w3/)\n"
+        "  INTEGER :: OPERATES_ON = cell_column\n"
         "END TYPE testkern_type\n")
     assert result == expected
 
@@ -645,6 +680,8 @@ def test_setter_getter_procedure_name():
             "'1_invalid'." in str(info.value))
     metadata.procedure_name = "KERN_CODE"
     assert metadata.procedure_name == "KERN_CODE"
+    metadata.procedure_name = None
+    assert metadata.procedure_name is None
 
 
 def test_setter_getter_name():

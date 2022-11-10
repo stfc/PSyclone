@@ -38,15 +38,14 @@ captures the argument values for the LFRic kernel
 REFERENCE_ELEMENT metadata.
 
 '''
-from fparser.two import Fortran2003
-
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
 
 
 class MetaRefElementArgMetadata(CommonArgMetadata):
     '''Class to capture the LFRic kernel metadata information for a
-    meta_reference_element argument.
+    meta_reference_element argument. This specifies any properties of
+    the reference element that the kernel requires.
 
     :param str reference_element: the name of the reference_element property.
 
@@ -55,6 +54,7 @@ class MetaRefElementArgMetadata(CommonArgMetadata):
         super().__init__()
         self.reference_element = reference_element
 
+    @staticmethod
     def create_from_fparser2(fparser2_tree):
         '''Create an instance of this class from an fparser2 tree.
 
@@ -78,7 +78,7 @@ class MetaRefElementArgMetadata(CommonArgMetadata):
         :returns: the metadata represented by this class as Fortran.
         :rtype: str
         '''
-        return(f"reference_element_data_type({self.reference_element})")
+        return f"reference_element_data_type({self.reference_element})"
 
     @property
     def reference_element(self):

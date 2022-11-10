@@ -38,8 +38,6 @@ associated with an operator argument. Supports the creation, modification
 and Fortran output of a Operator argument.
 
 '''
-from fparser.two import Fortran2003
-
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.scalar_arg_metadata import ScalarArgMetadata
 

@@ -37,8 +37,6 @@
 the argument values for the LFRic kernel META_FUNCS metadata.
 
 '''
-from fparser.two import Fortran2003
-
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
 from psyclone.parse.utils import ParseError
@@ -67,6 +65,7 @@ class MetaFuncsArgMetadata(CommonArgMetadata):
         self._basis_function = basis_function
         self.diff_basis_function = diff_basis_function
 
+    @staticmethod
     def create_from_fparser2(fparser2_tree):
         '''Create an instance of this class from an fparser2 tree.
 
@@ -84,12 +83,12 @@ class MetaFuncsArgMetadata(CommonArgMetadata):
         # There must be at least 2 and at most 3 arguments
         if nargs < 2:
             raise ParseError(
-                f"There must be at least 2 arguments, a function_space and "
+                f"There must be at least 2 arguments: a function_space and "
                 f"one of basis_function or diff_basis_function, but found "
                 f"'{nargs}' arguments.")
         if nargs > 3:
             raise ParseError(
-                f"There must be at most 3 arguments, function_space, "
+                f"There must be at most 3 arguments: function_space, "
                 f"basis_function and diff_basis_function, but found "
                 f"'{nargs}'.")
         function_space = MetaFuncsArgMetadata.get_arg(fparser2_tree, 0)
@@ -97,31 +96,26 @@ class MetaFuncsArgMetadata(CommonArgMetadata):
         basis_function = False
         diff_basis_function = False
         arg1 = MetaFuncsArgMetadata.get_arg(fparser2_tree, 1)
+        MetaFuncsArgMetadata.validate_scalar_value(
+            arg1, ["gh_basis", "gh_diff_basis"],
+            "basis or differential basis")
         if arg1.lower() == "gh_basis":
             basis_function = True
-        elif arg1.lower() == "gh_diff_basis":
-            diff_basis_function = True
         else:
-            raise ValueError(
-                f"The basis or differential basis value should be one of "
-                f"['gh_basis', 'gh_diff_basis'], but found '{arg1}'.")
+            diff_basis_function = True
+
         arg2 = None
         if nargs == 3:
             arg2 = MetaFuncsArgMetadata.get_arg(fparser2_tree, 2)
-            if arg2.lower() == "gh_basis":
-                basis_function = True
-            elif arg2.lower() == "gh_diff_basis":
-                diff_basis_function = True
-            else:
-                raise ValueError(
-                    f"The basis or differential basis value should be one of "
-                    f"['gh_basis', 'gh_diff_basis'], but found '{arg2}'.")
+            MetaFuncsArgMetadata.validate_scalar_value(
+                arg2, ["gh_basis", "gh_diff_basis"],
+                "basis or differential basis")
             if arg1.lower() == arg2.lower():
                 raise ParseError(
                     f"The same basis or differential basis function value "
                     f"should not be repeated, but found '{arg1}' twice.")
-        MetaFuncsArgMetadata._check_constraints(
-            basis_function, diff_basis_function)
+            basis_function = True
+            diff_basis_function = True
         return MetaFuncsArgMetadata(
             function_space, basis_function=basis_function,
             diff_basis_function=diff_basis_function)
@@ -138,7 +132,7 @@ class MetaFuncsArgMetadata(CommonArgMetadata):
         if self._diff_basis_function:
             args_str_list.append("gh_diff_basis")
         args_str = ", ".join(args_str_list)
-        return(f"func_type({args_str})")
+        return f"func_type({args_str})"
 
     @property
     def function_space(self):
