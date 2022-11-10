@@ -120,3 +120,6 @@ class MetaMeshMetadata(CommonDeclarationMetadata):
         # Take a copy of the list so that it can't be modified
         # externally.
         self._meta_mesh_args = values[:]
+
+
+__all__ = ["MetaMeshMetadata"]

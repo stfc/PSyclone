@@ -170,3 +170,6 @@ class OperatorArgMetadata(ScalarArgMetadata):
         self.validate_scalar_value(
             value, const.VALID_FUNCTION_SPACES, "function_space_from")
         self._function_space_from = value.lower()
+
+
+__all__ = ["OperatorArgMetadata"]

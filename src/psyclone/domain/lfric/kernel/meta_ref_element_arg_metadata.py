@@ -100,3 +100,6 @@ class MetaRefElementArgMetadata(CommonArgMetadata):
         self.validate_scalar_value(
             value, const.VALID_REF_ELEMENT_NAMES, "reference element property")
         self._reference_element = value.lower()
+
+
+__all__ = ["MetaRefElementArgMetadata"]

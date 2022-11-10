@@ -95,3 +95,6 @@ class MetaMeshArgMetadata(CommonArgMetadata):
         self.validate_scalar_value(
             value, const.VALID_MESH_NAMES, "mesh property")
         self._mesh = value.lower()
+
+
+__all__ = ["MetaMeshArgMetadata"]

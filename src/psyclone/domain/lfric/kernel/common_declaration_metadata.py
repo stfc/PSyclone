@@ -506,3 +506,6 @@ class CommonDeclarationMetadata(CommonMetadata):
                     f"The {cls.__name__} list should be a list containing "
                     f"objects of type {expected_type.__name__} but found "
                     f"'{value}', which is of type '{type(value).__name__}'.")
+
+
+__all__ = ["CommonDeclarationMetadata"]

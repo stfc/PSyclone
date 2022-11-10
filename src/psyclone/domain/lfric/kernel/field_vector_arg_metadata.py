@@ -132,3 +132,6 @@ class FieldVectorArgMetadata(FieldArgMetadata):
             raise ValueError(f"The vector size should be an integer greater "
                              f"than 1 but found {value}.")
         self._vector_length = value
+
+
+__all__ = ["FieldVectorArgMetadata"]

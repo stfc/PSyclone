@@ -106,3 +106,6 @@ class LFRicKernelContainer(Container):
         generic_container = Container.create(
             self.name, self.symbol_table.detach(), children)
         self.replace_with(generic_container)
+
+
+__all__ = ["LFRicKernelContainer"]

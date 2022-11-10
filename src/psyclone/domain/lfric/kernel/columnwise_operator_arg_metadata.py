@@ -82,3 +82,6 @@ class ColumnwiseOperatorArgMetadata(OperatorArgMetadata):
             function_space_from)
         return ColumnwiseOperatorArgMetadata(
             datatype, access, function_space_to, function_space_from)
+
+
+__all__ = ["ColumnwiseOperatorArgMetadata"]

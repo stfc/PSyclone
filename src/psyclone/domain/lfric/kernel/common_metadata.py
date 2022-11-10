@@ -151,3 +151,6 @@ class CommonMetadata(ABC):
         '''Create an instance of this class from an fparser2 tree.
 
         '''
+
+
+__all__ = ["CommonMetadata"]

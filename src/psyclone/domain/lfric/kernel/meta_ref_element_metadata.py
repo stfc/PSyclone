@@ -116,3 +116,6 @@ class MetaRefElementMetadata(CommonDeclarationMetadata):
         # Take a copy of the list so that it can't be modified
         # externally.
         self._meta_ref_element_args = values[:]
+
+
+__all__ = ["MetaRefElementMetadata"]

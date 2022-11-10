@@ -152,3 +152,6 @@ class InterGridArgMetadata(FieldArgMetadata):
         InterGridArgMetadata.validate_scalar_value(
             value, const.VALID_MESH_TYPES, "mesh_arg")
         self._mesh_arg = value.lower()
+
+
+__all__ = ["InterGridArgArgMetadata"]

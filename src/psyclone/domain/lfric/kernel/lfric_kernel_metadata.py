@@ -577,3 +577,6 @@ class LFRicKernelMetadata(CommonMetadata):
                 f"Expected name to be a valid Fortran name but found "
                 f"'{value}'.")
         self._name = value
+
+
+__all__ = ["LFRicKernelMetadata"]

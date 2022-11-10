@@ -119,3 +119,6 @@ class EvaluatorTargetsMetadata(CommonDeclarationMetadata):
         # Take a copy of the list so that it can't be modified
         # externally. Also make all values lower case.
         self._evaluator_targets = [value.lower() for value in values]
+
+
+__all__ = ["EvaluatorTargetsMetadata"]

@@ -210,3 +210,6 @@ class MetaFuncsArgMetadata(CommonArgMetadata):
             raise ValueError(
                 "At least one of basis_function or diff_basis_function must "
                 "be set to True.")
+
+
+__all__ = ["MetaFuncsArgMetadata"]

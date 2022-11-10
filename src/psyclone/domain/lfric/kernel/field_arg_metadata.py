@@ -137,3 +137,6 @@ class FieldArgMetadata(CommonMetaArgMetadata):
         FieldArgMetadata.validate_scalar_value(
             value, const.VALID_FUNCTION_SPACE_NAMES, "function space")
         self._function_space = value.lower()
+
+
+__all__ = ["FieldArgMetadata"]

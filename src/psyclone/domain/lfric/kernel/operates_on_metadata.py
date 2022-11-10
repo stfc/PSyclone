@@ -109,3 +109,6 @@ class OperatesOnMetadata(CommonDeclarationMetadata):
         OperatesOnMetadata.validate_scalar_value(
             value, const.VALID_ITERATION_SPACES, "OPERATES_ON")
         self._operates_on = value.lower()
+
+
+__all__ = ["OperatesOnMetadata"]

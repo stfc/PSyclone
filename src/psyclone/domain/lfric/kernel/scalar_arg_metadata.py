@@ -101,3 +101,6 @@ class ScalarArgMetadata(CommonMetaArgMetadata):
         const = LFRicConstants()
         ScalarArgMetadata.validate_scalar_value(
             value, const.VALID_SCALAR_ACCESS_TYPES, "access descriptor")
+
+
+__all__ = ["ScalarArgMetadata"]

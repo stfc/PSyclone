@@ -113,3 +113,6 @@ class MetaFuncsMetadata(CommonDeclarationMetadata):
         # Take a copy of the list so that it can't be modified
         # externally.
         self._meta_funcs_args = values[:]
+
+
+__all__ = ["MetaFuncsMetadata"]
