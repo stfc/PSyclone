@@ -154,4 +154,4 @@ class InterGridArgMetadata(FieldArgMetadata):
         self._mesh_arg = value.lower()
 
 
-__all__ = ["InterGridArgArgMetadata"]
+__all__ = ["InterGridArgMetadata"]
