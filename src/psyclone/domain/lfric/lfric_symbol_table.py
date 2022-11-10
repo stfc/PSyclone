@@ -74,9 +74,9 @@ class LFRicSymbolTable(SymbolTable):
             except KeyError:
                 sym = None
 
+        datatype = psyir.LfricIntegerScalarDataType()
         if sym is None:
             # Create a DataSymbol for this kernel argument.
-            datatype = psyir.LfricIntegerScalarDataType()
             sym = self.new_symbol(name, tag=tag,
                                   symbol_type=DataSymbol,
                                   datatype=datatype)
@@ -85,7 +85,6 @@ class LFRicSymbolTable(SymbolTable):
             if not isinstance(sym, DataSymbol):
                 raise TypeError(f"Symbol {sym.name} already exists, but is "
                                 f"not a DataTypeSymbol, but {type(sym)}.")
-            datatype = psyir.LfricIntegerScalarDataType()
             if sym.datatype != datatype:
                 raise TypeError(f"Symbol {sym.name} already exists, but is "
                                 f"not an integer, but {sym.datatype}.")
