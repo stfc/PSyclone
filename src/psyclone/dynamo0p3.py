@@ -3890,12 +3890,8 @@ class DynCMAOperators(DynCollection):
             param_names = []
             for param in self._cma_ops[op_name]["params"]:
                 name = op_name + "_" + param
-                if param in ["bandwidth", "ncol", "nrow", "alpha", "beta",
-                             "gamma_m", "gamma_p"]:
-                    sym = self._symbol_table.find_or_create_integer_symbol(
-                        name, tag=name)
-                else:
-                    sym = self._symbol_table.find_or_create_tag(name)
+                sym = self._symbol_table.find_or_create_integer_symbol(
+                    name, tag=name)
                 param_names.append(sym.name)
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
