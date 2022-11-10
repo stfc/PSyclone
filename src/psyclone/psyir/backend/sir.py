@@ -77,6 +77,11 @@ def gen_stencil(node):
         raise VisitorError(
             "gen_stencil expected an ArrayReference as input but found '{0}'."
             "".format(type(node)))
+    if len(node.children) > 3:
+        raise VisitorError(
+            f"gen_stencil: the SIR only supports arrays with up to 3 "
+            f"dimensions, but found {len(node.children)} in "
+            f"{node.view(colour=False)}.")
     dims = ["0", "0", "0"]
     for idx, child in enumerate(node.children):
     #rf         f"gen_stencil expected an ArrayReference as input but found "
@@ -555,7 +560,7 @@ class SIRWriter(PSyIRVisitor):
                           f"\"*\", {c_sign_fun})")
             else:
                 result = (f"{self._nindent}{self._indent}make_fun_call_expr("
-                          f"\"{oper}\", [{lhs.strip()}], [{rhs.strip()}])")
+                          f"\"{oper}\", [{lhs.strip()}, {rhs.strip()}])")
         else:
             result = f"{self._nindent}make_binary_operator(\n{lhs}"
             # For better formatting, remove the newline if one exists.
@@ -781,10 +786,10 @@ class SIRWriter(PSyIRVisitor):
         arg_list = []
         self._depth += 1
         for child in node.children:
-            arg_list.append(f"[{self._visit(child).strip()}]")
+            arg_list.append(f"{self._visit(child).strip()}")
         self._depth -= 1
         arg_str = ", ".join(arg_list)
         # The assumption here is that the supported operators are intrinsics
         result = (f"{self._nindent}{self._indent}make_fun_call_expr("
-                  f"\"{oper}\", {arg_str})")
+                  f"\"{oper}\", [{arg_str}])")
         return result

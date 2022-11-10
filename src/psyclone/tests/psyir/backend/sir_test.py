@@ -165,25 +165,24 @@ def get_rhs(parser, code):
     return assignment.rhs
 
 
-# (1/3) function gen_stencil
+# (1/4) function gen_stencil
 def test_gen_stencil_1(parser):
     '''Check the gen_stencil function produces the expected dimension
     strings.
 
     '''
-    for form, expected in [("i,j,k,l,m", "[0, 0, 0, 0, 0]"),
-                           ("i+1,j-1", "[1, -1]"),
-                           ("m+7", "[7]"),
+    for form, expected in [("i+1,j-1", "[1, -1, 0]"),
+                           ("m+7", "[7, 0, 0]"),
                            (" i + 1 , j , k - 1 ", "[1, 0, -1]"),
-                           ("i+1,j-2,k+3,l-4", "[1, -2, 3, -4]"),
-                           ("i+(1), j-(2)", "[1, -2]")]:
+                           ("i+1,j-2,k+3", "[1, -2, 3]"),
+                           ("i+(1), j-(2)", "[1, -2, 0]")]:
         code = CODE.replace("a(i,j,k)", f"a({form})")
         lhs = get_lhs(parser, code)
         result = gen_stencil(lhs)
         assert result == expected
 
 
-# (2/3) function gen_stencil
+# (2/4) function gen_stencil
 def test_gen_stencil_2(parser):
     '''Check the gen_stencil function raises an exception when
     a node of the wrong type is provided.
@@ -196,7 +195,7 @@ def test_gen_stencil_2(parser):
             str(excinfo.value))
 
 
-# (3/3) function gen_stencil
+# (3/4) function gen_stencil
 def test_gen_stencil_3(parser):
     '''Check the gen_stencil function raises an exception when an
     unsupported form of indexing is found. Currently only "var +/-
@@ -216,6 +215,23 @@ def test_gen_stencil_3(parser):
             error = "unsupported stencil index found"
         assert error in str(excinfo.value)
 
+
+# (4/4) function gen_stencil
+def test_gen_stencil_4(parser):
+    '''Check the gen_stencil function raises an exception when an array
+    with more than 3 dimensions is provided, as the SIR only supports
+    up to 3.
+
+    '''
+    code = CODE.replace("a(i,j,k)", f"a(i,j,k,l)")
+    lhs = get_lhs(parser, code)
+    with pytest.raises(VisitorError) as info:
+        _ = gen_stencil(lhs)
+    assert("gen_stencil: the SIR only supports arrays with up to 3 "
+           "dimensions, but found 4 in ArrayReference[name:'a']\n    "
+           "Reference[name:'i']\n    Reference[name:'j']\n    "
+           "Reference[name:'k']\n    Reference[name:'l']\n."
+           in str(info.value))
 
 # Class SIRWriter start
 
@@ -967,8 +983,8 @@ def test_sirwriter_binaryoperation_intrinsic_node(parser, sir_writer,
     rhs = get_rhs(parser, code)
     result = sir_writer.binaryoperation_node(rhs)
     assert (f"make_fun_call_expr(\"math::{operation}\", ["
-            f"make_literal_access_expr(\"1.0\", BuiltinType.Float)], "
-            f"[make_literal_access_expr(\"2.0\", BuiltinType.Float)])"
+            f"make_literal_access_expr(\"1.0\", BuiltinType.Float), "
+            f"make_literal_access_expr(\"2.0\", BuiltinType.Float)])"
             in result)
 
 
@@ -1017,9 +1033,9 @@ def test_sirwriter_naryoperation_intrinsic_node(parser, sir_writer, operation):
     rhs = get_rhs(parser, code)
     result = sir_writer.naryoperation_node(rhs)
     assert (f"make_fun_call_expr(\"math::{operation}\", "
-            f"[make_literal_access_expr(\"1.0\", BuiltinType.Float)], "
-            f"[make_literal_access_expr(\"2.0\", BuiltinType.Float)], "
-            f"[make_literal_access_expr(\"3.0\", BuiltinType.Float)])"
+            f"[make_literal_access_expr(\"1.0\", BuiltinType.Float), "
+            f"make_literal_access_expr(\"2.0\", BuiltinType.Float), "
+            f"make_literal_access_expr(\"3.0\", BuiltinType.Float)])"
             in result)
 
 # Class SIRWriter end
