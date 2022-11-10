@@ -49,8 +49,11 @@ def test_init():
     # pylint: disable=abstract-class-instantiated
     with pytest.raises(TypeError) as info:
         _ = CommonArgMetadata()
+    # The assert string is shorted as some versions of Python output
+    # 'methods' even if there is only one method and some output
+    # 'method'.
     assert ("Can't instantiate abstract class CommonArgMetadata with "
-            "abstract methods create_from_fparser2" in str(info.value))
+            "abstract method" in str(info.value))
     # pylint: enable=abstract-class-instantiated
 
 
