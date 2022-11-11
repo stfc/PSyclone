@@ -53,7 +53,7 @@ from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, \
     OMPGrainsizeClause, OMPNumTasksClause, OMPNogroupClause, \
     OMPPrivateClause, OMPDefaultClause, OMPReductionClause, \
     OMPScheduleClause, OMPTeamsDistributeParallelDoDirective, \
-    OMPFirstprivateClause
+    Statement, OMPAtomicDirective, OMPFirstprivateClause
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, SymbolTable, \
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, Symbol
 from psyclone.errors import InternalError, GenerationError
@@ -1577,3 +1577,37 @@ def test_omploop_equality():
 
     omploop1.collapse = 2
     assert omploop1 != omploop2
+
+
+def test_omp_atomics_is_valid_atomic_statement(fortran_reader):
+    ''' Test the OMPAtomicDirective can identify when a statement is a valid
+    expression to support OpenMP atomics. '''
+
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(10, 10) :: A = 1
+        integer, dimension(10, 10) :: B = 2
+        integer :: i, j, val
+
+        A(1,1) = A(1,1) * 2
+        A(1,1) = A(1,1) / 2 + 3 - 5
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    for stmt in tree.walk(Statement):
+        assert OMPAtomicDirective.is_valid_atomic_statement(stmt)
+
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(10, 10) :: A = 1
+        integer, dimension(10, 10) :: B = 2
+        integer :: i, j, val
+
+        A(1,1) = A(1,1) ** 2
+        A(:,1) = A(:,1) / 2 + 3 - 5
+        A(1,1) = MOD(A(1,1), 3)
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    for stmt in tree.walk(Statement):
+        assert not OMPAtomicDirective.is_valid_atomic_statement(stmt)

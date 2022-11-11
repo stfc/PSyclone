@@ -51,10 +51,12 @@ from psyclone.f2pygen import (AssignGen, UseGen, DeclGen, DirectiveGen,
                               CommentGen)
 from psyclone.psyir.nodes.directive import StandaloneDirective, \
     RegionDirective
-from psyclone.psyir.nodes.loop import Loop
+from psyclone.psyir.nodes.assignment import Assignment
 from psyclone.psyir.nodes.if_block import IfBlock
-from psyclone.psyir.nodes.while_loop import WhileLoop
+from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.literal import Literal
+from psyclone.psyir.nodes.loop import Loop
+from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
     OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause, OMPPrivateClause, \
     OMPDefaultClause, OMPReductionClause, OMPScheduleClause, \
@@ -62,7 +64,8 @@ from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.nodes.while_loop import WhileLoop
+from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType, DeferredType
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
 # reduction clause of an OpenMP directive.
@@ -1678,9 +1681,90 @@ class OMPLoopDirective(OMPRegionDirective):
         super().validate_global_constraints()
 
 
+class OMPAtomicDirective(OMPDirective):
+    '''
+    OpenMP directive to represent that the memory accesses in the associated
+    assignment must be performed atomically.
+
+    '''
+    # Textual description of the node.
+    _children_valid_format = "Assignment"
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        return position == 0 and isinstance(child, Assignment)
+
+    @property
+    def clauses(self):
+        '''
+        :returns: the Clauses associated with this directive.
+        :rtype: List of :py:class:`psyclone.psyir.nodes.Clause`
+        '''
+        return []
+
+    @staticmethod
+    def is_valid_atomic_statement(stmt):
+        ''' Check if a given statement is a valid OpenMP atomic expression. See
+            https://www.openmp.org/spec-html/5.0/openmpsu95.html
+
+        :param stmt: a node to be validated.
+        :type stmt: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: whether a given statement is compliant with the OpenMP \
+            atomic expression.
+        :rtype: bool
+        '''
+        # Not all rules are checked, just that:
+        # - operands are of a scalar intrinsic type (or deferred)
+        if not isinstance(stmt.lhs.datatype, (ScalarType, DeferredType)):
+            return False
+        # - operators are one of:
+        #   +, *, -, /, AND, OR, EQV, NEQV
+        if isinstance(stmt.rhs, BinaryOperation):
+            if stmt.rhs.operator in (BinaryOperation.Operator.ADD,
+                                     BinaryOperation.Operator.SUB,
+                                     BinaryOperation.Operator.MUL,
+                                     BinaryOperation.Operator.DIV,
+                                     BinaryOperation.Operator.AND,
+                                     BinaryOperation.Operator.OR,
+                                     BinaryOperation.Operator.EQV,
+                                     BinaryOperation.Operator.NEQV):
+                return True
+        # - or intrinsics: MAX, MIN, IAND, IOR, or IEOR
+        if isinstance(stmt.rhs, IntrinsicCall):
+            if stmt.rhs.intrinsic in (IntrinsicCall.Intrinsic.MAX, ):
+                return True
+        return False
+
+    def validate_global_constraints(self):
+        ''' Perform validation of those global constraints that can only be
+        done at code-generation time.
+
+        :raises GenerationError: if the OMPAtomicDirective associated \
+            statement does not conform to a valid OpenMP atomic operation.
+        '''
+        if not self.children:
+            raise GenerationError(
+                "Atomic directives must always have an associated statement.")
+        if not self.is_valid_atomic_statement(self.children[0]):
+            raise GenerationError(
+                f"Statement {self.children[0]} is not a valid OpenMP Atomic "
+                f"statement.")
+
+
 # For automatic API documentation generation
 __all__ = ["OMPRegionDirective", "OMPParallelDirective", "OMPSingleDirective",
            "OMPMasterDirective", "OMPDoDirective", "OMPParallelDoDirective",
            "OMPSerialDirective", "OMPTaskloopDirective", "OMPTargetDirective",
            "OMPTaskwaitDirective", "OMPDirective", "OMPStandaloneDirective",
-           "OMPLoopDirective", "OMPDeclareTargetDirective"]
+           "OMPLoopDirective", "OMPDeclareTargetDirective",
+           "OMPAtomicDirective"]
