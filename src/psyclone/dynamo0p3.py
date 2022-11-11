@@ -4096,6 +4096,7 @@ class DynMeshes():
         and happens after the Schedule has already been constructed.
 
         '''
+        # pylint: disable=too-many-locals
         const = LFRicConstants()
         have_non_intergrid = False
         sym_tab = self._schedule.symbol_table
@@ -4155,8 +4156,8 @@ class DynMeshes():
             # There aren't any inter-grid kernels but we do need colourmap
             # information and that means we'll need a mesh object
             self._add_mesh_symbols(["mesh"])
-            colour_map = sym_tab.find_or_create_tag(
-                "cmap", symbol_type=DataSymbol, datatype=array_type_2d).name
+            colour_map = sym_tab.find_or_create_array(
+                "cmap", 2, "integer", tag="cmap").name
             # No. of colours
             ncolours = sym_tab.find_or_create_integer_symbol(
                 "ncolour", tag="ncolour").name
