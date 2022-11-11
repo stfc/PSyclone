@@ -130,9 +130,9 @@ def test_argordering_get_array_reference():
     assert isinstance(ref, Reference)
     assert not isinstance(ref, ArrayReference)
 
-    with pytest.raises(InternalError) as err:
+    with pytest.raises(TypeError) as err:
         arg_list.get_array_reference("does-not-exist", [":"], "invalid")
-    assert ("Unsupported data type 'invalid' in get_array_reference"
+    assert ("Unsupported data type 'invalid' in find_or_create_array"
             in str(err.value))
 
 

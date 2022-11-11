@@ -431,8 +431,10 @@ class KernCallArgList(ArgOrdering):
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_size_name(self._symtab, arg)
+        unique = DynStencils.stencil_unique_str(arg, "size")
         cell_name, cell_ref = self.cell_ref_name(var_accesses)
-        self.append_array_reference(var_name, [cell_ref], "integer")
+        self.append_array_reference(var_name, [cell_ref], "integer",
+                                    tag=unique)
         self.append(f"{var_name}({cell_name})", var_accesses,
                     var_access_name=var_name)
 
@@ -455,7 +457,9 @@ class KernCallArgList(ArgOrdering):
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_size_name(self._symtab, arg)
         cell_name, cell_ref = self.cell_ref_name(var_accesses)
-        sym = self.append_array_reference(var_name, [":", cell_ref], "integer")
+        unique = DynStencils.stencil_unique_str(arg, "size")
+        sym = self.append_array_reference(var_name, [":", cell_ref], "integer",
+                                          tag=unique)
         name = f"{sym.name}(:,{cell_name})"
         self.append(name, var_accesses, var_access_name=sym.name)
 
@@ -523,8 +527,10 @@ class KernCallArgList(ArgOrdering):
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_name(self._symtab, arg)
+        unique = DynStencils.stencil_unique_str(arg, "dofmap")
         cell_name, cell_ref = self.cell_ref_name(var_accesses)
-        self.append_array_reference(var_name, [":", ":", cell_ref], "integer")
+        self.append_array_reference(var_name, [":", ":", cell_ref],
+                                    "integer", tag=unique)
         self.append(f"{var_name}(:,:,{cell_name})", var_accesses,
                     var_access_name=var_name)
 
@@ -554,8 +560,9 @@ class KernCallArgList(ArgOrdering):
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_name(self._symtab, arg)
         cell_name, cell_ref = self.cell_ref_name(var_accesses)
+        unique = DynStencils.stencil_unique_str(arg, "dofmap")
         sym = self.append_array_reference(var_name, [":", ":", ":", cell_ref],
-                                          "integer")
+                                          "integer", tag=unique)
         name = f"{sym.name}(:,:,:,{cell_name})"
         self.append(name, var_accesses, var_access_name=var_name)
 

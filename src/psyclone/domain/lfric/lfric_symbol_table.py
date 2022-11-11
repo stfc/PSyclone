@@ -130,7 +130,7 @@ class LFRicSymbolTable(SymbolTable):
 
         try:
             if tag:
-                sym = self.lookup_with_tag(array_name)
+                sym = self.lookup_with_tag(tag)
             else:
                 sym = self.lookup(array_name)
         except KeyError:
@@ -157,7 +157,7 @@ class LFRicSymbolTable(SymbolTable):
         if sym.datatype.datatype != datatype:
             raise TypeError(f"Symbol '{sym.name}' already exists, but is "
                             f"not of type {intrinsic_type}, but "
-                            f"'{type(sym.datatype._datatype)}'.")
+                            f"'{type(sym.datatype.datatype)}'.")
 
         if len(sym.shape) != num_dimensions:
             raise TypeError(f"Array '{sym.name}' already exists, but has "

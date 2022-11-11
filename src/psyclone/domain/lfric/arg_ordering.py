@@ -43,10 +43,9 @@ import abc
 
 from psyclone import psyGen
 from psyclone.core import AccessType, Signature
-from psyclone.domain.lfric import LFRicConstants, psyir
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import ArrayReference, Reference
-from psyclone.psyir.symbols import ArrayType, DataSymbol
 
 
 class ArgOrdering:
@@ -74,11 +73,12 @@ class ArgOrdering:
         invoke_sched = None
         if kern:
             invoke_sched = kern.ancestor(psyGen.InvokeSchedule)
+        # This pylint does not work when I put it in the else branch :(
+        # pylint: disable=import-outside-toplevel
         if invoke_sched:
             self._symtab = invoke_sched.symbol_table
         else:
             # Avoid circular dependency
-            # pylint: disable=import-outside-toplevel
             from psyclone.domain.lfric import LFRicSymbolTable
             self._symtab = LFRicSymbolTable()
 
@@ -186,7 +186,8 @@ class ArgOrdering:
         self.psyir_append(Reference(sym))
         return sym
 
-    def get_array_reference(self, array_name, indices, intrinsic_type):
+    def get_array_reference(self, array_name, indices, intrinsic_type,
+                            tag=None):
         '''This function creates an array reference. If there is no symbol
         with the given tag, a new array symbol will be defined using the given
         intrinsic_type. If a symbol already exists but has no type, it will
@@ -196,37 +197,21 @@ class ArgOrdering:
         :param indices: the indices to be used in the PSyIR reference. It \
             must either be ":", or a PSyIR node.
         :type indices: List[Union[str, py:class:`psyclone.psyir.nodes.Node`]]
+        :param str intrinsic_type: the intrinsic type of the array, must \
+            be one of "real", "integer", or "logical"
+        :param tag: optional tag for the symbol.
+        :type tag: Optional[str]
 
         :returns: a reference to the symbol used.
         :rtype: :py:class:`psyclone.psyir.nodes.Reference`
 
         '''
-        try:
-            sym = self._symtab.lookup(array_name)
-        except KeyError:
-            sym = None
-        if sym is None or not isinstance(sym, DataSymbol):
-            # Create a DataSymbol for this kernel argument.
-            if intrinsic_type == "real":
-                datatype = psyir.LfricRealScalarDataType()
-            elif intrinsic_type == "integer":
-                datatype = psyir.LfricIntegerScalarDataType()
-            else:
-                raise InternalError(f"Unsupported data type "
-                                    f"'{intrinsic_type}' in "
-                                    f"get_array_reference")
-            array_type = ArrayType(datatype,
-                                   [ArrayType.Extent.ATTRIBUTE]*len(indices))
+        if not tag:
             tag = array_name
-            if sym and not isinstance(sym, DataSymbol):
-                # Get the tag the old symbol might have had:
-                reverse_tags_dict = self._symtab.get_reverse_tags_dict()
-                tag = reverse_tags_dict.get(sym, array_name)
-                # We need to remove the old incomplete symbol first
-                self._symtab.remove(sym)
-            sym = self._symtab.new_symbol(array_name, tag=tag,
-                                          symbol_type=DataSymbol,
-                                          datatype=array_type)
+        sym = self._symtab.find_or_create_array(array_name,
+                                                len(indices),
+                                                intrinsic_type,
+                                                tag)
 
         # If all indices are specified as ":", just use the name itself
         # to reproduce the current look of the code.
@@ -236,7 +221,8 @@ class ArgOrdering:
             ref = ArrayReference.create(sym, indices)
         return ref
 
-    def append_array_reference(self, array_name, indices, intrinsic_type):
+    def append_array_reference(self, array_name, indices, intrinsic_type,
+                               tag=None):
         '''This function adds an array reference. If there is no symbol with
         the given tag, a new array symbol will be defined using the given
         intrinsic_type. If a symbol already exists but has no type, it will
@@ -253,7 +239,8 @@ class ArgOrdering:
 
         '''
 
-        ref = self.get_array_reference(array_name, indices, intrinsic_type)
+        ref = self.get_array_reference(array_name, indices, intrinsic_type,
+                                       tag=tag)
         self.psyir_append(ref)
         return ref.symbol
 

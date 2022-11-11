@@ -1400,7 +1400,12 @@ class DynStencils(DynCollection):
         '''
         root_name = arg.name + "_stencil_dofmap"
         unique = DynStencils.stencil_unique_str(arg, "dofmap")
-        return symtab.find_or_create_tag(unique, root_name).name
+        if arg.descriptor.stencil['type'] == "cross2d":
+            num_dimensions = 4
+        else:
+            num_dimensions = 3
+        return symtab.find_or_create_array(root_name, num_dimensions,
+                                           "integer", tag=unique).name
 
     @staticmethod
     def dofmap_size_name(symtab, arg):
@@ -1419,7 +1424,12 @@ class DynStencils(DynCollection):
         '''
         root_name = arg.name + "_stencil_size"
         unique = DynStencils.stencil_unique_str(arg, "size")
-        return symtab.find_or_create_tag(unique, root_name).name
+        if arg.descriptor.stencil['type'] == "cross2d":
+            num_dimensions = 2
+        else:
+            num_dimensions = 1
+        return symtab.find_or_create_array(root_name, num_dimensions,
+                                           "integer", tag=unique).name
 
     @staticmethod
     def max_branch_length_name(symtab, arg):
@@ -1871,8 +1881,8 @@ class LFRicMeshProperties(DynCollection):
                     name_lower, tag=name_lower)
             else:
                 # E.g.: adjacent_face
-                self._symbol_table.find_or_create_tag(
-                    name_lower)
+                self._symbol_table.find_or_create_array(
+                    name_lower, 2, "integer", tag=name_lower)
 
     def kern_args(self, stub=False, var_accesses=None,
                   kern_call_arg_list=None):
@@ -2052,8 +2062,8 @@ class LFRicMeshProperties(DynCollection):
 
         for prop in self._properties:
             if prop == MeshProperty.ADJACENT_FACE:
-                adj_face = self._symbol_table.find_or_create_tag(
-                    "adjacent_face").name
+                adj_face = self._symbol_table.find_or_create_array(
+                    "adjacent_face", 2, "integer", tag="adjacent_face").name
                 # 'nfaces_re_h' will have been declared by the
                 # DynReferenceElement class.
                 dimension = self._symbol_table.\
@@ -4486,7 +4496,9 @@ class DynInterGrid():
             name, tag=name).name
         # Name for cell map
         base_name = "cell_map_" + coarse_arg.name
-        self.cell_map = symtab.find_or_create_tag(base_name).name
+        sym = symtab.find_or_create_array(base_name, 3,
+                                          "integer", tag=base_name)
+        self.cell_map = sym.name
 
         # We have no colourmap information when first created
         self.colourmap = ""
