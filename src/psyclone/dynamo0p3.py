@@ -3815,8 +3815,8 @@ class DynCMAOperators(DynCollection):
         for op_name in self._cma_ops:
             # First create a pointer to the array containing the actual
             # matrix
-            cma_name = self._symbol_table.find_or_create_tag(
-                op_name+"_matrix").name
+            cma_name = self._symbol_table.find_or_create_array(
+                op_name+"_matrix", 3, "real", tag=op_name+"_matrix").name
             parent.add(AssignGen(parent, lhs=cma_name, pointer=True,
                                  rhs=self._cma_ops[op_name]["arg"].
                                  proxy_name_indexed+"%columnwise_matrix"))
@@ -3865,8 +3865,8 @@ class DynCMAOperators(DynCollection):
 
         for op_name in self._cma_ops:
             # Declare the operator matrix itself
-            cma_name = self._symbol_table.find_or_create_tag(
-                op_name+"_matrix").name
+            cma_name = self._symbol_table.find_or_create_array(
+                op_name+"_matrix", 3, "real", tag=op_name+"_matrix").name
             cma_dtype = self._cma_ops[op_name]["datatype"]
             cma_kind = self._cma_ops[op_name]["kind"]
             parent.add(DeclGen(parent, datatype=cma_dtype,
