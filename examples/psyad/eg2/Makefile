@@ -50,7 +50,8 @@ F90FLAGS += -ffree-line-length-none
 ACTIVE_VAR_LIST ?= r_u exner theta moist_dyn_gas moist_dyn_tot moist_dyn_fac grad_term theta_v_e theta_v_at_quad grad_theta_v_at_quad exner_e exner_at_quad res_dot_product
 # PSyAD arguments that specify which (if any) of the arguments described in
 # the kernel metadata contain geometric information that must not be modified
-# by the test harness.
+# by the test harness. The default kernel for this Makefile
+# (tl_hydrostatic_kernel) doesn't have any.
 GEOMETRY_VAR_LIST ?=
 TL_KERNEL_NAME ?= tl_hydrostatic_kernel
 TL_KERNEL_FILE = ${TL_KERNEL_NAME}_mod.F90
