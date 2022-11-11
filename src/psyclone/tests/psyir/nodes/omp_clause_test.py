@@ -106,7 +106,7 @@ def test_invalid_schedule_clause():
     with pytest.raises(ValueError) as excinfo:
         sched.schedule = "test"
     assert ("Schedule must be one of ['runtime', 'static', 'dynamic', "
-            "'guided', 'auto', 'none']. Found test." in str(excinfo.value))
+            "'guided', 'auto', 'none']. Found 'test'." in str(excinfo.value))
 
 
 def test_default_clause():

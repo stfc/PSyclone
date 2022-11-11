@@ -336,10 +336,14 @@ class OMPScheduleClause(Clause):
     def schedule(self, schedule):
         '''
         :param str schedule: the schedule to use for this clause.
+
+        :raises ValueError: if the supplied value is not a recognised \
+                            OpenMP schedule.
         '''
         if schedule not in self.VALID_OMP_SCHEDULES:
-            raise ValueError(f"Schedule must be one of "
-                             f"{self.VALID_OMP_SCHEDULES}. Found {schedule}.")
+            raise ValueError(
+                f"Schedule must be one of {self.VALID_OMP_SCHEDULES}. "
+                f"Found '{schedule}'.")
         self._schedule = schedule
 
     def __eq__(self, other):

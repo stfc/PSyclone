@@ -151,7 +151,7 @@ def test_ompparallel_changes_gen_code():
     assert pdir.children[2] != priv_clause
 
 
-def test_omp_paraleldo_changes_gen_code():
+def test_omp_paralleldo_changes_gen_code():
     ''' Check that when the code inside an OMP Parallel Do region changes, the
     private clause changes appropriately. Also check that changing the schedule
     is correctly picked up.'''
@@ -165,20 +165,22 @@ def test_omp_paraleldo_changes_gen_code():
 
     assert isinstance(tree.children[0], OMPParallelDoDirective)
     pdir = tree.children[0]
-    _ = psy.gen
+    code = str(psy.gen).lower()
     assert len(pdir.children) == 4
     assert isinstance(pdir.children[2], OMPPrivateClause)
     priv_clause = pdir.children[2]
     sched_clause = pdir.children[3]
+    assert "private(cell)" in code
+    assert "schedule(auto)" in code
 
-    # Make a copy of the loop
+    # Modify the loop
     routine = pdir.ancestor(Routine)
     routine.symbol_table.add(DataSymbol("k", INTEGER_SINGLE_TYPE))
-    # Change the loop variable to j
-    jvar = DataSymbol("k", INTEGER_SINGLE_TYPE)
-    pdir.children[0].children[0].variable = jvar
+    # Change the loop variable to k
+    kvar = DataSymbol("k", INTEGER_SINGLE_TYPE)
+    pdir.children[0].children[0].variable = kvar
     # Change the schedule to 'none'
-    pdir._omp_schedule = "none"
+    pdir.omp_schedule = "none"
 
     code = str(psy.gen).lower()
     assert pdir.children[2] != priv_clause
@@ -188,6 +190,7 @@ def test_omp_paraleldo_changes_gen_code():
 
     # No 'schedule' clause should now be present on the OMP directive.
     assert "schedule(" not in code
+    assert "private(k)" in code
 
 
 def test_omp_parallel_do_changes_begin_str(fortran_reader):
