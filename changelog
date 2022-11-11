@@ -192,6 +192,10 @@
 	67) PR #1943 for #1942. Fixes incorrect path in tutorial
 	Makefile setup.
 
+	68) PR #1905 for #1903. OpenMP schedule can be set to "none", which skips
+	the schedule clause in the OpenMP directive. This is the new default in
+	generic PSyIR (GOcean and LFRic still default to "static").
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
