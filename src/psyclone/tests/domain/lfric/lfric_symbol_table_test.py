@@ -38,17 +38,15 @@
 import pytest
 
 from psyclone.domain.lfric import psyir, LFRicSymbolTable
-from psyclone.psyir.symbols import (DataSymbol, REAL_DOUBLE_TYPE,
-                                    RoutineSymbol, Symbol)
-
-TEST_API = "dynamo0.3"
+from psyclone.psyir.symbols import (ArrayType, DataSymbol, REAL_DOUBLE_TYPE,
+                                    RoutineSymbol)
 
 
 def test_find_or_create_integer():
     '''Checks the find_or_create_integer convenience function. '''
     symbol_table = LFRicSymbolTable()
     sym_i = symbol_table.find_or_create_integer_symbol("i")
-    assert isinstance(sym_i, Symbol)
+    assert isinstance(sym_i, DataSymbol)
     assert sym_i.name == "i"
     # pylint: disable=no-member
     assert sym_i.datatype == psyir.LfricIntegerScalarDataType()
@@ -83,12 +81,83 @@ def test_find_or_create_integer_errors():
 
     with pytest.raises(TypeError) as err:
         symbol_table.find_or_create_integer_symbol("routine")
-    assert ("Symbol routine already exists, but is not a DataTypeSymbol"
+    assert ("Symbol 'routine' already exists, but is not a DataSymbol"
             in str(err.value))
 
     symbol_table.new_symbol("real", symbol_type=DataSymbol,
                             datatype=REAL_DOUBLE_TYPE)
     with pytest.raises(TypeError) as err:
         symbol_table.find_or_create_integer_symbol("real")
-    assert ("Symbol real already exists, but is not an integer"
+    assert ("Symbol 'real' already exists, but is not an integer"
+            in str(err.value))
+
+
+@pytest.mark.parametrize("intrinsic", ["real", "integer", "logical"])
+def test_find_or_create_array_intrinsic_types(intrinsic):
+    '''Checks that the find_or_create_array convenience function
+    handles all intrinsic types. '''
+    symbol_table = LFRicSymbolTable()
+    arr = symbol_table.find_or_create_array("arr", 2, intrinsic)
+
+    assert arr.name == "arr"
+    assert isinstance(arr, DataSymbol)
+    assert isinstance(arr.datatype, ArrayType)
+    # pylint: disable=no-member
+    if intrinsic == "real":
+        assert arr.datatype._datatype == psyir.LfricRealScalarDataType()
+    elif intrinsic == "integer":
+        assert arr.datatype._datatype == psyir.LfricIntegerScalarDataType()
+    elif intrinsic == "logical":
+        assert arr.datatype._datatype == psyir.LfricLogicalScalarDataType()
+
+    arr_queried = symbol_table.find_or_create_array("arr", 2, intrinsic)
+    assert arr_queried is arr
+    assert len(arr_queried.shape) == 2
+
+
+def test_find_or_create_array_tags():
+    '''Checks that the find_or_create_array convenience function
+    handles tags as expected.'''
+
+    symbol_table = LFRicSymbolTable()
+    arr = symbol_table.find_or_create_array("arr", 2, "real")
+    assert arr.name == "arr"
+
+    # Using a tag with the same name should give a different name:
+    arr2 = symbol_table.find_or_create_array("arr", 2, "real", tag="arr")
+    assert arr2.name != "arr"
+
+
+def test_find_or_create_array_errors():
+    '''Checks that the find_or_create_array convenience function
+    handles incorrect parameters as expected.'''
+    symbol_table = LFRicSymbolTable()
+    with pytest.raises(TypeError) as err:
+        symbol_table.find_or_create_array("arr", 2, "invalid")
+    assert ("Unsupported data type 'invalid' in find_or_create_array"
+            in str(err.value))
+
+    symbol_table.add(RoutineSymbol('routine'))
+    with pytest.raises(TypeError) as err:
+        symbol_table.find_or_create_array("routine", 2, "real")
+    assert ("Symbol 'routine' already exists, but is not a DataSymbol"
+            in str(err.value))
+
+    # Test clash with an existing integer symbol:
+    symbol_table.find_or_create_integer_symbol("a_2d")
+    with pytest.raises(TypeError) as err:
+        symbol_table.find_or_create_array("a_2d", 2, "real")
+    assert ("Symbol 'a_2d' already exists, but is not an ArraySymbol" in
+            str(err.value))
+
+    symbol_table.find_or_create_array("int_2d", 2, "integer")
+    with pytest.raises(TypeError) as err:
+        symbol_table.find_or_create_array("int_2d", 2, "real")
+    assert ("Symbol 'int_2d' already exists, but is not of type real, but"
+            in str(err.value))
+
+    symbol_table.find_or_create_array("a_3d", 3, "real")
+    with pytest.raises(TypeError) as err:
+        symbol_table.find_or_create_array("a_3d", 2, "real")
+    assert ("Array 'a_3d' already exists, but has 3 dimensions, not 2."
             in str(err.value))

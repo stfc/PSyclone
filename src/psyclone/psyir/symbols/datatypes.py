@@ -425,6 +425,14 @@ class ArrayType(DataType):
         self._datatype = datatype
 
     @property
+    def datatype(self):
+        '''
+        :returns: the datatype of each element in the array.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        '''
+        return self._datatype
+
+    @property
     def intrinsic(self):
         '''
         :returns: the intrinsic type of each element in the array.

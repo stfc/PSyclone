@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter, STFC Daresbury Lab
 # Modified: S. Siso, STFC Daresbury Lab
+# Modified: by J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' Perform py.test tests on the psyclone.psyir.symbols.datatype module. '''
@@ -285,6 +286,7 @@ def test_arraytype():
     assert shape0.upper.value == "10"
     assert shape0.upper.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert shape0.upper.datatype.precision == ScalarType.Precision.UNDEFINED
+    assert array_type.datatype == scalar_type
     # Provided and stored as a Literal (DataNode)
     assert array_type.shape[1].upper is literal
     # Provided and stored as an Operator (DataNode)
@@ -339,6 +341,7 @@ def test_arraytype_datatypesymbol():
     tsym = DataTypeSymbol("my_type", DeferredType())
     atype = ArrayType(tsym, [5])
     assert isinstance(atype, ArrayType)
+    assert atype.datatype == tsym
     assert len(atype.shape) == 1
     assert atype.intrinsic is tsym
     assert atype.precision is None
