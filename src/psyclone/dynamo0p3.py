@@ -4088,6 +4088,7 @@ class DynMeshes():
         '''
         const = LFRicConstants()
         have_non_intergrid = False
+        sym_tab = self._schedule.symbol_table
 
         array_type_1d = ArrayType(INTEGER_TYPE, [ArrayType.Extent.DEFERRED])
 
@@ -4114,15 +4115,13 @@ class DynMeshes():
             carg_name = self._ig_kernels[id(call)].coarse.name
             # Colour map
             base_name = "cmap_" + carg_name
-            colour_map = self._schedule.symbol_table.find_or_create_tag(
+            colour_map = sym_tab.find_or_create_tag(
                 base_name, symbol_type=DataSymbol,
                 datatype=array_type_2d).name
             # No. of colours
-            # TODO #1258 this variable should have precision 'i_def'.
             base_name = "ncolour_" + carg_name
-            ncolours = self._schedule.symbol_table.find_or_create_tag(
-                base_name, symbol_type=DataSymbol,
-                datatype=INTEGER_TYPE).name
+            ncolours = sym_tab.find_or_create_integer_symbol(
+                base_name, tag=base_name).name
             # Array holding the last halo or edge cell of a given colour
             # and halo depth.
             if Config.get().distributed_memory:
@@ -4146,20 +4145,19 @@ class DynMeshes():
             # There aren't any inter-grid kernels but we do need colourmap
             # information and that means we'll need a mesh object
             self._add_mesh_symbols(["mesh"])
-            colour_map = self._schedule.symbol_table.find_or_create_tag(
+            colour_map = sym_tab.find_or_create_tag(
                 "cmap", symbol_type=DataSymbol, datatype=array_type_2d).name
             # No. of colours
-            # TODO #1258 this variable should have precision 'i_def'.
-            ncolours = self._schedule.symbol_table.find_or_create_tag(
-                "ncolour", symbol_type=DataSymbol, datatype=INTEGER_TYPE).name
+            ncolours = sym_tab.find_or_create_integer_symbol(
+                "ncolour", tag="ncolour").name
             if self._needs_colourmap_halo:
                 dtype = array_type_2d
-                self._symbol_table.find_or_create_tag(
+                sym_tab.find_or_create_tag(
                     "last_halo_cell_all_colours", symbol_type=DataSymbol,
                     datatype=dtype)
             if self._needs_colourmap:
                 dtype = array_type_1d
-                self._symbol_table.find_or_create_tag(
+                sym_tab.find_or_create_tag(
                     "last_edge_cell_all_colours", symbol_type=DataSymbol,
                     datatype=dtype)
 
