@@ -206,11 +206,11 @@ class SIRWriter(PSyIRVisitor):
                         value = bound_value(expr.children[1])
                         return value * -1
                     else:
+                        raise TypeError
                         print ("Operator not supported {0}".format(type(expr.children[1])))
                         exit(1)
-                elif isinstance(expr, BinaryOperation) and expr.operator in [BinaryOperation.Operator.LBOUND, BinaryOperation.Operator.UBOUND]:
-                    return 0
                 else:
+                    raise TypeError
                     print ("bounds not supported", expr, name)
                     exit(1)
 
@@ -224,8 +224,13 @@ class SIRWriter(PSyIRVisitor):
                     lower_bound_offset = bound_name_offset(loop.start_expr, upper_bound_name)
                     lower_bound_str = "Interval.End"
                 except TypeError:
-                    print ("Unsupported lower bound found".format(loop.start_expr))
-                    exit(1)
+                    if isinstance(loop.start_expr, BinaryOperation) and \
+                       loop.start_expr.operator == BinaryOperation.Operator.LBOUND:
+                        lower_bound_offset = 0
+                        lower_bound_str = "Interval.Start"
+                    else:
+                        print (f"Unsupported lower bound found {loop.start_expr.view()}")
+                        exit(1)
             # Upper bound
             try:
                 value = bound_value(loop.stop_expr)
@@ -241,8 +246,13 @@ class SIRWriter(PSyIRVisitor):
                     upper_bound_offset = bound_name_offset(loop.stop_expr, upper_bound_name)
                     upper_bound_str = "Interval.End"
                 except TypeError:
-                    print ("Unsupported upper bound found {0}".format(loop.stop_expr))
-                    exit(1)
+                    if isinstance(loop.stop_expr, BinaryOperation) and \
+                       loop.stop_expr.operator == BinaryOperation.Operator.UBOUND:
+                        upper_bound_offset = 0
+                        upper_bound_str = "Interval.End"
+                    else:
+                        print ("Unsupported upper bound found {0}".format(loop.stop_expr))
+                        exit(1)
             # print ("upper bound is {0}".format(loop.stop_expr))
             # print ("step is {0}".format(loop.step_expr))
             # print ("lower", loop.start_expr, lower_bound_str, str(lower_bound_offset))
