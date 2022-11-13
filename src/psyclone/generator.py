@@ -98,6 +98,7 @@ def handle_script(script_name, info, function_name, is_optional=False):
         script function is called.
 
     '''
+    # pylint: disable=too-many-locals
     sys_path_appended = False
     try:
         # a script has been provided
@@ -159,7 +160,8 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
              distributed_memory=None,
              kern_out_path="",
              kern_naming="multiple"):
-    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments, too-many-statements
+    # pylint: disable=too-many-branches, too-many-locals
     '''Takes a PSyclone algorithm specification as input and outputs the
     associated generated algorithm and psy codes suitable for
     compiling with the specified kernel(s) and support
