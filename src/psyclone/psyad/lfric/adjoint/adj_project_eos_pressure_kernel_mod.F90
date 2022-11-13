@@ -8,7 +8,7 @@ module adj_project_eos_pressure_kernel_mod
   type, public, extends(kernel_type) :: adj_project_eos_pressure_kernel_type
   PRIVATE
   TYPE(arg_type) :: meta_args(10) = (/arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3), arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3), &
-&arg_type(GH_FIELD, GH_REAL, GH_READ, Wtheta), arg_type(GH_FIELD, GH_REAL, GH_READ, Wtheta), arg_type(GH_FIELD, GH_REAL, GH_READ, &
+&arg_type(GH_FIELD, GH_REAL, GH_READWRITE, Wtheta), arg_type(GH_FIELD, GH_REAL, GH_READWRITE, Wtheta), arg_type(GH_FIELD, GH_REAL, GH_READ, &
 &W3), arg_type(GH_FIELD, GH_REAL, GH_READ, Wtheta), arg_type(GH_FIELD, GH_REAL, GH_READ, Wtheta), arg_type(GH_FIELD * 3, GH_REAL, &
 &GH_READ, ANY_SPACE_2), arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3), arg_type(GH_OPERATOR, GH_REAL, GH_READ, &
 &W3, W3)/)
@@ -27,8 +27,9 @@ END TYPE
   subroutine adj_project_eos_pressure_code(cell, nlayers, exner, rho, theta, moist_dyn_gas, ls_rho, ls_theta, ls_moist_dyn_gas, &
 &chi1, chi2, chi3, panel_id, ncell_3d, m3_inv, ndf_w3, undf_w3, map_w3, w3_basis, ndf_wt, undf_wt, map_wt, wt_basis, ndf_chi, &
 &undf_chi, map_chi, chi_basis, chi_diff_basis, ndf_pid, undf_pid, map_pid, nqp_h, nqp_v, wqp_h, wqp_v)
-    use tl_calc_exner_pointwise_mod, only : tl_calc_exner_pointwise
     use coordinate_jacobian_mod, only : coordinate_jacobian
+    use planet_config_mod, only : kappa, Rd, p_zero
+
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: nqp_h
     integer(kind=i_def), intent(in) :: nqp_v
@@ -52,8 +53,8 @@ END TYPE
     real(kind=r_def), dimension(1,ndf_chi,nqp_h,nqp_v), intent(in) :: chi_basis
     real(kind=r_def), dimension(undf_w3), intent(inout) :: exner
     real(kind=r_def), dimension(undf_w3), intent(inout) :: rho
-    real(kind=r_def), dimension(undf_wt), intent(in) :: theta
-    real(kind=r_def), dimension(undf_wt), intent(in) :: moist_dyn_gas
+    real(kind=r_def), dimension(undf_wt), intent(inout) :: theta
+    real(kind=r_def), dimension(undf_wt), intent(inout) :: moist_dyn_gas
     real(kind=r_def), dimension(undf_w3), intent(in) :: ls_rho
     real(kind=r_def), dimension(undf_wt), intent(in) :: ls_theta
     real(kind=r_def), dimension(undf_wt), intent(in) :: ls_moist_dyn_gas
@@ -86,6 +87,11 @@ END TYPE
     real(kind=r_def) :: theta_vd_at_quad
     real(kind=r_def) :: ls_rho_at_quad
     real(kind=r_def) :: ls_theta_vd_at_quad
+    real(kind=r_def) :: tmp1
+    real(kind=r_def) :: tmp2
+    !RFreal(kind=r_def) :: kappa
+    !RFreal(kind=r_def) :: rd
+    !RFreal(kind=r_def) :: p_zero
     integer :: i
     integer :: j
 
@@ -94,6 +100,9 @@ END TYPE
     exner_at_quad = 0.0_r_def
     rho_at_quad = 0.0_r_def
     rho_e = 0.0_r_def
+    tmp2 = 0.0_r_def
+    theta_vd_e = 0.0_r_def
+    theta_vd_at_quad = 0.0_r_def
     ipanel = INT(panel_id(map_pid(1)), i_def)
     do k = nlayers - 1, 0, -1
       do df = 1, ndf_chi, 1
@@ -108,10 +117,6 @@ END TYPE
       enddo
       do df = 1, ndf_wt, 1
         ls_theta_vd_e(df) = ls_moist_dyn_gas(k + map_wt(df)) * ls_theta(k + map_wt(df))
-      enddo
-      do df = 1, ndf_wt, 1
-        theta_vd_e(df) = ls_moist_dyn_gas(k + map_wt(df)) * theta(k + map_wt(df)) + ls_theta(k + map_wt(df)) * moist_dyn_gas(k + &
-&map_wt(df))
       enddo
       ik = cell * nlayers + k - nlayers + 1
       do df = ndf_w3, 1, -1
@@ -134,20 +139,29 @@ END TYPE
           do df = 1, ndf_wt, 1
             ls_theta_vd_at_quad = ls_theta_vd_at_quad + ls_theta_vd_e(df) * wt_basis(1,df,qp1,qp2)
           enddo
-          theta_vd_at_quad = 0.0_r_def
-          do df = 1, ndf_wt, 1
-            theta_vd_at_quad = theta_vd_at_quad + theta_vd_e(df) * wt_basis(1,df,qp1,qp2)
-          enddo
+          tmp1 = (ls_rho_at_quad * ls_theta_vd_at_quad * rd / p_zero) ** (kappa / (1.0 - kappa))
           do df = ndf_w3, 1, -1
             exner_at_quad = exner_at_quad + r_exner(df) * w3_basis(1,df,qp1,qp2)
           enddo
-          rho_at_quad = rho_at_quad + exner_at_quad * dj(qp1,qp2) * wqp_h(qp1) * wqp_v(qp2)
+          tmp2 = tmp2 + exner_at_quad * dj(qp1,qp2) * wqp_h(qp1) * wqp_v(qp2)
           exner_at_quad = 0.0
+          rho_at_quad = rho_at_quad + kappa * tmp2 * tmp1 / (-kappa * ls_rho_at_quad + 1.0 * ls_rho_at_quad)
+          theta_vd_at_quad = theta_vd_at_quad + kappa * tmp2 * tmp1 / (-kappa * ls_theta_vd_at_quad + 1.0 * ls_theta_vd_at_quad)
+          tmp2 = 0.0
+          do df = ndf_wt, 1, -1
+            theta_vd_e(df) = theta_vd_e(df) + theta_vd_at_quad * wt_basis(1,df,qp1,qp2)
+          enddo
+          theta_vd_at_quad = 0.0
           do df = ndf_w3, 1, -1
             rho_e(df) = rho_e(df) + rho_at_quad * w3_basis(1,df,qp1,qp2)
           enddo
           rho_at_quad = 0.0
         enddo
+      enddo
+      do df = ndf_wt, 1, -1
+        theta(k + map_wt(df)) = theta(k + map_wt(df)) + ls_moist_dyn_gas(k + map_wt(df)) * theta_vd_e(df)
+        moist_dyn_gas(k + map_wt(df)) = moist_dyn_gas(k + map_wt(df)) + ls_theta(k + map_wt(df)) * theta_vd_e(df)
+        theta_vd_e(df) = 0.0
       enddo
       do df = ndf_w3, 1, -1
         r_exner(df) = 0.0

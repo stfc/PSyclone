@@ -219,9 +219,8 @@ subroutine tl_project_eos_pressure_code(cell, nlayers,                          
 
         ! Calculation
         exner_at_quad = wqp_h(qp1)*wqp_v(qp2)*dj(qp1,qp2)                          &
-                        * rho_at_quad
-                      !RF *tl_calc_exner_pointwise(rho_at_quad, theta_vd_at_quad,      &
-                      !RF                         ls_rho_at_quad, ls_theta_vd_at_quad)
+                      *tl_calc_exner_pointwise(rho_at_quad, theta_vd_at_quad,      &
+                                               ls_rho_at_quad, ls_theta_vd_at_quad)
 
         do df = 1, ndf_w3
           r_exner(df) = r_exner(df) + w3_basis(1,df,qp1,qp2)*exner_at_quad
