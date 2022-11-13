@@ -57,6 +57,7 @@ from psyclone.domain.common.algorithm.psyir import (
 from psyclone.domain.common.transformations import (
     AlgTrans, AlgInvoke2PSyCallTrans)
 from psyclone.domain.gocean.transformations import RaisePSyIR2GOceanKernTrans
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import GenerationError, InternalError
 from psyclone.line_length import FortLineLength
 from psyclone.parse.algorithm import parse
@@ -417,6 +418,12 @@ def main(args):
     # If no config file name is specified, args.config is none
     # and config will load the default config file.
     Config.get().load(args.config)
+    # TODO: #1295 During import, the singleton instance of LFRicConstants
+    # has been created, with the values from the default config file, NOT
+    # the values from the config file potentially specified on the command
+    # line. Till #1295 is fixed, enforce that the LFRicConstants instance
+    # is re-created (now that the proper config file has been loaded).
+    LFRicConstants.HAS_BEEN_INITIALISED = False
 
     # Check API, if none is specified, take the setting from the config file
     if args.api is None:
