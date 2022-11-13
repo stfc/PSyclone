@@ -8474,11 +8474,11 @@ class DynKern(CodedKern):
             else:
                 raise GenerationError(
                     f"Failed to find a kernel implementation with an interface"
-                    f" that matches the invoke of '{self.name}'.")
+                    f" that matches the invoke of '{self.name}'. (Tried "
+                    f"routines {[item.name for item in routines]}.)")
 
-        # TODO replace the PSyIR argument data symbols with LFRic
-        # data symbols, see issue #935. For the moment we simply
-        # return the unmodified PSyIR schedule
+        # TODO #935 - replace the PSyIR argument data symbols with LFRic data
+        # symbols. For the moment we just return the unmodified PSyIR schedule.
         ksched = KernelSchedule(sched.name,
                                 symbol_table=sched.symbol_table.detach())
         for child in sched.pop_all_children():

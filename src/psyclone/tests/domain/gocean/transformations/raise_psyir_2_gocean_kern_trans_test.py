@@ -183,7 +183,7 @@ def test_validate_iterates_over(fortran_reader):
         "  INTEGER :: ITERATES_OVER = GO_ALL_PTS\n", "")
     kernel_psyir = fortran_reader.psyir_from_source(modified_program)
     kern_trans = RaisePSyIR2GOceanKernTrans("compute_cu")
-    with pytest.raises(ParseError) as info:
+    with pytest.raises(TransformationError) as info:
         kern_trans.validate(kernel_psyir)
     assert ("'iterates_over' was not found in TYPE, EXTENDS(kernel_type) :: "
             "compute_cu" in str(info.value))

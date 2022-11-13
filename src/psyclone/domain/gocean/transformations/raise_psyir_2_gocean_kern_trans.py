@@ -39,6 +39,8 @@ PSyclone kernel-layer-specific PSyIR which uses specialised classes.
 '''
 from psyclone.configuration import Config
 from psyclone.domain.gocean.kernel import GOceanKernelMetadata, GOceanContainer
+from psyclone.errors import PSycloneError
+from psyclone.gocean1p0 import GOSymbolTable, GOKernelSchedule
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Container, Routine, ScopingNode, FileContainer
 from psyclone.psyir.transformations import TransformationError
@@ -133,6 +135,7 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
         :raises TransformationError: if the supplied node is not a Container.
         :raises TransformationError: if the supplied node argument has \
             a parent.
+        :raises TransformationError: if the kernel metadata cannot be parsed.
         :raises TransformationError: if the Container does not contain the \
             routine which implements the kernel.
 
@@ -166,7 +169,13 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
                 f"but should be a generic Container.")
 
         # Check that the metadata can be generated without any errors.
-        mdata = GOceanKernelMetadata.create_from_psyir(metadata_symbol)
+        try:
+            mdata = GOceanKernelMetadata.create_from_psyir(metadata_symbol)
+        except PSycloneError as err:
+            raise TransformationError(
+                f"Error in {self.name} transformation. Failed to create "
+                f"metadata for kernel '{metadata_symbol.name}' from PSyIR. "
+                f"Error was:\n{err.value}") from err
 
         proc_name = mdata.procedure_name.lower()
         for routine in container.walk(Routine):
@@ -177,6 +186,7 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
                 f"Error in {self.name} transformation. The Container in which"
                 f" the metadata symbol resides does not contain the routine "
                 f"that it names as implementing the kernel ('{proc_name}').")
+        # TODO #288: Validate kernel arguments against metadata.
 
     def apply(self, node, options=None):
         '''Raise the supplied language-level GOcean kernel PSyIR to
@@ -204,9 +214,8 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
         metadata = GOceanKernelMetadata.create_from_psyir(metadata_symbol)
 
         # Remove metadata symbol.
-        # TODO issue #898: support needs to be added for removing a
-        # DataSymbol from the symbol table. At the moment we need to
-        # use internal methods.
+        # TODO #898: support needs to be added for removing a DataSymbol from
+        # the symbol table. At the moment we need to use internal methods.
         # pylint: disable=protected-access
         symbol_table = scoping_node.symbol_table
         norm_name = symbol_table._normalize(metadata_symbol.name)
@@ -226,12 +235,11 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
             if routine.name == metadata.procedure_name:
                 break
 
-        # pylint: disable=import-outside-toplevel
-        from psyclone.gocean1p0 import GOSymbolTable, GOKernelSchedule
+        # The validate() method has already checked that the routine exists.
+        # pylint: disable=undefined-loop-variable
         gotable = GOSymbolTable.create_from_table(routine.symbol_table)
         gokernsched = GOKernelSchedule(metadata.procedure_name,
                                        symbol_table=gotable.detach())
-        # TODO: Validate kernel with metadata (issue #288)
         for child in routine.pop_all_children():
             gokernsched.addchild(child)
         routine.replace_with(gokernsched)

@@ -218,7 +218,8 @@ def test_get_kernel_sched_mixed_precision_no_match(monkeypatch):
     with pytest.raises(GenerationError) as err:
         _ = kernels[0].get_kernel_schedule()
     assert ("Failed to find a kernel implementation with an interface that "
-            "matches the invoke of 'mixed_code'" in str(err.value))
+            "matches the invoke of 'mixed_code'. (Tried routines "
+            "['mixed_code_32', 'mixed_code_64'].)" in str(err.value))
 
 
 def test_validate_kernel_code_args(monkeypatch):
