@@ -5236,9 +5236,12 @@ class DynBasisFunctions(DynCollection):
                                kind=api_config.default_kind["integer"],
                                entity_decls=decl_list))
 
+            names = [f"{name}_{qr_arg_name}"
+                     for name in self.qr_weight_vars[qr_type]]
             decl_list = [
-                symbol_table.find_or_create_tag(name+"_"+qr_arg_name).name
-                + "(:,:) => null()" for name in self.qr_weight_vars[qr_type]]
+                symbol_table.find_or_create_array(name, 2, "real",
+                                                  tag=name).name
+                + "(:,:) => null()" for name in names]
             const = LFRicConstants()
             datatype = const.QUADRATURE_TYPE_MAP[quadrature_name]["intrinsic"]
             kind = const.QUADRATURE_TYPE_MAP[quadrature_name]["kind"]
