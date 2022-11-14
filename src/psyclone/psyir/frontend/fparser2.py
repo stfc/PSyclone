@@ -988,19 +988,6 @@ class Fparser2Reader():
         del fp2_nodes[:]
         return code_block
 
-    @staticmethod
-    def _create_schedule(name):
-        '''
-        Create an empty KernelSchedule.
-
-        :param str name: Name of the subroutine represented by the kernel.
-
-        :returns: New KernelSchedule empty object.
-        :rtype: py:class:`psyclone.psyir.nodes.KernelSchedule`
-
-        '''
-        return KernelSchedule(name)
-
     def generate_psyir(self, parse_tree):
         '''Translate the supplied fparser2 parse_tree into PSyIR.
 
@@ -1094,6 +1081,8 @@ class Fparser2Reader():
         :returns: PSyIR schedules representing the matching subroutine(s).
         :rtype: List[:py:class:`psyclone.psyir.nodes.KernelSchedule`]
 
+        :raises GenerationError: if supplied parse tree contains more than \
+                                 one module.
         :raises GenerationError: unable to generate a kernel schedule from \
                                  the provided fpaser2 parse tree.
 
@@ -1101,31 +1090,47 @@ class Fparser2Reader():
         psyir = self.generate_psyir(module_ast)
         lname = name.lower()
 
+        containers = [ctr for ctr in psyir.walk(Container) if
+                      not isinstance(ctr, FileContainer)]
+        if not containers:
+            raise GenerationError(
+                f"The parse tree supplied to get_routine_schedules() must "
+                f"contain a single module but found none when searching for "
+                f"kernel '{name}'.")
+        if len(containers) > 1:
+            raise GenerationError(
+                f"The parse tree supplied to get_routine_schedules() must "
+                f"contain a single module but found more than one "
+                f"({[ctr.name for ctr in containers]}) when searching for "
+                f"kernel '{name}'.")
+        container = containers[0]
+
         # Check for an interface block
         actual_names = []
         interfaces = walk(module_ast, Fortran2003.Interface_Block)
-        if interfaces:
-            for interface in interfaces:
-                if interface.children[0].children[0].string.lower() == lname:
-                    # We have an interface block with the name of the routine
-                    # we are searching for.
-                    procs = walk(interface, Fortran2003.Procedure_Stmt)
-                    for proc in procs:
-                        for child in proc.children[0].children:
-                            actual_names.append(child.string.lower())
-                    break
+
+        for interface in interfaces:
+            if interface.children[0].children[0].string.lower() == lname:
+                # We have an interface block with the name of the routine
+                # we are searching for.
+                procs = walk(interface, Fortran2003.Procedure_Stmt)
+                for proc in procs:
+                    for child in proc.children[0].children:
+                        actual_names.append(child.string.lower())
+                break
         if not actual_names:
             # No interface block was found so we proceed to search for a
             # routine with the original name that we were passed.
             actual_names = [lname]
 
-        routines = psyir.walk(Routine)
+        routines = container.walk(Routine)
         selected_routines = [routine for routine in routines
                              if routine.name.lower() in actual_names]
 
         if not selected_routines:
-            raise GenerationError(f"Unexpected kernel AST. Could not find "
-                                  f"subroutine: {name}")
+            raise GenerationError(
+                f"Could not find subroutine or interface '{name}' in the "
+                f"module '{container.name}'.")
 
         return selected_routines
 

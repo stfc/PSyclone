@@ -462,6 +462,35 @@ def test_array_notation_rank():
             "supported." in str(excinfo.value))
 
 
+def test_get_routine_schedules_wrong_module(parser):
+    '''Test that get_routine_schedules() raises the expected errors if there
+    are no or too many modules in the supplied parse tree.'''
+    reader = FortranStringReader("subroutine mine()\n"
+                                 "end subroutine mine\n")
+    ast = parser(reader)
+    processor = Fparser2Reader()
+    # Test without a module.
+    with pytest.raises(GenerationError) as err:
+        _ = processor.get_routine_schedules("dummy_code", ast)
+    assert ("The parse tree supplied to get_routine_schedules() must contain "
+            "a single module but found none when searching for kernel "
+            "'dummy_code'" in str(err.value))
+    reader = FortranStringReader("module my_mod1\n"
+                                 "contains\n"
+                                 "  subroutine mine()\n"
+                                 "  end subroutine mine\n"
+                                 "end module my_mod1\n"
+                                 "module my_mod2\n"
+                                 "end module my_mod2\n")
+    ast = parser(reader)
+    # Test with two modules.
+    with pytest.raises(GenerationError) as err:
+        _ = processor.get_routine_schedules("dummy_code", ast)
+    assert ("The parse tree supplied to get_routine_schedules() must contain "
+            "a single module but found more than one (['my_mod1', 'my_mod2']) "
+            "when searching for kernel 'dummy_code'" in str(err.value))
+
+
 def test_get_routine_schedules_empty_subroutine(parser):
     ''' Tests the fp2Reader get_routine_schedules method with an empty
     subroutine.
@@ -477,15 +506,15 @@ def test_get_routine_schedules_empty_subroutine(parser):
     # Test that we get an error for a nonexistent subroutine name
     with pytest.raises(GenerationError) as error:
         _ = processor.get_routine_schedules("nonexistent_code", ast)
-    assert "Unexpected kernel AST. Could not find " \
-           "subroutine: nonexistent_code" in str(error.value)
+    assert ("Could not find subroutine or interface 'nonexistent_code' in the "
+            "module 'dummy_mod'" in str(error.value))
 
     # Test corrupting ast by deleting subroutine
     del ast.content[0].content[2]
     with pytest.raises(GenerationError) as error:
         schedule = processor.get_routine_schedules("dummy_code", ast)
-    assert "Unexpected kernel AST. Could not find " \
-           "subroutine: dummy_code" in str(error.value)
+    assert ("Could not find subroutine or interface 'dummy_code' in the "
+            "module 'dummy_mod'" in str(error.value))
 
 
 def test_get_routine_schedules_dummy_subroutine(parser):
