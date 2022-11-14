@@ -41,14 +41,14 @@ of the fparser2 Subroutine_Subprogram and Function_Subprogram constructs
 to PSyIR.
 
 '''
-from __future__ import absolute_import
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
-from psyclone.psyir.symbols import DataSymbol, ScalarType, UnknownFortranType
+from psyclone.psyir.symbols import (DataSymbol, ScalarType, UnknownFortranType,
+                                    RoutineSymbol)
 from psyclone.psyir.nodes import Container, Routine, CodeBlock, FileContainer
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
-    TYPE_MAP_FROM_FORTRAN
+from psyclone.psyir.frontend.fparser2 import (Fparser2Reader,
+                                              TYPE_MAP_FROM_FORTRAN)
 
 # subroutine no declarations
 SUB1_IN = (
@@ -127,13 +127,21 @@ def test_function_handler(fortran_reader, fortran_writer):
         "end module a\n")
     psyir = fortran_reader.psyir_from_source(code)
     # Check PSyIR nodes are being created
-    assert isinstance(psyir, Container)
+    assert isinstance(psyir, FileContainer)
+    container = psyir.children[0]
+    assert isinstance(container, Container)
+    # Check that an appropriate RoutineSymbol has been created.
+    func_sym = container.symbol_table.lookup("my_func")
+    assert isinstance(func_sym, RoutineSymbol)
     routines = psyir.walk(Routine)
     assert len(routines) == 1
+    # Check that there's a DataSymbol of the same name inside the function.
     assert isinstance(routines[0].return_symbol, DataSymbol)
     assert routines[0].return_symbol.name == "my_func"
     assert (routines[0].return_symbol.datatype.intrinsic ==
             ScalarType.Intrinsic.INTEGER)
+    assert (routines[0].symbol_table.lookup("my_func") is
+            routines[0].return_symbol)
     assert psyir.parent is None
     result = fortran_writer(psyir)
     assert result == expected

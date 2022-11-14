@@ -167,7 +167,7 @@ def test_get_kernel_schedule():
     assert kernel._kern_schedule is None
 
     kernel_schedule = kernel.get_kernel_schedule()
-    assert isinstance(kernel_schedule, Routine)
+    assert isinstance(kernel_schedule, KernelSchedule)
     assert kernel._kern_schedule is kernel_schedule
 
     kernel_schedule_2 = kernel.get_kernel_schedule()
