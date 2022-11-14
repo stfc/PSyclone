@@ -286,7 +286,8 @@ class LFRicConstants():
 
         # ----------- Map from symbolic to actual precision -------------------
 
-        # TODO #1941: this mapping should be in the config file.
+        # TODO #1941: this mapping should be in the config file or obtained
+        # from the constants_mod.f90 file in the LFRic infrastructure.
         LFRicConstants.PRECISION_MAP = {"r_def": 8,
                                         "i_def": 4,
                                         "r_solver": 4,

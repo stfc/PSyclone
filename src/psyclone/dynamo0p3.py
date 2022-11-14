@@ -8569,6 +8569,8 @@ class DynKern(CodedKern):
         if isinstance(actual_precision, DataSymbol):
             # Convert precision into number of bytes to support
             # mixed-precision kernels.
+            # TODO #1941: it would be better if the LFRic constants_mod.f90
+            # was the single source of truth for precision values.
             actual_precision = LFRicConstants.PRECISION_MAP[
                 actual_precision.name]
         elif not isinstance(actual_precision, int):
