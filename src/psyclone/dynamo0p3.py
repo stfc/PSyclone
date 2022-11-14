@@ -1384,9 +1384,9 @@ class DynStencils(DynCollection):
         return self._symbol_table.find_or_create_tag(unique, root_name).name
 
     @staticmethod
-    def dofmap_name(symtab, arg):
+    def dofmap_symbol(symtab, arg):
         '''
-        Creates and registers a name for the stencil dofmap associated with
+        Creates and registers a symbol for the stencil dofmap associated with
         the supplied kernel argument.
 
         :param symtab: symbol table that will contain (or already contains) \
@@ -1396,7 +1396,8 @@ class DynStencils(DynCollection):
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
 
         :returns: a valid unique dofmap name for a stencil in the PSy layer.
-        :rtype: str
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol
+
         '''
         root_name = arg.name + "_stencil_dofmap"
         unique = DynStencils.stencil_unique_str(arg, "dofmap")
@@ -1405,12 +1406,12 @@ class DynStencils(DynCollection):
         else:
             num_dimensions = 3
         return symtab.find_or_create_array(root_name, num_dimensions,
-                                           "integer", tag=unique).name
+                                           "integer", tag=unique)
 
     @staticmethod
     def dofmap_size_symbol(symtab, arg):
         '''
-        Create a valid unique name for the size (in cells) of a stencil
+        Create a valid symbol for the size (in cells) of a stencil
         dofmap in the PSy layer.
 
         :param symtab: symbol table that will contain (or already contains) \
@@ -1706,7 +1707,7 @@ class DynStencils(DynCollection):
                                   self.extent_value(arg) + ")"))
 
                 parent.add(AssignGen(parent, pointer=True,
-                                     lhs=self.dofmap_name(symtab, arg),
+                                     lhs=self.dofmap_symbol(symtab, arg).name,
                                      rhs=map_name + "%get_whole_dofmap()"))
 
                 # Add declaration and look-up of stencil size
@@ -1755,8 +1756,8 @@ class DynStencils(DynCollection):
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind=api_config.default_kind["integer"],
                                    pointer=True,
-                                   entity_decls=[self.dofmap_name(symtab,
-                                                                  arg) +
+                                   entity_decls=[self.dofmap_symbol(symtab,
+                                                                    arg).name +
                                                  "(:,:,:,:) => null()"]))
                 dofmap_size_name = self.dofmap_size_symbol(symtab, arg).name
                 parent.add(DeclGen(parent, datatype="integer",
@@ -1799,10 +1800,10 @@ class DynStencils(DynCollection):
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind=api_config.default_kind["integer"],
                                    pointer=True,
-                                   entity_decls=[self.dofmap_name(symtab,
-                                                                  arg) +
+                                   entity_decls=[self.dofmap_symbol(symtab,
+                                                                    arg).name +
                                                  "(:,:,:) => null()"]))
-                dofmape_size_name = self.dofmap_size_symbol(symtab, arg).name
+                dofmap_size_name = self.dofmap_size_symbol(symtab, arg).name
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind=api_config.default_kind["integer"],
                                    pointer=True,
@@ -1829,7 +1830,7 @@ class DynStencils(DynCollection):
                     dimension=",".join([arg.function_space.ndf_name,
                                         self.max_branch_length_name(
                                             symtab, arg), "4"]),
-                    entity_decls=[self.dofmap_name(symtab, arg)]))
+                    entity_decls=[self.dofmap_symbol(symtab, arg).name]))
             else:
                 dofmap_size_name = self.dofmap_size_symbol(symtab, arg).name
                 parent.add(DeclGen(
@@ -1837,7 +1838,7 @@ class DynStencils(DynCollection):
                     kind=api_config.default_kind["integer"], intent="in",
                     dimension=",".join([arg.function_space.ndf_name,
                                         dofmap_size_name]),
-                    entity_decls=[self.dofmap_name(symtab, arg)]))
+                    entity_decls=[self.dofmap_symbol(symtab, arg).name]))
 
 
 class LFRicMeshProperties(DynCollection):

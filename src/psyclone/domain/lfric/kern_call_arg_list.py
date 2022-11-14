@@ -524,13 +524,12 @@ class KernCallArgList(ArgOrdering):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
-        var_name = DynStencils.dofmap_name(self._symtab, arg)
-        unique = DynStencils.stencil_unique_str(arg, "dofmap")
+        var_sym = DynStencils.dofmap_symbol(self._symtab, arg)
         cell_name, cell_ref = self.cell_ref_name(var_accesses)
-        self.append_array_reference(var_name, [":", ":", cell_ref],
-                                    "integer", tag=unique)
-        self.append(f"{var_name}(:,:,{cell_name})", var_accesses,
-                    var_access_name=var_name)
+        self.append_array_reference(var_sym.name, [":", ":", cell_ref],
+                                    "integer", symbol=var_sym)
+        self.append(f"{var_sym.name}(:,:,{cell_name})", var_accesses,
+                    var_access_name=var_sym.name)
 
     def stencil_2d(self, arg, var_accesses=None):
         '''Add general 2D stencil information associated with the argument
@@ -556,13 +555,13 @@ class KernCallArgList(ArgOrdering):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
-        var_name = DynStencils.dofmap_name(self._symtab, arg)
+        var_sym = DynStencils.dofmap_symbol(self._symtab, arg)
         cell_name, cell_ref = self.cell_ref_name(var_accesses)
-        unique = DynStencils.stencil_unique_str(arg, "dofmap")
-        sym = self.append_array_reference(var_name, [":", ":", ":", cell_ref],
-                                          "integer", tag=unique)
-        name = f"{sym.name}(:,:,:,{cell_name})"
-        self.append(name, var_accesses, var_access_name=var_name)
+        self.append_array_reference(var_sym.name,
+                                    [":", ":", ":", cell_ref],
+                                    "integer", symbol=var_sym)
+        name = f"{var_sym.name}(:,:,:,{cell_name})"
+        self.append(name, var_accesses, var_access_name=var_sym.name)
 
     def operator(self, arg, var_accesses=None):
         '''Add the operator arguments to the argument list. If supplied it

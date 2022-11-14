@@ -193,7 +193,7 @@ class KernStubArgList(ArgOrdering):
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
-        name = DynStencils.dofmap_size_name(self._stub_symtab, arg)
+        name = DynStencils.dofmap_size_symbol(self._stub_symtab, arg).name
         self.append(name, var_accesses)
 
     def stencil_unknown_direction(self, arg, var_accesses=None):
@@ -232,7 +232,7 @@ class KernStubArgList(ArgOrdering):
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
-        var_name = DynStencils.dofmap_name(self._stub_symtab, arg)
+        var_name = DynStencils.dofmap_symbol(self._stub_symtab, arg).name
         self.append(var_name, var_accesses)
 
     def stencil_2d_max_extent(self, arg, var_accesses=None):
@@ -272,7 +272,7 @@ class KernStubArgList(ArgOrdering):
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
-        name = DynStencils.dofmap_size_name(self._stub_symtab, arg)
+        name = DynStencils.dofmap_size_symbol(self._stub_symtab, arg).name
         self.append(name, var_accesses)
 
     def stencil_2d(self, arg, var_accesses=None):
@@ -299,7 +299,7 @@ class KernStubArgList(ArgOrdering):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
-        var_name = DynStencils.dofmap_name(self._stub_symtab, arg)
+        var_name = DynStencils.dofmap_symbol(self._stub_symtab, arg).name
         self.append(var_name, var_accesses)
 
     def operator(self, arg, var_accesses=None):
