@@ -295,27 +295,34 @@ class OMPScheduleClause(Clause):
     '''
     OpenMP Schedule clause used for OMP Do Directives.
 
-    :param str schedule: The OpenMP schedule to use with this directive.\
-                         The default value is "static".
+    :param str schedule: The OpenMP schedule to use with this directive. \
+        The default value is "none" which means that no explicit schedule \
+        is specified.
     :param kwargs: additional keyword arguments provided to the PSyIR node.
     :type kwargs: unwrapped dict.
+
     '''
     _children_valid_format = "None"
-    _schedule = ""
 
-    def __init__(self, schedule="static", **kwargs):
+    VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto",
+                           "none"]
+
+    def __init__(self, schedule="none", **kwargs):
         self.schedule = schedule
         super().__init__(**kwargs)
 
     @property
     def _clause_string(self):
         '''
-        :returns: the string that represents this clause in OpenMP (e.g.\
-                "schedule(static)"). The value inside parentheses is\
-                set to the value of the schedule of this clause.
+        :returns: the string that represents this clause in OpenMP (e.g. \
+            "schedule(static)"). The value inside parentheses is \
+            set to the value of the schedule of this clause unless \
+            that value is 'none' in which case an empty string is returned.
         :rtype: str
         '''
-        return f"schedule({self._schedule})"
+        if self._schedule != "none":
+            return f"schedule({self._schedule})"
+        return ""
 
     @property
     def schedule(self):
@@ -329,10 +336,14 @@ class OMPScheduleClause(Clause):
     def schedule(self, schedule):
         '''
         :param str schedule: the schedule to use for this clause.
+
+        :raises ValueError: if the supplied value is not a recognised \
+                            OpenMP schedule.
         '''
-        if schedule not in ("runtime", "static", "dynamic", "guided", "auto"):
-            raise ValueError(f"Schedule must be one of runtime, static, "
-                             f"dynamic, guided or auto. Found {schedule}.")
+        if schedule not in self.VALID_OMP_SCHEDULES:
+            raise ValueError(
+                f"Schedule must be one of {self.VALID_OMP_SCHEDULES}. "
+                f"Found '{schedule}'.")
         self._schedule = schedule
 
     def __eq__(self, other):
