@@ -48,8 +48,7 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk
 
 from psyclone.configuration import Config
-from psyclone.domain.gocean.transformations import RaisePSyIR2GOceanKernTrans
-from psyclone.errors import InternalError
+from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKern, GOKernelSchedule
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -88,7 +87,7 @@ def test_gok_construction():
     assert kern._index_offset == "go_offset_sw"
 
 
-def test_gok_get_kernel_schedule(monkeypatch):
+def test_gok_get_kernel_schedule():
     '''
     Test the get_kernel_schedule() method of GOKern.
 
@@ -104,11 +103,8 @@ def test_gok_get_kernel_schedule(monkeypatch):
     # A second call should just return the previously-obtained schedule.
     sched2 = kern.get_kernel_schedule()
     assert sched2 is sched
-    # Check that the expected internal error is raised if the subroutine that
-    # implements the kernel cannot be found. We have to monkeypatch the
-    # apply() method of the raising transformation to get to this code.
-    monkeypatch.setattr(RaisePSyIR2GOceanKernTrans, "apply",
-                        lambda _1, _2: None)
+    # Check that the expected error is raised if the subroutine that
+    # implements the kernel cannot be found.
     kern._kern_schedule = None
     # Remove the subroutine that implements the kernel from the Fortran
     # parse tree.
@@ -117,7 +113,10 @@ def test_gok_get_kernel_schedule(monkeypatch):
         if sub.children[0].children[1].string == "compute_cu_code":
             sub.parent.content.remove(sub)
             break
-    with pytest.raises(InternalError) as err:
+    with pytest.raises(GenerationError) as err:
         kern.get_kernel_schedule()
-    assert ("Failed to find kernel routine 'compute_cu_code' in raised "
-            "PSyIR" in str(err.value))
+    err_text = str(err.value)
+    assert ("Failed to raise the PSyIR for kernel 'compute_cu_code' to GOcean "
+            "PSyIR" in err_text)
+    assert ("does not contain the routine that it names as implementing the "
+            "kernel ('compute_cu_code')" in err_text)
