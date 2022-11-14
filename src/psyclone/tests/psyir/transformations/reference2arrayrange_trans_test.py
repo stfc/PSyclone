@@ -161,7 +161,7 @@ def test_variable(fortran_reader, fortran_writer):
     code = CODE.replace("  real, dimension(10) :: a\n",
                         "  integer :: n\n  real, dimension(n) :: a\n")
     result = apply_trans(fortran_reader, fortran_writer, code)
-    assert "a(:n) = b\n" in result
+    assert "a(:) = b\n" in result
 
 
 def test_range(fortran_reader, fortran_writer):
@@ -188,7 +188,7 @@ def test_multid(fortran_reader, fortran_writer):
     code = code.replace("a = b", "a = b * c\n")
     code = code.replace("  real :: b\n\n", "")
     result = apply_trans(fortran_reader, fortran_writer, code)
-    assert "a(:n,:m,:) = b(:n,:m,:) * c(:n,:m,:)\n" in result
+    assert "a(:,:,:) = b(:,:,:) * c(:,:,:)\n" in result
 
 
 def test_operators(fortran_reader, fortran_writer):
