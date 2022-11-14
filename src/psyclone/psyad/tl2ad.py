@@ -229,16 +229,10 @@ def generate_adjoint(tl_psyir, active_variables):
         raise InternalError("The supplied PSyIR does not contain any "
                             "routines.")
 
-    #RF if len(routines) != 1:
-    #RF     raise NotImplementedError(
-    #RF         f"The supplied Fortran must contain one and only one routine "
-    #RF         f"but found: {[sub.name for sub in routines]}")
-
+    # We need to re-name the kernel routines.
     for routine in routines:
-        #RF routine = routines[0]
-        # We need to re-name the kernel routine. Have to take care in case we've
-        # been supplied with a bare program/subroutine rather than a subroutine
-        # within a module.
+        # Have to take care in case we've been supplied with a bare
+        # program/subroutine rather than a subroutine within a module.
         if container:
             kernel_sym = container.symbol_table.lookup(routine.name)
             adj_kernel_name = create_adjoint_name(routine.name)

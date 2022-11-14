@@ -86,12 +86,15 @@ def test_generate_adjoint_str(caplog):
         "a = b\n"
         "end program test\n")
     expected = (
-        "program test_adj\n"
+        "program adj_test\n"
         "  integer :: a\n"
         "  integer :: b\n\n"
+        "  a = 0\n"
+        "  b = 0\n"
         "  b = b + a\n"
         "  a = 0.0\n\n"
-        "end program test_adj\n")
+        "end program adj_test\n")
+
     with caplog.at_level(logging.INFO):
         result, test_harness = generate_adjoint_str(tl_code, ["a", "b"])
 
@@ -104,19 +107,19 @@ def test_generate_adjoint_str(caplog):
 
     assert tl_code in caplog.text
     assert ("PSyIR\n"
-            "FileContainer[None]\n"
+            "FileContainer[]\n"
             "    Routine[name:'test']\n"
             "        0: Assignment[]\n"
             "            Reference[name:'a']\n"
             "            Reference[name:'b']\n" in caplog.text)
     assert "Preprocessing\n" in caplog.text
     assert ("PSyIR after TL preprocessing\n"
-            "FileContainer[None]\n"
+            "FileContainer[]\n"
             "    Routine[name:'test']\n"
             "        0: Assignment[]\n"
             "            Reference[name:'a']\n"
             "            Reference[name:'b']\n" in caplog.text)
-    assert "Translating from TL to AD." in caplog.text
+    assert "Translating from LFRic TL to AD." in caplog.text
     assert expected in result
     assert test_harness == ""
 
@@ -268,13 +271,13 @@ def test_generate_adjoint_str_generate_harness_logging(caplog):
         "end module my_mod\n"
     )
     with caplog.at_level(logging.INFO):
-        _ = generate_adjoint_str("", tl_code, ["field"], create_test=True)
+        _ = generate_adjoint_str(tl_code, ["field"], create_test=True)
     assert caplog.text == ""
     with caplog.at_level(logging.DEBUG):
-        _, harness = generate_adjoint_str("", tl_code, ["field"],
+        _, harness = generate_adjoint_str(tl_code, ["field"],
                                           create_test=True)
     assert ("Creating test harness for TL kernel 'kern' and AD kernel "
-            "'kern_adj'" in caplog.text)
+            "'adj_kern'" in caplog.text)
     assert ("Kernel 'kern' has the following dimensioning arguments: ['n']" in
             caplog.text)
     assert ("Generated symbols for new argument list: ['field', 'n']" in
@@ -403,9 +406,10 @@ def test_generate_adjoint_kind(fortran_reader, fortran_writer):
     assert ad_fortran_str in expected_ad_fortran_str
 
 
-def test_generate_adjoint_multi_kernel(fortran_reader):
-    '''Check that generate_adjoint raises the expected error when there
-    are multiple kernels in a module.
+def test_generate_adjoint_multi_kernel(fortran_reader, fortran_writer):
+    '''Check that generate_adjoint works as expected when there are
+    multiple kernels in a module. The adjoint of each routine should
+    be taken and the names of each routine should be modified.
 
     '''
     tl_fortran_str = (
@@ -419,16 +423,34 @@ def test_generate_adjoint_multi_kernel(fortran_reader):
         "    real :: psyir_tmp, psyir_tmp_1\n"
         "    psyir_tmp = psyir_tmp_1\n"
         "  end subroutine kern2\n"
-        "  subroutine kern3()\n"
-        "    real :: psyir_tmp, psyir_tmp_1\n"
-        "    psyir_tmp = psyir_tmp_1\n"
-        "  end subroutine kern3\n"
         "end module test_mod\n")
+    expected_ad_fortran_str = (
+        "module adj_test_mod\n"
+        "  implicit none\n"
+        "  public\n\n"
+        "  public :: adj_kern1, adj_kern2\n\n"
+        "  contains\n"
+        "  subroutine adj_kern1()\n"
+        "    real :: psyir_tmp\n"
+        "    real :: psyir_tmp_1\n\n"
+        "    psyir_tmp = 0.0\n"
+        "    psyir_tmp_1 = 0.0\n"
+        "    psyir_tmp_1 = psyir_tmp_1 + psyir_tmp\n"
+        "    psyir_tmp = 0.0\n\n"
+        "  end subroutine adj_kern1\n"
+        "  subroutine adj_kern2()\n"
+        "    real :: psyir_tmp\n"
+        "    real :: psyir_tmp_1\n\n"
+        "    psyir_tmp = 0.0\n"
+        "    psyir_tmp_1 = 0.0\n"
+        "    psyir_tmp_1 = psyir_tmp_1 + psyir_tmp\n"
+        "    psyir_tmp = 0.0\n\n"
+        "  end subroutine adj_kern2\n\n"
+        "end module adj_test_mod\n")
     psyir = fortran_reader.psyir_from_source(tl_fortran_str)
-    with pytest.raises(NotImplementedError) as err:
-        generate_adjoint(psyir, ["psyir_tmp", "psyir_tmp_1"])
-    assert ("The supplied Fortran must contain one and only one routine but "
-            "found: ['kern1', 'kern2', 'kern3']" in str(err.value))
+    ad_psyir = generate_adjoint(psyir, ["psyir_tmp", "psyir_tmp_1"])
+    ad_fortran_str = fortran_writer(ad_psyir)
+    assert ad_fortran_str == expected_ad_fortran_str
 
 
 def test_generate_adjoint_errors():
@@ -461,15 +483,32 @@ def test_generate_adjoint_logging(caplog, fortran_reader, fortran_writer):
 
     '''
     tl_fortran_str = (
-        "program test\n"
-        "real :: a\n"
-        "a = 0.0\n"
-        "end program test\n")
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine test1(a)\n"
+        "  real :: a\n"
+        "  a = 0.0\n"
+        "  end subroutine\n"
+        "  subroutine test2(a)\n"
+        "  real :: a\n"
+        "  a = 0.0\n"
+        " end subroutine\n"
+        "end module\n")
     expected_ad_fortran_str = (
-        "program test_adj\n"
-        "  real :: a\n\n"
-        "  a = 0.0\n\n"
-        "end program test_adj\n")
+        "module adj_test_mod\n"
+        "  implicit none\n"
+        "  public\n\n"
+        "  public :: adj_test1, adj_test2\n\n"
+        "  contains\n"
+        "  subroutine adj_test1(a)\n"
+        "    real, intent(out) :: a\n\n"
+        "    a = 0.0\n\n"
+        "  end subroutine adj_test1\n"
+        "  subroutine adj_test2(a)\n"
+        "    real, intent(out) :: a\n\n"
+        "    a = 0.0\n\n"
+        "  end subroutine adj_test2\n\n"
+        "end module adj_test_mod\n")
     tl_psyir = fortran_reader.psyir_from_source(tl_fortran_str)
 
     with caplog.at_level(logging.INFO):
@@ -481,8 +520,9 @@ def test_generate_adjoint_logging(caplog, fortran_reader, fortran_writer):
 
     with caplog.at_level(logging.DEBUG):
         ad_psyir = generate_adjoint(tl_psyir, ["a"])
-    assert "Translating from TL to AD." in caplog.text
-    assert "AD kernel will be named 'test_adj'" in caplog.text
+    assert "Translating from LFRic TL to AD." in caplog.text
+    assert "AD kernel will be named 'adj_test1'" in caplog.text
+    assert "AD kernel will be named 'adj_test2'" in caplog.text
 
     ad_fortran_str = fortran_writer(ad_psyir)
     assert expected_ad_fortran_str in ad_fortran_str
