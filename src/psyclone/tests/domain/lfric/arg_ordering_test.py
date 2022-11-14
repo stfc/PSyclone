@@ -130,6 +130,13 @@ def test_argordering_get_array_reference():
     assert isinstance(ref, Reference)
     assert not isinstance(ref, ArrayReference)
 
+    # Now specify a symbol, but an incorrect array name:
+    with pytest.raises(InternalError) as err:
+        arg_list.get_array_reference("wrong-name", [":", ":"],
+                                     "integer", symbol=ref.symbol)
+    assert ("Specified symbol 'array4' has adifferent name than the "
+            "specified arrayname 'wrong-name'" in str(err.value))
+
     with pytest.raises(TypeError) as err:
         arg_list.get_array_reference("does-not-exist", [":"], "invalid")
     assert ("Unsupported data type 'invalid' in find_or_create_array"

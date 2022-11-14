@@ -187,7 +187,8 @@ class ArgOrdering:
         return sym
 
     def get_array_reference(self, array_name, indices, intrinsic_type,
-                            tag=None):
+                            tag=None, symbol=None):
+        # pylint: disable=too-many-arguments
         '''This function creates an array reference. If there is no symbol
         with the given tag, a new array symbol will be defined using the given
         intrinsic_type. If a symbol already exists but has no type, it will
@@ -201,6 +202,8 @@ class ArgOrdering:
             be one of "real", "integer", or "logical"
         :param tag: optional tag for the symbol.
         :type tag: Optional[str]
+        :param symbol: optional the symbol to use.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol
 
         :returns: a reference to the symbol used.
         :rtype: :py:class:`psyclone.psyir.nodes.Reference`
@@ -208,21 +211,28 @@ class ArgOrdering:
         '''
         if not tag:
             tag = array_name
-        sym = self._symtab.find_or_create_array(array_name,
-                                                len(indices),
-                                                intrinsic_type,
-                                                tag)
+        if not symbol:
+            symbol = self._symtab.find_or_create_array(array_name,
+                                                       len(indices),
+                                                       intrinsic_type,
+                                                       tag)
+        else:
+            if symbol.name != array_name:
+                raise InternalError(f"Specified symbol '{symbol.name}' has a"
+                                    f"different name than the specified array"
+                                    f"name '{array_name}'.")
 
         # If all indices are specified as ":", just use the name itself
         # to reproduce the current look of the code.
         if indices == [":"]*len(indices):
-            ref = Reference(sym)
+            ref = Reference(symbol)
         else:
-            ref = ArrayReference.create(sym, indices)
+            ref = ArrayReference.create(symbol, indices)
         return ref
 
     def append_array_reference(self, array_name, indices, intrinsic_type,
-                               tag=None):
+                               tag=None, symbol=None):
+        # pylint: disable=too-many-arguments
         '''This function adds an array reference. If there is no symbol with
         the given tag, a new array symbol will be defined using the given
         intrinsic_type. If a symbol already exists but has no type, it will
@@ -233,6 +243,13 @@ class ArgOrdering:
         :param indices: the indices to be used in the PSyIR reference. It \
             must either be ":", or a PSyIR node.
         :type indices: List[Union[str, py:class:`psyclone.psyir.nodes.Node`]]
+        :param str intrinsic_type: the intrinsic type of the array, must \
+            be one of "real", "integer", or "logical"
+        :param tag: optional tag for the symbol.
+        :type tag: Optional[str]
+        :param symbol: optional the symbol to use.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol
+
 
         :returns: the symbol used in the added reference.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
@@ -240,7 +257,7 @@ class ArgOrdering:
         '''
 
         ref = self.get_array_reference(array_name, indices, intrinsic_type,
-                                       tag=tag)
+                                       tag=tag, symbol=symbol)
         self.psyir_append(ref)
         return ref.symbol
 

@@ -430,13 +430,12 @@ class KernCallArgList(ArgOrdering):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
-        var_name = DynStencils.dofmap_size_name(self._symtab, arg)
-        unique = DynStencils.stencil_unique_str(arg, "size")
+        var_sym = DynStencils.dofmap_size_symbol(self._symtab, arg)
         cell_name, cell_ref = self.cell_ref_name(var_accesses)
-        self.append_array_reference(var_name, [cell_ref], "integer",
-                                    tag=unique)
-        self.append(f"{var_name}({cell_name})", var_accesses,
-                    var_access_name=var_name)
+        self.append_array_reference(var_sym.name, [cell_ref], "integer",
+                                    symbol=var_sym)
+        self.append(f"{var_sym.name}({cell_name})", var_accesses,
+                    var_access_name=var_sym.name)
 
     def stencil_2d_unknown_extent(self, arg, var_accesses=None):
         '''Add 2D stencil information to the argument list associated with the
@@ -455,13 +454,12 @@ class KernCallArgList(ArgOrdering):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
-        var_name = DynStencils.dofmap_size_name(self._symtab, arg)
+        var_sym = DynStencils.dofmap_size_symbol(self._symtab, arg)
         cell_name, cell_ref = self.cell_ref_name(var_accesses)
-        unique = DynStencils.stencil_unique_str(arg, "size")
-        sym = self.append_array_reference(var_name, [":", cell_ref], "integer",
-                                          tag=unique)
-        name = f"{sym.name}(:,{cell_name})"
-        self.append(name, var_accesses, var_access_name=sym.name)
+        self.append_array_reference(var_sym.name, [":", cell_ref],
+                                    "integer", symbol=var_sym)
+        name = f"{var_sym.name}(:,{cell_name})"
+        self.append(name, var_accesses, var_access_name=var_sym.name)
 
     def stencil_2d_max_extent(self, arg, var_accesses=None):
         '''Add the maximum branch extent for a 2D stencil associated with the
