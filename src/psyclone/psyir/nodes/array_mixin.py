@@ -150,19 +150,26 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                         expr.children[1].datatype.intrinsic ==
                         ScalarType.Intrinsic.INTEGER
                         and expr.children[1].value == str(index+1)):
-                        # This is the correct index
+                    # This is the correct index
                     return True
         return False
 
     def _get_symbol_declaration(self):
-        '''Utility function that returns this array's datatype declaration if it
-        can be found.
+        '''Utility function that returns this array's datatype declaration if
+        it can be found.
 
-        :returns: the arrays datatype declaration if it can be found and None otherwise.
+        :returns: the arrays datatype declaration if it can be found \
+            and None otherwise.
         :rtype: Optional[:py:class:`psyclone.psyir.symbols.DataSymbol`]
 
         '''
-        symbol = self.scope.symbol_table.lookup(self.name)
+        try:
+            symbol = self.scope.symbol_table.lookup(self.name)
+        except (KeyError, SymbolError):
+            # These exceptions should not happen but catching them is
+            # useful for certain tests where the PSyIR is not fully
+            # set up.
+            return None
         if not isinstance(symbol, DataSymbol):
             # We don't have any type information on this symbol
             # (probably because it originates from a wildcard import).
@@ -200,11 +207,17 @@ class ArrayMixin(metaclass=abc.ABCMeta):
 
         if not isinstance(array_dimension, Range):
             # Check for a single element array
-            symbol = self.scope.symbol_table.lookup(self.name)
+            try:
+                symbol = self.scope.symbol_table.lookup(self.name)
+            except SymbolError:
+                # This exception should not happen but catching it is
+                # useful for certain tests where the PSyIR is not
+                # fully set up.
+                return False
             shape = symbol.datatype.shape
             sym_maths = SymbolicMaths.get()
-            if sym_maths.equal(shape[index].lower, shape[index].upper) and \
-                    sym_maths.equal(shape[index].lower, array_dimension):
+            if (sym_maths.equal(shape[index].lower, shape[index].upper) and
+                    sym_maths.equal(shape[index].lower, array_dimension)):
                 return True
             return False
 
@@ -254,11 +267,17 @@ class ArrayMixin(metaclass=abc.ABCMeta):
 
         if not isinstance(array_dimension, Range):
             # Check for a single element array
-            symbol = self.scope.symbol_table.lookup(self.name)
+            try:
+                symbol = self.scope.symbol_table.lookup(self.name)
+            except SymbolError:
+                # This exception should not happen but catching it is
+                # useful for certain tests where the PSyIR is not
+                # fully set up.
+                return False
             shape = symbol.datatype.shape
             sym_maths = SymbolicMaths.get()
-            if sym_maths.equal(shape[index].lower, shape[index].upper) and \
-                   sym_maths.equal(shape[index].lower, array_dimension):
+            if (sym_maths.equal(shape[index].lower, shape[index].upper) and
+                    sym_maths.equal(shape[index].lower, array_dimension)):
                 return True
             return False
 

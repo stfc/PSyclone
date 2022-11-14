@@ -66,34 +66,35 @@ def test_is_bound_op():
     array_ref = ArrayReference.create(array, [my_range])
     array2_ref = ArrayReference.create(array2, [my_range.copy()])
     # not a binary operation
-    op = None
-    assert not array_ref._is_bound_op(op, BinaryOperation.Operator.UBOUND, one)
+    oper = None
+    assert not array_ref._is_bound_op(
+        oper, BinaryOperation.Operator.UBOUND, one)
     # not a match with the binary operator
-    op = BinaryOperation.create(
+    oper = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND, array_ref, one.copy())
-    assert not array_ref._is_bound_op(op, BinaryOperation.Operator.UBOUND, 0)
+    assert not array_ref._is_bound_op(oper, BinaryOperation.Operator.UBOUND, 0)
     # 1st dimension of the bound is not the same array
-    op = BinaryOperation.create(
+    oper = BinaryOperation.create(
         BinaryOperation.Operator.UBOUND, array2_ref, one.copy())
-    assert not array_ref._is_bound_op(op, BinaryOperation.Operator.UBOUND, 0)
+    assert not array_ref._is_bound_op(oper, BinaryOperation.Operator.UBOUND, 0)
     # 2nd dimension of the bound not a literal
-    op = BinaryOperation.create(
+    oper = BinaryOperation.create(
         BinaryOperation.Operator.UBOUND, array_ref.copy(), Reference(scalar))
-    assert not array_ref._is_bound_op(op, BinaryOperation.Operator.UBOUND, 0)
+    assert not array_ref._is_bound_op(oper, BinaryOperation.Operator.UBOUND, 0)
     # 2nd dimension of the bound not an integer literal
-    op = BinaryOperation.create(
+    oper = BinaryOperation.create(
         BinaryOperation.Operator.UBOUND, array_ref.copy(),
         Literal("1.0", REAL_TYPE))
-    assert not array_ref._is_bound_op(op, BinaryOperation.Operator.UBOUND, 0)
+    assert not array_ref._is_bound_op(oper, BinaryOperation.Operator.UBOUND, 0)
     # 2nd dimension of the bound not the expected index
-    op = BinaryOperation.create(
+    oper = BinaryOperation.create(
         BinaryOperation.Operator.UBOUND, array_ref.copy(),
         Literal("2", INTEGER_TYPE))
-    assert not array_ref._is_bound_op(op, BinaryOperation.Operator.UBOUND, 0)
+    assert not array_ref._is_bound_op(oper, BinaryOperation.Operator.UBOUND, 0)
     # OK
-    op = BinaryOperation.create(
+    oper = BinaryOperation.create(
         BinaryOperation.Operator.UBOUND, array_ref.copy(), one.copy())
-    assert array_ref._is_bound_op(op, BinaryOperation.Operator.UBOUND, 0)
+    assert array_ref._is_bound_op(oper, BinaryOperation.Operator.UBOUND, 0)
 
 
 # _get_symbol_declaration
@@ -125,7 +126,20 @@ def test_get_symbol_declaration(fortran_reader):
     assert datatype.shape[0].lower.value == "1"
     assert isinstance(datatype.shape[0].upper, Reference)
     assert datatype.shape[0].upper.name == "n"
-    
+
+    # symbol not found in symbol table
+    symbol = array_ref.symbol
+    symbol_table = array_ref.scope.symbol_table
+    norm_name = symbol_table._normalize(symbol.name)
+    symbol_table._symbols.pop(norm_name)
+    assert not array_ref._get_symbol_declaration()
+
+    # no symbol table found
+    array_type = ArrayType(REAL_TYPE, [10])
+    symbol = DataSymbol("tmp", array_type)
+    array_ref = ArrayReference.create(symbol, [Literal("1", INTEGER_TYPE)])
+    assert not array_ref._get_symbol_declaration()
+
     # symbol not a datasymbol (wildcard import)
     array_ref = assigns[2].lhs
     assert not array_ref._get_symbol_declaration()
