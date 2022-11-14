@@ -40,8 +40,10 @@ construct in the PSyIR fparser2 frontend. '''
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
-from psyclone.psyir.nodes import Schedule, CodeBlock, Loop, Assignment, Routine
+
+from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.nodes import Schedule, CodeBlock, Loop, Assignment, Routine
 
 
 def test_handling_end_do_stmt(parser):
@@ -178,3 +180,20 @@ END PROGRAM my_test'''
     assert isinstance(prog.children[0], CodeBlock)
     assert isinstance(prog.children[0].ast,
                       Fortran2003.Block_Nonlabel_Do_Construct)
+
+
+def test_undeclared_loop_var(fortran_reader):
+    '''Check that the do handler raises the expected error if an undeclared
+    loop variable is encountered.
+
+    '''
+    code = ('''
+      subroutine test()
+        do i=1,10
+        end do
+      end subroutine test
+    ''')
+    with pytest.raises(InternalError) as err:
+        _ = fortran_reader.psyir_from_source(code)
+    assert ("Loop-variable name 'i' is not declared and there are no "
+            "unqualified use statements" in str(err.value))
