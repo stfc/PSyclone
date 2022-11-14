@@ -75,10 +75,9 @@ from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
                              CodedKern)
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
+from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference, Routine,
                                   ArrayReference, ACCEnterDataDirective,
-                                  ACCRegionDirective, OMPRegionDirective,
-                                  KernelSchedule)
+                                  ACCRegionDirective, OMPRegionDirective)
 from psyclone.psyir.symbols import (
     INTEGER_TYPE, INTEGER_SINGLE_TYPE, DataSymbol, SymbolTable, ScalarType,
     DeferredType, DataTypeSymbol, ContainerSymbol, ImportInterface, ArrayType)
@@ -8477,13 +8476,24 @@ class DynKern(CodedKern):
                     f" that matches the invoke of '{self.name}'. (Tried "
                     f"routines {[item.name for item in routines]}.)")
 
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.lfric.transformations import (
+            RaisePSyIR2LFRicKernTrans)
+        raise_trans = RaisePSyIR2LFRicKernTrans()
+        fcontainer = sched.parent.parent
+        type_name = self.name.replace("_code", "_type")
+        raise_trans.apply(fcontainer, {"metadata_name": type_name})
+        for routine in fcontainer.walk(Routine):
+            if routine.name == self.name:
+                ksched = routine
+                break
         # TODO #935 - replace the PSyIR argument data symbols with LFRic data
         # symbols. For the moment we just return the unmodified PSyIR schedule.
-        ksched = KernelSchedule(sched.name,
-                                symbol_table=sched.symbol_table.detach())
-        for child in sched.pop_all_children():
-            ksched.addchild(child)
-        sched.replace_with(ksched)
+        #ksched = KernelSchedule(sched.name,
+        #                        symbol_table=sched.symbol_table.detach())
+        #for child in sched.pop_all_children():
+        #    ksched.addchild(child)
+        #sched.replace_with(ksched)
 
         self._kern_schedule = ksched
 

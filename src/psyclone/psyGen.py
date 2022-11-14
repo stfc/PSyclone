@@ -1725,7 +1725,9 @@ class CodedKern(Kern):
         # module. These names are used when generating the PSy-layer.
         self.name = new_kern_name[:]
         self._module_name = new_mod_name[:]
-
+        # Ensure the metadata points to the correct procedure now.
+        if hasattr(container, "metadata"):
+            container.metadata.procedure_name = new_kern_name[:]
         kern_schedule.name = new_kern_name[:]
         container.name = new_mod_name[:]
 
@@ -1737,18 +1739,6 @@ class CodedKern(Kern):
             # TODO #1013. Right now not all tests have PSyIR symbols because
             # some only expect f2pygen generation.
             pass
-
-        # TODO #1013. This needs re-doing properly - in particular the
-        # RoutineSymbol associated with the kernel needs to be replaced. For
-        # now we only fix the specific case of the name of the kernel routine
-        # in the kernel metadata as otherwise various compilation tests
-        # fail.
-        container_table = container.symbol_table
-        for sym in container_table.local_datatypesymbols:
-            if isinstance(sym.datatype, UnknownFortranType):
-                orig_declaration = sym.datatype.declaration
-                sym.datatype.declaration = orig_declaration.replace(
-                    orig_kern_name, new_kern_name)
 
     @property
     def modified(self):
