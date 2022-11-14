@@ -52,15 +52,13 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import PSyFactory
 from psyclone.gocean1p0 import (GOKern, GOLoop, GOKernelArgument,
                                 GOKernelArguments, GOKernelGridArgument,
-                                GOBuiltInCallFactory, GOSymbolTable)
+                                GOBuiltInCallFactory)
 from psyclone.tests.utilities import get_base_path, get_invoke
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.psyir.nodes import (Node, StructureReference, Member,
                                   StructureMember, Reference, Literal)
-from psyclone.psyir.symbols import (DeferredType, ContainerSymbol, DataSymbol,
-                                    ImportInterface, INTEGER_TYPE,
-                                    ArgumentInterface, DataTypeSymbol,
-                                    ScalarType, SymbolTable)
+from psyclone.psyir.symbols import (ContainerSymbol, ImportInterface,
+                                    INTEGER_TYPE, DataTypeSymbol, ScalarType)
 from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
 
 API = "gocean1.0"
@@ -1685,29 +1683,6 @@ def test_gokernelargument_type(monkeypatch):
     # Mock the descriptor type method
     monkeypatch.setattr(argument._arg, "_argument_type", "descriptor_type")
     assert argument.argument_type == "descriptor_type"
-
-
-def test_gosymboltable_conformity_check():
-    '''Test that the expected exception is raised in method
-    _check_gocean_conformity within GOSymbolTable when one or both of
-    the first two kernel arguments are nor scalar integers.
-
-    '''
-    symbol_table = GOSymbolTable()
-    i_var = DataSymbol("i", INTEGER_TYPE,
-                       interface=ArgumentInterface(
-                           ArgumentInterface.Access.READ))
-    j_var = DataSymbol("j", INTEGER_TYPE,
-                       interface=ArgumentInterface(
-                           ArgumentInterface.Access.READ))
-    symbol_table.specify_argument_list([i_var, j_var])
-    # Set the datatype of the first datasymbol to have an invalid type
-    # in order to raise the required exception.
-    symbol_table._argument_list[0].datatype = DeferredType()
-    with pytest.raises(GenerationError) as excinfo:
-        symbol_table._check_gocean_conformity()
-    assert ("GOcean 1.0 API kernels first argument should be a scalar integer "
-            "but got 'DeferredType'." in str(excinfo.value))
 
 
 def test_go_descriptor_str():

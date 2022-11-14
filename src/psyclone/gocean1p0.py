@@ -2217,11 +2217,18 @@ class GOSymbolTable(SymbolTable):
                           GOSymbolTable.
         :type old_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
-        :returns: a new GOSymbolTable containing copies of all of the symbols \
-                  in the supplied table.
+        :returns: a new GOSymbolTable containing all of the symbols in \
+                  the supplied table.
         :rtype: :py:class:`psyclone.gocean1p0.GOSymbolTable`
 
+        :raises TypeError: if the supplied argument is not a SymbolTable.
+
         '''
+        if not isinstance(old_table, SymbolTable):
+            raise TypeError(
+                f"create_from_table: expected an instance of SymbolTable but "
+                f"got a '{type(old_table).__name__}'")
+
         new_st = GOSymbolTable()
         # pylint: disable=protected-access
         new_st._symbols = copy.copy(old_table._symbols)
