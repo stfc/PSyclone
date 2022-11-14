@@ -121,12 +121,66 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                 f"'{index}' must be less than the number of dimensions "
                 f"'{len(self.indices)}'.")
 
+    def _is_bound_op(self, expr, bound_operator, index):
+        '''Utility function that checks that the provided 'expr' argument is
+        in the form '[UL]BOUND(array_name, index)', where the type of
+        bound operation is determined by the 'bound_operator'
+        argument, array_name is the name of this array and the 'index'
+        argument provides the index value.
+
+        :param expr: a PSyIR expression.
+        :type expr: :py:class:`psyclone.psyir.nodes.Node`
+        :param bound_operator: the particular bound operation.
+        :type bound_operator: \
+            :py:class:`psyclone.psyir.nodes.operation.BinaryOperation.\
+            Operator.LBOUND` or :py:class:`psyclone.psyir.nodes.operation.\
+            BinaryOperation.Operator.UBOUND`
+        :param int index: the bounds index.
+
+        :returns: True if the expr is in the expected form and False \
+            otherwise.
+        :rtype: bool
+
+        '''
+        if (isinstance(expr, BinaryOperation) and
+                expr.operator == bound_operator):
+            # This is the expected bound
+            if self.is_same_array(expr.children[0]):
+                # The arrays match
+                if (isinstance(expr.children[1], Literal) and
+                        expr.children[1].datatype.intrinsic ==
+                        ScalarType.Intrinsic.INTEGER
+                        and expr.children[1].value == str(index+1)):
+                        # This is the correct index
+                    return True
+        return False
+
+    def _get_symbol_declaration(self):
+        '''Utility function that returns this array's datatype declaration if it
+        can be found.
+
+        :returns: the arrays datatype declaration if it can be found and None otherwise.
+        :rtype: Optional[:py:class:`psyclone.psyir.symbols.DataSymbol`]
+
+        '''
+        symbol = self.scope.symbol_table.lookup(self.name)
+        if not isinstance(symbol, DataSymbol):
+            # We don't have any type information on this symbol
+            # (probably because it originates from a wildcard import).
+            return None
+        datatype = symbol.datatype
+        # Check that the symbol is of ArrayType. (It may be of
+        # UnknownFortranType if the symbol is of e.g. character type.)
+        if not isinstance(datatype, ArrayType):
+            return None
+        return datatype
+
     def is_lower_bound(self, index):
         '''Returns True if the specified array index contains a Range node
         which has a starting value given by the 'LBOUND(name,index)'
         intrinsic where 'name' is the name of the current Array and
         'index' matches the specified array index. Also returns True
-        if the starting value of the range node is an integer that
+        if the starting value of the range node is an expression that
         matches the starting value of the declaration. Otherwise False
         is returned.
 
@@ -144,50 +198,34 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         self._validate_index(index)
 
         array_dimension = self.indices[index]
+
         if not isinstance(array_dimension, Range):
+            # Check for a single element array
+            symbol = self.scope.symbol_table.lookup(self.name)
+            shape = symbol.datatype.shape
+            sym_maths = SymbolicMaths.get()
+            if sym_maths.equal(shape[index].lower, shape[index].upper) and \
+                   sym_maths.equal(shape[index].lower, array_dimension):
+                return True
             return False
 
         lower = array_dimension.start
 
-        if isinstance(lower, Literal):
-            try:
-                symbol = self.scope.symbol_table.lookup(self.name)
-                if not isinstance(symbol, DataSymbol):
-                    # We don't have any type information on this symbol
-                    # (probably because it originates from a wildcard import).
-                    return False
-                datatype = symbol.datatype
-                # Check that the symbol is of ArrayType. (It may be of
-                # UnknownFortranType if the symbol is of e.g. character type.)
-                if not isinstance(datatype, ArrayType):
-                    return False
-                shape = datatype.shape
-                array_bounds = shape[index]
-                if (isinstance(array_bounds, ArrayType.ArrayBounds)
-                        and isinstance(array_bounds.lower, Literal)):
-                    if lower.value == array_bounds.lower.value:
-                        return True
-            except (KeyError, SymbolError):
-                # Can't find symbol declaration
-                pass
-            return False
+        # Is this in the form of LBOUND(array, index)?
+        if self._is_bound_op(lower, BinaryOperation.Operator.LBOUND, index):
+            return True
 
-        if not (isinstance(lower, BinaryOperation) and
-                lower.operator == BinaryOperation.Operator.LBOUND):
-            return False
-
-        if not isinstance(lower.children[0], Reference):
-            return False
-
-        if not self.is_same_array(lower.children[0]):
-            return False
-
-        if not (isinstance(lower.children[1], Literal) and
-                lower.children[1].datatype.intrinsic ==
-                ScalarType.Intrinsic.INTEGER
-                and lower.children[1].value == str(index+1)):
-            return False
-        return True
+        # If the lower bound of the array declaration can be found,
+        # does it match with the lower bound of the array reference?
+        datatype = self._get_symbol_declaration()
+        if datatype:
+            sym_maths = SymbolicMaths.get()
+            shape = datatype.shape
+            array_bounds = shape[index]
+            if (isinstance(array_bounds, ArrayType.ArrayBounds) and
+                    sym_maths.equal(lower, array_bounds.lower)):
+                return True
+        return False
 
     def is_upper_bound(self, index):
         '''Returns True if the specified array index contains a Range node
@@ -216,48 +254,31 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         array_dimension = self.indices[index]
 
         if not isinstance(array_dimension, Range):
-            # TODO What about array of size one and array dimension is 1. Then
-            # no range is required?
+            # Check for a single element array
+            symbol = self.scope.symbol_table.lookup(self.name)
+            shape = symbol.datatype.shape
+            sym_maths = SymbolicMaths.get()
+            if sym_maths.equal(shape[index].lower, shape[index].upper) and \
+                   sym_maths.equal(shape[index].lower, array_dimension):
+                return True
             return False
 
         upper = array_dimension.stop
 
         # Is this in the form of UBOUND(array, index)?
-        if (isinstance(upper, BinaryOperation) and
-                upper.operator == BinaryOperation.Operator.UBOUND):
-            # This is UBOUND
-            if self.is_same_array(upper.children[0]):
-                # The arrays match
-                if (isinstance(upper.children[1], Literal) and
-                        upper.children[1].datatype.intrinsic ==
-                        ScalarType.Intrinsic.INTEGER
-                        and upper.children[1].value == str(index+1)):
-                        # This is the correct index
-                    return True
+        if self._is_bound_op(upper, BinaryOperation.Operator.UBOUND, index):
+            return True
 
         # If the upper bound of the array declaration can be found,
         # does it match with the upper bound of the array reference?
-        sym_maths = SymbolicMaths.get()
-        try:
-            symbol = self.scope.symbol_table.lookup(self.name)
-            if not isinstance(symbol, DataSymbol):
-                # We don't have any type information on this symbol
-                # (probably because it originates from a wildcard import).
-                return False
-            datatype = symbol.datatype
-            # Check that the symbol is of ArrayType. (It may be of
-            # UnknownFortranType if the symbol is of e.g. character type.)
-            if not isinstance(datatype, ArrayType):
-                return False
+        datatype = self._get_symbol_declaration()
+        if datatype:
+            sym_maths = SymbolicMaths.get()
             shape = datatype.shape
             array_bounds = shape[index]
             if (isinstance(array_bounds, ArrayType.ArrayBounds) and
                     sym_maths.equal(upper, array_bounds.upper)):
                 return True
-        except (KeyError, SymbolError):
-            # Can't find symbol declaration
-            pass
-
         return False
 
     def is_same_array(self, node):

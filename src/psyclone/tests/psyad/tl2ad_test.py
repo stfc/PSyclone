@@ -452,6 +452,81 @@ def test_generate_adjoint_multi_kernel(fortran_reader, fortran_writer):
     assert ad_fortran_str == expected_ad_fortran_str
 
 
+def test_generate_adjoint_no_module(fortran_reader, fortran_writer):
+    '''Check that generate_adjoint works as expected when the subroutine
+    is not in a module.
+
+    '''
+    tl_fortran_str = (
+        "subroutine kern2()\n"
+        "  real :: psyir_tmp, psyir_tmp_1\n"
+        "  psyir_tmp = psyir_tmp_1\n"
+        "end subroutine kern2\n")
+    expected_ad_fortran_str = (
+        "subroutine adj_kern2()\n"
+        "  real :: psyir_tmp\n"
+        "  real :: psyir_tmp_1\n\n"
+        "  psyir_tmp = 0.0\n"
+        "  psyir_tmp_1 = 0.0\n"
+        "  psyir_tmp_1 = psyir_tmp_1 + psyir_tmp\n"
+        "  psyir_tmp = 0.0\n\n"
+        "end subroutine adj_kern2\n")
+    psyir = fortran_reader.psyir_from_source(tl_fortran_str)
+    ad_psyir = generate_adjoint(psyir, ["psyir_tmp", "psyir_tmp_1"])
+    ad_fortran_str = fortran_writer(ad_psyir)
+    assert ad_fortran_str == expected_ad_fortran_str
+
+
+@pytest.mark.xfail(reason="issue #1949: psyad does not work with a mixture "
+                   "of module and non-module kernels")
+def test_generate_adjoint_multi_kernel_mixed(fortran_reader, fortran_writer):
+    '''Check that generate_adjoint works as expected when there are
+    multiple kernels and some are in a module and some are not. The
+    adjoint of each routine should be taken and the names of each
+    routine should be modified.
+
+    '''
+    tl_fortran_str = (
+        "module test_mod\n"
+        "  contains\n"
+        "  subroutine kern1()\n"
+        "    real :: psyir_tmp, psyir_tmp_1\n"
+        "    psyir_tmp = psyir_tmp_1\n"
+        "  end subroutine kern1\n"
+        "end module test_mod\n"
+        "subroutine kern2()\n"
+        "  real :: psyir_tmp, psyir_tmp_1\n"
+        "  psyir_tmp = psyir_tmp_1\n"
+        "end subroutine kern2\n")
+    expected_ad_fortran_str = (
+        "module adj_test_mod\n"
+        "  implicit none\n"
+        "  public\n\n"
+        "  public :: adj_kern1\n\n"
+        "  contains\n"
+        "  subroutine adj_kern1()\n"
+        "    real :: psyir_tmp\n"
+        "    real :: psyir_tmp_1\n\n"
+        "    psyir_tmp = 0.0\n"
+        "    psyir_tmp_1 = 0.0\n"
+        "    psyir_tmp_1 = psyir_tmp_1 + psyir_tmp\n"
+        "    psyir_tmp = 0.0\n\n"
+        "  end subroutine adj_kern1\n"
+        "end module adj_test_mod\n"
+        "subroutine adj_kern2()\n"
+        "  real :: psyir_tmp\n"
+        "  real :: psyir_tmp_1\n\n"
+        "  psyir_tmp = 0.0\n"
+        "  psyir_tmp_1 = 0.0\n"
+        "  psyir_tmp_1 = psyir_tmp_1 + psyir_tmp\n"
+        "  psyir_tmp = 0.0\n\n"
+        "end subroutine adj_kern2\n")
+    psyir = fortran_reader.psyir_from_source(tl_fortran_str)
+    ad_psyir = generate_adjoint(psyir, ["psyir_tmp", "psyir_tmp_1"])
+    ad_fortran_str = fortran_writer(ad_psyir)
+    assert ad_fortran_str == expected_ad_fortran_str
+
+
 def test_generate_adjoint_errors():
     ''' Check that generate_adjoint() raises the expected exceptions when
     given invalid input. '''

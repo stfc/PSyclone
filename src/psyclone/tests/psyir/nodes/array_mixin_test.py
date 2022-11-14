@@ -40,42 +40,67 @@
 import pytest
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import ArrayReference, ArrayOfStructuresReference, \
-    BinaryOperation, Range, Literal, Routine, Assignment
+    BinaryOperation, Range, Literal, Routine, Assignment, Reference
 from psyclone.psyir.symbols import DataSymbol, DeferredType, ArrayType, \
-    INTEGER_TYPE
+    INTEGER_TYPE, REAL_TYPE
+
+# _validate_child, is_array, get_signature_and_indices and
+# _validate_index methods are all tested in the ArrayReference class.
 
 
-def test_get_outer_range_index():
-    '''Check that the get_outer_range_index method returns the outermost index
-    of the children list that is a range. Use ArrayReference and
-    ArrayOfStructuresReference as concrete implementations of ArrayMixins.
-    '''
-    symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE, [10, 10, 10]))
-    array = ArrayReference.create(symbol, [Range(), Range(), Range()])
-    assert array.get_outer_range_index() == 2
+# _is_bound_op
 
-    symbol = DataSymbol("my_symbol", DeferredType())
-    aos = ArrayOfStructuresReference.create(
-        symbol, [Range(), Range(), Range()], ["nx"])
-    assert aos.get_outer_range_index() == 3  # +1 for the member child
-
-
-def test_get_outer_range_index_error():
-    '''Check that the get_outer_range_index method raises an IndexError if
-    no range exist as child of the given array. Use ArrayReference as concrete
-    implementation of ArrayMixin.
-    '''
-    symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE, [10]))
-    array = ArrayReference.create(symbol, [Literal("2", INTEGER_TYPE)])
-    with pytest.raises(IndexError):
-        _ = array.get_outer_range_index()
-
-
-def test_is_upper_lower_bound(fortran_reader):
-    '''Test the is_lower_bound() and is_upper_bound() methods return the
-    expected values if an array reference has literal bounds. Create
+def test_is_bound_op():
+    '''Check the _is_bound_op utility function works as expected.  Create
     and use an ArrayReference node to test the abstract ArrayMixin
     class.
+
+    '''
+    one = Literal("1", INTEGER_TYPE)
+    array = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE, [10]))
+    array2 = DataSymbol("my_symbol2", ArrayType(INTEGER_TYPE, [10]))
+    scalar = DataSymbol("tmp", INTEGER_TYPE)
+    ubound = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND, Reference(array), one)
+    my_range = Range.create(one.copy(), ubound)
+    array_ref = ArrayReference.create(array, [my_range])
+    array2_ref = ArrayReference.create(array2, [my_range.copy()])
+    # not a binary operation
+    op = None
+    assert not array_ref._is_bound_op(op, BinaryOperation.Operator.UBOUND, one)
+    # not a match with the binary operator
+    op = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND, array_ref, one.copy())
+    assert not array_ref._is_bound_op(op, BinaryOperation.Operator.UBOUND, 0)
+    # 1st dimension of the bound is not the same array
+    op = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND, array2_ref, one.copy())
+    assert not array_ref._is_bound_op(op, BinaryOperation.Operator.UBOUND, 0)
+    # 2nd dimension of the bound not a literal
+    op = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND, array_ref.copy(), Reference(scalar))
+    assert not array_ref._is_bound_op(op, BinaryOperation.Operator.UBOUND, 0)
+    # 2nd dimension of the bound not an integer literal
+    op = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND, array_ref.copy(),
+        Literal("1.0", REAL_TYPE))
+    assert not array_ref._is_bound_op(op, BinaryOperation.Operator.UBOUND, 0)
+    # 2nd dimension of the bound not the expected index
+    op = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND, array_ref.copy(),
+        Literal("2", INTEGER_TYPE))
+    assert not array_ref._is_bound_op(op, BinaryOperation.Operator.UBOUND, 0)
+    # OK
+    op = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND, array_ref.copy(), one.copy())
+    assert array_ref._is_bound_op(op, BinaryOperation.Operator.UBOUND, 0)
+
+
+# _get_symbol_declaration
+
+def test_get_symbol_declaration(fortran_reader):
+    '''Test the _get_symbol_declaration() utility method works as
+    expected.
 
     '''
     code = (
@@ -88,6 +113,49 @@ def test_is_upper_lower_bound(fortran_reader):
         "var1(3:4) = 0\n"
         "end subroutine\n")
 
+    psyir = fortran_reader.psyir_from_source(code)
+    assigns = psyir.walk(Assignment)
+    array_ref = assigns[0].lhs
+
+    # OK
+    datatype = array_ref._get_symbol_declaration()
+    assert isinstance(datatype, ArrayType)
+    assert len(datatype.shape) == 1
+    assert isinstance(datatype.shape[0].lower, Literal)
+    assert datatype.shape[0].lower.value == "1"
+    assert isinstance(datatype.shape[0].upper, Reference)
+    assert datatype.shape[0].upper.name == "n"
+    
+    # symbol not a datasymbol (wildcard import)
+    array_ref = assigns[2].lhs
+    assert not array_ref._get_symbol_declaration()
+
+    # symbol not an arraytype (UnkownFortranType)
+    array_ref = assigns[1].lhs
+    assert not array_ref._get_symbol_declaration()
+
+
+# is_lower_bound and is_upper_bound
+
+def test_is_upper_lower_bound(fortran_reader):
+    '''Test the is_lower_bound() and is_upper_bound() methods return the
+    expected values if an array reference has literal bounds. Create
+    and use an ArrayReference node to test the abstract ArrayMixin
+    class.
+
+    '''
+    code = (
+        "subroutine test()\n"
+        "use some_mod\n"
+        "real a(n)\n"
+        "real b(1)\n"
+        "character(10) my_str\n"
+        "a(1:n) = 0.0\n"
+        "my_str(2:2) = 'b'\n"
+        "var1(3:4) = 0\n"
+        "b(1) = 0.0\n"
+        "end subroutine\n")
+
     # Return True as the symbolic values of the declaration and array
     # reference match.
     psyir = fortran_reader.psyir_from_source(code)
@@ -96,14 +164,10 @@ def test_is_upper_lower_bound(fortran_reader):
     assert array_ref.is_lower_bound(0)
     assert array_ref.is_upper_bound(0)
 
-    # Remove the symbol from the symbol table to force the returning
-    # of False.
-    symbol = array_ref.symbol
-    symbol_table = array_ref.scope.symbol_table
-    norm_name = symbol_table._normalize(symbol.name)
-    symbol_table._symbols.pop(norm_name)
-    assert not array_ref.is_lower_bound(0)
-    assert not array_ref.is_upper_bound(0)
+    # Return True for an array of size 1 with no bounds
+    array_ref = assigns[3].lhs
+    assert array_ref.is_lower_bound(0)
+    assert array_ref.is_upper_bound(0)
 
     # Return False as the values of the array declaration and
     # array reference do not match.
@@ -123,6 +187,12 @@ def test_is_upper_lower_bound(fortran_reader):
     assert not array_ref.is_lower_bound(0)
     assert not array_ref.is_upper_bound(0)
 
+
+# is_same_array, is_full_range, and indices methods are all tested in
+# the ArrayReference class.
+
+
+# _get_effective_shape
 
 def test_get_effective_shape(fortran_reader, fortran_writer):
     '''Tests for the _get_effective_shape() method.'''
@@ -168,3 +238,31 @@ def test_get_effective_shape(fortran_reader, fortran_writer):
     with pytest.raises(NotImplementedError) as err:
         _ = routine.children[4].lhs._get_effective_shape()
     assert "include a function call or expression" in str(err.value)
+
+
+# get_outer_range_index
+
+def test_get_outer_range_index():
+    '''Check that the get_outer_range_index method returns the outermost index
+    of the children list that is a range. Use ArrayReference and
+    ArrayOfStructuresReference as concrete implementations of ArrayMixins.
+    '''
+    symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE, [10, 10, 10]))
+    array = ArrayReference.create(symbol, [Range(), Range(), Range()])
+    assert array.get_outer_range_index() == 2
+
+    symbol = DataSymbol("my_symbol", DeferredType())
+    aos = ArrayOfStructuresReference.create(
+        symbol, [Range(), Range(), Range()], ["nx"])
+    assert aos.get_outer_range_index() == 3  # +1 for the member child
+
+
+def test_get_outer_range_index_error():
+    '''Check that the get_outer_range_index method raises an IndexError if
+    no range exist as child of the given array. Use ArrayReference as concrete
+    implementation of ArrayMixin.
+    '''
+    symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE, [10]))
+    array = ArrayReference.create(symbol, [Literal("2", INTEGER_TYPE)])
+    with pytest.raises(IndexError):
+        _ = array.get_outer_range_index()
