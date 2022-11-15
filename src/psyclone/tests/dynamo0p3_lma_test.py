@@ -49,8 +49,8 @@ from fparser import api as fpapi
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import LFRicArgDescriptor, LFRicConstants
-from psyclone.dynamo0p3 import (DynFuncDescriptor03, DynKernMetadata,
-                                DynKern, FunctionSpace)
+from psyclone.dynamo0p3 import (DynKernMetadata, DynKern, FunctionSpace,
+                                LFRicMetaFuncsDescriptor)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
@@ -298,7 +298,7 @@ def test_arg_descriptor_op():
 
 def test_fs_descriptor_wrong_type():
     ''' Tests that an error is raised when the function space descriptor
-    metadata is not of type func_type. '''
+    metadata is not of type 'func_type'. '''
     code = CODE.replace("func_type(w2", "funced_up_type(w2", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
@@ -306,15 +306,15 @@ def test_fs_descriptor_wrong_type():
         _ = DynKernMetadata(ast, name=name)
     assert ("'meta_funcs' metadata must consist of an array of structure "
             "constructors, all of type 'func_type'" in str(excinfo.value))
-    # Check that the DynFuncDescriptor03 rejects it too
+    # Check that the LFRicMetaFuncsDescriptor rejects it too
 
     class FakeCls():
         ''' Class that just has a name property (which is not "func_type") '''
         name = "not-func-type"
 
     with pytest.raises(ParseError) as excinfo:
-        DynFuncDescriptor03(FakeCls())
-    assert ("each meta_func entry must be of type 'func_type' but found "
+        LFRicMetaFuncsDescriptor(FakeCls())
+    assert ("each 'meta_func' entry must be of type 'func_type' but found "
             in str(excinfo.value))
 
 
@@ -326,7 +326,7 @@ def test_fs_descriptor_too_few_args():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert 'meta_func entry must have at least 2 args' in str(excinfo.value)
+    assert "'meta_func' entry must have at least 2 args" in str(excinfo.value)
 
 
 def test_fs_desc_invalid_fs_type():
@@ -337,8 +337,8 @@ def test_fs_desc_invalid_fs_type():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert '1st argument of a meta_func entry should be a valid function ' + \
-        'space name' in str(excinfo.value)
+    assert ("1st argument of a 'meta_func' entry should be a valid function "
+            "space name" in str(excinfo.value))
 
 
 def test_fs_desc_replicated_fs_type():
@@ -349,8 +349,8 @@ def test_fs_desc_replicated_fs_type():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert 'function spaces specified in meta_funcs must be unique' \
-        in str(excinfo.value)
+    assert ("function spaces specified in 'meta_funcs' must be unique"
+            in str(excinfo.value))
 
 
 def test_fs_desc_invalid_op_type():
@@ -361,8 +361,8 @@ def test_fs_desc_invalid_op_type():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert '2nd argument and all subsequent arguments of a meta_func ' + \
-        'entry should be one of' in str(excinfo.value)
+    assert ("2nd argument and all subsequent arguments of a 'meta_func' "
+            "entry should be one of" in str(excinfo.value))
 
 
 def test_fs_desc_replicated_op_type():
