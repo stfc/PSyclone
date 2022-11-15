@@ -88,7 +88,8 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
             word = "in"
         if not form.lower() == cls.form.lower():
             raise ValueError(
-                f"{name}s should have {cls.form} {word} their first metadata "
+                f"Metadata for '{name}' kernel arguments should have "
+                f"'{cls.form}' {word} their first metadata "
                 f"argument, but found '{form}'.")
 
     @classmethod
@@ -165,14 +166,14 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
 
         '''
         datatype, access = cls.get_type_and_access(fparser2_tree)
-        function_space = CommonArgMetadata.get_arg(
+        function_space = cls.get_arg(
             fparser2_tree, cls.function_space_arg_index)
         return (datatype, access, function_space)
 
     @classmethod
-    def get_and_check_vector_length(cls, fparser2_tree):
+    def get_vector_length(cls, fparser2_tree):
         '''Retrieves the vector length metadata value found within the
-        supplied fparser2 tree.
+        supplied fparser2 tree and checks that it is valid.
 
         :param fparser2_tree: fparser2 tree capturing the required metadata.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`

@@ -45,7 +45,7 @@ from psyclone.domain.lfric.kernel import EvaluatorTargetsMetadata
 
 def test_init():
     '''Test that an instance of EvaluatorTargetsMetadata can be created
-    and that its initial values as stored as expected.
+    and that its initial values are stored as expected.
 
     '''
     values = ["w0", "w1"]
@@ -145,7 +145,7 @@ def test_setter_errors():
 
     with pytest.raises(ValueError) as info:
         metadata.evaluator_targets = ["invalid"]
-    assert ("The evaluator_targets metadata should be a recognised value "
+    assert ("The 'evaluator_targets' metadata should be a recognised value "
             "(one of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', "
             "'w1', 'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi']) "
             "but found 'invalid'." in str(info.value))

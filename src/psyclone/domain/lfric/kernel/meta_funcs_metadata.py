@@ -83,7 +83,7 @@ class MetaFuncsMetadata(CommonDeclarationMetadata):
             MetaFuncsMetadata`
 
         '''
-        values_list = MetaFuncsMetadata.validate_derived_array_declaration(
+        values_list = MetaFuncsMetadata.get_derived_array_declaration(
             fparser2_tree, "FUNC_TYPE", "META_FUNCS")
         meta_obj_list = []
         for value in values_list:

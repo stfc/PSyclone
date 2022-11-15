@@ -43,12 +43,15 @@ from fparser.two import Fortran2003
 from psyclone.domain.lfric.kernel import FieldVectorArgMetadata
 
 
-def test_create():
+@pytest.mark.parametrize("datatype, access, function_space", [
+    ("GH_REAL", "GH_READ", "W0"), ("gh_real", "gh_read", "w0")])
+def test_create(datatype, access, function_space):
     '''Test that an instance of FieldVectorArgMetadata can be created
-    successfully.
+    successfully. Also test that the arguments are case insensitive.
 
     '''
-    field_vector_arg = FieldVectorArgMetadata("GH_REAL", "GH_READ", "W0", "2")
+    field_vector_arg = FieldVectorArgMetadata(
+        datatype, access, function_space, "2")
     assert isinstance(field_vector_arg, FieldVectorArgMetadata)
     assert field_vector_arg.form == "gh_field"
     assert field_vector_arg._datatype == "gh_real"
@@ -92,15 +95,16 @@ def test_create_from_fparser2():
         "arg_type(GH_FEELED*3, GH_REAL, GH_READ, W0)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = FieldVectorArgMetadata.create_from_fparser2(fparser2_tree)
-    assert ("FieldVectors should have gh_field in their first metadata "
-            "argument, but found 'GH_FEELED'." in str(info.value))
+    assert ("Metadata for 'field-vector' kernel arguments should have "
+            "'gh_field' in their first metadata argument, but found "
+            "'GH_FEELED'." in str(info.value))
 
     fparser2_tree = FieldVectorArgMetadata.create_fparser2(
         "arg_type(GH_FIELD*3, GH_UNREAL, GH_READ, W0)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = FieldVectorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '1' for metadata 'arg_type(GH_FIELD * 3, "
-            "GH_UNREAL, GH_READ, W0)'. The datatype descriptor metadata "
+            "GH_UNREAL, GH_READ, W0)'. The 'datatype descriptor' metadata "
             "should be a recognised value (one of ['gh_real', 'gh_integer']) "
             "but found 'GH_UNREAL'." in str(info.value))
 
@@ -109,7 +113,7 @@ def test_create_from_fparser2():
     with pytest.raises(ValueError) as info:
         _ = FieldVectorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '2' for metadata 'arg_type(GH_FIELD * 3, "
-            "GH_REAL, GH_ERROR, W0)'. The access descriptor metadata should "
+            "GH_REAL, GH_ERROR, W0)'. The 'access descriptor' metadata should "
             "be a recognised value (one of ['gh_read', 'gh_write', "
             "'gh_readwrite', 'gh_inc', 'gh_readinc']) but found 'GH_ERROR'."
             in str(info.value))
@@ -120,7 +124,7 @@ def test_create_from_fparser2():
     with pytest.raises(ValueError) as info:
         _ = FieldVectorArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '3' for metadata 'arg_type(GH_FIELD * 3, "
-            "GH_REAL, GH_READ, DOUBLE_U_ZERO)'. The function space metadata "
+            "GH_REAL, GH_READ, DOUBLE_U_ZERO)'. The 'function space' metadata "
             "should be a recognised value (one of ['w3', 'wtheta', 'w2v', "
             "'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', 'w2h', "
             "'w2htrace', 'any_w2', 'wchi', 'any_space_1', 'any_space_2', "

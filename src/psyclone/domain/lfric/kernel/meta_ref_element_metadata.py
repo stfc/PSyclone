@@ -85,7 +85,7 @@ class MetaRefElementMetadata(CommonDeclarationMetadata):
 
         '''
         values_list = MetaRefElementMetadata.\
-            validate_derived_array_declaration(
+            get_derived_array_declaration(
                 fparser2_tree, "REFERENCE_ELEMENT_DATA_TYPE",
                 "META_REFERENCE_ELEMENT")
         meta_obj_list = []

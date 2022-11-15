@@ -117,25 +117,25 @@ def test_create_from_fparser2_errors():
         "func_type(invalid, x)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = MetaFuncsArgMetadata.create_from_fparser2(fparser2_tree)
-    assert ("The basis or differential basis metadata should be a recognised "
-            "value (one of ['gh_basis', 'gh_diff_basis']) but found 'x'."
-            in str(info.value))
+    assert ("The 'basis or differential basis' metadata should be a "
+            "recognised value (one of ['gh_basis', 'gh_diff_basis']) "
+            "but found 'x'." in str(info.value))
 
     fparser2_tree = MetaFuncsArgMetadata.create_fparser2(
         "func_type(W0, invalid)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = MetaFuncsArgMetadata.create_from_fparser2(fparser2_tree)
-    assert ("The basis or differential basis metadata should be a recognised "
-            "value (one of ['gh_basis', 'gh_diff_basis']) but found 'invalid'."
-            in str(info.value))
+    assert ("The 'basis or differential basis' metadata should be a "
+            "recognised value (one of ['gh_basis', 'gh_diff_basis']) "
+            "but found 'invalid'." in str(info.value))
 
     fparser2_tree = MetaFuncsArgMetadata.create_fparser2(
         "func_type(W0, GH_BASIS, invalid)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = MetaFuncsArgMetadata.create_from_fparser2(fparser2_tree)
-    assert ("The basis or differential basis metadata should be a recognised "
-            "value (one of ['gh_basis', 'gh_diff_basis']) but found 'invalid'."
-            in str(info.value))
+    assert ("The 'basis or differential basis' metadata should be a "
+            "recognised value (one of ['gh_basis', 'gh_diff_basis']) "
+            "but found 'invalid'." in str(info.value))
 
     fparser2_tree = MetaFuncsArgMetadata.create_fparser2(
         "func_type(W0, GH_BASIS, gh_basis)", Fortran2003.Part_Ref)
@@ -183,7 +183,7 @@ def test_function_space_setter_getter():
     funcs_arg = MetaFuncsArgMetadata("w0", basis_function=True)
     with pytest.raises(ValueError) as info:
         funcs_arg.function_space = "invalid"
-    assert ("The function_space metadata should be a recognised value (one "
+    assert ("The 'function_space' metadata should be a recognised value (one "
             "of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', "
             "'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi']) but "
             "found 'invalid'." in str(info.value))

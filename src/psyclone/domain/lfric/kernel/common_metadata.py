@@ -88,11 +88,11 @@ class CommonMetadata(ABC):
 
         '''
         if not isinstance(value, str):
-            raise TypeError(f"The {name} value should be of type str, but "
+            raise TypeError(f"The '{name}' value should be of type str, but "
                             f"found '{type(value).__name__}'.")
         if value.lower() not in valid_values:
             raise ValueError(
-                f"The {name} metadata should be a recognised "
+                f"The '{name}' metadata should be a recognised "
                 f"value (one of {valid_values}) "
                 f"but found '{value}'.")
 

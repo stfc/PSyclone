@@ -80,8 +80,8 @@ class FieldVectorArgMetadata(FieldArgMetadata):
         FieldVectorArgMetadata.check_fparser2_arg(fparser2_tree, "arg_type")
         FieldVectorArgMetadata.check_nargs(fparser2_tree, 4)
         FieldVectorArgMetadata.check_first_arg(
-            fparser2_tree, "FieldVector", vector=True)
-        vector_length = FieldVectorArgMetadata.get_and_check_vector_length(
+            fparser2_tree, "field-vector", vector=True)
+        vector_length = FieldVectorArgMetadata.get_vector_length(
             fparser2_tree)
         datatype, access, function_space = \
             FieldVectorArgMetadata.get_type_access_and_fs(fparser2_tree)

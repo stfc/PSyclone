@@ -91,7 +91,7 @@ class EvaluatorTargetsMetadata(CommonDeclarationMetadata):
         const = LFRicConstants()
         valid_values = const.VALID_FUNCTION_SPACES
         values_list = EvaluatorTargetsMetadata.\
-            validate_intrinsic_array_declaration(
+            get_intrinsic_array_declaration(
                 fparser2_tree, "INTEGER", "GH_EVALUATOR_TARGETS", valid_values)
         return EvaluatorTargetsMetadata(values_list)
 

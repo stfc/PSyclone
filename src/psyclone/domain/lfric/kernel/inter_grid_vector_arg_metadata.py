@@ -88,8 +88,8 @@ class InterGridVectorArgMetadata(InterGridArgMetadata):
             encoding=Fortran2003.Structure_Constructor)
         InterGridVectorArgMetadata.check_nargs(fparser2_tree, 5)
         InterGridVectorArgMetadata.check_first_arg(
-            fparser2_tree, "InterGridVector", vector=True)
-        vector_length = InterGridVectorArgMetadata.get_and_check_vector_length(
+            fparser2_tree, "inter-grid-vector", vector=True)
+        vector_length = InterGridVectorArgMetadata.get_vector_length(
             fparser2_tree)
         datatype, access, function_space = \
             InterGridVectorArgMetadata.get_type_access_and_fs(fparser2_tree)

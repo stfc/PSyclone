@@ -94,13 +94,13 @@ class ShapesMetadata(CommonDeclarationMetadata):
 
         '''
         # As both scalar and array forms are supported we need the
-        # validation from both validate_intrinsic_array_declaration
-        # and validate_intrinsic_scalar_declaration. However, we can't
-        # call these functions separately as both might raise an
-        # exception and we won't know which exception to
-        # return. Instead we call the validation that is common to
-        # both first and then test for an array declaration to
-        # determine whether to call the array or scalar validation.
+        # validation from both get_intrinsic_array_declaration and
+        # get_intrinsic_scalar_declaration. However, we can't call
+        # these functions separately as both might raise an exception
+        # and we won't know which exception to return. Instead we call
+        # the validation that is common to both first and then test
+        # for an array declaration to determine whether to call the
+        # array or scalar validation.
         ShapesMetadata.validate_node(
             fparser2_tree, Fortran2003.Data_Component_Def_Stmt)
         ShapesMetadata.validate_name_value(
@@ -113,12 +113,12 @@ class ShapesMetadata(CommonDeclarationMetadata):
         gh_shape_declaration = component_decl_list.children[0]
         if fparser2_tree.children[1] or gh_shape_declaration.children[1]:
             # This is not the scalar form so check for the array form.
-            shapes_list = ShapesMetadata.validate_intrinsic_array_declaration(
+            shapes_list = ShapesMetadata.get_intrinsic_array_declaration(
                 fparser2_tree, "INTEGER", "GH_SHAPE", valid_values)
         else:
             # Check for the scalar form.
             shapes_value = ShapesMetadata.\
-                validate_intrinsic_scalar_declaration(
+                get_intrinsic_scalar_declaration(
                     fparser2_tree, "INTEGER", "GH_SHAPE", valid_values)
             shapes_list = [shapes_value]
 

@@ -44,8 +44,10 @@ from psyclone.domain.lfric.kernel import CommonArgMetadata
 
 
 def test_init():
-    '''Test that the CommonArgMetadata class can be created.'''
+    '''Test that the CommonArgMetadata class can't be created as it is
+    abstract.
 
+    '''
     # pylint: disable=abstract-class-instantiated
     with pytest.raises(TypeError) as info:
         _ = CommonArgMetadata()

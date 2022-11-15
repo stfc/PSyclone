@@ -58,6 +58,16 @@ class ScalarArgMetadata(CommonMetaArgMetadata):
     datatype_arg_index = 1
     access_arg_index = 2
 
+    @classmethod
+    def _get_metadata(cls, fparser2_tree, check_name="scalar", nargs=3):
+        ''' xxx '''
+        cls.check_fparser2_arg(fparser2_tree, "arg_type")
+        cls.check_nargs(fparser2_tree, nargs)
+        cls.check_first_arg(fparser2_tree, check_name)
+        datatype, access = cls.get_type_and_access(fparser2_tree)
+        cls.check_remaining_args(fparser2_tree, datatype, access)
+        return (datatype, access)
+
     @staticmethod
     def create_from_fparser2(fparser2_tree):
         '''Create an instance of this class from an fparser2 tree.
@@ -70,11 +80,7 @@ class ScalarArgMetadata(CommonMetaArgMetadata):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.ScalarArgMetadata`
 
         '''
-        ScalarArgMetadata.check_fparser2_arg(fparser2_tree, "arg_type")
-        ScalarArgMetadata.check_nargs(fparser2_tree, 3)
-        ScalarArgMetadata.check_first_arg(fparser2_tree, "Scalar")
-        datatype, access = ScalarArgMetadata.get_type_and_access(fparser2_tree)
-        ScalarArgMetadata.check_remaining_args(fparser2_tree, datatype, access)
+        datatype, access = ScalarArgMetadata._get_metadata(fparser2_tree)
         return ScalarArgMetadata(datatype, access)
 
     def fortran_string(self):

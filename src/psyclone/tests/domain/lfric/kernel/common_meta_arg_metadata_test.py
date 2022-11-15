@@ -120,7 +120,7 @@ def test_check_first_arg():
         "arg_type(first_arg)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         CheckArg.check_first_arg(fparser2_tree, "MyTest")
-        assert ("MyTests should have sluglike as their first metadata "
+        assert ("MyTests should have 'sluglike' as their first metadata "
                 "argument, but found 'first_arg'." in str(info.value))
 
     fparser2_tree = CheckArg.create_fparser2(
@@ -203,22 +203,22 @@ def test_get_type_access_and_fs():
     assert function_space == "W0"
 
 
-def test_get_and_check_vector_length():
-    '''Test that the get_and_check_vector_length method in the
+def test_get_vector_length():
+    '''Test that the get_vector_length method in the
     CommonMetaArgMetadata class works as expected.
 
     '''
     fparser_tree = CheckArg.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)", Fortran2003.Part_Ref)
     with pytest.raises(TypeError) as info:
-        _ = CheckArg.get_and_check_vector_length(fparser_tree)
+        _ = CheckArg.get_vector_length(fparser_tree)
     assert ("The vector length metadata should be in the form "
             "'form*vector_length' but found 'GH_FIELD'."
             in str(info.value))
 
     fparser_tree = CheckArg.create_fparser2(
         "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)", Fortran2003.Part_Ref)
-    vector_length = CheckArg.get_and_check_vector_length(fparser_tree)
+    vector_length = CheckArg.get_vector_length(fparser_tree)
     assert vector_length == "3"
 
 

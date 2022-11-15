@@ -189,7 +189,7 @@ class CommonDeclarationMetadata(CommonMetadata):
                 fparser2_tree.children[0].children[1].string.lower() ==
                 type_name.lower()):
             raise TypeError(
-                f"In its Fortran form, {name} metadata should be encoded "
+                f"In its Fortran form, '{name}' metadata should be encoded "
                 f"as a 'type({type_name})', but found "
                 f"'{str(fparser2_tree.children[0])}' in "
                 f"'{str(fparser2_tree)}'.")
@@ -218,8 +218,8 @@ class CommonDeclarationMetadata(CommonMetadata):
                 fparser2_tree.children[0].children[0].lower() ==
                 type_name.lower()):
             raise TypeError(
-                f"In its Fortran form, {name} metadata should be encoded as "
-                f"an {type_name}, but found "
+                f"In its Fortran form, '{name}' metadata should be encoded "
+                f"as a {type_name}, but found "
                 f"'{str(fparser2_tree.children[0])}' in "
                 f"'{str(fparser2_tree)}'.")
 
@@ -250,30 +250,31 @@ class CommonDeclarationMetadata(CommonMetadata):
         num_vars = len(component_decl_list.children)
         if num_vars != 1:
             raise ParseError(
-                f"In its Fortran form, {name} metadata should only contain "
+                f"In its Fortran form, '{name}' metadata should only contain "
                 f"a single variable, but found '{num_vars}' in "
                 f"'{str(fparser2_tree)}'.")
         var_declaration = component_decl_list.children[0]
         var_str = var_declaration.children[0].string
         if var_str.lower() != name.lower():
             raise ValueError(
-                f"In its Fortran form, {name} metadata should be encoded as a "
-                f"variable called {name}, but found '{var_str}' "
+                f"In its Fortran form, '{name}' metadata should be encoded "
+                f"as a variable called '{name}', but found '{var_str}' "
                 f"in '{str(fparser2_tree)}'.")
         # The variable should be initialised.
         component_initialisation = component_decl_list.children[0].children[3]
         if not component_initialisation:
             raise ParseError(
-                f"{name} should be set to a value but none was found, in "
+                f"'{name}' should be set to a value but none was found, in "
                 f"'{str(fparser2_tree)}'.")
 
     @staticmethod
-    def validate_intrinsic_scalar_declaration(
+    def get_intrinsic_scalar_declaration(
             fparser2_tree, datatype, name, valid_values):
-        '''Check that the supplied variable declaration captured as an
-        fparser2 tree is an intrinsic of type 'datatype' with the
-        specified 'name' which is initialised to a value that is one of
-        the supplied 'valid_values'.
+        '''Return the value of the variable. Also check that the supplied
+        variable declaration captured as an fparser2 tree is an
+        intrinsic of type 'datatype' with the specified 'name' which
+        is initialised to a value that is one of the supplied
+        'valid_values' and if not, raise an exception.
 
         :param fparser2_tree: an fparser2 tree.
         :type fparser2_tree: \
@@ -301,7 +302,7 @@ class CommonDeclarationMetadata(CommonMetadata):
         if fparser2_tree.children[1]:
             raise ParseError(
                 f"The {datatype} intrinsic in the Fortran representation of "
-                f"{name} metadata should have no attributes, but found "
+                f"'{name}' metadata should have no attributes, but found "
                 f"'{str(fparser2_tree.children[1])}' in "
                 f"'{str(fparser2_tree)}'.")
         component_decl_list = fparser2_tree.children[2]
@@ -310,7 +311,7 @@ class CommonDeclarationMetadata(CommonMetadata):
         if var_declaration.children[1]:
             raise ParseError(
                 f"The {datatype} intrinsic in the Fortran representation of "
-                f"{name} metadata should not be declared as an array, but "
+                f"'{name}' metadata should not be declared as an array, but "
                 f"found '{str(var_declaration.children[1])}' in "
                 f"'{str(fparser2_tree)}'.")
         scalar_value = str(component_initialisation.children[1])
@@ -319,12 +320,13 @@ class CommonDeclarationMetadata(CommonMetadata):
         return scalar_value
 
     @staticmethod
-    def validate_intrinsic_array_declaration(
+    def get_intrinsic_array_declaration(
             fparser2_tree, datatype, name, valid_values):
-        '''Check that the supplied variable declaration captured as an
-        fparser2 tree is an intrinsic array of type 'datatype' with
-        the specified 'name' which is initialised to a set of values,
-        each of which are one of the supplied 'valid_values'.
+        '''Return the array values. Also check that the supplied variable
+        declaration captured as an fparser2 tree is an intrinsic array
+        of type 'datatype' with the specified 'name' which is
+        initialised to a set of values, each of which are one of the
+        supplied 'valid_values' and if not, raise an exception.
 
         :param fparser2_tree: an fparser2 tree.
         :type fparser2_tree: \
@@ -344,7 +346,7 @@ class CommonDeclarationMetadata(CommonMetadata):
             fparser2_tree, datatype, name)
         CommonDeclarationMetadata.validate_name_value(
             fparser2_tree, name)
-        values_list = CommonDeclarationMetadata._validate_array(
+        values_list = CommonDeclarationMetadata._get_array(
             fparser2_tree, name)
         for value in values_list:
             CommonDeclarationMetadata.validate_scalar_value(
@@ -352,12 +354,13 @@ class CommonDeclarationMetadata(CommonMetadata):
         return values_list
 
     @staticmethod
-    def validate_derived_array_declaration(
+    def get_derived_array_declaration(
             fparser2_tree, type_name, name, valid_values=None):
-        '''Check that the supplied variable declaration captured as an
-        fparser2 tree is an derived type array of type 'type_name' with
-        the specified 'name' which is initialised to a set of values,
-        each of which are one of the supplied 'valid_values'.
+        '''Return the array values. Also check that the supplied variable
+        declaration captured as an fparser2 tree is an derived type
+        array of type 'type_name' with the specified 'name' which is
+        initialised to a set of values, each of which are one of the
+        supplied 'valid_values' and if not, raise an exception.
 
         :param fparser2_tree: an fparser2 tree.
         :type fparser2_tree: \
@@ -377,7 +380,7 @@ class CommonDeclarationMetadata(CommonMetadata):
             fparser2_tree, type_name, name)
         CommonDeclarationMetadata.validate_name_value(
             fparser2_tree, name)
-        values_list = CommonDeclarationMetadata._validate_array(
+        values_list = CommonDeclarationMetadata._get_array(
             fparser2_tree, name)
         if valid_values:
             for value in values_list:
@@ -386,9 +389,10 @@ class CommonDeclarationMetadata(CommonMetadata):
         return values_list
 
     @staticmethod
-    def _validate_array(fparser2_tree, name):
-        '''Check that the supplied variable declaration captured as an
-        fparser2 tree is a one dimensional array.
+    def _get_array(fparser2_tree, name):
+        '''Return the array values. Also check that the supplied variable
+        declaration captured as an fparser2 tree is a one dimensional
+        array and if not, raise an exception.
 
         :param fparser2_tree: an fparser2 tree.
         :type fparser2_tree: \
@@ -420,7 +424,7 @@ class CommonDeclarationMetadata(CommonMetadata):
                not isinstance(fparser2_tree.children[1].children[0],
                               Fortran2003.Dimension_Component_Attr_Spec):
                 raise ParseError(
-                    f"The Fortran representation of {name} metadata should "
+                    f"The Fortran representation of '{name}' metadata should "
                     f"only have at most one attribute and that attribute "
                     f"should be 'dimension', but found "
                     f"'{str(fparser2_tree)}'.")
@@ -441,7 +445,7 @@ class CommonDeclarationMetadata(CommonMetadata):
             extent_value = int(extent_str)
         except ValueError as info:
             raise ValueError(
-                f"If the Fortran representation of {name} metadata is an "
+                f"If the Fortran representation of '{name}' metadata is an "
                 f"array, it should be one-dimensional with an integer "
                 f"value for the dimension extent, but found "
                 f"'{extent_str}' in '{str(fparser2_tree)}'.") \
@@ -458,7 +462,7 @@ class CommonDeclarationMetadata(CommonMetadata):
         if not isinstance(
                 array_constructor, Fortran2003.Array_Constructor):
             raise ValueError(
-                f"Expected {name} to be set to a list of values, but "
+                f"Expected '{name}' to be set to a list of values, but "
                 f"found '{str(array_constructor)}' in "
                 f"'{str(fparser2_tree)}'.")
         var_list = []
@@ -469,7 +473,7 @@ class CommonDeclarationMetadata(CommonMetadata):
         if len(var_list) != extent_value:
             raise ParseError(
                 f"The array extent '{extent_value}' and number of "
-                f"{name} values '{len(var_list)}' differ in "
+                f"'{name}' values '{len(var_list)}' differ in "
                 f"'{str(fparser2_tree)}'.")
         return var_list
 

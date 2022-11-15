@@ -88,7 +88,7 @@ def test_create_from_fparser2():
         "reference_element_data_type(invalid)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = MetaRefElementArgMetadata.create_from_fparser2(fparser2_tree)
-    assert ("The reference element property metadata should be a recognised "
+    assert ("The 'reference element property' metadata should be a recognised "
             "value (one of ['normals_to_horizontal_faces', "
             "'normals_to_vertical_faces', 'normals_to_faces', "
             "'outward_normals_to_horizontal_faces', "
@@ -121,7 +121,7 @@ def test_reference_element_setter_getter():
     ref_element_arg = MetaRefElementArgMetadata("normals_to_faces")
     with pytest.raises(ValueError) as info:
         ref_element_arg.reference_element = "invalid"
-    assert ("The reference element property metadata should be a recognised "
+    assert ("The 'reference element property' metadata should be a recognised "
             "value (one of ['normals_to_horizontal_faces', "
             "'normals_to_vertical_faces', 'normals_to_faces', "
             "'outward_normals_to_horizontal_faces', "

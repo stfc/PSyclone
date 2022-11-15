@@ -45,7 +45,7 @@ from psyclone.domain.lfric.kernel import OperatesOnMetadata
 
 def test_init():
     '''Test that an instance of OperatesOnMetadata can be created and that its
-    initial values as stored as expected.
+    initial values are stored as expected.
 
     '''
     value = "domain"
@@ -61,7 +61,7 @@ def test_init_error():
     '''
     with pytest.raises(TypeError) as info:
         _ = OperatesOnMetadata(None)
-    assert ("The OPERATES_ON value should be of type str, but found "
+    assert ("The 'OPERATES_ON' value should be of type str, but found "
             "'NoneType'." in str(info.value))
 
 
@@ -118,11 +118,11 @@ def test_setter_errors():
 
     with pytest.raises(TypeError) as info:
         operates_on_metadata.operates_on = None
-    assert ("The OPERATES_ON value should be of type str, but found "
+    assert ("The 'OPERATES_ON' value should be of type str, but found "
             "'NoneType'." in str(info.value))
 
     with pytest.raises(ValueError) as info:
         operates_on_metadata.operates_on = "invalid"
-    assert ("The OPERATES_ON metadata should be a recognised value (one of "
+    assert ("The 'OPERATES_ON' metadata should be a recognised value (one of "
             "['cell_column', 'domain', 'dof']) but found 'invalid'."
             in str(info.value))

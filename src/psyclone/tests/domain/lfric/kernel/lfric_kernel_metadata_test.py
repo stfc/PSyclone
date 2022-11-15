@@ -112,8 +112,7 @@ def test_init_args_error():
     '''
     with pytest.raises(ValueError) as info:
         _ = LFRicKernelMetadata(operates_on="invalid")
-    print(str(info.value))
-    assert ("The OPERATES_ON metadata should be a recognised value "
+    assert ("The 'OPERATES_ON' metadata should be a recognised value "
             "(one of ['cell_column', 'domain', 'dof']) but found 'invalid'."
             in str(info.value))
 
@@ -158,6 +157,8 @@ def test_init_args_error():
             "'1_invalid'." in str(info.value))
 
 
+# TODO issue #1953. The metadata below is invalid. Only one of gh_shape
+# or gh_evaluator_targets should exist, but this is not yet checked.
 METADATA = (
     "type, extends(kernel_type) :: testkern_type\n"
     "   type(arg_type), dimension(7) :: meta_args =                       &\n"
@@ -360,7 +361,6 @@ def test_create_from_fparser2_error():
         "kernel_type", "invalid_type"), Fortran2003.Derived_Type_Def)
     with pytest.raises(ParseError) as info:
         _ = LFRicKernelMetadata.create_from_fparser2(fparser2_tree)
-    print(str(info.value))
     assert ("The metadata type declaration should extend kernel_type, but "
             "found 'TYPE, EXTENDS(invalid_type) :: testkern_type' in TYPE, "
             "EXTENDS(invalid_type) :: testkern_type\n  TYPE(arg_type), "
@@ -531,7 +531,7 @@ def test_setter_getter_operates_on():
     assert metadata.operates_on is None
     with pytest.raises(ValueError) as info:
         metadata.operates_on = "invalid"
-    assert ("The OPERATES_ON metadata should be a recognised value "
+    assert ("The 'OPERATES_ON' metadata should be a recognised value "
             "(one of ['cell_column', 'domain', 'dof']) but found "
             "'invalid'." in str(info.value))
     metadata.operates_on = "DOMAIN"

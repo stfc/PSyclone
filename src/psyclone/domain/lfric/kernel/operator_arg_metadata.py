@@ -88,7 +88,7 @@ class OperatorArgMetadata(ScalarArgMetadata):
         '''
         OperatorArgMetadata.check_fparser2_arg(fparser2_tree, "arg_type")
         OperatorArgMetadata.check_nargs(fparser2_tree, 5)
-        OperatorArgMetadata.check_first_arg(fparser2_tree, "Operator")
+        OperatorArgMetadata.check_first_arg(fparser2_tree, "operator")
         datatype, access = OperatorArgMetadata.get_type_and_access(
             fparser2_tree)
         function_space_to = OperatorArgMetadata.get_arg(
@@ -148,7 +148,7 @@ class OperatorArgMetadata(ScalarArgMetadata):
         '''
         const = LFRicConstants()
         self.validate_scalar_value(
-            value, const.VALID_FUNCTION_SPACES, "function_space_to")
+            value, const.VALID_FUNCTION_SPACE_NAMES, "function_space_to")
         self._function_space_to = value.lower()
 
     @property
@@ -168,7 +168,7 @@ class OperatorArgMetadata(ScalarArgMetadata):
         '''
         const = LFRicConstants()
         self.validate_scalar_value(
-            value, const.VALID_FUNCTION_SPACES, "function_space_from")
+            value, const.VALID_FUNCTION_SPACE_NAMES, "function_space_from")
         self._function_space_from = value.lower()
 
 

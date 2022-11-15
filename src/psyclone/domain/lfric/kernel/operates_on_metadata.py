@@ -87,7 +87,7 @@ class OperatesOnMetadata(CommonDeclarationMetadata):
         '''
         const = LFRicConstants()
         valid_values = const.USER_KERNEL_ITERATION_SPACES
-        value = OperatesOnMetadata.validate_intrinsic_scalar_declaration(
+        value = OperatesOnMetadata.get_intrinsic_scalar_declaration(
             fparser2_tree, "INTEGER", "OPERATES_ON", valid_values)
         return OperatesOnMetadata(value)
 

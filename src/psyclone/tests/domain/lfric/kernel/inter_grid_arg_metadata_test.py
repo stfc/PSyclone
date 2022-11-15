@@ -43,13 +43,16 @@ from fparser.two import Fortran2003
 from psyclone.domain.lfric.kernel import InterGridArgMetadata
 
 
-def test_create():
+@pytest.mark.parametrize("datatype, access, function_space, mesh", [
+    ("GH_REAL", "GH_READ", "W0", "GH_FINE"),
+    ("gh_real", "gh_read", "w0", "gh_fine")])
+def test_create(datatype, access, function_space, mesh):
     '''Test that an instance of InterGridArgMetadata can be created
     successfully.
 
     '''
     inter_grid_arg = InterGridArgMetadata(
-        "GH_REAL", "GH_READ", "W0", "GH_FINE")
+        datatype, access, function_space, mesh)
     assert isinstance(inter_grid_arg, InterGridArgMetadata)
     assert inter_grid_arg.form == "gh_field"
     assert inter_grid_arg._datatype == "gh_real"
@@ -65,7 +68,7 @@ def test_init_invalid():
     '''
     with pytest.raises(ValueError) as info:
         _ = InterGridArgMetadata("GH_REAL", "GH_READ", "W0", "invalid")
-    assert ("The mesh_arg metadata should be a recognised value (one of "
+    assert ("The 'mesh_arg' metadata should be a recognised value (one of "
             "['gh_coarse', 'gh_fine']) but found 'invalid'."
             in str(info.value))
 
@@ -103,8 +106,9 @@ def test_create_from_fparser2():
         encoding=Fortran2003.Structure_Constructor)
     with pytest.raises(ValueError) as info:
         _ = InterGridArgMetadata.create_from_fparser2(fparser2_tree)
-    assert ("InterGrids should have gh_field as their first metadata "
-            "argument, but found 'GH_FEELED'." in str(info.value))
+    assert ("Metadata for 'inter-grid' kernel arguments should have "
+            "'gh_field' as their first metadata argument, but found "
+            "'GH_FEELED'." in str(info.value))
 
     fparser2_tree = InterGridArgMetadata.create_fparser2(
         "arg_type(GH_FIELD, GH_UNREAL, GH_READ, W0, mesh_arg=GH_COARSE)",
@@ -112,8 +116,8 @@ def test_create_from_fparser2():
     with pytest.raises(ValueError) as info:
         _ = InterGridArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '1' for metadata 'arg_type(GH_FIELD, "
-            "GH_UNREAL, GH_READ, W0, mesh_arg = GH_COARSE)'. The datatype "
-            "descriptor metadata should be a recognised value (one of "
+            "GH_UNREAL, GH_READ, W0, mesh_arg = GH_COARSE)'. The 'datatype "
+            "descriptor' metadata should be a recognised value (one of "
             "['gh_real', 'gh_integer']) but found 'GH_UNREAL'."
             in str(info.value))
 
@@ -123,7 +127,7 @@ def test_create_from_fparser2():
     with pytest.raises(ValueError) as info:
         _ = InterGridArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '2' for metadata 'arg_type(GH_FIELD, GH_REAL, "
-            "GH_RED, W0, mesh_arg = GH_COARSE)'. The access descriptor "
+            "GH_RED, W0, mesh_arg = GH_COARSE)'. The 'access descriptor' "
             "metadata should be a recognised value (one of ['gh_read', "
             "'gh_write', 'gh_readwrite', 'gh_inc', 'gh_readinc']) but found "
             "'GH_RED'." in str(info.value))
@@ -134,18 +138,18 @@ def test_create_from_fparser2():
     with pytest.raises(ValueError) as info:
         _ = InterGridArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '3' for metadata 'arg_type(GH_FIELD, GH_REAL, "
-            "GH_READ, XX, mesh_arg = GH_COARSE)'. The function space metadata "
-            "should be a recognised value (one of ['w3', 'wtheta', 'w2v', "
-            "'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', 'w2h', "
-            "'w2htrace', 'any_w2', 'wchi', 'any_space_1', 'any_space_2', "
-            "'any_space_3', 'any_space_4', 'any_space_5', 'any_space_6', "
-            "'any_space_7', 'any_space_8', 'any_space_9', 'any_space_10', "
-            "'any_discontinuous_space_1', 'any_discontinuous_space_2', "
-            "'any_discontinuous_space_3', 'any_discontinuous_space_4', "
-            "'any_discontinuous_space_5', 'any_discontinuous_space_6', "
-            "'any_discontinuous_space_7', 'any_discontinuous_space_8', "
-            "'any_discontinuous_space_9', 'any_discontinuous_space_10']) "
-            "but found 'XX'" in str(info.value))
+            "GH_READ, XX, mesh_arg = GH_COARSE)'. The 'function space' "
+            "metadata should be a recognised value (one of ['w3', 'wtheta', "
+            "'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', 'w2trace', "
+            "'w2h', 'w2htrace', 'any_w2', 'wchi', 'any_space_1', "
+            "'any_space_2', 'any_space_3', 'any_space_4', 'any_space_5', "
+            "'any_space_6', 'any_space_7', 'any_space_8', 'any_space_9', "
+            "'any_space_10', 'any_discontinuous_space_1', "
+            "'any_discontinuous_space_2', 'any_discontinuous_space_3', "
+            "'any_discontinuous_space_4', 'any_discontinuous_space_5', "
+            "'any_discontinuous_space_6', 'any_discontinuous_space_7', "
+            "'any_discontinuous_space_8', 'any_discontinuous_space_9', "
+            "'any_discontinuous_space_10']) but found 'XX'" in str(info.value))
 
     fparser2_tree = InterGridArgMetadata.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, mesh_rag=GH_COARSE)",
@@ -162,7 +166,7 @@ def test_create_from_fparser2():
     with pytest.raises(ValueError) as info:
         _ = InterGridArgMetadata.create_from_fparser2(fparser2_tree)
     assert ("At argument index '4' for metadata 'arg_type(GH_FIELD, GH_REAL, "
-            "GH_READ, W0, mesh_arg = GH_ROUGH)'. The mesh_arg metadata "
+            "GH_READ, W0, mesh_arg = GH_ROUGH)'. The 'mesh_arg' metadata "
             "should be a recognised value (one of ['gh_coarse', 'gh_fine']) "
             "but found 'GH_ROUGH'." in str(info.value))
 
@@ -219,7 +223,7 @@ def test_mesh_arg_setter_getter():
 
     with pytest.raises(ValueError) as info:
         inter_grid_arg.mesh_arg = "invalid"
-    assert ("The mesh_arg metadata should be a recognised value (one of "
+    assert ("The 'mesh_arg' metadata should be a recognised value (one of "
             "['gh_coarse', 'gh_fine']) but found 'invalid'."
             in str(info.value))
 

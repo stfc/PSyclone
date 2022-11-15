@@ -46,7 +46,7 @@ from psyclone.domain.lfric.kernel import (
 
 def test_init():
     '''Test that an instance of MetaFuncsMetadata can be created
-    and that its initial values as stored as expected.
+    and that its initial values are stored as expected.
 
     '''
     meta_funcs_arg = MetaFuncsArgMetadata("w0", basis_function=True)

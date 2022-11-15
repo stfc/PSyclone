@@ -88,7 +88,7 @@ def test_create_from_fparser2():
         "mesh_data_type(invalid)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = MetaMeshArgMetadata.create_from_fparser2(fparser2_tree)
-    assert ("The mesh property metadata should be a recognised value (one "
+    assert ("The 'mesh property' metadata should be a recognised value (one "
             "of ['adjacent_face']) but found 'invalid'." in str(info.value))
 
     fparser2_tree = MetaMeshArgMetadata.create_fparser2(
@@ -116,7 +116,7 @@ def test_mesh_setter_getter():
     mesh_arg = MetaMeshArgMetadata("adjacent_face")
     with pytest.raises(ValueError) as info:
         mesh_arg.mesh = "invalid"
-    assert ("The mesh property metadata should be a recognised value (one "
+    assert ("The 'mesh property' metadata should be a recognised value (one "
             "of ['adjacent_face']) but found 'invalid'." in str(info.value))
     mesh_arg.mesh = "adjacent_face"
     assert mesh_arg.mesh == "adjacent_face"

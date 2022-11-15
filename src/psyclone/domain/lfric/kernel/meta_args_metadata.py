@@ -102,7 +102,7 @@ class MetaArgsMetadata(CommonDeclarationMetadata):
             is found.
 
         '''
-        MetaArgsMetadata.validate_derived_array_declaration(
+        MetaArgsMetadata.get_derived_array_declaration(
             fparser2_tree, "ARG_TYPE", "META_ARGS")
         args = walk(fparser2_tree, Fortran2003.Ac_Value_List)
         meta_args_args = []

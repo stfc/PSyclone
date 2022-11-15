@@ -68,7 +68,7 @@ class ColumnwiseOperatorArgMetadata(OperatorArgMetadata):
             fparser2_tree, "arg_type")
         ColumnwiseOperatorArgMetadata.check_nargs(fparser2_tree, 5)
         ColumnwiseOperatorArgMetadata.check_first_arg(
-            fparser2_tree, "ColumnwiseOperator")
+            fparser2_tree, "columnwise-operator")
         datatype, access = ColumnwiseOperatorArgMetadata.get_type_and_access(
             fparser2_tree)
         function_space_to = ColumnwiseOperatorArgMetadata.get_arg(

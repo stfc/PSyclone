@@ -84,12 +84,12 @@ def test_validate_scalar_value():
     '''
     with pytest.raises(TypeError) as info:
         CommonMetadata.validate_scalar_value(None, None, None)
-    assert ("The None value should be of type str, but found 'NoneType'."
+    assert ("The 'None' value should be of type str, but found 'NoneType'."
             in str(info.value))
     with pytest.raises(ValueError) as info:
         CommonMetadata.validate_scalar_value(
             "invalid", ["value1", "value2"], "my_metadata")
-    assert ("The my_metadata metadata should be a recognised value (one of "
+    assert ("The 'my_metadata' metadata should be a recognised value (one of "
             "['value1', 'value2']) but found 'invalid'." in str(info.value))
     CommonMetadata.validate_scalar_value(
             "Value2", ["value1", "value2"], "")

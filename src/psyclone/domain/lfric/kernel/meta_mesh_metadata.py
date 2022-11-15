@@ -90,7 +90,7 @@ class MetaMeshMetadata(CommonDeclarationMetadata):
             MetaMeshMetadata`
 
         '''
-        values_list = MetaMeshMetadata.validate_derived_array_declaration(
+        values_list = MetaMeshMetadata.get_derived_array_declaration(
             fparser2_tree, "MESH_DATA_TYPE", "META_MESH")
         meta_obj_list = []
         for value in values_list:

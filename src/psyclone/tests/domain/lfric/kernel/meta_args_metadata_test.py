@@ -48,7 +48,7 @@ from psyclone.parse.utils import ParseError
 
 def test_init():
     '''Test that an instance of MetaArgsMetadata can be created
-    and that its initial values as stored as expected.
+    and that its initial values are stored as expected.
 
     '''
     meta_args_arg = ScalarArgMetadata("GH_INTEGER", "GH_READ")

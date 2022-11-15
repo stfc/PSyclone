@@ -45,7 +45,7 @@ from psyclone.domain.lfric.kernel import ShapesMetadata
 
 def test_init():
     '''Test that an instance of ShapesMetadata can be created and that its
-    initial values as stored as expected.
+    initial values are stored as expected.
 
     '''
     shape_values = ["gh_quadrature_XYoZ", "gh_evaluator"]
@@ -152,7 +152,7 @@ def test_setter_errors():
 
     with pytest.raises(ValueError) as info:
         shapes_metadata.shapes = ["invalid"]
-    assert ("The shape metadata should be a recognised value (one of "
+    assert ("The 'shape' metadata should be a recognised value (one of "
             "['gh_quadrature_xyoz', 'gh_quadrature_face', "
             "'gh_quadrature_edge', 'gh_evaluator']) but found 'invalid'."
             in str(info.value))
