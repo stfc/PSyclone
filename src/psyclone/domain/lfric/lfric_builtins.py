@@ -83,7 +83,7 @@ def get_lowercase_builtin_map(builtin_map_capitalised_dict):
     return builtin_map_dict
 
 
-class LFRicBuiltInCallFactory(object):
+class LFRicBuiltInCallFactory():
     '''
     Creates the necessary framework for a call to an LFRic built-in,
     This consists of the operation itself and the loop over unique DoFs.

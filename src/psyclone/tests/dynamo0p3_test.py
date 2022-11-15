@@ -38,9 +38,6 @@
 
 ''' This module tests the Dynamo 0.3 API using pytest. '''
 
-# imports
-from __future__ import absolute_import, print_function
-
 import copy
 import os
 import pytest
@@ -189,7 +186,7 @@ def test_ad_invalid_iteration_space():
     # LFRicArgDescriptor object
     arg_type = field_descriptor._arg_type
     with pytest.raises(InternalError) as excinfo:
-        _ = LFRicArgDescriptor(arg_type, "colours")
+        _ = LFRicArgDescriptor(arg_type, "colours", 0)
     assert ("Expected operates_on in the kernel metadata to be one of "
             "['cell_column', 'domain', 'dof'] but got "
             "'colours'." in str(excinfo.value))
@@ -879,6 +876,7 @@ def test_bc_kernel_anyspace1_only():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     kernels = schedule.walk(DynKern)
+    assert kernels[0].base_name == "enforce_bc"
     # Ensure that none of the arguments are listed as being on ANY_SPACE_1
     for fspace in kernels[0].arguments._unique_fss:
         fspace._orig_name = "W2"
@@ -1327,6 +1325,7 @@ def test_dynkernelargument_infer_scalar_datatype(monkeypatch, proxy):
 
 @pytest.mark.parametrize("proxy", [True, False])
 def test_dynkernelargument_infer_field_datatype(monkeypatch, proxy):
+    # pylint: disable=too-many-statements
     '''
     Tests for the DynKernelArgument.infer_datatype() method for field and
     operator arguments.
@@ -2228,7 +2227,7 @@ def test_arg_descriptor_init_error(monkeypatch):
         value=const.VALID_ARG_TYPE_NAMES + ["GH_INVALID"])
     arg_type.args[0].name = "GH_INVALID"
     with pytest.raises(InternalError) as excinfo:
-        _ = LFRicArgDescriptor(arg_type, metadata.iterates_over)
+        _ = LFRicArgDescriptor(arg_type, metadata.iterates_over, 0)
     assert ("Failed argument validation for the 'meta_arg' entry "
             "'arg_type(GH_INVALID, gh_real, gh_inc, w1)', should not "
             "get to here." in str(excinfo.value))

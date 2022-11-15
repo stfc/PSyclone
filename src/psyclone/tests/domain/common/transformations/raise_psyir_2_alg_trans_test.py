@@ -123,7 +123,7 @@ def test_parse_args_get_symbol(fortran_reader):
 
     # Check expected output from parse_args
     nodes = RaisePSyIR2AlgTrans._parse_args(code_block,
-                                              code_block._fp2_nodes[0])
+                                            code_block._fp2_nodes[0])
     assert isinstance(nodes, list)
     assert len(nodes) == 1
     assert isinstance(nodes[0], Literal)
@@ -133,7 +133,7 @@ def test_parse_args_get_symbol(fortran_reader):
     with pytest.raises(KeyError):
         _ = code_block.scope.symbol_table.lookup("kern")
     symbol = RaisePSyIR2AlgTrans._get_symbol(code_block,
-                                               code_block._fp2_nodes[0])
+                                             code_block._fp2_nodes[0])
     assert isinstance(symbol, DataTypeSymbol)
     assert symbol.name == "kern"
     symbol2 = code_block.scope.symbol_table.lookup("kern")
@@ -141,7 +141,7 @@ def test_parse_args_get_symbol(fortran_reader):
 
     # Check expected output from get_symbol when symbol already exists
     symbol3 = RaisePSyIR2AlgTrans._get_symbol(code_block,
-                                                code_block._fp2_nodes[0])
+                                              code_block._fp2_nodes[0])
     assert symbol3 is symbol
 
 

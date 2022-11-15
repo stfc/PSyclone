@@ -37,9 +37,8 @@
 # MOdified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk, STFC Daresbury Lab
 
-''' Tests of transformations with the Dynamo 0.3 API '''
+''' Tests of transformations with the LFRic (Dynamo 0.3) API '''
 
-from __future__ import absolute_import, print_function
 import inspect
 from importlib import import_module
 import pytest
@@ -64,7 +63,6 @@ from psyclone.transformations import OMPParallelTrans, \
     Dynamo0p3ColourTrans, \
     Dynamo0p3OMPLoopTrans, \
     DynamoOMPParallelLoopTrans, \
-    KernelModuleInlineTrans, \
     MoveTrans, \
     Dynamo0p3RedundantComputationTrans, \
     Dynamo0p3AsyncHaloExchangeTrans, \
@@ -1435,37 +1433,6 @@ def test_omp_par_and_halo_exchange_error():
         rtrans.apply(schedule.children)
     assert ("type 'DynHaloExchange' cannot be enclosed by a OMPParallelTrans "
             "transformation" in str(excinfo.value))
-
-
-def test_module_inline(monkeypatch, annexed, dist_mem):
-    '''Tests that correct results are obtained when a kernel is inlined
-    into the psy-layer in the dynamo0.3 API. More in-depth tests can
-    be found in the gocean1p0_transformations.py file. We also test
-    when annexed is False and True as it affects how many halo
-    exchanges are generated.
-
-    '''
-    config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
-    psy, invoke = get_invoke("4.6_multikernel_invokes.f90", TEST_API,
-                             name="invoke_0", dist_mem=dist_mem)
-    schedule = invoke.schedule
-    if dist_mem:
-        if annexed:
-            index = 6
-        else:
-            index = 8
-    else:
-        index = 1
-    kern_call = schedule.children[index].loop_body[0]
-    inline_trans = KernelModuleInlineTrans()
-    inline_trans.apply(kern_call)
-    gen = str(psy.gen)
-    # check that the subroutine has been inlined
-    assert 'SUBROUTINE ru_code(' in gen
-    # check that the associated psy "use" does not exist
-    assert 'USE ru_kernel_mod, only : ru_code' not in gen
 
 
 def test_builtin_single_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
@@ -3234,9 +3201,8 @@ def test_no_global_sum_in_parallel_region():
         rtrans.apply(schedule.children)
         with pytest.raises(NotImplementedError) as excinfo:
             _ = str(psy.gen)
-        assert(
-            "Cannot correctly generate code for an OpenMP parallel region "
-            "containing children of different types") in str(excinfo.value)
+        assert ("Cannot correctly generate code for an OpenMP parallel region "
+                "containing children of different types") in str(excinfo.value)
 
 
 def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
@@ -3839,7 +3805,7 @@ def test_list_multiple_reductions(dist_mem):
     arg._argument_type = "gh_scalar"
     arg.descriptor._access = AccessType.SUM
     result = omp_loop_directive._reduction_string()
-    assert " reduction(+:asum), reduction(+:f2)" in result
+    assert "reduction(+:asum), reduction(+:f2)" in result
 
 
 def test_move_name():

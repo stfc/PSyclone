@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 '''This module tests the inlining transformation.
 '''
@@ -39,13 +40,13 @@
 import pytest
 
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Assignment, Call, Reference, Routine
+from psyclone.psyir.nodes import Call, Routine
 from psyclone.psyir.transformations import (InlineTrans,
                                             TransformationError)
 from psyclone.tests.utilities import Compile
 
-# init
 
+# init
 
 def test_init():
     '''Test an InlineTrans transformation can be successfully created.'''
@@ -54,7 +55,6 @@ def test_init():
 
 
 # apply
-
 
 def test_apply_empty_routine(fortran_reader, fortran_writer, tmpdir):
     '''Check that a call to an empty routine is simply removed.'''
@@ -617,6 +617,240 @@ def test_inline_non_local_import(fortran_reader, fortran_writer):
             "    i = i + trouble\n" in output)
 
 
+def test_apply_function(fortran_reader, fortran_writer, tmpdir):
+    '''Check that the apply() method works correctly for a simple call to
+    a function.
+
+    '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "  real :: a,b\n"
+        "  a = func(b)\n"
+        "  end subroutine run_it\n"
+        "  real function func(b)\n"
+        "    real :: b\n"
+        "    func = 2.0\n"
+        "  end function\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(routine)
+    output = fortran_writer(psyir)
+    expected = (
+        "  subroutine run_it()\n"
+        "    real :: a\n"
+        "    real :: b\n"
+        "    real :: inlined_func\n\n"
+        "    inlined_func = 2.0\n"
+        "    a = inlined_func")
+    assert expected in output
+    assert Compile(tmpdir).string_compiles(output)
+
+
+# Try two different forms of function declaration.
+@pytest.mark.parametrize("function_header", [
+    "  function func(b) result(x)\n    real :: x\n",
+    "  real function func(b) result(x)\n"])
+def test_apply_function_declare_name(
+        fortran_reader, fortran_writer, tmpdir, function_header):
+    '''Check that the apply() method works correctly for a simple call to
+    a function where the name of the return name differs from the
+    function name.
+
+    '''
+    code = (
+        f"module test_mod\n"
+        f"contains\n"
+        f"  subroutine run_it()\n"
+        f"  real :: a,b\n"
+        f"  a = func(b)\n"
+        f"  end subroutine run_it\n"
+        f"{function_header}"
+        f"    real :: b\n"
+        f"    x = 2.0\n"
+        f"  end function\n"
+        f"end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(routine)
+    output = fortran_writer(psyir)
+
+    expected = (
+        "  subroutine run_it()\n"
+        "    real :: a\n"
+        "    real :: b\n"
+        "    real :: inlined_x\n\n"
+        "    inlined_x = 2.0\n"
+        "    a = inlined_x")
+    assert expected in output
+    assert Compile(tmpdir).string_compiles(output)
+
+
+def test_apply_function_expression(fortran_reader, fortran_writer, tmpdir):
+    '''Check that the apply() method works correctly for a call to a
+    function that is within an expression.
+
+    '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "  real :: a,b\n"
+        "  a = (a*func(b)+2.0)/a\n"
+        "  end subroutine run_it\n"
+        "  real function func(b) result(x)\n"
+        "    real :: b\n"
+        "    b = b + 3.0\n"
+        "    x = b * 2.0\n"
+        "  end function\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(routine)
+    output = fortran_writer(psyir)
+    assert (
+        "    real :: b\n"
+        "    real :: inlined_x\n\n"
+        "    b = b + 3.0\n"
+        "    inlined_x = b * 2.0\n"
+        "    a = (a * inlined_x + 2.0) / a\n" in output)
+    assert Compile(tmpdir).string_compiles(output)
+
+
+def test_apply_multi_function(fortran_reader, fortran_writer, tmpdir):
+    '''Check that the apply() method works correctly when a function is
+    called twice but only one of these function calls is inlined.
+
+    '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "  real :: a,b,c\n"
+        "  a = func(b)\n"
+        "  c = func(a)\n"
+        "  end subroutine run_it\n"
+        "  real function func(b)\n"
+        "    real :: b\n"
+        "    func = 2.0\n"
+        "  end function\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(routine)
+    output = fortran_writer(psyir)
+    expected = (
+        "  subroutine run_it()\n"
+        "    real :: a\n"
+        "    real :: b\n"
+        "    real :: c\n"
+        "    real :: inlined_func\n\n"
+        "    inlined_func = 2.0\n"
+        "    a = inlined_func\n"
+        "    c = func(a)")
+    assert expected in output
+    assert Compile(tmpdir).string_compiles(output)
+
+    # inline again
+    routine = psyir.walk(Call)[0]
+    inline_trans.apply(routine)
+    output = fortran_writer(psyir)
+    expected = (
+        "    real :: inlined_func\n"
+        "    real :: inlined_func_1\n\n"
+        "    inlined_func = 2.0\n"
+        "    a = inlined_func\n"
+        "    inlined_func_1 = 2.0\n"
+        "    c = inlined_func_1")
+    assert expected in output
+
+
+@pytest.mark.parametrize("start, end, indent", [
+    ("", "", ""),
+    ("module test_mod\ncontains\n", "end module test_mod\n", "  "),
+    ("module test_mod\nuse dummy\ncontains\n", "end module test_mod\n", "  ")])
+def test_apply_raw_subroutine(
+        fortran_reader, fortran_writer, tmpdir, start, end, indent):
+    '''Test the apply method works correctly when the routine to be
+    inlined is a raw subroutine and is called directly from another
+    raw subroutine, a subroutine within a module but without a use
+    statement and a subroutine within a module with a wildcard use
+    statement.
+
+    '''
+    code = (
+        f"{start}"
+        f"  subroutine run_it()\n"
+        f"    real :: a\n"
+        f"    call sub(a)\n"
+        f"  end subroutine run_it\n"
+        f"{end}"
+        f"subroutine sub(x)\n"
+        f"  real, intent(inout) :: x\n"
+        f"  x = 2.0*x\n"
+        f"end subroutine sub\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(routine)
+    output = fortran_writer(psyir)
+    expected = (
+        f"{indent}subroutine run_it()\n"
+        f"{indent}  real :: a\n\n"
+        f"{indent}  a = 2.0 * a\n\n"
+        f"{indent}end subroutine run_it\n")
+    assert expected in output
+    if "use dummy" not in output:
+        # Compilation will not work with "use dummy" as there is no
+        # mod file.
+        assert Compile(tmpdir).string_compiles(output)
+
+
+@pytest.mark.parametrize("use1, use2", [
+    ("use inline_mod, only : sub\n", ""), ("use inline_mod\n", ""),
+    ("", "use inline_mod, only : sub\n"), ("", "use inline_mod\n")])
+def test_apply_container_subroutine(
+        fortran_reader, fortran_writer, tmpdir, use1, use2):
+    '''Test the apply method works correctly when the routine to be
+    inlined is in a different container and is within a module (so
+    a use statement is required).
+
+    '''
+    code = (
+        f"module inline_mod\n"
+        f"contains\n"
+        f"  subroutine sub(x)\n"
+        f"    real, intent(inout) :: x\n"
+        f"    x = 2.0*x\n"
+        f"  end subroutine sub\n"
+        f"end module inline_mod\n"
+        f"module test_mod\n"
+        f"{use1}"
+        f"contains\n"
+        f"  subroutine run_it()\n"
+        f"    {use2}"
+        f"    real :: a\n"
+        f"    call sub(a)\n"
+        f"  end subroutine run_it\n"
+        f"end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(routine)
+    output = fortran_writer(psyir)
+    assert (
+        "    real :: a\n\n"
+        "    a = 2.0 * a\n\n"
+        "  end subroutine run_it" in output)
+    assert Compile(tmpdir).string_compiles(output)
+
+
 def test_apply_validate():
     '''Test the apply method calls the validate method.'''
     inline_trans = InlineTrans()
@@ -639,9 +873,11 @@ def test_validate_node():
 
 
 def test_validate_calls_find_routine(fortran_reader):
-    '''Test that validate() calls the _find_routine method.
-raises the expected error if the source of the
-    routine to be inlined cannot be found.'''
+    '''Test that validate() calls the _find_routine method. Use an example
+    where an exception is raised as the source of the routine to be
+    inlined cannot be found.
+
+    '''
     code = (
         "module test_mod\n"
         "  use some_mod\n"
@@ -657,8 +893,9 @@ raises the expected error if the source of the
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
-    assert ("Routine 'sub' is imported and therefore cannot currently be "
-            "inlined - TODO #924" in str(err.value))
+    assert ("Failed to find the source code of the unresolved routine 'sub' "
+            "after trying wildcard imports from ['some_mod'] and all "
+            "routines that are not in containers." in str(err.value))
 
 
 def test_validate_return_stmt(fortran_reader):
@@ -795,51 +1032,6 @@ def test_validate_unresolved_import(fortran_reader):
             "un-resolved variable 'trouble'" in str(err.value))
 
 
-def test_validate_function(fortran_reader):
-    '''Test that the validate method rejects an attempt to inline a
-    function.
-
-    TODO #924: add support for function inlining.
-    '''
-    code = (
-        "module test_mod\n"
-        "contains\n"
-        "  subroutine run_it()\n"
-        "  integer :: i\n"
-        "  real :: a(10)\n"
-        "  do i=1,10\n"
-        "    a(i) = my_func(i)\n"
-        "  end do\n"
-        "  end subroutine run_it\n"
-        "  function my_func(idx)\n"
-        "    integer :: my_func\n"
-        "    integer, intent(in) :: idx\n"
-        "    my_func = 3*idx\n"
-        "  end function my_func\n"
-        "end module test_mod\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    routines = psyir.walk(Routine)
-    routine = routines[0]
-    # Currently the call to my_func() is identified as an array reference
-    # so we have to fix it before we can apply the transformation.
-    isym = routine.symbol_table.lookup("i")
-    func = psyir.children[0].symbol_table.lookup("my_func")
-    assign = routine.walk(Assignment)[0]
-    assign.rhs.replace_with(Call.create(func, [Reference(isym)]))
-    inline_trans = InlineTrans()
-    with pytest.raises(TransformationError) as err:
-        inline_trans.apply(assign.rhs)
-    assert ("Cannot inline routine 'my_func' as it has a return value "
-            "('my_func') - TODO #924." in str(err.value))
-    # Repeat the check but with an empty function.
-    callee = routines[1]
-    callee.children = []
-    with pytest.raises(TransformationError) as err:
-        inline_trans.apply(assign.rhs)
-    assert ("Cannot inline routine 'my_func' as it has a return value "
-            "('my_func') - TODO #924." in str(err.value))
-
-
 def test_validate_array_subsection(fortran_reader):
     '''Test that the validate method rejects an attempt to inline a routine
     if any of its arguments are array subsections.'''
@@ -926,52 +1118,340 @@ def test_validate_named_arg(fortran_reader):
             "'opt' (TODO #924)" in str(err.value))
 
 
+CALL_IN_SUB_USE = (
+    "subroutine run_it()\n"
+    "  use inline_mod, only : sub\n"
+    "  real :: a\n"
+    "  call sub(a)\n"
+    "end subroutine run_it\n")
+CALL_IN_SUB = CALL_IN_SUB_USE.replace(
+    "  use inline_mod, only : sub\n", "")
+SUB = (
+    "subroutine sub(x)\n"
+    "  real :: x\n"
+    "  x = 1.0\n"
+    "end subroutine sub\n")
+SUB_IN_MODULE = (
+    f"module inline_mod\n"
+    f"contains\n"
+    f"{SUB}"
+    f"end module inline_mod\n")
+
+
 # _find_routine
 
-def test_find_routine_missing(fortran_reader):
-    '''Test that _find_routine() raises the expected error if the source of the
-    called routine cannot be found.'''
+def test_find_routine_local(fortran_reader):
+    '''Test that the PSyIR of the Routine is returned when it is local to
+    the associated call.
+
+    '''
     code = (
-        "module test_mod\n"
-        "  use some_mod\n"
-        "contains\n"
-        "  subroutine run_it()\n"
-        "  integer :: i\n"
-        "  i = 10\n"
-        "  call sub(i)\n"
-        "  end subroutine run_it\n"
-        "end module test_mod\n")
+        f"module test_mod\n"
+        f"contains\n"
+        f"{CALL_IN_SUB}"
+        f"{SUB}"
+        f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
-    with pytest.raises(TransformationError) as err:
-        inline_trans._find_routine(call)
-    assert ("Routine 'sub' is imported and therefore cannot currently be "
-            "inlined - TODO #924" in str(err.value))
+    result = inline_trans._find_routine(call)
+    assert call.routine.is_local
+    assert isinstance(result, Routine)
+    assert result.name == "sub"
 
 
-def test_find_routine_missing_implementation(fortran_reader):
-    '''Test that _find_routine() raises the expected error if the RoutineSymbol
-    is local but the implementation cannot be found.'''
+def test_find_routine_missing_exception(fortran_reader):
+    '''Test that the expected exception is raised if the Call's Routine
+    symbol has a local interface but the Routine can't be found in the
+    PSyIR.
+
+    '''
     code = (
-        "module test_mod\n"
-        "contains\n"
-        "  subroutine run_it()\n"
-        "  integer :: i\n"
-        "  i = 10\n"
-        "  call sub(i)\n"
-        "  end subroutine run_it\n"
-        "  subroutine sub(idx)\n"
-        "    integer :: idx\n"
-        "  end subroutine sub\n"
-        "end module test_mod\n")
+        f"module test_mod\n"
+        f"contains\n"
+        f"{CALL_IN_SUB}"
+        f"{SUB}"
+        f"end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    # remove the subroutine 'sub' from the PSyIR tree.
+    psyir.children[0].children[1].detach()
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    assert call.routine.is_local
+    with pytest.raises(InternalError) as info:
+        _ = inline_trans._find_routine(call)
+    assert ("Failed to find the source code of the local routine 'sub'."
+            in str(info.value))
+
+
+def test_find_routine_unresolved_wildcard(fortran_reader):
+    '''Test that the routine can be found via a wildcard use statement.'''
+
+    wildcard_use = CALL_IN_SUB_USE.replace(", only : sub", "")
+    code = f"{wildcard_use}{SUB_IN_MODULE}"
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
-    # Break the PSyIR by removing the Routine itself.
-    routine = psyir.walk(Routine)[1]
-    routine.detach()
     inline_trans = InlineTrans()
-    with pytest.raises(TransformationError) as err:
-        inline_trans._find_routine(call)
-    assert ("Failed to find the source for routine 'sub' and therefore "
-            "cannot inline it." in str(err.value))
+    assert call.routine.is_unresolved
+    result = inline_trans._find_routine(call)
+    assert isinstance(result, Routine)
+    assert result.name == "sub"
+
+
+def test_find_routine_unresolved(fortran_reader):
+    '''Test that the routine can be found when there are no use statements
+    and there is a 'raw' subroutine.
+
+    '''
+    code = f"{CALL_IN_SUB}{SUB}"
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    assert call.routine.is_unresolved
+    result = inline_trans._find_routine(call)
+    assert isinstance(result, Routine)
+    assert result.name == "sub"
+
+
+def test_find_routine_raw_to_module_exception(fortran_reader):
+    '''Test that the routine is not found and an exception is raised if
+    there is no use statement and the code for another routine with
+    the same name is specified within a module.
+
+    '''
+    code = f"{CALL_IN_SUB}{SUB_IN_MODULE}"
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    assert call.routine.is_unresolved
+    with pytest.raises(TransformationError) as info:
+        _ = inline_trans._find_routine(call)
+    assert ("Failed to find the source code of the unresolved routine 'sub' "
+            "after trying wildcard imports from [] and all routines that are "
+            "not in containers." in str(info.value))
+
+
+def test_find_routine_unresolved_exception(fortran_reader):
+    '''Test that the expected exception is raised if the routine is
+    unresolved and can't be found in any wildcard imports or any 'raw'
+    subroutines.
+
+    '''
+    wildcard_use = CALL_IN_SUB_USE.replace(", only : sub", "")
+    code = (
+        f"{wildcard_use}"
+        f"module inline_mod\n"
+        f"end module inline_mod\n"
+        f"subroutine sub2()\n"
+        f"end subroutine sub2\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    assert call.routine.is_unresolved
+    with pytest.raises(TransformationError) as info:
+        _ = inline_trans._find_routine(call)
+    assert ("Failed to find the source code of the unresolved routine 'sub' "
+            "after trying wildcard imports from ['inline_mod'] and all "
+            "routines that are not in containers." in str(info.value))
+
+
+def test_find_routine_import(fortran_reader):
+    '''Test that the routine can be found when there is a use statement
+    and the subroutine can be found in the associated module.
+
+    '''
+    code = f"{CALL_IN_SUB_USE}{SUB_IN_MODULE}"
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    assert call.routine.is_import
+    result = inline_trans._find_routine(call)
+    assert isinstance(result, Routine)
+    assert result.name == "sub"
+
+
+def test_find_routine_import_exception(fortran_reader):
+    '''Test that the routine raises the expected exception if the imported
+    module can't be found.
+
+    '''
+    code = f"{CALL_IN_SUB_USE}"
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    assert call.routine.is_import
+    with pytest.raises(TransformationError) as info:
+        _ = inline_trans._find_routine(call)
+    assert ("Failed to find the source for routine 'sub' imported from "
+            "'inline_mod' and therefore cannot inline it." in str(info.value))
+
+
+def test_find_routine_module_to_raw_exception(fortran_reader):
+    '''Test that the routine raises the expected exception if the call
+    imports the routine and the routine can't be found, even in the
+    presence of a 'raw' subroutine with the same name.
+
+    '''
+    code = f"{CALL_IN_SUB_USE}{SUB}"
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    assert call.routine.is_import
+    with pytest.raises(TransformationError) as info:
+        _ = inline_trans._find_routine(call)
+    assert ("Failed to find the source for routine 'sub' imported from "
+            "'inline_mod' and therefore cannot inline it." in str(info.value))
+
+
+def test_find_routine_exception(fortran_reader, monkeypatch):
+    '''Test that the routine raises the expected exception if the call's
+    routine symbol is not local, unresolved or import. Need to
+    monkeypatch as this exception is not something that should happen.
+
+    '''
+    code = f"{CALL_IN_SUB}"
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    # Set the interface to None so it is not local, unresolved or import.
+    monkeypatch.setattr(call.routine, "_interface", None)
+    inline_trans = InlineTrans()
+    with pytest.raises(InternalError) as info:
+        _ = inline_trans._find_routine(call)
+    assert ("Routine Symbol 'sub' is not local, unresolved or imported."
+            in str(info.value))
+
+
+# _find_routine_in_container
+
+def test_find_routine_in_container_no_container(fortran_reader):
+    '''Test that None is returned when the Container associated with the
+    supplied container symbol is not found in the PSyIR.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(CALL_IN_SUB_USE)
+    call_node = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    result = inline_trans._find_routine_in_container(
+            call_node, call_node.routine.interface.container_symbol)
+    assert result is None
+
+
+def test_find_routine_in_container_no_file_container(fortran_reader):
+    '''Test that None is returned when the Container associated with the
+    supplied container symbol is not found in the PSyIR and the root
+    is not a FileContainer.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(CALL_IN_SUB_USE)
+    # Remove the FileContainer from the PSyIR tree
+    psyir = psyir.children[0]
+    psyir.detach()
+    call_node = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    result = inline_trans._find_routine_in_container(
+            call_node, call_node.routine.interface.container_symbol)
+    assert result is None
+
+
+def test_find_routine_in_container_routine_not_found(fortran_reader):
+    '''Test that None is returned when the required Routine is not found
+    in the Container associated with the supplied container symbol, as
+    it does not exist.
+
+    '''
+    code = (
+        f"module inline_mod\n"
+        f"end module inline_mod\n"
+        f"{CALL_IN_SUB_USE}")
+    psyir = fortran_reader.psyir_from_source(code)
+    call_node = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    result = inline_trans._find_routine_in_container(
+            call_node, call_node.routine.interface.container_symbol)
+    assert result is None
+
+
+def test_find_routine_in_container_recurse_named(fortran_reader):
+    '''Test that when a container does not contain the required routine,
+    any imported containers within this container are also
+    searched. In this case the test is for a container within the
+    original container that explicitly names the routine. The PSyIR of
+    the routine is returned when it is found in the second container.
+
+    '''
+    code = (
+        f"{CALL_IN_SUB_USE}"
+        f"module inline_mod\n"
+        f"use inline_mod2, only : sub\n"
+        f"end module inline_mod\n"
+        f"module inline_mod2\n"
+        f"contains\n"
+        f"{SUB}\n"
+        f"end module inline_mod2\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    call_node = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    result = inline_trans._find_routine_in_container(
+            call_node, call_node.routine.interface.container_symbol)
+    assert isinstance(result, Routine)
+    assert result.name == "sub"
+
+
+def test_find_routine_in_container_recurse_wildcard(fortran_reader):
+    '''Test that when a container does not contain the required routine,
+    any imported containers within this container are also
+    searched. In this case the test is for a wildcard container within
+    the original container. The PSyIR of the routine is returned when
+    it is found in the second container.
+
+    '''
+    code = (
+        f"{CALL_IN_SUB_USE}"
+        f"module inline_mod\n"
+        f"use inline_mod2\n"
+        f"end module inline_mod\n"
+        f"module inline_mod2\n"
+        f"contains\n"
+        f"{SUB}\n"
+        f"end module inline_mod2\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    call_node = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    result = inline_trans._find_routine_in_container(
+            call_node, call_node.routine.interface.container_symbol)
+    assert isinstance(result, Routine)
+    assert result.name == "sub"
+
+
+def test_find_routine_in_container_private_routine_not_found(fortran_reader):
+    '''Test that None is returned when the required Routine is not found
+    in the Container associated with the supplied container symbol, as
+    it is private. This situation should not arise as it is invalid to
+    try to import a private routine. However, there are currrently no
+    checks for this when creating PSyIR.
+
+    '''
+    private_sub_in_module = SUB_IN_MODULE.replace(
+        "contains\n", "  private :: sub\ncontains\n")
+    code = f"{private_sub_in_module}{CALL_IN_SUB_USE}"
+    psyir = fortran_reader.psyir_from_source(code)
+    call_node = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    result = inline_trans._find_routine_in_container(
+            call_node, call_node.routine.interface.container_symbol)
+    assert result is None
+
+
+def test_find_routine_in_container(fortran_reader):
+    '''Test that the PSyIR of the Routine is returned when it is found
+    in the Container associated with the supplied container symbol.
+
+    '''
+    code = f"{SUB_IN_MODULE}{CALL_IN_SUB_USE}"
+    psyir = fortran_reader.psyir_from_source(code)
+    call_node = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    result = inline_trans._find_routine_in_container(
+            call_node, call_node.routine.interface.container_symbol)
+    assert isinstance(result, Routine)
+    assert result.name == "sub"

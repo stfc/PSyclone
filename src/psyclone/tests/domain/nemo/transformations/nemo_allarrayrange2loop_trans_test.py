@@ -163,9 +163,9 @@ def test_apply_calls_validate():
     trans = NemoAllArrayRange2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.apply(None)
-    assert("Error in NemoAllArrayRange2LoopTrans transformation. The "
-           "supplied node argument should be a PSyIR Assignment, but "
-           "found 'NoneType'." in str(info.value))
+    assert ("Error in NemoAllArrayRange2LoopTrans transformation. The "
+            "supplied node argument should be a PSyIR Assignment, but "
+            "found 'NoneType'." in str(info.value))
 
 
 def test_str():
@@ -194,6 +194,6 @@ def test_validate_assignment():
     trans = NemoAllArrayRange2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(None)
-    assert("Error in NemoAllArrayRange2LoopTrans transformation. The "
-           "supplied node argument should be a PSyIR Assignment, but "
-           "found 'NoneType'." in str(info.value))
+    assert ("Error in NemoAllArrayRange2LoopTrans transformation. The "
+            "supplied node argument should be a PSyIR Assignment, but "
+            "found 'NoneType'." in str(info.value))

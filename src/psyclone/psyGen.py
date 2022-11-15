@@ -41,14 +41,13 @@
     and generation. The classes in this method need to be specialised for a
     particular API and implementation. '''
 
-from __future__ import print_function, absolute_import
 from collections import OrderedDict
 import abc
 import six
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
-from psyclone.f2pygen import CommentGen, CallGen, PSyIRGen, UseGen
+from psyclone.f2pygen import CommentGen, CallGen, UseGen
 from psyclone.parse.algorithm import BuiltInCall
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import PSyIRVisitor
@@ -166,7 +165,7 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
     return arguments
 
 
-class PSyFactory(object):
+class PSyFactory():
     '''
     Creates a specific version of the PSy. If a particular api is not
     provided then the default api, as specified in the psyclone.cfg
@@ -228,7 +227,7 @@ class PSyFactory(object):
         return PSyClass(invoke_info)
 
 
-class PSy(object):
+class PSy():
     '''
     Base class to help manage and generate PSy code for a single
     algorithm file. Takes the invocation information output from the
@@ -293,7 +292,7 @@ class PSy(object):
         '''
 
 
-class Invokes(object):
+class Invokes():
     '''Manage the invoke calls.
 
     :param alg_calls: a list of invoke metadata extracted by the \
@@ -359,7 +358,7 @@ class Invokes(object):
             invoke.gen_code(parent)
 
 
-class Invoke(object):
+class Invoke():
     r'''Manage an individual invoke call.
 
     :param alg_invocation: metadata from the parsed code capturing \
@@ -1435,10 +1434,18 @@ class CodedKern(Kern):
 
         :param bool value: whether or not to module-inline this kernel.
         '''
-        # Check all kernels in the same invoke as this one and set any
-        # with the same name to the same value as this one. This is
-        # required as inlining (or not) affects all calls to the same
-        # kernel within an invoke.
+        if value is not True:
+            raise TypeError(
+                f"The module inline parameter only accepts the type boolean "
+                f"'True' since module-inlining is irreversible. But found:"
+                f" '{value}'.")
+        # Do the same to all kernels in this invoke with the same name.
+        # This is needed because gen_code/lowering would otherwise add
+        # an import with the same name and shadow the module-inline routine
+        # symbol.
+        # TODO 1823: The transformation could have more control about this by
+        # giving an option to specify if the module-inline applies to a
+        # single kernel, the whole invoke or the whole algorithm.
         my_schedule = self.ancestor(InvokeSchedule)
         for kernel in my_schedule.walk(Kern):
             if kernel is self:
@@ -1466,29 +1473,26 @@ class CodedKern(Kern):
         routine with the appropriate arguments.
 
         '''
-        # If the kernel has been transformed and it is not module inlined
-        # then we rename it.
-        if not self.module_inline:
-            self.rename_and_write()
-        else:
-            # Inline the kernel subroutine
-            self._insert_module_inlined_kernel()
-
-        # Create the appropriate symbols
         symtab = self.ancestor(InvokeSchedule).symbol_table
-        try:
-            rsymbol = symtab.lookup(self._name)
-        except KeyError:
-            rsymbol = RoutineSymbol(self._name)
-            symtab.add(rsymbol)
-            if not self.module_inline:
-                # Import subroutine symbol
-                try:
-                    csymbol = symtab.lookup(self._module_name)
-                except KeyError:
-                    csymbol = ContainerSymbol(self._module_name)
-                    symtab.add(csymbol)
-                rsymbol.interface = ImportInterface(csymbol)
+
+        if not self.module_inline:
+            # If it is not module inlined then make sure we generate the kernel
+            # file (and rename it when necessary).
+            self.rename_and_write()
+            # Then find or create the imported RoutineSymbol
+            try:
+                rsymbol = symtab.lookup(self._name)
+            except KeyError:
+                csymbol = symtab.find_or_create(
+                        self._module_name,
+                        symbol_type=ContainerSymbol)
+                rsymbol = symtab.new_symbol(
+                        self._name,
+                        symbol_type=RoutineSymbol,
+                        interface=ImportInterface(csymbol))
+        else:
+            # If its inlined, the symbol must exist
+            rsymbol = self.scope.symbol_table.lookup(self._name)
 
         # Create Call to the rsymbol with the argument expressions as children
         # of the new node
@@ -1496,84 +1500,6 @@ class CodedKern(Kern):
 
         # Swap itself with the appropriate Call node
         self.replace_with(call_node)
-
-    def _insert_module_inlined_kernel(self, f2pygen_parent=None):
-        ''' Module-inline this kernel into the tree if it hasn't been inlined
-        previously yet. Currently this needs to be done for the PSyIR tree and
-        the f2pygen tree. If the f2pygen_parent argument is None it will be
-        inlined in the PSyIR tree, otherwise it will be inlined in the provided
-        parent
-
-        :param parent: The parent of this kernel call in the f2pygen AST.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen` or NoneType
-
-        :raises NotImplementedError: if there is a name clash that prevents \
-            the kernel from being module-inlined without changing its name.
-
-        '''
-        # Check for name clashes
-        try:
-            # Disable false positive no-member issue
-            # pylint: disable=no-member
-            existing_symbol = self.scope.symbol_table.lookup(self._name)
-        except KeyError:
-            existing_symbol = None
-
-        if not existing_symbol:
-            # If it doesn't exist already, module-inline the subroutine by:
-            # 1) Registering the subroutine symbol in the Container
-            self.root.symbol_table.add(RoutineSymbol(self._name))
-            # 2) Insert the relevant code into the tree.
-            inlined_code = self.get_kernel_schedule()
-            if f2pygen_parent:
-                # If we are building a f2pygen tree add it to a PSyIRGen node
-                # under the PSy-layer f2pygen module.
-                module = f2pygen_parent
-                while module.parent:
-                    module = module.parent
-                module.add(PSyIRGen(module, inlined_code))
-            else:
-                # Otherwise just add it to the current PSyIR tree
-                self.root.addchild(inlined_code.detach())
-
-        else:
-            # If the symbol already exists, make sure it refers
-            # to the exact same subroutine.
-            if not isinstance(existing_symbol, RoutineSymbol):
-                raise NotImplementedError(
-                    f"Can not module-inline subroutine '{self._name}' because "
-                    f"symbol '{existing_symbol}' with the same name already "
-                    f"exists and changing names of module-inlined subroutines "
-                    f"is not implemented yet.")
-
-            # Make sure the generated code is an exact match by creating
-            # the f2pygen node (which in turn creates the fparser1) of the
-            # kernel_schedule and then compare it to the fparser1 trees of
-            # the PSyIRGen f2pygen nodes children of module.
-            if f2pygen_parent:
-                module = f2pygen_parent
-                while module.parent:
-                    module = module.parent
-                search = PSyIRGen(module, self.get_kernel_schedule()).root
-                for child in module.children:
-                    if isinstance(child, PSyIRGen) \
-                            and child.root.name == search.name:
-                        if child.root != search:
-                            raise NotImplementedError(
-                                f"Can not inline subroutine '{self._name}' "
-                                f"because another, different, subroutine with "
-                                f"the same name already exists and versioning "
-                                f"of module-inlined subroutines is not "
-                                f"implemented yet.")
-                        else:
-                            # Found and matches expected routine
-                            return
-                else:
-                    # Implementation not found, but the symbol already exists.
-                    # This happens when psy.gen is called multiple times and
-                    # the module_gen is restarted, we need to re-introduce the
-                    # PSyIRGen containing the kernel code.
-                    module.add(PSyIRGen(module, self.get_kernel_schedule()))
 
     def gen_code(self, parent):
         '''
@@ -1583,10 +1509,12 @@ class CodedKern(Kern):
         :param parent: The parent of this kernel call in the f2pygen AST.
         :type parent: :py:class:`psyclone.f2pygen.LoopGen`
 
+        :raises GenerationError: if the call is module-inlined but the \
+            subroutine in not declared in this module.
         '''
-        # If the kernel has been transformed then we rename it. If it
-        # is *not* being module inlined then we also write it to file.
-        self.rename_and_write()
+        # If the kernel has been transformed then we rename it.
+        if not self.module_inline:
+            self.rename_and_write()
 
         # Add the subroutine call with the necessary arguments
         arguments = self.arguments.raw_arg_list()
@@ -1598,7 +1526,14 @@ class CodedKern(Kern):
             parent.add(UseGen(parent, name=self._module_name, only=True,
                               funcnames=[self._name]))
         else:
-            self._insert_module_inlined_kernel(parent)
+            # If its inlined, the symbol must already exist
+            try:
+                self.scope.symbol_table.lookup(self._name)
+            except KeyError as err:
+                raise GenerationError(
+                    f"Cannot generate this kernel call to '{self.name}' "
+                    f"because it is marked as module-inline but no such "
+                    f"subroutine exist in this module.") from err
 
     def incremented_arg(self):
         ''' Returns the argument that has INC access. Raises a
@@ -1679,8 +1614,10 @@ class CodedKern(Kern):
         import os
         from psyclone.line_length import FortLineLength
 
-        # If this kernel has not been transformed we do nothing
-        if not self.modified:
+        # If this kernel has not been transformed we do nothing, also if the
+        # kernel has been module-inlined, the routine already exist in the
+        # PSyIR and we don't need to generate a new file with it.
+        if not self.modified or self.module_inline:
             return
 
         # Remove any "_mod" if the file follows the PSyclone naming convention
@@ -1725,15 +1662,6 @@ class CodedKern(Kern):
 
         # Kernel is now self-consistent so unset the modified flag
         self.modified = False
-
-        # If this kernel is being module in-lined then we do not need to
-        # write it to file.
-        if self.module_inline:
-            # TODO #1013: However, the file is already created (opened) and
-            # currently this file is needed for the name versioning, so this
-            # will create an unnecessary file.
-            os.close(fdesc)
-            return
 
         # If we reach this point the kernel needs to be written out into a
         # file using a PSyIR back-end. At the moment there is no way to choose
@@ -1924,7 +1852,7 @@ class BuiltIn(Kern):
         return []
 
 
-class Arguments(object):
+class Arguments():
     '''
     Arguments abstract base class.
 
@@ -2021,7 +1949,7 @@ class Arguments(object):
             "Arguments.append must be implemented in sub-class")
 
 
-class DataAccess(object):
+class DataAccess():
     '''A helper class to simplify the determination of dependencies due to
     overlapping accesses to data associated with instances of the
     Argument class.
@@ -2175,7 +2103,7 @@ class DataAccess(object):
         return self._covered
 
 
-class Argument(object):
+class Argument():
     '''
     Argument base class. Captures information on an argument that is passed
     to a Kernel from an Invoke.
@@ -2191,6 +2119,7 @@ class Argument(object):
     :type access: str
 
     '''
+    # pylint: disable=too-many-instance-attributes
     def __init__(self, call, arg_info, access):
         self._call = call
         if arg_info is not None:
@@ -2631,9 +2560,24 @@ class Argument(object):
 
 
 class KernelArgument(Argument):
+    '''
+    This class provides information about individual kernel-call
+    arguments as specified by the kernel argument metadata and the
+    kernel invocation in the Algorithm layer.
+
+    :param arg: information obtained from the metadata for this kernel \
+                argument.
+    :type arg: :py:class:`psyclone.parse.kernel.Descriptor`
+    :param arg_info: information on how this argument is specified in \
+                     the Algorithm layer.
+    :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
+    :param call: the PSyIR kernel node to which this argument pertains.
+    :type call: :py:class:`psyclone.psyGen.Kern`
+
+    '''
     def __init__(self, arg, arg_info, call):
         self._arg = arg
-        Argument.__init__(self, call, arg_info, arg.access)
+        super().__init__(call, arg_info, arg.access)
 
     @property
     def space(self):
@@ -2649,8 +2593,17 @@ class KernelArgument(Argument):
         ''':returns: whether this variable is a scalar variable or not.
         :rtype: bool'''
 
+    @property
+    def metadata_index(self):
+        '''
+        :returns: the position of the corresponding argument descriptor in \
+                  the kernel metadata.
+        :rtype: int
+        '''
+        return self._arg.metadata_index
 
-class TransInfo(object):
+
+class TransInfo():
     '''
     This class provides information about, and access, to the available
     transformations in this implementation of PSyclone. New transformations

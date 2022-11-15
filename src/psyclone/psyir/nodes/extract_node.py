@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council
+# Copyright (c) 2019-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author I. Kavcic, Met Office
 # Modified by A. R. Porter, S. Siso and R. W. Ford, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 '''
@@ -47,8 +48,6 @@ Another class which contains helper functions for code extraction, such as
 wrapping up settings for generating driver for the extracted code, will
 be added in Issue #298.
 '''
-
-from __future__ import absolute_import, print_function
 
 from psyclone.f2pygen import CommentGen
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
@@ -88,9 +87,8 @@ class ExtractNode(PSyDataNode):
     _default_prefix = "extract"
 
     def __init__(self, ast=None, children=None, parent=None, options=None):
-
-        super(ExtractNode, self).__init__(ast=ast, children=children,
-                                          parent=parent, options=options)
+        super().__init__(ast=ast, children=children,
+                         parent=parent, options=options)
 
         # Define a postfix that will be added to variable that are
         # modified to make sure the names can be distinguished between pre-
@@ -130,7 +128,7 @@ class ExtractNode(PSyDataNode):
         :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
 
         '''
-        return super(ExtractNode, self).psy_data_body
+        return super().psy_data_body
 
     @property
     def post_name(self):
@@ -157,8 +155,8 @@ class ExtractNode(PSyDataNode):
         from psyclone.psyir.tools.dependency_tools import DependencyTools
         # Determine the variables to write:
         dep = DependencyTools()
-        input_list, output_list = dep.get_in_out_parameters(self)
-
+        input_list, output_list = \
+            dep.get_in_out_parameters(self, options=self.options)
         options = {'pre_var_list': input_list,
                    'post_var_list': output_list,
                    'post_var_postfix': self._post_name}
@@ -166,7 +164,7 @@ class ExtractNode(PSyDataNode):
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ExtractStart"))
         parent.add(CommentGen(parent, ""))
-        super(ExtractNode, self).gen_code(parent, options)
+        super().gen_code(parent, options)
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ExtractEnd"))
         parent.add(CommentGen(parent, ""))
@@ -182,13 +180,14 @@ class ExtractNode(PSyDataNode):
         from psyclone.psyir.tools.dependency_tools import DependencyTools
         # Determine the variables to write:
         dep = DependencyTools()
-        input_list, output_list = dep.get_in_out_parameters(self)
+        input_list, output_list = \
+            dep.get_in_out_parameters(self, options=self.options)
 
         options = {'pre_var_list': input_list,
                    'post_var_list': output_list,
                    'post_var_postfix': self._post_name}
 
-        super(ExtractNode, self).lower_to_language_level(options)
+        super().lower_to_language_level(options)
 
 
 # For AutoAPI documentation generation

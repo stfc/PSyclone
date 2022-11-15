@@ -86,9 +86,9 @@ def test_omptaskloop_getters_and_setters():
     assert trans.omp_num_tasks == 32
     with pytest.raises(TransformationError) as err:
         trans.omp_grainsize = 32
-    assert("The grainsize and num_tasks clauses would both "
-           "be specified for this Taskloop transformation"
-           in str(err.value))
+    assert ("The grainsize and num_tasks clauses would both "
+            "be specified for this Taskloop transformation"
+            in str(err.value))
     trans.omp_num_tasks = None
     assert trans.omp_num_tasks is None
     trans.omp_grainsize = 32
@@ -103,9 +103,9 @@ def test_omptaskloop_getters_and_setters():
 
     with pytest.raises(TransformationError) as err:
         trans = OMPTaskloopTrans(grainsize=32, num_tasks=32)
-    assert("The grainsize and num_tasks clauses would both "
-           "be specified for this Taskloop transformation"
-           in str(err.value))
+    assert ("The grainsize and num_tasks clauses would both "
+            "be specified for this Taskloop transformation"
+            in str(err.value))
 
     with pytest.raises(TypeError) as err:
         trans = OMPTaskloopTrans(nogroup=32)

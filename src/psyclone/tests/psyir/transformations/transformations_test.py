@@ -40,7 +40,6 @@
 API-agnostic tests for various transformation classes.
 '''
 
-from __future__ import absolute_import, print_function
 import os
 import pytest
 
@@ -156,9 +155,9 @@ def test_omptaskloop_getters_and_setters():
     assert trans.omp_num_tasks == 32
     with pytest.raises(TransformationError) as err:
         trans.omp_grainsize = 32
-    assert("The grainsize and num_tasks clauses would both "
-           "be specified for this Taskloop transformation"
-           in str(err.value))
+    assert ("The grainsize and num_tasks clauses would both "
+            "be specified for this Taskloop transformation"
+            in str(err.value))
     trans.omp_num_tasks = None
     assert trans.omp_num_tasks is None
     trans.omp_grainsize = 32
@@ -173,9 +172,9 @@ def test_omptaskloop_getters_and_setters():
 
     with pytest.raises(TransformationError) as err:
         trans = OMPTaskloopTrans(grainsize=32, num_tasks=32)
-    assert("The grainsize and num_tasks clauses would both "
-           "be specified for this Taskloop transformation"
-           in str(err.value))
+    assert ("The grainsize and num_tasks clauses would both "
+            "be specified for this Taskloop transformation"
+            in str(err.value))
 
     with pytest.raises(TypeError) as err:
         trans = OMPTaskloopTrans(nogroup=32)
@@ -351,7 +350,7 @@ def test_omplooptrans_properties():
     with pytest.raises(ValueError) as err:
         omplooptrans.omp_schedule = "invalid"
     assert ("Valid OpenMP schedules are ['runtime', 'static', 'dynamic', "
-            "'guided', 'auto'] but got 'invalid'." in str(err.value))
+            "'guided', 'auto', 'none'] but got 'invalid'." in str(err.value))
 
     with pytest.raises(ValueError) as err:
         omplooptrans.omp_schedule = "auto,3"
@@ -609,9 +608,9 @@ def test_ompsingle_nested():
     single.apply(schedule[0])
     with pytest.raises(TransformationError) as err:
         single.apply(schedule[0])
-    assert("Transformation Error: Nodes of type 'OMPSingleDirective' cannot" +
-           " be enclosed by a OMPSingleTrans transformation"
-           in str(err.value))
+    assert ("Transformation Error: Nodes of type 'OMPSingleDirective' cannot"
+            " be enclosed by a OMPSingleTrans transformation"
+            in str(err.value))
 
 
 # Tests for OMPMasterTrans
@@ -640,9 +639,9 @@ def test_ompmaster_nested():
     assert schedule[0].dir_body[0] is node
     with pytest.raises(TransformationError) as err:
         master.apply(schedule[0])
-    assert("Transformation Error: Nodes of type 'OMPMasterDirective' cannot" +
-           " be enclosed by a OMPMasterTrans transformation"
-           in str(err.value))
+    assert ("Transformation Error: Nodes of type 'OMPMasterDirective' cannot"
+            " be enclosed by a OMPMasterTrans transformation"
+            in str(err.value))
 
 
 # Tests for ProfileTrans
