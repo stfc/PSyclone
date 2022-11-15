@@ -40,15 +40,45 @@
 It provides convenience functions to create often used symbols.
 '''
 
-from psyclone.domain.lfric import psyir
-from psyclone.psyir.symbols import ArrayType, DataSymbol, SymbolTable
+from psyclone.domain.lfric import LFRicConstants, psyir
+from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
+                                    ImportInterface, INTEGER_TYPE, Symbol,
+                                    SymbolTable)
 
 
 class LFRicSymbolTable(SymbolTable):
+    # pylint: disable=abstract-method
     '''
     Sub-classes SymbolTable to provide a LFRic-specific implementation.
+
+    :param node: reference to the Schedule or Container to which this \
+        symbol table belongs.
+    :type node: :py:class:`psyclone.psyir.nodes.Schedule`, \
+        :py:class:`psyclone.psyir.nodes.Container` or NoneType
+    :param default_visibility: optional default visibility value for this \
+        symbol table, if not provided it defaults to PUBLIC visibility.
+    :type default_visibillity: \
+        :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+
     '''
-    # pylint: disable=abstract-method
+
+    # The container symbol for all precision variables
+    _constants_mod = None
+    # A mapping of 'i_def' etc. to the corresponding DataSymbole
+    _precision_map = {}
+
+    def __init__(self, node=None, default_visibility=Symbol.Visibility.PUBLIC):
+        super().__init__(node, default_visibility)
+        # First time an instance of this is created, define
+        # the precision mapping.
+        if LFRicSymbolTable._constants_mod is None:
+            const = LFRicConstants()
+            mod_name = const.UTILITIES_MOD_MAP["constants"]["module"]
+            LFRicSymbolTable._constants_mod = ContainerSymbol(mod_name)
+            for intrinsic, precision in const.SCALAR_PRECISION_MAP.items():
+                LFRicSymbolTable._precision_map[intrinsic] = \
+                    DataSymbol(precision, INTEGER_TYPE,
+                               interface=ImportInterface(self._constants_mod))
 
     def find_or_create_integer_symbol(self, name, tag=None):
         '''This function returns a symbol for an integer reference. If a
@@ -164,4 +194,50 @@ class LFRicSymbolTable(SymbolTable):
                             f"{len(sym.shape)} dimensions, not "
                             f"{num_dimensions}.")
 
+        return sym
+
+    # ------------------------------------------------------------------------
+    def add_lfric_precision_symbol(self, name):
+        '''
+        If the named LFRic precision symbol is not already in the table then
+        add it. Also ensure that the Container symbol from which it is
+        imported is in the table.
+
+        :param str name: name of the LFRic precision symbol to add to table.
+
+        :returns: the specified LFRic precision symbol.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        :raises ValueError: if the supplied name is not a recognised LFRic \
+            precision variable.
+        :raises ValueError: if a symbol with the same name is already in the \
+            table but is not imported from the correct container.
+
+        '''
+        if name == "i_def":
+            sym = LFRicSymbolTable._precision_map["integer"]
+        elif name == "r_def":
+            sym = LFRicSymbolTable._precision_map["real"]
+        elif name == "l_def":
+            sym = LFRicSymbolTable._precision_map["logical"]
+        else:
+            raise ValueError(f"'{name}' is not a recognised LFRic precision.")
+
+        if name in self:
+            # Sanity check that the existing symbol is the right one.
+            existing_sym = self.lookup(name)
+            if (not isinstance(existing_sym.interface, ImportInterface) or
+                    existing_sym.interface.container_symbol !=
+                    LFRicSymbolTable._constants_mod):
+                raise ValueError(
+                    f"Precision symbol '{name}' already exists in the "
+                    f"supplied symbol table but is not imported from the "
+                    f"LFRic constants module "
+                    f"({LFRicSymbolTable._constants_mod.name}).")
+            return existing_sym
+
+        # pylint: disable=undefined-variable
+        if self._constants_mod.name not in self:
+            self.add(self._constants_mod)
+        self.add(sym)
         return sym

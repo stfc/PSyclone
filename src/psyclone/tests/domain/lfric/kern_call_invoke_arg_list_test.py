@@ -32,14 +32,14 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: J. Henrichs, Bureau of Meteorology
 
 ''' Module containing pytest tests for the xxx class. '''
 
 import pytest
 
-from psyclone.domain.lfric.kern_call_invoke_arg_list import (
-    KernCallInvokeArgList)
-from psyclone.psyir.symbols import SymbolTable, DataTypeSymbol, DeferredType
+from psyclone.domain.lfric import (KernCallInvokeArgList, LFRicSymbolTable)
+from psyclone.psyir.symbols import DataTypeSymbol, DeferredType
 
 
 def test_kcial_construct(dynkern):
@@ -48,7 +48,7 @@ def test_kcial_construct(dynkern):
         KernCallInvokeArgList(dynkern, None)
     assert ("Argument 'symbol_table' must be a SymbolTable instance but got "
             "'NoneType'" in str(err.value))
-    obj = KernCallInvokeArgList(dynkern, SymbolTable())
+    obj = KernCallInvokeArgList(dynkern, LFRicSymbolTable())
     assert obj.fields == []
     assert obj.scalars == []
     assert obj.quadrature_objects == []
@@ -58,7 +58,7 @@ def test_kcial_generate(dynkern):
     ''' Tests for the KernCallInvokeArgList.generate() method. '''
     # generate() assumes a suitably initialised symbol table so create
     # that here.
-    table = SymbolTable()
+    table = LFRicSymbolTable()
     table.new_symbol("field_type", symbol_type=DataTypeSymbol,
                      datatype=DeferredType())
     kcial = KernCallInvokeArgList(dynkern, table)
@@ -79,7 +79,7 @@ def test_kcial_generate(dynkern):
 def test_kcial_not_implemented(dynkern):
     ''' Check all the methods that handle unsupported types of kernel
     argument. '''
-    kcial = KernCallInvokeArgList(dynkern, SymbolTable())
+    kcial = KernCallInvokeArgList(dynkern, LFRicSymbolTable())
     with pytest.raises(NotImplementedError) as err:
         kcial.stencil(None)
     assert "Stencils are not yet supported" in str(err.value)

@@ -151,7 +151,7 @@ class KernCallInvokeArgList(ArgOrdering):
 
         consts = LFRicConstants()
         precision_name = consts.SCALAR_PRECISION_MAP[scalar_arg.intrinsic_type]
-        psyir.add_lfric_precision_symbol(self._symtab, precision_name)
+        self._symtab.add_lfric_precision_symbol(precision_name)
 
         sym = self._symtab.new_symbol(scalar_arg.name,
                                       symbol_type=DataSymbol,

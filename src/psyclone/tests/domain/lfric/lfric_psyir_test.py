@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,16 +33,17 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 # Modified S. Siso, STFC Daresbury Lab
+# Modified J. Henrichs, Bureau of Meteorology
 
 '''Test that the LFRic-specific PSyIR classes are created and declared
 correctly'''
 
 from __future__ import absolute_import
 import pytest
-from psyclone.domain.lfric import psyir as lfric_psyir
+from psyclone.domain.lfric import psyir as lfric_psyir, LFRicSymbolTable
 from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, \
     ImportInterface, ScalarType, LocalInterface, ArgumentInterface, \
-    ArrayType, Symbol, SymbolTable, INTEGER_TYPE
+    ArrayType, Symbol, INTEGER_TYPE
 from psyclone.psyir.nodes import Reference, Literal
 
 
@@ -447,16 +448,16 @@ def test_vector_fields(symbol, parent_symbol, dims, attribute_map):
 def test_add_lfric_precision_symbol():
     ''' Test that the add_lfric_precision_symbol() routine rejects invalid
     precision symbols and otherwise works as expected. '''
-    table = SymbolTable()
+    table = LFRicSymbolTable()
     # Unrecognised name of precision.
     with pytest.raises(ValueError) as err:
-        lfric_psyir.add_lfric_precision_symbol(table, "r_wrong")
+        table.add_lfric_precision_symbol("r_wrong")
     assert "'r_wrong' is not a recognised LFRic precision" in str(err.value)
     # Symbol already exists but not imported from any container.
     wrong_r_def = DataSymbol("r_def", INTEGER_TYPE)
     table.add(wrong_r_def)
     with pytest.raises(ValueError) as err:
-        lfric_psyir.add_lfric_precision_symbol(table, "r_def")
+        table.add_lfric_precision_symbol("r_def")
     assert ("symbol 'r_def' already exists in the supplied symbol table but "
             "is not imported from the LFRic constants module" in
             str(err.value))
@@ -467,14 +468,14 @@ def test_add_lfric_precision_symbol():
                              interface=ImportInterface(wrong_csym))
     table.add(wrong_l_def)
     with pytest.raises(ValueError) as err:
-        lfric_psyir.add_lfric_precision_symbol(table, "l_def")
+        table.add_lfric_precision_symbol("l_def")
     assert ("symbol 'l_def' already exists in the supplied symbol table but "
             "is not imported from the LFRic constants module" in
             str(err.value))
     # A valid name that's not already present.
-    lfric_psyir.add_lfric_precision_symbol(table, "i_def")
+    table.add_lfric_precision_symbol("i_def")
     idef = table.lookup("i_def")
-    assert idef.interface.container_symbol is lfric_psyir.CONSTANTS_MOD
+    assert idef.interface.container_symbol is LFRicSymbolTable._constants_mod
     # Repeating the call does not change anything.
-    lfric_psyir.add_lfric_precision_symbol(table, "i_def")
+    table.add_lfric_precision_symbol("i_def")
     assert table.lookup("i_def") is idef
