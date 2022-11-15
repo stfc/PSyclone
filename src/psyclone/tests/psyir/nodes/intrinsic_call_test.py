@@ -85,4 +85,5 @@ def test_intrinsiccall_create_errors():
     with pytest.raises(TypeError) as err:
         IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,
                              [aref, ("yacht", Reference(sym))])
-    assert "hello" in str(err.value)
+    assert ("The 'ALLOCATE' intrinsic only supports the optional arguments "
+            "['mold', 'status'] but got 'yacht'" in str(err.value))
