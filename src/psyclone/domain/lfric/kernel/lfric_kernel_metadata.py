@@ -72,7 +72,7 @@ class LFRicKernelMetadata():
         :py:class:`psyclone.domain.lfric.kernel.ScalarArg` | \
         :py:class:`psyclone.domain.lfric.kernel.FieldArg` | \
         :py:class:`pscylong.domain.lfric.kernel.OperatorArg`]]
-    :param meta_funcs: a list of 'meta_func' objects which capture whether \
+    :param meta_funcs: a list of 'meta_funcs' objects which capture whether \
         quadrature or evaluator data is required for a given function space.
     :type meta_funcs: Optional[List[:py:class:`TODO`]] # issue #1879
     :param meta_reference_element: a kernel that requires properties \

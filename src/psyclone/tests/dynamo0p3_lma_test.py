@@ -314,7 +314,7 @@ def test_fs_descriptor_wrong_type():
 
     with pytest.raises(ParseError) as excinfo:
         LFRicMetaFuncsDescriptor(FakeCls())
-    assert ("each 'meta_func' entry must be of type 'func_type' but found "
+    assert ("each 'meta_funcs' entry must be of type 'func_type' but found "
             in str(excinfo.value))
 
 
@@ -326,7 +326,7 @@ def test_fs_descriptor_too_few_args():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert "'meta_func' entry must have at least 2 args" in str(excinfo.value)
+    assert "'meta_funcs' entry must have at least 2 args" in str(excinfo.value)
 
 
 def test_fs_desc_invalid_fs_type():
@@ -337,7 +337,7 @@ def test_fs_desc_invalid_fs_type():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("1st argument of a 'meta_func' entry should be a valid function "
+    assert ("1st argument of a 'meta_funcs' entry should be a valid function "
             "space name" in str(excinfo.value))
 
 
@@ -355,27 +355,28 @@ def test_fs_desc_replicated_fs_type():
 
 def test_fs_desc_invalid_op_type():
     ''' Tests that an error is raised when an invalid function space
-    operator name is provided as an argument. '''
+    evaluator name (other than ('gh_basis/gh_diff_basis') is provided
+    as an argument. '''
     code = CODE.replace("w2, gh_diff_basis", "w2, gh_dif_basis", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("2nd argument and all subsequent arguments of a 'meta_func' "
+    assert ("2nd argument and all subsequent arguments of a 'meta_funcs' "
             "entry should be one of" in str(excinfo.value))
 
 
 def test_fs_desc_replicated_op_type():
     ''' Tests that an error is raised when a function space
-    operator name is replicated as an argument. '''
+    evaluator name is replicated as an argument. '''
     code = CODE.replace("w3, gh_basis, gh_diff_basis",
                         "w3, gh_basis, gh_basis", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert 'error to specify an operator name more than once' \
-        in str(excinfo.value)
+    assert ("error to specify an evaluator name ('gh_basis/gh_diff_basis') "
+            "more than once" in str(excinfo.value))
 
 
 def test_fsdesc_fs_not_in_argdesc():

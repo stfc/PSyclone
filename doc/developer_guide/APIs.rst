@@ -104,7 +104,7 @@ TBD
 .. 
 .. type x
 .. meta_args=
-.. *meta_func=*
+.. *meta_funcs=*
 .. iterates_over=
 .. code => or code =
 .. end type x
