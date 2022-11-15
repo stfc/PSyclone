@@ -38,25 +38,17 @@
 
 from enum import Enum
 
+from psyclone.errors import GenerationError
+from psyclone.psyir.nodes.array_reference import ArrayReference
 from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.nodes.statement import Statement
-from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols import IntrinsicSymbol
-from psyclone.errors import GenerationError
 
 
 class IntrinsicCall(Call):
     ''' Node representing a call to an intrinsic routine (function or
     subroutine). This can be found as a standalone statement
     or an expression.
-
-    :param routine: the routine that this call calls.
-    :type routine: py:class:`psyclone.psyir.symbols.RoutineSymbol`
-    :param parent: parent of this node in the PSyIR.
-    :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
-
-    :raises TypeError: if the routine argument is not a RoutineSymbol.
 
     '''
     # Textual description of the node.
@@ -66,13 +58,16 @@ class IntrinsicCall(Call):
     _min_arg_count = 0
     _max_arg_count = 0
 
+    #: The intrinsics that can be represented by this node.
     Intrinsic = Enum('Intrinsic', [
         'ALLOCATE', 'DEALLOCATE', 'RANDOM'
         ])
 
+    #: List of required arguments, indexed by intrinsic name.
     _required_args = {}
+    #: Dict of optional arguments, indexed by intrinsic name.
     _optional_args = {}
-    _required_args[Intrinsic.ALLOCATE.name] = [Reference, list]
+    _required_args[Intrinsic.ALLOCATE.name] = [ArrayReference]
     _optional_args[Intrinsic.ALLOCATE.name] = {"mold": Reference,
                                                "status": Reference}
     _required_args[Intrinsic.DEALLOCATE.name] = [Reference]
@@ -86,8 +81,8 @@ class IntrinsicCall(Call):
         symbol, and a list of child nodes (or name and node tuple) for
         its arguments.
 
-        :param routine: the routine that class cls calls.
-        :type routine: py:class:`psyclone.psyir.symbols.RoutineSymbol`
+        :param intrinsic: the Intrinsic being called.
+        :type intrinsic: py:class:`psyclone.psyir.IntrinsicCall.Intrinsic`
         :param arguments: the arguments to this routine, and/or \
             2-tuples containing an argument name and the \
             argument. Arguments are added as child nodes.
@@ -96,41 +91,60 @@ class IntrinsicCall(Call):
                   Tuple[str, :py:class:``psyclone.psyir.nodes.DataNode``]]]
 
         :returns: an instance of cls.
-        :rtype: :py:class:`psyclone.psyir.nodes.Call` or a subclass thereof.
+        :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
-        :raises GenerationError: if the routine argument is not a \
-            RoutineSymbol.
-        :raises GenerationError: if the arguments argument is not a \
-            list.
+        :raises TypeError: if the intrinsic argument is not an \
+                           IntrinsicCall.Intrinsic.
+        :raises TypeErrpr: if the arguments argument is not a list.
         :raises GenerationError: if the contents of the arguments \
             argument are not the expected type.
 
         '''
         if not isinstance(intrinsic, IntrinsicCall.Intrinsic):
             raise TypeError(
-                f"IntrinsicCall create arguments argument should be a list "
-                f"but found '{type(arguments).__name__}'.")
+                f"IntrinsicCall create() 'intrinsic' argument should be an "
+                f"instance of IntrinsicCall.Intrinsic but found "
+                f"'{type(intrinsic).__name__}'.")
+
+        if not isinstance(arguments, list):
+            raise TypeError(
+                f"IntrinsicCall.create() 'arguments' argument should be a "
+                f"list but found '{type(arguments).__name__}'")
 
         # Create a call, supplying an IntrinsicSymbol in place of a
         # RoutineSymbol.
         call = super().create(IntrinsicSymbol(intrinsic.name), arguments)
+
+        reqd_args = cls._required_args[intrinsic.name]
+        if len(arguments) < len(reqd_args):
+            raise GenerationError(
+                f"The '{intrinsic.name}' intrinsic requires {len(reqd_args)} "
+                f"arguments but got {len(arguments)}.")
+
+        if cls._optional_args[intrinsic.name]:
+            optional_arg_names = sorted(list(
+                cls._optional_args[intrinsic.name].keys()))
+        else:
+            optional_arg_names = []
 
         # Validate the supplied arguments.
         arg_pos = 0
         for idx, arg in enumerate(call.children):
             name = call._argument_names[idx][1]
             if name:
-                if name not in IntrinsicCall._optional_args[intrinsic.name]:
+                if name not in optional_arg_names:
                     raise GenerationError(
-                        f"The {intrinsic.name} IntrinsicCall only supports "
-                        f"the optional arguments "
-                        f"{IntrinsicCall._optional_args[intrinsic.name]} but "
+                        f"The '{intrinsic.name}' intrinsic only supports "
+                        f"the optional arguments {optional_arg_names} but "
                         f"got '{name}'.")
-                if type(arg) != IntrinsicCall._optional_args[intrinsic.name][name]:
+                if type(arg) != cls._optional_args[intrinsic.name][name]:
                     raise TypeError("arp2")
             else:
-                if type(arg) != IntrinsicCall._required_args[intrinsic.name][arg_pos]:
-                    raise TypeError("arp3")
+                if type(arg) != reqd_args[arg_pos]:
+                    raise GenerationError(
+                        f"The '{intrinsic.name}' intrinsic requires an "
+                        f"argument of type '{reqd_args[arg_pos].__name__}' at "
+                        f"position {arg_pos} but got a '{type(arg).__name__}'")
                 arg_pos += 1
 
         return call

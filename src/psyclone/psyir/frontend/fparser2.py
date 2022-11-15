@@ -41,17 +41,15 @@
 
 from collections import OrderedDict
 import os
-import six
 
 from fparser.two import Fortran2003, utils
 from fparser.two.utils import walk, BlockBase, StmtBase
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes import (
-    UnaryOperation, BinaryOperation,
-    NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop,
-    Container, Assignment, Return, ArrayReference, Node, Range,
-    KernelSchedule, StructureReference, ArrayOfStructuresReference,
-    Call, Routine, Member, FileContainer, Directive, ArrayMember,
+    UnaryOperation, BinaryOperation, NaryOperation, Schedule, CodeBlock,
+    IfBlock, Reference, Literal, Loop, Container, Assignment, Return, Node,
+    ArrayReference, Range, KernelSchedule, StructureReference, Routine, Call,
+    ArrayOfStructuresReference, Member, FileContainer, Directive, ArrayMember,
     IntrinsicCall)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_of_structures_mixin import \
@@ -794,7 +792,7 @@ def _create_struct_reference(parent, base_ref, base_symbol, members,
     # members making up this structure access.
     new_members = []
     for member in members:
-        if isinstance(member, six.string_types):
+        if isinstance(member, str):
             new_members.append(member)
         elif isinstance(member, tuple):
             # Second member of the tuple is a list of index expressions
@@ -2337,8 +2335,8 @@ class Fparser2Reader():
         :param parent: parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Schedule`
 
-        :returns: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyir.nodes.Call`
+        :returns: PSyIR representation of an allocate.
+        :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
         '''
         call = IntrinsicCall(

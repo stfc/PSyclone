@@ -38,8 +38,9 @@
 
 import pytest
 
+from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import (
-    Literal, IntrinsicCall, Reference)
+    ArrayReference, Literal, IntrinsicCall, Reference)
 from psyclone.psyir.symbols import (ArrayType, DataSymbol, INTEGER_TYPE,
                                     IntrinsicSymbol)
 
@@ -51,21 +52,37 @@ def test_intrinsiccall_create():
     '''
     sym = DataSymbol("my_array", ArrayType(INTEGER_TYPE,
                                            [ArrayType.Extent.DEFERRED]))
-    alloc = IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,
-                                 [Reference(sym)])
+    alloc = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.ALLOCATE,
+        [ArrayReference.create(sym, [Literal("20", INTEGER_TYPE)])])
     assert isinstance(alloc, IntrinsicCall)
+
+
+def test_intrinsiccall_create_errors():
+    '''
+    Checks for the validation/type checking in the create() method.
+
+    '''
+    sym = DataSymbol("my_array", ArrayType(INTEGER_TYPE,
+                                           [ArrayType.Extent.DEFERRED]))
+    aref = ArrayReference.create(sym, [Literal("20", INTEGER_TYPE)])
     with pytest.raises(TypeError) as err:
         IntrinsicCall.create("ALLOCATE", [Reference(sym)])
-    assert "hello" in str(err.value)
-    # An allocate must have one or more References as argument.
-    with pytest.raises(TypeError) as err:
+    assert ("'intrinsic' argument should be an instance of "
+            "IntrinsicCall.Intrinsic but found 'str'" in str(err.value))
+    # An allocate must have one or more ArrayReferences as argument.
+    with pytest.raises(GenerationError) as err:
         IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE, [])
-    assert "hello" in str(err.value)
-    with pytest.raises(TypeError) as err:
-        IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE, [sym])
-    assert "hello" in str(err.value)
+    assert ("The 'ALLOCATE' intrinsic requires 1 arguments but got 0" in
+            str(err.value))
+    with pytest.raises(GenerationError) as err:
+        IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,
+                             [Reference(sym)])
+    assert ("The 'ALLOCATE' intrinsic requires an argument of type "
+            "'ArrayReference' at position 0 but got a 'Reference'" in
+            str(err.value))
     # An allocate only supports the 'stat' and 'mold' arguments.
     with pytest.raises(TypeError) as err:
         IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,
-                             [Reference(sym), ("yacht", Reference(sym))])
+                             [aref, ("yacht", Reference(sym))])
     assert "hello" in str(err.value)
