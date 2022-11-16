@@ -67,6 +67,9 @@ class OperatorArgMetadata(ScalarArgMetadata):
     # them.
     function_space_to_arg_index = 3
     function_space_from_arg_index = 4
+    # The name to use for any exceptions.
+    check_name = "operator"
+    # nargs = 5
 
     def __init__(self, datatype, access, function_space_to,
                  function_space_from):
@@ -75,8 +78,7 @@ class OperatorArgMetadata(ScalarArgMetadata):
         self.function_space_from = function_space_from
 
     @classmethod
-    def _get_metadata(cls, fparser2_tree, check_name="operator", nargs=5,
-                      vector=False):
+    def _get_metadata(cls, fparser2_tree, nargs=5):
         '''Extract the required metadata from the fparser2 tree and return it
         as strings. Also check that the metadata is in the expected
         form (but do not check the metadata values as that is done
@@ -85,9 +87,7 @@ class OperatorArgMetadata(ScalarArgMetadata):
         :param fparser2_tree: fparser2 tree containing the metadata \
             for this argument.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
-        :param str check_name: the name to use in any exceptions.
         :param int nargs: the number of expected metadata arguments.
-        :param bool vector: whether this is vector metadata.
 
         :returns: a tuple containing the datatype, access \
             fuction_space_to and function_space_from metadata.
@@ -95,7 +95,7 @@ class OperatorArgMetadata(ScalarArgMetadata):
 
         '''
         datatype, access = super()._get_metadata(
-            fparser2_tree, check_name=check_name, nargs=nargs, vector=vector)
+            fparser2_tree, nargs=nargs)
         function_space_to = OperatorArgMetadata.get_arg(
             fparser2_tree, OperatorArgMetadata.function_space_to_arg_index)
         function_space_from = OperatorArgMetadata.get_arg(

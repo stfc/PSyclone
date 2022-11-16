@@ -50,13 +50,8 @@ class ColumnwiseOperatorArgMetadata(OperatorArgMetadata):
     # The name used to specify a columnwise operator argument in LFRic
     # metadata.
     form = "gh_columnwise_operator"
-
-    @classmethod
-    def _get_metadata(cls, fparser2_tree, check_name="columnwise-operator",
-                      nargs=5, vector=False):
-        ''' xxx '''
-        return super()._get_metadata(
-            fparser2_tree, check_name=check_name, nargs=nargs, vector=vector)
+    # The name to use for any exceptions.
+    check_name = "columnwise-operator"
 
 
 __all__ = ["ColumnwiseOperatorArgMetadata"]

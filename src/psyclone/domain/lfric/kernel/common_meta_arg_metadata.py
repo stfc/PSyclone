@@ -71,7 +71,7 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
         '''Create an instance of the class from an fparser2 tree.
 
         :param fparser2_tree: fparser2 tree containing the metadata \
-            for a scalar argument.
+            for this argument.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
 
         :returns: an instance of the class.
@@ -84,14 +84,12 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
         return cls(*args)
 
     @classmethod
-    def check_first_arg(cls, fparser2_tree, name, vector=False):
+    def check_first_arg(cls, fparser2_tree):
         '''Check that the first metadata argument has the expected value.
 
         :param fparser2_tree: the metadata encoded in an fparser2_tree
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`
-        :param str name: the name used to describe this metadata.
-        :param bool vector: whether this is vector metadata.
 
         :raises ValueError: if the first metadata argument has an \
             incorrect value.
@@ -100,12 +98,12 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
         idx = cls.form_arg_index
         form = cls.get_arg(fparser2_tree, idx)
         word = "as"
-        if vector:
+        if cls.vector:
             form = form.split("*")[0].strip()
             word = "in"
         if not form.lower() == cls.form.lower():
             raise ValueError(
-                f"Metadata for '{name}' kernel arguments should have "
+                f"Metadata for '{cls.check_name}' kernel arguments should have "
                 f"'{cls.form}' {word} their first metadata "
                 f"argument, but found '{form}'.")
 
