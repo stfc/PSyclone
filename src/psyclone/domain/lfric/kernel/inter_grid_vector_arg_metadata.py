@@ -76,7 +76,7 @@ class InterGridVectorArgMetadata(InterGridArgMetadata):
         self.vector_length = vector_length
 
     @classmethod
-    def _get_metadata(cls, fparser2_tree, nargs=5):
+    def _get_metadata(cls, fparser2_tree):
         '''Extract the required metadata from the fparser2 tree and return it
         as strings. Also check that the metadata is in the expected
         form (but do not check the metadata values as that is done
@@ -86,7 +86,6 @@ class InterGridVectorArgMetadata(InterGridArgMetadata):
             for this argument.
         :type fparser2_tree: \
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`
-        :param int nargs: the number of expected metadata arguments.
 
         :returns: a tuple containing the datatype, access, function \
             space, mesh and vector metadata.
@@ -94,7 +93,7 @@ class InterGridVectorArgMetadata(InterGridArgMetadata):
 
         '''
         datatype, access, function_space, mesh_arg = super()._get_metadata(
-            fparser2_tree, nargs=nargs)
+            fparser2_tree)
         vector_length = cls.get_vector_length(fparser2_tree)
         return (datatype, access, function_space, mesh_arg, vector_length)
 

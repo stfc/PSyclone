@@ -59,10 +59,11 @@ class ScalarArgMetadata(CommonMetaArgMetadata):
     access_arg_index = 2
     # The name to use for any exceptions.
     check_name = "scalar"
-    # nargs = 3
+    # The number of arguments in the language-level metadata.
+    nargs = 3
 
     @classmethod
-    def _get_metadata(cls, fparser2_tree, nargs=3):
+    def _get_metadata(cls, fparser2_tree):
         '''Extract the required metadata from the fparser2 tree and return it
         as strings. Also check that the metadata is in the expected
         form (but do not check the metadata values as that is done
@@ -71,14 +72,13 @@ class ScalarArgMetadata(CommonMetaArgMetadata):
         :param fparser2_tree: fparser2 tree containing the metadata \
             for this argument.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
-        :param int nargs: the number of expected metadata arguments.
 
         :returns: a tuple containing the datatype and access metadata.
         :rtype: Tuple(str, str)
 
         '''
         cls.check_fparser2_arg(fparser2_tree, "arg_type")
-        cls.check_nargs(fparser2_tree, nargs)
+        cls.check_nargs(fparser2_tree)
         cls.check_first_arg(fparser2_tree)
         args = cls.get_type_and_access(fparser2_tree)
         return args

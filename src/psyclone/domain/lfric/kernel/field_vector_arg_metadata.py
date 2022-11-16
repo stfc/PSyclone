@@ -70,7 +70,7 @@ class FieldVectorArgMetadata(FieldArgMetadata):
         self.vector_length = vector_length
 
     @classmethod
-    def _get_metadata(cls, fparser2_tree, nargs=4):
+    def _get_metadata(cls, fparser2_tree):
         '''Extract the required metadata from the fparser2 tree and return it
         as strings. Also check that the metadata is in the expected
         form (but do not check the metadata values as that is done
@@ -79,7 +79,6 @@ class FieldVectorArgMetadata(FieldArgMetadata):
         :param fparser2_tree: fparser2 tree containing the metadata \
             for this argument.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
-        :param int nargs: the number of expected metadata arguments.
 
         :returns: a tuple containing the datatype, access, function \
             space and vector length metadata.
@@ -87,7 +86,7 @@ class FieldVectorArgMetadata(FieldArgMetadata):
 
         '''
         datatype, access, function_space = super()._get_metadata(
-            fparser2_tree, nargs=nargs)
+            fparser2_tree)
         vector_length = FieldVectorArgMetadata.get_vector_length(
             fparser2_tree)
         return (datatype, access, function_space, vector_length)

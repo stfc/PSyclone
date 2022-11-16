@@ -65,7 +65,7 @@ class CommonArgMetadata(CommonMetadata):
 
     @staticmethod
     def check_nargs(fparser2_tree, nargs):
-        '''Checks that the metadata may has the number of arguments specified
+        '''Checks that the metadata has the number of arguments specified
         by the 'nargs' argument, otherwise an exception is raised.
 
         :param fparser2_tree: fparser2 tree capturing a metadata argument.

@@ -188,6 +188,21 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
         return (datatype, access, function_space)
 
     @classmethod
+    def check_nargs(cls, fparser2_tree):
+        '''Check that the metadata has the expected number of arguments,
+        otherwise an exception is raised.
+
+        :param fparser2_tree: fparser2 tree capturing a metadata argument.
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
+            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
+
+        :raises ValueError: if the kernel metadata does not contain \
+            the expected number of arguments (nargs).
+
+        '''
+        super().check_nargs(fparser2_tree, cls.nargs)
+        
+    @classmethod
     def get_vector_length(cls, fparser2_tree):
         '''Retrieves the vector length metadata value found within the
         supplied fparser2 tree and checks that it is valid.

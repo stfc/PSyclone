@@ -67,7 +67,8 @@ class InterGridArgMetadata(FieldArgMetadata):
     mesh_arg_index = 4
     # The name to use for any exceptions.
     check_name = "inter-grid"
-    # nargs = 5
+    # The number of arguments in the language-level metadata.
+    nargs = 5
 
     # The fparser2 class that captures this metadata.
     fparser2_class = Fortran2003.Structure_Constructor
@@ -77,7 +78,7 @@ class InterGridArgMetadata(FieldArgMetadata):
         self.mesh_arg = mesh_arg
 
     @classmethod
-    def _get_metadata(cls, fparser2_tree, nargs=5):
+    def _get_metadata(cls, fparser2_tree):
         '''Extract the required metadata from the fparser2 tree and return it
         as strings. Also check that the metadata is in the expected
         form (but do not check the metadata values as that is done
@@ -87,15 +88,13 @@ class InterGridArgMetadata(FieldArgMetadata):
             for this argument.
         :type fparser2_tree: \
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`
-        :param int nargs: the number of expected metadata arguments.
 
         :returns: a tuple containing the datatype, access, function \
             space and mesh metadata.
         :rtype: Tuple(str, str, str, str)
 
         '''
-        datatype, access, function_space = super()._get_metadata(
-            fparser2_tree, nargs=nargs)
+        datatype, access, function_space = super()._get_metadata(fparser2_tree)
         mesh_arg = cls.get_mesh_arg(fparser2_tree)
         return (datatype, access, function_space, mesh_arg)
 
