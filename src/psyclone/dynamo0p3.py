@@ -7664,9 +7664,6 @@ class DynLoop(PSyLoop):
         :rtype: :py:class:`psyclone.psyir.Node`
 
         '''
-        if isinstance(self.children[0], Reference):
-            return self.children[0]
-
         inv_sched = self.ancestor(InvokeSchedule)
         sym_table = inv_sched.symbol_table
         loops = inv_sched.loops()
@@ -7688,9 +7685,6 @@ class DynLoop(PSyLoop):
         :rtype: :py:class:`psyclone.psyir.Node`
 
         '''
-        if isinstance(self.children[1], Reference):
-            return self.children[1]
-
         inv_sched = self.ancestor(InvokeSchedule)
         sym_table = inv_sched.symbol_table
 
