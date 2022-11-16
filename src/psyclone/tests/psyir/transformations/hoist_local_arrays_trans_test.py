@@ -110,7 +110,7 @@ def test_apply_1d_known(fortran_reader, fortran_writer, tmpdir):
     code = fortran_writer(psyir).lower()
     assert "real, allocatable, dimension(:), private :: a\n" in code
     assert ("    if (.not.allocated(a)) then\n"
-            "      allocate(a(1 : 10))\n"
+            "      allocate(a(1:10))\n"
             "    end if\n"
             "    do i = 1, 10, 1\n" in code)
     assert Compile(tmpdir).string_compiles(code)
@@ -137,7 +137,7 @@ def test_apply_multi_dim_imported_limits(fortran_reader, fortran_writer):
     # the 'use some_mod'.
     assert "real, allocatable, dimension(:,:), private :: a\n" in code
     assert ("    if (.not.allocated(a)) then\n"
-            "      allocate(a(1 : jpi, 1 : jpj))\n"
+            "      allocate(a(1:jpi,1:jpj))\n"
             "    end if\n"
             "    a(:,:) = 1.0\n" in code)
 
@@ -162,7 +162,7 @@ def test_apply_arg_limits(fortran_reader, fortran_writer, tmpdir):
     code = fortran_writer(psyir).lower()
     assert "real, allocatable, dimension(:,:), private :: a\n" in code
     assert ("    if (.not.allocated(a)) then\n"
-            "      allocate(a(2 : nx, 3 : ny))\n"
+            "      allocate(a(2:nx,3:ny))\n"
             "    end if\n" in code)
     assert Compile(tmpdir).string_compiles(code)
 
@@ -191,7 +191,7 @@ def test_apply_multi_arrays(fortran_reader, fortran_writer):
     assert "integer, allocatable, dimension(:,:), private :: mask" in code
     assert (
         "    if (.not.allocated(a)) then\n"
-        "      allocate(a(1 : nx, 1 : ny), mask(1 : jpi, 1 : jpj))\n"
+        "      allocate(a(1:nx,1:ny), mask(1:jpi,1:jpj))\n"
         "    end if\n"
         "    a(:,:) = 1.0\n" in code)
 
@@ -219,7 +219,7 @@ def test_apply_name_clash(fortran_reader, fortran_writer, tmpdir):
     assert ("  real, allocatable, dimension(:,:), private :: a\n"
             "  real, allocatable, dimension(:,:), private :: a_2\n" in code)
     assert ("    if (.not.allocated(a_2)) then\n"
-            "      allocate(a_2(1 : nx, 1 : ny))\n"
+            "      allocate(a_2(1:nx,1:ny))\n"
             "    end if\n"
             "    a_2(:,:) = a_1\n" in code)
     assert Compile(tmpdir).string_compiles(code)

@@ -43,7 +43,8 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (Routine, Container, ArrayReference, Range,
                                   FileContainer, IfBlock, UnaryOperation,
-                                  CodeBlock, ACCRoutineDirective)
+                                  CodeBlock, ACCRoutineDirective,
+                                  IntrinsicCall)
 from psyclone.psyir.symbols import ArrayType, Symbol
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -176,16 +177,14 @@ class HoistLocalArraysTrans(Transformation):
             arefs.append(ArrayReference.create(sym, dim_list))
 
         freader = FortranReader()
-        fwriter = FortranWriter()
         # TODO #1366: we have to use a CodeBlock in order to query whether or
         # not the array has been allocated already.
         code = f"allocated({automatic_arrays[0].name})"
         expr = freader.psyir_from_expression(code, node.symbol_table)
         if_expr = UnaryOperation.create(UnaryOperation.Operator.NOT, expr)
-        # TODO #1366: we also have to use a CodeBlock for the allocate().
-        alloc_arg = ",".join(fwriter(aref) for aref in arefs)
-        body = [freader.psyir_from_statement(f"allocate({alloc_arg})",
-                                             node.symbol_table)]
+        # Create the allocate.
+        body = [IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,
+                                     arefs)]
         # Insert the conditional allocation at the start of the supplied
         # routine.
         node.children.insert(0, IfBlock.create(if_expr, body))
@@ -193,7 +192,7 @@ class HoistLocalArraysTrans(Transformation):
         # Finally, remove the hoisted symbols (and any associated tags)
         # from the routine scope.
         for sym in automatic_arrays:
-            # TODO #898:Currently the SymbolTable.remove() method does not
+            # TODO #898: Currently the SymbolTable.remove() method does not
             # support DataSymbols.
             # pylint: disable=protected-access
             del node.symbol_table._symbols[sym.name]
