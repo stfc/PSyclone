@@ -86,8 +86,8 @@ class GOSymbolTable(SymbolTable):
         '''In the GOcean API the two first kernel arguments are the iteration
         indices.
 
-        :return: List of symbols representing the iteration indices.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :return: the symbols representing the iteration indices.
+        :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
         '''
         self._check_gocean_conformity()
         return self.argument_list[:2]
@@ -97,8 +97,8 @@ class GOSymbolTable(SymbolTable):
         '''In the GOcean API the data arguments start from the third item in
         the argument list.
 
-        :return: List of symbols representing the data arguments.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :return: the symbols representing the data arguments.
+        :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
         '''
         self._check_gocean_conformity()
         return self.argument_list[2:]

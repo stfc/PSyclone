@@ -121,10 +121,10 @@ class LFRicSymbolTable(SymbolTable):
             # The symbol already exists, check that is the right type:
             if not isinstance(sym, DataSymbol):
                 raise TypeError(f"Symbol '{sym.name}' already exists, but is "
-                                f"not a DataSymbol, but {type(sym)}.")
+                                f"not a DataSymbol, but '{type(sym)}'.")
             if sym.datatype != datatype:
                 raise TypeError(f"Symbol '{sym.name}' already exists, but is "
-                                f"not an integer, but {sym.datatype}.")
+                                f"not an integer, but '{sym.datatype}'.")
         return sym
 
     # ------------------------------------------------------------------------

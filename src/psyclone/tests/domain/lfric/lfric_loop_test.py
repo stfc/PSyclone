@@ -84,13 +84,15 @@ def test_constructor_invalid_loop_type(monkeypatch):
             " Supported values are 'colours'" in str(err.value))
 
 
-def test_set_lower_bound_functions():
+def test_set_lower_bound_functions(monkeypatch):
     ''' Test that we raise appropriate exceptions when the lower bound of
     a DynLoop is set to invalid values.
 
     '''
     # Make sure we get an LFRicSymbolTable
-    ScopingNode._symbol_table_class = LFRicSymbolTable
+    # TODO #1954: Remove the protected access using a factory
+    monkeypatch.setattr(ScopingNode, "_symbol_table_class",
+                        LFRicSymbolTable)
     schedule = Schedule()
     my_loop = DynLoop(parent=schedule)
     schedule.children = [my_loop]

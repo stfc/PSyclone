@@ -59,7 +59,7 @@ TEST_API = "dynamo0.3"
 def check_psyir_results(create_arg_list, fortran_writer):
     '''Helper function to check if the PSyIR representation of the arguments
      is identical to the old style textual representation. It checks that each
-     member of the psyir_arglist is a Reference, and that the textural
+     member of the psyir_arglist is a Reference, and that the textual
      representation matches the textual presentation (which was already
      verified).
 
@@ -134,12 +134,17 @@ def test_argordering_get_array_reference():
     with pytest.raises(InternalError) as err:
         arg_list.get_array_reference("wrong-name", [":", ":"],
                                      "integer", symbol=ref.symbol)
-    assert ("Specified symbol 'array4' has adifferent name than the "
-            "specified arrayname 'wrong-name'" in str(err.value))
+    assert ("Specified symbol 'array4' has a different name than the "
+            "specified array name 'wrong-name'" in str(err.value))
 
     with pytest.raises(TypeError) as err:
         arg_list.get_array_reference("does-not-exist", [":"], "invalid")
     assert ("Unsupported data type 'invalid' in find_or_create_array"
+            in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        arg_list.get_array_reference("array4", [":"], "integer")
+    assert ("Array 'array4' already exists, but has 2 dimensions, not 1."
             in str(err.value))
 
 
@@ -312,7 +317,7 @@ def test_kernel_stub_ind_dofmap_errors():
     with pytest.raises(InternalError) as excinfo:
         create_arg_list.indirection_dofmap("w3", kernel.arguments.args[1])
     assert ("A CMA operator (gh_columnwise_operator) must be supplied but "
-            "got") in str(excinfo.value)
+            "got 'gh_scalar'") in str(excinfo.value)
 
 
 def test_kerncallarglist_args_error(dist_mem):

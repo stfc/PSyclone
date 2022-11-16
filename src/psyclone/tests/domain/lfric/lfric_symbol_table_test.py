@@ -81,15 +81,16 @@ def test_find_or_create_integer_errors():
 
     with pytest.raises(TypeError) as err:
         symbol_table.find_or_create_integer_symbol("routine")
-    assert ("Symbol 'routine' already exists, but is not a DataSymbol"
+    assert ("Symbol 'routine' already exists, but is not a DataSymbol, but "
+            "'<class 'psyclone.psyir.symbols.routinesymbol.RoutineSymbol'>"
             in str(err.value))
 
     symbol_table.new_symbol("real", symbol_type=DataSymbol,
                             datatype=REAL_DOUBLE_TYPE)
     with pytest.raises(TypeError) as err:
         symbol_table.find_or_create_integer_symbol("real")
-    assert ("Symbol 'real' already exists, but is not an integer"
-            in str(err.value))
+    assert ("Symbol 'real' already exists, but is not an integer, but "
+            "'Scalar<REAL, DOUBLE>'." in str(err.value))
 
 
 @pytest.mark.parametrize("intrinsic", ["real", "integer", "logical"])

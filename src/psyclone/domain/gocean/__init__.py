@@ -39,8 +39,4 @@
 from psyclone.domain.gocean.gocean_constants import GOceanConstants
 from psyclone.domain.gocean.go_symbol_table import GOSymbolTable
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g.:
-# from psyclone.domain.gocean import GOceanConstants
-
 __all__ = ['GOceanConstants', 'GOSymbolTable']

@@ -43,7 +43,10 @@ import abc
 
 from psyclone import psyGen
 from psyclone.core import AccessType, Signature
+# The next two imports cannot be merged, since this would create
+# a circular dependency.
 from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import ArrayReference, Reference
 
@@ -78,8 +81,6 @@ class ArgOrdering:
         if invoke_sched:
             self._symtab = invoke_sched.symbol_table
         else:
-            # Avoid circular dependency
-            from psyclone.domain.lfric import LFRicSymbolTable
             self._symtab = LFRicSymbolTable()
 
         # TODO #1934 Completely remove the usage of strings, instead
@@ -93,7 +94,7 @@ class ArgOrdering:
     def psyir_append(self, node):
         '''Appends a PSyIR node to the PSyIR argument list.
 
-        :param node: the reference to append.
+        :param node: the node to append.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
@@ -203,7 +204,7 @@ class ArgOrdering:
         :param tag: optional tag for the symbol.
         :type tag: Optional[str]
         :param symbol: optional the symbol to use.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol
+        :type: Optional[:py:class:`psyclone.psyir.symbols.Symbol]
 
         :returns: a reference to the symbol used.
         :rtype: :py:class:`psyclone.psyir.nodes.Reference`
@@ -218,8 +219,8 @@ class ArgOrdering:
                                                        tag)
         else:
             if symbol.name != array_name:
-                raise InternalError(f"Specified symbol '{symbol.name}' has a"
-                                    f"different name than the specified array"
+                raise InternalError(f"Specified symbol '{symbol.name}' has a "
+                                    f"different name than the specified array "
                                     f"name '{array_name}'.")
 
         # If all indices are specified as ":", just use the name itself

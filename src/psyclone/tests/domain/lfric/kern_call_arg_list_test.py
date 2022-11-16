@@ -35,7 +35,7 @@
 # Modified I. Kavcic, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
-''' This module tests the LFric classes based on ArgOrdering.'''
+''' This module tests the LFric KernCallArg class.'''
 
 import os
 
@@ -48,7 +48,7 @@ from psyclone.domain.lfric import psyir as lfric_psyir
 from psyclone.dynamo0p3 import DynKern
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Literal, Reference
+from psyclone.psyir.nodes import Literal, Loop, Reference
 from psyclone.tests.utilities import get_base_path, get_invoke
 from psyclone.transformations import Dynamo0p3ColourTrans
 
@@ -163,11 +163,8 @@ def test_kerncallarglist_colouring(dist_mem, fortran_writer):
 
     schedule = psy.invokes.invoke_list[0].schedule
     ctrans = Dynamo0p3ColourTrans()
-    indx = 0
-    if dist_mem:
-        # Skip the halo exchange nodes when dist_mem is enabled
-        indx = 4
-    ctrans.apply(schedule.children[indx])
+    loops = schedule.walk(Loop)
+    ctrans.apply(loops[0])
 
     create_arg_list = KernCallArgList(schedule.kernels()[0])
     create_arg_list.generate()
@@ -354,7 +351,7 @@ def test_kerncallarglist_scalar_literal(fortran_writer):
         'basis_w3_qr', 'diff_basis_w3_qr', 'np_xy_qr', 'np_z_qr',
         'weights_xy_qr', 'weights_z_qr']
 
-    # We can't use check_psyir_results here, since two nodes are are
+    # We can't use check_psyir_results here, since two nodes are
     # Literals and not References.
     result = []
     for node in create_arg_list.psyir_arglist:
@@ -370,13 +367,12 @@ def test_kerncallarglist_scalar_literal(fortran_writer):
     assert create_arg_list.nqp_positions == [{'horizontal': 21,
                                               'vertical': 22}]
 
+    # Check the handling of logical types. The third argument
+    # should be a scalar
     args = schedule.kernels()[0].arguments.args
-    # The third argument is a scalar:
     assert args[3].is_scalar
-    create_arg_list.scalar(args[3])
-    assert create_arg_list.arglist[-1] == "1.0_r_def"
 
-    # Check the handling of logical types:
+    # Modify the third argument to be a logical
     args[3]._intrinsic_type = "logical"
     args[3]._name = "true"
     create_arg_list.scalar(args[3])
@@ -388,5 +384,5 @@ def test_kerncallarglist_scalar_literal(fortran_writer):
     args[3]._intrinsic_type = "invalid"
     with pytest.raises(InternalError) as err:
         create_arg_list.scalar(args[3])
-    assert ("Unexpected intrinsic type 'invalid' in scalar()"
-            in str(err.value))
+    assert ("Unexpected intrinsic type 'invalid' in scalar() when processing "
+            "kernel 'testkern_qr_code`." in str(err.value))

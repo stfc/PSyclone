@@ -36,8 +36,8 @@
 
 program int_real_literal_scalar
 
-  ! Description: a single kernel that requires XYoZ quadrature specified
-  ! in an invoke call.
+  ! Description: invoke a single kernel with scalar constants
+  ! as parameters, that are using a precision
   use constants_mod,       only: r_def, i_def
   use field_mod,           only: field_type
   use quadrature_xyoz_mod, only: quadrature_xyoz_type

@@ -54,10 +54,6 @@ from psyclone.domain.lfric.kernel_interface import KernelInterface
 from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.domain.lfric.kern_stub_arg_list import KernStubArgList
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g.:
-# from psyclone.domain.lfric import FunctionSpace
-
 __all__ = [
     'ArgOrdering',
     'FunctionSpace',

@@ -38,8 +38,8 @@
 '''Test that the LFRic-specific PSyIR classes are created and declared
 correctly'''
 
-from __future__ import absolute_import
 import pytest
+
 from psyclone.domain.lfric import psyir as lfric_psyir, LFRicSymbolTable
 from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, \
     ImportInterface, ScalarType, LocalInterface, ArgumentInterface, \

@@ -1023,6 +1023,7 @@ class DynamoPSy(PSy):
     '''
     def __init__(self, invoke_info):
         # Make sure the scoping node creates LFRicSymbolTables
+        # TODO #1954: Remove the protected access using a factory
         ScopingNode._symbol_table_class = LFRicSymbolTable
         PSy.__init__(self, invoke_info)
         self._invokes = DynamoInvokes(invoke_info.calls, self)
@@ -1395,7 +1396,7 @@ class DynStencils(DynCollection):
         :param arg: kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
 
-        :returns: a valid unique dofmap name for a stencil in the PSy layer.
+        :returns: a dofmap symbol for a stencil in the PSy layer.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol
 
         '''
@@ -1420,7 +1421,7 @@ class DynStencils(DynCollection):
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
 
-        :returns: a Fortran variable name for the stencil size.
+        :returns: a symbol for the stencil size.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol
 
         '''

@@ -39,14 +39,12 @@
 for a kernel subroutine.
 '''
 
-from __future__ import print_function, absolute_import
-
 from psyclone.domain.lfric import ArgOrdering, LFRicConstants, LFRicSymbolTable
 from psyclone.errors import InternalError
 
 
 class KernStubArgList(ArgOrdering):
-    # pylint: disable=too-many-public-methods
+    # pylint: disable=too-many-public-methods, abstract-method
     # TODO: #845 Check that all implicit variables have the right type.
     '''Creates the argument list required to create and declare the
     required arguments for a kernel subroutine.  The ordering and type
@@ -63,7 +61,7 @@ class KernStubArgList(ArgOrdering):
         # We don't yet support inter-grid kernels (Issue #162)
         if kern.is_intergrid:
             raise NotImplementedError(
-                f"Kernel {kern.name} is an inter-grid kernel and stub "
+                f"Kernel '{kern.name}' is an inter-grid kernel and stub "
                 f"generation is not yet supported for inter-grid kernels")
         ArgOrdering.__init__(self, kern)
         # TODO 719 The stub_symtab is not connected to other parts of the
@@ -506,7 +504,7 @@ class KernStubArgList(ArgOrdering):
         if operator.argument_type != "gh_columnwise_operator":
             raise InternalError(
                 f"A CMA operator (gh_columnwise_operator) must "
-                f"be supplied but got {operator.argument_type}")
+                f"be supplied but got '{operator.argument_type}'.")
         super().indirection_dofmap(function_space, operator, var_accesses)
 
 

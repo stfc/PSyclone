@@ -189,6 +189,7 @@ class LFRicAlg:
                             f"'{type(name).__name__}'")
         # Make sure the scoping node creates LFRicSymbolTables
         # pylint: disable=protected-access
+        # TODO #1954 Remove the protected access using a factory
         ScopingNode._symbol_table_class = LFRicSymbolTable
         alg_sub = Routine(name)
         table = alg_sub.symbol_table

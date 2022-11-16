@@ -260,12 +260,13 @@ class KernCallArgList(ArgOrdering):
                 datatype = psyir.LfricLogicalScalarDataType()
             else:
                 raise InternalError(f"Unexpected intrinsic type "
-                                    f"'{scalar_arg.intrinsic_type}'"
-                                    f" in scalar().")
+                                    f"'{scalar_arg.intrinsic_type}' "
+                                    f"in scalar() when processing "
+                                    f"kernel '{self._kern.name}`.")
             precision = const.SCALAR_PRECISION_MAP[intrinsic]
             # The precision must be removed from a Literal, otherwise
             # an exception is raised.
-            literal = literal.replace(f"_{precision}", "")
+            literal = literal.lower().replace(f"_{precision}", "")
             # TODO #1920: Negative literals have a space, which breaks
             # the re test inside of the Literal constructor.
             literal = literal.replace(" ", "")
