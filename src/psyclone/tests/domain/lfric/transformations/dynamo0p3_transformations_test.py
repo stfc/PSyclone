@@ -7212,6 +7212,8 @@ def test_kern_const_apply(capsys, monkeypatch):
     # element_order only
     kctrans.apply(kernel, {"element_order": 0})
     result, _ = capsys.readouterr()
+    print(result, type(result))
+    print(element_order_expected, type(element_order_expected))
     assert result == element_order_expected
 
     # nlayers only

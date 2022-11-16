@@ -2195,8 +2195,7 @@ def test_fsdescriptors_get_descriptor():
     when passed a function space for which there is no corresponding kernel
     argument '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        #"1_single_invoke.f90"),
-                                        "6.1_eval_invoke.f90"),
+                                        "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]

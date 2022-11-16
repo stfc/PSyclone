@@ -183,7 +183,6 @@ class LFRicMetaFuncsDescriptor():
                 f"least 2 args, but found '{len(func_type.args)}'.")
         self._evaluator_names = []
         const = LFRicConstants()
-        print(func_type.args)
         for idx, arg in enumerate(func_type.args):
             if idx == 0:  # First func_type arg
                 if arg.name not in const.VALID_FUNCTION_SPACE_NAMES:
@@ -207,7 +206,6 @@ class LFRicMetaFuncsDescriptor():
                         f"than once in a 'meta_funcs' entry, but "
                         "'{arg.name}' is replicated in '{func_type}'.")
                 self._evaluator_names.append(arg.name)
-                print(self._evaluator_names)
         self._name = func_type.name
 
     @property
