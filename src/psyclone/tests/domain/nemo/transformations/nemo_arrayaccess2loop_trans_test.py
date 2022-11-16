@@ -81,8 +81,8 @@ def check_transformation(tmpdir, code, expected_result, index=0, statement=0):
         Defaults to 0.
 
     '''
-    input_code = "program test\n{0}end program test\n".format(code)
-    output_code = "program test\n{0}end program test\n".format(expected_result)
+    input_code = f"program test\n{code}end program test\n"
+    output_code = f"program test\n{expected_result}end program test\n"
     reader = FortranReader()
     psyir = reader.psyir_from_source(input_code)
     assignment = psyir.walk(Assignment)[statement]
@@ -373,9 +373,9 @@ def test_apply_calls_validate():
     trans = NemoArrayAccess2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.apply(None)
-    assert("Error in NemoArrayAccess2LoopTrans transformation. The supplied "
-           "node argument should be a PSyIR Node, but found 'NoneType'."
-           in str(info.value))
+    assert ("Error in NemoArrayAccess2LoopTrans transformation. The supplied "
+            "node argument should be a PSyIR Node, but found 'NoneType'."
+            in str(info.value))
 
 
 def test_apply_multi_iterator(tmpdir):
@@ -493,9 +493,9 @@ def test_validate_arg():
     trans = NemoArrayAccess2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(None)
-    assert("Error in NemoArrayAccess2LoopTrans transformation. The "
-           "supplied node argument should be a PSyIR Node, but "
-           "found 'NoneType'." in str(info.value))
+    assert ("Error in NemoArrayAccess2LoopTrans transformation. The "
+            "supplied node argument should be a PSyIR Node, but "
+            "found 'NoneType'." in str(info.value))
 
 
 def test_validate_array_ref():
@@ -506,8 +506,8 @@ def test_validate_array_ref():
     trans = NemoArrayAccess2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(Node())
-    assert("The supplied node argument should be within an ArrayReference "
-           "node, but found 'NoneType'." in str(info.value))
+    assert ("The supplied node argument should be within an ArrayReference "
+            "node, but found 'NoneType'." in str(info.value))
 
 
 def test_validate_structure_error():
@@ -548,7 +548,7 @@ def test_validate_assignment():
     trans = NemoArrayAccess2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(dim_access)
-    assert(
+    assert (
         "Error in NemoArrayAccess2LoopTrans transformation. The supplied node "
         "argument should be within an ArrayReference node that is within an "
         "Assignment node, but found 'NoneType' instead of an Assignment."
@@ -570,7 +570,7 @@ def test_validate_lhs_assignment():
     trans = NemoArrayAccess2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(dim_access)
-    assert(
+    assert (
         "Error in NemoArrayAccess2LoopTrans transformation. The supplied "
         "node argument should be within an ArrayReference node that is "
         "within the left-hand-side of an Assignment node, but 'y(1)' is on "
@@ -608,7 +608,7 @@ def test_validate_iterator_name():
         "  end do\n")
     with pytest.raises(TransformationError) as info:
         check_transformation(None, input_code, None, index=1)
-    assert(
+    assert (
         "The NEMO API expects index 1 to use the 'jj' iterator variable, "
         "but it is already being used in another index 'a(jj,10)'."
         in str(info.value))
@@ -627,7 +627,7 @@ def test_validate_iterator():
         "  end do\n")
     with pytest.raises(TransformationError) as info:
         check_transformation(None, input_code, None)
-    assert(
+    assert (
         "The supplied node should not be or contain a loop iterator, it "
         "should be single valued." in str(info.value))
 
@@ -657,7 +657,7 @@ def test_validate_same_index_error(tmpdir):
         "  a(n+1) = b(n)\n")
     with pytest.raises(TransformationError) as info:
         check_transformation(None, input_code, None)
-    assert(
+    assert (
         "Expected index '0' for rhs array 'b' to be the same as that for "
         "the lhs array 'a', but they differ in 'a(n + 1) = b(n)\n'."
         in str(info.value))
@@ -690,7 +690,7 @@ def test_validate_indirection(tmpdir):
         "  a(lookup(n)) = b(lookup(1))\n")
     with pytest.raises(TransformationError) as info:
         check_transformation(None, input_code, None)
-    assert(
+    assert (
         "Expected index '0' for rhs array 'b' to be the same as that for the "
         "lhs array 'a', but they differ in 'a(lookup(n)) = b(lookup(1))\n'."
         in str(info.value))

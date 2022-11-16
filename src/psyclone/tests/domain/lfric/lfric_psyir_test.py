@@ -110,8 +110,8 @@ def test_scalar_literals():
                       lfric_psyir.LfricDimension)
     with pytest.raises(ValueError) as info:
         lfric_psyir.LfricDimension("2")
-    assert("An LFRic dimension object must be '1' or '3', but found '2'."
-           in str(info.value))
+    assert ("An LFRic dimension object must be '1' or '3', but found '2'."
+            in str(info.value))
     # LFRIC_SCALAR_DIMENSION instance
     assert isinstance(lfric_psyir.LFRIC_SCALAR_DIMENSION,
                       lfric_psyir.LfricDimension)
