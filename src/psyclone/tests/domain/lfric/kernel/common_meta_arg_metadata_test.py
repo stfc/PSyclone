@@ -40,7 +40,8 @@ import pytest
 
 from fparser.two import Fortran2003
 
-from psyclone.domain.lfric.kernel import CommonMetaArgMetadata
+from psyclone.domain.lfric.kernel import (
+    CommonMetaArgMetadata, ScalarArgMetadata)
 from psyclone.errors import InternalError
 
 
@@ -53,7 +54,9 @@ def test_init_error():
     with pytest.raises(TypeError) as info:
         _ = CommonMetaArgMetadata(None, None)
     assert ("Can't instantiate abstract class CommonMetaArgMetadata with "
-            "abstract methods check_access, check_datatype" in str(info.value))
+            "abstract methods _get_metadata, check_access, check_datatype"
+            in str(info.value))
+# pylint: enable=abstract-class-instantiated
 
 
 class CheckArg(CommonMetaArgMetadata):
@@ -68,6 +71,21 @@ class CheckArg(CommonMetaArgMetadata):
     access_arg_index = 2
     function_space_arg_index = 3
     check_name = "check-arg"
+
+    @classmethod
+    def _get_metadata(cls, fparser2_tree):
+        '''A concrete implementation of the abstract method in the
+        CommonMetaArgMetadata class.
+
+        :param fparser2_tree: fparser2 tree containing the metadata \
+            for this argument.
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
+            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
+
+        :raises NotImplementedError: if this test class method is called.
+
+        '''
+        raise NotImplementedError("CheckArg._get_metadata() called.")
 
     @staticmethod
     def check_datatype(value):
@@ -87,17 +105,6 @@ class CheckArg(CommonMetaArgMetadata):
 
         '''
 
-    @staticmethod
-    def create_from_fparser2(fparser2_tree):
-        '''A concrete implementation of the abstract method in the
-        CommonMetadata class.
-
-        :param fparser2_tree: fparser2 tree containing the metadata \
-            for a scalar argument.
-        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Base`
-
-        '''
-
 
 def test_init():
 
@@ -112,6 +119,38 @@ def test_init():
     assert dummy._access == "access"
 
 
+def test_create_from_fparser2():
+    '''Check that the create_from_fparser2 method works as expected. The
+    ScalarArg subclass is used to help perform the checks.
+
+    '''
+    # _get_metadata called
+    with pytest.raises(TypeError) as info:
+        ScalarArgMetadata.create_from_fparser2(None)
+    assert ("Expected kernel metadata to be encoded as an fparser2 Part_Ref "
+            "object but found type 'NoneType' with value 'None'."
+            in str(info.value))
+
+    # check_remaining_args called
+    fparser2_tree = ScalarArgMetadata.create_fparser2(
+        "hello(x)", Fortran2003.Part_Ref)
+
+    with pytest.raises(ValueError) as info:
+        _ = ScalarArgMetadata.create_from_fparser2(fparser2_tree)
+    assert ("Expected kernel metadata to have the name 'arg_type' "
+            "and be in the form 'arg_type(...)', but found 'hello(x)'."
+            in str(info.value))
+
+    # expected class returned
+    fparser2_tree = ScalarArgMetadata.create_fparser2(
+        "arg_type(GH_SCALAR, GH_REAL, GH_READ)", Fortran2003.Part_Ref)
+    obj = ScalarArgMetadata.create_from_fparser2(fparser2_tree)
+    assert isinstance(obj, ScalarArgMetadata)
+    assert obj.form == "gh_scalar"
+    assert obj._datatype == "gh_real"
+    assert obj._access == "gh_read"
+
+
 def test_check_first_arg():
     '''Check that the check_first_arg method in the CommonMetaArgMetadata
     class works as expected.
@@ -124,12 +163,13 @@ def test_check_first_arg():
         assert ("check-arg should have 'sluglike' as their first metadata "
                 "argument, but found 'first_arg'." in str(info.value))
 
-    fparser2_tree = CheckArg.create_fparser2(
-        "arg_type(first_arg*3)", Fortran2003.Part_Ref)
-    with pytest.raises(ValueError) as info:
-        CheckArg.check_first_arg(fparser2_tree)
-        assert ("check-arg should have sluglike as their first metadata "
-                "argument, but found 'first_arg'." in str(info.value))
+    class CheckArgVec(CheckArg):
+        '''A utility vector class.'''
+        vector = True
+
+    fparser2_tree = CheckArgVec.create_fparser2(
+        "arg_type(sluglike*3)", Fortran2003.Part_Ref)
+    CheckArgVec.check_first_arg(fparser2_tree)
 
     fparser2_tree = CheckArg.create_fparser2(
         "arg_type(sluglike)", Fortran2003.Part_Ref)
@@ -176,6 +216,20 @@ def test_check_remaining_args():
         DummyArg.check_remaining_args("dummy", "Unrecognised error")
     assert ("Unexpected error message found 'Unrecognised error'"
             in str(info.value))
+
+
+def test_check_nargs():
+    '''Check that the check_nargs method behaves as expected.'''
+
+    fparser2_tree = CheckArg.create_fparser2(
+        "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)", Fortran2003.Part_Ref)
+    with pytest.raises(ValueError) as info:
+        CheckArg.check_nargs(fparser2_tree)
+    assert ("Expected kernel metadata to have 1 arguments, but found 4 in "
+            "'arg_type(GH_FIELD, GH_REAL, GH_READ, W0)'." in str(info.value))
+    fparser2_tree = CheckArg.create_fparser2(
+        "arg_type(GH_FIELD)", Fortran2003.Part_Ref)
+    CheckArg.check_nargs(fparser2_tree)
 
 
 def test_get_vector_length():

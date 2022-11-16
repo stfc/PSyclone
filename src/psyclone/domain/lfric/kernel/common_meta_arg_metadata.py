@@ -62,11 +62,21 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
     access_arg_index = 2
     function_space_arg_index = 3
     form = ""
+    check_name = ""
+    nargs = 1
 
     def __init__(self, datatype, access):
         super().__init__()
         self.datatype = datatype
         self.access = access
+
+    @classmethod
+    @abstractmethod
+    def _get_metadata(cls, fparser2_tree):
+        '''Extract the required metadata from the fparser2 tree and return it
+        as strings. Also check that the metadata is in the expected
+        form (but do not check the metadata values as that is done
+        separately).'''
 
     @classmethod
     def create_from_fparser2(cls, fparser2_tree):
@@ -105,8 +115,8 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
             word = "in"
         if not form.lower() == cls.form.lower():
             raise ValueError(
-                f"Metadata for '{cls.check_name}' kernel arguments should have "
-                f"'{cls.form}' {word} their first metadata "
+                f"Metadata for '{cls.check_name}' kernel arguments should "
+                f"have '{cls.form}' {word} their first metadata "
                 f"argument, but found '{form}'.")
 
     @classmethod
@@ -151,6 +161,7 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
             raise ValueError(f"At argument index '{index}' for metadata "
                              f"'{str(fparser2_tree)}'. {message}") from info
 
+    # pylint: disable=arguments-differ
     @classmethod
     def check_nargs(cls, fparser2_tree):
         '''Check that the metadata has the expected number of arguments,
@@ -165,7 +176,8 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
 
         '''
         super().check_nargs(fparser2_tree, cls.nargs)
-        
+    # pylint: enable=arguments-differ
+
     @classmethod
     def get_vector_length(cls, fparser2_tree):
         '''Retrieves the vector length metadata value found within the

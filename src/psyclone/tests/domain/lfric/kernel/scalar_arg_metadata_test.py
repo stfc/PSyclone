@@ -55,67 +55,42 @@ def test_create():
     assert field_arg._access == "gh_read"
 
 
-def test_create_from_fparser2():
-    '''Test that the create_from_fparser2 static method works as
-    expected. Test that all relevant check and get methods are called
-    by raising exceptions within them, as well as checking for valid
-    input.
+def test_get_metadata():
+    '''Test that the get_metadata class method works as expected. Test
+    that all relevant check and get methods are called by raising
+    exceptions within them, as well as checking for valid input.
 
     '''
+    # check_fparser2_arg
     with pytest.raises(TypeError) as info:
-        _ = ScalarArgMetadata.create_from_fparser2("hello")
+        _ = ScalarArgMetadata._get_metadata("hello")
     assert ("Expected kernel metadata to be encoded as an fparser2 "
             "Part_Ref object but found type 'str' with value 'hello'."
             in str(info.value))
 
-    fparser2_tree = ScalarArgMetadata.create_fparser2(
-        "hello(x)", Fortran2003.Part_Ref)
-
-    with pytest.raises(ValueError) as info:
-        _ = ScalarArgMetadata.create_from_fparser2(fparser2_tree)
-    assert ("Expected kernel metadata to have the name 'arg_type' "
-            "and be in the form 'arg_type(...)', but found 'hello(x)'."
-            in str(info.value))
-
+    # check_nargs
     fparser2_tree = ScalarArgMetadata.create_fparser2(
         "arg_type(x)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
-        _ = ScalarArgMetadata.create_from_fparser2(fparser2_tree)
+        _ = ScalarArgMetadata._get_metadata(fparser2_tree)
     assert ("Expected kernel metadata to have 3 arguments, but "
             "found 1 in 'arg_type(x)'." in str(info.value))
 
+    # check_first_arg
     fparser2_tree = ScalarArgMetadata.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
-        _ = ScalarArgMetadata.create_from_fparser2(fparser2_tree)
+        _ = ScalarArgMetadata._get_metadata(fparser2_tree)
     assert ("Metadata for 'scalar' kernel arguments should have 'gh_scalar' "
             "as their first metadata argument, but found 'GH_FIELD'."
             in str(info.value))
 
-    fparser2_tree = ScalarArgMetadata.create_fparser2(
-        "arg_type(GH_SCALAR, GH_UNREAL, GH_READ)", Fortran2003.Part_Ref)
-    with pytest.raises(ValueError) as info:
-        _ = ScalarArgMetadata.create_from_fparser2(fparser2_tree)
-    assert ("At argument index '1' for metadata 'arg_type(GH_SCALAR, "
-            "GH_UNREAL, GH_READ)'. The 'datatype descriptor' metadata "
-            "should be a recognised value (one of ['gh_real', 'gh_integer', "
-            "'gh_logical']) but found 'GH_UNREAL'." in str(info.value))
-
-    fparser2_tree = ScalarArgMetadata.create_fparser2(
-        "arg_type(GH_SCALAR, GH_REAL, GH_ERROR)", Fortran2003.Part_Ref)
-    with pytest.raises(ValueError) as info:
-        _ = ScalarArgMetadata.create_from_fparser2(fparser2_tree)
-    assert ("At argument index '2' for metadata 'arg_type(GH_SCALAR, "
-            "GH_REAL, GH_ERROR)'. The 'access descriptor' metadata should be "
-            "a recognised value (one of ['gh_read']) but found 'GH_ERROR'."
-            in str(info.value))
-
+    # OK
     fparser2_tree = ScalarArgMetadata.create_fparser2(
         "arg_type(GH_SCALAR, GH_REAL, GH_READ)", Fortran2003.Part_Ref)
-    field_arg = ScalarArgMetadata.create_from_fparser2(fparser2_tree)
-    assert field_arg.form == "gh_scalar"
-    assert field_arg._datatype == "gh_real"
-    assert field_arg._access == "gh_read"
+    datatype, access = ScalarArgMetadata._get_metadata(fparser2_tree)
+    assert datatype == "GH_REAL"
+    assert access == "GH_READ"
 
 
 def test_fortran_string():

@@ -90,7 +90,7 @@ class OperatorArgMetadata(ScalarArgMetadata):
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
 
         :returns: a tuple containing the datatype, access \
-            fuction_space_to and function_space_from metadata.
+            function_space_to and function_space_from metadata.
         :rtype: Tuple(str, str, str, str)
 
         '''

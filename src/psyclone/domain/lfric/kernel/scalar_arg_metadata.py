@@ -71,7 +71,8 @@ class ScalarArgMetadata(CommonMetaArgMetadata):
 
         :param fparser2_tree: fparser2 tree containing the metadata \
             for this argument.
-        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
+            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
 
         :returns: a tuple containing the datatype and access metadata.
         :rtype: Tuple(str, str)

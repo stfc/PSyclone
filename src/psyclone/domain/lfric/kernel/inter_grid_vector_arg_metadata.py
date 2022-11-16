@@ -39,7 +39,6 @@ creation, modification and Fortran output of an InterGridVector
 argument.
 
 '''
-from fparser.two import Fortran2003
 from psyclone.domain.lfric.kernel.inter_grid_arg_metadata import \
     InterGridArgMetadata
 
