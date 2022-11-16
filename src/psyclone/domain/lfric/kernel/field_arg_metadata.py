@@ -39,11 +39,11 @@ and Fortran output of a Field argument.
 
 '''
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.lfric.kernel.common_meta_arg_metadata import \
-    CommonMetaArgMetadata
+from psyclone.domain.lfric.kernel.scalar_arg_metadata import \
+    ScalarArgMetadata
 
 
-class FieldArgMetadata(CommonMetaArgMetadata):
+class FieldArgMetadata(ScalarArgMetadata):
     '''Class to capture LFRic kernel metadata information for a field
     argument.
 
@@ -88,11 +88,10 @@ class FieldArgMetadata(CommonMetaArgMetadata):
         :rtype: Tuple(str, str, str)
 
         '''
-        cls.check_fparser2_arg(fparser2_tree, "arg_type")
-        cls.check_nargs(fparser2_tree)
-        cls.check_first_arg(fparser2_tree)
-        args = cls.get_type_access_and_fs(fparser2_tree)
-        return args
+        datatype, access = super()._get_metadata(fparser2_tree)
+        function_space = cls.get_arg(
+            fparser2_tree, cls.function_space_arg_index)
+        return (datatype, access, function_space)
 
     def fortran_string(self):
         '''

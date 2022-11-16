@@ -178,32 +178,6 @@ def test_check_remaining_args():
             in str(info.value))
 
 
-def test_get_type_and_access():
-    '''Test that the get_type_and_access method in the
-    CommonMetaArgMetadata class works as expected.
-
-    '''
-    fparser_tree = CheckArg.create_fparser2(
-        "arg_type(GH_FIELD, GH_REAL, GH_READ)", Fortran2003.Part_Ref)
-    datatype, access = CheckArg.get_type_and_access(fparser_tree)
-    assert datatype == "GH_REAL"
-    assert access == "GH_READ"
-
-
-def test_get_type_access_and_fs():
-    '''Test that the get_type_access_and_fs method in the
-    CommonMetaArgMetadata class works as expected.
-
-    '''
-    fparser_tree = CheckArg.create_fparser2(
-        "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)", Fortran2003.Part_Ref)
-    datatype, access, function_space = CheckArg.get_type_access_and_fs(
-        fparser_tree)
-    assert datatype == "GH_REAL"
-    assert access == "GH_READ"
-    assert function_space == "W0"
-
-
 def test_get_vector_length():
     '''Test that the get_vector_length method in the
     CommonMetaArgMetadata class works as expected.

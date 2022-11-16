@@ -80,8 +80,9 @@ class ScalarArgMetadata(CommonMetaArgMetadata):
         cls.check_fparser2_arg(fparser2_tree, "arg_type")
         cls.check_nargs(fparser2_tree)
         cls.check_first_arg(fparser2_tree)
-        args = cls.get_type_and_access(fparser2_tree)
-        return args
+        datatype = cls.get_arg(fparser2_tree, cls.datatype_arg_index)
+        access = cls.get_arg(fparser2_tree, cls.access_arg_index)
+        return (datatype, access)
 
     def fortran_string(self):
         '''

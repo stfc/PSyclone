@@ -152,42 +152,6 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
                              f"'{str(fparser2_tree)}'. {message}") from info
 
     @classmethod
-    def get_type_and_access(cls, fparser2_tree):
-        '''Retrieves the datatype and access metadata values found within the
-        supplied fparser2 tree.
-
-        :param fparser2_tree: fparser2 tree capturing the required metadata.
-        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
-
-        :returns: the datatype and access values extracted from the \
-            fparser2 tree.
-        :rtype: Tuple[str, str]
-
-        '''
-        datatype = CommonArgMetadata.get_arg(
-            fparser2_tree, cls.datatype_arg_index)
-        access = CommonArgMetadata.get_arg(fparser2_tree, cls.access_arg_index)
-        return (datatype, access)
-
-    @classmethod
-    def get_type_access_and_fs(cls, fparser2_tree):
-        '''Retrieves the datatype, access and function space metadata values
-        found within the supplied fparser2 tree.
-
-        :param fparser2_tree: fparser2 tree capturing the required metadata.
-        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
-
-        :returns: the datatype, access and function space values \
-            extracted from the fparser2 tree.
-        :rtype: Tuple[str, str, str]
-
-        '''
-        datatype, access = cls.get_type_and_access(fparser2_tree)
-        function_space = cls.get_arg(
-            fparser2_tree, cls.function_space_arg_index)
-        return (datatype, access, function_space)
-
-    @classmethod
     def check_nargs(cls, fparser2_tree):
         '''Check that the metadata has the expected number of arguments,
         otherwise an exception is raised.
