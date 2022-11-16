@@ -59,29 +59,29 @@ class ScalarArgMetadata(CommonMetaArgMetadata):
     access_arg_index = 2
 
     @classmethod
-    def _get_metadata(cls, fparser2_tree, check_name="scalar", nargs=3):
-        ''' xxx '''
-        cls.check_fparser2_arg(fparser2_tree, "arg_type")
-        cls.check_nargs(fparser2_tree, nargs)
-        cls.check_first_arg(fparser2_tree, check_name)
-        datatype, access = cls.get_type_and_access(fparser2_tree)
-        cls.check_remaining_args(fparser2_tree, datatype, access)
-        return (datatype, access)
-
-    @staticmethod
-    def create_from_fparser2(fparser2_tree):
-        '''Create an instance of this class from an fparser2 tree.
+    def _get_metadata(cls, fparser2_tree, check_name="scalar", nargs=3,
+                      vector=False):
+        '''Extract the required metadata from the fparser2 tree and return it
+        as strings. Also check that the metadata is in the expected
+        form (but do not check the metadata values as that is done
+        separately).
 
         :param fparser2_tree: fparser2 tree containing the metadata \
-            for a scalar argument.
+            for this argument.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
+        :param str check_name: the name to use in any exceptions.
+        :param int nargs: the number of expected metadata arguments.
+        :param bool vector: whether this is vector metadata.
 
-        :returns: an instance of ScalarArgMetadata.
-        :rtype: :py:class:`psyclone.domain.lfric.kernel.ScalarArgMetadata`
+        :returns: a tuple containing the datatype and access metadata
+        :rtype: Tuple(str, str)
 
         '''
-        datatype, access = ScalarArgMetadata._get_metadata(fparser2_tree)
-        return ScalarArgMetadata(datatype, access)
+        cls.check_fparser2_arg(fparser2_tree, "arg_type")
+        cls.check_nargs(fparser2_tree, nargs)
+        cls.check_first_arg(fparser2_tree, check_name, vector=vector)
+        args = cls.get_type_and_access(fparser2_tree)
+        return args
 
     def fortran_string(self):
         '''

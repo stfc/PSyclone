@@ -51,37 +51,12 @@ class ColumnwiseOperatorArgMetadata(OperatorArgMetadata):
     # metadata.
     form = "gh_columnwise_operator"
 
-    @staticmethod
-    def create_from_fparser2(fparser2_tree):
-        '''Create an instance of this class from an fparser2 tree.
-
-        :param fparser2_tree: fparser2 tree capturing the metadata for a \
-            columnwise operator argument.
-        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
-
-        :returns: an instance of ColumnwiseOperatorArgMetadata.
-        :rtype: :py:class:`psyclone.domain.lfric.kernel.\
-            ColumnwiseOperatorArgMetadata`
-
-        '''
-        ColumnwiseOperatorArgMetadata.check_fparser2_arg(
-            fparser2_tree, "arg_type")
-        ColumnwiseOperatorArgMetadata.check_nargs(fparser2_tree, 5)
-        ColumnwiseOperatorArgMetadata.check_first_arg(
-            fparser2_tree, "columnwise-operator")
-        datatype, access = ColumnwiseOperatorArgMetadata.get_type_and_access(
-            fparser2_tree)
-        function_space_to = ColumnwiseOperatorArgMetadata.get_arg(
-            fparser2_tree,
-            ColumnwiseOperatorArgMetadata.function_space_to_arg_index)
-        function_space_from = ColumnwiseOperatorArgMetadata.get_arg(
-            fparser2_tree,
-            ColumnwiseOperatorArgMetadata.function_space_from_arg_index)
-        ColumnwiseOperatorArgMetadata.check_remaining_args(
-            fparser2_tree, datatype, access, function_space_to,
-            function_space_from)
-        return ColumnwiseOperatorArgMetadata(
-            datatype, access, function_space_to, function_space_from)
+    @classmethod
+    def _get_metadata(cls, fparser2_tree, check_name="columnwise-operator",
+                      nargs=5, vector=False):
+        ''' xxx '''
+        return super()._get_metadata(
+            fparser2_tree, check_name=check_name, nargs=nargs, vector=vector)
 
 
 __all__ = ["ColumnwiseOperatorArgMetadata"]

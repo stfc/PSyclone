@@ -67,6 +67,23 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
         self.access = access
 
     @classmethod
+    def create_from_fparser2(cls, fparser2_tree):
+        '''Create an instance of the class from an fparser2 tree.
+
+        :param fparser2_tree: fparser2 tree containing the metadata \
+            for a scalar argument.
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
+
+        :returns: an instance of the class.
+        :rtype: subclass of \
+            :py:class:`psyclone.domain.lfric.kernel.CommonMetaArgMetadata`
+
+        '''
+        args = cls._get_metadata(fparser2_tree)
+        cls.check_remaining_args(fparser2_tree, *args)
+        return cls(*args)
+
+    @classmethod
     def check_first_arg(cls, fparser2_tree, name, vector=False):
         '''Check that the first metadata argument has the expected value.
 

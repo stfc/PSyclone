@@ -74,32 +74,33 @@ class OperatorArgMetadata(ScalarArgMetadata):
         self.function_space_to = function_space_to
         self.function_space_from = function_space_from
 
-    @staticmethod
-    def create_from_fparser2(fparser2_tree):
-        '''Create an instance of this class from an fparser2 tree.
+    @classmethod
+    def _get_metadata(cls, fparser2_tree, check_name="operator", nargs=5,
+                      vector=False):
+        '''Extract the required metadata from the fparser2 tree and return it
+        as strings. Also check that the metadata is in the expected
+        form (but do not check the metadata values as that is done
+        separately).
 
-        :param fparser2_tree: fparser2 tree capturing the metadata for \
-            an operator argument.
+        :param fparser2_tree: fparser2 tree containing the metadata \
+            for this argument.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
+        :param str check_name: the name to use in any exceptions.
+        :param int nargs: the number of expected metadata arguments.
+        :param bool vector: whether this is vector metadata.
 
-        :returns: an instance of OperatorArgMetadata.
-        :rtype: :py:class:`psyclone.domain.lfric.kernel.OperatorArgMetadata`
+        :returns: a tuple containing the datatype, access \
+            fuction_space_to and function_space_from metadata.
+        :rtype: Tuple(str, str, str, str)
 
         '''
-        OperatorArgMetadata.check_fparser2_arg(fparser2_tree, "arg_type")
-        OperatorArgMetadata.check_nargs(fparser2_tree, 5)
-        OperatorArgMetadata.check_first_arg(fparser2_tree, "operator")
-        datatype, access = OperatorArgMetadata.get_type_and_access(
-            fparser2_tree)
+        datatype, access = super()._get_metadata(
+            fparser2_tree, check_name=check_name, nargs=nargs, vector=vector)
         function_space_to = OperatorArgMetadata.get_arg(
             fparser2_tree, OperatorArgMetadata.function_space_to_arg_index)
         function_space_from = OperatorArgMetadata.get_arg(
             fparser2_tree, OperatorArgMetadata.function_space_from_arg_index)
-        OperatorArgMetadata.check_remaining_args(
-            fparser2_tree, datatype, access, function_space_to,
-            function_space_from)
-        return OperatorArgMetadata(
-            datatype, access, function_space_to, function_space_from)
+        return (datatype, access, function_space_to, function_space_from)
 
     def fortran_string(self):
         '''
