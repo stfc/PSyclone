@@ -63,6 +63,9 @@ class FieldArgMetadata(CommonMetaArgMetadata):
     datatype_arg_index = 1
     access_arg_index = 2
     function_space_arg_index = 3
+    # The name to use for any exceptions.
+    check_name = "field"
+    # nargs = 4
 
     def __init__(self, datatype, access, function_space):
         super().__init__(datatype, access)
@@ -82,7 +85,7 @@ class FieldArgMetadata(CommonMetaArgMetadata):
         '''
         FieldArgMetadata.check_fparser2_arg(fparser2_tree, "arg_type")
         FieldArgMetadata.check_nargs(fparser2_tree, 4)
-        FieldArgMetadata.check_first_arg(fparser2_tree, "field")
+        FieldArgMetadata.check_first_arg(fparser2_tree)
         datatype, access, function_space = \
             FieldArgMetadata.get_type_access_and_fs(fparser2_tree)
         FieldArgMetadata.check_remaining_args(

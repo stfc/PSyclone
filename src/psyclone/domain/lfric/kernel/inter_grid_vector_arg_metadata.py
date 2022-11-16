@@ -65,6 +65,10 @@ class InterGridVectorArgMetadata(InterGridArgMetadata):
     # values not provided here are common to the parent classes and
     # are inherited from them.
     vector_length_arg_index = 0
+    # The name to use for any exceptions.
+    check_name = "inter-grid-vector"
+    # Whether the class captures vector metadata.
+    vector = True
 
     def __init__(self, datatype, access, function_space, mesh_arg,
                  vector_length):
@@ -87,8 +91,7 @@ class InterGridVectorArgMetadata(InterGridArgMetadata):
             fparser2_tree, "arg_type",
             encoding=Fortran2003.Structure_Constructor)
         InterGridVectorArgMetadata.check_nargs(fparser2_tree, 5)
-        InterGridVectorArgMetadata.check_first_arg(
-            fparser2_tree, "inter-grid-vector", vector=True)
+        InterGridVectorArgMetadata.check_first_arg(fparser2_tree)
         vector_length = InterGridVectorArgMetadata.get_vector_length(
             fparser2_tree)
         datatype, access, function_space = \

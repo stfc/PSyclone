@@ -60,8 +60,6 @@ class ScalarArgMetadata(CommonMetaArgMetadata):
     # The name to use for any exceptions.
     check_name = "scalar"
     # nargs = 3
-    # Whether this class captures vector metadata.
-    vector = False
 
     @classmethod
     def _get_metadata(cls, fparser2_tree, nargs=3):

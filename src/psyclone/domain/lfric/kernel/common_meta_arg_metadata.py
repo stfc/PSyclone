@@ -53,7 +53,9 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
         argument.
 
     '''
-    # Dummy values to keep pylint happy for the class methods
+    # Whether the class captures vector metadata.
+    vector = False
+    # Dummy values to keep pylint happy for the class methods.
     form_arg_index = 0
     vector_length_arg_index = 0
     datatype_arg_index = 1

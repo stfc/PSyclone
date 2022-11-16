@@ -67,6 +67,7 @@ class CheckArg(CommonMetaArgMetadata):
     datatype_arg_index = 1
     access_arg_index = 2
     function_space_arg_index = 3
+    check_name = "check-arg"
 
     @staticmethod
     def check_datatype(value):
@@ -119,20 +120,20 @@ def test_check_first_arg():
     fparser2_tree = CheckArg.create_fparser2(
         "arg_type(first_arg)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
-        CheckArg.check_first_arg(fparser2_tree, "MyTest")
-        assert ("MyTests should have 'sluglike' as their first metadata "
+        CheckArg.check_first_arg(fparser2_tree)
+        assert ("check-arg should have 'sluglike' as their first metadata "
                 "argument, but found 'first_arg'." in str(info.value))
 
     fparser2_tree = CheckArg.create_fparser2(
         "arg_type(first_arg*3)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
-        CheckArg.check_first_arg(fparser2_tree, "MyTest", vector=True)
-        assert ("MyTests should have sluglike as their first metadata "
+        CheckArg.check_first_arg(fparser2_tree)
+        assert ("check-arg should have sluglike as their first metadata "
                 "argument, but found 'first_arg'." in str(info.value))
 
     fparser2_tree = CheckArg.create_fparser2(
         "arg_type(sluglike)", Fortran2003.Part_Ref)
-    CheckArg.check_first_arg(fparser2_tree, "MyTest")
+    CheckArg.check_first_arg(fparser2_tree)
 
 
 def test_check_remaining_args():

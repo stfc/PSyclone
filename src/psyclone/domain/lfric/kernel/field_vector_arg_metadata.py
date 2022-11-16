@@ -60,6 +60,10 @@ class FieldVectorArgMetadata(FieldArgMetadata):
     # provided here are common to the parent classes and are inherited
     # from them.
     vector_length_arg_index = 0
+    # The name to use for any exceptions.
+    check_name = "field-vector"
+    # Whether the class captures vector metadata.
+    vector = True
 
     def __init__(self, datatype, access, function_space, vector_length):
         super().__init__(datatype, access, function_space)
@@ -79,8 +83,7 @@ class FieldVectorArgMetadata(FieldArgMetadata):
         '''
         FieldVectorArgMetadata.check_fparser2_arg(fparser2_tree, "arg_type")
         FieldVectorArgMetadata.check_nargs(fparser2_tree, 4)
-        FieldVectorArgMetadata.check_first_arg(
-            fparser2_tree, "field-vector", vector=True)
+        FieldVectorArgMetadata.check_first_arg(fparser2_tree)
         vector_length = FieldVectorArgMetadata.get_vector_length(
             fparser2_tree)
         datatype, access, function_space = \
