@@ -265,3 +265,45 @@ def test_setter_getter():
     dummy.access = "crackers"
     assert dummy._access == "crackers"
     assert dummy.access == "crackers"
+
+    # pylint: disable=super-init-not-called
+    class CheckArg2(CheckArg):
+        '''Utility class to help check the calling of check_datatype and
+        check_access from the relevant setters.
+
+        '''
+        def __init__(self):
+            self._datatype = None
+            self._access = None
+
+        @staticmethod
+        def check_datatype(value):
+            '''Raises an exception so that the calling of this method can be
+            tested.
+
+            :param str value: an input value.
+
+            :raises NotImplementedError: if this method is called.
+
+            '''
+            raise NotImplementedError(f"check_datatype({value})")
+
+        @staticmethod
+        def check_access(value):
+            '''Raises an exception so that the calling of this method can be
+            tested.
+
+            :param str value: an input value.
+
+            :raises NotImplementedError: if this method is called.
+
+            '''
+            raise NotImplementedError(f"check_access({value})")
+
+    dummy = CheckArg2()
+    with pytest.raises(NotImplementedError) as info:
+        dummy.check_datatype(None)
+    assert "check_datatype(None)" in str(info.value)
+    with pytest.raises(NotImplementedError) as info:
+        dummy.check_access(None)
+    assert "check_access(None)" in str(info.value)
