@@ -1397,7 +1397,7 @@ class DynStencils(DynCollection):
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
 
         :returns: a dofmap symbol for a stencil in the PSy layer.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         root_name = arg.name + "_stencil_dofmap"
@@ -1422,7 +1422,7 @@ class DynStencils(DynCollection):
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
 
         :returns: a symbol for the stencil size.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         root_name = arg.name + "_stencil_size"
@@ -1906,7 +1906,7 @@ class LFRicMeshProperties(DynCollection):
         :param kern_call_arg_list: an optional KernCallArgList instance \
             used to store PSyIR representation of the arguments.
         :type kern_call_arg_list: \
-            Optional[:py:class:`psyclone.domain.lfric.KernCallArgList]
+            Optional[:py:class:`psyclone.domain.lfric.KernCallArgList`]
 
         :returns: the kernel arguments associated with the mesh properties.
         :rtype: list of str

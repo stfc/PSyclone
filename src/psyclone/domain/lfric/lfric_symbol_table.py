@@ -92,7 +92,7 @@ class LFRicSymbolTable(SymbolTable):
         :type tag: Optional[str]
 
         :returns: the symbol for the variable.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         :raises TypeError: TypeError if the symbol exists but is not \
             a DataSymbol.
@@ -141,7 +141,7 @@ class LFRicSymbolTable(SymbolTable):
         :type tag: Optional[str]
 
         :returns: the requested symbol
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         :raises TypeError: if the symbol exists, but is not a DataSymbol, \
             or not an Array, or has different number of dimensions.

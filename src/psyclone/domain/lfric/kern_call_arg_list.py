@@ -89,10 +89,10 @@ class KernCallArgList(ArgOrdering):
         :param Optional[str] tag: tag to use for the variable, defaults to \
             the name
         :param shape: if specified, declare an array of user types
-        :type shape: List[:py:class:`psyclone.psyir.nodes.Node]
+        :type shape: List[:py:class:`psyclone.psyir.nodes.Node`]
 
         :return: the symbol that is used in the reference
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         if not tag:
@@ -153,10 +153,10 @@ class KernCallArgList(ArgOrdering):
         :param Optional[str] tag: tag to use for the variable, defaults to \
             the name
         :param shape: if specified, declare an array of user types
-        :type shape: List[:py:class:`psyclone.psyir.nodes.Node]
+        :type shape: List[:py:class:`psyclone.psyir.nodes.Node`]
 
         :return: the symbol that is used in the reference
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         sym = self.get_user_type(module_name, user_type, name,
@@ -472,7 +472,7 @@ class KernCallArgList(ArgOrdering):
         :param var_accesses: optional SingleVariableAccessInfo instance \
             to store the information about variable accesses.
         :type var_accesses: \
-            :py:class:1psyclone.core.access_info.SingleVariableAccessInfo`
+            :py:class:`psyclone.core.access_info.SingleVariableAccessInfo`
 
         '''
         # The maximum branch extent is not specified in the metadata so pass
