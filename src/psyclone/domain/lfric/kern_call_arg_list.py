@@ -46,14 +46,15 @@ from collections import namedtuple
 
 from psyclone import psyGen
 from psyclone.core import AccessType, Signature
-from psyclone.domain.lfric import ArgOrdering, LFRicConstants, psyir
+from psyclone.domain.lfric import ArgOrdering, LFRicConstants
 from psyclone.errors import GenerationError, InternalError
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (ArrayOfStructuresReference, Literal,
                                   Reference, StructureReference)
 from psyclone.psyir.symbols import (ArrayType, DataSymbol, DataTypeSymbol,
                                     DeferredType, ContainerSymbol,
                                     ImportInterface, INTEGER_SINGLE_TYPE,
-                                    ScalarType)
+                                    ScalarType, SymbolError, SymbolTable)
 
 
 class KernCallArgList(ArgOrdering):
@@ -250,28 +251,19 @@ class KernCallArgList(ArgOrdering):
         '''
         super().scalar(scalar_arg, var_accesses)
         if scalar_arg.is_literal:
-            const = LFRicConstants()
-            literal = scalar_arg.name
-            intrinsic = scalar_arg.intrinsic_type
-            if intrinsic == "integer":
-                datatype = psyir.LfricIntegerScalarDataType()
-            elif intrinsic == "real":
-                datatype = psyir.LfricRealScalarDataType()
-            elif intrinsic == "logical":
-                datatype = psyir.LfricLogicalScalarDataType()
-            else:
-                raise InternalError(f"Unexpected intrinsic type "
-                                    f"'{scalar_arg.intrinsic_type}' "
-                                    f"in scalar() when processing "
-                                    f"kernel '{self._kern.name}`.")
-            precision = const.SCALAR_PRECISION_MAP[intrinsic]
-            # The precision must be removed from a Literal, otherwise
-            # an exception is raised.
-            literal = literal.lower().replace(f"_{precision}", "")
-            # TODO #1920: Negative literals have a space, which breaks
-            # the re test inside of the Literal constructor.
-            literal = literal.replace(" ", "")
-            self.psyir_append(Literal(literal, datatype))
+            literal_string = scalar_arg.name
+            try:
+                # Since we know it must be a literal, we need to provide an
+                # empty SymbolTable (to make sure an invalid strings is not
+                # recognised as an existing symbol)
+                literal = FortranReader().psyir_from_expression(literal_string,
+                                                                SymbolTable())
+            except SymbolError as err:
+                raise InternalError(f"Unexpected literal expression "
+                                    f"'{literal_string}' in scalar() when "
+                                    f"processing kernel "
+                                    f"'{self._kern.name}'.") from err
+            self.psyir_append(literal)
         else:
             sym = self._symtab.lookup(scalar_arg.name)
             self.psyir_append(Reference(sym))

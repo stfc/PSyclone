@@ -44,11 +44,11 @@ import pytest
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.domain.lfric import KernCallArgList
 from psyclone.errors import GenerationError, InternalError
-from psyclone.domain.lfric import psyir as lfric_psyir
 from psyclone.dynamo0p3 import DynKern
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Literal, Loop, Reference
+from psyclone.psyir.symbols import ScalarType
 from psyclone.tests.utilities import get_base_path, get_invoke
 from psyclone.transformations import Dynamo0p3ColourTrans
 
@@ -374,15 +374,16 @@ def test_kerncallarglist_scalar_literal(fortran_writer):
 
     # Modify the third argument to be a logical
     args[3]._intrinsic_type = "logical"
-    args[3]._name = "true"
+    args[3]._name = ".true."
     create_arg_list.scalar(args[3])
     lit = create_arg_list.psyir_arglist[-1]
     assert isinstance(lit, Literal)
-    assert isinstance(lit.datatype, lfric_psyir.LfricLogicalScalarDataType)
+    assert lit.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN
 
     # Now set the intrinsic type to be invalid:
+    args[3]._name = "invalid"
     args[3]._intrinsic_type = "invalid"
     with pytest.raises(InternalError) as err:
         create_arg_list.scalar(args[3])
-    assert ("Unexpected intrinsic type 'invalid' in scalar() when processing "
-            "kernel 'testkern_qr_code`." in str(err.value))
+    assert ("Unexpected literal expression 'invalid' in scalar() when "
+            "processing kernel 'testkern_qr_code'" in str(err.value))
