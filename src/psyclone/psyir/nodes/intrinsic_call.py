@@ -36,10 +36,9 @@
 
 ''' This module contains the IntrinsicCall node implementation.'''
 
+from collections import namedtuple
 from enum import Enum
 
-from psyclone.errors import GenerationError
-from psyclone.psyir.nodes.array_reference import ArrayReference
 from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import IntrinsicSymbol
@@ -62,17 +61,19 @@ class IntrinsicCall(Call):
     Intrinsic = Enum('Intrinsic', [
         'ALLOCATE', 'DEALLOCATE', 'RANDOM'
         ])
-
+    ArgDesc = namedtuple('ArgDesc', 'min_count max_count types')
     #: List of required arguments, indexed by intrinsic name.
     _required_args = {}
     #: Dict of optional arguments, indexed by intrinsic name.
     _optional_args = {}
-    _required_args[Intrinsic.ALLOCATE.name] = [ArrayReference]
+    # The positional arguments to allocate must all be References (or
+    # ArrayReferences but they are a subclass of Reference).
+    _required_args[Intrinsic.ALLOCATE.name] = ArgDesc(1, None, Reference)
     _optional_args[Intrinsic.ALLOCATE.name] = {"mold": Reference,
                                                "status": Reference}
-    _required_args[Intrinsic.DEALLOCATE.name] = [Reference]
-    _optional_args[Intrinsic.DEALLOCATE.name] = {}
-    _required_args[Intrinsic.RANDOM.name] = [Reference]
+    _required_args[Intrinsic.DEALLOCATE.name] = ArgDesc(1, None, [Reference])
+    _optional_args[Intrinsic.DEALLOCATE.name] = {"status": Reference}
+    _required_args[Intrinsic.RANDOM.name] = ArgDesc(1, 1, Reference)
     _optional_args[Intrinsic.RANDOM.name] = {}
 
     @classmethod
@@ -93,14 +94,14 @@ class IntrinsicCall(Call):
         :returns: an instance of cls.
         :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
-        :raises TypeError: if the intrinsic argument is not an \
-                           IntrinsicCall.Intrinsic.
-        :raises TypeErrpr: if the arguments argument is not a list.
-        :raises GenerationError: if the contents of the arguments \
-            argument are not the expected type.
+        :raises TypeError: if any of the arguments are of the wrong type.
+        :raises ValueError: if any optional arguments have incorrect names \
+            or if a positional argument is listed *after* a named argument.
+        :raises ValueError: if the number of supplied arguments is not valid \
+            for the specified intrinsic.
 
         '''
-        if not isinstance(intrinsic, IntrinsicCall.Intrinsic):
+        if not isinstance(intrinsic, cls.Intrinsic):
             raise TypeError(
                 f"IntrinsicCall create() 'intrinsic' argument should be an "
                 f"instance of IntrinsicCall.Intrinsic but found "
@@ -111,16 +112,6 @@ class IntrinsicCall(Call):
                 f"IntrinsicCall.create() 'arguments' argument should be a "
                 f"list but found '{type(arguments).__name__}'")
 
-        # Create a call, supplying an IntrinsicSymbol in place of a
-        # RoutineSymbol.
-        call = super().create(IntrinsicSymbol(intrinsic.name), arguments)
-
-        reqd_args = cls._required_args[intrinsic.name]
-        if len(arguments) < len(reqd_args):
-            raise GenerationError(
-                f"The '{intrinsic.name}' intrinsic requires {len(reqd_args)} "
-                f"arguments but got {len(arguments)}.")
-
         if cls._optional_args[intrinsic.name]:
             optional_arg_names = sorted(list(
                 cls._optional_args[intrinsic.name].keys()))
@@ -128,23 +119,55 @@ class IntrinsicCall(Call):
             optional_arg_names = []
 
         # Validate the supplied arguments.
-        arg_pos = 0
-        for idx, arg in enumerate(call.children):
-            name = call._argument_names[idx][1]
-            if name:
+        reqd_args = cls._required_args[intrinsic.name]
+        opt_args = cls._optional_args[intrinsic.name]
+        last_named_arg = None
+        pos_arg_count = 0
+        for arg in arguments:
+            if isinstance(arg, tuple):
+                name = arg[0].lower()
+                last_named_arg = name
+                if not optional_arg_names:
+                    raise ValueError(
+                        f"The '{intrinsic.name}' intrinsic does not support "
+                        f"any optional arguments but got '{name}'.")
                 if name not in optional_arg_names:
-                    raise GenerationError(
-                        f"The '{intrinsic.name}' intrinsic only supports "
-                        f"the optional arguments {optional_arg_names} but "
-                        f"got '{name}'.")
-                if type(arg) != cls._optional_args[intrinsic.name][name]:
-                    raise TypeError("arp2")
+                    raise ValueError(
+                        f"The '{intrinsic.name}' intrinsic supports the "
+                        f"optional arguments {optional_arg_names} but got "
+                        f"'{name}'")
+                if not isinstance(arg[1], opt_args[name]):
+                    raise TypeError(
+                        f"The optional argument '{name}' to intrinsic "
+                        f"'{intrinsic.name}' must be of type "
+                        f"'{opt_args[name].__name__}' but got "
+                        f"'{type(arg[1]).__name__}'")
             else:
-                if type(arg) != reqd_args[arg_pos]:
-                    raise GenerationError(
-                        f"The '{intrinsic.name}' intrinsic requires an "
-                        f"argument of type '{reqd_args[arg_pos].__name__}' at "
-                        f"position {arg_pos} but got a '{type(arg).__name__}'")
-                arg_pos += 1
+                if last_named_arg:
+                    raise ValueError(
+                        f"Found a positional argument *after* a named "
+                        f"argument ('{last_named_arg}'). This is invalid.'")
+                if not isinstance(arg, reqd_args.types):
+                    raise TypeError(
+                        f"The '{intrinsic.name}' intrinsic requires that "
+                        f"positional arguments be of type '{reqd_args.types}' "
+                        f"but got a '{type(arg).__name__}'")
+                pos_arg_count += 1
+
+        if ((reqd_args.max_count is not None and
+             pos_arg_count > reqd_args.max_count)
+                or pos_arg_count < reqd_args.min_count):
+            msg = f"The '{intrinsic.name}' intrinsic requires "
+            if reqd_args.max_count is not None and reqd_args.max_count > 0:
+                msg += (f"between {reqd_args.min_count} and "
+                        f"{reqd_args.max_count} ")
+            else:
+                msg += f"at least {reqd_args.min_count} "
+            msg += f"arguments but got {len(arguments)}."
+            raise ValueError(msg)
+
+        # Create a call, supplying an IntrinsicSymbol in place of a
+        # RoutineSymbol.
+        call = super().create(IntrinsicSymbol(intrinsic.name), arguments)
 
         return call
