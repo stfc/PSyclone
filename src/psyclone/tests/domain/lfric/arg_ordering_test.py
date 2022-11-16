@@ -49,7 +49,7 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import ArrayReference, Literal, Reference
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_ast, get_base_path, get_invoke
 
@@ -116,24 +116,29 @@ def test_argordering_get_array_reference():
 
     # First test access using an index, e.g. `array(1)`
     one = Literal("1", INTEGER_TYPE)
-    ref = arg_list.get_array_reference("array1", [one], "real")
+    ref = arg_list.get_array_reference("array1", [one],
+                                       ScalarType.Intrinsic.REAL)
     assert isinstance(ref, ArrayReference)
-    ref = arg_list.get_array_reference("array2", [":"], "integer")
+    ref = arg_list.get_array_reference("array2", [":"],
+                                       ScalarType.Intrinsic.INTEGER)
     assert not isinstance(ref, ArrayReference)
 
     # Now test access using ":" only, e.g. `array(:)` -> this should
     # be returned just a reference to `array`
-    ref = arg_list.get_array_reference("array3", [":", ":"], "real")
+    ref = arg_list.get_array_reference("array3", [":", ":"],
+                                       ScalarType.Intrinsic.REAL)
     assert isinstance(ref, Reference)
     assert not isinstance(ref, ArrayReference)
-    ref = arg_list.get_array_reference("array4", [":", ":"], "integer")
+    ref = arg_list.get_array_reference("array4", [":", ":"],
+                                       ScalarType.Intrinsic.INTEGER)
     assert isinstance(ref, Reference)
     assert not isinstance(ref, ArrayReference)
 
     # Now specify a symbol, but an incorrect array name:
     with pytest.raises(InternalError) as err:
         arg_list.get_array_reference("wrong-name", [":", ":"],
-                                     "integer", symbol=ref.symbol)
+                                     ScalarType.Intrinsic.INTEGER,
+                                     symbol=ref.symbol)
     assert ("Specified symbol 'array4' has a different name than the "
             "specified array name 'wrong-name'" in str(err.value))
 
@@ -143,7 +148,8 @@ def test_argordering_get_array_reference():
             in str(err.value))
 
     with pytest.raises(TypeError) as err:
-        arg_list.get_array_reference("array4", [":"], "integer")
+        arg_list.get_array_reference("array4", [":"],
+                                     ScalarType.Intrinsic.INTEGER)
     assert ("Array 'array4' already exists, but has 2 dimensions, not 1."
             in str(err.value))
 

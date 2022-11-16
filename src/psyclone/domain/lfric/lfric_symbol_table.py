@@ -42,8 +42,8 @@ It provides convenience functions to create often used symbols.
 
 from psyclone.domain.lfric import LFRicConstants, psyir
 from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
-                                    ImportInterface, INTEGER_TYPE, Symbol,
-                                    SymbolTable)
+                                    ImportInterface, INTEGER_TYPE, ScalarType,
+                                    Symbol, SymbolTable)
 
 
 class LFRicSymbolTable(SymbolTable):
@@ -135,8 +135,9 @@ class LFRicSymbolTable(SymbolTable):
 
         :param str array_name: the name and tag of the array.
         :param int num_dimensions: the number of dimensions of this array.
-        :param str intrinsic_type: the intrinsic type of the array, must \
-            be one of "real" or "integer".
+        :param intrinsic_type: the intrinsic type of the array.
+        :type intrinsic_type: \
+            :py:class:`psyclone.psyir.symbols.datatypes.ScalarType.Intrinsic`
         :param tag: optional tag to be used in searching and defining.
         :type tag: Optional[str]
 
@@ -147,11 +148,11 @@ class LFRicSymbolTable(SymbolTable):
             or not an Array, or has different number of dimensions.
 
         '''
-        if intrinsic_type == "real":
+        if intrinsic_type == ScalarType.Intrinsic.REAL:
             datatype = psyir.LfricRealScalarDataType()
-        elif intrinsic_type == "integer":
+        elif intrinsic_type == ScalarType.Intrinsic.INTEGER:
             datatype = psyir.LfricIntegerScalarDataType()
-        elif intrinsic_type == "logical":
+        elif intrinsic_type == ScalarType.Intrinsic.BOOLEAN:
             datatype = psyir.LfricLogicalScalarDataType()
         else:
             raise TypeError(f"Unsupported data type "
@@ -186,7 +187,7 @@ class LFRicSymbolTable(SymbolTable):
 
         if sym.datatype.datatype != datatype:
             raise TypeError(f"Symbol '{sym.name}' already exists, but is "
-                            f"not of type {intrinsic_type}, but "
+                            f"not of type '{intrinsic_type}', but "
                             f"'{type(sym.datatype.datatype)}'.")
 
         if len(sym.shape) != num_dimensions:

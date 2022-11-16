@@ -1407,7 +1407,8 @@ class DynStencils(DynCollection):
         else:
             num_dimensions = 3
         return symtab.find_or_create_array(root_name, num_dimensions,
-                                           "integer", tag=unique)
+                                           ScalarType.Intrinsic.INTEGER,
+                                           tag=unique)
 
     @staticmethod
     def dofmap_size_symbol(symtab, arg):
@@ -1432,7 +1433,8 @@ class DynStencils(DynCollection):
         else:
             num_dimensions = 1
         return symtab.find_or_create_array(root_name, num_dimensions,
-                                           "integer", tag=unique)
+                                           ScalarType.Intrinsic.INTEGER,
+                                           tag=unique)
 
     @staticmethod
     def max_branch_length_name(symtab, arg):
@@ -1887,7 +1889,8 @@ class LFRicMeshProperties(DynCollection):
             else:
                 # E.g.: adjacent_face
                 self._symbol_table.find_or_create_array(
-                    name_lower, 2, "integer", tag=name_lower)
+                    name_lower, 2, ScalarType.Intrinsic.INTEGER,
+                    tag=name_lower)
 
     def kern_args(self, stub=False, var_accesses=None,
                   kern_call_arg_list=None):
@@ -1957,7 +1960,7 @@ class LFRicMeshProperties(DynCollection):
                     adj_face_sym = kern_call_arg_list. \
                         append_array_reference(adj_face,
                                                [":", cell_ref],
-                                               "integer")
+                                               ScalarType.Intrinsic.INTEGER)
                     # Update the name in case there was a clash
                     adj_face = adj_face_sym.name
                     if var_accesses:
@@ -2068,7 +2071,8 @@ class LFRicMeshProperties(DynCollection):
         for prop in self._properties:
             if prop == MeshProperty.ADJACENT_FACE:
                 adj_face = self._symbol_table.find_or_create_array(
-                    "adjacent_face", 2, "integer", tag="adjacent_face").name
+                    "adjacent_face", 2, ScalarType.Intrinsic.INTEGER,
+                    tag="adjacent_face").name
                 # 'nfaces_re_h' will have been declared by the
                 # DynReferenceElement class.
                 dimension = self._symbol_table.\
@@ -3821,7 +3825,8 @@ class DynCMAOperators(DynCollection):
             # First create a pointer to the array containing the actual
             # matrix
             cma_name = self._symbol_table.find_or_create_array(
-                op_name+"_matrix", 3, "real", tag=op_name+"_matrix").name
+                op_name+"_matrix", 3, ScalarType.Intrinsic.REAL,
+                tag=op_name+"_matrix").name
             parent.add(AssignGen(parent, lhs=cma_name, pointer=True,
                                  rhs=self._cma_ops[op_name]["arg"].
                                  proxy_name_indexed+"%columnwise_matrix"))
@@ -3871,7 +3876,8 @@ class DynCMAOperators(DynCollection):
         for op_name in self._cma_ops:
             # Declare the operator matrix itself
             cma_name = self._symbol_table.find_or_create_array(
-                op_name+"_matrix", 3, "real", tag=op_name+"_matrix").name
+                op_name+"_matrix", 3, ScalarType.Intrinsic.REAL,
+                tag=op_name+"_matrix").name
             cma_dtype = self._cma_ops[op_name]["datatype"]
             cma_kind = self._cma_ops[op_name]["kind"]
             parent.add(DeclGen(parent, datatype=cma_dtype,
@@ -4162,7 +4168,7 @@ class DynMeshes():
             # information and that means we'll need a mesh object
             self._add_mesh_symbols(["mesh"])
             colour_map = sym_tab.find_or_create_array(
-                "cmap", 2, "integer", tag="cmap").name
+                "cmap", 2, ScalarType.Intrinsic.INTEGER, tag="cmap").name
             # No. of colours
             ncolours = sym_tab.find_or_create_integer_symbol(
                 "ncolour", tag="ncolour").name
@@ -4503,7 +4509,8 @@ class DynInterGrid():
         # Name for cell map
         base_name = "cell_map_" + coarse_arg.name
         sym = symtab.find_or_create_array(base_name, 3,
-                                          "integer", tag=base_name)
+                                          ScalarType.Intrinsic.INTEGER,
+                                          tag=base_name)
         self.cell_map = sym.name
 
         # We have no colourmap information when first created
@@ -5244,7 +5251,8 @@ class DynBasisFunctions(DynCollection):
             names = [f"{name}_{qr_arg_name}"
                      for name in self.qr_weight_vars[qr_type]]
             decl_list = [
-                symbol_table.find_or_create_array(name, 2, "real",
+                symbol_table.find_or_create_array(name, 2,
+                                                  ScalarType.Intrinsic.REAL,
                                                   tag=name).name
                 + "(:,:) => null()" for name in names]
             const = LFRicConstants()

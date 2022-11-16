@@ -199,8 +199,9 @@ class ArgOrdering:
         :param indices: the indices to be used in the PSyIR reference. It \
             must either be ":", or a PSyIR node.
         :type indices: List[Union[str, py:class:`psyclone.psyir.nodes.Node`]]
-        :param str intrinsic_type: the intrinsic type of the array, must \
-            be one of "real", "integer", or "logical"
+        :param intrinsic_type: the intrinsic type of the array.
+        :type intrinsic_type: \
+            :py:class:`psyclone.psyir.symbols.datatypes.ScalarType.Intrinsic`
         :param tag: optional tag for the symbol.
         :type tag: Optional[str]
         :param symbol: optional the symbol to use.
@@ -244,8 +245,9 @@ class ArgOrdering:
         :param indices: the indices to be used in the PSyIR reference. It \
             must either be ":", or a PSyIR node.
         :type indices: List[Union[str, py:class:`psyclone.psyir.nodes.Node`]]
-        :param str intrinsic_type: the intrinsic type of the array, must \
-            be one of "real", "integer", or "logical"
+        :param intrinsic_type: the intrinsic type of the array.
+        :type intrinsic_type: \
+            :py:class:`psyclone.psyir.symbols.datatypes.ScalarType.Intrinsic`
         :param tag: optional tag for the symbol.
         :type tag: Optional[str]
         :param symbol: optional the symbol to use.
