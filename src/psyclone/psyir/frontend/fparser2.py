@@ -2344,12 +2344,20 @@ class Fparser2Reader():
             parent=parent)
         alloc_list = node.children[1].children
         for alloc in alloc_list:
-            name = alloc.children[0].string
-            symbol = _find_or_create_imported_symbol(parent, name)
-            ref = ArrayReference(symbol, parent=call)
-            shape_spec_list = alloc.children[1]
-            for spec in shape_spec_list.children:
-                self.process_nodes(parent=ref, nodes=[spec])
+            if isinstance(alloc, Fortran2003.Name):
+                # If the allocate() has a 'mold' argument then its positional
+                # argument(s) is/are just references without any shape
+                # information.
+                name = alloc.string
+                symbol = _find_or_create_imported_symbol(parent, name)
+                ref = Reference(symbol, parent=call)
+            else:
+                name = alloc.children[0].string
+                symbol = _find_or_create_imported_symbol(parent, name)
+                ref = ArrayReference(symbol, parent=call)
+                shape_spec_list = alloc.children[1]
+                for spec in shape_spec_list.children:
+                    self.process_nodes(parent=ref, nodes=[spec])
             call.addchild(ref)
         # Handle any options to the allocate()
         opt_list = walk(node, Fortran2003.Alloc_Opt)

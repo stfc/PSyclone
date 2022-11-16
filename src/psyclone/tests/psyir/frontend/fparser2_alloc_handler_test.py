@@ -107,7 +107,7 @@ end program test_alloc
 
 
 def test_alloc_with_mold(fortran_reader):
-    '''Check that an allocate with a status argument is correctly handled.'''
+    '''Check that an allocate with a mold argument is correctly handled.'''
     code = '''
 program test_alloc
   integer, parameter :: ndof = 8
@@ -120,7 +120,9 @@ end program test_alloc
     psyir = fortran_reader.psyir_from_source(code)
     calls = psyir.walk(IntrinsicCall)
     assert len(calls) == 1
-    # The call should have a named argument.
-    assert calls[0].argument_names == [None, "STAT"]
-    assert isinstance(calls[0].children[1], Reference)
-    assert calls[0].children[1].symbol.name == "ierr"
+    call = calls[0]
+    # The call should have two named arguments.
+    assert call.argument_names == [None, "MOLD", "STAT"]
+    assert isinstance(call.children[1], Reference)
+    assert call.children[1].symbol.name == "mask"
+    assert call.children[2].symbol.name == "ierr"
