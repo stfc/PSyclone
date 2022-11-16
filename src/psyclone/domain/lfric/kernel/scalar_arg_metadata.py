@@ -73,7 +73,7 @@ class ScalarArgMetadata(CommonMetaArgMetadata):
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
         :param int nargs: the number of expected metadata arguments.
 
-        :returns: a tuple containing the datatype and access metadata
+        :returns: a tuple containing the datatype and access metadata.
         :rtype: Tuple(str, str)
 
         '''

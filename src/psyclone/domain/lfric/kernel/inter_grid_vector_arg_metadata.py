@@ -75,33 +75,28 @@ class InterGridVectorArgMetadata(InterGridArgMetadata):
         super().__init__(datatype, access, function_space, mesh_arg)
         self.vector_length = vector_length
 
-    @staticmethod
-    def create_from_fparser2(fparser2_tree):
-        '''Create an instance of this class from an fparser2 tree.
+    @classmethod
+    def _get_metadata(cls, fparser2_tree, nargs=5):
+        '''Extract the required metadata from the fparser2 tree and return it
+        as strings. Also check that the metadata is in the expected
+        form (but do not check the metadata values as that is done
+        separately).
 
-        :param fparser2_tree: fparser2 tree capturing the metadata for \
-            an InterGrid vector argument.
-        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
+        :param fparser2_tree: fparser2 tree containing the metadata \
+            for this argument.
+        :type fparser2_tree: \
+            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
+        :param int nargs: the number of expected metadata arguments.
 
-        :returns: an instance of InterGridVectorArgMetadata.
-        :rtype: :py:class:`psyclone.domain.lfric.kernel.InterGridArg`
+        :returns: a tuple containing the datatype, access, function \
+            space, mesh and vector metadata.
+        :rtype: Tuple(str, str, str, str, str)
 
         '''
-        InterGridVectorArgMetadata.check_fparser2_arg(
-            fparser2_tree, "arg_type",
-            encoding=Fortran2003.Structure_Constructor)
-        InterGridVectorArgMetadata.check_nargs(fparser2_tree, 5)
-        InterGridVectorArgMetadata.check_first_arg(fparser2_tree)
-        vector_length = InterGridVectorArgMetadata.get_vector_length(
-            fparser2_tree)
-        datatype, access, function_space = \
-            InterGridVectorArgMetadata.get_type_access_and_fs(fparser2_tree)
-        mesh_arg = InterGridVectorArgMetadata.get_mesh_arg(fparser2_tree)
-        InterGridVectorArgMetadata.check_remaining_args(
-            fparser2_tree, datatype, access, function_space, mesh_arg,
-            vector_length)
-        return InterGridVectorArgMetadata(
-            datatype, access, function_space, mesh_arg, vector_length)
+        datatype, access, function_space, mesh_arg = super()._get_metadata(
+            fparser2_tree, nargs=nargs)
+        vector_length = cls.get_vector_length(fparser2_tree)
+        return (datatype, access, function_space, mesh_arg, vector_length)
 
     def fortran_string(self):
         '''

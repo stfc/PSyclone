@@ -84,9 +84,8 @@ class CommonArgMetadata(CommonMetadata):
                 f"{len(fparser2_tree.children[1].children)} in "
                 f"'{str(fparser2_tree)}'.")
 
-    @staticmethod
-    def check_fparser2_arg(fparser2_tree, type_name,
-                           encoding=Fortran2003.Part_Ref):
+    @classmethod
+    def check_fparser2_arg(cls, fparser2_tree, type_name):
         '''Checks that the fparser2 tree is valid. The metadata will be in the
         form of a Fortran2003 Part_Ref or a Fortran2003
         Structure_Constructor which captures a metadata argument.
@@ -95,17 +94,12 @@ class CommonArgMetadata(CommonMetadata):
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`
         :param str type_name: the name of the argument datatype.
-        :param encoding: class in which the fparser2 tree should \
-            be encoded. Defaults to fparser.two.Fortran2003.Part_Ref.
-        :type encoding: Optional[ \
-            :py:class:`fparser.two.Fortran2003.Part_Ref` | \
-            :py:class:`fparser.two.Fortran2003.Structure_Constructor`]
 
         :raises ValueError: if the kernel metadata is not in \
             the form arg_type(...).
 
         '''
-        CommonMetadata.check_fparser2(fparser2_tree, encoding)
+        CommonMetadata.check_fparser2(fparser2_tree, cls.fparser2_class)
 
         if not fparser2_tree.children[0].tostr().lower() == type_name:
             raise ValueError(

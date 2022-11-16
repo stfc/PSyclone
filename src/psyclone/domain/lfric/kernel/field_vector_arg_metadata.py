@@ -69,29 +69,28 @@ class FieldVectorArgMetadata(FieldArgMetadata):
         super().__init__(datatype, access, function_space)
         self.vector_length = vector_length
 
-    @staticmethod
-    def create_from_fparser2(fparser2_tree):
-        '''Create an instance of this class from an fparser2 tree.
+    @classmethod
+    def _get_metadata(cls, fparser2_tree, nargs=4):
+        '''Extract the required metadata from the fparser2 tree and return it
+        as strings. Also check that the metadata is in the expected
+        form (but do not check the metadata values as that is done
+        separately).
 
-        :param fparser2_tree: fparser2 tree capturing the metadata \
-            for a field vector argument.
+        :param fparser2_tree: fparser2 tree containing the metadata \
+            for this argument.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
+        :param int nargs: the number of expected metadata arguments.
 
-        :returns: an instance of this class.
-        :rtype: :py:class:`psyclone.domain.lfric.kernel.FieldVectorArgMetadata`
+        :returns: a tuple containing the datatype, access, function \
+            space and vector length metadata.
+        :rtype: Tuple(str, str, str, str)
 
         '''
-        FieldVectorArgMetadata.check_fparser2_arg(fparser2_tree, "arg_type")
-        FieldVectorArgMetadata.check_nargs(fparser2_tree, 4)
-        FieldVectorArgMetadata.check_first_arg(fparser2_tree)
+        datatype, access, function_space = super()._get_metadata(
+            fparser2_tree, nargs=nargs)
         vector_length = FieldVectorArgMetadata.get_vector_length(
             fparser2_tree)
-        datatype, access, function_space = \
-            FieldVectorArgMetadata.get_type_access_and_fs(fparser2_tree)
-        FieldVectorArgMetadata.check_remaining_args(
-            fparser2_tree, datatype, access, function_space, vector_length)
-        return FieldVectorArgMetadata(
-            datatype, access, function_space, vector_length)
+        return (datatype, access, function_space, vector_length)
 
     def fortran_string(self):
         '''

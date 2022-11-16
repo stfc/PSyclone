@@ -71,26 +71,28 @@ class FieldArgMetadata(CommonMetaArgMetadata):
         super().__init__(datatype, access)
         self.function_space = function_space
 
-    @staticmethod
-    def create_from_fparser2(fparser2_tree):
-        '''Create an instance of this class from an fparser2 tree.
+    @classmethod
+    def _get_metadata(cls, fparser2_tree, nargs=4):
+        '''Extract the required metadata from the fparser2 tree and return it
+        as strings. Also check that the metadata is in the expected
+        form (but do not check the metadata values as that is done
+        separately).
 
-        :param fparser2_tree: fparser2 tree capturing the metadata for \
-            a field argument.
+        :param fparser2_tree: fparser2 tree containing the metadata \
+            for this argument.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
+        :param int nargs: the number of expected metadata arguments.
 
-        :returns: an instance of FieldArgMetadata.
-        :rtype: :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
+        :returns: a tuple containing the datatype, access and function \
+            space metadata.
+        :rtype: Tuple(str, str, str)
 
         '''
-        FieldArgMetadata.check_fparser2_arg(fparser2_tree, "arg_type")
-        FieldArgMetadata.check_nargs(fparser2_tree, 4)
-        FieldArgMetadata.check_first_arg(fparser2_tree)
-        datatype, access, function_space = \
-            FieldArgMetadata.get_type_access_and_fs(fparser2_tree)
-        FieldArgMetadata.check_remaining_args(
-            fparser2_tree, datatype, access, function_space)
-        return FieldArgMetadata(datatype, access, function_space)
+        cls.check_fparser2_arg(fparser2_tree, "arg_type")
+        cls.check_nargs(fparser2_tree, nargs)
+        cls.check_first_arg(fparser2_tree)
+        args = cls.get_type_access_and_fs(fparser2_tree)
+        return args
 
     def fortran_string(self):
         '''
