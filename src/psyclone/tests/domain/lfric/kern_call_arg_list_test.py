@@ -47,7 +47,7 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKern
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Literal, Loop, Reference
+from psyclone.psyir.nodes import Literal, Loop, Reference, UnaryOperation
 from psyclone.psyir.symbols import ScalarType
 from psyclone.tests.utilities import get_base_path, get_invoke
 from psyclone.transformations import Dynamo0p3ColourTrans
@@ -371,6 +371,20 @@ def test_kerncallarglist_scalar_literal(fortran_writer):
     # should be a scalar
     args = schedule.kernels()[0].arguments.args
     assert args[3].is_scalar
+
+    # Make sure a negative number is accepted:
+    args[3]._name = "-2.0_r_def"
+    create_arg_list.scalar(args[3])
+    lit = create_arg_list.psyir_arglist[-1]
+    # In Fortran a negative number as above is an UnaryOperation
+    assert isinstance(lit, UnaryOperation)
+
+    # Make sure a negative number with a space works
+    args[3]._name = "- 2.0_r_def"
+    create_arg_list.scalar(args[3])
+    lit = create_arg_list.psyir_arglist[-1]
+    # In Fortran a negative number as above is an UnaryOperation
+    assert isinstance(lit, UnaryOperation)
 
     # Modify the third argument to be a logical
     args[3]._intrinsic_type = "logical"
