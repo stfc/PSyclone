@@ -49,8 +49,8 @@
 
 this_file := $(abspath $(lastword $(MAKEFILE_LIST)))
 
-# PSyclone directory is up two from this file
-PSYCLONE_DIR := $(abspath $(dir $(this_file))../..)
+# PSyclone directory is up one from this file
+PSYCLONE_DIR := $(abspath $(dir $(this_file))..)
 
 RM = rm -f
 PYTHON ?= python
@@ -60,10 +60,10 @@ ifeq (,$(wildcard ${PSYCLONE_DIR}/config/psyclone.cfg))
   # Failed to find the configuration file so don't attempt to specify it.
   # Will be picked up from default locations or $PSYCLONE_CONFIG.
   PSYCLONE ?= psyclone
-  KERNEL_STUB_GEN ?= "psyclone-kern -gen stub"
+  JUPYTER = jupyter
 else
   PSYCLONE ?= psyclone -l output --config ${PSYCLONE_DIR}/config/psyclone.cfg
-  KERNEL_STUB_GEN ?= "PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg psyclone-kern -gen stub"
+  JUPYTER = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg jupyter
 endif
 
 .PHONY: transform compile run clean allclean notebook ${NOTEBOOK_FILES}
@@ -73,11 +73,11 @@ endif
 # to use as otherwise it is taken from the notebook meta-data and this might
 # not agree with what's currently available (particularly in a CI
 # environment).
-JUPYTER = jupyter nbconvert --ExecutePreprocessor.kernel_name=${PYTHON} \
-                 --to notebook --execute
+JUPYTER_ARGS = nbconvert --ExecutePreprocessor.kernel_name=${PYTHON} \
+               --to notebook --execute
 
 # Rule that attempts to execute all Jupyter notebooks in the current dir
 ${NOTEBOOK_FILES}:
-	PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg ${JUPYTER} $@
+	${JUPYTER} ${JUPYTER_ARGS} $@
 
 notebook: ${NOTEBOOK_FILES}
