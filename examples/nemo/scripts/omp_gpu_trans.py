@@ -79,19 +79,15 @@ def trans(psy):
             print("Skipping", invoke.name)
             continue
 
-        # TODO #1841: This file has a bug in the array-range-to-loop
-        # transformation that leads to the following compiler error
+        # TODO #1841: These files have a bug in the array-range-to-loop
+        # transformation. One leads to the following compiler error
         # NVFORTRAN-S-0083-Vector expression used where scalar expression
-        # required
-        if invoke.name in ("blk_oce"):
+        # required, the other to an incorrect result.
+        if invoke.name in ("blk_oce", "trc_oce_rgb"):
             print("Skipping", invoke.name)
             continue
 
         enhance_tree_information(invoke.schedule)
-
-        if invoke.name[0] == "t" and not invoke.name.startswith("tra"):
-            print("HERE Skipping ", invoke.name)
-            continue
 
         normalise_loops(
                 invoke.schedule,

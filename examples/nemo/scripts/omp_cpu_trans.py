@@ -66,19 +66,21 @@ def trans(psy):
         if PROFILING_ENABLED:
             add_profiling(invoke.schedule.children)
 
-        # The ptr_sf and sbc_dyc symbols have a wrong symbol type
-        #if psy.name in ("psy_diaptr_psy", "psy_sbccpl_psy"):
-        #    print("Here Skipping", invoke.name)
-        #    continue
-
-        # TODO #1841: NVFORTRAN-S-0083-Vector expression used where scalar
-        # expression required
-        if invoke.name in ("blk_oce"):
+        # TODO #1841: These subroutines have a bug in the array-range-to-loop
+        # transformation.
+        if invoke.name in (
+                "blk_oce", # NVFORTRAN-S-0083-Vector expression used where
+                           # scalar expression
+                "trc_oce_rgb", # Produces incorrect results
+                "removepoints" # Compiler error: The shapes of the array
+                               # expressions do not conform
+                ):
             print("Skipping", invoke.name)
             continue
 
-        # The following files makes the ECMWF compilation fail
-        if psy.name in ("psy_eosbn2_psy", "psy_diadct_psy", "psy_sbcblk_psy"):
+        # TODO #1959: This subroutines make the ECMWF compilation fail because
+        # it moves a statement function outside of the specification part.
+        if invoke.name in ("eos_rprof"):
             print("Skipping", invoke.name)
             continue
 
