@@ -80,7 +80,7 @@ EXCLUDED_FILES = [
     "storng.f90",
     # abort intrinsic not recognised
     "mpp_io.f90",
-    # There is a bug on a WHERE fparser2 frontend processing
+    # TODO #1960: There is a bug on a WHERE fparser2 frontend processing
     "sbccpl.f90",
     # TODO #1902: Excluded to avoid HoistLocalArraysTrans bug
     "mpp_ini.f90",
