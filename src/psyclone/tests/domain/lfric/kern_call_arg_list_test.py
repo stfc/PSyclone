@@ -72,9 +72,8 @@ def check_psyir_results(create_arg_list, fortran_writer):
     assert result == create_arg_list._arglist
 
 
-def test_field_prolong(dist_mem, fortran_writer):
-    ''' Check that we generate correct psy-layer code for an invoke
-    containing a kernel that performs a prolongation operation '''
+def test_cellmap_intergrid(dist_mem, fortran_writer):
+    ''' Check the handlinf of cell_map and fs_intergrid.'''
 
     full_path = os.path.join(get_base_path(TEST_API),
                              "22.0_intergrid_prolong.f90")
