@@ -2401,8 +2401,6 @@ class Fparser2Reader():
         :rtype: :py:class:`psyclone.psyir.nodes.Range`
 
         '''
-        #import pdb; pdb.set_trace()
-
         my_range = Range(parent=parent)
         my_range.children = []
         integer_type = default_integer_type()

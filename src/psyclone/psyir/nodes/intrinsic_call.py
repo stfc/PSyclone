@@ -61,26 +61,31 @@ class IntrinsicCall(Call):
     Intrinsic = Enum('Intrinsic', [
         'ALLOCATE', 'DEALLOCATE', 'RANDOM'
         ])
+    #: Named tuple for describing the properties of the required arguments to
+    #: a particular intrinsic. If there's no limit on the number of arguments
+    #: then `max_count` will be None.
     ArgDesc = namedtuple('ArgDesc', 'min_count max_count types')
-    #: List of required arguments, indexed by intrinsic name.
+    #: List of ArgDesc objects describing the required arguments, indexed
+    #: by intrinsic name.
     _required_args = {}
-    #: Dict of optional arguments, indexed by intrinsic name.
+    #: Dict of optional arguments, indexed by intrinsic name. Each optional
+    #: argument is described by an entry in the Dict.
     _optional_args = {}
     # The positional arguments to allocate must all be References (or
     # ArrayReferences but they are a subclass of Reference).
     _required_args[Intrinsic.ALLOCATE.name] = ArgDesc(1, None, Reference)
     _optional_args[Intrinsic.ALLOCATE.name] = {"mold": Reference,
-                                               "status": Reference}
-    _required_args[Intrinsic.DEALLOCATE.name] = ArgDesc(1, None, [Reference])
-    _optional_args[Intrinsic.DEALLOCATE.name] = {"status": Reference}
+                                               "stat": Reference}
+    _required_args[Intrinsic.DEALLOCATE.name] = ArgDesc(1, None, Reference)
+    _optional_args[Intrinsic.DEALLOCATE.name] = {"stat": Reference}
     _required_args[Intrinsic.RANDOM.name] = ArgDesc(1, 1, Reference)
     _optional_args[Intrinsic.RANDOM.name] = {}
 
     @classmethod
     def create(cls, intrinsic, arguments):
-        '''Create an instance of class cls given valid instances of a routine
-        symbol, and a list of child nodes (or name and node tuple) for
-        its arguments.
+        '''Create an instance of class cls given the type of intrinsic and a
+        list of nodes (or name-and-node tuples) for its arguments. Any
+        named arguments *must* come after any required arguments.
 
         :param intrinsic: the Intrinsic being called.
         :type intrinsic: py:class:`psyclone.psyir.IntrinsicCall.Intrinsic`
