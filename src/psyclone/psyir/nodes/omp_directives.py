@@ -700,7 +700,7 @@ class OMPParallelDirective(OMPRegionDirective):
         # Convert the set into a list and sort it, so that we get
         # reproducible results
         list_result = list(result)
-        list_result.sort(key=lambda x:x[0])
+        list_result.sort(key=lambda x: x[0])
 
         # Create the OMPPrivateClause corresponding to the results
         priv_clause = OMPPrivateClause()

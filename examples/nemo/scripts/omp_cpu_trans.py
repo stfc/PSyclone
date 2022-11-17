@@ -69,11 +69,11 @@ def trans(psy):
         # TODO #1841: These subroutines have a bug in the array-range-to-loop
         # transformation.
         if invoke.name in (
-                "blk_oce", # NVFORTRAN-S-0083-Vector expression used where
-                           # scalar expression
-                "trc_oce_rgb", # Produces incorrect results
-                "removepoints" # Compiler error: The shapes of the array
-                               # expressions do not conform
+                "blk_oce",  # NVFORTRAN-S-0083-Vector expression used where
+                            # scalar expression
+                "trc_oce_rgb",  # Produces incorrect results
+                "removepoints"  # Compiler error: The shapes of the array
+                                # expressions do not conform
                 ):
             print("Skipping", invoke.name)
             continue
