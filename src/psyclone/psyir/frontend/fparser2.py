@@ -58,7 +58,7 @@ from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     Symbol, ImportInterface, ArgumentInterface, UnresolvedInterface, \
     LocalInterface, ScalarType, ArrayType, DeferredType, UnknownType, \
     UnknownFortranType, StructureType, DataTypeSymbol, RoutineSymbol, \
-    SymbolTable, NoType, INTEGER_TYPE, IntrinsicSymbol
+    SymbolTable, NoType, INTEGER_TYPE, IntrinsicSymbol, DataSymbol
 
 # fparser dynamically generates classes which confuses pylint membership checks
 # pylint: disable=maybe-no-member
@@ -2343,34 +2343,37 @@ class Fparser2Reader():
         call = IntrinsicCall(
             IntrinsicSymbol(IntrinsicCall.Intrinsic.ALLOCATE.name),
             parent=parent)
-        #import pdb; pdb.set_trace()
+
         alloc_list = node.children[1].children
         # Loop over each 'Allocation' in the 'Allocation_List'
         for alloc in alloc_list:
-            # The optional Allocate_Shape_Spec_List (if mold is specified then
-            # this won't be present).
-            # Currently fparser produces an incorrect parse tree if 'mold' *is*
+            # Currently fparser produces an incorrect parse tree if 'mold' is
             # specified - there is no Allocate object, just the bare Name or
             # Data_Ref. This is the subject of fparser/#383.
             if isinstance(alloc, (Fortran2003.Name, Fortran2003.Data_Ref)):
                 # If the allocate() has a 'mold' argument then its positional
                 # argument(s) is/are just references without any shape
                 # information.
-                self.process_nodes(parent=call, nodes=[alloc.children[0]])
+                self.process_nodes(parent=call, nodes=[alloc])
             else:
                 # We have an Allocation(name, Allocate_Shape_Spec_List)
-                for shape_spec in walk(alloc[1],
+                self.process_nodes(parent=call,
+                                   nodes=[alloc.children[0]])
+                cursor = call.children[-1]
+                while hasattr(cursor, "member"):
+                    cursor = cursor.member
+                if isinstance(cursor, Member):
+                    # Convert Member to ArrayMember.
+                    aref = ArrayMember(cursor.name)
+                else:
+                    # Convert Reference to ArrayReference.
+                    aref = ArrayReference(cursor.symbol)
+                cursor.replace_with(aref)
+                # Handle the index expressions (each of which is represented
+                # by an Allocate_Shape_Spec).
+                for shape_spec in walk(alloc,
                                        Fortran2003.Allocate_Shape_Spec):
-                    pass
-        #    else:
-        #        name = alloc.children[0].string
-        #        symbol = _find_or_create_imported_symbol(parent, name)
-        # ARPDBG - at this point we may have a StructureReference etc.
-        #        ref = ArrayReference(symbol, parent=call)
-        #        shape_spec_list = alloc.children[1]
-        #        for spec in shape_spec_list.children:
-        #            self.process_nodes(parent=ref, nodes=[spec])
-        #    call.addchild(ref)
+                    self.process_nodes(parent=aref, nodes=[shape_spec])
 
         # Handle any options to the allocate()
         opt_list = walk(node, Fortran2003.Alloc_Opt)
@@ -2398,7 +2401,7 @@ class Fparser2Reader():
         :rtype: :py:class:`psyclone.psyir.nodes.Range`
 
         '''
-        import pdb; pdb.set_trace()
+        #import pdb; pdb.set_trace()
 
         my_range = Range(parent=parent)
         my_range.children = []

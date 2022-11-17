@@ -38,8 +38,9 @@
     fparser2 PSyIR front-end. '''
 
 
-from psyclone.psyir.nodes import (ArrayReference, IntrinsicCall, Literal,
-                                  Range, Reference, UnaryOperation)
+from psyclone.psyir.nodes import (
+    ArrayReference, IntrinsicCall, Literal,
+    Range, Reference, StructureReference, UnaryOperation)
 
 
 def test_basic_allocate(fortran_reader):
@@ -130,14 +131,27 @@ end program test_alloc
 
 def test_alloc_member(fortran_reader):
     '''
+    Check the handling of allocate with a member of a derived type.
+
     '''
     code = '''
 program test_alloc
   use some_mod, only: grid
   integer, parameter :: ndof = 8
-  allocate(grid%data(ndof), grid%points(6,6))
+  allocate(grid%data(ndof), grid%points(3)%data(2:6))
   allocate(grid%coords, mold=grid%data)
 end program test_alloc
 '''
     psyir = fortran_reader.psyir_from_source(code)
     calls = psyir.walk(IntrinsicCall)
+    assert len(calls) == 2
+    call = calls[0]
+    assert isinstance(call.children[0], StructureReference)
+    assert call.children[0].member.indices[0].stop.symbol.name == "ndof"
+    assert isinstance(call.children[1], StructureReference)
+    assert call.children[1].member.member.indices[0].start.value == "2"
+    assert call.children[1].member.member.indices[0].stop.value == "6"
+    call = calls[1]
+    assert isinstance(call.children[0], StructureReference)
+    assert call.argument_names == [None, "MOLD"]
+    assert isinstance(call.children[1], StructureReference)
