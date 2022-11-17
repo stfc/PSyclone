@@ -126,3 +126,18 @@ end program test_alloc
     assert isinstance(call.children[1], Reference)
     assert call.children[1].symbol.name == "mask"
     assert call.children[2].symbol.name == "ierr"
+
+
+def test_alloc_member(fortran_reader):
+    '''
+    '''
+    code = '''
+program test_alloc
+  use some_mod, only: grid
+  integer, parameter :: ndof = 8
+  allocate(grid%data(ndof), grid%points(6,6))
+  allocate(grid%coords, mold=grid%data)
+end program test_alloc
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    calls = psyir.walk(IntrinsicCall)

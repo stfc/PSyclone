@@ -920,6 +920,7 @@ class Fparser2Reader():
             Fortran2003.Allocate_Shape_Spec: self._allocate_shape_spec_handler,
             Fortran2003.Assignment_Stmt: self._assignment_handler,
             Fortran2003.Data_Ref: self._data_ref_handler,
+            Fortran2003.Deallocate_Stmt: self._deallocate_handler,
             Fortran2003.Function_Subprogram: self._subroutine_handler,
             Fortran2003.Name: self._name_handler,
             Fortran2003.Parenthesis: self._parenthesis_handler,
@@ -2342,23 +2343,35 @@ class Fparser2Reader():
         call = IntrinsicCall(
             IntrinsicSymbol(IntrinsicCall.Intrinsic.ALLOCATE.name),
             parent=parent)
+        #import pdb; pdb.set_trace()
         alloc_list = node.children[1].children
+        # Loop over each 'Allocation' in the 'Allocation_List'
         for alloc in alloc_list:
-            if isinstance(alloc, Fortran2003.Name):
+            # The optional Allocate_Shape_Spec_List (if mold is specified then
+            # this won't be present).
+            # Currently fparser produces an incorrect parse tree if 'mold' *is*
+            # specified - there is no Allocate object, just the bare Name or
+            # Data_Ref. This is the subject of fparser/#383.
+            if isinstance(alloc, (Fortran2003.Name, Fortran2003.Data_Ref)):
                 # If the allocate() has a 'mold' argument then its positional
                 # argument(s) is/are just references without any shape
                 # information.
-                name = alloc.string
-                symbol = _find_or_create_imported_symbol(parent, name)
-                ref = Reference(symbol, parent=call)
+                self.process_nodes(parent=call, nodes=[alloc.children[0]])
             else:
-                name = alloc.children[0].string
-                symbol = _find_or_create_imported_symbol(parent, name)
-                ref = ArrayReference(symbol, parent=call)
-                shape_spec_list = alloc.children[1]
-                for spec in shape_spec_list.children:
-                    self.process_nodes(parent=ref, nodes=[spec])
-            call.addchild(ref)
+                # We have an Allocation(name, Allocate_Shape_Spec_List)
+                for shape_spec in walk(alloc[1],
+                                       Fortran2003.Allocate_Shape_Spec):
+                    pass
+        #    else:
+        #        name = alloc.children[0].string
+        #        symbol = _find_or_create_imported_symbol(parent, name)
+        # ARPDBG - at this point we may have a StructureReference etc.
+        #        ref = ArrayReference(symbol, parent=call)
+        #        shape_spec_list = alloc.children[1]
+        #        for spec in shape_spec_list.children:
+        #            self.process_nodes(parent=ref, nodes=[spec])
+        #    call.addchild(ref)
+
         # Handle any options to the allocate()
         opt_list = walk(node, Fortran2003.Alloc_Opt)
         for opt in opt_list:
@@ -2385,6 +2398,8 @@ class Fparser2Reader():
         :rtype: :py:class:`psyclone.psyir.nodes.Range`
 
         '''
+        import pdb; pdb.set_trace()
+
         my_range = Range(parent=parent)
         my_range.children = []
         integer_type = default_integer_type()
@@ -2418,9 +2433,40 @@ class Fparser2Reader():
         '''
         return Loop(parent=parent, variable=variable)
 
+    def _deallocate_handler(self, node, parent):
+        '''
+        Transforms a deallocate() statement into its PSyIR form.
+
+        :param node: node in fparser2 tree.
+        :type node: :py:class:`fparser.two.Fortran2003.Deallocate_Stmt`
+        :param parent: parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyir.nodes.Schedule`
+
+        :returns: PSyIR for a deallocate.
+        :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+
+        '''
+        call = IntrinsicCall(
+            IntrinsicSymbol(IntrinsicCall.Intrinsic.DEALLOCATE.name),
+            parent=parent)
+        dealloc_list = node.children[0].children
+        for dealloc in dealloc_list:
+            self.process_nodes(parent=call, nodes=[dealloc])
+
+        # Handle any options to the deallocate()
+        opt_list = walk(node, Fortran2003.Dealloc_Opt)
+        for opt in opt_list:
+            self.process_nodes(parent=call, nodes=opt.children[1:])
+            call.append_named_arg(opt.children[0], call.children[-1].detach())
+
+        # Point to the original statement in the parse tree.
+        call.ast = node
+
+        return call
+
     def _do_construct_handler(self, node, parent):
         '''
-        Transforms a fparser2 Do Construct into its PSyIR representation.
+        Transforms a fparser2 Do Construct into its PSyIR form.
 
         :param node: node in fparser2 tree.
         :type node: \
