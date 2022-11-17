@@ -55,18 +55,31 @@ from psyclone.transformations import Dynamo0p3ColourTrans
 TEST_API = "dynamo0.3"
 
 
-def check_psyir_results(create_arg_list, fortran_writer):
+def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):
     '''Helper function to check if the PSyIR representation of the arguments
-     is identical to the old style textual representation. It checks that each
-     member of the psyir_arglist is a Reference, and that the textural
-     representation matches the textual presentation (which was already
-     verified).
+    is identical to the old style textual representation. It checks that each
+    member of the psyir_arglist is a Reference, and that the textural
+    representation matches the textual presentation (which was already
+    verified).
 
-     '''
+    :param create_arg_list: a KernCallArgList instance.
+    :type create_arg_list: :py:class:`psyclone.domain.lfric.KernCallArgList`
+    :param fortran_writer: a FortranWriter instance.
+    :type fortran_writer: \
+        :py:class:`psyclone.psyir.backend.fortran.FortranWriter`
+    :param classes: a tuple of classes that are expected in the PSyIR \
+        argument list. Defaults to `(Reference)`.
+    :type classes: Tuple[:py:class:`psyclone.psyir.nodes.node`]
+
+    '''
+
+    if not valid_classes:
+        valid_classes = (Reference)
+
     # Check the PSyIR representation
     result = []
     for node in create_arg_list.psyir_arglist:
-        assert isinstance(node, Reference)
+        assert isinstance(node, valid_classes)
         result.append(fortran_writer(node))
 
     assert result == create_arg_list._arglist
@@ -350,19 +363,8 @@ def test_kerncallarglist_scalar_literal(fortran_writer):
         'basis_w3_qr', 'diff_basis_w3_qr', 'np_xy_qr', 'np_z_qr',
         'weights_xy_qr', 'weights_z_qr']
 
-    # We can't use check_psyir_results here, since two nodes are
-    # Literals and not References.
-    result = []
-    for node in create_arg_list.psyir_arglist:
-        assert isinstance(node, (Literal, Reference))
-        result.append(fortran_writer(node))
-    assert result == [
-        'nlayers', 'f1_proxy%data', 'f2_proxy%data', 'm1_proxy%data',
-        '1.0_r_def', 'm2_proxy%data', '2_i_def', 'ndf_w1', 'undf_w1',
-        'map_w1(:,cell)', 'basis_w1_qr', 'ndf_w2', 'undf_w2',
-        'map_w2(:,cell)', 'diff_basis_w2_qr', 'ndf_w3', 'undf_w3',
-        'map_w3(:,cell)', 'basis_w3_qr', 'diff_basis_w3_qr', 'np_xy_qr',
-        'np_z_qr', 'weights_xy_qr', 'weights_z_qr']
+    check_psyir_results(create_arg_list, fortran_writer, (Literal, Reference))
+
     assert create_arg_list.nqp_positions == [{'horizontal': 21,
                                               'vertical': 22}]
 
