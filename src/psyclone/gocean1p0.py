@@ -55,7 +55,7 @@ from fparser.two.parser import ParserFactory
 from psyclone.configuration import Config, ConfigurationError
 from psyclone.core import Signature
 from psyclone.domain.common.psylayer import PSyLoop
-from psyclone.domain.gocean import GOceanConstants
+from psyclone.domain.gocean import GOceanConstants, GOSymbolTable
 from psyclone.errors import GenerationError, InternalError
 import psyclone.expression as expr
 from psyclone.f2pygen import DeclGen, UseGen, ModuleGen, SubroutineGen, \
@@ -72,7 +72,7 @@ from psyclone.psyir.nodes import Literal, Schedule, KernelSchedule, \
     StructureReference, BinaryOperation, Reference, Call, Assignment, \
     ACCEnterDataDirective, ACCParallelDirective, \
     ACCKernelsDirective, Container, ACCUpdateDirective
-from psyclone.psyir.symbols import SymbolTable, ScalarType, INTEGER_TYPE, \
+from psyclone.psyir.symbols import ScalarType, INTEGER_TYPE, \
     DataSymbol, RoutineSymbol, ContainerSymbol, DeferredType, DataTypeSymbol, \
     UnresolvedInterface, BOOLEAN_TYPE, REAL_TYPE
 
@@ -2197,64 +2197,6 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
         super().lower_to_language_level()
 
 
-class GOSymbolTable(SymbolTable):
-    '''
-    Sub-classes SymbolTable to provide a GOcean-specific implementation.
-    '''
-
-    def _check_gocean_conformity(self):
-        '''
-        Checks that the Symbol Table has at least 2 arguments which represent
-        the iteration indices (are scalar integers).
-
-        :raises GenerationError: if the Symbol Table does not conform to the \
-                rules for a GOcean 1.0 kernel.
-        '''
-        # Get the kernel name if available for better error messages
-        kname_str = ""
-        if self._node and isinstance(self._node, KernelSchedule):
-            kname_str = f" for kernel '{self._node.name}'"
-
-        # Check that there are at least 2 arguments
-        if len(self.argument_list) < 2:
-            raise GenerationError(
-                f"GOcean 1.0 API kernels should always have at least two "
-                f"arguments representing the iteration indices but the "
-                f"Symbol Table{kname_str} has only {len(self.argument_list)} "
-                f"argument(s).")
-
-        # Check that first 2 arguments are scalar integers
-        for pos, posstr in [(0, "first"), (1, "second")]:
-            dtype = self.argument_list[pos].datatype
-            if not (isinstance(dtype, ScalarType) and
-                    dtype.intrinsic == ScalarType.Intrinsic.INTEGER):
-                raise GenerationError(
-                    f"GOcean 1.0 API kernels {posstr} argument should be a "
-                    f"scalar integer but got '{dtype}'{kname_str}.")
-
-    @property
-    def iteration_indices(self):
-        '''In the GOcean API the two first kernel arguments are the iteration
-        indices.
-
-        :return: List of symbols representing the iteration indices.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
-        '''
-        self._check_gocean_conformity()
-        return self.argument_list[:2]
-
-    @property
-    def data_arguments(self):
-        '''In the GOcean API the data arguments start from the third item in
-        the argument list.
-
-        :return: List of symbols representing the data arguments.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
-        '''
-        self._check_gocean_conformity()
-        return self.argument_list[2:]
-
-
 class GOKernelSchedule(KernelSchedule):
     '''
     Sub-classes KernelSchedule to provide a GOcean-specific implementation.
@@ -2309,5 +2251,5 @@ __all__ = ['GOPSy', 'GOInvokes', 'GOInvoke', 'GOInvokeSchedule', 'GOLoop',
            'GOBuiltInCallFactory', 'GOKernCallFactory', 'GOKern',
            'GOFparser2Reader', 'GOKernelArguments', 'GOKernelArgument',
            'GOKernelGridArgument', 'GOStencil', 'GO1p0Descriptor',
-           'GOKernelType1p0', 'GOACCEnterDataDirective', 'GOSymbolTable',
+           'GOKernelType1p0', 'GOACCEnterDataDirective',
            'GOKernelSchedule', 'GOHaloExchange']

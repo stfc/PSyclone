@@ -52,7 +52,7 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import PSyFactory
 from psyclone.gocean1p0 import (GOKern, GOLoop, GOKernelArgument,
                                 GOKernelArguments, GOKernelGridArgument,
-                                GOBuiltInCallFactory, GOSymbolTable)
+                                GOBuiltInCallFactory)
 from psyclone.tests.utilities import get_base_path, get_invoke
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.psyir.nodes import (Node, StructureReference, Member,
@@ -61,6 +61,7 @@ from psyclone.psyir.symbols import (DeferredType, ContainerSymbol, DataSymbol,
                                     ImportInterface, INTEGER_TYPE,
                                     ArgumentInterface, DataTypeSymbol,
                                     ScalarType, SymbolTable)
+from psyclone.domain.gocean import GOSymbolTable
 from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
 
 API = "gocean1.0"

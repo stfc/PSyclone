@@ -43,9 +43,9 @@ import os
 
 import pytest
 from psyclone.configuration import Config
+from psyclone.domain.gocean import GOSymbolTable
 from psyclone.errors import InternalError, GenerationError
-from psyclone.gocean1p0 import (GOKernelArgument, GOKernelArguments,
-                                GOSymbolTable)
+from psyclone.gocean1p0 import GOKernelArgument, GOKernelArguments
 from psyclone.parse.algorithm import Arg, parse
 from psyclone.parse.kernel import Descriptor
 from psyclone.parse.utils import ParseError

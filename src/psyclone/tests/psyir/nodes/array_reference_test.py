@@ -518,12 +518,12 @@ def test_array_create_colon(fortran_writer):
     test_sym = DataSymbol("test", ArrayType(REAL_TYPE, [10, 10]))
     aref = ArrayReference.create(test_sym, [":", ":"])
     # Check that each dimension is `lbound(...):ubound(...)`
-    for i in range(2):
-        assert isinstance(aref.children[i], Range)
-        assert isinstance(aref.children[i].children[1], BinaryOperation)
-        assert aref.children[i].children[0].operator == \
+    for child in aref.indices:
+        assert isinstance(child, Range)
+        assert isinstance(child.children[1], BinaryOperation)
+        assert child.children[0].operator == \
                BinaryOperation.Operator.LBOUND
-        assert aref.children[i].children[1].operator == \
+        assert child.children[1].operator == \
                BinaryOperation.Operator.UBOUND
 
     code = fortran_writer(aref)

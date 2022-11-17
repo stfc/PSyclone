@@ -49,7 +49,7 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import ArrayReference, Literal, Reference
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_ast, get_base_path, get_invoke
 
@@ -59,7 +59,7 @@ TEST_API = "dynamo0.3"
 def check_psyir_results(create_arg_list, fortran_writer):
     '''Helper function to check if the PSyIR representation of the arguments
      is identical to the old style textual representation. It checks that each
-     member of the psyir_arglist is a Reference, and that the textural
+     member of the psyir_arglist is a Reference, and that the textual
      representation matches the textual presentation (which was already
      verified).
 
@@ -116,23 +116,41 @@ def test_argordering_get_array_reference():
 
     # First test access using an index, e.g. `array(1)`
     one = Literal("1", INTEGER_TYPE)
-    ref = arg_list.get_array_reference("array1", [one], "real")
+    ref = arg_list.get_array_reference("array1", [one],
+                                       ScalarType.Intrinsic.REAL)
     assert isinstance(ref, ArrayReference)
-    ref = arg_list.get_array_reference("array2", [":"], "integer")
+    ref = arg_list.get_array_reference("array2", [":"],
+                                       ScalarType.Intrinsic.INTEGER)
     assert not isinstance(ref, ArrayReference)
 
     # Now test access using ":" only, e.g. `array(:)` -> this should
     # be returned just a reference to `array`
-    ref = arg_list.get_array_reference("array3", [":", ":"], "real")
+    ref = arg_list.get_array_reference("array3", [":", ":"],
+                                       ScalarType.Intrinsic.REAL)
     assert isinstance(ref, Reference)
     assert not isinstance(ref, ArrayReference)
-    ref = arg_list.get_array_reference("array4", [":", ":"], "integer")
+    ref = arg_list.get_array_reference("array4", [":", ":"],
+                                       ScalarType.Intrinsic.INTEGER)
     assert isinstance(ref, Reference)
     assert not isinstance(ref, ArrayReference)
 
+    # Now specify a symbol, but an incorrect array name:
     with pytest.raises(InternalError) as err:
+        arg_list.get_array_reference("wrong-name", [":", ":"],
+                                     ScalarType.Intrinsic.INTEGER,
+                                     symbol=ref.symbol)
+    assert ("Specified symbol 'array4' has a different name than the "
+            "specified array name 'wrong-name'" in str(err.value))
+
+    with pytest.raises(TypeError) as err:
         arg_list.get_array_reference("does-not-exist", [":"], "invalid")
-    assert ("Unsupported data type 'invalid' in get_array_reference"
+    assert ("Unsupported data type 'invalid' in find_or_create_array"
+            in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        arg_list.get_array_reference("array4", [":"],
+                                     ScalarType.Intrinsic.INTEGER)
+    assert ("Array 'array4' already exists, but has 2 dimensions, not 1."
             in str(err.value))
 
 
@@ -305,7 +323,7 @@ def test_kernel_stub_ind_dofmap_errors():
     with pytest.raises(InternalError) as excinfo:
         create_arg_list.indirection_dofmap("w3", kernel.arguments.args[1])
     assert ("A CMA operator (gh_columnwise_operator) must be supplied but "
-            "got") in str(excinfo.value)
+            "got 'gh_scalar'") in str(excinfo.value)
 
 
 def test_kerncallarglist_args_error(dist_mem):

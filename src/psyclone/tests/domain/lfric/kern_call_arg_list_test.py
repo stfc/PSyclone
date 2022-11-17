@@ -35,7 +35,7 @@
 # Modified I. Kavcic, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
-''' This module tests the LFric classes based on ArgOrdering.'''
+''' This module tests the LFric KernCallArg class.'''
 
 import os
 
@@ -44,37 +44,49 @@ import pytest
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.domain.lfric import KernCallArgList
 from psyclone.errors import GenerationError, InternalError
-from psyclone.domain.lfric import psyir as lfric_psyir
 from psyclone.dynamo0p3 import DynKern
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Literal, Reference
+from psyclone.psyir.nodes import Literal, Loop, Reference, UnaryOperation
+from psyclone.psyir.symbols import ScalarType
 from psyclone.tests.utilities import get_base_path, get_invoke
 from psyclone.transformations import Dynamo0p3ColourTrans
 
 TEST_API = "dynamo0.3"
 
 
-def check_psyir_results(create_arg_list, fortran_writer):
+def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):
     '''Helper function to check if the PSyIR representation of the arguments
-     is identical to the old style textual representation. It checks that each
-     member of the psyir_arglist is a Reference, and that the textural
-     representation matches the textual presentation (which was already
-     verified).
+    is identical to the old style textual representation. It checks that each
+    member of the psyir_arglist is a Reference, and that the textural
+    representation matches the textual presentation (which was already
+    verified).
 
-     '''
+    :param create_arg_list: a KernCallArgList instance.
+    :type create_arg_list: :py:class:`psyclone.domain.lfric.KernCallArgList`
+    :param fortran_writer: a FortranWriter instance.
+    :type fortran_writer: \
+        :py:class:`psyclone.psyir.backend.fortran.FortranWriter`
+    :param classes: a tuple of classes that are expected in the PSyIR \
+        argument list. Defaults to `(Reference)`.
+    :type classes: Tuple[:py:class:`psyclone.psyir.nodes.node`]
+
+    '''
+
+    if not valid_classes:
+        valid_classes = (Reference)
+
     # Check the PSyIR representation
     result = []
     for node in create_arg_list.psyir_arglist:
-        assert isinstance(node, Reference)
+        assert isinstance(node, valid_classes)
         result.append(fortran_writer(node))
 
     assert result == create_arg_list._arglist
 
 
-def test_field_prolong(dist_mem, fortran_writer):
-    ''' Check that we generate correct psy-layer code for an invoke
-    containing a kernel that performs a prolongation operation '''
+def test_cellmap_intergrid(dist_mem, fortran_writer):
+    ''' Check the handlinf of cell_map and fs_intergrid.'''
 
     full_path = os.path.join(get_base_path(TEST_API),
                              "22.0_intergrid_prolong.f90")
@@ -163,11 +175,8 @@ def test_kerncallarglist_colouring(dist_mem, fortran_writer):
 
     schedule = psy.invokes.invoke_list[0].schedule
     ctrans = Dynamo0p3ColourTrans()
-    indx = 0
-    if dist_mem:
-        # Skip the halo exchange nodes when dist_mem is enabled
-        indx = 4
-    ctrans.apply(schedule.children[indx])
+    loops = schedule.walk(Loop)
+    ctrans.apply(loops[0])
 
     create_arg_list = KernCallArgList(schedule.kernels()[0])
     create_arg_list.generate()
@@ -354,39 +363,42 @@ def test_kerncallarglist_scalar_literal(fortran_writer):
         'basis_w3_qr', 'diff_basis_w3_qr', 'np_xy_qr', 'np_z_qr',
         'weights_xy_qr', 'weights_z_qr']
 
-    # We can't use check_psyir_results here, since two nodes are are
-    # Literals and not References.
-    result = []
-    for node in create_arg_list.psyir_arglist:
-        assert isinstance(node, (Literal, Reference))
-        result.append(fortran_writer(node))
-    assert result == [
-        'nlayers', 'f1_proxy%data', 'f2_proxy%data', 'm1_proxy%data',
-        '1.0_r_def', 'm2_proxy%data', '2_i_def', 'ndf_w1', 'undf_w1',
-        'map_w1(:,cell)', 'basis_w1_qr', 'ndf_w2', 'undf_w2',
-        'map_w2(:,cell)', 'diff_basis_w2_qr', 'ndf_w3', 'undf_w3',
-        'map_w3(:,cell)', 'basis_w3_qr', 'diff_basis_w3_qr', 'np_xy_qr',
-        'np_z_qr', 'weights_xy_qr', 'weights_z_qr']
+    check_psyir_results(create_arg_list, fortran_writer, (Literal, Reference))
+
     assert create_arg_list.nqp_positions == [{'horizontal': 21,
                                               'vertical': 22}]
 
+    # Check the handling of logical types. The third argument
+    # should be a scalar
     args = schedule.kernels()[0].arguments.args
-    # The third argument is a scalar:
     assert args[3].is_scalar
-    create_arg_list.scalar(args[3])
-    assert create_arg_list.arglist[-1] == "1.0_r_def"
 
-    # Check the handling of logical types:
+    # Make sure a negative number is accepted:
+    args[3]._name = "-2.0_r_def"
+    create_arg_list.scalar(args[3])
+    lit = create_arg_list.psyir_arglist[-1]
+    # In Fortran a negative number as above is an UnaryOperation
+    assert isinstance(lit, UnaryOperation)
+
+    # Make sure a negative number with a space works
+    args[3]._name = "- 2.0_r_def"
+    create_arg_list.scalar(args[3])
+    lit = create_arg_list.psyir_arglist[-1]
+    # In Fortran a negative number as above is an UnaryOperation
+    assert isinstance(lit, UnaryOperation)
+
+    # Modify the third argument to be a logical
     args[3]._intrinsic_type = "logical"
-    args[3]._name = "true"
+    args[3]._name = ".true."
     create_arg_list.scalar(args[3])
     lit = create_arg_list.psyir_arglist[-1]
     assert isinstance(lit, Literal)
-    assert isinstance(lit.datatype, lfric_psyir.LfricLogicalScalarDataType)
+    assert lit.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN
 
     # Now set the intrinsic type to be invalid:
+    args[3]._name = "invalid"
     args[3]._intrinsic_type = "invalid"
     with pytest.raises(InternalError) as err:
         create_arg_list.scalar(args[3])
-    assert ("Unexpected intrinsic type 'invalid' in scalar()"
-            in str(err.value))
+    assert ("Unexpected literal expression 'invalid' in scalar() when "
+            "processing kernel 'testkern_qr_code'" in str(err.value))

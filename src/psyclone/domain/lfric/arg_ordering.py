@@ -43,10 +43,12 @@ import abc
 
 from psyclone import psyGen
 from psyclone.core import AccessType, Signature
-from psyclone.domain.lfric import LFRicConstants, psyir
+# The next two imports cannot be merged, since this would create
+# a circular dependency.
+from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import ArrayReference, Reference
-from psyclone.psyir.symbols import ArrayType, DataSymbol, SymbolTable
 
 
 class ArgOrdering:
@@ -74,10 +76,12 @@ class ArgOrdering:
         invoke_sched = None
         if kern:
             invoke_sched = kern.ancestor(psyGen.InvokeSchedule)
+        # This pylint does not work when I put it in the else branch :(
+        # pylint: disable=import-outside-toplevel
         if invoke_sched:
             self._symtab = invoke_sched.symbol_table
         else:
-            self._symtab = SymbolTable()
+            self._symtab = LFRicSymbolTable()
 
         # TODO #1934 Completely remove the usage of strings, instead
         # use the PSyIR representation.
@@ -90,7 +94,7 @@ class ArgOrdering:
     def psyir_append(self, node):
         '''Appends a PSyIR node to the PSyIR argument list.
 
-        :param node: the reference to append.
+        :param node: the node to append.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
@@ -163,48 +167,11 @@ class ArgOrdering:
             else:
                 self.append(var, mode=mode, var_accesses=var_accesses)
 
-    def get_integer_symbol(self, name, tag=None):
-        '''This function returns a symbol for an integer reference. If the
-        symbol should not already exist in the symbol table, it will
-        be properly declared and added to the table.
-
-        :param str name: name of the integer variable to declare.
-        :param tag: optional tag of the integer variable to declare.
-        :type tag: Optional[str]
-
-        :returns: the symbol for the variable.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol
-
-        '''
-        if not tag:
-            tag = name
-        try:
-            sym = self._symtab.lookup_with_tag(tag)
-        except KeyError:
-            sym = None
-
-        if sym is None or not isinstance(sym, DataSymbol):
-            # Either the symbol doesn't exist, or it doesn't have a type yet.
-            # Create a DataSymbol for this kernel argument.
-            datatype = psyir.LfricIntegerScalarDataType()
-            if sym is not None:
-                # The symbol exists, but is not a DataSymbol. So we need to
-                # properly declare this symbol now by removing the old symbol,
-                # and adding a new symbol with the same name and tag:
-                new_sym = DataSymbol(sym.name, datatype=datatype)
-                self._symtab.remove(sym)
-                self._symtab.add(new_sym, tag=tag)
-                sym = new_sym
-            else:
-                sym = self._symtab.new_symbol(name, tag=tag,
-                                              symbol_type=DataSymbol,
-                                              datatype=datatype)
-        return sym
-
     def append_integer_reference(self, name, tag=None):
         '''This function adds a reference to an integer variable to the list
         of PSyIR nodes. If the symbol does not exist, it will be added to the
-        symbol table. It also returns the symbol.
+        symbol table. If no tag is specified, is uses the name as tag. It also
+        returns the symbol.
 
         :param str name: name of the integer variable to declare.
         :param tag: optional tag of the integer variable to declare.
@@ -214,11 +181,15 @@ class ArgOrdering:
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        sym = self.get_integer_symbol(name, tag)
+        if tag is None:
+            tag = name
+        sym = self._symtab.find_or_create_integer_symbol(name, tag)
         self.psyir_append(Reference(sym))
         return sym
 
-    def get_array_reference(self, array_name, indices, intrinsic_type):
+    def get_array_reference(self, array_name, indices, intrinsic_type,
+                            tag=None, symbol=None):
+        # pylint: disable=too-many-arguments
         '''This function creates an array reference. If there is no symbol
         with the given tag, a new array symbol will be defined using the given
         intrinsic_type. If a symbol already exists but has no type, it will
@@ -228,47 +199,42 @@ class ArgOrdering:
         :param indices: the indices to be used in the PSyIR reference. It \
             must either be ":", or a PSyIR node.
         :type indices: List[Union[str, py:class:`psyclone.psyir.nodes.Node`]]
+        :param intrinsic_type: the intrinsic type of the array.
+        :type intrinsic_type: \
+            :py:class:`psyclone.psyir.symbols.datatypes.ScalarType.Intrinsic`
+        :param tag: optional tag for the symbol.
+        :type tag: Optional[str]
+        :param symbol: optional the symbol to use.
+        :type: Optional[:py:class:`psyclone.psyir.symbols.Symbol`]
 
         :returns: a reference to the symbol used.
         :rtype: :py:class:`psyclone.psyir.nodes.Reference`
 
         '''
-        try:
-            sym = self._symtab.lookup(array_name)
-        except KeyError:
-            sym = None
-        if sym is None or not isinstance(sym, DataSymbol):
-            # Create a DataSymbol for this kernel argument.
-            if intrinsic_type == "real":
-                datatype = psyir.LfricRealScalarDataType()
-            elif intrinsic_type == "integer":
-                datatype = psyir.LfricIntegerScalarDataType()
-            else:
-                raise InternalError(f"Unsupported data type "
-                                    f"'{intrinsic_type}' in "
-                                    f"get_array_reference")
-            array_type = ArrayType(datatype,
-                                   [ArrayType.Extent.ATTRIBUTE]*len(indices))
+        if not tag:
             tag = array_name
-            if sym and not isinstance(sym, DataSymbol):
-                # Get the tag the old symbol might have had:
-                reverse_tags_dict = self._symtab.get_reverse_tags_dict()
-                tag = reverse_tags_dict.get(sym, array_name)
-                # We need to remove the old incomplete symbol first
-                self._symtab.remove(sym)
-            sym = self._symtab.new_symbol(array_name, tag=tag,
-                                          symbol_type=DataSymbol,
-                                          datatype=array_type)
+        if not symbol:
+            symbol = self._symtab.find_or_create_array(array_name,
+                                                       len(indices),
+                                                       intrinsic_type,
+                                                       tag)
+        else:
+            if symbol.name != array_name:
+                raise InternalError(f"Specified symbol '{symbol.name}' has a "
+                                    f"different name than the specified array "
+                                    f"name '{array_name}'.")
 
         # If all indices are specified as ":", just use the name itself
         # to reproduce the current look of the code.
         if indices == [":"]*len(indices):
-            ref = Reference(sym)
+            ref = Reference(symbol)
         else:
-            ref = ArrayReference.create(sym, indices)
+            ref = ArrayReference.create(symbol, indices)
         return ref
 
-    def append_array_reference(self, array_name, indices, intrinsic_type):
+    def append_array_reference(self, array_name, indices, intrinsic_type,
+                               tag=None, symbol=None):
+        # pylint: disable=too-many-arguments
         '''This function adds an array reference. If there is no symbol with
         the given tag, a new array symbol will be defined using the given
         intrinsic_type. If a symbol already exists but has no type, it will
@@ -279,13 +245,22 @@ class ArgOrdering:
         :param indices: the indices to be used in the PSyIR reference. It \
             must either be ":", or a PSyIR node.
         :type indices: List[Union[str, py:class:`psyclone.psyir.nodes.Node`]]
+        :param intrinsic_type: the intrinsic type of the array.
+        :type intrinsic_type: \
+            :py:class:`psyclone.psyir.symbols.datatypes.ScalarType.Intrinsic`
+        :param tag: optional tag for the symbol.
+        :type tag: Optional[str]
+        :param symbol: optional the symbol to use.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+
 
         :returns: the symbol used in the added reference.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
 
-        ref = self.get_array_reference(array_name, indices, intrinsic_type)
+        ref = self.get_array_reference(array_name, indices, intrinsic_type,
+                                       tag=tag, symbol=symbol)
         self.psyir_append(ref)
         return ref.symbol
 

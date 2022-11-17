@@ -36,8 +36,9 @@
 ''' Transformation to insert OpenMP directives to parallelise PSyIR Loops. '''
 
 from psyclone.configuration import Config
-from psyclone.psyir.nodes import Routine, OMPDoDirective, OMPLoopDirective, \
-    OMPParallelDoDirective, OMPTeamsDistributeParallelDoDirective
+from psyclone.psyir.nodes import (
+    Routine, OMPDoDirective, OMPLoopDirective, OMPParallelDoDirective,
+    OMPTeamsDistributeParallelDoDirective, OMPScheduleClause)
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations.parallel_loop_trans import \
     ParallelLoopTrans
@@ -178,10 +179,11 @@ class OMPLoopTrans(ParallelLoopTrans):
 
         # Some schedules have an optional chunk size following a ','
         value_parts = value.split(',')
-        if value_parts[0].lower() not in OMPDoDirective.VALID_OMP_SCHEDULES:
-            raise ValueError(f"Valid OpenMP schedules are "
-                             f"{OMPDoDirective.VALID_OMP_SCHEDULES} but got "
-                             f"'{value_parts[0]}'.")
+        if value_parts[0].lower() not in OMPScheduleClause.VALID_OMP_SCHEDULES:
+            raise ValueError(
+                f"Valid OpenMP schedules are "
+                f"{OMPScheduleClause.VALID_OMP_SCHEDULES} but got "
+                f"'{value_parts[0]}'.")
 
         if len(value_parts) > 1:
             if value_parts[0] == "auto":

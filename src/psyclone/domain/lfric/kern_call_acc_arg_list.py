@@ -73,7 +73,7 @@ class KernCallAccArgList(KernCallArgList):
         for idx in range(1, argvect.vector_size+1):
             self.append(argvect.proxy_name + "(" + str(idx) + ")")
         # Then provide the actual fields that are in the derived-type object
-        super(KernCallAccArgList, self).field_vector(argvect, var_accesses)
+        super().field_vector(argvect, var_accesses)
 
     def field(self, arg, var_accesses=None):
         '''Add the field array associated with the argument 'arg' to the
@@ -93,7 +93,7 @@ class KernCallAccArgList(KernCallArgList):
         self.append(text1)
         # This will add the field%data argument, and add the field
         # to the variable access list.
-        super(KernCallAccArgList, self).field(arg, var_accesses)
+        super().field(arg, var_accesses)
 
     def stencil(self, arg, var_accesses=None):
         '''Add general stencil information associated with the argument 'arg'
@@ -112,7 +112,8 @@ class KernCallAccArgList(KernCallArgList):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
-        var_name = DynStencils.dofmap_name(self._kern.root.symbol_table, arg)
+        var_name = DynStencils.dofmap_symbol(self._kern.root.symbol_table,
+                                             arg).name
         self.append(var_name, var_accesses)
 
     def stencil_2d(self, arg, var_accesses=None):
@@ -149,7 +150,8 @@ class KernCallAccArgList(KernCallArgList):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
-        name = DynStencils.dofmap_size_name(self._kern.root.symbol_table, arg)
+        name = DynStencils.dofmap_size_symbol(self._kern.root.symbol_table,
+                                              arg).name
         self.append(name, var_accesses)
 
     def stencil_2d_unknown_extent(self, arg, var_accesses=None):
@@ -187,7 +189,7 @@ class KernCallAccArgList(KernCallArgList):
         if arg.proxy_name_indexed not in self.arglist:
             self.append(arg.proxy_name_indexed, var_accesses)
             # This adds ncell_3d and local_stencil after the derived type:
-            super(KernCallAccArgList, self).operator(arg, var_accesses)
+            super().operator(arg, var_accesses)
 
     def fs_compulsory_field(self, function_space, var_accesses=None):
         '''Add compulsory arguments associated with this function space to
