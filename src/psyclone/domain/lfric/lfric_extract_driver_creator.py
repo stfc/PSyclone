@@ -139,7 +139,7 @@ class LFRicExtractDriverCreator:
         elif data_type.name == "field_proxy_type":
             flattened_name = symbol_table.next_available_name(flattened_name)
             base_type = self._default_types['real']
-            # This must be a LFRic fiels, which becomes a 1d-array:
+            # This must be an LFRic field, which becomes a 1d-array:
             array = ArrayType(base_type, [ArrayType.Extent.DEFERRED])
             new_symbol = DataSymbol(flattened_name, array)
             return new_symbol
@@ -278,22 +278,10 @@ class LFRicExtractDriverCreator:
                 reference.symbol = new_symbol
                 continue
 
-            try:
-                new_type = self._default_types[old_symbol.datatype.intrinsic]
-            except KeyError as err:
-                fortran_string = writer(reference)
-                valid = list(self._default_types.keys())
-                # Sort to make sure we get a reproducible order for testing
-                valid.sort()
-                six.raise_from(InternalError(
-                    f"Error when constructing driver for '{sched.name}': "
-                    f"Unknown intrinsic data type "
-                    f"'{old_symbol.datatype.intrinsic}' in reference "
-                    f"'{fortran_string}'. Valid types are '{valid}'."), err)
             new_symbol = symbol_table.new_symbol(root_name=reference.name,
                                                  tag=reference.name,
                                                  symbol_type=DataSymbol,
-                                                 datatype=new_type)
+                                                 datatype=old_symbol.datatype)
             reference.symbol = new_symbol
 
         # Now handle all derived type. The name of a derived type is
