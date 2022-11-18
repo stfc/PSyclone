@@ -418,7 +418,7 @@ class LFRicExtractDriverCreator:
                 upper = int(orig_sym.datatype.shape[0].upper.value)
                 for i in range(1, upper+1):
                     sym = symbol_table.lookup_with_tag(f"{sig_str}_{i}")
-                    name_lit = Literal(sig_str, CHARACTER_TYPE)
+                    name_lit = Literal(f"{sig_str}%{i}", CHARACTER_TYPE)
                     LFRicExtractDriverCreator.add_call(program, read_var,
                                                        [name_lit,
                                                         Reference(sym)])
