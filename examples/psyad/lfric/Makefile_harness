@@ -1,0 +1,10 @@
+MINI_APP_DIR=${HOME}/Projects/LFRic/NGMS-SoftwareStack/buildScripts/Linux/GCC10/trunk/miniapps/skeleton
+
+all:
+	psyad -api 'dynamo0.3' ${KERNEL_FILE} -otest ${HARNESS_FILE} ${GEOM_ARGS} -a ${ACTIVE_VARS}
+	cp -f ${HARNESS_FILE} ${MINI_APP_DIR}/source/algorithm/adjoint_test_mod.x90
+	cp -f ${KERNEL_FILE} ${MINI_APP_DIR}/source/kernel/.
+	cp -f ${ADJ_FILE} ${MINI_APP_DIR}/source/kernel/.
+	make -C ${MINI_APP_DIR} clean
+	make -C ${MINI_APP_DIR} build
+	cd ${MINI_APP_DIR}/example; ../bin/skeleton configuration.nml
