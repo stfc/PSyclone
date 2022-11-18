@@ -218,12 +218,12 @@ class LFRicAlg:
         chi_type = UnknownFortranType(
             "type(field_type), dimension(3), intent(in), optional :: chi")
         chi = DataSymbol("chi", chi_type, interface=ArgumentInterface())
-        table.add(chi)
+        table.add(chi, tag="coord_field")
 
         pid_type = UnknownFortranType(
             "type(field_type), intent(in), optional :: panel_id")
         pid = DataSymbol("panel_id", pid_type, interface=ArgumentInterface())
-        table.add(pid)
+        table.add(pid, tag="panel_id_field")
         table.specify_argument_list([mesh_ptr, chi, pid])
 
         # Create top-level Container and put the new Subroutine inside it.
