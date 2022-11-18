@@ -135,6 +135,11 @@ class LFRicExtractDriverCreator:
                 array = ArrayType(base_type, [ArrayType.Extent.DEFERRED])
                 new_symbol = DataSymbol(flattened_name, array)
                 return new_symbol
+            elif data_type.intrinsic.name == "field_proxy_type":
+                base_type = self._default_types['real']
+                array = ArrayType(base_type, [ArrayType.Extent.DEFERRED])
+                new_symbol = DataSymbol(flattened_name, array)
+                return new_symbol
             print("OOPS")
         elif data_type.name == "field_proxy_type":
             flattened_name = symbol_table.next_available_name(flattened_name)
@@ -187,7 +192,8 @@ class LFRicExtractDriverCreator:
         data_type = old_reference.symbol.datatype
         signature, _ = old_reference.get_signature_and_indices()
         if isinstance(data_type, ArrayType):
-            if data_type.intrinsic.name in ["integer_field_proxy_type"]:
+            if data_type.intrinsic.name in ["integer_field_proxy_type",
+                                            "field_proxy_type"]:
                 # Format: some_var_proxy(n)%data
                 sig = signature[:-1]
                 fortran_string = sig.to_language()
