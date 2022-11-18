@@ -89,7 +89,11 @@ class HoistLocalArraysTrans(Transformation):
         integer :: j
         real :: value = 1.0
     <BLANKLINE>
-        if (.not.allocated(a)) then
+        if (.not.allocated(a) .or. ubound(a, 1) /= n .or. ubound(a, 2) /= n) \
+then
+          if (allocated(a)) then
+            deallocate(a)
+          end if
           allocate(a(1 : n, 1 : n))
         end if
         do i = 1, n, 1
@@ -182,9 +186,10 @@ class HoistLocalArraysTrans(Transformation):
             # TODO #1366: we have to use a CodeBlock in order to query whether
             # or not the array has been allocated already.
             code = f"allocated({sym.name})"
-            allocated_expr = freader.psyir_from_expression(code, node.symbol_table)
-            if_expr = UnaryOperation.create(
-                        UnaryOperation.Operator.NOT, allocated_expr)
+            allocated_expr = freader.psyir_from_expression(
+                                code, node.symbol_table)
+            cond_expr = UnaryOperation.create(
+                            UnaryOperation.Operator.NOT, allocated_expr)
 
             # Add runtime checks to verify that the boundaries haven't changed
             # (we skip literals as we know they can't have changed)
@@ -198,9 +203,12 @@ class HoistLocalArraysTrans(Transformation):
                                 Reference(sym),
                                 Literal(str(idx+1), INTEGER_TYPE)),
                             dim.lower.copy())
-                    if_expr = BinaryOperation.create(
-                                BinaryOperation.Operator.OR,
-                                if_expr, expr)
+                    # We chain the new check to the already existing cond_expr
+                    # which starts with the 'not allocated' condition added
+                    # before this loop.
+                    cond_expr = BinaryOperation.create(
+                                    BinaryOperation.Operator.OR,
+                                    cond_expr, expr)
                     check_added = True
                 if not isinstance(dim.upper, Literal):
                     expr = BinaryOperation.create(
@@ -210,9 +218,12 @@ class HoistLocalArraysTrans(Transformation):
                                 Reference(sym),
                                 Literal(str(idx+1), INTEGER_TYPE)),
                             dim.upper.copy())
-                    if_expr = BinaryOperation.create(
-                                BinaryOperation.Operator.OR,
-                                if_expr, expr)
+                    # We chain the new check to the already existing cond_expr
+                    # which starts with the 'not allocated' condition added
+                    # before this loop.
+                    cond_expr = BinaryOperation.create(
+                                    BinaryOperation.Operator.OR,
+                                    cond_expr, expr)
                     check_added = True
 
             # TODO #1366: we also have to use a CodeBlock for the allocate()
@@ -230,7 +241,7 @@ class HoistLocalArraysTrans(Transformation):
                                              node.symbol_table))
             # Insert the conditional allocation at the start of the supplied
             # routine.
-            node.children.insert(0, IfBlock.create(if_expr, body))
+            node.children.insert(0, IfBlock.create(cond_expr, body))
 
         # Finally, remove the hoisted symbols (and any associated tags)
         # from the routine scope.

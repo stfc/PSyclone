@@ -174,6 +174,7 @@ def test_apply_arg_limits(fortran_reader, fortran_writer, tmpdir):
             "    end if\n" in code)
     assert Compile(tmpdir).string_compiles(code)
 
+
 def test_apply_runtime_checks(fortran_reader, fortran_writer, tmpdir):
     ''' Test that the transformation correctly adds runtime checks for each
     boundary that is not a literal. '''
