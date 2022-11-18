@@ -561,6 +561,12 @@ class LFRicExtractDriverCreator:
                                 datatype=INTEGER_TYPE,
                                 constant_value=Reference(int_type))
 
+        # Add l_def:
+        symbol_table.new_symbol("l_def",
+                                symbol_type=DataSymbol,
+                                datatype=INTEGER_TYPE,
+                                constant_value=Reference(int_type))
+
     # -------------------------------------------------------------------------
     @staticmethod
     def add_result_tests(program, output_symbols):
