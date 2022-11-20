@@ -327,8 +327,9 @@ def test_get_outer_range_index():
 
 def test_get_outer_range_index_error():
     '''Check that the get_outer_range_index method raises an IndexError if
-    no range exist as child of the given array. Use ArrayReference as concrete
-    implementation of ArrayMixin.
+    no Range exists as child of the given array. Use ArrayReference as
+    concrete implementation of ArrayMixin.
+
     '''
     symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE, [10]))
     array = ArrayReference.create(symbol, [Literal("2", INTEGER_TYPE)])
