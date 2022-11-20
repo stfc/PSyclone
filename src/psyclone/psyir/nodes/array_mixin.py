@@ -154,149 +154,115 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                     return True
         return False
 
-    def _get_symbol_declaration(self):
-        '''Utility function that returns this array's datatype declaration if
-        it can be found.
-
-        :returns: the arrays datatype declaration if it can be found \
-            and None otherwise.
-        :rtype: Optional[:py:class:`psyclone.psyir.symbols.DataSymbol`]
-
-        '''
-        try:
-            symbol = self.scope.symbol_table.lookup(self.name)
-        except (KeyError, SymbolError):
-            # These exceptions should not happen but catching them is
-            # useful for certain tests where the PSyIR is not fully
-            # set up.
-            return None
-        if not isinstance(symbol, DataSymbol):
-            # We don't have any type information on this symbol
-            # (probably because it originates from a wildcard import).
-            return None
-        datatype = symbol.datatype
-        # Check that the symbol is of ArrayType. (It may be of
-        # UnknownFortranType if the symbol is of e.g. character type.)
-        if not isinstance(datatype, ArrayType):
-            return None
-        return datatype
-
     def is_lower_bound(self, index):
-        '''Returns True if the specified array index contains a Range node
-        which has a starting value given by the 'LBOUND(name,index)'
-        intrinsic where 'name' is the name of the current Array and
-        'index' matches the specified array index. Also returns True
-        if the starting value of the range node is an expression that
-        matches the starting value of the declaration. Otherwise False
-        is returned.
-
-        For example, if a Fortran array A was declared as
-        A(10) then the starting value is 1 and LBOUND(A,1) would
-        return that value.
+        '''Returns whether this array access includes the lower bound of the
+        array for the specified index. Returns True if it is and False
+        if it is not or if it could not be determined.
 
         :param int index: the array index to check.
 
-        :returns: True if the array index is a range with its start \
-            value being LBOUND(array,index) and False otherwise.
+        :returns: True if it can be determined that the lower bound of \
+            the array is accessed in this array reference for the \
+            specified index.
         :rtype: bool
 
         '''
-        self._validate_index(index)
-
-        array_dimension = self.indices[index]
-
-        if not isinstance(array_dimension, Range):
-            # Check for a single element array
-            try:
-                symbol = self.scope.symbol_table.lookup(self.name)
-            except SymbolError:
-                # This exception should not happen but catching it is
-                # useful for certain tests where the PSyIR is not
-                # fully set up.
-                return False
-            shape = symbol.datatype.shape
-            sym_maths = SymbolicMaths.get()
-            if (sym_maths.equal(shape[index].lower, shape[index].upper) and
-                    sym_maths.equal(shape[index].lower, array_dimension)):
-                return True
-            return False
-
-        lower = array_dimension.start
-
-        # Is this in the form of LBOUND(array, index)?
-        if self._is_bound_op(lower, BinaryOperation.Operator.LBOUND, index):
-            return True
-
-        # If the lower bound of the array declaration can be found,
-        # does it match with the lower bound of the array reference?
-        datatype = self._get_symbol_declaration()
-        if datatype:
-            sym_maths = SymbolicMaths.get()
-            shape = datatype.shape
-            array_bounds = shape[index]
-            if (isinstance(array_bounds, ArrayType.ArrayBounds) and
-                    sym_maths.equal(lower, array_bounds.lower)):
-                return True
-        return False
+        return self._is_bound(index, "lower")
 
     def is_upper_bound(self, index):
-        '''Returns True if the specified array index contains a Range node
-        which has a stopping value given by the 'UBOUND(name,index)'
-        intrinsic where 'name' is the name of the current
-        ArrayReference and 'index' matches the specified array index.
-        Also returns True if the stopping value of the range node
-        matches the stopping value of the declaration. Otherwise False
-        is returned.
-
-        For example, if a Fortran array A was declared as
-        A(10) then the stopping value is 10 and UBOUND(A,1) would
-        return that value.
+        '''Returns whether this array access includes the upper bound of
+        the array for the specified index. Returns True if it is and False
+        if it is not or if it could not be determined.
 
         :param int index: the array index to check.
 
-        :returns: True if the array index is a range with its stop \
-            value being UBOUND(array,index) or is an expression that \
-            matches the stop value of the declaration and False \
-            otherwise.
+        :returns: True if it can be determined that the upper bound of \
+            the array is accessed in this array reference for the \
+            specified index.
+        :rtype: bool
+
+        '''
+        return self._is_bound(index, "upper")
+
+    def _is_bound(self, index, bound_type):
+        '''Attempts to determines whether this array access includes the lower
+        or upper bound (as specified by the bound_type argument).
+
+        Checks whether the specified array index contains a Range node
+        which has a starting/stopping value given by the
+        '{LU}BOUND(name,index)' intrinsic where 'name' is the name of
+        the current ArrayReference and 'index' matches the specified
+        array index. Also checks if the starting/stopping value of the
+        access matches the lower/upper value of the declaration.
+
+        For example, if a Fortran array A was declared as A(n) then
+        the stopping value is n and A(:UBOUND(A,1)), A(:n) or A(n)
+        would access that value. The starting value is 1 and
+        A(LBOUND(A,1):), A(1:) or A(1) would access that value.
+
+        :param int index: the array index to check.
+        :param str bound_type: the type of bound ("lower" or "upper")
+
+        :returns: True if the array index access includes the \
+            lower/upper bound of the array declaration and False if it \
+            does not or if it can't be determined.
         :rtype: bool
 
         '''
         self._validate_index(index)
 
-        array_dimension = self.indices[index]
+        access_shape = self.indices[index]
 
-        if not isinstance(array_dimension, Range):
-            # Check for a single element array
-            try:
-                symbol = self.scope.symbol_table.lookup(self.name)
-            except SymbolError:
-                # This exception should not happen but catching it is
-                # useful for certain tests where the PSyIR is not
-                # fully set up.
-                return False
-            shape = symbol.datatype.shape
-            sym_maths = SymbolicMaths.get()
-            if (sym_maths.equal(shape[index].lower, shape[index].upper) and
-                    sym_maths.equal(shape[index].lower, array_dimension)):
+        # Is this array access in the form of {UL}BOUND(array, index)?
+        if isinstance(access_shape, Range):
+            if bound_type == "upper":
+                operator = BinaryOperation.Operator.UBOUND
+                access_bound = access_shape.stop
+            else:
+                operator = BinaryOperation.Operator.LBOUND
+                access_bound = access_shape.start
+            if self._is_bound_op(access_bound, operator, index):
                 return True
+
+        # Try to compare the upper/lower bound of the array access
+        # with the upper/lower bound of the array declaration.
+
+        # Finding the array declaration is only supported for an
+        # ArrayReference at the moment.
+        from psyclone.psyir.nodes.array_reference import ArrayReference
+        if not isinstance(self, ArrayReference):
             return False
 
-        upper = array_dimension.stop
+        symbol = self.symbol
+        if not isinstance(symbol, DataSymbol):
+            # There is no type information for this symbol
+            # (probably because it originates from a wildcard import).
+            return False
 
-        # Is this in the form of UBOUND(array, index)?
-        if self._is_bound_op(upper, BinaryOperation.Operator.UBOUND, index):
+        datatype = symbol.datatype
+        if not isinstance(datatype, ArrayType):
+            # The declaration datatype could be of UnknownFortranType
+            # if the symbol is of e.g. character type.
+            return False
+
+        # The bound of the declaration is available.
+        if bound_type == "upper":
+            declaration_bound = datatype.shape[index].upper
+        else:
+            declaration_bound = datatype.shape[index].lower
+
+        # Do the bounds match?
+        if isinstance(access_shape, Range):
+            if bound_type == "upper":
+                access_bound = access_shape.stop
+            else:
+                access_bound = access_shape.start
+        else:
+            access_bound = access_shape
+        sym_maths = SymbolicMaths.get()
+        if sym_maths.equal(declaration_bound, access_bound):
             return True
 
-        # If the upper bound of the array declaration can be found,
-        # does it match with the upper bound of the array reference?
-        datatype = self._get_symbol_declaration()
-        if datatype:
-            sym_maths = SymbolicMaths.get()
-            shape = datatype.shape
-            array_bounds = shape[index]
-            if (isinstance(array_bounds, ArrayType.ArrayBounds) and
-                    sym_maths.equal(upper, array_bounds.upper)):
-                return True
         return False
 
     def is_same_array(self, node):

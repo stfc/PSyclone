@@ -97,58 +97,6 @@ def test_is_bound_op():
     assert array_ref._is_bound_op(oper, BinaryOperation.Operator.UBOUND, 0)
 
 
-# _get_symbol_declaration
-
-def test_get_symbol_declaration(fortran_reader):
-    '''Test the _get_symbol_declaration() utility method works as
-    expected.
-
-    '''
-    code = (
-        "subroutine test()\n"
-        "use some_mod\n"
-        "real a(n)\n"
-        "character(10) my_str\n"
-        "a(1:n) = 0.0\n"
-        "my_str(2:2) = 'b'\n"
-        "var1(3:4) = 0\n"
-        "end subroutine\n")
-
-    psyir = fortran_reader.psyir_from_source(code)
-    assigns = psyir.walk(Assignment)
-    array_ref = assigns[0].lhs
-
-    # OK
-    datatype = array_ref._get_symbol_declaration()
-    assert isinstance(datatype, ArrayType)
-    assert len(datatype.shape) == 1
-    assert isinstance(datatype.shape[0].lower, Literal)
-    assert datatype.shape[0].lower.value == "1"
-    assert isinstance(datatype.shape[0].upper, Reference)
-    assert datatype.shape[0].upper.name == "n"
-
-    # symbol not found in symbol table
-    symbol = array_ref.symbol
-    symbol_table = array_ref.scope.symbol_table
-    norm_name = symbol_table._normalize(symbol.name)
-    symbol_table._symbols.pop(norm_name)
-    assert not array_ref._get_symbol_declaration()
-
-    # no symbol table found
-    array_type = ArrayType(REAL_TYPE, [10])
-    symbol = DataSymbol("tmp", array_type)
-    array_ref = ArrayReference.create(symbol, [Literal("1", INTEGER_TYPE)])
-    assert not array_ref._get_symbol_declaration()
-
-    # symbol not a datasymbol (wildcard import)
-    array_ref = assigns[2].lhs
-    assert not array_ref._get_symbol_declaration()
-
-    # symbol not an arraytype (UnkownFortranType)
-    array_ref = assigns[1].lhs
-    assert not array_ref._get_symbol_declaration()
-
-
 # is_lower_bound and is_upper_bound
 
 def test_is_upper_lower_bound(fortran_reader):
@@ -160,14 +108,8 @@ def test_is_upper_lower_bound(fortran_reader):
     '''
     code = (
         "subroutine test()\n"
-        "use some_mod\n"
         "real a(n)\n"
-        "real b(1)\n"
-        "character(10) my_str\n"
         "a(1:n) = 0.0\n"
-        "my_str(2:2) = 'b'\n"
-        "var1(3:4) = 0\n"
-        "b(1) = 0.0\n"
         "end subroutine\n")
 
     # Return True as the symbolic values of the declaration and array
@@ -178,28 +120,140 @@ def test_is_upper_lower_bound(fortran_reader):
     assert array_ref.is_lower_bound(0)
     assert array_ref.is_upper_bound(0)
 
-    # Return True for an array of size 1 with no bounds
-    array_ref = assigns[3].lhs
-    assert array_ref.is_lower_bound(0)
-    assert array_ref.is_upper_bound(0)
 
-    # Return False as the values of the array declaration and
-    # array reference do not match.
-    psyir = fortran_reader.psyir_from_source(code.replace("1:n", "2:n-1"))
-    array_ref = psyir.children[0].children[0].lhs
-    assert not array_ref.is_lower_bound(0)
-    assert not array_ref.is_upper_bound(0)
+# _is_bound
 
-    # Return False if the symbol being referenced is of UnknownFortranType.
-    array_ref = assigns[1].lhs
-    assert not array_ref.is_lower_bound(0)
-    assert not array_ref.is_upper_bound(0)
+def test_is_bound_validate_index(fortran_reader):
+    '''Test the _is_bound method calls the _validate_index method.'''
+    code = (
+        "subroutine test()\n"
+        "real :: a(10)\n"
+        "a(:) = 0.0\n"
+        "end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    assigns = psyir.walk(Assignment)
+    array_ref = assigns[0].lhs
+    with pytest.raises(ValueError) as info:
+        array_ref._is_bound(2, "upper")
+    assert ("In ArrayReference 'a' the specified index '2' must be less than "
+            "the number of dimensions '1'." in str(info.value))
 
-    # Return False if the symbol has no associated type information.
-    array_ref = assigns[2].lhs
-    assert not isinstance(array_ref.symbol, DataSymbol)
-    assert not array_ref.is_lower_bound(0)
-    assert not array_ref.is_upper_bound(0)
+
+@pytest.mark.parametrize("bounds,lower,upper", [
+    (":", True, True), ("2:", False, True), (":n-1", True, False),
+    ("2:n-1", False, False)])
+def test_is_bound_ulbound(fortran_reader, bounds, lower, upper):
+    '''Test the _is_bound method returns True when the access to the bound
+    is [ul]bound due to the use of array notation in the original
+    Fortran code. Test with an access to a regular array and and
+    access to an array in a structure. Also test with the declarations
+    of the arrays not being available.
+
+    '''
+    code = (
+        f"subroutine test()\n"
+        f"use my_mod\n"
+        f"type(my_type) :: b\n"
+        f"a({bounds}) = 0.0\n"
+        f"b%c({bounds}) = 0.0\n"
+        f"end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    assigns = psyir.walk(Assignment)
+    array_ref = assigns[0].lhs
+    assert array_ref._is_bound(0, "lower") is lower
+    assert array_ref._is_bound(0, "upper") is upper
+    array_ref = assigns[1].lhs.children[0]
+    assert array_ref._is_bound(0, "lower") is lower
+    assert array_ref._is_bound(0, "upper") is upper
+
+
+@pytest.mark.parametrize("access,lower,upper", [
+    ("1", False, False), ("10", False, False)])
+def test_is_bound_structure(fortran_reader, access, lower, upper):
+    '''Test that _is_bound always returns False if the array access within
+    a structure is a single access, even if it matches the upper or
+    lower bound of the declaration.
+
+    '''
+    code = (
+        f"subroutine test()\n"
+        f"type my_type\n"
+        f"  real :: b(10)\n"
+        f"end type\n"
+        f"type(my_type) :: a\n"
+        f"a%b({access}) = 0.0\n"
+        f"end subroutine\n")
+
+    psyir = fortran_reader.psyir_from_source(code)
+    assigns = psyir.walk(Assignment)
+
+    structure_ref = assigns[0].lhs
+    array_member = structure_ref.children[0]
+    assert not array_member._is_bound(0, "lower")
+    assert not array_member._is_bound(0, "upper")
+
+
+def test_get_symbol_imported(fortran_reader):
+    '''Test the _is_bound utility method returns False when the access
+    can't be matched with the declaration as the declaration is
+    imported.
+
+    '''
+    code = (
+        "subroutine test()\n"
+        "use some_mod\n"
+        "var1(3:4) = 0\n"
+        "end subroutine\n")
+
+    psyir = fortran_reader.psyir_from_source(code)
+    assigns = psyir.walk(Assignment)
+    array_ref = assigns[0].lhs
+    assert not array_ref._is_bound(0, "lower")
+    assert not array_ref._is_bound(0, "upper")
+
+
+def test_get_symbol_unknownfortrantype(fortran_reader):
+    '''Test the _is_bound method returns False when the array access
+    datatype is an UnknownFortranType.
+
+    '''
+    code = (
+        "subroutine test()\n"
+        "character(10) my_str\n"
+        "my_str(2:2) = 'b'\n"
+        "end subroutine\n")
+
+    psyir = fortran_reader.psyir_from_source(code)
+    assigns = psyir.walk(Assignment)
+    array_ref = assigns[0].lhs
+    assert not array_ref._is_bound(0, "lower")
+    assert not array_ref._is_bound(0, "upper")
+
+
+@pytest.mark.parametrize("bounds,access,lower,upper", [
+    ("10", "1", True, False), ("10", "10", False, True),
+    ("10", "5", False, False), ("n", "1", True, False),
+    ("n", "n", False, True), ("n", "n-4", False, False),
+    ("10", "5+5", False, True)])
+def test_is_bound_access(fortran_reader, bounds, access, lower, upper):
+    '''Test the _is_bound method returns True when the array access
+    matches the array declaration and False if not. Note, the method
+    supports array declarations that are expressions, however,
+    currently the PSyIR does not recognise these so they can't be
+    tested.
+
+    '''
+    code = (
+        f"subroutine test()\n"
+        f"integer :: n\n"
+        f"real :: a({bounds})\n"
+        f"a({access}) = 0.0\n"
+        f"end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    assigns = psyir.walk(Assignment)
+    array_ref = assigns[0].lhs
+    assert array_ref._is_bound(0, "lower") is lower
+    assert array_ref._is_bound(0, "upper") is upper
 
 
 # is_same_array, is_full_range, and indices methods are all tested in
