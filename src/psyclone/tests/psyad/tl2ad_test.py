@@ -53,6 +53,7 @@ from psyclone.psyir.symbols import (
     DataSymbol, SymbolTable, REAL_DOUBLE_TYPE, INTEGER_TYPE, REAL_TYPE,
     ArrayType, RoutineSymbol, ImportInterface, ScalarType, ContainerSymbol,
     ArgumentInterface, UnknownFortranType, DeferredType)
+from psyclone.tests.utilities import Compile
 
 
 TESTS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -75,7 +76,7 @@ TL_CODE = (
 # expected output
 @pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
                    "github actions.", strict=False)
-def test_generate_adjoint_str(caplog):
+def test_generate_adjoint_str(caplog, tmpdir):
     '''Test that the generate_adjoint_str() function works as expected
     including logging.
 
@@ -122,9 +123,10 @@ def test_generate_adjoint_str(caplog):
     assert "Translating from LFRic TL to AD." in caplog.text
     assert expected in result
     assert test_harness == ""
+    assert Compile(tmpdir).string_compiles(result)
 
 
-def test_generate_adjoint_str_lfric_api():
+def test_generate_adjoint_str_lfric_api(tmpdir):
     '''
     Check that specifying the LFRic (dynamo0p3) API to the generate_adjoint_str
     routine works as expected.
@@ -166,7 +168,7 @@ def test_generate_adjoint_str_wrong_api():
             "(dynamo0.3) kernels but got API 'gocean1.0'" in str(err.value))
 
 
-def test_generate_adjoint_str_trans():
+def test_generate_adjoint_str_trans(tmpdir):
     '''Test that the generate_adjoint_str() function successfully calls
     the preprocess_trans() function.
 
@@ -195,9 +197,10 @@ def test_generate_adjoint_str_trans():
         tl_code, ["a", "b", "res_dot_product"])
     assert expected in result
     assert not test_harness
+    assert Compile(tmpdir).string_compiles(result)
 
 
-def test_generate_adjoint_str_generate_harness_no_api():
+def test_generate_adjoint_str_generate_harness_no_api(tmpdir):
     '''Test the create_test option to generate_adjoint_str() when no
     API is specified.'''
     result, harness = generate_adjoint_str(
@@ -206,6 +209,7 @@ def test_generate_adjoint_str_generate_harness_no_api():
     assert "program adj_test\n" in harness
     assert "! Call the tangent-linear kernel\n" in harness
     assert "end program adj_test\n" in harness
+    assert Compile(tmpdir).string_compiles(result)
 
 
 def test_generate_adjoint_str_generate_harness_invalid_api():
@@ -218,7 +222,7 @@ def test_generate_adjoint_str_generate_harness_invalid_api():
             "(dynamo0.3) kernels but got API 'gocean1.0'" in str(err.value))
 
 
-def test_generate_adjoint_str_generate_harness_lfric():
+def test_generate_adjoint_str_generate_harness_lfric(tmpdir):
     '''Test the create_test option to generate_adjoint_str() when the
     LFRic (dynamo0p3) API is specified.'''
     tl_code = (
@@ -353,7 +357,7 @@ def test_get_active_variables_datatype(fortran_reader):
 
 # generate_adjoint function
 
-def test_generate_adjoint(fortran_reader, fortran_writer):
+def test_generate_adjoint(fortran_reader, fortran_writer, tmpdir):
     '''Test that the generate_adjoint() function works as expected.'''
 
     tl_fortran_str = (
@@ -375,6 +379,7 @@ def test_generate_adjoint(fortran_reader, fortran_writer):
 
     ad_fortran_str = fortran_writer(ad_psyir)
     assert ad_fortran_str in expected_ad_fortran_str
+    assert Compile(tmpdir).string_compiles(ad_fortran_str)
 
 
 def test_generate_adjoint_kind(fortran_reader, fortran_writer):
@@ -405,7 +410,7 @@ def test_generate_adjoint_kind(fortran_reader, fortran_writer):
     assert ad_fortran_str in expected_ad_fortran_str
 
 
-def test_generate_adjoint_multi_kernel(fortran_reader, fortran_writer):
+def test_generate_adjoint_multi_kernel(fortran_reader, fortran_writer, tmpdir):
     '''Check that generate_adjoint works as expected when there are
     multiple kernels in a module. The adjoint of each routine should
     be taken and the names of each routine should be modified.
@@ -450,9 +455,10 @@ def test_generate_adjoint_multi_kernel(fortran_reader, fortran_writer):
     ad_psyir = generate_adjoint(psyir, ["psyir_tmp", "psyir_tmp_1"])
     ad_fortran_str = fortran_writer(ad_psyir)
     assert ad_fortran_str == expected_ad_fortran_str
+    assert Compile(tmpdir).string_compiles(ad_fortran_str)
 
 
-def test_generate_adjoint_no_module(fortran_reader, fortran_writer):
+def test_generate_adjoint_no_module(fortran_reader, fortran_writer, tmpdir):
     '''Check that generate_adjoint works as expected when the subroutine
     is not in a module.
 
@@ -475,11 +481,11 @@ def test_generate_adjoint_no_module(fortran_reader, fortran_writer):
     ad_psyir = generate_adjoint(psyir, ["psyir_tmp", "psyir_tmp_1"])
     ad_fortran_str = fortran_writer(ad_psyir)
     assert ad_fortran_str == expected_ad_fortran_str
+    assert Compile(tmpdir).string_compiles(ad_fortran_str)
 
 
-@pytest.mark.xfail(reason="issue #1949: psyad does not work with a mixture "
-                   "of module and non-module kernels")
-def test_generate_adjoint_multi_kernel_mixed(fortran_reader, fortran_writer):
+def test_generate_adjoint_multi_kernel_mixed(
+        fortran_reader, fortran_writer, tmpdir):
     '''Check that generate_adjoint works as expected when there are
     multiple kernels and some are in a module and some are not. The
     adjoint of each routine should be taken and the names of each
@@ -522,9 +528,14 @@ def test_generate_adjoint_multi_kernel_mixed(fortran_reader, fortran_writer):
         "  psyir_tmp = 0.0\n\n"
         "end subroutine adj_kern2\n")
     psyir = fortran_reader.psyir_from_source(tl_fortran_str)
-    ad_psyir = generate_adjoint(psyir, ["psyir_tmp", "psyir_tmp_1"])
+    with pytest.raises(KeyError):
+        # There should not be a KeyError here.
+        ad_psyir = generate_adjoint(psyir, ["psyir_tmp", "psyir_tmp_1"])
+    pytest.xfail(reason="issue #1949: psyad does not work with a mixture "
+                 "of module and non-module kernels")
     ad_fortran_str = fortran_writer(ad_psyir)
     assert ad_fortran_str == expected_ad_fortran_str
+    assert Compile(tmpdir).string_compiles(ad_fortran_str)
 
 
 def test_generate_adjoint_errors():
@@ -551,7 +562,8 @@ def test_generate_adjoint_errors():
 
 @pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
                    "github actions.", strict=False)
-def test_generate_adjoint_logging(caplog, fortran_reader, fortran_writer):
+def test_generate_adjoint_logging(
+        caplog, fortran_reader, fortran_writer, tmpdir):
     '''Test that logging works as expected in the generate_adjoint()
     function.
 
@@ -600,6 +612,7 @@ def test_generate_adjoint_logging(caplog, fortran_reader, fortran_writer):
 
     ad_fortran_str = fortran_writer(ad_psyir)
     assert expected_ad_fortran_str in ad_fortran_str
+    assert Compile(tmpdir).string_compiles(ad_fortran_str)
 
 
 # generate_adjoint_test
