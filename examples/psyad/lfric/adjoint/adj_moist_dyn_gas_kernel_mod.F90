@@ -7,7 +7,9 @@ module adj_moist_dyn_gas_kernel_mod
   implicit none
   type, public, extends(kernel_type) :: adj_moist_dyn_gas_kernel_type
   PRIVATE
-  TYPE(arg_type) :: meta_args(2) = (/arg_type(GH_FIELD, GH_REAL, GH_READWRITE, Wtheta), arg_type(GH_FIELD, GH_REAL, GH_READWRITE, Wtheta)/)
+  TYPE(arg_type) :: meta_args(2) = (/&
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, Wtheta), &
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, Wtheta)/)
   INTEGER :: operates_on = CELL_COLUMN
   CONTAINS
   PROCEDURE, NOPASS :: adj_moist_dyn_gas_code
