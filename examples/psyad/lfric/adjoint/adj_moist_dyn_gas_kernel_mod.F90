@@ -1,5 +1,5 @@
 module adj_moist_dyn_gas_kernel_mod
-  use argument_mod, only : arg_type, cell_column, gh_field, gh_read, gh_real, gh_scalar, gh_write
+  use argument_mod, only : arg_type, cell_column, gh_field, gh_read, gh_real, gh_scalar, gh_write, gh_readwrite
   use constants_mod, only : i_def, r_def
   use fs_continuity_mod, only : wtheta
   use kernel_mod, only : kernel_type

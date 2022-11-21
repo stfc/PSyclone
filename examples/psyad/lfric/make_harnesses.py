@@ -126,7 +126,8 @@ all_kernels["vorticity_advection"] = KernelDesc(
     coord_arg=6, panel_id_arg=7)
 
 # Kernel imports recip_epsilon from planet_config_mod but compiler says the
-# module doesn't have such a symbol.
+# module doesn't have such a symbol. However, modifying the gravity-wave
+# miniapp to run the test harness instead works.
 all_kernels["moist_dyn_gas"] = KernelDesc(
     adj_file="adjoint/adj_moist_dyn_gas_kernel_mod.F90",
     kernel_file="tangent_linear_tweaked/tl_moist_dyn_gas_kernel_mod_"
