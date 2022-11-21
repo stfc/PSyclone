@@ -189,8 +189,8 @@ def test_is_bound_structure(fortran_reader, access, lower, upper):
 
     structure_ref = assigns[0].lhs
     array_member = structure_ref.children[0]
-    assert not array_member._is_bound(0, "lower")
-    assert not array_member._is_bound(0, "upper")
+    assert array_member._is_bound(0, "lower") is lower
+    assert array_member._is_bound(0, "upper") is upper
 
 
 def test_get_symbol_imported(fortran_reader):
@@ -228,6 +228,23 @@ def test_get_symbol_unknownfortrantype(fortran_reader):
     array_ref = assigns[0].lhs
     assert not array_ref._is_bound(0, "lower")
     assert not array_ref._is_bound(0, "upper")
+
+
+def test_is_bound_extent(fortran_reader):
+    '''Test the _is_bound method returns False when the array declaration
+    is the Extent type (i.e. is not known at compile time).
+
+    '''
+    code = (
+        "subroutine test(a)\n"
+        "real :: a(:)\n"
+        "a(1) = 0.0\n"
+        "end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    assigns = psyir.walk(Assignment)
+    array_ref = assigns[0].lhs
+    assert array_ref._is_bound(0, "lower") is False
+    assert array_ref._is_bound(0, "upper") is False
 
 
 @pytest.mark.parametrize("bounds,access,lower,upper", [

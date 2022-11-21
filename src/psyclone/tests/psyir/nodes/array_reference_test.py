@@ -204,10 +204,10 @@ def test_array_is_lower_bound():
     expected.
 
     '''
-    one = Literal("1", INTEGER_TYPE)
+    two = Literal("2", INTEGER_TYPE)
     array = ArrayReference.create(DataSymbol("test",
                                              ArrayType(REAL_TYPE, [10])),
-                                  [one])
+                                  [two])
     with pytest.raises(TypeError) as info:
         array.is_lower_bound("hello")
     assert ("The index argument should be an integer but found 'str'."
@@ -216,9 +216,10 @@ def test_array_is_lower_bound():
     # not a range node at index 0
     assert not array.is_lower_bound(0)
 
+    one = Literal("1", INTEGER_TYPE)
     # range node does not have a binary operator for its start value
     array.children[0] = Range.create(one.copy(), one.copy(), one.copy())
-    assert not array.is_lower_bound(0)
+    assert array.is_lower_bound(0)
 
     # range node lbound references a different array
     array2 = ArrayReference.create(DataSymbol("test2",

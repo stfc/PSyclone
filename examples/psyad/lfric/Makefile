@@ -33,6 +33,8 @@
 # ------------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory
 
+include ../../top_level.mk
+
 transform:
 	cd tangent_linear; make transform
 	cd tangent_linear_tweaked; make transform

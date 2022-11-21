@@ -349,12 +349,17 @@ def test_same_range():
     array_x_2.children[0].stop = tmp1
     array_x.children[0].stop = tmp2
 
-    # one of lower bounds uses lbound, other does not
+    # One of lower bounds uses lbound, other does not but has the same value.
     array_x_2.children[0].start = Literal("1", INTEGER_TYPE)
+    assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is True
+
+    # One of lower bounds uses lbound, other does not and has a
+    # different start value.
+    array_x_2.children[0].start = Literal("2", INTEGER_TYPE)
     assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
 
-    # neither use lower bound and are different
-    array_x.children[0].start = Literal("2", INTEGER_TYPE)
+    # Neither use lower bound and are different.
+    array_x.children[0].start = Literal("3", INTEGER_TYPE)
     assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
 
 
