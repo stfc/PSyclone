@@ -27,7 +27,7 @@ module tl_rhs_project_eos_kernel_mod
                                 GH_BASIS, GH_DIFF_BASIS,     &
                                 CELL_COLUMN, GH_QUADRATURE_XYoZ
   use constants_mod,     only : r_def, i_def
-  use fs_continuity_mod, only : W3, Wtheta
+  use fs_continuity_mod, only : W3, Wtheta, wchi
   use kernel_mod,        only : kernel_type
 
   implicit none
@@ -52,7 +52,7 @@ module tl_rhs_project_eos_kernel_mod
          arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                        &
          arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),                    &
          arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),                    &
-         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9),               &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  WChi),                      &
          arg_type(GH_FIELD,   GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), &
          arg_type(GH_SCALAR, GH_REAL, GH_READ),                              &
          arg_type(GH_SCALAR, GH_REAL, GH_READ),                              &
@@ -61,7 +61,7 @@ module tl_rhs_project_eos_kernel_mod
     type(func_type) :: meta_funcs(3) = (/                                   &
          func_type(W3,          GH_BASIS),                                  &
          func_type(Wtheta,      GH_BASIS),                                  &
-         func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                    &
+         func_type(wchi, GH_BASIS, GH_DIFF_BASIS)                    &
          /)
     integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ

@@ -1,20 +1,31 @@
 module adj_rhs_project_eos_kernel_mod
   use argument_mod, only : any_discontinuous_space_3, any_space_9, arg_type, cell_column, func_type, gh_basis, gh_diff_basis, &
-&gh_field, gh_quadrature_xyoz, gh_read, gh_real, gh_scalar, gh_write
+&gh_field, gh_quadrature_xyoz, gh_read, gh_readwrite, gh_real, gh_scalar, gh_write
   use constants_mod, only : i_def, r_def
-  use fs_continuity_mod, only : w3, wtheta
+  use fs_continuity_mod, only : w3, wtheta, wchi
   use kernel_mod, only : kernel_type
   implicit none
   type, public, extends(kernel_type) :: adj_rhs_project_eos_kernel_type
   PRIVATE
-  TYPE(arg_type) :: meta_args(14) = (/arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3), arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3), &
-&arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3), arg_type(GH_FIELD, GH_REAL, GH_READWRITE, Wtheta), arg_type(GH_FIELD, GH_REAL, GH_READWRITE, &
-&Wtheta), arg_type(GH_FIELD, GH_REAL, GH_READ, W3), arg_type(GH_FIELD, GH_REAL, GH_READ, W3), arg_type(GH_FIELD, GH_REAL, GH_READ, &
-&Wtheta), arg_type(GH_FIELD, GH_REAL, GH_READ, Wtheta), arg_type(GH_FIELD * 3, GH_REAL, GH_READ, ANY_SPACE_9), arg_type(GH_FIELD, &
-&GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3), arg_type(GH_SCALAR, GH_REAL, GH_READ), arg_type(GH_SCALAR, GH_REAL, GH_READ), &
+  TYPE(arg_type) :: meta_args(14) = (/&
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3), &
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3), &
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3), &
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, Wtheta), &
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, Wtheta), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, W3), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, W3), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, Wtheta), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, Wtheta), &
+       arg_type(GH_FIELD * 3, GH_REAL, GH_READ, Wchi), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3), &
+       arg_type(GH_SCALAR, GH_REAL, GH_READ), &
+       arg_type(GH_SCALAR, GH_REAL, GH_READ), &
 &arg_type(GH_SCALAR, GH_REAL, GH_READ)/)
-  TYPE(func_type) :: meta_funcs(3) = (/func_type(W3, GH_BASIS), func_type(Wtheta, GH_BASIS), func_type(ANY_SPACE_9, GH_BASIS, &
-&GH_DIFF_BASIS)/)
+  TYPE(func_type) :: meta_funcs(3) = (/ &
+       func_type(W3, GH_BASIS), &
+       func_type(Wtheta, GH_BASIS), &
+       func_type(wchi, GH_BASIS, GH_DIFF_BASIS)/)
   INTEGER :: operates_on = CELL_COLUMN
   INTEGER :: gh_shape = GH_QUADRATURE_XYoZ
   CONTAINS

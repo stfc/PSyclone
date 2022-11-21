@@ -1,17 +1,29 @@
 module adj_rhs_sample_eos_kernel_mod
-  use argument_mod, only : arg_type, cell_column, func_type, gh_basis, gh_evaluator, gh_field, gh_read, gh_real, gh_scalar, gh_write
+  use argument_mod, only : arg_type, cell_column, func_type, gh_basis, &
+       gh_evaluator, gh_field, gh_read, gh_readwrite, gh_real, gh_scalar, &
+       gh_write
   use constants_mod, only : i_def, r_def
   use fs_continuity_mod, only : w3, wtheta
   use kernel_mod, only : kernel_type
   implicit none
   type, public, extends(kernel_type) :: adj_rhs_sample_eos_kernel_type
   PRIVATE
-  TYPE(arg_type) :: meta_args(12) = (/arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3), arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3), &
-&arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3), arg_type(GH_FIELD, GH_REAL, GH_READWRITE, Wtheta), arg_type(GH_FIELD, GH_REAL, GH_READWRITE, &
-&Wtheta), arg_type(GH_FIELD, GH_REAL, GH_READ, W3), arg_type(GH_FIELD, GH_REAL, GH_READ, W3), arg_type(GH_FIELD, GH_REAL, GH_READ, &
-&Wtheta), arg_type(GH_FIELD, GH_REAL, GH_READ, Wtheta), arg_type(GH_SCALAR, GH_REAL, GH_READ), arg_type(GH_SCALAR, GH_REAL, &
-&GH_READ), arg_type(GH_SCALAR, GH_REAL, GH_READ)/)
-  TYPE(func_type) :: meta_funcs(2) = (/func_type(W3, GH_BASIS), func_type(Wtheta, GH_BASIS)/)
+  TYPE(arg_type) :: meta_args(12) = (/&
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3), &
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3), &
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3), &
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, Wtheta), &
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, Wtheta), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, W3), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, W3), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, Wtheta), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, Wtheta), &
+       arg_type(GH_SCALAR, GH_REAL, GH_READ), &
+       arg_type(GH_SCALAR, GH_REAL, GH_READ), &
+       arg_type(GH_SCALAR, GH_REAL, GH_READ)/)
+  TYPE(func_type) :: meta_funcs(2) = (/ &
+       func_type(W3, GH_BASIS), &
+       func_type(Wtheta, GH_BASIS)/)
   INTEGER :: operates_on = CELL_COLUMN
   INTEGER :: gh_shape = GH_EVALUATOR
   CONTAINS
@@ -22,8 +34,12 @@ END TYPE
   public :: adj_rhs_sample_eos_code
 
   contains
-  subroutine adj_rhs_sample_eos_code(nlayers, rhs_eos, exner, rho, theta, moist_dyn_gas, ls_exner, ls_rho, ls_theta, &
-&ls_moist_dyn_gas, kappa, rd, p_zero, ndf_w3, undf_w3, map_w3, w3_basis, ndf_wt, undf_wt, map_wt, wt_basis)
+    subroutine adj_rhs_sample_eos_code(nlayers, &
+         rhs_eos, exner, rho, theta, moist_dyn_gas, &
+         ls_exner, ls_rho, ls_theta, ls_moist_dyn_gas, &
+         kappa, rd, p_zero, &
+         ndf_w3, undf_w3, map_w3, w3_basis, &
+         ndf_wt, undf_wt, map_wt, wt_basis)
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: ndf_wt
     integer(kind=i_def), intent(in) :: ndf_w3
