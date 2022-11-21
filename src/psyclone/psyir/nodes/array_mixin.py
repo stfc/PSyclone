@@ -50,7 +50,7 @@ from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.operation import Operation, BinaryOperation
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import SymbolError, DataSymbol
+from psyclone.psyir.symbols import DataSymbol
 from psyclone.psyir.symbols.datatypes import (ScalarType, ArrayType,
                                               INTEGER_TYPE)
 
@@ -230,6 +230,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
 
         # Finding the array declaration is only supported for an
         # ArrayReference at the moment.
+        # Import here to avoid circular dependence.
         from psyclone.psyir.nodes.array_reference import ArrayReference
         if not isinstance(self, ArrayReference):
             return False
@@ -247,6 +248,14 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             return False
 
         # The bound of the declaration is available.
+
+        if isinstance(datatype.shape[index], ArrayType.Extent):
+            # The size is unspecified at compile-time (but is
+            # available at run-time e.g. when the size is allocated by
+            # an allocate statement.
+            return False
+
+        # The size of the bound is available.
         if bound_type == "upper":
             declaration_bound = datatype.shape[index].upper
         else:
@@ -261,8 +270,22 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         else:
             access_bound = access_shape
         sym_maths = SymbolicMaths.get()
-        if sym_maths.equal(declaration_bound, access_bound):
-            return True
+        # Import here to avoid a circular dependency.
+        from psyclone.psyir.backend.visitor import VisitorError
+        try:
+            if sym_maths.equal(declaration_bound, access_bound):
+                return True
+        except VisitorError:
+            # The symbolic check has failed so fall back to a string
+            # comparison. We use the FortranWriter but have to import
+            # it here to avoid circular dependencies.
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.backend.fortran import FortranWriter
+            fortran_writer = FortranWriter()
+            decl_bound_str = fortran_writer(declaration_bound)
+            access_bound_str = fortran_writer(access_bound)
+            if decl_bound_str.lower() == access_bound_str.lower():
+                return True
 
         return False
 
@@ -310,8 +333,9 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         if self_sig[:depth+1] != node_sig[:]:
             return False
 
-        # We use the FortranWriter to simplify the job of comparing array-index
-        # expressions but have to import it here to avoid circular dependencies
+        # We use the FortranWriter to simplify the job of comparing
+        # array-index expressions but have to import it here to avoid
+        # circular dependencies.
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.backend.fortran import FortranWriter
         fwriter = FortranWriter()
@@ -442,9 +466,11 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             elif isinstance(idx_expr, (Call, Operation, CodeBlock)):
                 # We can't yet straightforwardly query the type of a function
                 # call or Operation - TODO #1799.
+                # We use the FortranWriter in the exception but have
+                # to import it here to avoid circular dependencies.
                 # pylint: disable=import-outside-toplevel
-                from psyclone.psyir.backend.fortran import FortranWriter
                 # TODO #1887 - get type of writer to use from Config object?
+                from psyclone.psyir.backend.fortran import FortranWriter
                 fvisitor = FortranWriter()
                 raise NotImplementedError(
                     f"The array index expressions for access "
