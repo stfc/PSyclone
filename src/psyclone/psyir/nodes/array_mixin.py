@@ -269,22 +269,8 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         else:
             access_bound = access_shape
         sym_maths = SymbolicMaths.get()
-        # Import here to avoid a circular dependency.
-        from psyclone.psyir.backend.visitor import VisitorError
-        try:
-            if sym_maths.equal(declaration_bound, access_bound):
-                return True
-        except VisitorError:
-            # The symbolic check has failed so fall back to a string
-            # comparison. We use the FortranWriter but have to import
-            # it here to avoid circular dependencies.
-            # pylint: disable=import-outside-toplevel
-            from psyclone.psyir.backend.fortran import FortranWriter
-            fortran_writer = FortranWriter()
-            decl_bound_str = fortran_writer(declaration_bound)
-            access_bound_str = fortran_writer(access_bound)
-            if decl_bound_str.lower() == access_bound_str.lower():
-                return True
+        if sym_maths.equal(declaration_bound, access_bound):
+            return True
 
         return False
 
