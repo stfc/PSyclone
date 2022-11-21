@@ -38,8 +38,8 @@ END TYPE
          rhs_eos, exner, rho, theta, moist_dyn_gas, &
          ls_exner, ls_rho, ls_theta, ls_moist_dyn_gas, &
          kappa, rd, p_zero, &
-         ndf_w3, undf_w3, map_w3, w3_basis, &
-         ndf_wt, undf_wt, map_wt, wt_basis)
+         ndf_w3, undf_w3, map_w3, w3_basis, basis_w3_on_wtheta, &
+         ndf_wt, undf_wt, map_wt, wt_basis, basis_wt_on_wt)
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: ndf_wt
     integer(kind=i_def), intent(in) :: ndf_w3
@@ -49,6 +49,8 @@ END TYPE
     integer(kind=i_def), dimension(ndf_wt), intent(in) :: map_wt
     real(kind=r_def), dimension(1,ndf_w3,ndf_w3), intent(in) :: w3_basis
     real(kind=r_def), dimension(1,ndf_wt,ndf_w3), intent(in) :: wt_basis
+    REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,ndf_wt) :: basis_w3_on_wtheta
+    REAL(KIND=r_def), intent(in), dimension(1,ndf_wt,ndf_wt) :: basis_wt_on_wt
     real(kind=r_def), dimension(undf_w3), intent(inout) :: rhs_eos
     real(kind=r_def), dimension(undf_wt), intent(inout) :: theta
     real(kind=r_def), dimension(undf_wt), intent(inout) :: moist_dyn_gas
