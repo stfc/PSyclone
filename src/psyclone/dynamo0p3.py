@@ -77,7 +77,7 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
                                   ArrayReference, ACCEnterDataDirective,
                                   ACCRegionDirective, OMPRegionDirective,
-                                  ScopingNode, StructureReference)
+                                  Routine, ScopingNode, StructureReference)
 from psyclone.psyir.symbols import (
     INTEGER_TYPE, INTEGER_SINGLE_TYPE, DataSymbol, ScalarType,
     DeferredType, DataTypeSymbol, ContainerSymbol, ImportInterface, ArrayType)
@@ -7757,7 +7757,7 @@ class DynLoop(PSyLoop):
         :rtype: :py:class:`psyclone.psyir.Node`
 
         '''
-        inv_sched = self.ancestor(InvokeSchedule)
+        inv_sched = self.ancestor((Routine, InvokeSchedule))
         sym_table = inv_sched.symbol_table
         loops = inv_sched.loops()
         posn = None
@@ -7778,7 +7778,7 @@ class DynLoop(PSyLoop):
         :rtype: :py:class:`psyclone.psyir.Node`
 
         '''
-        inv_sched = self.ancestor(InvokeSchedule)
+        inv_sched = self.ancestor((InvokeSchedule, Routine))
         sym_table = inv_sched.symbol_table
 
         if self._loop_type == "colour":
