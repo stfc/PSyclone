@@ -7123,14 +7123,24 @@ class DynLoop(PSyLoop):
 
         '''
         super().lower_to_language_level()
-        # We need to copy the expressions, since the original ones are
-        # attached to the original loop.
-        psy_loop = PSyLoop.create(self.variable,
-                                  self.start_expr.copy(),
-                                  self.stop_expr.copy(),
-                                  self.step_expr.copy(),
-                                  self.loop_body.pop_all_children())
-        self.replace_with(psy_loop)
+        if self._loop_type != "null":
+            # Not a domain loop, i.e. there is a real loop
+            # We need to copy the expressions, since the original ones are
+            # attached to the original loop.
+            psy_loop = PSyLoop.create(self._variable,
+                                      self.start_expr.copy(),
+                                      self.stop_expr.copy(),
+                                      self.step_expr.copy(),
+                                      self.loop_body.pop_all_children())
+            self.replace_with(psy_loop)
+        else:
+            # Domain loop, i.e. no need for a loop at all. Remove the loop
+            # node (self), and insert its children directly
+            pos = self.position
+            parent = self.parent
+            self.detach()
+            for child in self.loop_body.pop_all_children():
+                parent.children.insert(pos, child)
 
     def node_str(self, colour=True):
         ''' Creates a text summary of this loop node. We override this
