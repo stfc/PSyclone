@@ -275,7 +275,7 @@ class LFRicExtractDriverCreator:
             if old_symbol.is_array:
                 intrinsic = self._default_types[old_symbol.datatype.intrinsic]
                 array_type = ArrayType(intrinsic,
-                                       [ArrayType.Extent.ATTRIBUTE] *
+                                       [ArrayType.Extent.DEFERRED] *
                                        len(old_symbol.shape))
                 new_symbol = symbol_table.new_symbol(root_name=reference.name,
                                                      tag=reference.name,
