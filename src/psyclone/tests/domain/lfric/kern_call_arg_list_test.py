@@ -58,7 +58,7 @@ TEST_API = "dynamo0.3"
 def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):
     '''Helper function to check if the PSyIR representation of the arguments
     is identical to the old style textual representation. It checks that each
-    member of the psyir_arglist is a Reference, and that the textural
+    member of the psyir_arglist is a Reference, and that the textual
     representation matches the textual presentation (which was already
     verified).
 
@@ -67,9 +67,9 @@ def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):
     :param fortran_writer: a FortranWriter instance.
     :type fortran_writer: \
         :py:class:`psyclone.psyir.backend.fortran.FortranWriter`
-    :param classes: a tuple of classes that are expected in the PSyIR \
+    :param valid_classes: a tuple of classes that are expected in the PSyIR \
         argument list. Defaults to `(Reference)`.
-    :type classes: Tuple[:py:class:`psyclone.psyir.nodes.node`]
+    :type valid_classes: Tuple[:py:class:`psyclone.psyir.nodes.node`]
 
     '''
 
@@ -86,7 +86,7 @@ def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):
 
 
 def test_cellmap_intergrid(dist_mem, fortran_writer):
-    ''' Check the handlinf of cell_map and fs_intergrid.'''
+    ''' Check the handling of cell_map and fs_intergrid.'''
 
     full_path = os.path.join(get_base_path(TEST_API),
                              "22.0_intergrid_prolong.f90")
