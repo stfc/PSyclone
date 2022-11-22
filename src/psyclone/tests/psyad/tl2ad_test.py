@@ -126,7 +126,7 @@ def test_generate_adjoint_str(caplog, tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_generate_adjoint_str_lfric_api(tmpdir):
+def test_generate_adjoint_str_lfric_api():
     '''
     Check that specifying the LFRic (dynamo0p3) API to the generate_adjoint_str
     routine works as expected.
@@ -222,7 +222,7 @@ def test_generate_adjoint_str_generate_harness_invalid_api():
             "(dynamo0.3) kernels but got API 'gocean1.0'" in str(err.value))
 
 
-def test_generate_adjoint_str_generate_harness_lfric(tmpdir):
+def test_generate_adjoint_str_generate_harness_lfric():
     '''Test the create_test option to generate_adjoint_str() when the
     LFRic (dynamo0p3) API is specified.'''
     tl_code = (
