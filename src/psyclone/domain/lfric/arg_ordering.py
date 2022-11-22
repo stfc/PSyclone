@@ -251,8 +251,7 @@ class ArgOrdering:
         :param tag: optional tag for the symbol.
         :type tag: Optional[str]
         :param symbol: optional the symbol to use.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
-
+        :type symbol: Optional[:py:class:`psyclone.psyir.symbols.Symbol`]
 
         :returns: the symbol used in the added reference.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
