@@ -7165,6 +7165,25 @@ class DynLoop(PSyLoop):
             child.reference_accesses(var_accesses)
             var_accesses.next_location()
 
+    def lower_to_language_level(self):
+        '''In-place replacement of DSL or high-level concepts into generic
+        PSyIR constructs. This function replaces a DynLoop with a PSyLoop
+        and inserts the loop boundaries into the new PSyLoop. Once
+        TODO #1731 is done (which should fix the loop boundaries, which atm
+        rely on index of the loop in the schedule, i.e. can change when
+        transformations are applied), this function can likely be removed.
+
+        '''
+        super().lower_to_language_level()
+        # We need to copy the expressions, since the original ones are
+        # attached to the original loop.
+        psy_loop = PSyLoop.create(self.variable,
+                                  self.start_expr.copy(),
+                                  self.stop_expr.copy(),
+                                  self.step_expr.copy(),
+                                  self.loop_body.pop_all_children())
+        self.replace_with(psy_loop)
+
     def node_str(self, colour=True):
         ''' Creates a text summary of this loop node. We override this
         method from the Loop class because, in Dynamo0.3, the function
