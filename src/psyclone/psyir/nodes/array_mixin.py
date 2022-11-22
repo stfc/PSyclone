@@ -230,9 +230,11 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         # Finding the array declaration is only supported for an
         # ArrayReference at the moment.
         # Import here to avoid circular dependence.
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.array_reference import ArrayReference
         if not isinstance(self, ArrayReference):
             return False
+        # pylint: enable=import-outside-toplevel
 
         symbol = self.symbol
         if not isinstance(symbol, DataSymbol):
@@ -324,6 +326,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.backend.fortran import FortranWriter
         fwriter = FortranWriter()
+        # pylint: enable=import-outside-toplevel
 
         # Examine the indices, ignoring any on the innermost accesses (hence
         # the slice to `depth` rather than `depth + 1` below).
@@ -457,6 +460,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                 # TODO #1887 - get type of writer to use from Config object?
                 from psyclone.psyir.backend.fortran import FortranWriter
                 fvisitor = FortranWriter()
+                # pylint: enable=import-outside-toplevel
                 raise NotImplementedError(
                     f"The array index expressions for access "
                     f"'{fvisitor(self)}' include a function call or "
