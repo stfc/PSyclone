@@ -64,8 +64,34 @@ def test_gosymboltable_conformity_check():
     symbol_table._argument_list[0].datatype = DeferredType()
     with pytest.raises(GenerationError) as excinfo:
         symbol_table._check_gocean_conformity()
-    assert ("GOcean 1.0 API kernels first argument should be a scalar integer "
+    assert ("GOcean API kernels first argument should be a scalar integer "
             "but got 'DeferredType'." in str(excinfo.value))
+
+
+def test_gosymboltable_properties():
+    '''Test the various properties of a GOSymbolTable.'''
+    table = GOSymbolTable()
+    i_var = DataSymbol("i", INTEGER_TYPE,
+                       interface=ArgumentInterface(
+                           ArgumentInterface.Access.READ))
+    table.specify_argument_list([i_var])
+    # Incomplete argument list.
+    with pytest.raises(GenerationError) as err:
+        _ = table.iteration_indices
+    assert ("GOcean API kernels should always have at least two arguments "
+            "representing the iteration indices but the Symbol Table has "
+            "only 1 argument" in str(err.value))
+    j_var = DataSymbol("j", INTEGER_TYPE,
+                       interface=ArgumentInterface(
+                           ArgumentInterface.Access.READ))
+    table.specify_argument_list([i_var, j_var])
+    assert table.iteration_indices == [i_var, j_var]
+    assert table.data_arguments == []
+    fld_var = DataSymbol("fld1", INTEGER_TYPE,
+                         interface=ArgumentInterface(
+                             ArgumentInterface.Access.WRITE))
+    table.specify_argument_list([i_var, j_var, fld_var])
+    assert table.data_arguments == [fld_var]
 
 
 def test_gosymboltable_create_from_table():

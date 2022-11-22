@@ -46,11 +46,12 @@ import six
 from fparser.two import Fortran2003, utils
 from fparser.two.utils import walk, BlockBase, StmtBase
 from psyclone.errors import InternalError, GenerationError
-from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
-    NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
-    Container, Assignment, Return, ArrayReference, Node, Range, \
-    KernelSchedule, StructureReference, ArrayOfStructuresReference, \
-    Call, Routine, Member, FileContainer, Directive, ArrayMember
+from psyclone.psyir.nodes import (
+    UnaryOperation, BinaryOperation, NaryOperation, Schedule, CodeBlock,
+    IfBlock, Reference, Literal, Loop, Container, Assignment, Return,
+    ArrayReference, Node, Range, StructureReference,
+    ArrayOfStructuresReference, Call, Routine, Member, FileContainer,
+    Directive, ArrayMember)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_of_structures_mixin import \
     ArrayOfStructuresMixin

@@ -83,10 +83,14 @@ class KernelModuleInlineTrans(Transformation):
         :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the target node is not a sub-class of \
-                                     psyGen.CodedKern.
+            psyGen.CodedKern.
         :raises TransformationError: if the subroutine containing the \
-                                     implementation of the kernel cannot be \
-                                     retrieved with 'get_kernel_schedule'.
+            implementation of the kernel cannot be retrieved with \
+            'get_kernel_schedule'.
+        :raises TransformationError: if the name of the routine that \
+            implements the kernel is not the same as the kernel name. This \
+            will happen if the kernel is polymorphic (uses a Fortran \
+            INTERFACE) and will be resolved by #1824.
         :raises TransformationError: if the kernel cannot be safely inlined.
 
         '''
@@ -105,6 +109,13 @@ class KernelModuleInlineTrans(Transformation):
                 f"{self.name} failed to retrieve PSyIR for kernel "
                 f"'{node.name}' using the 'get_kernel_schedule' method."
                 ) from error
+
+        if kernel_schedule.name.lower() != node.name.lower():
+            raise TransformationError(
+                f"TODO #1824: the implementation of kernel '{node.name}' is "
+                f"in a subroutine named '{kernel_schedule.name}'. Module "
+                f"inlining of a kernel that requires re-naming is not yet "
+                f"supported.")
 
         # Check that all kernel symbols are declared in the kernel
         # symbol table(s). At this point they may be declared in a

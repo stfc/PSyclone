@@ -2247,7 +2247,7 @@ class GOSymbolTable(SymbolTable):
         the iteration indices (are scalar integers).
 
         :raises GenerationError: if the Symbol Table does not conform to the \
-                rules for a GOcean 1.0 kernel.
+                rules for a GOcean kernel.
         '''
         # Get the kernel name if available for better error messages
         kname_str = ""
@@ -2257,7 +2257,7 @@ class GOSymbolTable(SymbolTable):
         # Check that there are at least 2 arguments
         if len(self.argument_list) < 2:
             raise GenerationError(
-                f"GOcean 1.0 API kernels should always have at least two "
+                f"GOcean API kernels should always have at least two "
                 f"arguments representing the iteration indices but the "
                 f"Symbol Table{kname_str} has only {len(self.argument_list)} "
                 f"argument(s).")
@@ -2268,7 +2268,7 @@ class GOSymbolTable(SymbolTable):
             if not (isinstance(dtype, ScalarType) and
                     dtype.intrinsic == ScalarType.Intrinsic.INTEGER):
                 raise GenerationError(
-                    f"GOcean 1.0 API kernels {posstr} argument should be a "
+                    f"GOcean API kernels {posstr} argument should be a "
                     f"scalar integer but got '{dtype}'{kname_str}.")
 
     @property

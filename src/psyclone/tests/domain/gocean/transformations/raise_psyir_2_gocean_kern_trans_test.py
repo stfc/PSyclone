@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''pytest tests for the the gocean kern_trans transformation. This
 transformation raises generic PSyIR representing a kernel-layer
@@ -45,7 +45,6 @@ from psyclone.domain.gocean.kernel import GOceanContainer
 from psyclone.domain.gocean.transformations import RaisePSyIR2GOceanKernTrans
 from psyclone.domain.gocean.transformations.raise_psyir_2_gocean_kern_trans \
     import find_symbol
-from psyclone.parse.utils import ParseError
 from psyclone.psyir.nodes import FileContainer, Container, Routine
 from psyclone.psyir.symbols import SymbolTable, DataTypeSymbol
 from psyclone.psyir.transformations import TransformationError
@@ -185,8 +184,11 @@ def test_validate_iterates_over(fortran_reader):
     kern_trans = RaisePSyIR2GOceanKernTrans("compute_cu")
     with pytest.raises(TransformationError) as info:
         kern_trans.validate(kernel_psyir)
+    err_txt = str(info.value)
+    assert ("Failed to create metadata for kernel 'compute_cu' from PSyIR"
+            in err_txt)
     assert ("'iterates_over' was not found in TYPE, EXTENDS(kernel_type) :: "
-            "compute_cu" in str(info.value))
+            "compute_cu" in err_txt)
 
 
 def test_validate_container2(fortran_reader):
