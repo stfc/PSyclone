@@ -110,10 +110,8 @@ def test_scalar_kernel_load_meta_err():
     with pytest.raises(InternalError) as err:
         kernel.load_meta(metadata)
     const = LFRicConstants()
-    assert ("Expected one of {0} data types for "
-            "a scalar argument but found 'gh_triple'.".
-            format(const.VALID_SCALAR_DATA_TYPES) in
-            str(err.value))
+    assert (f"Expected one of {const.VALID_SCALAR_DATA_TYPES} data types for "
+            f"a scalar argument but found 'gh_triple'." in str(err.value))
 
 
 def test_kern_colourmap(monkeypatch):
@@ -331,13 +329,13 @@ def test_kern_last_cell_all_colours_errors(monkeypatch):
     kern = sched.walk(DynKern)[0]
     # Kernel is not coloured.
     with pytest.raises(InternalError) as err:
-        _ = kern.last_cell_all_colours
+        _ = kern.last_cell_all_colours_symbol
     assert "'testkern_code' is not inside a coloured loop" in str(err.value)
     # Monkeypatch the Kernel so that it appears to be coloured.
     monkeypatch.setattr(kern, "is_coloured", lambda: True)
     kern._is_intergrid = True
     with pytest.raises(InternalError) as err:
-        _ = kern.last_cell_all_colours
+        _ = kern.last_cell_all_colours_symbol
     assert ("Colourmap information for kernel 'testkern_code' has not yet "
             "been initialised" in str(err.value))
 
@@ -355,7 +353,8 @@ def test_kern_last_cell_all_colours():
     # We have to perform code generation as that sets-up the symbol table.
     # pylint:disable=pointless-statement
     psy.gen
-    assert loop.kernel.last_cell_all_colours == "last_halo_cell_all_colours"
+    assert (loop.kernel.last_cell_all_colours_symbol.name
+            == "last_halo_cell_all_colours")
 
 
 def test_kern_last_cell_all_colours_intergrid():
@@ -372,7 +371,7 @@ def test_kern_last_cell_all_colours_intergrid():
     # We have to perform code generation as that sets-up the symbol table.
     # pylint:disable=pointless-statement
     psy.gen
-    assert (loop.kernel.last_cell_all_colours ==
+    assert (loop.kernel.last_cell_all_colours_symbol.name ==
             "last_edge_cell_all_colours_field1")
 
 
