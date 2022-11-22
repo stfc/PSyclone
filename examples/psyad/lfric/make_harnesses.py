@@ -34,6 +34,14 @@ all_kernels["kinetic_energy_gradient"] = KernelDesc(
 # @param[in] kappa         Ratio of rd and cp
 # @param[in] rd            Specific heat of dry air at constant density
 # @param[in] p_zero        Reference surface pressure
+# Values for these can be found in the test suite for this kernel
+# (https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/linear/
+# unit-test/kernel/tl_rhs_project_eos_kernel_mod_test.pf) which gives:
+# p_zero   = 100000.0_r_def
+# rd       = 300.0_r_def
+# cp       = 1000.0_r_def
+# and therefore kappa = 300.0/1000.0 = 0.3. However, even with these values the
+# TL kernel still gives NaNs.
 all_kernels["rhs_project_eos"] = KernelDesc(
     kernel_file="tangent_linear/tl_rhs_project_eos_kernel_mod.F90",
     adj_file="adjoint/adj_rhs_project_eos_kernel_mod.F90",

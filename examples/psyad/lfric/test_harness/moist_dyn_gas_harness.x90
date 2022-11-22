@@ -1,0 +1,66 @@
+module adjoint_test_mod
+  implicit none
+  public
+
+  contains
+  subroutine adjoint_test(mesh, chi, panel_id)
+    use field_mod, only : field_type
+    use function_space_mod, only : function_space_type
+    use mesh_mod, only : mesh_type
+    use function_space_collection_mod, only : function_space_collection
+    use tl_moist_dyn_gas_kernel_mod, only : tl_moist_dyn_gas_kernel_type
+    use adj_moist_dyn_gas_kernel_mod, only : adj_moist_dyn_gas_kernel_type
+    use constants_mod, only : i_def, r_def
+    use fs_continuity_mod, only : wtheta
+    integer(kind=i_def), parameter :: element_order = 1_i_def
+    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+    type(mesh_type), pointer, intent(in) :: mesh
+    type(field_type), dimension(3), intent(in), optional :: chi
+    type(field_type), intent(in), optional :: panel_id
+    TYPE(function_space_type), POINTER :: vector_space_wtheta_ptr
+    type(field_type) :: field_1
+    type(field_type) :: field_2
+    type(field_type) :: field_1_input
+    type(field_type) :: field_2_input
+    real(kind=r_def) :: field_1_inner_prod
+    real(kind=r_def) :: field_2_inner_prod
+    real(kind=r_def) :: inner1
+    real(kind=r_def) :: field_1_field_1_input_inner_prod
+    real(kind=r_def) :: field_2_field_2_input_inner_prod
+    real(kind=r_def) :: inner2
+    real(kind=r_def) :: MachineTol
+    real(kind=r_def) :: relative_diff
+
+    vector_space_wtheta_ptr => function_space_collection % get_fs(mesh, element_order, wtheta)
+    call field_1 % initialise(vector_space=vector_space_wtheta_ptr, name='field_1')
+    call field_2 % initialise(vector_space=vector_space_wtheta_ptr, name='field_2')
+    call field_1_input % initialise(vector_space=vector_space_wtheta_ptr, name='field_1_input')
+    call field_2_input % initialise(vector_space=vector_space_wtheta_ptr, name='field_2_input')
+    field_1_inner_prod = 0.0_r_def
+    field_2_inner_prod = 0.0_r_def
+    ! Initialise arguments and call the tangent-linear kernel.
+    call invoke(setval_random(field_1), setval_x(field_1_input, field_1), setval_random(field_2), setval_x(field_2_input, &
+&field_2), tl_moist_dyn_gas_kernel_type(field_1, field_2), x_innerproduct_x(field_1_inner_prod, field_1), &
+&x_innerproduct_x(field_2_inner_prod, field_2))
+    inner1 = 0.0_r_def
+    inner1 = inner1 + field_1_inner_prod
+    inner1 = inner1 + field_2_inner_prod
+    field_1_field_1_input_inner_prod = 0.0_r_def
+    field_2_field_2_input_inner_prod = 0.0_r_def
+    call invoke(adj_moist_dyn_gas_kernel_type(field_1, field_2), x_innerproduct_y(field_1_field_1_input_inner_prod, field_1, &
+&field_1_input), x_innerproduct_y(field_2_field_2_input_inner_prod, field_2, field_2_input))
+    inner2 = 0.0_r_def
+    inner2 = inner2 + field_1_field_1_input_inner_prod
+    inner2 = inner2 + field_2_field_2_input_inner_prod
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
+    relative_diff = ABS(inner1 - inner2) / MachineTol
+    if (relative_diff < overall_tolerance) then
+      WRITE(*, *) 'Test of adjoint of ''tl_moist_dyn_gas_kernel_type'' PASSED: ', inner1, inner2, relative_diff
+    else
+      WRITE(*, *) 'Test of adjoint of ''tl_moist_dyn_gas_kernel_type'' FAILED: ', inner1, inner2, relative_diff
+    end if
+
+  end subroutine adjoint_test
+
+end module adjoint_test_mod
