@@ -10,7 +10,8 @@ all:
 	cp -f ${HARNESS_FILE} ${MINI_APP_DIR}/source/algorithm/adjoint_test_mod.x90
 	cp -f ${KERNEL_FILE} ${MINI_APP_DIR}/source/kernel/${KFILE_NO_DIR}
 	cp -f ${ADJ_FILE} ${MINI_APP_DIR}/source/kernel/.
-	make -C ${MINI_APP_DIR} clean
-	make -C ${MINI_APP_DIR} build
+	${MAKE} -C ${MINI_APP_DIR} build
 	cd ${MINI_APP_DIR}/example; ../bin/skeleton configuration.nml
 
+clean:
+	${MAKE} -C ${MINI_APP_DIR} clean

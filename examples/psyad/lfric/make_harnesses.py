@@ -18,6 +18,8 @@ all_kernels["hydrostatic_kernel"] = KernelDesc(
     "exner_at_quad res_dot_product",
     coord_arg=-1, panel_id_arg=-1)
 
+# Delete unused 'i_2' from adjoint kernel.
+# Test passes.
 all_kernels["kinetic_energy_gradient"] = KernelDesc(
     kernel_file="tangent_linear_tweaked/"
     "tl_kinetic_energy_gradient_kernel_mod_tweaked.F90",
@@ -26,7 +28,12 @@ all_kernels["kinetic_energy_gradient"] = KernelDesc(
     active_vars="r_u u ru_e ke_at_quad res_dot_product mul2 u_at_quad u_e",
     coord_arg=-1, panel_id_arg=-1)
 
-# Builds but harness gives NaNs
+# Builds but harness gives NaNs, even for run of TL kernel. I think this is
+# because the random values given to the scalar parameters are not
+# necessarily physically valid:
+# @param[in] kappa         Ratio of rd and cp
+# @param[in] rd            Specific heat of dry air at constant density
+# @param[in] p_zero        Reference surface pressure
 all_kernels["rhs_project_eos"] = KernelDesc(
     kernel_file="tangent_linear/tl_rhs_project_eos_kernel_mod.F90",
     adj_file="adjoint/adj_rhs_project_eos_kernel_mod.F90",

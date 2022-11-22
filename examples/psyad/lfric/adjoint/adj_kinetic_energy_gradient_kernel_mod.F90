@@ -73,7 +73,6 @@ END TYPE
     integer :: i
     real(kind=r_def) :: res_dot_product
     integer :: idx
-    integer :: i_2
     integer :: j
     integer :: i_1
     integer :: j_1

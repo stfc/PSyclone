@@ -21,7 +21,7 @@ module adj_rhs_project_eos_kernel_mod
        arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3), &
        arg_type(GH_SCALAR, GH_REAL, GH_READ), &
        arg_type(GH_SCALAR, GH_REAL, GH_READ), &
-&arg_type(GH_SCALAR, GH_REAL, GH_READ)/)
+       arg_type(GH_SCALAR, GH_REAL, GH_READ)/)
   TYPE(func_type) :: meta_funcs(3) = (/ &
        func_type(W3, GH_BASIS), &
        func_type(Wtheta, GH_BASIS), &
@@ -36,9 +36,15 @@ END TYPE
   public :: adj_rhs_project_eos_code
 
   contains
-  subroutine adj_rhs_project_eos_code(nlayers, rhs_eos, exner, rho, theta, moist_dyn_gas, ls_exner, ls_rho, ls_theta, &
-&ls_moist_dyn_gas, chi1, chi2, chi3, panel_id, kappa, rd, p_zero, ndf_w3, undf_w3, map_w3, w3_basis, ndf_wt, undf_wt, map_wt, &
-&wt_basis, ndf_chi, undf_chi, map_chi, chi_basis, chi_diff_basis, ndf_pid, undf_pid, map_pid, nqp_h, nqp_v, wqp_h, wqp_v)
+    subroutine adj_rhs_project_eos_code(nlayers, rhs_eos, exner, rho, theta, moist_dyn_gas, &
+         ls_exner, ls_rho, ls_theta, ls_moist_dyn_gas, &
+         chi1, chi2, chi3, panel_id, &
+         kappa, rd, p_zero, &
+         ndf_w3, undf_w3, map_w3, w3_basis, &
+         ndf_wt, undf_wt, map_wt, wt_basis, &
+         ndf_chi, undf_chi, map_chi, chi_basis, chi_diff_basis, &
+         ndf_pid, undf_pid, map_pid, &
+         nqp_h, nqp_v, wqp_h, wqp_v)
     use coordinate_jacobian_mod, only : coordinate_jacobian
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: nqp_h
@@ -120,8 +126,8 @@ END TYPE
         chi2_e(df) = chi2(map_chi(df) + k)
         chi3_e(df) = chi3(map_chi(df) + k)
       enddo
-      call coordinate_jacobian(ndf_chi, nqp_h, nqp_v, chi1_e(:), chi2_e(:), chi3_e(:), ipanel, chi_basis(:,:,:,:), &
-&chi_diff_basis(:,:,:,:), jac(:,:,:,:), dj(:,:))
+      call coordinate_jacobian(ndf_chi, nqp_h, nqp_v, chi1_e(:), chi2_e(:), chi3_e(:), &
+           ipanel, chi_basis(:,:,:,:), chi_diff_basis(:,:,:,:), jac(:,:,:,:), dj(:,:))
       do df = 1, ndf_wt, 1
         ls_theta_vd_e(df) = ls_moist_dyn_gas(k + map_wt(df)) * ls_theta(k + map_wt(df))
       enddo
