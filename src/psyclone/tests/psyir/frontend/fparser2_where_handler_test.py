@@ -37,16 +37,16 @@
 ''' Module containing pytest tests for the handling of the WHERE
 construct in the PSyIR. '''
 
-from __future__ import absolute_import
-
 import pytest
+
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
+
+from psyclone.errors import InternalError
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Schedule, CodeBlock, Loop, ArrayReference, \
     Assignment, Literal, Reference, UnaryOperation, BinaryOperation, IfBlock, \
     Call, Routine, Container, Range, ArrayMember, StructureReference
-from psyclone.errors import InternalError
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.symbols import DataSymbol, ArrayType, ScalarType, \
     REAL_TYPE, INTEGER_TYPE, UnresolvedInterface
 
@@ -544,7 +544,8 @@ def test_where_ordering(parser):
         "    end subroutine test\n")
     fparser2_tree = parser(reader)
     processor = Fparser2Reader()
-    result = processor.generate_schedule("test", fparser2_tree)
+    sched = processor.generate_psyir(fparser2_tree)
+    result = sched.walk(Routine)[0]
     assert isinstance(result[0], Assignment)
     assert isinstance(result[1], Loop)
     assert isinstance(result[2], Call)
