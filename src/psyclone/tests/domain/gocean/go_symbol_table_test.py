@@ -48,7 +48,7 @@ from psyclone.psyir.symbols import (
 def test_gosymboltable_conformity_check():
     '''Test that the expected exception is raised in method
     _check_gocean_conformity within GOSymbolTable when one or both of
-    the first two kernel arguments are nor scalar integers.
+    the first two kernel arguments are not scalar integers.
 
     '''
     symbol_table = GOSymbolTable()
