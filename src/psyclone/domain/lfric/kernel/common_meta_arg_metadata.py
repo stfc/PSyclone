@@ -116,8 +116,8 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
         if not form.lower() == cls.form.lower():
             raise ValueError(
                 f"Metadata for '{cls.check_name}' kernel arguments should "
-                f"have '{cls.form}' {word} their first metadata "
-                f"argument, but found '{form}'.")
+                f"have '{cls.form}' {word} the first metadata "
+                f"property, but found '{form}'.")
 
     @classmethod
     def check_remaining_args(cls, fparser2_tree, *metadata_args):
@@ -127,13 +127,13 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
         and the metadata arguments to make it clearer where the
         exception occured.
 
-        :param fparser2_tree: the metadata encoded in an fparser2_tree
-        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
+        :param fparser2_tree: the metadata encoded in an fparser2_tree.
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` or \
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`
-        :param *metadata_args: the metadata arguments required to \
+        :param metadata_args: the metadata arguments required to \
             create an instance of the class provided by the 'cls' \
             argument.
-        :type *metadata_args: unwrapped dict
+        :type metadata_args: unwrapped dict
 
         :raises ValueError: if the metadata has an incorrect value.
         :raises InternalError: if an unrecognised exception message is found.
@@ -170,9 +170,6 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
         :param fparser2_tree: fparser2 tree capturing a metadata argument.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`
-
-        :raises ValueError: if the kernel metadata does not contain \
-            the expected number of arguments (nargs).
 
         '''
         super().check_nargs(fparser2_tree, cls.nargs)

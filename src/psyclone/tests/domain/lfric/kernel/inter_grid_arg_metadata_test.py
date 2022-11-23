@@ -74,9 +74,7 @@ def test_init_invalid():
 
 
 def test_get_metadata():
-    '''Test that the get_metadata class method works as expected. Test
-    that all relevant check and get methods are called by raising
-    exceptions within them, as well as checking for valid input.
+    '''Test that the get_metadata class method works as expected.
 
     '''
     metadata = "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, mesh_arg=GH_COARSE)"

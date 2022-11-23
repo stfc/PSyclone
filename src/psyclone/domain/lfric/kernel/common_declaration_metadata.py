@@ -39,52 +39,53 @@ metadata i.e. metadata that is specified by the declaration of a
 variable within the Fortran derived type that captures the metadata.
 
 Declaration metadata is captured as an fparser2 class hierarchy in the
-following form. The code in this file assumes this form when
-traversing an fparser2 tree.
+following form (the code in this file assumes this form when
+traversing an fparser2 tree):
+::
 
-Data_Component_Def_Stmt
-    [0] Intrinsic_Type_Spec
-        [0] <str> INTEGER
-        [1] <NoneType>
-    or
-    [0] Declaration_Type_Spec
-        [0] <str> TYPE
-        [1] Type_Name.string: func_type
+    Data_Component_Def_Stmt
+        [0] Intrinsic_Type_Spec
+            [0] <str> INTEGER
+            [1] <NoneType>
+        or
+        [0] Declaration_Type_Spec
+            [0] <str> TYPE
+            [1] Type_Name.string: func_type
 
-    [1] Component_Attr_Spec_List or <NoneType>
-        ...
-        Dimension_Component_Attr_Spec
-            [0] <str> DIMENSION
-            [1] Explicit_Shape_Spec_List
-                ...
-                Explicit_Shape_Spec
+        [1] Component_Attr_Spec_List or <NoneType>
+            ...
+            Dimension_Component_Attr_Spec
+                [0] <str> DIMENSION
+                [1] Explicit_Shape_Spec_List
+                    ...
+                    Explicit_Shape_Spec
+                        [0] <NoneType>
+                        [1] Int_Literal_Constant
+                            [0] <str> 1
+                            [1] <NoneType>
+                    ...
+            ...
+        [2] Component_Decl_List
+            ...
+            Component_Decl
+                [0] Name.string: gh_shape
+                [1] Explicit_Shape_Spec_List or <NoneType>
                     [0] <NoneType>
                     [1] Int_Literal_Constant
                         [0] <str> 1
                         [1] <NoneType>
-                ...
-        ...
-    [2] Component_Decl_List
-        ...
-        Component_Decl
-            [0] Name.string: gh_shape
-            [1] Explicit_Shape_Spec_List or <NoneType>
-                [0] <NoneType>
-                [1] Int_Literal_Constant
-                    [0] <str> 1
-                    [1] <NoneType>
-            [2] <NoneType>
-            [3] Component_Initialization
-                [0] <str> =
-                [1] Name.string: gh_quadrature_face
-                *OR*
-                [1] Array_Constructor (/ ... /)
-                    [0] <str> (/
-                    [1] Ac_Value_List
-                        Name.string: gh_quadrature_face
-                        ...
-                    [2] <str> /)
-        ...
+                [2] <NoneType>
+                [3] Component_Initialization
+                    [0] <str> =
+                    [1] Name.string: gh_quadrature_face
+                    *OR*
+                    [1] Array_Constructor (/ ... /)
+                        [0] <str> (/
+                        [1] Ac_Value_List
+                            Name.string: gh_quadrature_face
+                            ...
+                        [2] <str> /)
+            ...
 
 '''
 from fparser.two import Fortran2003

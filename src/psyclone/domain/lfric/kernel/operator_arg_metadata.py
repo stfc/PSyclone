@@ -91,14 +91,14 @@ class OperatorArgMetadata(ScalarArgMetadata):
 
         :returns: a tuple containing the datatype, access \
             function_space_to and function_space_from metadata.
-        :rtype: Tuple(str, str, str, str)
+        :rtype: Tuple[str, str, str, str]
 
         '''
         datatype, access = super()._get_metadata(fparser2_tree)
-        function_space_to = OperatorArgMetadata.get_arg(
-            fparser2_tree, OperatorArgMetadata.function_space_to_arg_index)
-        function_space_from = OperatorArgMetadata.get_arg(
-            fparser2_tree, OperatorArgMetadata.function_space_from_arg_index)
+        function_space_to = cls.get_arg(
+            fparser2_tree, cls.function_space_to_arg_index)
+        function_space_from = cls.get_arg(
+            fparser2_tree, cls.function_space_from_arg_index)
         return (datatype, access, function_space_to, function_space_from)
 
     def fortran_string(self):

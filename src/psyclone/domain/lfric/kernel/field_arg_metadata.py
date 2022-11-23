@@ -86,7 +86,7 @@ class FieldArgMetadata(ScalarArgMetadata):
 
         :returns: a tuple containing the datatype, access and function \
             space metadata.
-        :rtype: Tuple(str, str, str)
+        :rtype: Tuple[str, str, str]
 
         '''
         datatype, access = super()._get_metadata(fparser2_tree)

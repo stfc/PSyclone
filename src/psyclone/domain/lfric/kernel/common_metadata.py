@@ -60,7 +60,7 @@ class CommonMetadata(ABC):
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Base`
         :param encoding: class in which the fparser2 tree should \
             be encoded.
-        :type encoding: :py:class:`fparser.two.Fortran2003.Base
+        :type encoding: :py:class:`fparser.two.Fortran2003.Base`
 
         :raises TypeError: if the fparser2_tree argument is not of the \
             type specified by the encoding argument.
@@ -102,6 +102,9 @@ class CommonMetadata(ABC):
         parent node of the tree will be the same type as the encoding
         argument if the string conforms to the encoding, otherwise an
         exception will be raised.
+
+        TODO: issue #1965: relocate this method as it is not specific
+        to metadata processing.
 
         :param str fortran_string: a string containing the metadata in \
            Fortran.

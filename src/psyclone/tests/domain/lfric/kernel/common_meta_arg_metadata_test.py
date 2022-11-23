@@ -302,8 +302,8 @@ def test_setter_getter():
 
     dummy = CheckArg2()
     with pytest.raises(NotImplementedError) as info:
-        dummy.check_datatype(None)
+        dummy.datatype = None
     assert "check_datatype(None)" in str(info.value)
     with pytest.raises(NotImplementedError) as info:
-        dummy.check_access(None)
+        dummy.access = None
     assert "check_access(None)" in str(info.value)

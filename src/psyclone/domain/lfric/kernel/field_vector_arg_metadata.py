@@ -81,14 +81,13 @@ class FieldVectorArgMetadata(FieldArgMetadata):
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
 
         :returns: a tuple containing the datatype, access, function \
-            space and vector length metadata.
-        :rtype: Tuple(str, str, str, str)
+            space and vector-length metadata.
+        :rtype: Tuple[str, str, str, str]
 
         '''
         datatype, access, function_space = super()._get_metadata(
             fparser2_tree)
-        vector_length = FieldVectorArgMetadata.get_vector_length(
-            fparser2_tree)
+        vector_length = cls.get_vector_length(fparser2_tree)
         return (datatype, access, function_space, vector_length)
 
     def fortran_string(self):

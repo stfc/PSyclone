@@ -91,7 +91,7 @@ class InterGridArgMetadata(FieldArgMetadata):
 
         :returns: a tuple containing the datatype, access, function \
             space and mesh metadata.
-        :rtype: Tuple(str, str, str, str)
+        :rtype: Tuple[str, str, str, str]
 
         '''
         datatype, access, function_space = super()._get_metadata(fparser2_tree)

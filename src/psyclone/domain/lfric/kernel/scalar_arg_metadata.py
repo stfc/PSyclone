@@ -75,7 +75,7 @@ class ScalarArgMetadata(CommonMetaArgMetadata):
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`
 
         :returns: a tuple containing the datatype and access metadata.
-        :rtype: Tuple(str, str)
+        :rtype: Tuple[str, str]
 
         '''
         cls.check_fparser2_arg(fparser2_tree, "arg_type")

@@ -82,7 +82,7 @@ def test_get_metadata():
     with pytest.raises(ValueError) as info:
         _ = ScalarArgMetadata._get_metadata(fparser2_tree)
     assert ("Metadata for 'scalar' kernel arguments should have 'gh_scalar' "
-            "as their first metadata argument, but found 'GH_FIELD'."
+            "as the first metadata property, but found 'GH_FIELD'."
             in str(info.value))
 
     # OK
