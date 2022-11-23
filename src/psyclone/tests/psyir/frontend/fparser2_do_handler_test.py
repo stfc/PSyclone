@@ -36,13 +36,14 @@
 ''' Module containing pytest tests for the handling of the DO
 construct in the PSyIR fparser2 frontend. '''
 
-from __future__ import absolute_import
 
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
-from psyclone.psyir.nodes import Schedule, CodeBlock, Loop, Assignment, Routine
+
+from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.nodes import Schedule, CodeBlock, Loop, Assignment, Routine
 
 
 def test_handling_end_do_stmt(parser):
@@ -57,8 +58,9 @@ def test_handling_end_do_stmt(parser):
         ''')
     fparser2_tree = parser(reader)
     processor = Fparser2Reader()
-    result = processor.generate_schedule("test", fparser2_tree)
-    assert len(result.children) == 1  # Just the loop (no end statement)
+    result = processor.generate_psyir(fparser2_tree)
+    sched = result.walk(Schedule)[0]
+    assert len(sched.children) == 1  # Just the loop (no end statement)
 
 
 def test_do_construct(parser):
@@ -74,7 +76,8 @@ def test_do_construct(parser):
       ''')
     fparser2_tree = parser(reader)
     processor = Fparser2Reader()
-    result = processor.generate_schedule("test", fparser2_tree)
+    psyir = processor.generate_psyir(fparser2_tree)
+    result = psyir.walk(Routine)[0]
     assert result.children[0]
     new_loop = result.children[0]
     assert isinstance(new_loop, Loop)
@@ -120,7 +123,8 @@ def test_unhandled_do(f2008_parser):
     reader = FortranStringReader("\n".join(lines))
     fp2spec = f2008_parser(reader)
     processor = Fparser2Reader()
-    sched = processor.generate_schedule("a_loop", fp2spec)
+    psyir = processor.generate_psyir(fp2spec)
+    sched = psyir.walk(Routine)[0]
     assert isinstance(sched[0], CodeBlock)
     assert isinstance(sched[0].ast, Fortran2003.Block_Nonlabel_Do_Construct)
 
@@ -176,3 +180,20 @@ END PROGRAM my_test'''
     assert isinstance(prog.children[0], CodeBlock)
     assert isinstance(prog.children[0].ast,
                       Fortran2003.Block_Nonlabel_Do_Construct)
+
+
+def test_undeclared_loop_var(fortran_reader):
+    '''Check that the do handler raises the expected error if an undeclared
+    loop variable is encountered.
+
+    '''
+    code = ('''
+      subroutine test()
+        do i=1,10
+        end do
+      end subroutine test
+    ''')
+    with pytest.raises(InternalError) as err:
+        _ = fortran_reader.psyir_from_source(code)
+    assert ("Loop-variable name 'i' is not declared and there are no "
+            "unqualified use statements" in str(err.value))
