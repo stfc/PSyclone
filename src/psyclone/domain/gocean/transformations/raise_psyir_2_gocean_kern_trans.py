@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''Raise generic PSyIR representing a kernel-layer routine to
 PSyclone kernel-layer-specific PSyIR which uses specialised classes.
@@ -39,8 +39,10 @@ PSyclone kernel-layer-specific PSyIR which uses specialised classes.
 '''
 from psyclone.configuration import Config
 from psyclone.domain.gocean.kernel import GOceanKernelMetadata, GOceanContainer
+from psyclone.errors import PSycloneError
+from psyclone.gocean1p0 import GOSymbolTable, GOKernelSchedule
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import Container, ScopingNode, FileContainer
+from psyclone.psyir.nodes import Container, Routine, ScopingNode, FileContainer
 from psyclone.psyir.transformations import TransformationError
 
 
@@ -124,17 +126,18 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
         '''Validate the supplied PSyIR tree.
 
         :param node: a PSyIR node that is the root of a PSyIR tree.
-        :type node: Union[:py:class:`psyclone.psyir.node.Routine`, \
-            :py:class:`psyclone.psyir.node.Container`]
+        :type node: :py:class:`psyclone.psyir.node.Container`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str: str]]
 
         :raises TransformationError: if the metadata name has not been \
             set or does not exist in the code.
-        :raises TransformationError: if the supplied node is not a \
-            Routine or a Container.
+        :raises TransformationError: if the supplied node is not a Container.
         :raises TransformationError: if the supplied node argument has \
             a parent.
+        :raises TransformationError: if the kernel metadata cannot be parsed.
+        :raises TransformationError: if the Container does not contain the \
+            routine which implements the kernel.
 
         '''
         if not isinstance(node, Container):
@@ -166,7 +169,24 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
                 f"but should be a generic Container.")
 
         # Check that the metadata can be generated without any errors.
-        _ = GOceanKernelMetadata.create_from_psyir(metadata_symbol)
+        try:
+            mdata = GOceanKernelMetadata.create_from_psyir(metadata_symbol)
+        except PSycloneError as err:
+            raise TransformationError(
+                f"Error in {self.name} transformation. Failed to create "
+                f"metadata for kernel '{metadata_symbol.name}' from PSyIR. "
+                f"Error was:\n{err.value}") from err
+
+        proc_name = mdata.procedure_name.lower()
+        for routine in container.walk(Routine):
+            if routine.name.lower() == proc_name:
+                break
+        else:
+            raise TransformationError(
+                f"Error in {self.name} transformation. The Container in which"
+                f" the metadata symbol resides does not contain the routine "
+                f"that it names as implementing the kernel ('{proc_name}').")
+        # TODO #288: Validate kernel arguments against metadata.
 
     def apply(self, node, options=None):
         '''Raise the supplied language-level GOcean kernel PSyIR to
@@ -177,8 +197,7 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
         symbol table.
 
         :param node: a kernel represented in generic PSyIR.
-        :type node: Union[:py:class:`psyclone.psyir.node.Routine`, \
-            :py:class:`psyclone.psyir.node.Container`]
+        :type node: :py:class:`psyclone.psyir.node.Container`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str: str]]
 
@@ -191,17 +210,17 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
         # Find the container in which this metadata resides.
         container = scoping_node.ancestor(Container, include_self=True)
 
-        # Create metadata
+        # Create metadata.
         metadata = GOceanKernelMetadata.create_from_psyir(metadata_symbol)
 
         # Remove metadata symbol.
-        # TODO issue #898: support needs to be added for removing a
-        # DataSymbol from the symbol table. At the moment we need to
-        # use internal methods.
+        # TODO #898: support needs to be added for removing a DataSymbol from
+        # the symbol table. At the moment we need to use internal methods.
         # pylint: disable=protected-access
         symbol_table = scoping_node.symbol_table
         norm_name = symbol_table._normalize(metadata_symbol.name)
         symbol_table._symbols.pop(norm_name)
+        # pylint: enable=protected-access
 
         # Replace container
         children = container.pop_all_children()
@@ -209,6 +228,21 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
             container.name, metadata, container.symbol_table.detach(),
             children)
         container.replace_with(gocean_container)
+
+        # Replace the Routine with a GOcean Kernel Schedule. The validate()
+        # method has checked that the routine exists.
+        for routine in gocean_container.walk(Routine):
+            if routine.name == metadata.procedure_name:
+                break
+
+        # The validate() method has already checked that the routine exists.
+        # pylint: disable=undefined-loop-variable
+        gotable = GOSymbolTable.create_from_table(routine.symbol_table)
+        gokernsched = GOKernelSchedule(metadata.procedure_name,
+                                       symbol_table=gotable.detach())
+        for child in routine.pop_all_children():
+            gokernsched.addchild(child)
+        routine.replace_with(gokernsched)
 
 
 __all__ = ['RaisePSyIR2GOceanKernTrans', 'find_symbol']
