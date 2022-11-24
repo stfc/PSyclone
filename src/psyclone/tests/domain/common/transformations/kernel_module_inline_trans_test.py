@@ -519,18 +519,21 @@ def test_module_inline_lfric(tmpdir, monkeypatch, annexed, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_module_inline_mixed_precision_lfric():
-    ''' Test the module-inlining of a mixed-precision kernel in the LFRic
-    API. TODO #1824 - this doesn't work because the subroutine implementing the
-    kernel has a different name from the kernel itself.
+def test_module_inline_with_interfaces(tmpdir):
+    ''' Test the module-inlining when the kernel points to an interface, we
+    use an LFRic mixed-precision kernel as an example of this.
 
     '''
     psy, invoke = get_invoke("26.8_mixed_precision_args.f90", "dynamo0.3",
                              name="invoke_0", dist_mem=False)
     kern_call = invoke.schedule.walk(CodedKern)[0]
     inline_trans = KernelModuleInlineTrans()
-    with pytest.raises(TransformationError) as err:
-        inline_trans.apply(kern_call)
-    assert ("the implementation of kernel 'mixed_code' is in a subroutine "
-            "named 'mixed_code_64'. Module inlining of a kernel that requires "
-            "re-naming is not yet supported" in str(err.value))
+    inline_trans.apply(kern_call)
+    gen = str(psy.gen)
+    # Both the caller and the callee are in the file and use the specialized
+    # implementation name.
+    assert "CALL mixed_code_64(" in gen
+    assert "SUBROUTINE mixed_code_64(" in gen
+
+    # And it is valid code
+    assert LFRicBuild(tmpdir).code_compiles(psy)

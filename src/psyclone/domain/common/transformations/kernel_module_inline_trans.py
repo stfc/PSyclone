@@ -110,13 +110,6 @@ class KernelModuleInlineTrans(Transformation):
                 f"'{node.name}' using the 'get_kernel_schedule' method."
                 ) from error
 
-        if kernel_schedule.name.lower() != node.name.lower():
-            raise TransformationError(
-                f"TODO #1824: the implementation of kernel '{node.name}' is "
-                f"in a subroutine named '{kernel_schedule.name}'. Module "
-                f"inlining of a kernel that requires re-naming is not yet "
-                f"supported.")
-
         # Check that all kernel symbols are declared in the kernel
         # symbol table(s). At this point they may be declared in a
         # container containing this kernel which is not supported.
@@ -260,13 +253,20 @@ class KernelModuleInlineTrans(Transformation):
         if not options:
             options = {}
 
-        name = node.name
+        # Note that we use the resolved callee subroutine name and not the
+        # caller one, this is important because if it is an interface it will
+        # use insert the concrete implementation name. When this happens it
+        # will have a new name which could already be in use, but the check
+        # below does guarantee that if it exists it is only valid if it leads
+        # to the exact same implementation.
+        code_to_inline = node.get_kernel_schedule()
+        name = code_to_inline.name
+
         try:
             existing_symbol = node.scope.symbol_table.lookup(name)
         except KeyError:
             existing_symbol = None
 
-        code_to_inline = node.get_kernel_schedule()
         self._prepare_code_to_inline(code_to_inline)
 
         if not existing_symbol:
@@ -292,6 +292,13 @@ class KernelModuleInlineTrans(Transformation):
                             f"another, different, subroutine with the same "
                             f"name already exists and versioning of module-"
                             f"inlined subroutines is not implemented yet.")
+
+
+        # We only modify the kernel call name after the equality check to
+        # ensure the apply will succeed and we don't leave with an inconsistent
+        # tree.
+        if node.name.lower() != name:
+            node.name = name
 
         # Set the module-inline flag to avoid generating the kernel imports
         # TODO #1823. If the kernel imports were generated at PSy-layer
