@@ -345,7 +345,8 @@ def test_kerncallarglist_bcs_operator(fortran_writer):
 
     schedule = psy.invokes.invoke_list[0].schedule
     create_arg_list = KernCallArgList(schedule.kernels()[0])
-    create_arg_list.generate()
+    access_info = VariablesAccessInfo()
+    create_arg_list.generate(access_info)
     assert create_arg_list._arglist == [
         'cell', 'nlayers', 'op_a_proxy%ncell_3d', 'op_a_proxy%local_stencil',
         'ndf_aspc1_op_a', 'ndf_aspc2_op_a', 'boundary_dofs_op_a']
@@ -357,6 +358,11 @@ def test_kerncallarglist_bcs_operator(fortran_writer):
     array_type_3d = ArrayType(psyir.LfricIntegerScalarDataType(),
                               [ArrayType.Extent.ATTRIBUTE]*3)
     assert create_arg_list.psyir_arglist[3].datatype == array_type_3d
+
+    # Also check that the structure access is correctly converted
+    # into a 2-component signature:
+    sig = Signature(("op_a_proxy", "local_stencil"))
+    assert str(access_info[sig]) == "op_a_proxy%local_stencil:READWRITE(0)"
 
 
 def test_kerncallarglist_scalar_literal(fortran_writer):
