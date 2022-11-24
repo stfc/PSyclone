@@ -7117,10 +7117,11 @@ class DynLoop(PSyLoop):
     def lower_to_language_level(self):
         '''In-place replacement of DSL or high-level concepts into generic
         PSyIR constructs. This function replaces a DynLoop with a PSyLoop
-        and inserts the loop boundaries into the new PSyLoop. Once
-        TODO #1731 is done (which should fix the loop boundaries, which atm
-        rely on index of the loop in the schedule, i.e. can change when
-        transformations are applied), this function can likely be removed.
+        and inserts the loop boundaries into the new PSyLoop, or removes
+        the loop node in case of a domain kernel. Once TODO #1731 is done
+        (which should fix the loop boundaries, which atm rely on index of
+        the loop in the schedule, i.e. can change when transformations are
+        applied), this function can likely be removed.
 
         '''
         super().lower_to_language_level()
