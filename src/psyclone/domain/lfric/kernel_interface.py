@@ -39,13 +39,13 @@
 kernel based on the kernel metadata.
 
 '''
+from psyclone.core import AccessType
 from psyclone.domain.lfric import ArgOrdering, LFRicConstants
 from psyclone.domain.lfric import psyir as lfric_psyir
-from psyclone.psyir.symbols import SymbolTable, ArgumentInterface
-from psyclone.psyir.nodes import Reference
-from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 from psyclone.errors import InternalError
-from psyclone.core import AccessType
+from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
+from psyclone.psyir.nodes import Reference
+from psyclone.psyir.symbols import SymbolTable, ArgumentInterface
 
 
 # pylint: disable=too-many-public-methods, no-member
@@ -65,8 +65,8 @@ class KernelInterface(ArgOrdering):
     space names. It is not yet clear whether this would be useful or
     not.
 
-    TBD: This class should replace the current kernel stub generation
-    code when all of its methods are implemented, see issue #928.
+    TODO #928: This class should replace the current kernel stub generation
+    code when all of its methods are implemented.
 
     :param kern: the kernel for which to create arguments.
     :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
@@ -177,7 +177,7 @@ class KernelInterface(ArgOrdering):
         :raises NotImplementedError: as this method is not implemented.
 
         '''
-        raise NotImplementedError("_mesh_ncell2d not implemented")
+        raise NotImplementedError("TODO #928: _mesh_ncell2d not implemented")
 
     def _mesh_ncell2d_no_halos(self, var_accesses=None):
         '''Not implemented.
@@ -190,7 +190,8 @@ class KernelInterface(ArgOrdering):
         :raises NotImplementedError: as this method is not implemented.
 
         '''
-        raise NotImplementedError("_mesh_ncell2d_no_halos not implemented")
+        raise NotImplementedError(
+            "TODO #928: _mesh_ncell2d_no_halos not implemented")
 
     def cell_map(self, var_accesses=None):
         '''Not implemented.
@@ -203,7 +204,7 @@ class KernelInterface(ArgOrdering):
         :raises NotImplementedError: as this method is not implemented.
 
         '''
-        raise NotImplementedError("cell_map not implemented")
+        raise NotImplementedError("TODO #928: cell_map not implemented")
 
     def field_vector(self, argvect, var_accesses=None):
         '''Create LFRic field vector arguments and add them to the symbol
@@ -296,7 +297,8 @@ class KernelInterface(ArgOrdering):
         :raises NotImplementedError: as this method is not implemented.
 
         '''
-        raise NotImplementedError("stencil_unknown_extent not implemented")
+        raise NotImplementedError(
+            "TODO #928: stencil_unknown_extent not implemented")
 
     def stencil_unknown_direction(self, arg, var_accesses=None):
         '''Not implemented.
@@ -311,7 +313,8 @@ class KernelInterface(ArgOrdering):
         :raises NotImplementedError: as this method is not implemented.
 
         '''
-        raise NotImplementedError("stencil_unknown_direction not implemented")
+        raise NotImplementedError(
+            "TODO #928: stencil_unknown_direction not implemented")
 
     def stencil(self, arg, var_accesses=None):
         '''Not implemented.
@@ -326,7 +329,7 @@ class KernelInterface(ArgOrdering):
         :raises NotImplementedError: as this method is not implemented.
 
         '''
-        raise NotImplementedError("stencil not implemented")
+        raise NotImplementedError("TODO #928: stencil not implemented")
 
     def operator(self, arg, var_accesses=None):
         '''Create an LFRic operator argument and an ncells argument and add
@@ -386,7 +389,7 @@ class KernelInterface(ArgOrdering):
         :raises NotImplementedError: as this method is not implemented.
 
         '''
-        raise NotImplementedError("cma_operator not implemented")
+        raise NotImplementedError("TODO #928: cma_operator not implemented")
 
     def scalar(self, scalar_arg, var_accesses=None):
         '''Create an LFRic scalar argument and add it to the symbol table and
@@ -455,7 +458,7 @@ class KernelInterface(ArgOrdering):
         :raises NotImplementedError: as this method is not implemented.
 
         '''
-        raise NotImplementedError("fs_intergrid not implemented")
+        raise NotImplementedError("TODO #928: fs_intergrid not implemented")
 
     def fs_compulsory_field(self, function_space, var_accesses=None):
         '''Create any arguments that are compulsory for a field on a
@@ -506,7 +509,7 @@ class KernelInterface(ArgOrdering):
         :raises NotImplementedError: as this method is not implemented.
 
         '''
-        raise NotImplementedError("banded_dofmap not implemented")
+        raise NotImplementedError("TODO #928: banded_dofmap not implemented")
 
     def indirection_dofmap(self, function_space, operator=None,
                            var_accesses=None):
@@ -524,7 +527,8 @@ class KernelInterface(ArgOrdering):
         :raises NotImplementedError: as this method is not implemented.
 
         '''
-        raise NotImplementedError("indirection_dofmap not implemented")
+        raise NotImplementedError(
+            "TODO #928: indirection_dofmap not implemented")
 
     def basis(self, function_space, var_accesses=None):
         '''Create an LFRic basis function argument and add it to the symbol
@@ -580,7 +584,8 @@ class KernelInterface(ArgOrdering):
         :raises NotImplementedError: as this method is not implemented.
 
         '''
-        raise NotImplementedError("field_bcs_kernel not implemented")
+        raise NotImplementedError(
+            "TODO #928: field_bcs_kernel not implemented")
 
     def operator_bcs_kernel(self, function_space, var_accesses=None):
         '''Not implemented.
@@ -595,7 +600,8 @@ class KernelInterface(ArgOrdering):
         :raises NotImplementedError: as this method is not implemented.
 
         '''
-        raise NotImplementedError("operator_bcs_kernel not implemented")
+        raise NotImplementedError(
+            "TODO #928: operator_bcs_kernel not implemented")
 
     def ref_element_properties(self, var_accesses=None):
         ''' Properties associated with the reference element
@@ -782,8 +788,8 @@ class KernelInterface(ArgOrdering):
                 # values are 2-tuples of (FunctionSpace, argument).
                 for _, _ in self._kern.eval_targets.items():
                     raise NotImplementedError(
-                        "Evaluator shapes not implemented in kernel_interface "
-                        "class.")
+                        "TODO #928: Evaluator shapes not implemented in "
+                        "kernel_interface class.")
             else:
                 raise InternalError(
                     "Unrecognised quadrature or evaluator shape '{0}'. "

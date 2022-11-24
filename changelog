@@ -196,6 +196,11 @@
 	the schedule clause in the OpenMP directive. This is the new default in
 	generic PSyIR (GOcean and LFRic still default to "static").
 
+	69) PR #1892 towards #1824. get_kernel_schedule supports resolving
+	interfaces (e.g. for the LFRic mixed precision kernels).
+
+	70) PR #1911 for #1909. Update fparser dependency.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
