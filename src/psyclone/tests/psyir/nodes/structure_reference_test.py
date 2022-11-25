@@ -106,6 +106,12 @@ def test_struc_ref_create_errors():
             "DataSymbol but found 'NoneType'" in str(err.value))
     with pytest.raises(TypeError) as err:
         _ = nodes.StructureReference.create(
+            symbols.DataSymbol("grid", symbols.DeferredType()), [],
+            enforce_datatype=1)
+    assert ("The 'enforce_datatype' argument to StructureReference.create() "
+            "should be a DataType but found 'DataSymbol'." in str(err.value))
+    with pytest.raises(TypeError) as err:
+        _ = nodes.StructureReference.create(
             symbols.DataSymbol("fake", symbols.INTEGER_TYPE), [])
     assert ("symbol that is (or could be) a structure, however symbol "
             "'fake' has type 'Scalar" in str(err.value))
@@ -264,6 +270,15 @@ def test_struc_ref_datatype():
     fullref = nodes.StructureReference.create(ssym, ["titty"])
     dtype = fullref.datatype
     assert dtype == artype
+
+    # Check that we can enforce a certain data type for a reference:
+    # nx is defined to be an integer above:
+    grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
+    ssym = symbols.DataSymbol("grid", grid_type_symbol)
+    # Reference to scalar member of structure
+    sref = nodes.StructureReference.create(ssym, ["nx"],
+                                           enforce_datatype=symbols.REAL_TYPE)
+    assert sref.datatype == symbols.REAL_TYPE
 
 
 def test_structure_reference_deferred_type():

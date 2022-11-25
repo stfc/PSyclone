@@ -39,20 +39,23 @@
 ''' This module uses pytest to test the DynLoop class. This is the LFRic-
     specific subclass of the Loop class. '''
 
-from __future__ import absolute_import, print_function
 import os
 import pytest
+
 from fparser import api as fpapi
+
 from psyclone.configuration import Config
 from psyclone.core import AccessType
+from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import LFRicConstants, LFRicSymbolTable
 from psyclone.dynamo0p3 import DynLoop, DynKern, DynKernMetadata
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import (Schedule, ArrayReference, Reference,
-                                  Literal, ScopingNode)
+from psyclone.psyir.nodes import (ArrayReference, Call, Literal, Reference,
+                                  Schedule, ScopingNode)
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (Dynamo0p3ColourTrans,
                                       DynamoOMPParallelLoopTrans,
                                       Dynamo0p3RedundantComputationTrans)
@@ -105,11 +108,15 @@ def test_set_lower_bound_functions(monkeypatch):
     assert "lower loop bound is invalid" in str(excinfo.value)
 
 
-def test_set_upper_bound_functions():
+def test_set_upper_bound_functions(monkeypatch):
     ''' Test that we raise appropriate exceptions when the upper bound of
     a DynLoop is set to invalid values.
 
     '''
+    # Make sure we get an LFRicSymbolTable
+    # TODO #1954: Remove the protected access using a factory
+    monkeypatch.setattr(ScopingNode, "_symbol_table_class",
+                        LFRicSymbolTable)
     schedule = Schedule()
     my_loop = DynLoop(parent=schedule)
     schedule.children = [my_loop]
@@ -206,6 +213,30 @@ def test_mesh_name_intergrid():
     psy.gen
     loops = psy.invokes.invoke_list[0].schedule.walk(DynLoop)
     assert loops[0]._mesh_name == "mesh_field1"
+
+
+def test_lower_to_language():
+    ''' Tests that we can call lower_to_language_level a DynLoop.
+    '''
+    _, invoke = get_invoke("22.1_intergrid_restrict.f90", TEST_API, idx=0)
+
+    # Now lower the loop:
+    sched = invoke.schedule
+    loop = sched.children[2]
+    assert isinstance(loop, DynLoop)
+    sched.children[2].lower_to_language_level()
+    loop = sched.children[2]
+    assert not isinstance(loop, DynLoop)
+    assert isinstance(loop, PSyLoop)
+
+    _, invoke = get_invoke("25.0_domain.f90", TEST_API, idx=0)
+    sched = invoke.schedule
+    # Make sure we have the right node:
+    assert isinstance(sched[0], DynLoop)
+    # This call removes the loop and replaces it with the actual kernel
+    # call in case of a domain loop:
+    sched.lower_to_language_level()
+    assert isinstance(sched[0], Call)
 
 
 def test_upper_bound_fortran_1():

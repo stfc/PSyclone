@@ -290,7 +290,7 @@ def test_gokernelargument_type(monkeypatch):
     symbol_table._argument_list[0].datatype = DeferredType()
     with pytest.raises(GenerationError) as excinfo:
         symbol_table._check_gocean_conformity()
-    assert ("GOcean 1.0 API kernels first argument should be a scalar integer "
+    assert ("GOcean API kernels first argument should be a scalar integer "
             "but got 'DeferredType'." in str(excinfo.value))
 
 
