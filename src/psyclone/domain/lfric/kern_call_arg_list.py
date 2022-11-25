@@ -46,7 +46,7 @@ from collections import namedtuple
 
 from psyclone import psyGen
 from psyclone.core import AccessType, Signature
-from psyclone.domain.lfric import ArgOrdering, LFRicConstants
+from psyclone.domain.lfric import ArgOrdering, LFRicConstants, psyir
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (ArrayOfStructuresReference, Literal,
@@ -143,7 +143,7 @@ class KernCallArgList(ArgOrdering):
         return sym
 
     def append_user_type(self, module_name, user_type, member_list, name,
-                         tag=None):
+                         tag=None, enforce_datatype=None):
         # pylint: disable=too-many-arguments
         '''Creates a reference to a variable of a user-defined type. If
         required, the required import statements will all be generated.
@@ -151,11 +151,17 @@ class KernCallArgList(ArgOrdering):
         :param str module_name: the name of the module from which the \
             user-defined type must be imported.
         :param str user_type: the name of the user-defined type.
+        :param member_list: the members used hierarchically.
+        :type member_list: List[str]
         :param str name: the name of the variable to be used in the Reference.
         :param Optional[str] tag: tag to use for the variable, defaults to \
             the name
-        :param shape: if specified, declare an array of user types
-        :type shape: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :param enforce_datatype: the datatype for the reference, which will \
+            overwrite the value determined by analysing the corresponding \
+            user defined type. This is useful when e.g. the module that \
+            declares the structure cannot be accessed.
+        :type enforce_datatype: \
+            Optional[:py:class:`psyclone.psyir.symbols.DataType`]
 
         :return: the symbol that is used in the reference
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
@@ -163,7 +169,9 @@ class KernCallArgList(ArgOrdering):
         '''
         sym = self.get_user_type(module_name, user_type, name,
                                  tag)
-        self.psyir_append(StructureReference.create(sym, member_list))
+        self.psyir_append(StructureReference.
+                          create(sym, member_list,
+                                 enforce_datatype=enforce_datatype))
         return sym
 
     def cell_position(self, var_accesses=None):
@@ -371,10 +379,13 @@ class KernCallArgList(ArgOrdering):
         # the range function below returns values from
         # 1 to the vector size which is what we
         # require in our Fortran code
+        array_1d = ArrayType(psyir.LfricRealScalarDataType(),
+                             [ArrayType.Extent.ATTRIBUTE])
         for idx in range(1, argvect.vector_size + 1):
             # Create the accesses to each element of the vector:
             lit_ind = Literal(str(idx), INTEGER_SINGLE_TYPE)
-            ref = ArrayOfStructuresReference.create(sym, [lit_ind], ["data"])
+            ref = ArrayOfStructuresReference.create(sym, [lit_ind], ["data"],
+                                                    enforce_datatype=array_1d)
             self.psyir_append(ref)
             text = f"{sym.name}({idx})%data"
             self.append(text, metadata_posn=argvect.metadata_index)
@@ -404,8 +415,10 @@ class KernCallArgList(ArgOrdering):
                     mode=arg.access, metadata_posn=arg.metadata_index)
 
         # Add an access to field_proxy%data:
+        array_1d = ArrayType(psyir.LfricRealScalarDataType(),
+                             [ArrayType.Extent.ATTRIBUTE])
         self.append_user_type(arg.module_name, arg.proxy_data_type, ["data"],
-                              arg.proxy_name)
+                              arg.proxy_name, enforce_datatype=array_1d)
 
     def stencil_unknown_extent(self, arg, var_accesses=None):
         '''Add stencil information to the argument list associated with the
@@ -578,12 +591,17 @@ class KernCallArgList(ArgOrdering):
         # This argument is always read only:
         operator = LFRicConstants().DATA_TYPE_MAP["operator"]
         self.append_user_type(operator["module"], operator["proxy_type"],
-                              ["ncell_3d"], arg.proxy_name_indexed)
+                              ["ncell_3d"], arg.proxy_name_indexed,
+                              enforce_datatype=psyir.
+                              LfricIntegerScalarDataType())
         self.append(arg.proxy_name_indexed + "%ncell_3d", var_accesses,
                     mode=AccessType.READ)
 
+        array_type = ArrayType(psyir.LfricIntegerScalarDataType(),
+                               [ArrayType.Extent.ATTRIBUTE]*3)
         self.append_user_type(operator["module"], operator["proxy_type"],
-                              ["local_stencil"], arg.proxy_name_indexed)
+                              ["local_stencil"], arg.proxy_name_indexed,
+                              enforce_datatype=array_type)
         # The access mode of `local_stencil` is taken from the meta-data:
         self.append(arg.proxy_name_indexed + "%local_stencil", var_accesses,
                     mode=arg.access, metadata_posn=arg.metadata_index)

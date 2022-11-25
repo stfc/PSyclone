@@ -118,7 +118,7 @@ def test_asr_create(component_symbol):
     # pylint: disable=no-member
     datatype = psyir.LfricRealScalarDataType()
     asref = nodes.ArrayOfStructuresReference. create(component_symbol,
-                                                     [":"], ["nx"],
+                                                     [my_range], ["nx"],
                                                      enforce_datatype=datatype)
     assert asref.datatype is datatype
 

@@ -42,13 +42,13 @@ import os
 import pytest
 
 from psyclone.core import Signature, VariablesAccessInfo
-from psyclone.domain.lfric import KernCallArgList
+from psyclone.domain.lfric import KernCallArgList, psyir
 from psyclone.errors import GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKern
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Literal, Loop, Reference, UnaryOperation
-from psyclone.psyir.symbols import ScalarType
+from psyclone.psyir.symbols import ArrayType, ScalarType
 from psyclone.tests.utilities import get_base_path, get_invoke
 from psyclone.transformations import Dynamo0p3ColourTrans
 
@@ -106,6 +106,10 @@ def test_cellmap_intergrid(dist_mem, fortran_writer):
         'map_w2(:,cell)']
 
     check_psyir_results(create_arg_list, fortran_writer)
+    # pylint: disable=no-member
+    array_1d = ArrayType(psyir.LfricRealScalarDataType(),
+                         [ArrayType.Extent.ATTRIBUTE])
+    assert create_arg_list.psyir_arglist[5].datatype == array_1d
 
 
 def test_kerncallarglist_face_xyoz(dist_mem, fortran_writer):
@@ -132,6 +136,10 @@ def test_kerncallarglist_face_xyoz(dist_mem, fortran_writer):
         'np_xyz_qr_face', 'weights_xyz_qr_face']
 
     check_psyir_results(create_arg_list, fortran_writer)
+    # pylint: disable=no-member
+    array_1d = ArrayType(psyir.LfricRealScalarDataType(),
+                         [ArrayType.Extent.ATTRIBUTE])
+    assert create_arg_list.psyir_arglist[2].datatype == array_1d
 
 
 def test_kerncallarglist_face_edge(dist_mem, fortran_writer):
@@ -343,6 +351,12 @@ def test_kerncallarglist_bcs_operator(fortran_writer):
         'ndf_aspc1_op_a', 'ndf_aspc2_op_a', 'boundary_dofs_op_a']
 
     check_psyir_results(create_arg_list, fortran_writer)
+    # pylint: disable=no-member
+    assert (create_arg_list.psyir_arglist[2].datatype ==
+            psyir.LfricIntegerScalarDataType())
+    array_type_3d = ArrayType(psyir.LfricIntegerScalarDataType(),
+                              [ArrayType.Extent.ATTRIBUTE]*3)
+    assert create_arg_list.psyir_arglist[3].datatype == array_type_3d
 
 
 def test_kerncallarglist_scalar_literal(fortran_writer):
