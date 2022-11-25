@@ -45,9 +45,9 @@ from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_of_structures_member import \
     ArrayOfStructuresMember
 from psyclone.psyir.nodes.structure_member import StructureMember
-from psyclone.psyir.symbols import (DataSymbol, DataTypeSymbol, StructureType,
-                                    ArrayType, DeferredType, ScalarType,
-                                    UnknownType)
+from psyclone.psyir.symbols import (ArrayType, DataSymbol, DataType,
+                                    DataTypeSymbol, DeferredType, ScalarType,
+                                    StructureType, UnknownType)
 from psyclone.errors import InternalError
 
 
@@ -77,7 +77,7 @@ class StructureReference(Reference):
         return False
 
     @staticmethod
-    def create(symbol, members, parent=None):
+    def create(symbol, members, parent=None, enforce_datatype=None):
         '''
         Create a StructureReference instance given a symbol and a
         list of components. e.g. for "field%bundle(2)%flag" this
@@ -93,6 +93,12 @@ class StructureReference(Reference):
             list of nodes describing array access)
         :param parent: the parent of this node in the PSyIR.
         :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
+        :param enforce_datatype: the datatype for the reference, which will \
+            overwrite the value determined by analysing the corresponding \
+            user defined type. This is useful when e.g. the module that \
+            declares the structure cannot be accessed.
+        :type enforce_datatype: \
+            Optional[:py:class:`psyclone.psyir.symbols.DataType`]
 
         :returns: a StructureReference instance.
         :rtype: :py:class:`psyclone.psyir.nodes.StructureReference`
@@ -105,11 +111,20 @@ class StructureReference(Reference):
                 f"The 'symbol' argument to StructureReference.create() "
                 f"should be a DataSymbol but found '{type(symbol).__name__}'.")
 
+        if enforce_datatype and not isinstance(enforce_datatype, DataType):
+            raise TypeError(
+                f"The 'enforce_datatype' argument to "
+                f"StructureReference.create() should be a DataType but found "
+                f"'{type(symbol).__name__}'.")
+
         return StructureReference._create(symbol, symbol.datatype, members,
-                                          parent=parent)
+                                          parent=parent,
+                                          enforce_datatype=enforce_datatype)
 
     @classmethod
-    def _create(cls, symbol, symbol_type, members, parent=None):
+    def _create(cls, symbol, symbol_type, members, parent=None,
+                enforce_datatype=None):
+        # pylint: disable=too-many-arguments
         '''
         Create an instance of `cls` given a symbol, a type and a
         list of components. e.g. for "field%bundle(2)%flag" this list
@@ -131,6 +146,12 @@ class StructureReference(Reference):
             list of nodes describing array access)
         :param parent: the parent of this node in the PSyIR.
         :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
+        :param enforce_datatype: the datatype for the reference, which will \
+            overwrite the value determined by analysing the corresponding \
+            user defined type. This is useful when e.g. the module that \
+            declares the structure cannot be accessed.
+        :type enforce_datatype: \
+            Optional[:py:class:`psyclone.psyir.symbols.DataType`]
 
         :returns: a StructureReference instance.
         :rtype: :py:class:`psyclone.psyir.nodes.StructureReference`
@@ -199,6 +220,8 @@ class StructureReference(Reference):
             child_member = subref
         # Finally, add this chain to the top-level reference
         ref.addchild(child_member)
+        # pylint: disable=attribute-defined-outside-init
+        ref._enforce_datatype = enforce_datatype
         return ref
 
     def __str__(self):
@@ -241,8 +264,9 @@ class StructureReference(Reference):
     @property
     def datatype(self):
         '''
-        Walks down the list of members making up this reference to determine
-        the type that it refers to.
+        If no data type was enforced for this reference, walk down the list
+        of members making up this reference to determine the type that it
+        refers to.
 
         In order to minimise code duplication, this method also supports
         ArrayOfStructuresReference by simply allowing for the case where
@@ -253,7 +277,12 @@ class StructureReference(Reference):
 
         :raises NotImplementedError: if the structure reference represents \
                                      an array of arrays.
+
         '''
+        # pylint: disable=too-many-return-statements, too-many-branches
+        if self._enforce_datatype:
+            return self._enforce_datatype
+
         dtype = self.symbol.datatype
 
         if isinstance(dtype, ArrayType):
