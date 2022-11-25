@@ -39,6 +39,8 @@
     class. '''
 
 import pytest
+
+from psyclone.domain.lfric import psyir
 from psyclone.tests.utilities import check_links
 from psyclone.psyir import symbols, nodes
 
@@ -104,6 +106,22 @@ def test_asr_create(component_symbol):
     assert isinstance(asref.children[1], nodes.Range)
     check_links(asref, asref.children)
     check_links(asref.children[1], asref.children[1].children)
+
+    # Test to enforce a type:
+    lbound = nodes.BinaryOperation.create(
+        nodes.BinaryOperation.Operator.LBOUND,
+        nodes.Reference(component_symbol), int_one.copy())
+    ubound = nodes.BinaryOperation.create(
+        nodes.BinaryOperation.Operator.UBOUND,
+        nodes.Reference(component_symbol), int_one.copy())
+    my_range = nodes.Range.create(lbound, ubound)
+    # pylint: disable=no-member
+    datatype = psyir.LfricRealScalarDataType()
+    asref = nodes.ArrayOfStructuresReference. create(component_symbol,
+                                                     [":"], ["nx"],
+                                                     enforce_datatype=datatype)
+    assert asref.datatype is datatype
+
     # Reference to a symbol of DeferredType
     ssym = symbols.DataSymbol("grid", symbols.DeferredType())
     asref = nodes.ArrayOfStructuresReference.create(

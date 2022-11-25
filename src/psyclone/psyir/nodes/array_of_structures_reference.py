@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Modified J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the ArrayOfStructuresReference
@@ -56,9 +57,9 @@ class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
     _children_valid_format = "MemberReference, [DataNode | Range]+"
     _text_name = "ArrayOfStructuresReference"
 
-    # pylint: disable=arguments-differ
+    # pylint: disable=arguments-renamed
     @staticmethod
-    def create(symbol, indices, members, parent=None):
+    def create(symbol, indices, members, parent=None, enforce_datatype=None):
         '''
         Create a reference to a member of one or more elements of an array of
         structures.
@@ -86,6 +87,12 @@ class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
             list of nodes describing array access)
         :param parent: the parent of this node in the PSyIR.
         :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
+        :param enforce_datatype: the datatype for the reference, which will \
+            overwrite the value determined by analysing the corresponding \
+            user defined type. This is useful when e.g. the module that \
+            declares the structure cannot be accessed.
+        :type enforce_datatype: \
+            Optional[:py:class:`psyclone.psyir.symbols.DataType`]
 
         :returns: an ArrayOfStructuresReference instance.
         :rtype: :py:class:`psyclone.psyir.nodes.ArrayOfStructuresReference`
@@ -117,8 +124,9 @@ class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
 
         # First use the StructureReference _create class method to create a
         # reference to the base structure of the array.
-        ref = ArrayOfStructuresReference._create(symbol, base_type, members,
-                                                 parent=parent)
+        ref = ArrayOfStructuresReference.\
+            _create(symbol, base_type, members, parent=parent,
+                    enforce_datatype=enforce_datatype)
 
         # Then add the array-index expressions. We don't validate the children
         # as that is handled in _validate_child.
