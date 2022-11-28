@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing the InterGridArg class which captures the metadata
+'''Module containing the InterGridArgMetadata class which captures the metadata
 associated with an intergrid argument. Supports the creation, modification
 and Fortran output of an intergrid argument.
 
@@ -41,21 +41,21 @@ and Fortran output of an intergrid argument.
 from fparser.two import Fortran2003
 
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.lfric.kernel.field_arg import FieldArg
+from psyclone.domain.lfric.kernel.field_arg_metadata import FieldArgMetadata
 
 
-class InterGridArg(FieldArg):
+class InterGridArgMetadata(FieldArgMetadata):
     '''Class to capture LFRic kernel metadata information for an intergrid
     argument.
 
-    :param Optional[str] datatype: the datatype of this InterGrid \
-        argument (GH_INTEGER, ...).
-    :param Optional[str] access: the way the kernel accesses this \
-        intergrid argument (GH_WRITE, ...).
-    :param Optional[str] function_space: the function space that this \
+    :param str datatype: the datatype of this InterGrid argument \
+        (GH_INTEGER, ...).
+    :param str access: the way the kernel accesses this intergrid \
+        argument (GH_WRITE, ...).
+    :param str function_space: the function space that this \
         InterGrid is on (W0, ...).
-    :param Optional[str] mesh_arg: the type of mesh that this \
-        InterGrid arg is on (coarse or fine).
+    :param str mesh_arg: the type of mesh that this InterGrid arg \
+        is on (coarse or fine).
 
     '''
     # The relative position of LFRic mesh metadata. Metadata for an
@@ -65,37 +65,38 @@ class InterGridArg(FieldArg):
     # (mesh_arg_index) is 4. Index values not provided here are common
     # to the parent classes and are inherited from them.
     mesh_arg_index = 4
+    # The name to use for any exceptions.
+    check_name = "inter-grid"
+    # The number of arguments in the language-level metadata.
+    nargs = 5
 
-    def __init__(self, datatype=None, access=None, function_space=None,
-                 mesh_arg=None):
+    # The fparser2 class that captures this metadata.
+    fparser2_class = Fortran2003.Structure_Constructor
+
+    def __init__(self, datatype, access, function_space, mesh_arg):
         super().__init__(datatype, access, function_space)
-        if mesh_arg is None:
-            self._mesh_arg = mesh_arg
-        else:
-            self.mesh_arg = mesh_arg
+        self.mesh_arg = mesh_arg
 
-    @staticmethod
-    def create_from_fparser2(fparser2_tree):
-        '''Create an instance of this class from an fparser2 tree.
+    @classmethod
+    def _get_metadata(cls, fparser2_tree):
+        '''Extract the required metadata from the fparser2 tree and return it
+        as strings. Also check that the metadata is in the expected
+        form (but do not check the metadata values as that is done
+        separately).
 
-        :param fparser2_tree: fparser2 tree capturing the metadata for \
-            an InterGrid argument.
+        :param fparser2_tree: fparser2 tree containing the metadata \
+            for this argument.
         :type fparser2_tree: \
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`
 
-        :returns: an instance of InterGridArg.
-        :rtype: :py:class:`psyclone.domain.lfric.kernel.InterGridArg`
+        :returns: a tuple containing the datatype, access, function \
+            space and mesh metadata.
+        :rtype: Tuple[str, str, str, str]
 
         '''
-        InterGridArg.check_fparser2(
-            fparser2_tree, nargs=5, encoding=Fortran2003.Structure_Constructor)
-        InterGridArg.check_first_arg(fparser2_tree, "InterGrid")
-        datatype, access, function_space = \
-            InterGridArg.get_type_access_and_fs(fparser2_tree)
-        mesh_arg = InterGridArg.get_mesh_arg(fparser2_tree)
-        InterGridArg.check_remaining_args(
-            fparser2_tree, datatype, access, function_space, mesh_arg)
-        return InterGridArg(datatype, access, function_space, mesh_arg)
+        datatype, access, function_space = super()._get_metadata(fparser2_tree)
+        mesh_arg = cls.get_mesh_arg(fparser2_tree)
+        return (datatype, access, function_space, mesh_arg)
 
     @staticmethod
     def get_mesh_arg(fparser2_tree):
@@ -115,59 +116,29 @@ class InterGridArg(FieldArg):
 
         '''
         mesh_arg_lhs = fparser2_tree.children[1].\
-            children[InterGridArg.mesh_arg_index].children[0].tostr()
+            children[InterGridArgMetadata.mesh_arg_index].children[0].tostr()
         if not mesh_arg_lhs.lower() == "mesh_arg":
             raise ValueError(
-                f"At argument index {InterGridArg.mesh_arg_index} for "
+                f"At argument index {InterGridArgMetadata.mesh_arg_index} for "
                 f"metadata '{fparser2_tree}' expected the left hand side "
                 f"to be MESH_ARG but found '{mesh_arg_lhs}'.")
         mesh_arg = fparser2_tree.children[1].\
-            children[InterGridArg.mesh_arg_index].children[1].tostr()
+            children[InterGridArgMetadata.mesh_arg_index].children[1].tostr()
         return mesh_arg
-
-    @classmethod
-    def create_from_fortran_string(cls, fortran_string):
-        '''Create an instance of this class from Fortran.
-
-        :param str fortran_string: a string containing the metadata in \
-            Fortran.
-
-        :returns: an instance of cls.
-        :rtype: subclass of :py:class:`psyclone.domain.lfric.kernel.common_arg`
-
-        '''
-        fparser2_tree = cls.create_fparser2(
-            fortran_string, encoding=Fortran2003.Structure_Constructor)
-        return cls.create_from_fparser2(fparser2_tree)
 
     def fortran_string(self):
         '''
         :returns: the metadata represented by this class as Fortran.
         :rtype: str
-
-        :raises ValueError: if one or more of the datatype, access, \
-            function_space or mesh_arg values have not been set.
-
         '''
-        if not (self.datatype and self.access and self.function_space and
-                self.mesh_arg):
-            raise ValueError(
-                f"Values for datatype, access, function_space and mesh_arg "
-                f"must be provided before calling the fortran_string method, "
-                f"but found '{self.datatype}', '{self.access}', "
-                f"'{self.function_space}' and '{self.mesh_arg}', "
-                f"respectively.")
-
         return (f"arg_type({self.form}, {self.datatype}, {self.access}, "
                 f"{self.function_space}, mesh_arg={self.mesh_arg})")
 
     @property
     def mesh_arg(self):
         '''
-
         :returns: the mesh type for this intergrid argument.
         :rtype: str
-
         '''
         return self._mesh_arg
 
@@ -176,14 +147,11 @@ class InterGridArg(FieldArg):
         '''
         :param str value: set the mesh type to the \
             specified value.
-
-        raises ValueError: if the provided value is not a valid \
-            mesh_argument type (gh_coarse or gh_fine).
-
         '''
         const = LFRicConstants()
-        if not value or value.lower() not in const.VALID_MESH_TYPES:
-            raise ValueError(
-                f"The mesh_arg metadata for a mesh should be one of "
-                f"{const.VALID_MESH_TYPES}, but found '{value}'.")
-        self._mesh_arg = value
+        InterGridArgMetadata.validate_scalar_value(
+            value, const.VALID_MESH_TYPES, "mesh_arg")
+        self._mesh_arg = value.lower()
+
+
+__all__ = ["InterGridArgMetadata"]
