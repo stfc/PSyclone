@@ -64,8 +64,8 @@ class ShapesMetadata(CommonDeclarationMetadata):
 
     def fortran_string(self):
         '''
-         :returns: the shapes metadata as Fortran.
-         :rtype: str
+        :returns: the shapes metadata as Fortran.
+        :rtype: str
         '''
         if len(self.shapes) == 1:
             return ShapesMetadata.scalar_declaration_string(
