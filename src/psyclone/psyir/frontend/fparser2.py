@@ -48,17 +48,18 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes import (
     UnaryOperation, BinaryOperation, NaryOperation, Schedule, CodeBlock,
     IfBlock, Reference, Literal, Loop, Container, Assignment, Return, Node,
-    ArrayReference, Range, KernelSchedule, StructureReference, Routine, Call,
-    ArrayOfStructuresReference, Member, FileContainer, Directive, ArrayMember,
+    ArrayReference, Range, StructureReference, Routine, Call, Member,
+    ArrayOfStructuresReference, FileContainer, Directive, ArrayMember,
     IntrinsicCall)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_of_structures_mixin import \
     ArrayOfStructuresMixin
-from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
-    Symbol, ImportInterface, ArgumentInterface, UnresolvedInterface, \
-    LocalInterface, ScalarType, ArrayType, DeferredType, UnknownType, \
-    UnknownFortranType, StructureType, DataTypeSymbol, RoutineSymbol, \
-    SymbolTable, NoType, INTEGER_TYPE, IntrinsicSymbol, DataSymbol
+from psyclone.psyir.symbols import (
+    SymbolError, DataSymbol, ContainerSymbol, Symbol, ImportInterface,
+    ArgumentInterface, UnresolvedInterface, LocalInterface, ScalarType,
+    ArrayType, DeferredType, UnknownType, UnknownFortranType, StructureType,
+    DataTypeSymbol, RoutineSymbol, SymbolTable, NoType, INTEGER_TYPE,
+    IntrinsicSymbol)
 
 # fparser dynamically generates classes which confuses pylint membership checks
 # pylint: disable=maybe-no-member
