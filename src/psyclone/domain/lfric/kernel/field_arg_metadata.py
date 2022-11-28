@@ -33,29 +33,28 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing the FieldArg class which captures the metadata
+'''Module containing the FieldArgMetadata class which captures the metadata
 associated with a field argument. Supports the creation, modification
 and Fortran output of a Field argument.
 
 '''
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.lfric.kernel.common_arg import CommonArg
+from psyclone.domain.lfric.kernel.scalar_arg_metadata import \
+    ScalarArgMetadata
 
 
-class FieldArg(CommonArg):
+class FieldArgMetadata(ScalarArgMetadata):
     '''Class to capture LFRic kernel metadata information for a field
     argument.
 
-    :param Optional[str] datatype: the datatype of this field \
-        (GH_INTEGER, ...).
-    :param Optional[str] access: the way the kernel accesses this \
-        field (GH_WRITE, ...).
-    :param Optional[str] function_space: the function space that this \
-        field is on (W0, ...).
+    :param str datatype: the datatype of this field (GH_INTEGER, ...).
+    :param str access: the way the kernel accesses this field (GH_WRITE, ...).
+    :param str function_space: the function space that this field is \
+        on (W0, ...).
 
     '''
     # The name used to specify a field argument in LFRic metadata.
-    form = "GH_FIELD"
+    form = "gh_field"
     # The relative positions of LFRic metadata. Metadata for a field
     # argument is provided in the following format 'arg_type(form,
     # datatype, access, function_space)'. Therefore, for example, the
@@ -64,64 +63,42 @@ class FieldArg(CommonArg):
     datatype_arg_index = 1
     access_arg_index = 2
     function_space_arg_index = 3
+    # The name to use for any exceptions.
+    check_name = "field"
+    # The number of arguments in the language-level metadata.
+    nargs = 4
 
-    def __init__(self, datatype=None, access=None, function_space=None):
+    def __init__(self, datatype, access, function_space):
         super().__init__(datatype, access)
-        if function_space is None:
-            self._function_space = function_space
-        else:
-            self.function_space = function_space
-
-    @staticmethod
-    def create_from_fparser2(fparser2_tree):
-        '''Create an instance of this class from an fparser2 tree.
-
-        :param fparser2_tree: fparser2 tree capturing the metadata for \
-            a field argument.
-        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
-
-        :returns: an instance of FieldArg.
-        :rtype: :py:class:`psyclone.domain.lfric.kernel.FieldArg`
-
-        '''
-        FieldArg.check_fparser2(fparser2_tree, nargs=4)
-        FieldArg.check_first_arg(fparser2_tree, "Field")
-        datatype, access, function_space = \
-            FieldArg.get_type_access_and_fs(fparser2_tree)
-        FieldArg.check_remaining_args(
-            fparser2_tree, datatype, access, function_space)
-        return FieldArg(datatype, access, function_space)
+        self.function_space = function_space
 
     @classmethod
-    def create_from_fortran_string(cls, fortran_string):
-        '''Create an instance of this class from Fortran.
+    def _get_metadata(cls, fparser2_tree):
+        '''Extract the required metadata from the fparser2 tree and return it
+        as strings. Also check that the metadata is in the expected
+        form (but do not check the metadata values as that is done
+        separately).
 
-        :param str fortran_string: a string containing the metadata in \
-            Fortran.
+        :param fparser2_tree: fparser2 tree containing the metadata \
+            for this argument.
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
+            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
 
-        :returns: an instance of cls.
-        :rtype: subclass of :py:class:`psyclone.domain.lfric.kernel.common_arg`
+        :returns: a tuple containing the datatype, access and function \
+            space metadata.
+        :rtype: Tuple[str, str, str]
 
         '''
-        fparser2_tree = cls.create_fparser2(fortran_string)
-        return cls.create_from_fparser2(fparser2_tree)
+        datatype, access = super()._get_metadata(fparser2_tree)
+        function_space = cls.get_arg(
+            fparser2_tree, cls.function_space_arg_index)
+        return (datatype, access, function_space)
 
     def fortran_string(self):
         '''
         :returns: the metadata represented by this class as Fortran.
         :rtype: str
-
-        :raises ValueError: if one or more of the datatype, access or \
-            function_space values have not been set.
-
         '''
-        if not (self.datatype and self.access and self.function_space):
-            raise ValueError(
-                f"Values for datatype, access and function_space must be "
-                f"provided before calling the fortran_string method, but "
-                f"found '{self.datatype}', '{self.access}' and "
-                f"'{self.function_space}', respectively.")
-
         return (f"arg_type({self.form}, {self.datatype}, {self.access}, "
                 f"{self.function_space})")
 
@@ -135,25 +112,17 @@ class FieldArg(CommonArg):
 
         '''
         const = LFRicConstants()
-        if not value or value.lower() not in const.VALID_FIELD_DATA_TYPES:
-            raise ValueError(
-                f"The datatype descriptor metadata for a field should be one "
-                f"of {const.VALID_FIELD_DATA_TYPES}, but found '{value}'.")
+        FieldArgMetadata.validate_scalar_value(
+            value, const.VALID_FIELD_DATA_TYPES, "datatype descriptor")
 
     @staticmethod
     def check_access(value):
         '''
         :param str value: the access descriptor to validate.
-
-        :raises ValueError: if the provided value is not a valid \
-            access type.
-
         '''
         const = LFRicConstants()
-        if not value or value.lower() not in const.VALID_FIELD_ACCESS_TYPES:
-            raise ValueError(
-                f"The access descriptor metadata for a field should be one of "
-                f"{const.VALID_FIELD_ACCESS_TYPES}, but found '{value}'.")
+        FieldArgMetadata.validate_scalar_value(
+            value, const.VALID_FIELD_ACCESS_TYPES, "access descriptor")
 
     @property
     def function_space(self):
@@ -168,14 +137,11 @@ class FieldArg(CommonArg):
         '''
         :param str value: set the function space to the \
             specified value.
-
-        :raises ValueError: if the provided value is not a valid \
-            function space.
-
         '''
         const = LFRicConstants()
-        if not value or value.lower() not in const.VALID_FUNCTION_SPACE_NAMES:
-            raise ValueError(
-                f"The function space metadata should be one of "
-                f"{const.VALID_FUNCTION_SPACE_NAMES}, but found '{value}'.")
-        self._function_space = value
+        FieldArgMetadata.validate_scalar_value(
+            value, const.VALID_FUNCTION_SPACE_NAMES, "function space")
+        self._function_space = value.lower()
+
+
+__all__ = ["FieldArgMetadata"]
