@@ -38,7 +38,8 @@
 
 '''
 
-from psyclone.domain.lfric import KernCallInvokeArgList, LFRicConstants, psyir
+from psyclone.domain.lfric import (KernCallInvokeArgList, LFRicConstants,
+                                   psyir, LFRicSymbolTable)
 from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctorFactory, LFRicKernelFunctor)
 from psyclone.dynamo0p3 import DynKern
@@ -46,8 +47,8 @@ from psyclone.errors import InternalError
 from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import (Routine, Assignment, Reference, Literal,
-                                  Container)
+from psyclone.psyir.nodes import (Assignment, Container, Literal,
+                                  Reference, Routine, ScopingNode)
 from psyclone.psyir.symbols import (
     DeferredType, UnknownFortranType, DataTypeSymbol, DataSymbol, ArrayType,
     ImportInterface, ContainerSymbol, RoutineSymbol, ArgumentInterface)
@@ -129,7 +130,7 @@ class LFRicAlg:
         # arbitrary value, we use an *integer* literal for this, irrespective
         # of the actual type of the scalar argument. The compiler/run-time will
         # take care of appropriate type casting.
-        psyir.add_lfric_precision_symbol(table, "i_def")
+        table.add_lfric_precision_symbol("i_def")
         for sym in kern_args.scalars:
             sub.addchild(Assignment.create(
                 Reference(sym),
@@ -142,7 +143,7 @@ class LFRicAlg:
         # integer rather than real) we rely on type casting by the
         # compiler/run-time.
         factory = LFRicBuiltinFunctorFactory.get()
-        psyir.add_lfric_precision_symbol(table, "r_def")
+        table.add_lfric_precision_symbol("r_def")
         kernel_list = []
         for sym, _ in kern_args.fields:
             kernel_list.append(
@@ -186,7 +187,10 @@ class LFRicAlg:
         if not isinstance(name, str):
             raise TypeError(f"Supplied routine name must be a str but got "
                             f"'{type(name).__name__}'")
-
+        # Make sure the scoping node creates LFRicSymbolTables
+        # pylint: disable=protected-access
+        # TODO #1954 Remove the protected access using a factory
+        ScopingNode._symbol_table_class = LFRicSymbolTable
         alg_sub = Routine(name)
         table = alg_sub.symbol_table
 
@@ -252,7 +256,7 @@ class LFRicAlg:
         reader = FortranReader()
 
         # The order of the finite-element scheme.
-        psyir.add_lfric_precision_symbol(table, "i_def")
+        table.add_lfric_precision_symbol("i_def")
         order = table.new_symbol("element_order", tag="element_order",
                                  symbol_type=DataSymbol,
                                  datatype=psyir.LfricIntegerScalarDataType(),
@@ -309,7 +313,7 @@ class LFRicAlg:
         '''
         reader = FortranReader()
 
-        psyir.add_lfric_precision_symbol(prog.symbol_table, "i_def")
+        prog.symbol_table.add_lfric_precision_symbol("i_def")
 
         if isinstance(sym.datatype, DataTypeSymbol):
             # Single field argument.
