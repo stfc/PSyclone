@@ -36,6 +36,7 @@
 ''' Provides LFRic-specific PSyclone adjoint test-harness functionality. '''
 
 from fparser import api as fpapi
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctorFactory, LFRicKernelFunctor)
 from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
@@ -522,11 +523,11 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
         # Check whether this argument contains geometric information that
         # is passed through from the Algorithm layer.
         mdata_idx = kern_args.metadata_index_from_actual_index(idx)
-        if mdata_idx == coord_arg_idx:
+        if mdata_idx is not None and mdata_idx == coord_arg_idx:
             # Replace the argument with that containing the
             # coordinate field.
             sym = table.lookup_with_tag("coord_field")
-        elif mdata_idx == panel_id_arg_idx:
+        elif mdata_idx is not None and mdata_idx == panel_id_arg_idx:
             # Replace the argument with that containing the panel-id field.
             sym = table.lookup_with_tag("panel_id_field")
         else:
