@@ -168,7 +168,7 @@ class LFRicSymbolTable(SymbolTable):
             # pylint: disable=raise-missing-from
             # Create a DataSymbol for this kernel argument.
             array_type = ArrayType(datatype,
-                                   [ArrayType.Extent.ATTRIBUTE]*num_dimensions)
+                                   [ArrayType.Extent.DEFERRED]*num_dimensions)
 
             sym = self.new_symbol(array_name, tag=tag,
                                   symbol_type=DataSymbol,

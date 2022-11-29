@@ -201,6 +201,12 @@
 
 	70) PR #1911 for #1909. Update fparser dependency.
 
+	71) PR #1908 for #1879. Completes the new meta-data parsing
+	functionality for the LFRic API.
+
+	72) PR #1918 for #1883. Updates kern_call_arg_list() (for LFRic) to
+	use PSyIR. (Step towards using PSyIR in LFRic PSy-layer generation
+	and required for PSyKE driver generation.)
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
