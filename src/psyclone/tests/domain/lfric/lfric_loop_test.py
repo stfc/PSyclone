@@ -45,12 +45,13 @@ import pytest
 from fparser import api as fpapi
 from psyclone.configuration import Config
 from psyclone.core import AccessType
-from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric import LFRicConstants, LFRicSymbolTable
 from psyclone.dynamo0p3 import DynLoop, DynKern, DynKernMetadata
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Schedule, ArrayReference, Reference, Literal
+from psyclone.psyir.nodes import (Schedule, ArrayReference, Reference,
+                                  Literal, ScopingNode)
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.transformations import (Dynamo0p3ColourTrans,
                                       DynamoOMPParallelLoopTrans,
@@ -83,11 +84,15 @@ def test_constructor_invalid_loop_type(monkeypatch):
             " Supported values are 'colours'" in str(err.value))
 
 
-def test_set_lower_bound_functions():
+def test_set_lower_bound_functions(monkeypatch):
     ''' Test that we raise appropriate exceptions when the lower bound of
     a DynLoop is set to invalid values.
 
     '''
+    # Make sure we get an LFRicSymbolTable
+    # TODO #1954: Remove the protected access using a factory
+    monkeypatch.setattr(ScopingNode, "_symbol_table_class",
+                        LFRicSymbolTable)
     schedule = Schedule()
     my_loop = DynLoop(parent=schedule)
     schedule.children = [my_loop]

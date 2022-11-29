@@ -99,13 +99,13 @@ def test_new_kernel_file(kernel_outputdir, monkeypatch, fortran_reader):
     assert isinstance(psyir, FileContainer)
     module = psyir.children[0]
     assert module.name == f"continuity{tag}_mod"
+
     # Check that the subroutine has the right name
-    found = False
     for sub in psyir.walk(Routine):
         if sub.name == f"continuity{tag}_code":
-            found = True
             break
-    assert found
+    else:
+        assert False, f"Failed to find subroutine named continuity{tag}_code"
 
     # If compilation fails this will raise an exception
     GOceanBuild(kernel_outputdir).compile_file(filename)

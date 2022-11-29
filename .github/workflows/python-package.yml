@@ -94,7 +94,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.6, 3.8, "3.10"]
+        python-version: [3.6, 3.8, 3.11]
     steps:
     - uses: actions/checkout@v2
       with:
@@ -124,7 +124,7 @@ jobs:
         # If you wish to install the version of fparser pointed to by the
         # submodule instead of the released version (from PyPI) then
         # uncomment the following line:
-        # pip install external/fparser
+        pip install external/fparser
         pip install .
     - name: Lint with flake8
       run: |

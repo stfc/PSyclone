@@ -199,8 +199,8 @@ def test_script_invalid_content_runtime():
     assert ("raised the following exception during execution ..."
             in str(error.value))
     assert ("line 3, in trans\n"
-            "    psy = b\n"
-            "    NameError: name 'b' is not defined\n"
+            "    psy = b\n" in str(error.value))
+    assert ("    NameError: name 'b' is not defined\n"
             "}\n"
             "Please check your script" in str(error.value))
 
