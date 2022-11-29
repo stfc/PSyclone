@@ -37,13 +37,12 @@
    functionality.'''
 
 import pytest
-
 from fparser import api as fpapi
 
-from psyclone.domain.lfric import KernCallInvokeArgList
-from psyclone.domain.lfric.algorithm import (LFRicBuiltinFunctor, LFRicAlg,
+from psyclone.domain.lfric import KernCallInvokeArgList, LFRicSymbolTable
+from psyclone.domain.lfric.algorithm import (LFRicBuiltinFunctor,
+                                             LFRicAlg,
                                              LFRicBuiltinFunctorFactory)
-from psyclone.domain.lfric.psyir import add_lfric_precision_symbol
 from psyclone.errors import InternalError
 from psyclone.psyad.domain.lfric import lfric_adjoint_harness
 from psyclone.psyad.domain.lfric.lfric_adjoint_harness import (
@@ -53,7 +52,7 @@ from psyclone.psyad.domain.lfric.lfric_adjoint_harness import (
     _validate_geom_arg,
     generate_lfric_adjoint_harness)
 from psyclone.psyir.nodes import Routine, Literal, Assignment
-from psyclone.psyir.symbols import (SymbolTable, DataSymbol, REAL_TYPE,
+from psyclone.psyir.symbols import (DataSymbol, REAL_TYPE,
                                     ArrayType, DataTypeSymbol, DeferredType,
                                     INTEGER_TYPE, ContainerSymbol,
                                     ImportInterface, ScalarType)
@@ -64,7 +63,7 @@ from psyclone.psyir.symbols import (SymbolTable, DataSymbol, REAL_TYPE,
 def test_compute_inner_products_scalars(fortran_writer):
     '''Test that _compute_lfric_inner_products generates the expected code
     for scalars.'''
-    table = SymbolTable()
+    table = LFRicSymbolTable()
     prog = Routine.create("test_prog", table, [], is_program=True)
     sum_sym = table.new_symbol(root_name="my_sum",
                                symbol_type=DataSymbol, datatype=REAL_TYPE)
@@ -83,7 +82,7 @@ def test_compute_inner_products_scalars(fortran_writer):
 def test_compute_inner_products_fields(fortran_writer):
     '''Test that _compute_lfric_inner_products generates the expected code
     when supplied with symbols representing the innerproducts of fields.'''
-    table = SymbolTable()
+    table = LFRicSymbolTable()
     prog = Routine.create("test_prog", table, [], is_program=True)
     sum_sym = table.new_symbol(root_name="my_sum",
                                symbol_type=DataSymbol, datatype=REAL_TYPE)
@@ -111,7 +110,7 @@ def test_compute_field_inner_products(fortran_writer):
     '''Check that _compute_field_inner_products generates the expected symbols,
     assignments and functors for fields.'''
     bin_factory = LFRicBuiltinFunctorFactory.get()
-    table = SymbolTable()
+    table = LFRicSymbolTable()
     prog = Routine.create("test_prog", table, [], is_program=True)
     csym = table.new_symbol("field_mod", symbol_type=ContainerSymbol)
     fld_type = table.new_symbol("field_type", symbol_type=DataTypeSymbol,
@@ -142,7 +141,7 @@ def test_compute_field_vector_inner_products(fortran_writer):
     '''Check that _compute_field_inner_products generates the expected symbols,
     assignments and functors for field vectors.'''
     bin_factory = LFRicBuiltinFunctorFactory.get()
-    table = SymbolTable()
+    table = LFRicSymbolTable()
     prog = Routine.create("test_prog", table, [], is_program=True)
     csym = table.new_symbol("field_mod", symbol_type=ContainerSymbol)
     fld_type = table.new_symbol("field_type", symbol_type=DataTypeSymbol,
@@ -174,7 +173,7 @@ def test_compute_field_vector_inner_products(fortran_writer):
 def test_compute_field_inner_products_errors():
     '''Check that _compute_field_inner_products raises the expected errors
     when passed incorrect arguments.'''
-    table = SymbolTable()
+    table = LFRicSymbolTable()
     prog = Routine.create("test_prog", table, [], is_program=True)
     csym = table.new_symbol("field_mod", symbol_type=ContainerSymbol)
     fld_type = table.new_symbol("field_type", symbol_type=DataTypeSymbol,
@@ -208,7 +207,7 @@ def test_compute_field_inner_products_errors():
 
 def test_init_fields_random():
     '''Check that the _init_fields_random() routine works as expected.'''
-    table = SymbolTable()
+    table = LFRicSymbolTable()
     fld_type = DataTypeSymbol("field_type", datatype=DeferredType())
     table.add(fld_type)
     fld1 = DataSymbol("field1", datatype=fld_type)
@@ -233,8 +232,8 @@ def test_init_fields_random_vector():
     a field vector.
 
     '''
-    table = SymbolTable()
-    idef_sym = add_lfric_precision_symbol(table, "i_def")
+    table = LFRicSymbolTable()
+    idef_sym = table.add_lfric_precision_symbol("i_def")
     idef_type = ScalarType(ScalarType.Intrinsic.REAL, idef_sym)
 
     fld_type = DataTypeSymbol("field_type", datatype=DeferredType())
@@ -272,7 +271,7 @@ def test_init_fields_random_error():
     fields = [fld1]
     inputs = {"field1": fld1}
     with pytest.raises(InternalError) as err:
-        _init_fields_random(fields, inputs, SymbolTable())
+        _init_fields_random(fields, inputs, LFRicSymbolTable())
     assert ("Expected a field symbol to either be of ArrayType or have a type "
             "specified by a DataTypeSymbol but found Scalar<INTEGER, "
             "UNDEFINED> for field 'field1'" in str(err.value))

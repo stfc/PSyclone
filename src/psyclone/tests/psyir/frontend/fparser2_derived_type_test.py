@@ -37,7 +37,6 @@
 ''' Performs py.test tests on the fparser2 PSyIR front-end support for
     derived types. '''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import KernelSchedule, CodeBlock, Assignment, \
@@ -318,7 +317,7 @@ def test_derived_type_accessibility():
 
 
 def test_derived_type_ref(f2008_parser, fortran_writer):
-    ''' Check that the frontend handles a references to a member of
+    ''' Check that the frontend handles references to a member of
     a derived type. '''
     processor = Fparser2Reader()
     reader = FortranStringReader(
@@ -335,7 +334,7 @@ def test_derived_type_ref(f2008_parser, fortran_writer):
         "  vars(:)%region%subgrid(3)%xstop = 1.0\n"
         "end subroutine my_sub\n")
     fparser2spec = f2008_parser(reader)
-    sched = processor.generate_schedule("my_sub", fparser2spec)
+    sched = processor.generate_psyir(fparser2spec)
     assert not sched.walk(CodeBlock)
     assignments = sched.walk(Assignment)
     # var%flag
@@ -443,7 +442,7 @@ def test_array_of_derived_type_ref(f2008_parser):
                                  "  var(1)%region%subgrid(3)%data(:) = 1.0\n"
                                  "end subroutine my_sub\n")
     fparser2spec = f2008_parser(reader)
-    sched = processor.generate_schedule("my_sub", fparser2spec)
+    sched = processor.generate_psyir(fparser2spec)
     assert not sched.walk(CodeBlock)
     assignments = sched.walk(Assignment)
     # var(1)%flag
@@ -507,7 +506,7 @@ def test_derived_type_codeblocks(f2008_parser):
     # explicitly create a list and then create a tuple from that.
     item_list = ["hello"] + list(dref.items[1:])
     dref.items = tuple(item_list)
-    sched = processor.generate_schedule("my_sub", fparser2spec)
+    sched = processor.generate_psyir(fparser2spec)
     cblocks = sched.walk(CodeBlock)
     assert len(cblocks) == 1
     assert isinstance(cblocks[0].parent, Assignment)
@@ -516,7 +515,7 @@ def test_derived_type_codeblocks(f2008_parser):
     fparser2spec = f2008_parser(reader)
     dref = Fortran2003.walk(fparser2spec, Fortran2003.Data_Ref)[0]
     dref.items = (dref.items[0], "hello")
-    sched = processor.generate_schedule("my_sub", fparser2spec)
+    sched = processor.generate_psyir(fparser2spec)
     cblocks = sched.walk(CodeBlock)
     assert len(cblocks) == 1
     assert isinstance(cblocks[0].parent, Assignment)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council
+# Copyright (c) 2019-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,7 @@ C representation of the PSyIR.
 from __future__ import print_function
 from psyclone.psyir.nodes import Reference, Literal, UnaryOperation, \
     BinaryOperation, NaryOperation, Assignment, IfBlock, Loop, \
-    Container, Range, ArrayReference, Call, Routine, FileContainer
+    Container, ArrayReference, Call, Routine, FileContainer
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, SymbolTable, \
     ContainerSymbol, ArgumentInterface, ScalarType, ArrayType, \
     ImportInterface, REAL_TYPE, REAL4_TYPE, REAL_DOUBLE_TYPE, INTEGER_TYPE, \
@@ -58,7 +58,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.c import CWriter
 
 
-# pylint: disable=too-many-locals
+# pylint: disable=too-many-locals, too-many-statements
 def create_psyir_tree():
     ''' Create an example PSyIR Tree.
 
@@ -128,13 +128,9 @@ def create_psyir_tree():
     naryoperation_named = NaryOperation.create(
         oper, [one(), unaryoperation.copy(), ("dim", one()), ("mask", zero())])
 
-    # Array reference using a range
-    lbound = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
-                                    Reference(array), int_one())
-    ubound = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
-                                    Reference(array), int_one())
-    my_range = Range.create(lbound, ubound)
-    tmparray = ArrayReference.create(array, [my_range])
+    # The create method supports the usage of ":" instead
+    # of a range from lower bound to upper bound:
+    tmparray = ArrayReference.create(array, [":"])
 
     # Assignments
     assign1 = Assignment.create(tmp1(), zero())

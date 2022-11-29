@@ -1711,6 +1711,7 @@ class CodedKern(Kern):
         '''
         # We need to get the kernel schedule before modifying self.name
         kern_schedule = self.get_kernel_schedule()
+        container = kern_schedule.ancestor(Container)
 
         # Use the suffix to create a new kernel name.  This will
         # conform to the PSyclone convention of ending in "_code"
@@ -1724,26 +1725,28 @@ class CodedKern(Kern):
         # module. These names are used when generating the PSy-layer.
         self.name = new_kern_name[:]
         self._module_name = new_mod_name[:]
-
         kern_schedule.name = new_kern_name[:]
-        kern_schedule.root.name = new_mod_name[:]
+        container.name = new_mod_name[:]
 
         # Change the name of the symbol
         try:
             kern_symbol = kern_schedule.symbol_table.lookup(orig_kern_name)
-            kern_schedule.root.symbol_table.rename_symbol(kern_symbol,
-                                                          new_kern_name)
+            container.symbol_table.rename_symbol(kern_symbol, new_kern_name)
         except KeyError:
             # TODO #1013. Right now not all tests have PSyIR symbols because
             # some only expect f2pygen generation.
             pass
 
-        # TODO #1013. This needs re-doing properly - in particular the
-        # RoutineSymbol associated with the kernel needs to be replaced. For
-        # now we only fix the specific case of the name of the kernel routine
-        # in the kernel metadata as otherwise various compilation tests
-        # fail.
-        container_table = kern_schedule.root.symbol_table
+        # Ensure the metadata points to the correct procedure now. Since this
+        # routine is general purpose, we won't always have a domain-specific
+        # Container here and if we don't, it won't have a 'metadata' property.
+        if hasattr(container, "metadata"):
+            container.metadata.procedure_name = new_kern_name[:]
+        # TODO #928 - until the LFRic KernelInterface is fully functional, we
+        # can't raise language-level PSyIR to LFRic and therefore we have to
+        # manually fix the name of the procedure within the text that stores
+        # the kernel metadata.
+        container_table = container.symbol_table
         for sym in container_table.local_datatypesymbols:
             if isinstance(sym.datatype, UnknownFortranType):
                 orig_declaration = sym.datatype.declaration
