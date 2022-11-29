@@ -96,7 +96,7 @@ class LFRicConstants():
         # Supported access types
         LFRicConstants.VALID_SCALAR_ACCESS_TYPES = ["gh_read"]
         LFRicConstants.VALID_FIELD_ACCESS_TYPES = [
-            "gh_read", "gh_write", "gh_inc", "gh_readinc"]
+            "gh_read", "gh_write", "gh_readwrite", "gh_inc", "gh_readinc"]
         LFRicConstants.VALID_OPERATOR_ACCESS_TYPES = [
             "gh_read", "gh_write", "gh_readwrite"]
         LFRicConstants.VALID_ACCESS_TYPES = [
@@ -278,6 +278,15 @@ class LFRicConstants():
         # Meta functions
         LFRicConstants.VALID_METAFUNC_NAMES = \
             LFRicConstants.VALID_EVALUATOR_NAMES
+
+        # Valid Reference Element names
+        LFRicConstants.VALID_REF_ELEMENT_NAMES = [
+            "normals_to_horizontal_faces", "normals_to_vertical_faces",
+            "normals_to_faces", "outward_normals_to_horizontal_faces",
+            "outward_normals_to_vertical_faces", "outward_normals_to_faces"]
+
+        # Valid mesh names
+        LFRicConstants.VALID_MESH_NAMES = ["adjacent_face"]
 
         # ---------- Map from scalar intrinsic type to its precision ----------
         LFRicConstants.SCALAR_PRECISION_MAP = \

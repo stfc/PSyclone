@@ -45,11 +45,11 @@ class LFRicKernelContainer(Container):
 
     :param str name: the name of the container.
     :param metadata: the metadata object.
-    :type metadata: :py:class:`psyclone.domain.gocean.kernel.psyir.\
-        LFRicKernelMetadata`
-    :param **kwargs: additional keyword arguments to pass to parent \
+    :type metadata: \
+        :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+    :param kwargs: additional keyword arguments to pass to parent \
         constructor.
-    :type **kwargs: unwrapped dict
+    :type kwargs: unwrapped dict
 
     '''
     def __init__(self, name, metadata, **kwargs):
@@ -65,12 +65,12 @@ class LFRicKernelContainer(Container):
         a single kernel routine within the container.
 
         :param str name: the name of the Container.
-        :param symbol_table: the symbol table associated with this \
-            Container.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param metadata: the metadata object.
         :type metadata: \
             :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+        :param symbol_table: the symbol table associated with this \
+            Container.
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param children: a list of PSyIR nodes contained in the \
             Container. These must be Containers or Routines.
         :type children: List[:py:class:`psyclone.psyir.nodes.Container` \
@@ -106,3 +106,6 @@ class LFRicKernelContainer(Container):
         generic_container = Container.create(
             self.name, self.symbol_table.detach(), children)
         self.replace_with(generic_container)
+
+
+__all__ = ["LFRicKernelContainer"]

@@ -38,20 +38,18 @@ associated with a field vector argument. Supports the creation, modification
 and Fortran output of a Field Vector argument.
 
 '''
-from psyclone.domain.lfric.kernel.field_arg import FieldArg
+from psyclone.domain.lfric.kernel.field_arg_metadata import FieldArgMetadata
 
 
-class FieldVectorArg(FieldArg):
+class FieldVectorArgMetadata(FieldArgMetadata):
     '''Class to capture LFRic kernel metadata information for a field
     vector argument.
 
-    :param Optional[str] datatype: the datatype of this field \
-        (GH_INTEGER, ...).
-    :param Optional[str] access: the way the kernel accesses this \
-        field (GH_WRITE, ...).
-    :param Optional[str] function_space: the function space that this \
-        field is on (W0, ...).
-    :param Optional[str] vector_length: the size of the vector.
+    :param str datatype: the datatype of this field (GH_INTEGER, ...).
+    :param str access: the way the kernel accesses this field (GH_WRITE, ...).
+    :param str function_space: the function space that this field is on \
+        (W0, ...).
+    :param str vector_length: the size of the vector.
 
     '''
     # The relative position of LFRic vector length metadata. Metadata
@@ -62,72 +60,41 @@ class FieldVectorArg(FieldArg):
     # provided here are common to the parent classes and are inherited
     # from them.
     vector_length_arg_index = 0
+    # The name to use for any exceptions.
+    check_name = "field-vector"
+    # Whether the class captures vector metadata.
+    vector = True
 
-    def __init__(self, datatype=None, access=None, function_space=None,
-                 vector_length=None):
-        super().__init__(
-            datatype=datatype, access=access, function_space=function_space)
+    def __init__(self, datatype, access, function_space, vector_length):
+        super().__init__(datatype, access, function_space)
+        self.vector_length = vector_length
 
-        if vector_length is None:
-            self._vector_length = vector_length
-        else:
-            self.vector_length = vector_length
+    @classmethod
+    def _get_metadata(cls, fparser2_tree):
+        '''Extract the required metadata from the fparser2 tree and return it
+        as strings. Also check that the metadata is in the expected
+        form (but do not check the metadata values as that is done
+        separately).
 
-    @staticmethod
-    def create_from_fortran_string(fortran_string):
-        '''Create an instance of this class from Fortran.
-
-        :param str fortran_string: a string containing the metadata in \
-            Fortran.
-
-        :returns: an instance of FieldVectorArg.
-        :rtype: :py:class:`psyclone.domain.lfric.kernel.FieldVectorArg`
-
-        '''
-        fparser2_tree = FieldVectorArg.create_fparser2(fortran_string)
-        return FieldVectorArg.create_from_fparser2(fparser2_tree)
-
-    @staticmethod
-    def create_from_fparser2(fparser2_tree):
-        '''Create an instance of this class from an fparser2 tree.
-
-        :param fparser2_tree: fparser2 tree capturing the metadata \
-            for a field vector argument.
+        :param fparser2_tree: fparser2 tree containing the metadata \
+            for this argument.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
 
-        :returns: an instance of this class.
-        :rtype: :py:class:`psyclone.domain.lfric.kernel.FieldVectorArg`
+        :returns: a tuple containing the datatype, access, function \
+            space and vector-length metadata.
+        :rtype: Tuple[str, str, str, str]
 
         '''
-        FieldVectorArg.check_fparser2(fparser2_tree, nargs=4)
-        FieldVectorArg.check_first_arg(
-            fparser2_tree, "FieldVector", vector=True)
-        vector_length = FieldVectorArg.get_and_check_vector_length(
+        datatype, access, function_space = super()._get_metadata(
             fparser2_tree)
-        datatype, access, function_space = \
-            FieldVectorArg.get_type_access_and_fs(fparser2_tree)
-        FieldVectorArg.check_remaining_args(
-            fparser2_tree, datatype, access, function_space, vector_length)
-        return FieldVectorArg(datatype, access, function_space, vector_length)
+        vector_length = cls.get_vector_length(fparser2_tree)
+        return (datatype, access, function_space, vector_length)
 
     def fortran_string(self):
         '''
         :returns: the metadata represented by this class as Fortran.
         :rtype: str
-
-        :raises ValueError: if all of the properties have not been \
-            set.
-
         '''
-        if not (self.datatype and self.access and self.function_space and
-                self.vector_length):
-            raise ValueError(
-                f"Values for datatype, access, function_space and "
-                f"vector_length must be provided before calling the "
-                f"fortran_string method, but found '{self.datatype}', "
-                f"'{self.access}', '{self.function_space}' and "
-                f"'{self.vector_length}', respectively.")
-
         return (f"arg_type({self.form}*{self.vector_length}, {self.datatype}, "
                 f"{self.access}, {self.function_space})")
 
@@ -142,11 +109,12 @@ class FieldVectorArg(FieldArg):
 
     @vector_length.setter
     def vector_length(self, value):
-        '''
-        :param str value: set the field vector length to the specified \
+        ''':param str value: set the field vector length to the specified \
             value.
 
         :raises TypeError: if the provided value is not of type str.
+        :raises ValueError: if the provided value is not a string \
+            containing an integer.
         :raises ValueError: if the provided value is not greater than 1.
 
         '''
@@ -164,3 +132,6 @@ class FieldVectorArg(FieldArg):
             raise ValueError(f"The vector size should be an integer greater "
                              f"than 1 but found {value}.")
         self._vector_length = value
+
+
+__all__ = ["FieldVectorArgMetadata"]
