@@ -4153,7 +4153,7 @@ class DynMeshes():
                 last_cell = self._schedule.symbol_table.find_or_create_array(
                     base_name, 1, ScalarType.Intrinsic.INTEGER,
                     tag=base_name)
-            # Add these names into the dictionary entry for this
+            # Add these symbols into the dictionary entry for this
             # inter-grid kernel
             self._ig_kernels[id(call)].set_colour_info(colour_map, ncolours,
                                                        last_cell)
@@ -4511,9 +4511,9 @@ class DynInterGrid():
         self.cell_map = sym.name
 
         # We have no colourmap information when first created
-        self._colourmap_symbol = ""
+        self._colourmap_symbol = None
         # Symbol for the variable holding the number of colours
-        self._ncolours_var_symbol = ""
+        self._ncolours_var_symbol = None
         # Symbol of the variable holding the last cell of a particular colour
         self._last_cell_var_symbol = None
 
@@ -8301,7 +8301,8 @@ class DynKern(CodedKern):
         associated with this kernel call.
 
         :return: name of the variable holding the number of colours
-        :rtype: str
+        :rtype: Union[str, NoneType]
+
         :raises InternalError: if this kernel is not coloured or the \
                                colour-map information has not been initialised.
         '''

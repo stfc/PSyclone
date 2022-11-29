@@ -131,7 +131,9 @@ class LFRicSymbolTable(SymbolTable):
     def find_or_create_array(self, array_name, num_dimensions, intrinsic_type,
                              tag=None):
         '''This function returns a symbol for an ArrayReference. If the
-        symbol does not exist, it is created.
+        symbol does not exist, it is created. If a new array symbol is
+        created, it gets the DEFERRED attribute, which in Fortran means
+        it will be declared as an allocatable array.
 
         :param str array_name: the name and tag of the array.
         :param int num_dimensions: the number of dimensions of this array.
