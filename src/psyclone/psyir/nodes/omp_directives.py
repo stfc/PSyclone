@@ -59,7 +59,6 @@ from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.symbols import INTEGER_TYPE
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
