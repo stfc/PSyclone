@@ -110,36 +110,33 @@ class KernelModuleInlineTrans(Transformation):
                 f"'{node.name}' using the 'get_kernel_schedule' method."
                 ) from error
 
-        # Check that all kernel symbols are declared in the kernel
-        # symbol table(s). At this point they may be declared in a
-        # container containing this kernel which is not supported.
-        # TODO #1823: What about symbols not in References (e.g.
-        # literal datatypes, parameters initializations, ...)
-        # It could be more nuanced. Global parameters can be
-        # brought into the inlined subroutine scope
+        # We do not support kernels that use global variables from the
+        # same module (we would need to create new imports to the this
+        # module for those, and we currently don't do this).
+        # These can only be found in References and CodeBlocks
         for var in kernel_schedule.walk(Reference):
-            try:
-                var.scope.symbol_table.lookup(
-                    var.name, scope_limit=var.ancestor(Routine))
-            except KeyError as err:
-                raise TransformationError(
-                    f"Kernel '{node.name}' contains accesses to data (variable"
-                    f" '{var.name}') that are not present in the Symbol Table"
-                    f"(s) within subroutine scope. Cannot inline such a"
-                    f" kernel.") from err
-
-        # CodeBlocks also have symbols that we need to check
+            if not var.symbol.is_import:
+                try:
+                    var.scope.symbol_table.lookup(
+                        var.name, scope_limit=var.ancestor(Routine))
+                except KeyError as err:
+                    raise TransformationError(
+                        f"Kernel '{node.name}' contains accesses to data "
+                        f"(variable '{var.name}') that are not present in "
+                        f"the Symbol Table(s) within subroutine scope. Cannot"
+                        f" inline such a kernel.") from err
         for block in kernel_schedule.walk(CodeBlock):
             for name in block.get_symbol_names():
                 try:
                     block.scope.symbol_table.lookup(
                         name, scope_limit=block.ancestor(Routine))
                 except KeyError as err:
-                    raise TransformationError(
-                        f"Kernel '{node.name}' contains accesses to data "
-                        f"(variable '{name}' in a CodeBlock) that are not "
-                        f"present in the Symbol Table(s) within subroutine "
-                        f"scope. Cannot inline such a kernel.") from err
+                    if not block.scope.symbol_table.lookup(name).is_import:
+                        raise TransformationError(
+                            f"Kernel '{node.name}' contains accesses to data "
+                            f"(variable '{name}' in a CodeBlock) that are not "
+                            f"present in the Symbol Table(s) within subroutine"
+                            f" scope. Cannot inline such a kernel.") from err
 
         # We can't transform subroutines that shadow top-level symbol module
         # names, because we won't be able to bring this into the subroutine
@@ -192,6 +189,9 @@ class KernelModuleInlineTrans(Transformation):
                 all_symbols.add(literal.datatype.precision)
         for caller in code_to_inline.walk(Call):
             all_symbols.add(caller.routine)
+        for cblock in code_to_inline.walk(CodeBlock):
+            for name in cblock.get_symbol_names():
+                all_symbols.add(cblock.scope.symbol_table.lookup(name))
 
         # Then decide which symbols need to be brought inside the subroutine
         symbols_to_bring_in = set()
