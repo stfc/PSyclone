@@ -38,12 +38,6 @@ In this case, the adjoint of the tangent-linear kernel is written to
 
 ## Using the generated test harness in the LFRic skeleton mini-app
 
-> **Warning**
-> Currently the generated test harness *WILL NOT WORK* if the TL kernel
-> takes either the coordinate field (`chi`) or panel IDs as arguments
-> (`tl_vorticity_advection_kernel_mod.F90` is one example). This is the
-> subject of Issue #1708.
-
 These instructions assume that you have a local, compiled version of LFRic
 in `<lfric-root>` and that the directory containing this file is `<work-dir>`.
 
@@ -72,10 +66,17 @@ mv source/driver/skeleton_driver_mod.f90{,.bak}
 mv new_driver.f90 source/driver/skeleton_driver_mod.f90
 ```
 
-4. Build and run the modified miniapp:
+4. Build the modified miniapp:
 ```sh
 make clean
 make
+``
+
+Note that at this stage you may get errors relating to the LFRic unit-test
+framework. These can be ignored.
+
+5. Run the miniapp:
+```sh
 cd example
 ../bin/skeleton ./configuration.nml
 ...
@@ -109,6 +110,14 @@ ACTIVE_VAR_LIST="lhs x lhs_e x_e" TL_KERNEL_NAME=matrix_vector_kernel make
 
 ```sh
 ACTIVE_VAR_LIST="lhs x lhs_e x_e" TL_KERNEL_NAME=dg_matrix_vector_kernel make
+```
+
+Those kernels that are passed arguments containing geometric information
+require special handling to ensure that the values of those arguments are not
+overwritten by pseudo-random data in the test harness:
+
+```sh
+ACTIVE_VAR_LIST="r_u vorticity wind res_dot_product vorticity_term cross_product1 cross_product2 j_vorticity u_at_quad mul2 vorticity_at_quad" GEOMETRY_VAR_LIST="-coord-arg 6 -panel-id-arg 7" TL_KERNEL_NAME=tl_vorticity_advection_kernel make
 ```
 
 ## Licence

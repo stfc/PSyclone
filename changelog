@@ -207,6 +207,10 @@
 	72) PR #1918 for #1883. Updates kern_call_arg_list() (for LFRic) to
 	use PSyIR. (Step towards using PSyIR in LFRic PSy-layer generation
 	and required for PSyKE driver generation.)
+
+	73) PR #1898 towards #1708. Extends PSyAD LFRic harness support to
+	kernels with field arguments that contain geometry information.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.

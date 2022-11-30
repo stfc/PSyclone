@@ -62,7 +62,8 @@ TEST_ARRAY_DIM_SIZE = 20
 
 
 def generate_adjoint_str(tl_fortran_str, active_variables,
-                         api=None, create_test=False):
+                         api=None, create_test=False,
+                         coord_arg_index=None, panel_id_arg_index=None):
     '''Takes a tangent-linear kernel encoded as a string as input
     and returns its adjoint encoded as a string along with (if requested)
     a test harness, also encoded as a string.
@@ -70,9 +71,15 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
     :param str tl_fortran_str: Fortran implementation of a tangent-linear \
         kernel.
     :param List[str] active_variables: list of active variable names.
-    :param Optional[str] api: The PSyclone API in use, if any.
+    :param Optional[str] api: the PSyclone API in use, if any.
     :param Optional[bool] create_test: whether or not to create test code for \
         the adjoint kernel.
+    :param Optional[int] coord_arg_index: the (1-based) index of the kernel \
+        argument holding the mesh coordinates (if any). Only applies to the \
+        LFRic (dynamo0.3) API.
+    :param Optional[int] panel_id_arg_index: the (1-based) index of the kernel\
+        argument holding the panel IDs (if any). Only applies to the LFRic \
+        (dynamo0.3) API.
 
     :returns: a 2-tuple consisting of a string containing the Fortran \
         implementation of the supplied tangent-linear kernel and (if \
@@ -120,7 +127,9 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
     elif api == "dynamo0.3":
         ad_psyir = generate_lfric_adjoint(tl_psyir, active_variables)
         if create_test:
-            test_psyir = generate_lfric_adjoint_harness(tl_psyir)
+            test_psyir = generate_lfric_adjoint_harness(tl_psyir,
+                                                        coord_arg_index,
+                                                        panel_id_arg_index)
     else:
         raise NotImplementedError(
             f"PSyAD only supports generic routines/programs or LFRic "
