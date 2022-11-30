@@ -225,10 +225,14 @@ class InlineTrans(Transformation):
         :raises InternalError: if the actual and dummy references both \
                                represent array-element accessors.
         '''
+        if not isinstance(ref, Reference):
+            return ref
+
         if ref.symbol not in dummy_args:
             # The supplied reference is not to a dummy argument.
             return ref
 
+        # Lookup the actual argument that corresponds to this dummy argument.
         actual_arg = call_node.children[dummy_args.index(ref.symbol)]
 
         # If the local reference is a simple Reference then we can just
@@ -274,16 +278,17 @@ class InlineTrans(Transformation):
         # head of the actual reference (e.g. grid => my_struc%grid) and then
         # any ranges in the actual reference need to be replaced by the
         # corresponding index expressions in the local reference.
-
-        top_indices = None
+        actual_indices = None
         local_indices = None
         if isinstance(actual_arg, ArrayMixin):
-            top_indices = [idx.copy() for idx in actual_arg.indices]
+            actual_indices = [idx.copy() for idx in actual_arg.indices]
         if isinstance(ref, ArrayMixin):
             local_indices = ref.indices
 
         members = []
         local_idx_posn = 0
+        # Loop over any Members and Indices in both the actual argument and
+        # the reference to the dummy argument.
         for cursor in (actual_arg, ref):
             while hasattr(cursor, "member"):
                 cursor = cursor.member
@@ -303,34 +308,69 @@ class InlineTrans(Transformation):
                     members.append(cursor.name)
 
         if members:
-            if top_indices:
+            if actual_indices:
                 new_ref = ArrayOfStructuresReference.create(actual_arg.symbol,
-                                                            top_indices,
+                                                            actual_indices,
                                                             members)
             else:
                 new_ref = StructureReference.create(actual_arg.symbol,
                                                     members)
         else:
-            # One or both must be just array accesses. This means that the
-            # actual argument contains a slice. (The PSyIR does not explicitly
+            # Both accesses must be plain array accesses. Since we've already
+            # handled simple References, this means that the actual argument
+            # *must* contain a slice and the local access *may* contain a
+            # slice. (The PSyIR does not explicitly
             # support pointers and in Fortran, an array of pointers to arrays
             # can only be achieved through having an array of structures.)
+            # The shape of the actual argument must correspond to the shape
+            # of the dummy argument.
+            # So, e.g.:
+            #
+            # call sub1a(a(1,:,:))
+            # subroutine sub1a(x)
+            #   real, intent(inout), dimension(10,10) :: x
+            #   integer :: j
+            #   do j = 1, 10
+            #     x(1:10,j) = 2.0 * x(1:10,j)
+            #   end do
+            #
+            # would become:
+            #
+            # do j = 1, 10
+            #   a(1,1:10,j) = 2.0 * a(1,1:10,j)
+            # end do
+            #
+            # i.e. any Range in the access to the dummy argument must replace
+            # a Range in the actual argument.
+            # We must loop over each index in the local access...TODO
+            for idx in actual_indices:
+                if not isinstance(idx, Range):
+                    continue
+
             local_idx_posn = 0
             ranges = call_node.walk(Range)
             if ranges:
                 new_indices = []
-                for idx in top_indices:
+                for idx in actual_indices:
                     # TODO - this handling of a Range is duplicated.
                     if isinstance(idx, Range):
                         new_idx = local_indices[local_idx_posn].copy()
-                        new_indices.append(self.replace_dummy_arg(
-                            new_idx, call_node,
-                            dummy_args))
-                        local_idx_posn += 1
+                        if isinstance(new_idx, Range):
+                            for child in [new_idx.start, new_idx.stop,
+                                          new_idx.step]:
+                                self.replace_dummy_arg(child, call_node,
+                                                       dummy_args)
+                            new_indices.append(new_idx)
+                        else:
+                            new_indices.append(self.replace_dummy_arg(
+                                new_idx, call_node,
+                                dummy_args))
                     else:
                         new_indices.append(idx.copy())
+                    local_idx_posn += 1
+
             else:
-                if top_indices and local_indices:
+                if actual_indices and local_indices:
                     raise InternalError(
                         f"The reference to '{ref.symbol.name}' in the call to "
                         f"'{call_node.name}' is an array access but there is "
@@ -343,7 +383,7 @@ class InlineTrans(Transformation):
                     new_indices.append(
                         self.replace_dummy_arg(idx, call_node, dummy_args))
                 # Call-site index expressions can just be copied.
-                for idx in top_indices:
+                for idx in actual_indices:
                     new_indices.append(idx.copy())
             new_ref = ArrayReference.create(actual_arg.symbol, new_indices)
         ref.replace_with(new_ref)
@@ -613,9 +653,10 @@ class InlineTrans(Transformation):
             if actual_rank:
                 ranges = actual_arg.walk(Range)
                 for rge in ranges:
-                    if rge.parent is actual_arg:
-                        if not actual_arg.is_full_range(
-                                actual_arg.indices.index(rge)):
+                    ancestor_ref = rge.ancestor(Reference)
+                    if ancestor_ref is actual_arg:
+                        if not rge.parent.is_full_range(
+                                rge.parent.indices.index(rge)):
                             raise TransformationError(LazyString(
                                 lambda: f"Cannot inline routine "
                                 f"'{routine.name}' because argument "
@@ -623,7 +664,10 @@ class InlineTrans(Transformation):
                                 f"an array subsection (TODO #924)."))
                     else:
                         # Have a range in an indirect access.
-                        raise TransformationError("TODO")
+                        raise TransformationError(LazyString(
+                            lambda: f"Cannot inline routine '{routine.name}' "
+                            f"because argument '{visitor(actual_arg)}' has an "
+                            f"array range in an indirect access (TODO #924)."))
 
     @staticmethod
     def _find_routine(call_node):

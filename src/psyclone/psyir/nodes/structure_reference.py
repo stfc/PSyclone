@@ -286,6 +286,8 @@ class StructureReference(Reference):
             cursor_type = cursor_type.components[cursor.name].datatype
             if isinstance(cursor_type, (UnknownType, DeferredType)):
                 return DeferredType()
+            if isinstance(cursor_type, DataTypeSymbol):
+                cursor_type = cursor_type.datatype
             if isinstance(cursor, ArrayMixin):
                 # pylint: disable=protected-access
                 shape.extend(cursor._get_effective_shape())

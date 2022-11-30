@@ -45,9 +45,13 @@ from psyclone.psyir.transformations import (InlineTrans,
                                             TransformationError)
 from psyclone.tests.utilities import Compile
 
-MY_TYPE = ("  type my_type\n"
+MY_TYPE = ("  type other_type\n"
+           "    real, dimension(10) :: data\n"
+           "  end type other_type\n"
+           "  type my_type\n"
            "    integer :: idx\n"
            "    real, dimension(10) :: data\n"
+           "    type(other_type) :: local\n"
            "  end type my_type\n")
 
 # init
@@ -220,11 +224,16 @@ def test_apply_struct_arg(fortran_reader, fortran_writer, tmpdir):
         f"contains\n"
         f"  subroutine run_it()\n"
         f"  integer :: i\n"
+        f"  type big_type\n"
+        f"    type(my_type) :: local\n"
+        f"  end type big_type\n"
         f"  type(my_type) :: var\n"
         f"  type(my_type) :: var_list(10)\n"
-        f"  do i=1,10\n"
+        f"  type(big_type) :: var2(5)\n"
+        f"  do i=1,5\n"
         f"    call sub(var, i)\n"
         f"    call sub(var_list(i), i)\n"
+        f"    call sub(var2(i)%local, i)\n"
         f"  end do\n"
         f"  end subroutine run_it\n"
         f"  subroutine sub(x, ivar)\n"
@@ -241,13 +250,17 @@ def test_apply_struct_arg(fortran_reader, fortran_writer, tmpdir):
     inline_trans = InlineTrans()
     inline_trans.apply(routines[0])
     inline_trans.apply(routines[1])
+    inline_trans.apply(routines[2])
     output = fortran_writer(psyir)
-    assert ("    do i = 1, 10, 1\n"
-            "      do i_2 = 1, 10, 1\n"
-            "        var%data(i_2) = 2.0 * i\n"
+    assert ("    do i = 1, 5, 1\n"
+            "      do i_3 = 1, 10, 1\n"
+            "        var%data(i_3) = 2.0 * i\n"
             "      enddo\n"
             "      do i_1 = 1, 10, 1\n"
             "        var_list(i)%data(i_1) = 2.0 * i\n"
+            "      enddo\n"
+            "      do i_2 = 1, 10, 1\n"
+            "        var2(i)%local%data(i_2) = 2.0 * i\n"
             "      enddo\n"
             "    enddo\n" in output)
     assert Compile(tmpdir).string_compiles(output)
@@ -264,28 +277,43 @@ def test_apply_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
         "contains\n"
         "  subroutine run_it()\n"
         "  integer :: i\n"
-        "  real :: a(5,10,10)\n"
+        "  real :: a(5,10,10), b(10,10)\n"
         "  do i=1,10\n"
-        "    call sub(a(1,:,i))\n"
+        "    call sub1(a(1,:,i))\n"
         "  end do\n"
+        "  call sub1a(a(1,1,:))\n"
+        "  call sub2(a(1,:,:))\n"
+        "  call sub2(b)\n"
         "  end subroutine run_it\n"
-        "  subroutine sub(x)\n"
+        "  subroutine sub1(x)\n"
         "    real, intent(inout), dimension(10) :: x\n"
         "    integer :: i\n"
         "    do i = 1, 10\n"
         "      x(i) = 2.0*i\n"
         "    end do\n"
-        "  end subroutine sub\n"
+        "  end subroutine sub1\n"
+        "  subroutine sub1a(x)\n"
+        "    real, intent(inout), dimension(10) :: x\n"
+        "    x(1:10) = 2.0 * x(1:10)\n"
+        "  end subroutine sub1a\n"
+        "  subroutine sub2(x)\n"
+        "    real, intent(inout), dimension(10,10) :: x\n"
+        "    integer :: i\n"
+        "    x = 2.0 * x\n"
+        "  end subroutine sub2\n"
         "end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
-    routine = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
-    inline_trans.apply(routine)
+    for call in psyir.walk(Call):
+        inline_trans.apply(call)
     output = fortran_writer(psyir)
     assert ("    do i = 1, 10, 1\n"
-            "      do i_1 = 1, 10, 1\n"
-            "        a(1,i_1,i) = 2.0 * i_1\n"
-            "      enddo\n" in output)
+            "      do i_3 = 1, 10, 1\n"
+            "        a(1,i_3,i) = 2.0 * i_3\n"
+            "      enddo\n"
+            "    enddo\n"
+            "    a(1,:,:) = 2.0 * a(1,:,:)\n"
+            "    b = 2.0 * b\n" in output)
     assert Compile(tmpdir).string_compiles(output)
 
 
@@ -310,6 +338,10 @@ def test_apply_struct_array_arg(fortran_reader, fortran_writer, tmpdir):
         f"    ig = min(i, 5)\n"
         f"    call sub(grid_list(ig)%data(i))\n"
         f"  end do\n"
+        f"  do i=1,10\n"
+        f"    ig = min(i, 5)\n"
+        f"    call sub(grid_list(ig)%local%data(i))\n"
+        f"  end do\n"
         f"  end subroutine run_it\n"
         f"  subroutine sub(x)\n"
         f"    real, intent(inout) :: x\n"
@@ -321,6 +353,7 @@ def test_apply_struct_array_arg(fortran_reader, fortran_writer, tmpdir):
     inline_trans = InlineTrans()
     inline_trans.apply(routines[0])
     inline_trans.apply(routines[1])
+    inline_trans.apply(routines[2])
     output = fortran_writer(psyir).lower()
     assert ("    do i = 1, 10, 1\n"
             "      a(i) = 1.0\n"
@@ -329,6 +362,11 @@ def test_apply_struct_array_arg(fortran_reader, fortran_writer, tmpdir):
     assert ("    do i = 1, 10, 1\n"
             "      ig = min(i, 5)\n"
             "      grid_list(ig)%data(i) = 2.0 * grid_list(ig)%data(i)\n"
+            "    enddo\n" in output)
+    assert ("    do i = 1, 10, 1\n"
+            "      ig = min(i, 5)\n"
+            "      grid_list(ig)%local%data(i) = 2.0 * "
+            "grid_list(ig)%local%data(i)\n"
             "    enddo\n" in output)
     assert Compile(tmpdir).string_compiles(output)
 
@@ -1131,7 +1169,8 @@ def test_validate_array_subsection(fortran_reader):
         f"  real A(100, 100)\n"
         f"  type(my_type) :: var\n"
         f"  call S(A(26:,2:))\n"
-        f"  call s(var%data(3:10))\n"
+        f"  call s(var%data(3:10,3:10))\n"
+        f"  call s( A(var%data(3:10), var%data(2:9)) )\n"
         f"end subroutine\n"
         f"subroutine s(x)\n"
         f"  real :: x(:, :)\n"
@@ -1147,8 +1186,13 @@ def test_validate_array_subsection(fortran_reader):
             "array subsection (TODO #924)" in str(err.value))
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(calls[1])
-    assert ("Cannot inline routine 's' because argument 'a(26:,2:)' is an "
-            "array subsection (TODO #924)" in str(err.value))
+    assert ("Cannot inline routine 's' because argument 'var%data(3:10,3:10)' "
+            "is an array subsection (TODO #924)" in str(err.value))
+    with pytest.raises(TransformationError) as err:
+        inline_trans.apply(calls[2])
+    assert ("Cannot inline routine 's' because argument 'a(var%data(3:10),"
+            "var%data(2:9))' has an array range in an indirect access (TODO "
+            "#924)" in str(err.value))
 
 
 def test_validate_assumed_shape(fortran_reader):

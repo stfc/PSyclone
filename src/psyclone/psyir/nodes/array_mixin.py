@@ -420,7 +420,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                 if isinstance(dtype, ArrayType):
                     # An array slice can be defined by a 1D slice of another
                     # array, e.g. `a(b(1:4))`.
-                    indirect_array_shape = dtype._get_effective_shape
+                    indirect_array_shape = dtype.shape
                     if len(indirect_array_shape) > 1:
                         raise InternalError(
                             f"An array defining a slice of a dimension of "
