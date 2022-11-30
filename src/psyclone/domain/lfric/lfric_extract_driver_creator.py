@@ -41,8 +41,7 @@ the output data contained in the input file.
 
 from __future__ import absolute_import
 
-import six
-
+from psyclone.core import Signature
 from psyclone.domain.lfric import KernCallArgList
 from psyclone.errors import InternalError
 from psyclone.psyGen import InvokeSchedule, Kern
@@ -148,7 +147,8 @@ class LFRicExtractDriverCreator:
             array = ArrayType(base_type, [ArrayType.Extent.DEFERRED])
             new_symbol = DataSymbol(flattened_name, array)
             return new_symbol
-        print("OOPS")
+        data_type = reference.datatype
+        return DataSymbol(flattened_name, data_type)
         return None
 
     # -------------------------------------------------------------------------
@@ -189,8 +189,38 @@ class LFRicExtractDriverCreator:
         # Furthermore, the netcdf file declares the variable without `%data`,
         # so removing `%data` here also simplifies code creation later on.
 
-        data_type = old_reference.symbol.datatype
         signature, _ = old_reference.get_signature_and_indices()
+        # Now remove '_proxy' that might have been added to a variable name,
+        # to preserve the expected names from a user's point of view.
+        symbol_name = proxy_name_mapping.get(signature[0], signature[0])
+        # Create the new signature, e.g. f1_proyx%data --> f1
+        signature = Signature(symbol_name, signature[1:])
+
+        # We use this string as a unique tag - it must be unique since no
+        # other tag uses a '%' in the name. So even if the flattened name
+        # (e.g. f1_data) is not unique, the tatg `f1%data` is unique, and
+        # the symbol table will then create a unique name for this symbol.
+        signature_str = str(signature)
+
+        if isinstance(old_reference.symbol.datatype, ArrayType):
+            # Vector field. Get the index that is being accessed:
+            indx = int(old_reference.children[-1].value)
+            signature = Signature(f"{symbol_name}_{indx}", signature[1:])
+        else:
+            signature = Signature(symbol_name, signature[1:])
+
+        signature_str = str(signature)
+        try:
+            symbol = symbol_table.lookup_with_tag(signature_str)
+        except KeyError:
+            flattened_name = self.flatten_string(signature_str)
+            symbol = DataSymbol(flattened_name, old_reference.datatype)
+            symbol_table.add(symbol, tag=f"{signature_str}")
+
+        old_reference.replace_with(Reference(symbol))
+        return
+
+
         if isinstance(data_type, ArrayType):
             if data_type.intrinsic.name in ["integer_field_proxy_type",
                                             "field_proxy_type"]:
@@ -272,7 +302,7 @@ class LFRicExtractDriverCreator:
 
             # We found a new symbol, so we create a new symbol in the new
             # symbol table here.
-            if old_symbol.is_array:
+            if False and old_symbol.is_array:
                 intrinsic = self._default_types[old_symbol.datatype.intrinsic]
                 array_type = ArrayType(intrinsic,
                                        [ArrayType.Extent.DEFERRED] *
@@ -411,22 +441,22 @@ class LFRicExtractDriverCreator:
             # when the variable accesses were analysed. Therefore, these
             # variables have References, and will already have been declared
             # in the symbol table (in add_all_kernel_symbols).
-            sig_str = str(signature)
-            orig_sym = original_symbol_table.lookup(sig_str)
+            sig_str = LFRicExtractDriverCreator.flatten_string(str(signature))
+            orig_sym = original_symbol_table.lookup(signature[0])
             if orig_sym.is_array and \
                     orig_sym.datatype.intrinsic.name == "field_type":
                 upper = int(orig_sym.datatype.shape[0].upper.value)
                 for i in range(1, upper+1):
-                    sym = symbol_table.lookup_with_tag(f"{sig_str}_{i}")
+                    sym = symbol_table.lookup_with_tag(f"{sig_str}_{i}%data")
                     name_lit = Literal(f"{sig_str}%{i}", CHARACTER_TYPE)
                     LFRicExtractDriverCreator.add_call(program, read_var,
                                                        [name_lit,
                                                         Reference(sym)])
                 continue
             try:
-                sym = symbol_table.lookup_with_tag(sig_str)
+                sym = symbol_table.lookup_with_tag(str(signature))
             except KeyError:
-                sig_str += "_proxy"
+                sig_str += "%data"
                 sym = symbol_table.lookup_with_tag(sig_str)
             name_lit = Literal(sig_str, CHARACTER_TYPE)
             LFRicExtractDriverCreator.add_call(program, read_var,
@@ -444,7 +474,7 @@ class LFRicExtractDriverCreator:
             try:
                 sym = symbol_table.lookup_with_tag(sig_str)
             except KeyError:
-                sig_str += "_proxy"
+                sig_str += "%data"
                 sym = symbol_table.lookup_with_tag(sig_str)
             is_input = signature in input_list
 
@@ -452,7 +482,7 @@ class LFRicExtractDriverCreator:
             # ------------------------------------------------
             # Declare a 'post' variable of the same type and
             # read in its value.
-            post_name = sig_str+postfix
+            post_name = sym.name+postfix
             post_sym = symbol_table.new_symbol(post_name,
                                                symbol_type=DataSymbol,
                                                datatype=sym.datatype)
