@@ -380,7 +380,7 @@ class KernCallArgList(ArgOrdering):
         # 1 to the vector size which is what we
         # require in our Fortran code
         array_1d = ArrayType(psyir.LfricRealScalarDataType(),
-                             [ArrayType.Extent.ATTRIBUTE])
+                             [ArrayType.Extent.DEFERRED])
         for idx in range(1, argvect.vector_size + 1):
             # Create the accesses to each element of the vector:
             lit_ind = Literal(str(idx), INTEGER_SINGLE_TYPE)
@@ -416,7 +416,7 @@ class KernCallArgList(ArgOrdering):
 
         # Add an access to field_proxy%data:
         array_1d = ArrayType(psyir.LfricRealScalarDataType(),
-                             [ArrayType.Extent.ATTRIBUTE])
+                             [ArrayType.Extent.DEFERRED])
         self.append_user_type(arg.module_name, arg.proxy_data_type, ["data"],
                               arg.proxy_name, enforce_datatype=array_1d)
 
