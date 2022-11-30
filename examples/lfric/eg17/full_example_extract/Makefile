@@ -55,6 +55,7 @@ endif
 
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g
+F90FLAGS += -ffree-line-length-none
 
 OBJ = main_psy.o main_alg.o testkern_w0_kernel_mod.o
 
