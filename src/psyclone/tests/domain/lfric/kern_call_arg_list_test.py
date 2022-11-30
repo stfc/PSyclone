@@ -108,7 +108,7 @@ def test_cellmap_intergrid(dist_mem, fortran_writer):
     check_psyir_results(create_arg_list, fortran_writer)
     # pylint: disable=no-member
     array_1d = ArrayType(psyir.LfricRealScalarDataType(),
-                         [ArrayType.Extent.ATTRIBUTE])
+                         [ArrayType.Extent.DEFERRED])
     assert create_arg_list.psyir_arglist[5].datatype == array_1d
 
 
@@ -138,7 +138,7 @@ def test_kerncallarglist_face_xyoz(dist_mem, fortran_writer):
     check_psyir_results(create_arg_list, fortran_writer)
     # pylint: disable=no-member
     array_1d = ArrayType(psyir.LfricRealScalarDataType(),
-                         [ArrayType.Extent.ATTRIBUTE])
+                         [ArrayType.Extent.DEFERRED])
     assert create_arg_list.psyir_arglist[2].datatype == array_1d
 
 
