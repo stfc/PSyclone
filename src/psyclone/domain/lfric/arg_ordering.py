@@ -276,10 +276,10 @@ class ArgOrdering:
         '''
         :return: the kernel argument list. The generate method must be \
                  called first.
-        :rtype: list of str.
+        :rtype: List[str]
 
         :raises InternalError: if the generate() method has not been \
-        called.
+                               called.
 
         '''
         if not self._generate_called:
@@ -312,10 +312,9 @@ class ArgOrdering:
         :param int idx: the index of an actual argument to the kernel \
                         subroutine.
 
-        :returns: the 0-indexed position of the corresponding metadata entry.
-        :rtype: int
-
-        :raises KeyError: if no entry for the specified argument exists.
+        :returns: the 0-indexed position of the corresponding metadata entry \
+                  or None if there isn't one.
+        :rtype: Optional[int]
 
         '''
         return self._arg_index_to_metadata_index[idx]
