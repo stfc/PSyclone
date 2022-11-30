@@ -94,7 +94,7 @@ def test_validate_invalid_get_kernel_schedule(monkeypatch):
         kernel_trans.apply(kernel)
     assert ("KernelModuleInlineTrans failed to retrieve PSyIR for kernel "
             "'kernel_with_global_code' using the 'get_kernel_schedule' "
-            "method." in str(err.value))
+            "method due to" in str(err.value))
 
 
 def test_validate_no_inline_global_var(parser):
@@ -107,9 +107,9 @@ def test_validate_no_inline_global_var(parser):
     kernels = sched.walk(Kern)
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(kernels[0])
-    assert ("'kernel_with_global_code' contains accesses to data (variable "
-            "'alpha') that are not present in the Symbol Table(s) "
-            "within subroutine scope." in str(err.value))
+    assert ("'kernel_with_global_code' contains accesses to 'alpha' which is "
+            "declared in the same module scope. Cannot inline such a kernel."
+            in str(err.value))
 
     # Check that the issue is also reported if the symbol is inside a
     # Codeblock
@@ -124,9 +124,9 @@ def test_validate_no_inline_global_var(parser):
 
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(kernels[0])
-    assert ("'kernel_with_global_code' contains accesses to data (variable "
-            "'alpha' in a CodeBlock) that are not present in the Symbol "
-            "Table(s) within subroutine scope." in str(err.value))
+    assert ("'kernel_with_global_code' contains accesses to 'alpha' in a "
+            "CodeBlock that is declared in the same module scope. Cannot "
+            "inline such a kernel." in str(err.value))
 
 
 def test_validate_name_clashes():
@@ -451,6 +451,23 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     inline_trans._prepare_code_to_inline(routine)
     result = fortran_writer(routine)
     assert "use external_mod1, only : my_sub" in result
+
+    # Also, if they are inside CodeBlocks
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+        use external_mod1, only: a, b
+        implicit none
+        contains
+        subroutine code()
+            a => b
+        end subroutine code
+    end module my_mod
+    ''')
+
+    routine = psyir.walk(Routine)[0]
+    inline_trans._prepare_code_to_inline(routine)
+    result = fortran_writer(routine)
+    assert "use external_mod1, only : a, b" in result
 
     # Check that symbol shadowing is respected (in this example
     # only 'c' must be brought into the subroutine)

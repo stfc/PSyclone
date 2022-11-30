@@ -107,24 +107,28 @@ class KernelModuleInlineTrans(Transformation):
         except Exception as error:
             raise TransformationError(
                 f"{self.name} failed to retrieve PSyIR for kernel "
-                f"'{node.name}' using the 'get_kernel_schedule' method."
+                f"'{node.name}' using the 'get_kernel_schedule' method"
+                f" due to {error}."
                 ) from error
 
-        # We do not support kernels that use global variables from the
-        # same module (we would need to create new imports to the this
+        # We do not support kernels that use symbols declared in its
+        # parent module (we would need to create new imports to the this
         # module for those, and we currently don't do this).
-        # These can only be found in References and CodeBlocks
-        for var in kernel_schedule.walk(Reference):
-            if not var.symbol.is_import:
+        # These can only be found in References, Calls and CodeBlocks
+        for var in kernel_schedule.walk((Reference, Call)):
+            if isinstance(var, Reference):
+                symbol = var.symbol
+            elif isinstance(var, Call):
+                symbol = var.routine
+            if not symbol.is_import:
                 try:
                     var.scope.symbol_table.lookup(
-                        var.name, scope_limit=var.ancestor(Routine))
+                        symbol.name, scope_limit=var.ancestor(Routine))
                 except KeyError as err:
                     raise TransformationError(
-                        f"Kernel '{node.name}' contains accesses to data "
-                        f"(variable '{var.name}') that are not present in "
-                        f"the Symbol Table(s) within subroutine scope. Cannot"
-                        f" inline such a kernel.") from err
+                        f"Kernel '{node.name}' contains accesses to "
+                        f"'{symbol.name}' which is declared in the same "
+                        f"module scope. Cannot inline such a kernel.") from err
         for block in kernel_schedule.walk(CodeBlock):
             for name in block.get_symbol_names():
                 try:
@@ -133,10 +137,10 @@ class KernelModuleInlineTrans(Transformation):
                 except KeyError as err:
                     if not block.scope.symbol_table.lookup(name).is_import:
                         raise TransformationError(
-                            f"Kernel '{node.name}' contains accesses to data "
-                            f"(variable '{name}' in a CodeBlock) that are not "
-                            f"present in the Symbol Table(s) within subroutine"
-                            f" scope. Cannot inline such a kernel.") from err
+                            f"Kernel '{node.name}' contains accesses to "
+                            f"'{name}' in a CodeBlock that is declared in the "
+                            f"same module scope. "
+                            f"Cannot inline such a kernel.") from err
 
         # We can't transform subroutines that shadow top-level symbol module
         # names, because we won't be able to bring this into the subroutine
@@ -255,10 +259,10 @@ class KernelModuleInlineTrans(Transformation):
 
         # Note that we use the resolved callee subroutine name and not the
         # caller one, this is important because if it is an interface it will
-        # use insert the concrete implementation name. When this happens it
-        # will have a new name which could already be in use, but the check
-        # below does guarantee that if it exists it is only valid if it leads
-        # to the exact same implementation.
+        # use the concrete implementation name. When this happens the new name
+        # may already be in use, but the equality check below guarantees
+        # that if it exists it is only valid when it references the exact same
+        # implementation.
         code_to_inline = node.get_kernel_schedule()
         name = code_to_inline.name
 
@@ -292,7 +296,6 @@ class KernelModuleInlineTrans(Transformation):
                             f"another, different, subroutine with the same "
                             f"name already exists and versioning of module-"
                             f"inlined subroutines is not implemented yet.")
-
 
         # We only modify the kernel call name after the equality check to
         # ensure the apply will succeed and we don't leave with an inconsistent
