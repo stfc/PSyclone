@@ -33,27 +33,27 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing the InterGridVectorArg class which captures the
+'''Module containing the InterGridVectorArgMetadata class which captures the
 metadata associated with a intergrid vector argument. Supports the
 creation, modification and Fortran output of an InterGridVector
 argument.
 
 '''
-from fparser.two import Fortran2003
-from psyclone.domain.lfric.kernel.inter_grid_arg import InterGridArg
+from psyclone.domain.lfric.kernel.inter_grid_arg_metadata import \
+    InterGridArgMetadata
 
 
-class InterGridVectorArg(InterGridArg):
+class InterGridVectorArgMetadata(InterGridArgMetadata):
     '''Class to capture LFRic kernel metadata information for an
     InterGridVector argument.
 
-    :param Optional[str] datatype: the datatype of this \
-        InterGridVector argument (GH_INTEGER, ...).
-    :param Optional[str] access: the way the kernel accesses this \
-        InterGridVector argument (GH_WRITE, ...).
-    :param Optional[str] function_space: the function space that this \
+    :param str datatype: the datatype of this InterGridVector argument \
+        (GH_INTEGER, ...).
+    :param str access: the way the kernel accesses this InterGridVector \
+        argument (GH_WRITE, ...).
+    :param str function_space: the function space that this \
         InterGridVector argument is on (W0, ...).
-    :param Optional[str] vector_length: the size of the vector.
+    :param str vector_length: the size of the vector.
 
     '''
     # The relative position of LFRic vector length metadata. Metadata
@@ -64,62 +64,43 @@ class InterGridVectorArg(InterGridArg):
     # values not provided here are common to the parent classes and
     # are inherited from them.
     vector_length_arg_index = 0
+    # The name to use for any exceptions.
+    check_name = "inter-grid-vector"
+    # Whether the class captures vector metadata.
+    vector = True
 
-    def __init__(self, datatype=None, access=None, function_space=None,
-                 mesh_arg=None, vector_length=None):
+    def __init__(self, datatype, access, function_space, mesh_arg,
+                 vector_length):
         super().__init__(datatype, access, function_space, mesh_arg)
+        self.vector_length = vector_length
 
-        if vector_length is None:
-            self._vector_length = vector_length
-        else:
-            self.vector_length = vector_length
+    @classmethod
+    def _get_metadata(cls, fparser2_tree):
+        '''Extract the required metadata from the fparser2 tree and return it
+        as strings. Also check that the metadata is in the expected
+        form (but do not check the metadata values as that is done
+        separately).
 
-    @staticmethod
-    def create_from_fparser2(fparser2_tree):
-        '''Create an instance of this class from an fparser2 tree.
+        :param fparser2_tree: fparser2 tree containing the metadata \
+            for this argument.
+        :type fparser2_tree: \
+            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
 
-        :param fparser2_tree: fparser2 tree capturing the metadata for \
-            an InterGrid vector argument.
-        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
-
-        :returns: an instance of InterGridVectorArg.
-        :rtype: :py:class:`psyclone.domain.lfric.kernel.InterGridArg`
+        :returns: a tuple containing the datatype, access, function \
+            space, mesh and vector-length metadata.
+        :rtype: Tuple[str, str, str, str, str]
 
         '''
-        InterGridVectorArg.check_fparser2(
-            fparser2_tree, nargs=5, encoding=Fortran2003.Structure_Constructor)
-        InterGridArg.check_first_arg(
-            fparser2_tree, "InterGridVector", vector=True)
-        vector_length = InterGridVectorArg.get_and_check_vector_length(
+        datatype, access, function_space, mesh_arg = super()._get_metadata(
             fparser2_tree)
-        datatype, access, function_space = \
-            InterGridVectorArg.get_type_access_and_fs(fparser2_tree)
-        mesh_arg = InterGridVectorArg.get_mesh_arg(fparser2_tree)
-        InterGridVectorArg.check_remaining_args(
-            fparser2_tree, datatype, access, function_space, mesh_arg,
-            vector_length)
-        return InterGridVectorArg(
-            datatype, access, function_space, mesh_arg, vector_length)
+        vector_length = cls.get_vector_length(fparser2_tree)
+        return (datatype, access, function_space, mesh_arg, vector_length)
 
     def fortran_string(self):
         '''
         :returns: the metadata represented by this class as Fortran.
         :rtype: str
-
-        :raises ValueError: if one or more of the datatype, access, \
-            function_space, mesh_arg or vecgtor_length values have not \
-            been set.
-
         '''
-        if not (self.datatype and self.access and self.function_space and
-                self.mesh_arg and self.vector_length):
-            raise ValueError(
-                f"Values for datatype, access, function_space, mesh_arg "
-                f"and vector_length must be provided before calling the "
-                f"fortran_string method, but found '{self.datatype}', "
-                f"'{self.access}', '{self.function_space}', "
-                f"'{self.mesh_arg}' and '{self.vector_length}', respectively.")
-
         return (f"arg_type({self.form}*{self.vector_length}, "
                 f"{self.datatype}, {self.access}, {self.function_space}, "
                 f"mesh_arg={self.mesh_arg})")
@@ -136,19 +117,29 @@ class InterGridVectorArg(InterGridArg):
     @vector_length.setter
     def vector_length(self, value):
         '''
-
         :param str value: set the intergrid vector length to the specified \
             value.
 
         :raises TypeError: if the provided value is not of type str.
+        :raises ValueError: if the provided value is not a string \
+            containing an integer.
         :raises ValueError: if the provided value is not greater than 1.
 
         '''
         if not isinstance(value, str):
             raise TypeError(f"The vector size should be a string but found "
                             f"{type(value).__name__}.")
-        int_value = int(value)
+        try:
+            int_value = int(value)
+        except ValueError as info:
+            raise ValueError(
+                f"The vector size should be a string containing an integer, "
+                f"but found '{value}'.") from info
+
         if int_value <= 1:
             raise ValueError(f"The vector size should be an integer greater "
                              f"than 1 but found {value}.")
         self._vector_length = value
+
+
+__all__ = ["InterGridVectorArgMetadata"]
