@@ -42,16 +42,18 @@
     The LFRicBuiltInCallFactory creates the Python object required for
     a given built-in call. '''
 
+# pylint: disable=too-many-lines
 import abc
+
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
-from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric import LFRicConstants, psyir
 from psyclone.errors import InternalError
 from psyclone.f2pygen import AssignGen, PSyIRGen
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import BuiltIn
 from psyclone.psyir.nodes import (Assignment, BinaryOperation, Call, Reference,
                                   StructureReference)
-from psyclone.psyir.symbols import (DataSymbol, INTEGER_SINGLE_TYPE,
+from psyclone.psyir.symbols import (ArrayType, DataSymbol, INTEGER_SINGLE_TYPE,
                                     RoutineSymbol)
 
 # The name of the file containing the meta-data describing the
@@ -423,8 +425,11 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         '''
         idx_sym = self.get_dof_loop_index_symbol()
 
+        array_1d = ArrayType(psyir.LfricRealScalarDataType(),
+                             [ArrayType.Extent.DEFERRED])
         return [StructureReference.create(
-            arg.psyir_expression().symbol, [("data", [Reference(idx_sym)])])
+            arg.psyir_expression().symbol, [("data", [Reference(idx_sym)])],
+            enforce_datatype=array_1d)
                 for arg in self._arguments.args if arg.is_field]
 
     def get_scalar_argument_references(self):
