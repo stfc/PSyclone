@@ -134,7 +134,7 @@ class LFRicExtractDriverCreator:
                 array = ArrayType(base_type, [ArrayType.Extent.DEFERRED])
                 new_symbol = DataSymbol(flattened_name, array)
                 return new_symbol
-            elif data_type.intrinsic.name == "field_proxy_type":
+            if data_type.intrinsic.name == "field_proxy_type":
                 base_type = self._default_types['real']
                 array = ArrayType(base_type, [ArrayType.Extent.DEFERRED])
                 new_symbol = DataSymbol(flattened_name, array)
@@ -756,7 +756,7 @@ class LFRicExtractDriverCreator:
                              prefix, postfix, region_name,
                              writer=FortranWriter()):
         # pylint: disable=too-many-arguments
-        '''This function uses 'create()` function to get a PSyIR of a
+        '''This function uses `create()` function to get a PSyIR of a
         stand-alone driver, and then uses the provided language writer
         to create a string representation in the selected language
         (defaults to Fortran).
@@ -797,7 +797,7 @@ class LFRicExtractDriverCreator:
     def write_driver(self, nodes, input_list, output_list,
                      prefix, postfix, region_name, writer=FortranWriter()):
         # pylint: disable=too-many-arguments
-        '''This function uses the 'get_driver_as_string()` function to get a
+        '''This function uses the `get_driver_as_string()` function to get a
         a stand-alone driver, and then writes this source code to a file. The
         file name is derived from the region name:
         "driver-"+module_name+"_"+region_name+".f90"
