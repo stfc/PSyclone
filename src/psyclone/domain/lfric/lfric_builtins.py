@@ -53,8 +53,7 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyGen import BuiltIn
 from psyclone.psyir.nodes import (Assignment, BinaryOperation, Call, Reference,
                                   StructureReference)
-from psyclone.psyir.symbols import (ArrayType, DataSymbol, INTEGER_SINGLE_TYPE,
-                                    RoutineSymbol)
+from psyclone.psyir.symbols import ArrayType, RoutineSymbol
 
 # The name of the file containing the meta-data describing the
 # built-in operations for this API
@@ -405,10 +404,8 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         table = self.scope.symbol_table
         # The symbol representing the loop index is created in the DynLoop
         # constructor.
-        # TODO #696 - 'df' should have KIND i_def.
-        return table.find_or_create_tag(tag="dof_loop_idx", root_name="df",
-                                        symbol_type=DataSymbol,
-                                        datatype=INTEGER_SINGLE_TYPE)
+        return table.find_or_create_integer_symbol(
+            "df", tag="dof_loop_idx")
 
     def get_indexed_field_argument_references(self):
         '''

@@ -516,6 +516,9 @@ def test_get_indexed_field_argument_refs():
         assert len(ref.member.indices) == 1
         assert isinstance(ref.member.indices[0], Reference)
         assert ref.member.indices[0].symbol.name == "df"
+        assert (ref.member.indices[0].symbol.datatype.intrinsic ==
+                ScalarType.Intrinsic.INTEGER)
+        assert ref.member.indices[0].symbol.datatype.precision.name == "i_def"
 
 
 def test_get_scalar_argument_references():
