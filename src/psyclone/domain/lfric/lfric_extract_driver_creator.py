@@ -207,7 +207,16 @@ class LFRicExtractDriverCreator:
             indx = int(old_reference.children[-1].value)
             signature = Signature(f"{symbol_name}_{indx}", signature[1:])
         else:
-            signature = Signature(symbol_name, signature[1:])
+            if old_reference.symbol.datatype.name == "field_proxy_type":
+                # Field proxy are accessed using '%data'. Remove this to
+                # have more familiar names for the user, and also because
+                # the plain name is used in the file written.
+                signature = Signature(signature[0])
+            else:
+                # Other types need to get the member added to the name,
+                # to make unique symbols (e.g. 'op_a_proxy%ncell_3d'
+                # and 'op_a_proxy%local_stencil'
+                signature = Signature(symbol_name, signature[1:])
 
         signature_str = str(signature)
         try:
