@@ -87,6 +87,14 @@ class LFRicExtractDriverCreator:
 
     # -------------------------------------------------------------------------
     @staticmethod
+    def make_valid_unit_name(name):
+        '''Unit names are restricted to 63 characters, and no special
+        characters like ':'.
+        '''
+        return name.replace(":", "")[:63]
+
+    # -------------------------------------------------------------------------
+    @staticmethod
     def get_proxy_name_mapping(schedule):
         proxy_name_mapping = {}
         for kern in schedule.walk(Kern):
@@ -288,10 +296,7 @@ class LFRicExtractDriverCreator:
         '''
         # pylint: disable=too-many-locals
         all_references = sched.walk(Reference)
-        for kernel in sched.walk(Kern):
-            call_arg_list = KernCallArgList(kernel)
-            call_arg_list.generate()
-            print(call_arg_list.psyir_arglist)
+
         # First we add all non-structure names to the symbol table. This way
         # the flattened name can be ensured not to clash with a variable name
         # used in the program.
@@ -703,7 +708,8 @@ class LFRicExtractDriverCreator:
 
         print(input_list, output_list)
         module_name, local_name = region_name
-        unit_name = f"{module_name}_{local_name}"
+        unit_name = LFRicExtractDriverCreator.\
+            make_valid_unit_name(f"{module_name}_{local_name}")
 
         # First create the file container, which will only store the program:
         file_container = FileContainer(unit_name)
