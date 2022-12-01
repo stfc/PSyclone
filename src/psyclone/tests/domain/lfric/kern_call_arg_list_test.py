@@ -140,6 +140,10 @@ def test_kerncallarglist_face_xyoz(dist_mem, fortran_writer):
     array_1d = ArrayType(psyir.LfricRealScalarDataType(),
                          [ArrayType.Extent.DEFERRED])
     assert create_arg_list.psyir_arglist[2].datatype == array_1d
+    array_4d = ArrayType(psyir.LfricRealScalarDataType(),
+                         [ArrayType.Extent.DEFERRED]*4)
+    assert create_arg_list.psyir_arglist[15].datatype == array_4d
+    assert create_arg_list.psyir_arglist[16].datatype == array_4d
 
 
 def test_kerncallarglist_face_edge(dist_mem, fortran_writer):
@@ -355,8 +359,8 @@ def test_kerncallarglist_bcs_operator(fortran_writer):
     # pylint: disable=no-member
     assert (create_arg_list.psyir_arglist[2].datatype ==
             psyir.LfricIntegerScalarDataType())
-    array_type_3d = ArrayType(psyir.LfricIntegerScalarDataType(),
-                              [ArrayType.Extent.ATTRIBUTE]*3)
+    array_type_3d = ArrayType(psyir.LfricRealScalarDataType(),
+                              [ArrayType.Extent.DEFERRED]*3)
     assert create_arg_list.psyir_arglist[3].datatype == array_type_3d
 
     # Also check that the structure access is correctly converted

@@ -597,8 +597,8 @@ class KernCallArgList(ArgOrdering):
         self.append(arg.proxy_name_indexed + "%ncell_3d", var_accesses,
                     mode=AccessType.READ)
 
-        array_type = ArrayType(psyir.LfricIntegerScalarDataType(),
-                               [ArrayType.Extent.ATTRIBUTE]*3)
+        array_type = ArrayType(psyir.LfricRealScalarDataType(),
+                               [ArrayType.Extent.DEFERRED]*3)
         self.append_user_type(operator["module"], operator["proxy_type"],
                               ["local_stencil"], arg.proxy_name_indexed,
                               enforce_datatype=array_type)
@@ -739,7 +739,7 @@ class KernCallArgList(ArgOrdering):
                 qr_var=rule.psy_name)
             sym = self.append_array_reference(diff_basis_name,
                                               [":", ":", ":", ":"],
-                                              ScalarType.Intrinsic.INTEGER)
+                                              ScalarType.Intrinsic.REAL)
             self.append(sym.name, var_accesses)
 
         if "gh_evaluator" in self._kern.eval_shapes:
