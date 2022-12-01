@@ -472,7 +472,7 @@ class LFRicExtractDriverCreator:
             except KeyError:
                 sig_str += "%data"
                 sym = symbol_table.lookup_with_tag(sig_str)
-            name_lit = Literal(sig_str, CHARACTER_TYPE)
+            name_lit = Literal(str(signature), CHARACTER_TYPE)
             LFRicExtractDriverCreator.add_call(program, read_var,
                                                [name_lit, Reference(sym)])
 
