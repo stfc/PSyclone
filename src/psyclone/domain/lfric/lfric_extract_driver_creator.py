@@ -47,7 +47,7 @@ from psyclone.errors import InternalError
 from psyclone.psyGen import InvokeSchedule, Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import (Assignment, Call,
+from psyclone.psyir.nodes import (ArrayMember, ArrayReference, Assignment, Call,
                                   FileContainer, Literal, Reference, Routine,
                                   StructureReference)
 from psyclone.psyir.symbols import (ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE,
@@ -208,7 +208,6 @@ class LFRicExtractDriverCreator:
         # other tag uses a '%' in the name. So even if the flattened name
         # (e.g. f1_data) is not unique, the tatg `f1%data` is unique, and
         # the symbol table will then create a unique name for this symbol.
-        signature_str = str(signature)
 
         if isinstance(old_reference.symbol.datatype, ArrayType):
             # Vector field. Get the index that is being accessed:
@@ -234,42 +233,26 @@ class LFRicExtractDriverCreator:
             symbol = DataSymbol(flattened_name, old_reference.datatype)
             symbol_table.add(symbol, tag=f"{signature_str}")
 
-        old_reference.replace_with(Reference(symbol))
-        return
 
+        array_member = None
+        current = old_reference
+        while current:
+            if isinstance(current, ArrayMember):
+                array_member = current
+                break
+            if not current.children:
+                break
+            current = current.children[0]
 
-        if isinstance(data_type, ArrayType):
-            if data_type.intrinsic.name in ["integer_field_proxy_type",
-                                            "field_proxy_type"]:
-                # Format: some_var_proxy(n)%data
-                sig = signature[:-1]
-                fortran_string = sig.to_language()
-                fortran_string = proxy_name_mapping.get(fortran_string,
-                                                        fortran_string)
-                index = old_reference.indices[0].value
-                fortran_string = f"{fortran_string}_{index}"
+        if array_member:
+            # If there is an array access, we need to replace the structure
+            # reference with an ArrayReference
+            ind = array_member.pop_all_children()
+            new_ref = ArrayReference.create(symbol, ind)
         else:
-            if signature[-1] == "data":
-                # Remove %data
-                sig = signature[:-1]
-                fortran_string = sig.to_language()
-            else:
-                fortran_string = writer(old_reference)
-            fortran_string = proxy_name_mapping.get(fortran_string,
-                                                    fortran_string)
+            new_ref = Reference(symbol)
 
-        try:
-            symbol = symbol_table.lookup_with_tag(fortran_string)
-        except KeyError:
-            flattened_name = self.flatten_string(fortran_string)
-            # Symbol not in table, create a new symbol
-            symbol = self.create_flattened_symbol(flattened_name,
-                                                  old_reference, symbol_table,
-                                                  writer)
-            symbol_table.add(symbol, tag=fortran_string)
-        # We need to create a new, flattened Reference and replace the
-        # StructureReference with it:
-        old_reference.replace_with(Reference(symbol))
+        old_reference.replace_with(new_ref)
 
     # -------------------------------------------------------------------------
     def add_all_kernel_symbols(self, sched, symbol_table, proxy_name_mapping,
@@ -467,6 +450,7 @@ class LFRicExtractDriverCreator:
                                                        [name_lit,
                                                         Reference(sym)])
                 continue
+
             try:
                 sym = symbol_table.lookup_with_tag(str(signature))
             except KeyError:
@@ -484,7 +468,19 @@ class LFRicExtractDriverCreator:
             # when the variable accesses were analysed. Therefore, these
             # variables have References, and will already have been declared
             # in the symbol table (in add_all_kernel_symbols).
-            sig_str = str(signature)
+            sig_str = LFRicExtractDriverCreator.flatten_string(str(signature))
+            orig_sym = original_symbol_table.lookup(signature[0])
+            if orig_sym.is_array and \
+                    orig_sym.datatype.intrinsic.name == "field_type":
+                upper = int(orig_sym.datatype.shape[0].upper.value)
+                for i in range(1, upper+1):
+                    sym = symbol_table.lookup_with_tag(f"{sig_str}_{i}%data")
+                    name_lit = Literal(f"{sig_str}_{i}_data", CHARACTER_TYPE)
+                    LFRicExtractDriverCreator.add_call(program, read_var,
+                                                       [name_lit,
+                                                        Reference(sym)])
+                continue
+
             try:
                 sym = symbol_table.lookup_with_tag(sig_str)
             except KeyError:
