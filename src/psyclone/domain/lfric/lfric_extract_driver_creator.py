@@ -729,6 +729,10 @@ class LFRicExtractDriverCreator:
         # The validation of the extract transform guarantees that all nodes
         # in the node list have the same parent.
         schedule_copy = nodes[0].parent.copy()
+
+        halo_nodes = schedule_copy.walk(HaloExchange)
+        for halo_node in halo_nodes:
+            halo_node.parent.children.remove(halo_node)
         invoke_sched = nodes[0].ancestor(InvokeSchedule)
         original_symbol_table = invoke_sched.symbol_table
         proxy_name_mapping = self.get_proxy_name_mapping(schedule_copy)
