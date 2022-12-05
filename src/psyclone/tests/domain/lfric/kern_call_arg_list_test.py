@@ -377,8 +377,13 @@ def test_kerncallarglist_scalar_literal(fortran_writer):
                         dist_mem=False, idx=0)
 
     schedule = psy.invokes.invoke_list[0].schedule
+    vai = VariablesAccessInfo()
     create_arg_list = KernCallArgList(schedule.kernels()[0])
-    create_arg_list.generate()
+    create_arg_list.generate(vai)
+
+    # Verify that a constant is not returned in the access info list
+    assert "1.0" not in str(vai)
+
     assert create_arg_list._arglist == [
         'nlayers', 'f1_proxy%data', 'f2_proxy%data', 'm1_proxy%data',
         '1.0_r_def', 'm2_proxy%data', '2_i_def', 'ndf_w1', 'undf_w1',

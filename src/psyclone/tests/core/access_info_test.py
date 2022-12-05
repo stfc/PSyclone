@@ -44,6 +44,7 @@ from psyclone.core import AccessInfo, ComponentIndices, Signature, \
 from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Assignment, Node
+from psyclone.tests.utilities import get_invoke
 
 
 def test_access_info():
@@ -682,3 +683,17 @@ def test_variables_access_info_shape_bounds(fortran_reader, function):
     vai = VariablesAccessInfo(node1,
                               options={"COLLECT-ARRAY-SHAPE-READS": True})
     assert str(vai) == "a: READ, n: WRITE"
+
+
+# -----------------------------------------------------------------------------
+def test_lfric_access_info():
+    '''Test some LFRic specific potential bugs:
+    '''
+
+    psy, _ = get_invoke("int_real_literal_scalar.f90", "dynamo0.3",
+                        dist_mem=False, idx=0)
+
+    schedule = psy.invokes.invoke_list[0].schedule
+    vai = VariablesAccessInfo(schedule)
+    # Make sure a literal is not reported as a variable in the access list:
+    assert "1.0_r_def" not in str(vai)
