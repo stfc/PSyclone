@@ -44,7 +44,7 @@ from __future__ import absolute_import
 from psyclone.core import Signature
 from psyclone.domain.lfric import KernCallArgList
 from psyclone.errors import InternalError
-from psyclone.psyGen import InvokeSchedule, Kern
+from psyclone.psyGen import HaloExchange, InvokeSchedule, Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (ArrayMember, ArrayReference, Assignment, Call,
@@ -99,7 +99,7 @@ class LFRicExtractDriverCreator:
         proxy_name_mapping = {}
         for kern in schedule.walk(Kern):
             for arg in kern.args:
-                if arg.data_type == "field_type":
+                if arg.data_type in ["field_type", "r_solver_field_type"]:
                     proxy_name_mapping[arg.proxy_name] = arg.name
         return proxy_name_mapping
 
@@ -214,7 +214,8 @@ class LFRicExtractDriverCreator:
             indx = int(old_reference.children[-1].value)
             signature = Signature(f"{symbol_name}_{indx}", signature[1:])
         else:
-            if old_reference.symbol.datatype.name == "field_proxy_type":
+            if old_reference.symbol.datatype.name in \
+                    ["field_proxy_type", "r_solver_field_proxy_type"]:
                 # Field proxy are accessed using '%data'. Remove this to
                 # have more familiar names for the user, and also because
                 # the plain name is used in the file written.
@@ -440,8 +441,8 @@ class LFRicExtractDriverCreator:
             # in the symbol table (in add_all_kernel_symbols).
             sig_str = LFRicExtractDriverCreator.flatten_string(str(signature))
             orig_sym = original_symbol_table.lookup(signature[0])
-            if orig_sym.is_array and \
-                    orig_sym.datatype.intrinsic.name == "field_type":
+            if orig_sym.is_array and orig_sym.datatype.intrinsic.name in \
+                    ["field_type", "r_solver_field_type"]:
                 upper = int(orig_sym.datatype.shape[0].upper.value)
                 for i in range(1, upper+1):
                     sym = symbol_table.lookup_with_tag(f"{sig_str}_{i}%data")
@@ -470,8 +471,8 @@ class LFRicExtractDriverCreator:
             # in the symbol table (in add_all_kernel_symbols).
             sig_str = LFRicExtractDriverCreator.flatten_string(str(signature))
             orig_sym = original_symbol_table.lookup(signature[0])
-            if orig_sym.is_array and \
-                    orig_sym.datatype.intrinsic.name == "field_type":
+            if orig_sym.is_array and orig_sym.datatype.intrinsic.name in \
+                    ["field_type", "r_solver_field_type"]:
                 upper = int(orig_sym.datatype.shape[0].upper.value)
                 for i in range(1, upper+1):
                     sym = symbol_table.lookup_with_tag(f"{sig_str}_{i}%data")
@@ -482,7 +483,7 @@ class LFRicExtractDriverCreator:
                 continue
 
             try:
-                sym = symbol_table.lookup_with_tag(sig_str)
+                sym = symbol_table.lookup_with_tag(str(signature))
             except KeyError:
                 sig_str += "%data"
                 sym = symbol_table.lookup_with_tag(sig_str)
