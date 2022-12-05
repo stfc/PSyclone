@@ -98,7 +98,13 @@ def test_cellmap_intergrid(dist_mem, fortran_writer):
     kernel = schedule.kernels()[0]
 
     create_arg_list = KernCallArgList(kernel)
-    create_arg_list.generate()
+    vai = VariablesAccessInfo()
+    create_arg_list.generate(vai)
+
+    # Verify that no array expression turns up in the access information
+    assert "cell_map_field2(:,:,cell)" not in str(vai)
+    assert Signature("cell_map_field2") in vai
+
     assert create_arg_list._arglist == [
         'nlayers', 'cell_map_field2(:,:,cell)', 'ncpc_field1_field2_x',
         'ncpc_field1_field2_y', 'ncell_field1', 'field1_proxy%data',
