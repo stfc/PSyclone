@@ -2190,7 +2190,7 @@ class DynReferenceElement(DynCollection):
     # pylint: disable=too-many-instance-attributes
     def __init__(self, node):
         # pylint: disable=too-many-branches, too-many-statements
-        super(DynReferenceElement, self).__init__(node)
+        super().__init__(node)
 
         # Create a union of the reference-element properties required by all
         # kernels in this invoke. Use a list to preserve the order in the
@@ -2214,7 +2214,10 @@ class DynReferenceElement(DynCollection):
         if self._properties:
             self._properties = list(OrderedDict.fromkeys(self._properties))
 
-        symtab = self._symbol_table
+        if isinstance(node, DynKern) and node.parent is not None:
+            symtab = node.ancestor(InvokeSchedule).symbol_table
+        else:
+            symtab = self._symbol_table
 
         # Create and store a name for the reference element object
         self._ref_elem_name = \
@@ -2222,18 +2225,18 @@ class DynReferenceElement(DynCollection):
 
         # Initialise names for the properties of the reference element object:
         # Number of horizontal/vertical/all faces,
-        self._nfaces_h_name = ""
-        self._nfaces_v_name = ""
-        self._nfaces_name = ""
+        self._nfaces_h_symbol = None
+        self._nfaces_v_symbol = None
+        self._nfaces_symbol = None
         # Horizontal normals to faces,
-        self._horiz_face_normals_name = ""
-        self._horiz_face_out_normals_name = ""
+        self._horiz_face_normals_symbol = None
+        self._horiz_face_out_normals_symbol = None
         # Vertical normals to faces,
-        self._vert_face_normals_name = ""
-        self._vert_face_out_normals_name = ""
+        self._vert_face_normals_symbol = None
+        self._vert_face_out_normals_symbol = None
         # All normals to faces.
-        self._face_normals_name = ""
-        self._face_out_normals_name = ""
+        self._face_normals_symbol = None
+        self._face_out_normals_symbol = None
 
         # Store argument properties for kernel calls and stub declarations
         # and argument list
@@ -2246,82 +2249,100 @@ class DynReferenceElement(DynCollection):
                 RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES
                 in self._properties or
                 self._nfaces_h_required):
-            self._nfaces_h_name = symtab.find_or_create_integer_symbol(
-                "nfaces_re_h", tag="nfaces_re_h").name
+            self._nfaces_h_symbol = symtab.find_or_create_integer_symbol(
+                "nfaces_re_h", tag="nfaces_re_h")
         # Provide no. of vertical faces if required
         if (RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES
                 in self._properties or
                 RefElementMetaData.Property.OUTWARD_NORMALS_TO_VERTICAL_FACES
                 in self._properties):
-            self._nfaces_v_name = symtab.find_or_create_integer_symbol(
-                "nfaces_re_v", tag="nfaces_re_v").name
+            self._nfaces_v_symbol = symtab.find_or_create_integer_symbol(
+                "nfaces_re_v", tag="nfaces_re_v")
         # Provide no. of all faces if required
         if (RefElementMetaData.Property.NORMALS_TO_FACES
                 in self._properties or
                 RefElementMetaData.Property.OUTWARD_NORMALS_TO_FACES
                 in self._properties):
-            self._nfaces_name = symtab.find_or_create_integer_symbol(
-                "nfaces_re", tag="nfaces_re").name
+            self._nfaces_symbol = symtab.find_or_create_integer_symbol(
+                "nfaces_re", tag="nfaces_re")
 
         # Now the arrays themselves, in the order specified in the
         # kernel metadata (in the case of a kernel stub)
         for prop in self._properties:
             # Provide horizontal normals to faces
             if prop == \
-               RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES:
-                self._horiz_face_normals_name = \
-                    symtab.find_or_create_tag("normals_to_horiz_faces").name
-                if self._horiz_face_normals_name not in self._arg_properties:
-                    self._arg_properties[self._horiz_face_normals_name] = \
-                         self._nfaces_h_name
+                RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES:
+                name = "normals_to_horiz_faces"
+                self._horiz_face_normals_symbol = \
+                    symtab.find_or_create_array(name, 2,
+                                                ScalarType.Intrinsic.REAL,
+                                                tag=name)
+                if self._horiz_face_normals_symbol not in self._arg_properties:
+                    self._arg_properties[self._horiz_face_normals_symbol] = \
+                         self._nfaces_h_symbol
             # Provide horizontal normals to "outward" faces
             elif prop == (RefElementMetaData.Property.
                           OUTWARD_NORMALS_TO_HORIZONTAL_FACES):
-                self._horiz_face_out_normals_name = \
-                    symtab.find_or_create_tag("out_normals_to_horiz_faces") \
-                          .name
-                if self._horiz_face_out_normals_name not in \
-                   self._arg_properties:
-                    self._arg_properties[self._horiz_face_out_normals_name] = \
-                         self._nfaces_h_name
+                name = "out_normals_to_horiz_faces"
+                self._horiz_face_out_normals_symbol = \
+                    symtab.find_or_create_array(name, 2,
+                                                ScalarType.Intrinsic.REAL,
+                                                tag=name)
+                if self._horiz_face_out_normals_symbol not in \
+                        self._arg_properties:
+                    self._arg_properties[self._horiz_face_out_normals_symbol] = \
+                         self._nfaces_h_symbol
             elif prop == (RefElementMetaData.Property.
                           NORMALS_TO_VERTICAL_FACES):
-                self._vert_face_normals_name = \
-                    symtab.find_or_create_tag("normals_to_vert_faces").name
-                if self._vert_face_normals_name not in self._arg_properties:
-                    self._arg_properties[self._vert_face_normals_name] = \
-                         self._nfaces_v_name
+                name = "normals_to_vert_faces"
+                self._vert_face_normals_symbol = \
+                    symtab.find_or_create_array(name, 2,
+                                                ScalarType.Intrinsic.REAL,
+                                                tag=name )
+                if self._vert_face_normals_symbol not in self._arg_properties:
+                    self._arg_properties[self._vert_face_normals_symbol] = \
+                         self._nfaces_v_symbol
             # Provide vertical normals to "outward" faces
             elif prop == (RefElementMetaData.Property.
                           OUTWARD_NORMALS_TO_VERTICAL_FACES):
-                self._vert_face_out_normals_name = \
-                    symtab.find_or_create_tag("out_normals_to_vert_faces").name
-                if self._vert_face_out_normals_name not in \
-                   self._arg_properties:
-                    self._arg_properties[self._vert_face_out_normals_name] = \
-                        self._nfaces_v_name
+                name = "out_normals_to_vert_faces"
+                self._vert_face_out_normals_symbol = \
+                    symtab.find_or_create_array(name, 2,
+                                                ScalarType.Intrinsic.REAL,
+                                                tag=name)
+                if self._vert_face_out_normals_symbol not in \
+                        self._arg_properties:
+                    self._arg_properties[self._vert_face_out_normals_symbol] \
+                        = self._nfaces_v_symbol
             # Provide normals to all faces
             elif prop == RefElementMetaData.Property.NORMALS_TO_FACES:
-                self._face_normals_name = \
-                    symtab.find_or_create_tag("normals_to_faces").name
-                if self._face_normals_name not in self._arg_properties:
-                    self._arg_properties[self._face_normals_name] = \
-                        self._nfaces_name
+                name = "normals_to_faces"
+                self._face_normals_symbol = \
+                symtab.find_or_create_array(name, 2,
+                                            ScalarType.Intrinsic.REAL,
+                                            tag=name )
+                if self._face_normals_symbol not in self._arg_properties:
+                    self._arg_properties[self._face_normals_symbol] = \
+                        self._nfaces_symbol
             # Provide vertical normals to all "outward" faces
             elif prop == RefElementMetaData.Property.OUTWARD_NORMALS_TO_FACES:
-                self._face_out_normals_name = \
-                    symtab.find_or_create_tag("out_normals_to_faces").name
-                if self._face_out_normals_name not in \
+                name = "out_normals_to_faces"
+                self._face_out_normals_symbol = \
+                    symtab.find_or_create_array(name, 2,
+                                                ScalarType.Intrinsic.REAL,
+                                                tag=name)
+                if self._face_out_normals_symbol not in \
                    self._arg_properties:
-                    self._arg_properties[self._face_out_normals_name] = \
-                        self._nfaces_name
+                    self._arg_properties[self._face_out_normals_symbol] = \
+                        self._nfaces_symbol
             else:
+                all_props = [str(sprop)
+                             for sprop in RefElementMetaData.Property]
                 raise InternalError(
-                    "Unsupported reference-element property ('{0}') found "
-                    "when generating arguments for kernel '{1}'. Supported "
-                    "properties are: {2}".format(
-                        str(prop), self._kernel.name,
-                        [str(sprop) for sprop in RefElementMetaData.Property]))
+                    f"Unsupported reference-element property ('{prop}') "
+                    f"found when generating arguments for kernel "
+                    f"'{self._kernel.name}'. Supported properties are: "
+                    f"{all_props}")
 
     def kern_args(self):
         '''
@@ -2335,7 +2356,7 @@ class DynReferenceElement(DynCollection):
         # Remove duplicate "nfaces" by using OrderedDict
         nfaces = list(OrderedDict.fromkeys(argdict.values()))
         kern_args = nfaces + list(argdict.keys())
-        return kern_args
+        return [sym.name for sym in kern_args]
 
     def _invoke_declarations(self, parent):
         '''
@@ -2353,7 +2374,7 @@ class DynReferenceElement(DynCollection):
                 self._arg_properties.values()))
         elif self._nfaces_h_required:
             # We only need the number of 'horizontal' faces
-            nface_vars = [self._nfaces_h_name]
+            nface_vars = [self._nfaces_h_symbol]
         else:
             # No reference-element properties required
             return
@@ -2372,14 +2393,15 @@ class DynReferenceElement(DynCollection):
 
         parent.add(DeclGen(parent, datatype="integer",
                            kind=api_config.default_kind["integer"],
-                           entity_decls=nface_vars))
+                           entity_decls=[var.name for var in nface_vars]))
 
         if not self._properties:
             # We only need the number of horizontal faces so we're done
             return
 
         # Declare the necessary arrays
-        array_decls = [arr + "(:,:)" for arr in self._arg_properties.keys()]
+        array_decls = [f"{sym.name}(:,:)"
+                       for sym in self._arg_properties.keys()]
         my_kind = api_config.default_kind["real"]
         parent.add(DeclGen(parent, datatype="real", kind=my_kind,
                            allocatable=True, entity_decls=array_decls))
@@ -2406,22 +2428,22 @@ class DynReferenceElement(DynCollection):
         # Declare the necessary scalars (duplicates are ignored by parent.add)
         scalars = list(self._arg_properties.values())
         nfaces_h = self._symbol_table.find_or_create_integer_symbol(
-            "nfaces_re_h", tag="nfaces_re_h").name
+            "nfaces_re_h", tag="nfaces_re_h")
         if self._nfaces_h_required and nfaces_h not in scalars:
             scalars.append(nfaces_h)
 
         for nface in scalars:
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
-                               intent="in", entity_decls=[nface]))
+                               intent="in", entity_decls=[nface.name]))
 
         # Declare the necessary arrays
-        for arr in self._arg_properties.keys():
-            dimension = ",".join(["3", self._arg_properties[arr]])
+        for arr, sym in self._arg_properties.items():
+            dimension = f"3,{sym.name}"
             parent.add(DeclGen(parent, datatype="real",
                                kind=api_config.default_kind["real"],
                                intent="in", dimension=dimension,
-                               entity_decls=[arr]))
+                               entity_decls=[arr.name]))
 
     def initialise(self, parent):
         '''
@@ -2445,67 +2467,64 @@ class DynReferenceElement(DynCollection):
         parent.add(AssignGen(parent, pointer=True, lhs=self._ref_elem_name,
                              rhs=mesh_obj_name+"%get_reference_element()"))
 
-        if self._nfaces_h_name:
+        if self._nfaces_h_symbol:
             parent.add(
-                AssignGen(parent, lhs=self._nfaces_h_name,
+                AssignGen(parent, lhs=self._nfaces_h_symbol.name,
                           rhs=self._ref_elem_name +
                           "%get_number_horizontal_faces()"))
-        if self._nfaces_v_name:
+        if self._nfaces_v_symbol:
             parent.add(
                 AssignGen(
-                    parent, lhs=self._nfaces_v_name,
+                    parent, lhs=self._nfaces_v_symbol.name,
                     rhs=self._ref_elem_name + "%get_number_vertical_faces()"))
 
-        if self._nfaces_name:
+        if self._nfaces_symbol:
             parent.add(
                 AssignGen(
-                    parent, lhs=self._nfaces_name,
+                    parent, lhs=self._nfaces_symbol.name,
                     rhs=self._ref_elem_name + "%get_number_faces()"))
 
-        if self._horiz_face_normals_name:
+        if self._horiz_face_normals_symbol:
             parent.add(
                 CallGen(parent,
-                        name="{0}%get_normals_to_horizontal_faces({1})".format(
-                            self._ref_elem_name,
-                            self._horiz_face_normals_name)))
+                        name=f"{self._ref_elem_name}%get_normals_to_"
+                             f"horizontal_faces("
+                             f"{self._horiz_face_normals_symbol.name})"))
 
-        if self._horiz_face_out_normals_name:
+        if self._horiz_face_out_normals_symbol:
             parent.add(
                 CallGen(
                     parent,
-                    name="{0}%get_outward_normals_to_horizontal_faces({1})".
-                    format(self._ref_elem_name,
-                           self._horiz_face_out_normals_name)))
+                    name=f"{self._ref_elem_name}%get_outward_normals_to_"
+                         f"horizontal_faces("
+                         f"{self._horiz_face_out_normals_symbol.name})"))
 
-        if self._vert_face_normals_name:
+        if self._vert_face_normals_symbol:
             parent.add(
                 CallGen(parent,
-                        name="{0}%get_normals_to_vertical_faces({1})".format(
-                            self._ref_elem_name,
-                            self._vert_face_normals_name)))
+                        name=f"{self._ref_elem_name}%get_normals_to_vertical_"
+                             f"faces({self._vert_face_normals_symbol.name})"))
 
-        if self._vert_face_out_normals_name:
+        if self._vert_face_out_normals_symbol:
             parent.add(
                 CallGen(
                     parent,
-                    name="{0}%get_outward_normals_to_vertical_faces({1})".
-                    format(self._ref_elem_name,
-                           self._vert_face_out_normals_name)))
+                    name=f"{self._ref_elem_name}%get_outward_normals_to_"
+                         f"vertical_faces"
+                         f"({self._vert_face_out_normals_symbol.name})"))
 
-        if self._face_normals_name:
+        if self._face_normals_symbol:
             parent.add(
                 CallGen(parent,
-                        name="{0}%get_normals_to_faces({1})".format(
-                            self._ref_elem_name,
-                            self._face_normals_name)))
+                        name=f"{self._ref_elem_name}%get_normals_to_faces"
+                             f"({self._face_normals_symbol.name})"))
 
-        if self._face_out_normals_name:
+        if self._face_out_normals_symbol:
             parent.add(
                 CallGen(
                     parent,
-                    name="{0}%get_outward_normals_to_faces({1})".
-                    format(self._ref_elem_name,
-                           self._face_out_normals_name)))
+                    name=f"{self._ref_elem_name}%get_outward_normals_to_"
+                    f"faces({self._face_out_normals_symbol.name})"))
 
 
 class DynDofmaps(DynCollection):
