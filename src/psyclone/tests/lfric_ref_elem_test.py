@@ -338,7 +338,6 @@ def test_ref_element_symbols():
     '''
     psy, _ = get_invoke("23.5_ref_elem_mixed_prec.f90",
                         TEST_API, dist_mem=False, idx=0)
-    print(psy)
     ref_element = psy.invokes.invoke_list[0].reference_element_properties
     args_symbols = ref_element.kern_args_symbols()
     args_str = ref_element.kern_args()
