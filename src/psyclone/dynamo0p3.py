@@ -2270,8 +2270,7 @@ class DynReferenceElement(DynCollection):
         # kernel metadata (in the case of a kernel stub)
         for prop in self._properties:
             # Provide horizontal normals to faces
-            if prop == \
-                RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES:
+            if prop == RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES:
                 name = "normals_to_horiz_faces"
                 self._horiz_face_normals_symbol = \
                     symtab.find_or_create_array(name, 2,
@@ -2290,15 +2289,15 @@ class DynReferenceElement(DynCollection):
                                                 tag=name)
                 if self._horiz_face_out_normals_symbol not in \
                         self._arg_properties:
-                    self._arg_properties[self._horiz_face_out_normals_symbol] = \
-                         self._nfaces_h_symbol
+                    self._arg_properties[self._horiz_face_out_normals_symbol] \
+                        = self._nfaces_h_symbol
             elif prop == (RefElementMetaData.Property.
                           NORMALS_TO_VERTICAL_FACES):
                 name = "normals_to_vert_faces"
                 self._vert_face_normals_symbol = \
                     symtab.find_or_create_array(name, 2,
                                                 ScalarType.Intrinsic.REAL,
-                                                tag=name )
+                                                tag=name)
                 if self._vert_face_normals_symbol not in self._arg_properties:
                     self._arg_properties[self._vert_face_normals_symbol] = \
                          self._nfaces_v_symbol
@@ -2318,9 +2317,9 @@ class DynReferenceElement(DynCollection):
             elif prop == RefElementMetaData.Property.NORMALS_TO_FACES:
                 name = "normals_to_faces"
                 self._face_normals_symbol = \
-                symtab.find_or_create_array(name, 2,
-                                            ScalarType.Intrinsic.REAL,
-                                            tag=name )
+                    symtab.find_or_create_array(name, 2,
+                                                ScalarType.Intrinsic.REAL,
+                                                tag=name)
                 if self._face_normals_symbol not in self._arg_properties:
                     self._arg_properties[self._face_normals_symbol] = \
                         self._nfaces_symbol
@@ -2349,7 +2348,7 @@ class DynReferenceElement(DynCollection):
         Create argument list for kernel call and stub.
 
         :return: kernel call/stub arguments.
-        :rtype: list
+        :rtype: List[str]
 
         '''
         argdict = self._arg_properties
