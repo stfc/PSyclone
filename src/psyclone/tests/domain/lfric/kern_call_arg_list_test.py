@@ -437,3 +437,24 @@ def test_kerncallarglist_scalar_literal(fortran_writer):
         create_arg_list.scalar(args[3])
     assert ("Unexpected literal expression 'invalid' in scalar() when "
             "processing kernel 'testkern_qr_code'" in str(err.value))
+
+
+def test_indirect_dofmap_apply(fortran_writer):
+    '''Test the indirect dofmap apply function.
+    '''
+    psy, _ = get_invoke("20.1.2_cma_apply_disc.f90", TEST_API,
+                        dist_mem=False, idx=0)
+
+    schedule = psy.invokes.invoke_list[0].schedule
+    create_arg_list = KernCallArgList(schedule.kernels()[0])
+    create_arg_list.generate()
+    assert (create_arg_list._arglist == [
+        'cell', 'ncell_2d', 'field_a_proxy%data', 'field_b_proxy%data',
+        'cma_op1_matrix', 'cma_op1_nrow', 'cma_op1_ncol', 'cma_op1_bandwidth',
+        'cma_op1_alpha', 'cma_op1_beta', 'cma_op1_gamma_m', 'cma_op1_gamma_p',
+        'ndf_adspc1_field_a', 'undf_adspc1_field_a',
+        'map_adspc1_field_a(:,cell)', 'cma_indirection_map_adspc1_field_a',
+        'ndf_aspc1_field_b', 'undf_aspc1_field_b', 'map_aspc1_field_b(:,cell)',
+        'cma_indirection_map_aspc1_field_b'])
+
+    check_psyir_results(create_arg_list, fortran_writer)

@@ -49,6 +49,7 @@ from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import ArrayReference, Reference
+from psyclone.psyir.symbols import ScalarType
 
 
 class ArgOrdering:
@@ -912,6 +913,8 @@ class ArgOrdering:
         '''
         # pylint: disable=unused-argument
         map_name = function_space.cma_indirection_map_name
+        self.append_array_reference(map_name, [":"],
+                                    ScalarType.Intrinsic.INTEGER, tag=map_name)
         self.append(map_name, var_accesses)
 
     def ref_element_properties(self, var_accesses=None):
