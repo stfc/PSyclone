@@ -210,7 +210,7 @@ class KernCallArgList(ArgOrdering):
         sym = self.append_array_reference(base_name, [":", ":", cell_ref],
                                           ScalarType.Intrinsic.INTEGER)
         self.append(f"{sym.name}(:,:,{cell_ref_name})",
-                    var_accesses=var_accesses)
+                    var_accesses=var_accesses, var_access_name=sym.name)
 
         # No. of fine cells per coarse cell in x
         base_name = f"ncpc_{farg.name}_{carg.name}_x"

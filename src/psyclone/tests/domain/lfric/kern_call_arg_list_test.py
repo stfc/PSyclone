@@ -98,7 +98,13 @@ def test_cellmap_intergrid(dist_mem, fortran_writer):
     kernel = schedule.kernels()[0]
 
     create_arg_list = KernCallArgList(kernel)
-    create_arg_list.generate()
+    vai = VariablesAccessInfo()
+    create_arg_list.generate(vai)
+
+    # Verify that no array expression turns up in the access information
+    assert "cell_map_field2(:,:,cell)" not in str(vai)
+    assert Signature("cell_map_field2") in vai
+
     assert create_arg_list._arglist == [
         'nlayers', 'cell_map_field2(:,:,cell)', 'ncpc_field1_field2_x',
         'ncpc_field1_field2_y', 'ncell_field1', 'field1_proxy%data',
@@ -377,8 +383,13 @@ def test_kerncallarglist_scalar_literal(fortran_writer):
                         dist_mem=False, idx=0)
 
     schedule = psy.invokes.invoke_list[0].schedule
+    vai = VariablesAccessInfo()
     create_arg_list = KernCallArgList(schedule.kernels()[0])
-    create_arg_list.generate()
+    create_arg_list.generate(vai)
+
+    # Verify that a constant is not returned in the access info list
+    assert "1.0" not in str(vai)
+
     assert create_arg_list._arglist == [
         'nlayers', 'f1_proxy%data', 'f2_proxy%data', 'm1_proxy%data',
         '1.0_r_def', 'm2_proxy%data', '2_i_def', 'ndf_w1', 'undf_w1',
@@ -426,3 +437,48 @@ def test_kerncallarglist_scalar_literal(fortran_writer):
         create_arg_list.scalar(args[3])
     assert ("Unexpected literal expression 'invalid' in scalar() when "
             "processing kernel 'testkern_qr_code'" in str(err.value))
+
+
+def test_indirect_dofmap_apply(fortran_writer):
+    '''Test the indirect dofmap apply function.
+    '''
+    psy, _ = get_invoke("20.1.2_cma_apply_disc.f90", TEST_API,
+                        dist_mem=False, idx=0)
+
+    schedule = psy.invokes.invoke_list[0].schedule
+    create_arg_list = KernCallArgList(schedule.kernels()[0])
+    create_arg_list.generate()
+    assert (create_arg_list._arglist == [
+        'cell', 'ncell_2d', 'field_a_proxy%data', 'field_b_proxy%data',
+        'cma_op1_matrix', 'cma_op1_nrow', 'cma_op1_ncol', 'cma_op1_bandwidth',
+        'cma_op1_alpha', 'cma_op1_beta', 'cma_op1_gamma_m', 'cma_op1_gamma_p',
+        'ndf_adspc1_field_a', 'undf_adspc1_field_a',
+        'map_adspc1_field_a(:,cell)', 'cma_indirection_map_adspc1_field_a',
+        'ndf_aspc1_field_b', 'undf_aspc1_field_b', 'map_aspc1_field_b(:,cell)',
+        'cma_indirection_map_aspc1_field_b'])
+
+    check_psyir_results(create_arg_list, fortran_writer)
+
+
+def test_ref_element_handling(fortran_writer):
+    '''Test the handling of the reference element.
+    '''
+    psy, _ = get_invoke("23.5_ref_elem_mixed_prec.f90", TEST_API,
+                        dist_mem=False, idx=0)
+
+    schedule = psy.invokes.invoke_list[0].schedule
+    create_arg_list = KernCallArgList(schedule.kernels()[0])
+    vai = VariablesAccessInfo()
+    create_arg_list.generate(vai)
+
+    assert (create_arg_list._arglist == [
+        'nlayers', 'f1_proxy%data', 'ndf_w1', 'undf_w1', 'map_w1(:,cell)',
+        'nfaces_re_h', 'nfaces_re_v', 'normals_to_horiz_faces',
+        'normals_to_vert_faces'])
+
+    assert ("cell: READ, f1: READ+WRITE, map_w1: READ, ndf_w1: READ, "
+            "nfaces_re_h: READ, nfaces_re_v: READ, nlayers: READ, "
+            "normals_to_horiz_faces: READ, normals_to_vert_faces: READ, "
+            "undf_w1: READ" == str(vai))
+
+    check_psyir_results(create_arg_list, fortran_writer)
