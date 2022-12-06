@@ -931,8 +931,12 @@ class ArgOrdering:
             # Avoid circular import
             # pylint: disable=import-outside-toplevel
             from psyclone.dynamo0p3 import DynReferenceElement
-            refelem_args = DynReferenceElement(self._kern).kern_args()
-            self.extend(refelem_args, var_accesses)
+            refelem_args_symbols = \
+                DynReferenceElement(self._kern).kern_args_symbols()
+            for symbol in refelem_args_symbols:
+                # All kernel arguments are simple references:
+                self.psyir_append(Reference(symbol))
+                self.append(symbol.name, var_accesses)
 
 
 # ============================================================================

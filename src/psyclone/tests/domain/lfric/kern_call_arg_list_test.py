@@ -458,3 +458,27 @@ def test_indirect_dofmap_apply(fortran_writer):
         'cma_indirection_map_aspc1_field_b'])
 
     check_psyir_results(create_arg_list, fortran_writer)
+
+
+def test_ref_element_handling(fortran_writer):
+    '''Test the handling of the reference element.
+    '''
+    psy, _ = get_invoke("23.5_ref_elem_mixed_prec.f90", TEST_API,
+                        dist_mem=False, idx=0)
+
+    schedule = psy.invokes.invoke_list[0].schedule
+    create_arg_list = KernCallArgList(schedule.kernels()[0])
+    vai = VariablesAccessInfo()
+    create_arg_list.generate(vai)
+
+    assert (create_arg_list._arglist == [
+        'nlayers', 'f1_proxy%data', 'ndf_w1', 'undf_w1', 'map_w1(:,cell)',
+        'nfaces_re_h', 'nfaces_re_v', 'normals_to_horiz_faces',
+        'normals_to_vert_faces'])
+
+    assert ("cell: READ, f1: READ+WRITE, map_w1: READ, ndf_w1: READ, "
+            "nfaces_re_h: READ, nfaces_re_v: READ, nlayers: READ, "
+            "normals_to_horiz_faces: READ, normals_to_vert_faces: READ, "
+            "undf_w1: READ" == str(vai))
+
+    check_psyir_results(create_arg_list, fortran_writer)
