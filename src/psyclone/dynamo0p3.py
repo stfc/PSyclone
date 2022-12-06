@@ -2357,6 +2357,19 @@ class DynReferenceElement(DynCollection):
         kern_args = nfaces + list(argdict.keys())
         return [sym.name for sym in kern_args]
 
+    def kern_args_symbols(self):
+        '''
+        Create argument symbol list for kernel call and stub.
+
+        :return: kernel call/stub arguments.
+        :rtype: List[:py:class:`psyclone.psyir.symbols.Symbol`]
+
+        '''
+        argdict = self._arg_properties
+        # Remove duplicate "nfaces" by using OrderedDict
+        nfaces = list(OrderedDict.fromkeys(argdict.values()))
+        return nfaces + list(argdict.keys())
+
     def _invoke_declarations(self, parent):
         '''
         Create the necessary declarations for the variables needed in order

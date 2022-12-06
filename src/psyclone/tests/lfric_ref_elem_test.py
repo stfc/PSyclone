@@ -51,6 +51,7 @@ from psyclone.dynamo0p3 import DynKernMetadata, RefElementMetaData
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import Kern
+from psyclone.psyir.symbols import DataSymbol
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 
@@ -330,3 +331,18 @@ def test_refelem_no_rdef(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
     gen = str(psy.gen).lower()
     assert "use constants_mod, only: r_def, i_def" in gen
+
+
+def test_ref_element_symbols():
+    '''Tests that the correct set of symbols are returned.
+    '''
+    psy, _ = get_invoke("23.5_ref_elem_mixed_prec.f90",
+                        TEST_API, dist_mem=False, idx=0)
+    print(psy)
+    ref_element = psy.invokes.invoke_list[0].reference_element_properties
+    args_symbols = ref_element.kern_args_symbols()
+    args_str = ref_element.kern_args()
+    assert args_str == [symbol.name for symbol in args_symbols]
+
+    for symbol in args_symbols:
+        assert isinstance(symbol, DataSymbol)
