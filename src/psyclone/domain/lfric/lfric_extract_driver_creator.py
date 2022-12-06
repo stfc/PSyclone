@@ -84,6 +84,8 @@ class LFRicExtractDriverCreator:
                                ScalarType.Intrinsic.REAL: real_type,
                                ScalarType.Intrinsic.BOOLEAN: BOOLEAN_TYPE,
                                "real": real_type}
+        self._all_field_types = ["field_type", "integer_field_type",
+                                 "r_solver_field_type", "r_tran_field_type"]
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -94,12 +96,11 @@ class LFRicExtractDriverCreator:
         return name.replace(":", "")[:63]
 
     # -------------------------------------------------------------------------
-    @staticmethod
-    def get_proxy_name_mapping(schedule):
+    def get_proxy_name_mapping(self, schedule):
         proxy_name_mapping = {}
         for kern in schedule.walk(Kern):
             for arg in kern.args:
-                if arg.data_type in ["field_type", "r_solver_field_type"]:
+                if arg.data_type in self._all_field_types:
                     proxy_name_mapping[arg.proxy_name] = arg.name
         return proxy_name_mapping
 
@@ -372,8 +373,7 @@ class LFRicExtractDriverCreator:
         program.addchild(call)
 
     # -------------------------------------------------------------------------
-    @staticmethod
-    def create_read_in_code(program, psy_data, original_symbol_table,
+    def create_read_in_code(self, program, psy_data, original_symbol_table,
                             input_list, output_list, postfix):
         # pylint: disable=too-many-arguments
         '''This function creates the code that reads in the NetCDF file
@@ -442,7 +442,7 @@ class LFRicExtractDriverCreator:
             sig_str = LFRicExtractDriverCreator.flatten_string(str(signature))
             orig_sym = original_symbol_table.lookup(signature[0])
             if orig_sym.is_array and orig_sym.datatype.intrinsic.name in \
-                    ["field_type", "r_solver_field_type"]:
+                    self._all_field_types:
                 upper = int(orig_sym.datatype.shape[0].upper.value)
                 for i in range(1, upper+1):
                     sym = symbol_table.lookup_with_tag(f"{sig_str}_{i}%data")
@@ -472,7 +472,7 @@ class LFRicExtractDriverCreator:
             sig_str = LFRicExtractDriverCreator.flatten_string(str(signature))
             orig_sym = original_symbol_table.lookup(signature[0])
             if orig_sym.is_array and orig_sym.datatype.intrinsic.name in \
-                    ["field_type", "r_solver_field_type"]:
+                    self._all_field_types:
                 upper = int(orig_sym.datatype.shape[0].upper.value)
                 for i in range(1, upper+1):
                     sym = symbol_table.lookup_with_tag(f"{sig_str}_{i}%data")
