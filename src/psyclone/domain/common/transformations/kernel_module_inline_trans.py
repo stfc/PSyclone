@@ -111,9 +111,10 @@ class KernelModuleInlineTrans(Transformation):
                 f" due to {error}."
                 ) from error
 
-        # We do not support kernels that use symbols declared in its
-        # parent module (we would need to create new imports to the this
-        # module for those, and we currently don't do this).
+        # We do not support kernels that use symbols representing global
+        # variables declared in its own parent module (we would need to
+        # create new imports to this module for those, and we don't do
+        # this yet).
         # These can only be found in References, Calls and CodeBlocks
         for var in kernel_schedule.walk((Reference, Call)):
             if isinstance(var, Reference):
