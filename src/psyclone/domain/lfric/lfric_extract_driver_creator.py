@@ -598,6 +598,10 @@ class LFRicExtractDriverCreator:
                                 symbol_type=DataSymbol,
                                 datatype=INTEGER_TYPE,
                                 constant_value=Reference(real_type))
+        symbol_table.new_symbol("r_solver",
+                                symbol_type=DataSymbol,
+                                datatype=INTEGER_TYPE,
+                                constant_value=Reference(real_type))
 
         # Add i_def:
         if self._default_types["integer"] == INTEGER8_TYPE:
