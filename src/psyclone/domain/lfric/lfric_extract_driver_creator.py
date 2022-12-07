@@ -512,10 +512,14 @@ class LFRicExtractDriverCreator:
                     # if the mold parameter is supported, we can
                     # use the second allocate statement to create code
                     # that's independent of the number of dimensions.
+                    shape = post_sym.datatype.shape
+                    dims = ",".join([":"]*len(shape))
+                    alloc_data = ",".join([f"size({post_name},{i})"
+                                           for i in range(1, len(shape)+1)])
                     code = (f'''
                         subroutine tmp()
-                          integer, allocatable, dimension(:,:) :: b
-                          allocate({sig_str}(size({post_name},1)))
+                          integer, allocatable, dimension({dims}) :: b
+                          allocate({sig_str}({alloc_data}))
                           !allocate({sig_str}, mold={post_name})
                         end subroutine tmp''')
                     fortran_reader = FortranReader()
