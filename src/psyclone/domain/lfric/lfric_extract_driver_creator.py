@@ -42,14 +42,15 @@ the output data contained in the input file.
 from __future__ import absolute_import
 
 from psyclone.core import Signature
-from psyclone.domain.lfric import KernCallArgList
+from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.errors import InternalError
 from psyclone.psyGen import HaloExchange, InvokeSchedule, Kern
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import (ArrayMember, ArrayReference, Assignment, Call,
-                                  FileContainer, Literal, Reference, Routine,
-                                  StructureReference)
+from psyclone.psyir.nodes import (ArrayMember, ArrayReference, Assignment,
+                                  Call, FileContainer, Literal, Reference,
+                                  Routine, StructureReference)
 from psyclone.psyir.symbols import (ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE,
                                     ContainerSymbol, DataSymbol,
                                     DataTypeSymbol, DeferredType,
@@ -86,6 +87,25 @@ class LFRicExtractDriverCreator:
                                "real": real_type}
         self._all_field_types = ["field_type", "integer_field_type",
                                  "r_solver_field_type", "r_tran_field_type"]
+        self._supported_builtins = [
+            "a_divideby_X", "a_minus_X", "a_plus_X", "a_times_X",
+            "aX_minus_bY", "aX_minus_Y", "aX_plus_aY", "aX_plus_bY",
+            "aX_plus_Y", "inc_a_divideby_X", "inc_a_minus_X", "inc_a_plus_X",
+            "inc_a_times_X", "inc_aX_plus_bY", "inc_aX_plus_Y",
+            "inc_aX_times_Y", "inc_max_aX", "inc_min_aX", "inc_X_divideby_a",
+            "inc_X_divideby_Y", "inc_X_minus_a", "inc_X_minus_bY",
+            "inc_X_minus_Y", "inc_X_plus_bY", "inc_X_plus_Y", "inc_X_powint_n",
+            "inc_X_powreal_a", "inc_X_times_Y", "int_a_minus_X",
+            "int_a_plus_X", "int_a_times_X", "int_inc_a_minus_X",
+            "int_inc_a_plus_X", "int_inc_a_times_X", "int_inc_max_aX",
+            "int_inc_min_aX", "int_inc_X_minus_a", "int_inc_X_minus_Y",
+            "int_inc_X_plus_Y", "int_inc_X_times_Y", "int_max_aX",
+            "int_min_aX", "int_setval_c", "int_setval_X", "int_sign_X",
+            "int_X_minus_a", "int_X_minus_Y", "int_X_plus_Y", "int_X_times_Y",
+            "max_aX", "min_aX", "setval_c", "setval_random", "setval_X",
+            "sign_X", "X_divideby_a", "X_divideby_Y", "X_minus_a",
+            "X_minus_bY", "X_minus_Y", "X_plus_Y", "X_times_Y",
+        ]
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -699,6 +719,12 @@ class LFRicExtractDriverCreator:
         # We need to provide the prefix to the validation function:
         extract_trans.validate(nodes, options={"prefix": prefix})
 
+        for node in nodes:
+            for builtin in node.walk(LFRicBuiltIn):
+                if builtin.name not in self._supported_builtins:
+                    raise NotImplementedError(
+                        f"LFRic builtin '{builtin.name}' is not supported")
+
         dep = DependencyTools()
         #if not input_list and not output_list:
         input_list, output_list = dep.get_in_out_parameters(nodes)
@@ -828,8 +854,14 @@ class LFRicExtractDriverCreator:
         :rtype: str
 
         '''
-        file_container = self.create(nodes, input_list, output_list,
-                                     prefix, postfix, region_name)
+        try:
+            file_container = self.create(nodes, input_list, output_list,
+                                         prefix, postfix, region_name)
+        except NotImplementedError as err:
+            print(f"Cannot create driver for '{region_name[0]}-{region_name[1]}' because:")
+            print(str(err))
+            return ""
+
         return writer(file_container)
 
     # -------------------------------------------------------------------------
@@ -869,6 +901,9 @@ class LFRicExtractDriverCreator:
         code = self.get_driver_as_string(nodes, input_list, output_list,
                                          prefix, postfix, region_name,
                                          writer=writer)
+        if not code:
+            # This indicates an error, that was already printed, so ignore here.
+            return
         module_name, local_name = region_name
         with open(f"driver-{module_name}-{local_name}.f90", "w",
                   encoding='utf-8') as out:
