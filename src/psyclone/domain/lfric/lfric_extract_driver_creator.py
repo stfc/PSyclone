@@ -728,16 +728,39 @@ class LFRicExtractDriverCreator:
         writer = FortranWriter()
         # The validation of the extract transform guarantees that all nodes
         # in the node list have the same parent.
-        schedule_copy = nodes[0].parent.copy()
+        invoke_sched = nodes[0].ancestor(InvokeSchedule)
+
+        # The invoke-schedule might have children that are not in the node
+        # list. So get the indices of the nodes for which a driver is to
+        # be created, and then remove all other nodes from the copy
+        all_indices = [node.position for node in nodes]
+
+        schedule_copy = invoke_sched.copy()
 
         halo_nodes = schedule_copy.walk(HaloExchange)
         for halo_node in halo_nodes:
             halo_node.parent.children.remove(halo_node)
-        invoke_sched = nodes[0].ancestor(InvokeSchedule)
         original_symbol_table = invoke_sched.symbol_table
         proxy_name_mapping = self.get_proxy_name_mapping(schedule_copy)
 
-        schedule_copy.lower_to_language_level()
+        # Now clean up the try: remove nodes in the copy that are not
+        # supposed to be extracted. Any node that should be extract
+        # needs to be lowered, which will fix the loop boundaries.
+        # Otherwise, if e.g. the second loop is only extracted, this
+        # loop would switch from using loop1_start/stop to loop0_start/stop
+        # since is is then the first loop (hence we need to do this
+        # backwards to maintain the loop indices). Note that the
+        # input/output list will already contain the loop boundaries,
+        # so we can't simply change them (also, the original indices
+        # will be used when writing the file).
+        children = schedule_copy.children[:]
+        children.reverse()
+        for child in children:
+            if child.position not in all_indices:
+                child.detach()
+            else:
+                child.lower_to_language_level()
+
         self.import_modules(program, schedule_copy)
         self.add_precision_symbols(program)
         self.add_all_kernel_symbols(schedule_copy, program_symbol_table,
