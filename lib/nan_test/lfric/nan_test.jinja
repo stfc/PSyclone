@@ -52,7 +52,8 @@ module nan_test_psy_data_mod
                                               real32, real64, &
                                               stderr => Error_Unit
     {% for prec in ALL_PREC %}
-    use field_r{{prec}}_mod, only : field_r{{prec}}_type
+    use field_r{{prec}}_mod, only : field_r{{prec}}_type, &
+                              field_r{{prec}}_proxy_type
     {% endfor %}
     use integer_field_mod, only   : integer_field_type
     use nan_test_base_mod, only   : NANTestBaseType, is_enabled
@@ -130,9 +131,6 @@ contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ProvideField_r{{prec}}(this, name, value)
-
-        use field_r{{prec}}_mod, only : field_r{{prec}}_type, &
-                                  field_r{{prec}}_proxy_type
 
         implicit none
 
