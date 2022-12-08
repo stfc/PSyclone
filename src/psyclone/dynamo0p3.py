@@ -36,10 +36,9 @@
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk, STFC Daresbury Lab
 
-''' This module implements the PSyclone Dynamo 0.3 API by 1)
-    specialising the required base classes in parser.py (KernelType) and
-    adding a new class (DynFuncDescriptor03) to capture function descriptor
-    metadata and 2) specialising the required base classes in psyGen.py
+''' This module implements the PSyclone LFRic (Dynamo 0.3) API by 1)
+    specialising the required base classes in parser.py (KernelType)
+    and 2) specialising the required base classes in psyGen.py
     (PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, Inf, Arguments and
     Argument). '''
 
@@ -149,50 +148,66 @@ def qr_basis_alloc_args(first_dim, basis_fn):
 # ---------- Classes -------------------------------------------------------- #
 
 
-class DynFuncDescriptor03():
-    ''' The Dynamo 0.3 API includes a function-space descriptor as
+class LFRicMetaFuncsDescriptor():
+    ''' The LFRic API includes a 'meta_funcs' descriptor as
     well as an argument descriptor which is not supported by the base
     classes. This class captures the information specified in a
-    function-space descriptor. '''
+    basis/differential basis function descriptor.
+
+    :param func_type: LFRic API valid meta functionn type.
+    :type func_type: :py:class:`psyclone.expression.FunctionVar`
+    :param arg_type: LFRic API valid argument type (scalar, \
+                     field or operator).
+    :type arg_type: :py:class:`psyclone.expression.FunctionVar` or \
+                    :py:class:`psyclone.expression.BinaryOperator`
+
+    :raises ParseError: if a 'meta_funcs' entry is not of 'func_type' type.
+    :raises ParseError: if a 'meta_funcs' entry has fewer than 2 args.
+    :raises ParseError: if the first 'meta_funcs' entry is not a valid \
+                        function space name.
+    :raises ParseError: if the second 'meta_funcs' entry is not a \
+                        valid evaluator name (basis or differential \
+                        basis descriptor.
+    :raises ParseError: if an evaluator name is specified more than \
+                        once in a 'meta_funcs' entry.
+
+    '''
 
     def __init__(self, func_type):
         self._func_type = func_type
         if func_type.name != 'func_type':
             raise ParseError(
-                "In the dynamo0.3 API each meta_func entry must be of type "
-                "'func_type' but found '{0}'".format(func_type.name))
+                f"In the LFRic API each 'meta_funcs' entry must be of "
+                f"type 'func_type' but found '{func_type.name}'.")
         if len(func_type.args) < 2:
             raise ParseError(
-                "In the dynamo0.3 API each meta_func entry must have at "
-                "least 2 args, but found '{0}'".format(len(func_type.args)))
-        self._operator_names = []
+                f"In the LFRic API each 'meta_funcs' entry must have at "
+                f"least 2 args, but found '{len(func_type.args)}'.")
+        self._evaluator_names = []
         const = LFRicConstants()
         for idx, arg in enumerate(func_type.args):
-            if idx == 0:  # first func_type arg
+            if idx == 0:  # First func_type arg
                 if arg.name not in const.VALID_FUNCTION_SPACE_NAMES:
                     raise ParseError(
-                        "In the dynamo0p3 API the 1st argument of a "
-                        "meta_func entry should be a valid function space "
-                        "name (one of {0}), but found '{1}' in '{2}'".format(
-                            const.VALID_FUNCTION_SPACE_NAMES,
-                            arg.name, func_type))
+                        f"In the LFRic API the 1st argument of a "
+                        f"'meta_funcs' entry should be a valid function space "
+                        f"name (one of {const.VALID_FUNCTION_SPACE_NAMES}), "
+                        f"but found '{arg.name}' in '{func_type}'.")
                 self._function_space_name = arg.name
-            else:  # subsequent func_type args
+            else:  # Subsequent func_type args
                 if arg.name not in const.VALID_METAFUNC_NAMES:
                     raise ParseError(
-                        "In the dynamo0.3 API, the 2nd argument and all "
-                        "subsequent arguments of a meta_func entry should "
-                        "be one of {0}, but found "
-                        "'{1}' in '{2}".
-                        format(const.VALID_METAFUNC_NAMES,
-                               arg.name, func_type))
-                if arg.name in self._operator_names:
+                        f"In the LFRic API, the 2nd argument and all "
+                        f"subsequent arguments of a 'meta_funcs' entry should "
+                        f"be one of {const.VALID_METAFUNC_NAMES}, but found "
+                        f"'{arg.name}' in '{func_type}'.")
+                if arg.name in self._evaluator_names:
                     raise ParseError(
-                        "In the dynamo0.3 API, it is an error to specify an "
-                        "operator name more than once in a meta_func entry, "
-                        "but '{0}' is replicated in '{1}".format(arg.name,
-                                                                 func_type))
-                self._operator_names.append(arg.name)
+                        f"In the LFRic API, it is an error to specify an "
+                        f"evaluator name ('gh_basis/gh_diff_basis') more "
+                        f"than once in a 'meta_funcs' entry, but "
+                        "'{arg.name}' is replicated in '{func_type}'.")
+                self._evaluator_names.append(arg.name)
         self._name = func_type.name
 
     @property
@@ -201,23 +216,25 @@ class DynFuncDescriptor03():
         return self._function_space_name
 
     @property
-    def operator_names(self):
-        ''' Returns a list of operators that are associated with this
-        descriptors function space '''
-        return self._operator_names
+    def evaluator_names(self):
+        ''' Returns a list of evaluators (basis and differential
+        basis functions) that are associated with this descriptor's
+        function space.
+
+        '''
+        return self._evaluator_names
 
     def __repr__(self):
-        return "DynFuncDescriptor03({0})".format(self._func_type)
+        return f"LFRicMetaFuncsDescriptor({self._func_type})"
 
     def __str__(self):
-        res = "DynFuncDescriptor03 object" + os.linesep
-        res += "  name='{0}'".format(self._name) + os.linesep
-        res += "  nargs={0}".format(len(self._operator_names)+1) + os.linesep
-        res += "  function_space_name[{0}] = '{1}'".\
-               format(0, self._function_space_name) + os.linesep
-        for idx, arg in enumerate(self._operator_names):
-            res += "  operator_name[{0}] = '{1}'".format(idx+1, arg) + \
-                   os.linesep
+        res = "LFRicMetaFuncsDescriptor object" + os.linesep
+        res += f"  name='{self._name}'" + os.linesep
+        res += f"  nargs={len(self._evaluator_names)+1}" + os.linesep
+        res += (f"  function_space_name[{0}] = '{self._function_space_name}'"
+                + os.linesep)
+        for idx, arg in enumerate(self._evaluator_names):
+            res += f"  operator_name[{idx+1}] = '{arg}'" + os.linesep
         return res
 
 
@@ -414,7 +431,7 @@ class DynKernMetadata(KernelType):
         # set to True if all the checks in _validate_inter_grid() pass.
         self._is_intergrid = False
 
-        # parse the arg_type metadata
+        # Parse the arg_type metadata
         self._arg_descriptors = []
         for idx, arg_type in enumerate(self._inits):
             self._arg_descriptors.append(
@@ -435,7 +452,7 @@ class DynKernMetadata(KernelType):
                     break
 
         self._func_descriptors = []
-        # populate a list of function descriptor objects which we
+        # Populate a list of function descriptor objects which we
         # return via the func_descriptors method.
         arg_fs_names = []
         for descriptor in self._arg_descriptors:
@@ -443,49 +460,48 @@ class DynKernMetadata(KernelType):
         used_fs_names = []
         need_evaluator = False
         for func_type in func_types:
-            descriptor = DynFuncDescriptor03(func_type)
+            descriptor = LFRicMetaFuncsDescriptor(func_type)
             fs_name = descriptor.function_space_name
-            # check that function space names in meta_funcs are specified in
-            # meta_args
+            # Check that function space names in 'meta_funcs' are specified
+            # in 'meta_args'
             if fs_name not in arg_fs_names:
                 raise ParseError(
-                    "In the dynamo0.3 API all function spaces specified in "
-                    "meta_funcs must exist in meta_args, but '{0}' breaks "
-                    "this rule in ...\n'{1}'.".
-                    format(fs_name, self._ktype.content))
+                    f"In the LFRic API all function spaces specified in "
+                    f"'meta_funcs' must exist in 'meta_args', but "
+                    f"'{str(fs_name)}' breaks this rule in ...\n'"
+                    f"{str(self._ktype.content)}'.")
             if fs_name not in used_fs_names:
                 used_fs_names.append(fs_name)
             else:
                 raise ParseError(
-                    "In the dynamo0.3 API function spaces specified in "
-                    "meta_funcs must be unique, but '{0}' is replicated."
-                    .format(fs_name))
+                    f"In the LFRic API function spaces specified in "
+                    f"'meta_funcs' must be unique, but '{str(fs_name)}' "
+                    f"is replicated.")
 
             const = LFRicConstants()
             # Check that a valid shape has been specified if
             # this function space requires a basis or differential basis
-            for op_name in descriptor.operator_names:
+            for op_name in descriptor.evaluator_names:
                 if op_name in const.VALID_EVALUATOR_NAMES:
                     need_evaluator = True
                     if not self._eval_shapes:
                         raise ParseError(
-                            "In the Dynamo0.3 API any kernel requiring "
-                            "quadrature or an evaluator ({0}) must also "
-                            "supply the shape of that evaluator by setting "
-                            "'gh_shape' in the kernel meta-data but "
-                            "this is missing for kernel '{1}'".
-                            format(const.VALID_EVALUATOR_NAMES,
-                                   self.name))
+                            f"In the LFRic API any kernel requiring "
+                            f"quadrature or an evaluator "
+                            f"({str(const.VALID_EVALUATOR_NAMES)}) must also "
+                            f"supply the shape of that evaluator by setting "
+                            f"'gh_shape' in the kernel meta-data but "
+                            f"this is missing for kernel '{str(self.name)}'.")
                     shape_set = set(self._eval_shapes)
                     if not shape_set.issubset(
                             set(const.VALID_EVALUATOR_SHAPES)):
                         raise ParseError(
-                            "In the Dynamo0.3 API a kernel requiring either "
-                            "quadrature or an evaluator must request one or "
-                            "more valid gh_shapes (one of {0}) but got '{1}' "
-                            "for kernel '{2}'".
-                            format(const.VALID_EVALUATOR_SHAPES,
-                                   self._eval_shapes, self.name))
+                            f"In the LFRic API a kernel requiring either "
+                            f"quadrature or an evaluator must request one or "
+                            f"more valid 'gh_shape's (one of "
+                            f"{str(const.VALID_EVALUATOR_SHAPES)}) but got "
+                            f"'{str(self._eval_shapes)}' for "
+                            f"kernel '{str(self.name)}'.")
 
             self._func_descriptors.append(descriptor)
 
@@ -519,7 +535,7 @@ class DynKernMetadata(KernelType):
 
     def _validate(self, need_evaluator):
         '''
-        Check that the meta-data conforms to Dynamo 0.3 rules for a
+        Check that the meta-data conforms to LFRic rules for a
         user-provided kernel or a built-in
 
         :param bool need_evaluator: whether this kernel requires an \
@@ -926,10 +942,10 @@ class DynKernMetadata(KernelType):
 
         if need_evaluator:
             raise ParseError(
-                "In the LFRic API a kernel that operates on the 'domain' "
-                "cannot be passed basis/differential basis functions but the "
-                "metadata for kernel '{0}' contains an entry for 'meta_funcs'".
-                format(self.name))
+                f"In the LFRic API a kernel that operates on the 'domain' "
+                f"cannot be passed basis/differential basis functions but the "
+                f"metadata for kernel '{self.name}' contains an entry for "
+                "'meta_funcs'.")
 
         if self.reference_element.properties:
             raise ParseError(
@@ -954,8 +970,8 @@ class DynKernMetadata(KernelType):
     def func_descriptors(self):
         ''' Returns metadata about the function spaces within a
         Kernel. This metadata is provided within Kernel code via the
-        meta_funcs variable. Information is returned as a list of
-        DynFuncDescriptor03 objects, one for each function space. '''
+        'meta_funcs' variable. Information is returned as a list of
+        LFRicMetaFuncsDescriptor objects, one for each function space. '''
         return self._func_descriptors
 
     @property
@@ -8037,7 +8053,7 @@ class DynKern(CodedKern):
         :type kmetadata: :py:class:`psyclone.dynamo0p3.DynKernMetadata`
         '''
         for descriptor in kmetadata.func_descriptors:
-            if len(descriptor.operator_names) > 0:
+            if len(descriptor.evaluator_names) > 0:
                 self._basis_required = True
                 self._eval_shapes = kmetadata.eval_shapes[:]
                 break
@@ -8730,7 +8746,7 @@ class DynKern(CodedKern):
 
 class FSDescriptor():
     ''' Provides information about a particular function space used by
-    a meta-funcs entry in the kernel metadata. '''
+    a 'meta_funcs' entry in the kernel metadata. '''
 
     def __init__(self, descriptor):
         self._descriptor = descriptor
@@ -8739,14 +8755,14 @@ class FSDescriptor():
     def requires_basis(self):
         ''' Returns True if a basis function is associated with this
         function space, otherwise it returns False. '''
-        return "gh_basis" in self._descriptor.operator_names
+        return "gh_basis" in self._descriptor.evaluator_names
 
     @property
     def requires_diff_basis(self):
         ''' Returns True if a differential basis function is
         associated with this function space, otherwise it returns
         False. '''
-        return "gh_diff_basis" in self._descriptor.operator_names
+        return "gh_diff_basis" in self._descriptor.evaluator_names
 
     @property
     def fs_name(self):
@@ -8757,7 +8773,7 @@ class FSDescriptor():
 class FSDescriptors():
     ''' Contains a collection of FSDescriptor objects and methods
     that provide information across these objects. We have one
-    FSDescriptor for each meta-funcs entry in the kernel
+    FSDescriptor for each 'meta_funcs' entry in the kernel
     meta-data.
     # TODO #274 this should actually be named something like
     BasisFuncDescriptors as it holds information describing the
@@ -8766,7 +8782,7 @@ class FSDescriptors():
     :param descriptors: list of objects describing the basis/diff-basis \
                         functions required by a kernel, as obtained from \
                         meta-data.
-    :type descriptors: list of :py:class:`psyclone.DynFuncDescriptor03`.
+    :type descriptors: list of :py:class:`psyclone.LFRicMetaFuncsDescriptor`.
 
     '''
     def __init__(self, descriptors):
@@ -8789,6 +8805,8 @@ class FSDescriptors():
     def get_descriptor(self, fspace):
         ''' Return the descriptor with the specified function space
         name. If it does not exist raise an error.'''
+        #for descriptor in self._descriptors:
+            #print(descriptor, dir(descriptor))
         for descriptor in self._descriptors:
             if descriptor.fs_name == fspace.orig_name:
                 return descriptor
@@ -8799,7 +8817,7 @@ class FSDescriptors():
     @property
     def descriptors(self):
         '''
-        :return: the list of Descriptors, one for each of the meta-funcs
+        :return: the list of Descriptors, one for each of the 'meta_funcs'
                  entries in the kernel meta-data.
         :rtype: List of :py:class:`psyclone.dynamo0p3.FSDescriptor`
         '''
@@ -10106,7 +10124,7 @@ class DynACCEnterDataDirective(ACCEnterDataDirective):
 # The list of module members that we wish AutoAPI to generate
 # documentation for. (See https://psyclone-ref.readthedocs.io)
 __all__ = [
-    'DynFuncDescriptor03',
+    'LFRicMetaFuncsDescriptor',
     'DynKernMetadata',
     'DynamoPSy',
     'DynamoInvokes',

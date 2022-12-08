@@ -49,8 +49,8 @@ from fparser import api as fpapi
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import LFRicArgDescriptor, LFRicConstants
-from psyclone.dynamo0p3 import (DynFuncDescriptor03, DynKernMetadata,
-                                DynKern, FunctionSpace)
+from psyclone.dynamo0p3 import (DynKernMetadata, DynKern, FunctionSpace,
+                                LFRicMetaFuncsDescriptor)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
@@ -118,10 +118,11 @@ def test_ad_op_type_invalid_data_type():
     const = LFRicConstants()
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("In the LFRic API the 2nd argument of a 'meta_arg' entry should "
-            "be a valid data type (one of {0}), but found 'gh_clear' in "
-            "'arg_type(gh_operator, gh_clear, gh_read, w2)'.".
-            format(const.VALID_SCALAR_DATA_TYPES) in str(excinfo.value))
+    assert (f"In the LFRic API the 2nd argument of a 'meta_arg' entry "
+            f"should be a valid data type (one of "
+            f"{str(const.VALID_SCALAR_DATA_TYPES)}), but found 'gh_clear' "
+            f"in 'arg_type(gh_operator, gh_clear, gh_read, w2)'."
+            in str(excinfo.value))
 
 
 def test_ad_op_type_too_few_args():
@@ -135,9 +136,9 @@ def test_ad_op_type_too_few_args():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     const = LFRicConstants()
-    assert ("'meta_arg' entry must have 5 arguments if its first "
-            "argument is an operator (one of {0})".
-            format(const.VALID_OPERATOR_NAMES) in str(excinfo.value))
+    assert (f"'meta_arg' entry must have 5 arguments if its first "
+            f"argument is an operator (one of "
+            f"{str(const.VALID_OPERATOR_NAMES)})" in str(excinfo.value))
 
 
 def test_ad_op_type_too_many_args():
@@ -224,11 +225,11 @@ def test_ad_op_type_init_wrong_data_type():
         LFRicArgDescriptor(
             op_arg, metadata.iterates_over, 0)._init_operator(op_arg)
     const = LFRicConstants()
-    assert ("In the LFRic API the allowed data types for operator "
-            "arguments are one of {0}, but found 'gh_integer' in "
-            "'arg_type(gh_operator, gh_integer, gh_read, w2, w2)'.".
-            format(const.VALID_OPERATOR_DATA_TYPES) in
-            str(excinfo.value))
+    assert (f"In the LFRic API the allowed data types for operator "
+            f"arguments are one of {str(const.VALID_OPERATOR_DATA_TYPES)}, "
+            f"but found 'gh_integer' in "
+            f"'arg_type(gh_operator, gh_integer, gh_read, w2, w2)'."
+            in str(excinfo.value))
 
 
 def test_ad_op_type_wrong_access():
@@ -297,7 +298,7 @@ def test_arg_descriptor_op():
 
 def test_fs_descriptor_wrong_type():
     ''' Tests that an error is raised when the function space descriptor
-    metadata is not of type func_type. '''
+    metadata is not of type 'func_type'. '''
     code = CODE.replace("func_type(w2", "funced_up_type(w2", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
@@ -305,15 +306,15 @@ def test_fs_descriptor_wrong_type():
         _ = DynKernMetadata(ast, name=name)
     assert ("'meta_funcs' metadata must consist of an array of structure "
             "constructors, all of type 'func_type'" in str(excinfo.value))
-    # Check that the DynFuncDescriptor03 rejects it too
+    # Check that the LFRicMetaFuncsDescriptor rejects it too
 
     class FakeCls():
         ''' Class that just has a name property (which is not "func_type") '''
         name = "not-func-type"
 
     with pytest.raises(ParseError) as excinfo:
-        DynFuncDescriptor03(FakeCls())
-    assert ("each meta_func entry must be of type 'func_type' but found "
+        LFRicMetaFuncsDescriptor(FakeCls())
+    assert ("each 'meta_funcs' entry must be of type 'func_type' but found "
             in str(excinfo.value))
 
 
@@ -325,7 +326,7 @@ def test_fs_descriptor_too_few_args():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert 'meta_func entry must have at least 2 args' in str(excinfo.value)
+    assert "'meta_funcs' entry must have at least 2 args" in str(excinfo.value)
 
 
 def test_fs_desc_invalid_fs_type():
@@ -336,8 +337,8 @@ def test_fs_desc_invalid_fs_type():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert '1st argument of a meta_func entry should be a valid function ' + \
-        'space name' in str(excinfo.value)
+    assert ("1st argument of a 'meta_funcs' entry should be a valid function "
+            "space name" in str(excinfo.value))
 
 
 def test_fs_desc_replicated_fs_type():
@@ -348,33 +349,34 @@ def test_fs_desc_replicated_fs_type():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert 'function spaces specified in meta_funcs must be unique' \
-        in str(excinfo.value)
+    assert ("function spaces specified in 'meta_funcs' must be unique"
+            in str(excinfo.value))
 
 
 def test_fs_desc_invalid_op_type():
     ''' Tests that an error is raised when an invalid function space
-    operator name is provided as an argument. '''
+    evaluator name (other than ('gh_basis/gh_diff_basis') is provided
+    as an argument. '''
     code = CODE.replace("w2, gh_diff_basis", "w2, gh_dif_basis", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert '2nd argument and all subsequent arguments of a meta_func ' + \
-        'entry should be one of' in str(excinfo.value)
+    assert ("2nd argument and all subsequent arguments of a 'meta_funcs' "
+            "entry should be one of" in str(excinfo.value))
 
 
 def test_fs_desc_replicated_op_type():
     ''' Tests that an error is raised when a function space
-    operator name is replicated as an argument. '''
+    evaluator name is replicated as an argument. '''
     code = CODE.replace("w3, gh_basis, gh_diff_basis",
                         "w3, gh_basis, gh_basis", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert 'error to specify an operator name more than once' \
-        in str(excinfo.value)
+    assert ("error to specify an evaluator name ('gh_basis/gh_diff_basis') "
+            "more than once" in str(excinfo.value))
 
 
 def test_fsdesc_fs_not_in_argdesc():
@@ -385,8 +387,8 @@ def test_fsdesc_fs_not_in_argdesc():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert 'function spaces specified in meta_funcs must exist in ' + \
-        'meta_args' in str(excinfo.value)
+    assert ("function spaces specified in 'meta_funcs' must exist in "
+            "'meta_args'" in str(excinfo.value))
 
 
 def test_invoke_uniq_declns_valid_access_op():

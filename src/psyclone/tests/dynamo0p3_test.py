@@ -275,9 +275,10 @@ def test_invalid_shape():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("request one or more valid gh_shapes (one of ['gh_quadrature_xyoz'"
-            ", 'gh_quadrature_face', 'gh_quadrature_edge', 'gh_evaluator']) "
-            "but got '['quadrature_wrong']' for kernel 'testkern_qr_type'"
+    assert ("request one or more valid 'gh_shape's (one of "
+            "['gh_quadrature_xyoz', 'gh_quadrature_face', "
+            "'gh_quadrature_edge', 'gh_evaluator']) but got "
+            "'['quadrature_wrong']' for kernel 'testkern_qr_type'"
             in str(excinfo.value))
 
 
@@ -2240,7 +2241,7 @@ def test_func_descriptor_repr():
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
     func_descriptor = metadata.func_descriptors[0]
     func_str = repr(func_descriptor)
-    assert "DynFuncDescriptor03(func_type(w1, gh_basis))" in func_str
+    assert "LFRicMetaFuncsDescriptor(func_type(w1, gh_basis))" in func_str
 
 
 def test_func_descriptor_str():
@@ -2251,7 +2252,7 @@ def test_func_descriptor_str():
     func_descriptor = metadata.func_descriptors[0]
     func_str = str(func_descriptor)
     output = (
-        "DynFuncDescriptor03 object\n"
+        "LFRicMetaFuncsDescriptor object\n"
         "  name='func_type'\n"
         "  nargs=2\n"
         "  function_space_name[0] = 'w1'\n"

@@ -37,7 +37,9 @@
 kernel-layer-specific class that captures the LFRic kernel metadata.
 
 '''
+from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
+from fparser.two.parser import ParserFactory
 from fparser.two.utils import walk, get_child
 
 from psyclone.configuration import Config
@@ -142,6 +144,9 @@ class LFRicKernelMetadata(CommonMetadata):
         if name is not None:
             # Validate name via setter
             self.name = name
+        else:
+            # Don't validate
+            self._name = None
 
     @staticmethod
     def create_from_psyir(symbol):
@@ -250,6 +255,14 @@ class LFRicKernelMetadata(CommonMetadata):
         kernel_metadata.procedure_name = \
             LFRicKernelMetadata._get_procedure_name(fparser2_tree)
 
+        # meta_mesh contains arguments which have properties.
+        try:
+            # TODO issue #1879. META_MESH is not parsed correctly yet.
+            LFRicKernelMetadata.meta_mesh = LFRicKernelMetadata._get_property(
+                spec_part, "meta_mesh")
+        except ParseError:
+            # meta_mesh is not specified in the metadata
+            LFRicKernelMetadata.meta_mesh = []
         return kernel_metadata
 
     def lower_to_psyir(self):
@@ -273,6 +286,8 @@ class LFRicKernelMetadata(CommonMetadata):
 
         :param spec_part: the fparser2 parse tree containing the metadata.
         :type spec_part: :py:class:`fparser.two.Fortran2003.Derived_Type_Def`
+        :param str property_name: the name of the property whose value \
+            is being extracted from the metadata.
 
         :returns: the value of the property.
         :rtype: Optional[str]
@@ -578,5 +593,12 @@ class LFRicKernelMetadata(CommonMetadata):
                 f"'{value}'.")
         self._name = value
 
+    @property
+    def meta_args(self):
+        '''
+        :returns: a list of 'meta_arg' objects which capture the \
+            metadata values of the kernel arguments.
+        :rtype: List[:py:class:`psyclone.psyir.common.kernel.\
+            KernelMetadataSymbol.KernelMetadataArg`]
 
 __all__ = ["LFRicKernelMetadata"]
