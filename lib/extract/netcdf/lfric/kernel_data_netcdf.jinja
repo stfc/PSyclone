@@ -77,7 +77,7 @@ module extract_psy_data_mod
           {{- all_writes.append("WriteField_r{{prec}}") or ""}}
           {{- all_writes.append("WriteFieldVector_r{{prec}}") or ""}}
         {% endfor %}
-        
+
         ! The various procedures defined here
         procedure :: DeclareIntField
         procedure :: WriteIntField
@@ -112,7 +112,7 @@ contains
     {% for prec in ALL_PREC %}
 
     ! -------------------------------------------------------------------------
-    !> This subroutine declares an LFRic field with real-valued 
+    !> This subroutine declares an LFRic field with real-valued
     !! {{prec}}-bit data.
     !! It calls the PreDeclareVariable function provided by the base class
     !! (depending on the type of the argument, e.g. it might call
