@@ -35,7 +35,20 @@
 
 include ../../common.mk
 
-GENERATED_FILES = psy.f90 alg.f90
+GENERATED_FILES = psy.f90 alg.f90 *.o *.mod
+
+F90 ?= gfortran
+F90FLAGS ?= -Wall -g -fcheck=bound
+
+EXEC = example
+LFRIC_PATH = ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_NAME=lfric
+LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
+
+# This will add the required include flags to F90FLAGS
+include $(LFRIC_PATH)/lfric_include_flags.inc
+
+OBJ = psy.o alg.o mixed_kernel_mod.o
 
 .PHONY: transform vanilla compile run
 
@@ -47,8 +60,21 @@ vanilla:
 # TODO #1529 compilation of this example is not yet working. The
 # infrastructure needs updating to support mixed precision.
 
-compile: transform
-	@echo "No compilation targets for lfric/eg19"
+$(EXEC): $(LFRIC_LIB) $(OBJ)
+	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
+
+
+compile: transform $(EXEC)
 
 run: compile
 	@echo "No run targets for lfric/eg19"
+
+alg.f90 psy.f90: transform
+alg.o:	psy.o mixed_kernel_mod.o
+psy.o:	mixed_kernel_mod.o
+
+%.o:	%.f90
+	$(F90) $(F90FLAGS) -c $<
+
+allclean: clean
+	make -C $(LFRIC_PATH) allclean
