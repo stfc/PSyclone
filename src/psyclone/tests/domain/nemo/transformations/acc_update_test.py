@@ -47,7 +47,6 @@ from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import ACCKernelsDirective, CodeBlock, Schedule
 from psyclone.psyir.transformations import TransformationError, ACCUpdateTrans
 from psyclone.transformations import ACCEnterDataTrans, ACCKernelsTrans
-from psyclone.tests.utilities import Compile
 
 # Constants
 API = "nemo"
