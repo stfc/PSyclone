@@ -211,6 +211,9 @@
 	73) PR #1898 towards #1708. Extends PSyAD LFRic harness support to
 	kernels with field arguments that contain geometry information.
 
+	74) PR #1982 for #1981. Updates the GHA configuration to use
+	Python 3.7 instead of 3.6.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
