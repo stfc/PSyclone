@@ -113,8 +113,8 @@ class ACCRegionDirective(ACCDirective, RegionDirective):
         '''
 
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3   import DynInvokeSchedule
-        from psyclone.gocean1p0   import GOInvokeSchedule
+        from psyclone.dynamo0p3 import DynInvokeSchedule
+        from psyclone.gocean1p0 import GOInvokeSchedule
         from psyclone.psyir.tools import DependencyTools
 
         if self.ancestor((DynInvokeSchedule, GOInvokeSchedule)):

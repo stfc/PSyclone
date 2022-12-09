@@ -51,6 +51,7 @@ from psyclone.psyir.tools import DependencyTools
 # We distinguish between two access modes, IN (read) and OUT (write).
 IN, OUT = 0, 1
 
+
 class ACCUpdateTrans(Transformation):
     '''
     Examines the supplied Schedule and adds OpenACC "update" directives
@@ -232,7 +233,7 @@ class ACCUpdateTrans(Transformation):
         # data references on the host, as per the value of mode.
         for mode, host_sig in enumerate((inputs, outputs)):
             if mode == IN:
-                node_index, node_offset =  0, 0
+                node_index, node_offset = 0, 0
             elif mode == OUT:
                 node_index, node_offset = -1, 1
 
