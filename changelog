@@ -217,6 +217,9 @@
 	75) PR #1956 for #1955. Updates the tests/.pylintrc file to remove
 	unsupported options.
 
+	76) PR #1888 for #1783. Adds NEMO OpenMP transformation scripts
+	to the examples.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.

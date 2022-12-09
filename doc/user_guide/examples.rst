@@ -637,14 +637,14 @@ These examples may all be found in the ``examples/nemo`` directory.
 Example 1: OpenMP parallelisation of tra_adv
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Demonstrates the use of PSyclone to parallelise the loops over vertical levels
-in a NEMO tracer-advection benchmark using OpenMP for CPUs and for GPUs.
+Demonstrates the use of PSyclone to parallelise loops in a NEMO
+tracer-advection benchmark using OpenMP for CPUs and for GPUs.
 
 Example 2: OpenMP parallelisation of traldf_iso
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Demonstrates the use of PSyclone to parallelise the loops over vertical levels
-in some NEMO tracer-diffusion code using OpenMP.
+Demonstrates the use of PSyclone to parallelise in some NEMO
+tracer-diffusion code using OpenMP for CPUs and for GPUs.
 
 Example 3: OpenACC parallelisation of tra_adv
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

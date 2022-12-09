@@ -5,12 +5,18 @@
 **Modified by:** S. Siso, STFC Daresbury Lab
 
 This directory contains a python script demonstrating the use of
-PSyclone to add OpenMP parallelism to the `traldf_iso.F90` code.  Once
-you have installed PSyclone, the `omp_levels_trans.py` optimisation
-script can be provided to PSyclone with the command:
+PSyclone to add OpenMP parallelism to the `traldf_iso.F90` code.
+It also contains Makefile rules to generate parallel versions of the
+file with the ../scripts/ OpenMP scripts.
+
+Once you have installed PSyclone, these scripts may be run by doing:
 
 ```sh
 psyclone -api "nemo" -s ./omp_levels_trans.py traldf_iso.F90
+```
+or
+```sh
+psyclone -api nemo -s ../scripts/omp_[cpu|gpu]_trans.py ../code/traldf_iso.f90
 ```
 
 `traldf_iso.F90`, is an unmodified NEMO ocean model routine. This code
