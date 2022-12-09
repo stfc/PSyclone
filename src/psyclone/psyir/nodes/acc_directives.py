@@ -50,6 +50,7 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.directive import StandaloneDirective, RegionDirective
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
+from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.symbols import ScalarType
 
 
@@ -214,14 +215,11 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         PSyIR constructs.
 
         '''
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyGen import InvokeSchedule
-
         # We must generate a list of all of the fields accessed within OpenACC
         # compute constructs (i.e. OpenACC parallel and kernels directives)
         # 1. Find all parallel and kernels directives. We store this list
         # for later use in any sub-class.
-        self._acc_dirs = self.ancestor(InvokeSchedule).walk(
+        self._acc_dirs = self.ancestor(Routine).walk(
                 (ACCParallelDirective, ACCKernelsDirective))
         # 2. For each directive, add the fields used by the kernels it
         # contains (as given by signatures) and add it to our set.
