@@ -96,13 +96,13 @@ class ACCRegionDirective(ACCDirective, RegionDirective):
                 f"region enclosed by an '{type(self).__name__}'")
 
     @property
-    def kernel_references(self):
+    def signatures(self):
         '''
         Returns a 1-tuple or a 2-tuple of sets depending on the working API.
-        If a 1-tuple, the set includes both input and output references
+        If a 1-tuple, the set includes both input and output signatures
         (whether to arrays or objects) required by the Kernel call(s) that are
         children of this directive. If a 2-tuple, the first entry is the set of
-        input references and the second entry is the set of output references.
+        input signatures and the second entry is the set of output signatures.
         The set(s) describe the quantities that must be available on the remote
         device (probably a GPU) before the parallel region can be begun.
 
@@ -121,8 +121,8 @@ class ACCRegionDirective(ACCDirective, RegionDirective):
             # Look-up the kernels that are children of this node
             sig_set = set()
             for call in self.kernels():
-                for arg in call.arguments.acc_args:
-                    sig_set.add(arg)
+                for arg_str in call.arguments.acc_args:
+                    sig_set.add(Signature(arg_str))
             return (sig_set, )
 
         inp, out = DependencyTools().get_in_out_parameters(self.children)
@@ -217,18 +217,18 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import InvokeSchedule
 
-        # We must generate a list of all of the fields accessed by OpenACC
-        # kernels (calls within an OpenACC parallel or kernels directive)
+        # We must generate a list of all of the fields accessed within OpenACC
+        # compute constructs (i.e. OpenACC parallel and kernels directives)
         # 1. Find all parallel and kernels directives. We store this list
         # for later use in any sub-class.
         self._acc_dirs = self.ancestor(InvokeSchedule).walk(
                 (ACCParallelDirective, ACCKernelsDirective))
         # 2. For each directive, add the fields used by the kernels it
-        # contains (as given by kernel_references) and add it to our set.
+        # contains (as given by signatures) and add it to our set.
         # TODO GOcean grid properties are duplicated in this set under
         # different names (the OpenACC deep copy support should spot this).
         for pdir in self._acc_dirs:
-            self._sig_set.update(*pdir.kernel_references)
+            self._sig_set.update(*pdir.signatures)
 
         super().lower_to_language_level()
 
@@ -876,10 +876,7 @@ def _sig_set_to_string(sig_set):
     '''
     names = set()
     for sig in sig_set:
-        if isinstance(sig, str):
-            names.add(sig)
-        elif isinstance(sig, Signature):
-            names.update({sig[:i+1].to_language() for i in range(len(sig))})
+        names.update({sig[:i+1].to_language() for i in range(len(sig))})
     return ",".join(sorted(names))
 
 

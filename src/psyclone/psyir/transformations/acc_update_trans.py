@@ -362,9 +362,9 @@ class ACCUpdateTrans(Transformation):
                 # The latter is since we must guarantee no kernel write is
                 # overwritten by an earlier host write whose update device
                 # directive could appear later.
-                kern_sig.update(acc.kernel_references[OUT])
+                kern_sig.update(acc.signatures[OUT])
                 if mode == OUT:
-                    kern_sig.update(acc.kernel_references[IN])
+                    kern_sig.update(acc.signatures[IN])
 
         return host_sig.intersection(kern_sig)
 
