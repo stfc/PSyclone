@@ -33,6 +33,8 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified: I. Kavcic, Met Office
+# Modified: J. Henrichs, Bureau of Meteorology
+
 
 ''' This module contains pytest tests for LFRic kernels which operate on
     the 'domain'. '''
@@ -274,7 +276,7 @@ end module restrict_mod
             "different mesh resolutions" in str(err.value))
 
 
-def test_psy_gen_domain_kernel(dist_mem, tmpdir):
+def test_psy_gen_domain_kernel(dist_mem, tmpdir, fortran_writer):
     ''' Check the generation of the PSy layer for an invoke consisting of a
     single kernel with operates_on=domain. '''
     _, info = parse(os.path.join(BASE_PATH, "25.0_domain.f90"),
@@ -300,6 +302,12 @@ def test_psy_gen_domain_kernel(dist_mem, tmpdir):
             "f1_proxy%data, ndf_w3, undf_w3, map_w3)" in gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    # Also test that the FortranWriter handles domain kernels as expected:
+    schedule = psy.invokes.invoke_list[0].schedule
+    out = fortran_writer(schedule)
+    assert ("call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
+            "f1_proxy%data, ndf_w3, undf_w3, map_w3)" in out)
 
 
 def test_psy_gen_domain_two_kernel(dist_mem, tmpdir):
