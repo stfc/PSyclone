@@ -33,55 +33,25 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing the ColumnwiseOperatorArg class which captures
+'''Module containing the ColumnwiseOperatorArgMetadata class which captures
 the metadata associated with a columnwise operator argument. Supports the
 creation, modification and Fortran output of a ColumnwiseOperator argument.
 
 '''
-from psyclone.domain.lfric.kernel.operator_arg import OperatorArg
+from psyclone.domain.lfric.kernel.operator_arg_metadata import \
+    OperatorArgMetadata
 
 
-class ColumnwiseOperatorArg(OperatorArg):
+class ColumnwiseOperatorArgMetadata(OperatorArgMetadata):
     '''Class to capture LFRic kernel metadata information for a Columnwise
     operator argument.
-
-    :param Optional[str] datatype: the datatype of this Columnwise \
-        Operator (GH_INTEGER, ...).
-    :param Optional[str] access: the way the kernel accesses this \
-        operator (GH_WRITE, ...).
-    :param Optional[str] function_space_to: the function space that this \
-        operator maps to (W0, ...).
-    :param Optional[str] function_space_from: the function space that this \
-        operator maps from (W0, ...).
 
     '''
     # The name used to specify a columnwise operator argument in LFRic
     # metadata.
-    form = "GH_COLUMNWISE_OPERATOR"
+    form = "gh_columnwise_operator"
+    # The name to use for any exceptions.
+    check_name = "columnwise-operator"
 
-    @staticmethod
-    def create_from_fparser2(fparser2_tree):
-        '''Create an instance of this class from an fparser2 tree.
 
-        :param fparser2_tree: fparser2 tree capturing the metadata for a \
-            columnwise operator argument.
-        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
-
-        :returns: an instance of ColumnwiseOperatorArg.
-        :rtype: :py:class:`psyclone.domain.lfric.kernel.ColumnwiseOperatorArg`
-
-        '''
-        ColumnwiseOperatorArg.check_fparser2(fparser2_tree, nargs=5)
-        ColumnwiseOperatorArg.check_first_arg(
-            fparser2_tree, "ColumnwiseOperator")
-        datatype, access = ColumnwiseOperatorArg.get_type_and_access(
-            fparser2_tree)
-        function_space_to = ColumnwiseOperatorArg.get_arg(
-            fparser2_tree, ColumnwiseOperatorArg.function_space_to_arg_index)
-        function_space_from = ColumnwiseOperatorArg.get_arg(
-            fparser2_tree, ColumnwiseOperatorArg.function_space_from_arg_index)
-        ColumnwiseOperatorArg.check_remaining_args(
-            fparser2_tree, datatype, access, function_space_to,
-            function_space_from)
-        return ColumnwiseOperatorArg(
-            datatype, access, function_space_to, function_space_from)
+__all__ = ["ColumnwiseOperatorArgMetadata"]

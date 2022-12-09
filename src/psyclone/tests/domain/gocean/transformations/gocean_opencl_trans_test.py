@@ -1214,7 +1214,7 @@ def test_symtab_implementation_for_opencl():
     # Test symbol table without any kernel argument
     with pytest.raises(GenerationError) as err:
         _ = kschedule.symbol_table.iteration_indices
-    assert ("GOcean 1.0 API kernels should always have at least two "
+    assert ("GOcean API kernels should always have at least two "
             "arguments representing the iteration indices but the Symbol "
             "Table for kernel 'test' has only 0 argument(s)."
             in str(err.value))
@@ -1227,7 +1227,7 @@ def test_symtab_implementation_for_opencl():
     kschedule.symbol_table.specify_argument_list([arg1])
     with pytest.raises(GenerationError) as err:
         _ = kschedule.symbol_table.iteration_indices
-    assert ("GOcean 1.0 API kernels should always have at least two "
+    assert ("GOcean API kernels should always have at least two "
             "arguments representing the iteration indices but the Symbol "
             "Table for kernel 'test' has only 1 argument(s)."
             in str(err.value))
@@ -1259,7 +1259,7 @@ def test_symtab_implementation_for_opencl():
     arg1._datatype._intrinsic = ScalarType.Intrinsic.REAL
     with pytest.raises(GenerationError) as err:
         _ = kschedule.symbol_table.iteration_indices
-    assert ("GOcean 1.0 API kernels first argument should be a scalar "
+    assert ("GOcean API kernels first argument should be a scalar "
             "integer but got 'Scalar<REAL, UNDEFINED>' for kernel 'test'."
             in str(err.value))
 
@@ -1267,7 +1267,7 @@ def test_symtab_implementation_for_opencl():
     arg2._datatype = ArrayType(INTEGER_TYPE, [10])
     with pytest.raises(GenerationError) as err:
         _ = kschedule.symbol_table.iteration_indices
-    assert ("GOcean 1.0 API kernels second argument should be a scalar integer"
+    assert ("GOcean API kernels second argument should be a scalar integer"
             " but got 'Array<Scalar<INTEGER, UNDEFINED>, shape=[10]>' for "
             "kernel 'test'." in str(err.value))
 

@@ -35,7 +35,7 @@
 
 '''
 A module to perform pytest tests on the
-psyad/domain/lfric/generate_lfric_adjoint.py file.
+psyad/domain/lfric/lfric_adjoint.py file.
 
 '''
 import pytest
