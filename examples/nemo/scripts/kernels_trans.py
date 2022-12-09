@@ -82,7 +82,7 @@ PROFILE_NONACC = True
 
 # Whether or not to add OpenACC enter data and update directives to explicitly
 # move data between host and device memory
-ACC_DATA = True
+ACC_EXPLICIT_MEM_MANAGEMENT = False
 
 # If routine names contain these substrings then we do not profile them
 PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
@@ -483,13 +483,15 @@ def trans(psy):
         if invoke.name.lower() not in ACC_IGNORE:
             print(f"Transforming {invoke.name} with acc kernels")
             have_kernels = add_kernels(sched.children)
-            if have_kernels and ACC_DATA:
+            if have_kernels and ACC_EXPLICIT_MEM_MANAGEMENT:
                 print(f"Transforming {invoke.name} with acc enter data")
                 ACC_EDATA_TRANS.apply(sched)
         else:
             print(f"Addition of OpenACC to routine {invoke.name} disabled!")
 
-        if ACC_DATA:
+        # Add required OpenACC update directives to every routine, including to
+        # those with no device code and that execute exclusively on the host
+        if ACC_EXPLICIT_MEM_MANAGEMENT:
             print(f"Transforming {invoke.name} with acc update")
             ACC_UPDATE_TRANS.apply(sched)
 
