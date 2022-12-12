@@ -37,7 +37,6 @@
 ''' Performs py.test tests on the support for calls in the fparser2
     PSyIR front-end '''
 
-from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
@@ -98,8 +97,9 @@ def test_call_declared_routine(f2008_parser):
     reader = FortranStringReader(test_code)
     ptree = f2008_parser(reader)
     processor = Fparser2Reader()
-    sched = processor.generate_schedule("test", ptree)
-    for call_node in [sched.children[0], sched.children[1]]:
+    psyir = processor.generate_psyir(ptree)
+
+    for call_node in psyir.walk(Call):
         routine_symbol = call_node.routine
         assert isinstance(routine_symbol, RoutineSymbol)
         assert isinstance(routine_symbol.interface, ImportInterface)
@@ -124,7 +124,7 @@ def test_call_incorrect_type(f2008_parser):
     ptree = f2008_parser(reader)
     processor = Fparser2Reader()
     with pytest.raises(GenerationError) as info:
-        _ = processor.generate_schedule("test", ptree)
+        _ = processor.generate_psyir(ptree)
     assert ("Expecting the symbol 'kernel', to be of type 'Symbol' or "
             "'RoutineSymbol', but found 'DataSymbol'." in str(info.value))
 
@@ -147,9 +147,9 @@ def test_call_args(f2008_parser, args, arg_names):
     reader = FortranStringReader(test_code)
     ptree = f2008_parser(reader)
     processor = Fparser2Reader()
-    sched = processor.generate_schedule("test", ptree)
+    psyir = processor.generate_psyir(ptree)
 
-    call_node = sched.children[0]
+    call_node = psyir.walk(Call)[0]
     assert isinstance(call_node, Call)
     assert len(call_node._argument_names) == len(call_node.children)
     for idx, child in enumerate(call_node.children):

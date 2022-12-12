@@ -180,11 +180,11 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     module my_mod
         use external_mod, only: r_def
         contains
-        subroutine code()
+        subroutine compute_cv_code()
             real :: external_mod
             real(kind=r_def) :: a
             a = external_mod + 1
-        end subroutine code
+        end subroutine compute_cv_code
     end module my_mod
     ''')
     routine = psyir.walk(Routine)[0]
@@ -203,11 +203,11 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     module my_mod
         use external_mod
         contains
-        subroutine code()
+        subroutine compute_cv_code()
             real :: external_mod
             real(kind=r_def) :: a
             a = external_mod + 1
-        end subroutine code
+        end subroutine compute_cv_code
     end module my_mod
     ''')
     routine = psyir.walk(Routine)[0]
@@ -226,11 +226,11 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     module my_mod
         use external_mod
         contains
-        subroutine code()
+        subroutine compute_cv_code()
             use external_mod
             real(kind=r_def) :: a
             a = external_mod + 1
-        end subroutine code
+        end subroutine compute_cv_code
     end module my_mod
     ''')
     routine = psyir.walk(Routine)[0]
@@ -517,3 +517,20 @@ def test_module_inline_lfric(tmpdir, monkeypatch, annexed, dist_mem):
 
     # And it is valid code
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_module_inline_mixed_precision_lfric():
+    ''' Test the module-inlining of a mixed-precision kernel in the LFRic
+    API. TODO #1824 - this doesn't work because the subroutine implementing the
+    kernel has a different name from the kernel itself.
+
+    '''
+    psy, invoke = get_invoke("26.8_mixed_precision_args.f90", "dynamo0.3",
+                             name="invoke_0", dist_mem=False)
+    kern_call = invoke.schedule.walk(CodedKern)[0]
+    inline_trans = KernelModuleInlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.apply(kern_call)
+    assert ("the implementation of kernel 'mixed_code' is in a subroutine "
+            "named 'mixed_code_64'. Module inlining of a kernel that requires "
+            "re-naming is not yet supported" in str(err.value))

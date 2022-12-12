@@ -36,7 +36,7 @@
 ''' Provides LFRic-specific PSyclone adjoint test-harness functionality. '''
 
 from fparser import api as fpapi
-from psyclone.domain.lfric import psyir, LFRicConstants
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctorFactory, LFRicKernelFunctor)
 from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
@@ -84,7 +84,7 @@ def _compute_lfric_inner_products(prog, scalars, field_sums, sum_sym):
 
     '''
     table = prog.symbol_table
-    idef_sym = psyir.add_lfric_precision_symbol(table, "i_def")
+    idef_sym = table.add_lfric_precision_symbol("i_def")
     idef_type = ScalarType(ScalarType.Intrinsic.REAL, idef_sym)
 
     # Initialise the sum to zero: sum = 0.0
@@ -149,11 +149,13 @@ def _compute_field_inner_products(routine, field_pairs):
                            have matching types.
     :raises InternalError: if any of the supplied symbols are not of the \
                            correct type for an LFRic field.
+
     '''
+    # pylint: disable=too-many-branches, too-many-locals
     table = routine.symbol_table
-    rdef_sym = psyir.add_lfric_precision_symbol(table, "r_def")
+    rdef_sym = table.add_lfric_precision_symbol("r_def")
     rdef_type = ScalarType(ScalarType.Intrinsic.REAL, rdef_sym)
-    idef_sym = psyir.add_lfric_precision_symbol(table, "i_def")
+    idef_sym = table.add_lfric_precision_symbol("i_def")
     idef_type = ScalarType(ScalarType.Intrinsic.REAL, idef_sym)
 
     builtin_factory = LFRicBuiltinFunctorFactory.get()
@@ -262,7 +264,7 @@ def _init_fields_random(fields, input_symbols, table):
     :rtype: List[:py:class:`psyclone.domain.common.algorithm.Functor`]
 
     '''
-    idef_sym = psyir.add_lfric_precision_symbol(table, "i_def")
+    idef_sym = table.add_lfric_precision_symbol("i_def")
     idef_type = ScalarType(ScalarType.Intrinsic.REAL, idef_sym)
     # We use the setval_random builtin to initialise all fields.
     kernel_list = []
@@ -381,6 +383,7 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
         PSyIR does not follow the LFRic naming convention of ending in '_mod'.
 
     '''
+    # pylint: disable=too-many-statements, too-many-locals
     tl_container = find_container(tl_psyir)
     if not tl_container:
         raise ValueError(
@@ -520,11 +523,11 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
         # Check whether this argument contains geometric information that
         # is passed through from the Algorithm layer.
         mdata_idx = kern_args.metadata_index_from_actual_index(idx)
-        if coord_arg_idx is not None and mdata_idx == coord_arg_idx:
+        if mdata_idx is not None and mdata_idx == coord_arg_idx:
             # Replace the argument with that containing the
             # coordinate field.
             sym = table.lookup_with_tag("coord_field")
-        elif panel_id_arg_idx is not None and mdata_idx == panel_id_arg_idx:
+        elif mdata_idx is not None and mdata_idx == panel_id_arg_idx:
             # Replace the argument with that containing the panel-id field.
             sym = table.lookup_with_tag("panel_id_field")
         else:
@@ -554,7 +557,7 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
         "Initialise arguments and call the tangent-linear kernel.")
     routine.addchild(inv_call)
 
-    rdef_sym = psyir.add_lfric_precision_symbol(table, "r_def")
+    rdef_sym = table.add_lfric_precision_symbol("r_def")
     rdef_type = ScalarType(ScalarType.Intrinsic.REAL, rdef_sym)
 
     # Compute the first inner products.
