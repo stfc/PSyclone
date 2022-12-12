@@ -341,21 +341,21 @@ def test_accupdatedirective_init():
 
     # Successful init
     directive = ACCUpdateDirective(sig, "host")
-    assert directive._sig_set == sig
-    assert directive._direction == "host"
-    assert directive._conditional is True
+    assert directive.sig_set == sig
+    assert directive.direction == "host"
+    assert directive.if_present is True
 
-    directive = ACCUpdateDirective(sig, "host", conditional=False)
-    assert directive._conditional is False
+    directive = ACCUpdateDirective(sig, "host", if_present=False)
+    assert directive.if_present is False
 
 
 def test_accupdatedirective_begin_string():
     ''' Test the begin_string method of ACCUpdateDirective. '''
 
     sig = {Signature("x")}
-    directive_host = ACCUpdateDirective(sig, "host", conditional=False)
+    directive_host = ACCUpdateDirective(sig, "host", if_present=False)
     directive_device = ACCUpdateDirective(sig, "device")
-    directive_empty = ACCUpdateDirective(set(), "host", conditional=False)
+    directive_empty = ACCUpdateDirective(set(), "host", if_present=False)
 
     assert directive_host.begin_string() == "acc update host(x)"
     assert directive_device.begin_string() == "acc update if_present device(x)"

@@ -377,9 +377,7 @@ class ACCLoopDirective(ACCRegionDirective):
 
     @property
     def collapse(self):
-        ''' Returns the number of nested loops to collapse into a single
-        iteration space for this node.
-
+        '''
         :returns: the number of nested loops to collapse into a single \
                   iteration space for this node.
         :rtype: int or None
@@ -424,8 +422,6 @@ class ACCLoopDirective(ACCRegionDirective):
     @property
     def sequential(self):
         '''
-        Returns whether or not to add the `seq` clause to the loop directive.
-
         :returns: whether or not the `seq` clause is added to this loop \
                   directive.
         :rtype: bool
@@ -564,9 +560,7 @@ class ACCKernelsDirective(ACCRegionDirective):
 
     @property
     def default_present(self):
-        ''' Returns whether the "default(present)" clause is added to the
-        kernels directive.
-
+        '''
         :returns: whether the "default(present)" clause is added to the \
                   kernels directive.
         :rtype: bool
@@ -752,10 +746,10 @@ class ACCDataDirective(ACCRegionDirective):
 class ACCUpdateDirective(ACCStandaloneDirective):
     ''' Class representing the !$ACC UPDATE directive of OpenACC in the PSyIR.
     It includes a direction attribute that can be set to 'self', 'host' or
-    'device' and the symbol that is being updated.
+    'device', the set of symbols being updated and an optional if_present clause.
 
     :param signatures: the access signature(s) that need to be synchronised \
-                       with the accelerator.
+                       with the device.
     :type signatures: Set[:py:class:`psyclone.core.Signature`]
     :param str direction: the direction of the synchronisation.
     :param children: list of nodes which the directive should have as children.
@@ -763,45 +757,27 @@ class ACCUpdateDirective(ACCStandaloneDirective):
     :param parent: the node in the InvokeSchedule to which to add this \
                    directive as a child.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
-    :param conditional: whether or not to include the 'if_present' clause on
-                        the update directive (this instructs the directive to
-                        silently ignore any variables that are not on the
-                        device).
-    :type conditional: Optional[bool]
-
-
-    :raises ValueError: if the direction argument is not a string with \
-                        value 'self', 'host' or 'device'.
-    :raises TypeError: if signatures is not a set of access signatures.
-
+    :param if_present: whether or not to include the 'if_present'
+                        clause on the update directive (this instructs the
+                        directive to silently ignore any variables that are not
+                        on the device).
+    :type if_present: Optional[bool]
     '''
 
     _VALID_DIRECTIONS = ("self", "host", "device")
 
     def __init__(self, signatures, direction, children=None, parent=None,
-                 conditional=True):
+                 if_present=True):
         super().__init__(children=children, parent=parent)
 
-        if direction not in self._VALID_DIRECTIONS:
-            raise ValueError(
-                f"The ACCUpdateDirective direction argument must be a string "
-                f"with any of the values in '{self._VALID_DIRECTIONS}' but "
-                f"found '{direction}'.")
-
-        if not all(isinstance(sig, Signature) for sig in signatures):
-            raise TypeError(
-                f"The ACCUpdateDirective signatures argument must be a "
-                f"set of signatures but got "
-                f"{ {type(sig).__name__ for sig in signatures} }")
-
-        self._sig_set = signatures
-        self._direction = direction
-        self._conditional = conditional
+        self.sig_set = signatures
+        self.direction = direction
+        self.if_present = if_present
 
     def __eq__(self, other):
         '''
         Checks whether two nodes are equal. Two ACCUpdateDirective nodes are
-        equal if their direction and sig_set members are equal.
+        equal if their sig_set, direction and if_present members are equal.
 
         :param object other: the object to check equality to.
 
@@ -809,30 +785,83 @@ class ACCUpdateDirective(ACCStandaloneDirective):
         :rtype: bool
         '''
         is_eq = super().__eq__(other)
-        is_eq = is_eq and self.direction == other.direction
         is_eq = is_eq and self.sig_set == other.sig_set
+        is_eq = is_eq and self.direction == other.direction
+        is_eq = is_eq and self.if_present == other.if_present
 
         return is_eq
 
     @property
+    def sig_set(self):
+        '''
+        :returns: the set of signatures to synchronise with the device.
+        :rtype: Set[:py:class:`psyclone.core.Signature`]
+        '''
+        return self._sig_set
+
+    @property
     def direction(self):
         '''
-        Returns the direction of the synchronisation.
-
         :returns: the direction of the synchronisation.
         :rtype: str
         '''
         return self._direction
 
     @property
-    def sig_set(self):
+    def if_present(self):
         '''
-        Returns the set of symbols to synchronise with the accelerator.
+        :returns: whether or not to add the 'if_present' clause.
+        :rtype: bool
+        '''
+        return self._if_present
 
-        :returns: the set of symbols to synchronise with the accelerator.
-        :rtype: Set[:py:class:`psyclone.core.Signature`]
+    @sig_set.setter
+    def sig_set(self, signatures):
         '''
-        return self._sig_set
+        :param signatures: the access signature(s) that need to be \
+                           synchronised with the device.
+        :type signatures: Set[:py:class:`psyclone.core.Signature`]
+
+        :raises TypeError: if signatures is not a set of access signatures.
+        '''
+        if not all(isinstance(sig, Signature) for sig in signatures):
+            raise TypeError(
+                f"The ACCUpdateDirective signatures argument must be a "
+                f"set of signatures but got "
+                f"{ {type(sig).__name__ for sig in signatures} }")
+
+        self._sig_set = signatures
+
+    @direction.setter
+    def direction(self, direction):
+        '''
+        :param str direction: the direction of the synchronisation.
+
+        :raises ValueError: if the direction argument is not a string with \
+                        value 'self', 'host' or 'device'.
+        '''
+        if direction not in self._VALID_DIRECTIONS:
+            raise ValueError(
+                f"The ACCUpdateDirective direction argument must be a string "
+                f"with any of the values in '{self._VALID_DIRECTIONS}' but "
+                f"found '{direction}'.")
+
+        self._direction = direction
+
+    @if_present.setter
+    def if_present(self, if_present):
+        '''
+        :param bool if_present: whether or not to add the 'if_present' \
+                                    clause.
+
+        :raises TypeError: if if_present is not a boolean.
+        '''
+        if not isinstance(if_present, bool):
+            raise TypeError(
+                f"The ACCUpdateDirective if_present argument must be a "
+                f"boolean but got {type(if_present).__name__}")
+
+        self._if_present = if_present
 
     def begin_string(self):
         '''
@@ -854,7 +883,7 @@ class ACCUpdateDirective(ACCStandaloneDirective):
                 "ACCUpdateDirective.lower_to_level_language removed all the "
                 "variables this directive was created to update.")
 
-        condition = "if_present " if self._conditional else ""
+        condition = "if_present " if self._if_present else ""
         sym_list = _sig_set_to_string(self._sig_set)
 
         return f"acc update {condition}{self._direction}({sym_list})"
@@ -872,9 +901,7 @@ def _sig_set_to_string(sig_set):
     :rtype: str
 
     '''
-    names = set()
-    for sig in sig_set:
-        names.update({sig[:i+1].to_language() for i in range(len(sig))})
+    names = {s[:i+1].to_language() for s in sig_set for i in range(len(s))}
     return ",".join(sorted(names))
 
 

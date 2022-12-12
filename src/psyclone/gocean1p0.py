@@ -2145,7 +2145,7 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
         subroutine = container.children[0]
         # Add an ACCUpdateDirective inside the subroutine
         subroutine.addchild(ACCUpdateDirective([Signature("to")], "host",
-                                               conditional=False))
+                                               if_present=False))
 
         # Rename subroutine
         subroutine.name = subroutine_name
