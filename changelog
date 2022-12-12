@@ -214,6 +214,15 @@
 	74) PR #1982 for #1981. Updates the GHA configuration to use
 	Python 3.7 instead of 3.6.
 
+	75) PR #1956 for #1955. Updates the tests/.pylintrc file to remove
+	unsupported options.
+
+	76) PR #1888 for #1783. Adds NEMO OpenMP transformation scripts
+	to the examples.
+
+	77) PR #1933 for #1902. Adds run-time checks when hoisting
+	local work arrays.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
