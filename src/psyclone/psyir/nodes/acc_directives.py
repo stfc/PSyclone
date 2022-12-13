@@ -744,9 +744,9 @@ class ACCDataDirective(ACCRegionDirective):
 
 
 class ACCUpdateDirective(ACCStandaloneDirective):
-    ''' Class representing the !$ACC UPDATE directive of OpenACC in the PSyIR.
-    It includes a direction attribute that can be set to 'self', 'host' or
-    'device', the set of symbols being updated and an optional if_present clause.
+    ''' Class representing the OpenACC update directive in the PSyIR. It has
+    a direction attribute that can be set to 'self', 'host' or 'device', the
+    set of symbols being updated and an optional if_present clause.
 
     :param signatures: the access signature(s) that need to be synchronised \
                        with the device.
