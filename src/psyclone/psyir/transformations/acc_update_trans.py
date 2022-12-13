@@ -78,15 +78,15 @@ class ACCUpdateTrans(Transformation):
     >>> # print(schedule.view())
 
     '''
-    def __init__(self):
-        # Perform some set-up required by the recursive routine.
-        self._dep_tools = DependencyTools()
-        self._acc_ignore = (ACCEnterDataDirective, )
-        self._acc_compute = (ACCParallelDirective, ACCKernelsDirective)
-        # Assume Call nodes may (and CodeBlocks may not) call routines whose
-        # (part of their) bodies execute on the device.
-        self._may_compute = (Call, )
+    # Tuple of OpenACC directives we ignore when traversing a schedule.
+    _ACC_IGNORE = (ACCEnterDataDirective, )
+    # Tuple of OpenACC compute directives delimiting possible device execution.
+    _ACC_COMPUTE = (ACCParallelDirective, ACCKernelsDirective)
+    # Assume Call nodes may (and CodeBlocks may not) call routines whose
+    # (part of their) bodies execute on the device.
+    _MAY_COMPUTE = (Call, )
 
+    def __init__(self):
         super().__init__()
 
     def validate(self, node, options=None):
@@ -111,7 +111,7 @@ class ACCUpdateTrans(Transformation):
             raise TransformationError(f"Expected a Schedule but got a node of "
                                       f"type '{type(node).__name__}'")
 
-        if node.ancestor(self._acc_compute):
+        if node.ancestor(self._ACC_COMPUTE):
             raise TransformationError(
                 "Cannot apply the ACCUpdateTrans to nodes that are within "
                 "an OpenACC compute region.")
@@ -152,14 +152,14 @@ class ACCUpdateTrans(Transformation):
         # that (part of) their bodies are executed on the device.
         node_list = []
         for child in sched[:]:
-            if isinstance(child, self._acc_ignore):
+            if isinstance(child, self._ACC_IGNORE):
                 continue
-            if not child.walk(self._acc_compute + self._may_compute):
+            if not child.walk(self._ACC_COMPUTE + self._MAY_COMPUTE):
                 node_list.append(child)
             else:
                 self._add_update_directives(node_list)
                 node_list.clear()
-                if isinstance(child, self._may_compute):
+                if isinstance(child, self._MAY_COMPUTE):
                     # Conservatively add an update host statement just before
                     # the Call node since, first, any temporary operands need
                     # to be up to date and, second, since in pass-by-value
@@ -202,7 +202,7 @@ class ACCUpdateTrans(Transformation):
 
         # TODO #1872: the lack of precise array access descriptions might
         # unnecessarily increase the data transfer volume.
-        inputs, outputs = self._dep_tools.get_in_out_parameters(node_list)
+        inputs, outputs = DependencyTools().get_in_out_parameters(node_list)
         inputs, outputs = set(inputs), set(outputs)
 
         # TODO #1872: as a workaround for the lack of precise array access
@@ -350,14 +350,14 @@ class ACCUpdateTrans(Transformation):
         # If there is a statement (e.g. a call) among the dependent statements
         # that may launch device kernels, we conservatively assume a dependency
         # for all variables in the host region regardless of access mode.
-        if any(stmt.walk(self._may_compute) for stmt in dep_stmts):
+        if any(stmt.walk(self._MAY_COMPUTE) for stmt in dep_stmts):
             return host_sig.copy()
 
         # Set of all signatures in compute kernels that may require syncing.
         kern_sig = set()
 
         for stmt in dep_stmts:
-            for acc in stmt.walk(self._acc_compute):
+            for acc in stmt.walk(self._ACC_COMPUTE):
                 # Kernel outputs can be both input and output dependencies.
                 # The latter is since we must guarantee no kernel write is
                 # overwritten by an earlier host write whose update device
