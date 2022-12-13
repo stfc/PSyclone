@@ -42,6 +42,7 @@ the output data contained in the input file.
 from __future__ import absolute_import
 
 from psyclone.core import Signature
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.errors import InternalError
 from psyclone.psyGen import HaloExchange, InvokeSchedule, Kern
@@ -87,6 +88,16 @@ class LFRicExtractDriverCreator:
                                "real": real_type}
         self._all_field_types = ["field_type", "integer_field_type",
                                  "r_solver_field_type", "r_tran_field_type"]
+        self._default_precision = {"r_def": "real64",
+                                   "r_solver": "real32",
+                                   "i_def": "integer64"}
+
+        const = LFRicConstants()
+        self._map_fields_to_precision = {}
+        for field, field_info in const.DATA_TYPE_MAP.items():
+            if field_info["proxy_type"] is not None:
+                self._map_fields_to_precision[field_info["proxy_type"]] \
+                    = field_info["kind"]
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -216,8 +227,9 @@ class LFRicExtractDriverCreator:
             indx = int(old_reference.children[-1].value)
             signature = Signature(f"{symbol_name}_{indx}", signature[1:])
         else:
-            if old_reference.symbol.datatype.name in \
-                    ["field_proxy_type", "r_solver_field_proxy_type"]:
+            field_type = old_reference.symbol.datatype.name
+            if field_type in ["field_proxy_Type", "r_solver_field_proxy_type",
+                              "r_tran_field_proxy_type"]:
                 # Field proxy are accessed using '%data'. Remove this to
                 # have more familiar names for the user, and also because
                 # the plain name is used in the file written.
@@ -293,6 +305,8 @@ class LFRicExtractDriverCreator:
             if isinstance(reference, StructureReference):
                 continue
             old_symbol = reference.symbol
+            if old_symbol.name.startswith("m3_exner_star"):
+                print("XX")
             if old_symbol.name in symbol_table:
                 # The symbol has already been declared. We then still
                 # replace the old symbol with the new symbol to have all
@@ -328,17 +342,6 @@ class LFRicExtractDriverCreator:
         for reference in all_references:
             if not isinstance(reference, StructureReference):
                 continue
-            old_symbol = reference.symbol
-            #if old_symbol.datatype._name != "field_proxy_type":
-            #    print("XX")
-            #    fortran_string = writer(reference)
-            #    raise InternalError(
-            #        f"Error when constructing driver for '{sched.name}': "
-            #        f"Unknown derived type '{old_symbol.datatype.name}' "
-            #        f"in reference '{fortran_string}'.")
-            # We have a structure reference to a field, flatten it, and
-            # replace the StructureReference with a new Reference to this
-            # flattened name (e.g. `fld%data` becomes `fld_data`)
             self.flatten_reference(reference, symbol_table,
                                    proxy_name_mapping, writer=writer)
 
@@ -519,8 +522,8 @@ class LFRicExtractDriverCreator:
                     code = (f'''
                         subroutine tmp()
                           integer, allocatable, dimension({dims}) :: b
-                          allocate({sig_str}({alloc_data}))
-                          !allocate({sig_str}, mold={post_name})
+                          allocate({sym.name}({alloc_data}))
+                          !allocate({sym.name}, mold={post_name})
                         end subroutine tmp''')
                     fortran_reader = FortranReader()
                     container = fortran_reader.psyir_from_source(code)\
@@ -591,21 +594,24 @@ class LFRicExtractDriverCreator:
             name = "real64"
         else:
             name = "real32"
-        real_type = DataTypeSymbol(name, INTEGER_TYPE,
-                                   interface=ImportInterface(intrinsic_mod))
-        symbol_table.add(real_type)
+        real32_type = DataTypeSymbol("real32", INTEGER_TYPE,
+                                     interface=ImportInterface(intrinsic_mod))
+        real64_type = DataTypeSymbol("real64", INTEGER_TYPE,
+                                     interface=ImportInterface(intrinsic_mod))
+        symbol_table.add(real32_type)
+        symbol_table.add(real64_type)
         symbol_table.new_symbol("r_def",
                                 symbol_type=DataSymbol,
                                 datatype=INTEGER_TYPE,
-                                constant_value=Reference(real_type))
+                                constant_value=Reference(real64_type))
         symbol_table.new_symbol("r_second",
                                 symbol_type=DataSymbol,
                                 datatype=INTEGER_TYPE,
-                                constant_value=Reference(real_type))
+                                constant_value=Reference(real64_type))
         symbol_table.new_symbol("r_solver",
                                 symbol_type=DataSymbol,
                                 datatype=INTEGER_TYPE,
-                                constant_value=Reference(real_type))
+                                constant_value=Reference(real32_type))
 
         # Add i_def:
         if self._default_types["integer"] == INTEGER8_TYPE:
