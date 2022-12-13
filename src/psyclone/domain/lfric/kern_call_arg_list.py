@@ -86,6 +86,8 @@ class KernCallArgList(ArgOrdering):
             # pylint: disable=no-member
             if field_type in ["r_solver_field_type", "r_solver_operator_type"]:
                 self._map_fields_to_precision[field_type] = psyir.R_SOLVER
+            elif field_type == "r_tran_field_type":
+                self._map_fields_to_precision[field_type] = psyir.R_TRAN
             else:
                 self._map_fields_to_precision[field_type] = psyir.R_DEF
 
