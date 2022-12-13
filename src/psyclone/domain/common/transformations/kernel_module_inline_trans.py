@@ -124,7 +124,7 @@ class KernelModuleInlineTrans(Transformation):
             if not symbol.is_import:
                 try:
                     var.scope.symbol_table.lookup(
-                        symbol.name, scope_limit=var.ancestor(Routine))
+                        symbol.name, scope_limit=kernel_schedule)
                 except KeyError as err:
                     raise TransformationError(
                         f"Kernel '{node.name}' contains accesses to "
@@ -134,7 +134,7 @@ class KernelModuleInlineTrans(Transformation):
             for name in block.get_symbol_names():
                 try:
                     block.scope.symbol_table.lookup(
-                        name, scope_limit=block.ancestor(Routine))
+                        name, scope_limit=kernel_schedule)
                 except KeyError as err:
                     if not block.scope.symbol_table.lookup(name).is_import:
                         raise TransformationError(
