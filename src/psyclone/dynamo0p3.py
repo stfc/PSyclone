@@ -10106,7 +10106,7 @@ class DynKernelArgument(KernelArgument):
                     constants_container = ContainerSymbol(const_mod)
                     root_table.add(constants_container)
                 kind_symbol = DataSymbol(
-                    kind_name, INTEGER_SINGLE_TYPE,
+                    kind_name, INTEGER_TYPE,
                     interface=ImportInterface(constants_container))
                 root_table.add(kind_symbol)
             return ScalarType(prim_type, kind_symbol)
