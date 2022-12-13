@@ -35,11 +35,14 @@
 # Modified by: R. W. Ford, STFC Daresbury Lab
 #              A. R. Porter, STFC Daresbury Lab
 #              S. Siso, STFC Daresbury Lab
+#              N. Nobre, STFC Daresbury Lab
 
 '''Transformation module, containing all generic (API independent)
 transformations and base classes.
 '''
 
+from psyclone.psyir.transformations.transformation_error \
+    import TransformationError
 from psyclone.psyir.transformations.acc_update_trans import ACCUpdateTrans
 from psyclone.psyir.transformations.arrayrange2loop_trans import \
     ArrayRange2LoopTrans
@@ -85,14 +88,13 @@ from psyclone.psyir.transformations.read_only_verify_trans \
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.replace_induction_variables_trans import \
      ReplaceInductionVariablesTrans
-from psyclone.psyir.transformations.transformation_error \
-    import TransformationError
 from psyclone.psyir.transformations.reference2arrayrange_trans import \
     Reference2ArrayRangeTrans
 
 
 # For AutoAPI documentation generation
-__all__ = ['ACCUpdateTrans',
+__all__ = ['TransformationError',
+           'ACCUpdateTrans',
            'ArrayRange2LoopTrans',
            'ChunkLoopTrans',
            'ExtractTrans',
@@ -100,6 +102,7 @@ __all__ = ['ACCUpdateTrans',
            'HoistLocalArraysTrans',
            'HoistLoopBoundExprTrans',
            'HoistTrans',
+           'InlineTrans',
            'Abs2CodeTrans',
            'DotProduct2CodeTrans',
            'Matmul2CodeTrans',
@@ -121,5 +124,4 @@ __all__ = ['ACCUpdateTrans',
            'ReadOnlyVerifyTrans',
            'Reference2ArrayRangeTrans',
            'RegionTrans',
-           'ReplaceInductionVariablesTrans',
-           'TransformationError']
+           'ReplaceInductionVariablesTrans']

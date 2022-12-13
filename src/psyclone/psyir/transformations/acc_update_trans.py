@@ -47,6 +47,7 @@ from psyclone.psyir.nodes import (Call, CodeBlock, IfBlock, Loop, Routine,
                                   Schedule, ACCEnterDataDirective,
                                   ACCKernelsDirective, ACCParallelDirective)
 from psyclone.psyir.tools import DependencyTools
+from psyclone.psyir.transformations import TransformationError
 
 # We distinguish between two access modes, IN (read) and OUT (write).
 IN, OUT = 0, 1
@@ -115,10 +116,6 @@ class ACCUpdateTrans(Transformation):
         :raises TransformationError: if the supplied node is within \
             an OpenACC region.
         '''
-        # transformations module file needs moving into the psyir hierarchy.
-        # pylint: disable=import-outside-toplevel
-        from psyclone.transformations import TransformationError
-
         if not isinstance(node, Schedule):
             raise TransformationError(f"Expected a Schedule but got a node of "
                                       f"type '{type(node).__name__}'")
