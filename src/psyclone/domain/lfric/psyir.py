@@ -58,7 +58,7 @@ from psyclone.psyir.nodes import Literal
 Module = namedtuple('Module', ["name", "vars"])
 MODULES = [
     Module(LFRicConstants().UTILITIES_MOD_MAP["constants"]["module"],
-           ["i_def", "r_def", "l_def"])]
+           ["i_def", "r_def", "r_solver", "l_def"])]
 
 # Generate LFRic module symbols from definitions
 for module in MODULES:
