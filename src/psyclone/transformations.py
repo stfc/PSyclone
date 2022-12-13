@@ -2238,7 +2238,7 @@ class ACCEnterDataTrans(Transformation):
         :param sched: schedule to which to add an "enter data" directive.
         :type sched: sub-class of :py:class:`psyclone.psyir.nodes.Schedule`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, str]]
+        :type options: Optional[Dict[str, Any]]
 
         '''
         # Ensure that the proposed transformation is valid
@@ -2285,7 +2285,7 @@ class ACCEnterDataTrans(Transformation):
         :param sched: Schedule to which to add an "enter data" directive.
         :type sched: sub-class of :py:class:`psyclone.psyir.nodes.Schedule`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, str]]
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if passed something that is not a \
             (subclass of) :py:class:`psyclone.psyir.nodes.Schedule`.

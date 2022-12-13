@@ -97,7 +97,7 @@ class ACCUpdateTrans(Transformation):
         :param node: the Schedule that is to be transformed.
         :type node: :py:class:`psyclone.psyir.nodes.Schedule`
         :param options: any options to this transformation.
-        :type options: Optional[Dict[str, str]]
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node is not a Schedule.
         :raises TransformationError: if the supplied node is within \
@@ -128,7 +128,7 @@ class ACCUpdateTrans(Transformation):
         :param node: the Schedule that is to be transformed.
         :type node: :py:class:`psyclone.psyir.nodes.Schedule`
         :param options: any options to this transformation.
-        :type options: Optional[Dict[str, str]]
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(node, options)
