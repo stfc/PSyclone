@@ -42,9 +42,9 @@ is returned to the device in time for the execution of compute regions.
 
 # pylint: disable=unused-import
 from psyclone.core import Signature
-from psyclone.psyGen import InvokeSchedule, Transformation
-from psyclone.psyir.nodes import (Call, CodeBlock, IfBlock, Loop, Schedule,
-                                  ACCEnterDataDirective, ACCUpdateDirective,
+from psyclone.psyGen import Transformation
+from psyclone.psyir.nodes import (Call, CodeBlock, IfBlock, Loop, Routine,
+                                  Schedule, ACCEnterDataDirective,
                                   ACCKernelsDirective, ACCParallelDirective)
 from psyclone.psyir.tools import DependencyTools
 
@@ -58,24 +58,36 @@ class ACCUpdateTrans(Transformation):
     for any data accessed outside of a kernels or parallel region.
     For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
+    >>> from psyclone.psyir.backend.fortran import FortranWriter
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> from psyclone.psyir.nodes import Routine
     >>> from psyclone.psyir.transformations import ACCUpdateTrans
     >>>
-    >>> api = "nemo"
-    >>> ast, invokeInfo = parse(NEMO_SOURCE_FILE, api=api)
-    >>> psy = PSyFactory(api).create(invokeInfo)
-    >>> schedule = psy.invokes.get('tra_adv').schedule
+    >>> code = """
+    ... subroutine run_it()
+    ...   real :: a(10)
+    ...   a(:) = 7.0
+    ... end subroutine run_it"""
     >>>
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
+    >>> psyir = FortranReader().psyir_from_source(code)
+    >>> routine = psyir.walk(Routine)[0]
     >>>
     >>> # Add update directives
     >>> uptrans = ACCUpdateTrans()
-    >>> uptrans.apply(schedule)
+    >>> uptrans.apply(routine)
     >>>
-    >>> # Uncomment the following line to see a text view of the new schedule
-    >>> # print(schedule.view())
+    >>> # Uncomment to see a text view of the new routine schedule
+    >>> # print(routine.view())
+    >>> print(FortranWriter()(routine))
+    subroutine run_it()
+      real, dimension(10) :: a
+    <BLANKLINE>
+      !$acc update if_present host(a)
+      a(:) = 7.0
+      !$acc update if_present device(a)
+    <BLANKLINE>
+    end subroutine run_it
+    <BLANKLINE>
 
     '''
     # Tuple of OpenACC directives we ignore when traversing a schedule.
@@ -323,7 +335,7 @@ class ACCUpdateTrans(Transformation):
 
                 # This schedule is the body of a routine and, at least until we
                 # can do interprocedural analysis, this is the end of the road.
-                if isinstance(sched, InvokeSchedule):
+                if isinstance(sched, Routine):
                     self._place_update(sched, update_pos, host_sig, mode)
                     break
 
@@ -384,11 +396,13 @@ class ACCUpdateTrans(Transformation):
                          either IN (read) or OUT (write).
 
         '''
-        # pylint: disable=import-outside-toplevel, redefined-outer-name
+        # pylint: disable=import-outside-toplevel
         from psyclone.nemo import NemoInvokeSchedule
         if sched.ancestor(NemoInvokeSchedule, include_self=True):
             from psyclone.nemo import NemoACCUpdateDirective as \
                 ACCUpdateDirective
+        else:
+            from psyclone.psyir.nodes import ACCUpdateDirective
 
         # Avoid rewriting the set of signatures on the caller.
         host_sig = host_sig.copy()
