@@ -67,7 +67,7 @@ def test_validate():
             "within an OpenACC compute region." in str(err.value))
 
 
-def test_simple_missed_region(parser):
+def test_simple_missed_region(parser, fortran_writer):
     ''' Check code generation when there is a simple section of host code
     between two kernels regions. '''
     code = '''
@@ -101,7 +101,7 @@ end SUBROUTINE tra_ldf_iso
     acc_kernels.apply(schedule[3:5])
     acc_trans.apply(schedule)
     acc_update.apply(schedule)
-    gen_code = str(psy.gen).lower()
+    code = fortran_writer(schedule)
     assert ("  real, dimension(jpi,jpj,jpk) :: ztfw\n"
             "\n"
             "  !$acc update if_present host(jn,l_ptr)\n"
@@ -110,16 +110,16 @@ end SUBROUTINE tra_ldf_iso
             "  zftv(:,:,:) = 0.0d0\n"
             "  !$acc end kernels\n"
             "  !$acc update if_present host(zftv)\n"
-            "  if (l_ptr) then\n" in gen_code)
+            "  if (l_ptr) then\n" in code)
     assert ("    call dia_ptr_hst(jn, 'ldf', zftv(:,:,:))\n"
             "    !$acc update if_present host(zftv)\n"
             "    zftv(:,:,:) = 1.0d0\n"
-            "    !$acc update if_present device(zftv)\n" in gen_code)
+            "    !$acc update if_present device(zftv)\n" in code)
     assert ("  !$acc update if_present host(jn,zftv)\n"
-            "  call" in gen_code)
+            "  call" in code)
 
 
-def test_nested_acc_in_if(parser):
+def test_nested_acc_in_if(parser, fortran_writer):
     ''' Test that the necessary update directives are added when we have
     a kernels region within an IfBlock. '''
     code = '''
@@ -155,29 +155,29 @@ end SUBROUTINE tra_ldf_iso
     acc_kernels.apply(schedule[3])
     acc_trans.apply(schedule)
     acc_update.apply(schedule)
-    gen_code = str(psy.gen).lower()
+    code = fortran_writer(schedule)
     assert ("  !$acc update if_present host(jn,l_ptr)\n"
             "  !$acc enter data"
-            ) in gen_code
+            ) in code
     assert ("  !$acc update if_present host(zftv)\n"
             "  if"
-            ) in gen_code
+            ) in code
     assert ("    !$acc update if_present host(zftv)\n"
             "    zftv(:,:,:) = 1.0d0\n"
-            ) in gen_code
+            ) in code
     assert ("    !$acc update if_present device(zftv)\n"
             "  else\n"
-            ) in gen_code
+            ) in code
     assert ("  !$acc update if_present host(jn,zftv)\n"
             "  call"
-            ) in gen_code
+            ) in code
     assert ("  !$acc update if_present host(jpi,tmask)\n"
             "  tmask(:,:) = jpi\n"
             "  !$acc update if_present device(tmask)\n"
-            ) in gen_code
+            ) in code
 
 
-def test_call_accesses(parser):
+def test_call_accesses(parser, fortran_writer):
     ''' Check that a call results in extra update directives, bar relocation,
     and that there are no redundant consecutive update directives. '''
     code = '''
@@ -198,17 +198,17 @@ end SUBROUTINE tra_ldf_iso
     schedule = psy.invokes.invoke_list[0].schedule
     acc_update = ACCUpdateTrans()
     acc_update.apply(schedule)
-    gen_code = str(psy.gen).lower()
+    code = fortran_writer(schedule)
     assert ("  !$acc update if_present host(jn,zftv)\n"
             "  zftv(:,:,:) = 0.0d0\n"
             "  !$acc update if_present device(zftv)\n"
             "  call dia_ptr_hst(jn, 'ldf', zftv(:,:,:))\n"
             "  !$acc update if_present host(checksum,zftv)\n"
-            "  checksum = sum(zftv)\n"
-            "  !$acc update if_present device(checksum)\n" in gen_code)
+            "  checksum = SUM(zftv)\n"
+            "  !$acc update if_present device(checksum)\n" in code)
 
 
-def test_call_within_if(parser):
+def test_call_within_if(parser, fortran_writer):
     ''' Check that a Call within an If results in the expected update
     directive when one of its arguments is subsequently accessed on
     the CPU. '''
@@ -232,17 +232,17 @@ end SUBROUTINE tra_ldf_iso
     schedule = psy.invokes.invoke_list[0].schedule
     acc_update = ACCUpdateTrans()
     acc_update.apply(schedule)
-    gen_code = str(psy.gen).lower()
+    code = fortran_writer(schedule)
     assert ("  !$acc update if_present host(jn,zftv)\n"
             "  zftv(:,:,:) = 0.0d0\n"
-            "  !$acc update if_present device(zftv)\n" in gen_code)
+            "  !$acc update if_present device(zftv)\n" in code)
     assert ("  end if\n"
             "  !$acc update if_present host(checksum,zftv)\n"
-            "  checksum = sum(zftv)\n"
-            "  !$acc update if_present device(checksum)\n" in gen_code)
+            "  checksum = SUM(zftv)\n"
+            "  !$acc update if_present device(checksum)\n" in code)
 
 
-def test_loop_on_cpu(parser):
+def test_loop_on_cpu(parser, fortran_writer):
     ''' Test the application of ACCUpdateTrans to CPU code containing a
     loop which itself contains a Call. '''
     code = '''
@@ -269,32 +269,32 @@ end SUBROUTINE tra_ldf_iso
     schedule = psy.invokes.invoke_list[0].schedule
     acc_update = ACCUpdateTrans()
     acc_update.apply(schedule)
-    gen_code = str(psy.gen).lower()
+    code = fortran_writer(schedule)
     # Loop variable should not be copied to device
-    assert "device(ji)" not in gen_code
+    assert "device(ji)" not in code
     # TODO #1872: Currently jpi is copied to and from. We need a list of
     # variables that are written just once and are read-only thereafter. Such
     # variables will be written on the CPU (e.g. after reading from namelist).
     assert ("  !$acc update if_present host(jpi,start,step,zftv)\n"
             "  zftv(:,:,:) = 0.0d0\n"
             "  !$acc update if_present device(zftv)\n"
-            "  do ji = start, jpi, step\n") in gen_code
+            "  do ji = start, jpi, step\n") in code
     assert ("    !$acc update if_present host(zftv)\n"
-            "    call") in gen_code
+            "    call") in code
     assert ("    !$acc update if_present host(zftv,zftw)\n"
             "    zftv(ji,:,:) = 1.0d0\n"
             "    zftw(ji,:,:) = -1.0d0\n"
-            "    !$acc update if_present device(zftv,zftw)\n") in gen_code
+            "    !$acc update if_present device(zftv,zftw)\n") in code
     # TODO #1872: All of these variables are actually local to the subroutine
     # so should not be copied back to the device.
     assert ("  !$acc update if_present host(jpi,tmask,zftu)\n"
             "  zftu(:,:,1) = 1.0d0\n"
             "  tmask(:,:) = jpi\n"
             "  !$acc update if_present device(tmask,zftu)\n"
-            in gen_code)
+            in code)
 
 
-def test_codeblock(parser):
+def test_codeblock(parser, fortran_writer):
     ''' Test that we can reason about CodeBlocks.'''
     code = '''
 subroutine lbc_update()
@@ -314,11 +314,11 @@ end subroutine lbc_update
     acc_update = ACCUpdateTrans()
     acc_update.apply(schedule)
     assert isinstance(schedule[1], CodeBlock)
-    gen_code = str(psy.gen).lower()
+    code = fortran_writer(schedule)
     assert ('''  !$acc update if_present host(jpi,jpj,jpk,tmask)\n'''
-            '''  open(unit = 32, file = "some_forcing.dat")''' in gen_code)
-    assert ("  read(32, *) tmask\n"
-            "  !$acc update if_present device(jpi,jpj,jpk,tmask)" in gen_code)
+            '''  OPEN(UNIT = 32, FILE = "some_forcing.dat")''' in code)
+    assert ("  READ(32, *) tmask\n"
+            "  !$acc update if_present device(jpi,jpj,jpk,tmask)" in code)
 
 
 def test_codeblock_no_access(parser):
@@ -343,7 +343,7 @@ end subroutine lbc_update
     assert isinstance(schedule[0].get_ast_nodes[0], Fortran2003.Open_Stmt)
 
 
-def test_loop_host_overwriting(parser):
+def test_loop_host_overwriting(parser, fortran_writer):
     ''' Test the placement of update directives when a loop contains a host
     statement writing the same variable as a host statement outside the loop.
     The host statememnt inside the loop is placed before a kernel writing a
@@ -370,9 +370,9 @@ end SUBROUTINE tra_ldf_iso
     acc_kernels.apply(schedule[1].loop_body[1])
     acc_enter.apply(schedule)
     acc_update.apply(schedule)
-    gen_code = str(psy.gen).lower()
+    code = fortran_writer(schedule)
     # Loop variable should not be copied to device
-    assert "device(ji)" not in gen_code
+    assert "device(ji)" not in code
     assert ("  !$acc update if_present host(jpi,start,step,zftv)\n"
             "  zftv(:,:,:) = 0.0d0\n"
             "  !$acc enter data copyin(zftw)\n"
@@ -383,10 +383,10 @@ end SUBROUTINE tra_ldf_iso
             "    zftw(ji,:,:) = -1.0d0\n"
             "    !$acc end kernels\n"
             "  enddo\n"
-            "  !$acc update if_present device(zftv)\n" in gen_code)
+            "  !$acc update if_present device(zftv)\n" in code)
 
 
-def test_if_host_overwriting(parser):
+def test_if_host_overwriting(parser, fortran_writer):
     ''' Test the placement of update host directives when an IfBlock contains
      a host statement writing the same variable as a previous host statement
      outside the IfBlock with no depedent device kernel in between them. '''
@@ -410,7 +410,7 @@ end SUBROUTINE tra_ldf_iso
     acc_kernels = ACCKernelsTrans()
     acc_kernels.apply(schedule[1].if_body[0])
     acc_update.apply(schedule)
-    gen_code = str(psy.gen).lower()
+    code = fortran_writer(schedule)
     assert ("  !$acc update if_present host(l_ptr,zftv)\n"
             "  zftv(:,:,:) = 0.0d0\n"
             "  if (l_ptr) then\n"
@@ -419,10 +419,10 @@ end SUBROUTINE tra_ldf_iso
             "    !$acc end kernels\n"
             "    zftv(1,:,:) = 1.0d0\n"
             "  end if\n"
-            "  !$acc update if_present device(zftv)") in gen_code
+            "  !$acc update if_present device(zftv)") in code
 
 
-def test_if_update_device(parser):
+def test_if_update_device(parser, fortran_writer):
     ''' Test the placement of update device directives when an IfBlock contains
      a host statement writing the same variable as a preceding kernel. '''
     code = '''
@@ -444,7 +444,7 @@ end SUBROUTINE tra_ldf_iso
     acc_kernels = ACCKernelsTrans()
     acc_kernels.apply(schedule[0].if_body[0])
     acc_update.apply(schedule)
-    gen_code = str(psy.gen).lower()
+    code = fortran_writer(schedule)
     assert ("  if (l_ptr) then\n"
             "    !$acc kernels\n"
             "    zftv(:,:,:) = 0.0d0\n"
@@ -452,4 +452,4 @@ end SUBROUTINE tra_ldf_iso
             "    !$acc update if_present host(zftv)\n"
             "    zftv(1,:,:) = 1.0d0\n"
             "    !$acc update if_present device(zftv)\n"
-            "  end if\n") in gen_code
+            "  end if\n") in code

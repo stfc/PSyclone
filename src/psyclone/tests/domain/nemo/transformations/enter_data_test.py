@@ -67,7 +67,7 @@ EXPLICIT_DO = ("program explicit_do\n"
                "end program explicit_do\n")
 
 
-def test_explicit(parser):
+def test_apply_to_explicit_loop(parser, fortran_writer):
     '''
     Check code generation for enclosing a single explicit loop containing a
     kernel inside a data region.
@@ -81,14 +81,16 @@ def test_explicit(parser):
     acc_kernels.apply(schedule.children)
     acc_trans = ACCEnterDataTrans()
     acc_trans.apply(schedule)
-    gen_code = str(psy.gen).lower()
+    code = fortran_writer(schedule)
+    # Check the enter data directive captures all variables read and written in
+    # the loop except for the NEMO loop iterator variables.
     assert ("  real, dimension(jpi,jpj,jpk) :: umask\n"
             "\n"
             "  !$acc enter data copyin(jpi,jpj,jpk,r,umask)\n"
             "  !$acc kernels\n"
-            "  do jk = 1, jpk") in gen_code
+            "  do jk = 1, jpk") in code
 
     assert ("  enddo\n"
             "  !$acc end kernels\n"
             "\n"
-            "end program explicit_do") in gen_code
+            "end program explicit_do") in code
