@@ -88,7 +88,6 @@ class Reference(DataNode):
         :rtype: bool
 
         '''
-        # pylint: disable=no-self-use
         return False
 
     @property

@@ -80,7 +80,6 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         :rtype: bool
 
         '''
-        # pylint: disable=no-self-use
         return True
 
     def get_signature_and_indices(self):

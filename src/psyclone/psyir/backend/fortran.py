@@ -413,7 +413,6 @@ class FortranWriter(LanguageWriter):
         :rtype: bool
 
         '''
-        # pylint: disable=no-self-use
         return operator in FORTRAN_INTRINSICS
 
     def get_operator(self, operator):
@@ -1295,7 +1294,6 @@ class FortranWriter(LanguageWriter):
             result += f":{step}"
         return result
 
-    # pylint: disable=no-self-use
     def literal_node(self, node):
         '''This method is called when a Literal instance is found in the PSyIR
         tree.
@@ -1356,7 +1354,6 @@ class FortranWriter(LanguageWriter):
 
         return result
 
-    # pylint: enable=no-self-use
     def ifblock_node(self, node):
         '''This method is called when an IfBlock instance is found in the
         PSyIR tree.

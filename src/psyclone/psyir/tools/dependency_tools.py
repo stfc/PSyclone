@@ -814,7 +814,6 @@ class DependencyTools():
     # -------------------------------------------------------------------------
     def get_input_parameters(self, node_list, variables_info=None,
                              options=None):
-        # pylint: disable=no-self-use
         '''Return all variables that are input parameters, i.e. are
         read (before potentially being written).
 
@@ -857,7 +856,6 @@ class DependencyTools():
     # -------------------------------------------------------------------------
     def get_output_parameters(self, node_list, variables_info=None,
                               options=None):
-        # pylint: disable=no-self-use
         '''Return all variables that are output parameters, i.e. are
         written.
 

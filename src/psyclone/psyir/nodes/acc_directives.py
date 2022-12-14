@@ -146,7 +146,6 @@ class ACCRoutineDirective(ACCStandaloneDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "acc routine"
 
 
@@ -294,7 +293,6 @@ class ACCParallelDirective(ACCRegionDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         # "default(present)" means that the compiler is to assume that
         # all data required by the parallel region is already present
         # on the device. If we've made a mistake and it isn't present
@@ -306,7 +304,6 @@ class ACCParallelDirective(ACCRegionDirective):
         :returns: the closing statement for this directive.
         :rtype: str
         '''
-        # pylint: disable=no-self-use
         return "acc end parallel"
 
     @property
@@ -513,7 +510,6 @@ class ACCLoopDirective(ACCRegionDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return ""
 
 
@@ -609,7 +605,6 @@ class ACCKernelsDirective(ACCRegionDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "acc end kernels"
 
 
@@ -734,7 +729,6 @@ class ACCDataDirective(ACCRegionDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "acc end data"
 
 

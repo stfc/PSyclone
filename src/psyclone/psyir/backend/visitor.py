@@ -113,7 +113,6 @@ class PSyIRVisitor():
         self._validate_nodes = check_global_constraints
 
     def reference_node(self, node):
-        # pylint: disable=no-self-use
         '''This method is called when a Reference instance is found in the
         PSyIR tree.
 

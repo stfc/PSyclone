@@ -3633,7 +3633,6 @@ class Fparser2Reader():
         :raises NotImplementedError: if the fparser2 node is not recognised.
 
         '''
-        # pylint: disable=no-self-use
         if isinstance(node, Fortran2003.Int_Literal_Constant):
             integer_type = ScalarType(ScalarType.Intrinsic.INTEGER,
                                       get_literal_precision(node, parent))
@@ -3671,7 +3670,6 @@ class Fparser2Reader():
         :rtype: :py:class:`psyclone.psyir.nodes.Literal`
 
         '''
-        # pylint: disable=no-self-use
         character_type = ScalarType(ScalarType.Intrinsic.CHARACTER,
                                     get_literal_precision(node, parent))
         # fparser issue #295 - the value of the character string currently
@@ -3706,7 +3704,6 @@ class Fparser2Reader():
         :rtype: :py:class:`psyclone.psyir.nodes.Literal`
 
         '''
-        # pylint: disable=no-self-use
         boolean_type = ScalarType(ScalarType.Intrinsic.BOOLEAN,
                                   get_literal_precision(node, parent))
         value = str(node.items[0]).lower()

@@ -891,7 +891,6 @@ class ColourTrans(LoopTrans):
         :raises NotImplementedError: this method must be overridden in an \
                                      API-specific sub-class.
         '''
-        # pylint: disable=no-self-use
         raise InternalError("_create_colours_loop() must be overridden in an "
                             "API-specific sub-class.")
 
@@ -1488,7 +1487,7 @@ class MoveTrans(Transformation):
         return "Move"
 
     def validate(self, node, location, options=None):
-        # pylint: disable=no-self-use, arguments-differ
+        # pylint: disable=arguments-differ
         ''' validity checks for input arguments.
 
         :param node: the node to be moved.

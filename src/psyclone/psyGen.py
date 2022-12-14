@@ -2196,7 +2196,6 @@ class Argument():
         :rtype: :py:class::`psyclone.psyir.symbols.DataType`
 
         '''
-        # pylint: disable=no-self-use
         return DeferredType()
 
     def __str__(self):
@@ -2785,7 +2784,7 @@ class Transformation():
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         '''
-        # pylint: disable=no-self-use, unused-argument
+        # pylint: disable=unused-argument
 
 
 class DummyTransformation(Transformation):

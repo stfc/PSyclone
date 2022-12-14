@@ -126,7 +126,6 @@ class Member(Node):
         :rtype: bool
 
         '''
-        # pylint: disable=no-self-use
         return False
 
     def get_signature_and_indices(self):
