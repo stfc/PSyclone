@@ -215,19 +215,47 @@ def test_mesh_name_intergrid():
     assert loops[0]._mesh_name == "mesh_field1"
 
 
-def test_lower_to_language():
-    ''' Tests that we can call lower_to_language_level on a DynLoop.
+def test_lower_to_language_normal_loop():
+    ''' Test that we can call lower_to_language_level on a normal
+    (i.e. not a domain) DynLoop. The new loop type should not be a
+    DynLoop anymore, but a PSyLoop. Additionally, also test that
+    without lowering the symbols (for start and stop expressions)
+    will change if the loop order is modified, but after lowering
+    the symbols should not change anymore.
     '''
-    _, invoke = get_invoke("22.1_intergrid_restrict.f90", TEST_API, idx=0)
 
+    _, invoke = get_invoke("4.8_multikernel_invokes.f90", TEST_API,
+                           dist_mem=False, idx=0)
+    sched = invoke.schedule
+    loop1 = sched.children[1]
+    assert loop1.start_expr.symbol.name == "loop1_start"
+
+    # Now remove loop 0, and verify that the start variable symbol has changed
+    # (which is a problem in case of driver creation, since the symbol names
+    # written in the full code can then be different from the symbols used
+    # in the driver). TODO #1731 might fix this, in which case this test
+    # will fail (and the whole lowering of DynLoop can likely be removed).
+    sched.children.pop(0)
+    assert loop1.start_expr.symbol.name == "loop0_start"
+
+    # The same test with the lowered schedule should not change the
+    # symbol anymore:
+    _, invoke = get_invoke("4.8_multikernel_invokes.f90", TEST_API,
+                           dist_mem=False, idx=0)
     # Now lower the loop:
     sched = invoke.schedule
-    loop = sched.children[2]
-    assert isinstance(loop, DynLoop)
-    sched.children[2].lower_to_language_level()
-    loop = sched.children[2]
-    assert not isinstance(loop, DynLoop)
-    assert isinstance(loop, PSyLoop)
+    # Verify that we have the right node:
+    assert isinstance(sched.children[1], DynLoop)
+    sched.lower_to_language_level()
+    loop1 = sched.children[1]
+    assert not isinstance(loop1, DynLoop)
+    assert isinstance(loop1, PSyLoop)
+
+    # Verify that after lowering the symbol name does not change
+    # anymore if a previous loop is removed:
+    assert loop1.start_expr.symbol.name == "loop1_start"
+    sched.children.pop(0)
+    assert loop1.start_expr.symbol.name == "loop1_start"
 
 
 def test_lower_to_language_domain_loop():
