@@ -71,5 +71,5 @@ def trans(psy):
                     transformed += 1
                     rc_trans.apply(loop, {"depth": DEPTH})
 
-    print("Transformed {0} loops".format(transformed))
+    print(f"Transformed {transformed} loops")
     return psy

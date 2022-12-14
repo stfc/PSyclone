@@ -78,5 +78,5 @@ def trans(psy):
             print("After fusing ...")
             print(schedule.view())
 
-    print("Fused {0} loops".format(total_fused))
+    print(f"Fused {total_fused} loops")
     return psy

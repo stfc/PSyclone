@@ -135,5 +135,5 @@ def try_kernels_trans(nodes, default_present):
     try:
         ACCKernelsTrans().apply(nodes, {"default_present": default_present})
     except (TransformationError, InternalError) as err:
-        print("Failed to transform nodes: {0}", nodes)
-        print("Error was: {0}".format(str(err)))
+        print(f"Failed to transform nodes: {nodes}")
+        print(f"Error was: {err}")
