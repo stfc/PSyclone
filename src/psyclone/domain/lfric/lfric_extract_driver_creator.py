@@ -487,6 +487,7 @@ class LFRicExtractDriverCreator:
                 continue
 
             try:
+                sig_str = str(signature)
                 sym = symbol_table.lookup_with_tag(str(signature))
             except KeyError:
                 sig_str += "%data"
@@ -501,9 +502,9 @@ class LFRicExtractDriverCreator:
             post_sym = symbol_table.new_symbol(post_name,
                                                symbol_type=DataSymbol,
                                                datatype=sym.datatype)
+            name_lit = Literal(sig_str+postfix, CHARACTER_TYPE)
             LFRicExtractDriverCreator.add_call(program, read_var,
-                                               [Literal(post_name,
-                                                        CHARACTER_TYPE),
+                                               [name_lit,
                                                 Reference(post_sym)])
 
             # Now if a variable is written to, but not read, the variable
