@@ -58,7 +58,7 @@ class AlgTrans(Transformation):
         :type node: :py:class:`psyclone.psyir.node.Routine` or \
             :py:class:`psyclone.psyir.node.Container`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, str]]
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node argument is \
             not a Routine or a Container.
@@ -84,7 +84,7 @@ class AlgTrans(Transformation):
         :type node: :py:class:`psyclone.psyir.node.Routine` or \
             :py:class:`psyclone.psyir.node.Container`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(psyir, options=options)

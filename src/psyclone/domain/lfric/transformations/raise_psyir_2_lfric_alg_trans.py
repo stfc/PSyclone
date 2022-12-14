@@ -59,7 +59,7 @@ class RaisePSyIR2LFRicAlgTrans(RaisePSyIR2AlgTrans):
         :param int index: the position of this invoke call relative to \
             other invokes in the algorithm layer.
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(call, options=options)

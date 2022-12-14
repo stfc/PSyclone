@@ -103,7 +103,7 @@ class NemoAllArrayAccess2LoopTrans(Transformation):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(node)
@@ -127,7 +127,7 @@ class NemoAllArrayAccess2LoopTrans(Transformation):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         # Not a PSyIR Assignment node

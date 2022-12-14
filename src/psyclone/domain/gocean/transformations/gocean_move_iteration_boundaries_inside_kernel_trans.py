@@ -98,7 +98,7 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         :param node: the node to validate.
         :type node: :py:class:`psyclone.gocean1p0.GOKern`
         :param options: a dictionary with options for transformations.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the node is not a GOKern.
 
@@ -115,7 +115,7 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         :param node: the node to transform.
         :type node: :py:class:`psyclone.gocean1p0.GOKern`
         :param options: a dictionary with options for transformations.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(node, options)

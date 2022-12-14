@@ -94,7 +94,7 @@ class ChunkLoopTrans(LoopTrans):
         :param node: the loop to validate.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dict with options for transformation.
-        :type options: dict of str:values or None
+        :type options: Optional[Dict[str, Any]]
         :param int options["chunksize"]: The size to chunk over for this \
                 transformation. If not specified, the value 32 is used.
 
@@ -217,7 +217,7 @@ class ChunkLoopTrans(LoopTrans):
         :param node: the loop to transform.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dict with options for transformations.
-        :type options: dict of str:values or None
+        :type options: Optional[Dict[str, Any]]
         :param int options["chunksize"]: The size to chunk over for this \
                 transformation. If not specified, the value 32 is used.
 

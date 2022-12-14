@@ -232,7 +232,7 @@ class OMPLoopTrans(ParallelLoopTrans):
         :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations\
                         and validation.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
         :param bool options["reprod"]:
                 indicating whether reproducible reductions should be used. \
                 By default the value from the config file will be used.

@@ -66,7 +66,7 @@ class AssignmentTrans(AdjointTransformation):
         :param node: an Assignment node.
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`
         :param options: a dictionary with options for transformations.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(node)
@@ -232,7 +232,7 @@ class AssignmentTrans(AdjointTransformation):
         :param node: the node that is being checked.
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`
         :param options: a dictionary with options for transformations.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the node argument is not an \
             Assignment.

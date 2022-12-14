@@ -117,7 +117,7 @@ class MinOrMax2CodeTrans(Operator2CodeTrans):
         :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation` or \
             :py:class:`psyclone.psyir.nodes.NaryOperation`
         :param options: a dictionary with options for transformations.
-        :type options: dict of str:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         # pylint: disable=too-many-locals

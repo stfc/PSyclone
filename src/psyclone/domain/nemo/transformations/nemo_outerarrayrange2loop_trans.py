@@ -110,7 +110,7 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(node)
@@ -145,7 +145,7 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node is not an \
             Assignment node, if the Assignment node does not have an \

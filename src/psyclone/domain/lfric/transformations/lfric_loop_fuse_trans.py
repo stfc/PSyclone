@@ -86,7 +86,7 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         :param node2: the second Loop to fuse.
         :type node2: :py:class:`psyclone.dynamo0p3.DynLoop`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
         :param bool options["same_space"]: this optional flag, set to `True`, \
             asserts that an unknown iteration space (i.e. `ANY_SPACE`) \
             matches the other iteration space. This is set at the user's own \

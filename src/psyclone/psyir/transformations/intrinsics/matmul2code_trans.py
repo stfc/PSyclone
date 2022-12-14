@@ -170,7 +170,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
         :param node: the node that is being checked.
         :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
         :param options: options for the transformation.
-        :type options: Optional[Dict[str,str]]
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the node argument is not the \
             expected type.
@@ -320,7 +320,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
         :param node: a MATMUL Binary-Operation node.
         :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
         :param options: options for the transformation.
-        :type options: Optional[Dict[str, str]]
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(node)

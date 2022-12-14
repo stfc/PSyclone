@@ -107,7 +107,7 @@ class GOConstLoopBoundsTrans(Transformation):
         :param node: the GOInvokeSchedule to transform.
         :type node: :py:class:`psyclone.gocean1p0.GOInvokeSchedule`
         :param options: a dictionary with options for transformations.
-        :type options: dict of str:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node is not a \
             GOInvokeSchedule.
@@ -183,7 +183,7 @@ class GOConstLoopBoundsTrans(Transformation):
             constant loop bounds.
         :type node: :py:class:`psyclone.gocean1p0.GOInvokeSchedule`
         :param options: a dictionary with options for transformations.
-        :type options: dict of str:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(node, options=options)

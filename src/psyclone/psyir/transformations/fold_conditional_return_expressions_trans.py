@@ -91,7 +91,7 @@ class FoldConditionalReturnExpressionsTrans(Transformation):
         :param node: the node to validate.
         :type node: :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the node is not a Routine.
 
@@ -108,7 +108,7 @@ class FoldConditionalReturnExpressionsTrans(Transformation):
         :param node: the node to transform.
         :type node: :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         routine = node

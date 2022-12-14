@@ -92,7 +92,7 @@ class LoopSwapTrans(LoopTrans):
         :param node_outer: a Loop node from an AST.
         :type node_outer: py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node does not \
                                      allow a loop swap to be done.
@@ -173,7 +173,7 @@ class LoopSwapTrans(LoopTrans):
         :param outer: the node representing the outer loop.
         :type outer: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node does not \
                                      allow a loop swap to be done.

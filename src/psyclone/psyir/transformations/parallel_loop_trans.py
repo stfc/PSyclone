@@ -87,7 +87,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         :param options: a dictionary with options for transformations.\
                         This transform supports "collapse", which is the\
                         number of nested loops to collapse.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
         :param int options["collapse"]: number of nested loops to collapse \
                                         or None.
 
@@ -183,7 +183,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                      Loop transformation.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations. \
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
         :param int options["collapse"]: the number of loops to collapse into \
                 single iteration space or None.
 

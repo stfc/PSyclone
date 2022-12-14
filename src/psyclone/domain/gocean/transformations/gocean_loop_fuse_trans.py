@@ -75,7 +75,7 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
         :param node2: the second Node representing a GOLoop.
         :type node2: :py:class:`psyclone.gocean1p0.GOLoop`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied loops are over \
                                      different grid-point types.

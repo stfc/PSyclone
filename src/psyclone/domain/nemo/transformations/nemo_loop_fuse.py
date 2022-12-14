@@ -55,7 +55,7 @@ class NemoLoopFuseTrans(LoopFuseTrans):
         :param node2: the second Node that is being checked.
         :type node2: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dict with options for transformations.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the lower or upper loop boundaries \
             are not the same.

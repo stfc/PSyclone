@@ -83,7 +83,7 @@ class Operator2CodeTrans(Transformation):
         :param node: the node that is being checked.
         :type node: :py:class:`psyclone.psyir.nodes.Operation`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the node argument is not the \
             expected type.

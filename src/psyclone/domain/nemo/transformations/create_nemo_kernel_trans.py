@@ -109,7 +109,7 @@ class CreateNemoKernelTrans(Transformation):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node is not a Schedule, \
             is not within a loop or cannot be represented as a Kernel.
@@ -165,7 +165,7 @@ class CreateNemoKernelTrans(Transformation):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(sched, options=options)

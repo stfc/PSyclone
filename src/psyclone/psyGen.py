@@ -2769,7 +2769,7 @@ class Transformation():
                 - specific to the actual transform used.
         :type node: depends on actual transformation
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
 
@@ -2799,7 +2799,7 @@ class Transformation():
                 - specific to the actual transform used.
         :type node: depends on actual transformation
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
         '''
         # pylint: disable=no-self-use, unused-argument
 

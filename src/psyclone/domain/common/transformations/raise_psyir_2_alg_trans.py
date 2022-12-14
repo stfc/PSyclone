@@ -150,7 +150,7 @@ class RaisePSyIR2AlgTrans(Transformation):
             generic PSyIR.
         :type node: :py:class:`psyclone.psyir.nodes.Call`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied call argument is \
             not a PSyIR Call node.
@@ -217,7 +217,7 @@ class RaisePSyIR2AlgTrans(Transformation):
         :param int index: the position of this invoke call relative to \
             other invokes in the algorithm layer.
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(call, options=options)
