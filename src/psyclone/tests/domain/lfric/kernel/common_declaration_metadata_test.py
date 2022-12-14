@@ -86,9 +86,9 @@ def test_validate_node():
     with pytest.raises(TypeError) as info:
         CommonDeclarationMetadata.validate_node(
             Fortran2003.Name("hello"), Fortran2003.Comment)
-    assert("Expected kernel metadata to be encoded as an fparser2 Comment "
-           "object but found type 'Name' with value 'hello'."
-           in str(info.value))
+    assert ("Expected kernel metadata to be encoded as an fparser2 Comment "
+            "object but found type 'Name' with value 'hello'."
+            in str(info.value))
     CommonDeclarationMetadata.validate_node(
         Fortran2003.Name("hello"), Fortran2003.Name)
 

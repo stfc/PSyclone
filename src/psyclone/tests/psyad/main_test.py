@@ -140,7 +140,8 @@ def test_main_h_option(capsys):
         "  -panel-id-arg PANEL_ID_ARG\n"
         "                        the position of the panel-ID field in the "
         "meta_args\n"
-        "                        list of arguments in the kernel metadata (LFRic only)\n"
+        "                        list of arguments in the kernel metadata "
+        "(LFRic only)\n"
         "  -otest TEST_FILENAME  filename for the unit test (implies -t)\n"
         "  -oad OAD              filename for the transformed code\n")
     assert expected3 in output
