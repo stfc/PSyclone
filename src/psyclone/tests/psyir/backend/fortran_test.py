@@ -49,7 +49,8 @@ from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
     KernelSchedule, ArrayReference, ArrayOfStructuresReference, Range, \
     StructureReference, Schedule, Routine, Return, FileContainer, \
     Assignment, IfBlock, OMPTaskloopDirective, OMPMasterDirective, \
-    OMPParallelDirective, Loop, OMPNumTasksClause, OMPDependClause
+    OMPParallelDirective, Loop, OMPNumTasksClause, OMPDependClause, \
+    IntrinsicCall
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     ImportInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
@@ -2139,7 +2140,7 @@ def test_fw_call_node(fortran_writer):
     result = fortran_writer(call)
     assert result == "call mysub()\n"
 
-    # If its inside a Schedule it still show the call keyword and a line break
+    # If it's inside a Schedule it still show the call keyword and a line break
     schedule = Schedule()
     schedule.addchild(call)
     assert fortran_writer(call) == "call mysub()\n"
@@ -2222,6 +2223,25 @@ def test_fw_call_node_cblock_args(fortran_reader, fortran_writer):
     assert len(cblocks) == 1
     gen = fortran_writer(call_node)
     assert gen == '''call kernel(a, 'not' // 'nice', b, name='roo')\n'''
+
+
+def test_fw_intrinsic_call_node(fortran_writer):
+    '''Test that the backend handles IntrinsicCall nodes correctly, including
+    skipping 'call' for allocate/deallocate.'''
+    sym = DataSymbol("var", INTEGER_TYPE)
+    jsym = DataSymbol("jelly", INTEGER_TYPE)
+    call = IntrinsicCall.create(IntrinsicCall.Intrinsic.DEALLOCATE,
+                                [Reference(sym)])
+    gen = fortran_writer(call)
+    assert gen == "DEALLOCATE(var)\n"
+    acall = IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,
+                                 [Reference(sym), ("mold", Reference(jsym))])
+    gen = fortran_writer(acall)
+    assert gen == "ALLOCATE(var, mold=jelly)\n"
+    rcall = IntrinsicCall.create(IntrinsicCall.Intrinsic.RANDOM,
+                                 [Reference(sym)])
+    gen = fortran_writer(rcall)
+    assert gen == "call RANDOM_NUMBER(var)\n"
 
 
 def test_fw_comments(fortran_writer):
