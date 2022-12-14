@@ -78,6 +78,19 @@ class KernCallArgList(ArgOrdering):
         self._nqp_positions = []
         self._ndf_positions = []
 
+        # Create a mapping of the various fields type to the precision:
+        const = LFRicConstants()
+        self._map_fields_to_precision = {}
+        for field_info in const.DATA_TYPE_MAP.values():
+            field_type = field_info["type"]
+            # pylint: disable=no-member
+            if field_type in ["r_solver_field_type", "r_solver_operator_type"]:
+                self._map_fields_to_precision[field_type] = psyir.R_SOLVER
+            elif field_type == "r_tran_field_type":
+                self._map_fields_to_precision[field_type] = psyir.R_TRAN
+            else:
+                self._map_fields_to_precision[field_type] = psyir.R_DEF
+
     def get_user_type(self, module_name, user_type, name, tag=None,
                       shape=None):
         # pylint: disable=too-many-arguments
@@ -415,7 +428,8 @@ class KernCallArgList(ArgOrdering):
                     mode=arg.access, metadata_posn=arg.metadata_index)
 
         # Add an access to field_proxy%data:
-        array_1d = ArrayType(psyir.LfricRealScalarDataType(),
+        precision = self._map_fields_to_precision[arg.data_type]
+        array_1d = ArrayType(psyir.LfricRealScalarDataType(precision),
                              [ArrayType.Extent.DEFERRED])
         self.append_user_type(arg.module_name, arg.proxy_data_type, ["data"],
                               arg.proxy_name, enforce_datatype=array_1d)
@@ -589,7 +603,11 @@ class KernCallArgList(ArgOrdering):
         # TODO we should only be including ncell_3d once in the argument
         # list but this adds it for every operator
         # This argument is always read only:
-        operator = LFRicConstants().DATA_TYPE_MAP["operator"]
+        if arg.data_type == "r_solver_operator_type":
+            op_name = "r_solver_operator"
+        else:
+            op_name = "operator"
+        operator = LFRicConstants().DATA_TYPE_MAP[op_name]
         self.append_user_type(operator["module"], operator["proxy_type"],
                               ["ncell_3d"], arg.proxy_name_indexed,
                               enforce_datatype=psyir.
@@ -597,7 +615,8 @@ class KernCallArgList(ArgOrdering):
         self.append(arg.proxy_name_indexed + "%ncell_3d", var_accesses,
                     mode=AccessType.READ)
 
-        array_type = ArrayType(psyir.LfricRealScalarDataType(),
+        precision = self._map_fields_to_precision[operator["type"]]
+        array_type = ArrayType(psyir.LfricRealScalarDataType(precision),
                                [ArrayType.Extent.DEFERRED]*3)
         self.append_user_type(operator["module"], operator["proxy_type"],
                               ["local_stencil"], arg.proxy_name_indexed,
