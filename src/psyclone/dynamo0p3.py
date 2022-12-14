@@ -7225,7 +7225,10 @@ class DynLoop(PSyLoop):
             pos = self.position
             parent = self.parent
             self.detach()
-            for child in self.loop_body.pop_all_children():
+            all_children_reverse = self.loop_body.pop_all_children()[::-1]
+            # Attach the children starting with the last, which
+            # preserves the origina order of the children.
+            for child in all_children_reverse:
                 parent.children.insert(pos, child)
 
     def node_str(self, colour=True):
@@ -10182,19 +10185,20 @@ class DynKernelArgument(KernelArgument):
             try:
                 kind_symbol = symbol_table.lookup(kind_name)
             except KeyError:
+                mod_map = LFRicConstants().UTILITIES_MOD_MAP
+                const_mod = mod_map["constants"]["module"]
                 try:
-                    constants_container = symbol_table.lookup(
-                        "constants_mod")
+                    constants_container = symbol_table.lookup(const_mod)
                 except KeyError:
                     # TODO Once #696 is done, we should *always* have a
                     # symbol for this container at this point so should
                     # raise an exception if we haven't. Also, the name
                     # of the Fortran module should be read from the config
                     # file.
-                    constants_container = ContainerSymbol("constants_mod")
+                    constants_container = ContainerSymbol(const_mod)
                     root_table.add(constants_container)
                 kind_symbol = DataSymbol(
-                    kind_name, INTEGER_SINGLE_TYPE,
+                    kind_name, INTEGER_TYPE,
                     interface=ImportInterface(constants_container))
                 root_table.add(kind_symbol)
             return ScalarType(prim_type, kind_symbol)
