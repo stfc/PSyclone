@@ -40,7 +40,6 @@ PSyclone-conformant Algorithm code.
 
 from __future__ import absolute_import
 from collections import OrderedDict
-import six
 
 from fparser.two import pattern_tools
 from fparser.two.utils import walk

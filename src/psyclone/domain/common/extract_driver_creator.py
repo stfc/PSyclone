@@ -41,8 +41,6 @@ the output data contained in the input file.
 
 from __future__ import absolute_import
 
-import six
-
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.backend.fortran import FortranWriter

@@ -48,7 +48,6 @@ import abc
 import os
 from enum import Enum
 from collections import OrderedDict, namedtuple, Counter
-import six
 import fparser
 
 from psyclone import psyGen

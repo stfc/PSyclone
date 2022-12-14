@@ -40,8 +40,7 @@ which uses specialised classes.
 '''
 # pylint: disable=protected-access
 
-from fparser.two.Fortran2003 import Structure_Constructor, Actual_Arg_Spec, \
-    Name, Char_Literal_Constant
+from fparser.two.Fortran2003 import Structure_Constructor
 
 from psyclone.psyir.nodes import Call, ArrayReference, CodeBlock, Literal
 from psyclone.psyir.symbols import Symbol, DataTypeSymbol, StructureType, \

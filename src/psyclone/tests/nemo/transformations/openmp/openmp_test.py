@@ -42,8 +42,7 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone import nemo
 from psyclone.errors import GenerationError
 from psyclone.psyGen import TransInfo, PSyFactory
-from psyclone.psyir.nodes import Return, OMPDoDirective, \
-    OMPParallelDirective, OMPParallelDoDirective
+from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import OMPLoopTrans, OMPParallelTrans, \
     OMPParallelLoopTrans

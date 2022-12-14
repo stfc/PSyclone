@@ -42,7 +42,6 @@ to the equivalent explicit loop representation using a NemoLoop node.
 '''
 
 from __future__ import absolute_import
-from psyclone.configuration import Config
 from psyclone.domain.nemo.transformations.create_nemo_kernel_trans import \
     CreateNemoKernelTrans
 from psyclone.errors import LazyString, InternalError
@@ -50,11 +49,10 @@ from psyclone.nemo import NemoLoop
 from psyclone.psyGen import Transformation
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Range, Reference, ArrayReference, Call, \
-    Assignment, Literal, Operation, CodeBlock, ArrayMember, Loop, Routine, \
-    BinaryOperation, StructureReference, StructureMember, Node
+    Assignment, Operation, CodeBlock, ArrayMember, Routine, BinaryOperation, \
+    StructureReference, StructureMember, Node
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, DeferredType, \
-    ScalarType
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, ScalarType
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
 

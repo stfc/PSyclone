@@ -43,7 +43,6 @@ and properties.
 # Imports
 
 import os
-import six
 
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType

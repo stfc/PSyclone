@@ -40,7 +40,6 @@
 
 import pytest
 from psyclone.domain.common.psylayer import PSyLoop
-from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import Literal, Schedule, Assignment, Reference
 from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, \
     INTEGER_SINGLE_TYPE, INTEGER_TYPE, SymbolTable
