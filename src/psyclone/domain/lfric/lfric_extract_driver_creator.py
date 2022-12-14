@@ -228,7 +228,7 @@ class LFRicExtractDriverCreator:
             signature = Signature(f"{symbol_name}_{indx}", signature[1:])
         else:
             field_type = old_reference.symbol.datatype.name
-            if field_type in ["field_proxy_Type", "r_solver_field_proxy_type",
+            if field_type in ["field_proxy_type", "r_solver_field_proxy_type",
                               "r_tran_field_proxy_type"]:
                 # Field proxy are accessed using '%data'. Remove this to
                 # have more familiar names for the user, and also because
