@@ -499,7 +499,10 @@ being represented as `Operation` nodes. For example, Fortran's
 (`stat`) may be used to store a return value. It's therefore not clear
 what an allocation 'operation' would assign to (an `Operation`
 must be a child of a `Statement` and therefore could not be included
-in a `Schedule` on its own).
+in a `Schedule` on its own). Similarly, Fortran's `MAXVAL` and
+`MINVAL` intrinsics have optional `dim` and `mask` arguments. In order
+to represent these using `Operation` nodes, we would one for each
+of the four possible forms of each intrinsic.
 
 Therefore, to support intrinsic 'operations' that have optional
 arguments, the PSyIR has the :ref_guide:`IntrinsicCall psyclone.psyir.nodes.html#psyclone.psyir.nodes.IntrinsicCall` Node. This single class

@@ -226,16 +226,13 @@ then
                                     cond_expr, expr)
                     check_added = True
 
-            # TODO #1366: we also have to use a CodeBlock for the allocate()
-            # and deallocate() inside the conditional body.
             body = []
             if check_added:
                 body.append(
                     IfBlock.create(
                         allocated_expr.copy(),
-                        [freader.psyir_from_statement(
-                            f"deallocate({sym.name})",
-                            node.symbol_table)]))
+                        [IntrinsicCall.create(Intrinsic.Intrinsic.DEALLOCATE,
+                                              Reference(sym))]))
             body.append(
                 IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE, aref))
             # Insert the conditional allocation at the start of the supplied
