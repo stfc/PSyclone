@@ -216,7 +216,7 @@ def test_mesh_name_intergrid():
 
 
 def test_lower_to_language():
-    ''' Tests that we can call lower_to_language_level a DynLoop.
+    ''' Tests that we can call lower_to_language_level on a DynLoop.
     '''
     _, invoke = get_invoke("22.1_intergrid_restrict.f90", TEST_API, idx=0)
 
@@ -229,12 +229,19 @@ def test_lower_to_language():
     assert not isinstance(loop, DynLoop)
     assert isinstance(loop, PSyLoop)
 
-    # Invoke two consecutive domain kernels. Merge the 'loops' into one
-    # and verify that the kernels are all still in the right order
+
+def test_lower_to_language_domain_loop():
+    ''' Tests that we can call lower_to_language_level on a domain DynLoop.
+    This test takes an invoke with two consecutive domain kernels and then
+    fuses the 'loops' to verify that the kernels are all still in the right
+    order.
+    '''
+
     _, invoke = get_invoke("25.1_kern_two_domain.f90", TEST_API, idx=0)
     # Domain loops cannot be fused with the transformation, so manually
-    # move the two invokes into one domain loop. First detach the second
-    # invoke, then insert this into the domain loop body:
+    # move the two kernels into one domain loop. First detach the second
+    # DynLoop from the invoke, then detach the actual kernel. Lastly,
+    # insert this second kernel into the domain loop body:
     sched = invoke.schedule
     loop1 = sched.children[1].detach()
     kern = loop1.loop_body.children[0].detach()
