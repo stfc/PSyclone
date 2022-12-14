@@ -142,6 +142,8 @@ def test_kerncallarglist_face_xyoz(dist_mem, fortran_writer):
         'np_xyz_qr_face', 'weights_xyz_qr_face']
 
     check_psyir_results(create_arg_list, fortran_writer)
+
+    # Check that the right datatype is set:
     # pylint: disable=no-member
     array_1d = ArrayType(psyir.LfricRealScalarDataType(),
                          [ArrayType.Extent.DEFERRED])
@@ -373,6 +375,45 @@ def test_kerncallarglist_bcs_operator(fortran_writer):
     # into a 2-component signature:
     sig = Signature(("op_a_proxy", "local_stencil"))
     assert str(access_info[sig]) == "op_a_proxy%local_stencil:READWRITE(0)"
+
+
+def test_kerncallarglist_mixed_precision():
+    ''' Check the handling of mixed precision. This kernel has three invokes:
+    The first using r_def, the second r_solver, the third r_tran.
+    '''
+
+    psy, _ = get_invoke("26.8_mixed_precision_args.f90", TEST_API,
+                        dist_mem=False, idx=0)
+
+    schedule = psy.invokes.invoke_list[0].schedule
+    create_arg_list = KernCallArgList(schedule.kernels()[0])
+    create_arg_list.generate()
+    # Scalar:
+    assert create_arg_list.psyir_arglist[2].datatype.precision.name == "r_def"
+    # field
+    assert create_arg_list.psyir_arglist[3].datatype.precision.name == "r_def"
+    # operator: ncell_3d:
+    assert create_arg_list.psyir_arglist[4].datatype.precision.name == "i_def"
+    # operator: local_stencil
+    assert create_arg_list.psyir_arglist[5].datatype.precision.name == "r_def"
+
+    create_arg_list = KernCallArgList(schedule.kernels()[1])
+    create_arg_list.generate()
+    assert (create_arg_list.psyir_arglist[2].datatype.precision.name ==
+            "r_solver")
+    assert (create_arg_list.psyir_arglist[3].datatype.precision.name ==
+            "r_solver")
+    assert create_arg_list.psyir_arglist[4].datatype.precision.name == "i_def"
+    assert (create_arg_list.psyir_arglist[5].datatype.precision.name ==
+            "r_solver")
+
+    create_arg_list = KernCallArgList(schedule.kernels()[2])
+    create_arg_list.generate()
+    assert create_arg_list.psyir_arglist[2].datatype.precision.name == "r_tran"
+    assert create_arg_list.psyir_arglist[3].datatype.precision.name == "r_tran"
+    assert create_arg_list.psyir_arglist[4].datatype.precision.name == "i_def"
+    # There is no r_tran operator, so its type is r_def:
+    assert create_arg_list.psyir_arglist[5].datatype.precision.name == "r_def"
 
 
 def test_kerncallarglist_scalar_literal(fortran_writer):
