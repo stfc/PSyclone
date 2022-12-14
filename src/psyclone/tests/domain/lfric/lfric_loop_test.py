@@ -229,14 +229,33 @@ def test_lower_to_language():
     assert not isinstance(loop, DynLoop)
     assert isinstance(loop, PSyLoop)
 
-    _, invoke = get_invoke("25.0_domain.f90", TEST_API, idx=0)
+    # Invoke two consecutive domain kernels. Merge the 'loops' into one
+    # and verify that the kernels are all still in the right order
+    _, invoke = get_invoke("25.1_kern_two_domain.f90", TEST_API, idx=0)
+    # Domain loops cannot be fused with the transformation, so manually
+    # move the two invokes into one domain loop. First detach the second
+    # invoke, then insert this into the domain loop body:
     sched = invoke.schedule
-    # Make sure we have the right node:
-    assert isinstance(sched[0], DynLoop)
+    loop1 = sched.children[1].detach()
+    kern = loop1.loop_body.children[0].detach()
+    sched.children[0].loop_body.children.insert(1, kern)
+
+    # Check that the loops are in the expected order - the first kernel
+    # uses a and f1, the second b and f2:
+    assert sched.children[0].loop_body.children[0].args[0].name == "a"
+    assert sched.children[0].loop_body.children[0].args[1].name == "f1"
+    assert sched.children[0].loop_body.children[1].args[0].name == "b"
+    assert sched.children[0].loop_body.children[1].args[1].name == "f2"
+
     # This call removes the loop and replaces it with the actual kernel
-    # call in case of a domain loop:
+    # call in case of a domain loop. It also adds the implicit arguments
+    # so the variable names have a different index in the lowered tree:
     sched.lower_to_language_level()
     assert isinstance(sched[0], Call)
+    assert sched.children[0].children[2].name == "a"
+    assert sched.children[0].children[3].name == "f1_proxy"
+    assert sched.children[1].children[2].name == "b"
+    assert sched.children[1].children[3].name == "f2_proxy"
 
 
 def test_upper_bound_fortran_1():

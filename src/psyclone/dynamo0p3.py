@@ -7141,7 +7141,10 @@ class DynLoop(PSyLoop):
             pos = self.position
             parent = self.parent
             self.detach()
-            for child in self.loop_body.pop_all_children():
+            all_children_reverse = self.loop_body.pop_all_children()[::-1]
+            # Attach the children starting with the last, which
+            # preserves the origina order of the children.
+            for child in all_children_reverse:
                 parent.children.insert(pos, child)
 
     def node_str(self, colour=True):
