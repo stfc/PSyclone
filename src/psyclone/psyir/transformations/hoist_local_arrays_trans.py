@@ -231,10 +231,12 @@ then
                 body.append(
                     IfBlock.create(
                         allocated_expr.copy(),
-                        [IntrinsicCall.create(Intrinsic.Intrinsic.DEALLOCATE,
-                                              Reference(sym))]))
+                        [IntrinsicCall.create(
+                            IntrinsicCall.Intrinsic.DEALLOCATE,
+                            [Reference(sym)])]))
             body.append(
-                IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE, aref))
+                IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,
+                                     [aref]))
             # Insert the conditional allocation at the start of the supplied
             # routine.
             node.children.insert(0, IfBlock.create(cond_expr, body))
