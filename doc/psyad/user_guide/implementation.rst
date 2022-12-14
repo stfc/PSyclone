@@ -560,12 +560,10 @@ All arguments to the TL kernel are initialised with pseudo-random numbers
 in the interval :math:`[0.0,1.0]` using the Fortran `random_number` intrinsic
 function. If the LFRic API is selected then only scalar and field arguments
 are initialised in this way since arguments such as dof-maps contain
-essential information derived from the model configuration.
-
-.. note:: Currently this means that fields containing geometric information
-	  such as coordinates or panel IDs are overwritten with pseudo-random
-	  data and consequently the test harness will not work for kernels
-	  with those arguments. Issue #1708 will address this.
+essential information derived from the model configuration. In addition,
+those arguments flagged by the user (see :ref:`geom_kernel_args`) as
+containing geometric information (i.e. mesh coordinates or panel IDs) are
+passed through to the kernel from the Algorithm layer without modification.
 
 Inner Products
 --------------

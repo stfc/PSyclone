@@ -47,7 +47,6 @@
 
 '''
 
-import copy
 import re
 
 from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt
@@ -56,7 +55,7 @@ from fparser.two.parser import ParserFactory
 from psyclone.configuration import Config, ConfigurationError
 from psyclone.core import Signature
 from psyclone.domain.common.psylayer import PSyLoop
-from psyclone.domain.gocean import GOceanConstants
+from psyclone.domain.gocean import GOceanConstants, GOSymbolTable
 from psyclone.errors import GenerationError, InternalError
 import psyclone.expression as expr
 from psyclone.f2pygen import DeclGen, UseGen, ModuleGen, SubroutineGen, \
@@ -73,7 +72,7 @@ from psyclone.psyir.nodes import Literal, Schedule, KernelSchedule, \
     StructureReference, BinaryOperation, Reference, Call, Assignment, \
     ACCEnterDataDirective, ACCParallelDirective, \
     ACCKernelsDirective, Container, ACCUpdateDirective, Routine
-from psyclone.psyir.symbols import SymbolTable, ScalarType, INTEGER_TYPE, \
+from psyclone.psyir.symbols import ScalarType, INTEGER_TYPE, \
     DataSymbol, RoutineSymbol, ContainerSymbol, DeferredType, DataTypeSymbol, \
     UnresolvedInterface, BOOLEAN_TYPE, REAL_TYPE
 
@@ -1182,7 +1181,7 @@ class GOKern(CodedKern):
                 break
         # We know the above loop will find the named routine because the
         # previous raising transformation would have failed otherwise.
-        # pylint disable=undefined-loop-variable
+        # pylint: disable=undefined-loop-variable
         self._kern_schedule = routine
 
         return self._kern_schedule
@@ -2205,95 +2204,6 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
         super().lower_to_language_level()
 
 
-class GOSymbolTable(SymbolTable):
-    '''
-    Sub-classes SymbolTable to provide a GOcean-specific implementation.
-
-    '''
-    @staticmethod
-    def create_from_table(old_table):
-        '''
-        Create a GOSymbolTable instance from the supplied SymbolTable.
-
-        :param old_table: the generic SymbolTable from which to create a new \
-                          GOSymbolTable.
-        :type old_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-
-        :returns: a new GOSymbolTable containing all of the symbols in \
-                  the supplied table.
-        :rtype: :py:class:`psyclone.gocean1p0.GOSymbolTable`
-
-        :raises TypeError: if the supplied argument is not a SymbolTable.
-
-        '''
-        if not isinstance(old_table, SymbolTable):
-            raise TypeError(
-                f"create_from_table: expected an instance of SymbolTable but "
-                f"got a '{type(old_table).__name__}'")
-
-        new_st = GOSymbolTable()
-        # pylint: disable=protected-access
-        new_st._symbols = copy.copy(old_table._symbols)
-        new_st._argument_list = copy.copy(old_table._argument_list)
-        new_st._tags = copy.copy(old_table._tags)
-        new_st._node = old_table.node
-        new_st._default_visibility = old_table.default_visibility
-
-        return new_st
-
-    def _check_gocean_conformity(self):
-        '''
-        Checks that the Symbol Table has at least 2 arguments which represent
-        the iteration indices (are scalar integers).
-
-        :raises GenerationError: if the Symbol Table does not conform to the \
-                rules for a GOcean kernel.
-        '''
-        # Get the kernel name if available for better error messages
-        kname_str = ""
-        if self._node and isinstance(self._node, KernelSchedule):
-            kname_str = f" for kernel '{self._node.name}'"
-
-        # Check that there are at least 2 arguments
-        if len(self.argument_list) < 2:
-            raise GenerationError(
-                f"GOcean API kernels should always have at least two "
-                f"arguments representing the iteration indices but the "
-                f"Symbol Table{kname_str} has only {len(self.argument_list)} "
-                f"argument(s).")
-
-        # Check that first 2 arguments are scalar integers
-        for pos, posstr in [(0, "first"), (1, "second")]:
-            dtype = self.argument_list[pos].datatype
-            if not (isinstance(dtype, ScalarType) and
-                    dtype.intrinsic == ScalarType.Intrinsic.INTEGER):
-                raise GenerationError(
-                    f"GOcean API kernels {posstr} argument should be a "
-                    f"scalar integer but got '{dtype}'{kname_str}.")
-
-    @property
-    def iteration_indices(self):
-        '''In the GOcean API the two first kernel arguments are the iteration
-        indices.
-
-        :return: List of symbols representing the iteration indices.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
-        '''
-        self._check_gocean_conformity()
-        return self.argument_list[:2]
-
-    @property
-    def data_arguments(self):
-        '''In the GOcean API the data arguments start from the third item in
-        the argument list.
-
-        :return: List of symbols representing the data arguments.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
-        '''
-        self._check_gocean_conformity()
-        return self.argument_list[2:]
-
-
 class GOKernelSchedule(KernelSchedule):
     '''
     Sub-classes KernelSchedule to provide a GOcean-specific implementation.
@@ -2348,5 +2258,5 @@ __all__ = ['GOPSy', 'GOInvokes', 'GOInvoke', 'GOInvokeSchedule', 'GOLoop',
            'GOBuiltInCallFactory', 'GOKernCallFactory', 'GOKern',
            'GOKernelArguments', 'GOKernelArgument',
            'GOKernelGridArgument', 'GOStencil', 'GO1p0Descriptor',
-           'GOKernelType1p0', 'GOACCEnterDataDirective', 'GOSymbolTable',
+           'GOKernelType1p0', 'GOACCEnterDataDirective',
            'GOKernelSchedule', 'GOHaloExchange']
