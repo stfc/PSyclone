@@ -490,6 +490,39 @@ var2, var3)` would be represented by a
 The PSyIR supports the concept of named arguments for operation
 nodes, see the :ref:`named_arguments-label` section for more details.
 
+IntrinsicCall Nodes
+-------------------
+
+There are certain intrinsic functions that do not lend themselves to
+being represented as `Operation` nodes. For example, Fortran's
+`allocate` statement has various *optional* arguments, one of which
+(`stat`) may be used to store a return value. It's therefore not clear
+what an allocation 'operation' would assign to (an `Operation`
+must be a child of a `Statement` and therefore could not be included
+in a `Schedule` on its own).
+
+Therefore, to support intrinsic 'operations' that have optional
+arguments, the PSyIR has the :ref_guide:`IntrinsicCall psyclone.psyir.nodes.html#psyclone.psyir.nodes.IntrinsicCall` Node. This single class
+supports the different intrinsics listed in the `IntrinsicCall.Intrinsic`
+enumeration:
+
++-------------+-------------------------------+--------------------------------+
+| Name        | Positional arguments          | Optional arguments             |
++-------------+-------------------------------+------+-------------------------+
+| ALLOCATE    | One or more Reference or      | stat | Reference which will    |
+|             | ArrayReferences to which      |      | hold status.            |
+|             | memory will be allocated.     +------+-------------------------+
+|             |                               | mold | Reference to an array   |
+|             |                               |      | which is used to specify|
+|             |                               |      | the dimensions of the   |
+|             |                               |      | allocated obect.        |
++-------------+-------------------------------+------+-------------------------+
+| DEALLOCATE  | One or more References.       | stat | Reference which will    |
+|             |                               |      | hold status.            |
++-------------+-------------------------------+------+-------------------------+
+| RANDOM      | A single Reference.           |                                |
++-------------+-------------------------------+--------------------------------+
+
 CodeBlock Node
 --------------
 
