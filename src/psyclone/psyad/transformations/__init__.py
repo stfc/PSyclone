@@ -37,3 +37,4 @@
 from psyclone.psyad.transformations.tangent_linear_error import \
     TangentLinearError
 from psyclone.psyad.transformations.assignment_trans import AssignmentTrans
+from psyclone.psyad.transformations.preprocess import preprocess_trans

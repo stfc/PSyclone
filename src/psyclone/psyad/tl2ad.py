@@ -45,7 +45,7 @@ from psyclone.psyad.domain.common import (find_container, create_adjoint_name,
                                           create_real_comparison)
 from psyclone.psyad.domain.lfric import (generate_lfric_adjoint,
                                          generate_lfric_adjoint_harness)
-from psyclone.psyad.transformations.preprocess import preprocess_trans
+from psyclone.psyad.transformations import preprocess_trans
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
@@ -99,8 +99,7 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
     reader = FortranReader()
     tl_psyir = reader.psyir_from_source(tl_fortran_str)
 
-    # Check there is only one routine (program or subroutine) and that
-    # this routine is not a function,as functions are not supported.
+    # Check there are no functions, as functions are not supported.
     routines = tl_psyir.walk(Routine)
     for routine in routines:
         if routine.return_symbol:
@@ -130,6 +129,7 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
             test_psyir = generate_lfric_adjoint_harness(tl_psyir,
                                                         coord_arg_index,
                                                         panel_id_arg_index)
+
     else:
         raise NotImplementedError(
             f"PSyAD only supports generic routines/programs or LFRic "

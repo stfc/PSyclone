@@ -70,10 +70,10 @@ def test_generate_lfric_adjoint_no_routines_error(fortran_reader):
 
     '''
     psyir = fortran_reader.psyir_from_source("""\
-module test
+module test_mod
   implicit none
   integer :: var1
-end module test
+end module test_mod
 """)
     with pytest.raises(InternalError) as err:
         generate_lfric_adjoint(psyir, ["var1", "var2"])
@@ -86,7 +86,13 @@ def test_generate_lfric_adjoint_multi_kernel(fortran_reader, fortran_writer):
 
     '''
     tl_fortran_str = (
-        "module test_mod\n"
+        "module tl_test_mod\n"
+        "  use kernel_mod\n"
+        "  type, public, extends(kernel_type) :: tl_test_type\n"
+        "    type(arg_type) :: meta_args(1) =         &\n"
+        "         (/ arg_type(gh_field, gh_real, gh_readwrite, w3) /)\n"
+        "    integer :: operates_on = CELL_COLUMN\n"
+        "  end type\n\n"
         "  contains\n"
         "  subroutine kern1()\n"
         "    real :: psyir_tmp, psyir_tmp_1\n"
@@ -100,10 +106,16 @@ def test_generate_lfric_adjoint_multi_kernel(fortran_reader, fortran_writer):
         "    real :: psyir_tmp, psyir_tmp_1\n"
         "    psyir_tmp = psyir_tmp_1\n"
         "  end subroutine kern3\n"
-        "end module test_mod\n")
+        "end module tl_test_mod\n")
     expected = (
         "module adj_test_mod\n"
+        "  use kernel_mod\n"
         "  implicit none\n"
+        "  type, public, extends(kernel_type) :: adj_test_type\n"
+        "  type(ARG_TYPE) :: META_ARGS(1) = (/ &\n"
+        "    arg_type(gh_field, gh_real, gh_readwrite, w3)/)\n"
+        "  INTEGER :: OPERATES_ON = cell_column\n"
+        "END TYPE adj_test_type\n\n"
         "  public\n\n"
         "  public :: adj_kern1, adj_kern2, adj_kern3\n\n"
         "  contains\n"
@@ -136,3 +148,77 @@ def test_generate_lfric_adjoint_multi_kernel(fortran_reader, fortran_writer):
     ad_psyir = generate_lfric_adjoint(psyir, ["psyir_tmp", "psyir_tmp_1"])
     ad_fortran_str = fortran_writer(ad_psyir)
     assert ad_fortran_str == expected
+
+TL_CODE_WITH_GEOM = (
+    "module testkern_mod\n"
+    "  use kinds_mod, only: i_def, r_def\n"
+    "  use kernel_mod, only: kernel_type, arg_type, gh_field, gh_real, "
+    "gh_write, w3, cell_column\n"
+    "  type, extends(kernel_type) :: testkern_type\n"
+    "     type(arg_type), dimension(4) :: meta_args =          & \n"
+    "          (/ arg_type(gh_scalar, gh_real, gh_read),       & \n"
+    "             arg_type(gh_field*3,gh_real, gh_read, wchi), & \n"
+    "             arg_type(gh_field,  gh_real, gh_write,  w3), & \n"
+    "             arg_type(gh_field,  gh_integer, gh_read,     & \n"
+    "                      any_discontinuous_space_1)  & \n"
+    "           /)\n"
+    "     integer :: operates_on = cell_column\n"
+    "   contains\n"
+    "     procedure, nopass :: code => testkern_code\n"
+    "  end type testkern_type\n"
+    "contains\n"
+    "  subroutine testkern_code(nlayers, ascalar, cfield1, cfield2, cfield3, &\n"
+    "field, pids, ndf_wchi, undf_wchi, map_wchi, ndf_w3, undf_w3, &\n"
+    "map_w3, ndf_adspace1, undf_adspace1, map_adspace1)\n"
+    "    integer(kind=i_def), intent(in) :: nlayers\n"
+    "    integer(kind=i_def), intent(in) :: ndf_w3, undf_w3\n"
+    "    integer(kind=i_def), intent(in) :: ndf_wchi, undf_wchi\n"
+    "    integer(kind=i_def), intent(in) :: ndf_adspace1, undf_adspace1\n"
+    "    integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3\n"
+    "    integer(kind=i_def), intent(in), dimension(ndf_wchi) :: map_wchi\n"
+    "    integer(kind=i_def), intent(in), dimension(ndf_adspace1) :: map_adspace1\n"
+    "    real(kind=r_def), intent(in) :: ascalar\n"
+    "    real(kind=r_def), intent(inout), dimension(undf_wchi) :: cfield1, cfield2, cfield3\n"
+    "    real(kind=r_def), intent(inout), dimension(undf_w3) :: field\n"
+    "    integer(kind=i_def), intent(in), dimension(undf_adspace1) :: pids\n"
+    "    field = ascalar\n"
+    "  end subroutine testkern_code\n"
+    "end module testkern_mod\n"
+)
+
+def test_adjoint_metadata(fortran_reader, fortran_writer):
+    '''Check that the adjoint metadata is set correctly.'''
+    tl_fortran_str = (
+        "module tl_test_mod\n"
+        "  use kernel_mod\n"
+        "  type, public, extends(kernel_type) :: tl_test_type\n"
+        "    type(arg_type) :: meta_args(2) =         &\n"
+        "         (/ arg_type(gh_field, gh_real, gh_readwrite, w3), &\n"
+        "            arg_type(gh_field, gh_real, gh_read, w3) /)\n"
+        "    integer :: operates_on = CELL_COLUMN\n"
+        "  contains\n"
+        "    procedure, nopass :: tl_test_code\n"
+        "  end type\n\n"
+        "  contains\n"
+        "  subroutine tl_test_code(nlayers, field1, field2, field3, ndf_w3, undf_w3, map_w3)\n"
+        "    integer, intent(in) :: nlayers, ndf_w3, undf_w3\n"
+        "    real(kind=r_def), dimension(undf_w3), intent(out) :: field1\n"
+        "    real(kind=r_def), dimension(undf_w3), intent(in) :: field2, field3\n"
+        "    integer, dimension(ndf_w3), intent(in) :: map_w3\n"
+        "    integer df, k\n"
+        "    do df = 1, ndf_w3\n"
+        "      do k = 0, nlayers-1\n"
+        "        field1(map_w3(df) + k) = field2(map_w3(df) + k) * field3(map_w3(df) + k)\n"
+        "      end do\n"
+        "    end do\n"
+        "  end subroutine tl_test_code\n"
+        "end module tl_test_mod\n")
+    expected = (
+        "xxx")
+    psyir = fortran_reader.psyir_from_source(tl_fortran_str)
+    ad_psyir = generate_lfric_adjoint(psyir, ["field1", "field2"])
+    ad_fortran_str = fortran_writer(ad_psyir)
+    print(ad_fortran_str)
+    exit(1)
+    assert ad_fortran_str == expected
+    
