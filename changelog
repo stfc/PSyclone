@@ -181,6 +181,51 @@
 	63) PR #1924 for #1923. Fix issues building Developer and Reference
 	guides.
 
+	64) PR #1913 for #1848. Fix issues with case-sensitivity in the
+	SymbolTables.resolve_imports method.
+
+	65) PR #1917 for #1916. Extends InlineTrans to support calls to
+	routines in different Containers.
+
+	66) PR #1940. Replace Python 3.10 with 3.11 in GHA test suite.
+
+	67) PR #1943 for #1942. Fixes incorrect path in tutorial
+	Makefile setup.
+
+	68) PR #1905 for #1903. OpenMP schedule can be set to "none", which skips
+	the schedule clause in the OpenMP directive. This is the new default in
+	generic PSyIR (GOcean and LFRic still default to "static").
+
+	69) PR #1892 towards #1824. get_kernel_schedule supports resolving
+	interfaces (e.g. for the LFRic mixed precision kernels).
+
+	70) PR #1911 for #1909. Update fparser dependency.
+
+	71) PR #1908 for #1879. Completes the new meta-data parsing
+	functionality for the LFRic API.
+
+	72) PR #1918 for #1883. Updates kern_call_arg_list() (for LFRic) to
+	use PSyIR. (Step towards using PSyIR in LFRic PSy-layer generation
+	and required for PSyKE driver generation.)
+
+	73) PR #1898 towards #1708. Extends PSyAD LFRic harness support to
+	kernels with field arguments that contain geometry information.
+
+	74) PR #1982 for #1981. Updates the GHA configuration to use
+	Python 3.7 instead of 3.6.
+
+	75) PR #1956 for #1955. Updates the tests/.pylintrc file to remove
+	unsupported options.
+
+	76) PR #1888 for #1783. Adds NEMO OpenMP transformation scripts
+	to the examples.
+
+	77) PR #1933 for #1902. Adds run-time checks when hoisting
+	local work arrays.
+
+	78) PR #1963 towards #1883. More work to improving the use of PSyIR
+	in LFRic (as needed for PSyKE driver creation).
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
