@@ -48,12 +48,11 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (ArrayMember, ArrayReference, Assignment,
                                   Call, FileContainer, Literal, Node,
                                   Reference, Routine, StructureReference)
-from psyclone.psyir.symbols import (ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE,
+from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE,
                                     ContainerSymbol, DataSymbol,
                                     DataTypeSymbol, DeferredType,
                                     ImportInterface, INTEGER_TYPE,
-                                    INTEGER8_TYPE, REAL8_TYPE, RoutineSymbol,
-                                    ScalarType)
+                                    RoutineSymbol)
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations import ExtractTrans
 
@@ -145,25 +144,18 @@ class LFRicExtractDriverCreator:
        example, a variable `f` which was modified in the kernel calls, will
        then be compared with `f_post`.
 
-    :type integer_type: :py:class:`psyclone.psyir.symbols.ScalarType`
-    :param real_type: default scalar real type to be used for real \
-        variables. Defaults to REAL8_TYPE.
-    :type real_type: :py:class:`psyclone.psyir.symbols.ScalarType`
-
     '''
-    def __init__(self, integer_type=INTEGER_TYPE, real_type=REAL8_TYPE):
+    def __init__(self):
         # Set the integer and real types to use.
-        # For convenience, also add the names used in the gocean config file:
-        self._default_types = {ScalarType.Intrinsic.INTEGER: integer_type,
-                               "integer": integer_type,
-                               ScalarType.Intrinsic.REAL: real_type,
-                               ScalarType.Intrinsic.BOOLEAN: BOOLEAN_TYPE,
-                               "real": real_type}
         self._all_field_types = ["field_type", "integer_field_type",
                                  "r_solver_field_type", "r_tran_field_type"]
-        self._default_precision = {"r_def": "real64",
-                                   "r_solver": "real32",
-                                   "i_def": "integer64"}
+        # Set the size of the various precision types used in LFRic.
+        self._precision = {"i_def": "int32",
+                           "r_def": "real64",
+                           "r_second": "real64",
+                           "r_solver": "real32",
+                           "r_tran": "real32",
+                           }
 
         const = LFRicConstants()
         self._map_fields_to_precision = {}
@@ -581,10 +573,10 @@ class LFRicExtractDriverCreator:
 
     # -------------------------------------------------------------------------
     def add_precision_symbols(self, program):
-        '''This function defines the LFRic precision symbols r_def and
-        i_def, after importing the required types from the Fortran intrinci
+        '''This function defines the LFRic precision symbols `r_def` and
+        `i_def`, after importing the required types from the Fortran intrinsic
         module. The actual type is picked depending on the setting of
-        self._default_types["real"/"integer"]
+        `self._precision`
 
         :param program: the PSyIR Routine to which any code must \
             be added. It contains the symbol table to be used.
@@ -598,36 +590,29 @@ class LFRicExtractDriverCreator:
         intrinsic_mod = ContainerSymbol(",intrinsic::iso_fortran_env")
         symbol_table.add(intrinsic_mod)
 
-        # Add r_def:
-        if self._default_types["real"] == REAL8_TYPE:
-            name = "real64"
-        else:
-            name = "real32"
+        # Add the import of the real32 and real64 symbols from
+        # iso_fortran_env:
         real32_type = DataTypeSymbol("real32", INTEGER_TYPE,
                                      interface=ImportInterface(intrinsic_mod))
+        symbol_table.add(real32_type)
         real64_type = DataTypeSymbol("real64", INTEGER_TYPE,
                                      interface=ImportInterface(intrinsic_mod))
-        symbol_table.add(real32_type)
         symbol_table.add(real64_type)
-        symbol_table.new_symbol("r_def",
-                                symbol_type=DataSymbol,
-                                datatype=INTEGER_TYPE,
-                                constant_value=Reference(real64_type))
-        symbol_table.new_symbol("r_second",
-                                symbol_type=DataSymbol,
-                                datatype=INTEGER_TYPE,
-                                constant_value=Reference(real64_type))
-        symbol_table.new_symbol("r_solver",
-                                symbol_type=DataSymbol,
-                                datatype=INTEGER_TYPE,
-                                constant_value=Reference(real32_type))
 
-        # Add i_def:
-        if self._default_types["integer"] == INTEGER8_TYPE:
-            name = "int64"
-        else:
-            name = "int32"
-        int_type = DataTypeSymbol(name, INTEGER_TYPE,
+        # Use a dictionary to reduce if-tests:
+        map_prec = {"real32": real32_type,
+                    "real64": real64_type}
+
+        for prec_name in ["r_def", "r_second", "r_solver"]:
+            prec_type = map_prec[self._precision[prec_name]]
+            symbol_table.new_symbol(prec_name,
+                                    symbol_type=DataSymbol,
+                                    datatype=INTEGER_TYPE,
+                                    constant_value=Reference(prec_type))
+
+        # Add integer32 or integer64
+        int_type = DataTypeSymbol(self._precision["i_def"],
+                                  INTEGER_TYPE,
                                   interface=ImportInterface(intrinsic_mod))
         symbol_table.add(int_type)
 
