@@ -73,7 +73,8 @@ end subroutine my_sub'''
 
 def test_paralooptrans_validate_force(fortran_reader):
     '''
-    Test that the 'force' option works as expected.
+    Test that the 'force' option allows the validate check to succeed even
+    when the dependency analysis finds a possible loop-carried dependency.
 
     '''
     psyir = fortran_reader.psyir_from_source(CODE)
@@ -147,7 +148,7 @@ subroutine my_sub()
   var1 = 1.0
   do ji = 1, 10
     do jj = 1, 10
-    var1(ji, jj) = 1.0
+      var1(ji, jj) = 1.0
       sum = var1(ji, jj)
     end do
   end do
