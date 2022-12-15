@@ -684,7 +684,7 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
                     f"Error in {self.name} transformation. The kernel has an "
                     f"argument with INC access. Colouring is required.")
 
-        OMPParallelLoopTrans.apply(self, node)
+        OMPParallelLoopTrans.apply(self, node, options=options)
 
 
 class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):

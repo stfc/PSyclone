@@ -143,6 +143,9 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                     f"containing only {loop_count} loops")
 
         # Check that there are no loop-carried dependencies
+        if ignore_dep_analysis:
+            return
+
         dep_tools = DependencyTools()
 
         try:
@@ -156,18 +159,16 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                     all_msg_str = [str(message) for message in
                                    dep_tools.get_all_messages()]
                     messages = "\n".join(all_msg_str)
-                    if not ignore_dep_analysis:
-                        raise TransformationError(
-                            f"Dependency analysis failed with the following "
-                            f"messages:\n{messages}")
-                    # TODO #11. Log a warning that the dependence analysis
-                    # says that this loop cannot be parallelised but that
-                    # the user has opted to 'force' it.
+                    raise TransformationError(
+                        f"Dependency analysis failed with the following "
+                        f"messages:\n{messages}")
 
         except (KeyError, InternalError):
             # LFRic still has symbols that don't exist in the symbol_table
             # until the gen_code() step, so the dependency analysis raises
-            # KeyErrors in some cases. We ignore this for now.
+            # KeyErrors in some cases.
+            # Also, the dependence analysis doesn't yet use PSyIR consistently
+            # and that causes failures - TOD0 #845.
             pass
 
     def apply(self, node, options=None):
