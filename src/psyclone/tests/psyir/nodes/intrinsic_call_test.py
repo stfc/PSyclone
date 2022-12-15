@@ -158,6 +158,13 @@ def test_intrinsiccall_create_errors():
                              [aref, ("yacht", Reference(sym))])
     assert ("The 'ALLOCATE' intrinsic supports the optional arguments "
             "['mold', 'stat'] but got 'yacht'" in str(err.value))
+    # Wrong type for the name of an optional argument.
+    with pytest.raises(TypeError) as err:
+        IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,
+                             [aref, (sym, sym)])
+    assert ("Optional arguments to an IntrinsicCall must be specified by a "
+            "(str, Reference) tuple but got a DataSymbol instead of a str"
+            in str(err.value))
     # Wrong type for an optional argument.
     with pytest.raises(TypeError) as err:
         IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,

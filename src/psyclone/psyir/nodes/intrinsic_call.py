@@ -73,17 +73,17 @@ class IntrinsicCall(Call):
     _optional_args = {}
     # The positional arguments to allocate must all be References (or
     # ArrayReferences but they are a subclass of Reference).
-    _required_args[Intrinsic.ALLOCATE.name] = ArgDesc(1, None, Reference)
-    _optional_args[Intrinsic.ALLOCATE.name] = {"mold": Reference,
-                                               "stat": Reference}
-    _required_args[Intrinsic.DEALLOCATE.name] = ArgDesc(1, None, Reference)
-    _optional_args[Intrinsic.DEALLOCATE.name] = {"stat": Reference}
-    _required_args[Intrinsic.RANDOM.name] = ArgDesc(1, 1, Reference)
-    _optional_args[Intrinsic.RANDOM.name] = {}
+    _required_args[Intrinsic.ALLOCATE] = ArgDesc(1, None, Reference)
+    _optional_args[Intrinsic.ALLOCATE] = {"mold": Reference,
+                                          "stat": Reference}
+    _required_args[Intrinsic.DEALLOCATE] = ArgDesc(1, None, Reference)
+    _optional_args[Intrinsic.DEALLOCATE] = {"stat": Reference}
+    _required_args[Intrinsic.RANDOM] = ArgDesc(1, 1, Reference)
+    _optional_args[Intrinsic.RANDOM] = {}
 
     @classmethod
     def create(cls, intrinsic, arguments):
-        '''Create an instance of class cls given the type of intrinsic and a
+        '''Create an instance of this class given the type of intrinsic and a
         list of nodes (or name-and-node tuples) for its arguments. Any
         named arguments *must* come after any required arguments.
 
@@ -93,10 +93,10 @@ class IntrinsicCall(Call):
             2-tuples containing an argument name and the \
             argument. Arguments are added as child nodes.
         :type arguments: List[ \
-            Union[:py:class:``psyclone.psyir.nodes.DataNode``, \
-                  Tuple[str, :py:class:``psyclone.psyir.nodes.DataNode``]]]
+            Union[:py:class:`psyclone.psyir.nodes.DataNode`, \
+                  Tuple[str, :py:class:`psyclone.psyir.nodes.DataNode`]]]
 
-        :returns: an instance of cls.
+        :returns: an instance of this class.
         :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
         :raises TypeError: if any of the arguments are of the wrong type.
@@ -117,19 +117,24 @@ class IntrinsicCall(Call):
                 f"IntrinsicCall.create() 'arguments' argument should be a "
                 f"list but found '{type(arguments).__name__}'")
 
-        if cls._optional_args[intrinsic.name]:
+        if cls._optional_args[intrinsic]:
             optional_arg_names = sorted(list(
-                cls._optional_args[intrinsic.name].keys()))
+                cls._optional_args[intrinsic].keys()))
         else:
             optional_arg_names = []
 
         # Validate the supplied arguments.
-        reqd_args = cls._required_args[intrinsic.name]
-        opt_args = cls._optional_args[intrinsic.name]
+        reqd_args = cls._required_args[intrinsic]
+        opt_args = cls._optional_args[intrinsic]
         last_named_arg = None
         pos_arg_count = 0
         for arg in arguments:
             if isinstance(arg, tuple):
+                if not isinstance(arg[0], str):
+                    raise TypeError(
+                        f"Optional arguments to an IntrinsicCall must be "
+                        f"specified by a (str, Reference) tuple but got "
+                        f"a {type(arg[0]).__name__} instead of a str.")
                 name = arg[0].lower()
                 last_named_arg = name
                 if not optional_arg_names:
