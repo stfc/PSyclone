@@ -572,20 +572,20 @@ class LFRicExtractDriverCreator:
             symbol_table.add(new_routine_sym)
 
     # -------------------------------------------------------------------------
-    def add_precision_symbols(self, program):
-        '''This function defines the LFRic precision symbols `r_def` and
-        `i_def`, after importing the required types from the Fortran intrinsic
-        module. The actual type is picked depending on the setting of
-        `self._precision`
+    def add_precision_symbols(self, symbol_table):
+        '''This function adds an import of the iso_fortran_env standard
+        module to the given symbol table. It uses the various precision
+        symbols defined there to define the LFRic specific precision
+        symbols like 'r_def' ... The actual type is picked depending on
+        the setting in the `self._precision` dictionary.
 
-        :param program: the PSyIR Routine to which any code must \
-            be added. It contains the symbol table to be used.
-        :type program: :py:class:`psyclone.psyir.nodes.Routine`
+        :param symbol_table: the symbol table to which the precision symbols \
+            must be added.
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
-        symbol_table = program.scope.symbol_table
         # Using the intrinsic module requires a ",". Just add this
-        # as part of the name, the writerthen produces the expected
+        # as part of the name, the writer then produces the expected
         # Fortran code (`use ,intrinsic::iso_fortran_env, only:`)
         intrinsic_mod = ContainerSymbol(",intrinsic::iso_fortran_env")
         symbol_table.add(intrinsic_mod)
@@ -599,11 +599,11 @@ class LFRicExtractDriverCreator:
                                      interface=ImportInterface(intrinsic_mod))
         symbol_table.add(real64_type)
 
-        # Use a dictionary to reduce if-tests:
+        # Define all required real precision symbols:
         map_prec = {"real32": real32_type,
                     "real64": real64_type}
 
-        for prec_name in ["r_def", "r_second", "r_solver"]:
+        for prec_name in ["r_def", "r_second", "r_solver", "r_tran"]:
             prec_type = map_prec[self._precision[prec_name]]
             symbol_table.new_symbol(prec_name,
                                     symbol_type=DataSymbol,
@@ -781,7 +781,7 @@ class LFRicExtractDriverCreator:
                 child.lower_to_language_level()
 
         self.import_modules(program, schedule_copy)
-        self.add_precision_symbols(program)
+        self.add_precision_symbols(program.scope.symbol_table)
         self.add_all_kernel_symbols(schedule_copy, program_symbol_table,
                                     proxy_name_mapping)
 
