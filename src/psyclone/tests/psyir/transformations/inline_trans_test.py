@@ -54,6 +54,7 @@ MY_TYPE = ("  type other_type\n"
            "    type(other_type) :: local\n"
            "  end type my_type\n")
 
+
 # init
 
 def test_init():

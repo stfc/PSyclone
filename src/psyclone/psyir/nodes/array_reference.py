@@ -47,7 +47,6 @@ from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import (DataSymbol, DeferredType, UnknownType,
                                     DataTypeSymbol, ScalarType, ArrayType,
                                     INTEGER_TYPE)
-from psyclone.errors import GenerationError
 
 
 class ArrayReference(ArrayMixin, Reference):
