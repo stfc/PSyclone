@@ -34,24 +34,20 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 '''This module provides functionality for the PSyclone kernel extraction
-functionality. It contains the class that creates a driver that
+functionality for LFRic. It contains the class that creates a driver that
 reads in extracted data, calls the kernel, and then compares the result with
 the output data contained in the input file.
 '''
 
-from __future__ import absolute_import
-
 from psyclone.core import Signature
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
-from psyclone.errors import InternalError
 from psyclone.psyGen import HaloExchange, InvokeSchedule, Kern
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (ArrayMember, ArrayReference, Assignment,
-                                  Call, FileContainer, Literal, Node, Reference,
-                                  Routine, StructureReference)
+                                  Call, FileContainer, Literal, Node,
+                                  Reference, Routine, StructureReference)
 from psyclone.psyir.symbols import (ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE,
                                     ContainerSymbol, DataSymbol,
                                     DataTypeSymbol, DeferredType,
@@ -61,17 +57,94 @@ from psyclone.psyir.symbols import (ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE,
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations import ExtractTrans
 
-# TODO 1392: once we support LFRic, make this into a proper base class
-# and put the domain-specific implementations into the domain/* directories.
-
 
 class LFRicExtractDriverCreator:
     '''This class provides the functionality to create a driver that
     reads in extracted data produced by using the PSyData kernel-extraction
     functionality.
 
-    :param integer_type: default scalar integer type to be used for integer \
-        variables. Defaults to INTEGER_TYPE.
+    The driver is created as follows:
+    1. The corresponding Invoke statement that contains the kernel(s) is
+       copied. This way we avoid affecting the tree of the caller. We need
+       the invoke since it contains the symbol table.
+    2. We remove all halo exchange nodes. While atm the extract transformation
+       will not work when distributed memory is enabled, but since this
+       restriction is expected to be lifted, the code to handle this is
+       already added.
+    3. We either lower each kernel (child of the invoke) that was requested to
+       be extracted, all others are removed. This is required since the kernel
+       extraction will not contain the required data for the other kernels to
+       be called. The lowering is important to fix the loop boundaries for
+       the DynLoop: the loop start/stop expressions (`loop0_start` etc.)
+       depend on the position of the loop in the tree. For example, if there
+       are two kernels, they will be using `loop0_start` and `loop1_start`. If
+       only the second is extracted, the former second (now only) loop would
+       be using `loop0_start` without lowering, but the kernel extraction
+       would have written the values for `loop1_start`.
+    4. We create a program for the driver with a new symbol table and start
+       adding symbols for the program unit, precision symbols, PSyData read
+       module etc to it.
+    5. We add all required symbols to the new symbol table. This is done by
+       looping over all references in the extracted region and declaring
+       the symbols in the new symbol table. The existing references in the
+       tree will be replaced with newly created references to the new symbols.
+       a. We first handle all non user-defined type. We can be certain that
+          these symbols are already unique (since it's the original kernel
+          code).
+       b. Then we handle user-defined types. Since we only use basic Fortran
+          types, accesses to these types need to be 'flattened': an access
+          like `a%b%c` will be flattened to `a_b_c` to create a valid symbol
+          name without needing the user-defined type. We use the original
+          access string (`a%b%c`) as tag, since we know this tag is unique,
+          and create a new, unique symbol based on `a_b_c`. This takes care
+          if the user should be using this newly generated name (e.g. if the
+          user uses `a%b%c` and `a_b_c`, `a_b_c` as non user defined symbol
+          will be added to the symbol table first. When then `a%b%c` is
+          flattened, the symbol table will detect that the symbol `a_b_c`
+          already exists and create `a_b_c_1` for the tag `a%b%c`).
+          For known LFRic types, the actual name used in a reference will
+          be changed to the name the user expects. For example, if field
+          `f` is used, the access will be `f_proxy%data`. The kernel
+          extraction does the same and stores the values under the name `f`,
+          so the driver similarly simplifies the name back to the original
+          `f`.
+          The KernCallArgList class will have enforced the appropriate
+          basic Fortran type declaration for each reference to a user defined
+          variable. For example, if a field `f` is used, the reference to
+          `f_proxy%data` will have a data type attribute of a 1D real array
+          (with the correct precision).
+    6. We create the read-in code for all variables in the input- and output-
+       lists. Mostly, no special handling of argument type is required (since
+       the generic interface will make sure to call the appropriate function).
+       But in case of user-defined types, we need to make sure to use the
+       name with '%' (unless it is a standard LFRic type like field which
+       as described above has already been simplified). Example are names like
+       `f_proxy%local_stencil` and `f_proxy%ncell_3d`. They will be using the
+       name with `%`, but a flattened variable name (`%` replaced with `_`).
+       a. Input parameter are read in from the PSyData ReadKernelData module.
+          These function will allocate all array variables to the right size
+          based on the data from the input file.
+       b. For parameters that are read and written, two variables will be
+          declared: the input will be stored in the unmodified variable name,
+          and the output values in a variable with `_post` appended. For
+          example, a field `f` as input will be read into `f` using the name
+          `f`, and output values will be read into `f_post` using the name
+          `f_post`. The symbol table will make sure that the `_post` name
+          is unique.
+       c. Similar to b., output only parameters will be read into a variable
+          named with '_post' attached, e.g. output field `f` will be stored
+          in a variable `f_post`. Then the array `f` is allocated based on
+          the shape of `f_post` and initialised to 0 (since it's an
+          output-only parameter the value doesn't really matter).
+    7. The extracted kernels are added to the program. Since in step 5 all
+       references have been replaced, there created code will use the correct
+       new variable names (which just have been read in). The output variables
+       with `_post` attached will not be used at all so far.
+    8. After the kernel calls are executed, each output variable is compared
+       with the value stored in the corresponding `_post` variable. For
+       example, a variable `f` which was modified in the kernel calls, will
+       then be compared with `f_post`.
+
     :type integer_type: :py:class:`psyclone.psyir.symbols.ScalarType`
     :param real_type: default scalar real type to be used for real \
         variables. Defaults to REAL8_TYPE.
@@ -94,7 +167,7 @@ class LFRicExtractDriverCreator:
 
         const = LFRicConstants()
         self._map_fields_to_precision = {}
-        for field, field_info in const.DATA_TYPE_MAP.items():
+        for field_info in const.DATA_TYPE_MAP.values():
             if field_info["proxy_type"] is not None:
                 self._map_fields_to_precision[field_info["proxy_type"]] \
                     = field_info["kind"]
@@ -109,68 +182,24 @@ class LFRicExtractDriverCreator:
 
     # -------------------------------------------------------------------------
     def get_proxy_name_mapping(self, schedule):
+        '''This function creates a mapping of each proxy name of an argument
+        to the field map. This mapping is used to convert proxy names used
+        in a lowered kernel call back to the original name, which is the name
+        used in extraction.
+
+        :param schedule: the schedule with all kernels.
+        :type schedule: :py:class:`psyclone.psyir.nodes.Schedule`
+
+        :returns: a mapping of proxy names to field names.
+        :rtype: Dict[str,str]
+
+        '''
         proxy_name_mapping = {}
         for kern in schedule.walk(Kern):
             for arg in kern.args:
                 if arg.data_type in self._all_field_types:
                     proxy_name_mapping[arg.proxy_name] = arg.name
         return proxy_name_mapping
-
-    # -------------------------------------------------------------------------
-    def create_flattened_symbol(self, flattened_name, reference, symbol_table,
-                                writer=FortranWriter()):
-        '''Takes a reference to a structure and creates a new Symbol of the
-        type that the reference resolves to, e.g. fld%data... will be mapped
-        to `real, dimension(:,:)`, and `fld%data$whole%xstart` to `integer`.
-
-        :param str flattened_name: the new 'flattened' name to be used for \
-            the newly created symbol.
-        :param reference: the reference to a structure.
-        :type reference: :py:class:`psyclone.psyir.nodes.StructureReference`
-        :param symbol_table: the symbol table to use to make sure a unique \
-            name is created (based on `flattened_name`).
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param writer: a backend visitor to convert the reference into a \
-            string, which is then used to find the corresponding \
-            gocean-grid-properties.
-        :type writer: \
-            :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
-
-        :raises InternalError: if the structure access is not to a \
-            GOCean grid property.
-        :raises InternalError: if there is no default type defined for \
-            the type of the GOCean grid property (defaults are defined in \
-            the constructor of this class).
-        :raises InternalError: if the gocean grid property type is \
-            neither 'array' nor 'scalar'.
-
-        :returns: the new symbol created.
-        :rtype: :py:class:`psyclone.psyir.symbol.DataSymbol`
-
-        '''
-        data_type = reference.symbol.datatype
-        if isinstance(data_type, ArrayType):
-            if data_type.intrinsic.name == "integer_field_proxy_type":
-                base_type = self._default_types['integer']
-                array = ArrayType(base_type, [ArrayType.Extent.DEFERRED])
-                new_symbol = DataSymbol(flattened_name, array)
-                return new_symbol
-            if data_type.intrinsic.name == "field_proxy_type":
-                base_type = self._default_types['real']
-                array = ArrayType(base_type, [ArrayType.Extent.DEFERRED])
-                new_symbol = DataSymbol(flattened_name, array)
-                return new_symbol
-            print("OOPS")
-        elif data_type.name == "field_proxy_type":
-            flattened_name = symbol_table.next_available_name(flattened_name)
-            base_type = self._default_types['real']
-            # This must be an LFRic field, which becomes a 1d-array:
-            array = ArrayType(base_type, [ArrayType.Extent.DEFERRED])
-            new_symbol = DataSymbol(flattened_name, array)
-            return new_symbol
-        data_type = reference.datatype
-        return DataSymbol(flattened_name, data_type)
-        return None
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -188,7 +217,7 @@ class LFRicExtractDriverCreator:
 
     # -------------------------------------------------------------------------
     def flatten_reference(self, old_reference, symbol_table,
-                          proxy_name_mapping, writer=FortranWriter()):
+                          proxy_name_mapping):
         '''Replaces `old_reference` which is a structure type with a new
         simple Reference and a flattened name (replacing all % with _).
 
@@ -248,7 +277,6 @@ class LFRicExtractDriverCreator:
             symbol = DataSymbol(flattened_name, old_reference.datatype)
             symbol_table.add(symbol, tag=f"{signature_str}")
 
-
         array_member = None
         current = old_reference
         while current:
@@ -270,8 +298,7 @@ class LFRicExtractDriverCreator:
         old_reference.replace_with(new_ref)
 
     # -------------------------------------------------------------------------
-    def add_all_kernel_symbols(self, sched, symbol_table, proxy_name_mapping,
-                               writer=FortranWriter()):
+    def add_all_kernel_symbols(self, sched, symbol_table, proxy_name_mapping):
         '''This function adds all symbols used in `sched` to the symbol table.
         It uses GOcean-specific knowledge to declare fields and flatten their
         name.
@@ -305,27 +332,11 @@ class LFRicExtractDriverCreator:
             if isinstance(reference, StructureReference):
                 continue
             old_symbol = reference.symbol
-            if old_symbol.name.startswith("m3_exner_star"):
-                print("XX")
             if old_symbol.name in symbol_table:
                 # The symbol has already been declared. We then still
                 # replace the old symbol with the new symbol to have all
                 # symbols consistent:
                 reference.symbol = symbol_table.lookup(old_symbol.name)
-                continue
-
-            # We found a new symbol, so we create a new symbol in the new
-            # symbol table here.
-            if False and old_symbol.is_array:
-                intrinsic = self._default_types[old_symbol.datatype.intrinsic]
-                array_type = ArrayType(intrinsic,
-                                       [ArrayType.Extent.DEFERRED] *
-                                       len(old_symbol.shape))
-                new_symbol = symbol_table.new_symbol(root_name=reference.name,
-                                                     tag=reference.name,
-                                                     symbol_type=DataSymbol,
-                                                     datatype=array_type)
-                reference.symbol = new_symbol
                 continue
 
             new_symbol = symbol_table.new_symbol(root_name=reference.name,
@@ -343,7 +354,7 @@ class LFRicExtractDriverCreator:
             if not isinstance(reference, StructureReference):
                 continue
             self.flatten_reference(reference, symbol_table,
-                                   proxy_name_mapping, writer=writer)
+                                   proxy_name_mapping)
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -518,13 +529,10 @@ class LFRicExtractDriverCreator:
                     # that's independent of the number of dimensions.
                     shape = post_sym.datatype.shape
                     dims = ",".join([":"]*len(shape))
-                    alloc_data = ",".join([f"size({post_name},{i})"
-                                           for i in range(1, len(shape)+1)])
                     code = (f'''
                         subroutine tmp()
                           integer, allocatable, dimension({dims}) :: b
-                          allocate({sym.name}({alloc_data}))
-                          !allocate({sym.name}, mold={post_name})
+                          allocate({sym.name}, mold={post_name})
                         end subroutine tmp''')
                     fortran_reader = FortranReader()
                     container = fortran_reader.psyir_from_source(code)\
@@ -723,15 +731,14 @@ class LFRicExtractDriverCreator:
             for builtin in node.walk(LFRicBuiltIn):
                 # If the lower_to_language function is not overwritten from
                 # the implementation in Node, the builtin is not yet supported:
-                if type(builtin).lower_to_language_level == Node.lower_to_language_level:
+                if type(builtin).lower_to_language_level == \
+                        Node.lower_to_language_level:
                     raise NotImplementedError(
                         f"LFRic builtin '{builtin.name}' is not supported")
 
         dep = DependencyTools()
-        #if not input_list and not output_list:
         input_list, output_list = dep.get_in_out_parameters(nodes)
 
-        print(input_list, output_list)
         module_name, local_name = region_name
         unit_name = LFRicExtractDriverCreator.\
             make_valid_unit_name(f"{module_name}_{local_name}")
@@ -753,7 +760,6 @@ class LFRicExtractDriverCreator:
                                        interface=ImportInterface(psy_data_mod))
         program_symbol_table.add(psy_data_type)
 
-        writer = FortranWriter()
         # The validation of the extract transform guarantees that all nodes
         # in the node list have the same parent.
         invoke_sched = nodes[0].ancestor(InvokeSchedule)
@@ -792,7 +798,7 @@ class LFRicExtractDriverCreator:
         self.import_modules(program, schedule_copy)
         self.add_precision_symbols(program)
         self.add_all_kernel_symbols(schedule_copy, program_symbol_table,
-                                    proxy_name_mapping, writer)
+                                    proxy_name_mapping)
 
         root_name = prefix + "psy_data"
         psy_data = program_symbol_table.new_symbol(root_name=root_name,
@@ -860,7 +866,8 @@ class LFRicExtractDriverCreator:
             file_container = self.create(nodes, input_list, output_list,
                                          prefix, postfix, region_name)
         except NotImplementedError as err:
-            print(f"Cannot create driver for '{region_name[0]}-{region_name[1]}' because:")
+            print(f"Cannot create driver for '{region_name[0]}-"
+                  f"{region_name[1]}' because:")
             print(str(err))
             return ""
 
@@ -904,7 +911,8 @@ class LFRicExtractDriverCreator:
                                          prefix, postfix, region_name,
                                          writer=writer)
         if not code:
-            # This indicates an error, that was already printed, so ignore here.
+            # This indicates an error, that was already printed,
+            # so ignore it here.
             return
         module_name, local_name = region_name
         with open(f"driver-{module_name}-{local_name}.f90", "w",
