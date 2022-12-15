@@ -52,9 +52,9 @@ Contains:
 
 ## Scripts
 
-Contains two scripts used to process the NEMO code base and to add profiling
+Contains the scripts used to process the NEMO code base and to add profiling
 instrumentation (https://psyclone.readthedocs.io/en/stable/profiling.html)
-and OpenACC directives:
+and OpenACC or OpenMP directives:
 
 1. `process_nemo.py` is a driver script that allows the user to specify
    which files to process with PSyclone, the transformation script to use
@@ -74,22 +74,28 @@ and OpenACC directives:
          -o OUT_DIR      Destination directory for processed source files
          -s SCRIPT_FILE  PSyclone transformation script
          -x              exit immediately if PSyclone fails
+         -p              add profiling instrumentation to the PROFILE_ONLY file
+                         list. Note that files processed by the SCRIPT_FILE may
+                         be introducing profiling instrumentation as part of
+                         that script.
 
    In addition to the command-line flags, the script itself contains two
    variables that may be used to control its behaviour:
 
-   - `EXCLUDED_FILES`: list of filenames that will not have OpenACC directives
-     added.
-   - `PROFILE_ALL`: whether or not to add profiling instrumentation to every
-     file, irrespective of whether the file is listed in `EXCLUDED_FILES`.
+   - `EXCLUDED_FILES`: list of filenames that PSyclone will not attempt to process.
+   - `PROFILE_ONLY`: list of filenames to add profiling instrumentation but
+      do not attempt to further process by PSyclone.
 
    Finally, the precise invocation to use when running PSyclone may be
    specified by setting the `PSYCLONE` environment variable. If this is not set
    then `psyclone` must be in the user's PATH.
 
-2. `kernels_trans.py` is a PSyclone transformation script that adds
-   OpenACC directives and places fine-grained profiling instrumentation around
-   any regions that haven't had OpenACC added.
+2. PSyclone transformation scripts:
+   - `kernels_trans.py` adds OpenACC kernel directives and places fine-grained
+     profiling instrumentation around any regions that haven't had OpenACC
+     added.
+   - `omp_cpu_trans.py` adds OpenMP directives for CPU threading parallelism.
+   - `omp_gpu_trans.py` adds OpenMP offloading directives for GPU acceleration.
 
 These scripts are a *work in progress* and are being developed to work on the
 MO_GO8 configuration of NEMO supplied by the Met Office. This configuration is

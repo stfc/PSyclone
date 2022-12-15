@@ -41,9 +41,14 @@ kernel calls.
 
 import abc
 
+from psyclone import psyGen
 from psyclone.core import AccessType, Signature
+# The next two imports cannot be merged, since this would create
+# a circular dependency.
 from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.errors import GenerationError, InternalError
+from psyclone.psyir.nodes import ArrayReference, Reference
 
 
 class ArgOrdering:
@@ -65,11 +70,39 @@ class ArgOrdering:
     def __init__(self, kern):
         self._kern = kern
         self._generate_called = False
+        # If available, get an existing symbol table to create unique names
+        # and symbols required for PSyIR. Otherwise just create a new
+        # symbol table (required for stub generation atm).
+        invoke_sched = None
+        if kern:
+            invoke_sched = kern.ancestor(psyGen.InvokeSchedule)
+        # This pylint does not work when I put it in the else branch :(
+        # pylint: disable=import-outside-toplevel
+        if invoke_sched:
+            self._symtab = invoke_sched.symbol_table
+        else:
+            self._symtab = LFRicSymbolTable()
+
+        # TODO #1934 Completely remove the usage of strings, instead
+        # use the PSyIR representation.
         self._arglist = []
+
+        # This stores the PSyIR representation of the arguments
+        self._psyir_arglist = []
         self._arg_index_to_metadata_index = {}
+
+    def psyir_append(self, node):
+        '''Appends a PSyIR node to the PSyIR argument list.
+
+        :param node: the node to append.
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        self._psyir_arglist.append(node)
 
     def append(self, var_name, var_accesses=None, var_access_name=None,
                mode=AccessType.READ, metadata_posn=None):
+        # pylint: disable=too-many-arguments
         '''Appends the specified variable name to the list of all arguments and
         stores the mapping between the position of this actual argument and
         the corresponding metadata entry. If var_accesses is given, it will
@@ -134,6 +167,102 @@ class ArgOrdering:
             else:
                 self.append(var, mode=mode, var_accesses=var_accesses)
 
+    def append_integer_reference(self, name, tag=None):
+        '''This function adds a reference to an integer variable to the list
+        of PSyIR nodes. If the symbol does not exist, it will be added to the
+        symbol table. If no tag is specified, is uses the name as tag. It also
+        returns the symbol.
+
+        :param str name: name of the integer variable to declare.
+        :param tag: optional tag of the integer variable to declare.
+        :type tag: Optional[str]
+
+        :returns: the symbol to which a reference was added.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+
+        '''
+        if tag is None:
+            tag = name
+        sym = self._symtab.find_or_create_integer_symbol(name, tag)
+        self.psyir_append(Reference(sym))
+        return sym
+
+    def get_array_reference(self, array_name, indices, intrinsic_type,
+                            tag=None, symbol=None):
+        # pylint: disable=too-many-arguments
+        '''This function creates an array reference. If there is no symbol
+        with the given tag, a new array symbol will be defined using the given
+        intrinsic_type. If a symbol already exists but has no type, it will
+        be replaced.
+
+        :param str array_name: the name and tag of the array.
+        :param indices: the indices to be used in the PSyIR reference. It \
+            must either be ":", or a PSyIR node.
+        :type indices: List[Union[str, py:class:`psyclone.psyir.nodes.Node`]]
+        :param intrinsic_type: the intrinsic type of the array.
+        :type intrinsic_type: \
+            :py:class:`psyclone.psyir.symbols.datatypes.ScalarType.Intrinsic`
+        :param tag: optional tag for the symbol.
+        :type tag: Optional[str]
+        :param symbol: optional the symbol to use.
+        :type: Optional[:py:class:`psyclone.psyir.symbols.Symbol`]
+
+        :returns: a reference to the symbol used.
+        :rtype: :py:class:`psyclone.psyir.nodes.Reference`
+
+        '''
+        if not tag:
+            tag = array_name
+        if not symbol:
+            symbol = self._symtab.find_or_create_array(array_name,
+                                                       len(indices),
+                                                       intrinsic_type,
+                                                       tag)
+        else:
+            if symbol.name != array_name:
+                raise InternalError(f"Specified symbol '{symbol.name}' has a "
+                                    f"different name than the specified array "
+                                    f"name '{array_name}'.")
+
+        # If all indices are specified as ":", just use the name itself
+        # to reproduce the current look of the code.
+        if indices == [":"]*len(indices):
+            ref = Reference(symbol)
+        else:
+            ref = ArrayReference.create(symbol, indices)
+        return ref
+
+    def append_array_reference(self, array_name, indices, intrinsic_type,
+                               tag=None, symbol=None):
+        # pylint: disable=too-many-arguments
+        '''This function adds an array reference. If there is no symbol with
+        the given tag, a new array symbol will be defined using the given
+        intrinsic_type. If a symbol already exists but has no type, it will
+        be replaced. The created reference is added to the list of PSyIR
+        expressions, and the symbol is returned to the user.
+
+        :param str array_name: the name and tag of the array.
+        :param indices: the indices to be used in the PSyIR reference. It \
+            must either be ":", or a PSyIR node.
+        :type indices: List[Union[str, py:class:`psyclone.psyir.nodes.Node`]]
+        :param intrinsic_type: the intrinsic type of the array.
+        :type intrinsic_type: \
+            :py:class:`psyclone.psyir.symbols.datatypes.ScalarType.Intrinsic`
+        :param tag: optional tag for the symbol.
+        :type tag: Optional[str]
+        :param symbol: optional the symbol to use.
+        :type symbol: Optional[:py:class:`psyclone.psyir.symbols.Symbol`]
+
+        :returns: the symbol used in the added reference.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+
+        '''
+
+        ref = self.get_array_reference(array_name, indices, intrinsic_type,
+                                       tag=tag, symbol=symbol)
+        self.psyir_append(ref)
+        return ref.symbol
+
     @property
     def num_args(self):
         ''':returns: the current number of arguments stored in _arglist.
@@ -147,10 +276,10 @@ class ArgOrdering:
         '''
         :return: the kernel argument list. The generate method must be \
                  called first.
-        :rtype: list of str.
+        :rtype: List[str]
 
         :raises InternalError: if the generate() method has not been \
-        called.
+                               called.
 
         '''
         if not self._generate_called:
@@ -158,6 +287,22 @@ class ArgOrdering:
                 f"The argument list in {type(self).__name__} is empty. "
                 f"Has the generate() method been called?")
         return self._arglist
+
+    @property
+    def psyir_arglist(self):
+        '''
+        :return: the kernel argument list as PSyIR expressions. The generate \
+            method must be called first.
+        :rtype: List[:py:class:`psyclone.psyir.nodes.Reference`]
+
+        :raises InternalError: if the generate() method has not been called.
+
+        '''
+        if not self._psyir_arglist:
+            raise InternalError(
+                f"The PSyIR argument list in {type(self).__name__} is empty. "
+                f"Has the generate() method been called?")
+        return self._psyir_arglist
 
     def metadata_index_from_actual_index(self, idx):
         '''
@@ -167,10 +312,9 @@ class ArgOrdering:
         :param int idx: the index of an actual argument to the kernel \
                         subroutine.
 
-        :returns: the 0-indexed position of the corresponding metadata entry.
-        :rtype: int
-
-        :raises KeyError: if no entry for the specified argument exists.
+        :returns: the 0-indexed position of the corresponding metadata entry \
+                  or None if there isn't one.
+        :rtype: Optional[int]
 
         '''
         return self._arg_index_to_metadata_index[idx]
@@ -609,8 +753,8 @@ class ArgOrdering:
 
         '''
         # There is currently one argument: "ndf"
-        ndf_name = function_space.ndf_name
-        self.append(ndf_name, var_accesses)
+        sym = self.append_integer_reference(function_space.ndf_name)
+        self.append(sym.name, var_accesses)
 
     def fs_compulsory_field(self, function_space, var_accesses=None):
         '''Add compulsory arguments associated with this function space to
@@ -741,7 +885,8 @@ class ArgOrdering:
         # Note that the necessary ndf values will already have been added
         # to the argument list as they are mandatory for every function
         # space that appears in the meta-data.
-        self.append(function_space.cbanded_map_name, var_accesses)
+        sym = self.append_integer_reference(function_space.cbanded_map_name)
+        self.append(sym.name, var_accesses)
 
     def indirection_dofmap(self, function_space, operator=None,
                            var_accesses=None):
