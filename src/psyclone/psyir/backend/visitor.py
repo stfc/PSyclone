@@ -181,7 +181,7 @@ class PSyIRVisitor():
             raise VisitorError(
                 f"Failed to lower '{node}'. Note that some nodes need to be "
                 f"lowered from an ancestor in order to properly apply their "
-                f"in-tree modifications.") from err
+                f"in-tree modifications. Original error was '{err}'.") from err
 
         # Find again the equivalent node in the lowered tree in case that it
         # has been replaced

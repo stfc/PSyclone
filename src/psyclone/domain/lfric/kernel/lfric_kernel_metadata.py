@@ -40,8 +40,18 @@ kernel-layer-specific class that captures the LFRic kernel metadata.
 from fparser.two import Fortran2003
 from fparser.two.utils import walk, get_child
 
+from psyclone.domain.lfric.kernel.columnwise_operator_arg_metadata import \
+    ColumnwiseOperatorArgMetadata
+from psyclone.domain.lfric.kernel.inter_grid_arg_metadata import \
+    InterGridArgMetadata
+from psyclone.domain.lfric.kernel.inter_grid_vector_arg_metadata import \
+    InterGridVectorArgMetadata
+
+
 from psyclone.configuration import Config
 from psyclone.domain.lfric.kernel.common_metadata import CommonMetadata
+from psyclone.domain.lfric.kernel.common_meta_arg_metadata import \
+    CommonMetaArgMetadata
 from psyclone.domain.lfric.kernel.evaluator_targets_metadata import \
     EvaluatorTargetsMetadata
 from psyclone.domain.lfric.kernel.meta_args_metadata import \
@@ -142,6 +152,256 @@ class LFRicKernelMetadata(CommonMetadata):
         if name is not None:
             # Validate name via setter
             self.name = name
+
+    def _get_kernel_type(self):
+        '''Returns the type of kernel based on the supplied metadata. LFRic
+        supports different types of kernel and the type can be infered
+        from the kernel metadata as each kernel type has different
+        constraints on the allowed metadata values and
+        combinations. Also checks that the checks that the metadata
+        conforms to any rules associated with the kernel type.
+
+        '''
+        if self.meta_args_get(
+                [InterGridArgMetadata, InterGridVectorArgMetadata]):
+            # Has to be an inter-grid kernel.
+            self._validate_intergrid_kernel()
+            return "inter-grid"
+        elif self.meta_args_get(ColumnwiseOperatorArgMetadata):
+            # Has to be a cma kernel.
+            cma_type = self._cma_kernel_type()
+            return f"cma-{cma_type}"
+        elif self.operates_on == "domain":
+            # Has to be a domain kernel.
+            self._validate_domain()
+            return "domain"
+        else:
+            # Has to be a general purpose kernel.
+            self._validate_general_purpose_kernel()
+            return "general-purpose"
+
+    def _validate_generic_kernel(self):
+        '''TBD'''
+        # A Kernel with operates_on != domain must have at least one
+        # argument that is a field, field vector, intergrid field,
+        # intergrid vector field, LMA operator or CMA operator (in
+        # order to determine the appropriate iteration space)
+        if self.operates_on != "domain" and not self.meta_args_get(
+                [FieldArgMetadata, FieldVectorArgMetadata, OperatorArgMetadata,
+                 ColumnwiseOperatorArgMetadata, InterGridArgMetadata,
+                 InterGridVectorArgMetadata]):
+            raise Exception("xxx")
+
+        # Any Kernel that takes an operator argument must not also
+        # take an integer-valued field as an argument.
+        operator_args = self.meta_args_get(
+            [OperatorArgMetadata, ColumnwiseOperatorArgMetadata])
+        if operator_args:
+            field_args = self.meta_args.get(
+                [FieldArgMetadata, FieldVectorArgMetadata,
+                 InterGridArgMetadata, InterGridVectorArgMetadata])
+            for field_arg in field_args:
+                if field_arg.datatype == "gh_integer":
+                    raise Exception("xxx")
+                
+
+    def _validate_general_purpose_kernel(self):
+        ''' TBD '''
+        # no intergrid, or cma
+
+        #General-purpose kernels with operates_on = CELL_COLUMN accept
+        #arguments of any of the following types: field, field vector,
+        #LMA operator, scalar (real, integer or logical).
+
+        #A Kernel is permitted to write to more than one quantity
+        #(field or operator) and these quantities may be on the same
+        #or different function spaces.
+
+        #A Kernel may not write to a scalar argument. (Only built-ins
+        #are permitted to do this.) Any scalar aguments must therefore
+        #be declared in the metadata as GH_READ
+        pass
+
+    def _validate_domain_kernel(self):
+        ''' xxx '''
+        # Generic constraints.
+        self._validate_generic_kernel()
+
+        if self.operates_on != "domain":
+            raise Exception("xxx")
+        # Only scalar, field and field vector arguments are permitted.
+        for meta_arg in self.metargs:
+            if type(meta_arg) not in [
+                    ScalarArgMetadata, FieldArgMetadata,
+                    FieldVectorArgMetadata]:
+                raise Exception("xxx")
+        # All fields must be on discontinuous function spaces and
+        # stencil accesses are not permitted.
+        fields_metadata = self.meta_args_get(
+            [FieldArgMetadata, FieldVectorArgMetadata])
+        for meta_arg in fields_metadata:
+            if meta_arg.function_space not in DISCONTINUOUS_FUNCTION_SPACES:
+                raise Exception("xxx")
+            if meta_arg.stencil:
+                raise Exception("xxx")
+
+    def _cma_kernel_type(self):
+        ''' cma '''
+        if self.meta_args_get(OperatorArgMetadata):
+            # Only CMA assembly kernels have an LMA operator.
+            self._validate_cma_assembly_kernel()
+            return "assembly"
+        elif self.meta_args_get(FieldArgMetadata):
+            # CMA matrix-matrix kernels do not have Field arguments.
+            self._validate_cma_apply_kernel()
+            return "apply"
+        else:
+            self._validate_cma_matrix-matrix-kernel()
+            return "matrix-matrix"
+
+    def _validate_cma_kernel(self):
+        ''' xxx '''
+        # Generic constraints.
+        self._validate_generic_kernel()
+
+        # At least one CMA operator argument.
+        cma_ops = self.meta_args_get(ColumnwiseOperatorArgMetadata)
+        if not cma_ops:
+            raise Exception("xxx")
+        # No intergrid arguments.
+        if self.meta_args_get(
+                [InterGridArgMetadata, InterGridVectorArgMetadata]):
+            raise Exception("xxx")
+        # No field vector arguments.
+        if self.meta_args_get(FieldVectorArgMetadata):
+            raise Exception("xxx")
+        # No stencils in field arguments.
+        fields_metadata = self.meta_args_get(FieldArgMetadata)
+        for meta_arg in fields_metadata:
+            if meta_arg.stencil:
+                raise Exception("xxx")
+        # Iteration space is cell columns.
+        if self.operates_on != "cell_columns":
+            raise Exception("xxx")
+
+    def _validate_cma_assembly_kernel(self):
+        ''' xxx '''
+        # Generic CMA constraints.
+        self._validate_cma_kernel()
+        # One CMA operator argument which must have write access.
+        cma_ops = self.meta_args_get(ColumnwiseOperatorArgMetadata)
+        if len(cma_ops) != 1:
+            raise Exception("xxx")
+        if not cma_ops[0].access != "gh_write":
+            raise Exception("xxx")
+        # One or more LMA operators.
+        if not self.meta_args_get(OperatorArgMetadata):
+            raise Exception("xxx")
+        # All arguments except CMA argument must be read-only.
+        for meta_arg in meta_args:
+            if meta_arg != ColumnwiseOperatorArgMetadata:
+                if meta_arg.access != "gh_read":
+                    raise Exception("xxx")
+
+    def validate_cma_apply_kernel(self):
+        ''' xxx '''
+        # Generic CMA constraints.
+        self._validate_cma_kernel()
+        # One CMA operator argument which must be read-only.
+        cma_ops = self.meta_args_get(ColumnwiseOperatorArgMetadata)
+        if len(cma_ops) != 1:
+            raise Exception("xxx")
+        cma_op = cma_ops[0]
+        if not cma_op.access != "gh_read":
+            raise Exception("xxx")
+        # two field arguments, one read-only and one that is written to.
+        field_args = self.meta_args_get(FieldArgMetadata) 
+        if not field_args:
+            raise Exception("xxx")
+        if len(field_args) != 2:
+            raise Exception("xxx")
+        if not (
+                (field_args[0] == "gh_read" and field_args[1] == "gh_write") or
+                (field_args[0] == "gh_write" and field_args[1] == "gh_read")):
+            raise Exception("xxx")
+        # The function spaces of the read and written fields must
+        # match the from and to spaces, respectively, of the CMA
+        # operator.
+        if field_args[0] == "gh_write":
+            writer_field = field_args[0]
+            reader_field = field_args[1]
+        else:
+            reader_field = field_args[0]
+            writer_field = field_args[1]
+        if writer_field.function_space != cma_op.function_space_to:
+            raise Exception("xxx")
+        if reader_field.function_space != cma_op.function_space_from:
+            raise Exception("xxx")
+
+    def validate_cma_matrix_matrix_kernel(self):
+        ''' xxx '''
+        # Generic CMA constraints.
+        self._validate_cma_kernel()
+        # Arguments must be CMA operators and, optionally, one or more scalars.
+        for meta_arg in self.meta_args:
+            if type(meta_arg) not in [
+                    ColumnwiseOperatorArgMetadata, ScalarArgMetadata]:
+                raise Exception("xxx")
+        # Exactly one of the CMA arguments must be written to while
+        # all other arguments must be read-only.
+        first_write = True
+        for meta_arg in self.meta_args:
+            if meta_arg.access == "gh_write":
+                if first_write:
+                    first_write = False
+                    if not type(meta_arg) == ColumnwiseOperatorArgMetadata:
+                        raise Exception("xxx")
+                else:
+                    raise Exception("xxx")
+            elif meta_arg.access != "gh_read":
+                raise Exception("xxx")
+
+    def _validate_intergrid_kernel(self):
+        ''' xxx '''
+        # Generic constraints.
+        self._validate_generic_kernel()
+
+        # All args must be intergrid args.
+        for meta_arg in self.meta_args:
+            if type(meta_arg) not in [
+                    InterGridArgMetadata, InterGridVectorArgMetadata]:
+                raise Exception("xxx")
+        coarse_args = [meta_arg for meta_arg in self.meta_args
+                       if meta_arg.mesh == "coarse"]
+        # There must be at least one intergrid arg on a coarse mesh.
+        if not coarse_args:
+            raise Exception("xxx")
+        # All intergrid args on the coarse mesh are on the same
+        # function space.
+        coarse_function_space = coarse_args[0].function_space
+        for coarse_arg in coarse_args[1:]:
+            if coarse_arg.function_space != coarse_function_space:
+                raise Exception("xxx")
+        fine_args = [meta_arg for meta_arg in self.meta_args
+                     if meta_arg.mesh == "fine"]
+        # There must be at least one intergrid arg on a fine mesh.
+        if not fine_args:
+            raise Exception("xxx")
+        fine_function_space = fine_args[0].function_space
+        # All intergrid args on the coarse mesh are on the same
+        # function space.
+        for fine_arg in fine_args[1:]:
+            if fine_arg.function_space != fine_function_space:
+                raise Exception("xxx")
+        # The function space used by the args on the coarse mesh must
+        # differ from the function space used by the args on the fine
+        # mesh.
+        if coarse_function_space == fine_function_space:
+            raise Exception("xxx")
+        # The kernel must iterate over cell columns
+        if self.operates_on != "cell_column":
+            raise Exception("xxx")
+
 
     @staticmethod
     def create_from_psyir(symbol):
@@ -371,6 +631,11 @@ class LFRicKernelMetadata(CommonMetadata):
         return result
 
     @property
+    def kernel_type(self):
+        ''' xxx '''
+        return self._get_kernel_type()
+
+    @property
     def operates_on(self):
         '''
         :returns: the kernel operates_on property specified by the \
@@ -578,5 +843,38 @@ class LFRicKernelMetadata(CommonMetadata):
                 f"'{value}'.")
         self._name = value
 
+    def meta_args_get(self, types):
+        '''Return a list of meta_args entries with names that match the
+        'types' argument.
+
+        :param types: a meta_arg type or list of meta_arg types.
+        :type names: :py:class:`psyclone.domain.lfric.kernel.\
+            CommonMetaArgMetadata` or List[:py:class:`psyclone.domain.\
+            lfric.kernel.CommonMetaArgMetadata`]
+
+        :returns: a list of meta_args entries.
+        :rtype: List[
+            py:class:`psyclone.domain.lfric.kernel.CommonMetaArgMetadata`]
+
+        :raises TypeError: if the types argument is not of the correct type.
+
+        '''
+        if not (isinstance(types, list) or issubclass(
+                types, CommonMetaArgMetadata)):
+            raise TypeError(
+                f"Expected a subclass of CommonMetaArgMetadata or a list for "
+                f"the types argument, but found '{type(types).__name__}'.")
+        if isinstance(types, list):
+            my_types = types
+        else:
+            my_types = [types]
+        for my_type in my_types:
+            if not issubclass(my_type, CommonMetaArgMetadata):
+                raise TypeError(
+                    f"Expected entries in the types argument to be "
+                    f"subclasses of CommonMetaArgMetadata, but found "
+                    f"'{type(my_type).__name__}'.")
+        return [meta_arg for meta_arg in self.meta_args
+                if type(meta_arg) in my_types]
 
 __all__ = ["LFRicKernelMetadata"]

@@ -402,7 +402,7 @@ class LFRicAlg:
         except ParseError as err:
             raise ValueError(
                 f"Failed to find kernel '{kernel_name}' in supplied "
-                f"code: '{parse_tree}'. Is it a valid LFRic kernel?") from err
+                f"code: '{parse_tree}'. Is it a valid LFRic kernel? {err}") from err
         # Construct a DynKern using the metadata.
         kern = DynKern()
         kern.load_meta(ktype)

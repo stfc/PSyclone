@@ -142,13 +142,14 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
 
         try:
             metadata_name = options["metadata_name"]
-        except KeyError as info:
+        except (TypeError, KeyError) as info:
+            names = list(options.keys()) if options else []
             raise TransformationError(
                 f"Error in {self.name} transformation. This "
                 f"transformation requires the name of the variable "
                 f"containing the metadata to be provided in the options "
                 f"argument with lookup name 'metadata_name', but found "
-                f"'{list(options.keys())}'.") from info
+                f"'{names}'.") from info
 
         config = Config.get()
         if not config.valid_name.match(metadata_name):
