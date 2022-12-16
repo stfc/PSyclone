@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2021, Science and Technology Facilities Council
+! Copyright (c) 2021-22, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,10 +32,12 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author A. R. Porter, STFC Daresbury Lab
+! Modified J. Henrichs, Bureau of Meteorology
+
 
 program single_invoke
 
-  ! Description: invoke of multiple kernels, one of which operates on the
+  ! Description: invoke of multiple kernels, all of which operate on the
   ! domain instead of a cell-column.
   use constants_mod,       only : r_def
   use testkern_domain_mod, only: testkern_domain_type
