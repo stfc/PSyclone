@@ -159,10 +159,10 @@ class hierarchy, the following code can be written::
         def node_node(self, node):
         ''' This method is called if no specific methods have been
             written. '''
-            print("[ {0} start]".format(type(node).__name__))
+            print(f"[ {type(node).__name__} start]")
             for child in node.children:
                 self._visit(child)
-            print("[ {0} end]".format(type(node).__name__))
+            print(f"[ {type(node).__name__} end]")
 
     print_hierarchy = PrintHierarchy()
     print_hierarchy._visit(psyir_tree)
@@ -180,10 +180,10 @@ previous example using strings would give the following::
 
         def node_node(self, node):
             ''' This method is called if the visitor finds a loop '''
-            result = "[ {0} start ]".format(type(node).__name__)
+            result = f"[ {type(node).__name__} start ]"
             for child in node.children:
                 result += self._visit(child)
-            result += "[ {0} end ]".format(type(node).__name__)
+            result += f"[ {type(node).__name__} end ]"
             return result
 
     print_hierarchy = PrintHierarchy()
@@ -214,14 +214,12 @@ writing the following::
 
         def node_node(self, node):
             ''' This method is called if the visitor finds a loop '''
-            result = "{0}[ {1} start ]\n".format(self._nindent,
-                                                 type(node).__name__)
+            result = f"{self._nindent}[ {type(node).__name__} start ]\n"
         self._depth += 1
         for child in node.children:
             result += self._visit(child)
         self._depth -= 1
-        result += "{0}[ {1} end ]\n".format(self._nindent,
-                                            type(node).__name__)
+        result += f"{self._nindent}[ {type(node).__name__} end ]\n"
         return result
 
     print_hierarchy = PrintHierarchy()

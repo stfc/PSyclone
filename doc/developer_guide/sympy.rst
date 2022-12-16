@@ -90,11 +90,11 @@ be fused have the same loop boundaries using code like this:
   writer = FortranWriter()
   sym_maths = SymbolicMaths.get()
   if sym_maths.equal(loop1.start_expr, loop2.start_expr):
-      print("'{0}' equals '{1}'".format(writer(loop1.start_expr),
-                                        writer(loop2.start_expr)))
+      print(f"'{writer(loop1.start_expr)}' equals "
+            f"'{writer(loop2.start_expr)}'")
   if not sym_maths.equal(loop1.stop_expr, loop2.stop_expr):
-      print("'{0}' does not equal '{1}'".format(writer(loop1.stop_expr),
-                                                writer(loop2.stop_expr)))
+      print(f"'{writer(loop1.stop_expr)}' does not equal "
+            f"'{ writer(loop2.stop_expr)}'")
 
 .. testoutput::
 

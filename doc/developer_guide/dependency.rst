@@ -405,8 +405,7 @@ valid 2-tuples of component index and dimension index. For example:
   for count, indx in enumerate(access_info.component_indices.iterate()):
       psyir_index = access_info.component_indices[indx]
       # fortran writer converts a PSyIR node to Fortran:
-      print("Index-id {0} of 'a(i,j)': {1}"
-            .format(count, fortran_writer(psyir_index)))
+      print(f"Index-id {count} of 'a(i,j)': {fortran_writer(psyir_index)}")
 
 .. testoutput::
 
@@ -446,10 +445,10 @@ wrapped in an outer loop over all accesses.
       if index_variable in accesses:
           # The index variable is used as an index
           # at the specified location.
-          print("Index '{0}' is used.".format(str(index_variable)))
+          print(f"Index '{index_variable}' is used.")
           break
   else:
-      print("Index '{0}' is not used.".format(str(index_variable)))
+      print(f"Index '{index_variable}' is not used.")
 
 
 .. testoutput::
@@ -589,8 +588,8 @@ until we find accesses that would prevent parallelisation:
            break
        list_of_parallelisable_statements.append(next_statement)
 
-   print("The first {0} statements can be parallelised."
-         .format(len(list_of_parallelisable_statements)))
+   print(f"The first {len(list_of_parallelisable_statements)} statements can "
+         f"be parallelised.")
 
 .. testoutput::
     :hide:

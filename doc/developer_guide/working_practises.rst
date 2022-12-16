@@ -276,8 +276,7 @@ these code snippets to be tested. For example::
     for count, indx in enumerate(access_info.component_indices.iterate()):
         psyir_index = access_info.component_indices[indx]
         # fortran writer converts a PSyIR node to Fortran:
-        print("Index-id {0} of 'a(i,j)': {1}"
-              .format(count, fortran_writer(psyir_index)))
+        print(f"Index-id {count} of 'a(i,j)': {fortran_writer(psyir_index)}")
 
   .. testoutput::
 
