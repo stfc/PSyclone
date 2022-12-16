@@ -62,8 +62,10 @@ def trans(psy):
     :param psy: The PSy layer object to apply transformations to.
     :type psy: :py:class:`psyclone.psyGen.PSy`
     '''
-    print("Invokes found:\n{0}\n".format(
-        "\n".join([str(name) for name in psy.invokes.names])))
+    # Since "Backslashes may not appear inside the expression
+    # portions of f-strings" via PEP 498, use chr(10) for '\n'
+    print(f"Invokes found:\n"
+          f"{chr(10).join([str(name) for name in psy.invokes.names])}\n")
 
     p_trans = ProfileTrans()
 
@@ -71,8 +73,7 @@ def trans(psy):
 
         sched = invoke.schedule
         if not sched:
-            print("Invoke {0} has no Schedule! Skipping...".
-                  format(invoke.name))
+            print("Invoke {invoke.name} has no Schedule! Skipping...")
             continue
 
         loops = sched.walk(Loop)
@@ -82,7 +83,6 @@ def trans(psy):
                 # We only put profiling around loops over levels
                 loop_counter += 1
                 p_trans.apply(loop,
-                              {"region_name": ("kloop",
-                                               "{}".format(loop_counter))})
+                              {"region_name": ("kloop", f"{loop_counter}")})
 
         print(sched.view())

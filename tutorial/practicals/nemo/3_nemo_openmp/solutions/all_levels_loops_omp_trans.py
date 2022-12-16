@@ -77,7 +77,7 @@ def trans(psy):
                 pass
 
     directives = sched.walk(Directive)
-    print("Added {0} Directives".format(len(directives)))
+    print(f"Added {len(directives)} Directives")
 
     # Display the transformed PSyIR
     print(sched.view())

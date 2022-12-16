@@ -84,27 +84,27 @@ if __name__ == "__main__":
         ARGS = sys.argv[:]
         FILEIN, PLOT_LEVELS = ARGS[1:3]
     except ValueError:
-        print("Usage: {0} <filenin> <plot_levels> where\n"
-              "- <filename> is a string and \n"
-              "- <levels_plot> is a string list of comma-separated integer "
-              "values (e.g. '0, 2, 5') \n"
-              "                for vertical levels in the range of "
-              "(0, nlayers-1).".format(sys.argv[0]))
+        print(f"Usage: {sys.argv[0]} <filenin> <plot_levels> where\n"
+              f"- <filename> is a string and \n"
+              f"- <levels_plot> is a string list of comma-separated integer "
+              f"values (e.g. '0, 2, 5') \n"
+              f"                for vertical levels in the range of "
+              f"(0, nlayers-1).")
         sys.exit()
 
     # Create integer list of plot levels
     try:
         LEV_PLT = list(map(int, PLOT_LEVELS.split(",")))
     except ValueError:
-        print("Error: One or more invalid values for plot levels '{0}'.".
-              format(PLOT_LEVELS))
+        print(f"Error: One or more invalid values for plot levels "
+              f"'{PLOT_LEVELS}'.")
         sys.exit()
 
     # Read in the data file with numpy.loadtxt
     try:
         STATE = np.loadtxt(FILEIN)
     except OSError:
-        print("Error: Input file '{0}' not found.".format(FILEIN))
+        print(f"Error: Input file '{FILEIN}' not found.")
         sys.exit()
     # Extract timestep information
     TIMESTEP = ("").join(
@@ -120,8 +120,8 @@ if __name__ == "__main__":
         assert all(lev in Z_IND for lev in LEV_PLT)
     except AssertionError:
         print(
-            "Error: One or more input plot levels '{0}' is outside of the\n"
-            "       z-levels range '{1}'.".format(LEV_PLT, Z_IND))
+            f"Error: One or more input plot levels '{LEV_PLT}' is outside of "
+            f"the\n       z-levels range '{Z_IND}'.")
         sys.exit()
 
     # Create state dictionary on plot levels
