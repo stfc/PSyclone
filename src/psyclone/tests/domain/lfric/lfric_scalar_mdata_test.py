@@ -156,10 +156,10 @@ def test_ad_scalar_invalid_data_type():
     const = LFRicConstants()
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("In the LFRic API the 2nd argument of a 'meta_arg' entry should "
-            "be a valid data type (one of {0}), but found 'gh_unreal' in "
-            "'arg_type(gh_scalar, gh_unreal, gh_read)'.".
-            format(const.VALID_SCALAR_DATA_TYPES) in str(excinfo.value))
+    assert (f"In the LFRic API the 2nd argument of a 'meta_arg' entry should "
+            f"be a valid data type (one of {const.VALID_SCALAR_DATA_TYPES}), "
+            f"but found 'gh_unreal' in 'arg_type(gh_scalar, gh_unreal, "
+            f"gh_read)'." in str(excinfo.value))
 
 
 def test_ad_scalar_init_wrong_data_type(monkeypatch):
@@ -180,9 +180,8 @@ def test_ad_scalar_init_wrong_data_type(monkeypatch):
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(
             scalar_arg, metadata.iterates_over, 0)._init_scalar(scalar_arg)
-    assert ("Expected one of {0} as the scalar data type but got 'gh_double'.".
-            format(const.VALID_SCALAR_DATA_TYPES) in
-            str(excinfo.value))
+    assert (f"Expected one of {const.VALID_SCALAR_DATA_TYPES} as the scalar "
+            f"data type but got 'gh_double'." in str(excinfo.value))
 
 
 def test_ad_scalar_type_no_write():
@@ -247,15 +246,15 @@ def test_ad_integer_logical_scalar_type_no_sum(scalar_type):
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CODE.replace(
-        "arg_type(gh_scalar,   {0}, gh_read)".format(scalar_type),
-        "arg_type(gh_scalar,   {0}, gh_sum)".format(scalar_type), 1)
+        f"arg_type(gh_scalar,   {scalar_type}, gh_read)",
+        f"arg_type(gh_scalar,   {scalar_type}, gh_sum)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("reduction access 'gh_sum' is only valid with a real scalar "
-            "argument, but a scalar argument with '{0}' data type ".
-            format(scalar_type) in str(excinfo.value))
+    assert (f"reduction access 'gh_sum' is only valid with a real scalar "
+            f"argument, but a scalar argument with '{scalar_type}' data type "
+            in str(excinfo.value))
 
 
 def test_no_vector_scalar():
@@ -271,9 +270,8 @@ def test_no_vector_scalar():
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name=name)
-        assert ("vector notation is only supported for ['gh_field'] "
-                "argument types but found '{0}'".format(vectname) in
-                str(excinfo.value))
+        assert (f"vector notation is only supported for ['gh_field'] argument "
+                f"types but found '{vectname}'" in str(excinfo.value))
 
 
 @pytest.mark.parametrize("scalar_ind, scalar_type", [
@@ -292,10 +290,10 @@ def test_arg_descriptor_scalar(scalar_ind, scalar_type):
     # Assert correct string representation from LFRicArgDescriptor
     result = str(scalar_descriptor)
     expected_output = (
-        "LFRicArgDescriptor object\n"
-        "  argument_type[0]='gh_scalar'\n"
-        "  data_type[1]='{0}'\n"
-        "  access_descriptor[2]='gh_read'\n".format(scalar_type))
+        f"LFRicArgDescriptor object\n"
+        f"  argument_type[0]='gh_scalar'\n"
+        f"  data_type[1]='{scalar_type}'\n"
+        f"  access_descriptor[2]='gh_read'\n")
     assert expected_output in result
 
     # Check LFRicArgDescriptor argument properties
@@ -559,7 +557,7 @@ def test_scalar_different_data_types_invoke():
     const = LFRicConstants()
     with pytest.raises(GenerationError) as excinfo:
         _ = psy.gen
-    assert ("Scalar argument(s) ['b'] in Invoke "
-            "'invoke_real_and_integer_scalars' have different metadata for "
-            "data type ({0}) in different kernels. This is invalid.".
-            format(const.VALID_SCALAR_DATA_TYPES) in str(excinfo.value))
+    assert (f"Scalar argument(s) ['b'] in Invoke "
+            f"'invoke_real_and_integer_scalars' have different metadata for "
+            f"data type ({const.VALID_SCALAR_DATA_TYPES}) in different "
+            f"kernels. This is invalid." in str(excinfo.value))

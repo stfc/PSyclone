@@ -95,8 +95,8 @@ def test_from_string():
     with pytest.raises(ValueError) as err:
         AccessType.from_string("invalid")
     valid = [str(access).lower() for access in AccessType]
-    assert ("Unknown access type 'invalid'. Valid values are {0}."
-            "".format(str(valid)) in str(err.value))
+    assert (f"Unknown access type 'invalid'. Valid values are {valid}."
+            in str(err.value))
 
 
 def test_all_write_accesses():

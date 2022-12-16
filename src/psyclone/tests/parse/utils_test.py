@@ -65,9 +65,9 @@ def test_line_length_too_long():
 
     '''
     with tempfile.NamedTemporaryFile(mode='w') as tmp_file:
-        tmp_file.write('''
-            ! A fortran line that is too long... {}
-        '''.format('a' * 100))
+        tmp_file.write(f'''
+            ! A fortran line that is too long... {'a' * 100}
+        ''')
         tmp_file.flush()
         with pytest.raises(ParseError) as excinfo:
             check_line_length(tmp_file.name)
@@ -85,8 +85,8 @@ def test_line_length_unicode():
     kwargs = dict(encoding='utf8')
     with tempfile.NamedTemporaryFile(mode='w', **kwargs) as tmp_file:
         content = '''
-            ! A fortran comment with a unicode character "{}"
-        '''.format("\u2014")
+            ! A fortran comment with a unicode character "\u2014"
+        '''
         tmp_file.write(content)
         tmp_file.flush()
 

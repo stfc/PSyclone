@@ -153,12 +153,12 @@ def test_validate_error_read_and_write(fortran_reader, assignment_str):
 
     '''
     psyir = fortran_reader.psyir_from_source(
-        '''subroutine test()
+        f'''subroutine test()
               integer :: i, j, a, b(10)
               do i=1, 10
-                  {0}
+                  {assignment_str}
               enddo
-              end subroutine test'''.format(assignment_str))
+              end subroutine test''')
     assignment = psyir.children[0][0].loop_body[0]
     hoist_trans = HoistTrans()
     with pytest.raises(TransformationError) as info:
@@ -175,12 +175,12 @@ def test_validate_read_and_write(fortran_reader, assignment_str):
 
     '''
     psyir = fortran_reader.psyir_from_source(
-        '''subroutine test()
+        f'''subroutine test()
               integer :: i, j, a, b(10)
               do i=1, 10
-                  {0}
+                  {assignment_str}
               enddo
-              end subroutine test'''.format(assignment_str))
+              end subroutine test''')
     assignment = psyir.children[0][0].loop_body[0]
     hoist_trans = HoistTrans()
     hoist_trans.validate(assignment)
@@ -199,19 +199,19 @@ def test_validate_direct_dependency_errors(fortran_reader, assignment_str):
 
     '''
     psyir = fortran_reader.psyir_from_source(
-        '''subroutine test()
+        f'''subroutine test()
               integer :: i, j, a(10), b(10)
               do i=1, 10
-                  {0}
+                  {assignment_str}
               enddo
-              end subroutine test'''.format(assignment_str))
+              end subroutine test''')
     assignment = psyir.children[0][0].loop_body[0]
     hoist_trans = HoistTrans()
     with pytest.raises(TransformationError) as info:
         hoist_trans.validate(assignment)
-    assert ("The statement '{0}' can't be hoisted as it reads variable 'i' "
-            "which is written somewhere else in the loop."
-            .format(assignment_str) in str(info.value))
+    assert (f"The statement '{assignment_str}' can't be hoisted as it reads "
+            f"variable 'i' which is written somewhere else in the loop."
+            in str(info.value))
 
 
 @pytest.mark.parametrize("statement_var", [("a(j) = 1", "j"),
@@ -232,21 +232,21 @@ def test_validate_indirect_dependency_errors(fortran_reader, statement_var):
 
     '''
     psyir = fortran_reader.psyir_from_source(
-        '''subroutine test()
+        f'''subroutine test()
               integer :: i, j, k,  a(10), b(10)
               do i=1, 10
                   j = i+1
-                  {0}
+                  {statement_var[0]}
                   k = j + 1
               enddo
-              end subroutine test'''.format(statement_var[0]))
+              end subroutine test''')
     assignment = psyir.children[0][0].loop_body[1]
     hoist_trans = HoistTrans()
     with pytest.raises(TransformationError) as info:
         hoist_trans.validate(assignment)
-    assert ("The statement '{0}' can't be hoisted as it reads variable '{1}' "
-            "which is written somewhere else in the loop."
-            .format(statement_var[0], statement_var[1]) in str(info.value))
+    assert (f"The statement '{statement_var[0]}' can't be hoisted as it reads "
+            f"variable '{statement_var[1]}' which is written somewhere else "
+            f"in the loop." in str(info.value))
 
 
 def test_validate_dependencies_multi_write(fortran_reader):
@@ -280,14 +280,14 @@ def test_validate_dependencies_read_or_write_before(assignment_str,
 
     '''
     psyir = fortran_reader.psyir_from_source(
-        '''subroutine test()
+        f'''subroutine test()
               integer :: i, j, a, b(10)
               do i=1, 10
-                  {0}    ! read or write 'a' here
+                  {assignment_str}    ! read or write 'a' here
                   a = 3
                   j = a
               enddo
-              end subroutine test'''.format(assignment_str))
+              end subroutine test''')
     assignment = psyir.children[0][0].loop_body[1]
     # Make sure we are trying to hoist the right assignment:
     assert isinstance(assignment.rhs, Literal)

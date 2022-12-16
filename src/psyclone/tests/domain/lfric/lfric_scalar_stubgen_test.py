@@ -79,10 +79,9 @@ def test_lfricscalars_stub_err():
     with pytest.raises(InternalError) as err:
         LFRicScalarArgs(kernel)._stub_declarations(ModuleGen(name="my_mod"))
     const = LFRicConstants()
-    assert ("Found an unsupported data type 'gh_invalid_scalar' for the "
-            "scalar argument 'iscalar_2'. Supported types are {0}.".
-            format(const.VALID_SCALAR_DATA_TYPES)
-            in str(err.value))
+    assert (f"Found an unsupported data type 'gh_invalid_scalar' for the "
+            f"scalar argument 'iscalar_2'. Supported types are "
+            f"{const.VALID_SCALAR_DATA_TYPES}." in str(err.value))
 
 
 def test_stub_generate_with_scalars():

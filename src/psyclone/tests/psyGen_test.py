@@ -1156,8 +1156,8 @@ def test_invalid_reprod_pad_size(monkeypatch, dist_mem):
     with pytest.raises(GenerationError) as excinfo:
         _ = str(psy.gen)
     assert (
-        "REPROD_PAD_SIZE in {0} should be a positive "
-        "integer".format(Config.get().filename) in str(excinfo.value))
+        f"REPROD_PAD_SIZE in {Config.get().filename} should be a positive "
+        f"integer" in str(excinfo.value))
 
 
 def test_argument_properties():

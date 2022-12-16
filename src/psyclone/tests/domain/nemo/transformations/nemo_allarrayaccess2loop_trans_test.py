@@ -74,8 +74,8 @@ def check_transformation(tmpdir, code, expected_result, statement=0):
         Defaults to 0.
 
     '''
-    input_code = "program test\n{0}end program test\n".format(code)
-    output_code = "program test\n{0}end program test\n".format(expected_result)
+    input_code = f"program test\n{code}end program test\n"
+    output_code = f"program test\n{expected_result}end program test\n"
     reader = FortranReader()
     psyir = reader.psyir_from_source(input_code)
     assignment = psyir.walk(Assignment)[statement]

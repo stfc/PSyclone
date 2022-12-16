@@ -224,7 +224,7 @@ def test_field_vector(monkeypatch):
     kernel_interface.field_vector(vector_arg)
 
     # undf symbol declared
-    undf_tag = "undf_{0}".format(vector_arg.function_space.orig_name)
+    undf_tag = f"undf_{vector_arg.function_space.orig_name}"
     undf_symbol = kernel_interface._symbol_table.lookup(undf_tag)
     assert isinstance(undf_symbol, lfric_psyir.NumberOfUniqueDofsDataSymbol)
     assert isinstance(undf_symbol.interface, ArgumentInterface)
@@ -234,7 +234,7 @@ def test_field_vector(monkeypatch):
     # vector fields declared, added to argument list, correct function
     # space specified and dimensioned correctly
     for idx in range(vector_arg.vector_size):
-        tag = "{0}_v{1}".format(vector_arg.name, idx)
+        tag = f"{vector_arg.name}_v{idx}"
         symbol = kernel_interface._symbol_table.lookup(tag)
         assert isinstance(symbol, lfric_psyir.RealVectorFieldDataDataSymbol)
         assert isinstance(symbol.interface, ArgumentInterface)
@@ -272,7 +272,7 @@ def test_field(monkeypatch):
     kernel_interface.field(field_arg)
 
     # undf symbol declared
-    undf_tag = "undf_{0}".format(field_arg.function_space.orig_name)
+    undf_tag = f"undf_{field_arg.function_space.orig_name}"
     undf_symbol = kernel_interface._symbol_table.lookup(undf_tag)
     assert isinstance(undf_symbol, lfric_psyir.NumberOfUniqueDofsDataSymbol)
     assert isinstance(undf_symbol.interface, ArgumentInterface)
@@ -352,7 +352,7 @@ def test_operator():
 
     # fs_from symbol declared
     fs_from_name = operator_arg.function_space_from.orig_name
-    fs_from_tag = "ndf_{0}".format(fs_from_name)
+    fs_from_tag = f"ndf_{fs_from_name}"
     fs_from_symbol = kernel_interface._symbol_table.lookup(fs_from_tag)
     assert isinstance(fs_from_symbol, lfric_psyir.NumberOfDofsDataSymbol)
     assert fs_from_symbol.fs == fs_from_name
@@ -362,7 +362,7 @@ def test_operator():
 
     # fs_to symbol declared
     fs_to_name = operator_arg.function_space_from.orig_name
-    fs_to_tag = "ndf_{0}".format(fs_to_name)
+    fs_to_tag = f"ndf_{fs_to_name}"
     fs_to_symbol = kernel_interface._symbol_table.lookup(fs_to_tag)
     assert isinstance(fs_to_symbol, lfric_psyir.NumberOfDofsDataSymbol)
     assert fs_to_symbol.fs == fs_to_name
@@ -448,7 +448,7 @@ def test_fs_common():
     function_space = FunctionSpace("w3", None)
     kernel_interface.fs_common(function_space)
     fs_name = function_space.orig_name
-    symbol = kernel_interface._symbol_table.lookup("ndf_{0}".format(fs_name))
+    symbol = kernel_interface._symbol_table.lookup(f"ndf_{fs_name}")
     assert isinstance(symbol, lfric_psyir.NumberOfDofsDataSymbol)
     assert isinstance(symbol.interface, ArgumentInterface)
     assert (symbol.interface.access ==
@@ -477,7 +477,7 @@ def test_fs_compulsory_field():
     fs_name = function_space.orig_name
 
     # undf declared and added to argument list
-    symbol = kernel_interface._symbol_table.lookup("undf_{0}".format(fs_name))
+    symbol = kernel_interface._symbol_table.lookup(f"undf_{fs_name}")
     assert isinstance(symbol, lfric_psyir.NumberOfUniqueDofsDataSymbol)
     assert isinstance(symbol.interface, ArgumentInterface)
     assert (symbol.interface.access ==
@@ -485,8 +485,7 @@ def test_fs_compulsory_field():
     assert kernel_interface._arglist[-2] is symbol
 
     # ndf declared
-    ndf_symbol = kernel_interface._symbol_table.lookup(
-        "ndf_{0}".format(fs_name))
+    ndf_symbol = kernel_interface._symbol_table.lookup(f"ndf_{fs_name}")
     assert isinstance(ndf_symbol, lfric_psyir.NumberOfDofsDataSymbol)
     assert isinstance(ndf_symbol.interface, ArgumentInterface)
     assert (ndf_symbol.interface.access ==
@@ -494,7 +493,7 @@ def test_fs_compulsory_field():
 
     # dofmap declared, added to argument list, correct function
     # space specified and dimensioned correctly
-    tag = "dofmap_{0}".format(fs_name)
+    tag = f"dofmap_{fs_name}"
     symbol = kernel_interface._symbol_table.lookup(tag)
     assert isinstance(symbol, lfric_psyir.DofMapDataSymbol)
     assert isinstance(symbol.interface, ArgumentInterface)
@@ -549,8 +548,7 @@ def test_basis_xyoz():
     kernel_interface.basis(w1_fs)
 
     # ndf declared
-    ndf_symbol = kernel_interface._symbol_table.lookup(
-        "ndf_{0}".format(fs_name))
+    ndf_symbol = kernel_interface._symbol_table.lookup(f"ndf_{fs_name}")
     assert isinstance(ndf_symbol, lfric_psyir.NumberOfDofsDataSymbol)
     assert isinstance(ndf_symbol.interface, ArgumentInterface)
     assert (ndf_symbol.interface.access ==
@@ -610,8 +608,7 @@ def test_basis_face():
     kernel_interface.basis(w1_fs)
 
     # ndf declared
-    ndf_symbol = kernel_interface._symbol_table.lookup(
-        "ndf_{0}".format(fs_name))
+    ndf_symbol = kernel_interface._symbol_table.lookup(f"ndf_{fs_name}")
     assert isinstance(ndf_symbol, lfric_psyir.NumberOfDofsDataSymbol)
     assert isinstance(ndf_symbol.interface, ArgumentInterface)
     assert (ndf_symbol.interface.access ==
@@ -669,8 +666,7 @@ def test_basis_edge():
     kernel_interface.basis(w1_fs)
 
     # ndf declared
-    ndf_symbol = kernel_interface._symbol_table.lookup(
-        "ndf_{0}".format(fs_name))
+    ndf_symbol = kernel_interface._symbol_table.lookup(f"ndf_{fs_name}")
     assert isinstance(ndf_symbol, lfric_psyir.NumberOfDofsDataSymbol)
     assert isinstance(ndf_symbol.interface, ArgumentInterface)
     assert (ndf_symbol.interface.access ==
@@ -730,8 +726,7 @@ def test_diff_basis():
     kernel_interface.diff_basis(w2_fs)
 
     # ndf declared
-    ndf_symbol = kernel_interface._symbol_table.lookup(
-        "ndf_{0}".format(fs_name))
+    ndf_symbol = kernel_interface._symbol_table.lookup(f"ndf_{fs_name}")
     assert isinstance(ndf_symbol, lfric_psyir.NumberOfDofsDataSymbol)
     assert isinstance(ndf_symbol.interface, ArgumentInterface)
     assert (ndf_symbol.interface.access ==

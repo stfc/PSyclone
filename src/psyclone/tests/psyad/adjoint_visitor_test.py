@@ -116,10 +116,9 @@ def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran,
 
     '''
     # Add "subroutine / end subroutine" lines to the incoming code.
-    input_code = ("subroutine test()\n{0}end subroutine test\n"
-                  "".format(tl_fortran))
-    expected_output_code = ("subroutine test()\n{0}end subroutine test\n"
-                            "".format(expected_ad_fortran))
+    input_code = f"subroutine test()\n{tl_fortran}end subroutine test\n"
+    expected_output_code = (f"subroutine test()\n{expected_ad_fortran}"
+                            f"end subroutine test\n")
 
     # Translate the tangent-linear code to PSyIR.
     reader = FortranReader()

@@ -152,12 +152,12 @@ def test_correct_binary(func, output, tmpdir, fortran_writer):
     root = operation.root
     result = fortran_writer(root)
     assert (
-        "subroutine min_example(arg, arg_1)\n"
-        "  real, intent(inout) :: arg\n"
-        "  real, intent(inout) :: arg_1\n"
-        "  real :: psyir_tmp\n\n"
-        "  psyir_tmp = MIN({0}, arg_1)\n\n"
-        "end subroutine min_example\n".format(output)) in result
+        f"subroutine min_example(arg, arg_1)\n"
+        f"  real, intent(inout) :: arg\n"
+        f"  real, intent(inout) :: arg_1\n"
+        f"  real :: psyir_tmp\n\n"
+        f"  psyir_tmp = MIN({output}, arg_1)\n\n"
+        f"end subroutine min_example\n") in result
     trans = MinOrMax2CodeTrans()
     # Configure this transformation to use MIN
     trans._operator_name = "MIN"
@@ -167,19 +167,19 @@ def test_correct_binary(func, output, tmpdir, fortran_writer):
     trans.apply(operation)
     result = fortran_writer(root)
     assert (
-        "subroutine min_example(arg, arg_1)\n"
-        "  real, intent(inout) :: arg\n"
-        "  real, intent(inout) :: arg_1\n"
-        "  real :: psyir_tmp\n"
-        "  real :: res_min\n"
-        "  real :: tmp_min\n\n"
-        "  res_min = {0}\n"
-        "  tmp_min = arg_1\n"
-        "  if (tmp_min < res_min) then\n"
-        "    res_min = tmp_min\n"
-        "  end if\n"
-        "  psyir_tmp = res_min\n\n"
-        "end subroutine min_example\n".format(output)) in result
+        f"subroutine min_example(arg, arg_1)\n"
+        f"  real, intent(inout) :: arg\n"
+        f"  real, intent(inout) :: arg_1\n"
+        f"  real :: psyir_tmp\n"
+        f"  real :: res_min\n"
+        f"  real :: tmp_min\n\n"
+        f"  res_min = {output}\n"
+        f"  tmp_min = arg_1\n"
+        f"  if (tmp_min < res_min) then\n"
+        f"    res_min = tmp_min\n"
+        f"  end if\n"
+        f"  psyir_tmp = res_min\n\n"
+        f"end subroutine min_example\n") in result
     assert Compile(tmpdir).string_compiles(result)
 
 

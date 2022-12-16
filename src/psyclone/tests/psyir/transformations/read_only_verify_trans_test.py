@@ -91,9 +91,9 @@ def test_read_only_basic():
     # Create the coloured text (if required)
     read_node = colored("ReadOnlyVerify", ReadOnlyVerifyNode._colour)
     sched_node = colored("Schedule", Schedule._colour)
-    assert """{0}[]
-            0: {1}[]
-                {0}[]""".format(sched_node, read_node) in result
+    assert f"""{sched_node}[]
+            0: {read_node}[]
+                {sched_node}[]""" in result
 
 
 # -----------------------------------------------------------------------------

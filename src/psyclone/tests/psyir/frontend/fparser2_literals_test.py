@@ -150,9 +150,9 @@ def test_handling_literal_precision_1(value, dprecision, intrinsic):
 
     '''
     if intrinsic == ScalarType.Intrinsic.CHARACTER:
-        code = "x={0}_{1}".format(dprecision, value)
+        code = f"x={dprecision}_{value}"
     else:
-        code = "x={0}_{1}".format(value, dprecision)
+        code = f"x={value}_{dprecision}"
     reader = FortranStringReader(code)
     astmt = Fortran2003.Assignment_Stmt(reader)
     fake_parent = Schedule()
@@ -166,9 +166,9 @@ def test_handling_literal_precision_1(value, dprecision, intrinsic):
     assert isinstance(literal, Literal)
     assert literal.datatype.intrinsic == intrinsic
     if intrinsic == ScalarType.Intrinsic.BOOLEAN:
-        assert ".{0}.".format(literal.value) == value.lower()
+        assert f".{literal.value}." == value.lower()
     elif intrinsic == ScalarType.Intrinsic.CHARACTER:
-        assert "'{0}'".format(literal.value) == value
+        assert f"'{literal.value}'" == value
     else:
         assert literal.value == value
     assert isinstance(literal.datatype.precision, DataSymbol)
@@ -192,9 +192,9 @@ def test_handling_literal_precision_2(value, dprecision, intrinsic):
 
     '''
     if intrinsic == ScalarType.Intrinsic.CHARACTER:
-        code = "x={0}_{1}".format(dprecision, value)
+        code = f"x={dprecision}_{value}"
     else:
-        code = "x={0}_{1}".format(value, dprecision)
+        code = f"x={value}_{dprecision}"
     reader = FortranStringReader(code)
     astmt = Fortran2003.Assignment_Stmt(reader)
     fake_parent = Schedule()
@@ -208,9 +208,9 @@ def test_handling_literal_precision_2(value, dprecision, intrinsic):
     assert isinstance(literal, Literal)
     assert literal.datatype.intrinsic == intrinsic
     if intrinsic == ScalarType.Intrinsic.BOOLEAN:
-        assert ".{0}.".format(literal.value) == value.lower()
+        assert f".{literal.value}." == value.lower()
     elif intrinsic == ScalarType.Intrinsic.CHARACTER:
-        assert "'{0}'".format(literal.value) == value
+        assert f"'{literal.value}'" == value
     else:
         assert literal.value == value
     assert isinstance(literal.datatype.precision, int)
@@ -231,7 +231,7 @@ def test_handling_literal_precision_3(value, dprecision):
     required.
     should always use a lower case "e" for the exponent.
     '''
-    code = "x={0}".format(value)
+    code = f"x={value}"
     reader = FortranStringReader(code)
     astmt = Fortran2003.Assignment_Stmt(reader)
     fake_parent = Schedule()
@@ -256,7 +256,7 @@ def test_literal_constant_value_format(value, result):
     TODO #754 fix test so that 'disable_declaration_check' fixture is not
     required.
     '''
-    reader = FortranStringReader("a = {0}".format(value))
+    reader = FortranStringReader(f"a = {value}")
     astmt = Fortran2003.Assignment_Stmt(reader)
     fake_parent = Schedule()
     processor = Fparser2Reader()

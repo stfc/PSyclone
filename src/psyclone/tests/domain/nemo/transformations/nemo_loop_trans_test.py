@@ -76,5 +76,4 @@ def test_all_nemo_loop_trans_base_validate(monkeypatch):
                 with pytest.raises(NotImplementedError) as err:
                     trans.validate(loop)
             assert "validate test exception" in str(err.value), \
-                "{0}.validate() does not call LoopTrans.validate()".format(
-                    name)
+                   f"{name}.validate() does not call LoopTrans.validate()"

@@ -121,9 +121,8 @@ def test_no_mandatory_option(tmpdir, option):
     ''' Check that we raise an error if we do not provide mandatory
     configuration options for LFRic (Dynamo0.3) API '''
     config_file = tmpdir.join("config_dyn")
-    content = re.sub(r"^{0} = .*$".format(option), "",
-                     _CONFIG_CONTENT,
-                     flags=re.MULTILINE)
+    content = re.sub(f"^{option} = .*$", "",
+                     _CONFIG_CONTENT, flags=re.MULTILINE)
 
     with pytest.raises(ConfigurationError) as err:
         config(config_file, content)
@@ -141,15 +140,13 @@ def test_entry_not_bool(tmpdir, option):
     ''' Check that we raise an error if the value of any options expecting
     a boolean value are not Boolean '''
     config_file = tmpdir.join("config_dyn")
-    content = re.sub(r"^{0} = .*$".format(option),
-                     "{0} = tree".format(option),
-                     _CONFIG_CONTENT,
-                     flags=re.MULTILINE)
+    content = re.sub(f"^{option} = .*$", f"{option} = tree",
+                     _CONFIG_CONTENT, flags=re.MULTILINE)
 
     with pytest.raises(ConfigurationError) as err:
         config(config_file, content)
 
-    assert "Error while parsing {0}".format(option) in str(err.value)
+    assert f"Error while parsing {option}" in str(err.value)
     assert "Not a boolean: tree" in str(err.value)
 
 
@@ -159,15 +156,13 @@ def test_entry_not_int(tmpdir, option):
     ''' Check that we raise an error if the value of any options expecting
     an integer value is not int() with base 10. '''
     config_file = tmpdir.join("config_dyn")
-    content = re.sub(r"^{0} = .*$".format(option),
-                     "{0} = false".format(option),
-                     _CONFIG_CONTENT,
-                     flags=re.MULTILINE)
+    content = re.sub(f"^{option} = .*$", f"{option} = false",
+                     _CONFIG_CONTENT, flags=re.MULTILINE)
 
     with pytest.raises(ConfigurationError) as err:
         config(config_file, content)
 
-    assert "Error while parsing {0}".format(option) in str(err.value)
+    assert f"Error while parsing {option}" in str(err.value)
     assert ("invalid literal for int() with base 10: 'false'"
             in str(err.value))
 

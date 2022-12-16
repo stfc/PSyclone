@@ -104,28 +104,28 @@ def test_correct(func, output, tmpdir):
     writer = FortranWriter()
     result = writer(root)
     assert (
-        "subroutine abs_example(arg)\n"
-        "  real, intent(inout) :: arg\n"
-        "  real :: psyir_tmp\n\n"
-        "  psyir_tmp = ABS({0})\n\n"
-        "end subroutine abs_example\n".format(output)) in result
+        f"subroutine abs_example(arg)\n"
+        f"  real, intent(inout) :: arg\n"
+        f"  real :: psyir_tmp\n\n"
+        f"  psyir_tmp = ABS({output})\n\n"
+        f"end subroutine abs_example\n") in result
     trans = Abs2CodeTrans()
     trans.apply(operation, root.symbol_table)
     result = writer(root)
     assert (
-        "subroutine abs_example(arg)\n"
-        "  real, intent(inout) :: arg\n"
-        "  real :: psyir_tmp\n"
-        "  real :: res_abs\n"
-        "  real :: tmp_abs\n\n"
-        "  tmp_abs = {0}\n"
-        "  if (tmp_abs > 0.0) then\n"
-        "    res_abs = tmp_abs\n"
-        "  else\n"
-        "    res_abs = tmp_abs * -1.0\n"
-        "  end if\n"
-        "  psyir_tmp = res_abs\n\n"
-        "end subroutine abs_example\n".format(output)) in result
+        f"subroutine abs_example(arg)\n"
+        f"  real, intent(inout) :: arg\n"
+        f"  real :: psyir_tmp\n"
+        f"  real :: res_abs\n"
+        f"  real :: tmp_abs\n\n"
+        f"  tmp_abs = {output}\n"
+        f"  if (tmp_abs > 0.0) then\n"
+        f"    res_abs = tmp_abs\n"
+        f"  else\n"
+        f"    res_abs = tmp_abs * -1.0\n"
+        f"  end if\n"
+        f"  psyir_tmp = res_abs\n\n"
+        f"end subroutine abs_example\n") in result
     assert Compile(tmpdir).string_compiles(result)
     # Remove the created config instance
     Config._instance = None
