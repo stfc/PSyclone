@@ -78,11 +78,9 @@ class Profiler():
                 # [1:-1] cuts out the '[' and ']' that surrounding the
                 # string of the list.
                 allowed_options = str(Profiler.SUPPORTED_OPTIONS)[1:-1]
-                raise GenerationError("Error in Profiler.setOptions: options "
-                                      "must be one of {0} but found '{1}' "
-                                      "at {2}"
-                                      .format(allowed_options,
-                                              str(option), index))
+                raise GenerationError(f"Error in Profiler.setOptions: options "
+                                      f"must be one of {allowed_options} but "
+                                      f"found '{option}' at {index}")
 
         # Store options so they can be queried later
         Profiler._options = options
@@ -158,14 +156,14 @@ class Profiler():
                     profile_trans.apply(schedule.children[:-1])
                 else:
                     # TODO #11 use logging instead.
-                    print("Not adding profiling to routine '{0}' because it "
-                          "contains one or more Return statements.".format(
-                              schedule.name), file=sys.stderr)
+                    print(f"Not adding profiling to routine '{schedule.name}' "
+                          f"because it contains one or more Return "
+                          f"statements.", file=sys.stderr)
             else:
                 if schedule.children:
                     profile_trans.apply(schedule.children)
                 else:
                     # TODO #11 use logging instead.
-                    print("Not adding profiling to routine '{0}' because it "
-                          "does not contain any statements.".format(
-                              schedule.name), file=sys.stderr)
+                    print(f"Not adding profiling to routine '{schedule.name}' "
+                          f"because it does not contain any statements.",
+                          file=sys.stderr)

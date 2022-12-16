@@ -68,14 +68,14 @@ class AlgTrans(Transformation):
         '''
         if not isinstance(node, (Routine, Container)):
             raise TransformationError(
-                "Error in {0} transformation. The supplied call argument "
-                "should be a Routine or Container node but found '{1}'."
-                "".format(self.name, type(node).__name__))
+                f"Error in {self.name} transformation. The supplied call "
+                f"argument should be a Routine or Container node but found "
+                f"'{type(node).__name__}'.")
         if node.parent:
             raise TransformationError(
-                "Error in {0} transformation. The supplied node should be the "
-                "root of a PSyIR tree but this node has a parent."
-                "".format(self.name))
+                f"Error in {self.name} transformation. The supplied node "
+                f"should be the root of a PSyIR tree but this node has a "
+                f"parent.")
 
     def apply(self, psyir, options=None):
         ''' Apply transformation to the supplied PSyIR node.

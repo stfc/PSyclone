@@ -116,9 +116,8 @@ class CreateNemoInvokeScheduleTrans(Transformation):
 
         if not isinstance(node, Routine):
             raise TransformationError(
-                "Error in NemoInvokeTrans transformation. The supplied node "
-                "should be a PSyIR Routine but found '{0}'".format(
-                    type(node).__name__))
+                f"Error in NemoInvokeTrans transformation. The supplied node "
+                f"should be a PSyIR Routine but found '{type(node).__name__}'")
 
     def apply(self, node, options=None):
         '''

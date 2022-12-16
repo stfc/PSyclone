@@ -133,9 +133,9 @@ class NemoAllArrayAccess2LoopTrans(Transformation):
         # Not a PSyIR Assignment node
         if not isinstance(node, Assignment):
             raise TransformationError(
-                "Error in NemoAllArrayAccess2LoopTrans transformation. The "
-                "supplied node argument should be a PSyIR Assignment, "
-                "but found '{0}'.".format(type(node).__name__))
+                f"Error in NemoAllArrayAccess2LoopTrans transformation. The "
+                f"supplied node argument should be a PSyIR Assignment, "
+                f"but found '{type(node).__name__}'.")
 
     def __str__(self):
         return (

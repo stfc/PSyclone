@@ -75,8 +75,8 @@ class AdjointTransformation(Transformation):
 
         if not isinstance(active_variables, list):
             raise TypeError(
-                "The active variables argument should be a list, but found "
-                "'{0}'.".format(type(active_variables).__name__))
+                f"The active variables argument should be a list, but found "
+                f"'{type(active_variables).__name__}'.")
 
         if not active_variables:
             raise TypeError("There should be at least one active variable.")
@@ -84,13 +84,13 @@ class AdjointTransformation(Transformation):
         for active_variable in active_variables:
             if not isinstance(active_variable, DataSymbol):
                 raise TypeError(
-                    "Active variables should be of type DataSymbol, but "
-                    "found '{0}'.".format(type(active_variable).__name__))
+                    f"Active variables should be of type DataSymbol, but "
+                    f"found '{type(active_variable).__name__}'.")
 
         if not isinstance(writer, PSyIRVisitor):
             raise TypeError(
-                "The writer argument should be a PSyIRVisitor but found "
-                "'{0}'.".format(type(writer).__name__))
+                f"The writer argument should be a PSyIRVisitor but found "
+                f"'{type(writer).__name__}'.")
 
         # A list of active variables.
         self._active_variables = active_variables

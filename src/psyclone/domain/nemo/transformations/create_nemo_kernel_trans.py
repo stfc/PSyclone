@@ -119,9 +119,9 @@ class CreateNemoKernelTrans(Transformation):
 
         if not isinstance(node, Schedule):
             raise TransformationError(
-                "Error in NemoKernelTrans transformation. The supplied node "
-                "should be a PSyIR Schedule but found '{0}'".format(
-                    type(node).__name__))
+                f"Error in NemoKernelTrans transformation. The supplied node "
+                f"should be a PSyIR Schedule but found '{type(node).__name__}'"
+                )
 
         # A Kernel must be within a Loop
         if not isinstance(node.parent, Loop):
@@ -139,9 +139,8 @@ class CreateNemoKernelTrans(Transformation):
                           stop_type=(CodeBlock, Loop, Call, NemoKern))
         if nodes and isinstance(nodes[-1], (CodeBlock, Loop, Call, NemoKern)):
             raise TransformationError(
-                "Error in NemoKernelTrans transformation. A NEMO Kernel cannot"
-                " contain a node of type: '{0}'".format(
-                    type(nodes[-1]).__name__))
+                f"Error in NemoKernelTrans transformation. A NEMO Kernel "
+                f"cannot contain a node of type: '{type(nodes[-1]).__name__}'")
 
         # Check for array assignments
         assigns = [assign for assign in nodes if
@@ -150,10 +149,11 @@ class CreateNemoKernelTrans(Transformation):
             fwriter = FortranWriter()
             # Using LazyString to improve performance when using
             # exceptions to skip invalid regions.
+            # Since "Backslashes may not appear inside the expression
+            # portions of f-strings" via PEP 498, use chr(10) for '\n'.
             raise TransformationError(LazyString(
-                lambda: "A NEMO Kernel cannot contain array assignments "
-                "but found: {0}".format(
-                    [fwriter(node).rstrip("\n") for node in nodes])))
+                lambda: "A NEMO Kernel cannot contain array assignments but "
+                f"found: {[fwriter(node).rstrip(chr(10)) for node in nodes]}"))
 
     def apply(self, sched, options=None):
         '''

@@ -77,13 +77,11 @@ def generate(filename, api=""):
         api = Config.get().default_stub_api
     if api not in Config.get().supported_stub_apis:
         raise GenerationError(
-            "Kernel stub generator: Unsupported API '{0}' specified. "
-            "Supported APIs are {1}.".
-            format(api, Config.get().supported_stub_apis))
+            f"Kernel stub generator: Unsupported API '{api}' specified. "
+            f"Supported APIs are {Config.get().supported_stub_apis}.")
 
     if not os.path.isfile(filename):
-        raise IOError("Kernel stub generator: File '{0}' not found.".
-                      format(filename))
+        raise IOError(f"Kernel stub generator: File '{filename}' not found.")
 
     # Drop cache
     fparser.one.parsefortran.FortranParser.cache.clear()
@@ -92,8 +90,8 @@ def generate(filename, api=""):
         ast = fparser.api.parse(filename, ignore_comments=False)
 
     except (fparser.common.utils.AnalyzeError, AttributeError) as error:
-        raise ParseError("Kernel stub generator: Code appears to be invalid "
-                         "Fortran: {0}.".format(str(error)))
+        raise ParseError(f"Kernel stub generator: Code appears to be invalid "
+                         f"Fortran: {error}.")
 
     metadata = DynKernMetadata(ast)
     kernel = DynKern()

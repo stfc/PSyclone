@@ -118,9 +118,9 @@ class CreateNemoPSyTrans(Transformation):
         '''
         if not isinstance(node, Node):
             raise TransformationError(
-                "Error in CreateNemoPSyTrans transformation. The supplied node"
-                " should be a PSyIR Node but found '{0}'".format(
-                    type(node).__name__))
+                f"Error in CreateNemoPSyTrans transformation. The supplied "
+                f"node should be a PSyIR Node but found "
+                f"'{type(node).__name__}'")
 
         super(CreateNemoPSyTrans, self).validate(node, options=options)
 

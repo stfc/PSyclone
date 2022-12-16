@@ -147,9 +147,9 @@ class NemoAllArrayRange2LoopTrans(Transformation):
         # Am I an assignment node?
         if not isinstance(node, Assignment):
             raise TransformationError(
-                "Error in NemoAllArrayRange2LoopTrans transformation. The "
-                "supplied node argument should be a PSyIR Assignment, but "
-                "found '{0}'.".format(type(node).__name__))
+                f"Error in NemoAllArrayRange2LoopTrans transformation. The "
+                f"supplied node argument should be a PSyIR Assignment, but "
+                f"found '{type(node).__name__}'.")
 
 
 # For automatic document generation

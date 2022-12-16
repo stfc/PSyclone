@@ -113,9 +113,9 @@ class LFRicBuiltInCallFactory():
         '''
         if call.func_name not in BUILTIN_MAP:
             raise ParseError(
-                "Unrecognised built-in call in LFRic API: found '{0}' but "
-                "expected one of {1}.".
-                format(call.func_name, list(BUILTIN_MAP_CAPITALISED.keys())))
+                f"Unrecognised built-in call in LFRic API: found "
+                f"'{call.func_name}' but expected one of "
+                f"{list(BUILTIN_MAP_CAPITALISED.keys())}.")
 
         # Use our dictionary to get the correct Python object for
         # this built-in.
@@ -251,18 +251,17 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
             # Check valid argument types
             if arg.argument_type not in const.VALID_BUILTIN_ARG_TYPES:
                 raise ParseError(
-                    "In the LFRic API an argument to a built-in kernel "
-                    "must be one of {0} but kernel '{1}' has an argument of "
-                    "type '{2}'.".format(const.VALID_BUILTIN_ARG_TYPES,
-                                         self.name, arg.argument_type))
+                    f"In the LFRic API an argument to a built-in kernel must "
+                    f"be one of {const.VALID_BUILTIN_ARG_TYPES} but kernel "
+                    f"'{self.name}' has an argument of type "
+                    f"'{arg.argument_type}'.")
             # Check valid data types
             if arg.data_type not in const.VALID_BUILTIN_DATA_TYPES:
                 raise ParseError(
-                    "In the LFRic API an argument to a built-in kernel "
-                    "must have one of {0} as a data type but kernel '{1}' "
-                    "has an argument of data type '{2}'.".
-                    format(const.VALID_BUILTIN_DATA_TYPES,
-                           self.name, arg.data_type))
+                    f"In the LFRic API an argument to a built-in kernel must "
+                    f"have one of {const.VALID_BUILTIN_DATA_TYPES} as a data "
+                    f"type but kernel '{self.name}' has an argument of data "
+                    f"type '{arg.data_type}'.")
             # Built-ins update fields DoF by DoF and therefore can have
             # WRITE/READWRITE access
             if arg.access in [AccessType.WRITE, AccessType.SUM,
@@ -274,31 +273,30 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
                 data_types.add(arg.data_type)
 
         if write_count != 1:
-            raise ParseError("A built-in kernel in the LFRic API must "
-                             "have one and only one argument that is written "
-                             "to but found {0} for kernel '{1}'.".
-                             format(write_count, self.name))
+            raise ParseError(f"A built-in kernel in the LFRic API must have "
+                             f"one and only one argument that is written to "
+                             f"but found {write_count} for kernel "
+                             f"'{self.name}'.")
         if field_count == 0:
-            raise ParseError("A built-in kernel in the LFRic API "
-                             "must have at least one field as an argument but "
-                             "kernel '{0}' has none.".format(self.name))
+            raise ParseError(f"A built-in kernel in the LFRic API must have "
+                             f"at least one field as an argument but "
+                             f"kernel '{self.name}' has none.")
         if len(spaces) != 1:
             spaces_str = [str(x) for x in sorted(spaces)]
             raise ParseError(
-                "All field arguments to a built-in in the LFRic API "
-                "must be on the same space. However, found spaces {0} for "
-                "arguments to '{1}'".format(spaces_str, self.name))
+                f"All field arguments to a built-in in the LFRic API must be "
+                f"on the same space. However, found spaces {spaces_str} for "
+                f"arguments to '{self.name}'")
 
         conversion_builtins = ["int_X", "real_X"]
         conversion_builtins_lower = [x.lower() for x in conversion_builtins]
         if len(data_types) != 1 and self.name not in conversion_builtins_lower:
             data_types_str = [str(x) for x in sorted(data_types)]
             raise ParseError(
-                "In the LFRic API only the data type conversion built-ins "
-                "{0} are allowed to have field arguments of different "
-                "data types. However, found different data types "
-                "{1} for field arguments to '{2}'.".
-                format(conversion_builtins, data_types_str, self.name))
+                f"In the LFRic API only the data type conversion built-ins "
+                f"{conversion_builtins} are allowed to have field arguments of"
+                f" different data types. However, found different data types "
+                f"{data_types_str} for field arguments to '{self.name}'.")
 
     def array_ref(self, fld_name):
         '''

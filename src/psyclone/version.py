@@ -41,5 +41,5 @@ __MAJOR__ = 2
 __MINOR__ = 3
 __MICRO__ = 1
 
-__SHORT_VERSION__ = "{0:d}.{1:d}".format(__MAJOR__, __MINOR__)
-__VERSION__ = "{0:d}.{1:d}.{2:d}".format(__MAJOR__, __MINOR__, __MICRO__)
+__SHORT_VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}"
+__VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}.{__MICRO__:d}"

@@ -53,8 +53,8 @@ class LazyString:
     def __init__(self, func):
         if not hasattr(func, '__call__'):
             raise TypeError(
-                "The func argument for the LazyString class should be a "
-                "function, but found '{0}'.".format(type(func).__name__))
+                f"The func argument for the LazyString class should be a "
+                f"function, but found '{type(func).__name__}'.")
         self._func = func
 
     def __str__(self):
@@ -65,8 +65,8 @@ class LazyString:
         result = self._func()
         if not isinstance(result, str):
             raise TypeError(
-                "The function supplied to the LazyString class should return "
-                "a string, but found '{0}'.".format(type(result).__name__))
+                f"The function supplied to the LazyString class should return "
+                f"a string, but found '{type(result).__name__}'.")
         return result
 
 
@@ -79,7 +79,7 @@ class PSycloneError(Exception):
     '''
     def __init__(self, value):
         Exception.__init__(self, value)
-        self.value = LazyString(lambda: "PSyclone Error: {0}".format(value))
+        self.value = LazyString(lambda: f"PSyclone Error: {value}")
 
     def __repr__(self):
         return type(self).__name__ + "()"
