@@ -279,9 +279,9 @@ class RefElementMetaData():
             # We found a reference-element property that we don't recognise.
             # Sort for consistency when testing.
             sorted_names = sorted([prop.name for prop in self.Property])
-            six.raise_from(ParseError(
+            raise ParseError(
                 f"Unsupported reference-element property: '{arg}'. Supported "
-                f"values are: {sorted_names}"), err)
+                f"values are: {sorted_names}") from err
 
         # Check for duplicate properties
         for prop in self.properties:
@@ -1679,11 +1679,11 @@ class DynStencils(DynCollection):
                     try:
                         stencil_name = const.STENCIL_MAPPING[stencil_type]
                     except KeyError as err:
-                        six.raise_from(GenerationError(
+                        raise GenerationError(
                             f"Unsupported stencil type "
                             f"'{arg.descriptor.stencil['type']}' supplied. "
                             f"Supported mappings are "
-                            f"{str(const.STENCIL_MAPPING)}"), err)
+                            f"{str(const.STENCIL_MAPPING)}") from err
                     parent.add(
                         AssignGen(parent, pointer=True, lhs=map_name,
                                   rhs=arg.proxy_name_indexed +
@@ -1771,11 +1771,11 @@ class DynStencils(DynCollection):
                     try:
                         stencil_name = const.STENCIL_MAPPING[stencil_type]
                     except KeyError as err:
-                        six.raise_from(GenerationError(
+                        raise GenerationError(
                             f"Unsupported stencil type "
                             f"'{arg.descriptor.stencil['type']}' supplied. "
                             f"Supported mappings are "
-                            f"{const.STENCIL_MAPPING}"), err)
+                            f"{const.STENCIL_MAPPING}") from err
                     parent.add(UseGen(parent, name=smap_mod,
                                       only=True, funcnames=[stencil_name]))
 
@@ -6738,9 +6738,10 @@ def halo_check_arg(field, access_types):
         # Get the kernel/built-in call associated with this field
         call = field.call
     except AttributeError as err:
-        six.raise_from(GenerationError(
+        raise GenerationError(
             f"HaloInfo class expects an argument of type DynArgument, or "
-            f"equivalent, on initialisation, but found, '{type(field)}'"), err)
+            f"equivalent, on initialisation, but found, "
+            f"'{type(field)}'") from err
 
     if field.access not in access_types:
         api_strings = [access.api_specific_name() for access in access_types]
@@ -7800,8 +7801,8 @@ class DynLoop(PSyLoop):
 
         if self.ancestor((ACCRegionDirective, OMPRegionDirective)):
             # We cannot include calls to set halos dirty/clean within OpenACC
-            # regions. This is handled by the appropriate Directive class
-            # instead.
+            # or OpenMP regions. This is handled by the appropriate Directive
+            # class instead.
             # TODO #1755 can this check be made more general (e.g. to include
             # Extraction regions)?
             return

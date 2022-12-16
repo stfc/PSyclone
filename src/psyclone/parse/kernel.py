@@ -172,9 +172,9 @@ def get_kernel_parse_tree(filepath):
         # empty.
         parse_tree.name = ""
     except Exception as err:
-        six.raise_from(ParseError(
+        raise ParseError(
             f"Failed to parse kernel code '{filepath}'. Is the Fortran "
-            f"correct?"), err)
+            f"correct?") from err
     return parse_tree
 
 
@@ -742,9 +742,9 @@ def getkerneldescriptors(name, ast, var_name='meta_args', var_type=None):
     try:
         nargs = int(descs.shape[0])
     except AttributeError as err:
-        six.raise_from(ParseError(
+        raise ParseError(
             f"In kernel metadata '{name}': '{var_name}' variable must be an "
-            f"array."), err)
+            f"array.") from err
     if len(descs.shape) != 1:
         raise ParseError(
             f"In kernel metadata '{name}': '{var_name}' variable must be a 1 "
