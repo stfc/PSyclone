@@ -225,6 +225,9 @@ class InlineTrans(Transformation):
                                represent array-element accessors.
         '''
         if not isinstance(ref, Reference):
+            # Recurse down in case this is e.g. an Operation.
+            for child in ref.children:
+                self.replace_dummy_arg(child, call_node, dummy_args)
             return ref
 
         if ref.symbol not in dummy_args:
@@ -322,10 +325,10 @@ class InlineTrans(Transformation):
             # support pointers and in Fortran, an array of pointers to arrays
             # can only be achieved through having an array of structures.)
             # The shape of the actual argument must correspond to the shape
-            # of the dummy argument.
-            # So, e.g.:
+            # of the dummy argument. So, e.g.:
             #
             # call sub1a(a(1,:,:))
+            #
             # subroutine sub1a(x)
             #   real, intent(inout), dimension(10,10) :: x
             #   integer :: j
@@ -341,50 +344,34 @@ class InlineTrans(Transformation):
             #
             # i.e. any Range in the access to the dummy argument must replace
             # a Range in the actual argument.
-            # We must loop over each index in the local access...TODO
-            for idx in actual_indices:
-                if not isinstance(idx, Range):
-                    continue
-
-            local_idx_posn = 0
-            ranges = call_node.walk(Range)
-            if ranges:
-                new_indices = []
-                for idx in actual_indices:
-                    # TODO - this handling of a Range is duplicated.
-                    if isinstance(idx, Range):
-                        new_idx = local_indices[local_idx_posn].copy()
-                        if isinstance(new_idx, Range):
-                            for child in [new_idx.start, new_idx.stop,
-                                          new_idx.step]:
-                                self.replace_dummy_arg(child, call_node,
-                                                       dummy_args)
-                            new_indices.append(new_idx)
-                        else:
-                            new_indices.append(self.replace_dummy_arg(
-                                new_idx, call_node,
-                                dummy_args))
+            # Locate the Range(s) in the actual argument.
+            range_posns = []
+            for posn, arg_idx in enumerate(actual_indices):
+                if isinstance(arg_idx, Range):
+                    range_posns.append(posn)
+            # These ranges must correspond to dimensions of the dummy argument
+            if len(range_posns) != len(local_indices):
+                raise InternalError("oops")
+            # Loop over each index in the local access
+            for actual, local in zip(range_posns, local_indices):
+                new_idx = local.copy()
+                if isinstance(local, Range):
+                    # If the local Range is for the full extent of the dummy
+                    # argument then the actual Range is defined by that of the
+                    # actual argument.
+                    if ref.is_full_range(local_indices.index(local)):
+                        new_idx = actual_indices[actual]
                     else:
-                        new_indices.append(idx.copy())
-                    local_idx_posn += 1
-
-            else:
-                if actual_indices and local_indices:
-                    raise InternalError(
-                        f"The reference to '{ref.symbol.name}' in the call to "
-                        f"'{call_node.name}' is an array access but there is "
-                        f"also an array access to the corresponding dummy "
-                        f"argument in that routine. This should not be "
-                        f"possible.")
-                # The local index expressions must be inlined at the call site.
-                new_indices = []
-                for idx in new_indices:
-                    new_indices.append(
-                        self.replace_dummy_arg(idx, call_node, dummy_args))
-                # Call-site index expressions can just be copied.
-                for idx in actual_indices:
-                    new_indices.append(idx.copy())
-            new_ref = ArrayReference.create(actual_arg.symbol, new_indices)
+                        for child in [new_idx.start, new_idx.stop,
+                                      new_idx.step]:
+                            self.replace_dummy_arg(child, call_node,
+                                                   dummy_args)
+                else:
+                    new_idx = self.replace_dummy_arg(
+                        new_idx, call_node,
+                        dummy_args)
+                actual_indices[actual] = new_idx
+            new_ref = ArrayReference.create(actual_arg.symbol, actual_indices)
         ref.replace_with(new_ref)
         return new_ref
 
@@ -536,8 +523,6 @@ class InlineTrans(Transformation):
             symbol.
         :raises TransformationError: if a symbol declared in the parent \
             container is accessed in the target routine.
-        :raises TransformationError: if any of the actual arguments represent \
-            an array subsection.
         :raises TransformationError: if the shape of an array dummy argument \
             does not match that of the corresponding actual argument.
 
@@ -653,15 +638,7 @@ class InlineTrans(Transformation):
                 ranges = actual_arg.walk(Range)
                 for rge in ranges:
                     ancestor_ref = rge.ancestor(Reference)
-                    if ancestor_ref is actual_arg:
-                        if not rge.parent.is_full_range(
-                                rge.parent.indices.index(rge)):
-                            raise TransformationError(LazyString(
-                                lambda: f"Cannot inline routine "
-                                f"'{routine.name}' because argument "
-                                f"'{visitor(actual_arg)}' is "
-                                f"an array subsection (TODO #924)."))
-                    else:
+                    if ancestor_ref is not actual_arg:
                         # Have a range in an indirect access.
                         raise TransformationError(LazyString(
                             lambda: f"Cannot inline routine '{routine.name}' "
