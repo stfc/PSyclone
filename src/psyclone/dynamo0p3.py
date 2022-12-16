@@ -7225,9 +7225,9 @@ class DynLoop(PSyLoop):
             pos = self.position
             parent = self.parent
             self.detach()
-            all_children_reverse = self.loop_body.pop_all_children()[::-1]
+            all_children_reverse = reversed(self.loop_body.pop_all_children())
             # Attach the children starting with the last, which
-            # preserves the origina order of the children.
+            # preserves the original order of the children.
             for child in all_children_reverse:
                 parent.children.insert(pos, child)
 
