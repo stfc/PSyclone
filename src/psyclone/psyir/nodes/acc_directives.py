@@ -43,7 +43,6 @@ nodes.'''
 
 from __future__ import absolute_import
 import abc
-import six
 from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.errors import GenerationError, InternalError
@@ -755,7 +754,7 @@ class ACCUpdateDirective(ACCStandaloneDirective):
 
     def __init__(self, symbol, direction, children=None, parent=None):
         super().__init__(children=children, parent=parent)
-        if not isinstance(direction, six.string_types) or direction not in \
+        if not isinstance(direction, str) or direction not in \
                 self._VALID_DIRECTIONS:
             raise ValueError(
                 f"The ACCUpdateDirective direction argument must be a string "

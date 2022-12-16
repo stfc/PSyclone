@@ -41,7 +41,6 @@
 
 from collections import OrderedDict
 import os
-import six
 
 from fparser.two import Fortran2003, utils
 from fparser.two.utils import walk, BlockBase, StmtBase
@@ -793,7 +792,7 @@ def _create_struct_reference(parent, base_ref, base_symbol, members,
     # members making up this structure access.
     new_members = []
     for member in members:
-        if isinstance(member, six.string_types):
+        if isinstance(member, str):
             new_members.append(member)
         elif isinstance(member, tuple):
             # Second member of the tuple is a list of index expressions

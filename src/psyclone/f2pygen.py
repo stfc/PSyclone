@@ -39,7 +39,6 @@
 
 from __future__ import absolute_import, print_function
 import abc
-import six
 from fparser.common.readfortran import FortranStringReader
 from fparser.common.sourceinfo import FortranFormat
 from fparser.one.statements import Comment, Case
@@ -844,7 +843,7 @@ class AllocateGen(BaseGen):
         reader.set_format(FortranFormat(True, False))  # free form, strict
         myline = reader.next()
         self._decl = fparser1.statements.Allocate(parent.root, myline)
-        if isinstance(content, six.string_types):
+        if isinstance(content, str):
             self._decl.items = [content]
         elif isinstance(content, list):
             self._decl.items = content

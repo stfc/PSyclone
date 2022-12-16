@@ -45,7 +45,6 @@ PSyclone-conformant kernel code.
 import os
 import sys
 
-import six
 from pyparsing import ParseException
 
 import fparser
@@ -375,7 +374,7 @@ def get_stencil(metadata, valid_types):
             f"Expecting format stencil(<type>[,<extent>]) so there must "
             f"be at most two arguments inside the brackets {metadata}")
     if not isinstance(metadata.args[0], expr.FunctionVar):
-        if isinstance(metadata.args[0], six.string_types):
+        if isinstance(metadata.args[0], str):
             raise ParseError(
                 f"Expecting format stencil(<type>[,<extent>]). However, "
                 f"the specified <type> '{metadata.args[0]}' is a literal and "
@@ -396,7 +395,7 @@ def get_stencil(metadata, valid_types):
 
     stencil_extent = None
     if len(metadata.args) == 2:
-        if not isinstance(metadata.args[1], six.string_types):
+        if not isinstance(metadata.args[1], str):
             raise ParseError(
                 f"Expected format stencil(<type>[,<extent>]). However, the "
                 f"specified <extent> '{metadata.args[1]}' is not an integer")
