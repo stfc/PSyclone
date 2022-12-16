@@ -43,7 +43,6 @@
 
 from collections import OrderedDict
 import abc
-import six
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
@@ -2699,8 +2698,7 @@ class TransInfo():
                 issubclass(cls, base_class) and cls is not base_class]
 
 
-@six.add_metaclass(abc.ABCMeta)
-class Transformation():
+class Transformation(metaclass=abc.ABCMeta):
     '''Abstract baseclass for a transformation. Uses the abc module so it
     can not be instantiated.
 

@@ -40,7 +40,6 @@
 '''
 
 import abc
-import six
 
 from psyclone.psyGen import Kern, Transformation
 from psyclone.psyir.transformations.transformation_error \
@@ -48,8 +47,7 @@ from psyclone.psyir.transformations.transformation_error \
 from psyclone.psyir.nodes import Schedule, Node
 
 
-@six.add_metaclass(abc.ABCMeta)
-class RegionTrans(Transformation):
+class RegionTrans(Transformation, metaclass=abc.ABCMeta):
     # Avoid pylint warning about abstract functions (apply, name) not
     # overwritten:
     # pylint: disable=abstract-method,arguments-differ

@@ -883,8 +883,7 @@ class DeallocateGen(BaseGen):
         BaseGen.__init__(self, parent, self._decl)
 
 
-@six.add_metaclass(abc.ABCMeta)
-class BaseDeclGen(BaseGen):
+class BaseDeclGen(BaseGen, metaclass=abc.ABCMeta):
     '''
     Abstract base class for all types of Fortran declaration. Uses the
     abc module so it cannot be instantiated.

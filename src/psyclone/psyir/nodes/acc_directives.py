@@ -53,8 +53,7 @@ from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.symbols import DataSymbol, ScalarType
 
 
-@six.add_metaclass(abc.ABCMeta)
-class ACCDirective():
+class ACCDirective(metaclass=abc.ABCMeta):
     # pylint: disable=too-few-public-methods
     '''
     Base mixin class for all OpenACC directive statements.
@@ -70,8 +69,7 @@ class ACCDirective():
     _PREFIX = "ACC"
 
 
-@six.add_metaclass(abc.ABCMeta)
-class ACCRegionDirective(ACCDirective, RegionDirective):
+class ACCRegionDirective(ACCDirective, RegionDirective, metaclass=abc.ABCMeta):
     ''' Base class for all OpenACC region directive statements. '''
     def validate_global_constraints(self):
         '''
@@ -115,8 +113,8 @@ class ACCRegionDirective(ACCDirective, RegionDirective):
         return variables
 
 
-@six.add_metaclass(abc.ABCMeta)
-class ACCStandaloneDirective(ACCDirective, StandaloneDirective):
+class ACCStandaloneDirective(ACCDirective, StandaloneDirective,
+                             metaclass=abc.ABCMeta):
     ''' Base class for all standalone OpenACC directive statements. '''
 
 

@@ -41,15 +41,13 @@ functionality required by transformations of PSyIR intrinsic operators
 '''
 from __future__ import absolute_import
 import abc
-import six
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Assignment
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
 
 
-@six.add_metaclass(abc.ABCMeta)
-class Operator2CodeTrans(Transformation):
+class Operator2CodeTrans(Transformation, metaclass=abc.ABCMeta):
     '''Provides support for transformations from PSyIR intrinsic Operator
     nodes to equivalent PSyIR code in a PSyIR tree. Such
     transformations can be useful when the intrinsic is not supported

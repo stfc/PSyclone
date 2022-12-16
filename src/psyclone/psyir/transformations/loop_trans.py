@@ -38,7 +38,6 @@
 '''
 
 import abc
-import six
 
 from psyclone.psyGen import Kern, Transformation
 from psyclone.psyir.transformations.transformation_error \
@@ -46,8 +45,7 @@ from psyclone.psyir.transformations.transformation_error \
 from psyclone.psyir.nodes import Schedule, Loop
 
 
-@six.add_metaclass(abc.ABCMeta)
-class LoopTrans(Transformation):
+class LoopTrans(Transformation, metaclass=abc.ABCMeta):
     # Avoid pylint warning about abstract method (apply) not overwritten:
     # pylint: disable=abstract-method
     '''
