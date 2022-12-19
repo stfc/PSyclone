@@ -331,7 +331,9 @@ class NemoLoop(PSyLoop):
         return None
 
 
-# TODO #1872: Avoid the duplication below and move to src/psyclone/domain/nemo
+# TODO #1872: Avoid the duplication below and move to src/psyclone/domain/nemo.
+# Alternatively, bring removal of loop variables to the transformation using
+# lifetime analysis and remove these sub-classes.
 class NemoACCEnterDataDirective(ACCEnterDataDirective):
     '''
     NEMO-specific support for the OpenACC enter data directive.

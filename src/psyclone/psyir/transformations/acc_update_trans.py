@@ -40,7 +40,6 @@ kept up-to-date on the host for the execution of host code and that data
 is returned to the device in time for the execution of compute regions.
 '''
 
-# pylint: disable=unused-import
 from psyclone.core import Signature
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (Call, CodeBlock, IfBlock, Loop, Routine,
