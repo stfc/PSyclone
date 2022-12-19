@@ -2196,8 +2196,6 @@ class ACCEnterDataTrans(Transformation):
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # print(schedule.view())
 
-    ...
-
     '''
     def __str__(self):
         return "Adds an OpenACC 'enter data' directive"
@@ -2220,7 +2218,7 @@ class ACCEnterDataTrans(Transformation):
         :param sched: schedule to which to add an "enter data" directive.
         :type sched: sub-class of :py:class:`psyclone.psyir.nodes.Schedule`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         # Ensure that the proposed transformation is valid
@@ -2233,15 +2231,30 @@ class ACCEnterDataTrans(Transformation):
         elif isinstance(sched, GOInvokeSchedule):
             from psyclone.gocean1p0 import GOACCEnterDataDirective as \
                 AccEnterDataDir
+        elif isinstance(sched, NemoInvokeSchedule):
+            from psyclone.nemo import NemoACCEnterDataDirective as \
+                AccEnterDataDir
         else:
             # Should not get here provided that validate() has done its job
             raise InternalError(
                 f"ACCEnterDataTrans.validate() has not rejected an "
                 f"(unsupported) schedule of type {type(sched)}")
 
-        # Add the directive
+        # Find the position of the first child statement of the current
+        # schedule which contains an OpenACC compute construct.
+        posn = 0
+        directive_cls = (ACCParallelDirective, ACCKernelsDirective)
+        directive = sched.walk(directive_cls, stop_type=directive_cls)
+        if directive:
+            current = directive[0]
+            while current not in sched.children:
+                current = current.parent
+            posn = sched.children.index(current)
+
+        # Add the directive at the position determined above, i.e. just before
+        # the first statemement containing an OpenACC compute construct.
         data_dir = AccEnterDataDir(parent=sched, children=[])
-        sched.addchild(data_dir, index=0)
+        sched.addchild(data_dir, index=posn)
 
     def validate(self, sched, options=None):
         # pylint: disable=arguments-differ, arguments-renamed
@@ -2252,9 +2265,8 @@ class ACCEnterDataTrans(Transformation):
         :param sched: Schedule to which to add an "enter data" directive.
         :type sched: sub-class of :py:class:`psyclone.psyir.nodes.Schedule`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
-        :raises NotImplementedError: for any API other than GOcean 1.0 or NEMO.
         :raises TransformationError: if passed something that is not a \
             (subclass of) :py:class:`psyclone.psyir.nodes.Schedule`.
 
@@ -2262,19 +2274,13 @@ class ACCEnterDataTrans(Transformation):
         super().validate(sched, options)
 
         if not isinstance(sched, Schedule):
-            raise TransformationError("Cannot apply an OpenACC enter-data "
-                                      "directive to something that is "
-                                      "not a Schedule")
-
-        if not isinstance(sched, (GOInvokeSchedule, DynInvokeSchedule)):
-            raise NotImplementedError(
-                f"ACCEnterDataTrans: ACCEnterDataDirective not implemented for"
-                f" a schedule of type {type(sched)}")
+            raise TransformationError("Cannot apply an OpenACC enter data "
+                                      "directive to something that is not a "
+                                      "Schedule")
 
         # Check that we don't already have a data region of any sort
-        directives = sched.walk(Directive)
-        if any(isinstance(ddir, (ACCDataDirective, ACCEnterDataDirective))
-               for ddir in directives):
+        directive_cls = (ACCDataDirective, ACCEnterDataDirective)
+        if sched.walk(directive_cls, stop_type=directive_cls):
             raise TransformationError("Schedule already has an OpenACC data "
                                       "region - cannot add an enter data.")
 

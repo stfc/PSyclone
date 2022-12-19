@@ -226,6 +226,12 @@
 	78) PR #1963 towards #1883. More work to improving the use of PSyIR
 	in LFRic (as needed for PSyKE driver creation).
 
+	79) PR #1964 for #1961. Adds lower_to_language_level to DynLoop to
+	ensure loop variable names preserved in PSyKE driver creation.
+
+	80) PR #1952 for #310. Adds support for ACCEnterData and ACCUpdate
+	directives in the NEMO API.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
