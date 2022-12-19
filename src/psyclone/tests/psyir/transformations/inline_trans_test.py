@@ -51,6 +51,7 @@ MY_TYPE = ("  type other_type\n"
            "  type my_type\n"
            "    integer :: idx\n"
            "    real, dimension(10) :: data\n"
+           "    real, dimension(5,10) :: data2d\n"
            "    type(other_type) :: local\n"
            "  end type my_type\n")
 
@@ -222,18 +223,19 @@ def test_apply_struct_arg(fortran_reader, fortran_writer, tmpdir):
         f"{MY_TYPE}"
         f"contains\n"
         f"  subroutine run_it()\n"
-        f"  integer :: i\n"
-        f"  type big_type\n"
-        f"    type(my_type) :: local\n"
-        f"  end type big_type\n"
-        f"  type(my_type) :: var\n"
-        f"  type(my_type) :: var_list(10)\n"
-        f"  type(big_type) :: var2(5)\n"
-        f"  do i=1,5\n"
-        f"    call sub(var, i)\n"
-        f"    call sub(var_list(i), i)\n"
-        f"    call sub(var2(i)%local, i)\n"
-        f"  end do\n"
+        f"    integer :: i\n"
+        f"    type big_type\n"
+        f"      type(my_type) :: local\n"
+        f"    end type big_type\n"
+        f"    type(my_type) :: var\n"
+        f"    type(my_type) :: var_list(10)\n"
+        f"    type(big_type) :: var2(5)\n"
+        f"    do i=1,5\n"
+        f"      call sub(var, i)\n"
+        f"      call sub(var_list(i), i)\n"
+        f"      call sub(var2(i)%local, i)\n"
+        f"      call sub2(var2)\n"
+        f"    end do\n"
         f"  end subroutine run_it\n"
         f"  subroutine sub(x, ivar)\n"
         f"    type(my_type), intent(inout) :: x\n"
@@ -242,27 +244,69 @@ def test_apply_struct_arg(fortran_reader, fortran_writer, tmpdir):
         f"    do i = 1, 10\n"
         f"      x%data(i) = 2.0*ivar\n"
         f"    end do\n"
+        f"    x%data(:) = -1.0\n"
+        f"    x%data = -5.0\n"
+        f"    x%data(1:2) = 0.0\n"
         f"  end subroutine sub\n"
+        f"  subroutine sub2(x)\n"
+        f"    type(my_type), dimension(:), intent(inout) :: x\n"
+        f"    x(:)%idx = 0\n"
+        f"  end subroutine sub2\n"
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
-    routines = psyir.walk(Call)
     inline_trans = InlineTrans()
-    inline_trans.apply(routines[0])
-    inline_trans.apply(routines[1])
-    inline_trans.apply(routines[2])
+    for routine in psyir.walk(Call):
+        inline_trans.apply(routine)
+
     output = fortran_writer(psyir)
     assert ("    do i = 1, 5, 1\n"
             "      do i_3 = 1, 10, 1\n"
             "        var%data(i_3) = 2.0 * i\n"
             "      enddo\n"
+            "      var%data(:) = -1.0\n"
+            "      var%data(1:2) = 0.0\n"
             "      do i_1 = 1, 10, 1\n"
             "        var_list(i)%data(i_1) = 2.0 * i\n"
             "      enddo\n"
+            "      var_list(i)%data(:) = -1.0\n"
+            "      var_list(i)%data(1:2) = 0.0\n"
             "      do i_2 = 1, 10, 1\n"
             "        var2(i)%local%data(i_2) = 2.0 * i\n"
             "      enddo\n"
+            "      var2(i)%local%data(:) = -1.0\n"
+            "      var2(i)%local%data = -5.0\n"
+            "      var2(i)%local%data(1:2) = 0.0\n"
+            "      var2(:)%idx = 0\n"
             "    enddo\n" in output)
     assert Compile(tmpdir).string_compiles(output)
+
+
+def test_apply_struct_slice_arg(fortran_reader, fortran_writer, tmpdir):
+    '''
+    '''
+    code = (
+        f"module test_mod\n"
+        f"{MY_TYPE}"
+        f"contains\n"
+        f"  subroutine run_it()\n"
+        f"    type(my_type) :: var_list(10)\n"
+        f"    type(big_type) :: var2(5)\n"
+        f"    call sub(var_list(:)%nx, i)\n"
+        f"  end subroutine run_it\n"
+        f"  subroutine sub(ix)\n"
+        f"    integer, dimension(:) :: ix\n"
+        f"    ix(:) = ix(:) + 1\n"
+        f"  end subroutine sub\n"
+        f"  subroutine sub2d(x)\n"
+        f"    type(my_type), dimension(:) :: x\n"
+        f"  end subroutine sub2d\n"
+        f"end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    inline_trans = InlineTrans()
+    for routine in psyir.walk(Call):
+        inline_trans.apply(routine)
+    output = fortran_writer(psyir)
+    assert ("var_list(:)%nx = var_list(:)%nx + 1" in output)
 
 
 def test_apply_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
@@ -393,9 +437,12 @@ def test_apply_struct_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
         f"  real :: a(10)\n"
         f"  type(my_type) :: grid\n"
         f"  grid%data(:) = 1.0\n"
+        f"  grid%data2d(:,:) = 1.0\n"
         f"  do i=1,10\n"
         f"    a(i) = 1.0\n"
         f"    call sub(grid%data(:))\n"
+        f"    call sub(grid%data2d(:,i))\n"
+        f"    call sub(grid%data2d(1:5,i))\n"
         f"  end do\n"
         f"  end subroutine run_it\n"
         f"  subroutine sub(x)\n"
@@ -404,18 +451,32 @@ def test_apply_struct_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
         f"    do ji = 1, 5\n"
         f"      x(ji) = 2.0*x(ji)\n"
         f"    end do\n"
+        f"    x(1:2) = 0.0\n"
+        f"    x(:) = 3.0\n"
         f"  end subroutine sub\n"
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
-    routine = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
-    inline_trans.apply(routine)
+    for call in psyir.walk(Call):
+        inline_trans.apply(call)
     output = fortran_writer(psyir)
     assert ("    do i = 1, 10, 1\n"
             "      a(i) = 1.0\n"
             "      do ji = 1, 5, 1\n"
             "        grid%data(ji) = 2.0 * grid%data(ji)\n"
             "      enddo\n"
+            "      grid%data(1:2) = 0.0\n"
+            "      grid%data(:) = 3.0\n"
+            "      do ji_1 = 1, 5, 1\n"
+            "        grid%data2d(ji_1,i) = 2.0 * grid%data2d(ji_1,i)\n"
+            "      enddo\n"
+            "      grid%data2d(1:2,i) = 0.0\n"
+            "      grid%data2d(:,i) = 3.0\n"
+            "      do ji_2 = 1, 5, 1\n"
+            "        grid%data2d(ji_2,i) = 2.0 * grid%data2d(ji_2,i)\n"
+            "      enddo\n"
+            "      grid%data2d(1:2,i) = 0.0\n"
+            "      grid%data2d(1:5,i) = 3.0\n"
             "    enddo\n" in output)
     assert Compile(tmpdir).string_compiles(output)
 
