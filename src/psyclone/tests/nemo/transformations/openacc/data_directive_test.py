@@ -392,10 +392,8 @@ def test_no_enter_data(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.get('explicit_do').schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    # We don't yet support ACCEnterDataTrans for the NEMO API (Issue 310)
-    # so manually insert a GOACCEnterDataDirective in the Schedule.
-    directive = GOACCEnterDataDirective(children=[])
-    schedule.children.insert(0, directive)
+    enter_data_trans = TransInfo().get_trans_name('ACCEnterDataTrans')
+    enter_data_trans.apply(schedule)
     with pytest.raises(TransformationError) as err:
         acc_trans.apply(schedule.children)
     assert ("Cannot add an OpenACC data region to a schedule that already "
