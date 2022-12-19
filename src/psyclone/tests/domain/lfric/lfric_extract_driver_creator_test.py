@@ -86,3 +86,17 @@ def test_lfric_driver_constructor_error():
         _ = LFRicExtractDriverCreator(precision=1)
     assert ("The precision argument of the LFRic driver creator must be a "
             "dictionary, but got 'int'." in str(err.value))
+
+
+def test_lfric_driver_valid_unit_name():
+    '''Tests that we create valid unit names, i.e. less than 64 characters,
+    and no ":" in name.'''
+
+    long_name = "A"*100
+    new_name = LFRicExtractDriverCreator.make_valid_unit_name(long_name)
+    assert new_name == "A"*63
+
+    special_characters = "aaa:bbb"
+    new_name = \
+        LFRicExtractDriverCreator.make_valid_unit_name(special_characters)
+    assert new_name == "aaabbb"

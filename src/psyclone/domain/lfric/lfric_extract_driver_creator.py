@@ -193,7 +193,9 @@ class LFRicExtractDriverCreator:
         in a lowered kernel call back to the original name, which is the name
         used in extraction. For example, a field 'f' will be provided as
         `f_proxy%data` to the kernel, but the extraction will just write
-        the name 'f', which is easier to understand for the user.
+        the name 'f', which is easier to understand for the user. The mapping
+        created here is used as a first step, to convert `f_proxy` back
+        to `f`.
 
         :param schedule: the schedule with all kernels.
         :type schedule: :py:class:`psyclone.psyir.nodes.Schedule`
