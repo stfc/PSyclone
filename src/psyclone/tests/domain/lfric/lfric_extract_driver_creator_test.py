@@ -135,6 +135,17 @@ def test_lfric_driver_get_proxy_mapping():
 
 
 # ----------------------------------------------------------------------------
+def test_lfric_driver_flatten_reference_error():
+    '''Tests errors when flattening user defined symbols.'''
+    driver_creator = LFRicExtractDriverCreator()
+
+    with pytest.raises(InternalError) as err:
+        driver_creator.flatten_reference("NoUserType", symbol_table=None,
+                                         proxy_name_mapping={})
+    assert "PSyclone internal error: " in str(err.value)
+
+
+# ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir")
 def test_lfric_driver_simple_test():
     '''Test the full pipeline: Add kernel extraction to a kernel and
@@ -148,11 +159,11 @@ def test_lfric_driver_simple_test():
     extract = LFRicExtractTrans()
 
     extract.apply(invoke.schedule.children[0],
-                  options={"create_driver": True})
+                  options={"create_driver": True,
+                           "region_name": ("field", "test")})
     out = str(invoke.gen())
 
-    filename = ("driver-vector_type_psy-invoke_0_testkern_type:"
-                "testkern_code:r0.f90")
+    filename = ("driver-field-test.f90")
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
 
@@ -181,11 +192,28 @@ def test_lfric_driver_simple_test():
 
 
 # ----------------------------------------------------------------------------
-def test_lfric_driver_flatten_reference_error():
-    '''Tests errors when flattening user defined symbols.'''
-    driver_creator = LFRicExtractDriverCreator()
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_lfric_driver_field_arrays():
+    '''Test handling of array of fields: they are written in one call to
+    the extraction library, but the library will write each array member
+    as an individual field. The driver needs to read in each individual
+    array member into distinct variables.'''
 
-    with pytest.raises(InternalError) as err:
-        driver_creator.flatten_reference("NoUserType", symbol_table=None,
-                                         proxy_name_mapping={})
-    assert "PSyclone internal error: " in str(err.value)
+    _, invoke = get_invoke("8_vector_field_2.f90", API,
+                           dist_mem=False, idx=0)
+
+    extract = LFRicExtractTrans()
+
+    extract.apply(invoke.schedule.children[0],
+                  options={"create_driver": True,
+                           "region_name": ("field", "array")})
+    out = str(invoke.gen())
+
+    filename = ("driver-field-array.f90")
+    with open(filename, "r", encoding='utf-8') as my_file:
+        driver = my_file.read()
+
+    assert "ProvideVariable(\"chi\", chi)" in out
+    assert "ReadVariable('chi%1', chi_1_data)" in driver
+    assert "ReadVariable('chi%2', chi_2_data)" in driver
+    assert "ReadVariable('chi%3', chi_3_data)" in driver
