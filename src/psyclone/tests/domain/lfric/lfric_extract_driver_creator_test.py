@@ -39,6 +39,8 @@ import pytest
 
 from psyclone.domain.lfric import LFRicConstants, LFRicExtractDriverCreator
 from psyclone.errors import InternalError
+from psyclone.tests.utilities import get_invoke
+
 
 API = "dynamo0.3"
 
@@ -62,6 +64,7 @@ def test_lfric_driver_constructor():
              "r_tran": "real64"})
 
 
+# ----------------------------------------------------------------------------
 def test_lfric_driver_field_mapping():
     '''Tests that the mapping of fields to precision is as expected.'''
     mapping = LFRicConstants().DATA_TYPE_MAP
@@ -77,6 +80,7 @@ def test_lfric_driver_field_mapping():
     assert driver_creator._map_fields_to_precision == correct
 
 
+# ----------------------------------------------------------------------------
 def test_lfric_driver_constructor_error():
     '''Tests the error handling of the constructor of the LFRic driver
     creator.'''
@@ -88,6 +92,7 @@ def test_lfric_driver_constructor_error():
             "dictionary, but got 'int'." in str(err.value))
 
 
+# ----------------------------------------------------------------------------
 def test_lfric_driver_valid_unit_name():
     '''Tests that we create valid unit names, i.e. less than 64 characters,
     and no ":" in name.'''
@@ -100,3 +105,27 @@ def test_lfric_driver_valid_unit_name():
     new_name = \
         LFRicExtractDriverCreator.make_valid_unit_name(special_characters)
     assert new_name == "aaabbb"
+
+
+# ----------------------------------------------------------------------------
+def test_lfric_driver_flatten_string():
+    '''Tests that a user-defined type access is correctly converted
+    to a 'flattened' string.'''
+
+    new_name = LFRicExtractDriverCreator.flatten_string("a%b%c")
+    assert new_name == "a_b_c"
+
+
+# ----------------------------------------------------------------------------
+def test_lfric_driver_get_proxy_mapping():
+    '''Tests that a kernel returns the right proxy mapping.'''
+
+    _, invoke = get_invoke("26.6_mixed_precision_solver_vector.f90", API,
+                           dist_mem=False, idx=0)
+    driver_creator = LFRicExtractDriverCreator()
+
+    mapping = driver_creator.get_proxy_name_mapping(invoke.schedule)
+    assert mapping == ({'x_ptr_vector_proxy': 'x_ptr_vector',
+                        'self_vec_type_vector_proxy': 'self_vec_type_vector',
+                        'm1_proxy': 'm1',
+                        'm2_proxy': 'm2'})
