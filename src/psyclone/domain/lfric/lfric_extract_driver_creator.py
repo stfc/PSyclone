@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,7 @@ the output data contained in the input file.
 from psyclone.core import Signature
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
+from psyclone.errors import InternalError
 from psyclone.psyGen import HaloExchange, InvokeSchedule, Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -145,8 +146,7 @@ class LFRicExtractDriverCreator:
        then be compared with `f_post`.
 
     '''
-    def __init__(self):
-        # Set the integer and real types to use.
+    def __init__(self, precision=None):
         self._all_field_types = ["field_type", "integer_field_type",
                                  "r_solver_field_type", "r_tran_field_type"]
         # Set the size of the various precision types used in LFRic.
@@ -154,9 +154,17 @@ class LFRicExtractDriverCreator:
                            "r_def": "real64",
                            "r_second": "real64",
                            "r_solver": "real32",
-                           "r_tran": "real32",
-                           }
+                           "r_tran": "real32"}
+        if precision:
+            if not isinstance(precision, dict):
+                raise InternalError(
+                    f"The precision argument of the LFRic driver creator "
+                    f"must be a dictionary, but got "
+                    f"'{type(precision).__name__}'.")
+            self._precision.update(precision)
 
+        # Create a mapping from the proxy type (e.g. "operator_proxy_type")
+        # to the kind value (e.g. "r_def")
         const = LFRicConstants()
         self._map_fields_to_precision = {}
         for field_info in const.DATA_TYPE_MAP.values():
@@ -169,6 +177,12 @@ class LFRicExtractDriverCreator:
     def make_valid_unit_name(name):
         '''Unit names are restricted to 63 characters, and no special
         characters like ':'.
+
+        :param str name: a unit name.
+
+        :returns: a valid unit name according to Fortran standard.
+        :rtype: str
+
         '''
         return name.replace(":", "")[:63]
 
@@ -177,7 +191,9 @@ class LFRicExtractDriverCreator:
         '''This function creates a mapping of each proxy name of an argument
         to the field map. This mapping is used to convert proxy names used
         in a lowered kernel call back to the original name, which is the name
-        used in extraction.
+        used in extraction. For example, a field 'f' will be provided as
+        `f_proxy%data` to the kernel, but the extraction will just write
+        the name 'f', which is easier to understand for the user.
 
         :param schedule: the schedule with all kernels.
         :type schedule: :py:class:`psyclone.psyir.nodes.Schedule`
@@ -210,7 +226,7 @@ class LFRicExtractDriverCreator:
     # -------------------------------------------------------------------------
     def flatten_reference(self, old_reference, symbol_table,
                           proxy_name_mapping):
-        '''Replaces `old_reference` which is a structure type with a new
+        '''Replaces `old_reference`, which is a structure type, with a new
         simple Reference and a flattened name (replacing all % with _).
 
         :param old_reference: a reference to a structure member.
@@ -224,11 +240,16 @@ class LFRicExtractDriverCreator:
         :type writer: :py:class:`psyclone.psyir.backend.fortran.FortranWriter`
 
         '''
+
+        if not isinstance(old_reference, StructureReference):
+            raise InternalError(f"Unexpected type "
+                                f"'{type(old_reference).__name__}'"
+                                f" in flatten_reference.")
         # A field access (`fld%data`) will get the `%data` removed, since then
         # this avoids a potential name clash (`fld` is guaranteed to
         # be unique, since it's a variable already, but `fld_data` could clash
         # with a user variable if the user uses `fld` and `fld_data`).
-        # Furthermore, the netcdf file declares the variable without `%data`,
+        # Furthermore, the NetCDF file declares the variable without `%data`,
         # so removing `%data` here also simplifies code creation later on.
 
         signature, _ = old_reference.get_signature_and_indices()
