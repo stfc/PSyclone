@@ -44,9 +44,9 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyGen import CodedKern, Kern
-from psyclone.psyir.nodes import Container, Routine, CodeBlock
+from psyclone.psyir.nodes import Container, Routine, CodeBlock, Call
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
-    SymbolError
+    SymbolError, ContainerSymbol, ImportInterface
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
@@ -72,6 +72,29 @@ def test_validate_inline_error_if_not_kernel():
         inline_trans.apply(kern_call)
     assert ("Target of a KernelModuleInlineTrans must be a sub-class of "
             "psyGen.CodedKern but got 'GOLoop'" in str(err.value))
+
+
+def test_validate_with_imported_subroutine_call():
+    ''' Test that the module inline transformation supports kernels with
+    call nodes that reference and imported symbol. '''
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean1.0",
+                           idx=0, dist_mem=False)
+    schedule = invoke.schedule
+    kern_call = schedule.walk(CodedKern)[0]
+    # Create a call to made up subroutine and module symbols
+    kern_schedule = kern_call.get_kernel_schedule()
+    mymod = kern_schedule.symbol_table.new_symbol(
+            "mymod",
+            symbol_type=ContainerSymbol)
+    myfunc = kern_schedule.symbol_table.new_symbol(
+            "myfunc",
+            symbol_type=RoutineSymbol,
+            interface=ImportInterface(mymod))
+    kern_schedule.addchild(Call(myfunc))
+
+    # The validate should succeed
+    inline_trans = KernelModuleInlineTrans()
+    inline_trans.validate(kern_call)
 
 
 def test_validate_invalid_get_kernel_schedule(monkeypatch):
