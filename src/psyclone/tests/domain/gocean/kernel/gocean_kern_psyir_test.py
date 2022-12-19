@@ -70,8 +70,8 @@ PROGRAM = (
     f"module dummy\n"
     f"{METADATA}"
     f"contains\n"
-    f"  subroutine kern()\n"
-    f"  end subroutine kern\n"
+    f"  subroutine compute_cu_code()\n"
+    f"  end subroutine compute_cu_code\n"
     f"end module dummy\n")
 
 

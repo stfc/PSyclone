@@ -41,6 +41,10 @@
 transformations and base classes.
 '''
 
+# Order of TransformationError is not alphabetical because otherwise it
+# produces an ImportError due to cyclic dependencies
+from psyclone.psyir.transformations.transformation_error \
+    import TransformationError
 from psyclone.psyir.transformations.acc_update_trans import ACCUpdateTrans
 from psyclone.psyir.transformations.arrayrange2loop_trans import \
     ArrayRange2LoopTrans
@@ -88,8 +92,6 @@ from psyclone.psyir.transformations.replace_induction_variables_trans import \
      ReplaceInductionVariablesTrans
 from psyclone.psyir.transformations.reference2arrayrange_trans import \
     Reference2ArrayRangeTrans
-from psyclone.psyir.transformations.transformation_error \
-    import TransformationError
 
 
 # For AutoAPI documentation generation
