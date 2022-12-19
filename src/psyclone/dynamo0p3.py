@@ -747,9 +747,8 @@ class DynKernMetadata(KernelType):
             if arg.vector_size > 1:
                 raise ParseError(
                     f"Kernel '{self.name}' takes a CMA operator but has a "
-                    f"vector argument "
-                    f"'{arg.argument_type + '''*''' + str(arg.vector_size)}'. "
-                    f"This is forbidden.")
+                    f"vector argument '{arg.argument_type}*{arg.vector_size}'."
+                    f" This is forbidden.")
             # No stencil accesses are permitted
             if arg.stencil:
                 raise ParseError(
