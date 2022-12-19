@@ -3730,7 +3730,6 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
         print(expected)
         print("Found ...")
         print(result)
-        assert expected == result
         assert 0
 
 

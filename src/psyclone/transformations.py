@@ -737,13 +737,14 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
         :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations \
                         and validation.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
         :param bool options["reprod"]:
                 indicating whether reproducible reductions should be used. \
                 By default the value from the config file will be used.
 
         :raise TransformationError: if an OMP loop transform would create \
                 incorrect code.
+
         '''
         if not options:
             options = {}
@@ -768,8 +769,6 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
                 f"Error in {self.name} transformation. The kernel has an "
                 f"argument with INC access. Colouring is required.")
 
-
-
     def apply(self, node, options=None):
         ''' Apply Dynamo 0.3 specific OMPLoopTrans.
 
@@ -777,7 +776,7 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
         :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations \
                         and validation.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
         :param bool options["reprod"]:
                 indicating whether reproducible reductions should be used. \
                 By default the value from the config file will be used.
