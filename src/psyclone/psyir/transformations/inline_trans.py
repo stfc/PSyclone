@@ -403,7 +403,8 @@ class InlineTrans(Transformation):
                 # Ranges can only occur in a single Member of a
                 # StructureReference.
                 cursor = actual_arg
-                while True:
+                while hasattr(cursor, "member"):
+                    cursor = cursor.member
                     if hasattr(cursor, "indices"):
                         new_indices = []
                         local_idx_posn = 0
@@ -431,9 +432,7 @@ class InlineTrans(Transformation):
                         members.append((cursor.name, new_indices))
                     else:
                         members.append(cursor.name)
-                    if not hasattr(cursor, "member"):
-                        break
-                    cursor = cursor.member
+
                 # Now that we've handled the actual argument, we proceed down
                 # into the local reference in case it is a StructureReference.
                 # If it is, the actual argument replaces the head of it but
@@ -454,15 +453,13 @@ class InlineTrans(Transformation):
                 # Local access is to whole actual argument array so index
                 # expressions are those in the actual argument.
                 cursor = actual_arg
-                while True:
+                while cursor.hasattr("member"):
+                    cursor = cursor.member
                     if hasattr(cursor, "indices"):
                         new_indices = [idx.copy() for idx in cursor.indices]
                         members.append((cursor.name, new_indices))
                     else:
                         members.append(cursor.name)
-                    if not hasattr(cursor, "member"):
-                        break
-                    cursor = cursor.member
                 # Continue with local access, skipping head (as that is
                 # replaced by actual arg).
                 cursor = ref
@@ -484,7 +481,8 @@ class InlineTrans(Transformation):
                 # index expressions are just updated and copied over. However,
                 # actual argument may be a StructureReference.
                 cursor = actual_arg
-                while True:
+                while hasattr(cursor, "member"):
+                    cursor = cursor.member
                     if not hasattr(cursor, "member"):
                         # We break out before the ultimate member of the
                         # structure access as we have to add indexing to it.
@@ -494,7 +492,6 @@ class InlineTrans(Transformation):
                         members.append((cursor.name, new_indices))
                     else:
                         members.append(cursor.name)
-                    cursor = cursor.member
 
                 # We've reached the ultimate member of the
                 # StructureReference so this is where we need to
@@ -505,21 +502,12 @@ class InlineTrans(Transformation):
                         self.replace_dummy_arg(
                             idx.copy(), call_node, dummy_args))
                 members.append((cursor.name, new_indices))
-            else:
-                # No indexing in either the actual or local references so
-                # the root access is the same as the actual access.
-                cursor = actual_arg
-                members = [cursor.name]
+
+                # Continue with local access, skipping head (as that is
+                # replaced by actual arg).
+                cursor = ref
                 while hasattr(cursor, "member"):
                     cursor = cursor.member
-                    if hasattr(cursor, "indices"):
-                        new_indices = [idx.copy() for idx in cursor.indices]
-                        members.append((cursor.name, new_indices))
-                    else:
-                        members.append(cursor.name)
-                # Continue with local access, skipping head.
-                cursor = ref
-                while True:
                     if hasattr(cursor, "indices"):
                         new_indices = []
                         for idx in cursor.indices:
@@ -529,9 +517,30 @@ class InlineTrans(Transformation):
                         members.append((cursor.name, new_indices))
                     else:
                         members.append(cursor.name)
-                    if not hasattr(cursor, "member"):
-                        break
+            else:
+                # No indexing in either the actual or local references so
+                # the root access is the same as the actual access.
+                cursor = actual_arg
+                while hasattr(cursor, "member"):
                     cursor = cursor.member
+                    if hasattr(cursor, "indices"):
+                        new_indices = [idx.copy() for idx in cursor.indices]
+                        members.append((cursor.name, new_indices))
+                    else:
+                        members.append(cursor.name)
+                # Continue with local access, skipping head.
+                cursor = ref
+                while hasattr(cursor, "member"):
+                    cursor = cursor.member
+                    if hasattr(cursor, "indices"):
+                        new_indices = []
+                        for idx in cursor.indices:
+                            new_indices.append(
+                                self.replace_dummy_arg(
+                                    idx.copy(), call_node, dummy_args))
+                        members.append((cursor.name, new_indices))
+                    else:
+                        members.append(cursor.name)
 
         if actual_indices:
             new_ref = ArrayOfStructuresReference.create(actual_arg.symbol,
