@@ -178,3 +178,14 @@ def test_lfric_driver_simple_test():
                 assert f"({grp.groups(0)[0]}_post)" in driver
             else:
                 assert f"({grp.groups(0)[0]})" in driver
+
+
+# ----------------------------------------------------------------------------
+def test_lfric_driver_flatten_reference_error():
+    '''Tests errors when flattening user defined symbols.'''
+    driver_creator = LFRicExtractDriverCreator()
+
+    with pytest.raises(InternalError) as err:
+        driver_creator.flatten_reference("NoUserType", symbol_table=None,
+                                         proxy_name_mapping={})
+    assert "PSyclone internal error: " in str(err.value)
