@@ -217,3 +217,43 @@ def test_lfric_driver_field_arrays():
     assert "ReadVariable('chi%1', chi_1_data)" in driver
     assert "ReadVariable('chi%2', chi_2_data)" in driver
     assert "ReadVariable('chi%3', chi_3_data)" in driver
+
+
+# ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_lfric_driver_operator():
+    '''Test handling of array of fields: they are written in one call to
+    the extraction library, but the library will write each array member
+    as an individual field. The driver needs to read in each individual
+    array member into distinct variables.'''
+
+    _, invoke = get_invoke("10.7_operator_read.f90", API,
+                           dist_mem=False, idx=0)
+
+    extract = LFRicExtractTrans()
+
+    extract.apply(invoke.schedule.children[0],
+                  options={"create_driver": True,
+                           "region_name": ("operator", "test")})
+    out = str(invoke.gen())
+    # Check the structure members that are added for operators:
+    assert ("ProvideVariable(\"mm_w3_proxy%local_stencil\", "
+            "mm_w3_proxy%local_stencil)" in out)
+    assert ("ProvideVariable(\"mm_w3_proxy%ncell_3d\", "
+            "mm_w3_proxy%ncell_3d)" in out)
+    # Check handling of field arrays
+    assert "ProvideVariable(\"coord_post\", coord)" in out
+
+    filename = ("driver-operator-test.f90")
+    with open(filename, "r", encoding='utf-8') as my_file:
+        driver = my_file.read()
+
+    # Check that the user defined variables that are added for
+    # operators are flattened correctly:
+    assert ("ReadVariable('mm_w3_proxy%local_stencil', "
+            "mm_w3_proxy_local_stencil" in driver)
+    assert ("ReadVariable('mm_w3_proxy%ncell_3d', "
+            "mm_w3_proxy_ncell_3d" in driver)
+    # And check the field arrays just in case
+    for i in range(1, 4):
+        assert f"ReadVariable('coord_{i}_data', coord_{i}_data" in driver
