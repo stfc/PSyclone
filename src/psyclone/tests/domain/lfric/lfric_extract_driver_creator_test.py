@@ -35,9 +35,12 @@
 
 ''' This module tests the driver creation for extracted kernels.'''
 
+import re
+
 import pytest
 
 from psyclone.domain.lfric import LFRicConstants, LFRicExtractDriverCreator
+from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError
 from psyclone.tests.utilities import get_invoke
 
@@ -129,3 +132,49 @@ def test_lfric_driver_get_proxy_mapping():
                         'self_vec_type_vector_proxy': 'self_vec_type_vector',
                         'm1_proxy': 'm1',
                         'm2_proxy': 'm2'})
+
+
+# ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_lfric_driver_simple_test():
+    '''Test the full pipeline: Add kernel extraction to a kernel and
+    request driver creation. Read in the written driver, and make sure
+    any variable that is provided in the kernel call is also read
+    in the driver. '''
+
+    _, invoke = get_invoke("26.6_mixed_precision_solver_vector.f90", API,
+                           dist_mem=False, idx=0)
+
+    extract = LFRicExtractTrans()
+
+    extract.apply(invoke.schedule.children[0],
+                  options={"create_driver": True})
+    out = str(invoke.gen())
+
+    filename = ("driver-vector_type_psy-invoke_0_testkern_type:"
+                "testkern_code:r0.f90")
+    with open(filename, "r", encoding='utf-8') as my_file:
+        driver = my_file.read()
+
+    # Now get all the variable names and variables listed in ProvideVariable
+    # in extracting code, and make sure the same appear in the driver:
+    # This re extracts the quoted variable name and the variable itself,
+    # e.g. '"a", a'. The ReadVariable function takes exactly the same
+    # parameters.
+    provide = re.compile(r"ProvideVariable\((.*)\)")
+    for line in out.split("\n"):
+        # The current `gen` created double quotes, while using PSyIR
+        # produces single quotes. So convert them first:
+        line = line.replace('"', "'")
+        grp = provide.search(line)
+        if grp:
+            # A special handling is required for output variables:
+            # The output value of 'a' is written as '"a_post", a'. But the
+            # driver needs to read this into a different variable called
+            # 'a_post', so we also need to test if appending 'post''
+            params = grp.groups(0)[0]
+            if "_post', " in params:
+                # It's an output variable, so the driver u
+                assert f"({grp.groups(0)[0]}_post)" in driver
+            else:
+                assert f"({grp.groups(0)[0]})" in driver

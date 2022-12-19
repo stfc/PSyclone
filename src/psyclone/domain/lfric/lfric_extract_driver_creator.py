@@ -388,7 +388,6 @@ class LFRicExtractDriverCreator:
         :raises TypeError: if there is a symbol with the \
             specified name defined that is not a RoutineSymbol.
         '''
-        print("Adding call", name, args)
         if name in program.symbol_table:
             routine_symbol = program.symbol_table.lookup(name)
             if not isinstance(routine_symbol, RoutineSymbol):
@@ -856,7 +855,7 @@ class LFRicExtractDriverCreator:
             no name clashes are created when adding the postfix to a variable \
             and that the postfix is consistent between extract code and \
             driver code (see 'ExtractTrans.determine_postfix()').
-        :param (str,str) region_name: an optional name to \
+        :param Tuple[str,str] region_name: an optional name to \
             use for this PSyData area, provided as a 2-tuple containing a \
             location name followed by a local name. The pair of strings \
             should uniquely identify a region.
