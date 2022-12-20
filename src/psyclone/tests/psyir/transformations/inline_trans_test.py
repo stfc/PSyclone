@@ -47,13 +47,17 @@ from psyclone.tests.utilities import Compile
 
 MY_TYPE = ("  type other_type\n"
            "    real, dimension(10) :: data\n"
+           "    integer :: nx\n"
            "  end type other_type\n"
            "  type my_type\n"
            "    integer :: idx\n"
            "    real, dimension(10) :: data\n"
            "    real, dimension(5,10) :: data2d\n"
            "    type(other_type) :: local\n"
-           "  end type my_type\n")
+           "  end type my_type\n"
+           "  type big_type\n"
+           "    type(my_type) :: region\n"
+           "  end type big_type\n")
 
 
 # init
@@ -224,16 +228,13 @@ def test_apply_struct_arg(fortran_reader, fortran_writer, tmpdir):
         f"contains\n"
         f"  subroutine run_it()\n"
         f"    integer :: i\n"
-        f"    type big_type\n"
-        f"      type(my_type) :: local\n"
-        f"    end type big_type\n"
         f"    type(my_type) :: var\n"
         f"    type(my_type) :: var_list(10)\n"
         f"    type(big_type) :: var2(5)\n"
         f"    do i=1,5\n"
         f"      call sub(var, i)\n"
         f"      call sub(var_list(i), i)\n"
-        f"      call sub(var2(i)%local, i)\n"
+        f"      call sub(var2(i)%region, i)\n"
         f"      call sub2(var2)\n"
         f"    end do\n"
         f"  end subroutine run_it\n"
@@ -249,8 +250,8 @@ def test_apply_struct_arg(fortran_reader, fortran_writer, tmpdir):
         f"    x%data(1:2) = 0.0\n"
         f"  end subroutine sub\n"
         f"  subroutine sub2(x)\n"
-        f"    type(my_type), dimension(:), intent(inout) :: x\n"
-        f"    x(:)%idx = 0\n"
+        f"    type(big_type), dimension(:), intent(inout) :: x\n"
+        f"    x(:)%region%local%nx = 0\n"
         f"  end subroutine sub2\n"
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
@@ -273,12 +274,12 @@ def test_apply_struct_arg(fortran_reader, fortran_writer, tmpdir):
             "      var_list(i)%data = -5.0\n"
             "      var_list(i)%data(1:2) = 0.0\n"
             "      do i_2 = 1, 10, 1\n"
-            "        var2(i)%local%data(i_2) = 2.0 * i\n"
+            "        var2(i)%region%data(i_2) = 2.0 * i\n"
             "      enddo\n"
-            "      var2(i)%local%data(:) = -1.0\n"
-            "      var2(i)%local%data = -5.0\n"
-            "      var2(i)%local%data(1:2) = 0.0\n"
-            "      var2(:)%idx = 0\n"
+            "      var2(i)%region%data(:) = -1.0\n"
+            "      var2(i)%region%data = -5.0\n"
+            "      var2(i)%region%data(1:2) = 0.0\n"
+            "      var2(:)%region%local%nx = 0\n"
             "    enddo\n" in output)
     assert Compile(tmpdir).string_compiles(output)
 
@@ -291,24 +292,47 @@ def test_apply_struct_slice_arg(fortran_reader, fortran_writer, tmpdir):
         f"{MY_TYPE}"
         f"contains\n"
         f"  subroutine run_it()\n"
+        f"    integer :: i\n"
         f"    type(my_type) :: var_list(10)\n"
-        f"    type(big_type) :: var2(5)\n"
-        f"    call sub(var_list(:)%nx, i)\n"
+        f"    call sub(var_list(:)%local%nx, i)\n"
+        f"    call sub2d(var_list(:), 1, 1)\n"
+        f"    call sub2d(var_list(3:7), i, i+2)\n"
+        f"    call sub3(var_list(:), 5, 6)\n"
         f"  end subroutine run_it\n"
         f"  subroutine sub(ix)\n"
         f"    integer, dimension(:) :: ix\n"
         f"    ix(:) = ix(:) + 1\n"
         f"  end subroutine sub\n"
-        f"  subroutine sub2d(x)\n"
+        f"  subroutine sub2d(x, start, stop)\n"
         f"    type(my_type), dimension(:) :: x\n"
+        f"    integer :: start, stop\n"
+        f"    x(:)%data(2) = 0.0\n"
+        f"    x(:)%local%nx = 4\n"
+        f"    x(start:stop+1)%local%nx = -2\n"
         f"  end subroutine sub2d\n"
+        f"  subroutine sub3(x, start, stop)\n"
+        f"    type(my_type), dimension(4:8) :: x\n"
+        f"    integer :: start, stop\n"
+        f"    x(:)%data(2) = 0.0\n"
+        f"    x(:)%local%nx = 4\n"
+        f"    x(start:stop+1)%local%nx = -2\n"
+        f"  end subroutine sub3\n"
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
     for routine in psyir.walk(Call):
         inline_trans.apply(routine)
     output = fortran_writer(psyir)
-    assert ("var_list(:)%nx = var_list(:)%nx + 1" in output)
+    assert "var_list(:)%local%nx = var_list(:)%local%nx + 1" in output
+    assert "var_list(:)%data(2) = 0.0" in output
+    assert "var_list(:)%local%nx = 4" in output
+    assert "var_list(:1 + 1)%local%nx = -2" in output
+    assert "var_list(3:7)%data(2) = 0.0" in output
+    assert "var_list(3:7)%local%nx = 4" in output
+    # TODO - need to allow for change in lower bound of array slice passed
+    # as actual argument.
+    assert "var_list(3 + i - 1:3 + i + 2 + 1 - 1)%local%nx = -2" in output
+    assert Compile(tmpdir).string_compiles(output)
 
 
 def test_apply_array_slice_arg(fortran_reader, fortran_writer, tmpdir):

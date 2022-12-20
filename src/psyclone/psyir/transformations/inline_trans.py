@@ -381,8 +381,9 @@ class InlineTrans(Transformation):
             for pos, idx in enumerate(actual_indices[:]):
                 if isinstance(idx, Range):
                     if ref.is_full_range(local_idx_posn):
-                        # If the local Range is for the full extent of the dummy
-                        # argument then the actual Range is defined by that of the
+                        # If the local Range is for the full extent of the
+                        # dummy argument then the actual Range is defined by
+                        # that of the
                         # actual argument and no change is required.
                         pass
                     else:
@@ -395,9 +396,9 @@ class InlineTrans(Transformation):
                     # the dummy argument.
                     local_idx_posn += 1
 
-        if actual_ranges: # DON'T NEED THIS NOW!
+        if actual_ranges:
             if local_indices:
-                # my_var%grid(:)%nx -> nx_array(i)
+                # e.g. my_var%grid(:)%nx -> nx_array(i)
                 # Ranges in the actual arg. must be replaced by local index
                 # expressions unless the latter are for the full range.
                 # Ranges can only occur in a single Member of a
@@ -438,7 +439,7 @@ class InlineTrans(Transformation):
                 # If it is, the actual argument replaces the head of it but
                 # we must copy the remainder over.
                 cursor = ref
-                while cursor.hasattr("member"):
+                while hasattr(cursor, "member"):
                     cursor = cursor.member
                     if hasattr(cursor, "indices"):
                         new_indices = []
