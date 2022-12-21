@@ -537,10 +537,7 @@ class LFRicExtractDriverCreator:
             if not is_input:
                 if isinstance(post_sym.datatype, ArrayType):
                     # TODO #1366 Once allocate is supported in PSyIR
-                    # this parsing of a file can be replaced. Also,
-                    # if the mold parameter is supported, we can
-                    # use the second allocate statement to create code
-                    # that's independent of the number of dimensions.
+                    # this parsing of a file can be replaced.
                     shape = post_sym.datatype.shape
                     dims = ",".join([":"]*len(shape))
                     code = (f'''
@@ -580,6 +577,7 @@ class LFRicExtractDriverCreator:
         for call in sched.walk(Call):
             routine = call.routine
             if not isinstance(routine.interface, ImportInterface):
+                # No import required, can be ignored.
                 continue
             if routine.name in symbol_table:
                 # Symbol has already been added - ignore

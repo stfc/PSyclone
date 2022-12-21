@@ -42,6 +42,8 @@ import pytest
 from psyclone.domain.lfric import LFRicConstants, LFRicExtractDriverCreator
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError
+from psyclone.psyir.nodes import Literal, Routine, Schedule
+from psyclone.psyir.symbols import INTEGER_TYPE
 from psyclone.tests.utilities import get_invoke
 
 
@@ -143,6 +145,76 @@ def test_lfric_driver_flatten_reference_error():
         driver_creator.flatten_reference("NoUserType", symbol_table=None,
                                          proxy_name_mapping={})
     assert "PSyclone internal error: " in str(err.value)
+
+
+# ----------------------------------------------------------------------------
+def test_lfric_driver_add_call(fortran_writer):
+    '''Tests that adding a call detects errors and adds calls
+    with and without parameters as expected.
+    '''
+    program = Routine("routine", is_program=True)
+    program.symbol_table.find_or_create_tag("test")
+    driver_creator = LFRicExtractDriverCreator()
+    with pytest.raises(TypeError) as err:
+        driver_creator.add_call(program, "test", [])
+    assert ("Routine 'test' is a symbol of type 'Symbol', not a "
+            "'RoutineSymbol'" in str(err.value))
+
+    driver_creator.add_call(program, "my_sub", [])
+    driver_creator.add_call(program, "my_sub_2", [Literal("1", INTEGER_TYPE)])
+    out = fortran_writer(program)
+    assert "call my_sub()" in out
+    assert "call my_sub_2(1)" in out
+
+
+# ----------------------------------------------------------------------------
+def test_lfric_driver_import_modules():
+    '''Tests that adding a call detects errors as expected.
+    '''
+    program = Routine("routine", is_program=True)
+    _, invoke = get_invoke("8_vector_field_2.f90", API,
+                           dist_mem=False, idx=0)
+
+    sched = invoke.schedule
+    # We need to lower to convert the kernels to calls
+    sched.lower_to_language_level()
+
+    driver_creator = LFRicExtractDriverCreator()
+    assert ["routine"] == [sym.name for sym in program.symbol_table.symbols]
+
+    driver_creator.import_modules(program, sched)
+    # We should now have two more symbols:
+    all_symbols = ["routine", "testkern_coord_w0_2_mod",
+                   "testkern_coord_w0_2_code"]
+    assert (all_symbols == [sym.name for sym in program.symbol_table.symbols])
+
+    # Import twice so we test the handling of symbols that
+    # are already in the symbol table:
+    driver_creator.import_modules(program, sched)
+
+    # The symbol table should be the same as it was before:
+    assert (all_symbols == [sym.name for sym in program.symbol_table.symbols])
+
+
+# ----------------------------------------------------------------------------
+def test_lfric_driver_import_modules_no_import_interface(fortran_reader):
+    '''This test checks the import_modules method if there is a call
+    that has no ImportInterface by calling an unknown function.'''
+
+    code = """subroutine test()
+              call something()
+              end subroutine"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    # Find the schedule:
+    sched = psyir.walk(Schedule)[0]
+    sched.lower_to_language_level()
+    driver_creator = LFRicExtractDriverCreator()
+    program = Routine("routine", is_program=True)
+    driver_creator.import_modules(program, sched)
+    # Only the program routine itself should be in the symbol table after
+    # calling `import_modules`.
+    assert (["routine"] == [sym.name for sym in program.symbol_table.symbols])
 
 
 # ----------------------------------------------------------------------------
