@@ -89,12 +89,6 @@ module read_kernel_data_mod
         !> The NetCDF ID used for this file.
         integer                            :: ncid
 
-        !> Verbosity level for output at runtime. This is taken from the
-        !! PSYDATA_VERBOSE environment variable.
-        !! 0: Only errors will be written (PSYDATA_VERBOSE undefined)
-        !! 1: Provide verbose output
-        integer :: verbosity
-
     contains
 
         ! The various procedures used
@@ -166,32 +160,10 @@ contains
         class(ReadKernelDataType), intent(inout), target :: this
         character(*), intent(in)                         :: module_name, &
                                                             region_name
-        integer :: retval, status
-        character(1) :: verbose
-
-        call get_environment_variable("PSYDATA_VERBOSE", verbose, status=status)
-        this%verbosity = 0
-        if (status == 0) then
-            if (verbose == "0") then
-                this%verbosity = 0
-            else if (verbose == "1") then
-                this%verbosity = 1
-            else if (verbose == "2") then
-                this%verbosity = 2
-            else
-                write(stderr,*) "PSyData: invalid setting of PSYDATA_VERBOSE."
-                write(stderr,*) "It must be '0', 1' or '2', but it is '", verbose,"'."
-                this%verbosity = 0
-            endif
-        endif
-
-
+        integer :: retval
 
         retval = CheckError(nf90_open(module_name//"-"//region_name//".nc", &
                                         NF90_NOWRITE, this%ncid))
-        if (this%verbosity > 0) &
-            write(stderr, *) "PSyData-Read: OpenRead '", trim( &
-            module_name//"-"//region_name//".nc'")
 
     end subroutine OpenRead
 
@@ -227,9 +199,6 @@ contains
         {% if name == "Logical" %}
         integer                                          :: tmp
         {% endif %}
-
-        if (this%verbosity > 0) &
-            write(stderr, *) "PSyData-Read: ReadScalar '", name, "'."
 
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
         {% if name == "Logical" %}
@@ -283,9 +252,6 @@ contains
         {% if name == "Logical" %}
         integer, dimension({{DIMENSION}}), allocatable :: tmp
         {% endif %}
-
-        if (this%verbosity > 0) &
-            write(stderr, *) "PSyData-Read: ReadArray{{dim}}d{{name}} '", name, "'."
 
         ! First query the dimensions of the original array from the
         ! NetCDF file
