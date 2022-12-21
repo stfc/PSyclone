@@ -44,13 +44,14 @@ nodes.'''
 from __future__ import absolute_import
 import abc
 import six
-from psyclone.core import AccessType, VariablesAccessInfo
+from psyclone.core import AccessType, VariablesAccessInfo, Signature
 from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.directive import StandaloneDirective, RegionDirective
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
-from psyclone.psyir.symbols import DataSymbol, ScalarType
+from psyclone.psyir.nodes.routine import Routine
+from psyclone.psyir.symbols import ScalarType
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -96,23 +97,37 @@ class ACCRegionDirective(ACCDirective, RegionDirective):
                 f"region enclosed by an '{type(self).__name__}'")
 
     @property
-    def kernel_references(self):
+    def signatures(self):
         '''
-        Returns a set of the references (whether to arrays or objects)
-        required by the Kernel call(s) that are children of this directive.
-        This is the set of quantities that must be available on the remote
+        Returns a 1-tuple or a 2-tuple of sets depending on the working API.
+        If a 1-tuple, the set includes both input and output signatures
+        (whether to arrays or objects) required by the Kernel call(s) that are
+        children of this directive. If a 2-tuple, the first entry is the set of
+        input signatures and the second entry is the set of output signatures.
+        The set(s) describe the quantities that must be available on the remote
         device (probably a GPU) before the parallel region can be begun.
 
-        :returns: set of variable names
-        :rtype: Set[str]
+        :returns: 1-tuple or 2-tuple of input and output sets of variable names
+        :rtype: Union[Tuple[Set[:py:class:`psyclone.core.Signature`]],
+                      Tuple[Set[:py:class:`psyclone.core.Signature`],
+                            Set[:py:class:`psyclone.core.Signature`]]]
         '''
-        variables = set()
 
-        # Look-up the kernels that are children of this node
-        for call in self.kernels():
-            for arg in call.arguments.acc_args:
-                variables.add(arg)
-        return variables
+        # pylint: disable=import-outside-toplevel
+        from psyclone.dynamo0p3 import DynInvokeSchedule
+        from psyclone.gocean1p0 import GOInvokeSchedule
+        from psyclone.psyir.tools import DependencyTools
+
+        if self.ancestor((DynInvokeSchedule, GOInvokeSchedule)):
+            # Look-up the kernels that are children of this node
+            sig_set = set()
+            for call in self.kernels():
+                for arg_str in call.arguments.acc_args:
+                    sig_set.add(Signature(arg_str))
+            return (sig_set, )
+
+        inp, out = DependencyTools().get_in_out_parameters(self.children)
+        return (set(inp), set(out))
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -124,8 +139,7 @@ class ACCRoutineDirective(ACCStandaloneDirective):
     ''' Class representing a "!$ACC routine" OpenACC directive in PSyIR. '''
 
     def gen_code(self, parent):
-        '''Generate the fortran ACC Routine Directive and any associated
-        code.
+        '''Generate the fortran ACC Routine Directive and any associated code.
 
         :param parent: the parent Node in the Schedule to which to add our \
                        content.
@@ -154,11 +168,9 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
     '''
     Class representing a "!$ACC enter data" OpenACC directive in
     an InvokeSchedule. Must be sub-classed for a particular API because the way
-    in which fields are marked as being on the remote device is API-
-    -dependent.
+    in which fields are marked as being on the remote device is API-dependent.
 
-    :param children: list of nodes which this directive should \
-                     have as children.
+    :param children: list of nodes which the directive should have as children.
     :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
     :param parent: the node in the InvokeSchedule to which to add this \
                    directive as a child.
@@ -168,10 +180,7 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         super().__init__(children=children, parent=parent)
         self._acc_dirs = None  # List of parallel directives
 
-        # The _sig_list are computed dynamically until the
-        # _node_lowered flag is set to True, after that re-use the stored ones.
-        self._sig_list = set()
-        self._node_lowered = False
+        self._sig_set = set()
 
     def gen_code(self, parent):
         '''Generate the elements of the f2pygen AST for this Node in the
@@ -191,7 +200,8 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         self.begin_string()
 
         # Add the enter data directive.
-        copy_in_str = "copyin(" + ",".join(sorted(self._sig_list)) + ")"
+        sym_list = _sig_set_to_string(self._sig_set)
+        copy_in_str = f"copyin({sym_list})"
         parent.add(DirectiveGen(parent, "acc", "begin", "enter data",
                                 copy_in_str))
         # Call an API-specific subclass of this class in case
@@ -205,23 +215,18 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         PSyIR constructs.
 
         '''
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyGen import InvokeSchedule
-
-        if not self._node_lowered:
-            # We must generate a list of all of the fields accessed by OpenACC
-            # kernels (calls within an OpenACC parallel or kernels directive)
-            # 1. Find all parallel and kernels directives. We store this list
-            # for later use in any sub-class.
-            self._acc_dirs = self.ancestor(InvokeSchedule).walk(
-                    (ACCParallelDirective, ACCKernelsDirective))
-            # 2. For each directive, add the fields used by the kernels it
-            # contains (as given by kernel_references) and add it to our set.
-            # TODO GOcean grid properties are duplicated in this set under
-            # different names (the OpenACC deep copy support should spot this).
-            for pdir in self._acc_dirs:
-                self._sig_list.update(pdir.kernel_references)
-            self._node_lowered = True
+        # We must generate a list of all of the fields accessed within OpenACC
+        # compute constructs (i.e. OpenACC parallel and kernels directives)
+        # 1. Find all parallel and kernels directives. We store this list
+        # for later use in any sub-class.
+        self._acc_dirs = self.ancestor(Routine).walk(
+                (ACCParallelDirective, ACCKernelsDirective))
+        # 2. For each directive, add the fields used by the kernels it
+        # contains (as given by signatures) and add it to our set.
+        # TODO GOcean grid properties are duplicated in this set under
+        # different names (the OpenACC deep copy support should spot this).
+        for pdir in self._acc_dirs:
+            self._sig_set.update(*pdir.signatures)
 
         super().lower_to_language_level()
 
@@ -232,17 +237,23 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         :returns: the opening statement of this directive.
         :rtype: str
 
+        :raises GenerationError: if there are no variables to copy to \
+                                 the device.
         '''
-        if not self._sig_list:
+        if not self._sig_set:
             # There should be at least one variable to copyin.
+            # TODO #1872: this directive needs reimplementing using the Clause
+            # class and proper lowering.
             raise GenerationError(
                 "ACCEnterData directive did not find any data to copyin. "
                 "Perhaps there are no ACCParallel or ACCKernels directives "
                 "within the region?")
 
+        sym_list = _sig_set_to_string(self._sig_set)
+
         # Variables need lexicographic sorting since sets guarantee no ordering
         # and members of composite variables must appear later in deep copies.
-        return f"acc enter data copyin({','.join(sorted(self._sig_list))})"
+        return f"acc enter data copyin({sym_list})"
 
     def data_on_device(self, parent):
         '''
@@ -366,9 +377,7 @@ class ACCLoopDirective(ACCRegionDirective):
 
     @property
     def collapse(self):
-        ''' Returns the number of nested loops to collapse into a single
-        iteration space for this node.
-
+        '''
         :returns: the number of nested loops to collapse into a single \
                   iteration space for this node.
         :rtype: int or None
@@ -413,8 +422,6 @@ class ACCLoopDirective(ACCRegionDirective):
     @property
     def sequential(self):
         '''
-        Returns whether or not to add the `seq` clause to the loop directive.
-
         :returns: whether or not the `seq` clause is added to this loop \
                   directive.
         :rtype: bool
@@ -496,12 +503,12 @@ class ACCLoopDirective(ACCRegionDirective):
             clauses = ["acc", "loop"]
 
         if self._sequential:
-            clauses.append("seq")
+            clauses += ["seq"]
         else:
             if self._independent:
-                clauses.append("independent")
+                clauses += ["independent"]
             if self._collapse:
-                clauses.append(f"collapse({self._collapse})")
+                clauses += [f"collapse({self._collapse})"]
         return " ".join(clauses)
 
     def end_string(self):
@@ -553,9 +560,7 @@ class ACCKernelsDirective(ACCRegionDirective):
 
     @property
     def default_present(self):
-        ''' Returns whether the "default(present)" clause is added to the
-        kernels directive.
-
+        '''
         :returns: whether the "default(present)" clause is added to the \
                   kernels directive.
         :rtype: bool
@@ -713,9 +718,9 @@ class ACCDataDirective(ACCRegionDirective):
                 writers.add(signature)
                 readers.discard(signature)
                 readwrites.discard(signature)
-        readers_list = sorted(list(readers - readwrites))
-        writers_list = sorted(list(writers - readwrites))
-        readwrites_list = sorted(list(readwrites))
+        readers_list = sorted(readers - readwrites)
+        writers_list = sorted(writers - readwrites)
+        readwrites_list = sorted(readwrites)
         if readers_list:
             result += f""" copyin({",".join(
                 _create_access_list(readers_list, var_accesses))})"""
@@ -739,49 +744,40 @@ class ACCDataDirective(ACCRegionDirective):
 
 
 class ACCUpdateDirective(ACCStandaloneDirective):
-    ''' Class representing the !$ACC UPDATE directive of OpenACC in the PSyIR.
-    It includes a direction attribute that can be set to 'self', 'host' or
-    'device' and the symbol that is being updated.
+    ''' Class representing the OpenACC update directive in the PSyIR. It has
+    a direction attribute that can be set to 'self', 'host' or 'device', the
+    set of symbols being updated and an optional if_present clause.
 
-    :param symbol: the symbol to synchronise with the accelerator.
-    :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
+    :param signatures: the access signature(s) that need to be synchronised \
+                       with the device.
+    :type signatures: Set[:py:class:`psyclone.core.Signature`]
     :param str direction: the direction of the synchronisation.
     :param children: list of nodes which the directive should have as children.
     :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
     :param parent: the node in the InvokeSchedule to which to add this \
                    directive as a child.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
-
-    :raises ValueError: if the direction argument is not a string with \
-                        value 'self', 'host' or 'device'.
-    :raises TypeError: if the symbol is not a DataSymbol.
-
+    :param if_present: whether or not to include the 'if_present'
+                        clause on the update directive (this instructs the
+                        directive to silently ignore any variables that are not
+                        on the device).
+    :type if_present: Optional[bool]
     '''
 
     _VALID_DIRECTIONS = ("self", "host", "device")
 
-    def __init__(self, symbol, direction, children=None, parent=None):
+    def __init__(self, signatures, direction, children=None, parent=None,
+                 if_present=True):
         super().__init__(children=children, parent=parent)
-        if not isinstance(direction, six.string_types) or direction not in \
-                self._VALID_DIRECTIONS:
-            raise ValueError(
-                f"The ACCUpdateDirective direction argument must be a string "
-                f"with any of the values in '{self._VALID_DIRECTIONS}' "
-                f"but found '{direction}'.")
 
-        if not isinstance(symbol, DataSymbol):
-            raise TypeError(
-                f"The ACCUpdateDirective symbol argument must be a 'DataSymbol"
-                f"' but found '{type(symbol).__name__}'.")
-
-        self._direction = direction
-        self._symbol = symbol
+        self.sig_set = signatures
+        self.direction = direction
+        self.if_present = if_present
 
     def __eq__(self, other):
         '''
         Checks whether two nodes are equal. Two ACCUpdateDirective nodes are
-        equal if their direction and symbol members are equal.
+        equal if their sig_set, direction and if_present members are equal.
 
         :param object other: the object to check equality to.
 
@@ -789,30 +785,83 @@ class ACCUpdateDirective(ACCStandaloneDirective):
         :rtype: bool
         '''
         is_eq = super().__eq__(other)
+        is_eq = is_eq and self.sig_set == other.sig_set
         is_eq = is_eq and self.direction == other.direction
-        is_eq = is_eq and self.symbol == other.symbol
+        is_eq = is_eq and self.if_present == other.if_present
 
         return is_eq
 
     @property
+    def sig_set(self):
+        '''
+        :returns: the set of signatures to synchronise with the device.
+        :rtype: Set[:py:class:`psyclone.core.Signature`]
+        '''
+        return self._sig_set
+
+    @property
     def direction(self):
         '''
-        Returns the direction of the synchronisation.
-
         :returns: the direction of the synchronisation.
         :rtype: str
         '''
         return self._direction
 
     @property
-    def symbol(self):
+    def if_present(self):
         '''
-        Returns the symbol to synchronise with the accelerator.
+        :returns: whether or not to add the 'if_present' clause.
+        :rtype: bool
+        '''
+        return self._if_present
 
-        :returns: the symbol to synchronise with the accelerator.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
+    @sig_set.setter
+    def sig_set(self, signatures):
         '''
-        return self._symbol
+        :param signatures: the access signature(s) that need to be \
+                           synchronised with the device.
+        :type signatures: Set[:py:class:`psyclone.core.Signature`]
+
+        :raises TypeError: if signatures is not a set of access signatures.
+        '''
+        if not all(isinstance(sig, Signature) for sig in signatures):
+            raise TypeError(
+                f"The ACCUpdateDirective signatures argument must be a "
+                f"set of signatures but got "
+                f"{ {type(sig).__name__ for sig in signatures} }")
+
+        self._sig_set = signatures
+
+    @direction.setter
+    def direction(self, direction):
+        '''
+        :param str direction: the direction of the synchronisation.
+
+        :raises ValueError: if the direction argument is not a string with \
+                        value 'self', 'host' or 'device'.
+        '''
+        if direction not in self._VALID_DIRECTIONS:
+            raise ValueError(
+                f"The ACCUpdateDirective direction argument must be a string "
+                f"with any of the values in '{self._VALID_DIRECTIONS}' but "
+                f"found '{direction}'.")
+
+        self._direction = direction
+
+    @if_present.setter
+    def if_present(self, if_present):
+        '''
+        :param bool if_present: whether or not to add the 'if_present' \
+                                    clause.
+
+        :raises TypeError: if if_present is not a boolean.
+        '''
+        if not isinstance(if_present, bool):
+            raise TypeError(
+                f"The ACCUpdateDirective if_present argument must be a "
+                f"boolean but got {type(if_present).__name__}")
+
+        self._if_present = if_present
 
     def begin_string(self):
         '''
@@ -824,7 +873,36 @@ class ACCUpdateDirective(ACCStandaloneDirective):
         :rtype: str
 
         '''
-        return "acc update " + self._direction + "(" + self._symbol.name + ")"
+        if not self._sig_set:
+            # There should be at least one variable to update.
+            # TODO #1872: this directive needs reimplementing using the Clause
+            # class and proper lowering.
+            raise GenerationError(
+                "ACCUpdate directive did not find any data to update. "
+                "This most likely happened because a specialisation of "
+                "ACCUpdateDirective.lower_to_level_language removed all the "
+                "variables this directive was created to update.")
+
+        condition = "if_present " if self._if_present else ""
+        sym_list = _sig_set_to_string(self._sig_set)
+
+        return f"acc update {condition}{self._direction}({sym_list})"
+
+
+def _sig_set_to_string(sig_set):
+    '''
+    Converts the provided set of signatures into a lexically sorted
+    string of comma-separated signatures which also includes, for signatures
+    that represent variables of a derived type, the composing subsignatures.
+
+    :param sig_set: set of signature(s) to include in the string.
+    :type sig_set: Set[:py:class:`psyclone.core.Signature`]
+    :returns: a lexically sorted string of comma-separated (sub)signatures.
+    :rtype: str
+
+    '''
+    names = {s[:i+1].to_language() for s in sig_set for i in range(len(s))}
+    return ",".join(sorted(names))
 
 
 # For automatic API documentation generation
