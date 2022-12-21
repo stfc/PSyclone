@@ -1,4 +1,4 @@
-{# Added this as jinja code so that it is understood that the
+{# Added this as Jinja code so that it is understood that the
    comment does not apply to THIS file. #}
 {{ "! ================================================== !" }}
 {{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE. !" }}
@@ -115,7 +115,7 @@ contains
 
     {% for prec in ALL_PREC %}
     ! -------------------------------------------------------------------------
-    !> This subroutine declares a real-valued {{prec}} bit field based on
+    !> @brief This subroutine declares a real-valued {{prec}} bit field based on
     !! the LFRic infrastructure type field_type.
     !! @param[in,out] this The instance of the read_only_verify_PSyDataType.
     !! @param[in] name The name of the variable (string).
@@ -125,15 +125,15 @@ contains
         implicit none
 
         class(read_only_verify_PSyDataType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        type(field_r{{prec}}_type), intent(in) :: value
+        character(*), intent(in)                                   :: name
+        type(field_r{{prec}}_type), intent(in)                           :: value
 
         this%next_var_index = this%next_var_index + 1
 
     end subroutine DeclareField_r{{prec}}
 
     ! -------------------------------------------------------------------------
-    !> This subroutine computes the checksum for a real-valued field based on
+    !> @brief This subroutine computes the checksum for a real-valued field based on
     !! the LFRic infrastructure type field_type. Depending on state
     !! (this%verify_checksum) it either stores the checksum, or compares it
     !! with a previously computed checksum.
@@ -147,9 +147,9 @@ contains
         implicit none
 
         class(read_only_verify_PSyDataType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        type(field_r{{prec}}_type), intent(in) :: value
-        type(field_r{{prec}}_proxy_type) :: value_proxy
+        character(*), intent(in)                                   :: name
+        type(field_r{{prec}}_type), intent(in)                           :: value
+        type(field_r{{prec}}_proxy_type)                                 :: value_proxy
         integer(kind=int64):: cksum
 
         if (.not. is_enabled) return
@@ -178,7 +178,7 @@ contains
     end subroutine ProvideField_r{{prec}}
 
     ! -------------------------------------------------------------------------
-    !> This subroutine declares a vector of real-valued {{prec}}-bit
+    !> @brief This subroutine declares a vector of real-valued {{prec}}-bit
     !! fields based on the LFRic infrastructure type field_type.
     !! @param[in,out] this The instance of the read_only_verify_PSyDataType.
     !! @param[in] name The name of the variable (string).
@@ -188,15 +188,15 @@ contains
         implicit none
 
         class(read_only_verify_PSyDataType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        type(field_r{{prec}}_type), dimension(:), intent(in) :: value
+        character(*), intent(in)                                   :: name
+        type(field_r{{prec}}_type), dimension(:), intent(in)             :: value
 
         this%next_var_index = this%next_var_index + size(value, 1)
 
     end subroutine DeclareFieldVector_r{{prec}}
 
     ! -------------------------------------------------------------------------
-    !> This subroutine computes the checksums for a vector of real-valued
+    !> @brief This subroutine computes the checksums for a vector of real-valued
     !! fields based on the LFRic infrastructure type field_type. It uses
     !! ProvideField to handle each individual field of the vector (i.e.
     !! storing or comparing the checksum). This way the read-only verification
@@ -232,7 +232,7 @@ contains
     {% endfor %}
 
     ! -------------------------------------------------------------------------
-    !> This subroutine declares an integer field based on the LFRic
+    !> @brief This subroutine declares an integer field based on the LFRic
     !! infrastructure type integer_field_type.
     !! @param[in,out] this The instance of the read_only_verify_PSyDataType.
     !! @param[in] name The name of the variable (string).
@@ -242,15 +242,15 @@ contains
         implicit none
 
         class(read_only_verify_PSyDataType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        type(integer_field_type), intent(in) :: value
+        character(*), intent(in)                                   :: name
+        type(integer_field_type), intent(in)                       :: value
 
         this%next_var_index = this%next_var_index + 1
 
     end subroutine DeclareIntField
 
     ! -------------------------------------------------------------------------
-    !> This subroutine computes the checksum for an integer-valued field based
+    !> @brief This subroutine computes the checksum for an integer-valued field based
     !! on the LFRic infrastructure type integer_field_type. Depending on state
     !! (this%verify_checksum) it either stores the checksum, or compares it
     !! with a previously computed checksum.
@@ -266,10 +266,10 @@ contains
         implicit none
 
         class(read_only_verify_PSyDataType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        type(integer_field_type), intent(in) :: value
-        type(integer_field_proxy_type) :: value_proxy
-        integer(kind=int64):: cksum
+        character(*), intent(in)                                   :: name
+        type(integer_field_type), intent(in)                       :: value
+        type(integer_field_proxy_type)                             :: value_proxy
+        integer(kind=int64)                                        :: cksum
 
         if (.not. is_enabled) return
 
@@ -297,7 +297,7 @@ contains
     end subroutine ProvideIntField
 
     ! -------------------------------------------------------------------------
-    !> This subroutine declares a vector of integer fields based on
+    !> @brief This subroutine declares a vector of integer fields based on
     !! the LFRic infrastructure type integer_field_type.
     !! @param[in,out] this The instance of the read_only_verify_PSyDataType.
     !! @param[in] name The name of the variable (string).
@@ -307,15 +307,15 @@ contains
         implicit none
 
         class(read_only_verify_PSyDataType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        type(integer_field_type), dimension(:), intent(in) :: value
+        character(*), intent(in)                                   :: name
+        type(integer_field_type), dimension(:), intent(in)         :: value
 
         this%next_var_index = this%next_var_index + size(value, 1)
 
     end subroutine DeclareIntFieldVector
 
     ! -------------------------------------------------------------------------
-    !> This subroutine computes the checksums for a vector of integer-valued
+    !> @brief This subroutine computes the checksums for a vector of integer-valued
     !! fields based on the LFRic infrastructure type integer_field_type. It
     !! uses ProvideField to handle each individual field of the vector
     !! (i.e. storing or comparing the checksum). This way the read-only
@@ -331,13 +331,13 @@ contains
         implicit none
 
         class(read_only_verify_PSyDataType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        type(integer_field_type), dimension(:), intent(in) :: value
-        type(integer_field_proxy_type) :: value_proxy
-        integer(kind=int64) :: cksum
-        integer :: i
+        character(*), intent(in)                                   :: name
+        type(integer_field_type), dimension(:), intent(in)         :: value
+        type(integer_field_proxy_type)                             :: value_proxy
+        integer(kind=int64)                                        :: cksum
+        integer                                                    :: i
         ! Enough for a 6 digit number plus '()'
-        character(8) :: index_string
+        character(8)                                               :: index_string
 
         if (.not. is_enabled) return
 
