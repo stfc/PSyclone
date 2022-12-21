@@ -329,3 +329,49 @@ def test_lfric_driver_operator():
     # And check the field arrays just in case
     for i in range(1, 4):
         assert f"ReadVariable('coord_{i}_data', coord_{i}_data" in driver
+
+
+# ----------------------------------------------------------------------------
+@pytest.mark.parametrize("name, filename",
+                         [("x_innerproduct_x",
+                           "15.9.2_X_innerproduct_X_builtin.f90"),
+                          ("sum_x", "15.14.3_sum_setval_field_builtin.f90"),
+                          ("int_x", "15.10.3_int_X_builtin.f90"),
+                          ("real_x", "15.28.2_real_X_builtin.f90")
+                          ])
+def test_unsupported_builtins(name, filename, capsys):
+    '''The following builtins do not have a proper lower_to_language_level
+    method to create the PSyIR, so they are not supported in the driver
+    creation: LFRicXInnerproductXKern, LFRicSumXKern, LFRicIntXKern,
+    LFRicRealXKern. This tests also the error handling of the functions
+    write_driver, get_driver_as_string, create. '''
+
+    _, invoke = get_invoke(filename, API, dist_mem=False, idx=0)
+
+    driver_creator = LFRicExtractDriverCreator()
+
+    # The create method should raise an exception
+    # -------------------------------------------
+    with pytest.raises(NotImplementedError) as err:
+        # The parameters do not really matter
+        driver_creator.create(invoke.schedule, [], [], "extract", "_post",
+                              region_name=("region", "name"))
+    assert f"LFRic builtin '{name}' is not supported" in str(err.value)
+
+    # The get_driver_as_string method returns
+    # an empty string, but prints an error message
+    # --------------------------------------------
+    code = driver_creator.get_driver_as_string(invoke.schedule, [], [],
+                                               "extract", "_post",
+                                               ("region", "name"))
+    assert code == ""
+    out, _ = capsys.readouterr()
+    assert (f"Cannot create driver for 'region-name' because:\nLFRic builtin "
+            f"'{name}' is not supported" in out)
+
+    # write_driver prints an error message, and does not return an error
+    # ------------------------------------------------------------------
+    driver_creator.write_driver(invoke.schedule, [], [],
+                                "extract", "_post", ("region", "name"))
+    assert (f"Cannot create driver for 'region-name' because:\nLFRic builtin "
+            f"'{name}' is not supported" in out)

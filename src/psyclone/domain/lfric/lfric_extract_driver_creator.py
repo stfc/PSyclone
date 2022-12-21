@@ -916,7 +916,7 @@ class LFRicExtractDriverCreator:
                                          prefix, postfix, region_name,
                                          writer=writer)
         if not code:
-            # This indicates an error, that was already printed,
+            # This indicates an error that was already printed,
             # so ignore it here.
             return
         module_name, local_name = region_name
