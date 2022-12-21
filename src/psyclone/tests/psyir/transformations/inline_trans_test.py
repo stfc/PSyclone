@@ -296,8 +296,7 @@ def test_apply_struct_slice_arg(fortran_reader, fortran_writer, tmpdir):
         f"    type(my_type) :: var_list(10)\n"
         f"    call sub(var_list(:)%local%nx, i)\n"
         f"    call sub2d(var_list(:), 1, 1)\n"
-        f"    call sub2d(var_list(3:7), i, i+2)\n"
-        f"    call sub3(var_list(:), 5, 6)\n"
+        f"    call sub2d(var_list(:), i, i+2)\n"
         f"  end subroutine run_it\n"
         f"  subroutine sub(ix)\n"
         f"    integer, dimension(:) :: ix\n"
@@ -310,13 +309,6 @@ def test_apply_struct_slice_arg(fortran_reader, fortran_writer, tmpdir):
         f"    x(:)%local%nx = 4\n"
         f"    x(start:stop+1)%local%nx = -2\n"
         f"  end subroutine sub2d\n"
-        f"  subroutine sub3(x, start, stop)\n"
-        f"    type(my_type), dimension(4:8) :: x\n"
-        f"    integer :: start, stop\n"
-        f"    x(:)%data(2) = 0.0\n"
-        f"    x(:)%local%nx = 4\n"
-        f"    x(start:stop+1)%local%nx = -2\n"
-        f"  end subroutine sub3\n"
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
@@ -327,11 +319,81 @@ def test_apply_struct_slice_arg(fortran_reader, fortran_writer, tmpdir):
     assert "var_list(:)%data(2) = 0.0" in output
     assert "var_list(:)%local%nx = 4" in output
     assert "var_list(:1 + 1)%local%nx = -2" in output
-    assert "var_list(3:7)%data(2) = 0.0" in output
-    assert "var_list(3:7)%local%nx = 4" in output
+    assert Compile(tmpdir).string_compiles(output)
+
+
+def test_apply_struct_local_limits(fortran_reader, fortran_writer, tmpdir):
+    '''
+    Test the apply() method when there are array bounds specified in the
+    caller and the callee.
+
+    '''
+    code = (
+        f"module test_mod\n"
+        f"{MY_TYPE}"
+        f"contains\n"
+        f"  subroutine run_it()\n"
+        f"    integer :: i\n"
+        f"    type(my_type) :: var_list(10)\n"
+        f"    type(my_type), dimension(2:8) :: varat2\n"
+        f"    call sub2(var_list(3:7), 5, 6)\n"
+        f"    call sub2(varat2(:), 5, 6)\n"
+        f"    call sub3(varat2(:), 5, 6)\n"
+        f"    call sub3(varat2(2:7), 5, 6)\n"
+        f"  end subroutine run_it\n"
+        f"  subroutine sub2(x, start, stop)\n"
+        f"    type(my_type), dimension(:) :: x\n"
+        f"    integer :: start, stop\n"
+        f"    x(:)%data(2) = 1.0\n"
+        f"    x(:)%local%nx = 3\n"
+        f"    x(start:stop+1)%local%nx = -2\n"
+        f"  end subroutine sub2\n"
+        f"  subroutine sub3(y, start, stop)\n"
+        f"    type(my_type), dimension(4:8) :: y\n"
+        f"    integer :: start, stop\n"
+        f"    y(:)%data(2) = 2.0\n"
+        f"    y(4:5)%local%nx = 4\n"
+        f"    y(start:stop+1)%local%nx = -3\n"
+        f"  end subroutine sub3\n"
+        f"end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    inline_trans = InlineTrans()
+    for routine in psyir.walk(Call):
+        inline_trans.apply(routine)
+    output = fortran_writer(psyir)
+    print(output)
     # TODO - need to allow for change in lower bound of array slice passed
     # as actual argument.
-    assert "var_list(3 + i - 1:3 + i + 2 + 1 - 1)%local%nx = -2" in output
+    assert "var_list(3:7)%data(2) = 1.0" in output
+    assert "var_list(3:7)%local%nx = 3" in output
+    # Start of supplied range is at 3 so a local index of 1 here corresponds
+    # to an index of 3 in the caller.
+    # local_range = local_stop - local_start + 1
+    # actual_start_value = 3 - local_start_value + 1
+    # actual_stop_value = actual_start_value + local_range - 1
+    # Extent of supplied range = 7 - 3 + 1
+    assert "var_list(5:6 + 1)%local%nx = -2" in output
+    # Actual range is non-default.
+    assert "varat2(:)%data(2) = 1.0\n" in output
+    assert "varat2(:)%local%nx = 3\n" in output
+    # A local access of '1' corresponds to the start of the array which is
+    # index '2' at the call site.
+    # inlined_start = local_start - local_decln_start + 1 + actual_start - 1
+    # local_extent = local_stop - local_start + 1
+    # inlined_stop = inlined_start + local_extent -1
+    #              = inlined_start + local_stop - local_start
+    #              = local_start - local_decln_start + actual_start + local_stop - local_start
+    #              = actual_start + local_stop - local_decln_start
+    assert "varat2(start - 1 + 2: 2 + (stop+1) - 1)%local%nx = -2\n"
+    # Actual arg. has non-default range.
+    assert "varat2(1:1 + (8 - 4))%data(2) = 1.0\n" in output
+    assert "varat2(1:1 + (8 - 4))%local%nx = 3\n" in output
+    assert "varat2(3 + i - 1:3 + i + 2 + 1 - 1)%local%nx = -2" in output
+    # Local arg. has non-default range.
+    assert "varat2(4:8)%data(2) = 2.0\n" in output
+    assert "varat2(4:8)%local%nx = 4\n" in output
+    assert "varat2(start - 4 + 1: stop + 1 - start + 1 + start - 4 + 1 -1)%data(2) = 2.0\n"
+    # Both local and actual args. have non-default ranges.
     assert Compile(tmpdir).string_compiles(output)
 
 
@@ -1366,6 +1428,12 @@ def test_validate_assumed_shape(fortran_reader):
     assert ("Cannot inline routine 's' because it reshapes an argument: actual"
             " argument 'a(:,:)' has rank 2 but the corresponding dummy "
             "argument, 'x', has rank 1" in str(err.value))
+
+
+def test_validate_non_unit_stride_slice(fortran_reader):
+    '''Test that validate rejects an attempt to inline a call to a routine
+    with an argument constructed using an array slice with non-unit stride.'''
+    assert 0
 
 
 def test_validate_named_arg(fortran_reader):

@@ -41,14 +41,18 @@ from psyclone.errors import InternalError, LazyString
 from psyclone.psyGen import Transformation
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
-    ArrayReference, ArrayOfStructuresReference, Call, Range, Routine,
-    Reference, CodeBlock, Return, Literal, Assignment, Container,
-    StructureReference)
+    ArrayReference, ArrayOfStructuresReference, BinaryOperation, Call,
+    CodeBlock, Range, Routine, Reference, Return, Literal, Assignment,
+    Container, StructureReference)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol, ScalarType,
-                                    RoutineSymbol, ImportInterface, Symbol)
+                                    RoutineSymbol, ImportInterface, Symbol,
+                                    ArrayType, INTEGER_TYPE)
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
+
+
+_ONE = Literal("1", INTEGER_TYPE)
 
 
 class InlineTrans(Transformation):
@@ -348,6 +352,52 @@ class InlineTrans(Transformation):
         ref.replace_with(new_ref)
         return new_ref
 
+    def _create_inlined_idx(self, call_node, dummy_args,
+                            local_idx, decln_start, actual_start):
+        '''
+        :param local_idx: Node describing a local array index.
+        :param decln_start:
+        :param actual_start:
+
+        :returns: PSyIR for the corresponding inlined array index.
+        :rtype:
+
+        '''
+        # If local_idx is the index of the access in the routine;
+        #    local_decln_start is the starting index of the dimension as
+        #                 declared in the routine.
+        #    actual_start is the starting index of the slice at the callsite
+        #                 (whether from the array declaration or a slice);
+        #
+        # then the index of the inlined access will be:
+        #
+        # inlined_idx = local_idx - local_decln_start + 1 + actual_start - 1
+        #             = local_idx - local_decln_start + actual_start
+        #
+        if isinstance(local_idx, Range):
+            lower = self._create_inlined_idx(call_node, dummy_args,
+                                             local_idx.start, decln_start,
+                                             actual_start)
+            upper = self._create_inlined_idx(call_node, dummy_args,
+                                             local_idx.stop, decln_start,
+                                             actual_start)
+            step = self.replace_dummy_arg(local_idx.step, call_node,
+                                          dummy_args)
+            return Range.create(lower, upper, step.copy())
+        else:
+            uidx = self.replace_dummy_arg(local_idx,
+                                          call_node, dummy_args)
+            if decln_start != _ONE or actual_start != _ONE:
+                ustart = self.replace_dummy_arg(decln_start,
+                                                call_node, dummy_args)
+                start_sum = BinaryOperation.create(
+                    BinaryOperation.Operator.ADD,
+                    ustart.copy(), actual_start.copy())
+                return BinaryOperation.create(
+                    BinaryOperation.Operator.SUB, uidx.copy(), start_sum)
+            else:
+                return uidx
+
     def _replace_dummy_struc_arg(self, actual_arg, ref, call_node, dummy_args):
         '''
 
@@ -359,12 +409,32 @@ class InlineTrans(Transformation):
         # var(j)%data(i) etc. Any Ranges must correspond to dimensions of the
         # dummy argument. The validate() method has already ensured that we
         # do not have any indirect accesses.
+        #
+        # The actual argument declaration has actual_dim_start (defaults to 1).
+        # The actual argument itself may be a slice with actual_arg_start.
+        # The dummy argument declaration has dummy_dim_start (defaults to 1).
+        # The access within the routine is to the array (section) specified
+        # by the caller.
+        # actual_idx = local_idx - local_dim_start + actual_dim_start
+
         actual_ranges = actual_arg.walk(Range)
+        actual_decln_type = actual_arg.symbol.datatype
+        if isinstance(actual_decln_type, ArrayType):
+            actual_decln_shape = actual_decln_type.shape
+        else:
+            actual_decln_shape = []
 
         if isinstance(actual_arg, ArrayMixin):
             actual_indices = [idx.copy() for idx in actual_arg.indices]
         if isinstance(ref, ArrayMixin):
             local_indices = [idx.copy() for idx in ref.indices]
+            # Get the locally-declared shape of the dummy argument in case its
+            # bounds are shifted relative to the caller.
+        if isinstance(ref.symbol.datatype, ArrayType):
+            local_decln_shape = ref.symbol.datatype.shape
+        else:
+            local_decln_shape = []
+
         # First determine the index expressions. There are three possibilities:
         # 1. Actual has no Ranges, e.g. my_var(i)%var so could be whole array
         #    or a scalar.
@@ -373,28 +443,49 @@ class InlineTrans(Transformation):
         # 3. Actual has one or more Ranges;
         # 4. Local has one or more Ranges; if these are not full ranges they
         #    take precendence over any Ranges in the actual argument.
+
         if actual_indices:
             # If any of the indices on the root of the actual argument are
             # Ranges then they must be updated. Otherwise they remain
             # unchanged.
             local_idx_posn = 0
             for pos, idx in enumerate(actual_indices[:]):
-                if isinstance(idx, Range):
-                    if ref.is_full_range(local_idx_posn):
-                        # If the local Range is for the full extent of the
-                        # dummy argument then the actual Range is defined by
-                        # that of the
-                        # actual argument and no change is required.
-                        pass
-                    else:
-                        # Otherwise, the local index expression
-                        # replaces the Range.
-                        actual_indices[pos] = self.replace_dummy_arg(
-                                local_indices[local_idx_posn],
-                                call_node, dummy_args)
-                    # Each Range corresponds to one dimension of
-                    # the dummy argument.
-                    local_idx_posn += 1
+                if not isinstance(idx, Range):
+                    # Not a Range so skip it.
+                    continue
+
+                if local_decln_shape and isinstance(
+                        local_decln_shape[local_idx_posn],
+                        ArrayType.ArrayBounds):
+                    # The dummy argument declaration has a shape.
+                    local_shape = local_decln_shape[local_idx_posn]
+                    local_decln_start = local_shape.lower
+                else:
+                    local_shape = None
+                    local_decln_start = _ONE
+                # Starting index of slice of actual argument.
+                actual_start = idx.start
+
+                if ref.is_full_range(local_idx_posn):
+                    # If the local Range is for the full extent of the
+                    # dummy argument then the actual Range is defined by
+                    # that of the actual argument and no change is required
+                    # unless the dummy argument is declared as having a
+                    # Range with an extent that is less than that supplied.
+                    if local_shape:
+                        actual_indices[pos] = self._create_inlined_idx(
+                            call_node, dummy_args,
+                            idx, local_decln_start, actual_start)
+                else:
+                    # Otherwise, the local index expression replaces the
+                    # Range.
+                    actual_indices[pos] = self._create_inlined_idx(
+                        call_node, dummy_args,
+                        local_indices[local_idx_posn],
+                        local_decln_start, actual_start)
+                # Each Range corresponds to one dimension of
+                # the dummy argument.
+                local_idx_posn += 1
 
         if actual_ranges:
             if local_indices:
@@ -552,72 +643,6 @@ class InlineTrans(Transformation):
                                                 members)
         return new_ref
 
-#        # Since one or both of the actual and dummy arguments are
-#        # StructureReferences, the resulting, in-lined reference will also be
-#        # a StructureReference.
-#        members = []
-#        local_idx_posn = 0
-#        # Start with the actual argument.
-#        cursor = actual_arg
-#        while True:
-#            if hasattr(cursor, "indices"):
-#                new_indices = []
-#                for idx in cursor.indices:
-#                    if isinstance(idx, Range) and local_indices:
-#                        if ref.is_full_range(local_idx_posn):
-#                            # If the local Range is for the full extent of the
-#                            # dummy argument then the actual Range is defined
-#                            # by that of the actual argument.
-#                            new_indices.append(idx.copy())
-#                        else:
-#                            # The Range in the actual argument is replaced by
-#                            # the index expression in the dummy/local.
-#                            new_indices.append(
-#                                self.replace_dummy_arg(
-#                                    local_indices[local_idx_posn], call_node,
-#                                    dummy_args))
-#                        local_idx_posn += 1
-#                    else:
-#                        new_indices.append(idx.copy())
-#                members.append((cursor.name, new_indices))
-#            else:
-#                members.append(cursor.name)
-#            if not hasattr(cursor, "member"):
-#                break
-#            cursor = cursor.member
-#
-#        # Now continue with the dummy argument/local reference.
-#        cursor = ref
-#        if hasattr(cursor, "indices"):
-#            
-#        while True:
-#            if hasattr(cursor, "indices"):
-#                new_indices = []
-#                for idx in cursor.indices:
-#                    # TODO - this handling of a Range is duplicated.
-#                    if isinstance(idx, Range):
-#                        new_idx = local_indices[local_idx_posn].copy()
-#                        new_indices.append(self.replace_dummy_arg(
-#                            new_idx, call_node, dummy_args))
-#                        local_idx_posn += 1
-#                    else:
-#                        new_indices.append(idx.copy())
-#                members.append((cursor.name, new_indices))
-#            else:
-#                members.append(cursor.name)
-#            if not hasattr(cursor, "member"):
-#                break
-#            cursor = cursor.member
-#
-#        if actual_indices:
-#            new_ref = ArrayOfStructuresReference.create(actual_arg.symbol,
-#                                                        actual_indices,
-#                                                        members)
-#        else:
-#            new_ref = StructureReference.create(actual_arg.symbol,
-#                                                members)
-#        return new_ref
-#
     @staticmethod
     def _inline_container_symbols(table, routine_table):
         '''
