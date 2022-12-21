@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 '''Provides py.test tests of LFRic-specific PSyclone adjoint test-harness
    functionality.'''
@@ -523,7 +523,8 @@ TL_CODE_WITH_GEOM = (
     "     procedure, nopass :: code => testkern_code\n"
     "  end type testkern_type\n"
     "contains\n"
-    "  subroutine testkern_code(nlayers, ascalar, cfield1, cfield2, cfield3, &\n"
+    "  subroutine testkern_code(nlayers, ascalar, cfield1, cfield2, cfield3, &"
+    "\n"
     "field, pids, ndf_wchi, undf_wchi, map_wchi, ndf_w3, undf_w3, &\n"
     "map_w3, ndf_adspace1, undf_adspace1, map_adspace1)\n"
     "    integer(kind=i_def), intent(in) :: nlayers\n"
@@ -532,9 +533,11 @@ TL_CODE_WITH_GEOM = (
     "    integer(kind=i_def), intent(in) :: ndf_adspace1, undf_adspace1\n"
     "    integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3\n"
     "    integer(kind=i_def), intent(in), dimension(ndf_wchi) :: map_wchi\n"
-    "    integer(kind=i_def), intent(in), dimension(ndf_adspace1) :: map_adspace1\n"
+    "    integer(kind=i_def), intent(in), dimension(ndf_adspace1) :: "
+    "map_adspace1\n"
     "    real(kind=r_def), intent(in) :: ascalar\n"
-    "    real(kind=r_def), intent(inout), dimension(undf_wchi) :: cfield1, cfield2, cfield3\n"
+    "    real(kind=r_def), intent(inout), dimension(undf_wchi) :: cfield1, "
+    "cfield2, cfield3\n"
     "    real(kind=r_def), intent(inout), dimension(undf_w3) :: field\n"
     "    integer(kind=i_def), intent(in), dimension(undf_adspace1) :: pids\n"
     "    field = ascalar\n"

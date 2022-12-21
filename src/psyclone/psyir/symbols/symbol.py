@@ -43,7 +43,6 @@ class and its subclasses and the generic Symbol class.
 
 from __future__ import absolute_import
 from enum import Enum
-import six
 from psyclone.errors import PSycloneError, InternalError
 
 
@@ -251,7 +250,7 @@ class Symbol():
 
     def __init__(self, name, visibility=DEFAULT_VISIBILITY, interface=None):
 
-        if not isinstance(name, six.string_types):
+        if not isinstance(name, str):
             raise TypeError(
                 f"{type(self).__name__} 'name' attribute should be of type "
                 f"'str' but '{type(name).__name__}' found.")
