@@ -1,4 +1,4 @@
-{# Added this as jinja code so that it is understood that the
+{# Added this as Jinja code so that it is understood that the
    comment does not apply to THIS file. #}
 {{ "! ================================================== !" }}
 {{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE. !" }}
@@ -147,7 +147,7 @@ module psy_data_base_mod
 contains
 
     ! -------------------------------------------------------------------------
-    !> This subroutine is the first function called when an instrumented region
+    !> @brief This subroutine is the first function called when an instrumented region
     !! is entered. It initialises this object, and stores module and regin
     !! names.
     !! @param[in,out] this The instance of the PSyDataBaseType.
@@ -199,7 +199,7 @@ contains
     end subroutine PreStart
 
     ! -------------------------------------------------------------------------
-    !> This subroutine is called once all variables are declared. It makes
+    !> @brief This subroutine is called once all variables are declared. It makes
     !! sure that the next variable index is starting at 1 again.
     !! @param[in,out] this The instance of the PSyDataBaseType.
     subroutine PreEndDeclaration(this)
@@ -213,7 +213,7 @@ contains
     end subroutine PreEndDeclaration
 
     ! -------------------------------------------------------------------------
-    !> This subroutine is called after the value of all variables has been
+    !> @brief This subroutine is called after the value of all variables has been
     !! provided (and declared). After this call the instrumented region will
     !! be executed. Nothing is done here.
     !! @param[in,out] this The instance of the PSyDataBaseType.
@@ -226,7 +226,7 @@ contains
     end subroutine PreEnd
 
     ! -------------------------------------------------------------------------
-    !> This subroutine is called after the instrumented region has been
+    !> @brief This subroutine is called after the instrumented region has been
     !! executed. After this call the value of variables after the instrumented
     !! region will be provided. Nothing is done here.
     !! @param[in,out] this The instance of the PSyDataBaseType.
@@ -239,7 +239,7 @@ contains
     end subroutine PostStart
 
     ! -------------------------------------------------------------------------
-    !> This subroutine is called after the instrumented region has been
+    !> @brief This subroutine is called after the instrumented region has been
     !! executed and all values of variables after the instrumented
     !! region have been provided. No special functionality required here.
     !! @param[in,out] this The instance of the PSyDataBaseType.
@@ -258,7 +258,7 @@ contains
     end subroutine PostEnd
 
     ! -------------------------------------------------------------------------
-    !> Displays the message and aborts execution. This base implementation
+    !> @brief Displays the message and aborts execution. This base implementation
     !! just uses `stop`.
     !! @param[in] message Error message to be displayed (string).
     subroutine Abort(this, message)
@@ -274,7 +274,7 @@ contains
     end subroutine Abort
 
     ! -------------------------------------------------------------------------
-    !> An optional initialisation subroutine.
+    !> @brief An optional initialisation subroutine.
     subroutine {{PREFIX}}PSyDataInit()
 
       implicit none
@@ -284,7 +284,7 @@ contains
     end subroutine {{PREFIX}}PSyDataInit
 
     ! -------------------------------------------------------------------------
-    !> An optional initialisation subroutine.
+    !> @brief An optional initialisation subroutine.
     subroutine {{PREFIX}}PSyDataShutdown()
 
       implicit none
@@ -294,7 +294,7 @@ contains
     end subroutine {{PREFIX}}PSyDataShutdown
 
     ! -------------------------------------------------------------------------
-    !> Enables PSyData handling (if it is not already enabled).
+    !> @brief Enables PSyData handling (if it is not already enabled).
     subroutine {{PREFIX}}PSyDataStart()
 
       implicit none
@@ -304,7 +304,7 @@ contains
     end subroutine {{PREFIX}}PSyDataStart
 
     ! -------------------------------------------------------------------------
-    !> Disables PSyData handling.
+    !> @brief Disables PSyData handling.
     subroutine {{PREFIX}}PSyDataStop()
 
       implicit none
@@ -318,7 +318,7 @@ contains
     ! =========================================================================
     {% for name, type, bits in ALL_TYPES %}
     ! -------------------------------------------------------------------------
-    !> This subroutine declares a scalar {{type}} value. This
+    !> @brief This subroutine declares a scalar {{type}} value. This
     !! implementation only increases the next index, and prints
     !! the name of the variable if verbose output is requested.
     !! @param[in,out] this The instance of the PSyDataBaseType.
@@ -344,7 +344,7 @@ contains
     end subroutine DeclareScalar{{name}}
 
     ! -------------------------------------------------------------------------
-    !> This subroutine provides a scalar {{type}} value. This
+    !> @brief This subroutine provides a scalar {{type}} value. This
     !! implementation only increases the next index.
     !! @param[in,out] this The instance of the PSyDataBaseType.
     !! @param[in] name The name of the variable (string).
@@ -367,7 +367,7 @@ contains
            We repeat the list [":"] DIM-times, which is then joined #}
         {% set DIMENSION=([":"]*dim)|join(",") %}
     ! ---------------------------------------------------------------------
-    !> This subroutine handles a declaration of a {{dim}}d-array of
+    !> @brief This subroutine handles a declaration of a {{dim}}D array of
     !! {{type}} values. This base implementation only increases
     !! next_var_index and prints the name of the variable if
     !! verbose output is requested.
@@ -393,7 +393,7 @@ contains
     end subroutine DeclareArray{{dim}}d{{name}}
 
     ! -------------------------------------------------------------------------
-    !> This subroutine handles a provide call for a {{dim}}d {{type}} array.
+    !> @brief This subroutine handles a provide call for a {{dim}}D {{type}} array.
     !! This base implementation only increases next_var_index.
     !! @param[in,out] this The instance of the PSyDataBaseType.
     !! @param[in] name The name of the variable (string).

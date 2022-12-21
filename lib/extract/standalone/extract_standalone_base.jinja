@@ -1,4 +1,4 @@
-{# Added this as jinja code so that it is understood that the
+{# Added this as Jinja code so that it is understood that the
    comment does not apply to THIS file. #}
 {{ "! ================================================== !" }}
 {{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE. !" }}
@@ -131,21 +131,21 @@ module extract_standalone_base_mod
 contains
 
     ! -------------------------------------------------------------------------
-    !> This is a one-time init function. It is not required for the kernel
+    !> @brief This is a one-time init function. It is not required for the kernel
     !! extraction and is therefore empty.
     subroutine extract_PSyDataInit()
         implicit none
     end subroutine extract_PSyDataInit
 
     ! -------------------------------------------------------------------------
-    !> This is a one-time shutdown function. It is not required for the kernel
+    !> @brief This is a one-time shutdown function. It is not required for the kernel
     !! extraction and is therefore empty.
     subroutine extract_PSyDataShutdown()
         implicit none
     end subroutine extract_PSyDataShutdown
 
     ! -------------------------------------------------------------------------
-    !> This subroutine is the first function called when data is written out
+    !> @brief This subroutine is the first function called when data is written out
     !! before an instrumented region of code.
     !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
     !! @param[in] module_name The name of the module of the instrumented
@@ -178,7 +178,7 @@ contains
     end subroutine PreStart
 
     ! -------------------------------------------------------------------------
-    !> This subroutine is called after the instrumented region has been
+    !> @brief This subroutine is called after the instrumented region has been
     !! executed and all values of variables after the instrumented
     !! region have been provided. This will close the file.
     !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
@@ -195,7 +195,7 @@ contains
 
 {% for name, type, bits in ALL_TYPES %}
     ! -------------------------------------------------------------------------
-    !> This subroutine writes the value of a scalar {{type}}
+    !> @brief This subroutine writes the value of a scalar {{type}}
     !! variable to the file. It takes the variable id from the
     !! corresponding declaration.
     !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
@@ -226,7 +226,7 @@ contains
     {% set vars = "dimid"~range(1,dim+1)|join(", dimid") %}
 
     ! -------------------------------------------------------------------------
-    !> This subroutine writes a {{dim}}d-array of {{type}}
+    !> @brief This subroutine writes a {{dim}}D array of {{type}}
     !! to the file.
     !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
     !! @param[in] name The name of the variable (string).

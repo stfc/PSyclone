@@ -1,4 +1,4 @@
-{# Added this as jinja code so that it is understood that the
+{# Added this as Jinja code so that it is understood that the
    comment does not apply to THIS file. #}
 {{ "! ================================================== !" }}
 {{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE. !" }}
@@ -148,7 +148,7 @@ module extract_netcdf_base_mod
 contains
 
     ! -------------------------------------------------------------------------
-    !> Checks if the return value from a NetCDF call indicates an error.
+    !> @brief Checks if the return value from a NetCDF call indicates an error.
     !! If so, print the corresponding error message and aborts the program.
     !! It is typically used as a wrapper around NetCDF calls:
     !! retval = CheckError(nf90_close(ncid))
@@ -173,21 +173,21 @@ contains
     end function CheckError
 
     ! -------------------------------------------------------------------------
-    !> This is a one-time init function. It is not required for the kernel
+    !> @brief This is a one-time init function. It is not required for the kernel
     !! extraction and is therefore empty.
     subroutine extract_PSyDataInit()
         implicit none
     end subroutine extract_PSyDataInit
 
     ! -------------------------------------------------------------------------
-    !> This is a one-time shutdown function. It is not required for the kernel
+    !> @brief This is a one-time shutdown function. It is not required for the kernel
     !! extraction and is therefore empty.
     subroutine extract_PSyDataShutdown()
         implicit none
     end subroutine extract_PSyDataShutdown
 
     ! -------------------------------------------------------------------------
-    !> This subroutine is the first function called when data is written out
+    !> @brief This subroutine is the first function called when data is written out
     !! before an instrumented region of code.
     !! @param[in,out] this The instance of the ExtractNetcdfBaseType.
     !! @param[in] module_name The name of the module of the instrumented
@@ -232,7 +232,7 @@ contains
     end subroutine PreStart
 
     ! -------------------------------------------------------------------------
-    !> This subroutine is called once all variables are declared (this includes
+    !> @brief This subroutine is called once all variables are declared (this includes
     !! variables that will be written before as well as variables that are
     !! written after the instrumented region). It is used to switch the NetCDF
     !! file from declaration to writing state, and reset the next_var_index
@@ -254,7 +254,7 @@ contains
     end subroutine PreEndDeclaration
 
     ! -------------------------------------------------------------------------
-    !> This subroutine is called after the instrumented region has been
+    !> @brief This subroutine is called after the instrumented region has been
     !! executed and all values of variables after the instrumented
     !! region have been provided. This will close the NetCDF file.
     !! @param[in,out] this The instance of the ExtractNetcdfBaseType.
@@ -282,7 +282,7 @@ contains
 {% for name, type, bits in ALL_TYPES %}
     {% set NETCDF_TYPE = NCDF_TYPE_MAPPING[name] %}
     ! -------------------------------------------------------------------------
-    !> This subroutine declares a scalar {{type}} value.
+    !> @brief This subroutine declares a scalar {{type}} value.
     !! A corresponding variable definition is added to the NetCDF file, and
     !! the variable id is stored in the var_id field.
     !! @param[in,out] this The instance of the ExtractNetcdfBaseType.
@@ -318,7 +318,7 @@ contains
     end subroutine DeclareScalar{{name}}
 
     ! -------------------------------------------------------------------------
-    !> This subroutine writes the value of a scalar {{type}}
+    !> @brief This subroutine writes the value of a scalar {{type}}
     !! variable to the NetCDF file. It takes the variable id from the
     !! corresponding declaration.
     !! @param[in,out] this The instance of the ExtractNetcdfBaseType.
@@ -369,7 +369,7 @@ contains
     {% set vars = "dimid"~range(1,dim+1)|join(", dimid") %}
 
     ! -------------------------------------------------------------------------
-    !> This subroutine declares a {{dim}}d-array of {{type}}.
+    !> @brief This subroutine declares a {{dim}}D array of {{type}}.
     !! A corresponding variable and dimension definitions are added
     !! to the NetCDF file, and the variable id is stored in the var_id field.
     !! @param[in,out] this The instance of the extract_PsyDataType.
@@ -415,7 +415,7 @@ contains
     end subroutine DeclareArray{{dim}}d{{name}}
 
     ! -------------------------------------------------------------------------
-    !> This subroutine writes a {{dim}}d-array of {{type}}
+    !> @brief This subroutine writes a {{dim}}D array of {{type}}
     !! to the NetCDF file.
     !! @param[in,out] this The instance of the ExtractNetcdfBaseType.
     !! @param[in] name The name of the variable (string).
