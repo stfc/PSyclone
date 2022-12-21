@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified: I. Kavcic, Met Office
-# Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: R. W. Ford and N. Nobre, STFC Daresbury Lab
 # Modified: by J. Henrichs, Bureau of Meteorology
 
 ''' This module tests the support for built-in operations in the LFRic API
@@ -175,9 +175,9 @@ def test_builtin_multiple_writes():
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
-    assert ("A built-in kernel in the LFRic API must have one and only "
-            "one argument that is written to but found 2 for kernel '{0}'".
-            format(test_builtin_name.lower()) in str(excinfo.value))
+    assert (f"A built-in kernel in the LFRic API must have one and only one "
+            f"argument that is written to but found 2 for kernel "
+            f"'{test_builtin_name.lower()}'" in str(excinfo.value))
 
 
 def test_builtin_write_and_readwrite():
@@ -200,9 +200,9 @@ def test_builtin_write_and_readwrite():
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
-    assert ("A built-in kernel in the LFRic API must have one and only "
-            "one argument that is written to but found 2 for kernel '{0}'".
-            format(test_builtin_name.lower()) in str(excinfo.value))
+    assert (f"A built-in kernel in the LFRic API must have one and only "
+            f"one argument that is written to but found 2 for kernel "
+            f"'{test_builtin_name.lower()}'" in str(excinfo.value))
 
 
 def test_builtin_sum_and_readwrite():
@@ -225,9 +225,9 @@ def test_builtin_sum_and_readwrite():
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
-    assert ("A built-in kernel in the LFRic API must have one and only "
-            "one argument that is written to but found 2 for kernel '{0}'".
-            format(test_builtin_name.lower()) in str(excinfo.value))
+    assert (f"A built-in kernel in the LFRic API must have one and only "
+            f"one argument that is written to but found 2 for kernel "
+            f"'{test_builtin_name.lower()}'" in str(excinfo.value))
 
 
 def test_builtin_zero_writes(monkeypatch):
@@ -247,9 +247,9 @@ def test_builtin_zero_writes(monkeypatch):
         _, _ = parse(os.path.join(BASE_PATH,
                                   test_builtin_file),
                      api=API)
-    assert ("An LFRic kernel must have at least one argument that is "
-            "updated (written to) but found none for kernel '{0}'.".
-            format(test_builtin_name.lower()) in str(excinfo.value))
+    assert (f"An LFRic kernel must have at least one argument that is "
+            f"updated (written to) but found none for kernel "
+            f"'{test_builtin_name.lower()}'." in str(excinfo.value))
 
 
 def test_builtin_no_field_args(monkeypatch):
@@ -276,9 +276,9 @@ def test_builtin_no_field_args(monkeypatch):
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
-    assert ("A built-in kernel in the LFRic API must have at least "
-            "one field as an argument but kernel '{0}' has none".
-            format(test_builtin_name.lower()) in str(excinfo.value))
+    assert (f"A built-in kernel in the LFRic API must have at least one field "
+            f"as an argument but kernel '{test_builtin_name.lower()}' has none"
+            in str(excinfo.value))
 
 
 def test_builtin_invalid_argument_type(monkeypatch):
@@ -304,10 +304,10 @@ def test_builtin_invalid_argument_type(monkeypatch):
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API, distributed_memory=False).create(invoke_info)
     const = LFRicConstants()
-    assert ("In the LFRic API an argument to a built-in kernel must be one "
-            "of {0} but kernel '{1}' has an argument of type 'gh_operator'.".
-            format(const.VALID_BUILTIN_ARG_TYPES, test_builtin_name.lower())
-            in str(excinfo.value))
+    assert (f"In the LFRic API an argument to a built-in kernel must be one of"
+            f" {const.VALID_BUILTIN_ARG_TYPES} but kernel "
+            f"'{test_builtin_name.lower()}' has an argument of type "
+            f"'gh_operator'." in str(excinfo.value))
 
 
 def test_builtin_invalid_data_type(monkeypatch):
@@ -336,11 +336,10 @@ def test_builtin_invalid_data_type(monkeypatch):
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API, distributed_memory=False).create(invoke_info)
     const = LFRicConstants()
-    assert ("In the LFRic API an argument to a built-in kernel must have "
-            "one of {0} as a data type but kernel '{1}' has an argument of "
-            "data type 'gh_logical'.".
-            format(const.VALID_BUILTIN_DATA_TYPES, test_builtin_name.lower())
-            in str(excinfo.value))
+    assert (f"In the LFRic API an argument to a built-in kernel must have one "
+            f"of {const.VALID_BUILTIN_DATA_TYPES} as a data type but kernel "
+            f"'{test_builtin_name.lower()}' has an argument of data type "
+            f"'gh_logical'." in str(excinfo.value))
 
 
 def test_builtin_args_not_same_space():
@@ -363,10 +362,10 @@ def test_builtin_args_not_same_space():
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
-    assert ("All field arguments to a built-in in the LFRic API must "
-            "be on the same space. However, found spaces ['any_space_1', "
-            "'any_space_2'] for arguments to '{0}'".
-            format(test_builtin_name.lower()) in str(excinfo.value))
+    assert (f"All field arguments to a built-in in the LFRic API must "
+            f"be on the same space. However, found spaces ['any_space_1', "
+            f"'any_space_2'] for arguments to '{test_builtin_name.lower()}'"
+            in str(excinfo.value))
 
 
 def test_builtin_fld_args_different_data_type(monkeypatch):
@@ -398,12 +397,11 @@ def test_builtin_fld_args_different_data_type(monkeypatch):
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
-    assert ("In the LFRic API only the data type conversion built-ins "
-            "['int_X', 'real_X'] are allowed to have field "
-            "arguments of different data types. However, found "
-            "different data types ['gh_integer', 'gh_real'] for "
-            "field arguments to '{0}'.".
-            format(test_builtin_name.lower()) in str(excinfo.value))
+    assert (f"In the LFRic API only the data type conversion built-ins "
+            f"['int_X', 'real_X'] are allowed to have field arguments of "
+            f"different data types. However, found different data types "
+            f"['gh_integer', 'gh_real'] for field arguments to "
+            f"'{test_builtin_name.lower()}'." in str(excinfo.value))
 
 
 def test_lfricbuiltincallfactory_str():

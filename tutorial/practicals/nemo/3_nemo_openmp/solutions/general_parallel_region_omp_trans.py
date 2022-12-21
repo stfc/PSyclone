@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''A simple transformation script for the introduction of OpenMP with PSyclone.
 In order to use it you must first install PSyclone. See README.md in the
@@ -74,8 +74,7 @@ def trans(psy):
     loops = [loop for loop in sched.walk(Loop) if loop.loop_type == "levels"]
     idx = 0
     # Loop over each of these loops over levels to see which neighbour each
-    # other in the Schedule and can therefore be put in a single parallel
-    # region.
+    # other in the Schedule and thus can be put in a single parallel region.
     while idx < len(loops):
         child = loops[idx]
         posn = child.parent.children.index(child)
@@ -103,7 +102,7 @@ def trans(psy):
             pass
 
     directives = sched.walk(Directive)
-    print("Added {0} Directives".format(len(directives)))
+    print(f"Added {len(directives)} Directives")
 
     # Display the transformed PSyIR
     print(sched.view())

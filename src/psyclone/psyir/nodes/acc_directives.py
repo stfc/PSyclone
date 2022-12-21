@@ -43,7 +43,6 @@ nodes.'''
 
 from __future__ import absolute_import
 import abc
-import six
 from psyclone.core import AccessType, VariablesAccessInfo, Signature
 from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.errors import GenerationError, InternalError
@@ -54,8 +53,7 @@ from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.symbols import ScalarType
 
 
-@six.add_metaclass(abc.ABCMeta)
-class ACCDirective():
+class ACCDirective(metaclass=abc.ABCMeta):
     # pylint: disable=too-few-public-methods
     '''
     Base mixin class for all OpenACC directive statements.
@@ -71,8 +69,7 @@ class ACCDirective():
     _PREFIX = "ACC"
 
 
-@six.add_metaclass(abc.ABCMeta)
-class ACCRegionDirective(ACCDirective, RegionDirective):
+class ACCRegionDirective(ACCDirective, RegionDirective, metaclass=abc.ABCMeta):
     ''' Base class for all OpenACC region directive statements. '''
     def validate_global_constraints(self):
         '''
@@ -130,8 +127,8 @@ class ACCRegionDirective(ACCDirective, RegionDirective):
         return (set(inp), set(out))
 
 
-@six.add_metaclass(abc.ABCMeta)
-class ACCStandaloneDirective(ACCDirective, StandaloneDirective):
+class ACCStandaloneDirective(ACCDirective, StandaloneDirective,
+                             metaclass=abc.ABCMeta):
     ''' Base class for all standalone OpenACC directive statements. '''
 
 
@@ -160,7 +157,6 @@ class ACCRoutineDirective(ACCStandaloneDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "acc routine"
 
 
@@ -305,7 +301,6 @@ class ACCParallelDirective(ACCRegionDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         # "default(present)" means that the compiler is to assume that
         # all data required by the parallel region is already present
         # on the device. If we've made a mistake and it isn't present
@@ -317,7 +312,6 @@ class ACCParallelDirective(ACCRegionDirective):
         :returns: the closing statement for this directive.
         :rtype: str
         '''
-        # pylint: disable=no-self-use
         return "acc end parallel"
 
     @property
@@ -520,7 +514,6 @@ class ACCLoopDirective(ACCRegionDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return ""
 
 
@@ -614,7 +607,6 @@ class ACCKernelsDirective(ACCRegionDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "acc end kernels"
 
 
@@ -739,7 +731,6 @@ class ACCDataDirective(ACCRegionDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "acc end data"
 
 

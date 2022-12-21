@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,7 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
-# Modified A. B. G. Chalk, STFC Daresbury Lab
+# Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Literal PSyIR node. '''
@@ -130,9 +130,9 @@ def test_literal_init_invalid_2(value):
     '''
     with pytest.raises(ValueError) as err:
         Literal(value, REAL_DOUBLE_TYPE)
-    assert ("A scalar real literal value must conform to the supported "
-            "format ('^[+-]?[0-9]+(\\.[0-9]*)?([eE][+-]?[0-9]+)?$') but "
-            "found '{0}'.".format(value) in str(err.value))
+    assert (f"A scalar real literal value must conform to the supported "
+            f"format ('^[+-]?[0-9]+(\\.[0-9]*)?([eE][+-]?[0-9]+)?$') but "
+            f"found '{value}'." in str(err.value))
 
 
 def test_literal_init_empty_value():

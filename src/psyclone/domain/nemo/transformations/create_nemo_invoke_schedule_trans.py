@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
-# Modified: R. W. Ford and S. Siso, STFC Daresbury Lab
+# Modified: R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''
 Module providing a transformation from a generic PSyIR routine into a
@@ -106,7 +106,7 @@ class CreateNemoInvokeScheduleTrans(Transformation):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node is not a Routine.
 
@@ -116,9 +116,8 @@ class CreateNemoInvokeScheduleTrans(Transformation):
 
         if not isinstance(node, Routine):
             raise TransformationError(
-                "Error in NemoInvokeTrans transformation. The supplied node "
-                "should be a PSyIR Routine but found '{0}'".format(
-                    type(node).__name__))
+                f"Error in NemoInvokeTrans transformation. The supplied node "
+                f"should be a PSyIR Routine but found '{type(node).__name__}'")
 
     def apply(self, node, options=None):
         '''
@@ -133,7 +132,7 @@ class CreateNemoInvokeScheduleTrans(Transformation):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of str:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(node, options=options)
