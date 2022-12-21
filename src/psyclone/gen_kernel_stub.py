@@ -34,7 +34,7 @@
 # Author R. Ford STFC Daresbury Lab
 # Modified work Copyright (c) 2017 by J. Henrichs, Bureau of Meteorology
 # Modified: I. Kavcic, Met Office
-#           A. R. Porter, STFC Daresbury Lab
+#           A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 ''' Contains a Python function to generate an empty kernel
     subroutine with the required arguments and datatypes (which we

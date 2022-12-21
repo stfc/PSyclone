@@ -32,8 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Laboratory
-# Modified: S. Siso, STFC Daresbury Laboratory
-#           A. R. Porter, STFC Daresbury Laboratory
+# Modified: S. Siso, A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 '''Module providing a transformation from a PSyIR MATMUL operator to
 PSyIR code. This could be useful if the MATMUL operator is not

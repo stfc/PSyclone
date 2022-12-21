@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 '''A module to perform pytest unit tests on the parse/algorithm.py
 file. Some tests for this file are in parse_test.py. This file adds

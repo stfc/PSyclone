@@ -31,10 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and S. Siso, STFC Daresbury Lab.
+# Authors R. W. Ford and S. Siso, STFC Daresbury Lab
 # Modified J. Henrichs, Bureau of Meteorology
-# Modified A. R. Porter, STFC Daresbury Lab.
-# Modified A. B. G. Chalk, STFC Daresbury Lab.
+# Modified A. R. Porter, A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
 '''PSyIR Fortran backend. Implements a visitor that generates Fortran code
 from a PSyIR tree. '''

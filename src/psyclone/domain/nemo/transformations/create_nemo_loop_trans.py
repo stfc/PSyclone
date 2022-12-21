@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford and S. Siso, STFC Daresbury Lab
+# Modified by R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''
 Module providing a transformation from a generic PSyIR Loop into a

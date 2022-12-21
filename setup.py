@@ -33,6 +33,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+#          I. Kavcic and P. Elson, Met Office
+#          J. Henrichs, Bureau of Meteorology
 
 """Setup script. Used by easy_install and pip."""
 

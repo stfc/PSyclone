@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Authors: R. W. Ford and N. Nobre, STFC Daresbury Lab
 
 '''Module providing a transformation that transforms a constant index
 access to an array (i.e. one that does not contain a loop iterator) to

@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 # Modified: I. Kavcic, Met Office
-#           A. R. Porter, STFC Daresbury Lab
+#           A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 '''This module creates the expected arguments for an LFRic coded
 kernel based on the kernel metadata.

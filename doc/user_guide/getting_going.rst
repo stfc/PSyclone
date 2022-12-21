@@ -31,7 +31,7 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 .. Modified by I. Kavcic, Met Office
 
 .. _getting-going:

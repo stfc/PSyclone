@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
-# Modified S. Siso, STFC Daresbury Lab
+# Modified S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''Module providing a transformation that given an Assignment node to an
 ArrayReference in its left-hand-side which has at least one PSyIR Range

@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors I. Kavcic, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford and S. Siso, STFC Daresbury Lab
+# Modified by R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''This module contains the LFRic-specific implementation of the ExtractTrans
 transformation.

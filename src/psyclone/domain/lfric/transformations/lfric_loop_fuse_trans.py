@@ -31,9 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#        J. Henrichs, Bureau of Meteorology
-# Modified I. Kavcic, Met Office
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+#          J. Henrichs, Bureau of Meteorology
+# Modified by I. Kavcic, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
 
 '''This module provides the LFRic-specific loop fusion transformation.

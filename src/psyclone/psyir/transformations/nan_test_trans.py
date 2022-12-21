@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+#         N. Nobre, STFC Daresbury Lab
 
 
 '''This module contains the base class for verifying that input and output

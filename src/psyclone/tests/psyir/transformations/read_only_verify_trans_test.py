@@ -32,8 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified by: R. W. Ford, STFC Daresbury Lab
-# Modified by: S. Siso, STFC Daresbury Lab
+# Modified by: R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Module containing tests for ReadOnlyVerifyTrans and ReadOnlyVerifyNode

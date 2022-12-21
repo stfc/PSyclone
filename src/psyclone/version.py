@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
-# Modified by R. W. Ford, STFC Daresbury Laboratory
+# Modified by R. W. Ford and N. Nobre, STFC Daresbury Lab
 
 ''' Single location for the current version number of PSyclone. This is
     used in setup.py and doc/conf.py '''
