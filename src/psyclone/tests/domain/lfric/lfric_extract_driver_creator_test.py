@@ -44,6 +44,7 @@ from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Literal, Routine, Schedule
 from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.tools.dependency_tools import DependencyTools
 from psyclone.tests.utilities import get_invoke
 
 
@@ -339,7 +340,7 @@ def test_lfric_driver_operator():
                           ("int_x", "15.10.3_int_X_builtin.f90"),
                           ("real_x", "15.28.2_real_X_builtin.f90")
                           ])
-def test_unsupported_builtins(name, filename, capsys):
+def test_lfric_driver_unsupported_builtins(name, filename, capsys):
     '''The following builtins do not have a proper lower_to_language_level
     method to create the PSyIR, so they are not supported in the driver
     creation: LFRicXInnerproductXKern, LFRicSumXKern, LFRicIntXKern,
@@ -375,3 +376,28 @@ def test_unsupported_builtins(name, filename, capsys):
                                 "extract", "_post", ("region", "name"))
     assert (f"Cannot create driver for 'region-name' because:\nLFRic builtin "
             f"'{name}' is not supported" in out)
+
+
+# ----------------------------------------------------------------------------
+def test_lfric_driver_array_of_fields():
+    '''Check that array accesses are created correctly, which is required
+    for builtins. E.g. the following code needs to be created:
+        do df = loop0_start, loop0_stop, 1
+            f2(df) = a + f1(df)
+        enddo
+    As opposed to a normal kernel (where the whole field is passed in),
+    here we need explicit array accesses.
+    '''
+
+    _, invoke = get_invoke("15.1.8_a_plus_X_builtin_array_of_fields.f90",
+                           API, dist_mem=False, idx=0)
+    dep = DependencyTools()
+    input_list, output_list = dep.get_in_out_parameters(invoke.schedule)
+    driver_creator = LFRicExtractDriverCreator()
+
+    driver = driver_creator.\
+        get_driver_as_string(invoke.schedule, input_list, output_list,
+                             "extract", "_post",
+                             region_name=("region", "name"))
+
+    assert "f2(df) = a + f1(df)" in driver
