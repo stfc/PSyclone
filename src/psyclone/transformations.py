@@ -578,27 +578,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
     '''
     def __str__(self):
-        return "Add an 'OpenMP PARALLEL DO' directive with no validity checks"
-
-    def validate(self, node, options=None):
-        '''Validity checks for input arguments.
-
-        :param node: the PSyIR node to validate.
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-
-        :raises TransformationError: if the node is a loop over colours.
-
-        '''
-        # Check that the supplied Node is a Loop
-        super().validate(node, options=options)
-
-        # Check we are not a sequential loop
-        if node.loop_type == 'colours':
-            raise TransformationError("Error in "+self.name+" transformation. "
-                                      "The requested loop is over colours and "
-                                      "must be computed serially.")
+        return "Add an 'OpenMP PARALLEL DO' directive"
 
     def apply(self, node, options=None):
         ''' Apply an OMPParallelLoop Transformation to the supplied node
@@ -684,7 +664,7 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
                     f"Error in {self.name} transformation. The kernel has an "
                     f"argument with INC access. Colouring is required.")
 
-        OMPParallelLoopTrans.apply(self, node)
+        OMPParallelLoopTrans.apply(self, node, options=options)
 
 
 class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
