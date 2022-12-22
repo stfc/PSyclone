@@ -229,7 +229,7 @@ class InlineTrans(Transformation):
                                represent array-element accessors.
         '''
         if not isinstance(ref, Reference):
-            # Recurse down in case this is e.g. an Operation.
+            # Recurse down in case this is e.g. an Operation or Range.
             for child in ref.children:
                 self.replace_dummy_arg(child, call_node, dummy_args)
             return ref
@@ -250,8 +250,9 @@ class InlineTrans(Transformation):
             # subroutine my_sub(var)
             #   ...
             #   var = 0.0
-            ref.replace_with(actual_arg.copy())
-            return ref
+            arg_copy = actual_arg.copy()
+            ref.replace_with(arg_copy)
+            return arg_copy
 
         # Local reference is not simple but the actual argument is, e.g.:
         #
@@ -383,18 +384,18 @@ class InlineTrans(Transformation):
                                              actual_start)
             step = self.replace_dummy_arg(local_idx.step, call_node,
                                           dummy_args)
-            return Range.create(lower, upper, step.copy())
+            return Range.create(lower.copy(), upper.copy(), step.copy())
         else:
-            uidx = self.replace_dummy_arg(local_idx,
-                                          call_node, dummy_args)
+            uidx = self.replace_dummy_arg(local_idx, call_node, dummy_args)
             if decln_start != _ONE or actual_start != _ONE:
                 ustart = self.replace_dummy_arg(decln_start,
                                                 call_node, dummy_args)
-                start_sum = BinaryOperation.create(
-                    BinaryOperation.Operator.ADD,
-                    ustart.copy(), actual_start.copy())
+                start_sub = BinaryOperation.create(
+                    BinaryOperation.Operator.SUB,
+                    uidx.copy(), ustart.copy())
                 return BinaryOperation.create(
-                    BinaryOperation.Operator.SUB, uidx.copy(), start_sum)
+                    BinaryOperation.Operator.ADD,
+                    start_sub, actual_start.copy())
             else:
                 return uidx
 
@@ -418,22 +419,19 @@ class InlineTrans(Transformation):
         # actual_idx = local_idx - local_dim_start + actual_dim_start
 
         actual_ranges = actual_arg.walk(Range)
-        actual_decln_type = actual_arg.symbol.datatype
-        if isinstance(actual_decln_type, ArrayType):
-            actual_decln_shape = actual_decln_type.shape
-        else:
-            actual_decln_shape = []
 
         if isinstance(actual_arg, ArrayMixin):
             actual_indices = [idx.copy() for idx in actual_arg.indices]
         if isinstance(ref, ArrayMixin):
             local_indices = [idx.copy() for idx in ref.indices]
-            # Get the locally-declared shape of the dummy argument in case its
-            # bounds are shifted relative to the caller.
+        # Get the locally-declared shape of the dummy argument in case its
+        # bounds are shifted relative to the caller.
         if isinstance(ref.symbol.datatype, ArrayType):
             local_decln_shape = ref.symbol.datatype.shape
         else:
             local_decln_shape = []
+
+        actual_datatype = actual_arg.datatype
 
         # First determine the index expressions. There are three possibilities:
         # 1. Actual has no Ranges, e.g. my_var(i)%var so could be whole array
@@ -463,19 +461,29 @@ class InlineTrans(Transformation):
                 else:
                     local_shape = None
                     local_decln_start = _ONE
+
                 # Starting index of slice of actual argument.
-                actual_start = idx.start
+                if actual_arg.is_lower_bound(pos):
+                    # Range starts at lower bound of argument so that's what
+                    # we store.
+                    actual_start = actual_arg.symbol.datatype.shape[pos].lower
+                else:
+                    actual_start = idx.start
 
                 if ref.is_full_range(local_idx_posn):
                     # If the local Range is for the full extent of the
                     # dummy argument then the actual Range is defined by
                     # that of the actual argument and no change is required
                     # unless the dummy argument is declared as having a
-                    # Range with an extent that is less than that supplied.
+                    # Range with an extent that is less than that supplied. In
+                    # general we're not going to know that so we have to be
+                    # conservative.
                     if local_shape:
+                        new = Range.create(local_shape.lower.copy(),
+                                           local_shape.upper.copy())
                         actual_indices[pos] = self._create_inlined_idx(
                             call_node, dummy_args,
-                            idx, local_decln_start, actual_start)
+                            new, local_decln_start, actual_start)
                 else:
                     # Otherwise, the local index expression replaces the
                     # Range.
@@ -518,8 +526,8 @@ class InlineTrans(Transformation):
                                 # the dummy argument.
                                 local_idx_posn += 1
                             else:
-                                # Actual arg. index expression is not a range so
-                                # is copied unchanged.
+                                # Actual arg. index expression is not a range
+                                # so is copied unchanged.
                                 new_indices.append(idx.copy())
                         members.append((cursor.name, new_indices))
                     else:
@@ -912,6 +920,14 @@ class InlineTrans(Transformation):
                             lambda: f"Cannot inline routine '{routine.name}' "
                             f"because argument '{visitor(actual_arg)}' has an "
                             f"array range in an indirect access (TODO #924)."))
+                    if rge.step != _ONE:
+                        # TODO #1646. We could resolve this problem by making
+                        # a new array and copying the necessary values into it.
+                        raise TransformationError(LazyString(
+                            lambda: f"Cannot inline routine '{routine.name}' "
+                            f"because one of its arguments is an array slice "
+                            f"with a non-unit stride: '{visitor(actual_arg)}' "
+                            f"(TODO #1646)"))
 
     @staticmethod
     def _find_routine(call_node):
