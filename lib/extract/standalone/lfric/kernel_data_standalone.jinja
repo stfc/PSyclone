@@ -1,8 +1,8 @@
-{# Added this as jinja code so that it is understood that the
+{# Added this as Jinja code so that it is understood that the
    comment does not apply to THIS file. #}
 {{ "! ================================================== !" }}
-{{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE  !" }}
-{{ "! DO NOT MODIFY DIRECTLY                             !" }}
+{{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE. !" }}
+{{ "! DO NOT MODIFY DIRECTLY!                            !" }}
 {{ "! ================================================== !" }}
 
 ! -----------------------------------------------------------------------------
@@ -62,7 +62,7 @@ module extract_psy_data_mod
     !! static instance of this type is created for each instrumented
     !! region with PSyclone (and each region will write a separate
     !! file).
-    type, extends(ExtractStandaloneBaseType), public :: extract_PsyDataType
+    type, extends(ExtractStandaloneBaseType), public :: extract_PSyDataType
 
     contains
         {% set all_declares=[] -%}
@@ -112,12 +112,12 @@ contains
     {% for prec in ALL_PREC %}
 
     ! -------------------------------------------------------------------------
-    !> This subroutine declares an LFRic field with real-valued
+    !> @brief This subroutine declares an LFRic field with real-valued
     !! {{prec}}-bit data.
     !! It calls the PreDeclareVariable function provided by the base class
     !! (depending on the type of the argument, e.g. it might call
-    !! DeclareArray1dDouble).
-    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! DeclareArray1DDouble).
+    !! @param[in,out] this The instance of the extract_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine DeclareField_r{{prec}}(this, name, value)
@@ -126,7 +126,7 @@ contains
 
         implicit none
 
-        class(extract_PsyDataType), intent(inout), target :: this
+        class(extract_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                          :: name
         type(field_r{{prec}}_type), intent(in)                  :: value
 
@@ -138,10 +138,10 @@ contains
     end subroutine DeclareField_r{{prec}}
 
     ! -------------------------------------------------------------------------
-    !> This subroutine writes the values of an LFRic real-valued {{prec}}-bit field.
+    !> @brief This subroutine writes the values of an LFRic real-valued {{prec}}-bit field.
     !! to the binary file. It uses the corresponding function
     !! provided by the base class.
-    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! @param[in,out] this The instance of the extract_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine WriteField_r{{prec}}(this, name, value)
@@ -150,7 +150,7 @@ contains
 
         implicit none
 
-        class(extract_PsyDataType), intent(inout), target :: this
+        class(extract_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                          :: name
         type(field_r{{prec}}_type), intent(in)                  :: value
 
@@ -162,7 +162,7 @@ contains
     end subroutine WriteField_r{{prec}}
 
     ! -------------------------------------------------------------------------
-    !> This subroutine declares an LFric real-valued {{prec}}-bit field vector.
+    !> @brief This subroutine declares an LFRic real-valued {{prec}}-bit field vector.
     !! Each component of the vector is stored as a separate variable, using the
     !! corresponding array function of the base class.
     !! @param[in,out] this The instance of the extract_PSyDataType.
@@ -182,8 +182,8 @@ contains
         type(field_r{{prec}}_proxy_type) :: value_proxy
         character(9)           :: number
 
-        ! Provide each component of the vector as an individual 1d array.
-        ! The base class will re-allocate internal array sizes if required
+        ! Provide each component of the vector as an individual 1D array.
+        ! The base class will re-allocate internal array sizes if required.
         do i = 1, size(value)
             value_proxy = value(i)%get_proxy()
             ! We add a '%' here to avoid a potential name clash if
@@ -196,7 +196,7 @@ contains
     end subroutine DeclareFieldVector_r{{prec}}
 
     ! -------------------------------------------------------------------------
-    !> This subroutine writes an LFRic real-valued {{prec}}-bit field vector to
+    !> @brief This subroutine writes an LFRic real-valued {{prec}}-bit field vector to
     !! the binary file. Each component is stored as an individual variable using
     !! the corresponding array function of the base class.
     !! @param[in,out] this The instance of the extract_PSyDataType.
@@ -216,7 +216,7 @@ contains
         type(field_r{{prec}}_proxy_type) :: value_proxy
         character(9)           :: number
 
-        ! Provide each dimension of the vector as an individual 1d array.
+        ! Provide each dimension of the vector as an individual 1D array.
         do i = 1, size(value, 1)
             value_proxy = value(i)%get_proxy()
             write(number, '("%",i0)') i
@@ -225,16 +225,14 @@ contains
 
     end subroutine WriteFieldVector_r{{prec}}
 
-
-
     {% endfor %}
 
     ! -------------------------------------------------------------------------
-    !> This subroutine declares an LFRic field with integer-valued data.
+    !> @brief This subroutine declares an LFRic field with integer-valued data.
     !! It calls the PreDeclareVariable function provided by the base class
     !! (depending on the type of the argument, e.g. it might call
-    !! DeclareArray1dInt).
-    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! DeclareArray1DInt).
+    !! @param[in,out] this The instance of the extract_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine DeclareIntField(this, name, value)
@@ -244,7 +242,7 @@ contains
 
         implicit none
 
-        class(extract_PsyDataType), intent(inout), target :: this
+        class(extract_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                          :: name
         type(integer_field_type), intent(in)              :: value
 
@@ -256,10 +254,10 @@ contains
     end subroutine DeclareIntField
 
     ! -------------------------------------------------------------------------
-    !> This subroutine writes the values of an LFRic integer-valued field.
+    !> @brief This subroutine writes the values of an LFRic integer-valued field.
     !! to the binary file. It uses the corresponding function
     !! provided by the base class.
-    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! @param[in,out] this The instance of the extract_`.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine WriteIntField(this, name, value)
@@ -269,7 +267,7 @@ contains
 
         implicit none
 
-        class(extract_PsyDataType), intent(inout), target :: this
+        class(extract_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                          :: name
         type(integer_field_type), intent(in)              :: value
 
@@ -281,7 +279,7 @@ contains
     end subroutine WriteIntField
 
     ! -------------------------------------------------------------------------
-    !> This subroutine declares an LFric integer-valued field vector. Each
+    !> @brief This subroutine declares an LFRic integer-valued field vector. Each
     !! component of the vector is stored as a separate variable, using the
     !! corresponding array function of the base class.
     !! @param[in,out] this The instance of the extract_PSyDataType.
@@ -302,8 +300,8 @@ contains
         type(integer_field_proxy_type) :: value_proxy
         character(9)                   :: number
 
-        ! Provide each component of the vector as an individual 1d array.
-        ! The base class will re-allocate internal array sizes if required
+        ! Provide each component of the vector as an individual 1D array.
+        ! The base class will re-allocate internal array sizes if required.
         do i = 1, size(value)
             value_proxy = value(i)%get_proxy()
             ! We add a '%' here to avoid a potential name clash if
@@ -316,7 +314,7 @@ contains
     end subroutine DeclareIntFieldVector
 
 ! -------------------------------------------------------------------------
-    !> This subroutine writes an LFRic integer-valued field vector to the
+    !> @brief This subroutine writes an LFRic integer-valued field vector to the
     !! binary file. Each component is stored as an individual variable
     !! using the corresponding array function of the base class.
     !! @param[in,out] this The instance of the extract_PSyDataType.
@@ -337,7 +335,7 @@ contains
         type(integer_field_proxy_type) :: value_proxy
         character(9)                   :: number
 
-        ! Provide each dimension of the vector as an individual 1d array.
+        ! Provide each dimension of the vector as an individual 1D array.
         do i = 1, size(value, 1)
             value_proxy = value(i)%get_proxy()
             write(number, '("%",i0)') i

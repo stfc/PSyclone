@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: R. W. Ford and N. Nobre, STFC Daresbury Lab
 
 '''A transformation script that simply prints the PSyIR of each invoke
 to stdout. No actual transformations are performed.
@@ -62,8 +62,10 @@ def trans(psy):
     :param psy: The PSy layer object to apply transformations to.
     :type psy: :py:class:`psyclone.psyGen.PSy`
     '''
-    print("Invokes found:\n{0}\n".format(
-        "\n".join([str(name) for name in psy.invokes.names])))
+    # Since "Backslashes may not appear inside the expression
+    # portions of f-strings" via PEP 498, use chr(10) for '\n'
+    print(f"Invokes found:\n"
+          f"{chr(10).join([str(name) for name in psy.invokes.names])}\n")
 
     for invoke in psy.invokes.invoke_list:
 
@@ -73,7 +75,6 @@ def trans(psy):
             # In NEMO, the pre-processing step can result in some
             # subroutines that have no executable statements and
             # therefore no Schedule.
-            print("Invoke {0} has no Schedule! Skipping...".
-                  format(invoke.name))
+            print(f"Invoke {invoke.name} has no Schedule! Skipping...")
             continue
         print(sched.view())

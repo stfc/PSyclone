@@ -1,8 +1,8 @@
-{# Added this as jinja code so that it is understood that the
+{# Added this as Jinja code so that it is understood that the
    comment does not apply to THIS file. #}
 {{ "! ================================================== !" }}
-{{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE  !" }}
-{{ "! DO NOT MODIFY DIRECTLY                             !" }}
+{{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE. !" }}
+{{ "! DO NOT MODIFY DIRECTLY!                            !" }}
 {{ "! ================================================== !" }}
 
 ! -----------------------------------------------------------------------------
@@ -109,7 +109,7 @@ contains
     {% for prec in ALL_PREC %}
 
     ! -------------------------------------------------------------------------
-    !> This subroutine declares LFRic real-valued fields. No functionality is
+    !> @brief This subroutine declares LFRic real-valued fields. No functionality is
     !! needed for NAN checking, so it is just an empty function.
     !! @param[in,out] this The instance of the nan_test_PSyDataType.
     !! @param[in] name The name of the variable (string).
@@ -125,7 +125,7 @@ contains
     end subroutine DeclareField_r{{prec}}
 
     ! -------------------------------------------------------------------------
-    !> This subroutine checks whether a real-valued LFRic field has NAN or
+    !> @brief This subroutine checks whether a real-valued LFRic field has NAN or
     !! infinite floating-point values.
     !! @param[in,out] this The instance of the nan_test_PSyDataType.
     !! @param[in] name The name of the variable (string).
@@ -142,7 +142,7 @@ contains
 
         if (.not. is_enabled) return
 
-        if (this%verbosity>1) then
+        if (this%verbosity > 1) then
             write(stderr, *) "PSyData - testing ", name
         endif
         value_proxy = value%get_proxy()
@@ -151,7 +151,7 @@ contains
     end subroutine ProvideField_r{{prec}}
 
     ! -------------------------------------------------------------------------
-    !> This subroutine declares LFRic real-valued field vectors. No
+    !> @brief This subroutine declares LFRic real-valued field vectors. No
     !! functionality is needed here, so it is just an empty function.
     !! @param[in,out] this The instance of the nan_test_PSyDataType.
     !! @param[in] name The name of the variable (string).
@@ -167,7 +167,7 @@ contains
     end subroutine DeclareFieldVector_r{{prec}}
 
     ! -------------------------------------------------------------------------
-    !> This subroutine checks whether a real-valued LFRic vector field has NAN
+    !> @brief This subroutine checks whether a real-valued LFRic vector field has NAN
     !! or infinite floating-point values.
     !! @param[in,out] this The instance of the nan_test_PSyDataType.
     !! @param[in] name The name of the variable (string).
@@ -197,7 +197,7 @@ contains
     {% endfor %}
 
     ! -------------------------------------------------------------------------
-    !> This subroutine declares LFRic integer-valued fields. No functionality
+    !> @brief This subroutine declares LFRic integer-valued fields. No functionality
     !! is needed for NAN checking, so it is just an empty function.
     !! @param[in,out] this The instance of the nan_test_PSyDataType.
     !! @param[in] name The name of the variable (string).
@@ -213,7 +213,7 @@ contains
     end subroutine DeclareIntField
 
     ! -------------------------------------------------------------------------
-    !> This subroutine checks whether an integer-valued LFRic field has NAN or
+    !> @brief This subroutine checks whether an integer-valued LFRic field has NAN or
     !! infinite values.
     !! @param[in,out] this The instance of the nan_test_PSyDataType.
     !! @param[in] name The name of the variable (string).
@@ -233,7 +233,7 @@ contains
 
         if (.not. is_enabled) return
 
-        if (this%verbosity>1) then
+        if (this%verbosity > 1) then
             write(stderr, *) "PSyData - testing ", name
         endif
         value_proxy = value%get_proxy()
@@ -242,7 +242,7 @@ contains
     end subroutine ProvideIntField
 
     ! -------------------------------------------------------------------------
-    !> This subroutine declares LFRic integer-valued field vectors. No
+    !> @brief This subroutine declares LFRic integer-valued field vectors. No
     !! functionality is needed here, so it is just an empty function.
     !! @param[in,out] this The instance of the nan_test_PSyDataType.
     !! @param[in] name The name of the variable (string).
@@ -260,7 +260,7 @@ contains
     end subroutine DeclareIntFieldVector
 
     ! -------------------------------------------------------------------------
-    !> This subroutine checks whether an integer-valued LFRic vector field has
+    !> @brief This subroutine checks whether an integer-valued LFRic vector field has
     !! NAN or infinite values.
     !! @param[in,out] this The instance of the nan_test_PSyDataType.
     !! @param[in] name The name of the variable (string).

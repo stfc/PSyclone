@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors I. Kavcic, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford and S. Siso, STFC Daresbury Lab
+# Modified by R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''This module contains the LFRic-specific implementation of the ExtractTrans
 transformation.
@@ -81,7 +81,7 @@ class LFRicExtractTrans(ExtractTrans):
         :param node_list: the list of Node(s) we are checking.
         :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if transformation is applied to a Loop \
                                      over cells in a colour without its \

@@ -34,7 +34,7 @@
 # Author A. R. Porter, STFC Daresbury Lab
 # Modified by I. Kavcic, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford, STFC Daresbury Lab
+# Modified by R. W. Ford and N. Nobre, STFC Daresbury Lab
 
 ''' This module implements the support for 'built-in' operations in the
     PSyclone LFRic (Dynamo 0.3) API. Each supported built-in is implemented

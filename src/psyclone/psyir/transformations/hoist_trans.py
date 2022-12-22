@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -97,7 +97,7 @@ class HoistTrans(Transformation):
         :param node: target PSyIR node.
         :type node: subclass of :py:class:`psyclone.psyir.nodes.Assignment`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(node, options)
@@ -121,7 +121,7 @@ class HoistTrans(Transformation):
         :param node: target PSyIR node.
         :type node: subclass of :py:class:`psyclone.psyir.nodes.Assignment`
         :param options: a dictionary with options for transformations.
-        :type options: dict of str:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node is not an \
             assignment.
