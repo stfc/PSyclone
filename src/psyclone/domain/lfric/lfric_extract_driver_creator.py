@@ -267,9 +267,10 @@ class LFRicExtractDriverCreator:
         # the symbol table will then create a unique name for this symbol.
 
         if isinstance(old_reference.symbol.datatype, ArrayType):
-            # Vector field. Get the index that is being accessed:
+            # Vector field. Get the index that is being accessed, and
+            # don't append the '%data'
             indx = int(old_reference.children[-1].value)
-            signature = Signature(f"{symbol_name}_{indx}", signature[1:])
+            signature = Signature(f"{symbol_name}%{indx}")
         else:
             field_type = old_reference.symbol.datatype.name
             if field_type in ["field_proxy_type", "r_solver_field_proxy_type",
@@ -290,7 +291,7 @@ class LFRicExtractDriverCreator:
         except KeyError:
             flattened_name = self.flatten_string(signature_str)
             symbol = DataSymbol(flattened_name, old_reference.datatype)
-            symbol_table.add(symbol, tag=f"{signature_str}")
+            symbol_table.add(symbol, tag=signature_str)
 
         array_member = None
         current = old_reference
@@ -474,7 +475,7 @@ class LFRicExtractDriverCreator:
                     self._all_field_types:
                 upper = int(orig_sym.datatype.shape[0].upper.value)
                 for i in range(1, upper+1):
-                    sym = symbol_table.lookup_with_tag(f"{sig_str}_{i}%data")
+                    sym = symbol_table.lookup_with_tag(f"{sig_str}%{i}")
                     name_lit = Literal(f"{sig_str}%{i}", CHARACTER_TYPE)
                     LFRicExtractDriverCreator.add_call(program, read_var,
                                                        [name_lit,
@@ -500,8 +501,8 @@ class LFRicExtractDriverCreator:
                     self._all_field_types:
                 upper = int(orig_sym.datatype.shape[0].upper.value)
                 for i in range(1, upper+1):
-                    sym = symbol_table.lookup_with_tag(f"{sig_str}_{i}%data")
-                    name_lit = Literal(f"{sig_str}_{i}_data", CHARACTER_TYPE)
+                    sym = symbol_table.lookup_with_tag(f"{sig_str}%{i}")
+                    name_lit = Literal(f"{sig_str}%{i}", CHARACTER_TYPE)
                     LFRicExtractDriverCreator.add_call(program, read_var,
                                                        [name_lit,
                                                         Reference(sym)])
