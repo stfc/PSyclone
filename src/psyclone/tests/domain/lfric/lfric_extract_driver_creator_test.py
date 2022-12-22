@@ -401,3 +401,40 @@ def test_lfric_driver_array_of_fields():
                              region_name=("region", "name"))
 
     assert "f2(df) = a + f1(df)" in driver
+
+
+# ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_lfric_driver_extract_some_kernels_only():
+    '''Test that we can extract only some kernels of an invoke, but still
+    get the right loop boundaries (which are dependent on the index
+    of the kernels in the tree). This test can potentially be removed
+    when TODO #1731 is done.'''
+
+    _, invoke = get_invoke("4.5.2_multikernel_invokes.f90", API,
+                           dist_mem=False, idx=0)
+
+    extract = LFRicExtractTrans()
+    extract.apply(invoke.schedule.children[2],
+                  options={"create_driver": True,
+                           "region_name": ("field", "test")})
+    code = str(invoke.gen())
+
+    # We only extract the third loop, which uses the index '2' for
+    # loop boundaries. So none of the previous loop indices should
+    # be in the extract code:
+    assert "PreDeclareVariable(\"loop0_start\", loop0_start)" not in code
+    assert "PreDeclareVariable(\"loop1_start\", loop1_start)" not in code
+    assert "PreDeclareVariable(\"loop2_start\", loop2_start)" in code
+    assert "PreDeclareVariable(\"loop2_stop\", loop2_stop)" in code
+
+    filename = ("driver-field-test.f90")
+    with open(filename, "r", encoding='utf-8') as my_file:
+        driver = my_file.read()
+
+    # Make sure the driver does not have any information about other
+    # kernels added, and that is uses index 2 for loop boundaries.
+    assert "loop0_start" not in driver
+    assert "loop1_start" not in driver
+    assert "ReadVariable('loop2_start', loop2_start)" in driver
+    assert "ReadVariable('loop2_stop', loop2_stop)" in driver
