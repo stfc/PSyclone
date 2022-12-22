@@ -472,3 +472,36 @@ def test_lfric_driver_field_array_write():
     for i in range(1, 4):
         assert f"ReadVariable('coord_post%{i}', coord_{i}_post)" in driver
         assert f"ALL(coord_{i} - coord_{i}_post == 0.0))" in driver
+
+
+# ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_lfric_driver_field_array_inc():
+    '''Test the handling of arrays of fields which are incremented (i.e.
+    read and written).'''
+
+    _, invoke = get_invoke("8_vector_field_2.f90", API,
+                           dist_mem=False, idx=0)
+
+    extract = LFRicExtractTrans()
+    extract.apply(invoke.schedule.children[0],
+                  options={"create_driver": True,
+                           "region_name": ("field", "test")})
+    code = str(invoke.gen())
+    assert 'ProvideVariable("chi", chi)' in code
+    assert 'ProvideVariable("f1", f1)' in code
+    assert 'ProvideVariable("chi_post", chi)' in code
+    assert 'ProvideVariable("f1_post", f1)' in code
+
+    filename = ("driver-field-test.f90")
+    with open(filename, "r", encoding='utf-8') as my_file:
+        driver = my_file.read()
+
+    assert "ReadVariable('f1', f1)" in driver
+    assert "ReadVariable('chi%1', chi_1)" in driver
+    assert "ReadVariable('chi%2', chi_2)" in driver
+    assert "ReadVariable('chi%3', chi_3)" in driver
+    assert "ReadVariable('chi_post%1', chi_1_post)" in driver
+    assert "ReadVariable('chi_post%2', chi_2_post)" in driver
+    assert "ReadVariable('chi_post%3', chi_3_post)" in driver
+    assert "ReadVariable('f1_post', f1_post)" in driver
