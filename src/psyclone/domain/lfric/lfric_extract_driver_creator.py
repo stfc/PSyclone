@@ -43,7 +43,7 @@ from psyclone.core import Signature
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.errors import InternalError
-from psyclone.psyGen import HaloExchange, InvokeSchedule, Kern
+from psyclone.psyGen import InvokeSchedule, Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (ArrayMember, ArrayReference, Assignment,
@@ -771,20 +771,29 @@ class LFRicExtractDriverCreator:
 
         # The invoke-schedule might have children that are not in the node
         # list. So get the indices of the nodes for which a driver is to
-        # be created, and then remove all other nodes from the copy
+        # be created, and then remove all other nodes from the copy.This
+        # needs to be done before potential halo exchange notes are removed,
+        # to make sure we use the same indices (for e.g. loop boundary
+        # names, which are dependent on the index of the nodes in the tree).
+        # TODO #1731: this might not be required anymore if the loop
+        # boundaries are fixed earlier.
         all_indices = [node.position for node in nodes]
 
         schedule_copy = invoke_sched.copy()
 
-        halo_nodes = schedule_copy.walk(HaloExchange)
-        for halo_node in halo_nodes:
-            halo_node.parent.children.remove(halo_node)
+        # TODO #1992: if required, the following code will
+        # remove halo exchange nodes from the driver.
+        # halo_nodes = schedule_copy.walk(HaloExchange)
+        # for halo_node in halo_nodes:
+        #     halo_node.parent.children.remove(halo_node)
+
         original_symbol_table = invoke_sched.symbol_table
         proxy_name_mapping = self.get_proxy_name_mapping(schedule_copy)
 
         # Now clean up the try: remove nodes in the copy that are not
         # supposed to be extracted. Any node that should be extract
-        # needs to be lowered, which will fix the loop boundaries.
+        # needs to be lowered, which will fix the loop boundaries
+        # (TODO: #1731 - that might not be required anymore with 1731).
         # Otherwise, if e.g. the second loop is only extracted, this
         # loop would switch from using loop1_start/stop to loop0_start/stop
         # since is is then the first loop (hence we need to do this
