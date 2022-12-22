@@ -481,11 +481,7 @@ class LFRicExtractDriverCreator:
                                                         Reference(sym)])
                 continue
 
-            try:
-                sym = symbol_table.lookup_with_tag(str(signature))
-            except KeyError:
-                sig_str += "%data"
-                sym = symbol_table.lookup_with_tag(sig_str)
+            sym = symbol_table.lookup_with_tag(str(signature))
             name_lit = Literal(str(signature), CHARACTER_TYPE)
             LFRicExtractDriverCreator.add_call(program, read_var,
                                                [name_lit, Reference(sym)])
@@ -511,12 +507,9 @@ class LFRicExtractDriverCreator:
                                                         Reference(sym)])
                 continue
 
-            try:
-                sig_str = str(signature)
-                sym = symbol_table.lookup_with_tag(str(signature))
-            except KeyError:
-                sig_str += "%data"
-                sym = symbol_table.lookup_with_tag(sig_str)
+            sig_str = str(signature)
+            sym = symbol_table.lookup_with_tag(str(signature))
+
             is_input = signature in input_list
 
             # The variable is written (and maybe read as well)
