@@ -403,6 +403,86 @@ class LFRicExtractDriverCreator:
         program.addchild(call)
 
     # -------------------------------------------------------------------------
+    def create_output_var_code(self, signature_str, program,
+                               is_input, read_var, postfix,
+                               output_symbols, index=None):
+        # pylint: disable=too-many-arguments, too-many-locals
+        '''
+        This function creates all code required for an output variable.
+        It creates the '_post' variable which stores the correct result
+        from the file, which is read in. If the variable is not also an
+        input variable, the variable itself will be declared (based on
+        the size of the _post variable) and initialised to 0.
+        This function also handles array of fields, which need to get
+        an index number added.
+
+        :param str signature_str: the name of original variable (i.e. \
+            without _post), which will be looked up as a tag in the symbol \
+            table. If index is provided, it is added to the tag name using \
+            ${index}.
+        :param program: the PSyIR Routine to which any code must \
+            be added. It also contains the symbol table to be used.
+        :type program: :py:class:`psyclone.psyir.nodes.Routine`
+        :param boolean is_input: True if this variable is also an input \
+            parameters.
+        :param str read_var: the readvar method to be used including the \
+            name of the PSyData object (e.g. 'psy_data%ReadVar')
+        :param str postfix: the postfix to use for the expected output \
+            values, which are read from the file.
+        :param output_symbols: the list of output symbols for which a check \
+            for correctness will be added. Each tuple contains the output \
+            symbol after the kernel, and the expected output read from the \
+            file.
+        :type output_symbols: \
+            List[Tuple[:py:class:`psyclone.psyir.symbols.Symbol`,
+                       :py:class:`psyclone.psyir.symbols.Symbol`]]
+
+        '''
+        symbol_table = program.symbol_table
+        if index:
+            sym = symbol_table.lookup_with_tag(f"{signature_str}%{index}")
+        else:
+            sym = symbol_table.lookup_with_tag(signature_str)
+
+        # Declare a 'post' variable of the same type and
+        # read in its value.
+        post_name = sym.name + postfix
+        post_sym = symbol_table.new_symbol(post_name,
+                                           symbol_type=DataSymbol,
+                                           datatype=sym.datatype)
+        if index:
+            post_tag = f"{signature_str}{postfix}%{index}"
+        else:
+            post_tag = f"{signature_str}{postfix}"
+        name_lit = Literal(post_tag, CHARACTER_TYPE)
+        LFRicExtractDriverCreator.add_call(program, read_var,
+                                           [name_lit,
+                                            Reference(post_sym)])
+
+        # Now if a variable is written to, but not read, the variable
+        # is not allocated. So we need to allocate it and set it to 0.
+        if not is_input:
+            if isinstance(post_sym.datatype, ArrayType):
+                # TODO #1366 Once allocate is supported in PSyIR
+                # this parsing of a file can be replaced.
+                shape = post_sym.datatype.shape
+                dims = ",".join([":"]*len(shape))
+                code = (f'''
+                    subroutine tmp()
+                      integer, allocatable, dimension({dims}) :: b
+                      allocate({sym.name}, mold={post_name})
+                    end subroutine tmp''')
+                fortran_reader = FortranReader()
+                container = fortran_reader.psyir_from_source(code)\
+                    .children[0]
+                alloc = container.children[0].detach()
+                program.addchild(alloc)
+            set_zero = Assignment.create(Reference(sym),
+                                         Literal("0", INTEGER_TYPE))
+            program.addchild(set_zero)
+        output_symbols.append((sym, post_sym))
+
+    # -------------------------------------------------------------------------
     def create_read_in_code(self, program, psy_data, original_symbol_table,
                             input_list, output_list, postfix):
         # pylint: disable=too-many-arguments
@@ -453,14 +533,6 @@ class LFRicExtractDriverCreator:
         symbol_table = program.scope.symbol_table
         read_var = f"{psy_data.name}%ReadVariable"
 
-        # Collect all output symbols to later create the tests for
-        # correctness. This list stores 2-tuples: first one the
-        # variable that stores the output from the kernel, the second
-        # one the variable that stores the output values read from the
-        # file. The content of these two variables should be identical
-        # at the end.
-        output_symbols = []
-
         # First handle variables that are read:
         # -------------------------------------
         for signature in input_list:
@@ -489,65 +561,36 @@ class LFRicExtractDriverCreator:
 
         # Then handle all variables that are written (note that some
         # variables might be read and written)
+        # ----------------------------------------------------------
+        # Collect all output symbols to later create the tests for
+        # correctness. This list stores 2-tuples: first one the
+        # variable that stores the output from the kernel, the second
+        # one the variable that stores the output values read from the
+        # file. The content of these two variables should be identical
+        # at the end.
+        output_symbols = []
         for signature in output_list:
             # Find the right symbol for the variable. Note that all variables
             # in the input and output list have been detected as being used
             # when the variable accesses were analysed. Therefore, these
             # variables have References, and will already have been declared
             # in the symbol table (in add_all_kernel_symbols).
-            sig_str = LFRicExtractDriverCreator.flatten_string(str(signature))
             orig_sym = original_symbol_table.lookup(signature[0])
+            is_input = signature in input_list
             if orig_sym.is_array and orig_sym.datatype.intrinsic.name in \
                     self._all_field_types:
+                flattened = LFRicExtractDriverCreator.\
+                    flatten_string(str(signature))
                 upper = int(orig_sym.datatype.shape[0].upper.value)
                 for i in range(1, upper+1):
-                    sym = symbol_table.lookup_with_tag(f"{sig_str}%{i}")
-                    name_lit = Literal(f"{sig_str}%{i}", CHARACTER_TYPE)
-                    LFRicExtractDriverCreator.add_call(program, read_var,
-                                                       [name_lit,
-                                                        Reference(sym)])
-                continue
-
-            sig_str = str(signature)
-            sym = symbol_table.lookup_with_tag(str(signature))
-
-            is_input = signature in input_list
-
-            # The variable is written (and maybe read as well)
-            # ------------------------------------------------
-            # Declare a 'post' variable of the same type and
-            # read in its value.
-            post_name = sym.name+postfix
-            post_sym = symbol_table.new_symbol(post_name,
-                                               symbol_type=DataSymbol,
-                                               datatype=sym.datatype)
-            name_lit = Literal(sig_str+postfix, CHARACTER_TYPE)
-            LFRicExtractDriverCreator.add_call(program, read_var,
-                                               [name_lit,
-                                                Reference(post_sym)])
-
-            # Now if a variable is written to, but not read, the variable
-            # is not allocated. So we need to allocate it and set it to 0.
-            if not is_input:
-                if isinstance(post_sym.datatype, ArrayType):
-                    # TODO #1366 Once allocate is supported in PSyIR
-                    # this parsing of a file can be replaced.
-                    shape = post_sym.datatype.shape
-                    dims = ",".join([":"]*len(shape))
-                    code = (f'''
-                        subroutine tmp()
-                          integer, allocatable, dimension({dims}) :: b
-                          allocate({sym.name}, mold={post_name})
-                        end subroutine tmp''')
-                    fortran_reader = FortranReader()
-                    container = fortran_reader.psyir_from_source(code)\
-                        .children[0]
-                    alloc = container.children[0].detach()
-                    program.addchild(alloc)
-                set_zero = Assignment.create(Reference(sym),
-                                             Literal("0", INTEGER_TYPE))
-                program.addchild(set_zero)
-            output_symbols.append((sym, post_sym))
+                    self.create_output_var_code(flattened, program, is_input,
+                                                read_var, postfix,
+                                                output_symbols, index=i)
+            else:
+                sig_str = str(signature)
+                self.create_output_var_code(sig_str, program, is_input,
+                                            read_var, postfix,
+                                            output_symbols)
         return output_symbols
 
     # -------------------------------------------------------------------------

@@ -317,7 +317,8 @@ def test_lfric_driver_operator():
             "mm_w3_proxy%local_stencil)" in out)
     assert ("ProvideVariable(\"mm_w3_proxy%ncell_3d\", "
             "mm_w3_proxy%ncell_3d)" in out)
-    # Check handling of field arrays
+    # Check handling of field arrays: one call, which will need
+    # three calls in the driver
     assert "ProvideVariable(\"coord_post\", coord)" in out
 
     filename = ("driver-operator-test.f90")
@@ -332,7 +333,7 @@ def test_lfric_driver_operator():
             "mm_w3_proxy_ncell_3d" in driver)
     # And check the field arrays just in case
     for i in range(1, 4):
-        assert f"ReadVariable('coord%{i}', coord_{i}" in driver
+        assert f"ReadVariable('coord_post%{i}', coord_{i}" in driver
 
 
 # ----------------------------------------------------------------------------
@@ -441,3 +442,33 @@ def test_lfric_driver_extract_some_kernels_only():
     assert "loop1_start" not in driver
     assert "ReadVariable('loop2_start', loop2_start)" in driver
     assert "ReadVariable('loop2_stop', loop2_stop)" in driver
+
+
+# ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_lfric_driver_field_array_write():
+    '''Test the handling of arrays of fields which are written.'''
+
+    _, invoke = get_invoke("10.7_operator_read.f90", API,
+                           dist_mem=False, idx=0)
+
+    extract = LFRicExtractTrans()
+    extract.apply(invoke.schedule.children[0],
+                  options={"create_driver": True,
+                           "region_name": ("field", "test")})
+    code = str(invoke.gen())
+    # The variable coord is an output variable, it should
+    # be provided once, the extraction library will write these
+    # accesses as individual fields using the names "coord_post%1",
+    # ..., "coord_post%3"
+    assert "ProvideVariable(\"coord_post\", coord)" in code
+    # The variable is not read, so it shouldn't be listed:
+    assert "ProvideVariable(\"coord\", coord)" not in code
+
+    filename = ("driver-field-test.f90")
+    with open(filename, "r", encoding='utf-8') as my_file:
+        driver = my_file.read()
+
+    for i in range(1, 4):
+        assert f"ReadVariable('coord_post%{i}', coord_{i}_post)" in driver
+        assert f"ALL(coord_{i} - coord_{i}_post == 0.0))" in driver
