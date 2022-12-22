@@ -71,17 +71,30 @@ class CommonArgMetadata(CommonMetadata):
         :param fparser2_tree: fparser2 tree capturing a metadata argument.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`
-        :param int nargs: the number of expected arguments.
+
+        :param nargs: the number of expected arguments. This can \
+            either be a single value or a list containing a lower and an \
+            upper value.
+        :type nargs: int or List[int, int]
 
         :raises ValueError: if the kernel metadata does not contain \
             the expected number of arguments (nargs).
 
         '''
-        if len(fparser2_tree.children[1].children) != nargs:
+        if isinstance(nargs, list):
+            min_args = nargs[0]
+            max_args = nargs[1]
+            string = f"between {min_args} and {max_args}"
+        else:
+            min_args = nargs
+            max_args = nargs
+            string = f"{nargs}"
+
+        num_args_found = len(fparser2_tree.children[1].children)
+        if num_args_found < min_args or num_args_found > max_args:
             raise ValueError(
-                f"Expected kernel metadata to have {nargs} "
-                f"arguments, but found "
-                f"{len(fparser2_tree.children[1].children)} in "
+                f"Expected kernel metadata to have {string} "
+                f"arguments, but found {num_args_found} in "
                 f"'{str(fparser2_tree)}'.")
 
     @classmethod
@@ -131,7 +144,11 @@ class CommonArgMetadata(CommonMetadata):
         :rtype: str
 
         '''
-        return fparser2_tree.children[1].children[index].tostr()
+        try:
+            return fparser2_tree.children[1].children[index].tostr()
+        except IndexError:
+            # Optional metadata does not exist.
+            return None
 
 
 __all__ = ["CommonArgMetadata"]

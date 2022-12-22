@@ -56,25 +56,31 @@ class InterGridArgMetadata(FieldArgMetadata):
         InterGrid is on (W0, ...).
     :param str mesh_arg: the type of mesh that this InterGrid arg \
         is on (coarse or fine).
+    :param Optional[str] stencil: the type of stencil used by the \
+        kernel when accessing this InterGrid arg.
 
     '''
     # The relative position of LFRic mesh metadata. Metadata for an
     # inter-grid argument is provided in the following format
-    # 'arg_type(form, datatype, access, function_space,
-    # mesh)'. Therefore, the index of the mesh argument
-    # (mesh_arg_index) is 4. Index values not provided here are common
-    # to the parent classes and are inherited from them.
+    # 'arg_type(form, datatype, access, function_space, mesh,
+    # stencil)'. Therefore, the index of the mesh argument
+    # (mesh_arg_index) is 4 and stencil argument (stencil_arg_index)
+    # is 5. Index values not provided here are common to the parent
+    # classes and are inherited from them.
     mesh_arg_index = 4
+    stencil_arg_index = 5
     # The name to use for any exceptions.
     check_name = "inter-grid"
-    # The number of arguments in the language-level metadata.
-    nargs = 5
+    # The number of arguments in the language-level metadata (min and
+    # max values).
+    nargs = [5, 6]
 
     # The fparser2 class that captures this metadata.
     fparser2_class = Fortran2003.Structure_Constructor
 
-    def __init__(self, datatype, access, function_space, mesh_arg):
-        super().__init__(datatype, access, function_space)
+    def __init__(self, datatype, access, function_space, mesh_arg,
+                 stencil=None):
+        super().__init__(datatype, access, function_space, stencil=stencil)
         self.mesh_arg = mesh_arg
 
     @classmethod
@@ -90,13 +96,16 @@ class InterGridArgMetadata(FieldArgMetadata):
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`
 
         :returns: a tuple containing the datatype, access, function \
-            space and mesh metadata.
-        :rtype: Tuple[str, str, str, str]
+            space, mesh and stencil metadata.
+        :rtype: Tuple[str, str, str, str, Optional[str]]
 
         '''
-        datatype, access, function_space = super()._get_metadata(fparser2_tree)
+        # RF TODO This isn't going to work for stencils as we call
+        # super() so don't pick up the different index for stencil
+        # specified in this class?
+        datatype, access, function_space, stencil = super()._get_metadata(fparser2_tree)
         mesh_arg = cls.get_mesh_arg(fparser2_tree)
-        return (datatype, access, function_space, mesh_arg)
+        return (datatype, access, function_space, mesh_arg, stencil)
 
     @staticmethod
     def get_mesh_arg(fparser2_tree):
@@ -131,6 +140,10 @@ class InterGridArgMetadata(FieldArgMetadata):
         :returns: the metadata represented by this class as Fortran.
         :rtype: str
         '''
+        if self.stencil:
+            return (f"arg_type({self.form}, {self.datatype}, {self.access}, "
+                    f"{self.function_space}, stencil({self.stencil}), "
+                    f"mesh_arg={self.mesh_arg})")
         return (f"arg_type({self.form}, {self.datatype}, {self.access}, "
                 f"{self.function_space}, mesh_arg={self.mesh_arg})")
 

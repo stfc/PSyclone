@@ -51,6 +51,8 @@ class FieldArgMetadata(ScalarArgMetadata):
     :param str access: the way the kernel accesses this field (GH_WRITE, ...).
     :param str function_space: the function space that this field is \
         on (W0, ...).
+    :param Optional[str] stencil: the type of stencil used by the \
+        kernel when accessing this field.
 
     '''
     # The name used to specify a field argument in LFRic metadata.
@@ -63,14 +65,16 @@ class FieldArgMetadata(ScalarArgMetadata):
     datatype_arg_index = 1
     access_arg_index = 2
     function_space_arg_index = 3
+    stencil_arg_index = 4
     # The name to use for any exceptions.
     check_name = "field"
-    # The number of arguments in the language-level metadata.
-    nargs = 4
+    # The number of arguments in the language-level metadata (low and high).
+    nargs = [4, 5]
 
-    def __init__(self, datatype, access, function_space):
+    def __init__(self, datatype, access, function_space, stencil=None):
         super().__init__(datatype, access)
         self.function_space = function_space
+        self.stencil = stencil
 
     @classmethod
     def _get_metadata(cls, fparser2_tree):
@@ -84,21 +88,53 @@ class FieldArgMetadata(ScalarArgMetadata):
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`
 
-        :returns: a tuple containing the datatype, access and function \
-            space metadata.
-        :rtype: Tuple[str, str, str]
+        :returns: a tuple containing the datatype, access, function \
+            space and stencil metadata.
+        :rtype: Tuple[str, str, str, Optional[str]]
 
         '''
         datatype, access = super()._get_metadata(fparser2_tree)
         function_space = cls.get_arg(
             fparser2_tree, cls.function_space_arg_index)
-        return (datatype, access, function_space)
+        stencil = cls.get_stencil(fparser2_tree)
+        return (datatype, access, function_space, stencil)
+
+    @classmethod
+    def get_stencil(cls, fparser2_tree):
+        '''Retrieves the stencil metadata value found within the
+        supplied fparser2 tree and checks that it is valid.
+
+        :param fparser2_tree: fparser2 tree capturing the required metadata.
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
+
+        :returns: the stencil value extracted from the fparser2 tree \
+            if there is one, or None if not.
+        :rtype: Optional[str]
+
+        :raises TypeError: if the stencil metadata is not in the \
+            expected form.
+
+        '''
+        raw_stencil_text = FieldArgMetadata.get_arg(
+            fparser2_tree, cls.stencil_arg_index)
+        if not raw_stencil_text:
+            return None
+        raw_stencil_text = raw_stencil_text.strip().lower()
+        if not (raw_stencil_text.startswith("stencil(") and
+                raw_stencil_text.endswith(")") and len(raw_stencil_text)>9):
+            raise TypeError(f"The stencil metadata should be in the form "
+                            f"'stencil(type)' but found '{raw_stencil_text}'.")
+        stencil = raw_stencil_text[8:-1]
+        return stencil
 
     def fortran_string(self):
         '''
         :returns: the metadata represented by this class as Fortran.
         :rtype: str
         '''
+        if self.stencil:
+            return (f"arg_type({self.form}, {self.datatype}, {self.access}, "
+                    f"{self.function_space}, stencil({self.stencil}))")
         return (f"arg_type({self.form}, {self.datatype}, {self.access}, "
                 f"{self.function_space})")
 
@@ -142,6 +178,27 @@ class FieldArgMetadata(ScalarArgMetadata):
         FieldArgMetadata.validate_scalar_value(
             value, const.VALID_FUNCTION_SPACE_NAMES, "function space")
         self._function_space = value.lower()
+
+    @property
+    def stencil(self):
+        '''
+        :returns: the stencil for this field argument.
+        :rtype: Optional[str]
+        '''
+        return self._stencil
+
+    @stencil.setter
+    def stencil(self, value):
+        '''
+        :param str value: set the stencil to the specified value.
+        '''
+        if value is None:
+            self._stencil = None
+        else:
+            const = LFRicConstants()
+            FieldArgMetadata.validate_scalar_value(
+                value, const.VALID_STENCIL_TYPES, "stencil")
+            self._stencil = value.lower()
 
 
 __all__ = ["FieldArgMetadata"]
