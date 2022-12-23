@@ -388,7 +388,10 @@ class InlineTrans(Transformation):
 
         :param actual_arg: (part of) the actual argument to the routine.
         :type actual_arg: :py:class:`psyclone.psyir.nodes.ArrayMixin`
-
+        :param local_ref: the Reference in the called routine
+        :param local_decln_shape:
+        :param call_node:
+        :param dummy_args:
         '''
 
         if isinstance(local_ref, ArrayMixin):
