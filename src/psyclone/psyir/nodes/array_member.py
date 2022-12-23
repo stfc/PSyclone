@@ -36,7 +36,6 @@
 
 ''' This module contains the implementation of the ArrayMember node.'''
 
-from __future__ import absolute_import
 from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.errors import GenerationError
@@ -86,6 +85,77 @@ class ArrayMember(ArrayMixin, Member):
         for child in indices:
             obj.addchild(child)
         return obj
+
+    def lbound(self, pos):
+        '''
+        Lookup the lower bound of this ArrayMember. If we don't have the
+        necessary type information then a call to the LBOUND intrinsic is
+        constructed and returned.
+
+        :param int pos: the dimension of the array for which to lookup the \
+                        bounds.
+
+        :returns: the declared lower bound for the specified dimension of \
+            this ArrayMember or a call to the LBOUND intrinsic if it is not \
+            known.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        TODO - should this be incorporated into `datatype` in
+        e.g. StructureReference?
+        '''
+        from psyclone.psyir.symbols import DataTypeSymbol, ArrayType, \
+            StructureType, INTEGER_TYPE
+        from psyclone.psyir.nodes import Reference, StructureReference, \
+            ArrayOfStructuresReference, BinaryOperation, Literal
+        # First, walk up to the parent reference, collecting the necessary
+        # information to make a new [ArrayOf]Structure[s]Reference as we go.
+        cnames = []
+        cursor = self
+        while not isinstance(cursor, Reference):
+            if hasattr(cursor, "indices"):
+                new_indices = [idx.copy() for idx in cursor.indices]
+                cnames.insert(0, (cursor.name, new_indices))
+            else:
+                cnames.insert(0, cursor.name)
+            cursor = cursor.parent
+        # Now that we've reached the parent reference, we lookup its type
+        # and then walk back down the type information to find that for
+        # this ArrayMember (if available).
+        dtype = cursor.symbol.datatype
+
+        for entry in cnames:
+            if isinstance(dtype, ArrayType):
+                dtype = dtype.intrinsic
+            if isinstance(dtype, DataTypeSymbol):
+                dtype = dtype.datatype
+            if not isinstance(dtype, StructureType):
+                # We can't resolve the type.
+                break
+            if len(entry) == 2:
+                name = entry[0]
+            else:
+                name = entry
+            dtype = dtype.components[name]
+            # dtype will be of ComponentType so get the associated datatype.
+            dtype = dtype.datatype
+
+        if not isinstance(dtype, ArrayType):
+            # We've failed to resolve the type so we construct a call to
+            # the LBOUND intrinsic instead.
+            # Remove the indexing information from the ultimate member
+            # of the structure access.
+            cnames[-1] = cnames[-1][0]
+            if hasattr(cursor, "indices"):
+                new_indices = [idx.copy() for idx in cursor.indices]
+                ref = ArrayOfStructuresReference.create(
+                    cursor.symbol, new_indices, cnames)
+            else:
+                ref = StructureReference.create(cursor.symbol, cnames)
+            return BinaryOperation.create(
+                BinaryOperation.Operator.LBOUND, ref,
+                Literal(str(pos+1), INTEGER_TYPE))
+
+        return dtype.shape[pos].lower
 
 
 # For AutoAPI documentation generation

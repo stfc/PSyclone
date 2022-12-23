@@ -45,7 +45,8 @@ from psyclone.psyir.transformations import (InlineTrans,
                                             TransformationError)
 from psyclone.tests.utilities import Compile
 
-MY_TYPE = ("  type other_type\n"
+MY_TYPE = ("  integer, parameter :: ngrids = 10\n"
+           "  type other_type\n"
            "    real, dimension(10) :: data\n"
            "    integer :: nx\n"
            "  end type other_type\n"
@@ -57,7 +58,10 @@ MY_TYPE = ("  type other_type\n"
            "  end type my_type\n"
            "  type big_type\n"
            "    type(my_type) :: region\n"
-           "  end type big_type\n")
+           "  end type big_type\n"
+           "  type vbig_type\n"
+           "    type(big_type), dimension(ngrids) :: grids\n"
+           "  end type vbig_type\n")
 
 
 # init
@@ -294,21 +298,27 @@ def test_apply_struct_slice_arg(fortran_reader, fortran_writer, tmpdir):
         f"  subroutine run_it()\n"
         f"    integer :: i\n"
         f"    type(my_type) :: var_list(10)\n"
+        f"    type(vbig_type), dimension(5) :: cvar\n"
         f"    call sub(var_list(:)%local%nx, i)\n"
-        f"    call sub2d(var_list(:), 1, 1)\n"
-        f"    call sub2d(var_list(:), i, i+2)\n"
+        f"    call sub2(var_list(:), 1, 1)\n"
+        f"    call sub2(var_list(:), i, i+2)\n"
+        f"    call sub3(cvar)\n"
         f"  end subroutine run_it\n"
         f"  subroutine sub(ix)\n"
         f"    integer, dimension(:) :: ix\n"
         f"    ix(:) = ix(:) + 1\n"
         f"  end subroutine sub\n"
-        f"  subroutine sub2d(x, start, stop)\n"
+        f"  subroutine sub2(x, start, stop)\n"
         f"    type(my_type), dimension(:) :: x\n"
         f"    integer :: start, stop\n"
         f"    x(:)%data(2) = 0.0\n"
         f"    x(:)%local%nx = 4\n"
         f"    x(start:stop+1)%local%nx = -2\n"
-        f"  end subroutine sub2d\n"
+        f"  end subroutine sub2\n"
+        f"  subroutine sub3(y)\n"
+        f"    type(vbig_type), dimension(:) :: y\n"
+        f"    y(2)%grids(2)%region%data(:) = 0.0\n"
+        f"  end subroutine sub3\n"
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
@@ -319,6 +329,7 @@ def test_apply_struct_slice_arg(fortran_reader, fortran_writer, tmpdir):
     assert "var_list(:)%data(2) = 0.0" in output
     assert "var_list(:)%local%nx = 4" in output
     assert "var_list(:1 + 1)%local%nx = -2" in output
+    assert "cvar(2)%grids(2)%region%data(:) = 0.0" in output
     assert Compile(tmpdir).string_compiles(output)
 
 
@@ -491,7 +502,7 @@ def test_apply_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
         "    x = 2.0 * x\n"
         "  end subroutine sub2\n"
         "  subroutine sub2a(x)\n"
-        "    real, intent(inout), dimension(10,10) :: x\n"
+        "    real, intent(inout), dimension(10,5) :: x\n"
         "    integer :: i\n"
         "    do i=1, 10\n"
         "      x(i,:) = 2.0 * x(i,:)\n"
@@ -581,11 +592,13 @@ def test_apply_struct_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
         f"  integer :: i\n"
         f"  real :: a(10)\n"
         f"  type(my_type) :: grid\n"
+        f"  type(vbig_type) :: micah\n"
         f"  grid%data(:) = 1.0\n"
         f"  grid%data2d(:,:) = 1.0\n"
         f"  do i=1,10\n"
         f"    a(i) = 1.0\n"
-        f"    call sub(grid%data(:))\n"
+        f"    call sub(grid%local%data)\n"
+        f"    call sub(micah%grids(3)%region%data(:))\n"
         f"    call sub(grid%data2d(:,i))\n"
         f"    call sub(grid%data2d(1:5,i))\n"
         f"  end do\n"
@@ -598,6 +611,7 @@ def test_apply_struct_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
         f"    end do\n"
         f"    x(1:2) = 0.0\n"
         f"    x(:) = 3.0\n"
+        f"    x = 5.0\n"
         f"  end subroutine sub\n"
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
@@ -608,22 +622,77 @@ def test_apply_struct_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
     assert ("    do i = 1, 10, 1\n"
             "      a(i) = 1.0\n"
             "      do ji = 1, 5, 1\n"
-            "        grid%data(ji) = 2.0 * grid%data(ji)\n"
+            "        grid%local%data(ji) = 2.0 * grid%local%data(ji)\n"
             "      enddo\n"
-            "      grid%data(1:2) = 0.0\n"
-            "      grid%data(:) = 3.0\n"
+            "      grid%local%data(1:2) = 0.0\n"
+            "      grid%local%data(:) = 3.0\n"
+            "      grid%local%data = 5.0\n"
             "      do ji_1 = 1, 5, 1\n"
-            "        grid%data2d(ji_1,i) = 2.0 * grid%data2d(ji_1,i)\n"
+            "        micah%grids(3)%region%data(ji_1) = 2.0 * "
+            "micah%grids(3)%region%data(ji_1)\n"
             "      enddo\n"
-            "      grid%data2d(1:2,i) = 0.0\n"
-            "      grid%data2d(:,i) = 3.0\n"
+            "      micah%grids(3)%region%data(1:2) = 0.0\n"
+            "      micah%grids(3)%region%data(:) = 3.0\n"
+            "      micah%grids(3)%region%data(:) = 5.0\n"
             "      do ji_2 = 1, 5, 1\n"
             "        grid%data2d(ji_2,i) = 2.0 * grid%data2d(ji_2,i)\n"
             "      enddo\n"
             "      grid%data2d(1:2,i) = 0.0\n"
+            "      grid%data2d(:,i) = 3.0\n"
+            "      grid%data2d(:,i) = 5.0\n"
+            "      do ji_3 = 1, 5, 1\n"
+            "        grid%data2d(ji_3,i) = 2.0 * grid%data2d(ji_3,i)\n"
+            "      enddo\n"
+            "      grid%data2d(1:2,i) = 0.0\n"
             "      grid%data2d(1:5,i) = 3.0\n"
+            "      grid%data2d(1:5,i) = 5.0\n"
             "    enddo\n" in output)
     assert Compile(tmpdir).string_compiles(output)
+
+
+@pytest.mark.parametrize("type_decln", [MY_TYPE, "  use some_mod\n"])
+def test_apply_struct_array(fortran_reader, fortran_writer, tmpdir,
+                            type_decln):
+    '''Test that apply works correctly when the dummy argument is an
+    array of structures. We test both when the type of the structure is
+    resolved and when it isn't.
+
+    '''
+    code = (
+        f"module test_mod\n"
+        f"{type_decln}"
+        f"contains\n"
+        f"  subroutine run_it()\n"
+        f"  integer :: i\n"
+        f"  real :: a(10)\n"
+        f"  type(my_type) :: grid\n"
+        f"  type(vbig_type) :: micah\n"
+        f"  call sub(micah%grids(:))\n"
+        f"  end subroutine run_it\n"
+        f"  subroutine sub(x)\n"
+        f"    type(big_type), dimension(2:4) :: x\n"
+        f"    integer ji\n"
+        f"    ji = 2\n"
+        f"    x(:)%region%idx = 3.0\n"
+        f"    x(ji)%region%idx = 2.0\n"
+        f"  end subroutine sub\n"
+        f"end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    inline_trans = InlineTrans()
+    for call in psyir.walk(Call):
+        inline_trans.apply(call)
+    output = fortran_writer(psyir)
+    if "use some_mod" in type_decln:
+        assert ("    ji = 2\n"
+                "    micah%grids(2 - 2 + LBOUND(micah%grids, 1):"
+                "4 - 2 + LBOUND(micah%grids, 1))%region%idx = 3.0\n"
+                "    micah%grids(ji - 2 + "
+                "LBOUND(micah%grids, 1))%region%idx = 2.0\n" in output)
+    else:
+        assert ("    ji = 2\n"
+                "    micah%grids(2 - 2 + 1:4 - 2 + 1)%region%idx = 3.0\n"
+                "    micah%grids(ji - 2 + 1)%region%idx = 2.0\n" in output)
+        assert Compile(tmpdir).string_compiles(output)
 
 
 def test_apply_ptr_arg(fortran_reader, fortran_writer, tmpdir):
@@ -1487,6 +1556,31 @@ def test_validate_assumed_shape(fortran_reader):
             "argument, 'x', has rank 1" in str(err.value))
 
 
+def test_validate_indirect_range(fortran_reader):
+    '''Test that validate rejects an attempt to inline a call to a routine
+    with an argument constructed using an indirect slice.'''
+    code = (
+        "module test_mod\n"
+        "  integer, dimension(10) :: indices\n"
+        "contains\n"
+        "subroutine main\n"
+        "  real, dimension(10,10) :: var\n"
+        "  call sub(var(indices(:)))\n"
+        "end subroutine main\n"
+        "subroutine sub(x)\n"
+        "  real, dimension(:), intent(inout) :: x\n"
+        "  x(:) = 0.0\n"
+        "end subroutine sub\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.apply(call)
+    assert ("Cannot inline routine 'sub' because argument 'var(indices(:))' "
+            "has an array range in an indirect access" in str(err.value))
+
+
 def test_validate_non_unit_stride_slice(fortran_reader):
     '''Test that validate rejects an attempt to inline a call to a routine
     with an argument constructed using an array slice with non-unit stride.'''
@@ -1517,7 +1611,7 @@ def test_validate_named_arg(fortran_reader):
     that has a named argument.'''
     # In reality, the routine with a named argument would almost certainly
     # use the 'present' intrinsic but, since that gives a CodeBlock that itself
-    # prevents inlining, out test example omits it.
+    # prevents inlining, our test example omits it.
     code = (
         "module test_mod\n"
         "contains\n"
