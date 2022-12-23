@@ -42,7 +42,8 @@ OpenCL code from PSyIR nodes.
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.nodes import Literal
-from psyclone.psyir.symbols import ScalarType, ArrayType
+from psyclone.psyir.symbols import ScalarType, ArrayType, DataSymbol, \
+    ArgumentInterface
 
 
 class OpenCLWriter(CWriter):
@@ -183,6 +184,7 @@ class OpenCLWriter(CWriter):
 
             code += varname + " = get_global_size("
             code += str(dim - 1) + ");\n"
+
         return code
 
     def kernelschedule_node(self, node):
@@ -247,8 +249,10 @@ class OpenCLWriter(CWriter):
             code += self.gen_local_variable(symbol)
 
         # Declare array length
-        for symbol in data_args:
-            code += self.gen_array_length_variables(symbol, symtab)
+        for symbol in symtab.symbols:
+            if isinstance(symbol, DataSymbol) \
+                    and isinstance(symbol.datatype, ArrayType):
+                code += self.gen_array_length_variables(symbol, symtab)
 
         # Declare iteration indices
         for index, symbol in enumerate(symtab.iteration_indices):

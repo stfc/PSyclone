@@ -52,7 +52,8 @@ from psyclone.psyir.nodes import Routine, Call, Reference, Literal, \
     StructureReference, FileContainer, CodeBlock
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, \
     ContainerSymbol, UnknownFortranType, ArgumentInterface, ImportInterface, \
-    INTEGER_TYPE, CHARACTER_TYPE, ArrayType, BOOLEAN_TYPE, ScalarType
+    INTEGER_TYPE, CHARACTER_TYPE, ArrayType, BOOLEAN_TYPE, ScalarType, \
+    PreprocessorInterface
 from psyclone.transformations import TransformationError
 
 
@@ -90,6 +91,10 @@ class GOOpenCLTrans(Transformation):
     _enable_profiling = False
     # Whether to enable the out_of_order option in the OpenCL environment
     _out_of_order = False
+    # Whether to enable aggressive optimization flags when JIT compiled
+    _aggressive_flags = False
+    # Whether to provide run-time invariants as JIT compiler defines
+    _define_rt_invariants = False
     # Total number of invokes that have been transformed to OpenCL
     _transformed_invokes = 0
     # Reference to the OpenCL kernels file
@@ -145,7 +150,8 @@ class GOOpenCLTrans(Transformation):
                 f"class of) InvokeSchedule but got {type(node)}")
 
         # Validate options map
-        valid_options = ['end_barrier', 'enable_profiling', 'out_of_order']
+        valid_options = ['end_barrier', 'enable_profiling', 'out_of_order',
+                         'aggressive_flags', 'define_runtime_invariants']
         for key, value in options.items():
             if key in valid_options:
                 # All current options should contain boolean values
@@ -250,6 +256,10 @@ class GOOpenCLTrans(Transformation):
 
         if 'out_of_order' in options:
             self._out_of_order = options['out_of_order']
+        if 'aggressive_flags' in options:
+            self._aggressive_flags = options['aggressive_flags']
+        if 'define_runtime_invariants' in options:
+            self._define_rt_invariants = options['define_runtime_invariants']
 
         self._transformed_invokes += 1
 
@@ -263,15 +273,12 @@ class GOOpenCLTrans(Transformation):
 
         # Insert, if they don't already exist, the necessary OpenCL helper
         # subroutines in the root Container.
-        psy_init = self._insert_opencl_init_routine(node.root)
         init_grid = self._insert_initialise_grid_buffers(node.root)
         write_grid_buf = self._insert_write_grid_buffers(node.root)
         self._insert_ocl_read_from_device_function(node.root)
         self._insert_ocl_write_to_device_function(node.root)
         init_buf = self._insert_ocl_initialise_buffer(node.root)
 
-        for kern in node.coded_kernels():
-            self._insert_ocl_arg_setter_routine(node.root, kern)
 
         # Insert fortcl, clfortran and c_iso_binding import statement
         fortcl = ContainerSymbol("fortcl")
@@ -353,7 +360,11 @@ class GOOpenCLTrans(Transformation):
         setup_block.preceding_comment = \
             "Initialise OpenCL runtime, kernels and buffers"
         node.children.insert(cursor, setup_block)
-        setup_block.if_body.addchild(Call.create(psy_init, []))
+
+        self._gen_opencl_init_schedule(setup_block.if_body)
+
+        for kern in node.coded_kernels():
+            self._insert_ocl_arg_setter_routine(node.root, kern)
 
         # Set up cmd_queues pointer
         ptree = Fortran2003.Pointer_Assignment_Stmt(
@@ -1016,7 +1027,7 @@ class GOOpenCLTrans(Transformation):
 
         return node.symbol_table.lookup_with_tag(sub_name)
 
-    def _insert_opencl_init_routine(self, node):
+    def _gen_opencl_init_schedule(self, node):
         '''
         Returns the symbol of the subroutine that initialises the OpenCL
         environment using FortCL. If the subroutine doesn't exist it also
@@ -1029,21 +1040,32 @@ class GOOpenCLTrans(Transformation):
         :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
 
         '''
-        symtab = node.symbol_table
-        try:
-            # TODO #1572: The ocl_init routine may need to be regenerated if
-            # there are multiple Invokes because _max_queue_number may have
-            # increased and we need to load the kernels of both invokes.
-            return symtab.lookup_with_tag("ocl_init_routine")
-        except KeyError:
-            # If the Symbol does not exist, the rest of this method
-            # will generate it.
-            pass
+        invoke = node.ancestor(Routine)
+        symtab = invoke.symbol_table
 
-        # Create the symbol for the routine and add it to the symbol table.
-        subroutine_name = symtab.new_symbol("psy_init",
-                                            symbol_type=RoutineSymbol,
-                                            tag="ocl_init_routine").name
+        # Declarations
+          # use fortcl, only: ocl_env_init, add_kernels
+          # character(len=30) kernel_names({len(unique_kernels)})
+          # character(len=4096) compiler_flags
+          # integer :: ocl_device_num=1
+
+        #fortcl = symtab.lookup("fortcl")
+        #ocl_env_init = RoutineSymbol(
+        #        "ocl_env_init", interface=ImportInterface(fortcl))
+        #add_kernels = RoutineSymbol(
+        #        "add_kernels", interface=ImportInterface(fortcl))
+        #kernel_names = DataSymbol(
+        #        "kernel_names", datatype=ArrayType(CHARACTER_TYPE, [30, 11]))
+        #compiler_flags = DataSymbol(
+        #        "compiler_flags", datatype=ArrayType(CHARACTER_TYPE, [4096]))
+        #ocl_device_num = DataSymbol(
+        #        "ocl_device_num", datatype=INTEGER_TYPE)
+        #symtab.add(ocl_env_init)
+        #symtab.add(add_kernels)
+        #symtab.add(kernel_names)
+        #symtab.add(compiler_flags)
+        #symtab.add(ocl_device_num)
+
 
         # Choose a round-robin device number if it has MPI and multiple
         # accelerators.
@@ -1052,13 +1074,73 @@ class GOOpenCLTrans(Transformation):
         additional_uses = ""
         additional_stmts = ""
         if devices_per_node > 1 and distributed_memory:
-            additional_uses += "USE parallel_mod, ONLY: get_rank"
+            parallel_mod = ContainerSymbol("parallel_mod")
+            get_rank = RoutineSymbol(
+                "get_rank", interface=ImportInterface(parallel_mod))
+            symtab.add(parallel_mod)
+            symtab.add(get_rank)
             additional_stmts += \
-                f"ocl_device_num = mod(get_rank()-1, {devices_per_node}) + 1"
+                f"ocl_device_num = mod(get_rank()-1, {devices_per_node}) + 1\n"
 
         # Get a set of all kernel names in the Container. This implementation
         # currently assumes all of them will be available in OpenCL
-        unique_kernels = {kernel.name for kernel in node.coded_kernels()}
+        unique_kernels = {kernel.name for kernel in invoke.coded_kernels()}
+
+        additional_stmts = "write (compiler_flags, *) \"\""
+
+        if self._aggressive_flags:
+            additional_stmts += ",\"-cl-fast-relaxed-math \""
+            additional_stmts += ",\"-cl-mad-enable \""
+            additional_stmts += ",\"-cl-no-signed-zeros \""
+
+        if self._define_rt_invariants:
+            for kern in invoke.coded_kernels():
+                if kern.name == "momentum_v_code":
+                    continue  # Keep as baseline
+                kernel = kern.get_kernel_schedule()
+                kernel_symtab = kern.get_kernel_schedule().symbol_table
+                api_extra_args = len(kernel_symtab.iteration_indices)
+
+                # Travers arguments in reverse because we may delete some
+                # of them and need the position
+                for idx, arg in reversed(
+                        list(enumerate(kernel_symtab.argument_list))
+                ):
+                    # Skip the arguments that are not to be JIT specialized
+                    if arg.name == "istep":
+                        continue
+                    if arg in kernel_symtab.iteration_indices:
+                        continue
+                    if not isinstance(arg.datatype, ScalarType):
+                        continue
+                    if arg.datatype.intrinsic is not \
+                            ScalarType.Intrinsic.INTEGER:
+                        continue
+                    previous_arg_list = kernel_symtab.argument_list[:]
+
+                    # Convert arguments to preprocessor top-level scope and
+                    # rename them to avoid clashes.
+                    kernel_symtab.rename_symbol(arg, arg.name+"_"+kern.name)
+                    container_symtab = kernel.parent.symbol_table
+                    if arg.name not in container_symtab:
+                        arg.interface = PreprocessorInterface()
+                        kernel_symtab.move_symbol_upwards(arg,
+                                container_symtab)
+
+                    # Update argument list without the symbol
+                    previous_arg_list.remove(arg)
+                    kernel_symtab.specify_argument_list(previous_arg_list)
+
+                    # Update argument call without the symbol, but record
+                    # the name ...
+                    psy_name = kern.arguments.args[idx-api_extra_args].name
+                    del kern.arguments.args[idx-api_extra_args]
+
+                    # ... and place it into the OpenCL compiler flags to
+                    # capture its value
+                    additional_stmts += \
+                        f"\nwrite (compiler_flags, '(A,A,I0)')" \
+                        f"trim(compiler_flags), \" -D{arg.name}=\", {psy_name}"
 
         # Code of the subroutine in Fortran
         code = f'''
@@ -1066,40 +1148,45 @@ class GOOpenCLTrans(Transformation):
           {additional_uses}
           use fortcl, only: ocl_env_init, add_kernels
           character(len=30) kernel_names({len(unique_kernels)})
+          character(len=4096) compiler_flags
           integer :: ocl_device_num=1
           logical, save :: initialised=.false.
-          ! Check to make sure we only execute this routine once
-          if (.not. initialised) then
-            initialised = .true.
-            ! Initialise the opencl environment/device
-            {additional_stmts}
-            call ocl_env_init({self._max_queue_number}, ocl_device_num, &
-                {".true." if self._enable_profiling else ".false."}, &
-                {".true." if self._out_of_order else ".false."})
-            ! The kernels this psy layer module requires
+
+          ! Initialise the opencl environment/device
+          {additional_stmts}
+          call ocl_env_init({self._max_queue_number}, ocl_device_num, &
+              {".true." if self._enable_profiling else ".false."}, &
+              {".true." if self._out_of_order else ".false."})
+          ! The kernels this psy layer module requires
         '''
 
         for index, kernel_name in enumerate(unique_kernels):
             code += f"kernel_names({index + 1}) = \"{kernel_name}\"\n"
 
         code += f'''\
-            ! Create the opencl kernel objects. This expects to find all of
-            ! the compiled kernels in FORTCL_KERNELS_FILE environment variable
-            call add_kernels({len(unique_kernels)}, kernel_names)
-          end if
+          ! Create the opencl kernel objects. This expects to find all of
+          ! the compiled kernels in FORTCL_KERNELS_FILE environment variable
+          call add_kernels({len(unique_kernels)}, kernel_names, &
+             & compiler_flags=compiler_flags)
         end subroutine psy_init'''
 
         # Obtain the PSyIR representation of the code above
         fortran_reader = FortranReader()
         container = fortran_reader.psyir_from_source(code)
         subroutine = container.children[0]
-        # Rename subroutine
-        subroutine.name = subroutine_name
 
-        # Add the subroutine as child of the provided node
-        node.addchild(subroutine.detach())
+        self_symbol = subroutine.symbol_table.lookup_with_tag(
+                                                "own_routine_symbol")
+        for symbol in subroutine.symbol_table.symbols:
+            if symbol is self_symbol:
+                continue
+            try:
+                exising_symbol = symtab.lookup(symbol.name)
+            except KeyError:
+                symtab.add(symbol)
 
-        return symtab.lookup_with_tag("ocl_init_routine")
+        for statement in subroutine.children[:]:
+            node.addchild(statement.detach())
 
     @staticmethod
     def _insert_initialise_grid_buffers(node):
