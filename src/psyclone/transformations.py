@@ -715,7 +715,7 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
 
 class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
 
-    ''' Dynamo 0.3 specific orphan OpenMP loop transformation. Adds
+    ''' LFRic (Dynamo 0.3) specific orphan OpenMP loop transformation. Adds
     Dynamo-specific validity checks.
 
     :param str omp_schedule: the OpenMP schedule to use. Must be one of \
@@ -730,7 +730,7 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
         return "Add an OpenMP DO directive to a Dynamo 0.3 loop"
 
     def validate(self, node, options=None):
-        ''' Perform Dynamo 0.3 specific loop validity checks for the
+        ''' Perform LFRic (Dynamo 0.3) specific loop validity checks for the
         OMPLoopTrans.
 
         :param node: the Node in the Schedule to check
@@ -738,12 +738,12 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
         :param options: a dictionary with options for transformations \
                         and validation.
         :type options: Optional[Dict[str, Any]]
-        :param bool options["reprod"]:
-                indicating whether reproducible reductions should be used. \
-                By default the value from the config file will be used.
+        :param bool options["reprod"]: \
+            indicating whether reproducible reductions should be used. \
+            By default the value from the config file will be used.
 
-        :raise TransformationError: if an OMP loop transform would create \
-                incorrect code.
+        :raises TransformationError: if an OMP loop transform would create \
+            incorrect code.
 
         '''
         if not options:
@@ -757,7 +757,7 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
                                         Config.get().reproducible_reductions)
 
         # This transformation allows to parallelise loops with potential
-        # dependencies because we use cell colouring to guarantees that
+        # dependencies because we use cell colouring to guarantee that
         # neighbours are not updated at the same time.
         options["force"] = True
         super().validate(node, options=options)
@@ -770,14 +770,14 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
                 f"argument with INC access. Colouring is required.")
 
     def apply(self, node, options=None):
-        ''' Apply Dynamo 0.3 specific OMPLoopTrans.
+        ''' Apply LFRic (Dynamo 0.3) specific OMPLoopTrans.
 
-        :param node: the Node in the Schedule to check
+        :param node: the Node in the Schedule to check.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations \
                         and validation.
         :type options: Optional[Dict[str, Any]]
-        :param bool options["reprod"]:
+        :param bool options["reprod"]: \
                 indicating whether reproducible reductions should be used. \
                 By default the value from the config file will be used.
 
@@ -793,7 +793,7 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
                                         Config.get().reproducible_reductions)
 
         # This transformation allows to parallelise loops with potential
-        # dependencies because we use cell colouring to guarantees that
+        # dependencies because we use cell colouring to guarantee that
         # neighbours are not updated at the same time.
         options["force"] = True
 
