@@ -236,6 +236,10 @@
 
 	82) PR #1988 for #1507. Drop 'six' dependency and fix many pylint issues.
 
+	83) PR #1968 towards #1823. Fixes additional issues with module-
+	inlining in LFRic. (Interfaces, imported global variables and some
+	validation problems.)
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
