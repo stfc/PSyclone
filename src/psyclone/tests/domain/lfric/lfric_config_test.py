@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council
+# Copyright (c) 2020-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author I. Kavcic, Met Office
-# Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: R. W. Ford and N. Nobre, STFC Daresbury Lab
 
 '''
 Module containing tests for LFRic (Dynamo0.3) API configuration handling.
@@ -42,7 +42,6 @@ from __future__ import absolute_import
 
 import re
 import pytest
-import six
 
 from psyclone.configuration import Config, ConfigurationError
 from psyclone.core.access_type import AccessType
@@ -121,9 +120,8 @@ def test_no_mandatory_option(tmpdir, option):
     ''' Check that we raise an error if we do not provide mandatory
     configuration options for LFRic (Dynamo0.3) API '''
     config_file = tmpdir.join("config_dyn")
-    content = re.sub(r"^{0} = .*$".format(option), "",
-                     _CONFIG_CONTENT,
-                     flags=re.MULTILINE)
+    content = re.sub(f"^{option} = .*$", "",
+                     _CONFIG_CONTENT, flags=re.MULTILINE)
 
     with pytest.raises(ConfigurationError) as err:
         config(config_file, content)
@@ -141,15 +139,13 @@ def test_entry_not_bool(tmpdir, option):
     ''' Check that we raise an error if the value of any options expecting
     a boolean value are not Boolean '''
     config_file = tmpdir.join("config_dyn")
-    content = re.sub(r"^{0} = .*$".format(option),
-                     "{0} = tree".format(option),
-                     _CONFIG_CONTENT,
-                     flags=re.MULTILINE)
+    content = re.sub(f"^{option} = .*$", f"{option} = tree",
+                     _CONFIG_CONTENT, flags=re.MULTILINE)
 
     with pytest.raises(ConfigurationError) as err:
         config(config_file, content)
 
-    assert "Error while parsing {0}".format(option) in str(err.value)
+    assert f"Error while parsing {option}" in str(err.value)
     assert "Not a boolean: tree" in str(err.value)
 
 
@@ -159,15 +155,13 @@ def test_entry_not_int(tmpdir, option):
     ''' Check that we raise an error if the value of any options expecting
     an integer value is not int() with base 10. '''
     config_file = tmpdir.join("config_dyn")
-    content = re.sub(r"^{0} = .*$".format(option),
-                     "{0} = false".format(option),
-                     _CONFIG_CONTENT,
-                     flags=re.MULTILINE)
+    content = re.sub(f"^{option} = .*$", f"{option} = false",
+                     _CONFIG_CONTENT, flags=re.MULTILINE)
 
     with pytest.raises(ConfigurationError) as err:
         config(config_file, content)
 
-    assert "Error while parsing {0}".format(option) in str(err.value)
+    assert f"Error while parsing {option}" in str(err.value)
     assert ("invalid literal for int() with base 10: 'false'"
             in str(err.value))
 
@@ -189,8 +183,6 @@ def test_invalid_default_kind(tmpdir):
         config(config_file, content)
 
     test_str = str(err.value)
-    if six.PY2:
-        test_str = test_str.replace("u'", "'")
     assert ("Fortran datatypes in the 'default_kind' mapping in the "
             "\'[dynamo0.3]\' section " in test_str)
     assert ("do not match the supported Fortran datatypes [\'real\', "
@@ -203,8 +195,6 @@ def test_invalid_default_kind(tmpdir):
         config(config_file, content)
 
     test_str = str(err.value)
-    if six.PY2:
-        test_str = test_str.replace("u'", "'")
     assert ("Supplied kind parameters [\'l_def\', \'r_def\'] in "
             "the \'[dynamo0.3]\' section" in test_str)
     assert ("do not define the default kind for one or more supported "

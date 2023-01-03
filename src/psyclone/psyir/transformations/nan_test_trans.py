@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+#         N. Nobre, STFC Daresbury Lab
 
 
 '''This module contains the base class for verifying that input and output
@@ -84,7 +85,7 @@ class NanTestTrans(ReadOnlyVerifyTrans):
         :param node_list: the list of Node(s) we are checking.
         :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
-        :type options: dict of string:values or NoneType
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if transformation is applied to a \
                                      Kernel or a BuiltIn call without its \

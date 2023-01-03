@@ -32,17 +32,16 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified by R. W. Ford and S. Siso, STFC Daresbury Lab
+# Modified by R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
 
 ''' pytest tests for the Range class. '''
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.symbols import ScalarType, ArrayType, DataSymbol, \
+from psyclone.psyir.symbols import ScalarType, DataSymbol, \
     INTEGER_SINGLE_TYPE, REAL_SINGLE_TYPE
-from psyclone.psyir.nodes import Range, Literal, Reference, ArrayReference
+from psyclone.psyir.nodes import Range, Literal, Reference
 from psyclone.errors import InternalError, GenerationError
-from psyclone.psyir.nodes.node import colored
 
 
 @pytest.mark.parametrize("prop", ["start", "stop", "step"])

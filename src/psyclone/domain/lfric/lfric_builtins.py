@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,7 @@
 # Author A. R. Porter, STFC Daresbury Lab
 # Modified by I. Kavcic, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford, STFC Daresbury Lab
+# Modified by R. W. Ford and N. Nobre, STFC Daresbury Lab
 
 ''' This module implements the support for 'built-in' operations in the
     PSyclone LFRic (Dynamo 0.3) API. Each supported built-in is implemented
@@ -296,10 +296,9 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
             data_types_str = [str(x) for x in sorted(data_types)]
             raise ParseError(
                 f"In the LFRic API only the data type conversion built-ins "
-                f"{conversion_builtins} are allowed to have field arguments "
-                f"of different data types. However, found different data "
-                f"types {data_types_str} for field arguments to "
-                f"'{self.name}'.")
+                f"{conversion_builtins} are allowed to have field arguments of"
+                f" different data types. However, found different data types "
+                f"{data_types_str} for field arguments to '{self.name}'.")
 
     def array_ref(self, fld_name):
         '''
@@ -426,7 +425,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
                              [ArrayType.Extent.DEFERRED])
         return [StructureReference.create(
             arg.psyir_expression().symbol, [("data", [Reference(idx_sym)])],
-            enforce_datatype=array_1d)
+            overwrite_datatype=array_1d)
                 for arg in self._arguments.args if arg.is_field]
 
     def get_scalar_argument_references(self):

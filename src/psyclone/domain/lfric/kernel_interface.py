@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 # Modified: I. Kavcic, Met Office
-#           A. R. Porter, STFC Daresbury Lab
+#           A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 '''This module creates the expected arguments for an LFRic coded
 kernel based on the kernel metadata.
@@ -440,7 +440,7 @@ class KernelInterface(ArgOrdering):
         '''
         fs_name = function_space.orig_name
         ndf_symbol = self._symbol_table.find_or_create_tag(
-            "ndf_{0}".format(fs_name), fs=fs_name,
+            f"ndf_{fs_name}", fs=fs_name,
             symbol_type=lfric_psyir.NumberOfDofsDataSymbol,
             interface=self._read_access)
         self._arglist.append(ndf_symbol)
@@ -479,19 +479,19 @@ class KernelInterface(ArgOrdering):
         '''
         fs_name = function_space.orig_name
         undf_symbol = self._symbol_table.find_or_create_tag(
-            "undf_{0}".format(fs_name), fs=fs_name,
+            f"undf_{fs_name}", fs=fs_name,
             symbol_type=lfric_psyir.NumberOfUniqueDofsDataSymbol,
             interface=self._read_access)
         self._arglist.append(undf_symbol)
 
         fs_name = function_space.orig_name
         ndf_symbol = self._symbol_table.find_or_create_tag(
-            "ndf_{0}".format(fs_name), fs=fs_name,
+            f"ndf_{fs_name}", fs=fs_name,
             symbol_type=lfric_psyir.NumberOfDofsDataSymbol,
             interface=self._read_access)
 
         dofmap_symbol = self._symbol_table.find_or_create_tag(
-            "dofmap_{0}".format(fs_name), fs=fs_name,
+            f"dofmap_{fs_name}", fs=fs_name,
             symbol_type=lfric_psyir.DofMapDataSymbol,
             dims=[Reference(ndf_symbol)], interface=self._read_access)
         self._arglist.append(dofmap_symbol)
@@ -689,8 +689,8 @@ class KernelInterface(ArgOrdering):
                     dims=[Reference(nqp)], interface=self._read_access)
                 self._arglist.extend([nedges, nqp, weights])
             else:
-                raise InternalError("Unsupported quadrature shape '{0}' "
-                                    "found in kernel_interface.".format(shape))
+                raise InternalError(f"Unsupported quadrature shape '{shape}' "
+                                    f"found in kernel_interface.")
 
     def _create_basis(self, function_space, mapping, basis_name_func,
                       first_dim_value_func):
@@ -731,7 +731,7 @@ class KernelInterface(ArgOrdering):
         for shape in self._kern.eval_shapes:
             fs_name = function_space.orig_name
             ndf_symbol = self._symbol_table.find_or_create_tag(
-                "ndf_{0}".format(fs_name),
+                f"ndf_{fs_name}",
                 symbol_type=lfric_psyir.NumberOfDofsDataSymbol,
                 fs=fs_name, interface=self._read_access)
 
@@ -792,8 +792,7 @@ class KernelInterface(ArgOrdering):
                         "kernel_interface class.")
             else:
                 raise InternalError(
-                    "Unrecognised quadrature or evaluator shape '{0}'. "
-                    "Expected one of: {1}.".format(
-                        shape, const.VALID_EVALUATOR_SHAPES))
+                    f"Unrecognised quadrature or evaluator shape '{shape}'. "
+                    f"Expected one of: {const.VALID_EVALUATOR_SHAPES}.")
             self._symbol_table.add(arg)
             self._arglist.append(arg)

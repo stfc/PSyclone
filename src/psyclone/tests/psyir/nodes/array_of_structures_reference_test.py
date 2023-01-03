@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -117,9 +117,9 @@ def test_asr_create(component_symbol):
     my_range = nodes.Range.create(lbound, ubound)
     # pylint: disable=no-member
     datatype = psyir.LfricRealScalarDataType()
-    asref = nodes.ArrayOfStructuresReference. create(component_symbol,
-                                                     [my_range], ["nx"],
-                                                     enforce_datatype=datatype)
+    asref = nodes.ArrayOfStructuresReference.\
+        create(component_symbol, [my_range], ["nx"],
+               overwrite_datatype=datatype)
     assert asref.datatype is datatype
 
     # Reference to a symbol of DeferredType

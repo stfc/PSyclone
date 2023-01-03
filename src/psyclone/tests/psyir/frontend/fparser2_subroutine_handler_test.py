@@ -31,9 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, STFC Daresbury Lab
-#          A. R. Porter, STFC Daresbury Lab
-#          S. Siso, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''Module containing pytest tests for the _subroutine_handler method
 in the class Fparser2Reader. This handler deals with the translation
@@ -229,10 +227,10 @@ def test_function_result_suffix(fortran_reader, fortran_writer,
 
     '''
     code = (
-        "module a\n"
-        "use kind_params, only: wp\n"
-        "contains\n"
-        "{0}end module\n".format(code))
+        f"module a\n"
+        f"use kind_params, only: wp\n"
+        f"contains\n"
+        f"{code}end module\n")
     psyir = fortran_reader.psyir_from_source(code)
     # Check PSyIR nodes are being created
     assert isinstance(psyir, Container)
@@ -314,12 +312,12 @@ def test_unsupported_function_prefix(fortran_reader, fn_prefix):
     ''' Check that we get a CodeBlock if a Fortran function has an unsupported
     prefix. '''
     code = (
-        "module a\n"
-        "contains\n"
-        "  {0} function my_func()\n"
-        "    my_func = 1.0\n"
-        "  end function my_func\n"
-        "end module\n".format(fn_prefix))
+        f"module a\n"
+        f"contains\n"
+        f"  {fn_prefix} function my_func()\n"
+        f"    my_func = 1.0\n"
+        f"  end function my_func\n"
+        f"end module\n")
     psyir = fortran_reader.psyir_from_source(code)
     assert isinstance(psyir.children[0].children[0], CodeBlock)
 
