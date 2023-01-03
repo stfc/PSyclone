@@ -164,8 +164,8 @@ class KernCallArgList(ArgOrdering):
                                           datatype=user_type_symbol)
         return sym
 
-    def append_user_type(self, module_name, user_type, member_list, name,
-                         tag=None, overwrite_datatype=None):
+    def append_structure_reference(self, module_name, user_type, member_list,
+                                   name, tag=None, overwrite_datatype=None):
         # pylint: disable=too-many-arguments
         '''Creates a reference to a variable of a user-defined type. If
         required, the required import statements will all be generated.
@@ -440,8 +440,9 @@ class KernCallArgList(ArgOrdering):
         precision = KernCallArgList._map_fields_to_precision(arg.data_type)
         array_1d = ArrayType(psyir.LfricRealScalarDataType(precision),
                              [ArrayType.Extent.DEFERRED])
-        self.append_user_type(arg.module_name, arg.proxy_data_type, ["data"],
-                              arg.proxy_name, overwrite_datatype=array_1d)
+        self.append_structure_reference(
+            arg.module_name, arg.proxy_data_type, ["data"],
+            arg.proxy_name, overwrite_datatype=array_1d)
 
     def stencil_unknown_extent(self, arg, var_accesses=None):
         '''Add stencil information to the argument list associated with the
@@ -617,19 +618,19 @@ class KernCallArgList(ArgOrdering):
         else:
             op_name = "operator"
         operator = LFRicConstants().DATA_TYPE_MAP[op_name]
-        self.append_user_type(operator["module"], operator["proxy_type"],
-                              ["ncell_3d"], arg.proxy_name_indexed,
-                              overwrite_datatype=psyir.
-                              LfricIntegerScalarDataType())
+        self.append_structure_reference(
+            operator["module"], operator["proxy_type"], ["ncell_3d"],
+            arg.proxy_name_indexed,
+            overwrite_datatype=psyir.LfricIntegerScalarDataType())
         self.append(arg.proxy_name_indexed + "%ncell_3d", var_accesses,
                     mode=AccessType.READ)
 
         precision = KernCallArgList._map_fields_to_precision(operator["type"])
         array_type = ArrayType(psyir.LfricRealScalarDataType(precision),
                                [ArrayType.Extent.DEFERRED]*3)
-        self.append_user_type(operator["module"], operator["proxy_type"],
-                              ["local_stencil"], arg.proxy_name_indexed,
-                              overwrite_datatype=array_type)
+        self.append_structure_reference(
+            operator["module"], operator["proxy_type"], ["local_stencil"],
+            arg.proxy_name_indexed, overwrite_datatype=array_type)
         # The access mode of `local_stencil` is taken from the meta-data:
         self.append(arg.proxy_name_indexed + "%local_stencil", var_accesses,
                     mode=arg.access, metadata_posn=arg.metadata_index)
