@@ -32,8 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author I. Kavcic, Met Office
-# Modified by A. R. Porter, S. Siso and R. W. Ford, STFC Daresbury Lab
-# Modified by J. Henrichs, Bureau of Meteorology
+# Modified A. R. Porter, S. Siso, R. W. Ford and N. Nobre, STFC Daresbury Lab
+# Modified J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 '''
@@ -68,7 +68,7 @@ class ExtractNode(PSyDataNode):
     :param parent: the parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param options: a dictionary with options provided via transformations.
-    :type options: dictionary of string:values or None
+    :type options: Optional[Dict[str, Any]]
     :param str options["prefix"]: a prefix to use for the PSyData module name \
         (``prefix_psy_data_mod``) and the PSyDataType
         (``prefix_PSyDataType``) - a "_" will be added automatically. \
