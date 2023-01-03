@@ -339,6 +339,12 @@ def test_accupdatedirective_init():
             "any of the values in '('self', 'host', 'device')' but found "
             "'invalid'." in str(err.value))
 
+    with pytest.raises(TypeError) as err:
+        _ = ACCUpdateDirective(sig, "host", if_present=1)
+    assert ("The ACCUpdateDirective if_present argument must be a "
+            "boolean but got int"
+            in str(err.value))
+
     # Successful init
     directive = ACCUpdateDirective(sig, "host")
     assert directive.sig_set == sig
@@ -380,3 +386,7 @@ def test_accupdatedirective_equality():
     # Check equality fails when different directions
     directive4 = ACCUpdateDirective(sig, "host")
     assert directive1 != directive4
+
+    # Check equality fails when different if_present settings
+    directive5 = ACCUpdateDirective(sig, "device", if_present=False)
+    assert directive1 != directive5
