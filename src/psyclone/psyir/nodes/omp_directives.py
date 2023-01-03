@@ -145,7 +145,6 @@ class OMPDeclareTargetDirective(OMPStandaloneDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp declare target"
 
     def validate_global_constraints(self):
@@ -218,7 +217,6 @@ class OMPTaskwaitDirective(OMPStandaloneDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp taskwait"
 
 
@@ -353,7 +351,6 @@ class OMPSingleDirective(OMPSerialDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp single"
 
     def end_string(self):
@@ -365,7 +362,6 @@ class OMPSingleDirective(OMPSerialDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp end single"
 
 
@@ -408,7 +404,6 @@ class OMPMasterDirective(OMPSerialDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp master"
 
     def end_string(self):
@@ -420,7 +415,6 @@ class OMPMasterDirective(OMPSerialDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp end master"
 
 
@@ -616,7 +610,6 @@ class OMPParallelDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp end parallel"
 
     def _get_private_clause(self):
@@ -899,7 +892,6 @@ class OMPTaskloopDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp taskloop"
 
     def end_string(self):
@@ -911,7 +903,6 @@ class OMPTaskloopDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp end taskloop"
 
 
@@ -1390,7 +1381,6 @@ class OMPTargetDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp target"
 
     def end_string(self):
@@ -1402,7 +1392,6 @@ class OMPTargetDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp end target"
 
 
@@ -1514,7 +1503,6 @@ class OMPLoopDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp end loop"
 
     def validate_global_constraints(self):

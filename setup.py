@@ -33,6 +33,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+#          I. Kavcic and P. Elson, Met Office
+#          J. Henrichs, Bureau of Meteorology
 
 """Setup script. Used by easy_install and pip."""
 
@@ -158,9 +161,8 @@ if __name__ == '__main__':
         packages=PACKAGES,
         package_dir={"": "src"},
         # TODO #1193: Pinned jsonschema to support older versions of python
-        # TODO #1507: remove dependence on 'six'
         install_requires=['pyparsing', 'fparser==0.0.16', 'configparser',
-                          'six', 'jsonschema==3.0.2', 'sympy'],
+                          'jsonschema==3.0.2', 'sympy'],
         extras_require={
             'dag': ["graphviz"],
             'doc': ["sphinx", "sphinxcontrib.bibtex",

@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford and S. Siso, STFC Daresbury Lab
+# Modified by R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''
 Module providing a transformation from a generic PSyIR Loop into a
@@ -104,7 +104,7 @@ class CreateNemoLoopTrans(Transformation):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node is not a Routine.
 
@@ -113,9 +113,9 @@ class CreateNemoLoopTrans(Transformation):
 
         if not isinstance(node, Loop):
             raise TransformationError(
-                "Error in CreateNemoLoopTrans transformation. The supplied "
-                "node should be a PSyIR Loop but found '{0}'".format(
-                    type(node).__name__))
+                f"Error in CreateNemoLoopTrans transformation. The supplied "
+                f"node should be a PSyIR Loop but found "
+                f"'{type(node).__name__}'")
 
     def apply(self, loop, options=None):
         '''
@@ -127,7 +127,7 @@ class CreateNemoLoopTrans(Transformation):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(loop, options=options)
