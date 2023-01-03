@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council
+# Copyright (c) 2020-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Laboratory
-# Modified: A. R. Porter, STFC Daresbury Laboratory
+# Modified: A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 '''Module providing a transformation from a PSyIR SIGN operator to
 PSyIR code. This could be useful if the SIGN operator is not supported
@@ -116,7 +116,7 @@ class Sign2CodeTrans(Operator2CodeTrans):
         :param symbol_table: the symbol table.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         # pylint: disable=too-many-locals

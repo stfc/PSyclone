@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 ''' Tests for the f2pygen module of PSyclone '''
 
@@ -1035,7 +1035,7 @@ def test_decl_save(tmpdir):
                         entity_decls=["ufld"]))
     gen = str(module.root).lower()
     for dtype in DeclGen.SUPPORTED_TYPES:
-        assert "{0}, save :: var".format(dtype.lower()) in gen
+        assert f"{dtype.lower()}, save :: var" in gen
     assert "character(len=10), save :: varchar" in gen
     assert "type(field_type), save :: ufld" in gen
     # Check that the generated code compiles (if enabled). We have to
@@ -1059,7 +1059,7 @@ def test_decl_target(tmpdir):
                         entity_decls=["ufld"]))
     gen = str(module.root).lower()
     for dtype in DeclGen.SUPPORTED_TYPES:
-        assert "{0}, target :: var".format(dtype.lower()) in gen
+        assert f"{dtype.lower()}, target :: var" in gen
     assert "character(len=10), target :: varchar" in gen
     assert "type(field_type), target :: ufld" in gen
     # Check that the generated code compiles (if enabled). We
@@ -1081,7 +1081,7 @@ def test_decl_private(tmpdir):
                            entity_decls=["ufld"]))
     gen = str(module.root).lower()
     for dtype in DeclGen.SUPPORTED_TYPES:
-        assert "{0}, private :: var".format(dtype.lower()) in gen
+        assert f"{dtype.lower()}, private :: var" in gen
     assert "character(len=10), private :: varchar" in gen
     assert "type(field_type), private :: ufld" in gen
     # Check that the generated code compiles (if enabled). We
@@ -1188,8 +1188,8 @@ def test_declgen_wrong_type(monkeypatch):
     dgen = DeclGen(sub, datatype="integer", entity_decls=["my_int"])
     with pytest.raises(InternalError) as err:
         dgen._check_initial_values("complex", ["1"])
-    assert ("internal error: unsupported type 'complex' - should be one "
-            "of {0}".format(dgen.SUPPORTED_TYPES) in str(err.value))
+    assert (f"internal error: unsupported type 'complex' - should be one "
+            f"of {dgen.SUPPORTED_TYPES}" in str(err.value))
     # Check that we get an internal error if the supplied type is in the
     # list of those supported but has not actually been implemented.
     # We have to monkeypatch the list of supported types...
