@@ -56,10 +56,17 @@ class StructureReference(Reference):
     Node representing a reference to a component of a structure. As such
     it must have a single child representing the component being accessed.
 
+    :param kwargs: additional keyword arguments provided to the super class.
+    :type kwargs: unwrapped dict.
+
     '''
     # Textual description of the node.
     _children_valid_format = "Member"
     _text_name = "StructureReference"
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._overwrite_datatype = None
 
     @staticmethod
     def _validate_child(position, child):
@@ -181,7 +188,7 @@ class StructureReference(Reference):
                 f"symbol '{symbol.name}'")
 
         # Create the base reference to the symbol that is a structure
-        ref = cls(symbol, parent=parent)
+        ref = cls(symbol=symbol, parent=parent)
 
         # Bottom-up creation of full reference. The last element in the members
         # list must be either an ArrayMember or a Member.
@@ -220,7 +227,6 @@ class StructureReference(Reference):
             child_member = subref
         # Finally, add this chain to the top-level reference
         ref.addchild(child_member)
-        # pylint: disable=attribute-defined-outside-init
         ref._overwrite_datatype = overwrite_datatype
         return ref
 
