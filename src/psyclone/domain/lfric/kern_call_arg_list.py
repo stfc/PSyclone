@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -56,6 +56,10 @@ from psyclone.psyir.symbols import (ArrayType, DataSymbol, DataTypeSymbol,
                                     ImportInterface, INTEGER_SINGLE_TYPE,
                                     ScalarType, SymbolError, SymbolTable)
 
+# psyir has classes created at runtime
+# pylint: disable=no-member
+# pylint: disable=too-many-lines
+
 
 class KernCallArgList(ArgOrdering):
     # pylint: disable=too-many-public-methods
@@ -90,7 +94,6 @@ class KernCallArgList(ArgOrdering):
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
-        # pylint: disable=no-member
         if field_type in ["r_solver_field_type", "r_solver_operator_type"]:
             return psyir.R_SOLVER
         if field_type == "r_tran_field_type":
@@ -162,7 +165,7 @@ class KernCallArgList(ArgOrdering):
         return sym
 
     def append_user_type(self, module_name, user_type, member_list, name,
-                         tag=None, enforce_datatype=None):
+                         tag=None, overwrite_datatype=None):
         # pylint: disable=too-many-arguments
         '''Creates a reference to a variable of a user-defined type. If
         required, the required import statements will all be generated.
@@ -175,11 +178,11 @@ class KernCallArgList(ArgOrdering):
         :param str name: the name of the variable to be used in the Reference.
         :param Optional[str] tag: tag to use for the variable, defaults to \
             the name
-        :param enforce_datatype: the datatype for the reference, which will \
+        :param overwrite_datatype: the datatype for the reference, which will \
             overwrite the value determined by analysing the corresponding \
             user defined type. This is useful when e.g. the module that \
             declares the structure cannot be accessed.
-        :type enforce_datatype: \
+        :type overwrite_datatype: \
             Optional[:py:class:`psyclone.psyir.symbols.DataType`]
 
         :return: the symbol that is used in the reference
@@ -190,7 +193,7 @@ class KernCallArgList(ArgOrdering):
                                  tag)
         self.psyir_append(StructureReference.
                           create(sym, member_list,
-                                 enforce_datatype=enforce_datatype))
+                                 overwrite_datatype=overwrite_datatype))
         return sym
 
     def cell_position(self, var_accesses=None):
@@ -403,8 +406,8 @@ class KernCallArgList(ArgOrdering):
         for idx in range(1, argvect.vector_size + 1):
             # Create the accesses to each element of the vector:
             lit_ind = Literal(str(idx), INTEGER_SINGLE_TYPE)
-            ref = ArrayOfStructuresReference.create(sym, [lit_ind], ["data"],
-                                                    enforce_datatype=array_1d)
+            ref = ArrayOfStructuresReference.\
+                create(sym, [lit_ind], ["data"], overwrite_datatype=array_1d)
             self.psyir_append(ref)
             text = f"{sym.name}({idx})%data"
             self.append(text, metadata_posn=argvect.metadata_index)
@@ -438,7 +441,7 @@ class KernCallArgList(ArgOrdering):
         array_1d = ArrayType(psyir.LfricRealScalarDataType(precision),
                              [ArrayType.Extent.DEFERRED])
         self.append_user_type(arg.module_name, arg.proxy_data_type, ["data"],
-                              arg.proxy_name, enforce_datatype=array_1d)
+                              arg.proxy_name, overwrite_datatype=array_1d)
 
     def stencil_unknown_extent(self, arg, var_accesses=None):
         '''Add stencil information to the argument list associated with the
@@ -616,7 +619,7 @@ class KernCallArgList(ArgOrdering):
         operator = LFRicConstants().DATA_TYPE_MAP[op_name]
         self.append_user_type(operator["module"], operator["proxy_type"],
                               ["ncell_3d"], arg.proxy_name_indexed,
-                              enforce_datatype=psyir.
+                              overwrite_datatype=psyir.
                               LfricIntegerScalarDataType())
         self.append(arg.proxy_name_indexed + "%ncell_3d", var_accesses,
                     mode=AccessType.READ)
@@ -626,7 +629,7 @@ class KernCallArgList(ArgOrdering):
                                [ArrayType.Extent.DEFERRED]*3)
         self.append_user_type(operator["module"], operator["proxy_type"],
                               ["local_stencil"], arg.proxy_name_indexed,
-                              enforce_datatype=array_type)
+                              overwrite_datatype=array_type)
         # The access mode of `local_stencil` is taken from the meta-data:
         self.append(arg.proxy_name_indexed + "%local_stencil", var_accesses,
                     mode=arg.access, metadata_posn=arg.metadata_index)

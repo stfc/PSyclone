@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -426,7 +426,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
                              [ArrayType.Extent.DEFERRED])
         return [StructureReference.create(
             arg.psyir_expression().symbol, [("data", [Reference(idx_sym)])],
-            enforce_datatype=array_1d)
+            overwrite_datatype=array_1d)
                 for arg in self._arguments.args if arg.is_field]
 
     def get_scalar_argument_references(self):
