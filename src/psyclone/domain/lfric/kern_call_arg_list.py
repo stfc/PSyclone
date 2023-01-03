@@ -78,18 +78,24 @@ class KernCallArgList(ArgOrdering):
         self._nqp_positions = []
         self._ndf_positions = []
 
-        # Create a mapping of the various fields type to the precision:
-        const = LFRicConstants()
-        self._map_fields_to_precision = {}
-        for field_info in const.DATA_TYPE_MAP.values():
-            field_type = field_info["type"]
-            # pylint: disable=no-member
-            if field_type in ["r_solver_field_type", "r_solver_operator_type"]:
-                self._map_fields_to_precision[field_type] = psyir.R_SOLVER
-            elif field_type == "r_tran_field_type":
-                self._map_fields_to_precision[field_type] = psyir.R_TRAN
-            else:
-                self._map_fields_to_precision[field_type] = psyir.R_DEF
+    @staticmethod
+    def _map_fields_to_precision(field_type):
+        '''This function return the precision required for the various
+        field types.
+
+        :param str field_type: the name of the field type.
+
+        :returns: the precision as defined in domain.lfric.psyir (one of \
+            R_SOLVER, R_TRAN, R_DEF).
+        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        '''
+        # pylint: disable=no-member
+        if field_type in ["r_solver_field_type", "r_solver_operator_type"]:
+            return psyir.R_SOLVER
+        if field_type == "r_tran_field_type":
+            return psyir.R_TRAN
+        return psyir.R_DEF
 
     def get_user_type(self, module_name, user_type, name, tag=None,
                       shape=None):
@@ -428,7 +434,7 @@ class KernCallArgList(ArgOrdering):
                     mode=arg.access, metadata_posn=arg.metadata_index)
 
         # Add an access to field_proxy%data:
-        precision = self._map_fields_to_precision[arg.data_type]
+        precision = KernCallArgList._map_fields_to_precision(arg.data_type)
         array_1d = ArrayType(psyir.LfricRealScalarDataType(precision),
                              [ArrayType.Extent.DEFERRED])
         self.append_user_type(arg.module_name, arg.proxy_data_type, ["data"],
@@ -615,7 +621,7 @@ class KernCallArgList(ArgOrdering):
         self.append(arg.proxy_name_indexed + "%ncell_3d", var_accesses,
                     mode=AccessType.READ)
 
-        precision = self._map_fields_to_precision[operator["type"]]
+        precision = KernCallArgList._map_fields_to_precision(operator["type"])
         array_type = ArrayType(psyir.LfricRealScalarDataType(precision),
                                [ArrayType.Extent.DEFERRED]*3)
         self.append_user_type(operator["module"], operator["proxy_type"],
@@ -799,8 +805,8 @@ class KernCallArgList(ArgOrdering):
         farg = self._kern.arguments.get_arg_on_space(fspace)
         # Sanity check - expect the enforce_bc_code kernel to only have
         # a field argument.
-        const = LFRicConstants()
         if not farg.is_field:
+            const = LFRicConstants()
             raise GenerationError(
                 f"Expected an argument of {const.VALID_FIELD_NAMES} type "
                 f"from which to look-up boundary dofs for kernel "
