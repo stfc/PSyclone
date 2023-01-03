@@ -40,7 +40,6 @@
 
 import pytest
 
-from psyclone.domain.lfric import psyir
 from psyclone.tests.utilities import check_links
 from psyclone.psyir import symbols, nodes
 
@@ -115,8 +114,7 @@ def test_asr_create(component_symbol):
         nodes.BinaryOperation.Operator.UBOUND,
         nodes.Reference(component_symbol), int_one.copy())
     my_range = nodes.Range.create(lbound, ubound)
-    # pylint: disable=no-member
-    datatype = psyir.LfricRealScalarDataType()
+    datatype = symbols.INTEGER8_TYPE
     asref = nodes.ArrayOfStructuresReference.\
         create(component_symbol, [my_range], ["nx"],
                overwrite_datatype=datatype)
