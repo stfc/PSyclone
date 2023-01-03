@@ -240,6 +240,8 @@
 	inlining in LFRic. (Interfaces, imported global variables and some
 	validation problems.)
 
+	84) PR #1996. Addendum to #1952 to cover missed lines.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
