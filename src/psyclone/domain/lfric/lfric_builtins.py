@@ -296,10 +296,9 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
             data_types_str = [str(x) for x in sorted(data_types)]
             raise ParseError(
                 f"In the LFRic API only the data type conversion built-ins "
-                f"{conversion_builtins} are allowed to have field arguments "
-                f"of different data types. However, found different data "
-                f"types {data_types_str} for field arguments to "
-                f"'{self.name}'.")
+                f"{conversion_builtins} are allowed to have field arguments of"
+                f" different data types. However, found different data types "
+                f"{data_types_str} for field arguments to '{self.name}'.")
 
     def array_ref(self, fld_name):
         '''
