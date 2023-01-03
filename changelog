@@ -229,6 +229,13 @@
 	79) PR #1964 for #1961. Adds lower_to_language_level to DynLoop to
 	ensure loop variable names preserved in PSyKE driver creation.
 
+	80) PR #1952 for #310. Adds support for ACCEnterData and ACCUpdate
+	directives in the NEMO API.
+
+	81) PR #1925 for #1832. Add a 'force' option to the ParallelLoopTrans.
+
+	82) PR #1988 for #1507. Drop 'six' dependency and fix many pylint issues.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.

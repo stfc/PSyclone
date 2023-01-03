@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, STFC Daresbury Lab
+# Authors: R. W. Ford and N. Nobre, STFC Daresbury Lab
 
 '''Module containing tests for the NemoAllArrayAccess2LoopTrans
 transformation.'''
@@ -74,8 +74,8 @@ def check_transformation(tmpdir, code, expected_result, statement=0):
         Defaults to 0.
 
     '''
-    input_code = "program test\n{0}end program test\n".format(code)
-    output_code = "program test\n{0}end program test\n".format(expected_result)
+    input_code = f"program test\n{code}end program test\n"
+    output_code = f"program test\n{expected_result}end program test\n"
     reader = FortranReader()
     psyir = reader.psyir_from_source(input_code)
     assignment = psyir.walk(Assignment)[statement]

@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 # Modified: I. Kavcic, Met Office
 # Modified: J. Henrichs, Bureau of Meteorology
 
@@ -1250,19 +1250,17 @@ def test_2eval_2fs(tmpdir):
             "diff_basis_w1_on_w1(:,:,:)\n" in gen_code)
     # Check for duplication
     for idx in range(2):
-        assert gen_code.count("REAL(KIND=r_def), pointer :: nodes_w{0}(:,:) "
-                              "=> null()".format(idx)) == 1
+        assert gen_code.count(f"REAL(KIND=r_def), pointer :: nodes_w{idx}(:,:)"
+                              f" => null()") == 1
         assert gen_code.count(
-            "      nodes_w{0} => f{0}_proxy%vspace%get_nodes()\n".
-            format(idx)) == 1
+            f"      nodes_w{idx} => f{idx}_proxy%vspace%get_nodes()\n") == 1
 
-        assert gen_code.count("ALLOCATE (diff_basis_w1_on_w{0}(diff_dim_w1, "
-                              "ndf_w1, ndf_w{0}))".format(idx)) == 1
+        assert gen_code.count(f"ALLOCATE (diff_basis_w1_on_w{idx}(diff_dim_w1,"
+                              f" ndf_w1, ndf_w{idx}))") == 1
 
         assert gen_code.count(
-            "diff_basis_w1_on_w{0}(:,df_w1,df_nodal) = f1_proxy%vspace%"
-            "call_function(DIFF_BASIS,df_w1,nodes_w{0}(:,df_nodal))".
-            format(idx)) == 1
+            f"diff_basis_w1_on_w{idx}(:,df_w1,df_nodal) = f1_proxy%vspace%"
+            f"call_function(DIFF_BASIS,df_w1,nodes_w{idx}(:,df_nodal))") == 1
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -1981,34 +1979,35 @@ def test_2eval_stubgen():
         "ndf_w2trace, undf_w2vtrace, ndf_w2htrace\n" in generated_code)
 
     for space in ["w2h", "wtheta"]:
-        assert ("REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,ndf_{0}) "
-                ":: diff_basis_w0_on_{0}".format(space) in generated_code)
-        assert ("REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,ndf_{0}) "
-                ":: diff_basis_w2_on_{0}".format(space) in generated_code)
-        assert ("REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,ndf_{0}) "
-                ":: diff_basis_w1_on_{0}".format(space) in generated_code)
-        assert ("REAL(KIND=r_def), intent(in), dimension(3,ndf_w3,ndf_{0}) "
-                ":: diff_basis_w3_on_{0}".format(space) in generated_code)
-        assert ("REAL(KIND=r_def), intent(in), dimension(3,ndf_wtheta,"
-                "ndf_{0}) :: diff_basis_wtheta_on_{0}".format(space) in
+        assert (f"REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,"
+                f"ndf_{space}) :: diff_basis_w0_on_{space}" in generated_code)
+        assert (f"REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,"
+                f"ndf_{space}) :: diff_basis_w2_on_{space}" in generated_code)
+        assert (f"REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,"
+                f"ndf_{space}) :: diff_basis_w1_on_{space}" in generated_code)
+        assert (f"REAL(KIND=r_def), intent(in), dimension(3,ndf_w3,"
+                f"ndf_{space}) :: diff_basis_w3_on_{space}" in generated_code)
+        assert (f"REAL(KIND=r_def), intent(in), dimension(3,ndf_wtheta,"
+                f"ndf_{space}) :: diff_basis_wtheta_on_{space}" in
                 generated_code)
-        assert ("REAL(KIND=r_def), intent(in), dimension(1,ndf_w2h,ndf_{0}) "
-                ":: diff_basis_w2h_on_{0}".format(space) in generated_code)
-        assert ("REAL(KIND=r_def), intent(in), dimension(1,ndf_w2v,ndf_{0}) "
-                ":: diff_basis_w2v_on_{0}".format(space) in generated_code)
-        assert ("REAL(KIND=r_def), intent(in), dimension(1,ndf_w2broken,"
-                "ndf_{0}) :: diff_basis_w2broken_on_{0}".format(space) in
+        assert (f"REAL(KIND=r_def), intent(in), dimension(1,ndf_w2h,"
+                f"ndf_{space}) :: diff_basis_w2h_on_{space}" in generated_code)
+        assert (f"REAL(KIND=r_def), intent(in), dimension(1,ndf_w2v,"
+                f"ndf_{space}) :: diff_basis_w2v_on_{space}" in generated_code)
+        assert (f"REAL(KIND=r_def), intent(in), dimension(1,ndf_w2broken,"
+                f"ndf_{space}) :: diff_basis_w2broken_on_{space}" in
                 generated_code)
-        assert ("REAL(KIND=r_def), intent(in), dimension(3,ndf_wchi,ndf_{0}) "
-                ":: diff_basis_wchi_on_{0}".format(space) in generated_code)
-        assert ("REAL(KIND=r_def), intent(in), dimension(3,ndf_w2trace,"
-                "ndf_{0}) :: diff_basis_w2trace_on_{0}".format(space) in
+        assert (f"REAL(KIND=r_def), intent(in), dimension(3,ndf_wchi,"
+                f"ndf_{space}) :: diff_basis_wchi_on_{space}" in
                 generated_code)
-        assert ("REAL(KIND=r_def), intent(in), dimension(3,ndf_w2vtrace,"
-                "ndf_{0}) :: diff_basis_w2vtrace_on_{0}".format(space) in
+        assert (f"REAL(KIND=r_def), intent(in), dimension(3,ndf_w2trace,"
+                f"ndf_{space}) :: diff_basis_w2trace_on_{space}" in
                 generated_code)
-        assert ("REAL(KIND=r_def), intent(in), dimension(3,ndf_w2htrace,"
-                "ndf_{0}) :: diff_basis_w2htrace_on_{0}".format(space) in
+        assert (f"REAL(KIND=r_def), intent(in), dimension(3,ndf_w2vtrace,"
+                f"ndf_{space}) :: diff_basis_w2vtrace_on_{space}" in
+                generated_code)
+        assert (f"REAL(KIND=r_def), intent(in), dimension(3,ndf_w2htrace,"
+                f"ndf_{space}) :: diff_basis_w2htrace_on_{space}" in
                 generated_code)
 
 

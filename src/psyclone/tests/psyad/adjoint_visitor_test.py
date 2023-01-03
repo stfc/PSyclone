@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 '''A module to perform pytest tests on the code in the
 adjoint_visitor.py file within the psyad directory.
@@ -116,10 +116,9 @@ def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran,
 
     '''
     # Add "subroutine / end subroutine" lines to the incoming code.
-    input_code = ("subroutine test()\n{0}end subroutine test\n"
-                  "".format(tl_fortran))
-    expected_output_code = ("subroutine test()\n{0}end subroutine test\n"
-                            "".format(expected_ad_fortran))
+    input_code = f"subroutine test()\n{tl_fortran}end subroutine test\n"
+    expected_output_code = (f"subroutine test()\n{expected_ad_fortran}"
+                            f"end subroutine test\n")
 
     # Translate the tangent-linear code to PSyIR.
     reader = FortranReader()

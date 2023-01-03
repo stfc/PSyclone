@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         J. Henrichs, Bureau of Meteorology
 #         I. Kavcic, Met Office
 
@@ -107,7 +107,7 @@ class GOConstLoopBoundsTrans(Transformation):
         :param node: the GOInvokeSchedule to transform.
         :type node: :py:class:`psyclone.gocean1p0.GOInvokeSchedule`
         :param options: a dictionary with options for transformations.
-        :type options: dict of str:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node is not a \
             GOInvokeSchedule.
@@ -122,48 +122,46 @@ class GOConstLoopBoundsTrans(Transformation):
         '''
         if not isinstance(node, GOInvokeSchedule):
             raise TransformationError(
-                "GOConstLoopBoundsTrans can only be applied to "
-                "'GOInvokeSchedule' but found '{0}'."
-                "".format(type(node).__name__))
+                f"GOConstLoopBoundsTrans can only be applied to "
+                f"'GOInvokeSchedule' but found '{type(node).__name__}'.")
 
         for loop in node.walk(GOLoop):
             if loop.loop_type not in ["inner", "outer"]:
                 raise TransformationError(
-                    "GOConstLoopBoundsTrans can not transform a loop with "
-                    "loop_type '{0}', only 'inner' or 'outer' loop_type values"
-                    " are expected.".format(loop.loop_type))
+                    f"GOConstLoopBoundsTrans can not transform a loop with "
+                    f"loop_type '{loop.loop_type}', only 'inner' or 'outer' "
+                    f"loop_type values are expected.")
 
             if loop.index_offset not in loop.bounds_lookup:
                 raise TransformationError(
-                    "GOConstLoopBoundsTrans can not transform a loop with "
-                    "index_offset '{0}' because it is not in the bounds lookup"
-                    " table, the available index_offset values are {1}."
-                    "".format(loop.index_offset,
-                              list(loop.bounds_lookup.keys())))
+                    f"GOConstLoopBoundsTrans can not transform a loop with "
+                    f"index_offset '{loop.index_offset}' because it is not in "
+                    f"the bounds lookup table, the available index_offset "
+                    f"values are {list(loop.bounds_lookup.keys())}.")
 
             table = loop.bounds_lookup[loop.index_offset]
             if loop.field_space not in table:
                 raise TransformationError(
-                    "GOConstLoopBoundsTrans can not transform a loop with "
-                    "field_space '{0}' because it is not in the bounds lookup"
-                    " table, the available field_space values are {1}."
-                    "".format(loop.field_space, list(table.keys())))
+                    f"GOConstLoopBoundsTrans can not transform a loop with "
+                    f"field_space '{loop.field_space}' because it is not in "
+                    f"the bounds lookup table, the available field_space "
+                    f"values are {list(table.keys())}.")
 
             table = table[loop.field_space]
             if loop.iteration_space not in table:
                 raise TransformationError(
-                    "GOConstLoopBoundsTrans can not transform a loop with "
-                    "iteration_space '{0}' because it is not in the bounds "
-                    "lookup table, the available iteration_space values are "
-                    "{1}.".format(loop.iteration_space, list(table.keys())))
+                    f"GOConstLoopBoundsTrans can not transform a loop with "
+                    f"iteration_space '{loop.iteration_space}' because it is "
+                    f"not in the bounds lookup table, the available "
+                    f"iteration_space values are {list(table.keys())}.")
 
             table = table[loop.iteration_space]
             if loop.loop_type not in table:
                 raise TransformationError(
-                    "GOConstLoopBoundsTrans can not transform a loop with "
-                    "loop_type '{0}' because it is not in the bounds "
-                    "lookup table, the available loop_type values are "
-                    "{1}.".format(loop.loop_type, list(table.keys())))
+                    f"GOConstLoopBoundsTrans can not transform a loop with "
+                    f"loop_type '{loop.loop_type}' because it is not in the "
+                    f"bounds lookup table, the available loop_type values are "
+                    f"{list(table.keys())}.")
 
         # Make sure the Invoke has at least one field argument
         for arg in node.symbol_table.argument_list:
@@ -172,8 +170,8 @@ class GOConstLoopBoundsTrans(Transformation):
                     break
         else:
             raise TransformationError(
-                "GOConstLoopBoundsTrans can not transform invoke '{0}' because"
-                " it does not have any field arguments.".format(node.name))
+                f"GOConstLoopBoundsTrans can not transform invoke "
+                f"'{node.name}' because it does not have any field arguments.")
 
     def apply(self, node, options=None):
         ''' Modify the GOcean kernel loops in a GOInvokeSchedule to use
@@ -183,7 +181,7 @@ class GOConstLoopBoundsTrans(Transformation):
             constant loop bounds.
         :type node: :py:class:`psyclone.gocean1p0.GOInvokeSchedule`
         :param options: a dictionary with options for transformations.
-        :type options: dict of str:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(node, options=options)
@@ -236,8 +234,8 @@ class GOConstLoopBoundsTrans(Transformation):
                 stop = j_stop.name
             else:
                 raise InternalError(
-                    "Found a loop with loop_type '{0}' but the only expected "
-                    "values are 'inner' or 'outer'.".format(loop.loop_type))
+                    f"Found a loop with loop_type '{loop.loop_type}' but the "
+                    f"only expected values are 'inner' or 'outer'.")
 
             # Get the bounds map
             bounds = loop.bounds_lookup[loop.index_offset][loop.field_space][
