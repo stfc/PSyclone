@@ -195,7 +195,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         var_accesses.next_location()
 
     def load(self, call, parent=None):
-        # pylint: disable=attribute-defined-outside-init, arguments-differ
+        # pylint: disable=arguments-differ
         '''
         Populate the state of this object using the supplied call object.
 
