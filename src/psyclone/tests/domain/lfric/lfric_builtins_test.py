@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -404,11 +404,10 @@ def test_builtin_fld_args_different_data_type(monkeypatch):
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
     assert (f"In the LFRic API only the data type conversion built-ins "
-            f"['int_X', 'real_X'] are allowed to have field "
-            f"arguments of different data types. However, found "
-            f"different data types ['gh_integer', 'gh_real'] for "
-            f"field arguments to '{test_builtin_name.lower()}'."
-            in str(excinfo.value))
+            f"['int_X', 'real_X'] are allowed to have field arguments of "
+            f"different data types. However, found different data types "
+            f"['gh_integer', 'gh_real'] for field arguments to "
+            f"'{test_builtin_name.lower()}'." in str(excinfo.value))
 
 
 def test_lfricbuiltincallfactory_str():
