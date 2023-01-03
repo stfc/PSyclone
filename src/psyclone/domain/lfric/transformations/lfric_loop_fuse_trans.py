@@ -31,9 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#        J. Henrichs, Bureau of Meteorology
-# Modified I. Kavcic, Met Office
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+#          J. Henrichs, Bureau of Meteorology
+# Modified by I. Kavcic, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
 
 '''This module provides the LFRic-specific loop fusion transformation.
@@ -86,7 +86,7 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         :param node2: the second Loop to fuse.
         :type node2: :py:class:`psyclone.dynamo0p3.DynLoop`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
         :param bool options["same_space"]: this optional flag, set to `True`, \
             asserts that an unknown iteration space (i.e. `ANY_SPACE`) \
             matches the other iteration space. This is set at the user's own \
@@ -124,10 +124,9 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         same_space = options.get("same_space", False)
         if same_space and not isinstance(same_space, bool):
             raise TransformationError(
-                "Error in {0} transformation: The value of the 'same_space' "
-                "flag must be either bool or None type, but the type of "
-                "flag provided was '{1}'.".
-                format(self.name, type(same_space).__name__))
+                f"Error in {self.name} transformation: The value of the "
+                f"'same_space' flag must be either bool or None type, but the "
+                f"type of flag provided was '{type(same_space).__name__}'.")
         super(LFRicLoopFuseTrans, self).validate(node1, node2,
                                                  options=options)
         # Now test for Dynamo-specific constraints
@@ -144,9 +143,9 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         if not (node1_fs_name in const.VALID_FUNCTION_SPACE_NAMES and
                 node2_fs_name in const.VALID_FUNCTION_SPACE_NAMES):
             raise TransformationError(
-                "Error in {0} transformation: One or both function "
-                "spaces '{1}' and '{2}' have invalid names.".
-                format(self.name, node1_fs_name, node2_fs_name))
+                f"Error in {self.name} transformation: One or both function "
+                f"spaces '{node1_fs_name}' and '{node2_fs_name}' have invalid "
+                f"names.")
         # Check whether any of the spaces is ANY_SPACE. Loop fusion over
         # ANY_SPACE is allowed only when the 'same_space' flag is set
         node_on_any_space = node1_fs_name in \
@@ -161,20 +160,20 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
                 pass
             elif not node_on_any_space:
                 raise TransformationError(
-                    "Error in {0} transformation: The 'same_space' "
-                    "flag was set, but does not apply because "
-                    "neither field is on 'ANY_SPACE'.".format(self))
+                    f"Error in {self.name} transformation: The 'same_space' "
+                    f"flag was set, but does not apply because "
+                    f"neither field is on 'ANY_SPACE'.")
         # 2.3) If 'same_space' is not True then make further checks
         else:
             # 2.3.1) Check whether one or more of the function spaces
             # is ANY_SPACE without the 'same_space' flag
             if node_on_any_space:
                 raise TransformationError(
-                    "Error in {0} transformation: One or more of the "
-                    "iteration spaces is unknown ('ANY_SPACE') so loop "
-                    "fusion might be invalid. If you know the spaces "
-                    "are the same then please set the 'same_space' "
-                    "optional argument to 'True'.".format(self.name))
+                    f"Error in {self.name} transformation: One or more of the "
+                    f"iteration spaces is unknown ('ANY_SPACE') so loop fusion"
+                    f" might be invalid. If you know the spaces are the same "
+                    f"then please set the 'same_space' optional argument to "
+                    f"'True'.")
             # 2.3.2) Check whether specific function spaces are the
             # same. If they are not, the loop fusion is still possible
             # but only when both function spaces are discontinuous
@@ -186,27 +185,24 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
                         node2_fs_name in
                         const.VALID_DISCONTINUOUS_NAMES):
                     raise TransformationError(
-                        "Error in {0} transformation: Cannot fuse loops "
-                        "that are over different spaces '{1}' and '{2}' "
-                        "unless they are both discontinuous.".
-                        format(self.name, node1_fs_name,
-                               node2_fs_name))
+                        f"Error in {self.name} transformation: Cannot fuse "
+                        f"loops that are over different spaces "
+                        f"'{node1_fs_name}' and '{node2_fs_name}' unless they "
+                        f"are both discontinuous.")
 
         # 3) Check upper loop bounds
         if node1.upper_bound_name != node2.upper_bound_name:
             raise TransformationError(
-                "Error in {0} transformation: The upper bound names "
-                "are not the same. Found '{1}' and '{2}'.".
-                format(self.name, node1.upper_bound_name,
-                       node2.upper_bound_name))
+                f"Error in {self.name} transformation: The upper bound names "
+                f"are not the same. Found '{node1.upper_bound_name}' and "
+                f"'{node2.upper_bound_name}'.")
 
         # 4) Check halo depths
         if node1.upper_bound_halo_depth != node2.upper_bound_halo_depth:
             raise TransformationError(
-                "Error in {0} transformation: The halo-depth indices "
-                "are not the same. Found '{1}' and '{2}'.".
-                format(self.name, node1.upper_bound_halo_depth,
-                       node2.upper_bound_halo_depth))
+                f"Error in {self.name} transformation: The halo-depth indices "
+                f"are not the same. Found '{node1.upper_bound_halo_depth}' "
+                f"and '{node2.upper_bound_halo_depth}'.")
 
         # 5) Check for reductions
         arg_types = const.VALID_SCALAR_NAMES
@@ -218,19 +214,18 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
 
         if node1_red_args and node2_red_args:
             raise TransformationError(
-                "Error in {0} transformation: Cannot fuse loops "
-                "when each loop already contains a reduction.".
-                format(self.name))
+                f"Error in {self.name} transformation: Cannot fuse loops "
+                f"when each loop already contains a reduction.")
         if node1_red_args:
             for reduction_arg in node1_red_args:
                 other_args = node2.args_filter()
                 for arg in other_args:
                     if reduction_arg.name == arg.name:
                         raise TransformationError(
-                            "Error in {0} transformation: Cannot fuse "
-                            "loops as the first loop has a reduction "
-                            "and the second loop reads the result of "
-                            "the reduction.".format(self.name))
+                            f"Error in {self.name} transformation: Cannot fuse"
+                            f" loops as the first loop has a reduction and "
+                            f"the second loop reads the result of the "
+                            f"reduction.")
 
 
 # For automatic documentation generation

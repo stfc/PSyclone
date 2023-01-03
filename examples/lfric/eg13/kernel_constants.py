@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab.
+# Authors: R. W. Ford and N. Nobre, STFC Daresbury Lab
 
 
 '''An example PSyclone transformation script which makes ndofs, nqp*
@@ -80,16 +80,16 @@ def trans(psy):
     const_trans = Dynamo0p3KernelConstTrans()
 
     for invoke in psy.invokes.invoke_list:
-        print("invoke '{0}'".format(invoke.name))
+        print(f"invoke '{invoke.name}'")
         schedule = invoke.schedule
         for kernel in schedule.coded_kernels():
-            print("  kernel '{0}'".format(kernel.name.lower()))
+            print(f"  kernel '{kernel.name.lower()}'")
             try:
                 const_trans.apply(kernel,
                                   {"number_of_layers": NUMBER_OF_LAYERS,
                                    "element_order": ELEMENT_ORDER,
                                    "quadrature": CONSTANT_QUADRATURE})
             except TransformationError:
-                print("    Failed to modify kernel '{0}'".format(kernel.name))
+                print(f"    Failed to modify kernel '{kernel.name}'")
 
     return psy

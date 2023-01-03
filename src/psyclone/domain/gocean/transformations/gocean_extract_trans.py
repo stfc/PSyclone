@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors I. Kavcic, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford and S. Siso, STFC Daresbury Laboratory
+# Modified by R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''This module contains the GOcean-specific extract transformation.
 '''
@@ -82,7 +82,7 @@ class GOceanExtractTrans(ExtractTrans):
         :param node_list: the list of Node(s) we are checking.
         :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
         :param bool options["create_driver"]: whether or not to create a \
             driver program at code-generation time. If set, the driver will \
             be created in the current working directory with the name \
@@ -134,7 +134,7 @@ class GOceanExtractTrans(ExtractTrans):
         :type nodes: :py:obj:`psyclone.psyir.nodes.Node` or list of \
                      :py:obj:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
         :param str options["prefix"]: a prefix to use for the PSyData module \
             name (``prefix_psy_data_mod``) and the PSyDataType \
             (``prefix_PSyDataType``) - a "_" will be added automatically. \
