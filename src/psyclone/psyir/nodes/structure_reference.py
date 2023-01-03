@@ -270,9 +270,10 @@ class StructureReference(Reference):
     @property
     def datatype(self):
         '''
-        If no data type was enforced for this reference, walk down the list
-        of members making up this reference to determine the type that it
-        refers to.
+        Walks down the list of members making up this reference to determine
+        the type that it refers to. If an overwrite datatype was given to this
+        reference, this datatype will be returned instead of determining the
+        type.
 
         In order to minimise code duplication, this method also supports
         ArrayOfStructuresReference by simply allowing for the case where
