@@ -119,7 +119,6 @@ class CWriter(LanguageWriter):
         return [" + ".join(summands)]
 
     def gen_declaration(self, symbol):
-        # pylint: disable=no-self-use
         '''
         Generates string representing the C declaration of the symbol. In C
         declarations can be found inside the argument list or with the
@@ -181,7 +180,6 @@ class CWriter(LanguageWriter):
         return result
 
     def literal_node(self, node):
-        # pylint: disable=no-self-use
         '''This method is called when a Literal instance is found in the PSyIR
         tree.
 
@@ -412,7 +410,6 @@ class CWriter(LanguageWriter):
         return f"{self._nindent}return;\n"
 
     def codeblock_node(self, _):
-        # pylint: disable=no-self-use
         '''This method is called when a CodeBlock instance is found in the
         PSyIR tree. At the moment all CodeBlocks contain Fortran fparser
         code.
@@ -496,7 +493,6 @@ class CWriter(LanguageWriter):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         result_list = [f"{self._nindent}#pragma {node.begin_string()}\n"]
         return "".join(result_list)
 

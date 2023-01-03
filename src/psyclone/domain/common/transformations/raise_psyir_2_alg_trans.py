@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 '''Specialise generic PSyIR representing an invoke call within the
 algorithm layer to a PSyclone algorithm-layer-specific invoke call
@@ -40,8 +40,7 @@ which uses specialised classes.
 '''
 # pylint: disable=protected-access
 
-from fparser.two.Fortran2003 import Structure_Constructor, Actual_Arg_Spec, \
-    Name, Char_Literal_Constant
+from fparser.two.Fortran2003 import Structure_Constructor
 
 from psyclone.psyir.nodes import Call, ArrayReference, CodeBlock, Literal
 from psyclone.psyir.symbols import Symbol, DataTypeSymbol, StructureType, \
@@ -150,7 +149,7 @@ class RaisePSyIR2AlgTrans(Transformation):
             generic PSyIR.
         :type node: :py:class:`psyclone.psyir.nodes.Call`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied call argument is \
             not a PSyIR Call node.
@@ -217,7 +216,7 @@ class RaisePSyIR2AlgTrans(Transformation):
         :param int index: the position of this invoke call relative to \
             other invokes in the algorithm layer.
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(call, options=options)

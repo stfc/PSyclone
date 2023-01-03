@@ -32,9 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified by: R. W. Ford, STFC Daresbury Lab
-# Modified by J. Henrichs, Bureau of Meteorology
-# Modified by A. B. G. Chalk, STFC Daresbury Lab
+# Modified by: R. W. Ford, A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
+# Modified by: J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the Member node.'''
@@ -126,7 +125,6 @@ class Member(Node):
         :rtype: bool
 
         '''
-        # pylint: disable=no-self-use
         return False
 
     def get_signature_and_indices(self):

@@ -107,8 +107,8 @@ def test_struc_ref_create_errors():
     with pytest.raises(TypeError) as err:
         _ = nodes.StructureReference.create(
             symbols.DataSymbol("grid", symbols.DeferredType()), [],
-            enforce_datatype=1)
-    assert ("The 'enforce_datatype' argument to StructureReference.create() "
+            overwrite_datatype=1)
+    assert ("The 'overwrite_datatype' argument to StructureReference.create() "
             "should be a DataType but found 'DataSymbol'." in str(err.value))
     with pytest.raises(TypeError) as err:
         _ = nodes.StructureReference.create(
@@ -276,8 +276,8 @@ def test_struc_ref_datatype():
     grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
     ssym = symbols.DataSymbol("grid", grid_type_symbol)
     # Reference to scalar member of structure
-    sref = nodes.StructureReference.create(ssym, ["nx"],
-                                           enforce_datatype=symbols.REAL_TYPE)
+    sref = nodes.StructureReference.\
+        create(ssym, ["nx"], overwrite_datatype=symbols.REAL_TYPE)
     assert sref.datatype == symbols.REAL_TYPE
 
 

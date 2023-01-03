@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified: R. W. Ford and S. Siso, STFC Daresbury Lab
+# Modified: R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
 
 
 '''Module providing a transformation from a generic PSyIR representation of
@@ -111,16 +111,16 @@ class CreateNemoPSyTrans(Transformation):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node is not a PSyIR node.
 
         '''
         if not isinstance(node, Node):
             raise TransformationError(
-                "Error in CreateNemoPSyTrans transformation. The supplied node"
-                " should be a PSyIR Node but found '{0}'".format(
-                    type(node).__name__))
+                f"Error in CreateNemoPSyTrans transformation. The supplied "
+                f"node should be a PSyIR Node but found "
+                f"'{type(node).__name__}'")
 
         super(CreateNemoPSyTrans, self).validate(node, options=options)
 
@@ -137,7 +137,7 @@ class CreateNemoPSyTrans(Transformation):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(psyir, options=options)

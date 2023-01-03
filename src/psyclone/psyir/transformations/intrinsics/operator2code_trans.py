@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,15 +41,13 @@ functionality required by transformations of PSyIR intrinsic operators
 '''
 from __future__ import absolute_import
 import abc
-import six
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Assignment
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
 
 
-@six.add_metaclass(abc.ABCMeta)
-class Operator2CodeTrans(Transformation):
+class Operator2CodeTrans(Transformation, metaclass=abc.ABCMeta):
     '''Provides support for transformations from PSyIR intrinsic Operator
     nodes to equivalent PSyIR code in a PSyIR tree. Such
     transformations can be useful when the intrinsic is not supported
@@ -83,7 +81,7 @@ class Operator2CodeTrans(Transformation):
         :param node: the node that is being checked.
         :type node: :py:class:`psyclone.psyir.nodes.Operation`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the node argument is not the \
             expected type.
