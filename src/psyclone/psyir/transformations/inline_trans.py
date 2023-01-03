@@ -210,17 +210,18 @@ class InlineTrans(Transformation):
 
     def replace_dummy_arg(self, ref, call_node, dummy_args):
         '''
-        Combines a Reference to a dummy argument with the corresponding
-        Reference from the call site to make a new Reference for use in the
-        inlined code. If the supplied Reference is not to a dummy argument
-        then it is returned unchanged.
+        Recursively combines any References to dummy arguments in the supplied
+        PSyIR expression with the corresponding Reference from the call site to
+        make a new Reference for use in the inlined code. If the supplied
+        node is not a Reference to a dummy argument then it is just returned
+        (after we have recursed to any children).
 
-        :param ref: the reference to update.
-        :type ref: :py:class:`psyclone.psyir.nodes.Reference`
+        :param ref: the expression to update.
+        :type ref: :py:class:`psyclone.psyir.nodes.Node`
         :param call_node: the call site.
         :type call_node: :py:class:`psyclone.psyir.nodes.Call`
         :param dummy_args: the dummy arguments of the called routine.
-        :type dummy_args: List[:py:class:`psyclone.psyir.nodes.Reference`]
+        :type dummy_args: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
 
         :returns: the replacement reference.
         :rtype: :py:class:`psyclone.psyir.nodes.Reference`
@@ -242,25 +243,28 @@ class InlineTrans(Transformation):
         actual_arg = call_node.children[dummy_args.index(ref.symbol)]
 
         # If the local reference is a simple Reference then we can just
-        # replace it with the actual argument.
+        # replace it with a copy of the actual argument, e.g.
+        #
+        #   call my_sub(my_struc%data(i,j))
+        #
+        #   subroutine my_sub(var)
+        #     ...
+        #     var = 0.0
+        #
         # pylint: disable=unidiomatic-typecheck
         if type(ref) is Reference:
-            # call my_sub(my_struc%data(i,j))
-            #
-            # subroutine my_sub(var)
-            #   ...
-            #   var = 0.0
             arg_copy = actual_arg.copy()
             ref.replace_with(arg_copy)
             return arg_copy
 
         # Local reference is not simple but the actual argument is, e.g.:
         #
-        # call my_sub(my_struc)
+        #   call my_sub(my_struc)
         #
-        # subroutine my_sub(var)
-        #   ...
-        #   var%data(i,j) = 0.0
+        #   subroutine my_sub(var)
+        #     ...
+        #     var%data(i,j) = 0.0
+        #
         if type(actual_arg) is Reference:
             ref.symbol = actual_arg.symbol
             return ref
@@ -300,17 +304,30 @@ class InlineTrans(Transformation):
     def _create_inlined_idx(self, call_node, dummy_args,
                             local_idx, decln_start, actual_start):
         '''
-        :param local_idx: Node describing a local array index.
-        :param decln_start:
-        :param actual_start:
+        Utility that creates the PSyIR for an inlined array-index access
+        expression.
+
+        :param call_node: the Call that we are inlining.
+        :type call_node: :py:class:`psyclone.psyir.nodes.Call`
+        :param dummy_args: the dummy arguments of the routine being called.
+        :type dummy_args: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
+        :param local_idx: a local array-index expression (i.e. appearing \
+            within the routine being inlined).
+        :type local_idx: :py:class:`psyclone.psyir.nodes.Node`
+        :param decln_start: the lower bound of the corresponding array \
+            dimension, as declared inside the routine being inlined.
+        :type decln_start: :py:class:`psyclone.psyir.nodes.Node`
+        :param actual_start: the lower bound of the corresponding array \
+            dimension, as defined at the call site.
+        :type actual_start: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR for the corresponding inlined array index.
-        :rtype:
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         # If local_idx is the index of the access in the routine;
         #    local_decln_start is the starting index of the dimension as
-        #                 declared in the routine.
+        #                 declared in the routine;
         #    actual_start is the starting index of the slice at the callsite
         #                 (whether from the array declaration or a slice);
         #
@@ -360,7 +377,7 @@ class InlineTrans(Transformation):
         :param call_node: the Call that we are inlining.
         :type call_node: :py:class:`psyclone.psyir.nodes.Call`
         :param dummy_args: the dummy arguments of the routine being called.
-        :type dummy_args: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :type dummy_args: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
 
         '''
         cursor = ref
@@ -378,7 +395,7 @@ class InlineTrans(Transformation):
             else:
                 members.append(cursor.name)
 
-    def _update_actual_indices(self, actual_arg, local_ref, local_decln_shape,
+    def _update_actual_indices(self, actual_arg, local_ref,
                                call_node, dummy_args):
         '''
         Create a new list of indices for the supplied actual argument
@@ -388,12 +405,16 @@ class InlineTrans(Transformation):
 
         :param actual_arg: (part of) the actual argument to the routine.
         :type actual_arg: :py:class:`psyclone.psyir.nodes.ArrayMixin`
-        :param local_ref: the Reference in the called routine
-        :param local_decln_shape:
-        :param call_node:
-        :param dummy_args:
-        '''
+        :param local_ref: the corresponding Reference in the called routine.
+        :param call_node: the call site.
+        :type call_node: :py:class:`psyclone.psyir.nodes.Call`
+        :param dummy_args: the dummy arguments of the called routine.
+        :type dummy_args: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
 
+        :returns: new indices for the actual argument.
+        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
+
+        '''
         if isinstance(local_ref, ArrayMixin):
             local_indices = [idx.copy() for idx in local_ref.indices]
         # Get the locally-declared shape of the dummy argument in case its
@@ -432,13 +453,12 @@ class InlineTrans(Transformation):
                 actual_start = idx.start
 
             if local_ref.is_full_range(local_idx_posn):
-                # If the local Range is for the full extent of the
-                # dummy argument then the actual Range is defined by
-                # that of the actual argument and no change is required
-                # unless the dummy argument is declared as having a
-                # Range with an extent that is less than that supplied. In
-                # general we're not going to know that so we have to be
-                # conservative.
+                # If the local Range is for the full extent of the dummy
+                # argument then the actual Range is defined by that of the
+                # actual argument and no change is required unless the dummy
+                # argument is declared as having a Range with an extent that is
+                # less than that supplied. In general we're not going to know
+                # that so we have to be conservative.
                 if local_shape:
                     new = Range.create(local_shape.lower.copy(),
                                        local_shape.upper.copy())
@@ -446,55 +466,60 @@ class InlineTrans(Transformation):
                         call_node, dummy_args,
                         new, local_decln_start, actual_start)
             else:
-                # Otherwise, the local index expression replaces the
-                # Range.
+                # Otherwise, the local index expression replaces the Range.
                 new_indices[pos] = self._create_inlined_idx(
                     call_node, dummy_args,
                     local_indices[local_idx_posn],
                     local_decln_start, actual_start)
-            # Each Range corresponds to one dimension of
-            # the dummy argument.
+            # Each Range corresponds to one dimension of the dummy argument.
             local_idx_posn += 1
         return new_indices
 
     def _replace_dummy_struc_arg(self, actual_arg, ref, call_node, dummy_args):
         '''
+        Called by _replace_dummy_arg() whenever a dummy or actual argument
+        involves an array or structure access that can't be handled with a
+        simple substitution.
+        Recursively combines any References to dummy arguments in the supplied
+        Reference with the corresponding Reference from the call site to
+        make a new Reference for use in the inlined code.
+
+        :param actual_arg: an actual argument to the routine being inlined.
+        :type actual_arg: :py:class:`psyclone.psyir.nodes.Reference`
+        :param ref: the corresponding reference to a dummy argument.
+        :type ref: :py:class:`psyclone.psyir.nodes.Reference`
+        :param call_node: the call site.
+        :type call_node: :py:class:`psyclone.psyir.nodes.Call`
+        :param dummy_args: the dummy arguments of the called routine.
+        :type dummy_args: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
+
+        :returns: the replacement reference.
+        :rtype: :py:class:`psyclone.psyir.nodes.Reference`
 
         '''
+        # The final stage of this method creates a brand new
+        # [ArrayOf]Structure[s]Reference so we have to collect the indices and
+        # members as we walk down both the actual and local references.
         local_indices = None
         members = []
+
         # Actual arg could be var, var(:)%index, var(i,j)%grid(:) or
         # var(j)%data(i) etc. Any Ranges must correspond to dimensions of the
         # dummy argument. The validate() method has already ensured that we
         # do not have any indirect accesses or non-unit strides.
-        #
-        # The actual argument declaration has actual_dim_start (defaults to 1).
-        # The actual argument itself may be a slice with actual_arg_start.
-        # The dummy argument declaration has dummy_dim_start (defaults to 1).
-        # The access within the routine is to the array (section) specified
-        # by the caller.
-        # actual_idx = local_idx - local_dim_start + actual_dim_start
 
         if isinstance(ref, ArrayMixin):
             local_indices = [idx.copy() for idx in ref.indices]
-        # Get the locally-declared shape of the dummy argument in case its
-        # bounds are shifted relative to the caller.
-        if isinstance(ref.symbol.datatype, ArrayType):
-            local_decln_shape = ref.symbol.datatype.shape
-        else:
-            local_decln_shape = []
 
-        # First, we examine any Ranges in the indices on the actual argument
-        # and update them appropriately. We update the `actual_indices` list so
-        # that it can be used when we finally construct the new Reference at
-        # the end of this method.
         # Since a Range can occur at any level of a Structure access in the
-        # actual argument we walk down it and check each Member.
+        # actual argument, we walk down it and check each Member. Any Ranges
+        # are updated according to how that dimension is accessed by the
+        # reference inside the routine.
         cursor = actual_arg
         while True:
             if hasattr(cursor, "indices"):
                 new_indices = self._update_actual_indices(
-                    cursor, ref, local_decln_shape, call_node, dummy_args)
+                    cursor, ref, call_node, dummy_args)
                 members.append((cursor.name, new_indices))
             else:
                 members.append(cursor.name)
@@ -503,11 +528,10 @@ class InlineTrans(Transformation):
                 break
             cursor = cursor.member
 
-        # There are no Ranges in the actual argument.
         if not actual_arg.walk(Range) and local_indices:
-            # We've reached the ultimate member of the StructureReference
-            # so this is where we need to
-            # add the index expressions from the local access.
+            # There are no Ranges in the actual argument but the local
+            # reference is an array access.
+            # Create updated index expressions for that access.
             new_indices = []
             for idx in local_indices:
                 new_indices.append(
@@ -517,10 +541,12 @@ class InlineTrans(Transformation):
             # access.
             members[-1] = (cursor.name, new_indices)
 
-        # Continue with *local* access, skipping head (as that is
-        # replaced by actual arg).
+        # We now walk down the *local* access, skipping its head (as that is
+        # replaced by the actual arg).
         self._update_member_list(members, ref, call_node, dummy_args)
 
+        # Finally, construct the new Reference using the information we've
+        # collected from both the actual argument and local access.
         if len(members) > 1:
             # We have some form of Structure reference.
             if len(members[0]) == 2:
