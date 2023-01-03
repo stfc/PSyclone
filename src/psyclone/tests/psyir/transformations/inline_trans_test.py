@@ -483,10 +483,11 @@ def test_apply_allocatable_array_arg(fortran_reader, fortran_writer, tmpdir):
         "contains\n"
         "  subroutine run_it()\n"
         "    type(my_type) :: grid\n"
-        "    integer :: jim1, jjp1\n"
+        "    integer :: jim1, jjp1, jim2, jjp2\n"
         "    real, allocatable, dimension(:,:) :: avar\n"
         "    allocate(grid%data(2:6,-1:8))\n"
         "    call sub1(grid%data, jim1, jjp1)\n"
+        "    call sub1(grid%data(2:6,-1:8), jim2, jjp2)\n"
         "  end subroutine run_it\n"
         "  subroutine sub1(x, ji, jj)\n"
         "    integer, intent(in) :: ji, jj\n"
@@ -505,6 +506,7 @@ def test_apply_allocatable_array_arg(fortran_reader, fortran_writer, tmpdir):
     # array bounds are the same.
     assert "grid%data(2,-1) = 0.0\n" in output
     assert "grid%data(jim1 + 2,jjp1 + 1) = -1.0\n" in output
+    assert "grid%data(jim2 + 2,jjp2 + 1) = -1.0\n" in output
     assert Compile(tmpdir).string_compiles(output)
 
 

@@ -348,17 +348,17 @@ class InlineTrans(Transformation):
             return Range.create(lower.copy(), upper.copy(), step.copy())
 
         uidx = self.replace_dummy_arg(local_idx, call_node, dummy_args)
-        if decln_start != _ONE or actual_start != _ONE:
-            ustart = self.replace_dummy_arg(decln_start,
-                                            call_node, dummy_args)
-            start_sub = BinaryOperation.create(
-                BinaryOperation.Operator.SUB,
-                uidx.copy(), ustart.copy())
-            return BinaryOperation.create(
-                BinaryOperation.Operator.ADD,
-                start_sub, actual_start.copy())
+        if decln_start == actual_start:
+            # If the starting indices in the actual and dummy arguments are
+            # the same then we don't need to shift the index.
+            return uidx
 
-        return uidx
+        ustart = self.replace_dummy_arg(decln_start,
+                                        call_node, dummy_args)
+        start_sub = BinaryOperation.create(BinaryOperation.Operator.SUB,
+                                           uidx.copy(), ustart.copy())
+        return BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                      start_sub, actual_start.copy())
 
     def _update_member_list(self, members, ref, call_node, dummy_args):
         '''
