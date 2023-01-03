@@ -346,19 +346,19 @@ class InlineTrans(Transformation):
             step = self.replace_dummy_arg(local_idx.step, call_node,
                                           dummy_args)
             return Range.create(lower.copy(), upper.copy(), step.copy())
-        else:
-            uidx = self.replace_dummy_arg(local_idx, call_node, dummy_args)
-            if decln_start != _ONE or actual_start != _ONE:
-                ustart = self.replace_dummy_arg(decln_start,
-                                                call_node, dummy_args)
-                start_sub = BinaryOperation.create(
-                    BinaryOperation.Operator.SUB,
-                    uidx.copy(), ustart.copy())
-                return BinaryOperation.create(
-                    BinaryOperation.Operator.ADD,
-                    start_sub, actual_start.copy())
-            else:
-                return uidx
+
+        uidx = self.replace_dummy_arg(local_idx, call_node, dummy_args)
+        if decln_start != _ONE or actual_start != _ONE:
+            ustart = self.replace_dummy_arg(decln_start,
+                                            call_node, dummy_args)
+            start_sub = BinaryOperation.create(
+                BinaryOperation.Operator.SUB,
+                uidx.copy(), ustart.copy())
+            return BinaryOperation.create(
+                BinaryOperation.Operator.ADD,
+                start_sub, actual_start.copy())
+
+        return uidx
 
     def _update_member_list(self, members, ref, call_node, dummy_args):
         '''
@@ -431,16 +431,6 @@ class InlineTrans(Transformation):
             if not isinstance(idx, Range):
                 continue
 
-            if local_decln_shape and isinstance(
-                    local_decln_shape[local_idx_posn],
-                    ArrayType.ArrayBounds):
-                # The dummy argument declaration has a shape.
-                local_shape = local_decln_shape[local_idx_posn]
-                local_decln_start = local_shape.lower
-            else:
-                local_shape = None
-                local_decln_start = _ONE
-
             # Starting index of slice of actual argument.
             if actual_arg.is_lower_bound(pos):
                 # Range starts at lower bound of argument so that's what
@@ -451,6 +441,23 @@ class InlineTrans(Transformation):
                     actual_start = actual_arg.symbol.datatype.shape[pos].lower
             else:
                 actual_start = idx.start
+
+            local_decln_start = None
+            if local_decln_shape:
+                if isinstance(local_decln_shape[local_idx_posn],
+                              ArrayType.ArrayBounds):
+                    # The dummy argument declaration has a shape.
+                    local_shape = local_decln_shape[local_idx_posn]
+                    local_decln_start = local_shape.lower
+                elif (local_decln_shape[local_idx_posn] ==
+                      ArrayType.Extent.DEFERRED):
+                    # The dummy argument is declared to be allocatable and
+                    # therefore has the same bounds as the actual argument.
+                    local_shape = None
+                    local_decln_start = actual_start
+            if not local_decln_start:
+                local_shape = None
+                local_decln_start = _ONE
 
             if local_ref.is_full_range(local_idx_posn):
                 # If the local Range is for the full extent of the dummy
@@ -834,6 +841,7 @@ class InlineTrans(Transformation):
                     ancestor_ref = rge.ancestor(Reference)
                     if ancestor_ref is not actual_arg:
                         # Have a range in an indirect access.
+                        # pylint: disable=cell-var-from-loop
                         raise TransformationError(LazyString(
                             lambda: f"Cannot inline routine '{routine.name}' "
                             f"because argument '{visitor(actual_arg)}' has an "
@@ -841,6 +849,7 @@ class InlineTrans(Transformation):
                     if rge.step != _ONE:
                         # TODO #1646. We could resolve this problem by making
                         # a new array and copying the necessary values into it.
+                        # pylint: disable=cell-var-from-loop
                         raise TransformationError(LazyString(
                             lambda: f"Cannot inline routine '{routine.name}' "
                             f"because one of its arguments is an array slice "

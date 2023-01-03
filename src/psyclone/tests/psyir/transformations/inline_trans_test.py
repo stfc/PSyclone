@@ -290,6 +290,9 @@ def test_apply_struct_arg(fortran_reader, fortran_writer, tmpdir):
 
 def test_apply_struct_slice_arg(fortran_reader, fortran_writer, tmpdir):
     '''
+    Check that the apply() method works correctly when there are slices in
+    structure accesses in both the actual and dummy arguments.
+
     '''
     code = (
         f"module test_mod\n"
@@ -404,7 +407,7 @@ def test_apply_struct_local_limits_caller_decln(fortran_reader, fortran_writer,
     assert "varat2(:)%local%nx = 3\n" in output
     # A local access of '1' corresponds to the start of the array which is
     # index '2' at the call site.
-    assert "varat2(5 - 1 + 2:6 + 1 - 1 + 2)%local%nx = -2\n"
+    assert "varat2(5 - 1 + 2:6 + 1 - 1 + 2)%local%nx = -2\n" in output
     # Actual arg. has non-default range - index 1 in the routine corresponds
     # to index 3 at the call site.
     assert "varat2(3:8)%data(2) = 1.0\n" in output
@@ -456,12 +459,52 @@ def test_apply_struct_local_limits_routine(fortran_reader, fortran_writer,
     assert "varat2(4 - 4 + 2:5 - 4 + 2)%local%nx = 4\n" in output
     # A local access of '1' corresponds to the start of the array which is
     # index '2' at the call site.
-    assert "varat2(5 - 4 + 2:6 + 1 - 4 + 2)%local%nx = -3\n"
+    assert "varat2(5 - 4 + 2:6 + 1 - 4 + 2)%local%nx = -3\n" in output
     # Actual arg. has non-default range in slice. Therefore index 3 at the
     # call site becomes index 4 in the routine.
     assert "varat2(4 - 4 + 3:6 - 4 + 3)%data(2) = 2.0\n" in output
     assert "varat2(4 - 4 + 3:5 - 4 + 3)%local%nx = 4\n" in output
     assert "varat2(4 - 4 + 3:5 + 1 - 4 + 3)%local%nx = -3" in output
+    assert Compile(tmpdir).string_compiles(output)
+
+
+def test_apply_allocatable_array_arg(fortran_reader, fortran_writer, tmpdir):
+    '''
+    Check that apply() works correctly when a dummy argument is given the
+    ALLOCATABLE attribute (meaning that the bounds of the dummy argument
+    are those of the actual argument).
+
+    '''
+    code = (
+        "module test_mod\n"
+        "  type my_type\n"
+        "    real, allocatable, dimension(:,:) :: data\n"
+        "  end type my_type\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "    type(my_type) :: grid\n"
+        "    integer :: jim1, jjp1\n"
+        "    real, allocatable, dimension(:,:) :: avar\n"
+        "    allocate(grid%data(2:6,-1:8))\n"
+        "    call sub1(grid%data, jim1, jjp1)\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub1(x, ji, jj)\n"
+        "    integer, intent(in) :: ji, jj\n"
+        "    real, dimension(:,:), allocatable :: x\n"
+        "    x(2,-1) = 0.0\n"
+        "    x(ji+2,jj+1) = -1.0\n"
+        "  end subroutine sub1\n"
+        "end module test_mod\n"
+        )
+    psyir = fortran_reader.psyir_from_source(code)
+    inline_trans = InlineTrans()
+    for routine in psyir.walk(Call):
+        inline_trans.apply(routine)
+    output = fortran_writer(psyir)
+    # Array index expressions should not be shifted when inlined as the
+    # array bounds are the same.
+    assert "grid%data(2,-1) = 0.0\n" in output
+    assert "grid%data(jim1 + 2,jjp1 + 1) = -1.0\n" in output
     assert Compile(tmpdir).string_compiles(output)
 
 
