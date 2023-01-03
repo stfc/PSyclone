@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: S. Siso, STFC Daresbury Lab
+# Authors: S. Siso and N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''This module provides the LoopTiling2DTrans, which transforms a 2D Loop
@@ -98,7 +98,7 @@ class LoopTiling2DTrans(LoopTrans):
         :param node: the loop to validate.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dict with options for transformation.
-        :type options: dict of str:values or None
+        :type options: Optional[Dict[str, Any]]
         :param int options["tilesize"]: The size of the resulting tile, \
             currently square tiles are always used. If not specified, the \
             value 32 is used.
@@ -157,7 +157,7 @@ class LoopTiling2DTrans(LoopTrans):
         :param node: the loop to transform.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dict with options for transformations.
-        :type options: dict of str:values or None
+        :type options: Optional[Dict[str, Any]]
         :param int options["tilesize"]: The size of the resulting tile, \
                 currently square tiles are always used. If not \
                 specified, the value 32 is used.

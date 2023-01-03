@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council
+# Copyright (c) 2020-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,8 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
-# Modified: A. R. Porter, STFC Daresbury Laboratory
-#           S. Siso, STFC Daresbury Laboratory
+# Modified: A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''Module providing a transformation from a PSyIR ABS operator to
 PSyIR code. This could be useful if the ABS operator is not supported
@@ -107,7 +106,7 @@ class Abs2CodeTrans(Operator2CodeTrans):
         :param node: an ABS UnaryOperation node.
         :type node: :py:class:`psyclone.psyir.nodes.UnaryOperation`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         # pylint: disable=too-many-locals

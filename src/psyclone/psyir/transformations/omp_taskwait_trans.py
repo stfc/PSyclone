@@ -107,7 +107,7 @@ class OMPTaskwaitTrans(Transformation):
         :param node: the OMPParallelDirective node to validate.
         :type node: :py:class:`psyclone.psyir.nodes.OMPParallelDirective`
         :param options: a dictionary with options for transformations.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
         :param bool options["fail_on_no_taskloop"]:
                 indicating whether this should throw an error if no \
                 OMPTaskloop nodes are found in this tree. This can be \
@@ -392,7 +392,7 @@ class OMPTaskwaitTrans(Transformation):
         :type node: :py:class:`psyclone.psyir.nodes.OMPParallelDirective`
         :param options: a dictionary with options for transformations\
                         and validation.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
         :param bool options["fail_on_no_taskloop"]:
                 indicating whether this should throw an error if no \
                 OMPTaskloop nodes are found in this tree. This can be \

@@ -38,7 +38,6 @@
 '''
 
 import abc
-import six
 
 from psyclone.psyGen import Kern, Transformation
 from psyclone.psyir.transformations.transformation_error \
@@ -46,8 +45,7 @@ from psyclone.psyir.transformations.transformation_error \
 from psyclone.psyir.nodes import Schedule, Loop
 
 
-@six.add_metaclass(abc.ABCMeta)
-class LoopTrans(Transformation):
+class LoopTrans(Transformation, metaclass=abc.ABCMeta):
     # Avoid pylint warning about abstract method (apply) not overwritten:
     # pylint: disable=abstract-method
     '''
@@ -70,7 +68,7 @@ class LoopTrans(Transformation):
         :param node: target PSyIR node.
         :type node: subclass of :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
         :param bool options["node-type-check"]: this flag controls if the \
             type of the nodes enclosed in the loop should be tested to \
             avoid including unsupported nodes in a transformation.

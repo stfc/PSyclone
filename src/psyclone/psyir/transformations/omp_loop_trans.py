@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: S. Siso, STFC Daresbury Lab
+# Authors: S. Siso and N. Nobre, STFC Daresbury Lab
 
 ''' Transformation to insert OpenMP directives to parallelise PSyIR Loops. '''
 
@@ -232,7 +232,7 @@ class OMPLoopTrans(ParallelLoopTrans):
         :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations\
                         and validation.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
         :param bool options["reprod"]:
                 indicating whether reproducible reductions should be used. \
                 By default the value from the config file will be used.

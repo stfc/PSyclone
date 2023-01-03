@@ -30,7 +30,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #          J. Henrichs, Bureau of Meteorology
 #          I. Kavcic, Met Office
 # -----------------------------------------------------------------------------
@@ -41,7 +41,6 @@
 
 from collections import OrderedDict
 import os
-import six
 
 from fparser.two import Fortran2003, utils
 from fparser.two.utils import walk, BlockBase, StmtBase
@@ -793,7 +792,7 @@ def _create_struct_reference(parent, base_ref, base_symbol, members,
     # members making up this structure access.
     new_members = []
     for member in members:
-        if isinstance(member, six.string_types):
+        if isinstance(member, str):
             new_members.append(member)
         elif isinstance(member, tuple):
             # Second member of the tuple is a list of index expressions
@@ -3633,7 +3632,6 @@ class Fparser2Reader():
         :raises NotImplementedError: if the fparser2 node is not recognised.
 
         '''
-        # pylint: disable=no-self-use
         if isinstance(node, Fortran2003.Int_Literal_Constant):
             integer_type = ScalarType(ScalarType.Intrinsic.INTEGER,
                                       get_literal_precision(node, parent))
@@ -3671,7 +3669,6 @@ class Fparser2Reader():
         :rtype: :py:class:`psyclone.psyir.nodes.Literal`
 
         '''
-        # pylint: disable=no-self-use
         character_type = ScalarType(ScalarType.Intrinsic.CHARACTER,
                                     get_literal_precision(node, parent))
         # fparser issue #295 - the value of the character string currently
@@ -3706,7 +3703,6 @@ class Fparser2Reader():
         :rtype: :py:class:`psyclone.psyir.nodes.Literal`
 
         '''
-        # pylint: disable=no-self-use
         boolean_type = ScalarType(ScalarType.Intrinsic.BOOLEAN,
                                   get_literal_precision(node, parent))
         value = str(node.items[0]).lower()

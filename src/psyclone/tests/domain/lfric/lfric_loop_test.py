@@ -39,20 +39,23 @@
 ''' This module uses pytest to test the DynLoop class. This is the LFRic-
     specific subclass of the Loop class. '''
 
-from __future__ import absolute_import, print_function
 import os
 import pytest
+
 from fparser import api as fpapi
+
 from psyclone.configuration import Config
 from psyclone.core import AccessType
+from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import LFRicConstants, LFRicSymbolTable
 from psyclone.dynamo0p3 import DynLoop, DynKern, DynKernMetadata
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import (Schedule, ArrayReference, Reference,
-                                  Literal, ScopingNode)
+from psyclone.psyir.nodes import (ArrayReference, Call, Literal, Reference,
+                                  Schedule, ScopingNode)
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (Dynamo0p3ColourTrans,
                                       DynamoOMPParallelLoopTrans,
                                       Dynamo0p3RedundantComputationTrans)
@@ -105,11 +108,15 @@ def test_set_lower_bound_functions(monkeypatch):
     assert "lower loop bound is invalid" in str(excinfo.value)
 
 
-def test_set_upper_bound_functions():
+def test_set_upper_bound_functions(monkeypatch):
     ''' Test that we raise appropriate exceptions when the upper bound of
     a DynLoop is set to invalid values.
 
     '''
+    # Make sure we get an LFRicSymbolTable
+    # TODO #1954: Remove the protected access using a factory
+    monkeypatch.setattr(ScopingNode, "_symbol_table_class",
+                        LFRicSymbolTable)
     schedule = Schedule()
     my_loop = DynLoop(parent=schedule)
     schedule.children = [my_loop]
@@ -206,6 +213,84 @@ def test_mesh_name_intergrid():
     psy.gen
     loops = psy.invokes.invoke_list[0].schedule.walk(DynLoop)
     assert loops[0]._mesh_name == "mesh_field1"
+
+
+def test_lower_to_language_normal_loop():
+    ''' Test that we can call lower_to_language_level on a normal
+    (i.e. not a domain) DynLoop. The new loop type should not be a
+    DynLoop anymore, but a PSyLoop. Additionally, also test that
+    without lowering the symbols (for start and stop expressions)
+    will change if the loop order is modified, but after lowering
+    the symbols should not change anymore.
+    '''
+
+    _, invoke = get_invoke("4.8_multikernel_invokes.f90", TEST_API,
+                           dist_mem=False, idx=0)
+    sched = invoke.schedule
+    loop1 = sched.children[1]
+    assert loop1.start_expr.symbol.name == "loop1_start"
+
+    # Now remove loop 0, and verify that the start variable symbol has changed
+    # (which is a problem in case of driver creation, since the symbol names
+    # written in the full code can then be different from the symbols used
+    # in the driver). TODO #1731 might fix this, in which case this test
+    # will fail (and the whole lowering of DynLoop can likely be removed).
+    sched.children.pop(0)
+    assert loop1.start_expr.symbol.name == "loop0_start"
+
+    # The same test with the lowered schedule should not change the
+    # symbol anymore:
+    _, invoke = get_invoke("4.8_multikernel_invokes.f90", TEST_API,
+                           dist_mem=False, idx=0)
+    # Now lower the loop:
+    sched = invoke.schedule
+    # Verify that we have the right node:
+    assert isinstance(sched.children[1], DynLoop)
+    sched.lower_to_language_level()
+    loop1 = sched.children[1]
+    assert not isinstance(loop1, DynLoop)
+    assert isinstance(loop1, PSyLoop)
+
+    # Verify that after lowering the symbol name does not change
+    # anymore if a previous loop is removed:
+    assert loop1.start_expr.symbol.name == "loop1_start"
+    sched.children.pop(0)
+    assert loop1.start_expr.symbol.name == "loop1_start"
+
+
+def test_lower_to_language_domain_loop():
+    ''' Tests that we can call lower_to_language_level on a domain DynLoop.
+    This test takes an invoke with two consecutive domain kernels and then
+    fuses the 'loops' to verify that the kernels are all still in the right
+    order.
+    '''
+
+    _, invoke = get_invoke("25.1_kern_two_domain.f90", TEST_API, idx=0)
+    # Domain loops cannot be fused with the transformation, so manually
+    # move the two kernels into one domain loop. First detach the second
+    # DynLoop from the invoke, then detach the actual kernel. Lastly,
+    # insert this second kernel into the domain loop body:
+    sched = invoke.schedule
+    loop1 = sched.children[1].detach()
+    kern = loop1.loop_body.children[0].detach()
+    sched.children[0].loop_body.children.insert(1, kern)
+
+    # Check that the loops are in the expected order - the first kernel
+    # uses a and f1, the second b and f2:
+    assert sched.children[0].loop_body.children[0].args[0].name == "a"
+    assert sched.children[0].loop_body.children[0].args[1].name == "f1"
+    assert sched.children[0].loop_body.children[1].args[0].name == "b"
+    assert sched.children[0].loop_body.children[1].args[1].name == "f2"
+
+    # This call removes the loop and replaces it with the actual kernel
+    # call in case of a domain loop. It also adds the implicit arguments
+    # so the variable names have a different index in the lowered tree:
+    sched.lower_to_language_level()
+    assert isinstance(sched[0], Call)
+    assert sched.children[0].children[2].name == "a"
+    assert sched.children[0].children[3].name == "f1_proxy"
+    assert sched.children[1].children[2].name == "b"
+    assert sched.children[1].children[3].name == "f2_proxy"
 
 
 def test_upper_bound_fortran_1():
