@@ -44,9 +44,9 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyGen import CodedKern, Kern
-from psyclone.psyir.nodes import Container, Routine, CodeBlock
+from psyclone.psyir.nodes import Container, Routine, CodeBlock, Call
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
-    SymbolError
+    SymbolError, ContainerSymbol, ImportInterface
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
@@ -74,6 +74,29 @@ def test_validate_inline_error_if_not_kernel():
             "psyGen.CodedKern but got 'GOLoop'" in str(err.value))
 
 
+def test_validate_with_imported_subroutine_call():
+    ''' Test that the module inline transformation supports kernels with
+    call nodes that reference and imported symbol. '''
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean1.0",
+                           idx=0, dist_mem=False)
+    schedule = invoke.schedule
+    kern_call = schedule.walk(CodedKern)[0]
+    # Create a call to made up subroutine and module symbols
+    kern_schedule = kern_call.get_kernel_schedule()
+    mymod = kern_schedule.symbol_table.new_symbol(
+            "mymod",
+            symbol_type=ContainerSymbol)
+    myfunc = kern_schedule.symbol_table.new_symbol(
+            "myfunc",
+            symbol_type=RoutineSymbol,
+            interface=ImportInterface(mymod))
+    kern_schedule.addchild(Call(myfunc))
+
+    # The validate should succeed
+    inline_trans = KernelModuleInlineTrans()
+    inline_trans.validate(kern_call)
+
+
 def test_validate_invalid_get_kernel_schedule(monkeypatch):
     '''Check that the validate method in the class KernelTrans raises an
     exception if the kernel code can not be retrieved.
@@ -94,7 +117,7 @@ def test_validate_invalid_get_kernel_schedule(monkeypatch):
         kernel_trans.apply(kernel)
     assert ("KernelModuleInlineTrans failed to retrieve PSyIR for kernel "
             "'kernel_with_global_code' using the 'get_kernel_schedule' "
-            "method." in str(err.value))
+            "method due to" in str(err.value))
 
 
 def test_validate_no_inline_global_var(parser):
@@ -107,9 +130,9 @@ def test_validate_no_inline_global_var(parser):
     kernels = sched.walk(Kern)
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(kernels[0])
-    assert ("'kernel_with_global_code' contains accesses to data (variable "
-            "'alpha') that are not present in the Symbol Table(s) "
-            "within subroutine scope." in str(err.value))
+    assert ("'kernel_with_global_code' contains accesses to 'alpha' which is "
+            "declared in the same module scope. Cannot inline such a kernel."
+            in str(err.value))
 
     # Check that the issue is also reported if the symbol is inside a
     # Codeblock
@@ -124,9 +147,9 @@ def test_validate_no_inline_global_var(parser):
 
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(kernels[0])
-    assert ("'kernel_with_global_code' contains accesses to data (variable "
-            "'alpha' in a CodeBlock) that are not present in the Symbol "
-            "Table(s) within subroutine scope." in str(err.value))
+    assert ("'kernel_with_global_code' contains accesses to 'alpha' in a "
+            "CodeBlock that is declared in the same module scope. Cannot "
+            "inline such a kernel." in str(err.value))
 
 
 def test_validate_name_clashes():
@@ -452,6 +475,23 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     result = fortran_writer(routine)
     assert "use external_mod1, only : my_sub" in result
 
+    # Also, if they are inside CodeBlocks
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+        use external_mod1, only: a, b
+        implicit none
+        contains
+        subroutine code()
+            a => b
+        end subroutine code
+    end module my_mod
+    ''')
+
+    routine = psyir.walk(Routine)[0]
+    inline_trans._prepare_code_to_inline(routine)
+    result = fortran_writer(routine)
+    assert "use external_mod1, only : a, b" in result
+
     # Check that symbol shadowing is respected (in this example
     # only 'c' must be brought into the subroutine)
     psyir = fortran_reader.psyir_from_source('''
@@ -491,6 +531,21 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     assert "use external_mod\n" in result
     assert "use external_mod, only : r_def" not in result
 
+    # Routine References (in Calls) are also brought into the subroutine
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+        use external_mod, only: a
+        contains
+        subroutine code()
+            call a()
+        end subroutine code
+    end module my_mod
+    ''')
+    routine = psyir.walk(Routine)[0]
+    inline_trans._prepare_code_to_inline(routine)
+    result = fortran_writer(routine)
+    assert "use external_mod, only : a" in result
+
 
 def test_module_inline_lfric(tmpdir, monkeypatch, annexed, dist_mem):
     '''Tests that correct results are obtained when a kernel is inlined
@@ -519,18 +574,21 @@ def test_module_inline_lfric(tmpdir, monkeypatch, annexed, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_module_inline_mixed_precision_lfric():
-    ''' Test the module-inlining of a mixed-precision kernel in the LFRic
-    API. TODO #1824 - this doesn't work because the subroutine implementing the
-    kernel has a different name from the kernel itself.
+def test_module_inline_with_interfaces(tmpdir):
+    ''' Test the module-inlining when the kernel points to an interface, we
+    use an LFRic mixed-precision kernel as an example of this.
 
     '''
     psy, invoke = get_invoke("26.8_mixed_precision_args.f90", "dynamo0.3",
                              name="invoke_0", dist_mem=False)
     kern_call = invoke.schedule.walk(CodedKern)[0]
     inline_trans = KernelModuleInlineTrans()
-    with pytest.raises(TransformationError) as err:
-        inline_trans.apply(kern_call)
-    assert ("the implementation of kernel 'mixed_code' is in a subroutine "
-            "named 'mixed_code_64'. Module inlining of a kernel that requires "
-            "re-naming is not yet supported" in str(err.value))
+    inline_trans.apply(kern_call)
+    gen = str(psy.gen)
+    # Both the caller and the callee are in the file and use the specialized
+    # implementation name.
+    assert "CALL mixed_code_64(" in gen
+    assert "SUBROUTINE mixed_code_64(" in gen
+
+    # And it is valid code
+    assert LFRicBuild(tmpdir).code_compiles(psy)

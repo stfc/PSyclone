@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,6 +44,20 @@ from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir import symbols, nodes
 from psyclone.tests.utilities import check_links
+
+
+def test_struc_ref_init():
+    '''Tests the constructor.'''
+
+    sym = symbols.symbol.Symbol("test")
+    s_ref = nodes.StructureReference(sym)
+
+    assert s_ref._overwrite_datatype is None
+
+    with pytest.raises(TypeError) as excinfo:
+        _ = nodes.StructureReference("hello")
+    assert ("The StructureReference symbol setter expects a PSyIR Symbol "
+            "object but found 'str'." in str(excinfo.value))
 
 
 def test_struc_ref_create():

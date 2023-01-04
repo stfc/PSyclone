@@ -54,6 +54,9 @@ from psyclone.transformations import Dynamo0p3ColourTrans
 
 TEST_API = "dynamo0.3"
 
+# The PSyIR module contains classes generated at runtime
+# pylint: disable=no-member
+
 
 def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):
     '''Helper function to check if the PSyIR representation of the arguments
@@ -106,7 +109,6 @@ def test_cellmap_intergrid(dist_mem, fortran_writer):
         'map_w2(:,cell)']
 
     check_psyir_results(create_arg_list, fortran_writer)
-    # pylint: disable=no-member
     array_1d = ArrayType(psyir.LfricRealScalarDataType(),
                          [ArrayType.Extent.DEFERRED])
     assert create_arg_list.psyir_arglist[5].datatype == array_1d
@@ -138,7 +140,6 @@ def test_kerncallarglist_face_xyoz(dist_mem, fortran_writer):
     check_psyir_results(create_arg_list, fortran_writer)
 
     # Check that the right datatype is set:
-    # pylint: disable=no-member
     array_1d = ArrayType(psyir.LfricRealScalarDataType(),
                          [ArrayType.Extent.DEFERRED])
     assert create_arg_list.psyir_arglist[2].datatype == array_1d
@@ -358,7 +359,6 @@ def test_kerncallarglist_bcs_operator(fortran_writer):
         'ndf_aspc1_op_a', 'ndf_aspc2_op_a', 'boundary_dofs_op_a']
 
     check_psyir_results(create_arg_list, fortran_writer)
-    # pylint: disable=no-member
     assert (create_arg_list.psyir_arglist[2].datatype ==
             psyir.LfricIntegerScalarDataType())
     array_type_3d = ArrayType(psyir.LfricRealScalarDataType(),
