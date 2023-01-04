@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,6 @@
 
 ''' This module contains pytest tests for the ArrayMember class. '''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.psyir import symbols, nodes
 from psyclone.errors import GenerationError
@@ -140,6 +139,39 @@ def test_am_is_lower_upper_bound():
     assert amem2.is_upper_bound(0) is False
     assert amem2.is_lower_bound(1) is True
     assert amem2.is_upper_bound(1) is True
+
+
+def test_am_lbound(fortran_writer):
+    ''' Tests for the lbound() method of ArrayMember. '''
+    one = nodes.Literal("1", symbols.INTEGER_TYPE)
+    two = nodes.Literal("2", symbols.INTEGER_TYPE)
+    # First, test when we don't have type information.
+    grid_type = symbols.DataTypeSymbol("grid_type", symbols.DeferredType())
+    sym = symbols.DataSymbol("grid_var", grid_type)
+    ref = nodes.StructureReference.create(sym, [("data", [one.copy()])])
+    lbnd = ref.member.lbound(0)
+    assert isinstance(lbnd, nodes.BinaryOperation)
+    out = fortran_writer(lbnd).lower()
+    assert out == "lbound(grid_var%data, 1)"
+    usym = symbols.DataSymbol("uvar", symbols.DeferredType())
+    ref = nodes.ArrayOfStructuresReference.create(
+        usym, [one.copy()],
+        [("map", [one.copy(), two.copy()]),
+         ("data", [one.copy()])])
+    lbnd = ref.member.member.lbound(0)
+    assert isinstance(lbnd, nodes.BinaryOperation)
+    out = fortran_writer(lbnd).lower()
+    assert out == "lbound(uvar(1)%map(1,2)%data, 1)"
+    # Second, test when we do have type information.
+    a2d = symbols.ArrayType(symbols.REAL_TYPE, [2, (2, 8)])
+    # Structure that contains "map" which is a 2D array.
+    stypedef = symbols.StructureType.create(
+        [("map", a2d, symbols.Symbol.Visibility.PUBLIC)])
+    ssym = symbols.DataSymbol("var", stypedef)
+    sref = nodes.StructureReference.create(ssym,
+                                           [("map", [two.copy(), two.copy()])])
+    assert sref.member.lbound(0) == one
+    assert sref.member.lbound(1) == two
 
 
 def test_am_same_array():
