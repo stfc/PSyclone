@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -187,6 +187,29 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                 and lower.children[1].value == str(index+1)):
             return False
         return True
+
+    def lbound(self, pos):
+        '''
+        Lookup the lower bound of the specified dimension of this ArrayMixin.
+        If we don't have the necessary type information then a call to the
+        LBOUND intrinsic is constructed and returned.
+
+        :param int pos: the dimension of the array for which to lookup the \
+                        bounds.
+
+        :returns: the declared lower bound for the specified dimension of \
+            this ArrayMixin or a call to the LBOUND intrinsic if it is not \
+            known.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        if (isinstance(self.symbol.datatype, ArrayType) and
+                isinstance(self.symbol.datatype.shape[pos],
+                           ArrayType.ArrayBounds)):
+            return self.symbol.datatype.shape[pos].lower
+        return BinaryOperation.create(
+            BinaryOperation.Operator.LBOUND, Reference(self.symbol),
+            Literal(str(pos+1), INTEGER_TYPE))
 
     def is_upper_bound(self, index):
         '''Returns True if the specified array index contains a Range node

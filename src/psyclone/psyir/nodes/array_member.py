@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,9 +36,14 @@
 
 ''' This module contains the implementation of the ArrayMember node.'''
 
-from psyclone.psyir.nodes.member import Member
-from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.errors import GenerationError
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
+from psyclone.psyir.nodes.literal import Literal
+from psyclone.psyir.nodes.member import Member
+from psyclone.psyir.nodes.operation import BinaryOperation
+from psyclone.psyir.nodes.reference import Reference
+from psyclone.psyir.symbols import (DataTypeSymbol, ArrayType,
+                                    StructureType, INTEGER_TYPE)
 
 
 class ArrayMember(ArrayMixin, Member):
@@ -93,20 +98,14 @@ class ArrayMember(ArrayMixin, Member):
         constructed and returned.
 
         :param int pos: the dimension of the array for which to lookup the \
-                        bounds.
+                        lower bound.
 
         :returns: the declared lower bound for the specified dimension of \
             this ArrayMember or a call to the LBOUND intrinsic if it is not \
             known.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
-        TODO - should this be incorporated into `datatype` in
-        e.g. StructureReference?
         '''
-        from psyclone.psyir.symbols import DataTypeSymbol, ArrayType, \
-            StructureType, INTEGER_TYPE
-        from psyclone.psyir.nodes import Reference, StructureReference, \
-            ArrayOfStructuresReference, BinaryOperation, Literal
         # First, walk up to the parent reference, collecting the necessary
         # information to make a new [ArrayOf]Structure[s]Reference as we go.
         cnames = []
@@ -145,6 +144,10 @@ class ArrayMember(ArrayMixin, Member):
             # Remove the indexing information from the ultimate member
             # of the structure access.
             cnames[-1] = cnames[-1][0]
+            # Have to import here to avoid circular dependencies.
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.nodes import (ArrayOfStructuresReference,
+                                              StructureReference)
             if hasattr(cursor, "indices"):
                 new_indices = [idx.copy() for idx in cursor.indices]
                 ref = ArrayOfStructuresReference.create(

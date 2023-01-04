@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -107,7 +107,6 @@ class InlineTrans(Transformation):
         * the routine is not in the same file as the call;
         * the routine contains an early Return statement;
         * the routine has a named argument;
-        * the call to the routine passes array subsections;
         * the shape of any array arguments as declared inside the routine does
           not match the shape of the arrays being passed as arguments;
         * the routine accesses an un-resolved symbol;
@@ -360,41 +359,6 @@ class InlineTrans(Transformation):
         return BinaryOperation.create(BinaryOperation.Operator.ADD,
                                       start_sub, actual_start.copy())
 
-    def _update_member_list(self, members, ref, call_node, dummy_args):
-        '''
-        Utility method used to walk down a StructureReference inside the
-        routine being inlined, collecting members
-        ready to construct a brand new StructureReference. The head of
-        the StructureReference is not collected as that will be replaced
-        by the actual argument. Any index expressions that refer to dummy
-        arguments are updated so that they refer to symbols at the call site.
-
-        :param members: the list of members to append to.
-        :type members: List[str | \
-            Tuple[str, List[:py:class:`psyclone.psyir.nodes.Node`]]]
-        :param ref: the reference to walk down from.
-        :type ref: :py:class:`psycone.psyir.nodes.StructureReference`
-        :param call_node: the Call that we are inlining.
-        :type call_node: :py:class:`psyclone.psyir.nodes.Call`
-        :param dummy_args: the dummy arguments of the routine being called.
-        :type dummy_args: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
-
-        '''
-        cursor = ref
-        while hasattr(cursor, "member"):
-            cursor = cursor.member
-            if hasattr(cursor, "indices"):
-                new_indices = []
-                for idx in cursor.indices:
-                    # Update each index expression in case it refers to
-                    # dummy arguments.
-                    new_indices.append(
-                        self.replace_dummy_arg(
-                            idx.copy(), call_node, dummy_args))
-                members.append((cursor.name, new_indices))
-            else:
-                members.append(cursor.name)
-
     def _update_actual_indices(self, actual_arg, local_ref,
                                call_node, dummy_args):
         '''
@@ -435,10 +399,7 @@ class InlineTrans(Transformation):
             if actual_arg.is_lower_bound(pos):
                 # Range starts at lower bound of argument so that's what
                 # we store.
-                if isinstance(actual_arg, ArrayMember):
-                    actual_start = actual_arg.lbound(pos)
-                else:
-                    actual_start = actual_arg.symbol.datatype.shape[pos].lower
+                actual_start = actual_arg.lbound(pos)
             else:
                 actual_start = idx.start
 
@@ -550,7 +511,20 @@ class InlineTrans(Transformation):
 
         # We now walk down the *local* access, skipping its head (as that is
         # replaced by the actual arg).
-        self._update_member_list(members, ref, call_node, dummy_args)
+        cursor = ref
+        while hasattr(cursor, "member"):
+            cursor = cursor.member
+            if hasattr(cursor, "indices"):
+                new_indices = []
+                for idx in cursor.indices:
+                    # Update each index expression in case it refers to
+                    # dummy arguments.
+                    new_indices.append(
+                        self.replace_dummy_arg(
+                            idx.copy(), call_node, dummy_args))
+                members.append((cursor.name, new_indices))
+            else:
+                members.append(cursor.name)
 
         # Finally, construct the new Reference using the information we've
         # collected from both the actual argument and local access.
