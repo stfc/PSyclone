@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2022, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford, A. R. Porter, S. Siso and A. B. G. Chalk STFC Daresbury Lab
+..            J. Henrichs, Bureau of Meteorology
 
 The PSyclone Internal Representation (PSyIR)
 ############################################
