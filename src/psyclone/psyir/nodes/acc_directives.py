@@ -105,8 +105,8 @@ class ACCRegionDirective(ACCDirective, RegionDirective, metaclass=abc.ABCMeta):
         device (probably a GPU) before the parallel region can be begun.
 
         :returns: 1-tuple or 2-tuple of input and output sets of variable names
-        :rtype: Union[Tuple[Set[:py:class:`psyclone.core.Signature`]],
-                      Tuple[Set[:py:class:`psyclone.core.Signature`],
+        :rtype: Union[Tuple[Set[:py:class:`psyclone.core.Signature`]], \
+                      Tuple[Set[:py:class:`psyclone.core.Signature`],  \
                             Set[:py:class:`psyclone.core.Signature`]]]
         '''
 
