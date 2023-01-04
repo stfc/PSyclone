@@ -69,7 +69,7 @@ class FieldArgMetadata(ScalarArgMetadata):
     # The name to use for any exceptions.
     check_name = "field"
     # The number of arguments in the language-level metadata (low and high).
-    nargs = [4, 5]
+    nargs = (4, 5)
 
     def __init__(self, datatype, access, function_space, stencil=None):
         super().__init__(datatype, access)

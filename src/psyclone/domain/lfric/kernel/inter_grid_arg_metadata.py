@@ -76,7 +76,7 @@ class InterGridArgMetadata(FieldArgMetadata):
     check_name = "inter-grid"
     # The number of arguments in the language-level metadata (min and
     # max values).
-    nargs = [5, 6]
+    nargs = (5, 6)
 
     # The fparser2 class that captures this metadata.
     fparser2_class = Fortran2003.Structure_Constructor

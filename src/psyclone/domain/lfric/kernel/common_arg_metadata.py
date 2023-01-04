@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council
+# Copyright (c) 2022-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -75,13 +75,13 @@ class CommonArgMetadata(CommonMetadata):
         :param nargs: the number of expected arguments. This can \
             either be a single value or a list containing a lower and an \
             upper value.
-        :type nargs: int or List[int, int]
+        :type nargs: int or Tuple[int, int]
 
         :raises ValueError: if the kernel metadata does not contain \
             the expected number of arguments (nargs).
 
         '''
-        if isinstance(nargs, list):
+        if isinstance(nargs, tuple):
             min_args = nargs[0]
             max_args = nargs[1]
             string = f"between {min_args} and {max_args}"
@@ -140,14 +140,15 @@ class CommonArgMetadata(CommonMetadata):
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
         :param int index: the position of the metadata argument.
 
-        :returns: the metadata value extracted from the fparser2 tree.
-        :rtype: str
+        :returns: the metadata value extracted from the fparser2 tree \
+            or None if it does not exist.
+        :rtype: Optional[str]
 
         '''
         try:
             return fparser2_tree.children[1].children[index].tostr()
         except IndexError:
-            # Optional metadata does not exist.
+            # Metadata at the specified index does not exist.
             return None
 
 

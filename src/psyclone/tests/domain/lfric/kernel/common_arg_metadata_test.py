@@ -73,10 +73,19 @@ def test_check_nargs():
     fparser2_tree = CommonArgMetadata.create_fparser2(
         "args(one, two, three)", Fortran2003.Part_Ref)
     CommonArgMetadata.check_nargs(fparser2_tree, 3)
+    CommonArgMetadata.check_nargs(fparser2_tree, (3, 3))
     with pytest.raises(ValueError) as info:
         CommonArgMetadata.check_nargs(fparser2_tree, 2)
     assert ("Expected kernel metadata to have 2 arguments, but found 3 in "
             "'args(one, two, three)'." in str(info.value))
+    with pytest.raises(ValueError) as info:
+        CommonArgMetadata.check_nargs(fparser2_tree, (1, 2))
+    assert ("Expected kernel metadata to have between 1 and 2 arguments, but "
+            "found 3 in 'args(one, two, three)'." in str(info.value))
+    with pytest.raises(ValueError) as info:
+        CommonArgMetadata.check_nargs(fparser2_tree, (4, 5))
+    assert ("Expected kernel metadata to have between 4 and 5 arguments, but "
+            "found 3 in 'args(one, two, three)'." in str(info.value))
 
 
 def test_check_fparser2_arg():
@@ -116,3 +125,4 @@ def test_get_arg():
     assert CommonArgMetadata.get_arg(fparser_tree, 0) == "GH_FIELD"
     assert CommonArgMetadata.get_arg(fparser_tree, 1) == "GH_REAL"
     assert CommonArgMetadata.get_arg(fparser_tree, 2) == "GH_READ"
+    assert CommonArgMetadata.get_arg(fparser_tree, 3) is None

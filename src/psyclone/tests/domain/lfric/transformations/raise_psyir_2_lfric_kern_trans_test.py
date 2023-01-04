@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -198,6 +198,7 @@ def test_validate_metadata_name(fortran_reader):
     '''
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
     kern_trans = RaisePSyIR2LFRicKernTrans()
+    # Incorrect name (causes KeyError internally).
     with pytest.raises(TransformationError) as info:
         kern_trans.validate(kernel_psyir, {"invalid": "testkern_type"})
     assert ("Transformation Error: Error in RaisePSyIR2LFRicKernTrans "
@@ -205,6 +206,14 @@ def test_validate_metadata_name(fortran_reader):
             "variable containing the metadata to be provided in the options "
             "argument with lookup name 'metadata_name', but found "
             "'['invalid']'." in str(info.value))
+    # No name provided (causes TypeError internally).
+    with pytest.raises(TransformationError) as info:
+        transformation.validate(kernel_psyir)
+    assert ("Transformation Error: Error in RaisePSyIR2LFRicKernTrans "
+            "transformation. This transformation requires the name of the "
+            "variable containing the metadata to be provided in the options "
+            "argument with lookup name 'metadata_name', but found '[]'."
+            in str(info.value))
 
 
 def test_validate_medatata():
