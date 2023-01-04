@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2022, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford, A. R. Porter, S. Siso and A. B. G. Chalk STFC Daresbury Lab
+..            J. Henrichs, Bureau of Meteorology
 
 The PSyclone Internal Representation (PSyIR)
 ############################################
@@ -748,8 +749,9 @@ Data Type of a Structure Access
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 In order to get the actual data type of a structure reference, PSyclone
 needs to have access to the declaration of all structures involved
-in the access. In case of
-the implicit arguments added by PSyclone to a kernel call (e.g. the
+in the accessor expression. However, these are often DeferredType if the
+module where they are declared has not been processed. In the case of
+some domain-API arguments added by PSyclone to a kernel call (e.g. the
 indices in GOcean, or additional field information in LFRic), the type
 of these structure accesses is actually known. When creating a
 structure reference, there is an option ``overwrite_datatype``,

@@ -8549,7 +8549,9 @@ class DynKern(CodedKern):
 
         if len(routines) == 1:
             sched = routines[0]
-            self.validate_kernel_code_args(sched.symbol_table)
+            # TODO #928: We don't validate the arguments yet because the
+            # validation has many false negatives.
+            # self.validate_kernel_code_args(sched.symbol_table)
         else:
             # The kernel name corresponds to an interface block. Find which
             # of the routines matches the precision of the arguments.

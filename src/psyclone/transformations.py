@@ -715,7 +715,7 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
 
 class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
 
-    ''' Dynamo 0.3 specific orphan OpenMP loop transformation. Adds
+    ''' LFRic (Dynamo 0.3) specific orphan OpenMP loop transformation. Adds
     Dynamo-specific validity checks.
 
     :param str omp_schedule: the OpenMP schedule to use. Must be one of \
@@ -729,21 +729,22 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
     def __str__(self):
         return "Add an OpenMP DO directive to a Dynamo 0.3 loop"
 
-    def apply(self, node, options=None):
-        '''Perform Dynamo 0.3 specific loop validity checks then call
-        :py:meth:`OMPLoopTrans.apply`.
+    def validate(self, node, options=None):
+        ''' Perform LFRic (Dynamo 0.3) specific loop validity checks for the
+        OMPLoopTrans.
 
         :param node: the Node in the Schedule to check
         :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations \
                         and validation.
         :type options: Optional[Dict[str, Any]]
-        :param bool options["reprod"]:
-                indicating whether reproducible reductions should be used. \
-                By default the value from the config file will be used.
+        :param bool options["reprod"]: \
+            indicating whether reproducible reductions should be used. \
+            By default the value from the config file will be used.
 
-        :raise TransformationError: if an OMP loop transform would create \
-                incorrect code.
+        :raises TransformationError: if an OMP loop transform would create \
+            incorrect code.
+
         '''
         if not options:
             options = {}
@@ -755,7 +756,11 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
         options["reprod"] = options.get("reprod",
                                         Config.get().reproducible_reductions)
 
-        self.validate(node, options=options)
+        # This transformation allows to parallelise loops with potential
+        # dependencies because we use cell colouring to guarantee that
+        # neighbours are not updated at the same time.
+        options["force"] = True
+        super().validate(node, options=options)
 
         # If the loop is not already coloured then check whether or not
         # it should be
@@ -764,7 +769,35 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
                 f"Error in {self.name} transformation. The kernel has an "
                 f"argument with INC access. Colouring is required.")
 
-        OMPLoopTrans.apply(self, node, options)
+    def apply(self, node, options=None):
+        ''' Apply LFRic (Dynamo 0.3) specific OMPLoopTrans.
+
+        :param node: the Node in the Schedule to check.
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
+        :param options: a dictionary with options for transformations \
+                        and validation.
+        :type options: Optional[Dict[str, Any]]
+        :param bool options["reprod"]: \
+                indicating whether reproducible reductions should be used. \
+                By default the value from the config file will be used.
+
+        '''
+        if not options:
+            options = {}
+
+        # Since this function potentially modifies the user's option
+        # dictionary, create a copy:
+        options = options.copy()
+        # Make sure the default is set:
+        options["reprod"] = options.get("reprod",
+                                        Config.get().reproducible_reductions)
+
+        # This transformation allows to parallelise loops with potential
+        # dependencies because we use cell colouring to guarantee that
+        # neighbours are not updated at the same time.
+        options["force"] = True
+
+        super().apply(node, options)
 
 
 class GOceanOMPLoopTrans(OMPLoopTrans):
