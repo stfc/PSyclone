@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -111,8 +111,8 @@ class Reference(DataNode):
         '''
         if not isinstance(symbol, Symbol):
             raise TypeError(
-                f"The Reference symbol setter expects a PSyIR Symbol object "
-                f"but found '{type(symbol).__name__}'.")
+                f"The {type(self).__name__} symbol setter expects a PSyIR "
+                f"Symbol object but found '{type(symbol).__name__}'.")
         self._symbol = symbol
 
     @property
