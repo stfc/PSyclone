@@ -42,6 +42,8 @@ from fparser.two import Fortran2003
 
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.field_arg_metadata import FieldArgMetadata
+from psyclone.domain.lfric.kernel.scalar_arg_metadata import ScalarArgMetadata
+from psyclone.errors import InternalError
 
 
 class InterGridArgMetadata(FieldArgMetadata):
@@ -62,13 +64,14 @@ class InterGridArgMetadata(FieldArgMetadata):
     '''
     # The relative position of LFRic mesh metadata. Metadata for an
     # inter-grid argument is provided in the following format
-    # 'arg_type(form, datatype, access, function_space, mesh,
-    # stencil)'. Therefore, the index of the mesh argument
-    # (mesh_arg_index) is 4 and stencil argument (stencil_arg_index)
-    # is 5. Index values not provided here are common to the parent
-    # classes and are inherited from them.
-    mesh_arg_index = 4
-    stencil_arg_index = 5
+    # 'arg_type(form, datatype, access, function_space, [stencil],
+    # mesh)'. The stencil argument is optional and its index
+    # (stencil_arg_index) is therefore 4 if it exists and the index of
+    # the mesh argument is 4 or 5 depending on whether there is a
+    # stencil argument. As the mesh argument index value is not known
+    # beforehand, it is not set. Fixed index values not provided here
+    # are common to the parent classes and are inherited from them.
+    stencil_arg_index = 4
     # The name to use for any exceptions.
     check_name = "inter-grid"
     # The number of arguments in the language-level metadata (min and
@@ -100,15 +103,20 @@ class InterGridArgMetadata(FieldArgMetadata):
         :rtype: Tuple[str, str, str, str, Optional[str]]
 
         '''
-        # RF TODO This isn't going to work for stencils as we call
-        # super() so don't pick up the different index for stencil
-        # specified in this class?
-        datatype, access, function_space, stencil = super()._get_metadata(fparser2_tree)
-        mesh_arg = cls.get_mesh_arg(fparser2_tree)
+        datatype, access = cls._get_datatype_access_metadata(fparser2_tree)
+        function_space = cls.get_arg(
+            fparser2_tree, cls.function_space_arg_index)
+        try:
+            stencil = cls.get_stencil(fparser2_tree)
+            mesh_arg = cls.get_mesh_arg(fparser2_tree, 5)
+        except TypeError:
+            stencil = None
+            mesh_arg = cls.get_mesh_arg(fparser2_tree, 4)
+
         return (datatype, access, function_space, mesh_arg, stencil)
 
     @staticmethod
-    def get_mesh_arg(fparser2_tree):
+    def get_mesh_arg(fparser2_tree, mesh_arg_index):
         '''Retrieves the mesh_arg metadata value from the supplied fparser2
         tree.
 
@@ -116,23 +124,32 @@ class InterGridArgMetadata(FieldArgMetadata):
             an InterGrid argument.
         :type fparser2_tree: \
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`
+        :param int mesh_arg_index: the index at which to find the metadata.
 
         :returns: the metadata mesh value extracted from the fparser2 tree.
         :rtype: str
 
-        raises ValueError: if the lhs of the assignment "mesh_arg = \
-            value" is not "mesh_arg".
+        raises ValueError: if the metadata is not in the form \
+            'mesh_arg = <value>'.
 
         '''
-        mesh_arg_lhs = fparser2_tree.children[1].\
-            children[InterGridArgMetadata.mesh_arg_index].children[0].tostr()
+        try:
+            mesh_arg_lhs = fparser2_tree.children[1].\
+                children[mesh_arg_index].children[0].tostr()
+        except IndexError:
+            raise ValueError(
+                f"At argument index {mesh_arg_index} for metadata "
+                f"'{fparser2_tree}' expected the metadata to be in the form "
+                f"'mesh_arg=value' but found "
+                f"'{fparser2_tree.children[1].children[mesh_arg_index]}'.")
+
         if not mesh_arg_lhs.lower() == "mesh_arg":
             raise ValueError(
-                f"At argument index {InterGridArgMetadata.mesh_arg_index} for "
-                f"metadata '{fparser2_tree}' expected the left hand side "
+                f"At argument index {mesh_arg_index} for metadata "
+                f"'{fparser2_tree}' expected the left hand side "
                 f"to be MESH_ARG but found '{mesh_arg_lhs}'.")
         mesh_arg = fparser2_tree.children[1].\
-            children[InterGridArgMetadata.mesh_arg_index].children[1].tostr()
+            children[mesh_arg_index].children[1].tostr()
         return mesh_arg
 
     def fortran_string(self):

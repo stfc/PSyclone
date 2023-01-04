@@ -53,13 +53,17 @@ class InterGridVectorArgMetadata(InterGridArgMetadata):
         argument (GH_WRITE, ...).
     :param str function_space: the function space that this \
         InterGridVector argument is on (W0, ...).
+    :param str mesh_arg: the type of mesh that this InterGrid arg \
+        is on (coarse or fine).
     :param str vector_length: the size of the vector.
+    :param Optional[str] stencil: the type of stencil used by the \
+        kernel when accessing this InterGrid arg.
 
     '''
     # The relative position of LFRic vector length metadata. Metadata
     # for an inter-grid vector argument is provided in the following
     # format 'arg_type(form*vector_length, datatype, access,
-    # function_space, mesh)'. Therefore, the index of the
+    # function_space, [stencil], mesh)'. Therefore, the index of the
     # vector_length argument (vector_length_arg_index) is 0. Index
     # values not provided here are common to the parent classes and
     # are inherited from them.
@@ -70,8 +74,9 @@ class InterGridVectorArgMetadata(InterGridArgMetadata):
     vector = True
 
     def __init__(self, datatype, access, function_space, mesh_arg,
-                 vector_length):
-        super().__init__(datatype, access, function_space, mesh_arg)
+                 vector_length, stencil=None):
+        super().__init__(
+            datatype, access, function_space, mesh_arg, stencil=stencil)
         self.vector_length = vector_length
 
     @classmethod
@@ -88,19 +93,24 @@ class InterGridVectorArgMetadata(InterGridArgMetadata):
 
         :returns: a tuple containing the datatype, access, function \
             space, mesh and vector-length metadata.
-        :rtype: Tuple[str, str, str, str, str]
+        :rtype: Tuple[str, str, str, str, str, Optional[str]]
 
         '''
-        datatype, access, function_space, mesh_arg = super()._get_metadata(
-            fparser2_tree)
+        datatype, access, function_space, mesh_arg, stencil = \
+            super()._get_metadata(fparser2_tree)
         vector_length = cls.get_vector_length(fparser2_tree)
-        return (datatype, access, function_space, mesh_arg, vector_length)
+        return (datatype, access, function_space, mesh_arg, vector_length,
+                stencil)
 
     def fortran_string(self):
         '''
         :returns: the metadata represented by this class as Fortran.
         :rtype: str
         '''
+        if self.stencil:
+            return (f"arg_type({self.form}*{self.vector_length}, "
+                    f"{self.datatype}, {self.access}, {self.function_space}, "
+                    f"stencil({self.stencil}), mesh_arg={self.mesh_arg})")
         return (f"arg_type({self.form}*{self.vector_length}, "
                 f"{self.datatype}, {self.access}, {self.function_space}, "
                 f"mesh_arg={self.mesh_arg})")

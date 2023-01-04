@@ -43,13 +43,18 @@ from fparser.two import Fortran2003
 from psyclone.domain.lfric.kernel import InterGridVectorArgMetadata
 
 
-def test_create():
+@pytest.mark.parametrize("datatype, access, function_space, mesh, "
+                         "vector_length, stencil", [
+    ("GH_REAL", "GH_READ", "W0", "GH_FINE", "3", "REGION"),
+    ("gh_real", "gh_read", "w0", "gh_fine", "3", "region")])
+def test_create(datatype, access, function_space, mesh, vector_length, stencil):
     '''Test that an instance of InterGridVectorArgMetadata can be created
-    successfully.
+    successfully. Test that the input is case insensitive and for
+    optional stencil information.
 
     '''
     inter_grid_arg = InterGridVectorArgMetadata(
-        "GH_REAL", "GH_READ", "W0", "GH_FINE", "3")
+        datatype, access, function_space, mesh, vector_length)
     assert isinstance(inter_grid_arg, InterGridVectorArgMetadata)
     assert inter_grid_arg.form == "gh_field"
     assert inter_grid_arg._datatype == "gh_real"
@@ -57,6 +62,11 @@ def test_create():
     assert inter_grid_arg._function_space == "w0"
     assert inter_grid_arg._mesh_arg == "gh_fine"
     assert inter_grid_arg._vector_length == "3"
+    assert inter_grid_arg._stencil is None
+
+    inter_grid_arg = InterGridVectorArgMetadata(
+        datatype, access, function_space, mesh, vector_length, stencil=stencil)
+    assert inter_grid_arg._stencil == "region"
 
 
 def test_init_invalid():
@@ -78,20 +88,44 @@ def test_get_metadata():
     metadata = "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0, mesh_arg=GH_COARSE)"
     fparser2_tree = InterGridVectorArgMetadata.create_fparser2(
         metadata, encoding=Fortran2003.Structure_Constructor)
-    datatype, access, function_space, mesh_arg, vector_length = \
+    datatype, access, function_space, mesh_arg, vector_length, stencil = \
         InterGridVectorArgMetadata._get_metadata(fparser2_tree)
     assert datatype == "GH_REAL"
     assert access == "GH_READ"
     assert function_space == "W0"
     assert mesh_arg == "GH_COARSE"
     assert vector_length == "3"
+    assert stencil is None
 
 
-def test_fortran_string():
-    '''Test that the fortran_string method works as expected.'''
+def test_get_metadata_stencil():
+    '''Test that the get_metadata class method works as expected when an
+    optional stencil value is provided.
 
-    fortran_string = ("arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0, "
-                      "mesh_arg=GH_FINE)")
+    '''
+    metadata = ("arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0, stencil(xory1d), "
+                "mesh_arg=GH_COARSE)")
+    fparser2_tree = InterGridVectorArgMetadata.create_fparser2(
+        metadata, encoding=Fortran2003.Structure_Constructor)
+    datatype, access, function_space, mesh_arg, vector_length, stencil = \
+        InterGridVectorArgMetadata._get_metadata(fparser2_tree)
+    assert datatype == "GH_REAL"
+    assert access == "GH_READ"
+    assert function_space == "W0"
+    assert mesh_arg == "GH_COARSE"
+    assert vector_length == "3"
+    assert stencil == "xory1d"
+
+
+@pytest.mark.parametrize("fortran_string", [
+    "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0, mesh_arg=GH_FINE)",
+    "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0, STENCIL(X1D), "
+    "mesh_arg=GH_FINE)"])
+def test_fortran_string(fortran_string):
+    '''Test that the fortran_string method works as expected. Test with
+    and without a stencil.
+
+    '''
     inter_grid_arg = InterGridVectorArgMetadata.create_from_fortran_string(
         fortran_string)
     result = inter_grid_arg.fortran_string()
