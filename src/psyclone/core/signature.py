@@ -39,8 +39,6 @@
 
 from __future__ import print_function, absolute_import
 
-import six
-
 from psyclone.errors import InternalError
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 
@@ -72,7 +70,7 @@ class Signature:
         else:
             # null-tuple
             sub_tuple = ()
-        if isinstance(variable, (str, six.text_type)):
+        if isinstance(variable, str):
             # str() required for python2 unicode support
             self._signature = (str(variable),) + sub_tuple
         elif isinstance(variable, tuple):

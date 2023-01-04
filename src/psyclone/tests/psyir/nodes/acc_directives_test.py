@@ -43,13 +43,14 @@ import os
 import pytest
 
 from psyclone.configuration import Config
+from psyclone.core import Signature
 from psyclone.errors import GenerationError
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import ACCRoutineDirective, \
     ACCKernelsDirective, Schedule, ACCUpdateDirective, ACCLoopDirective
-from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, SymbolTable
+from psyclone.psyir.symbols import SymbolTable
 from psyclone.transformations import ACCEnterDataTrans, ACCParallelTrans, \
     ACCKernelsTrans
 
@@ -322,49 +323,70 @@ def test_acc_routine_directive_constructor_and_strings():
 # Class ACCUpdateDirective
 
 def test_accupdatedirective_init():
-    ''' Test the constructor of ACCUpdateDirective node'''
+    ''' Test the constructor of ACCUpdateDirective node. '''
 
     # Check argument validations
     with pytest.raises(TypeError) as err:
-        _ = ACCUpdateDirective("invalid", "host")
-    assert ("The ACCUpdateDirective symbol argument must be a 'DataSymbol' "
-            "but found 'str'." in str(err.value))
+        _ = ACCUpdateDirective({"invalid"}, "host")
+    assert ("The ACCUpdateDirective signatures argument must be a "
+            "set of signatures but got {'str'}"
+            in str(err.value))
 
-    symbol = DataSymbol("x", REAL_TYPE)
+    sig = {Signature("x")}
     with pytest.raises(ValueError) as err:
-        _ = ACCUpdateDirective(symbol, "invalid")
+        _ = ACCUpdateDirective(sig, "invalid")
     assert ("The ACCUpdateDirective direction argument must be a string with "
             "any of the values in '('self', 'host', 'device')' but found "
             "'invalid'." in str(err.value))
 
+    with pytest.raises(TypeError) as err:
+        _ = ACCUpdateDirective(sig, "host", if_present=1)
+    assert ("The ACCUpdateDirective if_present argument must be a "
+            "boolean but got int"
+            in str(err.value))
+
     # Successful init
-    directive = ACCUpdateDirective(symbol, "host")
-    assert directive._symbol is symbol
-    assert directive._direction == "host"
+    directive = ACCUpdateDirective(sig, "host")
+    assert directive.sig_set == sig
+    assert directive.direction == "host"
+    assert directive.if_present is True
+
+    directive = ACCUpdateDirective(sig, "host", if_present=False)
+    assert directive.if_present is False
 
 
 def test_accupdatedirective_begin_string():
-    ''' Test the begin_string method of ACCUpdateDirective'''
+    ''' Test the begin_string method of ACCUpdateDirective. '''
 
-    symbol = DataSymbol("x", REAL_TYPE)
-    directive1 = ACCUpdateDirective(symbol, "host")
-    directive2 = ACCUpdateDirective(symbol, "device")
+    sig = {Signature("x")}
+    directive_host = ACCUpdateDirective(sig, "host", if_present=False)
+    directive_device = ACCUpdateDirective(sig, "device")
+    directive_empty = ACCUpdateDirective(set(), "host", if_present=False)
 
-    assert directive1.begin_string() == "acc update host(x)"
-    assert directive2.begin_string() == "acc update device(x)"
+    assert directive_host.begin_string() == "acc update host(x)"
+    assert directive_device.begin_string() == "acc update if_present device(x)"
+
+    with pytest.raises(GenerationError) as err:
+        directive_empty.begin_string()
+    assert ("ACCUpdate directive did not find any data to update."
+            in str(err.value))
 
 
 def test_accupdatedirective_equality():
     ''' Test the __eq__ method of ACCUpdateDirective node. '''
-    symbol = DataSymbol("x", REAL_TYPE)
-    directive1 = ACCUpdateDirective(symbol, "device")
-    directive2 = ACCUpdateDirective(symbol, "device")
+    sig = {Signature("x")}
+    directive1 = ACCUpdateDirective(sig, "device")
+    directive2 = ACCUpdateDirective(sig, "device")
     assert directive1 == directive2
 
-    # Check equality fails when different symbols
-    directive3 = ACCUpdateDirective(DataSymbol("t", REAL_TYPE), "device")
+    # Check equality fails when different signatures
+    directive3 = ACCUpdateDirective({Signature("t")}, "device")
     assert directive1 != directive3
 
     # Check equality fails when different directions
-    directive4 = ACCUpdateDirective(symbol, "host")
+    directive4 = ACCUpdateDirective(sig, "host")
     assert directive1 != directive4
+
+    # Check equality fails when different if_present settings
+    directive5 = ACCUpdateDirective(sig, "device", if_present=False)
+    assert directive1 != directive5

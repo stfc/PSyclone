@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,6 @@
 from __future__ import absolute_import
 
 import re
-import six
 
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols import ScalarType, ArrayType
@@ -90,7 +89,7 @@ class Literal(DataNode):
                 f"psyir.symbols.ScalarType or psyir.symbols.ArrayType "
                 f"but found '{type(datatype).__name__}'")
 
-        if not isinstance(value, six.string_types):
+        if not isinstance(value, str):
             raise TypeError(
                 f"Literals must be supplied with a value encoded as a string "
                 f"but found '{type(value).__name__}'")
