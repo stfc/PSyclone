@@ -44,7 +44,9 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import ACCKernelsDirective, CodeBlock, Schedule
+from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.psyir.nodes import (ACCKernelsDirective, CodeBlock, Routine,
+                                  Schedule)
 from psyclone.psyir.transformations import TransformationError, ACCUpdateTrans
 from psyclone.transformations import ACCEnterDataTrans, ACCKernelsTrans
 
@@ -95,8 +97,8 @@ end SUBROUTINE tra_ldf_iso
     acc_trans = ACCEnterDataTrans()
     acc_kernels = ACCKernelsTrans()
     acc_update = ACCUpdateTrans()
-    # We do not permit arbitrary code blocks to be included in data
-    # regions so just put three of the (implicit) loops into kernels.
+    # We do not permit arbitrary code blocks to be included in data regions so
+    # just put three of the (implicit) loops into kernels.
     acc_kernels.apply(schedule[0])
     acc_kernels.apply(schedule[3:5])
     acc_trans.apply(schedule)
@@ -177,7 +179,7 @@ end SUBROUTINE tra_ldf_iso
             ) in code
 
 
-def test_call_accesses(parser, fortran_writer):
+def test_call_accesses(fortran_writer):
     ''' Check that a call results in extra update directives, bar relocation,
     and that there are no redundant consecutive update directives. '''
     code = '''
@@ -192,13 +194,11 @@ SUBROUTINE tra_ldf_iso()
   checksum = SUM(zftv)
 end SUBROUTINE tra_ldf_iso
 '''
-    reader = FortranStringReader(code)
-    ast = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(ast)
-    schedule = psy.invokes.invoke_list[0].schedule
+    psyir = FortranReader().psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
     acc_update = ACCUpdateTrans()
-    acc_update.apply(schedule)
-    code = fortran_writer(schedule)
+    acc_update.apply(routine)
+    code = fortran_writer(routine)
     assert ("  !$acc update if_present host(jn,zftv)\n"
             "  zftv(:,:,:) = 0.0d0\n"
             "  !$acc update if_present device(zftv)\n"

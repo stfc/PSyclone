@@ -56,6 +56,8 @@ class StructureReference(Reference):
     Node representing a reference to a component of a structure. As such
     it must have a single child representing the component being accessed.
 
+    :param symbol: the symbol being referenced.
+    :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
     :param kwargs: additional keyword arguments provided to the super class.
     :type kwargs: unwrapped dict.
 
@@ -64,8 +66,8 @@ class StructureReference(Reference):
     _children_valid_format = "Member"
     _text_name = "StructureReference"
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, symbol, **kwargs):
+        super().__init__(symbol=symbol, **kwargs)
         self._overwrite_datatype = None
 
     @staticmethod
@@ -188,7 +190,7 @@ class StructureReference(Reference):
                 f"symbol '{symbol.name}'")
 
         # Create the base reference to the symbol that is a structure
-        ref = cls(symbol=symbol, parent=parent)
+        ref = cls(symbol, parent=parent)
 
         # Bottom-up creation of full reference. The last element in the members
         # list must be either an ArrayMember or a Member.
