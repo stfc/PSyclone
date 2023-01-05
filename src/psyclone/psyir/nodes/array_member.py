@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,14 +36,10 @@
 
 ''' This module contains the implementation of the ArrayMember node.'''
 
-from psyclone.errors import GenerationError
-from psyclone.psyir.nodes.array_mixin import ArrayMixin
-from psyclone.psyir.nodes.literal import Literal
+from __future__ import absolute_import
 from psyclone.psyir.nodes.member import Member
-from psyclone.psyir.nodes.operation import BinaryOperation
-from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import (DataTypeSymbol, ArrayType,
-                                    StructureType, INTEGER_TYPE)
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
+from psyclone.errors import GenerationError
 
 
 class ArrayMember(ArrayMixin, Member):

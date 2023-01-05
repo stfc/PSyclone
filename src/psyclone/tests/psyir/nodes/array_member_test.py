@@ -141,53 +141,6 @@ def test_am_is_lower_upper_bound():
     assert amem2.is_upper_bound(1) is True
 
 
-def test_am_lbound(fortran_writer):
-    ''' Tests for the lbound() method of ArrayMember. '''
-    one = nodes.Literal("1", symbols.INTEGER_TYPE)
-    two = nodes.Literal("2", symbols.INTEGER_TYPE)
-    # First, test when we don't have type information.
-    grid_type = symbols.DataTypeSymbol("grid_type", symbols.DeferredType())
-    sym = symbols.DataSymbol("grid_var", grid_type)
-    ref = nodes.StructureReference.create(sym, [("data", [one.copy()])])
-    lbnd = ref.member.lbound(0)
-    assert isinstance(lbnd, nodes.BinaryOperation)
-    out = fortran_writer(lbnd).lower()
-    assert out == "lbound(grid_var%data, 1)"
-    usym = symbols.DataSymbol("uvar", symbols.DeferredType())
-    ref = nodes.ArrayOfStructuresReference.create(
-        usym, [one.copy()],
-        [("map", [one.copy(), two.copy()]),
-         ("data", [one.copy()])])
-    lbnd = ref.member.member.lbound(0)
-    assert isinstance(lbnd, nodes.BinaryOperation)
-    out = fortran_writer(lbnd).lower()
-    assert out == "lbound(uvar(1)%map(1,2)%data, 1)"
-    # Second, test when we do have type information.
-    a2d = symbols.ArrayType(symbols.REAL_TYPE, [2, (2, 8)])
-    # Structure that contains "map" which is a 2D array.
-    stypedef = symbols.StructureType.create(
-        [("map", a2d, symbols.Symbol.Visibility.PUBLIC)])
-    stypedefsym = symbols.DataTypeSymbol("map_type", stypedef)
-    # Structure containing a structure of stypedef and an array of such
-    # structures.
-    stypedef2 = symbols.StructureType.create(
-        [("grid", stypedef, symbols.Symbol.Visibility.PUBLIC),
-         ("subgrids", symbols.ArrayType(stypedefsym, [3, (2, 6)]),
-          symbols.Symbol.Visibility.PUBLIC)])
-    ssym = symbols.DataSymbol("var", stypedef2)
-    sref = nodes.StructureReference.create(ssym,
-                                           ["grid",
-                                            ("map", [two.copy(), two.copy()])])
-    assert sref.member.member.lbound(0) == one
-    assert sref.member.member.lbound(1) == two
-    sref2 = nodes.StructureReference.create(
-        ssym,
-        [("subgrids", [two.copy(), two.copy()]),
-         ("map", [two.copy(), two.copy()])])
-    assert sref2.member.lbound(1) == two
-    assert sref2.member.member.lbound(1) == two
-
-
 def test_am_same_array():
     ''' Test the is_same_array method of ArrayMember. '''
     one = nodes.Literal("1", symbols.INTEGER_TYPE)
