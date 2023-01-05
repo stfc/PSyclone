@@ -167,11 +167,25 @@ def test_am_lbound(fortran_writer):
     # Structure that contains "map" which is a 2D array.
     stypedef = symbols.StructureType.create(
         [("map", a2d, symbols.Symbol.Visibility.PUBLIC)])
-    ssym = symbols.DataSymbol("var", stypedef)
+    stypedefsym = symbols.DataTypeSymbol("map_type", stypedef)
+    # Structure containing a structure of stypedef and an array of such
+    # structures.
+    stypedef2 = symbols.StructureType.create(
+        [("grid", stypedef, symbols.Symbol.Visibility.PUBLIC),
+         ("subgrids", symbols.ArrayType(stypedefsym, [3, (2, 6)]),
+          symbols.Symbol.Visibility.PUBLIC)])
+    ssym = symbols.DataSymbol("var", stypedef2)
     sref = nodes.StructureReference.create(ssym,
-                                           [("map", [two.copy(), two.copy()])])
-    assert sref.member.lbound(0) == one
-    assert sref.member.lbound(1) == two
+                                           ["grid",
+                                            ("map", [two.copy(), two.copy()])])
+    assert sref.member.member.lbound(0) == one
+    assert sref.member.member.lbound(1) == two
+    sref2 = nodes.StructureReference.create(
+        ssym,
+        [("subgrids", [two.copy(), two.copy()]),
+         ("map", [two.copy(), two.copy()])])
+    assert sref2.member.lbound(1) == two
+    assert sref2.member.member.lbound(1) == two
 
 
 def test_am_same_array():

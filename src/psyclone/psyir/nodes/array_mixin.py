@@ -203,6 +203,12 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
+        if not hasattr(self, "symbol"):
+            # If we are a Member of some sort then we need to carry on up the
+            # Method Resolution Order list to call the appropriate version
+            # of this method.
+            return super().lbound(pos)
+
         if (isinstance(self.symbol.datatype, ArrayType) and
                 isinstance(self.symbol.datatype.shape[pos],
                            ArrayType.ArrayBounds)):
