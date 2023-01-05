@@ -487,11 +487,10 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
         geometry_arg_indices.append(panel_id_arg_idx)
 
     # Create symbols that will store copies of the inputs to the TL kernel.
-    # Currently we only support scalar and field arguments.
+    # We don't need to do this for operators since they are never 'active'.
     field_args = [fsym for fsym, _ in kern_args.fields]
     scalar_and_field_args = kern_args.scalars + field_args
 
-    # TODO #1864 - add support for operators.
     input_symbols = {}
     for sym in scalar_and_field_args:
         idx = kern_args.arglist.index(sym.name)
@@ -537,12 +536,8 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
     kernel_list = _init_fields_random(kernel_input_arg_list, input_symbols,
                                       table)
 
-    # Initialise all operator arguments.
-    if kern_args.operators:
-        raise NotImplementedError(
-            f"Kernel {kernel_name} has one or more operator arguments. Test "
-            f"harness creation for such a kernel is not yet supported "
-            f"(Issue #1864).")
+    kernel_list.extend(_init_operators_random(
+        [sym for sym, _, _ in kern_args.operators], table))
 
     # Finally, add the kernel itself to the list for the invoke().
     arg_nodes = []
@@ -567,7 +562,8 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
     kernel_list.append(kern)
 
     # Compute the inner products of the results of the TL kernel. We exclude
-    # any fields passed through (unmodified) from the Algorithm layer.
+    # any fields passed through (unmodified) from the Algorithm layer as well
+    # as any operators.
     fld_pairs = []
     for sym, _ in kern_args.fields:
         if sym in kernel_input_arg_list:
