@@ -245,6 +245,11 @@
 	85) PR #1994 for #1986. Fix issues with LFRic OMP support by skipping
 	dependence analysis for coloured loops.
 
+	86) PR #1997 for #888. Updates the handling of the '-v'
+	command-line flag for requesting version information. The
+	psyclone script will now quit after outputting the version
+	information.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
