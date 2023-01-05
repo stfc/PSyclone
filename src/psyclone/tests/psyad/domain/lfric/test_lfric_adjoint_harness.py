@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,8 @@
 import pytest
 from fparser import api as fpapi
 
-from psyclone.domain.lfric import KernCallInvokeArgList, LFRicSymbolTable
+from psyclone.domain.lfric import (KernCallInvokeArgList, LFRicSymbolTable,
+                                   LFRicConstants)
 from psyclone.domain.lfric.algorithm import (LFRicBuiltinFunctor, LFRicAlg,
                                              LFRicBuiltinFunctorFactory)
 from psyclone.errors import InternalError
@@ -48,6 +49,7 @@ from psyclone.psyad.domain.lfric.lfric_adjoint_harness import (
     _compute_lfric_inner_products,
     _compute_field_inner_products,
     _init_fields_random,
+    _init_operators_random,
     _validate_geom_arg,
     generate_lfric_adjoint_harness)
 from psyclone.psyir.nodes import Routine, Literal, Assignment
@@ -55,6 +57,12 @@ from psyclone.psyir.symbols import (DataSymbol, REAL_TYPE,
                                     ArrayType, DataTypeSymbol, DeferredType,
                                     INTEGER_TYPE, ContainerSymbol,
                                     ImportInterface, ScalarType)
+
+
+@pytest.fixture(name="type_map", scope="module")
+def lfric_consts_fixture():
+    '''pytest fixture that returns the DATA_TYPE_MAP from LFRicConstants.'''
+    return LFRicConstants().DATA_TYPE_MAP
 
 
 # _compute_lfric_inner_products
@@ -105,14 +113,16 @@ def test_compute_inner_products_fields(fortran_writer):
 
 # _compute_field_inner_products
 
-def test_compute_field_inner_products(fortran_writer):
+def test_compute_field_inner_products(fortran_writer, type_map):
     '''Check that _compute_field_inner_products generates the expected symbols,
     assignments and functors for fields.'''
     bin_factory = LFRicBuiltinFunctorFactory.get()
     table = LFRicSymbolTable()
     prog = Routine.create("test_prog", table, [], is_program=True)
-    csym = table.new_symbol("field_mod", symbol_type=ContainerSymbol)
-    fld_type = table.new_symbol("field_type", symbol_type=DataTypeSymbol,
+    csym = table.new_symbol(type_map["field"]["module"],
+                            symbol_type=ContainerSymbol)
+    fld_type = table.new_symbol(type_map["field"]["type"],
+                                symbol_type=DataTypeSymbol,
                                 datatype=DeferredType(),
                                 interface=ImportInterface(csym))
     fld1 = table.new_symbol("field1", symbol_type=DataSymbol,
@@ -136,14 +146,16 @@ def test_compute_field_inner_products(fortran_writer):
     assert "field1_field2_inner_prod = 0.0_r_def" in code
 
 
-def test_compute_field_vector_inner_products(fortran_writer):
+def test_compute_field_vector_inner_products(fortran_writer, type_map):
     '''Check that _compute_field_inner_products generates the expected symbols,
     assignments and functors for field vectors.'''
     bin_factory = LFRicBuiltinFunctorFactory.get()
     table = LFRicSymbolTable()
     prog = Routine.create("test_prog", table, [], is_program=True)
-    csym = table.new_symbol("field_mod", symbol_type=ContainerSymbol)
-    fld_type = table.new_symbol("field_type", symbol_type=DataTypeSymbol,
+    csym = table.new_symbol(type_map["field"]["module"],
+                            symbol_type=ContainerSymbol)
+    fld_type = table.new_symbol(type_map["field"]["type"],
+                                symbol_type=DataTypeSymbol,
                                 datatype=DeferredType(),
                                 interface=ImportInterface(csym))
     fld1 = table.new_symbol("field1", symbol_type=DataSymbol,
@@ -169,13 +181,15 @@ def test_compute_field_vector_inner_products(fortran_writer):
         assert f"field2_field1_inner_prod({dim}_i_def) = 0.0_r_def" in code
 
 
-def test_compute_field_inner_products_errors():
+def test_compute_field_inner_products_errors(type_map):
     '''Check that _compute_field_inner_products raises the expected errors
     when passed incorrect arguments.'''
     table = LFRicSymbolTable()
     prog = Routine.create("test_prog", table, [], is_program=True)
-    csym = table.new_symbol("field_mod", symbol_type=ContainerSymbol)
-    fld_type = table.new_symbol("field_type", symbol_type=DataTypeSymbol,
+    csym = table.new_symbol(type_map["field"]["module"],
+                            symbol_type=ContainerSymbol)
+    fld_type = table.new_symbol(type_map["field"]["type"],
+                                symbol_type=DataTypeSymbol,
                                 datatype=DeferredType(),
                                 interface=ImportInterface(csym))
     fld1 = table.new_symbol("field1", symbol_type=DataSymbol,
@@ -204,10 +218,11 @@ def test_compute_field_inner_products_errors():
 
 # _init_fields_random
 
-def test_init_fields_random():
+def test_init_fields_random(type_map):
     '''Check that the _init_fields_random() routine works as expected.'''
     table = LFRicSymbolTable()
-    fld_type = DataTypeSymbol("field_type", datatype=DeferredType())
+    fld_type = DataTypeSymbol(type_map["field"]["type"],
+                              datatype=DeferredType())
     table.add(fld_type)
     fld1 = DataSymbol("field1", datatype=fld_type)
     fields = [fld1]
@@ -226,7 +241,7 @@ def test_init_fields_random():
     assert kernels[1].children[0].symbol.name == "field1_input"
 
 
-def test_init_fields_random_vector():
+def test_init_fields_random_vector(type_map):
     '''Check that the _init_fields_random() routine works as expected for
     a field vector.
 
@@ -235,7 +250,8 @@ def test_init_fields_random_vector():
     idef_sym = table.add_lfric_precision_symbol("i_def")
     idef_type = ScalarType(ScalarType.Intrinsic.REAL, idef_sym)
 
-    fld_type = DataTypeSymbol("field_type", datatype=DeferredType())
+    fld_type = DataTypeSymbol(type_map["field"]["type"],
+                              datatype=DeferredType())
     table.add(fld_type)
     fld1 = DataSymbol("field1", datatype=ArrayType(fld_type, [3]))
     fields = [fld1]
@@ -274,6 +290,26 @@ def test_init_fields_random_error():
     assert ("Expected a field symbol to either be of ArrayType or have a type "
             "specified by a DataTypeSymbol but found Scalar<INTEGER, "
             "UNDEFINED> for field 'field1'" in str(err.value))
+
+
+# _init_operators_random
+
+def test_init_operators_random(type_map):
+    '''Check that the _init_operators_random() routine works as expected.'''
+    table = LFRicSymbolTable()
+    op_type = DataTypeSymbol(type_map["operator"]["type"],
+                             datatype=DeferredType())
+    table.add(op_type)
+    op1 = DataSymbol("op1", datatype=op_type)
+    op2 = DataSymbol("op2", datatype=op_type)
+    ops = [op1, op2]
+    table.add(op1)
+    kernels = _init_operators_random(ops, table)
+    assert len(kernels) == 2
+    assert isinstance(kernels[0], LFRicBuiltinFunctor)
+    assert kernels[0].symbol.name == "setval_random"
+    assert kernels[0].children[0].symbol is op1
+    assert kernels[1].children[0].symbol is op2
 
 
 # _validate_geom_arg

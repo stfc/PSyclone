@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -301,6 +301,33 @@ def _init_fields_random(fields, input_symbols, table):
                 f"Expected a field symbol to either be of ArrayType or have "
                 f"a type specified by a DataTypeSymbol but found "
                 f"{sym.datatype} for field '{sym.name}'")
+
+    # Return the list of kernel functors.
+    return kernel_list
+
+
+def _init_operators_random(operators, table):
+    '''
+    Creates a suitable kernel functor for each operator that requires
+    initialising with pseudo-random data.
+
+    :param fields: those operators requiring initialisation.
+    :type fields: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
+    :param table: the symbol table to which to add new symbols.
+    :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+    :returns: the required kernel calls.
+    :rtype: List[:py:class:`psyclone.domain.common.algorithm.Functor`]
+
+    '''
+    # We use the setval_random builtin to initialise all operators.
+    kernel_list = []
+    builtin_factory = LFRicBuiltinFunctorFactory.get()
+    for sym in operators:
+        # Initialise the operator with pseudo-random numbers.
+        kernel_list.append(
+            builtin_factory.create("setval_random", table,
+                                   [Reference(sym)]))
 
     # Return the list of kernel functors.
     return kernel_list
