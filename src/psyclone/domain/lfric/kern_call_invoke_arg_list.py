@@ -66,9 +66,13 @@ class KernCallInvokeArgList(ArgOrdering):
                 f"Argument 'symbol_table' must be a SymbolTable "
                 f"instance but got '{type(symbol_table).__name__}'")
         self._symtab = symbol_table
+        # Once generate() is called, this list will contain 2-tuples, each
+        # containing a Symbol and a function space (string).
         self._fields = []
         self._scalars = []
         self._qr_objects = []
+        # Once generate() is called, this list will contain 3-tuples, each
+        # containing a Symbol and from- and to-function spaces (strings).
         self._operators = []
 
     @property
@@ -101,8 +105,10 @@ class KernCallInvokeArgList(ArgOrdering):
     def operators(self):
         '''
         :returns: the symbols representing the operators required by the \
-                  kernel.
-        :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
+                  kernel along with the names of the from- and to- function \
+                  spaces.
+        :rtype: List[Tuple[:py:class:`psyclone.psyir.symbols.DataSymbol`, \
+                           str, str]]
         '''
         return self._operators
 
@@ -295,10 +301,17 @@ class KernCallInvokeArgList(ArgOrdering):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: operators are not yet supported.
-
         '''
-        raise NotImplementedError("Operators are not yet supported.")
+        otype = self._symtab.lookup("operator_type")
+        sym = self._symtab.new_symbol(arg.name,
+                                      symbol_type=DataSymbol, datatype=otype)
+        consts = LFRicConstants()
+        fs_from = consts.specific_function_space(
+            arg.function_space_from.orig_name)
+        fs_to = consts.specific_function_space(arg.function_space_to.orig_name)
+        self._operators.append((sym, fs_from, fs_to))
+        self.append(sym.name, var_accesses, mode=arg.access,
+                    metadata_posn=arg.metadata_index)
 
     def quad_rule(self, var_accesses=None):
         '''Add quadrature-related information to the kernel argument list.
