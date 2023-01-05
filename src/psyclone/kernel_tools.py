@@ -118,13 +118,11 @@ def run(args):
     parser.add_argument("--config", help="config file with "
                         "PSyclone specific options.")
     parser.add_argument(
-        '-v', '--version', dest='version', action="store_true",
-        help=f"display version information ({__VERSION__})")
+        '--version', '-v', action='version',
+        version=f'psyclone-kern version: {__VERSION__}',
+        help=f'display version information ({__VERSION__})')
 
     args = parser.parse_args(args)
-
-    if args.version:
-        print(f"psyclone-kern version: {__VERSION__}", file=sys.stdout)
 
     # If no config file name is specified, args.config is none
     # and config will load the default config file.
