@@ -326,7 +326,7 @@ def _init_operators_random(operators, table):
     for sym in operators:
         # Initialise the operator with pseudo-random numbers.
         kernel_list.append(
-            builtin_factory.create("setval_random", table,
+            builtin_factory.create("setval_random_operator", table,
                                    [Reference(sym)]))
 
     # Return the list of kernel functors.

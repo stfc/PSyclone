@@ -3378,9 +3378,7 @@ class LFRicLoopBounds(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        # 'null' loops don't need any bounds.
-        loops = [loop for loop in self._invoke.schedule.loops() if
-                 loop.loop_type != "null"]
+        loops = self._invoke.schedule.loops()
 
         if not loops:
             return
@@ -3394,6 +3392,10 @@ class LFRicLoopBounds(DynCollection):
         api_config = config.api_conf("dynamo0.3")
 
         for idx, loop in enumerate(loops):
+
+            if loop.loop_type == "null":
+                # 'null' loops don't need any bounds.
+                continue
 
             root_name = f"loop{idx}_start"
             lbound = sym_table.find_or_create_integer_symbol(root_name,
