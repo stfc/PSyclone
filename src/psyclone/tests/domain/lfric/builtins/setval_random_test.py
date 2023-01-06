@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -68,7 +68,8 @@ def test_setval_random(tmpdir):
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert isinstance(kern, LFRicSetvalRandomKern)
     assert (str(kern) ==
-            "Built-in: Fill a real-valued field with pseudo-random numbers")
+            "Built-in: Fill a real-valued field or operator with pseudo-"
+            "random numbers")
 
     # Test code generation
     code = str(psy.gen).lower()
@@ -97,3 +98,19 @@ def test_setval_random_lowering():
     kern.lower_to_language_level()
     assert isinstance(parent.children[0], Call)
     assert parent.children[0].routine.name == "random_number"
+
+
+def test_setval_random_operator(tmpdir):
+    '''
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.7.5_setval_random_builtin_operator.f90"),
+        api=API)
+    psy = PSyFactory(API,
+                     distributed_memory=True).create(invoke_info)
+    # Test code generation
+    code = str(psy.gen).lower()
+    print(code)
+    output = "call random_number(op1_proxy%local_stencil)\n"
+    assert output in code
+    assert LFRicBuild(tmpdir).code_compiles(psy)
