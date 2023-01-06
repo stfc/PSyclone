@@ -504,26 +504,34 @@ def test_generate_lfric_adj_test_quadrature(fortran_reader):
                     sym.name.startswith("rscalar"))
 
 
-def test_generate_lfric_adjoint_harness_no_operators(monkeypatch,
-                                                     fortran_reader):
-    '''Check that a kernel that has an operator as argument raises the
-    expected error. This limitation will be lifted in #1864.
+def test_generate_lfric_adjoint_harness_operator(monkeypatch, fortran_reader,
+                                                 fortran_writer):
+    '''Check the test harness generation for a kernel that has an operator
+    as argument.
 
     '''
-    code = TL_CODE.replace("arg_type(gh_field,  gh_real, gh_write,  w3)",
-                           "arg_type(gh_operator,gh_real,gh_write,w0,w0)")
+    # Alter the metadata so that the kernel expects an operator that maps
+    # from W0 to W3.
+    code = TL_CODE.replace("arg_type(gh_field,  gh_real, gh_write,  w3)  &",
+                           "arg_type(gh_field,  gh_real, gh_write,  w3), &\n"
+                           "arg_type(gh_operator,gh_real,gh_read,w3,w0) &")
+    code = code.replace("dimension(2)", "dimension(3)")
     tl_psyir = fortran_reader.psyir_from_source(code)
-    # We have to monkeypatch KernCallInvokeArgList as that too doesn't yet
-    # support operators.
-    monkeypatch.setattr(KernCallInvokeArgList, "operator",
-                        lambda _1, _2, var_accesses=None: None)
-    monkeypatch.setattr(KernCallInvokeArgList, "operators",
-                        lambda: [1])
-    with pytest.raises(NotImplementedError) as err:
-        _ = generate_lfric_adjoint_harness(tl_psyir)
-    assert ("Kernel testkern_type has one or more operator arguments. Test "
-            "harness creation for such a kernel is not yet supported (Issue "
-            "#1864)." in str(err.value))
+    psyir = generate_lfric_adjoint_harness(tl_psyir)
+    gen = fortran_writer(psyir)
+    assert "type(operator_type) :: op_3\n" in gen
+    assert ("vector_space_w0_ptr => function_space_collection % get_fs(mesh, "
+            "element_order, w0)\n" in gen)
+    assert ("vector_space_w3_ptr => function_space_collection % get_fs(mesh, "
+            "element_order, w3)\n" in gen)
+    # Initialise takes the *to* and *from* spaces as arguments in that order.
+    assert ("call op_3 % initialise(vector_space_w3_ptr, vector_space_w0_ptr)"
+            in gen)
+    # Operator is given random values and passed to the TL kernel.
+    assert ("setval_random(op_3), testkern_type(rscalar_1, field_2, op_3)"
+            in gen)
+    # Operator is passed to the Adjoint kernel too.
+    assert "call invoke(adj_testkern_type(rscalar_1, field_2, op_3)"
 
 
 def test_generate_lfric_adjoint_harness_invalid_geom_arg(fortran_reader):

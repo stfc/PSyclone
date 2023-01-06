@@ -302,7 +302,16 @@ class KernCallInvokeArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        otype = self._symtab.lookup("operator_type")
+        tmap = LFRicConstants().DATA_TYPE_MAP
+        try:
+            otype = self._symtab.lookup(tmap["operator"]["type"])
+        except KeyError:
+            csym = self._symtab.new_symbol(tmap["operator"]["module"],
+                                           symbol_type=ContainerSymbol)
+            otype = self._symtab.new_symbol(tmap["operator"]["type"],
+                                            symbol_type=DataTypeSymbol,
+                                            datatype=DeferredType(),
+                                            interface=ImportInterface(csym))
         sym = self._symtab.new_symbol(arg.name,
                                       symbol_type=DataSymbol, datatype=otype)
         consts = LFRicConstants()
