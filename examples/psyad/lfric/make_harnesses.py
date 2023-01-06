@@ -63,7 +63,7 @@ all_kernels["rhs_sample_eos"] = KernelDesc(
     "theta_vd_cell rho_cell rho_e exner_e theta_vd_e",
     coord_arg=-1, panel_id_arg=-1)
 
-# 'Operators are not yet supported'
+# Passes!
 all_kernels["dg_inc_matrix_vector"] = KernelDesc(
     adj_file="adjoint/adj_dg_inc_matrix_vector_kernel_mod.F90",
     kernel_file="tangent_linear/dg_inc_matrix_vector_kernel_mod.F90",
