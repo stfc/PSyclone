@@ -34,7 +34,7 @@
 # Author A. R. Porter, STFC Daresbury Lab
 # Modified by I. Kavcic, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford, STFC Daresbury Lab
+# Modified by R. W. Ford and N. Nobre, STFC Daresbury Lab
 
 ''' This module implements the support for 'built-in' operations in the
     PSyclone LFRic (Dynamo 0.3) API. Each supported built-in is implemented
@@ -113,9 +113,9 @@ class LFRicBuiltInCallFactory():
         '''
         if call.func_name not in BUILTIN_MAP:
             raise ParseError(
-                "Unrecognised built-in call in LFRic API: found '{0}' but "
-                "expected one of {1}.".
-                format(call.func_name, list(BUILTIN_MAP_CAPITALISED.keys())))
+                f"Unrecognised built-in call in LFRic API: found "
+                f"'{call.func_name}' but expected one of "
+                f"{list(BUILTIN_MAP_CAPITALISED.keys())}.")
 
         # Use our dictionary to get the correct Python object for
         # this built-in.
@@ -128,6 +128,8 @@ class LFRicBuiltInCallFactory():
 
         if call.ktype.iterates_over == "dof":
             loop_type = "dof"
+        elif call.ktype.iterates_over == "domain":
+            loop_type = "null"
         else:
             raise InternalError(
                 f"An LFRic built-in must iterate over DoFs but kernel "
@@ -243,7 +245,8 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
                 f"'{self.iterates_over}' for {self}.")
         # Check write count, field arguments and spaces
         write_count = 0  # Only one argument must be written to
-        field_count = 0  # We must have one or more fields as arguments
+        field_count = 0  # We must have one or more fields or operators as
+        op_count = 0     # arguments.
         spaces = set()   # All field arguments must be on the same space
         # Field data types must be the same except for the conversion built-ins
         data_types = set()
@@ -251,18 +254,17 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
             # Check valid argument types
             if arg.argument_type not in const.VALID_BUILTIN_ARG_TYPES:
                 raise ParseError(
-                    "In the LFRic API an argument to a built-in kernel "
-                    "must be one of {0} but kernel '{1}' has an argument of "
-                    "type '{2}'.".format(const.VALID_BUILTIN_ARG_TYPES,
-                                         self.name, arg.argument_type))
+                    f"In the LFRic API an argument to a built-in kernel must "
+                    f"be one of {const.VALID_BUILTIN_ARG_TYPES} but kernel "
+                    f"'{self.name}' has an argument of type "
+                    f"'{arg.argument_type}'.")
             # Check valid data types
             if arg.data_type not in const.VALID_BUILTIN_DATA_TYPES:
                 raise ParseError(
-                    "In the LFRic API an argument to a built-in kernel "
-                    "must have one of {0} as a data type but kernel '{1}' "
-                    "has an argument of data type '{2}'.".
-                    format(const.VALID_BUILTIN_DATA_TYPES,
-                           self.name, arg.data_type))
+                    f"In the LFRic API an argument to a built-in kernel must "
+                    f"have one of {const.VALID_BUILTIN_DATA_TYPES} as a data "
+                    f"type but kernel '{self.name}' has an argument of data "
+                    f"type '{arg.data_type}'.")
             # Built-ins update fields DoF by DoF and therefore can have
             # WRITE/READWRITE access
             if arg.access in [AccessType.WRITE, AccessType.SUM,
@@ -272,33 +274,34 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
                 field_count += 1
                 spaces.add(arg.function_space)
                 data_types.add(arg.data_type)
+            if arg.argument_type in const.VALID_OPERATOR_NAMES:
+                op_count += 1
 
         if write_count != 1:
-            raise ParseError("A built-in kernel in the LFRic API must "
-                             "have one and only one argument that is written "
-                             "to but found {0} for kernel '{1}'.".
-                             format(write_count, self.name))
-        if field_count == 0:
-            raise ParseError("A built-in kernel in the LFRic API "
-                             "must have at least one field as an argument but "
-                             "kernel '{0}' has none.".format(self.name))
-        if len(spaces) != 1:
+            raise ParseError(f"A built-in kernel in the LFRic API must have "
+                             f"one and only one argument that is written to "
+                             f"but found {write_count} for kernel "
+                             f"'{self.name}'.")
+        if field_count == 0 and op_count == 0:
+            raise ParseError(f"A built-in kernel in the LFRic API must have "
+                             f"at least one field or operator as an argument "
+                             f"but kernel '{self.name}' has none.")
+        if len(spaces) > 1:
             spaces_str = [str(x) for x in sorted(spaces)]
             raise ParseError(
-                "All field arguments to a built-in in the LFRic API "
-                "must be on the same space. However, found spaces {0} for "
-                "arguments to '{1}'".format(spaces_str, self.name))
+                f"All field arguments to a built-in in the LFRic API must be "
+                f"on the same space. However, found spaces {spaces_str} for "
+                f"arguments to '{self.name}'")
 
         conversion_builtins = ["int_X", "real_X"]
         conversion_builtins_lower = [x.lower() for x in conversion_builtins]
-        if len(data_types) != 1 and self.name not in conversion_builtins_lower:
+        if len(data_types) > 1 and self.name not in conversion_builtins_lower:
             data_types_str = [str(x) for x in sorted(data_types)]
             raise ParseError(
-                "In the LFRic API only the data type conversion built-ins "
-                "{0} are allowed to have field arguments of different "
-                "data types. However, found different data types "
-                "{1} for field arguments to '{2}'.".
-                format(conversion_builtins, data_types_str, self.name))
+                f"In the LFRic API only the data type conversion built-ins "
+                f"{conversion_builtins} are allowed to have field arguments of"
+                f" different data types. However, found different data types "
+                f"{data_types_str} for field arguments to '{self.name}'.")
 
     def array_ref(self, fld_name):
         '''
@@ -439,6 +442,13 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         '''
         return [arg.psyir_expression() for arg in self._arguments.args
                 if arg.is_scalar]
+
+    def get_operator_argument_references(self):
+        '''
+        '''
+        return [StructureReference.create(
+            arg.psyir_expression().symbol, ["local_stencil"])
+                for arg in self._arguments.args if arg.is_operator]
 
 
 class LFRicXKern(LFRicBuiltIn, metaclass=abc.ABCMeta):
@@ -1532,11 +1542,12 @@ class LFRicSetvalXKern(LFRicBuiltIn):
 
 
 class LFRicSetvalRandomKern(LFRicBuiltIn):
-    ''' Fill a real-valued field with pseudo-random numbers.
+    ''' Fill a real-valued field/operator with pseudo-random numbers.
 
     '''
     def __str__(self):
-        return "Built-in: Fill a real-valued field with pseudo-random numbers"
+        return ("Built-in: Fill a real-valued field or operator with "
+                "pseudo-random numbers")
 
     def lower_to_language_level(self):
         '''
@@ -1546,6 +1557,7 @@ class LFRicSetvalRandomKern(LFRicBuiltIn):
         '''
         # Get indexed refs for the field (proxy) argument.
         arg_refs = self.get_indexed_field_argument_references()
+        arg_refs.extend(self.get_operator_argument_references())
 
         # Create the PSyIR for the kernel:
         #      call random_number(proxy0%data(df))
@@ -2185,6 +2197,7 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     "setval_c": LFRicSetvalCKern,
     "setval_X": LFRicSetvalXKern,
     "setval_random": LFRicSetvalRandomKern,
+    "setval_random_operator": LFRicSetvalRandomKern,
     # Inner product of real fields
     "X_innerproduct_Y": LFRicXInnerproductYKern,
     "X_innerproduct_X": LFRicXInnerproductXKern,

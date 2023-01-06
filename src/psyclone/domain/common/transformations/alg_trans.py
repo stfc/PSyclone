@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 '''Specialise generic PSyIR representing an algorithm layer to a
 PSyclone algorithm-layer-specific PSyIR which uses specialised classes.
@@ -58,7 +58,7 @@ class AlgTrans(Transformation):
         :type node: :py:class:`psyclone.psyir.node.Routine` or \
             :py:class:`psyclone.psyir.node.Container`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, str]]
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node argument is \
             not a Routine or a Container.
@@ -68,14 +68,14 @@ class AlgTrans(Transformation):
         '''
         if not isinstance(node, (Routine, Container)):
             raise TransformationError(
-                "Error in {0} transformation. The supplied call argument "
-                "should be a Routine or Container node but found '{1}'."
-                "".format(self.name, type(node).__name__))
+                f"Error in {self.name} transformation. The supplied call "
+                f"argument should be a Routine or Container node but found "
+                f"'{type(node).__name__}'.")
         if node.parent:
             raise TransformationError(
-                "Error in {0} transformation. The supplied node should be the "
-                "root of a PSyIR tree but this node has a parent."
-                "".format(self.name))
+                f"Error in {self.name} transformation. The supplied node "
+                f"should be the root of a PSyIR tree but this node has a "
+                f"parent.")
 
     def apply(self, psyir, options=None):
         ''' Apply transformation to the supplied PSyIR node.
@@ -84,7 +84,7 @@ class AlgTrans(Transformation):
         :type node: :py:class:`psyclone.psyir.node.Routine` or \
             :py:class:`psyclone.psyir.node.Container`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(psyir, options=options)

@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab.
+# Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 ''' Transform a PSyclone algorithm-layer-specific invoke call into a call
 to the corresponding PSy-layer routine.
@@ -62,7 +62,7 @@ class AlgInvoke2PSyCallTrans(Transformation):
         :type node: \
             :py:class:`psyclone.domain.common.algorithm.AlgorithmInvokeCall`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, str]]
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied call argument is \
             not a PSyIR AlgorithmInvokeCall node.
@@ -93,7 +93,7 @@ class AlgInvoke2PSyCallTrans(Transformation):
         :type node: \
             :py:class:`psyclone.domain.common.psyir.AlgorithmInvokeCall`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, str]]
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(node, options=options)
