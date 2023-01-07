@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council
+# Copyright (c) 2022-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -155,6 +155,669 @@ def test_init_args_error():
         _ = LFRicKernelMetadata(name="1_invalid")
     assert ("Expected name to be a valid Fortran name but found "
             "'1_invalid'." in str(info.value))
+
+
+def test_get_kernel_type():
+    '''Test that the _get_kernel_type method behaves as expected.'''
+
+    # inter-grid
+    meta_args = [
+        InterGridArgMetadata("gh_real", "gh_read", "w0", "gh_coarse"),
+        InterGridArgMetadata("gh_real", "gh_read", "w0", "gh_coarse"),
+        InterGridArgMetadata("gh_real", "gh_read", "w1", "gh_fine"),
+        InterGridArgMetadata("gh_real", "gh_read", "w1", "gh_fine")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    assert lfric_kernel_metadata._get_kernel_type() == "inter-grid"
+
+    # cma (assembly example)
+    meta_args = [
+        ColumnwiseOperatorArgMetadata("gh_real", "gh_write", "w0", "w1"),
+        OperatorArgMetadata("gh_real", "gh_read", "w0", "w1")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    assert lfric_kernel_metadata._get_kernel_type() == "cma-assembly"
+
+    # domain
+    meta_args = [FieldArgMetadata("gh_real", "gh_read", "w3")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="domain", meta_args=meta_args)
+    assert lfric_kernel_metadata._get_kernel_type() == "domain"
+
+
+def test_validate_generic_kernel():
+    '''Test that the _validate_generic_kernel method behaves as
+    expected.
+
+    '''
+    lfric_kernel_metadata = LFRicKernelMetadata(operates_on="cell_column")
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_generic_kernel()
+    assert ("Kernel metadata with 'operates_on != domain' must have at least "
+            "one meta_args argument that is a field, field vector, intergrid "
+            "field, intergrid vector field, LMA operator or CMA operator (in "
+            "order to determine the appropriate iteration space). However, "
+            "the kernel metadata 'None' for procedure 'None' has none."
+            in str(info.value))
+
+    operator_arg = OperatorArgMetadata("GH_REAL", "GH_READ", "W0", "W1")
+    integer_field_arg = FieldArgMetadata("GH_INTEGER", "GH_READ", "W0")
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=[operator_arg, integer_field_arg])
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_generic_kernel()
+    assert ("Kernel metadata with a meta_args operator argument must only "
+            "contain meta_args real-valued field arguments. However, the "
+            "kernel metadata 'None' for procedure 'None' contains a field of "
+            "type 'gh_integer'." in str(info.value))
+
+    # OK
+    meta_args = [FieldArgMetadata("GH_REAL", "GH_READ", "W0")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    lfric_kernel_metadata._validate_generic_kernel()
+
+
+def test_validate_general_purpose_kernel():
+    '''Test that the _validate_general_purpose_kernel method behaves as
+    expected.
+
+    '''
+    # Calls generic constraints method.
+    lfric_kernel_metadata = LFRicKernelMetadata(operates_on="cell_column")
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_general_purpose_kernel()
+    assert ("Kernel metadata with 'operates_on != domain' must have at least "
+            "one meta_args argument that is a field, field vector, intergrid "
+            "field, intergrid vector field, LMA operator or CMA operator (in "
+            "order to determine the appropriate iteration space). However, "
+            "the kernel metadata 'None' for procedure 'None' has none."
+            in str(info.value))
+
+    # Does not operate over the domain.
+    lfric_kernel_metadata = LFRicKernelMetadata(operates_on="domain")
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_general_purpose_kernel()
+    assert ("A general purpose kernel should not operate on a domain. "
+            "However, the kernel metadata 'None' for procedure 'None' "
+            "does." in str(info.value))
+    
+    # operates_on == cell_column only supports field, field vector,
+    # LMA operator, or scalar meta_arg arguments.
+    meta_args = [InterGridArgMetadata("GH_REAL", "GH_READ", "W0", "GH_FINE")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_general_purpose_kernel()
+    assert ("General purpose kernels with 'operates_on == cell_column' should "
+            "only have meta_arg arguments of type field, field vector, LMA "
+            "operator or scalar, but found 'inter-grid' in kernel metadata "
+            "'None' for procedure 'None'." in str(info.value))
+
+    # OK
+    meta_args = [FieldArgMetadata("GH_REAL", "GH_READ", "W0")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    lfric_kernel_metadata._validate_general_purpose_kernel()
+
+
+def test_validate_domain_kernel():
+    '''Test that the _validate_domain_kernel method behaves as
+    expected.
+
+    '''
+    # Check validate_generic_kernel is called.
+    lfric_kernel_metadata = LFRicKernelMetadata(operates_on="cell_column")
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_domain_kernel()
+    assert ("Kernel metadata with 'operates_on != domain' must have at least "
+            "one meta_args argument that is a field, field vector, intergrid "
+            "field, intergrid vector field, LMA operator or CMA operator (in "
+            "order to determine the appropriate iteration space). However, "
+            "the kernel metadata 'None' for procedure 'None' has none."
+            in str(info.value))
+
+    # operates_on == domain.
+    lfric_kernel_metadata = LFRicKernelMetadata(operates_on="dof")
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_domain_kernel()
+    assert ("Kernel metadata with 'operates_on != domain' must have at least "
+            "one meta_args argument that is a field, field vector, intergrid "
+            "field, intergrid vector field, LMA operator or CMA operator (in "
+            "order to determine the appropriate iteration space). However, "
+            "the kernel metadata 'None' for procedure 'None' has none."
+            in str(info.value))
+
+    # Only scalar, field and field vector args.
+    meta_args = [InterGridArgMetadata("GH_REAL", "GH_READ", "W0", "GH_FINE")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="domain", meta_args=meta_args)
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_domain_kernel()
+    assert ("Domain kernels should only have meta_arg arguments of type "
+            "field, field vector, or scalar, but found 'inter-grid' in "
+            "kernel metadata 'None' for procedure 'None'." in str(info.value))
+
+    # All fields on discontinuous function spaces.
+    meta_args = [FieldArgMetadata("GH_REAL", "GH_READ", "W0")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="domain", meta_args=meta_args)
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_domain_kernel()
+    assert ("Domain kernels meta_arg arguments of type field, or field vector "
+            "should be on a discontinuous function space, but found 'w0' in "
+            "kernel metadata 'None' for procedure 'None'." in str(info.value))
+
+    # stencil accesses not allowed.
+    meta_args = [FieldArgMetadata(
+        "gh_real", "gh_read", "w3", stencil="region")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="domain", meta_args=meta_args)
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_domain_kernel()
+    assert ("Domain kernels meta_arg arguments of type field, or field vector "
+            "should not have any stencil accesses, but found a stencil of "
+            "type 'region' in kernel metadata 'None' for procedure 'None'."
+            in str(info.value))
+
+    # No basis/diff basis functions.
+    meta_args = [FieldArgMetadata(
+        "gh_real", "gh_read", "w3")]
+    meta_funcs = [MetaFuncsArgMetadata("w3", basis_function=True)]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="domain", meta_args=meta_args, meta_funcs=meta_funcs)
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_domain_kernel()
+    assert ("Domain kernels should not contain basis or differential basis "
+            "functions, but kernel metadata 'None' for procedure 'None' does."
+            in str(info.value))
+
+    # No mesh properties.
+    meta_args = [FieldArgMetadata(
+        "gh_real", "gh_read", "w3")]
+    meta_mesh = [MetaMeshArgMetadata("adjacent_face")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="domain", meta_args=meta_args, meta_mesh=meta_mesh)
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_domain_kernel()
+    assert ("Domain kernels should not contain mesh properties but kernel "
+            "metadata 'None' for procedure 'None' does." in str(info.value))
+
+    # OK
+    meta_args = [FieldArgMetadata("gh_real", "gh_read", "w3")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="domain", meta_args=meta_args)
+    lfric_kernel_metadata._validate_domain_kernel()
+
+
+def test_cma_kernel_type():
+    '''Test that the _cma_kernel_type method behaves as expected.'''
+
+    # cma assembly kernel
+    meta_args = [
+        ColumnwiseOperatorArgMetadata("gh_real", "gh_write", "w0", "w1"),
+        OperatorArgMetadata("gh_real", "gh_read", "w0", "w1")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    assert lfric_kernel_metadata._cma_kernel_type() == "assembly"
+
+    # cma apply kernel
+    meta_args = [
+        ColumnwiseOperatorArgMetadata("gh_real", "gh_read", "w3", "w1"),
+        FieldArgMetadata("gh_real", "gh_read", "w1"),
+        FieldArgMetadata("gh_real", "gh_write", "w3")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    assert lfric_kernel_metadata._cma_kernel_type() == "apply"
+
+    # cma matrix-matrix kernel
+    meta_args = [
+        ColumnwiseOperatorArgMetadata("gh_real", "gh_write", "w3", "w2"),
+        ColumnwiseOperatorArgMetadata("gh_real", "gh_read", "w3", "w2"),
+        ScalarArgMetadata("gh_real", "gh_read")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    assert lfric_kernel_metadata._cma_kernel_type() == "matrix-matrix"
+
+
+def test_validate_cma_kernel():
+    '''Test that the _validate_cma_kernel method behaves as
+    expected.
+
+    '''
+    # Check validate_generic_kernel is called.
+    lfric_kernel_metadata = LFRicKernelMetadata(operates_on="cell_column")
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_cma_kernel()
+    assert ("Kernel metadata with 'operates_on != domain' must have at least "
+            "one meta_args argument that is a field, field vector, intergrid "
+            "field, intergrid vector field, LMA operator or CMA operator (in "
+            "order to determine the appropriate iteration space). However, "
+            "the kernel metadata 'None' for procedure 'None' has none."
+            in str(info.value))
+
+    # Operates on cell_column.
+    lfric_kernel_metadata = LFRicKernelMetadata(operates_on="domain")
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_cma_kernel()
+    assert ("A CMA kernel should only operate on a 'cell_column'. However, "
+            "the kernel metadata 'None' for procedure 'None' operates on "
+            "'domain'." in str(info.value))
+
+    # At least one cma operator.
+    meta_args = [FieldArgMetadata(
+        "gh_real", "gh_read", "w3")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_cma_kernel()
+    assert ("A CMA kernel should contain at least one cma operator argument "
+            "but none are specified in the meta_args metadata in kernel "
+            "metadata 'None' for procedure 'None'." in str(info.value))
+
+    # No intergrid arguments.
+    meta_args = [
+        ColumnwiseOperatorArgMetadata("gh_real", "gh_read", "w3", "w2"),
+        InterGridArgMetadata("gh_real", "gh_read", "w3", "gh_coarse")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_cma_kernel()
+    assert ("A CMA kernel should not contain any intergrid arguments, but at "
+            "least one was found in kernel metadata 'None' for procedure "
+            "'None'." in str(info.value))
+
+    # No field vector arguments.
+    meta_args = [
+        ColumnwiseOperatorArgMetadata("gh_real", "gh_read", "w3", "w2"),
+        FieldVectorArgMetadata("gh_real", "gh_read", "w3", "3")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_cma_kernel()
+    assert ("A CMA kernel should not contain any field vector arguments, but "
+            "at least one was found in kernel metadata 'None' for procedure "
+            "'None'." in str(info.value))
+
+    # No stencils allowed.
+    meta_args = [
+        ColumnwiseOperatorArgMetadata("gh_real", "gh_read", "w3", "w2"),
+        FieldArgMetadata("gh_real", "gh_read", "w3", stencil="region")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_cma_kernel()
+    assert ("A CMA kernel should not contain any fields with stencil "
+            "accesses, but at least one was found in kernel metadata 'None' "
+            "for procedure 'None'." in str(info.value))
+
+    # OK
+    meta_args = [
+        ColumnwiseOperatorArgMetadata("gh_real", "gh_read", "w3", "w2")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    lfric_kernel_metadata._validate_cma_kernel()
+
+
+def test_validate_cma_assembly_kernel():
+    '''Test that the _validate_cma_assembly_kernel method behaves as
+    expected.
+
+    '''
+    # Check validate_cma_kernel is called.
+    lfric_kernel_metadata = LFRicKernelMetadata(operates_on="domain")
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_cma_assembly_kernel()
+    assert ("A CMA kernel should only operate on a 'cell_column'. However, "
+            "the kernel metadata 'None' for procedure 'None' operates on "
+            "'domain'." in str(info.value))
+
+    # One CMA operator.
+    meta_args = [
+        ColumnwiseOperatorArgMetadata("gh_real", "gh_read", "w3", "w2"),
+        ColumnwiseOperatorArgMetadata("gh_real", "gh_read", "w0", "w1")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_cma_assembly_kernel()
+    assert ("A CMA assembly kernel should contain one CMA operator argument, "
+            "however kernel metadata 'None' for procedure 'None' contains 2."
+            in str(info.value))
+
+    # CMA operator write access.
+    meta_args = [
+        ColumnwiseOperatorArgMetadata("gh_real", "gh_read", "w0", "w1")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_cma_assembly_kernel()
+    assert ("A CMA assembly kernel should contain one CMA operator argument "
+            "with write access, however the operator in kernel metadata "
+            "'None' for procedure 'None' has access 'gh_read'."
+            in str(info.value))
+
+    # One or more LMA operators.
+    meta_args = [
+        ColumnwiseOperatorArgMetadata("gh_real", "gh_write", "w0", "w1")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_cma_assembly_kernel()
+    assert ("A CMA assembly kernel should contain at least one LMA operator "
+            "but none were found in kernel metadata 'None' for procedure "
+            "'None'." in str(info.value))
+
+    # All args except CMA are read-only
+    meta_args = [
+        ColumnwiseOperatorArgMetadata("gh_real", "gh_write", "w0", "w1"),
+        OperatorArgMetadata("gh_real", "gh_write", "w0", "w1")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_cma_assembly_kernel()
+    assert ("A CMA assembly kernel should have all arguments as read-only "
+            "apart from the CMA argument, but kernel metadata 'None' for "
+            "procedure 'None' has a non-CMA argument with access 'gh_write'."
+            in str(info.value))
+
+    # OK.
+    meta_args = [
+        ColumnwiseOperatorArgMetadata("gh_real", "gh_write", "w0", "w1"),
+        OperatorArgMetadata("gh_real", "gh_read", "w0", "w1")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    lfric_kernel_metadata._validate_cma_assembly_kernel()
+
+
+def test_validate_cma_apply_kernel():
+    '''Test that the _validate_cma_apply_kernel method behaves as
+    expected.
+
+    '''
+    # Check validate_cma_kernel is called.
+    lfric_kernel_metadata = LFRicKernelMetadata(operates_on="domain")
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_cma_apply_kernel()
+    assert ("A CMA kernel should only operate on a 'cell_column'. However, "
+            "the kernel metadata 'None' for procedure 'None' operates on "
+            "'domain'." in str(info.value))
+
+    # One CMA operator.
+    meta_args = [
+        ColumnwiseOperatorArgMetadata("gh_real", "gh_write", "w0", "w1"),
+        ColumnwiseOperatorArgMetadata("gh_real", "gh_write", "w2", "w3")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_cma_apply_kernel()
+    assert ("A CMA apply kernel should contain one CMA operator argument, "
+            "however kernel metadata 'None' for procedure 'None' contains 2."
+            in str(info.value))
+
+    # CMA operator read-only.
+    meta_args = [
+        ColumnwiseOperatorArgMetadata("gh_real", "gh_write", "w0", "w1")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_cma_apply_kernel()
+    assert ("A CMA apply kernel should contain one CMA operator argument with "
+            "read access, however the operator in kernel metadata 'None' for "
+            "procedure 'None' has access 'gh_write'." in str(info.value))
+
+    # Two field arguments (but none).
+    meta_args = [
+        ColumnwiseOperatorArgMetadata("gh_real", "gh_read", "w0", "w1")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_cma_apply_kernel()
+    assert ("A CMA apply kernel should contain two field arguments, but none "
+            "were found in kernel metadata 'None' for procedure 'None'."
+            in str(info.value))
+
+    # Two field arguments (but == 1).
+    meta_args = [
+        ColumnwiseOperatorArgMetadata("gh_real", "gh_read", "w0", "w1"),
+        FieldArgMetadata("gh_real", "gh_read", "w0")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_cma_apply_kernel()
+    assert ("A CMA apply kernel should contain two field arguments, but 1 "
+            "was found in kernel metadata 'None' for procedure 'None'."
+            in str(info.value))
+
+    # Two field arguments (but > 2).
+    meta_args = [
+        ColumnwiseOperatorArgMetadata("gh_real", "gh_read", "w0", "w1"),
+        FieldArgMetadata("gh_real", "gh_read", "w0"),
+        FieldArgMetadata("gh_real", "gh_read", "w1"),
+        FieldArgMetadata("gh_real", "gh_read", "w2")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_cma_apply_kernel()
+    assert ("A CMA apply kernel should contain two field arguments, but 3 "
+            "were found in kernel metadata 'None' for procedure 'None'."
+            in str(info.value))
+
+    # One field read and one field written.
+    meta_args = [
+        ColumnwiseOperatorArgMetadata("gh_real", "gh_read", "w0", "w1"),
+        FieldArgMetadata("gh_real", "gh_read", "w2"),
+        FieldArgMetadata("gh_real", "gh_read", "w3")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_cma_apply_kernel()
+    assert ("A CMA apply kernel should contain two field arguments, one of "
+            "which is read and the other written, but found 'gh_read' and "
+            "'gh_read' in kernel metadata 'None' for procedure 'None'."
+            in str(info.value))
+
+    # Function space of written field matches CMA operator.
+    meta_args = [
+        ColumnwiseOperatorArgMetadata("gh_real", "gh_read", "w0", "w1"),
+        FieldArgMetadata("gh_real", "gh_read", "w2"),
+        FieldArgMetadata("gh_real", "gh_write", "w3")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_cma_apply_kernel()
+    assert ("In a CMA apply kernel, the function space of the written field "
+            "must match the function space of the CMA operator's 'to' "
+            "function space, but found 'w3' and 'w0' respectively in kernel "
+            "metadata 'None' for procedure 'None'." in str(info.value))
+
+    # Function space of read field matches CMA operator.
+    meta_args = [
+        ColumnwiseOperatorArgMetadata("gh_real", "gh_read", "w3", "w1"),
+        FieldArgMetadata("gh_real", "gh_read", "w2"),
+        FieldArgMetadata("gh_real", "gh_write", "w3")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_cma_apply_kernel()
+    assert ("In a CMA apply kernel, the function space of the read field "
+            "must match the function space of the CMA operator's 'from' "
+            "function space, but found 'w2' and 'w1' respectively in kernel "
+            "metadata 'None' for procedure 'None'." in str(info.value))
+
+    # OK.
+    meta_args = [
+        ColumnwiseOperatorArgMetadata("gh_real", "gh_read", "w3", "w1"),
+        FieldArgMetadata("gh_real", "gh_read", "w1"),
+        FieldArgMetadata("gh_real", "gh_write", "w3")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    lfric_kernel_metadata._validate_cma_apply_kernel()
+
+
+def test_validate_cma_matrix_kernel():
+    '''Test that the _validate_cma_matrix_matrix_kernel method behaves as
+    expected.
+
+    '''
+    # Check validate_cma_kernel is called.
+    lfric_kernel_metadata = LFRicKernelMetadata(operates_on="domain")
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_cma_matrix_matrix_kernel()
+    assert ("A CMA kernel should only operate on a 'cell_column'. However, "
+            "the kernel metadata 'None' for procedure 'None' operates on "
+            "'domain'." in str(info.value))
+
+    # CMA operators or scalars.
+    meta_args = [
+        ColumnwiseOperatorArgMetadata("gh_real", "gh_write", "w3", "w2"),
+        FieldArgMetadata("gh_real", "gh_write", "w3")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_cma_matrix_matrix_kernel()
+    assert ("A CMA matrix-matrix kernel must only contain CMA operators or "
+            "scalars, but found 'field' in kernel metadata 'None' for "
+            "procedure 'None'." in str(info.value))
+
+    # One CMA argument written to.
+    meta_args = [
+        ColumnwiseOperatorArgMetadata("gh_real", "gh_read", "w3", "w2")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_cma_matrix_matrix_kernel()
+    assert ("A CMA matrix-matrix kernel must write to one CMA operator "
+            "argument, but found 0 writers in kernel metadata 'None' for "
+            "procedure 'None'." in str(info.value))
+
+    # Other arguments must also be read only but remaining args will
+    # be scalars which must already be read only so no more checks
+    # required.
+
+    # OK.
+    meta_args = [
+        ColumnwiseOperatorArgMetadata("gh_real", "gh_write", "w3", "w2"),
+        ColumnwiseOperatorArgMetadata("gh_real", "gh_read", "w3", "w2"),
+        ScalarArgMetadata("gh_real", "gh_read")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    lfric_kernel_metadata._validate_cma_matrix_matrix_kernel()
+
+
+def test_validate_intergrid_kernel():
+    '''Test that the _validate_intergrid_kernel method behaves as
+    expected.
+
+    '''
+    # Check validate_generic_kernel is called.
+    lfric_kernel_metadata = LFRicKernelMetadata(operates_on="cell_column")
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_intergrid_kernel()
+    assert ("Kernel metadata with 'operates_on != domain' must have at least "
+            "one meta_args argument that is a field, field vector, intergrid "
+            "field, intergrid vector field, LMA operator or CMA operator (in "
+            "order to determine the appropriate iteration space). However, "
+            "the kernel metadata 'None' for procedure 'None' has none."
+            in str(info.value))
+
+    # operates_on == cell_column.
+    meta_args = [
+        InterGridArgMetadata("gh_real", "gh_read", "w0", "gh_coarse")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="domain", meta_args=meta_args)
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_intergrid_kernel()
+    assert ("An intergrid kernel should only operate on a 'cell_column'. "
+            "However, the kernel metadata 'None' for procedure 'None' "
+            "operates on 'domain'." in str(info.value))
+
+    # All args are inter-grid args.
+    meta_args = [
+        InterGridArgMetadata("gh_real", "gh_read", "w0", "gh_coarse"),
+        ScalarArgMetadata("gh_real", "gh_read")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_intergrid_kernel()
+    assert ("An intergrid kernel should only have intergrid arguments, but "
+            "found 'scalar' in kernel metadata 'None' for procedure 'None'."
+            in str(info.value))
+
+    # At least one arg on coarse mesh.
+    meta_args = [
+        InterGridArgMetadata("gh_real", "gh_read", "w0", "gh_fine")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_intergrid_kernel()
+    assert ("An intergrid kernel should have at least one intergrid argument "
+            "on the coarse mesh, but none were found in kernel metadata "
+            "'None' for procedure 'None'." in str(info.value))
+
+    # All args on coarse mesh are on the same function space.
+    meta_args = [
+        InterGridArgMetadata("gh_real", "gh_read", "w0", "gh_coarse"),
+        InterGridArgMetadata("gh_real", "gh_read", "w1", "gh_coarse")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_intergrid_kernel()
+    assert ("An intergrid kernel should have all of its arguments, that are "
+            "on the coarse mesh, on the same function space. However, 'w1' "
+            "and 'w0' differ in kernel metadata 'None' for procedure 'None'."
+            in str(info.value))
+
+    # At least one arg on fine mesh.
+    meta_args = [
+        InterGridArgMetadata("gh_real", "gh_read", "w0", "gh_coarse"),
+        InterGridArgMetadata("gh_real", "gh_read", "w0", "gh_coarse")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_intergrid_kernel()
+    assert ("An intergrid kernel should have at least one intergrid argument "
+            "on the fine mesh, but none were found in kernel metadata 'None' "
+            "for procedure 'None'." in str(info.value))
+
+    # All args on fine mesh are on the same function space.
+    meta_args = [
+        InterGridArgMetadata("gh_real", "gh_read", "w0", "gh_coarse"),
+        InterGridArgMetadata("gh_real", "gh_read", "w0", "gh_coarse"),
+        InterGridArgMetadata("gh_real", "gh_read", "w1", "gh_fine"),
+        InterGridArgMetadata("gh_real", "gh_read", "w2", "gh_fine")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_intergrid_kernel()
+    assert ("An intergrid kernel should have all of its arguments, that are "
+            "on the fine mesh, on the same function space. However, 'w2' and "
+            "'w1' differ in kernel metadata 'None' for procedure 'None'."
+            in str(info.value))
+
+    # Fine mesh and coarse mesh function spaces differ.
+    meta_args = [
+        InterGridArgMetadata("gh_real", "gh_read", "w0", "gh_coarse"),
+        InterGridArgMetadata("gh_real", "gh_read", "w0", "gh_coarse"),
+        InterGridArgMetadata("gh_real", "gh_read", "w0", "gh_fine"),
+        InterGridArgMetadata("gh_real", "gh_read", "w0", "gh_fine")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_intergrid_kernel()
+    assert ("An intergrid kernel should have different function spaces for "
+            "the arguments on the coarse mesh and the arguments on the fine "
+            "mesh. However, both are on 'w0' in kernel metadata 'None' for "
+            "procedure 'None'." in str(info.value))
+
+    # OK.
+    meta_args = [
+        InterGridArgMetadata("gh_real", "gh_read", "w0", "gh_coarse"),
+        InterGridArgMetadata("gh_real", "gh_read", "w0", "gh_coarse"),
+        InterGridArgMetadata("gh_real", "gh_read", "w1", "gh_fine"),
+        InterGridArgMetadata("gh_real", "gh_read", "w1", "gh_fine")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    lfric_kernel_metadata._validate_intergrid_kernel()
 
 
 # TODO issue #1953. The metadata below is invalid. Only one of gh_shape
@@ -520,6 +1183,17 @@ def test_fortran_string_no_procedure():
         "  INTEGER :: OPERATES_ON = cell_column\n"
         "END TYPE testkern_type\n")
     assert result == expected
+
+
+def test_getter_kernel_type():
+    '''Test that the LFRicKernelMetadata kernel_type getter works as
+    expected.
+
+    '''
+    meta_args = [FieldArgMetadata("gh_real", "gh_read", "w3")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="domain", meta_args=meta_args)
+    assert lfric_kernel_metadata.kernel_type == "domain"
 
 
 def test_setter_getter_operates_on():
