@@ -1128,10 +1128,10 @@ class LFRicKernelMetadata(CommonMetadata):
         :raises TypeError: if the types argument is not of the correct type.
 
         '''
-        if not self.meta_args:
-            return []
-        if not (isinstance(types, list) or issubclass(
-                types, CommonMetaArgMetadata)):
+        import inspect
+        if not (isinstance(types, list) or
+                (inspect.isclass(types) and
+                 issubclass(types, CommonMetaArgMetadata))):
             raise TypeError(
                 f"Expected a subclass of CommonMetaArgMetadata or a list for "
                 f"the types argument, but found '{type(types).__name__}'.")
@@ -1140,11 +1140,14 @@ class LFRicKernelMetadata(CommonMetadata):
         else:
             my_types = [types]
         for my_type in my_types:
-            if not issubclass(my_type, CommonMetaArgMetadata):
+            if not (inspect.isclass(my_type) and
+                    issubclass(my_type, CommonMetaArgMetadata)):
                 raise TypeError(
-                    f"Expected entries in the types argument to be "
+                    f"Expected list entries in the types argument to be "
                     f"subclasses of CommonMetaArgMetadata, but found "
                     f"'{type(my_type).__name__}'.")
+        if not self.meta_args:
+            return []
         return [meta_arg for meta_arg in self.meta_args
                 if type(meta_arg) in my_types]
 
