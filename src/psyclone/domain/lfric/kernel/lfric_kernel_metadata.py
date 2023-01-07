@@ -898,7 +898,10 @@ class LFRicKernelMetadata(CommonMetadata):
 
     @property
     def kernel_type(self):
-        ''' xxx '''
+        '''
+        :returns: the type of kernel that this is.
+        :rtype: str
+        '''
         return self._get_kernel_type()
 
     @property
