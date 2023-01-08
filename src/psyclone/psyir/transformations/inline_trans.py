@@ -43,7 +43,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
     ArrayReference, ArrayOfStructuresReference, BinaryOperation, Call,
     CodeBlock, Range, Routine, Reference, Return, Literal, Assignment,
-    Container, StructureReference, ArrayMember)
+    Container, StructureReference)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol, ScalarType,
                                     RoutineSymbol, ImportInterface, Symbol,
@@ -176,7 +176,7 @@ class InlineTrans(Transformation):
             # Check the parent is not None as some references are replaced
             # during previous calls if they are array accesses
             if ref.parent is not None:
-                self.replace_dummy_arg(ref, node, dummy_args)
+                self._replace_dummy_arg(ref, node, dummy_args)
 
         # Copy the nodes from the Routine into the call site.
         if isinstance(new_stmts[-1], Return):
@@ -207,7 +207,7 @@ class InlineTrans(Transformation):
                 idx += 1
                 parent.addchild(child, idx)
 
-    def replace_dummy_arg(self, ref, call_node, dummy_args):
+    def _replace_dummy_arg(self, ref, call_node, dummy_args):
         '''
         Recursively combines any References to dummy arguments in the supplied
         PSyIR expression with the corresponding Reference from the call site to
@@ -225,13 +225,11 @@ class InlineTrans(Transformation):
         :returns: the replacement reference.
         :rtype: :py:class:`psyclone.psyir.nodes.Reference`
 
-        :raises InternalError: if the actual and dummy references both \
-                               represent array-element accessors.
         '''
         if not isinstance(ref, Reference):
             # Recurse down in case this is e.g. an Operation or Range.
             for child in ref.children:
-                self.replace_dummy_arg(child, call_node, dummy_args)
+                self._replace_dummy_arg(child, call_node, dummy_args)
             return ref
 
         if ref.symbol not in dummy_args:
@@ -269,32 +267,7 @@ class InlineTrans(Transformation):
             return ref
 
         # Neither the actual or local references are simple, i.e. they
-        # include array accesses and/or structure accesses, e.g.:
-        #
-        # call my_sub(my_struc%grid(:,2,:), 10)
-        #
-        # subroutine my_sub(grid, ngrids)
-        #   ...
-        #   do igrid = 1, ngrids
-        #     do jgrid = ...
-        #     do i = 1, 10
-        #       do j = 1, 10
-        #         grid(igrid, jgrid)%data(i,j) = 0.0
-        #
-        # The assignment in the inlined code should become:
-        #
-        # my_struc%grid(igrid,2,jgrid)%data(i,j) = 0.0
-
-        # So, the head of the local reference needs to be replaced by the
-        # head of the actual reference (e.g. grid => my_struc%grid) and then
-        # any ranges in the actual reference need to be replaced by the
-        # corresponding index expressions in the local reference.
-
-        # Every dimension in the dummy argument must correspond to a Range
-        # in the actual argument. In Fortran, Range(s) can only occur in
-        # a single part reference (i.e. this(:)%that(:) is invalid).
-        # If the access that we're dealing with is to a Member of a dummy
-        # argument then that is independent of the actual argument.
+        # include array accesses and/or structure accesses.
         new_ref = self._replace_dummy_struc_arg(actual_arg, ref, call_node,
                                                 dummy_args)
         ref.replace_with(new_ref)
@@ -304,7 +277,20 @@ class InlineTrans(Transformation):
                             local_idx, decln_start, actual_start):
         '''
         Utility that creates the PSyIR for an inlined array-index access
-        expression.
+        expression. This is not trivial since a dummy argument may be
+        declared with bounds that are shifted relative to those of an
+        actual argument.
+
+        If local_idx is the index of the access in the routine;
+           local_decln_start is the starting index of the dimension as
+                        declared in the routine;
+           actual_start is the starting index of the slice at the callsite
+                        (whether from the array declaration or a slice);
+
+        then the index of the inlined access will be::
+
+            inlined_idx = local_idx - local_decln_start + 1 + actual_start - 1
+                        = local_idx - local_decln_start + actual_start
 
         :param call_node: the Call that we are inlining.
         :type call_node: :py:class:`psyclone.psyir.nodes.Call`
@@ -324,17 +310,6 @@ class InlineTrans(Transformation):
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        # If local_idx is the index of the access in the routine;
-        #    local_decln_start is the starting index of the dimension as
-        #                 declared in the routine;
-        #    actual_start is the starting index of the slice at the callsite
-        #                 (whether from the array declaration or a slice);
-        #
-        # then the index of the inlined access will be:
-        #
-        # inlined_idx = local_idx - local_decln_start + 1 + actual_start - 1
-        #             = local_idx - local_decln_start + actual_start
-        #
         if isinstance(local_idx, Range):
             lower = self._create_inlined_idx(call_node, dummy_args,
                                              local_idx.start, decln_start,
@@ -342,18 +317,18 @@ class InlineTrans(Transformation):
             upper = self._create_inlined_idx(call_node, dummy_args,
                                              local_idx.stop, decln_start,
                                              actual_start)
-            step = self.replace_dummy_arg(local_idx.step, call_node,
-                                          dummy_args)
+            step = self._replace_dummy_arg(local_idx.step, call_node,
+                                           dummy_args)
             return Range.create(lower.copy(), upper.copy(), step.copy())
 
-        uidx = self.replace_dummy_arg(local_idx, call_node, dummy_args)
+        uidx = self._replace_dummy_arg(local_idx, call_node, dummy_args)
         if decln_start == actual_start:
             # If the starting indices in the actual and dummy arguments are
             # the same then we don't need to shift the index.
             return uidx
 
-        ustart = self.replace_dummy_arg(decln_start,
-                                        call_node, dummy_args)
+        ustart = self._replace_dummy_arg(decln_start,
+                                         call_node, dummy_args)
         start_sub = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                            uidx.copy(), ustart.copy())
         return BinaryOperation.create(BinaryOperation.Operator.ADD,
@@ -447,10 +422,30 @@ class InlineTrans(Transformation):
         '''
         Called by _replace_dummy_arg() whenever a dummy or actual argument
         involves an array or structure access that can't be handled with a
-        simple substitution.
-        Recursively combines any References to dummy arguments in the supplied
-        Reference with the corresponding Reference from the call site to
-        make a new Reference for use in the inlined code.
+        simple substitution, e.g.
+
+        .. code-block:: fortran
+
+            call my_sub(my_struc%grid(:,2,:), 10)
+
+            subroutine my_sub(grid, ngrids)
+              ...
+              do igrid = 1, ngrids
+                do jgrid = ...
+                  do i = 1, 10
+                    do j = 1, 10
+                      grid(igrid, jgrid)%data(i,j) = 0.0
+
+        The assignment in the inlined code should become
+
+        .. code-block:: fortran
+
+            my_struc%grid(igrid,2,jgrid)%data(i,j) = 0.0
+
+        This routine therefore recursively combines any References to dummy
+        arguments in the supplied Reference (including any array-index
+        expressions) with the corresponding Reference
+        from the call site to make a new Reference for use in the inlined code.
 
         :param actual_arg: an actual argument to the routine being inlined.
         :type actual_arg: :py:class:`psyclone.psyir.nodes.Reference`
@@ -503,14 +498,16 @@ class InlineTrans(Transformation):
             new_indices = []
             for idx in local_indices:
                 new_indices.append(
-                    self.replace_dummy_arg(
+                    self._replace_dummy_arg(
                         idx.copy(), call_node, dummy_args))
             # Replace the last entry in the `members` list with a new array
             # access.
             members[-1] = (cursor.name, new_indices)
 
         # We now walk down the *local* access, skipping its head (as that is
-        # replaced by the actual arg).
+        # replaced by the actual arg). We don't need to worry about updating
+        # index expressions in the actual argument as they are independent of
+        # any array accesses within a structure passed as a dummy argument.
         cursor = ref
         while hasattr(cursor, "member"):
             cursor = cursor.member
@@ -520,7 +517,7 @@ class InlineTrans(Transformation):
                     # Update each index expression in case it refers to
                     # dummy arguments.
                     new_indices.append(
-                        self.replace_dummy_arg(
+                        self._replace_dummy_arg(
                             idx.copy(), call_node, dummy_args))
                 members.append((cursor.name, new_indices))
             else:
