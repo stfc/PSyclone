@@ -186,7 +186,7 @@ def test_get_kernel_type():
     meta_args = [FieldArgMetadata("gh_real", "gh_read", "w0")]
     lfric_kernel_metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
-    lfric_kernel_metadata._validate_general_purpose_kernel()
+    assert lfric_kernel_metadata._get_kernel_type() == "general-purpose"
 
 
 def test_validate_generic_kernel():

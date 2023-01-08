@@ -527,7 +527,7 @@ class LFRicKernelMetadata(CommonMetadata):
         # The function spaces of the read and written fields must
         # match the from and to spaces, respectively, of the CMA
         # operator.
-        if field_args[0] == "gh_write":
+        if field_args[0].access == "gh_write":
             writer_field = field_args[0]
             reader_field = field_args[1]
         else:
