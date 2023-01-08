@@ -644,7 +644,7 @@ def test_validate_cma_apply_kernel():
         lfric_kernel_metadata._validate_cma_apply_kernel()
     assert ("In a CMA apply kernel, the function space of the written field "
             "must match the function space of the CMA operator's 'to' "
-            "function space, but found 'w2' and 'w0' respectively in kernel "
+            "function space, but found 'w3' and 'w0' respectively in kernel "
             "metadata 'None' for procedure 'None'." in str(info.value))
 
     # Function space of read field matches CMA operator.
