@@ -56,7 +56,7 @@ def test_create(datatype, access, function_space):
     assert field_arg._datatype == "gh_real"
     assert field_arg._access == "gh_read"
     assert field_arg._function_space == "w0"
-    assert field_arg._stencil == None
+    assert field_arg._stencil is None
 
 
 def test_create_stencil():
@@ -105,7 +105,7 @@ def test_get_metadata():
     assert datatype == "GH_REAL"
     assert access == "GH_READ"
     assert function_space == "W0"
-    assert stencil == None
+    assert stencil is None
 
 
 def test_get_stencil():

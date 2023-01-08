@@ -121,7 +121,7 @@ class FieldArgMetadata(ScalarArgMetadata):
             return None
         raw_stencil_text = raw_stencil_text.strip().lower()
         if not (raw_stencil_text.startswith("stencil(") and
-                raw_stencil_text.endswith(")") and len(raw_stencil_text)>9):
+                raw_stencil_text.endswith(")") and len(raw_stencil_text) > 9):
             raise TypeError(f"The stencil metadata should be in the form "
                             f"'stencil(type)' but found '{raw_stencil_text}'.")
         stencil = raw_stencil_text[8:-1]

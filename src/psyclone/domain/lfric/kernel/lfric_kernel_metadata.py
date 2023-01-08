@@ -201,7 +201,7 @@ class LFRicKernelMetadata(CommonMetadata):
         # TODO issue #1953: No shape if no basis or diff basis
         # TODO issue #1953: evaluator_targets only if required
         # TODO issue #1953: evaluator_targets function spaces exist
-        
+
         # Kernel metadata with operates_on != domain must have at
         # least one meta_args argument that is a field, field vector,
         # intergrid field, intergrid vector field, LMA operator or CMA
@@ -273,7 +273,8 @@ class LFRicKernelMetadata(CommonMetadata):
                         f"'{self.procedure_name}'.")
 
         # TODO issue #1953: constraints when operates_on == dofs
-        # 1: They must have one and only one modified (i.e. written to) argument.
+        # 1: They must have one and only one modified (i.e. written
+        # to) argument.
         # 2: There must be at least one field in the argument
         # list. This is so that we know the number of DoFs to iterate
         # over in the PSy layer.
@@ -406,9 +407,9 @@ class LFRicKernelMetadata(CommonMetadata):
         if self.meta_args_get(
                 [InterGridArgMetadata, InterGridVectorArgMetadata]):
             raise ParseError(
-                f"A CMA kernel should not contain any intergrid arguments, but "
-                f"at least one was found in kernel metadata '{self.name}' for "
-                f"procedure '{self.procedure_name}'.")
+                f"A CMA kernel should not contain any intergrid arguments, "
+                f"but at least one was found in kernel metadata '{self.name}' "
+                f"for procedure '{self.procedure_name}'.")
 
         # No field vector arguments allowed.
         if self.meta_args_get(FieldVectorArgMetadata):
@@ -496,7 +497,7 @@ class LFRicKernelMetadata(CommonMetadata):
                 f"'{self.procedure_name}' has access '{cma_op.access}'.")
 
         # Two field arguments.
-        field_args = self.meta_args_get(FieldArgMetadata) 
+        field_args = self.meta_args_get(FieldArgMetadata)
         if not field_args:
             raise ParseError(
                 f"A CMA apply kernel should contain two field arguments, but "
@@ -580,7 +581,7 @@ class LFRicKernelMetadata(CommonMetadata):
                 f"argument, but found {len(cma_writers)} writers in kernel "
                 f"metadata '{self.name}' for procedure "
                 f"'{self.procedure_name}'.")
-        
+
         # All arguments other than a single CMA argument should be read
         # only. CMA arguments have been checked. Only scalars remain
         # and these are constrained to be read-only anyway, so no more
@@ -1150,5 +1151,6 @@ class LFRicKernelMetadata(CommonMetadata):
             return []
         return [meta_arg for meta_arg in self.meta_args
                 if type(meta_arg) in my_types]
+
 
 __all__ = ["LFRicKernelMetadata"]

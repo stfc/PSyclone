@@ -245,7 +245,7 @@ def test_validate_general_purpose_kernel():
     assert ("A general purpose kernel should not operate on a domain. "
             "However, the kernel metadata 'None' for procedure 'None' "
             "does." in str(info.value))
-    
+
     # operates_on == cell_column only supports field, field vector,
     # LMA operator, or scalar meta_arg arguments.
     meta_args = [InterGridArgMetadata("GH_REAL", "GH_READ", "W0", "GH_FINE")]

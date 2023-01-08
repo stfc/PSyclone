@@ -43,11 +43,12 @@ from fparser.two import Fortran2003
 from psyclone.domain.lfric.kernel import InterGridVectorArgMetadata
 
 
-@pytest.mark.parametrize("datatype, access, function_space, mesh, "
-                         "vector_length, stencil", [
-    ("GH_REAL", "GH_READ", "W0", "GH_FINE", "3", "REGION"),
-    ("gh_real", "gh_read", "w0", "gh_fine", "3", "region")])
-def test_create(datatype, access, function_space, mesh, vector_length, stencil):
+@pytest.mark.parametrize(
+    "datatype, access, function_space, mesh, vector_length, stencil", [
+        ("GH_REAL", "GH_READ", "W0", "GH_FINE", "3", "REGION"),
+        ("gh_real", "gh_read", "w0", "gh_fine", "3", "region")])
+def test_create(datatype, access, function_space, mesh, vector_length,
+                stencil):
     '''Test that an instance of InterGridVectorArgMetadata can be created
     successfully. Test that the input is case insensitive and for
     optional stencil information.

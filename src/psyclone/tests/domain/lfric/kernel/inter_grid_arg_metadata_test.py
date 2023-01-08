@@ -132,7 +132,7 @@ def test_get_mesh_arg():
     assert ("At argument index 3 for metadata 'arg_type(GH_FIELD, GH_REAL, "
             "GH_READ, W0, mesh_arg = GH_COARSE)' expected the metadata to be "
             "in the form 'mesh_arg=value' but found 'W0'." in str(info.value))
-    
+
     fparser2_tree = InterGridArgMetadata.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, invalid=GH_COARSE)",
         encoding=Fortran2003.Structure_Constructor)
