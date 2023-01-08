@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,9 +45,9 @@ from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_of_structures_member import \
     ArrayOfStructuresMember
 from psyclone.psyir.nodes.structure_member import StructureMember
-from psyclone.psyir.symbols import (DataSymbol, DataTypeSymbol, StructureType,
-                                    ArrayType, DeferredType, ScalarType,
-                                    UnknownType)
+from psyclone.psyir.symbols import (ArrayType, DataSymbol, DataType,
+                                    DataTypeSymbol, DeferredType, ScalarType,
+                                    StructureType, UnknownType)
 from psyclone.errors import InternalError
 
 
@@ -56,10 +56,19 @@ class StructureReference(Reference):
     Node representing a reference to a component of a structure. As such
     it must have a single child representing the component being accessed.
 
+    :param symbol: the symbol being referenced.
+    :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
+    :param kwargs: additional keyword arguments provided to the super class.
+    :type kwargs: unwrapped dict.
+
     '''
     # Textual description of the node.
     _children_valid_format = "Member"
     _text_name = "StructureReference"
+
+    def __init__(self, symbol, **kwargs):
+        super().__init__(symbol=symbol, **kwargs)
+        self._overwrite_datatype = None
 
     @staticmethod
     def _validate_child(position, child):
@@ -77,7 +86,7 @@ class StructureReference(Reference):
         return False
 
     @staticmethod
-    def create(symbol, members, parent=None):
+    def create(symbol, members, parent=None, overwrite_datatype=None):
         '''
         Create a StructureReference instance given a symbol and a
         list of components. e.g. for "field%bundle(2)%flag" this
@@ -93,6 +102,12 @@ class StructureReference(Reference):
             list of nodes describing array access)
         :param parent: the parent of this node in the PSyIR.
         :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
+        :param overwrite_datatype: the datatype for the reference, which will \
+            overwrite the value determined by analysing the corresponding \
+            user defined type. This is useful when e.g. the module that \
+            declares the structure cannot be accessed.
+        :type overwrite_datatype: \
+            Optional[:py:class:`psyclone.psyir.symbols.DataType`]
 
         :returns: a StructureReference instance.
         :rtype: :py:class:`psyclone.psyir.nodes.StructureReference`
@@ -105,11 +120,20 @@ class StructureReference(Reference):
                 f"The 'symbol' argument to StructureReference.create() "
                 f"should be a DataSymbol but found '{type(symbol).__name__}'.")
 
-        return StructureReference._create(symbol, symbol.datatype, members,
-                                          parent=parent)
+        if overwrite_datatype and not isinstance(overwrite_datatype, DataType):
+            raise TypeError(
+                f"The 'overwrite_datatype' argument to "
+                f"StructureReference.create() should be a DataType but found "
+                f"'{type(symbol).__name__}'.")
+
+        return StructureReference.\
+            _create(symbol, symbol.datatype, members, parent=parent,
+                    overwrite_datatype=overwrite_datatype)
 
     @classmethod
-    def _create(cls, symbol, symbol_type, members, parent=None):
+    def _create(cls, symbol, symbol_type, members, parent=None,
+                overwrite_datatype=None):
+        # pylint: disable=too-many-arguments
         '''
         Create an instance of `cls` given a symbol, a type and a
         list of components. e.g. for "field%bundle(2)%flag" this list
@@ -131,6 +155,12 @@ class StructureReference(Reference):
             list of nodes describing array access)
         :param parent: the parent of this node in the PSyIR.
         :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
+        :param overwrite_datatype: the datatype for the reference, which will \
+            overwrite the value determined by analysing the corresponding \
+            user defined type. This is useful when e.g. the module that \
+            declares the structure cannot be accessed.
+        :type overwrite_datatype: \
+            Optional[:py:class:`psyclone.psyir.symbols.DataType`]
 
         :returns: a StructureReference instance.
         :rtype: :py:class:`psyclone.psyir.nodes.StructureReference`
@@ -199,6 +229,7 @@ class StructureReference(Reference):
             child_member = subref
         # Finally, add this chain to the top-level reference
         ref.addchild(child_member)
+        ref._overwrite_datatype = overwrite_datatype
         return ref
 
     def __str__(self):
@@ -242,7 +273,9 @@ class StructureReference(Reference):
     def datatype(self):
         '''
         Walks down the list of members making up this reference to determine
-        the type that it refers to.
+        the type that it refers to. If an overwrite datatype was given to this
+        reference, this datatype will be returned instead of determining the
+        type.
 
         In order to minimise code duplication, this method also supports
         ArrayOfStructuresReference by simply allowing for the case where
@@ -253,7 +286,12 @@ class StructureReference(Reference):
 
         :raises NotImplementedError: if the structure reference represents \
                                      an array of arrays.
+
         '''
+        # pylint: disable=too-many-return-statements, too-many-branches
+        if self._overwrite_datatype:
+            return self._overwrite_datatype
+
         dtype = self.symbol.datatype
 
         if isinstance(dtype, ArrayType):
