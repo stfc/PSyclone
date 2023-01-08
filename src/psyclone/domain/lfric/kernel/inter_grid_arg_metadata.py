@@ -42,8 +42,6 @@ from fparser.two import Fortran2003
 
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.field_arg_metadata import FieldArgMetadata
-from psyclone.domain.lfric.kernel.scalar_arg_metadata import ScalarArgMetadata
-from psyclone.errors import InternalError
 
 
 class InterGridArgMetadata(FieldArgMetadata):
@@ -136,12 +134,13 @@ class InterGridArgMetadata(FieldArgMetadata):
         try:
             mesh_arg_lhs = fparser2_tree.children[1].\
                 children[mesh_arg_index].children[0].tostr()
-        except IndexError:
+        except IndexError as info:
             raise ValueError(
                 f"At argument index {mesh_arg_index} for metadata "
                 f"'{fparser2_tree}' expected the metadata to be in the form "
                 f"'mesh_arg=value' but found "
-                f"'{fparser2_tree.children[1].children[mesh_arg_index]}'.")
+                f"'{fparser2_tree.children[1].children[mesh_arg_index]}'.") \
+                from info
 
         if not mesh_arg_lhs.lower() == "mesh_arg":
             raise ValueError(

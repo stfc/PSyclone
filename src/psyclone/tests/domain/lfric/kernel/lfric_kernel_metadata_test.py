@@ -157,6 +157,27 @@ def test_init_args_error():
             "'1_invalid'." in str(info.value))
 
 
+def test_validate():
+    '''Test that the validate method behaves as expected.'''
+
+    # _get_kernel_type called (exception raised)
+    lfric_kernel_metadata = LFRicKernelMetadata(operates_on="cell_column")
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata.validate()
+    assert ("Kernel metadata with 'operates_on != domain' must have at least "
+            "one meta_args argument that is a field, field vector, intergrid "
+            "field, intergrid vector field, LMA operator or CMA operator (in "
+            "order to determine the appropriate iteration space). However, "
+            "the kernel metadata 'None' for procedure 'None' has none."
+            in str(info.value))
+
+    # OK
+    meta_args = [FieldArgMetadata("gh_real", "gh_write", "w0")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    lfric_kernel_metadata.validate()
+
+
 def test_get_kernel_type():
     '''Test that the _get_kernel_type method behaves as expected.'''
 
@@ -544,6 +565,20 @@ def test_validate_cma_apply_kernel():
     assert ("A CMA kernel should only operate on a 'cell_column'. However, "
             "the kernel metadata 'None' for procedure 'None' operates on "
             "'domain'." in str(info.value))
+
+    # Only field or CMA operator arguments.
+    meta_args = [
+        ColumnwiseOperatorArgMetadata("gh_real", "gh_read", "w3", "w1"),
+        FieldArgMetadata("gh_real", "gh_read", "w1"),
+        FieldArgMetadata("gh_real", "gh_write", "w3"),
+        ScalarArgMetadata("gh_real", "gh_read")]
+    lfric_kernel_metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    with pytest.raises(ParseError) as info:
+        lfric_kernel_metadata._validate_cma_apply_kernel()
+    assert ("A CMA apply kernel should only contain field or CMA operator "
+            "arguments, but found 'scalar' in kernel metadata 'None' for "
+            "procedure 'None'." in str(info.value))
 
     # One CMA operator.
     meta_args = [

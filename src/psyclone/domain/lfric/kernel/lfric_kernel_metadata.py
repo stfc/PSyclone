@@ -37,6 +37,8 @@
 kernel-layer-specific class that captures the LFRic kernel metadata.
 
 '''
+import inspect
+
 from fparser.two import Fortran2003
 from fparser.two.utils import walk, get_child
 
@@ -160,6 +162,32 @@ class LFRicKernelMetadata(CommonMetadata):
             # Validate name via setter
             self.name = name
 
+    def validate(self):
+        '''Only certain metadata combinations are allowed in LFRic. This
+        routine checks that any such constraints are respected.
+
+        raises ParseError: if any validation checks fail.
+
+        '''
+        # The _get_kernel_type method returns the type of kernel that
+        # this metadata specifies (e.g. inter-grid or domain). In the
+        # process it checks that the combined metadata conforms to the
+        # constraints of the supported kernel types.
+        _ = self._get_kernel_type()
+
+        # TODO issue #1953: Checks that are not associated with
+        # determining kernel type
+        # - A kernel must modify at least one of its arguments
+        # - Function spaces of basis functions exist in meta_args
+        # - No shape if no basis or diff basis. shape
+        #   if quadrature or evaluator
+        # - evaluator_targets only if required
+        # - evaluator_targets function spaces exist
+        # - Disallow duplicates of in meta_args,
+        #   meta_funcs etc. lists
+        # - Writing to read-only function spaces (Check within
+        #   meta_arg classes?)
+
     def _get_kernel_type(self):
         '''Returns the type of kernel based on the supplied metadata. LFRic
         supports different types of kernel and the type can be infered
@@ -177,18 +205,17 @@ class LFRicKernelMetadata(CommonMetadata):
             # This has to be an inter-grid kernel.
             self._validate_intergrid_kernel()
             return "inter-grid"
-        elif self.meta_args_get(ColumnwiseOperatorArgMetadata):
+        if self.meta_args_get(ColumnwiseOperatorArgMetadata):
             # This has to be a cma kernel.
             cma_type = self._cma_kernel_type()
             return f"cma-{cma_type}"
-        elif self.operates_on == "domain":
+        if self.operates_on == "domain":
             # This has to be a domain kernel.
             self._validate_domain_kernel()
             return "domain"
-        else:
-            # This has to be a general purpose kernel.
-            self._validate_general_purpose_kernel()
-            return "general-purpose"
+        # This has to be a general purpose kernel.
+        self._validate_general_purpose_kernel()
+        return "general-purpose"
 
     def _validate_generic_kernel(self):
         '''Validation checks common to multiple kernel types.
@@ -196,12 +223,6 @@ class LFRicKernelMetadata(CommonMetadata):
         raises ParseError: if any validation checks fail.
 
         '''
-        # TODO issue #1953: A kernel must modify at least one of its arguments
-        # TODO issue #1953: Function spaces of basis functions exist
-        # TODO issue #1953: No shape if no basis or diff basis
-        # TODO issue #1953: evaluator_targets only if required
-        # TODO issue #1953: evaluator_targets function spaces exist
-
         # Kernel metadata with operates_on != domain must have at
         # least one meta_args argument that is a field, field vector,
         # intergrid field, intergrid vector field, LMA operator or CMA
@@ -370,13 +391,12 @@ class LFRicKernelMetadata(CommonMetadata):
             # Only CMA assembly kernels have an LMA operator.
             self._validate_cma_assembly_kernel()
             return "assembly"
-        elif self.meta_args_get(FieldArgMetadata):
+        if self.meta_args_get(FieldArgMetadata):
             # CMA matrix-matrix kernels do not have Field arguments.
             self._validate_cma_apply_kernel()
             return "apply"
-        else:
-            self._validate_cma_matrix_matrix_kernel()
-            return "matrix-matrix"
+        self._validate_cma_matrix_matrix_kernel()
+        return "matrix-matrix"
 
     def _validate_cma_kernel(self):
         '''Validation checks for a generic CMA kernel.
@@ -433,6 +453,8 @@ class LFRicKernelMetadata(CommonMetadata):
         raises ParseError: if any validation checks fail.
 
         '''
+        lfric_constants = LFRicConstants()
+
         # Generic CMA constraints.
         self._validate_cma_kernel()
 
@@ -445,7 +467,7 @@ class LFRicKernelMetadata(CommonMetadata):
                 f"procedure '{self.procedure_name}' contains {len(cma_ops)}.")
 
         # CMA operator argument must have write access.
-        if cma_ops[0].access != "gh_write":
+        if cma_ops[0].access == "gh_read":
             raise ParseError(
                 f"A CMA assembly kernel should contain one CMA operator "
                 f"argument with write access, however the operator in kernel "
@@ -460,6 +482,7 @@ class LFRicKernelMetadata(CommonMetadata):
                 f"'{self.name}' for procedure '{self.procedure_name}'.")
 
         # All arguments except the CMA argument must be read-only.
+        # pylint: disable=unidiomatic-typecheck
         for meta_arg in self.meta_args:
             if type(meta_arg) != ColumnwiseOperatorArgMetadata:
                 if meta_arg.access != "gh_read":
@@ -469,6 +492,7 @@ class LFRicKernelMetadata(CommonMetadata):
                         f"metadata '{self.name}' for procedure "
                         f"'{self.procedure_name}' has a non-CMA argument with "
                         f"access '{meta_arg.access}'.")
+        # pylint: enable=unidiomatic-typecheck
 
     def _validate_cma_apply_kernel(self):
         '''Validation checks for a CMA apply kernel.
@@ -476,9 +500,21 @@ class LFRicKernelMetadata(CommonMetadata):
         raises ParseError: if any validation checks fail.
 
         '''
+        lfric_constants = LFRicConstants()
+
         # Generic CMA constraints.
         self._validate_cma_kernel()
 
+        # Only CMA and field arguments.
+        for meta_arg in self.meta_args:
+            if type(meta_arg) not in [
+                    ColumnwiseOperatorArgMetadata, FieldArgMetadata]:
+                raise ParseError(
+                    f"A CMA apply kernel should only contain field or CMA "
+                    f"operator arguments, but found '{meta_arg.check_name}' "
+                    f"in kernel metadata '{self.name}' for procedure "
+                    f"'{self.procedure_name}'.")
+        
         # One CMA operator argument.
         cma_ops = self.meta_args_get(ColumnwiseOperatorArgMetadata)
         if len(cma_ops) != 1:
@@ -514,8 +550,8 @@ class LFRicKernelMetadata(CommonMetadata):
 
         # One field that is read and one field that is written.
         if not ((field_args[0].access == "gh_read" and
-                 field_args[1].access == "gh_write") or
-                (field_args[0].access == "gh_write" and
+                 field_args[1].access in lfric_constants.WRITE_ACCESSES) or
+                (field_args[0].access in lfric_constants.WRITE_ACCESSES and
                  field_args[1].access == "gh_read")):
             raise ParseError(
                 f"A CMA apply kernel should contain two field arguments, one "
@@ -527,7 +563,7 @@ class LFRicKernelMetadata(CommonMetadata):
         # The function spaces of the read and written fields must
         # match the from and to spaces, respectively, of the CMA
         # operator.
-        if field_args[0].access == "gh_write":
+        if field_args[0].access in lfric_constants.WRITE_ACCESSES:
             writer_field = field_args[0]
             reader_field = field_args[1]
         else:
@@ -558,6 +594,8 @@ class LFRicKernelMetadata(CommonMetadata):
         raises ParseError: if any validation checks fail.
 
         '''
+        lfric_constants = LFRicConstants()
+
         # Generic CMA constraints.
         self._validate_cma_kernel()
 
@@ -572,9 +610,11 @@ class LFRicKernelMetadata(CommonMetadata):
                     f"'{self.procedure_name}'.")
 
         # Exactly one of the CMA arguments must be written to.
+        # pylint: disable=unidiomatic-typecheck
         cma_writers = [meta_arg for meta_arg in self.meta_args if
                        type(meta_arg) == ColumnwiseOperatorArgMetadata
-                       and meta_arg.access == "gh_write"]
+                       and meta_arg.access in lfric_constants.WRITE_ACCESSES]
+        # pylint: enable=unidiomatic-typecheck
         if len(cma_writers) != 1:
             raise ParseError(
                 f"A CMA matrix-matrix kernel must write to one CMA operator "
@@ -1129,7 +1169,6 @@ class LFRicKernelMetadata(CommonMetadata):
         :raises TypeError: if the types argument is not of the correct type.
 
         '''
-        import inspect
         if not (isinstance(types, list) or
                 (inspect.isclass(types) and
                  issubclass(types, CommonMetaArgMetadata))):
