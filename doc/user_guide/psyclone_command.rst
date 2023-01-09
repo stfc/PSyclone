@@ -62,11 +62,10 @@ by the command:
 .. parsed-literal::
 
   > psyclone -h
-
   usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-okern OKERN] [-api API]
                   [-s SCRIPT] [-d DIRECTORY] [-I INCLUDE] [-l {off,all,output}]
                   [-dm] [-nodm] [--kernel-renaming {multiple,single}]
-                  [--profile {invokes,kernels}] [--config CONFIG] [-v]
+                  [--profile {invokes,kernels}] [--config CONFIG] [--version]
                   filename
 
   Run the PSyclone code generator on a particular file
@@ -78,7 +77,8 @@ by the command:
     -h, --help            show this help message and exit
     -oalg OALG            filename of transformed algorithm code
     -opsy OPSY            filename of generated PSy code
-    -okern OKERN          directory in which to put transformed kernels
+    -okern OKERN          directory in which to put transformed kernels,
+                          default is the current working directory.
     -api API              choose a particular api from ['dynamo0.3',
                           'gocean1.0', 'nemo'], default 'dynamo0.3'.
     -s SCRIPT, --script SCRIPT
@@ -88,21 +88,21 @@ by the command:
                           source code. Multiple roots can be specified by using
                           multiple -d arguments.
     -I INCLUDE, --include INCLUDE
-                          path to Fortran INCLUDE files (nemo API only)
+                          path to Fortran INCLUDE or module files
     -l {off,all,output}, --limit {off,all,output}
                           limit the Fortran line length to 132 characters
-                          (default 'off'). Use 'on' to apply limit to both input
-                          and output Fortran. Use 'output' to apply line-length
-                          limit to output Fortran only.
+                          (default 'off'). Use 'all' to apply limit to both
+                          input and output Fortran. Use 'output' to apply
+                          line-length limit to output Fortran only.
     -dm, --dist_mem       generate distributed memory code
     -nodm, --no_dist_mem  do not generate distributed memory code
-    --kernel-renaming {single,multiple}
+    --kernel-renaming {multiple,single}
                           Naming scheme to use when re-naming transformed
-                          kernels.
+                          kernels
     --profile {invokes,kernels}, -p {invokes,kernels}
                           Add profiling hooks for either 'kernels' or 'invokes'
     --config CONFIG       Config file with PSyclone specific options.
-    -v, --version         Display version information (\ |release|\ )
+    --version, -v         Display version information (\ |release|\ )
 
 Basic Use
 ---------

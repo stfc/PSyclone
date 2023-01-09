@@ -582,18 +582,17 @@ def test_main_version(capsys):
     '''Tests that the version info is printed correctly.'''
 
     # First test if -h includes the right version info:
-    with pytest.raises(SystemExit):
-        main(["-h"])
-    output, _ = capsys.readouterr()
-    assert f"Display version information ({__VERSION__})" in output
+    for arg in ["-h", "--help"]:
+        with pytest.raises(SystemExit):
+            main([arg])
+        output, _ = capsys.readouterr()
+        assert f"Display version information ({__VERSION__})" in output
 
-    # Now test -v, but it needs a filename for argparse to work. Just use
-    # some invalid parameters - "-v" prints its output before that.
-    with pytest.raises(SystemExit) as _:
-        main(["-v", "does-not-exist"])
-    output, _ = capsys.readouterr()
-
-    assert f"PSyclone version: {__VERSION__}" in output
+    for arg in ["-v", "--version"]:
+        with pytest.raises(SystemExit) as _:
+            main([arg])
+        output, _ = capsys.readouterr()
+        assert f"PSyclone version: {__VERSION__}" in output
 
 
 def test_main_profile(capsys):
