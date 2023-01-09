@@ -59,6 +59,11 @@ transform:
 	make single -e TL_KERNEL_NAME=tl_moist_dyn_gas_kernel ACTIVE_VAR_LIST="moist_dyn_gas mr_v mr_v_at_dof"
 	make single -e TL_KERNEL_NAME=tl_project_eos_pressure_kernel ACTIVE_VAR_LIST="exner rho exner_e r_exner exner_at_quad rho_at_quad rho_e tmp2 theta theta_vd_e theta_vd_at_quad moist_dyn_gas"
 	make single -e TL_KERNEL_NAME=tl_vorticity_advection_kernel ACTIVE_VAR_LIST="r_u res_dot_product vorticity_term cross_product1 cross_product2 j_vorticity u_at_quad mul2 vorticity_at_quad wind vorticity"
+	make single -e TL_KERNEL_NAME=compound_operator_kernel ACTIVE_VAR_LIST="compound_operator field"
+	make single -e TL_KERNEL_NAME=tl_poly1d_vert_adv_kernel ACTIVE_VAR_LIST="advective wind dpdz tracer"
+	make single -e TL_KERNEL_NAME=poly1d_w3_reconstruction_kernel ACTIVE_VAR_LIST="reconstruction polynomial_tracer tracer"
+	make single -e TL_KERNEL_NAME=tl_poly1d_vert_w3_reconstruction_kernel ACTIVE_VAR_LIST="reconstruction polynomial_tracer tracer"
+	make single -e TL_KERNEL_NAME=convert_hdiv_field_kernel ACTIVE_VAR_LIST="physical_field1 physical_field2 physical_field3 vector_out vector_in computational_field"
 
 compile:
 	@echo No compilation supported.
