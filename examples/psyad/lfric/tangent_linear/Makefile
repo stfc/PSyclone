@@ -63,6 +63,11 @@ transform:
 	make single -e TL_KERNEL_NAME=tl_pressure_gradient_bd_kernel ACTIVE_VAR_LIST="r_u_bd exner pressure_gradient_bd_e bdary_term exner_av theta_v_at_fquad theta_v_e exner_e exner_next_e theta moist_dyn_tot moist_dyn_gas"
 	make single -e TL_KERNEL_NAME=tl_rhs_project_eos_kernel ACTIVE_VAR_LIST="rhs_eos exner rho theta moist_dyn_gas eos exner_quad theta_vd_quad rho_quad rho_e exner_e theta_vd_e"
 	make single -e TL_KERNEL_NAME=tl_rhs_sample_eos_kernel ACTIVE_VAR_LIST="rhs_eos exner rho theta moist_dyn_gas exner_cell theta_vd_cell rho_cell rho_e exner_e theta_vd_e"
+	# Correct active list below, as "advective_increment m3_inv" also works?
+	make single -e TL_KERNEL_NAME=w3_advective_update_kernel ACTIVE_VAR_LIST="advective_increment u v w wind"
+	make single -e TL_KERNEL_NAME=tl_poly_advective_kernel ACTIVE_VAR_LIST="advective u v dtdx dtdy tracer wind"
+	make single -e TL_KERNEL_NAME=combine_w2_field_kernel ACTIVE_VAR_LIST="uvw w uv"
+	make single -e TL_KERNEL_NAME=split_w2_field_kernel ACTIVE_VAR_LIST="uvw w uv"
 
 compile:
 	@echo No compilation supported.
