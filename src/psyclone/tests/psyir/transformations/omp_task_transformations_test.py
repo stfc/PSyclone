@@ -79,9 +79,9 @@ def test_omptask_validate(fortran_reader):
         integer :: ji, jj, n
         integer, dimension(10, 10) :: t
         integer, dimension(10, 10) :: s
-        do jj = 1, n
+        do jj = 1, 10
             do ji = 1, 10
-                Call my_codeblock()
+                t(ji, jj) = s(ji, jj)
             end do
         end do
     end subroutine sub
