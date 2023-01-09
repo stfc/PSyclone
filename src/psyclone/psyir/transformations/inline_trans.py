@@ -251,7 +251,8 @@ class InlineTrans(Transformation):
         # pylint: disable=unidiomatic-typecheck
         if type(ref) is Reference:
             arg_copy = actual_arg.copy()
-            ref.replace_with(arg_copy)
+            if ref.parent:
+                ref.replace_with(arg_copy)
             return arg_copy
 
         # Local reference is not simple but the actual argument is, e.g.:
@@ -270,7 +271,8 @@ class InlineTrans(Transformation):
         # include array accesses and/or structure accesses.
         new_ref = self._replace_dummy_struc_arg(actual_arg, ref, call_node,
                                                 dummy_args)
-        ref.replace_with(new_ref)
+        if ref.parent:
+            ref.replace_with(new_ref)
         return new_ref
 
     def _create_inlined_idx(self, call_node, dummy_args,
