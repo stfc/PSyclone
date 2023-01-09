@@ -151,7 +151,7 @@ class KernCallInvokeArgList(ArgOrdering):
 
         consts = LFRicConstants()
         precision_name = consts.SCALAR_PRECISION_MAP[scalar_arg.intrinsic_type]
-        psyir.add_lfric_precision_symbol(self._symtab, precision_name)
+        self._symtab.add_lfric_precision_symbol(precision_name)
 
         sym = self._symtab.new_symbol(scalar_arg.name,
                                       symbol_type=DataSymbol,
@@ -191,7 +191,8 @@ class KernCallInvokeArgList(ArgOrdering):
         self._fields.append((sym,
                              LFRicConstants().specific_function_space(
                                  argvect.function_space.orig_name)))
-        self.append(sym.name, var_accesses, mode=argvect.access)
+        self.append(sym.name, var_accesses, mode=argvect.access,
+                    metadata_posn=argvect.metadata_index)
 
     def field(self, arg, var_accesses=None):
         '''Add the field array associated with the argument 'arg' to the
@@ -211,7 +212,8 @@ class KernCallInvokeArgList(ArgOrdering):
         self._fields.append((sym,
                              LFRicConstants().specific_function_space(
                                  arg.function_space.orig_name)))
-        self.append(sym.name, var_accesses, mode=arg.access)
+        self.append(sym.name, var_accesses, mode=arg.access,
+                    metadata_posn=arg.metadata_index)
 
     def stencil(self, arg, var_accesses=None):
         '''Add general stencil information associated with the argument 'arg'

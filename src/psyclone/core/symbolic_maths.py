@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: R. W. Ford and N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module provides access to sympy-based symbolic maths
@@ -54,8 +54,7 @@ class SymbolicMaths:
     >>> # Assume lhs is the PSyIR of 'i+j', and rhs is 'j+i'
     >>> if sympy.equal(lhs, rhs):
     ...     writer = FortranWriter()
-    ...     print("'{0}' and '{1}' are equal."
-    ...           .format(writer(lhs), writer(rhs)))
+    ...     print(f"'{writer(lhs)}' and '{writer(rhs)}' are equal.")
     'i + j' and 'j + i' are equal.
 
     '''

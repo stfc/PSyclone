@@ -814,7 +814,6 @@ class DependencyTools():
     # -------------------------------------------------------------------------
     def get_input_parameters(self, node_list, variables_info=None,
                              options=None):
-        # pylint: disable=no-self-use
         '''Return all variables that are input parameters, i.e. are
         read (before potentially being written).
 
@@ -857,7 +856,6 @@ class DependencyTools():
     # -------------------------------------------------------------------------
     def get_output_parameters(self, node_list, variables_info=None,
                               options=None):
-        # pylint: disable=no-self-use
         '''Return all variables that are output parameters, i.e. are
         written.
 
@@ -908,7 +906,7 @@ class DependencyTools():
         :returns: a 2-tuple of two lists, the first one containing \
             the input parameters, the second the output parameters.
         :rtype: Tuple[List[:py:class:`psyclone.core.Signature`],
-                      List[:py:class:`psyclone.core.Signature`])
+                      List[:py:class:`psyclone.core.Signature`]]
 
         '''
         variables_info = VariablesAccessInfo(node_list, options=options)

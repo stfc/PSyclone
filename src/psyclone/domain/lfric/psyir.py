@@ -58,7 +58,7 @@ from psyclone.psyir.nodes import Literal
 Module = namedtuple('Module', ["name", "vars"])
 MODULES = [
     Module(LFRicConstants().UTILITIES_MOD_MAP["constants"]["module"],
-           ["i_def", "r_def", "l_def"])]
+           ["i_def", "r_def", "r_solver", "r_tran", "l_def"])]
 
 # Generate LFRic module symbols from definitions
 for module in MODULES:
@@ -277,54 +277,4 @@ for array_type in FIELD_DATATYPES:
     exec(f"class {VECTOR_NAME}DataSymbol({NAME}DataSymbol):\n"
          f"    pass\n")
 
-
-def add_lfric_precision_symbol(table, name):
-    '''
-    If the named LFRic precision symbol is not already in the supplied
-    table then add it. Also ensure that the Container symbol from which it is
-    imported is in the table.
-
-    :param table: symbol table to which to add necessary symbols.
-    :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-    :param str name: name of the LFRic precision symbol to add to table.
-
-    :returns: the specified LFRic precision symbol.
-    :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
-
-    :raises ValueError: if the supplied name is not a recognised LFRic \
-        precision variable.
-    :raises ValueError: if a symbol with the same name is already in the \
-        table but is not imported from the correct container.
-    '''
-    if name == "i_def":
-        # pylint: disable=undefined-variable
-        sym = I_DEF
-    elif name == "r_def":
-        # pylint: disable=undefined-variable
-        sym = R_DEF
-    elif name == "l_def":
-        # pylint: disable=undefined-variable
-        sym = L_DEF
-    else:
-        raise ValueError(f"'{name}' is not a recognised LFRic precision.")
-
-    if name in table:
-        # Sanity check that the existing symbol is the right one.
-        existing_sym = table.lookup(name)
-        # pylint: disable=undefined-variable
-        if (not isinstance(existing_sym.interface, ImportInterface) or
-                existing_sym.interface.container_symbol is not CONSTANTS_MOD):
-            raise ValueError(
-                f"Precision symbol '{name}' already exists in the supplied"
-                f" symbol table but is not imported from the LFRic constants "
-                f"module ({CONSTANTS_MOD.name}).")
-        return existing_sym
-
-    # pylint: disable=undefined-variable
-    if CONSTANTS_MOD.name not in table:
-        table.add(CONSTANTS_MOD)
-    table.add(sym)
-    return sym
-
-
-__all__ = ["add_lfric_precision_symbol"]
+__all__ = []

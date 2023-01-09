@@ -68,7 +68,6 @@ from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.structure_reference import StructureReference
-from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.symbols import INTEGER_TYPE
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
@@ -155,7 +154,6 @@ class OMPDeclareTargetDirective(OMPStandaloneDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp declare target"
 
     def validate_global_constraints(self):
@@ -228,7 +226,6 @@ class OMPTaskwaitDirective(OMPStandaloneDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp taskwait"
 
 
@@ -919,7 +916,6 @@ class OMPSingleDirective(OMPSerialDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp single"
 
     def end_string(self):
@@ -931,7 +927,6 @@ class OMPSingleDirective(OMPSerialDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp end single"
 
 
@@ -974,7 +969,6 @@ class OMPMasterDirective(OMPSerialDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp master"
 
     def end_string(self):
@@ -986,7 +980,6 @@ class OMPMasterDirective(OMPSerialDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp end master"
 
 
@@ -1182,7 +1175,6 @@ class OMPParallelDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp end parallel"
 
     def _get_private_clause(self):
@@ -1258,18 +1250,18 @@ class OMPParallelDirective(OMPRegionDirective):
                 if parent and isinstance(parent, Loop):
                     # The assignment to the variable is inside a loop, so
                     # declare it to be private
-                    result.add(str(signature).lower())
+                    name = str(signature).lower()
+                    symbol = accesses[0].node.scope.symbol_table.lookup(name)
+                    result.add((name, symbol))
 
         # Convert the set into a list and sort it, so that we get
         # reproducible results
         list_result = list(result)
-        list_result.sort()
+        list_result.sort(key=lambda x: x[0])
 
         # Create the OMPPrivateClause corresponding to the results
         priv_clause = OMPPrivateClause()
-        symbol_table = self.scope.symbol_table
-        for ref_name in list_result:
-            symbol = symbol_table.lookup(ref_name)
+        for _, symbol in list_result:
             ref = Reference(symbol)
             priv_clause.addchild(ref)
         return priv_clause
@@ -1465,7 +1457,6 @@ class OMPTaskloopDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp taskloop"
 
     def end_string(self):
@@ -1477,7 +1468,6 @@ class OMPTaskloopDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp end taskloop"
 
 
@@ -1485,7 +1475,8 @@ class OMPDoDirective(OMPRegionDirective):
     '''
     Class representing an OpenMP DO directive in the PSyIR.
 
-    :param str omp_schedule: the OpenMP schedule to use (defaults to "auto").
+    :param str omp_schedule: the OpenMP schedule to use (defaults to
+        "none" which means it is implementation dependent).
     :param Optional[int] collapse: optional number of nested loops to \
         collapse into a single iteration space to parallelise. Defaults to \
         None.
@@ -1496,10 +1487,9 @@ class OMPDoDirective(OMPRegionDirective):
     :type kwargs: unwrapped dict.
 
     '''
-    VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
     _directive_string = "do"
 
-    def __init__(self, omp_schedule="auto", collapse=None, reprod=None,
+    def __init__(self, omp_schedule="none", collapse=None, reprod=None,
                  **kwargs):
 
         super().__init__(**kwargs)
@@ -1577,23 +1567,28 @@ class OMPDoDirective(OMPRegionDirective):
         :returns: description of this node, possibly coloured.
         :rtype: str
         '''
-        val = f"{self.coloured_name(colour)}[omp_schedule={self.omp_schedule}"
+        parts = []
+        if self.omp_schedule != "none":
+            parts.append(f"omp_schedule={self.omp_schedule}")
         if self.reductions():
-            val += f",reprod={self._reprod}"
+            parts.append(f"reprod={self._reprod}")
         if self._collapse and self._collapse > 1:
-            val += f",collapse={self._collapse}"
-        return val + "]"
+            parts.append(f"collapse={self._collapse}")
+        return f"{self.coloured_name(colour)}[{','.join(parts)}]"
 
     def _reduction_string(self):
-        ''' Return the OMP reduction information as a string '''
-        reduction_str = ""
+        '''
+        :returns: the OMP reduction information.
+        :rtype: str
+        '''
         for reduction_type in AccessType.get_valid_reduction_modes():
             reductions = self._get_reductions_list(reduction_type)
+            parts = []
             for reduction in reductions:
-                reduction_str += (f", reduction("
-                                  f"{OMP_OPERATOR_MAPPING[reduction_type]}:"
-                                  f"{reduction})")
-        return reduction_str
+                parts.append(f"reduction("
+                             f"{OMP_OPERATOR_MAPPING[reduction_type]}:"
+                             f"{reduction})")
+        return ", ".join(parts)
 
     @property
     def omp_schedule(self):
@@ -1615,10 +1610,12 @@ class OMPDoDirective(OMPRegionDirective):
             raise TypeError(
                 f"{type(self).__name__} omp_schedule should be a str "
                 f"but found '{type(value).__name__}'.")
-        if value.split(',')[0].lower() not in self.VALID_OMP_SCHEDULES:
+        if (value.split(',')[0].lower() not in
+                OMPScheduleClause.VALID_OMP_SCHEDULES):
             raise TypeError(
                 f"{type(self).__name__} omp_schedule should be one of "
-                f"{self.VALID_OMP_SCHEDULES} but found '{value}'.")
+                f"{OMPScheduleClause.VALID_OMP_SCHEDULES} but found "
+                f"'{value}'.")
         self._omp_schedule = value
 
     @property
@@ -1719,15 +1716,20 @@ class OMPDoDirective(OMPRegionDirective):
         '''
         self.validate_global_constraints()
 
-        if self._reprod:
-            local_reduction_string = ""
-        else:
-            local_reduction_string = self._reduction_string()
+        parts = []
+
+        if self.omp_schedule != "none":
+            parts.append(f"schedule({self.omp_schedule})")
+
+        if not self._reprod:
+            red_str = self._reduction_string()
+            if red_str:
+                parts.append(red_str)
 
         # As we're a loop we don't specify the scope
         # of any variables so we don't have to generate the
         # list of private variables
-        options = f"schedule({self._omp_schedule}){local_reduction_string}"
+        options = ", ".join(parts)
         parent.add(DirectiveGen(parent, "omp", "begin", "do", options))
 
         for child in self.children:
@@ -1747,7 +1749,9 @@ class OMPDoDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        string = f"omp {self._directive_string} schedule({self._omp_schedule})"
+        string = f"omp {self._directive_string}"
+        if self.omp_schedule != "none":
+            string += f" schedule({self.omp_schedule})"
         if self._collapse:
             string += f" collapse({self._collapse})"
         return string
@@ -1846,10 +1850,16 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
             self._children[3] = sched_clause
         elif len(self._children) < 4:
             self.addchild(sched_clause, index=3)
-        schedule_str = f"schedule({sched_clause.schedule})"
-        parent.add(DirectiveGen(parent, "omp", "begin", "parallel do",
-                                f"{default_str}, {private_str}, {schedule_str}"
-                                f"{self._reduction_string()}"))
+        if sched_clause.schedule != "none":
+            schedule_str = f"schedule({sched_clause.schedule})"
+        else:
+            schedule_str = ""
+        parent.add(
+            DirectiveGen(
+                parent, "omp", "begin", "parallel do",
+                ", ".join(text for text in
+                          [default_str, private_str, schedule_str,
+                           self._reduction_string()] if text)))
 
         for child in self.dir_body:
             child.gen_code(parent)
@@ -1936,7 +1946,6 @@ class OMPTargetDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp target"
 
     def end_string(self):
@@ -1948,27 +1957,7 @@ class OMPTargetDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp end target"
-
-    def validate_global_constraints(self):
-        '''
-        Perform validation checks that can only be done at code-generation
-        time.
-
-        TODO #1837. This should be expanded to all intrinsics not supported
-        on GPUs. But it may be implementation-dependent!
-
-        :raises GenerationError: if this OMPTargetDirective contains \
-            CodeBlocks.
-        '''
-        super().validate_global_constraints()
-
-        cbs = self.walk(CodeBlock)
-        if cbs:
-            raise GenerationError(
-                f"The OMPTargetDirective must not have "
-                f"CodeBlocks inside, but found: '{cbs}'.")
 
 
 class OMPLoopDirective(OMPRegionDirective):
@@ -2079,7 +2068,6 @@ class OMPLoopDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp end loop"
 
     def validate_global_constraints(self):

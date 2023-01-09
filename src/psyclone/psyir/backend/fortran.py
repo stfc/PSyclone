@@ -31,10 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and S. Siso, STFC Daresbury Lab.
+# Authors R. W. Ford and S. Siso, STFC Daresbury Lab
 # Modified J. Henrichs, Bureau of Meteorology
-# Modified A. R. Porter, STFC Daresbury Lab.
-# Modified A. B. G. Chalk, STFC Daresbury Lab.
+# Modified A. R. Porter, A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
 '''PSyIR Fortran backend. Implements a visitor that generates Fortran code
 from a PSyIR tree. '''
@@ -43,7 +42,7 @@ from a PSyIR tree. '''
 from fparser.two import Fortran2003
 
 from psyclone.core import Signature
-from psyclone.errors import InternalError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
@@ -52,8 +51,7 @@ from psyclone.psyir.nodes import BinaryOperation, Call, CodeBlock, DataNode, \
     Literal, Operation, Range, Routine, Schedule, UnaryOperation
 from psyclone.psyir.symbols import ArgumentInterface, ArrayType, \
     ContainerSymbol, DataSymbol, DataTypeSymbol, DeferredType, RoutineSymbol, \
-    ScalarType, Symbol, SymbolTable, UnknownFortranType, UnknownType, \
-    UnresolvedInterface
+    ScalarType, Symbol, SymbolTable, UnknownFortranType, UnknownType
 
 
 # The list of Fortran instrinsic functions that we know about (and can
@@ -414,7 +412,6 @@ class FortranWriter(LanguageWriter):
         :rtype: bool
 
         '''
-        # pylint: disable=no-self-use
         return operator in FORTRAN_INTRINSICS
 
     def get_operator(self, operator):
@@ -906,22 +903,6 @@ class FortranWriter(LanguageWriter):
         routine_symbols = [symbol for symbol in symbol_table.symbols
                            if isinstance(symbol, RoutineSymbol)]
         for sym in routine_symbols:
-            if (isinstance(sym.interface, UnresolvedInterface) and
-                    sym.name.upper() not in FORTRAN_INTRINSICS):
-                if not wildcard_imports_checked:
-                    has_wildcard_import = symbol_table.has_wildcard_imports()
-                    wildcard_imports_checked = True
-                if not has_wildcard_import:
-                    if "%" in sym.name:
-                        # TODO #1495 - calls to type-bound procedures are not
-                        # yet supported in the PSyIR.
-                        continue
-                    raise VisitorError(
-                        f"Routine symbol '{sym.name}' does not have an "
-                        f"ImportInterface or LocalInterface, is not a Fortran "
-                        f"intrinsic and there is no wildcard import which "
-                        f"could bring it into scope. This is not supported by "
-                        f"the Fortran back-end.")
             if isinstance(sym.interface, ArgumentInterface):
                 raise VisitorError(
                     f"Routine symbol '{sym.name}' is passed as an argument "
@@ -1128,8 +1109,10 @@ class FortranWriter(LanguageWriter):
         # The PSyIR has nested scopes but Fortran only supports declaring
         # variables at the routine level scope. For this reason, at this
         # point we have to unify all declarations and resolve possible name
-        # clashes that appear when merging the scopes.
-        whole_routine_scope = SymbolTable()
+        # clashes that appear when merging the scopes. Make sure we use
+        # the same SymbolTable class used in the base class to get an
+        # API-specific table here:
+        whole_routine_scope = type(node.symbol_table)()
 
         own_symbol = node.symbol_table.lookup_with_tag("own_routine_symbol")
         for schedule in node.walk(Schedule):
@@ -1310,7 +1293,6 @@ class FortranWriter(LanguageWriter):
             result += f":{step}"
         return result
 
-    # pylint: disable=no-self-use
     def literal_node(self, node):
         '''This method is called when a Literal instance is found in the PSyIR
         tree.
@@ -1371,7 +1353,6 @@ class FortranWriter(LanguageWriter):
 
         return result
 
-    # pylint: enable=no-self-use
     def ifblock_node(self, node):
         '''This method is called when an IfBlock instance is found in the
         PSyIR tree.
@@ -1424,13 +1405,22 @@ class FortranWriter(LanguageWriter):
         start = self._visit(node.start_expr)
         stop = self._visit(node.stop_expr)
         step = self._visit(node.step_expr)
-        variable_name = node.variable.name
 
         self._depth += 1
         body = ""
         for child in node.loop_body:
             body += self._visit(child)
         self._depth -= 1
+
+        # A generation error is raised if variable is not defined. This
+        # happens in LFRic kernel that iterate over a domain.
+        try:
+            variable_name = node.variable.name
+        except GenerationError:
+            # If a kernel iterates over a domain - there is
+            # no loop. But the loop node is maintained since it handles halo
+            # exchanges. So just return the body in this case
+            return body
 
         return (
             f"{self._nindent}do {variable_name} = {start}, {stop}, {step}\n"
@@ -1583,7 +1573,7 @@ class FortranWriter(LanguageWriter):
             val = self._visit(clause)
             # Some clauses return empty strings if they should not
             # generate any output (e.g. private clause with no children).
-            if not val == "":
+            if val != "":
                 clause_list.append(val)
         # Add a space only if there are clauses
         if len(clause_list) > 0:

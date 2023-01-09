@@ -31,13 +31,14 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: S. Siso, STFC Daresbury Lab
+# Authors: S. Siso and N. Nobre, STFC Daresbury Lab
 
 ''' Transformation to insert OpenMP directives to parallelise PSyIR Loops. '''
 
 from psyclone.configuration import Config
-from psyclone.psyir.nodes import Routine, OMPDoDirective, OMPLoopDirective, \
-    OMPParallelDoDirective, OMPTeamsDistributeParallelDoDirective
+from psyclone.psyir.nodes import (
+    Routine, OMPDoDirective, OMPLoopDirective, OMPParallelDoDirective,
+    OMPTeamsDistributeParallelDoDirective, OMPScheduleClause)
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations.parallel_loop_trans import \
     ParallelLoopTrans
@@ -178,10 +179,11 @@ class OMPLoopTrans(ParallelLoopTrans):
 
         # Some schedules have an optional chunk size following a ','
         value_parts = value.split(',')
-        if value_parts[0].lower() not in OMPDoDirective.VALID_OMP_SCHEDULES:
-            raise ValueError(f"Valid OpenMP schedules are "
-                             f"{OMPDoDirective.VALID_OMP_SCHEDULES} but got "
-                             f"'{value_parts[0]}'.")
+        if value_parts[0].lower() not in OMPScheduleClause.VALID_OMP_SCHEDULES:
+            raise ValueError(
+                f"Valid OpenMP schedules are "
+                f"{OMPScheduleClause.VALID_OMP_SCHEDULES} but got "
+                f"'{value_parts[0]}'.")
 
         if len(value_parts) > 1:
             if value_parts[0] == "auto":
@@ -230,7 +232,7 @@ class OMPLoopTrans(ParallelLoopTrans):
         :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations\
                         and validation.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
         :param bool options["reprod"]:
                 indicating whether reproducible reductions should be used. \
                 By default the value from the config file will be used.

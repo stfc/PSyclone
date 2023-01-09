@@ -35,11 +35,17 @@
 # Modified by: R. W. Ford, STFC Daresbury Lab
 #              A. R. Porter, STFC Daresbury Lab
 #              S. Siso, STFC Daresbury Lab
+#              N. Nobre, STFC Daresbury Lab
 
 '''Transformation module, containing all generic (API independent)
 transformations and base classes.
 '''
 
+# Order of TransformationError is not alphabetical because otherwise it
+# produces an ImportError due to cyclic dependencies
+from psyclone.psyir.transformations.transformation_error \
+    import TransformationError
+from psyclone.psyir.transformations.acc_update_trans import ACCUpdateTrans
 from psyclone.psyir.transformations.arrayrange2loop_trans import \
     ArrayRange2LoopTrans
 from psyclone.psyir.transformations.chunk_loop_trans import ChunkLoopTrans
@@ -85,22 +91,20 @@ from psyclone.psyir.transformations.read_only_verify_trans \
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.replace_induction_variables_trans import \
      ReplaceInductionVariablesTrans
-from psyclone.psyir.transformations.transformation_error \
-    import TransformationError
 from psyclone.psyir.transformations.reference2arrayrange_trans import \
     Reference2ArrayRangeTrans
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g.:
-# from psyclone.psyir.transformations import ExtractTrans
 
-__all__ = ['ArrayRange2LoopTrans',
+# For AutoAPI documentation generation
+__all__ = ['ACCUpdateTrans',
+           'ArrayRange2LoopTrans',
            'ChunkLoopTrans',
            'ExtractTrans',
            'FoldConditionalReturnExpressionsTrans',
            'HoistLocalArraysTrans',
            'HoistLoopBoundExprTrans',
            'HoistTrans',
+           'InlineTrans',
            'Abs2CodeTrans',
            'DotProduct2CodeTrans',
            'Matmul2CodeTrans',
