@@ -67,8 +67,8 @@ jobs:
     env:
       GITHUB_PR_NUMBER: ${{ github.event.number }}
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-python@v2
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
     - run: sudo apt-get install -y graphviz doxygen
     - run: python -m pip install --upgrade pip
     - run: pip install .[doc]
@@ -85,8 +85,8 @@ jobs:
     # Check doctests of developer's guide
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-python@v2
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
     - run: python -m pip install --upgrade pip
     - run: pip install .[doc]
     - run: cd doc/developer_guide; make doctest
@@ -94,9 +94,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.6, 3.8, 3.11]
+        python-version: [3.7, 3.8, 3.11]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: recursive
         # This is required to get the commit history for merge commits for
@@ -109,23 +109,19 @@ jobs:
         fail-fast: true
         commit-filter: '[skip ci]'
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        # Version 4.0.0 of flake8 crashes when processing the
-        # src/psyclone/tests/test_files/dynamo0p3 directory
-        # (see https://github.com/PyCQA/flake8/issues/1408).
-        pip install flake8==3.9.2 pytest pytest-cov pytest-xdist
         # Some of the examples use Jupyter
         pip install jupyter
         # If you wish to install the version of fparser pointed to by the
         # submodule instead of the released version (from PyPI) then
         # uncomment the following line:
-        # pip install external/fparser
-        pip install .
+        pip install external/fparser
+        pip install .[test]
     - name: Lint with flake8
       run: |
         # Stop the build if there are Python syntax errors or undefined names.
@@ -153,6 +149,6 @@ jobs:
         LC_ALL: C
         LANG: C
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v3
       with:
         verbose: true

@@ -57,24 +57,32 @@ the process of attempting to create the largest possible Kernel region.
 Tested with the NVIDIA HPC SDK version 22.5.
 '''
 
-from __future__ import print_function
 import logging
+from utils import add_profiling
 from psyclone.errors import InternalError
 from psyclone.nemo import NemoInvokeSchedule, NemoKern, NemoLoop
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import IfBlock, CodeBlock, Schedule, \
     ArrayReference, Assignment, BinaryOperation, Loop, \
-    Literal, Return, Call, ACCDirective, ACCLoopDirective
-from psyclone.psyir.transformations import TransformationError, ProfileTrans
+    Literal, Return, Call, ACCLoopDirective
+from psyclone.psyir.transformations import TransformationError, ProfileTrans, \
+                                           ACCUpdateTrans
+from psyclone.transformations import ACCEnterDataTrans
 
 # Get the PSyclone transformations we will use
 ACC_KERN_TRANS = TransInfo().get_trans_name('ACCKernelsTrans')
 ACC_LOOP_TRANS = TransInfo().get_trans_name('ACCLoopTrans')
 ACC_ROUTINE_TRANS = TransInfo().get_trans_name('ACCRoutineTrans')
+ACC_EDATA_TRANS = ACCEnterDataTrans()
+ACC_UPDATE_TRANS = ACCUpdateTrans()
 PROFILE_TRANS = ProfileTrans()
 
 # Whether or not to add profiling calls around unaccelerated regions
 PROFILE_NONACC = True
+
+# Whether or not to add OpenACC enter data and update directives to explicitly
+# move data between host and device memory
+ACC_EXPLICIT_MEM_MANAGEMENT = False
 
 # If routine names contain these substrings then we do not profile them
 PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
@@ -315,74 +323,6 @@ def add_kernels(children):
     return added_kernels
 
 
-def add_profiling(children):
-    '''
-    Walks down the PSyIR and inserts the largest possible profiling regions.
-    Code that contains OpenACC directives is excluded.
-
-    :param children: sibling nodes in the PSyIR to which to attempt to add \
-                     profiling regions.
-    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-
-    '''
-    if not children:
-        return
-
-    node_list = []
-    for child in children[:]:
-        # Do we want this node to be included in a profiling region?
-        if child.walk((ACCDirective, Return)):
-            # It contains OpenACC so we put what we have so far inside a
-            # profiling region
-            add_profile_region(node_list)
-            # A node that is not included in a profiling region marks the
-            # end of the current candidate region so reset the list.
-            node_list = []
-            # Now we go down a level and try again without attempting to put
-            # profiling below OpenACC directives or within Assignments
-            if isinstance(child, IfBlock):
-                add_profiling(child.if_body)
-                add_profiling(child.else_body)
-            elif not isinstance(child, (Assignment, ACCDirective)):
-                add_profiling(child.children)
-        else:
-            # We can add this node to our list for the current region
-            node_list.append(child)
-    add_profile_region(node_list)
-
-
-def add_profile_region(nodes):
-    '''
-    Attempt to put the supplied list of nodes within a profiling region.
-
-    :param nodes: list of sibling PSyIR nodes to enclose.
-    :type nodes: list of :py:class:`psyclone.psyir.nodes.Node`
-
-    '''
-    if nodes:
-        # Check whether we should be adding profiling inside this routine
-        routine_name = \
-            nodes[0].ancestor(NemoInvokeSchedule).invoke.name.lower()
-        if any([ignore in routine_name for ignore in PROFILING_IGNORE]):
-            return
-        if len(nodes) == 1:
-            if isinstance(nodes[0], CodeBlock) and \
-               len(nodes[0].get_ast_nodes) == 1:
-                # Don't create profiling regions for CodeBlocks consisting
-                # of a single statement
-                return
-            if isinstance(nodes[0], IfBlock) and \
-               "was_single_stmt" in nodes[0].annotations and \
-               isinstance(nodes[0].if_body[0], CodeBlock):
-                # We also don't put single statements consisting of
-                # 'IF(condition) CALL blah()' inside profiling regions
-                return
-        try:
-            PROFILE_TRANS.apply(nodes)
-        except TransformationError:
-            pass
-
-
 def try_kernels_trans(nodes):
     '''
     Attempt to enclose the supplied list of nodes within a kernels
@@ -443,9 +383,9 @@ def try_kernels_trans(nodes):
 
 
 def trans(psy):
-    '''A PSyclone-script compliant transformation function. Applies OpenACC
-    'kernels' directives to NEMO code. Data movement is handled automatically
-    by CUDA Unified Memory.
+    '''A PSyclone-script compliant transformation function. Applies
+    OpenACC 'kernels' directives to NEMO code. Data movement can be
+    handled manually or through CUDA's managed-memory functionality.
 
     :param psy: The PSy layer object to apply transformations to.
     :type psy: :py:class:`psyclone.psyGen.PSy`
@@ -474,9 +414,18 @@ def trans(psy):
         # Attempt to add OpenACC directives unless we are ignoring this routine
         if invoke.name.lower() not in ACC_IGNORE:
             print(f"Transforming {invoke.name} with acc kernels")
-            add_kernels(sched.children)
+            have_kernels = add_kernels(sched.children)
+            if have_kernels and ACC_EXPLICIT_MEM_MANAGEMENT:
+                print(f"Transforming {invoke.name} with acc enter data")
+                ACC_EDATA_TRANS.apply(sched)
         else:
             print(f"Addition of OpenACC to routine {invoke.name} disabled!")
+
+        # Add required OpenACC update directives to every routine, including to
+        # those with no device code and that execute exclusively on the host
+        if ACC_EXPLICIT_MEM_MANAGEMENT:
+            print(f"Transforming {invoke.name} with acc update")
+            ACC_UPDATE_TRANS.apply(sched)
 
         # Add profiling instrumentation
         if PROFILE_NONACC:

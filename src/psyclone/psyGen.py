@@ -31,9 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic,    Met Office
-#          C.M. Maynard, Met Office / University of Reading
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+# Modified by I. Kavcic, Met Office
+# Modified by C.M. Maynard, Met Office / University of Reading
 # Modified by J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
@@ -43,7 +43,6 @@
 
 from collections import OrderedDict
 import abc
-import six
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
@@ -86,8 +85,7 @@ def object_index(alist, item):
     for idx, entry in enumerate(alist):
         if entry is item:
             return idx
-    raise ValueError(
-        "Item '{0}' not found in list: {1}".format(str(item), alist))
+    raise ValueError(f"Item '{item}' not found in list: {alist}")
 
 
 def get_api(api):
@@ -103,10 +101,9 @@ def get_api(api):
         api = Config.get().default_api
     else:
         if api not in Config.get().supported_apis:
-            raise GenerationError("get_api: Unsupported API '{0}' "
-                                  "specified. Supported types are "
-                                  "{1}.".format(api,
-                                                Config.get().supported_apis))
+            raise GenerationError(f"get_api: Unsupported API '{api}' "
+                                  f"specified. Supported types are "
+                                  f"{Config.get().supported_apis}.")
     return api
 
 
@@ -222,8 +219,8 @@ class PSyFactory():
             # of the Fortran file being processed
         else:
             raise InternalError(
-                "PSyFactory: Unsupported API type '{0}' found. Expected one "
-                "of {1}.".format(self._type, Config.get().supported_apis))
+                f"PSyFactory: Unsupported API type '{self._type}' found. "
+                f"Expected one of {Config.get().supported_apis}.")
         return PSyClass(invoke_info)
 
 
@@ -335,9 +332,8 @@ class Invokes():
         try:
             return self.invoke_map[invoke_name]
         except KeyError:
-            raise RuntimeError("Cannot find an invoke named '{0}' in {1}".
-                               format(invoke_name,
-                                      str(self.names)))
+            raise RuntimeError(f"Cannot find an invoke named '{invoke_name}' "
+                               f"in {self.names}")
 
     def gen_code(self, parent):
         '''
@@ -352,9 +348,9 @@ class Invokes():
         for invoke in self.invoke_list:
             if not isinstance(invoke.schedule, InvokeSchedule):
                 raise GenerationError(
-                    "An invoke.schedule element of the invoke_list "
-                    "is a '{0}', but it should be an 'InvokeSchedule'."
-                    "".format(type(invoke.schedule).__name__))
+                    f"An invoke.schedule element of the invoke_list is a "
+                    f"'{type(invoke.schedule).__name__}', but it should be an "
+                    f"'InvokeSchedule'.")
             invoke.gen_code(parent)
 
 
@@ -521,23 +517,21 @@ class Invoke():
         if any(argtype not in const.VALID_ARG_TYPE_NAMES for
                argtype in argument_types):
             raise InternalError(
-                "Invoke.unique_declarations() called with at least one "
-                "invalid argument type. Expected one of {0} but found {1}.".
-                format(str(const.VALID_ARG_TYPE_NAMES), str(argument_types)))
+                f"Invoke.unique_declarations() called with at least one "
+                f"invalid argument type. Expected one of "
+                f"{const.VALID_ARG_TYPE_NAMES} but found {argument_types}.")
 
         if access and not isinstance(access, AccessType):
             raise InternalError(
-                "Invoke.unique_declarations() called with an invalid "
-                "access type. Type is '{0}' instead of AccessType.".
-                format(str(access)))
+                f"Invoke.unique_declarations() called with an invalid "
+                f"access type. Type is '{access}' instead of AccessType.")
 
         if (intrinsic_type and intrinsic_type not in
                 const.VALID_INTRINSIC_TYPES):
             raise InternalError(
-                "Invoke.unique_declarations() called with an invalid "
-                "intrinsic argument data type. Expected one of {0} but "
-                "found '{1}'.".
-                format(str(const.VALID_INTRINSIC_TYPES), intrinsic_type))
+                f"Invoke.unique_declarations() called with an invalid "
+                f"intrinsic argument data type. Expected one of "
+                f"{const.VALID_INTRINSIC_TYPES} but found '{intrinsic_type}'.")
 
         # Initialise dictionary of kernel arguments to get the
         # argument list from
@@ -562,8 +556,8 @@ class Invoke():
                 if arg.text is not None:
                     if arg.declaration_name == arg_name:
                         return arg
-        raise GenerationError("Failed to find any kernel argument with name "
-                              "'{0}'".format(arg_name))
+        raise GenerationError(f"Failed to find any kernel argument with name "
+                              f"'{arg_name}'")
 
     def unique_declns_by_intent(self, argument_types, intrinsic_type=None):
         '''
@@ -590,17 +584,16 @@ class Invoke():
         if any(argtype not in const.VALID_ARG_TYPE_NAMES for
                argtype in argument_types):
             raise InternalError(
-                "Invoke.unique_declns_by_intent() called with at least one "
-                "invalid argument type. Expected one of {0} but found {1}.".
-                format(str(const.VALID_ARG_TYPE_NAMES), str(argument_types)))
+                f"Invoke.unique_declns_by_intent() called with at least one "
+                f"invalid argument type. Expected one of "
+                f"{const.VALID_ARG_TYPE_NAMES} but found {argument_types}.")
 
         if (intrinsic_type and intrinsic_type not in
                 const.VALID_INTRINSIC_TYPES):
             raise InternalError(
-                "Invoke.unique_declns_by_intent() called with an invalid "
-                "intrinsic argument data type. Expected one of {0} but "
-                "found '{1}'.".
-                format(str(const.VALID_INTRINSIC_TYPES), intrinsic_type))
+                f"Invoke.unique_declns_by_intent() called with an invalid "
+                f"intrinsic argument data type. Expected one of "
+                f"{const.VALID_INTRINSIC_TYPES} but found '{intrinsic_type}'.")
 
         # We will return a dictionary containing as many lists
         # as there are types of intent
@@ -738,8 +731,7 @@ class InvokeSchedule(Routine):
         :returns: description of this node, possibly coloured.
         :rtype: str
         '''
-        return "{0}[invoke='{1}']".format(
-            self.coloured_name(colour), self.name)
+        return f"{self.coloured_name(colour)}[invoke='{self.name}']"
 
     def __str__(self):
         result = self.coloured_name(False) + ":\n"
@@ -814,7 +806,7 @@ class GlobalSum(Statement):
         :returns: the name to use in the DAG for this node.
         :rtype: str
         '''
-        return "globalsum({0})_".format(self._scalar.name) + str(self.position)
+        return f"globalsum({self._scalar.name})_{self.position}"
 
     @property
     def args(self):
@@ -832,8 +824,7 @@ class GlobalSum(Statement):
         :returns: description of this node, possibly coloured.
         :rtype: str
         '''
-        return "{0}[scalar='{1}']".format(self.coloured_name(colour),
-                                          self._scalar.name)
+        return f"{self.coloured_name(colour)}[scalar='{self._scalar.name}']"
 
 
 class HaloExchange(Statement):
@@ -909,8 +900,7 @@ class HaloExchange(Statement):
         :returns: the name to use in a dag for this node.
         :rtype: str
         '''
-        name = ("{0}({1})_{2}".format(self._text_name, self._field.name,
-                                      self.position))
+        name = f"{self._text_name}({self._field.name})_{self.position}"
         if self._check_dirty:
             name = "check" + name
         return name
@@ -957,32 +947,28 @@ class HaloExchange(Statement):
 
         if self.field.name != node.field.name:
             raise GenerationError(
-                "Internal error, the halo exchange object passed to "
-                "HaloExchange.check_vector_halos_differ() has a different "
-                "field name '{0}' to self "
-                "'{1}'".format(node.field.name, self.field.name))
+                f"Internal error, the halo exchange object passed to "
+                f"HaloExchange.check_vector_halos_differ() has a different "
+                f"field name '{node.field.name}' to self '{self.field.name}'")
 
         if self.field.vector_size <= 1:
             raise GenerationError(
                 "Internal error, HaloExchange.check_vector_halos_differ() "
-                "a halo exchange depends on another halo "
-                "exchange but the vector size of field '{0}' is 1".
-                format(self.field.name))
+                "a halo exchange depends on another halo exchange but the "
+                f"vector size of field '{self.field.name}' is 1")
 
         if self.field.vector_size != node.field.vector_size:
             raise GenerationError(
-                "Internal error, HaloExchange.check_vector_halos_differ() "
-                "a halo exchange depends on another halo "
-                "exchange but the vector sizes for field '{0}' differ".
-                format(self.field.name))
+                f"Internal error, HaloExchange.check_vector_halos_differ() "
+                f"a halo exchange depends on another halo exchange but the "
+                f"vector sizes for field '{self.field.name}' differ")
 
-        if self.vector_index == \
-           node.vector_index:
+        if self.vector_index == node.vector_index:
             raise GenerationError(
-                "Internal error, HaloExchange.check_vector_halos_differ() "
-                "a halo exchange depends on another halo "
-                "exchange but both vector id's ('{0}') of field '{1}' are "
-                "the same".format(self.vector_index, self.field.name))
+                f"Internal error, HaloExchange.check_vector_halos_differ() "
+                f"a halo exchange depends on another halo exchange but both "
+                f"vector id's ('{self.vector_index}') of field "
+                f"'{self.field.name}' are the same")
 
     def node_str(self, colour=True):
         '''
@@ -994,11 +980,9 @@ class HaloExchange(Statement):
         :returns: description of this node, possibly coloured.
         :rtype: str
         '''
-        return ("{0}[field='{1}', type='{2}', depth={3}, "
-                "check_dirty={4}]".format(
-                    self.coloured_name(colour), self._field.name,
-                    self._halo_type, self._halo_depth,
-                    self._check_dirty))
+        return (f"{self.coloured_name(colour)}[field='{self._field.name}', "
+                f"type='{self._halo_type}', depth={self._halo_depth}, "
+                f"check_dirty={self._check_dirty}]")
 
 
 class Kern(Statement):
@@ -1040,9 +1024,9 @@ class Kern(Statement):
                 text = arg.text.lower().replace(" ", "")
                 if text in arg_names:
                     raise GenerationError(
-                        "Argument '{0}' is passed into kernel '{1}' code more "
-                        "than once from the algorithm layer. This is not "
-                        "allowed.".format(arg.text, self._name))
+                        f"Argument '{arg.text}' is passed into kernel "
+                        f"'{self._name}' code more than once from the "
+                        f"algorithm layer. This is not allowed.")
                 arg_names.append(text)
 
         self._arg_descriptors = None
@@ -1156,8 +1140,8 @@ class Kern(Statement):
         # Check for a non-scalar argument
         if not var_arg.is_scalar:
             raise GenerationError(
-                "Kern.zero_reduction_variable() should be a scalar but "
-                "found '{0}'.".format(var_arg.argument_type))
+                f"Kern.zero_reduction_variable() should be a scalar but "
+                f"found '{var_arg.argument_type}'.")
         # Generate the reduction variable
         var_data_type = var_arg.intrinsic_type
         if var_data_type == "real":
@@ -1166,9 +1150,9 @@ class Kern(Statement):
             data_value = "0"
         else:
             raise GenerationError(
-                "Kern.zero_reduction_variable() should be either a 'real' "
-                "or an 'integer' scalar but found scalar of type '{0}'.".
-                format(var_arg.intrinsic_type))
+                f"Kern.zero_reduction_variable() should be either a 'real' or "
+                f"an 'integer' scalar but found scalar of type "
+                f"'{var_arg.intrinsic_type}'.")
         # Retrieve the precision information (if set) and append it
         # to the initial reduction value
         if var_arg.precision:
@@ -1188,9 +1172,9 @@ class Kern(Statement):
                 self.scope.symbol_table.lookup_with_tag("omp_num_threads").name
             if Config.get().reprod_pad_size < 1:
                 raise GenerationError(
-                    "REPROD_PAD_SIZE in {0} should be a positive "
-                    "integer, but it is set to '{1}'.".format(
-                        Config.get().filename, Config.get().reprod_pad_size))
+                    f"REPROD_PAD_SIZE in {Config.get().filename} should be a "
+                    f"positive integer, but it is set to "
+                    f"'{Config.get().reprod_pad_size}'.")
             pad_size = str(Config.get().reprod_pad_size)
             parent.add(AllocateGen(parent, local_var_name + "(" + pad_size +
                                    "," + nthreads + ")"), position=position)
@@ -1219,11 +1203,11 @@ class Kern(Statement):
         except KeyError as err:
             api_strings = [access.api_specific_name()
                            for access in REDUCTION_OPERATOR_MAPPING]
-            six.raise_from(GenerationError(
-                "Unsupported reduction access '{0}' found in LFRicBuiltIn:"
-                "reduction_sum_loop(). Expected one of {1}.".
-                format(reduction_access.api_specific_name(),
-                       api_strings)), err)
+            raise GenerationError(
+                f"Unsupported reduction access "
+                f"'{reduction_access.api_specific_name()}' found in "
+                f"LFRicBuiltIn:reduction_sum_loop(). Expected one of "
+                f"{api_strings}.") from err
         symtab = self.scope.symbol_table
         thread_idx = symtab.lookup_with_tag("omp_thread_index").name
         nthreads = symtab.lookup_with_tag("omp_num_threads").name
@@ -1393,9 +1377,9 @@ class CodedKern(Kern):
                             "an integer.")
             else:
                 raise AttributeError(
-                    "CodedKern does not support the OpenCL option '{0}'. "
-                    "The supported options are: {1}."
-                    "".format(key, valid_opencl_kernel_options))
+                    f"CodedKern does not support the OpenCL option '{key}'. "
+                    f"The supported options are: "
+                    f"{valid_opencl_kernel_options}.")
 
             self._opencl_options[key] = value
 
@@ -1417,7 +1401,7 @@ class CodedKern(Kern):
         :rtype: str
         '''
         _, position = self._find_position(self.ancestor(Routine))
-        return "kernel_{0}_{1}".format(self.name, str(position))
+        return f"kernel_{self.name}_{position}"
 
     @property
     def module_inline(self):
@@ -1547,10 +1531,10 @@ class CodedKern(Kern):
             if arg.access == AccessType.INC:
                 return arg
 
-        raise FieldNotFoundError("Kernel {0} does not have an argument with "
-                                 "{1} access".
-                                 format(self.name,
-                                        AccessType.INC.api_specific_name()))
+        raise FieldNotFoundError(f"Kernel {self.name} does not have an "
+                                 f"argument with "
+                                 f"{AccessType.INC.api_specific_name()} "
+                                 f"access")
 
     @property
     def ast(self):
@@ -1638,7 +1622,7 @@ class CodedKern(Kern):
             name_idx += 1
             new_suffix = ""
 
-            new_suffix += "_{0}".format(name_idx)
+            new_suffix += f"_{name_idx}"
             new_name = old_base_name + new_suffix + "_mod.f90"
 
             try:
@@ -1685,16 +1669,16 @@ class CodedKern(Kern):
                 kern_code = ffile.read()
                 if kern_code != new_kern_code:
                     raise GenerationError(
-                        "A transformed version of this Kernel '{0}' already "
-                        "exists in the kernel-output directory ({1}) but is "
-                        "not the same as the current, transformed kernel and "
-                        "the kernel-renaming scheme is set to '{2}'. (If you "
-                        "wish to generate a new, unique kernel for every "
-                        "kernel that is transformed then use "
-                        "'--kernel-renaming multiple'.)".
-                        format(self._module_name+".f90",
-                               Config.get().kernel_output_dir,
-                               Config.get().kernel_naming))
+                        f"A transformed version of this Kernel "
+                        f"'{self._module_name + '''.f90'''}' already exists "
+                        f"in the kernel-output directory "
+                        f"({Config.get().kernel_output_dir}) but is not the "
+                        f"same as the current, transformed kernel and the "
+                        f"kernel-renaming scheme is set to "
+                        f"'{Config.get().kernel_naming}'. (If you wish to"
+                        f" generate a new, unique kernel for every kernel "
+                        f"that is transformed then use "
+                        f"'--kernel-renaming multiple'.)")
         else:
             # Write the modified AST out to file
             os.write(fdesc, new_kern_code.encode())
@@ -1711,6 +1695,7 @@ class CodedKern(Kern):
         '''
         # We need to get the kernel schedule before modifying self.name
         kern_schedule = self.get_kernel_schedule()
+        container = kern_schedule.ancestor(Container)
 
         # Use the suffix to create a new kernel name.  This will
         # conform to the PSyclone convention of ending in "_code"
@@ -1724,26 +1709,28 @@ class CodedKern(Kern):
         # module. These names are used when generating the PSy-layer.
         self.name = new_kern_name[:]
         self._module_name = new_mod_name[:]
-
         kern_schedule.name = new_kern_name[:]
-        kern_schedule.root.name = new_mod_name[:]
+        container.name = new_mod_name[:]
 
         # Change the name of the symbol
         try:
             kern_symbol = kern_schedule.symbol_table.lookup(orig_kern_name)
-            kern_schedule.root.symbol_table.rename_symbol(kern_symbol,
-                                                          new_kern_name)
+            container.symbol_table.rename_symbol(kern_symbol, new_kern_name)
         except KeyError:
             # TODO #1013. Right now not all tests have PSyIR symbols because
             # some only expect f2pygen generation.
             pass
 
-        # TODO #1013. This needs re-doing properly - in particular the
-        # RoutineSymbol associated with the kernel needs to be replaced. For
-        # now we only fix the specific case of the name of the kernel routine
-        # in the kernel metadata as otherwise various compilation tests
-        # fail.
-        container_table = kern_schedule.root.symbol_table
+        # Ensure the metadata points to the correct procedure now. Since this
+        # routine is general purpose, we won't always have a domain-specific
+        # Container here and if we don't, it won't have a 'metadata' property.
+        if hasattr(container, "metadata"):
+            container.metadata.procedure_name = new_kern_name[:]
+        # TODO #928 - until the LFRic KernelInterface is fully functional, we
+        # can't raise language-level PSyIR to LFRic and therefore we have to
+        # manually fix the name of the procedure within the text that stores
+        # the kernel metadata.
+        container_table = container.symbol_table
         for sym in container_table.local_datatypesymbols:
             if isinstance(sym.datatype, UnknownFortranType):
                 orig_declaration = sym.datatype.declaration
@@ -1838,7 +1825,7 @@ class BuiltIn(Kern):
         :rtype: str
         '''
         _, position = self._find_position(self.ancestor(Routine))
-        return "builtin_{0}_{1}".format(self.name, str(position))
+        return f"builtin_{self.name}_{position}"
 
     def load(self, call, arguments, parent=None):
         ''' Set-up the state of this BuiltIn call '''
@@ -2011,10 +1998,9 @@ class DataAccess():
             # sanity check
             if self._arg.vector_size != arg.vector_size:
                 raise InternalError(
-                    "DataAccess.overlaps(): vector sizes differ for field "
-                    "'{0}' in two halo exchange calls. Found '{1}' and "
-                    "'{2}'".format(arg.name, self._arg.vector_size,
-                                   arg.vector_size))
+                    f"DataAccess.overlaps(): vector sizes differ for field "
+                    f"'{arg.name}' in two halo exchange calls. Found "
+                    f"'{self._arg.vector_size}' and '{arg.vector_size}'")
             if self._call.vector_index != arg.call.vector_index:
                 # accesses are to different vector indices so do not overlap
                 return False
@@ -2067,9 +2053,9 @@ class DataAccess():
                 # never happen due to checks in the `overlaps()`
                 # method earlier
                 raise InternalError(
-                    "DataAccess:update_coverage() The halo exchange vector "
-                    "indices for '{0}' are the same. This should never "
-                    "happen".format(self._arg.name))
+                    f"DataAccess:update_coverage() The halo exchange vector "
+                    f"indices for '{self._arg.name}' are the same. This "
+                    f"should never happen")
             else:
                 # I am not a halo exchange so access all components of
                 # the vector. However, the supplied argument is a halo
@@ -2209,7 +2195,6 @@ class Argument():
         :rtype: :py:class::`psyclone.psyir.symbols.DataType`
 
         '''
-        # pylint: disable=no-self-use
         return DeferredType()
 
     def __str__(self):
@@ -2246,8 +2231,8 @@ class Argument():
 
         '''
         if not isinstance(value, AccessType):
-            raise InternalError("Invalid access type '{0}' of type '{1}."
-                                .format(value, type(value)))
+            raise InternalError(f"Invalid access type '{value}' of type "
+                                f"'{type(value)}.")
 
         self._access = value
 
@@ -2674,8 +2659,8 @@ class TransInfo():
         if len(self._objects) == 1:
             result = "There is 1 transformation available:"
         else:
-            result = "There are {0} transformations available:".format(
-                len(self._objects))
+            result = (f"There are {len(self._objects)} transformations "
+                      f"available:")
         result += os.linesep
         for idx, my_object in enumerate(self._objects):
             result += "  " + str(idx+1) + ": " + my_object.name + ": " + \
@@ -2700,9 +2685,9 @@ class TransInfo():
         try:
             return self._obj_map[name]
         except KeyError:
-            raise GenerationError("Invalid transformation name: got {0} "
-                                  "but expected one of {1}".
-                                  format(name, self._obj_map.keys()))
+            raise GenerationError(f"Invalid transformation name: got {name} "
+                                  f"but expected one of "
+                                  f"{self._obj_map.keys()}")
 
     def _find_subclasses(self, module, base_class):
         ''' return a list of classes defined within the specified module that
@@ -2713,8 +2698,7 @@ class TransInfo():
                 issubclass(cls, base_class) and cls is not base_class]
 
 
-@six.add_metaclass(abc.ABCMeta)
-class Transformation():
+class Transformation(metaclass=abc.ABCMeta):
     '''Abstract baseclass for a transformation. Uses the abc module so it
     can not be instantiated.
 
@@ -2766,7 +2750,7 @@ class Transformation():
                 - specific to the actual transform used.
         :type node: depends on actual transformation
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
 
@@ -2796,9 +2780,9 @@ class Transformation():
                 - specific to the actual transform used.
         :type node: depends on actual transformation
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
         '''
-        # pylint: disable=no-self-use, unused-argument
+        # pylint: disable=unused-argument
 
 
 class DummyTransformation(Transformation):

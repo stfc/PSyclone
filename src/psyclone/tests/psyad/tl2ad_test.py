@@ -193,8 +193,8 @@ def test_generate_adjoint_str_trans(tmpdir):
         "  enddo\n"
         "  res_dot_product = 0.0\n\n"
         "end program adj_test\n")
-    result, test_harness = generate_adjoint_str(
-        tl_code, ["a", "b", "res_dot_product"])
+    result, test_harness = generate_adjoint_str(tl_code,
+                                                ["a", "b", "res_dot_product"])
     assert expected in result
     assert not test_harness
     assert Compile(tmpdir).string_compiles(result)
@@ -203,8 +203,8 @@ def test_generate_adjoint_str_trans(tmpdir):
 def test_generate_adjoint_str_generate_harness_no_api(tmpdir):
     '''Test the create_test option to generate_adjoint_str() when no
     API is specified.'''
-    result, harness = generate_adjoint_str(
-        TL_CODE, ["field"], create_test=True)
+    result, harness = generate_adjoint_str(TL_CODE, ["field"],
+                                           create_test=True)
     assert "subroutine adj_kern(field)\n" in result
     assert "program adj_test\n" in harness
     assert "! Call the tangent-linear kernel\n" in harness
@@ -216,8 +216,8 @@ def test_generate_adjoint_str_generate_harness_invalid_api():
     '''Test that passing an unsupported API to generate_adjoint_str()
     raises the expected error.'''
     with pytest.raises(NotImplementedError) as err:
-        _ = generate_adjoint_str(
-            TL_CODE, ["field"], api="gocean1.0", create_test=True)
+        _ = generate_adjoint_str(TL_CODE, ["field"], api="gocean1.0",
+                                 create_test=True)
     assert ("PSyAD only supports generic routines/programs or LFRic "
             "(dynamo0.3) kernels but got API 'gocean1.0'" in str(err.value))
 
@@ -248,8 +248,9 @@ def test_generate_adjoint_str_generate_harness_lfric():
         "  end subroutine testkern_code\n"
         "end module testkern_mod\n"
     )
-    result, harness = generate_adjoint_str(
-        tl_code, ["field"], api="dynamo0.3", create_test=True)
+    result, harness = generate_adjoint_str(tl_code, ["field"],
+                                           create_test=True,
+                                           api="dynamo0.3")
     assert ("subroutine adj_testkern_code(nlayers, field, ndf_w3, "
             "undf_w3, map_w3)\n" in result)
     assert "module adjoint_test_mod\n" in harness

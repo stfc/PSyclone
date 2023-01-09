@@ -42,7 +42,6 @@ tests for other classes end up covering the rest.'''
 
 # pylint: disable=no-name-in-module
 
-from __future__ import absolute_import
 import os
 import pytest
 
@@ -58,10 +57,12 @@ from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynLoop
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import KernelSchedule, Reference
+from psyclone.psyir.nodes import Reference, KernelSchedule
 from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, REAL_TYPE, \
     INTEGER_TYPE, ArrayType
+from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import Dynamo0p3ColourTrans
+
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 TEST_API = "dynamo0.3"
@@ -110,10 +111,8 @@ def test_scalar_kernel_load_meta_err():
     with pytest.raises(InternalError) as err:
         kernel.load_meta(metadata)
     const = LFRicConstants()
-    assert ("Expected one of {0} data types for "
-            "a scalar argument but found 'gh_triple'.".
-            format(const.VALID_SCALAR_DATA_TYPES) in
-            str(err.value))
+    assert (f"Expected one of {const.VALID_SCALAR_DATA_TYPES} data types for "
+            f"a scalar argument but found 'gh_triple'." in str(err.value))
 
 
 def test_kern_colourmap(monkeypatch):
@@ -175,6 +174,54 @@ def test_get_kernel_schedule():
     assert kernel_schedule is kernel_schedule_2
 
 
+def test_get_kernel_schedule_mixed_precision():
+    '''
+    Test that we can get the correct schedule for a mixed-precision kernel.
+
+    '''
+    _, invoke = get_invoke("26.8_mixed_precision_args.f90", TEST_API,
+                           name="invoke_0", dist_mem=False)
+    sched = invoke.schedule
+    kernels = sched.walk(DynKern, stop_type=DynKern)
+    # 26.8 contains an invoke of three kernels, one each at the following
+    # precisions.
+    kernel_precisions = ["r_def", "r_solver", "r_tran"]
+    # Get the precision (in bytes) for each of these.
+    precisions = [LFRicConstants.PRECISION_MAP[name] for
+                  name in kernel_precisions]
+    # Check that the correct kernel implementation is obtained for each
+    # one in the invoke.
+    for precision, kern in zip(precisions, kernels):
+        sched = kern.get_kernel_schedule()
+        assert isinstance(sched, KernelSchedule)
+        assert sched.name == f"mixed_code_{8*precision}"
+
+
+def test_get_kernel_sched_mixed_precision_no_match(monkeypatch):
+    '''
+    Test that we get the expected error if there's no matching implementation
+    for a mixed-precision kernel.
+
+    '''
+    _, invoke = get_invoke("26.8_mixed_precision_args.f90", TEST_API,
+                           name="invoke_0", dist_mem=False)
+    sched = invoke.schedule
+    kernels = sched.walk(DynKern, stop_type=DynKern)
+
+    # To simplify things we just monkeypatch the 'validate_kernel_code_args'
+    # method so that it never succeeds.
+    def fake_validate(_1, _2):
+        raise GenerationError("Just a test")
+
+    monkeypatch.setattr(DynKern, "validate_kernel_code_args",
+                        fake_validate)
+    with pytest.raises(GenerationError) as err:
+        _ = kernels[0].get_kernel_schedule()
+    assert ("Failed to find a kernel implementation with an interface that "
+            "matches the invoke of 'mixed_code'. (Tried routines "
+            "['mixed_code_32', 'mixed_code_64'].)" in str(err.value))
+
+
 def test_validate_kernel_code_args(monkeypatch):
     '''Test that a coded kernel that conforms to the expected kernel
     metadadata is validated successfully. Also check that the
@@ -189,14 +236,15 @@ def test_validate_kernel_code_args(monkeypatch):
     schedule = psy.invokes.invoke_list[0].schedule
     # matrix vector kernel
     kernel = schedule[2].loop_body[0]
-
-    kernel.validate_kernel_code_args()
+    sched = kernel.get_kernel_schedule()
+    kernel.validate_kernel_code_args(sched.symbol_table)
 
     # Force DynKern to think that this kernel is an 'apply' kernel and
     # therefore does not need the mesh height argument.
     monkeypatch.setattr(kernel, "_cma_operation", "apply")
     with pytest.raises(GenerationError) as info:
-        kernel.validate_kernel_code_args()
+        kernel.validate_kernel_code_args(
+            kernel.get_kernel_schedule().symbol_table)
     assert (
         "In kernel 'matrix_vector_code' the number of arguments indicated by "
         "the kernel metadata is 8 but the actual number of kernel arguments "
@@ -242,14 +290,13 @@ def test_validate_kernel_code_arg(monkeypatch):
     with pytest.raises(GenerationError) as info:
         kernel._validate_kernel_code_arg(
             real_scalar_symbol, lfric_real_scalar_symbol)
-    assert ("Kernel argument 'generic_real_scalar' has precision 'UNDEFINED' "
-            "in kernel 'dummy' but the LFRic API expects 'r_def'."
-            in str(info.value))
+    assert ("but argument 'generic_real_scalar' to kernel 'dummy' has "
+            "precision Precision.UNDEFINED" in str(info.value))
 
     with pytest.raises(GenerationError) as info:
-        kernel._validate_kernel_code_arg(real_scalar_symbol,
+        kernel._validate_kernel_code_arg(lfric_real_scalar_symbol,
                                          real_scalar_rw_symbol)
-    assert ("Kernel argument 'generic_real_scalar' has intent 'READ' in "
+    assert ("Kernel argument 'scalar' has intent 'READ' in "
             "kernel 'dummy' but the LFRic API expects intent "
             "'READWRITE'." in str(info.value))
 
@@ -304,9 +351,12 @@ def test_validate_kernel_code_arg(monkeypatch):
             lfric_real_field_symbol4, lfric_real_field_symbol2)
     assert (
         "For dimension 1 in array argument 'field' to kernel 'dummy' the "
-        "following error was found: Kernel argument 'generic_int_scalar' "
-        "has precision 'UNDEFINED' in kernel 'dummy' but the LFRic API "
-        "expects 'i_def'" in str(info.value))
+        "following error was found: An argument to an LFRic kernel must have a"
+        " precision defined by either a recognised LFRic type parameter (one "
+        "of ['i_def', 'r_def', 'r_double', 'r_ncdf', 'r_quad', 'r_single', "
+        "'r_solver', 'r_tran', 'r_um']) or an integer number of "
+        "bytes but argument 'generic_int_scalar' to kernel 'dummy' has "
+        "precision Precision.UNDEFINED" in str(info.value))
 
     # monkeypatch lfric_real_scalar_symbol to return that it is not a
     # scalar in order to force the required exception. We do this by
@@ -331,13 +381,13 @@ def test_kern_last_cell_all_colours_errors(monkeypatch):
     kern = sched.walk(DynKern)[0]
     # Kernel is not coloured.
     with pytest.raises(InternalError) as err:
-        _ = kern.last_cell_all_colours
+        _ = kern.last_cell_all_colours_symbol
     assert "'testkern_code' is not inside a coloured loop" in str(err.value)
     # Monkeypatch the Kernel so that it appears to be coloured.
     monkeypatch.setattr(kern, "is_coloured", lambda: True)
     kern._is_intergrid = True
     with pytest.raises(InternalError) as err:
-        _ = kern.last_cell_all_colours
+        _ = kern.last_cell_all_colours_symbol
     assert ("Colourmap information for kernel 'testkern_code' has not yet "
             "been initialised" in str(err.value))
 
@@ -355,7 +405,8 @@ def test_kern_last_cell_all_colours():
     # We have to perform code generation as that sets-up the symbol table.
     # pylint:disable=pointless-statement
     psy.gen
-    assert loop.kernel.last_cell_all_colours == "last_halo_cell_all_colours"
+    assert (loop.kernel.last_cell_all_colours_symbol.name
+            == "last_halo_cell_all_colours")
 
 
 def test_kern_last_cell_all_colours_intergrid():
@@ -372,7 +423,7 @@ def test_kern_last_cell_all_colours_intergrid():
     # We have to perform code generation as that sets-up the symbol table.
     # pylint:disable=pointless-statement
     psy.gen
-    assert (loop.kernel.last_cell_all_colours ==
+    assert (loop.kernel.last_cell_all_colours_symbol.name ==
             "last_edge_cell_all_colours_field1")
 
 
