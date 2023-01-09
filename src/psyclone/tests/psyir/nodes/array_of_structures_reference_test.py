@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@
 
 import pytest
 
-from psyclone.domain.lfric import psyir
 from psyclone.tests.utilities import check_links
 from psyclone.psyir import symbols, nodes
 
@@ -115,11 +114,10 @@ def test_asr_create(component_symbol):
         nodes.BinaryOperation.Operator.UBOUND,
         nodes.Reference(component_symbol), int_one.copy())
     my_range = nodes.Range.create(lbound, ubound)
-    # pylint: disable=no-member
-    datatype = psyir.LfricRealScalarDataType()
-    asref = nodes.ArrayOfStructuresReference. create(component_symbol,
-                                                     [my_range], ["nx"],
-                                                     enforce_datatype=datatype)
+    datatype = symbols.INTEGER8_TYPE
+    asref = nodes.ArrayOfStructuresReference.\
+        create(component_symbol, [my_range], ["nx"],
+               overwrite_datatype=datatype)
     assert asref.datatype is datatype
 
     # Reference to a symbol of DeferredType

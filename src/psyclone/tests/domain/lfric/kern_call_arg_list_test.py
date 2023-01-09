@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,6 +53,9 @@ from psyclone.tests.utilities import get_base_path, get_invoke
 from psyclone.transformations import Dynamo0p3ColourTrans
 
 TEST_API = "dynamo0.3"
+
+# The PSyIR module contains classes generated at runtime
+# pylint: disable=no-member
 
 
 def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):
@@ -112,7 +115,6 @@ def test_cellmap_intergrid(dist_mem, fortran_writer):
         'map_w2(:,cell)']
 
     check_psyir_results(create_arg_list, fortran_writer)
-    # pylint: disable=no-member
     array_1d = ArrayType(psyir.LfricRealScalarDataType(),
                          [ArrayType.Extent.DEFERRED])
     assert create_arg_list.psyir_arglist[5].datatype == array_1d
@@ -144,7 +146,6 @@ def test_kerncallarglist_face_xyoz(dist_mem, fortran_writer):
     check_psyir_results(create_arg_list, fortran_writer)
 
     # Check that the right datatype is set:
-    # pylint: disable=no-member
     array_1d = ArrayType(psyir.LfricRealScalarDataType(),
                          [ArrayType.Extent.DEFERRED])
     assert create_arg_list.psyir_arglist[2].datatype == array_1d
@@ -364,7 +365,6 @@ def test_kerncallarglist_bcs_operator(fortran_writer):
         'ndf_aspc1_op_a', 'ndf_aspc2_op_a', 'boundary_dofs_op_a']
 
     check_psyir_results(create_arg_list, fortran_writer)
-    # pylint: disable=no-member
     assert (create_arg_list.psyir_arglist[2].datatype ==
             psyir.LfricIntegerScalarDataType())
     array_type_3d = ArrayType(psyir.LfricRealScalarDataType(),
@@ -388,6 +388,10 @@ def test_kerncallarglist_mixed_precision():
     schedule = psy.invokes.invoke_list[0].schedule
     create_arg_list = KernCallArgList(schedule.kernels()[0])
     create_arg_list.generate()
+    # TODO #744: Depending on the implementation of #744, we can replace
+    # the test for name with a test for the actual precision, e.g.:
+    # assert create_arg_list.psyir_arglist[3].datatype.precision == psyir.R_DEF
+
     # Scalar:
     assert create_arg_list.psyir_arglist[2].datatype.precision.name == "r_def"
     # field

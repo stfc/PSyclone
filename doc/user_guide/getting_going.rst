@@ -467,7 +467,7 @@ is on your ``PATH``::
    usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-okern OKERN] [-api API]
                    [-s SCRIPT] [-d DIRECTORY] [-I INCLUDE] [-l {off,all,output}]
                    [-dm] [-nodm] [--kernel-renaming {multiple,single}]
-                   [--profile {invokes,kernels}] [--config CONFIG] [-v]
+                   [--profile {invokes,kernels}] [--config CONFIG] [--version]
                    filename
    psyclone: error: the following arguments are required: filename
 
