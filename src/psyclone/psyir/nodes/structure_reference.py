@@ -321,6 +321,10 @@ class StructureReference(Reference):
         # as we go.
         while hasattr(cursor, "member"):
             cursor = cursor.member
+            if isinstance(cursor_type, ArrayType):
+                cursor_type = cursor_type.intrinsic
+            if isinstance(cursor_type, DataTypeSymbol):
+                cursor_type = cursor_type.datatype
             cursor_type = cursor_type.components[cursor.name].datatype
             if isinstance(cursor_type, (UnknownType, DeferredType)):
                 return DeferredType()
@@ -356,7 +360,7 @@ class StructureReference(Reference):
                         f"'{cursor.name}' of the StructureAccess represents "
                         f"an array but other array notation is present in the "
                         f"full access expression: '{fwriter(self)}'")
-                return ArrayType(cursor_type.intrinsic, shape)
+                return ArrayType(cursor_type, shape)
 
             return ArrayType(cursor_type, shape)
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -187,6 +187,35 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                 and lower.children[1].value == str(index+1)):
             return False
         return True
+
+    def lbound(self, pos):
+        '''
+        Lookup the lower bound of the specified dimension of this ArrayMixin.
+        If we don't have the necessary type information then a call to the
+        LBOUND intrinsic is constructed and returned.
+
+        :param int pos: the dimension of the array for which to lookup the \
+                        bounds.
+
+        :returns: the declared lower bound for the specified dimension of \
+            this ArrayMixin or a call to the LBOUND intrinsic if it is not \
+            known.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        if not hasattr(self, "symbol"):
+            # If we are a Member of some sort then we need to carry on up the
+            # Method Resolution Order list to call the appropriate version
+            # of this method.
+            return super().lbound(pos)
+
+        if (isinstance(self.symbol.datatype, ArrayType) and
+                isinstance(self.symbol.datatype.shape[pos],
+                           ArrayType.ArrayBounds)):
+            return self.symbol.datatype.shape[pos].lower
+        return BinaryOperation.create(
+            BinaryOperation.Operator.LBOUND, Reference(self.symbol),
+            Literal(str(pos+1), INTEGER_TYPE))
 
     def is_upper_bound(self, index):
         '''Returns True if the specified array index contains a Range node
@@ -418,15 +447,16 @@ class ArrayMixin(metaclass=abc.ABCMeta):
 
             elif isinstance(idx_expr, Reference):
                 dtype = idx_expr.datatype
-                if dtype.shape:
+                if isinstance(dtype, ArrayType):
                     # An array slice can be defined by a 1D slice of another
                     # array, e.g. `a(b(1:4))`.
-                    if len(dtype.shape) > 1:
+                    indirect_array_shape = dtype.shape
+                    if len(indirect_array_shape) > 1:
                         raise InternalError(
                             f"An array defining a slice of a dimension of "
                             f"another array must be 1D but '{idx_expr.name}' "
                             f"used to index into '{self.name}' has "
-                            f"{len(dtype.shape)} dimensions.")
+                            f"{len(indirect_array_shape)} dimensions.")
                     shape.append(_num_elements(dtype.shape[0]))
             elif isinstance(idx_expr, (Call, Operation, CodeBlock)):
                 # We can't yet straightforwardly query the type of a function

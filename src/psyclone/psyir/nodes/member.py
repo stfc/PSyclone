@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,10 +38,14 @@
 
 ''' This module contains the implementation of the Member node.'''
 
-from __future__ import absolute_import
 
 from psyclone.core import Signature
+from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.operation import BinaryOperation
+from psyclone.psyir.nodes.reference import Reference
+from psyclone.psyir.symbols import (DataTypeSymbol, ArrayType, DeferredType,
+                                    UnknownType, StructureType, INTEGER_TYPE)
 
 
 class Member(Node):
@@ -121,7 +125,7 @@ class Member(Node):
 
     @property
     def is_array(self):
-        ''':returns: if this member is an array.
+        ''':returns: whether this member is an array.
         :rtype: bool
 
         '''
@@ -135,6 +139,72 @@ class Member(Node):
             lists of indices)
         '''
         return (Signature(self.name), [[]])
+
+    def lbound(self, pos):
+        '''
+        Lookup the lower bound of this Member. If we don't have the
+        necessary type information then a call to the LBOUND intrinsic is
+        constructed and returned. This method has to be in this class so that
+        it is available to both StructureMember and ArrayMember.
+
+        :param int pos: the dimension of the array for which to lookup the \
+                        lower bound.
+
+        :returns: the declared lower bound for the specified dimension of \
+            this Member or a call to the LBOUND intrinsic if it is unknown.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        # First, walk up to the parent reference and get its type.
+        root_ref = self.ancestor(Reference)
+        cursor_type = root_ref.symbol.datatype
+
+        # Walk back down the structure, looking up the type information as we
+        # go. We also collect the necessary information for creating a new
+        # Reference as argument to the LBOUND intrinsic in case the type
+        # information is not available.
+        cnames = []
+        cursor = root_ref
+        while cursor is not self:
+            cursor = cursor.member
+            # Collect member information.
+            if hasattr(cursor, "indices"):
+                new_indices = [idx.copy() for idx in cursor.indices]
+                cnames.append((cursor.name, new_indices))
+            else:
+                cnames.append(cursor.name)
+            # Continue to resolve datatype unless we hit an
+            # UnknownType or DeferredType.
+            if isinstance(cursor_type, ArrayType):
+                cursor_type = cursor_type.intrinsic
+            if isinstance(cursor_type, DataTypeSymbol):
+                cursor_type = cursor_type.datatype
+            if isinstance(cursor_type, (UnknownType, DeferredType)):
+                continue
+            cursor_type = cursor_type.components[cursor.name].datatype
+
+        if isinstance(cursor_type, ArrayType):
+            return cursor_type.shape[pos].lower
+
+        # We've failed to resolve the type so we construct a call to
+        # the LBOUND intrinsic instead.
+        # Remove any indexing information from the ultimate member
+        # of the structure access.
+        if len(cnames[-1]) == 2:
+            cnames[-1] = cnames[-1][0]
+        # Have to import here to avoid circular dependencies.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes import (ArrayOfStructuresReference,
+                                          StructureReference)
+        if hasattr(root_ref, "indices"):
+            new_indices = [idx.copy() for idx in root_ref.indices]
+            ref = ArrayOfStructuresReference.create(
+                root_ref.symbol, new_indices, cnames)
+        else:
+            ref = StructureReference.create(root_ref.symbol, cnames)
+
+        return BinaryOperation.create(BinaryOperation.Operator.LBOUND, ref,
+                                      Literal(str(pos+1), INTEGER_TYPE))
 
 
 # For Sphinx AutoAPI documentation generation

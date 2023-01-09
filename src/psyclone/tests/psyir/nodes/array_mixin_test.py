@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,41 +32,72 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab
-# Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests of the ArrayMixin PSyIR nodes trait. '''
 
 import pytest
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import ArrayReference, ArrayOfStructuresReference, \
-    BinaryOperation, Range, Literal, Routine, Assignment
+from psyclone.psyir.nodes import (BinaryOperation, Range, Literal, Routine,
+                                  Assignment, Reference)
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import DataSymbol, DeferredType, ArrayType, \
     INTEGER_TYPE
 
 
+_ONE = Literal("1", INTEGER_TYPE)
+_TWO = Literal("2", INTEGER_TYPE)
+
+
+class ConcreteArray(ArrayMixin, Reference):
+    '''
+    A concrete class that inherits the ArrayMixin trait to allow it to be
+    tested.
+
+    '''
+    @classmethod
+    def create(cls, sym, child_nodes):
+        '''
+        Create an instance of this class.
+
+        :param sym: a Symbol.
+        :type sym: :py:class:`psyclone.psyir.symbols.Symbol`
+        :param child_nodes: nodes that the new instance will have as children.
+        :type child_nodes: List[:py:class:`psyclone.psyir.nodes.Node`]
+
+        :returns: an instance of this class.
+        :rtype: :py:class:`ConcreteArray`
+
+        '''
+        obj = cls(sym)
+        for child in child_nodes:
+            obj.addchild(child)
+        return obj
+
+
 def test_get_outer_range_index():
     '''Check that the get_outer_range_index method returns the outermost index
-    of the children list that is a range. Use ArrayReference and
-    ArrayOfStructuresReference as concrete implementations of ArrayMixins.
+    of the children list that is a range.
+
     '''
     symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE, [10, 10, 10]))
-    array = ArrayReference.create(symbol, [Range(), Range(), Range()])
+    array = ConcreteArray.create(symbol, [Range(), Range(), Range()])
     assert array.get_outer_range_index() == 2
 
     symbol = DataSymbol("my_symbol", DeferredType())
-    aos = ArrayOfStructuresReference.create(
-        symbol, [Range(), Range(), Range()], ["nx"])
-    assert aos.get_outer_range_index() == 3  # +1 for the member child
+    aos = ConcreteArray.create(
+        symbol, [_ONE.copy(), Range(), Range(), Range()])
+    assert aos.get_outer_range_index() == 3  # +1 for the Literal child
 
 
 def test_get_outer_range_index_error():
     '''Check that the get_outer_range_index method raises an IndexError if
-    no range exist as child of the given array. Use ArrayReference as concrete
-    implementation of ArrayMixin.
+    no range exist as child of the given array.
+
     '''
     symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE, [10]))
-    array = ArrayReference.create(symbol, [Literal("2", INTEGER_TYPE)])
+    array = ConcreteArray.create(symbol, [_TWO.copy()])
     with pytest.raises(IndexError):
         _ = array.get_outer_range_index()
 
@@ -122,6 +153,29 @@ def test_is_upper_lower_bound(fortran_reader):
     assert not isinstance(array_ref.symbol, DataSymbol)
     assert not array_ref.is_lower_bound(0)
     assert not array_ref.is_upper_bound(0)
+
+
+def test_lbound():
+    ''' Tests for the lbound method. '''
+    # Symbol is of ArrayType.
+    symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE,
+                                               [10, (2, 10), 10]))
+    aref = ConcreteArray.create(symbol,
+                                [_ONE.copy(), _ONE.copy(), _ONE.copy()])
+    assert aref.lbound(0) == _ONE
+    assert aref.lbound(1) == _TWO
+    with pytest.raises(IndexError):
+        aref.lbound(3)
+    # Symbol is of DeferredType so the result should be an instance of the
+    # LBOUND intrinsic.
+    dtsym = DataSymbol("oops", DeferredType())
+    dtref = ConcreteArray.create(dtsym,
+                                 [_ONE.copy(), _ONE.copy(), _ONE.copy()])
+    lbnd = dtref.lbound(1)
+    assert isinstance(lbnd, BinaryOperation)
+    assert lbnd.operator == BinaryOperation.Operator.LBOUND
+    assert lbnd.children[0].symbol is dtsym
+    assert lbnd.children[1] == Literal("2", INTEGER_TYPE)
 
 
 def test_get_effective_shape(fortran_reader, fortran_writer):

@@ -45,7 +45,8 @@ from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.nodes import Reference, ArrayReference, Assignment, \
     Literal, BinaryOperation, Range, KernelSchedule
 from psyclone.psyir.symbols import DataSymbol, ArrayType, ScalarType, \
-    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, INTEGER_TYPE
+    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, INTEGER_TYPE, Symbol, \
+    StructureType, DataTypeSymbol
 from psyclone.tests.utilities import check_links
 
 
@@ -444,6 +445,25 @@ def test_array_is_full_range():
     my_range = Range.create(lbound.copy(), ubound.copy(), one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
     assert array_reference.is_full_range(0)
+
+
+def test_array_lbound():
+    '''
+    Test the lbound() method for an ArrayReference to an array of structures.
+
+    '''
+    sgrid_type = StructureType.create(
+        [("id", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
+    sgrid_type_sym = DataTypeSymbol("subgrid_type", sgrid_type)
+    sym = DataSymbol("subgrids", ArrayType(sgrid_type_sym, [(3, 10)]))
+    one = Literal("1", INTEGER_TYPE)
+    lbound = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
+                                    Reference(sym), one)
+    ubound = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
+                                    Reference(sym), one.copy())
+    array = ArrayReference.create(sym, [Range.create(lbound, ubound)])
+    lbnd = array.lbound(0)
+    assert lbnd.value == "3"
 
 
 def test_array_indices():
