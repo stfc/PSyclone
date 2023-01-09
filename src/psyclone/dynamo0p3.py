@@ -8549,7 +8549,9 @@ class DynKern(CodedKern):
 
         if len(routines) == 1:
             sched = routines[0]
-            self.validate_kernel_code_args(sched.symbol_table)
+            # TODO #928: We don't validate the arguments yet because the
+            # validation has many false negatives.
+            # self.validate_kernel_code_args(sched.symbol_table)
         else:
             # The kernel name corresponds to an interface block. Find which
             # of the routines matches the precision of the arguments.
@@ -10035,19 +10037,20 @@ class DynKernelArgument(KernelArgument):
             try:
                 kind_symbol = symbol_table.lookup(kind_name)
             except KeyError:
+                mod_map = LFRicConstants().UTILITIES_MOD_MAP
+                const_mod = mod_map["constants"]["module"]
                 try:
-                    constants_container = symbol_table.lookup(
-                        "constants_mod")
+                    constants_container = symbol_table.lookup(const_mod)
                 except KeyError:
                     # TODO Once #696 is done, we should *always* have a
                     # symbol for this container at this point so should
                     # raise an exception if we haven't. Also, the name
                     # of the Fortran module should be read from the config
                     # file.
-                    constants_container = ContainerSymbol("constants_mod")
+                    constants_container = ContainerSymbol(const_mod)
                     root_table.add(constants_container)
                 kind_symbol = DataSymbol(
-                    kind_name, INTEGER_SINGLE_TYPE,
+                    kind_name, INTEGER_TYPE,
                     interface=ImportInterface(constants_container))
                 root_table.add(kind_symbol)
             return ScalarType(prim_type, kind_symbol)

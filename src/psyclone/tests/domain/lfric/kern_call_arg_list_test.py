@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,17 +42,20 @@ import os
 import pytest
 
 from psyclone.core import Signature, VariablesAccessInfo
-from psyclone.domain.lfric import KernCallArgList
+from psyclone.domain.lfric import KernCallArgList, psyir
 from psyclone.errors import GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKern
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Literal, Loop, Reference, UnaryOperation
-from psyclone.psyir.symbols import ScalarType
+from psyclone.psyir.symbols import ArrayType, ScalarType
 from psyclone.tests.utilities import get_base_path, get_invoke
 from psyclone.transformations import Dynamo0p3ColourTrans
 
 TEST_API = "dynamo0.3"
+
+# The PSyIR module contains classes generated at runtime
+# pylint: disable=no-member
 
 
 def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):
@@ -106,6 +109,9 @@ def test_cellmap_intergrid(dist_mem, fortran_writer):
         'map_w2(:,cell)']
 
     check_psyir_results(create_arg_list, fortran_writer)
+    array_1d = ArrayType(psyir.LfricRealScalarDataType(),
+                         [ArrayType.Extent.DEFERRED])
+    assert create_arg_list.psyir_arglist[5].datatype == array_1d
 
 
 def test_kerncallarglist_face_xyoz(dist_mem, fortran_writer):
@@ -132,6 +138,15 @@ def test_kerncallarglist_face_xyoz(dist_mem, fortran_writer):
         'np_xyz_qr_face', 'weights_xyz_qr_face']
 
     check_psyir_results(create_arg_list, fortran_writer)
+
+    # Check that the right datatype is set:
+    array_1d = ArrayType(psyir.LfricRealScalarDataType(),
+                         [ArrayType.Extent.DEFERRED])
+    assert create_arg_list.psyir_arglist[2].datatype == array_1d
+    array_4d = ArrayType(psyir.LfricRealScalarDataType(),
+                         [ArrayType.Extent.DEFERRED]*4)
+    assert create_arg_list.psyir_arglist[15].datatype == array_4d
+    assert create_arg_list.psyir_arglist[16].datatype == array_4d
 
 
 def test_kerncallarglist_face_edge(dist_mem, fortran_writer):
@@ -343,6 +358,54 @@ def test_kerncallarglist_bcs_operator(fortran_writer):
         'ndf_aspc1_op_a', 'ndf_aspc2_op_a', 'boundary_dofs_op_a']
 
     check_psyir_results(create_arg_list, fortran_writer)
+    assert (create_arg_list.psyir_arglist[2].datatype ==
+            psyir.LfricIntegerScalarDataType())
+    array_type_3d = ArrayType(psyir.LfricRealScalarDataType(),
+                              [ArrayType.Extent.DEFERRED]*3)
+    assert create_arg_list.psyir_arglist[3].datatype == array_type_3d
+
+
+def test_kerncallarglist_mixed_precision():
+    ''' Check the handling of mixed precision. This kernel has three invokes:
+    The first using r_def, the second r_solver, the third r_tran.
+    '''
+
+    psy, _ = get_invoke("26.8_mixed_precision_args.f90", TEST_API,
+                        dist_mem=False, idx=0)
+
+    schedule = psy.invokes.invoke_list[0].schedule
+    create_arg_list = KernCallArgList(schedule.kernels()[0])
+    create_arg_list.generate()
+    # TODO #744: Depending on the implementation of #744, we can replace
+    # the test for name with a test for the actual precision, e.g.:
+    # assert create_arg_list.psyir_arglist[3].datatype.precision == psyir.R_DEF
+
+    # Scalar:
+    assert create_arg_list.psyir_arglist[2].datatype.precision.name == "r_def"
+    # field
+    assert create_arg_list.psyir_arglist[3].datatype.precision.name == "r_def"
+    # operator: ncell_3d:
+    assert create_arg_list.psyir_arglist[4].datatype.precision.name == "i_def"
+    # operator: local_stencil
+    assert create_arg_list.psyir_arglist[5].datatype.precision.name == "r_def"
+
+    create_arg_list = KernCallArgList(schedule.kernels()[1])
+    create_arg_list.generate()
+    assert (create_arg_list.psyir_arglist[2].datatype.precision.name ==
+            "r_solver")
+    assert (create_arg_list.psyir_arglist[3].datatype.precision.name ==
+            "r_solver")
+    assert create_arg_list.psyir_arglist[4].datatype.precision.name == "i_def"
+    assert (create_arg_list.psyir_arglist[5].datatype.precision.name ==
+            "r_solver")
+
+    create_arg_list = KernCallArgList(schedule.kernels()[2])
+    create_arg_list.generate()
+    assert create_arg_list.psyir_arglist[2].datatype.precision.name == "r_tran"
+    assert create_arg_list.psyir_arglist[3].datatype.precision.name == "r_tran"
+    assert create_arg_list.psyir_arglist[4].datatype.precision.name == "i_def"
+    # There is no r_tran operator, so its type is r_def:
+    assert create_arg_list.psyir_arglist[5].datatype.precision.name == "r_def"
 
 
 def test_kerncallarglist_scalar_literal(fortran_writer):
