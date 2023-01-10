@@ -219,6 +219,47 @@ def test_apply_array_access(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(output)
 
 
+def test_apply_gocean_kern(fortran_reader, fortran_writer):
+    '''Test the apply method with a typical GOcean kernel.'''
+    code = (
+        "module psy_single_invoke_test\n"
+        "  use field_mod\n"
+        "  use kind_params_mod\n"
+        "  implicit none\n"
+        "  contains\n"
+        "  subroutine invoke_0_compute_cu(cu_fld, p_fld, u_fld)\n"
+        "    type(r2d_field), intent(inout) :: cu_fld, p_fld, u_fld\n"
+        "    integer j, i\n"
+        "    do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
+        "      do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1\n"
+        "        call compute_cu_code(i, j, cu_fld%data, p_fld%data, "
+        "u_fld%data)\n"
+        "      end do\n"
+        "    end do\n"
+        "  end subroutine invoke_0_compute_cu\n"
+        "  subroutine compute_cu_code(i, j, cu, p, u)\n"
+        "    implicit none\n"
+        "    integer,  intent(in) :: i, j\n"
+        "    real(go_wp), intent(out), dimension(:,:) :: cu\n"
+        "    real(go_wp), intent(in),  dimension(:,:) :: p, u\n"
+        "    cu(i,j) = 0.5d0*(p(i,j)+p(i-1,j))*u(i,j)\n"
+        "  end subroutine compute_cu_code\n"
+        "end module psy_single_invoke_test\n"
+    )
+    psyir = fortran_reader.psyir_from_source(code)
+    inline_trans = InlineTrans()
+    for routine in psyir.walk(Call):
+        inline_trans.apply(routine)
+
+    output = fortran_writer(psyir)
+    assert ("    do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
+            "      do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1\n"
+            "        cu_fld%data(i,j) = 0.5d0 * (p_fld%data(i,j) + "
+            "p_fld%data(i - 1,j)) * u_fld%data(i,j)\n"
+            "      enddo\n"
+            "    enddo\n" in output)
+
+
 def test_apply_struct_arg(fortran_reader, fortran_writer, tmpdir):
     '''
     Check that the apply() method works correctly when the routine argument
