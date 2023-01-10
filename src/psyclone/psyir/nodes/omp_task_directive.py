@@ -827,8 +827,10 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         for i in range(num_child):
                             mem.addchild(one.copy())
 
-                        if new_members[-1].name == mem.name:
+                        if len(new_members) > 0 and new_members[-1].name == mem.name:
                             new_members[-1] = mem
+                        else:
+                            new_members.append(mem)
                         lbound_sref = StructureReference.create(sref_base.symbol, new_members)
                         lbound = BinaryOperation.create(
                                 BinaryOperation.Operator.LBOUND,
