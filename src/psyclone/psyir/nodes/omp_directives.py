@@ -651,7 +651,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     if len(ref0_members) != len(ref1_members):
                         continue
                     same_access = True
-                    for index, mem in ref0_members:
+                    for index, mem in enumerate(ref0_members):
                         if mem.name != ref1_members[index].name:
                             same_access = False
                     if not same_access:
@@ -714,7 +714,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     if len(ref0_members) != len(ref1_members):
                         continue
                     same_access = True
-                    for index, mem in ref0_members:
+                    for index, mem in enumerate(ref0_members):
                         if mem.name != ref1_members[index].name:
                             same_access = False
                     if not same_access:
@@ -777,7 +777,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     if len(ref0_members) != len(ref1_members):
                         continue
                     same_access = True
-                    for index, mem in ref0_members:
+                    for index, mem in enumerate(ref0_members):
                         if mem.name != ref1_members[index].name:
                             same_access = False
                     if not same_access:
