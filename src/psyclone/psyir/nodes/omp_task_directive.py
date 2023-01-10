@@ -1060,18 +1060,57 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     if index.symbol in child_loop_vars:
                         # Return a :
                         one = Literal(str(dim+1), INTEGER_TYPE)
-                        lbound_sref = sref_base.copy()
+                        members = sref_base.walk(Member)
+                        new_members = []
+                        for mem in members:
+                            member_copy = mem.copy()
+                            member_copy.pop_all_children()
+                            new_members.append(member_copy)
                         mem = array_access_member.copy()
                         num_child = len(mem.children)
                         mem.pop_all_children()
                         for i in range(num_child):
                             mem.addchild(one.copy())
-                        lbound_sref.addchild(mem.copy())
+
+                        if len(new_members) > 0 and new_members[-1].name == mem.name:
+                            new_members[-1] = mem
+                        else:
+                            new_members.append(mem)
+
+                        # Need a copy of the members for ubound as well
+                        new_members2 = []
+                        for mem in new_members:
+                            new_members2.append(mem.copy())
+
+                        # Similar to StructureReference._create but we already
+                        # have members.
+                        lbound_sref = StructureReference(sref_base.symbol)
+                        child_member = new_members[-1]
+                        for component in reversed(new_members[:-1]):
+                            component.addchild(child_member)
+                            child_member = component
+                        lbound_sref.addchild(child_member)
                         lbound = BinaryOperation.create(
                                 BinaryOperation.Operator.LBOUND,
                                 lbound_sref, one.copy())
-                        ubound_sref = sref_base.copy()
-                        ubound_sref.addchild(mem.copy())
+                        # Similar to StructureReference._create but we already
+                        # have members.
+                        ubound_sref = StructureReference(sref_base.symbol)
+                        child_member = new_members2[-1]
+                        for component in reversed(new_members2[:-1]):
+                            component.addchild(child_member)
+                            child_member = component
+                        ubound_sref.addchild(child_member)
+                        #ubound_sref = sref_base.copy()
+#                        ubound_sref.addchild(mem.copy())
+#                        amembers = ubound_sref.walk(ArrayMember)
+#                        if len(amembers) > 0:
+#                            ubound_sref.walk(ArrayMember)[-1].replace_with(mem.copy())
+#                        else:
+#                            loc = lbound_sref
+#                           while loc.member is not None:
+#                                loc = loc.member
+#                            loc.addchild(mem.copy())
                         ubound = BinaryOperation.create(
                                 BinaryOperation.Operator.UBOUND,
                                 ubound_sref, one.copy())
