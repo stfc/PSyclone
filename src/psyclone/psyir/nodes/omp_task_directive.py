@@ -454,10 +454,11 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                             members.append(childmember.copy())
 
                         sub_ref = StructureReference(start.symbol)
-                        sub_ref.addchild(members[0])
-                        for count, member in enumerate(members):
-                            if len(members) > count:
-                                member.addchild(members[count+1])
+                        if len(members) > 0:
+                            sub_ref.addchild(members[0])
+                            for count, member in enumerate(members):
+                                if len(members) > count:
+                                    member.addchild(members[count+1])
 #                        for member in members:
 #                            sub_ref.addchild(member)
                         array_member = sub_ref.children[-1]
@@ -785,10 +786,11 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
         del members[-1]
         sref_base = StructureReference(ref.symbol)
-        sref_base.addchild(members[0])
-        for count, member in enumerate(members):
-            if len(members) > count:
-                member.addchild(members[count+1])
+        if len(members) > 0:
+            sref_base.addchild(members[0])
+            for count, member in enumerate(members):
+                if len(members) > count:
+                    member.addchild(members[count+1])
 #        for member in members:
 #            sref_base.addchild(member)
 
@@ -1019,10 +1021,11 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
         del members[-1]
         sref_base = StructureReference(ref.symbol)
-        sref_base.addchild(members[0])
-        for count, member in enumerate(members):
-            if len(members) > count:
-                member.addchild(members[count+1])
+        if len(members > 0):
+            sref_base.addchild(members[0])
+            for count, member in enumerate(members):
+                if len(members) > count:
+                    member.addchild(members[count+1])
         #for member in members:
         #    sref_base.addchild(member)
 
