@@ -642,6 +642,8 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     # will recurse and check the array indices for any
                     # ArrayMixin children
                     while member.member is not None:
+                        if member1.member is None:
+                            continue
                         member = member.member
                         member1 = member1.member
                         if member.name != member1.name:
@@ -697,6 +699,8 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     # will recurse and check the array indices for any
                     # ArrayMixin children
                     while member.member is not None:
+                        if member1.member is None:
+                            continue
                         member = member.member
                         member1 = member1.member
                         if member.name != member1.name:
@@ -752,6 +756,8 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     # will recurse and check the array indices for any
                     # ArrayMixin children
                     while member.member is not None:
+                        if member1.member is None:
+                            continue
                         member = member.member
                         member1 = member1.member
                         if member.name != member1.name:
