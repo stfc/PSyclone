@@ -822,12 +822,13 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         mem.pop_all_children()
                         for i in range(num_child):
                             mem.addchild(one.copy())
-                        lbound_sref.addchild(mem.copy())
+                        lbound_sref.walk(ArrayMember)[-1].replace_with(mem.copy())
                         lbound = BinaryOperation.create(
                                 BinaryOperation.Operator.LBOUND,
                                 lbound_sref, one.copy())
                         ubound_sref = sref_base.copy()
-                        ubound_sref.addchild(mem.copy())
+#                        ubound_sref.addchild(mem.copy())
+                        ubound_sref.walk(ArrayMember)[-1].replace_with(mem.copy())
                         ubound = BinaryOperation.create(
                                 BinaryOperation.Operator.UBOUND,
                                 ubound_sref, one.copy())
