@@ -110,12 +110,16 @@ class OMPTaskTrans(ParallelLoopTrans):
         from psyclone.psyGen import Kern
         from psyclone.psyir.transformations.inline_trans import InlineTrans
         from psyclone.domain.common.transformations import KernelModuleInlineTrans
+        from psyclone.psyir.transformations.fold_conditional_return_expressions_trans \
+                import FoldConditionalReturnExpressionsTrans
 
         kerns = node.walk(Kern)
         kintrans = KernelModuleInlineTrans()
+        cond_trans = FoldConditionalReturnExpressionsTrans()
         intrans = InlineTrans()
         for kern in kerns:
             kintrans.apply(kern)
+            cond_trans.apply(kern.get_kernel_schedule())
             kern.lower_to_language_level()
 
         calls = node.walk(Call)
