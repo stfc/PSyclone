@@ -112,9 +112,8 @@ subroutine tl_project_eos_pressure_code(cell, nlayers,                          
                                  nqp_h, nqp_v, wqp_h, wqp_v                    &
                                  )
 
-  !RFuse tl_calc_exner_pointwise_mod,only: tl_calc_exner_pointwise
+  !use tl_calc_exner_pointwise_mod,only: tl_calc_exner_pointwise
   use coordinate_jacobian_mod, only: coordinate_jacobian
-  !RFuse planet_config_mod, only : kappa, Rd, p_zero      
 
   implicit none
 
@@ -163,8 +162,9 @@ subroutine tl_project_eos_pressure_code(cell, nlayers,                          
   real(kind=r_def) :: exner_at_quad, rho_at_quad, theta_vd_at_quad
   real(kind=r_def) :: ls_rho_at_quad, ls_theta_vd_at_quad
 
-  real(kind=r_def) :: tmp1, tmp2
+  real(kind=r_def) :: tmp_ls_exner, tmp_exner
 
+  !RF need to add this to adjoint: use planet_config_mod, only : kappa, Rd, p_zero
   real(kind=r_def) :: kappa, Rd, p_zero
 
   ipanel = int(panel_id(map_pid(1)), i_def)
@@ -223,17 +223,14 @@ subroutine tl_project_eos_pressure_code(cell, nlayers,                          
         end do
 
         ! Calculation
-        !RFexner_at_quad = wqp_h(qp1)*wqp_v(qp2)*dj(qp1,qp2)                          &
-        !RF              *tl_calc_exner_pointwise(rho_at_quad, theta_vd_at_quad,      &
-        !RF                                       ls_rho_at_quad, ls_theta_vd_at_quad)
 
-        tmp1 = ( ( Rd / p_zero ) * ls_rho_at_quad * ls_theta_vd_at_quad ) ** &
-             ( kappa / ( 1.0_r_def - kappa ) )
+        tmp_ls_exner = ( ( Rd / p_zero ) * ls_rho_at_quad * ls_theta_vd_at_quad ) ** &
+               ( kappa / ( 1.0_r_def - kappa ) )
 
-        tmp2 = ( kappa / ( 1.0_r_def - kappa ) ) * tmp1 * &
-          ( ( rho_at_quad / ls_rho_at_quad ) + ( theta_vd_at_quad / ls_theta_vd_at_quad )  )
+        tmp_exner = ( kappa / ( 1.0_r_def - kappa ) ) * tmp_ls_exner * &
+             ( ( rho_at_quad / ls_rho_at_quad ) + ( theta_vd_at_quad / ls_theta_vd_at_quad )  )
 
-        exner_at_quad = wqp_h(qp1)*wqp_v(qp2)*dj(qp1,qp2)*tmp2
+        exner_at_quad = wqp_h(qp1)*wqp_v(qp2)*dj(qp1,qp2)*tmp_exner
 
         do df = 1, ndf_w3
           r_exner(df) = r_exner(df) + w3_basis(1,df,qp1,qp2)*exner_at_quad
