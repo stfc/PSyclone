@@ -457,7 +457,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         if len(members) > 0:
                             sub_ref.addchild(members[0])
                             for count, member in enumerate(members):
-                                if len(members) > count:
+                                if len(members) > count+1:
                                     member.addchild(members[count+1])
 #                        for member in members:
 #                            sub_ref.addchild(member)
@@ -789,7 +789,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         if len(members) > 0:
             sref_base.addchild(members[0])
             for count, member in enumerate(members):
-                if len(members) > count:
+                if len(members) > count+1:
                     member.addchild(members[count+1])
 #        for member in members:
 #            sref_base.addchild(member)
@@ -1024,7 +1024,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         if len(members > 0):
             sref_base.addchild(members[0])
             for count, member in enumerate(members):
-                if len(members) > count:
+                if len(members) > count+1:
                     member.addchild(members[count+1])
         #for member in members:
         #    sref_base.addchild(member)
