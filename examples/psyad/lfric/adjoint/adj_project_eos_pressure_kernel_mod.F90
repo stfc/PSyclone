@@ -1,9 +1,10 @@
 module adj_project_eos_pressure_kernel_mod
   use argument_mod, only : any_discontinuous_space_3, any_space_2, arg_type, cell_column, func_type, gh_basis, gh_diff_basis, &
-&gh_field, gh_operator, gh_quadrature_xyoz, gh_read, gh_real, gh_write
+&gh_field, gh_operator, gh_quadrature_xyoz, gh_read, gh_real, gh_readwrite
   use constants_mod, only : i_def, r_def
   use fs_continuity_mod, only : w3, wtheta
   use kernel_mod, only : kernel_type
+  use planet_config_mod, only : kappa, Rd, p_zero
   implicit none
   type, public, extends(kernel_type) :: adj_project_eos_pressure_kernel_type
   PRIVATE
@@ -28,8 +29,6 @@ END TYPE
 &chi1, chi2, chi3, panel_id, ncell_3d, m3_inv, ndf_w3, undf_w3, map_w3, w3_basis, ndf_wt, undf_wt, map_wt, wt_basis, ndf_chi, &
 &undf_chi, map_chi, chi_basis, chi_diff_basis, ndf_pid, undf_pid, map_pid, nqp_h, nqp_v, wqp_h, wqp_v)
     use coordinate_jacobian_mod, only : coordinate_jacobian
-    use planet_config_mod, only : kappa, Rd, p_zero
-
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: nqp_h
     integer(kind=i_def), intent(in) :: nqp_v
@@ -87,22 +86,19 @@ END TYPE
     real(kind=r_def) :: theta_vd_at_quad
     real(kind=r_def) :: ls_rho_at_quad
     real(kind=r_def) :: ls_theta_vd_at_quad
-    real(kind=r_def) :: tmp1
-    real(kind=r_def) :: tmp2
-    !RFreal(kind=r_def) :: kappa
-    !RFreal(kind=r_def) :: rd
-    !RFreal(kind=r_def) :: p_zero
+    real(kind=r_def) :: tmp_ls_exner
+    real(kind=r_def) :: tmp_exner
     integer :: i
     integer :: j
 
-    exner_e = 0.0_r_def
-    r_exner = 0.0_r_def
     exner_at_quad = 0.0_r_def
+    r_exner = 0.0_r_def
+    exner_e = 0.0_r_def
     rho_at_quad = 0.0_r_def
     rho_e = 0.0_r_def
-    tmp2 = 0.0_r_def
-    theta_vd_e = 0.0_r_def
+    tmp_exner = 0.0_r_def
     theta_vd_at_quad = 0.0_r_def
+    theta_vd_e = 0.0_r_def
     ipanel = INT(panel_id(map_pid(1)), i_def)
     do k = nlayers - 1, 0, -1
       do df = 1, ndf_chi, 1
@@ -139,15 +135,16 @@ END TYPE
           do df = 1, ndf_wt, 1
             ls_theta_vd_at_quad = ls_theta_vd_at_quad + ls_theta_vd_e(df) * wt_basis(1,df,qp1,qp2)
           enddo
-          tmp1 = (ls_rho_at_quad * ls_theta_vd_at_quad * rd / p_zero) ** (kappa / (1.0 - kappa))
+          tmp_ls_exner = (ls_rho_at_quad * ls_theta_vd_at_quad * rd / p_zero) ** (kappa / (1.0 - kappa))
           do df = ndf_w3, 1, -1
             exner_at_quad = exner_at_quad + r_exner(df) * w3_basis(1,df,qp1,qp2)
           enddo
-          tmp2 = tmp2 + exner_at_quad * dj(qp1,qp2) * wqp_h(qp1) * wqp_v(qp2)
+          tmp_exner = tmp_exner + exner_at_quad * dj(qp1,qp2) * wqp_h(qp1) * wqp_v(qp2)
           exner_at_quad = 0.0
-          rho_at_quad = rho_at_quad + kappa * tmp2 * tmp1 / (-kappa * ls_rho_at_quad + 1.0 * ls_rho_at_quad)
-          theta_vd_at_quad = theta_vd_at_quad + kappa * tmp2 * tmp1 / (-kappa * ls_theta_vd_at_quad + 1.0 * ls_theta_vd_at_quad)
-          tmp2 = 0.0
+          rho_at_quad = rho_at_quad + kappa * tmp_exner * tmp_ls_exner / (-kappa * ls_rho_at_quad + 1.0 * ls_rho_at_quad)
+          theta_vd_at_quad = theta_vd_at_quad + kappa * tmp_exner * tmp_ls_exner / (-kappa * ls_theta_vd_at_quad + 1.0 * &
+&ls_theta_vd_at_quad)
+          tmp_exner = 0.0
           do df = ndf_wt, 1, -1
             theta_vd_e(df) = theta_vd_e(df) + theta_vd_at_quad * wt_basis(1,df,qp1,qp2)
           enddo

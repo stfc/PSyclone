@@ -76,8 +76,8 @@ transform:
 	make single -e TL_KERNEL_NAME=weighted_proj_2theta_bd_kernel ACTIVE_VAR_LIST="projection integrand exner_av exner_at_fquad exner_next_at_fquad exner_next_e exner_e exner"
 	make single -e TL_KERNEL_NAME=helmholtz_operator_kernel ACTIVE_VAR_LIST="helm_c f_op helm_dd helm_uu helm_d helm_u helm_s helm_n helm_w helm_e d_op ec_op m3_exner_star p3theta compound_div"
 	make single -e TL_KERNEL_NAME=tracer_viscosity_kernel ACTIVE_VAR_LIST="theta_inc viscosity_mu"
-	make single -e TL_KERNEL_NAME=dg_matrix_vector_kernel_mod ACTIVE_VAR_LIST="lhs lhs_e x x_e"
-	make single -e TL_KERNEL_NAME=w2_to_w1_projection_kernel_mod ACTIVE_VAR_LIST="v_w1 u_w2 vu res_dot_product wind"
+	make single -e TL_KERNEL_NAME=dg_matrix_vector_kernel ACTIVE_VAR_LIST="lhs lhs_e x x_e"
+	make single -e TL_KERNEL_NAME=w2_to_w1_projection_kernel ACTIVE_VAR_LIST="v_w1 u_w2 vu res_dot_product wind"
 	make single -e TL_KERNEL_NAME=strong_curl_kernel ACTIVE_VAR_LIST="xi res_dot_product curl_u u"
 
 compile:
