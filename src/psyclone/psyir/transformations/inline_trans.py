@@ -172,11 +172,8 @@ class InlineTrans(Transformation):
         # Replace any references to dummy arguments with copies of the
         # actual arguments.
         dummy_args = routine_table.argument_list
-        for ref in refs:
-            # Check the parent is not None as some references are replaced
-            # during previous calls if they are array accesses
-            if ref.parent is not None:
-                self._replace_dummy_arg(ref, node, dummy_args)
+        for ref in refs[:]:
+            self._replace_dummy_arg(ref, node, dummy_args)
 
         # Copy the nodes from the Routine into the call site.
         if isinstance(new_stmts[-1], Return):
@@ -228,7 +225,7 @@ class InlineTrans(Transformation):
         '''
         if not isinstance(ref, Reference):
             # Recurse down in case this is e.g. an Operation or Range.
-            for child in ref.children:
+            for child in ref.children[:]:
                 self._replace_dummy_arg(child, call_node, dummy_args)
             return ref
 
@@ -251,6 +248,10 @@ class InlineTrans(Transformation):
         # pylint: disable=unidiomatic-typecheck
         if type(ref) is Reference:
             arg_copy = actual_arg.copy()
+            # If the local reference we are replacing has a parent then we
+            # must ensure the parent's child list is updated. (It may not
+            # have a parent if we are in the process of constructing a brand
+            # new reference.)
             if ref.parent:
                 ref.replace_with(arg_copy)
             return arg_copy
@@ -271,6 +272,9 @@ class InlineTrans(Transformation):
         # include array accesses and/or structure accesses.
         new_ref = self._replace_dummy_struc_arg(actual_arg, ref, call_node,
                                                 dummy_args)
+        # If the local reference we are replacing has a parent then we must
+        # ensure the parent's child list is updated. (It may not have a parent
+        # if we are in the process of constructing a brand new reference.)
         if ref.parent:
             ref.replace_with(new_ref)
         return new_ref
@@ -529,7 +533,8 @@ class InlineTrans(Transformation):
         # collected from both the actual argument and local access.
         if len(members) > 1:
             # We have some form of Structure reference.
-            if len(members[0]) == 2:
+            if isinstance(members[0], tuple):
+                # Root of access is an array access.
                 new_ref = ArrayOfStructuresReference.create(actual_arg.symbol,
                                                             members[0][1],
                                                             members[1:])
