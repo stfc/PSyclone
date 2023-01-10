@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -361,6 +361,13 @@ class LFRicConstants():
                 "proxy_type": "r_solver_operator_proxy_type",
                 "intrinsic": "real",
                 "kind": "r_solver"},
+            # 'real'-valued operator with data of kind 'r_tran'
+            "r_tran_operator": {
+                "module": "r_tran_operator_mod",
+                "type": "r_tran_operator_type",
+                "proxy_type": "r_tran_operator_proxy_type",
+                "intrinsic": "real",
+                "kind": "r_tran"},
             # 'real'-valued columnwise operator with data of kind 'r_solver'
             "columnwise_operator": {
                 "module": "columnwise_operator_mod",

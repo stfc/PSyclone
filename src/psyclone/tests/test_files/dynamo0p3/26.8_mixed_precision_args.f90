@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2021-2022, Science and Technology Facilities Council.
+! Copyright (c) 2021-2023, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -47,6 +47,7 @@ program mixed_precision
   use r_tran_field_mod,      only : r_tran_field_type
   use operator_mod,          only : operator_type
   use r_solver_operator_mod, only : r_solver_operator_type
+  use r_tran_operator_mod,   only : r_tran_operator_type
   use mixed_mod,             only : mixed_type
 
   real(r_def)                  :: Scalar_r_def
@@ -57,9 +58,10 @@ program mixed_precision
   type(r_tran_field_type)      :: field_r_tran
   type(operator_type)          :: operator_r_def
   type(r_solver_operator_type) :: operator_r_solver
+  type(r_tran_operator_type)   :: operator_r_tran
 
   call invoke(mixed_type(scalar_r_deF, field_R_def, opeRator_r_def),          &
-              mixed_type(scalar_r_solver, field_r_solver, operator_r_solver), &
+              mixed_type(scalar_r_solver, field_r_solver, operator_r_solver), & ???
               mixed_type(scalar_r_tran, field_r_tran, operator_r_def))
 
 end program mixed_precision
