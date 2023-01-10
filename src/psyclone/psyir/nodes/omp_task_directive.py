@@ -1021,7 +1021,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
         del members[-1]
         sref_base = StructureReference(ref.symbol)
-        if len(members > 0):
+        if len(members) > 0:
             sref_base.addchild(members[0])
             for count, member in enumerate(members):
                 if len(members) > count+1:
