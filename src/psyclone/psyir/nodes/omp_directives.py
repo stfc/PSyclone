@@ -703,6 +703,8 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 # If we have (exactly) Reference objects we filter out
                 # non-matching ones with the symbol check, and matching ones
                 # are always valid since they are simple accesses.
+                if isinstance(mem[0], Reference):
+                    continue
 
                 # If we have a StructureReference with no ArrayMixin children
                 # then we can skip it, as it will be done
@@ -756,6 +758,8 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 # If we have (exactly) Reference objects we filter out
                 # non-matching ones with the symbol check, and matching ones
                 # are always valid since they are simple accesses.
+                if isinstance(mem[0], Reference):
+                    continue
 
                 # If we have a StructureReference with no ArrayMixin children
                 # then we can skip it, as it will be done
