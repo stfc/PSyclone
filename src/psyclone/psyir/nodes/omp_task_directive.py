@@ -834,6 +834,11 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         else:
                             new_members.append(mem)
 
+                        # Need a copy of the members for ubound as well
+                        new_members2 = []
+                        for mem in new_members:
+                            new_members2.append(mem.copy())
+
                         # Similar to StructureReference._create but we already
                         # have members.
                         lbound_sref = StructureReference(sref_base.symbol)
@@ -845,9 +850,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         lbound = BinaryOperation.create(
                                 BinaryOperation.Operator.LBOUND,
                                 lbound_sref, one.copy())
-                        new_members2 = []
-                        for mem in new_members:
-                            new_members2.append(mem.copy())
                         # Similar to StructureReference._create but we already
                         # have members.
                         ubound_sref = StructureReference(sref_base.symbol)
