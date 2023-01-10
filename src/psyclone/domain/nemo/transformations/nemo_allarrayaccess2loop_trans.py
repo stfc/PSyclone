@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Authors: R. W. Ford and N. Nobre, STFC Daresbury Lab
 
 '''Module providing a transformation that transforms all constant
 index accesses to an array (i.e. ones that do not contain loop
@@ -103,7 +103,7 @@ class NemoAllArrayAccess2LoopTrans(Transformation):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(node)
@@ -127,15 +127,15 @@ class NemoAllArrayAccess2LoopTrans(Transformation):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         # Not a PSyIR Assignment node
         if not isinstance(node, Assignment):
             raise TransformationError(
-                "Error in NemoAllArrayAccess2LoopTrans transformation. The "
-                "supplied node argument should be a PSyIR Assignment, "
-                "but found '{0}'.".format(type(node).__name__))
+                f"Error in NemoAllArrayAccess2LoopTrans transformation. The "
+                f"supplied node argument should be a PSyIR Assignment, "
+                f"but found '{type(node).__name__}'.")
 
     def __str__(self):
         return (

@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab;
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab;
 #          I. Kavcic and A. Coughtrie, Met Office;
 #          C. M. Maynard, Met Office/University of Reading;
 #          J. Henrichs, Bureau of Meteorology.
@@ -79,10 +79,9 @@ def test_lfricscalars_stub_err():
     with pytest.raises(InternalError) as err:
         LFRicScalarArgs(kernel)._stub_declarations(ModuleGen(name="my_mod"))
     const = LFRicConstants()
-    assert ("Found an unsupported data type 'gh_invalid_scalar' for the "
-            "scalar argument 'iscalar_2'. Supported types are {0}.".
-            format(const.VALID_SCALAR_DATA_TYPES)
-            in str(err.value))
+    assert (f"Found an unsupported data type 'gh_invalid_scalar' for the "
+            f"scalar argument 'iscalar_2'. Supported types are "
+            f"{const.VALID_SCALAR_DATA_TYPES}." in str(err.value))
 
 
 def test_stub_generate_with_scalars():

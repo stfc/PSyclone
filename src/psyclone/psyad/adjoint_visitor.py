@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 '''A PSyIR visitor for PSyAD : the PSyclone Adjoint support. Applies
 transformations to tangent-linear PSyIR to return its PSyIR adjoint.
@@ -75,8 +75,8 @@ class AdjointVisitor(PSyIRVisitor):
                 "an AdjointVisitor.")
         if not isinstance(writer, LanguageWriter):
             raise TypeError(
-                "The writer argument should be a subclass of LanguageWriter "
-                "but found '{0}'.".format(type(writer).__name__))
+                f"The writer argument should be a subclass of LanguageWriter "
+                f"but found '{type(writer).__name__}'.")
         self._active_variable_names = active_variable_names
         self._active_variables = None
         self._logger = logging.getLogger(__name__)
@@ -311,8 +311,8 @@ class AdjointVisitor(PSyIRVisitor):
 
         if node_is_active(Reference(node.variable), self._active_variables):
             raise VisitorError(
-                "The loop iterator '{0}' should not be an active "
-                "variable.".format(node.variable.name))
+                f"The loop iterator '{node.variable.name}' should not be an "
+                f"active variable.")
 
         if node_is_passive(node, self._active_variables):
             raise VisitorError(
@@ -345,7 +345,7 @@ class AdjointVisitor(PSyIRVisitor):
             step_str = fortran_writer(node.step_expr)
             # TODO: use language independent PSyIR, see issue #1345
             ptree = Fortran2003.Intrinsic_Function_Reference(
-                "mod({0}-{1},{2})".format(hi_str, lo_str, step_str))
+                f"mod({hi_str}-{lo_str},{step_str})")
             offset = CodeBlock([ptree], CodeBlock.Structure.EXPRESSION)
 
         # We only need to copy this node and its bounds. Issue #1440

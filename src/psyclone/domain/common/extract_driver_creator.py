@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
+# Authors: J. Henrichs, Bureau of Meteorology
+#          N. Nobre, STFC Daresbury Lab
 
 '''This module provides functionality for the PSyclone kernel extraction
 functionality. It contains the class that creates a driver that
@@ -39,7 +40,6 @@ reads in extracted data, calls the kernel, and then compares the result with
 the output data contained in the input file.
 '''
 
-import six
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
@@ -128,12 +128,12 @@ class ExtractDriverCreator:
         try:
             base_type = self._default_types[gocean_property.intrinsic_type]
         except KeyError as err:
-            raise six.raise_from(
-                InternalError(f"Type '{gocean_property.intrinsic_type}' of "
+            raise InternalError(
+                              f"Type '{gocean_property.intrinsic_type}' of "
                               f"the property reference '{fortran_expression}' "
                               f"as defined in the config file "
                               f"'{Config.get().filename}' is not supported "
-                              f"in the GOcean API."), err)
+                              f"in the GOcean API.") from err
         # Handle name clashes (e.g. if the user used a variable that is
         # the same as a flattened grid property)
         flattened_name = symbol_table.next_available_name(flattened_name)
@@ -259,11 +259,11 @@ class ExtractDriverCreator:
                 valid = list(self._default_types.keys())
                 # Sort to make sure we get a reproducible order for testing
                 valid.sort()
-                six.raise_from(InternalError(
+                raise InternalError(
                     f"Error when constructing driver for '{sched.name}': "
                     f"Unknown intrinsic data type "
                     f"'{old_symbol.datatype.intrinsic}' in reference "
-                    f"'{fortran_string}'. Valid types are '{valid}'."), err)
+                    f"'{fortran_string}'. Valid types are '{valid}'.") from err
             new_symbol = symbol_table.new_symbol(root_name=reference.name,
                                                  tag=reference.name,
                                                  symbol_type=DataSymbol,

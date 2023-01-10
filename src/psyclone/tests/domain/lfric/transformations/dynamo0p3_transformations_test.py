@@ -600,44 +600,6 @@ def test_omp_colouring_needed(monkeypatch, annexed, dist_mem):
     assert "Colouring is required" in str(excinfo.value)
 
 
-def test_check_seq_colours_omp_parallel_do(monkeypatch, annexed, dist_mem):
-    '''Test that we raise an error if the user attempts to apply an OpenMP
-    PARALLEL DO transformation to a loop over colours (since any such
-    loop must be sequential). We test when distributed memory is on or
-    off. We also test when annexed is False and True as it affects how
-    many halo exchanges are generated.
-
-    '''
-    config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
-    _, invoke = get_invoke("1.1.0_single_invoke_xyoz_qr.f90", TEST_API,
-                           name="invoke_0_testkern_qr_type",
-                           dist_mem=dist_mem)
-    schedule = invoke.schedule
-    if dist_mem:
-        if annexed:
-            index = 3
-        else:
-            index = 4
-    else:
-        index = 0
-
-    ctrans = Dynamo0p3ColourTrans()
-    otrans = DynamoOMPParallelLoopTrans()
-
-    # Colour the loop
-    ctrans.apply(schedule.children[index])
-
-    # Then erroneously attempt to apply OpenMP to the loop over
-    # colours
-    with pytest.raises(TransformationError) as excinfo:
-        otrans.apply(schedule.children[index])
-    assert "Error in DynamoOMPParallelLoopTrans" in str(excinfo.value)
-    assert "target loop is over colours" in str(excinfo.value)
-    assert "must be computed serially" in str(excinfo.value)
-
-
 def test_check_seq_colours_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
     '''Test that we raise an error if the user attempts to apply an OpenMP
     DO transformation to a loop over colours (since any such loop must
@@ -3667,8 +3629,10 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
-            6*indent + ref + "[name:'loop0_start']\n" +
-            6*indent + ref + "[name:'loop0_stop']\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " x_innerproduct_y(asum,f1,f2)\n" +
@@ -3682,8 +3646,10 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
             "upper_bound='nannexed']\n" +
-            6*indent + ref + "[name:'loop1_start']\n" +
-            6*indent + ref + "[name:'loop1_stop']\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " inc_a_times_x(asum,f1)\n" +
@@ -3696,8 +3662,10 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
-            6*indent + ref + "[name:'loop2_start']\n" +
-            6*indent + ref + "[name:'loop2_stop']\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " sum_x(bsum,f2)\n" +
@@ -3716,8 +3684,10 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
-            6*indent + ref + "[name:'loop0_start']\n" +
-            6*indent + ref + "[name:'loop0_stop']\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " x_innerproduct_y(asum,f1,f2)\n" +
@@ -3730,8 +3700,10 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
-            6*indent + ref + "[name:'loop1_start']\n" +
-            6*indent + ref + "[name:'loop1_stop']\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " inc_a_times_x(asum,f1)\n" +
@@ -3744,8 +3716,10 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
-            6*indent + ref + "[name:'loop2_start']\n" +
-            6*indent + ref + "[name:'loop2_stop']\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " sum_x(bsum,f2)\n" +

@@ -38,7 +38,6 @@
 ''' Module containing tests of Transformations when using the
     GOcean 1.0 API '''
 
-from __future__ import absolute_import
 import re
 import inspect
 from importlib import import_module
@@ -48,7 +47,7 @@ from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKern
 from psyclone.psyGen import Kern
-from psyclone.psyir.nodes import Loop, Routine
+from psyclone.psyir.nodes import Loop, Routine, ACCEnterDataDirective
 from psyclone.psyir.transformations import LoopFuseTrans, LoopTrans, \
     TransformationError
 from psyclone.transformations import ACCKernelsTrans, ACCRoutineTrans, \
@@ -1063,8 +1062,7 @@ def test_acc_parallel_trans_dm():
     accdt.apply(schedule)
     code = str(psy.gen)
     # Check that the start of the parallel region is in the right place.
-    assert ("      CALL p_fld%halo_exchange(1)\n"
-            "      !$acc parallel default(present)\n"
+    assert ("      !$acc parallel default(present)\n"
             "      DO j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
             in code)
     # Check that the end parallel is generated correctly.
@@ -1108,7 +1106,7 @@ def test_acc_data_not_a_schedule():
 
     with pytest.raises(TransformationError) as err:
         acct.apply(schedule.children[0])
-    assert ("Cannot apply an OpenACC enter-data directive to something that "
+    assert ("Cannot apply an OpenACC enter data directive to something that "
             "is not a Schedule" in str(err.value))
 
 
@@ -1395,7 +1393,7 @@ def test_acc_enter_directive_infrastructure_setup_error():
 
 
 def test_acc_collapse(tmpdir):
-    ''' Tests for the collapse clause to a loop directive '''
+    ''' Tests for the collapse clause to a loop directive. '''
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
     accdata = ACCEnterDataTrans()
@@ -1405,25 +1403,7 @@ def test_acc_collapse(tmpdir):
     schedule = invoke.schedule
     child = schedule.children[0]
 
-    # Check that we reject non-integer collapse arguments
-    with pytest.raises(TransformationError) as err:
-        acclpt.apply(child, {"collapse": child})
-    assert ("The 'collapse' argument must be an integer but got an object "
-            "of type" in str(err.value))
-
-    # Check that we reject invalid depths
-    with pytest.raises(TransformationError) as err:
-        acclpt.apply(child, {"collapse": 1})
-    assert ("It only makes sense to collapse 2 or more loops but got a "
-            "value of 1" in str(err.value))
-
-    # Check that we reject attempts to collapse more loops than we have
-    with pytest.raises(TransformationError) as err:
-        acclpt.apply(child, {"collapse": 3})
-    assert ("Cannot apply COLLAPSE(3) clause to a loop nest containing "
-            "only 2 loops" in str(err.value))
-
-    # Finally, do something valid and check that we get the correct
+    # Apply with valid options and check that we get the correct
     # generated code
     acclpt.apply(child, {"collapse": 2})
 

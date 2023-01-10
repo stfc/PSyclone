@@ -32,6 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford, A. R. Porter, S. Siso and A. B. G. Chalk STFC Daresbury Lab
+..            J. Henrichs, Bureau of Meteorology
 
 The PSyclone Internal Representation (PSyIR)
 ############################################
@@ -783,6 +784,31 @@ of structures that is itself a member of a structure. Its first child must be a
 subclass of ``Member``. Subsequent children represent the index expressions
 for the array access. The full API is given in the
 :ref_guide:`ArrayOfStructuresMember section of the reference guide psyclone.psyir.nodes.array_of_structures_member.html`.
+
+Data Type of a Structure Access
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+In order to get the actual data type of a structure reference, PSyclone
+needs to have access to the declaration of all structures involved
+in the accessor expression. However, these are often DeferredType if the
+module where they are declared has not been processed. In the case of
+some domain-API arguments added by PSyclone to a kernel call (e.g. the
+indices in GOcean, or additional field information in LFRic), the type
+of these structure accesses is actually known. When creating a
+structure reference, there is an option ``overwrite_datatype``,
+which can be set to avoid the need to have details of the required
+structures. For example, the following code is used to declare that
+an access like ``op_proxy%ncell_3d`` is an LFRic integer:
+
+.. code-block:: python
+
+        self.append_structure_reference(
+            operator["module"], operator["proxy_type"], ["ncell_3d"],
+            arg.proxy_name_indexed,
+            overwrite_datatype=psyir.LfricIntegerScalarDataType())
+
+While most of PSyclone works without having access to this detailed
+information, the driver creation for kernel extraction (see
+:ref:`psyke`) needs this information to declare the variables in the driver.
 
 Comments attached to PSyIR Nodes
 ================================
