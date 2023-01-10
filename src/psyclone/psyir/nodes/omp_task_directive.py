@@ -446,22 +446,9 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     array_access_member = ref.ancestor(ArrayMember)
                     if array_access_member is not None:
                         start = ref.ancestor(StructureReference)
-                        members = []
-                        members.append(start.member.copy())
-                        childmember = start.member
-                        while(childmember is not array_access_member):
-                            childmember = childmember.member
-                            members.append(childmember.copy())
-
                         sub_ref = StructureReference(start.symbol)
-                        if len(members) > 0:
-                            sub_ref.addchild(members[0])
-                            for count, member in enumerate(members):
-                                if len(members) > count+1:
-                                    member.addchild(members[count+1])
-#                        for member in members:
-#                            sub_ref.addchild(member)
-                        array_member = sub_ref.children[-1]
+                        sub_ref.addchild(start.member.copy())
+                        array_member = sub_ref.walk(Member)[-1]
                         num_child = len(array_member.children)
                         array_member.pop_all_children()
                         for i in range(num_child):
@@ -777,22 +764,10 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         index_list = []
 
         # Find the list of members we need to include in the final reference.
-        members = []
-        members.append(ref.member.copy())
-        childmember = ref.member
-        while(childmember is not array_access_member):
-            childmember = childmember.member
-            members.append(childmember.copy())
-
-        del members[-1]
+        new_member = ref.member.copy()
+        new_member.walk(Member)[-1].detach()
         sref_base = StructureReference(ref.symbol)
-        if len(members) > 0:
-            sref_base.addchild(members[0])
-            for count, member in enumerate(members):
-                if len(members) > count+1:
-                    member.addchild(members[count+1])
-#        for member in members:
-#            sref_base.addchild(member)
+        sref_base.addchild(new_member)
 
         for dim, index in enumerate(array_access_member.indices):
             # pylint: disable=unidiomatic-typecheck
@@ -1052,22 +1027,10 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # the array.
 
         # Find the list of members we need to include in the final reference.
-        members = []
-        members.append(ref.member.copy())
-        childmember = ref.member
-        while(childmember is not array_access_member):
-            childmember = childmember.member
-            members.append(childmember.copy())
-
-        del members[-1]
+        new_member = ref.member.copy()
+        new_member.walk(Member)[-1].detach()
         sref_base = StructureReference(ref.symbol)
-        if len(members) > 0:
-            sref_base.addchild(members[0])
-            for count, member in enumerate(members):
-                if len(members) > count+1:
-                    member.addchild(members[count+1])
-        #for member in members:
-        #    sref_base.addchild(member)
+        sref_base.addchild(new_member)
 
         # Arrays are always shared at the moment, so we ignore the possibility
         # of it being private now.
