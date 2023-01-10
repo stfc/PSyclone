@@ -454,8 +454,12 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                             members.append(childmember.copy())
 
                         sub_ref = StructureReference(start.symbol)
-                        for member in members:
-                            sub_ref.addchild(member)
+                        sub_ref.addchild(members[0])
+                        for count, member in enumerate(members):
+                            if len(members) > count:
+                                member.addchild(members[count+1])
+#                        for member in members:
+#                            sub_ref.addchild(member)
                         array_member = sub_ref.children[-1]
                         num_child = len(array_member.children)
                         array_member.pop_all_children()
@@ -781,8 +785,12 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
         del members[-1]
         sref_base = StructureReference(ref.symbol)
-        for member in members:
-            sref_base.addchild(member)
+        sref_base.addchild(members[0])
+        for count, member in enumerate(members):
+            if len(members) > count:
+                member.addchild(members[count+1])
+#        for member in members:
+#            sref_base.addchild(member)
 
         for dim, index in enumerate(array_access_member.indices):
             # pylint: disable=unidiomatic-typecheck
@@ -1011,8 +1019,12 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
         del members[-1]
         sref_base = StructureReference(ref.symbol)
-        for member in members:
-            sref_base.addchild(member)
+        sref_base.addchild(members[0])
+        for count, member in enumerate(members):
+            if len(members) > count:
+                member.addchild(members[count+1])
+        #for member in members:
+        #    sref_base.addchild(member)
 
         # Arrays are always shared at the moment, so we ignore the possibility
         # of it being private now.
