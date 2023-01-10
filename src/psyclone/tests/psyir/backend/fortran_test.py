@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -2238,7 +2238,7 @@ def test_fw_intrinsic_call_node(fortran_writer):
                                  [Reference(sym), ("mold", Reference(jsym))])
     gen = fortran_writer(acall)
     assert gen == "ALLOCATE(var, mold=jelly)\n"
-    rcall = IntrinsicCall.create(IntrinsicCall.Intrinsic.RANDOM,
+    rcall = IntrinsicCall.create(IntrinsicCall.Intrinsic.RANDOM_NUMBER,
                                  [Reference(sym)])
     gen = fortran_writer(rcall)
     assert gen == "call RANDOM_NUMBER(var)\n"

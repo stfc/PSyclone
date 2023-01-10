@@ -59,7 +59,7 @@ class IntrinsicCall(Call):
 
     #: The intrinsics that can be represented by this node.
     Intrinsic = Enum('Intrinsic', [
-        'ALLOCATE', 'DEALLOCATE', 'RANDOM'
+        'ALLOCATE', 'DEALLOCATE', 'RANDOM_NUMBER'
         ])
     #: Named tuple for describing the properties of the required arguments to
     #: a particular intrinsic. If there's no limit on the number of arguments
@@ -78,8 +78,8 @@ class IntrinsicCall(Call):
                                           "stat": Reference}
     _required_args[Intrinsic.DEALLOCATE] = ArgDesc(1, None, Reference)
     _optional_args[Intrinsic.DEALLOCATE] = {"stat": Reference}
-    _required_args[Intrinsic.RANDOM] = ArgDesc(1, 1, Reference)
-    _optional_args[Intrinsic.RANDOM] = {}
+    _required_args[Intrinsic.RANDOM_NUMBER] = ArgDesc(1, 1, Reference)
+    _optional_args[Intrinsic.RANDOM_NUMBER] = {}
 
     @classmethod
     def create(cls, intrinsic, arguments):

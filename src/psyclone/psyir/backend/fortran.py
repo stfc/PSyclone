@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1640,12 +1640,10 @@ class FortranWriter(LanguageWriter):
             else:
                 result_list.append(self._visit(child))
         args = ", ".join(result_list)
-        if isinstance(node, IntrinsicCall):
-            if node.routine.name in ["ALLOCATE", "DEALLOCATE"]:
-                # An allocate/deallocate doesn't have 'call'.
-                return f"{self._nindent}{node.routine.name}({args})\n"
-            if node.routine.name == "RANDOM":
-                return f"{self._nindent}call RANDOM_NUMBER({args})\n"
+        if isinstance(node, IntrinsicCall) and node.routine.name in [
+                "ALLOCATE", "DEALLOCATE"]:
+            # An allocate/deallocate doesn't have 'call'.
+            return f"{self._nindent}{node.routine.name}({args})\n"
         if not node.parent or isinstance(node.parent, Schedule):
             return f"{self._nindent}call {node.routine.name}({args})\n"
         # Otherwise it is inside-expression function call

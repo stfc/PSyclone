@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -97,11 +97,11 @@ def test_intrinsiccall_random_create():
     sym = DataSymbol("my_array", ArrayType(REAL_TYPE,
                                            [ArrayType.Extent.DEFERRED]))
     rand = IntrinsicCall.create(
-        IntrinsicCall.Intrinsic.RANDOM, [Reference(sym)])
+        IntrinsicCall.Intrinsic.RANDOM_NUMBER, [Reference(sym)])
     assert isinstance(rand, IntrinsicCall)
     assert isinstance(rand, IntrinsicCall)
     assert isinstance(rand.routine, IntrinsicSymbol)
-    assert rand.routine.name == "RANDOM"
+    assert rand.routine.name == "RANDOM_NUMBER"
     assert rand.children[0].symbol is sym
 
 
@@ -129,10 +129,10 @@ def test_intrinsiccall_create_errors():
             "got 0" in str(err.value))
     # The random intrinsic only accepts one argument.
     with pytest.raises(ValueError) as err:
-        IntrinsicCall.create(IntrinsicCall.Intrinsic.RANDOM, [aref,
-                                                              aref.copy()])
-    assert ("The 'RANDOM' intrinsic requires between 1 and 1 arguments but "
-            "got 2" in str(err.value))
+        IntrinsicCall.create(IntrinsicCall.Intrinsic.RANDOM_NUMBER,
+                             [aref, aref.copy()])
+    assert ("The 'RANDOM_NUMBER' intrinsic requires between 1 and 1 arguments "
+            "but got 2" in str(err.value))
     # Wrong type for a positional argument.
     with pytest.raises(TypeError) as err:
         IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,
@@ -148,10 +148,10 @@ def test_intrinsiccall_create_errors():
             "This is invalid." in str(err.value))
     # 'random' does not have any optional arguments
     with pytest.raises(ValueError) as err:
-        IntrinsicCall.create(IntrinsicCall.Intrinsic.RANDOM,
+        IntrinsicCall.create(IntrinsicCall.Intrinsic.RANDOM_NUMBER,
                              [aref, ("willow", sym)])
-    assert ("The 'RANDOM' intrinsic does not support any optional arguments "
-            "but got 'willow'" in str(err.value))
+    assert ("The 'RANDOM_NUMBER' intrinsic does not support any optional "
+            "arguments but got 'willow'" in str(err.value))
     # An allocate only supports the 'stat' and 'mold' arguments.
     with pytest.raises(ValueError) as err:
         IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,

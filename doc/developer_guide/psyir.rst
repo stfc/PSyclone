@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2022, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -510,22 +510,25 @@ arguments, the PSyIR has the
 Node. This single class supports the different intrinsics listed in the
 `IntrinsicCall.Intrinsic` enumeration:
 
-+-------------+-------------------------------+--------------------------------+
-| Name        | Positional arguments          | Optional arguments             |
-+-------------+-------------------------------+------+-------------------------+
-| ALLOCATE    | One or more Reference or      | stat | Reference which will    |
-|             | ArrayReferences to which      |      | hold status.            |
-|             | memory will be allocated.     +------+-------------------------+
-|             |                               | mold | Reference to an array   |
-|             |                               |      | which is used to specify|
-|             |                               |      | the dimensions of the   |
-|             |                               |      | allocated obect.        |
-+-------------+-------------------------------+------+-------------------------+
-| DEALLOCATE  | One or more References.       | stat | Reference which will    |
-|             |                               |      | hold status.            |
-+-------------+-------------------------------+------+-------------------------+
-| RANDOM      | A single Reference.           |                                |
-+-------------+-------------------------------+--------------------------------+
++--------------+------------------------------+--------------------------------+
+| Name         | Positional arguments         | Optional arguments             |
++--------------+------------------------------+------+-------------------------+
+| ALLOCATE     | One or more Reference or     | stat | Reference which will    |
+|              | ArrayReferences to which     |      | hold status.            |
+|              | memory will be allocated.    +------+-------------------------+
+|              |                              | mold | Reference to an array   |
+|              |                              |      | which is used to specify|
+|              |                              |      | the dimensions of the   |
+|              |                              |      | allocated obect.        |
++--------------+------------------------------+------+-------------------------+
+| DEALLOCATE   | One or more References.      | stat | Reference which will    |
+|              |                              |      | hold status.            |
++--------------+------------------------------+------+-------------------------+
+| RANDOM_NUMBER| A single Reference which will|                                |
+|              | be filled with pseudo-random |                                |
+|              | numbers in the range         |                                |
+|              | [0.0, 1.0].                  |                                |
++--------------+------------------------------+--------------------------------+
 
 CodeBlock Node
 --------------
