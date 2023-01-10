@@ -533,7 +533,8 @@ class InlineTrans(Transformation):
         # collected from both the actual argument and local access.
         if len(members) > 1:
             # We have some form of Structure reference.
-            if len(members[0]) == 2:
+            if isinstance(members[0], tuple):
+                # Root of access is an array access.
                 new_ref = ArrayOfStructuresReference.create(actual_arg.symbol,
                                                             members[0][1],
                                                             members[1:])

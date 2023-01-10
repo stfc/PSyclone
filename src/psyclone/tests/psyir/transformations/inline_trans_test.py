@@ -227,12 +227,12 @@ def test_apply_gocean_kern(fortran_reader, fortran_writer):
         "  use kind_params_mod\n"
         "  implicit none\n"
         "  contains\n"
-        "  subroutine invoke_0_compute_cu(cu_fld, p_fld, u_fld)\n"
-        "    type(r2d_field), intent(inout) :: cu_fld, p_fld, u_fld\n"
+        "  subroutine invoke_0_compute_cu(cu_fld, pf, u_fld)\n"
+        "    type(r2d_field), intent(inout) :: cu_fld, pf, u_fld\n"
         "    integer j, i\n"
         "    do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
         "      do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1\n"
-        "        call compute_cu_code(i, j, cu_fld%data, p_fld%data, "
+        "        call compute_cu_code(i, j, cu_fld%data, pf%data, "
         "u_fld%data)\n"
         "      end do\n"
         "    end do\n"
@@ -254,8 +254,8 @@ def test_apply_gocean_kern(fortran_reader, fortran_writer):
     output = fortran_writer(psyir)
     assert ("    do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
             "      do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1\n"
-            "        cu_fld%data(i,j) = 0.5d0 * (p_fld%data(i,j) + "
-            "p_fld%data(i - 1,j)) * u_fld%data(i,j)\n"
+            "        cu_fld%data(i,j) = 0.5d0 * (pf%data(i,j) + "
+            "pf%data(i - 1,j)) * u_fld%data(i,j)\n"
             "      enddo\n"
             "    enddo\n" in output)
 
