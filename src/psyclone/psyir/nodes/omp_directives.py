@@ -638,16 +638,23 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 if isinstance(mem[0], StructureReference):
                     member = mem[0]
                     member1 = mem[1]
+
                     # We can't just do == on the Member child, as that
                     # will recurse and check the array indices for any
                     # ArrayMixin children
-                    while member.member is not None:
-                        if member1.member is None:
-                            continue
-                        member = member.member
-                        member1 = member1.member
-                        if member.name != member1.name:
-                            continue
+
+                    # Get Members of each
+                    ref0_members = mem[0].walk(Member)
+                    ref1_members = mem[1].walk(Member)
+
+                    if len(ref0_members) != len(ref1_members):
+                        continue
+                    same_access = True
+                    for index, mem in ref0_members:
+                        if mem.name != ref1_members[index].name:
+                            same_access = False
+                    if not same_access:
+                        continue
 
                 # If we have (exactly) Reference objects we filter out
                 # non-matching ones with the symbol check, and matching ones
@@ -698,13 +705,19 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     # We can't just do == on the Member child, as that
                     # will recurse and check the array indices for any
                     # ArrayMixin children
-                    while member.member is not None:
-                        if member1.member is None:
-                            continue
-                        member = member.member
-                        member1 = member1.member
-                        if member.name != member1.name:
-                            continue
+
+                    # Get Members of each
+                    ref0_members = mem[0].walk(Member)
+                    ref1_members = mem[1].walk(Member)
+
+                    if len(ref0_members) != len(ref1_members):
+                        continue
+                    same_access = True
+                    for index, mem in ref0_members:
+                        if mem.name != ref1_members[index].name:
+                            same_access = False
+                    if not same_access:
+                        continue
 
                 # If we have (exactly) Reference objects we filter out
                 # non-matching ones with the symbol check, and matching ones
@@ -755,13 +768,19 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     # We can't just do == on the Member child, as that
                     # will recurse and check the array indices for any
                     # ArrayMixin children
-                    while member.member is not None:
-                        if member1.member is None:
-                            continue
-                        member = member.member
-                        member1 = member1.member
-                        if member.name != member1.name:
-                            continue
+
+                    # Get Members of each
+                    ref0_members = mem[0].walk(Member)
+                    ref1_members = mem[1].walk(Member)
+
+                    if len(ref0_members) != len(ref1_members):
+                        continue
+                    same_access = True
+                    for index, mem in ref0_members:
+                        if mem.name != ref1_members[index].name:
+                            same_access = False
+                    if not same_access:
+                        continue
 
                 # If we have (exactly) Reference objects we filter out
                 # non-matching ones with the symbol check, and matching ones
