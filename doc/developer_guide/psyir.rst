@@ -505,9 +505,10 @@ to represent these using `Operation` nodes, we would one for each
 of the four possible forms of each intrinsic.
 
 Therefore, to support intrinsic 'operations' that have optional
-arguments, the PSyIR has the :ref_guide:`IntrinsicCall psyclone.psyir.nodes.html#psyclone.psyir.nodes.IntrinsicCall` Node. This single class
-supports the different intrinsics listed in the `IntrinsicCall.Intrinsic`
-enumeration:
+arguments, the PSyIR has the
+:ref_guide:`IntrinsicCall psyclone.psyir.nodes.html#psyclone.psyir.nodes.IntrinsicCall`
+Node. This single class supports the different intrinsics listed in the
+`IntrinsicCall.Intrinsic` enumeration:
 
 +-------------+-------------------------------+--------------------------------+
 | Name        | Positional arguments          | Optional arguments             |
