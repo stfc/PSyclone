@@ -39,9 +39,26 @@
 import pytest
 
 from psyclone.psyir.nodes import (
-    ArrayReference, Literal, IntrinsicCall, Reference)
+    ArrayReference, Literal, IntrinsicCall, Reference, Schedule)
 from psyclone.psyir.symbols import (ArrayType, DataSymbol, INTEGER_TYPE,
-                                    IntrinsicSymbol, REAL_TYPE)
+                                    IntrinsicSymbol, REAL_TYPE, RoutineSymbol)
+
+
+def test_intrinsiccall_constructor():
+    '''
+    Tests that the parent class' constructor is called correctly.
+
+    '''
+    # Wrong type of Symbol.
+    with pytest.raises(TypeError) as err:
+        _ = IntrinsicCall(RoutineSymbol("jack"))
+    assert ("IntrinsicCall 'routine' argument should be a IntrinsicSymbol but "
+            "found 'RoutineSymbol'" in str(err.value))
+    # Check that supplied parent node is stored correctly.
+    sched = Schedule()
+    call = IntrinsicCall(IntrinsicSymbol("john"), parent=sched)
+    assert call.routine.name == "john"
+    assert call.parent is sched
 
 
 def test_intrinsiccall_alloc_create():
@@ -115,7 +132,7 @@ def test_intrinsiccall_create_errors():
     aref = ArrayReference.create(sym, [Literal("20", INTEGER_TYPE)])
     with pytest.raises(TypeError) as err:
         IntrinsicCall.create("ALLOCATE", [Reference(sym)])
-    assert ("'intrinsic' argument should be an instance of "
+    assert ("'routine' argument should be an instance of "
             "IntrinsicCall.Intrinsic but found 'str'" in str(err.value))
     # Supplied arguments must be a list.
     with pytest.raises(TypeError) as err:

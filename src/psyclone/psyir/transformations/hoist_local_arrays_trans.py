@@ -151,10 +151,8 @@ then
         # associated with the symbol being hoisted.
         tags_dict = node.symbol_table.get_reverse_tags_dict()
 
-        # Fortran reader and writer needed to manipulate Codeblocks in the
-        # following loop
+        # Fortran reader needed to create Codeblocks in the following loop
         freader = FortranReader()
-        fwriter = FortranWriter()
 
         for sym in automatic_arrays:
             # Keep a copy of the original shape of the array.

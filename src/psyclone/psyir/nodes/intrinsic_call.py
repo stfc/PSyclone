@@ -54,8 +54,10 @@ class IntrinsicCall(Call):
     _children_valid_format = "[DataNode]*"
     _text_name = "IntrinsicCall"
     _colour = "cyan"
-    _min_arg_count = 0
-    _max_arg_count = 0
+
+    #: The type of Symbol this Call must refer to. Used for type checking in
+    #: the constructor (of the parent class).
+    _symbol_type = IntrinsicSymbol
 
     #: The intrinsics that can be represented by this node.
     Intrinsic = Enum('Intrinsic', [
@@ -82,13 +84,13 @@ class IntrinsicCall(Call):
     _optional_args[Intrinsic.RANDOM_NUMBER] = {}
 
     @classmethod
-    def create(cls, intrinsic, arguments):
-        '''Create an instance of this class given the type of intrinsic and a
+    def create(cls, routine, arguments):
+        '''Create an instance of this class given the type of routine and a
         list of nodes (or name-and-node tuples) for its arguments. Any
         named arguments *must* come after any required arguments.
 
-        :param intrinsic: the Intrinsic being called.
-        :type intrinsic: py:class:`psyclone.psyir.IntrinsicCall.Intrinsic`
+        :param routine: the Intrinsic being called.
+        :type routine: py:class:`psyclone.psyir.IntrinsicCall.Intrinsic`
         :param arguments: the arguments to this routine, and/or \
             2-tuples containing an argument name and the \
             argument. Arguments are added as child nodes.
@@ -103,29 +105,29 @@ class IntrinsicCall(Call):
         :raises ValueError: if any optional arguments have incorrect names \
             or if a positional argument is listed *after* a named argument.
         :raises ValueError: if the number of supplied arguments is not valid \
-            for the specified intrinsic.
+            for the specified intrinsic routine.
 
         '''
-        if not isinstance(intrinsic, cls.Intrinsic):
+        if not isinstance(routine, Enum) or routine not in cls.Intrinsic:
             raise TypeError(
-                f"IntrinsicCall create() 'intrinsic' argument should be an "
+                f"IntrinsicCall create() 'routine' argument should be an "
                 f"instance of IntrinsicCall.Intrinsic but found "
-                f"'{type(intrinsic).__name__}'.")
+                f"'{type(routine).__name__}'.")
 
         if not isinstance(arguments, list):
             raise TypeError(
                 f"IntrinsicCall.create() 'arguments' argument should be a "
                 f"list but found '{type(arguments).__name__}'")
 
-        if cls._optional_args[intrinsic]:
+        if cls._optional_args[routine]:
             optional_arg_names = sorted(list(
-                cls._optional_args[intrinsic].keys()))
+                cls._optional_args[routine].keys()))
         else:
             optional_arg_names = []
 
         # Validate the supplied arguments.
-        reqd_args = cls._required_args[intrinsic]
-        opt_args = cls._optional_args[intrinsic]
+        reqd_args = cls._required_args[routine]
+        opt_args = cls._optional_args[routine]
         last_named_arg = None
         pos_arg_count = 0
         for arg in arguments:
@@ -139,17 +141,17 @@ class IntrinsicCall(Call):
                 last_named_arg = name
                 if not optional_arg_names:
                     raise ValueError(
-                        f"The '{intrinsic.name}' intrinsic does not support "
+                        f"The '{routine.name}' intrinsic does not support "
                         f"any optional arguments but got '{name}'.")
                 if name not in optional_arg_names:
                     raise ValueError(
-                        f"The '{intrinsic.name}' intrinsic supports the "
+                        f"The '{routine.name}' intrinsic supports the "
                         f"optional arguments {optional_arg_names} but got "
                         f"'{name}'")
                 if not isinstance(arg[1], opt_args[name]):
                     raise TypeError(
                         f"The optional argument '{name}' to intrinsic "
-                        f"'{intrinsic.name}' must be of type "
+                        f"'{routine.name}' must be of type "
                         f"'{opt_args[name].__name__}' but got "
                         f"'{type(arg[1]).__name__}'")
             else:
@@ -159,7 +161,7 @@ class IntrinsicCall(Call):
                         f"argument ('{last_named_arg}'). This is invalid.'")
                 if not isinstance(arg, reqd_args.types):
                     raise TypeError(
-                        f"The '{intrinsic.name}' intrinsic requires that "
+                        f"The '{routine.name}' intrinsic requires that "
                         f"positional arguments be of type '{reqd_args.types}' "
                         f"but got a '{type(arg).__name__}'")
                 pos_arg_count += 1
@@ -167,7 +169,7 @@ class IntrinsicCall(Call):
         if ((reqd_args.max_count is not None and
              pos_arg_count > reqd_args.max_count)
                 or pos_arg_count < reqd_args.min_count):
-            msg = f"The '{intrinsic.name}' intrinsic requires "
+            msg = f"The '{routine.name}' intrinsic requires "
             if reqd_args.max_count is not None and reqd_args.max_count > 0:
                 msg += (f"between {reqd_args.min_count} and "
                         f"{reqd_args.max_count} ")
@@ -178,6 +180,6 @@ class IntrinsicCall(Call):
 
         # Create a call, supplying an IntrinsicSymbol in place of a
         # RoutineSymbol.
-        call = super().create(IntrinsicSymbol(intrinsic.name), arguments)
+        call = super().create(IntrinsicSymbol(routine.name), arguments)
 
         return call
