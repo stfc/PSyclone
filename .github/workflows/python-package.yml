@@ -61,22 +61,19 @@ jobs:
       with:
         use-verbose-mode: 'yes'
         config-file: '.github/workflows/mlc_config.json'
-  sphinx-link-check:
+  sphinx-build:
     # Check all Sphinx documentation for dead links.
     runs-on: ubuntu-latest
-    env:
-      GITHUB_PR_NUMBER: ${{ github.event.number }}
     steps:
     - uses: actions/checkout@v3
     - uses: actions/setup-python@v4
     - run: sudo apt-get install -y graphviz doxygen
     - run: python -m pip install --upgrade pip
     - run: pip install .[doc]
-    - run: cd doc/user_guide; make html
+    - run: cd doc/user_guide; make html SPHINXOPTS="-W --keep-going"
     - run: cd doc/developer_guide; make html
     - run: cd doc/reference_guide; make html
     - run: cd doc/psyad/user_guide; make html
-    - run: cd doc; python -m http.server &
     - run: cd doc/user_guide; make linkcheck
     - run: cd doc/developer_guide; make linkcheck
     - run: cd doc/reference_guide; make linkcheck
