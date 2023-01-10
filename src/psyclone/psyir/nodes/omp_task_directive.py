@@ -816,33 +816,37 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     if index.symbol in child_loop_vars:
                         # Return a :
                         one = Literal(str(dim+1), INTEGER_TYPE)
-                        lbound_sref = sref_base.copy()
+#                        lbound_sref = sref_base.copy()
+                        members = sref_base.walk(Member)
+                        new_members = []
+                        for mem in members:
+                            new_members.append(mem.copy())
                         mem = array_access_member.copy()
                         num_child = len(mem.children)
                         mem.pop_all_children()
                         for i in range(num_child):
                             mem.addchild(one.copy())
-                        amembers = lbound_sref.walk(ArrayMember)
-                        if len(amembers) > 0:
-                            lbound_sref.walk(ArrayMember)[-1].replace_with(mem.copy())
-                        else:
-                            loc = lbound_sref
-                            while loc.member is not None:
-                                loc = loc.member
-                            loc.addchild(mem.copy())
+
+                        if new_members[-1].name == mem.name:
+                            new_members[-1] = mem
+                        lbound_sref = StructureReference.create(sref_base.symbol, new_members)
                         lbound = BinaryOperation.create(
                                 BinaryOperation.Operator.LBOUND,
                                 lbound_sref, one.copy())
-                        ubound_sref = sref_base.copy()
+                        new_members2 = []
+                        for mem in new_members:
+                            new_members2.append(mem.copy())
+                        ubound_sref = StructureReference.create(sref_base.symbol, new_members2)
+                        #ubound_sref = sref_base.copy()
 #                        ubound_sref.addchild(mem.copy())
-                        amembers = ubound_sref.walk(ArrayMember)
-                        if len(amembers) > 0:
-                            ubound_sref.walk(ArrayMember)[-1].replace_with(mem.copy())
-                        else:
-                            loc = lbound_sref
-                            while loc.member is not None:
-                                loc = loc.member
-                            loc.addchild(mem.copy())
+#                        amembers = ubound_sref.walk(ArrayMember)
+#                        if len(amembers) > 0:
+#                            ubound_sref.walk(ArrayMember)[-1].replace_with(mem.copy())
+#                        else:
+#                            loc = lbound_sref
+#                           while loc.member is not None:
+#                                loc = loc.member
+#                            loc.addchild(mem.copy())
                         ubound = BinaryOperation.create(
                                 BinaryOperation.Operator.UBOUND,
                                 ubound_sref, one.copy())
