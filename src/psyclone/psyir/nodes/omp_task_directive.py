@@ -910,10 +910,8 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                                               list(final_list))
             sref_copy = sref_base.copy()
             if len(sref_copy.children) > 0:
-                sref_children = sref_copy
-                while isinstance(sref_children.children[0], Member):
-                    sref_children = sref_children.children[0]
-                sref_children.parent.children[0] = final_member
+                members = sref_copy.walk(Member)
+                members[-1].replace_with(final_member)
             else:
                 sref_copy.addchild(final_member)
             # Add dclause into the in_list if required
