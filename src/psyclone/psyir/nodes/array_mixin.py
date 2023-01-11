@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -213,7 +213,8 @@ class ArrayMixin(metaclass=abc.ABCMeta):
 
         access_shape = self.indices[index]
 
-        # Is this array access in the form of {UL}BOUND(array, index)?
+        # Determine the appropriate (lower or upper) bound and check
+        # for a bounds operator.
         if isinstance(access_shape, Range):
             if bound_type == "upper":
                 operator = BinaryOperation.Operator.UBOUND
@@ -221,8 +222,11 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             else:
                 operator = BinaryOperation.Operator.LBOUND
                 access_bound = access_shape.start
+            # Is this array access in the form of {UL}BOUND(array, index)?
             if self._is_bound_op(access_bound, operator, index):
                 return True
+        else:
+            access_bound = access_shape
 
         # Try to compare the upper/lower bound of the array access
         # with the upper/lower bound of the array declaration.
@@ -241,8 +245,8 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             # There is no type information for this symbol
             # (probably because it originates from a wildcard import).
             return False
-
         datatype = symbol.datatype
+
         if not isinstance(datatype, ArrayType):
             # The declaration datatype could be of UnknownFortranType
             # if the symbol is of e.g. character type.
@@ -263,18 +267,8 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             declaration_bound = datatype.shape[index].lower
 
         # Do the bounds match?
-        if isinstance(access_shape, Range):
-            if bound_type == "upper":
-                access_bound = access_shape.stop
-            else:
-                access_bound = access_shape.start
-        else:
-            access_bound = access_shape
         sym_maths = SymbolicMaths.get()
-        if sym_maths.equal(declaration_bound, access_bound):
-            return True
-
-        return False
+        return sym_maths.equal(declaration_bound, access_bound)
 
     def is_same_array(self, node):
         '''

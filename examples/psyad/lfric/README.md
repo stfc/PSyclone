@@ -1,7 +1,7 @@
 <!--
 BSD 3-Clause License
 
-Copyright (c) 2022, Science and Technology Facilities Council.
+Copyright (c) 2023, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -45,9 +45,9 @@ kernels in either the `adjoint_partial` or `adjoint` directories.
 
 The reason for having two directories containing the tangent-linear
 kernels is that some required manual modification before `psyad` is
-able to process them. These kernels are copied from the `adjoint`
-directory, manually modified and placed in the `adjoint_tweaked`
-directory.
+able to process them. These kernels are copied from the
+`tangent_linear` directory, manually modified and placed in the
+`tangent_linear_tweaked` directory.
 
 The reason for having two directories containing the adjoint kernels
 is that some require manual modification after 'psyad' has processed
@@ -62,4 +62,5 @@ directory) are copied from the LFRic repository with no changes and
 are stored here purely for convenience. These kernels are taken from
 the branch
 https://code.metoffice.gov.uk/svn/lfric/LFRic/branches/dev/christinejohnson/r36316_tl_example
-as that is what the Met Office are also working from at this time.
+(last changed date: Wednesday the 6th of July 2022), as that is what
+the Met Office are also working from at this time (January 2023).
