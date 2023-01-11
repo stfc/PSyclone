@@ -765,7 +765,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
         # Find the list of members we need to include in the final reference.
         new_member = ref.member.copy()
-        new_member.walk(Member)[-1].detach()
         sref_base = StructureReference(ref.symbol)
         sref_base.addchild(new_member)
 
@@ -1026,7 +1025,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
         # Find the list of members we need to include in the final reference.
         new_member = ref.member.copy()
-        new_member.walk(Member)[-1].detach()
         sref_base = StructureReference(ref.symbol)
         sref_base.addchild(new_member)
 
