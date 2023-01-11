@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -169,32 +169,6 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         '''
         return self._is_bound(index, "lower")
 
-        #lower = array_dimension.start
-        #
-        #if isinstance(lower, Literal):
-        #    try:
-        #        symbol = self.scope.symbol_table.lookup(self.name)
-        #        if not isinstance(symbol, DataSymbol):
-        #            # We don't have any type information on this symbol
-        #            # (probably because it originates from a wildcard import).
-        #            return False
-        #        datatype = symbol.datatype
-        #        # Check that the symbol is of ArrayType. (It may be of
-        #        # UnknownFortranType if the symbol is of e.g. character type.)
-        #        if not isinstance(datatype, ArrayType):
-        #            return False
-        #        shape = datatype.shape
-        #        array_bounds = shape[index]
-        #        if (isinstance(array_bounds, ArrayType.ArrayBounds)
-        #                and isinstance(array_bounds.lower, Literal)):
-        #            if lower.value == array_bounds.lower.value:
-        #                return True
-        #    except (KeyError, SymbolError, AttributeError):
-        #        # If any issue is found we can not guarantee that it is
-        #        # the lower bound
-        #        pass
-        #    return False
-
     def is_upper_bound(self, index):
         '''Returns whether this array access includes the upper bound of
         the array for the specified index. Returns True if it is and False
@@ -209,31 +183,6 @@ class ArrayMixin(metaclass=abc.ABCMeta):
 
         '''
         return self._is_bound(index, "upper")
-
-        #upper = array_dimension.stop
-        #
-        #if isinstance(upper, Literal):
-        #    try:
-        #        symbol = self.scope.symbol_table.lookup(self.name)
-        #        if not isinstance(symbol, DataSymbol):
-        #            # We don't have any type information on this symbol
-        #            # (probably because it originates from a wildcard import).
-        #            return False
-        #        datatype = symbol.datatype
-        #        # Check that the symbol is of ArrayType. (It may be of
-        #        # UnknownFortranType if the symbol is of e.g. character type.)
-        #        if not isinstance(datatype, ArrayType):
-        #            return False
-        #        shape = datatype.shape
-        #        array_bounds = shape[index]
-        #        if (isinstance(array_bounds, ArrayType.ArrayBounds) and
-        #                isinstance(array_bounds.upper, Literal)):
-        #            if upper.value == array_bounds.upper.value:
-        #                return True
-        #    except (KeyError, SymbolError, AttributeError):
-        #        # If any issue is found we can not guarantee that it is
-        #        # the upper bound
-        #        pass
 
     def _is_bound(self, index, bound_type):
         '''Attempts to determines whether this array access includes the lower
@@ -264,7 +213,8 @@ class ArrayMixin(metaclass=abc.ABCMeta):
 
         access_shape = self.indices[index]
 
-        # Is this array access in the form of {UL}BOUND(array, index)?
+        # Determine the appropriate (lower or upper) bound and check
+        # for a bounds operator.
         if isinstance(access_shape, Range):
             if bound_type == "upper":
                 operator = BinaryOperation.Operator.UBOUND
@@ -272,8 +222,11 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             else:
                 operator = BinaryOperation.Operator.LBOUND
                 access_bound = access_shape.start
+            # Is this array access in the form of {UL}BOUND(array, index)?
             if self._is_bound_op(access_bound, operator, index):
                 return True
+        else:
+            access_bound = access_shape
 
         # Try to compare the upper/lower bound of the array access
         # with the upper/lower bound of the array declaration.
@@ -292,8 +245,8 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             # There is no type information for this symbol
             # (probably because it originates from a wildcard import).
             return False
-
         datatype = symbol.datatype
+
         if not isinstance(datatype, ArrayType):
             # The declaration datatype could be of UnknownFortranType
             # if the symbol is of e.g. character type.
@@ -314,18 +267,8 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             declaration_bound = datatype.shape[index].lower
 
         # Do the bounds match?
-        if isinstance(access_shape, Range):
-            if bound_type == "upper":
-                access_bound = access_shape.stop
-            else:
-                access_bound = access_shape.start
-        else:
-            access_bound = access_shape
         sym_maths = SymbolicMaths.get()
-        if sym_maths.equal(declaration_bound, access_bound):
-            return True
-
-        return False
+        return sym_maths.equal(declaration_bound, access_bound)
 
     def is_same_array(self, node):
         '''

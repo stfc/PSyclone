@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -55,32 +55,35 @@ ${ADJ_KERNEL_FILE}: ${TL_KERNEL_FILE}
 	$(PSYAD) -api dynamo0.3 $< -oad ${OUT_DIR}/$@ -a ${ACTIVE_VAR_LIST}
 
 transform:
-	make single -e TL_KERNEL_NAME=transpose_matrix_vector_kernel ACTIVE_VAR_LIST="lhs lhs_e x_e x"
-	make single -e TL_KERNEL_NAME=matrix_vector_kernel ACTIVE_VAR_LIST="lhs x lhs_e x_e"
-	make single -e TL_KERNEL_NAME=dg_inc_matrix_vector_kernel ACTIVE_VAR_LIST="lhs x lhs_e x_e"
-	make single -e TL_KERNEL_NAME=tl_hydrostatic_kernel ACTIVE_VAR_LIST="r_u exner theta grad_term exner_at_quad theta_v_at_quad res_dot_product grad_theta_v_at_quad theta_v_e exner_e moist_dyn_tot moist_dyn_gas"
-	make single -e TL_KERNEL_NAME=tl_moist_dyn_mass_kernel ACTIVE_VAR_LIST="moist_dyn_tot mr_v mr_cl mr_r mr_ci mr_s mr_g mr_v_at_dof mr_cl_at_dof mr_r_at_dof mr_ci_at_dof mr_s_at_dof mr_g_at_dof"
-	make single -e TL_KERNEL_NAME=tl_pressure_gradient_bd_kernel ACTIVE_VAR_LIST="r_u_bd exner pressure_gradient_bd_e bdary_term exner_av theta_v_at_fquad theta_v_e exner_e exner_next_e theta moist_dyn_tot moist_dyn_gas"
-	make single -e TL_KERNEL_NAME=tl_rhs_project_eos_kernel ACTIVE_VAR_LIST="rhs_eos exner rho theta moist_dyn_gas eos exner_quad theta_vd_quad rho_quad rho_e exner_e theta_vd_e"
-	make single -e TL_KERNEL_NAME=tl_rhs_sample_eos_kernel ACTIVE_VAR_LIST="rhs_eos exner rho theta moist_dyn_gas exner_cell theta_vd_cell rho_cell rho_e exner_e theta_vd_e"
+	$(MAKE) single -e TL_KERNEL_NAME=transpose_matrix_vector_kernel ACTIVE_VAR_LIST="lhs lhs_e x_e x"
+	$(MAKE) single -e TL_KERNEL_NAME=matrix_vector_kernel ACTIVE_VAR_LIST="lhs x lhs_e x_e"
+	$(MAKE) single -e TL_KERNEL_NAME=dg_inc_matrix_vector_kernel ACTIVE_VAR_LIST="lhs x lhs_e x_e"
+	$(MAKE) single -e TL_KERNEL_NAME=tl_hydrostatic_kernel ACTIVE_VAR_LIST="r_u exner theta grad_term exner_at_quad theta_v_at_quad res_dot_product grad_theta_v_at_quad theta_v_e exner_e moist_dyn_tot moist_dyn_gas"
+	$(MAKE) single -e TL_KERNEL_NAME=tl_moist_dyn_mass_kernel ACTIVE_VAR_LIST="moist_dyn_tot mr_v mr_cl mr_r mr_ci mr_s mr_g mr_v_at_dof mr_cl_at_dof mr_r_at_dof mr_ci_at_dof mr_s_at_dof mr_g_at_dof"
+	$(MAKE) single -e TL_KERNEL_NAME=tl_pressure_gradient_bd_kernel ACTIVE_VAR_LIST="r_u_bd exner pressure_gradient_bd_e bdary_term exner_av theta_v_at_fquad theta_v_e exner_e exner_next_e theta moist_dyn_tot moist_dyn_gas"
+	$(MAKE) single -e TL_KERNEL_NAME=tl_rhs_project_eos_kernel ACTIVE_VAR_LIST="rhs_eos exner rho theta moist_dyn_gas eos exner_quad theta_vd_quad rho_quad rho_e exner_e theta_vd_e"
+	$(MAKE) single -e TL_KERNEL_NAME=tl_rhs_sample_eos_kernel ACTIVE_VAR_LIST="rhs_eos exner rho theta moist_dyn_gas exner_cell theta_vd_cell rho_cell rho_e exner_e theta_vd_e"
 	# Correct active list below, as "advective_increment m3_inv" also works?
-	make single -e TL_KERNEL_NAME=w3_advective_update_kernel ACTIVE_VAR_LIST="advective_increment u v w wind"
-	make single -e TL_KERNEL_NAME=tl_poly_advective_kernel ACTIVE_VAR_LIST="advective u v dtdx dtdy tracer wind"
-	make single -e TL_KERNEL_NAME=combine_w2_field_kernel ACTIVE_VAR_LIST="uvw w uv"
-	make single -e TL_KERNEL_NAME=split_w2_field_kernel ACTIVE_VAR_LIST="uvw w uv"
-	make single -e TL_KERNEL_NAME=sample_flux_kernel ACTIVE_VAR_LIST="flux u"
-	make single -e TL_KERNEL_NAME=weighted_div_kernel ACTIVE_VAR_LIST="div div_theta_v theta_quad res_dot_product grad_theta_quad theta_e theta"
-	make single -e TL_KERNEL_NAME=weighted_proj_2theta_kernel ACTIVE_VAR_LIST="projection exner integrand exner_quad exner_e"
-	make single -e TL_KERNEL_NAME=weighted_proj_theta2_kernel ACTIVE_VAR_LIST="theta theta_e theta_at_quad i1 projection"
-	make single -e TL_KERNEL_NAME=weighted_div_bd_kernel ACTIVE_VAR_LIST="div integrand next_bd_term this_bd_term theta_next_at_fquad theta_at_fquad theta_next_e theta_e theta"
-	make single -e TL_KERNEL_NAME=weighted_proj_2theta_bd_kernel ACTIVE_VAR_LIST="projection integrand exner_av exner_at_fquad exner_next_at_fquad exner_next_e exner_e exner"
-	make single -e TL_KERNEL_NAME=helmholtz_operator_kernel ACTIVE_VAR_LIST="helm_c f_op helm_dd helm_uu helm_d helm_u helm_s helm_n helm_w helm_e d_op ec_op m3_exner_star p3theta compound_div"
-	make single -e TL_KERNEL_NAME=tracer_viscosity_kernel ACTIVE_VAR_LIST="theta_inc viscosity_mu"
-	make single -e TL_KERNEL_NAME=dg_matrix_vector_kernel ACTIVE_VAR_LIST="lhs lhs_e x x_e"
-	make single -e TL_KERNEL_NAME=w2_to_w1_projection_kernel ACTIVE_VAR_LIST="v_w1 u_w2 vu res_dot_product wind"
-	make single -e TL_KERNEL_NAME=strong_curl_kernel ACTIVE_VAR_LIST="xi res_dot_product curl_u u"
+	$(MAKE) single -e TL_KERNEL_NAME=w3_advective_update_kernel ACTIVE_VAR_LIST="advective_increment u v w wind"
+	$(MAKE) single -e TL_KERNEL_NAME=tl_poly_advective_kernel ACTIVE_VAR_LIST="advective u v dtdx dtdy tracer wind"
+	$(MAKE) single -e TL_KERNEL_NAME=combine_w2_field_kernel ACTIVE_VAR_LIST="uvw w uv"
+	$(MAKE) single -e TL_KERNEL_NAME=split_w2_field_kernel ACTIVE_VAR_LIST="uvw w uv"
+	$(MAKE) single -e TL_KERNEL_NAME=sample_flux_kernel ACTIVE_VAR_LIST="flux u"
+	$(MAKE) single -e TL_KERNEL_NAME=weighted_div_kernel ACTIVE_VAR_LIST="div div_theta_v theta_quad res_dot_product grad_theta_quad theta_e theta"
+	$(MAKE) single -e TL_KERNEL_NAME=weighted_proj_2theta_kernel ACTIVE_VAR_LIST="projection exner integrand exner_quad exner_e"
+	$(MAKE) single -e TL_KERNEL_NAME=weighted_proj_theta2_kernel ACTIVE_VAR_LIST="theta theta_e theta_at_quad i1 projection"
+	$(MAKE) single -e TL_KERNEL_NAME=weighted_div_bd_kernel ACTIVE_VAR_LIST="div integrand next_bd_term this_bd_term theta_next_at_fquad theta_at_fquad theta_next_e theta_e theta"
+	$(MAKE) single -e TL_KERNEL_NAME=weighted_proj_2theta_bd_kernel ACTIVE_VAR_LIST="projection integrand exner_av exner_at_fquad exner_next_at_fquad exner_next_e exner_e exner"
+	$(MAKE) single -e TL_KERNEL_NAME=helmholtz_operator_kernel ACTIVE_VAR_LIST="helm_c f_op helm_dd helm_uu helm_d helm_u helm_s helm_n helm_w helm_e d_op ec_op m3_exner_star p3theta compound_div"
+	$(MAKE) single -e TL_KERNEL_NAME=tracer_viscosity_kernel ACTIVE_VAR_LIST="theta_inc viscosity_mu"
+	$(MAKE) single -e TL_KERNEL_NAME=dg_matrix_vector_kernel ACTIVE_VAR_LIST="lhs lhs_e x x_e"
+	$(MAKE) single -e TL_KERNEL_NAME=w2_to_w1_projection_kernel ACTIVE_VAR_LIST="v_w1 u_w2 vu res_dot_product wind"
+	$(MAKE) single -e TL_KERNEL_NAME=strong_curl_kernel ACTIVE_VAR_LIST="xi res_dot_product curl_u u"
 
 compile:
 	@echo No compilation supported.
 
 run: compile
+
+allclean:
+	rm -f $(GENERATED_FILES)

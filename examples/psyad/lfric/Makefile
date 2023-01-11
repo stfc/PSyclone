@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,3 +47,6 @@ run:
 clean:
 	cd tangent_linear; make clean
 	cd tangent_linear_tweaked; make clean
+allclean:
+	cd tangent_linear; make allclean
+	cd tangent_linear_tweaked; make allclean
