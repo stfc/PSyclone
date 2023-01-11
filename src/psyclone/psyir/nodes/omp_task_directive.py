@@ -56,7 +56,7 @@ from psyclone.psyir.nodes.omp_clauses import OMPPrivateClause, \
 from psyclone.psyir.nodes.omp_directives import OMPRegionDirective, \
     OMPSerialDirective, OMPParallelDirective
 from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol
 
 
 
@@ -1729,6 +1729,8 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                             out_list)
 
         # Make the clauses to return.
+        # We skip references to constants as we don't need them.
+        # Constants will never be private.
         private_clause = OMPPrivateClause()
         for ref in private_list:
             private_clause.addchild(ref)
@@ -1737,16 +1739,19 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             firstprivate_clause.addchild(ref)
         shared_clause = OMPSharedClause()
         for ref in shared_list:
-            shared_clause.addchild(ref)
+            if not (isinstance(ref.symbol, DataSymbol) and ref.symbol.is_constant):
+                shared_clause.addchild(ref)
 
         in_clause = OMPDependClause(
                         depend_type=OMPDependClause.DependClauseTypes.IN)
         for ref in in_list:
-            in_clause.addchild(ref)
+            if not (isinstance(ref.symbol, DataSymbol) and ref.symbol.is_constant):
+                in_clause.addchild(ref)
         out_clause = OMPDependClause(
                         depend_type=OMPDependClause.DependClauseTypes.OUT)
         for ref in out_list:
-            out_clause.addchild(ref)
+            if not (isinstance(ref.symbol, DataSymbol) and ref.symbol.is_constant):
+                out_clause.addchild(ref)
 
         return (private_clause, firstprivate_clause, shared_clause, in_clause,
                 out_clause)
