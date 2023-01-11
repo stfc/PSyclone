@@ -129,8 +129,8 @@ class InlineTrans(Transformation):
         '''
         self.validate(node, options)
 
-        # The table we will copy symbols into.
-        table = node.scope.symbol_table
+        # We copy symbols into the table associated with the calling routine.
+        table = node.ancestor(Routine).symbol_table
         # Find the routine to be inlined.
         orig_routine = self._find_routine(node)
 

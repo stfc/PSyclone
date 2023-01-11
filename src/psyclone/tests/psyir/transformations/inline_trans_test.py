@@ -306,20 +306,20 @@ def test_apply_struct_arg(fortran_reader, fortran_writer, tmpdir):
 
     output = fortran_writer(psyir)
     assert ("    do i = 1, 5, 1\n"
-            "      do i_3 = 1, 10, 1\n"
-            "        var%data(i_3) = 2.0 * i\n"
+            "      do i_1 = 1, 10, 1\n"
+            "        var%data(i_1) = 2.0 * i\n"
             "      enddo\n"
             "      var%data(:) = -1.0\n"
             "      var%data = -5.0\n"
             "      var%data(1:2) = 0.0\n"
-            "      do i_1 = 1, 10, 1\n"
-            "        var_list(i)%data(i_1) = 2.0 * i\n"
+            "      do i_2 = 1, 10, 1\n"
+            "        var_list(i)%data(i_2) = 2.0 * i\n"
             "      enddo\n"
             "      var_list(i)%data(:) = -1.0\n"
             "      var_list(i)%data = -5.0\n"
             "      var_list(i)%data(1:2) = 0.0\n"
-            "      do i_2 = 1, 10, 1\n"
-            "        var2(i)%region%data(i_2) = 2.0 * i\n"
+            "      do i_3 = 1, 10, 1\n"
+            "        var2(i)%region%data(i_3) = 2.0 * i\n"
             "      enddo\n"
             "      var2(i)%region%data(:) = -1.0\n"
             "      var2(i)%region%data = -5.0\n"
@@ -601,15 +601,15 @@ def test_apply_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
         inline_trans.apply(call)
     output = fortran_writer(psyir)
     assert ("    do i = 1, 10, 1\n"
-            "      do i_4 = 1, 10, 1\n"
-            "        a(1,i_4,i) = 2.0 * i_4\n"
+            "      do i_1 = 1, 10, 1\n"
+            "        a(1,i_1,i) = 2.0 * i_1\n"
             "      enddo\n"
             "    enddo\n"
             "    a(1,1,:) = 3.0 * a(1,1,:)\n"
             "    a(:,1,:) = 2.0 * a(:,1,:)\n"
             "    b = 2.0 * b\n"
-            "    do i_3 = 1, 10, 1\n"
-            "      b(i_3,:5) = 2.0 * b(i_3,:5)\n" in output)
+            "    do i_4 = 1, 10, 1\n"
+            "      b(i_4,:5) = 2.0 * b(i_4,:5)\n" in output)
     assert Compile(tmpdir).string_compiles(output)
 
 
@@ -779,6 +779,48 @@ def test_apply_struct_array(fortran_reader, fortran_writer, tmpdir,
                 "    micah%grids(2 - 2 + 1:4 - 2 + 1)%region%idx = 3.0\n"
                 "    micah%grids(ji - 2 + 1)%region%idx = 2.0\n" in output)
         assert Compile(tmpdir).string_compiles(output)
+
+
+def test_apply_repeated_module_use(fortran_reader, fortran_writer):
+    '''
+    Check that any module use statements are not duplicated when
+    multiple calls are inlined.
+
+    '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "    integer :: i\n"
+        "    real :: a(10,10), b(10,10)\n"
+        "    do i = 1, 10\n"
+        "      call sub2(a(:,i))\n"
+        "    end do\n"
+        "    call sub1(b(:,2))\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub1(x)\n"
+        "    use model_mod, only: radius\n"
+        "    real, intent(inout), dimension(10) :: x\n"
+        "    x(:) = radius\n"
+        "  end subroutine sub1\n"
+        "  subroutine sub2(x)\n"
+        "    use model_mod, only: radius\n"
+        "    real, intent(inout), dimension(10) :: x\n"
+        "    x(:) = 4*radius\n"
+        "  end subroutine sub2\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    inline_trans = InlineTrans()
+    for call in psyir.walk(Call):
+        inline_trans.apply(call)
+    output = fortran_writer(psyir)
+    assert ("  subroutine run_it()\n"
+            "    use model_mod, only : radius\n"
+            "    integer :: i\n" in output)
+    assert ("    do i = 1, 10, 1\n"
+            "      a(:,i) = 4 * radius\n"
+            "    enddo\n"
+            "    b(:,2) = radius\n" in output)
 
 
 def test_apply_ptr_arg(fortran_reader, fortran_writer, tmpdir):
