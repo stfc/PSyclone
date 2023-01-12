@@ -1537,11 +1537,11 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 ref_copy = Reference(ref.symbol)
                 # start_val can't be written to in Fortran so if its a structure
                 # we should make it shared
-                # TODO Should the full StructureReference be depend(in:)?
+                # Only the base Structure is allowed to be in a depend clause. 
                 if ref_copy not in shared_list:
                     shared_list.append(ref_copy.copy())
                 if ref not in in_list:
-                    in_list.append(ref.copy())
+                    in_list.append(ref_copy.copy())
                 ref = ref_copy
             if (ref not in firstprivate_list and ref not in private_list and
                     ref not in shared_list):
@@ -1559,11 +1559,11 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 ref_copy = Reference(ref.symbol)
                 # stop_val can't be written to in Fortran so if its a structure
                 # we should make it shared
-                # TODO Should the full StructureReference be depend(in:)?
+                # Only the base Structure is allowed to be in a depend clause. 
                 if ref_copy not in shared_list:
                     shared_list.append(ref_copy.copy())
                 if ref not in in_list:
-                    in_list.append(ref.copy())
+                    in_list.append(ref_copy.copy())
                 ref = ref_copy
             if (ref not in firstprivate_list and ref not in private_list and
                     ref not in shared_list):
@@ -1581,11 +1581,11 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 ref_copy = Reference(ref.symbol)
                 # stop_val can't be written to in Fortran so if its a structure
                 # we should make it shared
-                # TODO Should the full StructureReference be depend(in:)?
+                # Only the base Structure is allowed to be in a depend clause. 
                 if ref_copy not in shared_list:
                     shared_list.append(ref_copy.copy())
                 if ref not in in_list:
-                    in_list.append(ref.copy())
+                    in_list.append(ref_copy.copy())
                 ref = ref_copy
             if (ref not in firstprivate_list and ref not in private_list and
                     ref not in shared_list):
