@@ -165,7 +165,8 @@ if __name__ == '__main__':
                           'jsonschema==3.0.2', 'sympy'],
         extras_require={
             'dag': ["graphviz"],
-            'doc': ["sphinx", "sphinxcontrib.bibtex",
+            # TODO #2000: Pinned sphinx to fix linkcheck issues
+            'doc': ["sphinx<=6.0", "sphinxcontrib.bibtex",
                     "sphinx_rtd_theme", "autoapi"],
             'psydata': ["Jinja2"],
             'test': ["pep8", "flake8", "pylint", "pytest-cov", "pytest-pep8",
