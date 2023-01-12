@@ -169,7 +169,7 @@ def test_psyir_from_statement(fortran_reader):
     table.new_symbol("b", symbol_type=DataSymbol, datatype=DeferredType())
     psyir = fortran_reader.psyir_from_statement("a=b", table)
     assert isinstance(psyir, Assignment)
-    psyir = fortran_reader.psyir_from_statement("allocate(a)", table.detach())
+    psyir = fortran_reader.psyir_from_statement("write(*,*) a", table.detach())
     assert isinstance(psyir, CodeBlock)
     assert psyir.structure == CodeBlock.Structure.STATEMENT
 
