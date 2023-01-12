@@ -254,8 +254,15 @@
 	StructureReferences for when an API knows what type a DeferedType is.
 
 	88) PR #2003. Pins the Sphinx version to < 6.1 to avoid a bug in
-        the link-checking functionality. Also corrects various links to
+	the link-checking functionality. Also corrects various links to
 	the VirtualBox site.
+
+	89) PR #1972 for #1967. Ensures that proper Signatures are created
+	for structure accesses that appear in LFRic kernel arguments.
+
+	90) PR #1907 for #1366. Introduces the IntrinsicCall node and the
+	IntrinsicSymbol symbol. Adds ALLOCATE, DEALLOCATE and RANDOM_NUMBER
+	intrinsics.
 
 release 2.3.1 17th of June 2022
 

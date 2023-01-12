@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,14 +40,13 @@ reads in extracted data, calls the kernel, and then compares the result with
 the output data contained in the input file.
 '''
 
-from __future__ import absolute_import
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Assignment, Call, FileContainer,
-                                  Literal, Reference, Routine,
+                                  IntrinsicCall, Literal, Reference, Routine,
                                   StructureReference)
 from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE,
                                     ContainerSymbol, DataSymbol,
@@ -426,22 +425,9 @@ class ExtractDriverCreator:
             # is not allocated. So we need to allocate it and set it to 0.
             if not is_input:
                 if isinstance(post_sym.datatype, ArrayType):
-                    # TODO #1366 Once allocate is supported in PSyIR
-                    # this parsing of a file can be replaced. Also,
-                    # if the mold parameter is supported, we can
-                    # use the second allocate statement to create code
-                    # that's independent of the number of dimensions.
-                    code = (f'''
-                        subroutine tmp()
-                          integer, allocatable, dimension(:,:) :: b
-                          allocate({sig_str}(size({post_name},1), '''
-                            f'''size({post_name},2)))
-                          !allocate({sig_str}, mold={post_name})
-                        end subroutine tmp''')
-                    fortran_reader = FortranReader()
-                    container = fortran_reader.psyir_from_source(code)\
-                        .children[0]
-                    alloc = container.children[0].detach()
+                    alloc = IntrinsicCall.create(
+                        IntrinsicCall.Intrinsic.ALLOCATE,
+                        [Reference(sym), ("mold", Reference(post_sym))])
                     program.addchild(alloc)
                 set_zero = Assignment.create(Reference(sym),
                                              Literal("0", INTEGER_TYPE))
