@@ -502,7 +502,7 @@ what an allocation 'operation' would assign to (an `Operation`
 must be a child of a `Statement` and therefore could not be included
 in a `Schedule` on its own). Similarly, Fortran's `MAXVAL` and
 `MINVAL` intrinsics have optional `dim` and `mask` arguments. In order
-to represent these using `Operation` nodes, we would one for each
+to represent these using `Operation` nodes, we would need one for each
 of the four possible forms of each intrinsic.
 
 Therefore, to support intrinsic 'operations' that have optional
