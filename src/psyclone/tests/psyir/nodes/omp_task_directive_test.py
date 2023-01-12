@@ -2805,7 +2805,7 @@ def test_omp_task_directive_37(fortran_reader, fortran_writer):
   !$omp single
   do i = 1, 10, 1
     !$omp task private(j), firstprivate(i), shared(l,m,n,a,b), \
-depend(in: l%k,m%k,n%k,k,b(i + 1,:)), depend(out: a(i,:))
+depend(in: l,m,n,k,b(i + 1,:)), depend(out: a(i,:))
     do j = l%k, m%k, n%k
       a(i,j) = k
       a(i,j) = b(i + 1,j) + k
@@ -2817,3 +2817,59 @@ depend(in: l%k,m%k,n%k,k,b(i + 1,:)), depend(out: a(i,:))
 
 end subroutine my_subroutine\n'''
     assert fortran_writer(tree) == correct
+
+def test_omp_task_directive_38(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly makes the depend clause when
+    accessing an array access child of a type'''
+    code = '''
+    subroutine my_subroutine()
+        type :: x
+          integer, dimension(320, 10) :: A
+        end type
+        type(x) :: AA
+        integer, dimension(10, 10) :: B
+        integer :: i
+        integer :: j
+        do i = 1, 10
+            do j = 1, 10
+                B(i, j) = AA%A(i,j) + 1
+            end do
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = DynamicOMPTaskDirective()
+    loops = tree.walk(Loop, stop_type=Loop)
+    loop = loops[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(parent.children)
+    ptrans.apply(parent.children)
+    correct = '''subroutine my_subroutine()
+  type :: x
+    integer, dimension(320,10) :: a
+  end type x
+  type(x) :: aa
+  integer, dimension(10,10) :: b
+  integer :: i
+  integer :: j
+
+  !$omp parallel default(shared), private(i,j)
+  !$omp single
+  !$omp task private(i,j), shared(b,aa), depend(in: aa%A(:,:)), depend(out: b(:,:))
+  do i = 1, 10, 1
+    do j = 1, 10, 1
+      b(i,j) = aa%A(i,j) + 1
+    enddo
+  enddo
+  !$omp end task
+  !$omp end single
+  !$omp end parallel
+
+end subroutine my_subroutine
+'''
+    assert correct == fortran_writer(tree)
