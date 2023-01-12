@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,3 +31,15 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
+# Author: J. Henrichs, Bureau of Meteorology
+
+'''This directory contains classes related to parsing Fortran.
+'''
+
+from psyclone.parse.module_manager import ModuleManager
+
+# The entities in the __all__ list are made available to import directly from
+# this package e.g. 'from psyclone.parse import ModuleManager'
+__all__ = [
+        'ModuleManager'
+        ]

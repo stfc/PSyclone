@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
 
-'''This module contains a helper class that manages information about
+'''This module contains a singleton class that manages information about
 which module is contained in which file (including full location). '''
 
 
@@ -45,7 +45,7 @@ from fparser.two.parser import ParserFactory
 from fparser.two.utils import walk
 
 
-class ModuleInformation:
+class ModuleManager:
     '''This class implements a singleton that manages module
     dependencies.
 
@@ -53,6 +53,8 @@ class ModuleInformation:
         in the project.
 
     '''
+    # Class variable to store the singleton instance
+    _instance = None
 
     def __init__(self, config_file="allfiles"):
 
@@ -68,6 +70,17 @@ class ModuleInformation:
             modules = self.get_modules_in_file(filename)
             for module in modules:
                 self._mod_2_filename[module.lower()] = filename
+
+    # ------------------------------------------------------------------------
+    @staticmethod
+    def get():
+        '''Static function that if necessary creates and returns the singleton
+        ModuleManager instance.
+
+        '''
+        if not ModuleManager._instance:
+            ModuleManager._instance = ModuleManager()
+        return ModuleManager._instance
 
     # ------------------------------------------------------------------------
     def get_file_for_module(self, module_name):

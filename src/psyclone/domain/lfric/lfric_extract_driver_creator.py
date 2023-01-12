@@ -39,11 +39,11 @@ reads in extracted data, calls the kernel, and then compares the result with
 the output data contained in the input file.
 '''
 
-from psyclone.module_information import ModuleInformation
 from psyclone.core import Signature
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.errors import InternalError
+from psyclone.parse import ModuleManager
 from psyclone.psyGen import InvokeSchedule, Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -150,8 +150,6 @@ class LFRicExtractDriverCreator:
 
     '''
     def __init__(self, precision=None):
-        self._mod_info = ModuleInformation("allfiles")
-
         self._all_field_types = ["field_type", "integer_field_type",
                                  "r_solver_field_type", "r_tran_field_type"]
         # Set the size of the various precision types used in LFRic.
@@ -907,10 +905,11 @@ class LFRicExtractDriverCreator:
         # This contains a mapping: for each module name as key,
         # this dictionary contains a list of all module it depends on
         module_dependencies = {}
+        mod_manager = ModuleManager.get()
         while all_mods:
             module = all_mods.pop()
             try:
-                mod_deps = self._mod_info.find_modules_used_in(module)
+                mod_deps = mod_manager.find_modules_used_in(module)
                 # The variable deps contains tuples: module and imported
                 # symbols, which we don't need here. Also convert it to
                 # a set, which makes for shorter code later:
@@ -1013,8 +1012,9 @@ class LFRicExtractDriverCreator:
         sorted_modules = self.sort_modules(module_dependencies)
 
         out = []
+        mod_manager = ModuleManager.get()
         for module in sorted_modules:
-            filename = self._mod_info.get_file_for_module(module)
+            filename = mod_manager.get_file_for_module(module)
             try:
                 with open(filename, "r", encoding='utf-8') as f_in:
                     out.append(f_in.read())
