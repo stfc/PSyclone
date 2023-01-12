@@ -657,6 +657,8 @@ class InlineTrans(Transformation):
                             f"'{callsite_csym.name}' has not been updated to "
                             f"refer to that container at the call site.")
                 else:
+                    # TODO if this symbol is imported from a Container (via a
+                    # wildcard) then we CANNOT rename it!
                     # A Symbol with the same name already exists so we rename
                     # the one that we are adding.
                     new_name = table.next_available_name(
@@ -777,6 +779,13 @@ class InlineTrans(Transformation):
                         f"Routine '{routine.name}' cannot be inlined because "
                         f"it accesses variable '{ref.symbol.name}' from its "
                         f"parent container.")
+
+        # Kind parameters will not be found by the above walk(Reference)
+        # TODO 1792.
+        for sym in routine_table.precision_datasymbols:
+            if sym.is_unresolved:
+                routine_table.resolve_imports(symbol_target=sym)
+                raise TransformationError("huh")
 
         # Check that the shape of any dummy array arguments are the same as
         # those at the call site.
