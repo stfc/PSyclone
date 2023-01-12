@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,7 @@ reads in extracted data, calls the kernel, and then compares the result with
 the output data contained in the input file.
 '''
 
+from psyclone.module_information import ModuleInformation
 from psyclone.core import Signature
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
@@ -57,6 +58,8 @@ from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE,
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations import ExtractTrans
 
+
+# pylint: disable=too-many-lines
 
 class LFRicExtractDriverCreator:
     '''This class provides the functionality to create a driver that
@@ -147,6 +150,8 @@ class LFRicExtractDriverCreator:
 
     '''
     def __init__(self, precision=None):
+        self._mod_info = ModuleInformation("allfiles")
+
         self._all_field_types = ["field_type", "integer_field_type",
                                  "r_solver_field_type", "r_tran_field_type"]
         # Set the size of the various precision types used in LFRic.
@@ -876,10 +881,92 @@ class LFRicExtractDriverCreator:
         return file_container
 
     # -------------------------------------------------------------------------
+    def collect_all_required_modules(self, file_container):
+        '''Collects recursively all modules used in the file container.
+        It returns a dictionary, with the keys being all the (directly or
+        indirectly used modules)
+
+        :param file_container:
+        :type file_container: \
+            :py:class:`psyclone.psyir.psyir.nodes.FileContainer`
+
+        :returns: a dictionary, with the required module names as key, and \
+            as value a set of all modules required by the key module.
+        :rtype: Dict[str, Set[str]
+
+        '''
+        sym_tab = file_container.children[0].symbol_table
+
+        # Add all modules imported, except intrinsic ones
+        all_mods = set()
+        for symbol in sym_tab.symbols:
+            if isinstance(symbol, ContainerSymbol) and \
+                    ",intrinsic" not in symbol.name:
+                all_mods.add(symbol.name)
+
+        # This contains a mapping: for each module name as key,
+        # this dictionary contains a list of all module it depends on
+        module_dependencies = {}
+        while all_mods:
+            module = all_mods.pop()
+            try:
+                mod_deps = self._mod_info.find_modules_used_in(module)
+                # The variable deps contains tuples: module and imported
+                # symbols, which we don't need here. Also convert it to
+                # a set, which makes for shorter code later:
+                mod_deps = set(mod_info[0] for mod_info in mod_deps)
+            except KeyError:
+                # We don't have any information about this module,
+                # ignore for now.
+                print(f"Could not find module '{module}'.")
+                for dep in module_dependencies.values():
+                    if module in dep:
+                        dep.remove(module)
+
+                continue
+
+            module_dependencies[module] = mod_deps
+            # Remove all dependencies from the list of new dependencies
+            # that have already been handled:
+            new_deps = mod_deps.difference(module_dependencies.keys())
+            all_mods |= new_deps
+
+        return module_dependencies
+
+    # -------------------------------------------------------------------------
+    def sort_modules(self, module_dependencies):
+        '''This function sorts the given dependencies so that all
+        dependencies of a module are before any module that
+        needs it.
+
+        :returns: the sorted list of modules.
+        :rtype: List[str]
+
+        '''
+        result = []
+
+        while module_dependencies:
+            for mod, dep in module_dependencies.items():
+                if not dep:
+                    break
+            else:
+                print("REST", module_dependencies)
+                print("Circular dependency???")
+                return result
+
+            result.append(mod)
+            del module_dependencies[mod]
+            for dep in module_dependencies.values():
+                if mod in dep:
+                    dep.remove(mod)
+
+        return result
+
+    # -------------------------------------------------------------------------
     def get_driver_as_string(self, nodes, input_list, output_list,
                              prefix, postfix, region_name,
                              writer=FortranWriter()):
-        # pylint: disable=too-many-arguments
+        # pylint: disable=too-many-arguments, too-many-locals
         '''This function uses `create()` function to get a PSyIR of a
         stand-alone driver, and then uses the provided language writer
         to create a string representation in the selected language
@@ -922,7 +1009,21 @@ class LFRicExtractDriverCreator:
             print(str(err))
             return ""
 
-        return writer(file_container)
+        module_dependencies = self.collect_all_required_modules(file_container)
+        sorted_modules = self.sort_modules(module_dependencies)
+
+        out = []
+        for module in sorted_modules:
+            filename = self._mod_info.get_file_for_module(module)
+            try:
+                with open(filename, "r", encoding='utf-8') as f_in:
+                    out.append(f_in.read())
+            except FileNotFoundError:
+                print(f"Could not read file {filename}.")
+
+        out.append(writer(file_container))
+
+        return "\n".join(out)
 
     # -------------------------------------------------------------------------
     def write_driver(self, nodes, input_list, output_list,
@@ -966,6 +1067,6 @@ class LFRicExtractDriverCreator:
             # so ignore it here.
             return
         module_name, local_name = region_name
-        with open(f"driver-{module_name}-{local_name}.f90", "w",
+        with open(f"driver-{module_name}-{local_name}.F90", "w",
                   encoding='utf-8') as out:
             out.write(code)
