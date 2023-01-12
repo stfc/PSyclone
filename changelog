@@ -257,6 +257,9 @@
         the link-checking functionality. Also corrects various links to
 	the VirtualBox site.
 
+	89) PR #1972 for #1967. Ensures that proper Signatures are created
+        for structure accesses that appear in LFRic kernel arguments.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
