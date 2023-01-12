@@ -112,10 +112,11 @@ def test_omptask_apply():
     parallel.apply(schedule.children[0])
 
     code = str(psy.gen)
+    print(code)
     assert (
         "    !$omp parallel default(shared), private(i,j)\n" +
         "      !$omp master\n" +
-        "      !$omp task private(j,i), shared(cu_fld,p_fld,u_fld), depend(in: cu_fld%internal%ystart,cu_fld%internal%ystop,cu_fld%internal%xstart,cu_fld%internal%xstop,p_fld%data(:,:),u_fld%data(:,:)), depend(out: cu_fld%data(:,:))" + 
+        "      !$omp task private(j,i), shared(cu_fld,p_fld,u_fld), depend(in: cu_fld,p_fld%data(:,:),u_fld%data(:,:)), depend(out: cu_fld%data(:,:))" + 
         "\n" + "      DO" in code)
     assert (
         "      END DO\n" +

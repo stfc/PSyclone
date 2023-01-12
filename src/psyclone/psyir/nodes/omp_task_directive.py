@@ -1479,7 +1479,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 # Only the base Structure is allowed to be in a depend clause. 
                 if ref_copy not in shared_list:
                     shared_list.append(ref_copy.copy())
-                if ref not in in_list:
+                if ref_copy not in in_list:
                     in_list.append(ref_copy.copy())
                 ref = ref_copy
             if (ref not in firstprivate_list and ref not in private_list and
@@ -1501,7 +1501,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 # Only the base Structure is allowed to be in a depend clause. 
                 if ref_copy not in shared_list:
                     shared_list.append(ref_copy.copy())
-                if ref not in in_list:
+                if ref_copy not in in_list:
                     in_list.append(ref_copy.copy())
                 ref = ref_copy
             if (ref not in firstprivate_list and ref not in private_list and
@@ -1523,7 +1523,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 # Only the base Structure is allowed to be in a depend clause. 
                 if ref_copy not in shared_list:
                     shared_list.append(ref_copy.copy())
-                if ref not in in_list:
+                if ref_copy not in in_list:
                     in_list.append(ref_copy.copy())
                 ref = ref_copy
             if (ref not in firstprivate_list and ref not in private_list and
