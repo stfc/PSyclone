@@ -253,6 +253,13 @@
 	87) PR #1970 for #1966. Add an overwrite_datatype option to
 	StructureReferences for when an API knows what type a DeferedType is.
 
+	88) PR #2003. Pins the Sphinx version to < 6.1 to avoid a bug in
+        the link-checking functionality. Also corrects various links to
+	the VirtualBox site.
+
+	89) PR #1972 for #1967. Ensures that proper Signatures are created
+        for structure accesses that appear in LFRic kernel arguments.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
