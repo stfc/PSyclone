@@ -77,7 +77,7 @@ LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 # This will add the required include flags to F90FLAGS
 include $(LFRIC_PATH)/lfric_include_flags.inc
 
-F90FLAGS += -I$(EXTRACT_DIR)
+F90FLAGS += -I$(EXTRACT_DIR) $$(nf-config --fflags)
 
 transform: main_psy.f90 main_alg.f90
 
@@ -104,17 +104,15 @@ testkern_w0_kernel_mod.o: $(LFRIC_LIB)
 driver-main-update:	F90FLAGS += -I $(EXTRACT_DIR)/..
 driver-main-update:	driver-main-update.o
 	$(F90) $(F90FLAGS)  driver-main-update.o       \
-		testkern_w0_kernel_mod.o                   \
-		$(EXTRACT_DIR)/../read_kernel_data_mod.o   \
 		-L$(LFRIC_PATH) -l$(LFRIC_NAME) $(LDFLAGS) \
+		$$(nf-config --flibs)                      \
 		-o driver-main-update
 
 driver-main-init:	F90FLAGS += -I $(EXTRACT_DIR)/..
 driver-main-init:	driver-main-init.o
 	$(F90) $(F90FLAGS)  driver-main-init.o         \
-		testkern_w0_kernel_mod.o                   \
-		$(EXTRACT_DIR)/../read_kernel_data_mod.o   \
 		-L$(LFRIC_PATH) -l$(LFRIC_NAME) $(LDFLAGS) \
+		$$(nf-config --flibs)                      \
 		-o driver-main-init
 
 
