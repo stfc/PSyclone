@@ -264,6 +264,9 @@
 	IntrinsicSymbol symbol. Adds ALLOCATE, DEALLOCATE and RANDOM_NUMBER
 	intrinsics.
 
+	91) PR #2007 for #2000. Removes pinning of Sphinx version in setup.py
+	now that the linkcheck bug has been fixed in a new release.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
