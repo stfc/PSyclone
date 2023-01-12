@@ -47,7 +47,8 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol, ScalarType,
                                     RoutineSymbol, ImportInterface, Symbol,
-                                    ArrayType, INTEGER_TYPE, DeferredType)
+                                    ArrayType, INTEGER_TYPE, DeferredType,
+                                    UnknownType)
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 
@@ -106,6 +107,7 @@ class InlineTrans(Transformation):
 
         * the routine is not in the same file as the call;
         * the routine contains an early Return statement;
+        * the routine has local state (a var. with the SAVE attr. in Fortran)
         * the routine has a named argument;
         * the shape of any array arguments as declared inside the routine does
           not match the shape of the arrays being passed as arguments;
@@ -741,9 +743,19 @@ class InlineTrans(Transformation):
                     f"Routine '{routine.name}' cannot be inlined because it "
                     f"has a named argument '{arg}' (TODO #924).")
 
-        # Check for symbol-naming clashes that we can't handle.
         table = node.scope.symbol_table
         routine_table = routine.symbol_table
+
+        # Check that there are no static variables in the routine (because we
+        # don't know whether the routine is called from other places).
+        # TODO #2008 - at the moment we only check for symbols of UnknownType
+        # which is safe but will give a lot of false positives.
+        for sym in routine_table.local_datasymbols:
+            if isinstance(sym.datatype, UnknownType):
+                raise TransformationError(
+                    f"Routine '{routine.name}' cannot be inlined because it "
+                    f"contains a Symbol '{sym.name}' which is of unknown type:"
+                    f" '{sym.datatype.declaration}')")
 
         # We can't handle a clash between (apparently) different symbols that
         # share a name but are imported from different containers.
@@ -765,27 +777,30 @@ class InlineTrans(Transformation):
 
         # Check for unresolved symbols or for any accessed from the Container
         # containing the target routine.
-        refs = routine.walk(Reference)
-        for ref in refs:
-            if ref.symbol.name not in routine_table:
-                sym = routine_table.lookup(ref.symbol.name)
-                if sym.is_unresolved:
-                    raise TransformationError(
-                        f"Routine '{routine.name}' cannot be inlined because "
-                        f"it accesses an un-resolved variable "
-                        f"'{ref.symbol.name}'.")
-                if not sym.is_import:
-                    raise TransformationError(
-                        f"Routine '{routine.name}' cannot be inlined because "
-                        f"it accesses variable '{ref.symbol.name}' from its "
-                        f"parent container.")
-
-        # Kind parameters will not be found by the above walk(Reference)
-        # TODO 1792.
-        for sym in routine_table.precision_datasymbols:
+        # TODO #1792 - kind parameters will not be found by simply doing
+        # `walk(Reference)`. Although SymbolTable has the
+        # `precision_datasymbols` property, this only returns those Symbols
+        # that are used to define the precision of other Symbols in the same
+        # table. If a precision symbol is only used within Statements then we
+        # don't currently capture the fact that it is a precision symbol.
+        ref_or_lits = routine.walk((Reference, Literal))
+        for lnode in ref_or_lits:
+            if isinstance(lnode, Literal):
+                if not isinstance(lnode.datatype.precision, DataSymbol):
+                    continue
+                sym = lnode.datatype.precision
+            else:
+                sym = lnode.symbol
             if sym.is_unresolved:
-                routine_table.resolve_imports(symbol_target=sym)
-                raise TransformationError("huh")
+                raise TransformationError(
+                    f"Routine '{routine.name}' cannot be inlined because "
+                    f"it accesses an un-resolved variable "
+                    f"'{sym.name}'.")
+            if sym.name not in routine_table and not sym.is_import:
+                raise TransformationError(
+                    f"Routine '{routine.name}' cannot be inlined because "
+                    f"it accesses variable '{sym.name}' from its "
+                    f"parent container.")
 
         # Check that the shape of any dummy array arguments are the same as
         # those at the call site.

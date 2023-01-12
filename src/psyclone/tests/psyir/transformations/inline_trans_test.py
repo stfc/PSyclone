@@ -852,44 +852,6 @@ def test_apply_ptr_arg(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(output)
 
 
-def test_apply_saved_var(fortran_reader, fortran_writer, tmpdir):
-    '''
-    Test that a subroutine with a 'save'd variable is inlined correctly.
-    '''
-    code = (
-        "module test_mod\n"
-        "contains\n"
-        "  subroutine run_it()\n"
-        "  integer :: i\n"
-        "  real :: a(10)\n"
-        "  do i=1,10\n"
-        "    a(i) = 1.0\n"
-        "    call sub(a(i))\n"
-        "  end do\n"
-        "  end subroutine run_it\n"
-        "  subroutine sub(x)\n"
-        "    real, intent(inout) :: x\n"
-        "    real, save :: state = 0.0\n"
-        "    state = state + x\n"
-        "    x = 2.0*x + state\n"
-        "  end subroutine sub\n"
-        "end module test_mod\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    routine = psyir.walk(Call)[0]
-    inline_trans = InlineTrans()
-    inline_trans.apply(routine)
-    output = fortran_writer(psyir).lower()
-    assert ("  subroutine run_it()\n"
-            "    integer :: i\n"
-            "    real, dimension(10) :: a\n"
-            "    real, save :: state = 0.0\n" in output)
-    assert ("      a(i) = 1.0\n"
-            "      state = state + a(i)\n"
-            "      a(i) = 2.0 * a(i) + state\n"
-            "    enddo\n" in output)
-    assert Compile(tmpdir).string_compiles(output)
-
-
 def test_apply_name_clash(fortran_reader, fortran_writer, tmpdir):
     ''' Check that apply() correctly handles the case where a symbol
     in the routine to be in-lined clashes with an existing symbol. '''
@@ -1058,7 +1020,7 @@ def test_apply_wildcard_import(fortran_reader, fortran_writer):
         "  subroutine sub(idx)\n"
         "    use kinds_mod\n"
         "    integer, intent(inout) :: idx\n"
-        "    idx = idx + 5_i_def\n"
+        "    idx = idx + 5\n"
         "  end subroutine sub\n"
         "end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
@@ -1209,6 +1171,34 @@ def test_inline_symbols_check(fortran_reader):
                                      callee.symbol_table, {})
     assert ("Symbol 'a_clash' imported from 'a_mod' has not been updated to "
             "refer to that container at the call site." in str(err.value))
+
+
+def test_validate_unresolved_precision_sym(fortran_reader):
+    '''Test that a routine that uses an unresolved precision symbol is
+    rejected.'''
+    code = (
+        "module test_mod\n"
+        "  use kinds_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "    use a_mod\n"
+        "    integer :: i\n"
+        "    a_var = a_clash\n"
+        "    i = 10_i_def\n"
+        "    call sub(i)\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(idx)\n"
+        "    integer, intent(inout) :: idx\n"
+        "    idx = idx + 5_i_def\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    inline_trans = InlineTrans()
+    call = psyir.walk(Call)[0]
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(call)
+    assert (f"Routine 'sub' cannot be inlined because it accesses an "
+            f"un-resolved variable 'i_def'" in str(err.value))
 
 
 def test_inline_non_local_import(fortran_reader, fortran_writer):
@@ -1571,6 +1561,35 @@ def test_validate_codeblock(fortran_reader):
         inline_trans.validate(call)
     assert ("Routine 'sub' contains one or more CodeBlocks and therefore "
             "cannot be inlined" in str(err.value))
+
+
+def test_validate_saved_var(fortran_reader):
+    '''
+    Test that validate rejects a subroutine with a 'save'd variable.
+
+    '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "  real :: a(10)\n"
+        "  call sub(a(1))\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(x)\n"
+        "    real, intent(inout) :: x\n"
+        "    real, save :: state = 0.0\n"
+        "    state = state + x\n"
+        "    x = 2.0*x + state\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(routine)
+    assert ("Routine 'sub' cannot be inlined because it contains a Symbol "
+            "'state' which is of unknown type: 'REAL, SAVE :: state"
+            in str(err.value))
 
 
 def test_validate_import_clash(fortran_reader):
