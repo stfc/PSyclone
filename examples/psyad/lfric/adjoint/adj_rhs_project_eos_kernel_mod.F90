@@ -1,5 +1,5 @@
 module adj_rhs_project_eos_kernel_mod
-  use argument_mod, only : any_discontinuous_space_3, any_space_9, arg_type, cell_column, func_type, gh_basis, gh_diff_basis, &
+  use argument_mod, only : any_discontinuous_space_3, arg_type, cell_column, func_type, gh_basis, gh_diff_basis, &
 &gh_field, gh_quadrature_xyoz, gh_read, gh_readwrite, gh_real, gh_scalar, gh_write
   use constants_mod, only : i_def, r_def
   use fs_continuity_mod, only : w3, wtheta, wchi

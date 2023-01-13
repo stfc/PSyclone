@@ -1,6 +1,6 @@
 module adj_vorticity_advection_kernel_mod
   use kernel_mod, only : kernel_type
-  use argument_mod, only : any_discontinuous_space_3, any_space_9, arg_type, cell_column, func_type, gh_basis, gh_diff_basis, &
+  use argument_mod, only : any_discontinuous_space_3, arg_type, cell_column, func_type, gh_basis, gh_diff_basis, &
 &gh_field, gh_inc, gh_quadrature_xyoz, gh_read, gh_real
   use constants_mod, only : i_def, r_def
   use fs_continuity_mod, only : w1, w2, Wchi
