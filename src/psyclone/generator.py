@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified A. J. Voysey, Met Office
-# Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
+# Modified J. Henrichs, Bureau of Meteorology
 
 '''
     This module provides the PSyclone 'main' routine which is intended
@@ -59,6 +59,7 @@ from psyclone.domain.common.transformations import (
 from psyclone.domain.gocean.transformations import RaisePSyIR2GOceanKernTrans
 from psyclone.errors import GenerationError, InternalError
 from psyclone.line_length import FortLineLength
+from psyclone.parse import ModuleManager
 from psyclone.parse.algorithm import parse
 from psyclone.parse.kernel import get_kernel_filepath
 from psyclone.parse.utils import ParseError
@@ -444,6 +445,7 @@ def main(args):
     except ConfigurationError as err:
         print(str(err), file=sys.stderr)
         sys.exit(1)
+    ModuleManager.get().add_search_path(args.directory)
 
     try:
         alg, psy = generate(args.filename, api=api,

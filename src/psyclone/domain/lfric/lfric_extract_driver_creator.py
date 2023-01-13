@@ -1018,7 +1018,7 @@ class LFRicExtractDriverCreator:
             try:
                 with open(filename, "r", encoding='utf-8') as f_in:
                     out.append(f_in.read())
-            except FileNotFoundError:
+            except (FileNotFoundError, TypeError):
                 print(f"Could not read file {filename}.")
 
         out.append(writer(file_container))

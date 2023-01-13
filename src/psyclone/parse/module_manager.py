@@ -44,32 +44,16 @@ from fparser.two.Fortran2003 import Use_Stmt
 from fparser.two.parser import ParserFactory
 from fparser.two.utils import walk
 
+from psyclone.errors import InternalError
+
 
 class ModuleManager:
     '''This class implements a singleton that manages module
     dependencies.
 
-    :param str config_file: a file with the list of all file names used \
-        in the project.
-
     '''
     # Class variable to store the singleton instance
     _instance = None
-
-    def __init__(self, config_file="allfiles"):
-
-        self._cached_module_info = {}
-        try:
-            with open(config_file, mode='r', encoding='utf-8') as file:
-                all_files = file.read().split()
-        except FileNotFoundError:
-            all_files = []
-
-        self._mod_2_filename = {}
-        for filename in all_files:
-            modules = self.get_modules_in_file(filename)
-            for module in modules:
-                self._mod_2_filename[module.lower()] = filename
 
     # ------------------------------------------------------------------------
     @staticmethod
@@ -81,6 +65,57 @@ class ModuleManager:
         if not ModuleManager._instance:
             ModuleManager._instance = ModuleManager()
         return ModuleManager._instance
+
+    # ------------------------------------------------------------------------
+    def __init__(self):
+
+        if ModuleManager._instance is not None:
+            raise InternalError("You need to use 'ModuleManager.get()' "
+                                "to get the singleton instance.")
+        self._cached_module_info = {}
+        self._mod_2_filename = {}
+        self._search_paths = []
+
+    # ------------------------------------------------------------------------
+    def add_search_path(self, directories):
+        '''If the directory is not already contained in the search path,
+        add it. Directory can either be a string, in which case it is a single
+        directory, or a list of directories, each one a string.
+
+        :param directories: the directory/directories to add.
+        :type directories: Union[str, List[str]]
+
+        '''
+
+        if isinstance(directories, str):
+            # Make sure we always have a list
+            directories = [directories]
+
+        for directory in directories:
+            if directory in self._search_paths:
+                continue
+            self._search_paths.append(directory)
+            if not os.path.exists(directory):
+                raise IOError(f"Directory {directory} does not exist.")
+            for root, dirs, _ in os.walk(directory):
+                for directory in dirs:
+                    new_dir = os.path.join(root, directory)
+                    self._search_paths.append(new_dir)
+
+    # ------------------------------------------------------------------------
+    def _add_all_files_from_dir(self, directory):
+        print("Scanning", directory)
+        with os.scandir(directory) as all_entries:
+            for entry in all_entries:
+                _, ext = os.path.splitext(entry.name)
+                if (not entry.is_file()) or \
+                        ext not in [".F90", ".f90", ".X90", ".x90"]:
+                    continue
+                full_path = os.path.join(directory, entry.name)
+                all_modules = self.get_modules_in_file(full_path)
+                for module in all_modules:
+                    if module not in self._mod_2_filename:
+                        self._mod_2_filename[module] = full_path
 
     # ------------------------------------------------------------------------
     def get_file_for_module(self, module_name):
@@ -95,7 +130,29 @@ class ModuleManager:
         :raises KeyError: if the module_name is not found.
 
         '''
-        return self._mod_2_filename[module_name.lower()]
+        mod_lower = module_name.lower()
+
+        # First check if we already know about this file:
+        file_name = self._mod_2_filename.get(mod_lower, None)
+        if file_name:
+            return file_name
+
+        # If not, check the search paths. To avoid frequent accesses to
+        # the directories, we reach search directories one at a time, and
+        # add the list of all files to the mapping:
+
+        search_paths_copy = self._search_paths.copy()
+
+        for directory in search_paths_copy:
+            self._add_all_files_from_dir(directory)
+            self._search_paths.remove(directory)
+            file_name = self._mod_2_filename.get(mod_lower, None)
+            if file_name:
+                print("TODO", module_name, self._search_paths)
+                return file_name
+
+        print("OOPS")
+        return None
 
     # ------------------------------------------------------------------------
     def get_modules_in_file(self, filename):
@@ -142,6 +199,9 @@ class ModuleManager:
 
         # Otherwise, parse the file:
         filename = self.get_file_for_module(module_name)
+        if not filename:
+            return []
+
         try:
             reader = FortranFileReader(filename)
         except FileNotFoundError:
