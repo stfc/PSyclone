@@ -57,7 +57,7 @@ ${ADJ_KERNEL_FILE}: ${TL_KERNEL_FILE}
 transform:
 	$(MAKE) single -e TL_KERNEL_NAME=tl_kinetic_energy_gradient_kernel ACTIVE_VAR_LIST="r_u ru_e ke_at_quad res_dot_product mul2 u_at_quad u_e u"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_moist_dyn_gas_kernel ACTIVE_VAR_LIST="moist_dyn_gas mr_v mr_v_at_dof"
-	$(MAKE) single -e TL_KERNEL_NAME=tl_project_eos_pressure_kernel ACTIVE_VAR_LIST="exner rho exner_e r_exner exner_at_quad rho_at_quad rho_e tmp_exner theta theta_vd_e theta_vd_at_quad moist_dyn_gas"
+	$(MAKE) single -e TL_KERNEL_NAME=tl_project_eos_pressure_kernel ACTIVE_VAR_LIST="exner rho exner_e r_exner exner_at_quad rho_at_quad rho_e tmp2 theta theta_vd_e theta_vd_at_quad moist_dyn_gas"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_vorticity_advection_kernel ACTIVE_VAR_LIST="r_u res_dot_product vorticity_term cross_product1 cross_product2 j_vorticity u_at_quad mul2 vorticity_at_quad wind vorticity"
 	$(MAKE) single -e TL_KERNEL_NAME=compound_operator_kernel ACTIVE_VAR_LIST="compound_operator field"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_poly1d_vert_adv_kernel ACTIVE_VAR_LIST="advective wind dpdz tracer"
@@ -65,12 +65,11 @@ transform:
 	$(MAKE) single -e TL_KERNEL_NAME=tl_poly1d_vert_w3_reconstruction_kernel ACTIVE_VAR_LIST="reconstruction polynomial_tracer tracer"
 	$(MAKE) single -e TL_KERNEL_NAME=convert_hdiv_field_kernel ACTIVE_VAR_LIST="physical_field1 physical_field2 physical_field3 vector_out vector_in computational_field"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_calc_exner_pointwise ACTIVE_VAR_LIST="exner rho theta"
-	$(MAKE) single -e TL_KERNEL_NAME=tl_project_eos_pressure_kernel ACTIVE_VAR_LIST="exner_at_quad r_exner exner_e exner rho_at_quad rho_e rho tmp_exner theta_vd_at_quad theta_vd_e theta moist_dyn_gas"
 	$(MAKE) single -e TL_KERNEL_NAME=eliminated_theta_q22_kernel ACTIVE_VAR_LIST="q22_op grad_term grad_exner exner tmp_result2"
 	$(MAKE) single -e TL_KERNEL_NAME=operator_setval_x_kernel ACTIVE_VAR_LIST="x y"
-	$(MAKE) single -e TL_KERNEL_NAME=mg_derham_mat_kernel ACTIVE_VAR_LIST="mm2 integrand div wt mmt mm3 wqp_v"
 	$(MAKE) single -e TL_KERNEL_NAME=poly2d_w3_reconstruction_kernel ACTIVE_VAR_LIST="reconstruction polynomial_tracer tracer"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_sample_eos_pressure_kernel ACTIVE_VAR_LIST="exner rho_cell rho_e rho tmp_exner theta_vd_cell theta_vd_e theta moist_dyn_gas"
+	$(MAKE) single -e TL_KERNEL_NAME=tl_rhs_project_eos_kernel ACTIVE_VAR_LIST="rhs_eos exner rho theta moist_dyn_gas eos exner_quad theta_vd_quad rho_quad rho_e exner_e theta_vd_e"
 
 compile:
 	@echo No compilation supported.

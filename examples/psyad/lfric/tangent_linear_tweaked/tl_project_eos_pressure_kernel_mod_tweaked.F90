@@ -162,7 +162,7 @@ subroutine tl_project_eos_pressure_code(cell, nlayers,                          
   real(kind=r_def) :: exner_at_quad, rho_at_quad, theta_vd_at_quad
   real(kind=r_def) :: ls_rho_at_quad, ls_theta_vd_at_quad
 
-  real(kind=r_def) :: tmp_ls_exner, tmp_exner
+  real(kind=r_def) :: tmp1, tmp2
 
   !RF need to add this to adjoint: use planet_config_mod, only : kappa, Rd, p_zero
   real(kind=r_def) :: kappa, Rd, p_zero
@@ -224,13 +224,13 @@ subroutine tl_project_eos_pressure_code(cell, nlayers,                          
 
         ! Calculation
 
-        tmp_ls_exner = ( ( Rd / p_zero ) * ls_rho_at_quad * ls_theta_vd_at_quad ) ** &
+        tmp1 = ( ( Rd / p_zero ) * ls_rho_at_quad * ls_theta_vd_at_quad ) ** &
                ( kappa / ( 1.0_r_def - kappa ) )
 
-        tmp_exner = ( kappa / ( 1.0_r_def - kappa ) ) * tmp_ls_exner * &
+        tmp2 = ( kappa / ( 1.0_r_def - kappa ) ) * tmp1 * &
              ( ( rho_at_quad / ls_rho_at_quad ) + ( theta_vd_at_quad / ls_theta_vd_at_quad )  )
 
-        exner_at_quad = wqp_h(qp1)*wqp_v(qp2)*dj(qp1,qp2)*tmp_exner
+        exner_at_quad = wqp_h(qp1)*wqp_v(qp2)*dj(qp1,qp2)*tmp2
 
         do df = 1, ndf_w3
           r_exner(df) = r_exner(df) + w3_basis(1,df,qp1,qp2)*exner_at_quad

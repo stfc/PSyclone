@@ -16,12 +16,11 @@ module tl_kinetic_energy_gradient_kernel_mod
   use argument_mod,      only : arg_type, func_type,       &
                                 GH_FIELD, GH_REAL,         &
                                 GH_READ, GH_INC,           &
-                                ANY_SPACE_9,               &
                                 ANY_DISCONTINUOUS_SPACE_3, &
                                 GH_BASIS, GH_DIFF_BASIS,   &
                                 CELL_COLUMN, GH_QUADRATURE_XYoZ
   use constants_mod,     only : r_def, i_def
-  use fs_continuity_mod, only : W2
+  use fs_continuity_mod, only : W2, WCHI
   use kernel_mod,        only : kernel_type
 
   implicit none
@@ -38,12 +37,12 @@ module tl_kinetic_energy_gradient_kernel_mod
         arg_type(GH_FIELD,   GH_REAL, GH_INC,  W2),                       &
         arg_type(GH_FIELD,   GH_REAL, GH_READ, W2),                       &
         arg_type(GH_FIELD,   GH_REAL, GH_READ, W2),                       &
-        arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9),              &
+        arg_type(GH_FIELD*3, GH_REAL, GH_READ, WCHI),                     &
         arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3) &
         /)
-    type(func_type) :: meta_funcs(2) = (/                 &
-        func_type(W2,           GH_BASIS, GH_DIFF_BASIS), &
-        func_type(ANY_SPACE_9,  GH_BASIS, GH_DIFF_BASIS)  &
+    type(func_type) :: meta_funcs(2) = (/         &
+        func_type(W2,   GH_BASIS, GH_DIFF_BASIS), &
+        func_type(WCHI, GH_BASIS, GH_DIFF_BASIS)  &
         /)
     integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
@@ -150,7 +149,7 @@ subroutine tl_kinetic_energy_gradient_code(nlayers,       &
   real(kind=r_def) :: ls_u_at_quad(3), u_at_quad(3)
   real(kind=r_def) :: ke_at_quad, dv
 
-  real(kind=r_def), dimension(3) :: mul1, mul2
+  real(kind=r_def) :: mul1(3), mul2(3)
 
   ipanel = int(panel_id(map_pid(1)), i_def)
 
@@ -197,8 +196,8 @@ subroutine tl_kinetic_energy_gradient_code(nlayers,       &
         end do
 
         ! Calculation
-        mul1 = matmul( jac(:,:,qp1,qp2), ls_u_at_quad )
-        mul2 = matmul( jac(:,:,qp1,qp2), u_at_quad )
+        mul1(3) = matmul( jac(:,:,qp1,qp2), ls_u_at_quad )
+        mul2(3) = matmul( jac(:,:,qp1,qp2), u_at_quad )
         ke_at_quad = dot_product(mul1, mul2) / ( dj(qp1,qp2)**2 )
 
         do df = 1, ndf_w2

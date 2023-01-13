@@ -1,20 +1,31 @@
 module adj_rhs_project_eos_kernel_mod
   use argument_mod, only : any_discontinuous_space_3, any_space_9, arg_type, cell_column, func_type, gh_basis, gh_diff_basis, &
-&gh_field, gh_quadrature_xyoz, gh_read, gh_real, gh_scalar, gh_write
+&gh_field, gh_quadrature_xyoz, gh_read, gh_readwrite, gh_real, gh_scalar, gh_write
   use constants_mod, only : i_def, r_def
-  use fs_continuity_mod, only : w3, wtheta
+  use fs_continuity_mod, only : w3, wtheta, wchi
   use kernel_mod, only : kernel_type
   implicit none
   type, public, extends(kernel_type) :: adj_rhs_project_eos_kernel_type
   PRIVATE
-  TYPE(arg_type) :: meta_args(14) = (/arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3), arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3), &
-&arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3), arg_type(GH_FIELD, GH_REAL, GH_READWRITE, Wtheta), arg_type(GH_FIELD, GH_REAL, GH_READWRITE, &
-&Wtheta), arg_type(GH_FIELD, GH_REAL, GH_READ, W3), arg_type(GH_FIELD, GH_REAL, GH_READ, W3), arg_type(GH_FIELD, GH_REAL, GH_READ, &
-&Wtheta), arg_type(GH_FIELD, GH_REAL, GH_READ, Wtheta), arg_type(GH_FIELD * 3, GH_REAL, GH_READ, ANY_SPACE_9), arg_type(GH_FIELD, &
-&GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3), arg_type(GH_SCALAR, GH_REAL, GH_READ), arg_type(GH_SCALAR, GH_REAL, GH_READ), &
-&arg_type(GH_SCALAR, GH_REAL, GH_READ)/)
-  TYPE(func_type) :: meta_funcs(3) = (/func_type(W3, GH_BASIS), func_type(Wtheta, GH_BASIS), func_type(ANY_SPACE_9, GH_BASIS, &
-&GH_DIFF_BASIS)/)
+  TYPE(arg_type) :: meta_args(14) = (/&
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3), &
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3), &
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3), &
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, Wtheta), &
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, Wtheta), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, W3), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, W3), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, Wtheta), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, Wtheta), &
+       arg_type(GH_FIELD * 3, GH_REAL, GH_READ, Wchi), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3), &
+       arg_type(GH_SCALAR, GH_REAL, GH_READ), &
+       arg_type(GH_SCALAR, GH_REAL, GH_READ), &
+       arg_type(GH_SCALAR, GH_REAL, GH_READ)/)
+  TYPE(func_type) :: meta_funcs(3) = (/ &
+       func_type(W3, GH_BASIS), &
+       func_type(Wtheta, GH_BASIS), &
+       func_type(wchi, GH_BASIS, GH_DIFF_BASIS)/)
   INTEGER :: operates_on = CELL_COLUMN
   INTEGER :: gh_shape = GH_QUADRATURE_XYoZ
   CONTAINS
@@ -25,9 +36,15 @@ END TYPE
   public :: adj_rhs_project_eos_code
 
   contains
-  subroutine adj_rhs_project_eos_code(nlayers, rhs_eos, exner, rho, theta, moist_dyn_gas, ls_exner, ls_rho, ls_theta, &
-&ls_moist_dyn_gas, chi1, chi2, chi3, panel_id, kappa, rd, p_zero, ndf_w3, undf_w3, map_w3, w3_basis, ndf_wt, undf_wt, map_wt, &
-&wt_basis, ndf_chi, undf_chi, map_chi, chi_basis, chi_diff_basis, ndf_pid, undf_pid, map_pid, nqp_h, nqp_v, wqp_h, wqp_v)
+    subroutine adj_rhs_project_eos_code(nlayers, rhs_eos, exner, rho, theta, moist_dyn_gas, &
+         ls_exner, ls_rho, ls_theta, ls_moist_dyn_gas, &
+         chi1, chi2, chi3, panel_id, &
+         kappa, rd, p_zero, &
+         ndf_w3, undf_w3, map_w3, w3_basis, &
+         ndf_wt, undf_wt, map_wt, wt_basis, &
+         ndf_chi, undf_chi, map_chi, chi_basis, chi_diff_basis, &
+         ndf_pid, undf_pid, map_pid, &
+         nqp_h, nqp_v, wqp_h, wqp_v)
     use coordinate_jacobian_mod, only : coordinate_jacobian
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: nqp_h
@@ -109,8 +126,8 @@ END TYPE
         chi2_e(df) = chi2(map_chi(df) + k)
         chi3_e(df) = chi3(map_chi(df) + k)
       enddo
-      call coordinate_jacobian(ndf_chi, nqp_h, nqp_v, chi1_e(:), chi2_e(:), chi3_e(:), ipanel, chi_basis(:,:,:,:), &
-&chi_diff_basis(:,:,:,:), jac(:,:,:,:), dj(:,:))
+      call coordinate_jacobian(ndf_chi, nqp_h, nqp_v, chi1_e(:), chi2_e(:), chi3_e(:), &
+           ipanel, chi_basis(:,:,:,:), chi_diff_basis(:,:,:,:), jac(:,:,:,:), dj(:,:))
       do df = 1, ndf_wt, 1
         ls_theta_vd_e(df) = ls_moist_dyn_gas(k + map_wt(df)) * ls_theta(k + map_wt(df))
       enddo

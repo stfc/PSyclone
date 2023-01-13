@@ -1,15 +1,15 @@
 module adj_convert_hdiv_field_kernel_mod
   use kernel_mod, only : kernel_type
-  use argument_mod, only : any_discontinuous_space_3, any_space_1, any_space_2, any_space_9, arg_type, cell_column, func_type, &
+  use argument_mod, only : any_discontinuous_space_3, any_space_1, any_space_2, wchi, arg_type, cell_column, func_type, &
 &gh_basis, gh_diff_basis, gh_evaluator, gh_field, gh_inc, gh_read, gh_real
   use constants_mod, only : i_def, r_def
   implicit none
   type, public, extends(kernel_type) :: adj_convert_hdiv_field_kernel_type
   PRIVATE
   TYPE(arg_type) :: meta_args(4) = (/arg_type(GH_FIELD * 3, GH_REAL, GH_READ, ANY_SPACE_1), arg_type(GH_FIELD, GH_REAL, GH_INC, &
-&ANY_SPACE_2), arg_type(GH_FIELD * 3, GH_REAL, GH_READ, ANY_SPACE_9), arg_type(GH_FIELD, GH_REAL, GH_READ, &
+&ANY_SPACE_2), arg_type(GH_FIELD * 3, GH_REAL, GH_READ, WCHI), arg_type(GH_FIELD, GH_REAL, GH_READ, &
 &ANY_DISCONTINUOUS_SPACE_3)/)
-  TYPE(func_type) :: meta_funcs(2) = (/func_type(ANY_SPACE_2, GH_BASIS), func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)/)
+  TYPE(func_type) :: meta_funcs(2) = (/func_type(ANY_SPACE_2, GH_BASIS), func_type(WCHI, GH_BASIS, GH_DIFF_BASIS)/)
   INTEGER :: operates_on = CELL_COLUMN
   INTEGER :: gh_shape = GH_EVALUATOR
   CONTAINS

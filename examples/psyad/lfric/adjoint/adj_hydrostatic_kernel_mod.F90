@@ -1,15 +1,20 @@
 module adj_hydrostatic_kernel_mod
   use argument_mod, only : any_w2, arg_type, cell_column, func_type, gh_basis, gh_diff_basis, gh_field, gh_inc, &
-&gh_quadrature_xyoz, gh_read, gh_real, gh_scalar
+&gh_quadrature_xyoz, gh_read, gh_real, gh_scalar, gh_readwrite
   use constants_mod, only : r_def
   use fs_continuity_mod, only : w3, wtheta
   use kernel_mod, only : kernel_type
   implicit none
   type, public, extends(kernel_type) :: adj_hydrostatic_kernel_type
   PRIVATE
-  TYPE(arg_type) :: meta_args(8) = (/arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_W2), arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3), &
-&arg_type(GH_FIELD, GH_REAL, GH_READWRITE, Wtheta), arg_type(GH_FIELD * 3, GH_REAL, GH_READWRITE, Wtheta), arg_type(GH_FIELD, GH_REAL, &
-&GH_READ, W3), arg_type(GH_FIELD, GH_REAL, GH_READ, Wtheta), arg_type(GH_FIELD * 3, GH_REAL, GH_READ, Wtheta), arg_type(GH_SCALAR, &
+  TYPE(arg_type) :: meta_args(8) = (/ &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_W2), &
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3), &
+       &arg_type(GH_FIELD, GH_REAL, GH_READWRITE, Wtheta), &
+       arg_type(GH_FIELD * 3, GH_REAL, GH_READWRITE, Wtheta), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, W3), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, Wtheta), &
+       arg_type(GH_FIELD * 3, GH_REAL, GH_READ, Wtheta), arg_type(GH_SCALAR, &
 &GH_REAL, GH_READ)/)
   TYPE(func_type) :: meta_funcs(3) = (/func_type(ANY_W2, GH_BASIS, GH_DIFF_BASIS), func_type(W3, GH_BASIS), func_type(Wtheta, &
 &GH_BASIS, GH_DIFF_BASIS)/)

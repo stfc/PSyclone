@@ -5,8 +5,10 @@ module adj_transpose_matrix_vector_kernel_mod
   implicit none
   type, public, extends(kernel_type) :: adj_transpose_matrix_vector_kernel_type
   PRIVATE
-  TYPE(arg_type) :: meta_args(3) = (/arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_1), arg_type(GH_FIELD, GH_REAL, GH_INC, &
-&ANY_SPACE_2), arg_type(GH_OPERATOR, GH_REAL, GH_READ, ANY_SPACE_2, ANY_SPACE_1)/)
+  TYPE(arg_type) :: meta_args(3) = (/ &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_1), &
+       arg_type(GH_FIELD, GH_REAL, GH_INC, ANY_SPACE_2), &
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ, ANY_SPACE_2, ANY_SPACE_1)/)
   INTEGER :: operates_on = CELL_COLUMN
   CONTAINS
   PROCEDURE, NOPASS :: adj_transpose_matrix_vector_code

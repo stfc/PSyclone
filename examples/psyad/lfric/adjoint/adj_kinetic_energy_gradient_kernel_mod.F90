@@ -1,16 +1,16 @@
 module adj_kinetic_energy_gradient_kernel_mod
-  use argument_mod, only : any_discontinuous_space_3, any_space_9, arg_type, cell_column, func_type, gh_basis, gh_diff_basis, &
-&gh_field, gh_inc, gh_quadrature_xyoz, gh_read, gh_real
+  use argument_mod, only : any_discontinuous_space_3, arg_type, cell_column, func_type, gh_basis, gh_diff_basis, gh_field, gh_inc, &
+&gh_quadrature_xyoz, gh_read, gh_real
   use constants_mod, only : i_def, r_def
-  use fs_continuity_mod, only : w2
+  use fs_continuity_mod, only : w2, wchi
   use kernel_mod, only : kernel_type
   implicit none
   type, public, extends(kernel_type) :: adj_kinetic_energy_gradient_kernel_type
   PRIVATE
   TYPE(arg_type) :: meta_args(5) = (/arg_type(GH_FIELD, GH_REAL, GH_READ, W2), arg_type(GH_FIELD, GH_REAL, GH_INC, W2), &
-&arg_type(GH_FIELD, GH_REAL, GH_READ, W2), arg_type(GH_FIELD * 3, GH_REAL, GH_READ, ANY_SPACE_9), arg_type(GH_FIELD, GH_REAL, &
-&GH_READ, ANY_DISCONTINUOUS_SPACE_3)/)
-  TYPE(func_type) :: meta_funcs(2) = (/func_type(W2, GH_BASIS, GH_DIFF_BASIS), func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)/)
+&arg_type(GH_FIELD, GH_REAL, GH_READ, W2), arg_type(GH_FIELD * 3, GH_REAL, GH_READ, WCHI), arg_type(GH_FIELD, GH_REAL, GH_READ, &
+&ANY_DISCONTINUOUS_SPACE_3)/)
+  TYPE(func_type) :: meta_funcs(2) = (/func_type(W2, GH_BASIS, GH_DIFF_BASIS), func_type(WCHI, GH_BASIS, GH_DIFF_BASIS)/)
   INTEGER :: operates_on = CELL_COLUMN
   INTEGER :: gh_shape = GH_QUADRATURE_XYoZ
   CONTAINS
@@ -73,7 +73,6 @@ END TYPE
     integer :: i
     real(kind=r_def) :: res_dot_product
     integer :: idx
-    integer :: i_2
     integer :: j
     integer :: i_1
     integer :: j_1

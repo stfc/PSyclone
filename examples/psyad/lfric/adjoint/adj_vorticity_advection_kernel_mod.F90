@@ -3,16 +3,23 @@ module adj_vorticity_advection_kernel_mod
   use argument_mod, only : any_discontinuous_space_3, any_space_9, arg_type, cell_column, func_type, gh_basis, gh_diff_basis, &
 &gh_field, gh_inc, gh_quadrature_xyoz, gh_read, gh_real
   use constants_mod, only : i_def, r_def
-  use fs_continuity_mod, only : w1, w2
+  use fs_continuity_mod, only : w1, w2, Wchi
   use cross_product_mod, only : cross_product
   implicit none
   type, public, extends(kernel_type) :: adj_vorticity_advection_kernel_type
   PRIVATE
-  TYPE(arg_type) :: meta_args(7) = (/arg_type(GH_FIELD, GH_REAL, GH_READ, W2), arg_type(GH_FIELD, GH_REAL, GH_INC, W2), &
-&arg_type(GH_FIELD, GH_REAL, GH_INC, W1), arg_type(GH_FIELD, GH_REAL, GH_READ, W2), arg_type(GH_FIELD, GH_REAL, GH_READ, W1), &
-&arg_type(GH_FIELD * 3, GH_REAL, GH_READ, ANY_SPACE_9), arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3)/)
-  TYPE(func_type) :: meta_funcs(3) = (/func_type(W2, GH_BASIS), func_type(W1, GH_BASIS), func_type(ANY_SPACE_9, GH_BASIS, &
-&GH_DIFF_BASIS)/)
+  TYPE(arg_type) :: meta_args(7) = (/ &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, W2), &
+       arg_type(GH_FIELD, GH_REAL, GH_INC, W2), &
+       &arg_type(GH_FIELD, GH_REAL, GH_INC, W1), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, W2), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, W1), &
+       &arg_type(GH_FIELD * 3, GH_REAL, GH_READ, Wchi), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3)/)
+  TYPE(func_type) :: meta_funcs(3) = (/ &
+       func_type(W2, GH_BASIS), &
+       func_type(W1, GH_BASIS), &
+       func_type(Wchi, GH_BASIS, GH_DIFF_BASIS)/)
   INTEGER :: operates_on = CELL_COLUMN
   INTEGER :: gh_shape = GH_QUADRATURE_XYoZ
   CONTAINS
@@ -87,15 +94,12 @@ END TYPE
     integer :: idx_1
     integer :: idx_2
     integer :: idx_3
-    integer :: i_3
     integer :: j
     integer :: ii
     integer :: i_1
     integer :: j_1
     integer :: i_2
     integer :: j_2
-    integer :: idx_2_1
-    integer :: idx_1_1
 
     res_dot_product = 0.0_r_def
     vorticity_term = 0.0_r_def

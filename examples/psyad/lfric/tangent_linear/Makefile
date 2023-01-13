@@ -61,7 +61,6 @@ transform:
 	$(MAKE) single -e TL_KERNEL_NAME=tl_hydrostatic_kernel ACTIVE_VAR_LIST="r_u exner theta grad_term exner_at_quad theta_v_at_quad res_dot_product grad_theta_v_at_quad theta_v_e exner_e moist_dyn_tot moist_dyn_gas"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_moist_dyn_mass_kernel ACTIVE_VAR_LIST="moist_dyn_tot mr_v mr_cl mr_r mr_ci mr_s mr_g mr_v_at_dof mr_cl_at_dof mr_r_at_dof mr_ci_at_dof mr_s_at_dof mr_g_at_dof"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_pressure_gradient_bd_kernel ACTIVE_VAR_LIST="r_u_bd exner pressure_gradient_bd_e bdary_term exner_av theta_v_at_fquad theta_v_e exner_e exner_next_e theta moist_dyn_tot moist_dyn_gas"
-	$(MAKE) single -e TL_KERNEL_NAME=tl_rhs_project_eos_kernel ACTIVE_VAR_LIST="rhs_eos exner rho theta moist_dyn_gas eos exner_quad theta_vd_quad rho_quad rho_e exner_e theta_vd_e"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_rhs_sample_eos_kernel ACTIVE_VAR_LIST="rhs_eos exner rho theta moist_dyn_gas exner_cell theta_vd_cell rho_cell rho_e exner_e theta_vd_e"
 	# Correct active list below, as "advective_increment m3_inv" also works?
 	$(MAKE) single -e TL_KERNEL_NAME=w3_advective_update_kernel ACTIVE_VAR_LIST="advective_increment u v w wind"
@@ -70,7 +69,6 @@ transform:
 	$(MAKE) single -e TL_KERNEL_NAME=split_w2_field_kernel ACTIVE_VAR_LIST="uvw w uv"
 	$(MAKE) single -e TL_KERNEL_NAME=sample_flux_kernel ACTIVE_VAR_LIST="flux u"
 	$(MAKE) single -e TL_KERNEL_NAME=weighted_div_kernel ACTIVE_VAR_LIST="div div_theta_v theta_quad res_dot_product grad_theta_quad theta_e theta"
-	$(MAKE) single -e TL_KERNEL_NAME=weighted_proj_2theta_kernel ACTIVE_VAR_LIST="projection exner integrand exner_quad exner_e"
 	$(MAKE) single -e TL_KERNEL_NAME=weighted_proj_theta2_kernel ACTIVE_VAR_LIST="theta theta_e theta_at_quad i1 projection"
 	$(MAKE) single -e TL_KERNEL_NAME=weighted_div_bd_kernel ACTIVE_VAR_LIST="div integrand next_bd_term this_bd_term theta_next_at_fquad theta_at_fquad theta_next_e theta_e theta"
 	$(MAKE) single -e TL_KERNEL_NAME=weighted_proj_2theta_bd_kernel ACTIVE_VAR_LIST="projection integrand exner_av exner_at_fquad exner_next_at_fquad exner_next_e exner_e exner"
