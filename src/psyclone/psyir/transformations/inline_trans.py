@@ -42,12 +42,13 @@ from psyclone.psyGen import Transformation
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
     ArrayReference, ArrayOfStructuresReference, BinaryOperation, Call,
-    CodeBlock, Range, Routine, Reference, Return, Literal, Assignment,
-    Container, StructureReference)
+    CodeBlock, Container, IntrinsicCall, Range, Routine, Reference, Return,
+    Literal, Assignment, StructureReference)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol, ScalarType,
                                     RoutineSymbol, ImportInterface, Symbol,
-                                    ArrayType, INTEGER_TYPE, DeferredType)
+                                    ArrayType, INTEGER_TYPE, DeferredType,
+                                    UnknownType)
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 
@@ -106,6 +107,7 @@ class InlineTrans(Transformation):
 
         * the routine is not in the same file as the call;
         * the routine contains an early Return statement;
+        * the routine has local state (a var. with the SAVE attr. in Fortran)
         * the routine has a named argument;
         * the shape of any array arguments as declared inside the routine does
           not match the shape of the arrays being passed as arguments;
@@ -657,6 +659,8 @@ class InlineTrans(Transformation):
                             f"'{callsite_csym.name}' has not been updated to "
                             f"refer to that container at the call site.")
                 else:
+                    # TODO if this symbol is imported from a Container (via a
+                    # wildcard) then we CANNOT rename it!
                     # A Symbol with the same name already exists so we rename
                     # the one that we are adding.
                     new_name = table.next_available_name(
@@ -682,7 +686,8 @@ class InlineTrans(Transformation):
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if the supplied node is not a Call.
+        :raises TransformationError: if the supplied node is not a Call or is \
+            an IntrinsicCall.
         :raises TransformationError: if the routine has a return value.
         :raises TransformationError: if the routine body contains a Return \
             that is not the first or last statement.
@@ -707,6 +712,9 @@ class InlineTrans(Transformation):
                 f"The target of the InlineTrans transformation "
                 f"should be a Call but found '{type(node).__name__}'.")
 
+        if isinstance(node, IntrinsicCall):
+            raise TransformationError(
+                f"Cannot inline an IntrinsicCall ('{node.routine.name}')")
         name = node.routine.name
 
         # Check that we can find the source of the routine being inlined.
@@ -739,9 +747,19 @@ class InlineTrans(Transformation):
                     f"Routine '{routine.name}' cannot be inlined because it "
                     f"has a named argument '{arg}' (TODO #924).")
 
-        # Check for symbol-naming clashes that we can't handle.
         table = node.scope.symbol_table
         routine_table = routine.symbol_table
+
+        # Check that there are no static variables in the routine (because we
+        # don't know whether the routine is called from other places).
+        # TODO #2008 - at the moment we only check for symbols of UnknownType
+        # which is safe but will give a lot of false positives.
+        for sym in routine_table.local_datasymbols:
+            if isinstance(sym.datatype, UnknownType):
+                raise TransformationError(
+                    f"Routine '{routine.name}' cannot be inlined because it "
+                    f"contains a Symbol '{sym.name}' which is of unknown type:"
+                    f" '{sym.datatype.declaration}')")
 
         # We can't handle a clash between (apparently) different symbols that
         # share a name but are imported from different containers.
@@ -763,20 +781,61 @@ class InlineTrans(Transformation):
 
         # Check for unresolved symbols or for any accessed from the Container
         # containing the target routine.
-        refs = routine.walk(Reference)
-        for ref in refs:
-            if ref.symbol.name not in routine_table:
-                sym = routine_table.lookup(ref.symbol.name)
-                if sym.is_unresolved:
+        # TODO #1792 - kind parameters will not be found by simply doing
+        # `walk(Reference)`. Although SymbolTable has the
+        # `precision_datasymbols` property, this only returns those Symbols
+        # that are used to define the precision of other Symbols in the same
+        # table. If a precision symbol is only used within Statements then we
+        # don't currently capture the fact that it is a precision symbol.
+        ref_or_lits = routine.walk((Reference, Literal))
+        for lnode in ref_or_lits:
+            if isinstance(lnode, Literal):
+                if not isinstance(lnode.datatype.precision, DataSymbol):
+                    continue
+                sym = lnode.datatype.precision
+            else:
+                sym = lnode.symbol
+            if sym.is_unresolved:
+                cursor = routine_table
+                while cursor:
+                    csyms = cursor.containersymbols
+                    for csym in csyms:
+                        if csym.wildcard_import:
+                            try:
+                                cursor.resolve_imports(container_symbols=[csym],
+                                                       symbol_target=sym)
+                                # We've successfully resolved the type of the
+                                # symbol but it might be in a parent symbol
+                                # table rather than routine_table.
+                                if cursor is not routine_table:
+                                    new_sym = cursor.lookup(sym.name)
+                                    if sym.name in routine_table:
+                                        for anode in ref_or_lits:
+                                            if isinstance(anode, Literal) and anode.datatype.precision is sym:
+                                                anode.datatype._precision = new_sym
+                                            elif isinstance(anode, Reference) and anode.symbol is sym:
+                                                anode.symbol = new_sym
+                                        del routine_table._symbols[sym.name]
+                                break
+                            except KeyError:
+                                # TODO #11 - it would be useful to log this.
+                                print(f"Failed to find '{sym.name}' in container '{csym.name}'")
+                                continue
+                    else:
+                        cursor = cursor.parent_symbol_table()
+                        continue
+                    break
+                new_sym = routine_table.lookup(sym.name)
+                if new_sym.is_unresolved:
                     raise TransformationError(
                         f"Routine '{routine.name}' cannot be inlined because "
                         f"it accesses an un-resolved variable "
-                        f"'{ref.symbol.name}'.")
-                if not sym.is_import:
-                    raise TransformationError(
-                        f"Routine '{routine.name}' cannot be inlined because "
-                        f"it accesses variable '{ref.symbol.name}' from its "
-                        f"parent container.")
+                        f"'{sym.name}'.")
+            if sym.name not in routine_table and not sym.is_import:
+                raise TransformationError(
+                    f"Routine '{routine.name}' cannot be inlined because "
+                    f"it accesses variable '{sym.name}' from its "
+                    f"parent container.")
 
         # Check that the shape of any dummy array arguments are the same as
         # those at the call site.
