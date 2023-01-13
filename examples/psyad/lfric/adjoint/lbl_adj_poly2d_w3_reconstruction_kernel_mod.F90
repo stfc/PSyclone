@@ -1,6 +1,7 @@
 module adj_poly2d_w3_reconstruction_kernel_mod
   use argument_mod, only : any_discontinuous_space_1, arg_type, cell_column, func_type, gh_basis, gh_evaluator, gh_field, gh_inc, &
-&gh_integer, gh_read, gh_real, gh_scalar, outward_normals_to_horizontal_faces, reference_element_data_type, region, stencil
+&gh_integer, gh_read, gh_real, gh_scalar, outward_normals_to_horizontal_faces, reference_element_data_type, region, &
+&stencil, gh_readwrite
   use constants_mod, only : i_def, l_def, r_def
   use fs_continuity_mod, only : w2, w3
   use kernel_mod, only : kernel_type
@@ -53,7 +54,7 @@ END TYPE
     integer(kind=i_def) :: ijp
     real(kind=r_def) :: direction
     real(kind=r_def), dimension(nfaces_re_h) :: v_dot_n
-    real(kind=r_def), dimension(nlayers) :: polynomial_tracer
+    real(kind=r_def), dimension(0:nlayers-1) :: polynomial_tracer
     integer :: i
     real(kind=r_def) :: res_dot_product
     integer :: idx
