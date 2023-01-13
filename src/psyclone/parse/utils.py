@@ -98,8 +98,8 @@ def check_line_length(filename):
 
     if fll.long_lines(code_str):
         raise ParseError(
-            f"the file does not conform to the specified {fll.length} line "
-            f"length limit")
+            f"File '{filename}' does not conform to the specified "
+            f"{fll.length} line length limit")
 
 
 def parse_fp2(filename):
