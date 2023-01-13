@@ -392,20 +392,25 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                                       "is a Literal or BinaryOperation. "
                                       "PSyclone can't validate "
                                       "this dependency.")
+        start = None
+        stop = None
+        step = None
         for node in preceding_nodes:
             # Only Assignment, Loop or Call nodes can modify the symbol in our
             # Reference
             if not isinstance(node, (Assignment, Loop, Call)):
                 continue
             if isinstance(node, Call):
-                # FIXME Check if the Symbol is written to and if so then raise an
-                # error
-                assert False
-            if isinstance(node, Assignment) and node.lhs.symbol == ref.symbol:
+                # Currently opting to fail on any Call.
+                # Potentially it might be possible to check if the Symbol is 
+                # written to and only if so then raise an error
+                raise GenerationError("Found a Call in preceding_nodes, which "
+                                      "is not yet supported.")
+            if isinstance(node, Assignment) and node.lhs.symbol == symbol:
                 # FIXME Check if this makes sense? Probably it does.
                 # Maybe only if rhs is Literal or Reference?
                 start = node.rhs.copy()
-            if isinstance(node, Loop) and node.variable == ref.symbol:
+            if isinstance(node, Loop) and node.variable == symbol:
                 # If the loop is not an ancestor of the task then
                 # we don't currently support it.
                 ancestor_loop = task.ancestor(Loop, limit=self)
@@ -421,15 +426,17 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                                           "the task.")
                 # It has to be an ancestor loop, so we want to find the start,
                 # stop and step Nodes
-                start = node.start
-                stop = node.stop
-                step = node.step
+                start = node.start_expr
+                stop = node.stop_expr
+                step = node.step_expr
 
         # FIXME If ref is a binop we need to do something special too.
         if isinstance(ref, BinaryOperation):
             output_list = []
             if step is None:
-                assert False
+                raise GenerationError("Found a dependency between a BinaryOperation"
+                                      "and a previously set constant value. PSyclone "
+                                      "cannot yet handle this interaction.")
             # FIXME Implement me.
             if not isinstance(step, Literal):
                 raise GenerationError("Found a dependency index that is a "
@@ -445,15 +452,15 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 return output_list
 
             first_val = BinaryOperation.create(
-                    BinaryOperation.BinaryOp.ADD,
+                    BinaryOperation.Operator.ADD,
                     start.copy(),
                     Literal(f"{binop_val}", INTEGER_TYPE))
             output_list.append(first_val)
-            for i in range(num_entries):
-                val = binop_val + i * step
+            for i in range(1, num_entries+1):
+                val = binop_val + i * int(step.value)
                 output_list.append(
                         BinaryOperation.create(
-                            BinaryOperation.BinaryOp.ADD,
+                            BinaryOperation.Operator.ADD,
                             start.copy(),
                             Literal(f"{val}", INTEGER_TYPE)))
             return output_list

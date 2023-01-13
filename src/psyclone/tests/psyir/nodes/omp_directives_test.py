@@ -52,9 +52,10 @@ from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, \
     Reference, OMPDeclareTargetDirective, OMPNowaitClause, \
     OMPGrainsizeClause, OMPNumTasksClause, OMPNogroupClause, \
     OMPPrivateClause, OMPDefaultClause, OMPReductionClause, \
-    OMPScheduleClause, OMPTeamsDistributeParallelDoDirective
+    OMPScheduleClause, OMPTeamsDistributeParallelDoDirective, \
+    Range, BinaryOperation, Call, OMPTaskDirective
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, SymbolTable, \
-    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE
+    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, ArrayType, RoutineSymbol
 from psyclone.errors import InternalError, GenerationError
 from psyclone.transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans, \
     OMPParallelLoopTrans, DynamoOMPParallelLoopTrans, OMPSingleTrans, \
@@ -1139,3 +1140,285 @@ def test_omploop_equality():
 
     omploop1.collapse = 2
     assert omploop1 != omploop2
+
+def test_omp_serial_compare_literals():
+    sing = OMPSingleDirective()
+    lit1 = Literal("0", INTEGER_SINGLE_TYPE)
+    lit2 = Literal("1", INTEGER_SINGLE_TYPE)
+    sing._compare_literals(lit1, lit2)
+    tmp = DataSymbol("tmp", REAL_SINGLE_TYPE)
+    ref = Reference(tmp)
+    with pytest.raises(GenerationError) as excinfo:
+        sing._compare_literals(lit1, ref)
+    assert ("Literal index to dependency has calculated "
+            "dependency to a non-Literal index, which is"
+            " not currently supported in PSyclone." in str(excinfo.value))
+
+def test_omp_serial_compare_ranges():
+    sing = OMPSingleDirective()
+    
+    # Create an ArrayType
+    array_type = ArrayType(INTEGER_SINGLE_TYPE, [100, 100])
+    tmp = DataSymbol("tmp", array_type)
+
+    # Create some ranges
+    lbound = BinaryOperation.create(BinaryOperation.Operator.LBOUND, Reference(tmp), Literal("1", INTEGER_TYPE))
+    ubound = BinaryOperation.create(BinaryOperation.Operator.UBOUND, Reference(tmp), Literal("1", INTEGER_TYPE))
+    range1 = Range.create(lbound, ubound)
+    range2 = Range.create(lbound.copy(), ubound.copy())
+    range3 = Range.create(lbound.copy(), ubound.copy(), Literal("2", INTEGER_TYPE))
+    
+    tmp2 = DataSymbol("tmp2", REAL_SINGLE_TYPE)
+    ref = Reference(tmp2)
+
+    # Valid run
+    sing._compare_ranges(range1, range2)
+
+    with pytest.raises(GenerationError) as excinfo:
+        sing._compare_ranges(range1, ref)
+    assert ("Range index to a dependency has calculated "
+            "dependency to a non-Range index, which is "
+            "not currently supported in PSyclone." in str(excinfo.value))
+
+    with pytest.raises(GenerationError) as excinfo:
+        sing._compare_ranges(range1, range3)
+    assert ("Found a range index between dependencies "
+            "which does not cover the full array range, "
+            "which is not currently supported in "
+            "PSyclone (due to OpenMP limitations)." in str(excinfo.value))
+
+def test_omp_serial_compute_accesses_bad_binop():
+    # A lot to do here, across multiple tests.
+    # Inputs are a reference or Binop, a list of nodes preceding a task, and that task.
+
+    # Fail conditions:
+    # 1. Literal OP Reference BinaryOperation where the operator is not ADD
+    # 2. Reference OP Literal BinaryOperation where the operator is not ADD or SUB
+    # 3&4. BinaryOperation OP Refrence BinaryOperation where the sub BinaryOperation is not
+    #      a Literal MUL Literal
+    # 5. BinaryOperation OP Reference where OP is not ADD
+    # 6&7. Reference ADD BinaryOperation where the sub BinaryOperation is not a Literal MUL Literal.
+    # 8&9. Reference SUB BinaryOperation where the sub BinaryOperation is not a Literal MUL Literal.
+    # 10. Referebce OP BinaryOperation where the OP is not ADD or SUB.
+    # 11. Reference OP Non-Literal/BinaryOperation
+    # 12. Non-Literal/Reference/Binop OP ...
+
+
+    # Fail conditions 1-12 we can just test with only Ref as the input, the others are a bit more complex.
+    sing = OMPSingleDirective()
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    ref = Reference(tmp)
+
+    binop_fail1 = BinaryOperation.create(BinaryOperation.Operator.MUL, Literal("1", INTEGER_SINGLE_TYPE), Reference(tmp))
+    
+    with pytest.raises(GenerationError) as excinfo:
+        sing._compute_accesses(binop_fail1, [], None)
+    assert ("Found a dependency index that is "
+            "a BinaryOperation where the "
+            "format is Literal OP Reference "
+            "with a non-ADD operand "
+            "which is not supported." in str(excinfo.value))
+
+    binop_fail2 = BinaryOperation.create(BinaryOperation.Operator.MUL, Reference(tmp), Literal("1", INTEGER_SINGLE_TYPE))
+    with pytest.raises(GenerationError) as excinfo:
+        sing._compute_accesses(binop_fail2, [], None)
+    assert ("Found a dependency index that is "
+            "a BinaryOperation where the "
+            "Operator is neither ADD not SUB "
+            "which is not supported." in str(excinfo.value))
+
+    sub_binop1 = BinaryOperation.create(BinaryOperation.Operator.ADD, Literal("1", INTEGER_SINGLE_TYPE), Literal("1", INTEGER_SINGLE_TYPE))
+    binop_fail3 = BinaryOperation.create(BinaryOperation.Operator.ADD, sub_binop1.copy(), Reference(tmp))
+    with pytest.raises(GenerationError) as excinfo:
+        sing._compute_accesses(binop_fail3, [], None)
+    assert ("Found a dependency index that is a "
+            "BinaryOperation with a child "
+            "BinaryOperation with a non-MUL operand "
+            "which is not supported." in str(excinfo.value))
+
+    sub_binop2 = BinaryOperation.create(BinaryOperation.Operator.MUL, Literal("1", INTEGER_SINGLE_TYPE), Reference(tmp))
+    binop_fail4 = BinaryOperation.create(BinaryOperation.Operator.ADD, sub_binop2, Reference(tmp))
+    with pytest.raises(GenerationError) as excinfo:
+        sing._compute_accesses(binop_fail4, [], None)
+    assert ("Found a dependency index that is a BinaryOperation with a child "
+            "BinaryOperation with a non-Literal child which is not supported." in str(excinfo.value))
+
+    sub_binop3 = BinaryOperation.create(BinaryOperation.Operator.MUL, Literal("1", INTEGER_SINGLE_TYPE), Literal("1", INTEGER_SINGLE_TYPE))
+    binop_fail5 = BinaryOperation.create(BinaryOperation.Operator.SUB, sub_binop3, Reference(tmp))
+    with pytest.raises(GenerationError) as excinfo:
+        sing._compute_accesses(binop_fail5, [], None)
+    assert ("Found a dependency index that is "
+            "a BinaryOperation where the "
+            "format is BinaryOperator OP "
+            "Reference with a non-ADD operand " in str(excinfo.value))
+
+    binop_fail6 = BinaryOperation.create(BinaryOperation.Operator.ADD, Reference(tmp), sub_binop1.copy())
+    with pytest.raises(GenerationError) as excinfo:
+        sing._compute_accesses(binop_fail6, [], None)
+    assert ("Found a dependency index that is a BinaryOperation with a child "
+            "BinaryOperation with a non-MUL operand which is not supported." in str(excinfo.value))
+
+    binop_fail7 = BinaryOperation.create(BinaryOperation.Operator.SUB, Reference(tmp), sub_binop2.copy())
+    with pytest.raises(GenerationError) as excinfo:
+        sing._compute_accesses(binop_fail7, [], None)
+    assert ("Found a dependency index that is a BinaryOperation with a child "
+            "BinaryOperation with a non-Literal child which is not supported." in str(excinfo.value))
+
+    binop_fail8 = BinaryOperation.create(BinaryOperation.Operator.SUB, Reference(tmp), sub_binop1.copy())
+    with pytest.raises(GenerationError) as excinfo:
+        sing._compute_accesses(binop_fail8, [], None)
+    assert ("Found a dependency index that is a BinaryOperation with a child "
+            "BinaryOperation with a non-MUL operand which is not supported." in str(excinfo.value))
+
+    binop_fail9 = BinaryOperation.create(BinaryOperation.Operator.SUB, Reference(tmp), sub_binop2.copy())
+    with pytest.raises(GenerationError) as excinfo:
+        sing._compute_accesses(binop_fail9, [], None)
+    assert ("Found a dependency index that is a BinaryOperation with a child "
+            "BinaryOperation with a non-Literal child which is not supported." in str(excinfo.value))
+
+    binop_fail10 = BinaryOperation.create(BinaryOperation.Operator.MUL, Reference(tmp), sub_binop3.copy())
+    with pytest.raises(GenerationError) as excinfo:
+        sing._compute_accesses(binop_fail10, [], None)
+    assert ("Found a dependency index that is a BinaryOperation where the "
+            "format is Reference OP BinaryOperation with a non-ADD, non-SUB "
+            "operand which is not supported." in str(excinfo.value))
+
+    binop_fail11 = BinaryOperation.create(BinaryOperation.Operator.ADD, Reference(tmp), Reference(tmp))
+    with pytest.raises(GenerationError) as excinfo:
+        sing._compute_accesses(binop_fail11, [], None)
+    assert ("Found a dependency index that is a BinaryOperation where neither "
+            "child is a Literal or BinaryOperation. PSyclone can't validate "
+            "this dependency." in str(excinfo.value))
+
+    binop_fail12 = BinaryOperation.create(BinaryOperation.Operator.ADD, Call(RoutineSymbol("mycall")), Reference(tmp))
+    with pytest.raises(GenerationError) as excinfo:
+        sing._compute_accesses(binop_fail12, [], None)
+    assert ("Found a dependency index that is a "
+            "BinaryOperation where neither child "
+            "is a Literal or BinaryOperation. "
+            "PSyclone can't validate "
+            "this dependency." in str(excinfo.value))
+
+def test_omp_serial_compute_accesses_other_fails():
+    sing = OMPSingleDirective()
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    ref = Reference(tmp)
+    # 13. If preceding_nodes contains a Call.
+    # 14. If we have an access to a previous Loop variable that is not a ancestor of the supplied task.
+    # 15. Binaryop access to Loop variable with non-Literal step (Line 435, i think this is the cause?)
+    # 16. Assignment to a index of a Loop variabkle with non-Literal step (Line 468)
+    correct_binop = BinaryOperation.create(BinaryOperation.Operator.ADD, Reference(tmp), Literal("1", INTEGER_SINGLE_TYPE))
+
+    call_fail = Call(RoutineSymbol("mycall"))
+    with pytest.raises(GenerationError) as excinfo:
+        sing._compute_accesses(correct_binop, [call_fail], None)
+    assert ("Found a Call in preceding_nodes, which is not yet supported."
+            in str(excinfo.value))
+   
+    # Create a task, and a Loop where the loop variable is tmp
+    task = OMPTaskDirective()
+    loop1 = Loop.create(tmp, Literal("1", INTEGER_SINGLE_TYPE), Literal("2", INTEGER_SINGLE_TYPE), Literal("3", INTEGER_SINGLE_TYPE), [])
+    with pytest.raises(GenerationError) as excinfo:
+        sing._compute_accesses(ref, [loop1], task)
+    assert ("Found an dependency index that "
+            "was updated as a Loop variable "
+            "that is not an ancestor Loop of "
+            "the task." in str(excinfo.value))
+
+    task2 = task.copy()
+    loop2 = Loop.create(tmp, Literal("1", INTEGER_SINGLE_TYPE), Literal("2", INTEGER_SINGLE_TYPE), ref.copy(), [task2])
+
+    with pytest.raises(GenerationError) as excinfo:
+        sing._compute_accesses(correct_binop, [loop2], task2)
+    assert("Found a dependency index that is a Loop variable with a non-"
+            "Literal step which we can't resolve in PSyclone."
+            in str(excinfo.value))
+
+    assign = Assignment.create(ref.copy(), Literal("1", INTEGER_SINGLE_TYPE))
+    with pytest.raises(GenerationError) as excinfo:
+        sing._compute_accesses(correct_binop, [assign], task2)
+    assert ("Found a dependency between a BinaryOperation"
+            "and a previously set constant value. PSyclone "
+            "cannot yet handle this interaction." in str(excinfo.value))
+
+    with pytest.raises(GenerationError) as excinfo:
+        sing._compute_accesses(ref, [loop2], task2)
+    assert (" Found a dependency index that is a Loop variable with a non-"
+            "Literal step which we can't resolve in PSyclone."
+            in str(excinfo.value))
+
+
+def test_omp_serial_compute_accesses_results():
+    # First result output, BinaryOperation with all Literal Loop
+    sing = OMPSingleDirective()
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    ref = Reference(tmp)
+    task = OMPTaskDirective()
+    loop = Loop.create(tmp, Literal("1", INTEGER_SINGLE_TYPE), Literal("64", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task])
+
+    binop = BinaryOperation.create(BinaryOperation.Operator.ADD, ref.copy(), Literal("1", INTEGER_SINGLE_TYPE))
+
+    x = sing._compute_accesses(binop, [loop], task)
+    assert len(x) == 2
+    assert isinstance(x[0], Literal)
+    assert x[0].value == "2"
+    assert isinstance(x[1], Literal)
+    assert x[1].value == "34"
+
+    # Second result output, BinaryOpeartion with reference start Loop
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    task = task.copy()
+    loop = Loop.create(tmp, Reference(tmp2), Literal("256", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task])
+
+    x = sing._compute_accesses(binop, [loop], task)
+    assert len(x) == 3
+    assert isinstance(x[0], BinaryOperation)
+    assert x[0].operator == BinaryOperation.Operator.ADD
+    assert isinstance(x[0].children[0], Reference)
+    assert x[0].children[0].symbol == tmp2
+    assert isinstance(x[0].children[1], Literal)
+    assert x[0].children[1].value == "1"
+
+    assert isinstance(x[1], BinaryOperation)
+    assert x[1].operator == BinaryOperation.Operator.ADD
+    assert isinstance(x[1].children[0], Reference)
+    assert x[1].children[0].symbol == tmp2
+    assert isinstance(x[1].children[1], Literal)
+    assert x[1].children[1].value == "33"
+
+    assert isinstance(x[2], BinaryOperation)
+    assert x[2].operator == BinaryOperation.Operator.ADD
+    assert isinstance(x[2].children[0], Reference)
+    assert x[2].children[0].symbol == tmp2
+    assert isinstance(x[2].children[1], Literal)
+    assert x[2].children[1].value == "65"
+
+    # Third result output, Reference to Assignment
+    assign = Assignment.create(Reference(tmp), Reference(tmp2))
+    x = sing._compute_accesses(Reference(tmp), [assign], task)
+    assert len(x) == 1
+    assert isinstance(x[0], Reference)
+    assert x[0].symbol == tmp2
+
+    # Fifth result output, Reference access to loop with non Literal start
+    x = sing._compute_accesses(Reference(tmp), [loop], task)
+    assert len(x) == 2
+    assert isinstance(x[0], Reference)
+    assert x[0].symbol == tmp2
+    assert isinstance(x[1], BinaryOperation)
+    assert x[1].children[0].symbol == tmp2
+    assert x[1].children[1].value == "32"
+
+    # Fourth result output, Reference access to loop with all Literals
+    task = task.copy()
+    loop = Loop.create(tmp, Literal("1", INTEGER_SINGLE_TYPE), Literal("128", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task])
+    x = sing._compute_accesses(Reference(tmp), [loop], task)
+    assert len(x) == 4
+    assert isinstance(x[0], Literal)
+    assert x[0].value == "1"
+    assert isinstance(x[1], Literal)
+    assert x[1].value == "33"
+    assert isinstance(x[2], Literal)
+    assert x[2].value == "65"
+    assert isinstance(x[3], Literal)
+    assert x[3].value == "97"
