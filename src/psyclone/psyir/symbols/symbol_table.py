@@ -1264,6 +1264,10 @@ class SymbolTable():
                         new_symbol.interface = ImportInterface(c_symbol)
                         new_symbol.visibility = self.default_visibility
                         self.add(new_symbol)
+                        if symbol_target:
+                            # If we were looking just for this symbol then
+                            # we're done.
+                            return
 
         if symbol_target:
             raise KeyError(

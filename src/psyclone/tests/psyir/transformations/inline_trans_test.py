@@ -40,7 +40,7 @@
 import pytest
 
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Call, Routine
+from psyclone.psyir.nodes import Call, IntrinsicCall, Routine
 from psyclone.psyir.transformations import (InlineTrans,
                                             TransformationError)
 from psyclone.tests.utilities import Compile
@@ -541,7 +541,8 @@ def test_apply_allocatable_array_arg(fortran_reader, fortran_writer, tmpdir):
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
     for routine in psyir.walk(Call):
-        inline_trans.apply(routine)
+        if not isinstance(routine, IntrinsicCall):
+            inline_trans.apply(routine)
     output = fortran_writer(psyir)
     # Array index expressions should not be shifted when inlined as the
     # array bounds are the same.

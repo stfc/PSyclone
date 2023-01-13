@@ -42,8 +42,8 @@ from psyclone.psyGen import Transformation
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
     ArrayReference, ArrayOfStructuresReference, BinaryOperation, Call,
-    CodeBlock, Range, Routine, Reference, Return, Literal, Assignment,
-    Container, StructureReference)
+    CodeBlock, Container, IntrinsicCall, Range, Routine, Reference, Return,
+    Literal, Assignment, StructureReference)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol, ScalarType,
                                     RoutineSymbol, ImportInterface, Symbol,
@@ -686,7 +686,8 @@ class InlineTrans(Transformation):
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if the supplied node is not a Call.
+        :raises TransformationError: if the supplied node is not a Call or is \
+            an IntrinsicCall.
         :raises TransformationError: if the routine has a return value.
         :raises TransformationError: if the routine body contains a Return \
             that is not the first or last statement.
@@ -711,6 +712,9 @@ class InlineTrans(Transformation):
                 f"The target of the InlineTrans transformation "
                 f"should be a Call but found '{type(node).__name__}'.")
 
+        if isinstance(node, IntrinsicCall):
+            raise TransformationError(
+                f"Cannot inline an IntrinsicCall ('{node.routine.name}')")
         name = node.routine.name
 
         # Check that we can find the source of the routine being inlined.
@@ -792,10 +796,41 @@ class InlineTrans(Transformation):
             else:
                 sym = lnode.symbol
             if sym.is_unresolved:
-                raise TransformationError(
-                    f"Routine '{routine.name}' cannot be inlined because "
-                    f"it accesses an un-resolved variable "
-                    f"'{sym.name}'.")
+                cursor = routine_table
+                while cursor:
+                    csyms = cursor.containersymbols
+                    for csym in csyms:
+                        if csym.wildcard_import:
+                            try:
+                                cursor.resolve_imports(container_symbols=[csym],
+                                                       symbol_target=sym)
+                                # We've successfully resolved the type of the
+                                # symbol but it might be in a parent symbol
+                                # table rather than routine_table.
+                                if cursor is not routine_table:
+                                    new_sym = cursor.lookup(sym.name)
+                                    if sym.name in routine_table:
+                                        for anode in ref_or_lits:
+                                            if isinstance(anode, Literal) and anode.datatype.precision is sym:
+                                                anode.datatype._precision = new_sym
+                                            elif isinstance(anode, Reference) and anode.symbol is sym:
+                                                anode.symbol = new_sym
+                                        del routine_table._symbols[sym.name]
+                                break
+                            except KeyError:
+                                # TODO #11 - it would be useful to log this.
+                                print(f"Failed to find '{sym.name}' in container '{csym.name}'")
+                                continue
+                    else:
+                        cursor = cursor.parent_symbol_table()
+                        continue
+                    break
+                new_sym = routine_table.lookup(sym.name)
+                if new_sym.is_unresolved:
+                    raise TransformationError(
+                        f"Routine '{routine.name}' cannot be inlined because "
+                        f"it accesses an un-resolved variable "
+                        f"'{sym.name}'.")
             if sym.name not in routine_table and not sym.is_import:
                 raise TransformationError(
                     f"Routine '{routine.name}' cannot be inlined because "
