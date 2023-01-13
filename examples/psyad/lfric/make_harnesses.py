@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 from collections import namedtuple
 import subprocess
 import sys
@@ -6,6 +7,9 @@ import sys
 KernelDesc = namedtuple("KernelDesc",
                         "kernel_file adj_file harness_file active_vars "
                         "coord_arg panel_id_arg, mini_app")
+# 'Kernels' that have no metadata and therefore must be treated as a
+# standard Fortran subroutine by PSyAD.
+NO_METADATA_KERNELS = ["calc_exner_pointwise"]
 
 all_kernels = {}
 
@@ -164,6 +168,104 @@ all_kernels["moist_dyn_mass"] = KernelDesc(
     "mr_cl_at_dof mr_r_at_dof mr_ci_at_dof mr_s_at_dof mr_g_at_dof",
     coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
 
+# Passes.
+all_kernels["w3_advective_update"] = KernelDesc(
+    adj_file="adjoint/adj_w3_advective_update_kernel_mod.F90",
+    kernel_file="tangent_linear/w3_advective_update_kernel_mod.F90",
+    harness_file="test_harness/w3_advective_update_harness.x90",
+    active_vars="advective_increment u v w wind",
+    coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
+
+# FAILS: 150245.46832092729 150164.18664008190 2792817287959.0000 
+all_kernels["poly_advective"] = KernelDesc(
+    adj_file="adjoint/adj_poly_advective_kernel_mod.F90",
+    kernel_file="tangent_linear/tl_poly_advective_kernel_mod.F90",
+    harness_file="test_harness/poly_advective_harness.x90",
+    active_vars="advective dtdx dtdy v u tracer wind",
+    coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
+
+# Scalar of type 'logical' not supported.
+all_kernels["poly1d_vert_adv"] = KernelDesc(
+    adj_file="adjoint/adj_poly1d_vert_adv_kernel_mod.F90",
+    kernel_file="tangent_linear_tweaked/tl_poly1d_vert_adv_kernel_mod_tweaked.F90",
+    harness_file="test_harness/poly1d_vert_adv_harness.x90",
+    active_vars="advective wind dpdz tracer",
+    coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
+
+# Has stencil
+all_kernels["poly1d_w3_reconstruction"] = KernelDesc(
+    adj_file="adjoint/lbl_adj_poly1d_w3_reconstruction_kernel_mod.F90",
+    kernel_file="tangent_linear_tweaked/poly1d_w3_reconstruction_kernel_mod_tweaked.F90",
+    harness_file="test_harness/poly1d_w3_reconstruction_harness.x90",
+    active_vars="reconstruction polynomial_tracer tracer",
+    coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
+
+# Active variable of UnknownFortranType
+all_kernels["poly1d_vert_w3_reconstruction"] = KernelDesc(
+    adj_file="adjoint/adj_poly1d_vert_w3_reconstruction_kernel_mod.F90",
+    kernel_file="tangent_linear/poly1d_w3_reconstruction_kernel_mod.F90",
+    harness_file="test_harness/poly1d_w3_reconstruction_harness.x90",
+    active_vars="reconstruction polynomial_tracer tracer",
+    coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
+
+# Passes.
+all_kernels["convert_hdiv_field"] = KernelDesc(
+    adj_file="adjoint/adj_convert_hdiv_field_kernel_mod.F90",
+    kernel_file=("tangent_linear_tweaked/"
+                 "convert_hdiv_field_kernel_mod_tweaked.F90"),
+    harness_file="test_harness/convert_hdiv_field_harness.x90",
+    active_vars=("physical_field1 physical_field2 physical_field3 "
+                 "vector_out vector_in computational_field"),
+    coord_arg=3, panel_id_arg=4, mini_app="gravity_wave")
+
+# Passes.
+all_kernels["combine_w2_field"] = KernelDesc(
+    adj_file="adjoint/adj_combine_w2_field_kernel_mod.F90",
+    kernel_file="tangent_linear/combine_w2_field_kernel_mod.F90",
+    harness_file="test_harness/combine_w2_field_harness.x90",
+    active_vars="uvw w uv",
+    coord_arg=-1, panel_id_arg=-1, mini_app="gravity_wave")
+
+# tl_calc_exner_pointwise [-a rho theta exner]
+# Has no metadata.
+all_kernels["calc_exner_pointwise"] = KernelDesc(
+    adj_file="adjoint/adj_calc_exner_pointwise_mod.F90",
+    kernel_file="tangent_linear_tweaked/tl_calc_exner_pointwise_mod_tweaked.F90",
+    harness_file="test_harness/calc_exner_pointwise_harness.f90",
+    active_vars="rho theta exner",
+    coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
+
+# Passes.
+all_kernels["sample_flux"] = KernelDesc(
+    adj_file="adjoint/adj_sample_flux_kernel_mod.F90",
+    kernel_file="tangent_linear/sample_flux_kernel_mod.F90",
+    harness_file="test_harness/sample_flux_harness.x90",
+    active_vars="flux u",
+    coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
+
+# Passes.
+all_kernels["rhs_sample_eos"] = KernelDesc(
+    adj_file="adjoint/adj_rhs_sample_eos_kernel_mod.F90",
+    kernel_file="tangent_linear/tl_rhs_sample_eos_kernel_mod.F90",
+    harness_file="test_harness/rhs_sample_eos_harness.x90",
+    active_vars="rhs_eos exner_cell theta_vd_cell rho_cell rho_e exner_e theta_vd_e rho exner theta moist_dyn_gas",
+    coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
+
+# Gravity_wave test harness gives NaNs.
+all_kernels["sample_eos_pressure"] = KernelDesc(
+    adj_file="adjoint/adj_sample_eos_pressure_kernel_mod.F90",
+    kernel_file="tangent_linear_tweaked/tl_sample_eos_pressure_kernel_mod_tweaked.F90",
+    harness_file="test_harness/sample_eos_pressure_harness.x90",
+    active_vars="exner tmp_exner theta_vd_cell theta_vd_e theta moist_dyn_gas rho_cell rho_e rho",
+    coord_arg=-1, panel_id_arg=-1, mini_app="gravity_wave")
+
+#all_kernels[""] = KernelDesc(
+#    adj_file="adjoint/",
+#    kernel_file="tangent_linear/",
+#    harness_file="test_harness/_harness.x90",
+#    active_vars="",
+#    coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
+
 
 def main():
     ''' '''
@@ -180,6 +282,8 @@ def main():
                     f"ADJ_FILE={kern.adj_file}",
                     f"HARNESS_FILE={kern.harness_file}"]
         geom_args = []
+        if name in NO_METADATA_KERNELS:
+            arg_list.append("API= ")
         if kern.coord_arg > -1:
             geom_args.append(f"-coord-arg {kern.coord_arg}")
         if kern.panel_id_arg > -1:

@@ -1,5 +1,6 @@
 MINI_APP ?= skeleton
-MINI_APP_DIR=${HOME}/Projects/LFRic/NGMS-SoftwareStack/buildScripts/Linux/GCC10/trunk/miniapps/${MINI_APP}
+MINI_APP_DIR=${HOME}/Projects/LFRic/NGMS-SoftwareStack/buildScripts/Linux/GCC10/trunk_r36316/miniapps/${MINI_APP}
+API ?= -api 'dynamo0.3'
 
 # Strip out '_tweaked' and any leading directory name to get the original
 # name of the TL kernel.
@@ -7,7 +8,7 @@ KFILE=$(subst _tweaked,,${KERNEL_FILE})
 KFILE_NO_DIR=$(KFILE:tangent_linear/%=%)
 
 all:
-	psyad -api 'dynamo0.3' ${KERNEL_FILE} -otest ${HARNESS_FILE} ${GEOM_ARGS} -a ${ACTIVE_VARS}
+	psyad ${API} ${KERNEL_FILE} -otest ${HARNESS_FILE} ${GEOM_ARGS} -a ${ACTIVE_VARS}
 	cp -f ${HARNESS_FILE} ${MINI_APP_DIR}/source/algorithm/adjoint_test_mod.x90
 	cp -f ${KERNEL_FILE} ${MINI_APP_DIR}/source/kernel/${KFILE_NO_DIR}
 	cp -f ${ADJ_FILE} ${MINI_APP_DIR}/source/kernel/.
