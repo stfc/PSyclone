@@ -39,11 +39,16 @@
 
 ''' PSyIR nodes package module '''
 
+from psyclone.psyir.nodes.array_reference import ArrayReference
+from psyclone.psyir.nodes.array_of_structures_reference import (
+    ArrayOfStructuresReference)
+from psyclone.psyir.nodes.assignment import Assignment
+from psyclone.psyir.nodes.codeblock import CodeBlock
+from psyclone.psyir.nodes.container import Container
 from psyclone.psyir.nodes.node import colored, Node
 from psyclone.psyir.nodes.scoping_node import ScopingNode
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.return_stmt import Return
-from psyclone.psyir.nodes.assignment import Assignment
 from psyclone.psyir.nodes.array_member import ArrayMember
 from psyclone.psyir.nodes.array_of_structures_member import \
     ArrayOfStructuresMember
@@ -51,13 +56,9 @@ from psyclone.psyir.nodes.operation import Operation, UnaryOperation, \
     BinaryOperation, NaryOperation
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.ifblock import IfBlock
+from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.nodes.array_reference import ArrayReference
-from psyclone.psyir.nodes.array_of_structures_reference import \
-    ArrayOfStructuresReference
 from psyclone.psyir.nodes.loop import Loop
-from psyclone.psyir.nodes.container import Container
-from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.extract_node import ExtractNode
 from psyclone.psyir.nodes.kernel_schedule import KernelSchedule
 from psyclone.psyir.nodes.member import Member
@@ -109,6 +110,7 @@ __all__ = [
         'DataNode',
         'FileContainer',
         'IfBlock',
+        'IntrinsicCall',
         'Literal',
         'Loop',
         'Member',
