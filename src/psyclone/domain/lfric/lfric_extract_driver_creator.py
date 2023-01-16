@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -472,7 +472,8 @@ class LFRicExtractDriverCreator:
                 dims = ",".join([":"]*len(shape))
                 code = (f'''
                     subroutine tmp()
-                      integer, allocatable, dimension({dims}) :: b
+                      integer, allocatable, dimension({dims}) :: {sym.name}
+                      integer, allocatable, dimension({dims}) :: {post_name}
                       allocate({sym.name}, mold={post_name})
                     end subroutine tmp''')
                 fortran_reader = FortranReader()
