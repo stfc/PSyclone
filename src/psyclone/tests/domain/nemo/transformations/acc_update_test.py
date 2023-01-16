@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -318,7 +318,7 @@ end subroutine lbc_update
     assert ('''  !$acc update if_present host(jpi,jpj,jpk,tmask)\n'''
             '''  OPEN(UNIT = 32, FILE = "some_forcing.dat")''' in code)
     assert ("  READ(32, *) tmask\n"
-            "  !$acc update if_present device(jpi,jpj,jpk,tmask)" in code)
+            "  !$acc update if_present device(tmask)" in code)
 
 
 def test_codeblock_no_access(parser):
