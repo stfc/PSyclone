@@ -94,7 +94,7 @@ class ModuleManager:
             directories = [directories]
 
         for directory in directories:
-            if not os.path.exists(directory):
+            if not os.access(directory, os.R_OK):
                 raise IOError(f"Directory '{directory}' does not exist.")
             if directory not in self._search_paths:
                 self._search_paths.append(directory)
