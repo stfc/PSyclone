@@ -77,7 +77,7 @@ class ModuleManager:
         self._search_paths = []
 
     # ------------------------------------------------------------------------
-    def add_search_path(self, directories):
+    def add_search_path(self, directories, recursive=True):
         '''If the directory is not already contained in the search path,
         add it. Directory can either be a string, in which case it is a single
         directory, or a list of directories, each one a string.
@@ -85,26 +85,30 @@ class ModuleManager:
         :param directories: the directory/directories to add.
         :type directories: Union[str, List[str]]
 
-        '''
+        :param bool recursive: whether recursively all subdirectories should \
+            be added to the search path.
 
+        '''
         if isinstance(directories, str):
             # Make sure we always have a list
             directories = [directories]
 
         for directory in directories:
-            if directory in self._search_paths:
-                continue
-            self._search_paths.append(directory)
             if not os.path.exists(directory):
-                raise IOError(f"Directory {directory} does not exist.")
+                raise IOError(f"Directory '{directory}' does not exist.")
+            if directory not in self._search_paths:
+                self._search_paths.append(directory)
+            if not recursive:
+                break
             for root, dirs, _ in os.walk(directory):
                 for directory in dirs:
                     new_dir = os.path.join(root, directory)
-                    self._search_paths.append(new_dir)
+                    if new_dir not in self._search_paths:
+                        self._search_paths.append(new_dir)
 
     # ------------------------------------------------------------------------
     def _add_all_files_from_dir(self, directory):
-        print("Scanning", directory)
+
         with os.scandir(directory) as all_entries:
             for entry in all_entries:
                 _, ext = os.path.splitext(entry.name)
@@ -127,7 +131,8 @@ class ModuleManager:
         :returns: the filename that contains the module
         :rtype: str
 
-        :raises KeyError: if the module_name is not found.
+        :raises FileNotFoundError: if the module_name is not found in \
+            either the cached data nor in the search path.
 
         '''
         mod_lower = module_name.lower()
@@ -138,8 +143,9 @@ class ModuleManager:
             return file_name
 
         # If not, check the search paths. To avoid frequent accesses to
-        # the directories, we reach search directories one at a time, and
-        # add the list of all files to the mapping:
+        # the directories, we search directories one at a time, and
+        # add the list of all files in that directory to our cache
+        # _mod_2_filename
 
         search_paths_copy = self._search_paths.copy()
 
@@ -148,11 +154,10 @@ class ModuleManager:
             self._search_paths.remove(directory)
             file_name = self._mod_2_filename.get(mod_lower, None)
             if file_name:
-                print("TODO", module_name, self._search_paths)
                 return file_name
 
-        print("OOPS")
-        return None
+        raise FileNotFoundError(f"Could not find source file for module "
+                                f"'{module_name}'.")
 
     # ------------------------------------------------------------------------
     def get_modules_in_file(self, filename):
@@ -198,14 +203,12 @@ class ModuleManager:
             return result
 
         # Otherwise, parse the file:
-        filename = self.get_file_for_module(module_name)
-        if not filename:
-            return []
-
         try:
-            reader = FortranFileReader(filename)
+            filename = self.get_file_for_module(module_name)
         except FileNotFoundError:
             return []
+
+        reader = FortranFileReader(filename)
         parser = ParserFactory().create(std="f2003")
         parse_tree = parser(reader)
         results = []
@@ -220,6 +223,7 @@ class ModuleManager:
                 # using an empty list for the symbols
                 results.append((str(use.items[2]), []))
                 continue
+            # Parse the only list:
             all_symbols = []
             for symbol in use.items[4].children:
                 all_symbols.append(str(symbol))
