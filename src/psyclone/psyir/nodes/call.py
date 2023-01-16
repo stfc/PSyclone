@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and S. Siso STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the Call node implementation.'''
@@ -49,12 +49,12 @@ class Call(Statement, DataNode):
     or an expression.
 
     TODO #1437: The combined Statement and Expression implementation is simple
-    but it has some shortcoming that may need to be addressed.
+    but it has some shortcomings that may need to be addressed.
 
     :param routine: the routine that this call calls.
     :type routine: py:class:`psyclone.psyir.symbols.RoutineSymbol`
-    :param parent: parent of this node in the PSyIR.
-    :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
+    :param kwargs: additional keyword arguments provided to the PSyIR node.
+    :type kwargs: unwrapped dict.
 
     :raises TypeError: if the routine argument is not a RoutineSymbol.
 
@@ -64,12 +64,17 @@ class Call(Statement, DataNode):
     _text_name = "Call"
     _colour = "cyan"
 
-    def __init__(self, routine, parent=None):
-        super(Call, self).__init__(parent=parent)
+    #: The type of Symbol this Call must refer to. Used for type checking in
+    #: the constructor.
+    _symbol_type = RoutineSymbol
 
-        if not isinstance(routine, RoutineSymbol):
+    def __init__(self, routine, **kwargs):
+        super(Call, self).__init__(**kwargs)
+
+        if not isinstance(routine, self._symbol_type):
             raise TypeError(
-                f"Call routine argument should be a RoutineSymbol but found "
+                f"{self._text_name} 'routine' argument should be a "
+                f"{self._symbol_type.__name__} but found "
                 f"'{type(routine).__name__}'.")
 
         self._routine = routine
