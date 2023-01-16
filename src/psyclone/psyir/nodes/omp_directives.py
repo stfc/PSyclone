@@ -434,7 +434,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         if isinstance(ref, BinaryOperation):
             output_list = []
             if step is None:
-                raise GenerationError("Found a dependency between a BinaryOperation"
+                raise GenerationError("Found a dependency between a BinaryOperation "
                                       "and a previously set constant value. PSyclone "
                                       "cannot yet handle this interaction.")
             # FIXME Implement me.
@@ -495,6 +495,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     step.copy())
             output_list.append(second_val)
             return output_list
+        return []
 
     def _compare_ref_binop(self, ref1, ref2, task1, task2):
         # In this case we have two Reference/BinaryOperation as indices.
@@ -510,36 +511,51 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
 
         # If the first access in each accesses contains a Reference we 
         # should check that both are to the same symbol
-        ref1_ref = ref1_accesses[0].walk(Reference)
-        ref2_ref = ref2_accesses[0].walk(Reference)
+        if len(ref1_accesses) > 0:
+            ref1_ref = ref1_accesses[0].walk(Reference)
+        else:
+            ref1_ref = []
+        if len(ref2_accesses) > 0:
+            ref2_ref = ref2_accesses[0].walk(Reference)
+        else:
+            ref2_ref = []
         if len(ref1_ref) > 0 and len(ref2_ref) == 0:
-            # Raise error
-            assert False
+            raise GenerationError("Found a pair of dependencies on the same "
+                                  "array which are not valid under OpenMP, "
+                                  "as one contains a Reference while the "
+                                  "other does not.")
         if len(ref1_ref) == 0 and len(ref2_ref) > 0:
             # Raise error
-            assert False
-        if ref1_ref[0] != ref2_ref:
-            # Raise error
-            assert False
+            raise GenerationError("Found a pair of dependencies on the same "
+                                  "array which are not valid under OpenMP, "
+                                  "as one contains a Reference while the "
+                                  "other does not.")
+        if len(ref1_ref) > 0 and ref1_ref[0] != ref2_ref[0]:
+            raise GenerationError("Found a pair of dependencies on the same "
+                                  "array which are not supported in PSyclone, "
+                                  "as they are both References but to "
+                                  "different variables.")
 
         from psyclone.psyir.backend.sympy_writer import SymPyWriter
-        # Now we know if there is a Reference, both are too the same Reference
+        # Now we know if there is a Reference, both are to the same Reference
         if len(ref1_ref) > 0:
-            pass
             # Handle reference case
             values = []
-            for member in ref1_ref:
+            r1_min = sys.maxsize
+            r1_max = 0
+            for member in ref1_accesses:
                 # If its a reference only we can ignore it as we know both
                 # feature the Reference.
                 if isinstance(member, Reference):
+                    # If we find the Reference then we need to set the min
+                    # to 0 as we have Reference+0
+                    r1_min = 0
                     continue
                 # We know its a BinaryOperation of the Reference and something.
                 # Take the second child of the BinaryOperation to compute
                 values.append(member.children[1])
             sympy_ref1s = SymPyWriter.convert_to_sympy_expressions(values)
 
-            r1_min = sys.maxsize
-            r1_max = 0
             values = []
             for member in sympy_ref1s:
                 val = int(member)
@@ -550,7 +566,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     r1_max = val
 
             val2s = []
-            for member in ref2_ref:
+            for member in ref2_accesses:
                 # If its a reference only we can ignore it as we know both
                 # feature the Reference.
                 if isinstance(member, Reference):
@@ -558,7 +574,6 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 # We know its a BinaryOperation of the Reference and something.
                 # Take the second child of the BinaryOperation to compute
                 val2s.append(member.children[1])
-
             sympy_ref2s = SymPyWriter.convert_to_sympy_expressions(val2s)
             for member in sympy_ref2s:
                 # If the value is between min and max of r1 then we check that
@@ -566,15 +581,17 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 val = int(member)
                 if val >= r1_min and val <= r1_max:
                     if val not in values:
-                        # raise Error
-                        assert False
+                        raise GenerationError(
+                                "Found incompatible dependency between two "
+                                f"array accesses, ref1 is in range {r1_min} "
+                                f"to {r1_max}, but doesn't contain {val}.")
         else:
             # Handle no Reference case
             # Find the min and max values of the first reference accesses
             r1_min = sys.maxsize
             r1_max = 0
             # Convert the expressions to a sympy expression
-            sympy_ref1s = SymPyWriter.convert_to_sympy_expressions(ref1_ref)
+            sympy_ref1s = SymPyWriter.convert_to_sympy_expressions(ref1_accesses)
             values = []
             for member in sympy_ref1s:
                 # Since we were all literals, the SymPyWriter converts this
@@ -586,19 +603,18 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 if val > r1_max:
                     r1_max = val
 
-            sympy_ref2s = SymPyWriter.convert_to_sympy_expressions(sympy_ref2s)
+            sympy_ref2s = SymPyWriter.convert_to_sympy_expressions(ref2_accesses)
             for member in sympy_ref2s:
                 # If the value is between min and max of r1 then we check that
                 # the value is in the values list
                 val = int(member)
                 if val >= r1_min and val <= r1_max:
                     if val not in values:
-                        # raise Error
-                        assert False
+                        raise GenerationError(
+                                "Found incompatible dependency between two "
+                                f"array accesses, ref1 is in range {r1_min} "
+                                f"to {r1_max}, but doesn't contain {val}.")
 
-
-
-        assert False
 
     def _check_task_dependencies(self):
         '''
@@ -615,7 +631,9 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
 
         # Also this doesn't work if there are Taskwaits for now
         if len(tasks) > 0 and len(self.walk(OMPTaskwaitDirective)) > 0:
-            raise GenerationError("TODO Message")
+            raise GenerationError("OMPTaskDirective and OMPTaskwaitDirectives"
+                                  " are not currently supported inside the "
+                                  "same parent serial region.")
 
         pairs = itertools.combinations(tasks, 2)
         for pair in pairs:

@@ -1337,13 +1337,13 @@ def test_omp_serial_compute_accesses_other_fails():
     assign = Assignment.create(ref.copy(), Literal("1", INTEGER_SINGLE_TYPE))
     with pytest.raises(GenerationError) as excinfo:
         sing._compute_accesses(correct_binop, [assign], task2)
-    assert ("Found a dependency between a BinaryOperation"
+    assert ("Found a dependency between a BinaryOperation "
             "and a previously set constant value. PSyclone "
             "cannot yet handle this interaction." in str(excinfo.value))
 
     with pytest.raises(GenerationError) as excinfo:
         sing._compute_accesses(ref, [loop2], task2)
-    assert (" Found a dependency index that is a Loop variable with a non-"
+    assert ("Found a dependency index that is a Loop variable with a non-"
             "Literal step which we can't resolve in PSyclone."
             in str(excinfo.value))
 
@@ -1422,3 +1422,129 @@ def test_omp_serial_compute_accesses_results():
     assert x[2].value == "65"
     assert isinstance(x[3], Literal)
     assert x[3].value == "97"
+
+def test_omp_serial_compare_ref_binop_fails():
+
+    # Test the first failure. One has accesses to references
+    # and the other doesn't.
+
+    sing = OMPSingleDirective()
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    ref = Reference(tmp)
+    task = OMPTaskDirective()
+    task2 = OMPTaskDirective()
+    binop = BinaryOperation.create(BinaryOperation.Operator.ADD, ref.copy(), Literal("1", INTEGER_SINGLE_TYPE))
+    loop = Loop.create(tmp, Reference(tmp2), Literal("1", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task2])
+    loop2 = Loop.create(tmp, Literal("1", INTEGER_SINGLE_TYPE), Literal("128", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task])
+
+    with pytest.raises(GenerationError) as excinfo:
+        sing._compare_ref_binop(ref, binop, task, task2)
+    assert ("Found a pair of dependencies on the same array which are not "
+            "valid under OpenMP, as one contains a Reference while the other "
+            "does not." in str(excinfo.value))
+
+    with pytest.raises(GenerationError) as excinfo:
+        sing._compare_ref_binop(binop, ref, task2, task)
+    assert ("Found a pair of dependencies on the same array which are not "
+            "valid under OpenMP, as one contains a Reference while the other "
+            "does not." in str(excinfo.value))
+
+    ref2 = Reference(tmp2)
+    task3 = OMPTaskDirective()
+    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    tmp4 = DataSymbol("tmp4", INTEGER_SINGLE_TYPE)
+    loop = Loop.create(tmp2, Reference(tmp3), Literal("128", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task3])
+    loop2.children[3].pop_all_children()
+    loop2 = Loop.create(tmp, Reference(tmp4), Literal("128", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task])
+    with pytest.raises(GenerationError) as excinfo:
+        sing._compare_ref_binop(ref, ref2, task, task3)
+
+    assert ("Found a pair of dependencies on the same array which are not "
+            "supported in PSyclone, as they are both References but to "
+            "different variables." in str(excinfo.value))
+
+    task2 = OMPTaskDirective()
+    task = OMPTaskDirective()
+    loop = Loop.create(tmp, Literal("1", INTEGER_SINGLE_TYPE), Literal("128", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task])
+    binop = BinaryOperation.create(BinaryOperation.Operator.ADD, ref.copy(), Literal("1", INTEGER_SINGLE_TYPE))
+    loop2 = Loop.create(tmp, Literal("1", INTEGER_SINGLE_TYPE), Literal("128", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task2])
+
+    with pytest.raises(GenerationError) as excinfo:
+        sing._compare_ref_binop(ref, binop, task, task2)
+    assert ("Found incompatible dependency between two array accesses, ref1 "
+            "is in range 1 to 97, but doesn't contain 2." 
+            in str(excinfo.value))
+
+    task = OMPTaskDirective()
+    task2 = OMPTaskDirective()
+    loop = Loop.create(tmp, Reference(tmp2), Literal("128", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task])
+    loop2 = Loop.create(tmp, Reference(tmp2), Literal("128", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task2])
+   
+    with pytest.raises(GenerationError) as excinfo:
+        sing._compare_ref_binop(ref, binop, task, task2)
+    assert ("Found incompatible dependency between two array accesses, ref1 "
+            "is in range 0 to 32, but doesn't contain 1."
+            in str(excinfo.value))
+
+def test_omp_serial_compare_ref_binops():
+    sing = OMPSingleDirective()
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    ref = Reference(tmp)
+    task = OMPTaskDirective()
+    task2 = OMPTaskDirective()
+    loop = Loop.create(tmp, Literal("1", INTEGER_SINGLE_TYPE), Literal("128", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task])
+    binop = BinaryOperation.create(BinaryOperation.Operator.ADD, ref.copy(), Literal("1", INTEGER_SINGLE_TYPE))
+    loop2 = Loop.create(tmp, Literal("0", INTEGER_SINGLE_TYPE), Literal("128", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task2])
+
+    sing._compare_ref_binop(ref, binop, task, task2)
+
+
+    task = OMPTaskDirective()
+    task2 = OMPTaskDirective()
+    loop = Loop.create(tmp, Literal("1", INTEGER_SINGLE_TYPE), Literal("128", INTEGER_SINGLE_TYPE), Literal("16", INTEGER_SINGLE_TYPE), [task])
+    binop = BinaryOperation.create(BinaryOperation.Operator.ADD, ref.copy(), Literal("16", INTEGER_SINGLE_TYPE))
+    loop2 = Loop.create(tmp, Literal("1", INTEGER_SINGLE_TYPE), Literal("128", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task2])
+
+    sing._compare_ref_binop(ref, binop, task, task2)
+
+    task = OMPTaskDirective()
+    task2 = OMPTaskDirective()
+    loop = Loop.create(tmp, Literal("1", INTEGER_SINGLE_TYPE), Literal("128", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task])
+    binop = BinaryOperation.create(BinaryOperation.Operator.ADD, ref.copy(), Literal("1", INTEGER_SINGLE_TYPE))
+    loop2 = Loop.create(tmp, Literal("129", INTEGER_SINGLE_TYPE), Literal("256", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task2])
+
+    sing._compare_ref_binop(ref, binop, task, task2)
+
+    task = OMPTaskDirective()
+    task2 = OMPTaskDirective()
+    loop = Loop.create(tmp, Reference(tmp2), Literal("128", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task])
+    loop2 = Loop.create(tmp, Reference(tmp2), Literal("128", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task2])
+    sing._compare_ref_binop(ref, ref.copy(), task, task2)
+    sing._compare_ref_binop(binop, binop.copy(), task, task2)
+
+def test_omp_serial_check_task_dependencies_fails():
+    # First fail, task + taskloop
+    sing = OMPSingleDirective()
+    task = OMPTaskDirective()
+    taskloop = OMPTaskloopDirective()
+    sing.children[0].addchild(task)
+    sing.children[0].addchild(taskloop)
+    with pytest.raises(GenerationError) as excinfo:
+        sing._check_task_dependencies()
+    assert("OMPTaskDirectives and OMPTaskloopDirectives"
+           " are not currently supported inside the "
+           "same parent serial region." in str(excinfo.value))
+
+    # Second fail, task + taskwait
+    sing = OMPSingleDirective()
+    task = OMPTaskDirective()
+    taskwait = OMPTaskwaitDirective()
+    sing.children[0].addchild(task)
+    sing.children[0].addchild(taskwait)
+    with pytest.raises(GenerationError) as excinfo:
+        sing._check_task_dependencies()
+    assert("OMPTaskDirective and OMPTaskwaitDirectives"
+           " are not currently supported inside the "
+           "same parent serial region." in str(excinfo.value)) 
