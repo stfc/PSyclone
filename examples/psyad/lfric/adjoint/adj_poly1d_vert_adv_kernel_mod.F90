@@ -1,16 +1,23 @@
 module adj_poly1d_vert_adv_kernel_mod
-  use argument_mod, only : any_discontinuous_space_1, arg_type, cell_column, gh_field, gh_integer, gh_logical, gh_read, &
-&gh_readwrite, gh_real, gh_scalar
+  use argument_mod, only : any_discontinuous_space_1, arg_type, cell_column, &
+       gh_field, gh_integer, gh_logical, gh_read, gh_inc, &
+       gh_readwrite, gh_real, gh_scalar
   use constants_mod, only : i_def, l_def, r_def
   use fs_continuity_mod, only : w2, wtheta
   use kernel_mod, only : kernel_type
   implicit none
   type, public, extends(kernel_type) :: adj_poly1d_vert_adv_kernel_type
   PRIVATE
-  TYPE(arg_type) :: meta_args(9) = (/arg_type(GH_FIELD, GH_REAL, GH_READ, Wtheta), arg_type(GH_FIELD, GH_REAL, GH_INC, W2), &
-&arg_type(GH_FIELD, GH_REAL, GH_READWRITE, Wtheta), arg_type(GH_FIELD, GH_REAL, GH_READ, W2), arg_type(GH_FIELD, GH_REAL, GH_READ, &
-&Wtheta), arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1), arg_type(GH_SCALAR, GH_INTEGER, GH_READ), &
-&arg_type(GH_SCALAR, GH_INTEGER, GH_READ), arg_type(GH_SCALAR, GH_LOGICAL, GH_READ)/)
+  TYPE(arg_type) :: meta_args(9) = (/ &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, Wtheta), &
+       arg_type(GH_FIELD, GH_REAL, GH_INC, W2), &
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, Wtheta), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, W2), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, Wtheta), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1), &
+       arg_type(GH_SCALAR, GH_INTEGER, GH_READ), &
+       arg_type(GH_SCALAR, GH_INTEGER, GH_READ), &
+       arg_type(GH_SCALAR, GH_LOGICAL, GH_READ)/)
   INTEGER :: operates_on = CELL_COLUMN
   CONTAINS
   PROCEDURE, NOPASS :: adj_poly1d_vert_adv_code
@@ -57,8 +64,7 @@ END TYPE
     real(kind=r_def), dimension(0:nlayers) :: ls_log_tracer
     real(kind=r_def) :: tmp1
     real(kind=r_def) :: tmp2
-    real(kind=r_def) :: tmp3
-    integer(kind=i_def) :: i
+    integer(kind=i_def) :: i, itmp3
 
     dpdz = 0.0_r_def
     ij = map_wt(1)
@@ -73,10 +79,10 @@ END TYPE
       do p = 0, vertical_order, 1
         tmp1 = REAL(vertical_order, r_def)
         tmp2 = 0.5 * tmp1
-        tmp3 = FLOOR(tmp2)
-        stencil(p + 1) = k + p - tmp3
+        itmp3 = FLOOR(tmp2)
+        stencil(p + 1) = k + p - itmp3
       enddo
-      upwind = INT(0.5 * SIGN(1.0, ls_wind(k + map_w2(5))) + 0.5, i_def)
+      upwind = INT(0.5 * SIGN(1.0_r_def, ls_wind(k + map_w2(5))) + 0.5, i_def)
       upwind_offset = upwind * use_upwind
       stencil = stencil - upwind_offset
       kmin = stencil(1)

@@ -129,8 +129,8 @@ subroutine tl_poly1d_vert_adv_code( nlayers,              &
   real(kind=r_def) :: dpdz, ls_dpdz
   real(kind=r_def), dimension(0:nlayers) :: ls_log_tracer
 
-  real(kind=r_def) :: tmp1, tmp2, tmp3
-  integer(kind=i_def) :: i
+  real(kind=r_def) :: tmp1, tmp2
+  integer(kind=i_def) :: i, itmp3
 
   ij = map_wt(1)
 
@@ -164,8 +164,8 @@ subroutine tl_poly1d_vert_adv_code( nlayers,              &
     do p = 0, vertical_order
       tmp1 = real(vertical_order,r_def)
       tmp2 = tmp1/2.0_r_def
-      tmp3 = floor(tmp2)
-      stencil(p+1) = k - tmp3 + p
+      itmp3 = floor(tmp2)
+      stencil(p+1) = k - itmp3 + p
     end do
 
     ! Adjust the stencil based upon the wind sign for upwind (odd order)
