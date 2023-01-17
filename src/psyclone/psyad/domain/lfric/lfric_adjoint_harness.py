@@ -513,7 +513,14 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
             # This kernel argument is not modified by the test harness
             # because it contains geometry information.
             continue
-        routine.addchild(Call.create(random_num, [Reference(sym)]))
+        if sym.datatype.intrinsic == ScalarType.Intrinsic.REAL:
+            routine.addchild(Call.create(random_num, [Reference(sym)]))
+        elif sym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER:
+            # TODO just set the symbol to 1 for the moment.
+            routine.addchild(Assignment.create(
+                Reference(sym),
+                Literal("1", lfric_psyir.LfricIntegerScalarDataType())))
+
         input_sym = table.lookup(sym.name+"_input")
         routine.addchild(Assignment.create(Reference(input_sym),
                                            Reference(sym)))
