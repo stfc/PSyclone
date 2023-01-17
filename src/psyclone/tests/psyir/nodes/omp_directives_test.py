@@ -1668,9 +1668,9 @@ def test_omp_serial_check_task_dependencies():
     sing.children[0].addchild(loop2)
 
     task1.children[0].addchild(subloop1)
-    task1._compute_clauses()
+    task1.lower_to_language_level()
     task2.children[0].addchild(subloop2)
-    task2._compute_clauses()
+    task2.lower_to_language_level()
 
 
     sing._check_task_dependencies()
