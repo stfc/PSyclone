@@ -62,6 +62,13 @@ subroutine sub(a)
 end subroutine sub
 '''
 
+FIXED_FORM_CODE = '''
+      subroutine insert_node (lstr, node, nnodes, ierr)
+      integer*4 lstr, ierr, i,j,k, lsffx, digits, power, ndots, idot(3)
+     &                                        , node,  nnodes
+      end
+'''
+
 
 def test_fortran_reader_constructor():
     ''' Test that the constructor initialises the _parser and _processor
@@ -80,6 +87,19 @@ def test_fortran_psyir_from_source():
     the specified source code. '''
     fortran_reader = FortranReader()
     file_container = fortran_reader.psyir_from_source(CODE)
+    assert isinstance(file_container, FileContainer)
+    subroutine = file_container.children[0]
+    assert isinstance(subroutine, Routine)
+
+
+def test_fortran_psyir_from_source_fixed_form():
+    '''
+    Test we parse also fixed-form fortran code when enabling the right
+    option.
+    '''
+    fortran_reader = FortranReader()
+    file_container = fortran_reader.psyir_from_source(FIXED_FORM_CODE,
+                                                      free_form=False)
     assert isinstance(file_container, FileContainer)
     subroutine = file_container.children[0]
     assert isinstance(subroutine, Routine)
