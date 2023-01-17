@@ -457,7 +457,10 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     Literal(f"{binop_val}", INTEGER_TYPE))
             output_list.append(first_val)
             for i in range(1, num_entries+1):
-                val = binop_val + i * int(step.value)
+                if binop_val >= 0:
+                    val = binop_val + i * int(step.value)
+                else:
+                    val = binop_val - i * int(step.value)
                 output_list.append(
                         BinaryOperation.create(
                             BinaryOperation.Operator.ADD,

@@ -1202,6 +1202,7 @@ def test_omp_serial_compute_accesses_bad_binop():
     # 10. Referebce OP BinaryOperation where the OP is not ADD or SUB.
     # 11. Reference OP Non-Literal/BinaryOperation
     # 12. Non-Literal/Reference/Binop OP ...
+    # 13. BinaryOperation OP Reference where the Binop has non Literal child
 
 
     # Fail conditions 1-12 we can just test with only Ref as the input, the others are a bit more complex.
@@ -1298,6 +1299,13 @@ def test_omp_serial_compute_accesses_bad_binop():
             "is a Literal or BinaryOperation. "
             "PSyclone can't validate "
             "this dependency." in str(excinfo.value))
+
+
+    binop_fail13 = BinaryOperation.create(BinaryOperation.Operator.ADD, sub_binop2.copy(), Reference(tmp))
+    with pytest.raises(GenerationError) as excinfo:
+        sing._compute_accesses(binop_fail13, [], None)
+    assert ("Found a dependency index that is a BinaryOperation with a child "
+            "BinaryOperation with a non-Literal child which is not supported." in str(excinfo.value))
 
 def test_omp_serial_compute_accesses_other_fails():
     sing = OMPSingleDirective()
@@ -1422,6 +1430,85 @@ def test_omp_serial_compute_accesses_results():
     assert x[2].value == "65"
     assert isinstance(x[3], Literal)
     assert x[3].value == "97"
+
+
+    # Finally cover some code which were missed by these tests so far
+    task = OMPTaskDirective()
+    loop = Loop.create(tmp, Literal("1", INTEGER_SINGLE_TYPE), Literal("64", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task])
+
+    binop = BinaryOperation.create(BinaryOperation.Operator.ADD, Literal("1", INTEGER_SINGLE_TYPE), ref.copy())
+    x = sing._compute_accesses(binop, [loop], task)
+    assert len(x) == 2
+    assert isinstance(x[0], Literal)
+    assert x[0].value == "2"
+    assert isinstance(x[1], Literal)
+    assert x[1].value == "34"
+
+    task = OMPTaskDirective()
+    loop = Loop.create(tmp, Literal("3", INTEGER_SINGLE_TYPE), Literal("64", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task])
+
+    binop = BinaryOperation.create(BinaryOperation.Operator.SUB, ref.copy(), Literal("1", INTEGER_SINGLE_TYPE))
+
+    x = sing._compute_accesses(binop, [loop], task)
+    assert len(x) == 2
+    assert isinstance(x[0], Literal)
+    assert x[0].value == "2"
+    assert isinstance(x[1], Literal)
+    assert x[1].value == "34"
+
+    task = OMPTaskDirective()
+    loop = Loop.create(tmp, Reference(tmp2), Literal("1028", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task])
+    binop = BinaryOperation.create(BinaryOperation.Operator.MUL, Literal("3", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE))
+    binop2 = BinaryOperation.create(BinaryOperation.Operator.ADD, binop, ref.copy())
+    x = sing._compute_accesses(binop2, [loop], task)
+    assert len(x) == 5
+    assert isinstance(x[0], BinaryOperation)
+    assert x[0].operator == BinaryOperation.Operator.ADD
+    assert x[0].children[0].symbol == tmp2
+    assert x[0].children[1].value == "32"
+    assert isinstance(x[1], BinaryOperation)
+    assert x[1].operator == BinaryOperation.Operator.ADD
+    assert x[1].children[0].symbol == tmp2
+    assert x[1].children[1].value == "64"
+    assert isinstance(x[2], BinaryOperation)
+    assert x[2].operator == BinaryOperation.Operator.ADD
+    assert x[2].children[0].symbol == tmp2
+    assert x[2].children[1].value == "96"
+    assert isinstance(x[3], BinaryOperation)
+    assert x[3].operator == BinaryOperation.Operator.ADD
+    assert x[3].children[0].symbol == tmp2
+    assert x[3].children[1].value == "128"
+    assert isinstance(x[4], BinaryOperation)
+    assert x[4].operator == BinaryOperation.Operator.ADD
+    assert x[4].children[0].symbol == tmp2
+    assert x[4].children[1].value == "160"
+
+    task = OMPTaskDirective()
+    loop = Loop.create(tmp, Reference(tmp2), Literal("1028", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task])
+    binop = BinaryOperation.create(BinaryOperation.Operator.MUL, Literal("3", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE))
+    binop2 = BinaryOperation.create(BinaryOperation.Operator.SUB, ref.copy(), binop)
+    x = sing._compute_accesses(binop2, [loop], task)
+    assert len(x) == 5
+    assert isinstance(x[0], BinaryOperation)
+    assert x[0].operator == BinaryOperation.Operator.ADD
+    assert x[0].children[0].symbol == tmp2
+    assert x[0].children[1].value == "-32"
+    assert isinstance(x[1], BinaryOperation)
+    assert x[1].operator == BinaryOperation.Operator.ADD
+    assert x[1].children[0].symbol == tmp2
+    assert x[1].children[1].value == "-64"
+    assert isinstance(x[2], BinaryOperation)
+    assert x[2].operator == BinaryOperation.Operator.ADD
+    assert x[2].children[0].symbol == tmp2
+    assert x[2].children[1].value == "-96"
+    assert isinstance(x[3], BinaryOperation)
+    assert x[3].operator == BinaryOperation.Operator.ADD
+    assert x[3].children[0].symbol == tmp2
+    assert x[3].children[1].value == "-128"
+    assert isinstance(x[4], BinaryOperation)
+    assert x[4].operator == BinaryOperation.Operator.ADD
+    assert x[4].children[0].symbol == tmp2
+    assert x[4].children[1].value == "-160"
 
 def test_omp_serial_compare_ref_binop_fails():
 
