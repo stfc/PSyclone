@@ -1,14 +1,18 @@
 module adj_strong_curl_kernel_mod
-  use argument_mod, only : arg_type, cell_column, func_type, gh_basis, gh_diff_basis, gh_evaluator, gh_field, gh_inc, &
-&gh_real
+  use argument_mod, only : arg_type, cell_column, func_type, gh_basis, &
+       gh_diff_basis, gh_evaluator, gh_field, gh_inc, gh_real
   use constants_mod, only : i_def, r_def
   use fs_continuity_mod, only : w1, w2
   use kernel_mod, only : kernel_type
   implicit none
   type, public, extends(kernel_type) :: adj_strong_curl_kernel_type
   PRIVATE
-  TYPE(arg_type) :: meta_args(2) = (/arg_type(GH_FIELD, GH_REAL, GH_INC, W2), arg_type(GH_FIELD, GH_REAL, GH_INC, W1)/)
-  TYPE(func_type) :: meta_funcs(2) = (/func_type(W2, GH_BASIS), func_type(W1, GH_DIFF_BASIS)/)
+  TYPE(arg_type) :: meta_args(2) = (/ &
+       arg_type(GH_FIELD, GH_REAL, GH_INC, W2), &
+       arg_type(GH_FIELD, GH_REAL, GH_INC, W1)/)
+  TYPE(func_type) :: meta_funcs(2) = (/ &
+       func_type(W2, GH_BASIS), &
+       func_type(W1, GH_DIFF_BASIS)/)
   INTEGER :: operates_on = CELL_COLUMN
   INTEGER :: gh_shape = GH_EVALUATOR
   CONTAINS
@@ -19,7 +23,10 @@ END TYPE
   public :: adj_strong_curl_code
 
   contains
-  subroutine adj_strong_curl_code(nlayers, xi, u, ndf2, undf2, map2, basis_w2, ndf1, undf1, map1, diff_basis_w1)
+    subroutine adj_strong_curl_code( &
+         nlayers, xi, u, &
+         ndf2, undf2, map2, basis_w2,  basis_w2_on_w1, &
+         ndf1, undf1, map1, diff_basis_w1, diff_basis_w1_on_w1)
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: ndf1
     integer(kind=i_def), intent(in) :: undf1
@@ -28,7 +35,9 @@ END TYPE
     integer(kind=i_def), dimension(ndf1), intent(in) :: map1
     integer(kind=i_def), dimension(ndf2), intent(in) :: map2
     real(kind=r_def), dimension(3,ndf2,ndf2), intent(in) :: basis_w2
+    REAL(KIND=r_def), intent(in), dimension(3,ndf2,ndf1) :: basis_w2_on_w1
     real(kind=r_def), dimension(3,ndf1,ndf2), intent(in) :: diff_basis_w1
+    REAL(KIND=r_def), intent(in), dimension(3,ndf1,ndf1) :: diff_basis_w1_on_w1
     real(kind=r_def), dimension(undf2), intent(inout) :: xi
     real(kind=r_def), dimension(undf1), intent(inout) :: u
     integer(kind=i_def) :: df1
