@@ -151,6 +151,8 @@ class KernCallInvokeArgList(ArgOrdering):
             datatype = psyir.LfricRealScalarDataType()
         elif scalar_arg.intrinsic_type == "integer":
             datatype = psyir.LfricIntegerScalarDataType()
+        elif scalar_arg.intrinsic_type == "logical":
+            datatype = psyir.LfricLogicalScalarDataType()
         else:
             raise NotImplementedError(
                 f"Scalar of type '{scalar_arg.intrinsic_type}' not supported.")
