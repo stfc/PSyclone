@@ -239,7 +239,8 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
 
     def _compare_literals(self, lit1, lit2):
         # Check lit2 is a Literal
-        if not isinstance(lit2, Literal):
+        print(lit1, lit2)
+        if not isinstance(lit1, Literal) or not isinstance(lit2, Literal):
             raise GenerationError("Literal index to dependency has calculated "
                                   "dependency to a non-Literal index, which is"
                                   " not currently supported in PSyclone.")
@@ -248,7 +249,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
 
     def _compare_ranges(self, range1, range2):
         # Check range2 is a Range
-        if not isinstance(range2, Range):
+        if not isinstance(range1, Range) or not isinstance(range2, Range):
             raise GenerationError("Range index to a dependency has calculated "
                                   "dependency to a non-Range index, which is "
                                   "not currently supported in PSyclone.")
@@ -410,6 +411,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 # FIXME Check if this makes sense? Probably it does.
                 # Maybe only if rhs is Literal or Reference?
                 start = node.rhs.copy()
+                break
             if isinstance(node, Loop) and node.variable == symbol:
                 # If the loop is not an ancestor of the task then
                 # we don't currently support it.
@@ -419,6 +421,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     if ancestor_loop == node:
                         is_ancestor = True
                         break
+                    ancestor_loop = ancestor_loop.ancestor(Loop, limit=self)
                 if not is_ancestor:
                     raise GenerationError("Found an dependency index that "
                                           "was updated as a Loop variable "
@@ -429,6 +432,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 start = node.start_expr
                 stop = node.stop_expr
                 step = node.step_expr
+                break
 
         # FIXME If ref is a binop we need to do something special too.
         if isinstance(ref, BinaryOperation):
@@ -504,7 +508,6 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         # In this case we have two Reference/BinaryOperation as indices.
         # We need to attempt to find their value set and check the value
         # set matches.
-
         # Find all the nodes before these tasks
         preceding_t1 = task1.preceding(reverse=True)
         preceding_t2 = task2.preceding(reverse=True)
@@ -814,7 +817,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 # If we have (exactly) Reference objects we filter out
                 # non-matching ones with the symbol check, and matching ones
                 # are always valid since they are simple accesses.
-                if isinstance(mem[0], Reference):
+                if type(mem[0]) is Reference:
                     continue
 
                 # If we have a StructureReference with no ArrayMixin children
@@ -834,11 +837,10 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     assert isinstance(mem[0], StructureReference)
                     array1 = mem[0].walk(ArrayMixin)[0]
                     array2 = mem[1].walk(ArrayMixin)[0]
-
                 for i, index in enumerate(array1.indices):
-                    if isinstance(index, Literal):
+                    if isinstance(index, Literal) or isinstance(array2.indices[i], Literal):
                         self._compare_literals(index, array2.indices[i])
-                    elif isinstance(index, Range):
+                    elif isinstance(index, Range) or isinstance(array2.indices[i], Range):
                         self._compare_ranges(index, array2.indices[i])
                     else:
                         # The only remaining option is that the indices are
