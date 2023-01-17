@@ -174,7 +174,9 @@ all_kernels["w3_advective_update"] = KernelDesc(
     active_vars="advective_increment u v w wind",
     coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
 
-# FAILS: 150245.46832092729 150164.18664008190 2792817287959.0000
+# #1453 - passive scalars are assigned to multiple times. In the tweaked
+# version I've changed the code so that a new scalar is used for each
+# assignment. Test then passes.
 all_kernels["poly_advective"] = KernelDesc(
     adj_file="adjoint/adj_poly_advective_kernel_mod.F90",
     kernel_file=("tangent_linear_tweaked/tl_poly_advective_kernel_"
