@@ -37,6 +37,8 @@
 
 from fparser import api as fpapi
 from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric import psyir as lfric_psyir
+
 from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctorFactory, LFRicKernelFunctor)
 from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
@@ -92,6 +94,9 @@ def _compute_lfric_inner_products(prog, scalars, field_sums, sum_sym):
                                     Literal("0.0", sum_sym.datatype)))
     for scalar in scalars:
         # Compute the product of the pair of scalars: scalar[0]*scalar[1]
+        # (unless they are boolean).
+        if scalar[0].datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN:
+            continue
         prod = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                       Reference(scalar[0]),
                                       Reference(scalar[1]))
@@ -496,6 +501,12 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
     # TODO #1345 - this is Fortran specific.
     random_num = RoutineSymbol("random_number")
     for sym in kern_args.scalars:
+        if sym.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN:
+            # TODO just set the symbol to False for the moment.
+            routine.addchild(Assignment.create(
+                Reference(sym),
+                Literal("false", lfric_psyir.LfricLogicalScalarDataType())))
+            continue
         idx = kern_args.arglist.index(sym.name)
         if (kern_args.metadata_index_from_actual_index(idx) in
                 geometry_arg_indices):
