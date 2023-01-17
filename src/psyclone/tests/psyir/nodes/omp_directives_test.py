@@ -53,7 +53,8 @@ from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, \
     OMPGrainsizeClause, OMPNumTasksClause, OMPNogroupClause, \
     OMPPrivateClause, OMPDefaultClause, OMPReductionClause, \
     OMPScheduleClause, OMPTeamsDistributeParallelDoDirective, \
-    Range, BinaryOperation, Call, OMPTaskDirective
+    Range, BinaryOperation, Call, OMPTaskDirective, DynamicOMPTaskDirective, \
+    ArrayReference
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, SymbolTable, \
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, ArrayType, RoutineSymbol
 from psyclone.errors import InternalError, GenerationError
@@ -1634,4 +1635,42 @@ def test_omp_serial_check_task_dependencies_fails():
         sing._check_task_dependencies()
     assert("OMPTaskDirective and OMPTaskwaitDirectives"
            " are not currently supported inside the "
-           "same parent serial region." in str(excinfo.value)) 
+           "same parent serial region." in str(excinfo.value))
+
+def test_omp_serial_check_task_dependencies():
+    subroutine = Routine("testsub")
+    temporary_module = ModuleGen("test")
+    parallel = OMPParallelDirective.create()
+    subroutine.addchild(parallel)
+    sing = OMPSingleDirective()
+    parallel.children[0].addchild(sing)
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    array_type = ArrayType(INTEGER_SINGLE_TYPE, [128, 128])
+    rval = DataSymbol("rval", array_type)
+
+    subroutine.symbol_table.add(tmp)
+    subroutine.symbol_table.add(tmp2)
+    subroutine.symbol_table.add(rval)
+
+    task1 = DynamicOMPTaskDirective()
+    loop1 = Loop.create(tmp, Literal("1", INTEGER_SINGLE_TYPE), Literal("128", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task1])
+    assign1 = Assignment.create(ArrayReference.create(rval, [Reference(tmp), Reference(tmp)]), Literal("1", INTEGER_SINGLE_TYPE) )
+    subloop1 = Loop.create(tmp2, Reference(tmp), Literal("32", INTEGER_SINGLE_TYPE), Literal("1", INTEGER_SINGLE_TYPE), [assign1])
+
+
+
+    task2 = DynamicOMPTaskDirective()
+    loop2 = Loop.create(tmp, Literal("1", INTEGER_SINGLE_TYPE), Literal("64", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task2])
+    assign2 = Assignment.create(ArrayReference.create(rval, [Reference(tmp), Literal("1", INTEGER_SINGLE_TYPE)]), Literal("24", INTEGER_SINGLE_TYPE))
+    subloop2 = Loop.create(tmp2, Reference(tmp), Literal("32", INTEGER_SINGLE_TYPE), Literal("1", INTEGER_SINGLE_TYPE), [assign2])
+    sing.children[0].addchild(loop1)
+    sing.children[0].addchild(loop2)
+
+    task1.children[0].addchild(subloop1)
+    task1._compute_clauses()
+    task2.children[0].addchild(subloop2)
+    task2._compute_clauses()
+
+
+    sing._check_task_dependencies()
