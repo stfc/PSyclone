@@ -148,9 +148,7 @@ all_kernels["vorticity_advection"] = KernelDesc(
     "vorticity",
     coord_arg=6, panel_id_arg=7, mini_app="skeleton")
 
-# Kernel imports recip_epsilon from planet_config_mod but compiler says the
-# module doesn't have such a symbol. However, modifying the gravity-wave
-# miniapp to run the test harness instead works.
+# Passes.
 all_kernels["moist_dyn_gas"] = KernelDesc(
     adj_file="adjoint/adj_moist_dyn_gas_kernel_mod.F90",
     kernel_file="tangent_linear_tweaked/tl_moist_dyn_gas_kernel_mod_"
@@ -179,7 +177,8 @@ all_kernels["w3_advective_update"] = KernelDesc(
 # FAILS: 150245.46832092729 150164.18664008190 2792817287959.0000
 all_kernels["poly_advective"] = KernelDesc(
     adj_file="adjoint/adj_poly_advective_kernel_mod.F90",
-    kernel_file="tangent_linear/tl_poly_advective_kernel_mod.F90",
+    kernel_file=("tangent_linear_tweaked/tl_poly_advective_kernel_"
+                 "mod_tweaked.F90"),
     harness_file="test_harness/poly_advective_harness.x90",
     active_vars="advective dtdx dtdy v u tracer wind",
     coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
@@ -281,6 +280,23 @@ all_kernels["tracer_viscosity"] = KernelDesc(
     active_vars="theta_inc viscosity_mu",
     coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
 
+# Passes once adjoint argument list updated with additional
+# basis and diff-basis arrays.
+all_kernels["strong_curl"] = KernelDesc(
+    adj_file="adjoint/adj_strong_curl_kernel_mod.F90",
+    kernel_file="tangent_linear/strong_curl_kernel_mod.F90",
+    harness_file="test_harness/strong_curl_harness.x90",
+    active_vars="xi res_dot_product curl_u u",
+    coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
+
+# Passes.
+all_kernels["w2_to_w1_projection"] = KernelDesc(
+    adj_file="adjoint/adj_w2_to_w1_projection_kernel_mod.F90",
+    kernel_file="tangent_linear/w2_to_w1_projection_kernel_mod.F90",
+    harness_file="test_harness/w2_to_w1_projection_harness.x90",
+    active_vars="v_w1 u_w2 vu res_dot_product wind",
+    coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
+
 #all_kernels[""] = KernelDesc(
 #    adj_file="adjoint/",
 #    kernel_file="tangent_linear/",
@@ -292,10 +308,19 @@ all_kernels["tracer_viscosity"] = KernelDesc(
 def main():
     ''' '''
     kernels_to_process = []
+    tar_args = []
     for arg in sys.argv:
         if arg in all_kernels:
-            kernels_to_process.append((arg, all_kernels[arg]))
+            kern = all_kernels[arg]
+            kernels_to_process.append((arg, kern))
+            psyad_output = kern.adj_file.replace("adjoint/",
+                                                 "adjoint_partial/")
+            tar_args.extend(
+                [kern.kernel_file, kern.adj_file, psyad_output,
+                 kern.harness_file])
 
+    #print(" ".join(tar_args))
+    #exit(0)
     makefile = "Makefile_harness"
 
     for name, kern in kernels_to_process:

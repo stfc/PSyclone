@@ -43,24 +43,32 @@ END TYPE
     real(kind=r_def) :: ls_v
     real(kind=r_def) :: ls_dtdx
     real(kind=r_def) :: ls_dtdy
+    real(kind=r_def) :: ls_dtdx_1
+    real(kind=r_def) :: ls_dtdy_1
+    real(kind=r_def) :: ls_dtdx_2
+    real(kind=r_def) :: ls_dtdy_2
+    real(kind=r_def) :: ls_u_1
+    real(kind=r_def) :: ls_v_1
+    real(kind=r_def) :: ls_u_2
+    real(kind=r_def) :: ls_v_2
 
+    dtdy = 0.0_r_def
+    dtdx = 0.0_r_def
     u = 0.0_r_def
     v = 0.0_r_def
-    dtdx = 0.0_r_def
-    dtdy = 0.0_r_def
     ls_u = 0.25 * ls_wind(map_w2(1)) + 0.25 * ls_wind(map_w2(3))
     ls_v = -0.25 * ls_wind(map_w2(2)) - 0.25 * ls_wind(map_w2(4))
     ls_dtdx = -ls_tracer(map_w1(1)) + ls_tracer(map_w1(3))
     ls_dtdy = -ls_tracer(map_w1(2)) + ls_tracer(map_w1(4))
     k = nlayers - 1
-    ls_u = 0.25 * ls_wind(k + map_w2(1)) + 0.25 * ls_wind(k + map_w2(3))
-    ls_v = -0.25 * ls_wind(k + map_w2(2)) - 0.25 * ls_wind(k + map_w2(4))
-    ls_dtdx = -ls_tracer(k + map_w1(9)) + ls_tracer(k + map_w1(11))
-    ls_dtdy = -ls_tracer(k + map_w1(10)) + ls_tracer(k + map_w1(12))
-    dtdx = dtdx + advective(map_wt(2) + k) * ls_u
-    dtdy = dtdy + advective(map_wt(2) + k) * ls_v
-    u = u + ls_dtdx * advective(map_wt(2) + k)
-    v = v + ls_dtdy * advective(map_wt(2) + k)
+    ls_u_1 = 0.25 * ls_wind(k + map_w2(1)) + 0.25 * ls_wind(k + map_w2(3))
+    ls_v_1 = -0.25 * ls_wind(k + map_w2(2)) - 0.25 * ls_wind(k + map_w2(4))
+    ls_dtdx_1 = -ls_tracer(k + map_w1(9)) + ls_tracer(k + map_w1(11))
+    ls_dtdy_1 = -ls_tracer(k + map_w1(10)) + ls_tracer(k + map_w1(12))
+    dtdx = dtdx + advective(map_wt(2) + k) * ls_u_1
+    dtdy = dtdy + advective(map_wt(2) + k) * ls_v_1
+    u = u + ls_dtdx_1 * advective(map_wt(2) + k)
+    v = v + ls_dtdy_1 * advective(map_wt(2) + k)
     advective(map_wt(2) + k) = 0.0
     tracer(k + map_w1(10)) = tracer(k + map_w1(10)) + (-dtdy)
     tracer(k + map_w1(12)) = tracer(k + map_w1(12)) + dtdy
@@ -75,16 +83,16 @@ END TYPE
     wind(k + map_w2(3)) = wind(k + map_w2(3)) + 0.25 * u
     u = 0.0
     do k = nlayers - 1, 1, -1
-      ls_u = 0.25 * ls_wind(k + map_w2(1)) + 0.25 * ls_wind(k + map_w2(3)) + 0.25 * ls_wind(k + map_w2(1) - 1) + 0.25 * ls_wind(k &
-&+ map_w2(3) - 1)
-      ls_v = -0.25 * ls_wind(k + map_w2(2)) - 0.25 * ls_wind(k + map_w2(4)) - 0.25 * ls_wind(k + map_w2(2) - 1) - 0.25 * ls_wind(k &
-&+ map_w2(4) - 1)
-      ls_dtdx = -ls_tracer(k + map_w1(1)) + ls_tracer(k + map_w1(3))
-      ls_dtdy = -ls_tracer(k + map_w1(2)) + ls_tracer(k + map_w1(4))
-      dtdx = dtdx + advective(map_wt(1) + k) * ls_u
-      dtdy = dtdy + advective(map_wt(1) + k) * ls_v
-      u = u + ls_dtdx * advective(map_wt(1) + k)
-      v = v + ls_dtdy * advective(map_wt(1) + k)
+      ls_u_2 = 0.25 * ls_wind(k + map_w2(1)) + 0.25 * ls_wind(k + map_w2(3)) + 0.25 * ls_wind(k + map_w2(1) - 1) + 0.25 * &
+&ls_wind(k + map_w2(3) - 1)
+      ls_v_2 = -0.25 * ls_wind(k + map_w2(2)) - 0.25 * ls_wind(k + map_w2(4)) - 0.25 * ls_wind(k + map_w2(2) - 1) - 0.25 * &
+&ls_wind(k + map_w2(4) - 1)
+      ls_dtdx_2 = -ls_tracer(k + map_w1(1)) + ls_tracer(k + map_w1(3))
+      ls_dtdy_2 = -ls_tracer(k + map_w1(2)) + ls_tracer(k + map_w1(4))
+      dtdx = dtdx + advective(map_wt(1) + k) * ls_u_2
+      dtdy = dtdy + advective(map_wt(1) + k) * ls_v_2
+      u = u + ls_dtdx_2 * advective(map_wt(1) + k)
+      v = v + ls_dtdy_2 * advective(map_wt(1) + k)
       advective(map_wt(1) + k) = 0.0
       tracer(k + map_w1(2)) = tracer(k + map_w1(2)) + (-dtdy)
       tracer(k + map_w1(4)) = tracer(k + map_w1(4)) + dtdy

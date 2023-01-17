@@ -6,9 +6,10 @@ API ?= -api 'dynamo0.3'
 # name of the TL kernel.
 KFILE=$(subst _tweaked,,${KERNEL_FILE})
 KFILE_NO_DIR=$(KFILE:tangent_linear/%=%)
+ADJ_OUTPUT=$(subst adjoint/,adjoint_partial/,${ADJ_FILE})
 
 all:
-	psyad ${API} ${KERNEL_FILE} -otest ${HARNESS_FILE} ${GEOM_ARGS} -a ${ACTIVE_VARS}
+	psyad ${API} ${KERNEL_FILE} -otest ${HARNESS_FILE} -oad ${ADJ_OUTPUT} ${GEOM_ARGS} -a ${ACTIVE_VARS}
 	cp -f ${HARNESS_FILE} ${MINI_APP_DIR}/source/algorithm/adjoint_test_mod.x90
 	cp -f ${KERNEL_FILE} ${MINI_APP_DIR}/source/kernel/${KFILE_NO_DIR}
 	cp -f ${ADJ_FILE} ${MINI_APP_DIR}/source/kernel/.
