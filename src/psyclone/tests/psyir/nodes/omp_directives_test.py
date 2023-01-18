@@ -1303,7 +1303,7 @@ def test_omp_serial_compute_accesses_bad_binop():
             "this dependency." in str(excinfo.value))
 
 
-    binop_fail13 = BinaryOperation.create(BinaryOperation.Operator.ADD, sub_binop2.copy(), Reference(tmp))
+    binop_fail13 = BinaryOperation.create(BinaryOperation.Operator.ADD, Reference(tmp), sub_binop2.copy())
     with pytest.raises(GenerationError) as excinfo:
         sing._compute_accesses(binop_fail13, [], None)
     assert ("Found a dependency index that is a BinaryOperation with a child "
