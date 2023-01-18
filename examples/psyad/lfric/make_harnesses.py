@@ -13,6 +13,7 @@ NO_METADATA_KERNELS = ["calc_exner_pointwise"]
 
 all_kernels = {}
 
+# Passes.
 all_kernels["hydrostatic_kernel"] = KernelDesc(
     kernel_file="tangent_linear/tl_hydrostatic_kernel_mod.F90",
     adj_file="adjoint/adj_hydrostatic_kernel_mod.F90",
@@ -46,7 +47,7 @@ all_kernels["kinetic_energy_gradient"] = KernelDesc(
 # rd       = 300.0_r_def
 # cp       = 1000.0_r_def
 # and therefore kappa = 300.0/1000.0 = 0.3. However, even with these values the
-# TL kernel still gives NaNs.
+# *TL kernel* (not the adjoint) still gives NaNs.
 # However, this kernel has been tested by the MO as part of the adjoint to the
 # RHS alg. and works in that case.
 all_kernels["rhs_project_eos"] = KernelDesc(
@@ -70,7 +71,7 @@ all_kernels["rhs_sample_eos"] = KernelDesc(
     "theta_vd_cell rho_cell rho_e exner_e theta_vd_e",
     coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
 
-# Passes!
+# Passes.
 all_kernels["dg_inc_matrix_vector"] = KernelDesc(
     adj_file="adjoint/adj_dg_inc_matrix_vector_kernel_mod.F90",
     kernel_file="tangent_linear/dg_inc_matrix_vector_kernel_mod.F90",
@@ -78,7 +79,7 @@ all_kernels["dg_inc_matrix_vector"] = KernelDesc(
     active_vars="lhs x lhs_e x_e",
     coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
 
-# Passes!
+# Passes.
 all_kernels["moist_dyn_mass"] = KernelDesc(
     adj_file="adjoint/adj_moist_dyn_mass_kernel_mod.F90",
     kernel_file="tangent_linear/tl_moist_dyn_mass_kernel_mod.F90",
@@ -113,8 +114,10 @@ all_kernels["matrix_vector"] = KernelDesc(
     active_vars="lhs x lhs_e x_e",
     coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
 
-# Must use gravity-wave mini-app so that planet_config_mod contains 'Rd'
-# FAILS: test harness gives NaNs currently.
+# FAILS: TL kern in test harness gives NaNs currently.
+# Running with FPE handling on bombs out in 'gw_init_fields_alg_mod', i.e.
+# before we get to the actual adjoint test harness. (This does not happen
+# on head of trunk.)
 all_kernels["project_eos_pressure"] = KernelDesc(
     adj_file="adjoint/adj_project_eos_pressure_kernel_mod.F90",
     kernel_file="tangent_linear_tweaked/tl_project_eos_pressure_kernel_mod_"
@@ -203,11 +206,14 @@ all_kernels["poly1d_w3_reconstruction"] = KernelDesc(
     active_vars="reconstruction polynomial_tracer tracer",
     coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
 
-# Active variable of UnknownFortranType
+# Has logical scalar argument and loop that updates both active and passive
+# vars.
+# Passes (once above issues fixed).
 all_kernels["poly1d_vert_w3_reconstruction"] = KernelDesc(
     adj_file="adjoint/adj_poly1d_vert_w3_reconstruction_kernel_mod.F90",
-    kernel_file="tangent_linear/poly1d_w3_reconstruction_kernel_mod.F90",
-    harness_file="test_harness/poly1d_w3_reconstruction_harness.x90",
+    kernel_file=("tangent_linear_tweaked/tl_poly1d_vert_w3_reconstruction_"
+                 "kernel_mod_tweaked.F90"),
+    harness_file="test_harness/poly1d_vert_w3_reconstruction_harness.x90",
     active_vars="reconstruction polynomial_tracer tracer",
     coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
 

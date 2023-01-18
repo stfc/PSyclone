@@ -131,9 +131,9 @@ subroutine tl_poly1d_vert_w3_reconstruction_code(                      &
   real(kind=r_def) :: polynomial_tracer
   real(kind=r_def) :: ls_polynomial_tracer
 
-  real(kind=r_def) :: tmp1, tmp2, tmp3
+  real(kind=r_def) :: tmp1, tmp2
 
-  integer(kind=i_def) :: i
+  integer(kind=i_def) :: i, tmp3
 
   ! Ensure that we reduce the order if there are only a few layers
   vertical_order = min(global_order, nlayers-1)
@@ -199,10 +199,14 @@ subroutine tl_poly1d_vert_w3_reconstruction_code(                      &
       ls_polynomial_tracer = 1.0_r_def
       do p = 1, vertical_order + 1
         ik = p + upwind_offset*(global_order+1) + k*ndata + map_c(1) - 1
+        ls_polynomial_tracer = ls_polynomial_tracer * abs(ls_tracer(ij + stencil(p)))**coeff(ik)
+      end do
+      do p = 1, vertical_order + 1
+        ik = p + upwind_offset*(global_order+1) + k*ndata + map_c(1) - 1
         polynomial_tracer = polynomial_tracer &
                           + coeff(ik)*tracer(ij + stencil(p))/ls_tracer(ij + stencil(p))
 
-        ls_polynomial_tracer = ls_polynomial_tracer * abs(ls_tracer(ij + stencil(p)))**coeff(ik)
+        !ls_polynomial_tracer = ls_polynomial_tracer * abs(ls_tracer(ij + stencil(p)))**coeff(ik)
       end do
       polynomial_tracer = polynomial_tracer * ls_polynomial_tracer
 
