@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 from collections import namedtuple
+import argparse
 import subprocess
 import sys
 
 
 KernelDesc = namedtuple("KernelDesc",
-                        "kernel_file adj_file harness_file active_vars "
+                        "passing kernel_file adj_file harness_file active_vars "
                         "coord_arg panel_id_arg, mini_app")
 # 'Kernels' that have no metadata and therefore must be treated as a
 # standard Fortran subroutine by PSyAD (i.e. no 'API').
@@ -15,6 +16,7 @@ all_kernels = {}
 
 # Passes.
 all_kernels["hydrostatic_kernel"] = KernelDesc(
+    passing=True,
     kernel_file="tangent_linear/tl_hydrostatic_kernel_mod.F90",
     adj_file="adjoint/adj_hydrostatic_kernel_mod.F90",
     harness_file="test_harness/hydrostatic_kernel_harness.x90",
@@ -27,6 +29,7 @@ all_kernels["hydrostatic_kernel"] = KernelDesc(
 # Delete unused 'i_2' from adjoint kernel.
 # Test passes.
 all_kernels["kinetic_energy_gradient"] = KernelDesc(
+    passing=True,
     kernel_file="tangent_linear_tweaked/"
     "tl_kinetic_energy_gradient_kernel_mod_tweaked.F90",
     adj_file="adjoint/adj_kinetic_energy_gradient_kernel_mod.F90",
@@ -51,6 +54,7 @@ all_kernels["kinetic_energy_gradient"] = KernelDesc(
 # However, this kernel has been tested by the MO as part of the adjoint to the
 # RHS alg. and works in that case.
 all_kernels["rhs_project_eos"] = KernelDesc(
+    passing=False,
     kernel_file="tangent_linear/tl_rhs_project_eos_kernel_mod.F90",
     adj_file="adjoint/adj_rhs_project_eos_kernel_mod.F90",
     harness_file="test_harness/rhs_project_eos_harness.x90",
@@ -64,6 +68,7 @@ all_kernels["rhs_project_eos"] = KernelDesc(
 # in the adjoint but not in the TL. Once the adjoint kernel argument list
 # has been updated appropriately then the test harness runs successfully.
 all_kernels["rhs_sample_eos"] = KernelDesc(
+    passing=True,
     kernel_file="tangent_linear/tl_rhs_sample_eos_kernel_mod.F90",
     adj_file="adjoint/adj_rhs_sample_eos_kernel_mod.F90",
     harness_file="test_harness/rhs_sample_eos_harness.x90",
@@ -73,6 +78,7 @@ all_kernels["rhs_sample_eos"] = KernelDesc(
 
 # Passes.
 all_kernels["dg_inc_matrix_vector"] = KernelDesc(
+    passing=True,
     adj_file="adjoint/adj_dg_inc_matrix_vector_kernel_mod.F90",
     kernel_file="tangent_linear/dg_inc_matrix_vector_kernel_mod.F90",
     harness_file="test_harness/dg_inc_matrix_vector_harness.x90",
@@ -81,6 +87,7 @@ all_kernels["dg_inc_matrix_vector"] = KernelDesc(
 
 # Passes.
 all_kernels["moist_dyn_mass"] = KernelDesc(
+    passing=True,
     adj_file="adjoint/adj_moist_dyn_mass_kernel_mod.F90",
     kernel_file="tangent_linear/tl_moist_dyn_mass_kernel_mod.F90",
     harness_file="test_harness/moist_dyn_mass_harness.x90",
@@ -90,6 +97,7 @@ all_kernels["moist_dyn_mass"] = KernelDesc(
 
 # Passes.
 all_kernels["transpose_matrix_vector"] = KernelDesc(
+    passing=True,
     adj_file="adjoint/adj_transpose_matrix_vector_kernel_mod.F90",
     kernel_file="tangent_linear/transpose_matrix_vector_kernel_mod.F90",
     harness_file="test_harness/transpose_matrix_vector_harness.x90",
@@ -98,6 +106,7 @@ all_kernels["transpose_matrix_vector"] = KernelDesc(
 
 # Has stencil.
 all_kernels["pressure_gradient_bd"] = KernelDesc(
+    passing=False,
     adj_file="adjoint/adj_pressure_gradient_bd_kernel_mod.F90",
     kernel_file="tangent_linear/tl_pressure_gradient_bd_kernel_mod.F90",
     harness_file="test_harness/pressure_gradient_bd_harness.x90",
@@ -108,6 +117,7 @@ all_kernels["pressure_gradient_bd"] = KernelDesc(
 
 # Passes.
 all_kernels["matrix_vector"] = KernelDesc(
+    passing=True,
     adj_file="adjoint/adj_matrix_vector_kernel_mod.F90",
     kernel_file="tangent_linear/matrix_vector_kernel_mod.F90",
     harness_file="test_harness/matrix_vector_harness.x90",
@@ -119,6 +129,7 @@ all_kernels["matrix_vector"] = KernelDesc(
 # before we get to the actual adjoint test harness. (This does not happen
 # on head of trunk.)
 all_kernels["project_eos_pressure"] = KernelDesc(
+    passing=False,
     adj_file="adjoint/adj_project_eos_pressure_kernel_mod.F90",
     kernel_file="tangent_linear_tweaked/tl_project_eos_pressure_kernel_mod_"
     "tweaked.F90",
@@ -131,6 +142,7 @@ all_kernels["project_eos_pressure"] = KernelDesc(
 # 'i_2' in adjoint kernel declared but unused.
 # Passes once that declaration removed.
 all_kernels["kinetic_energy_gradient"] = KernelDesc(
+    passing=True,
     adj_file="adjoint/adj_kinetic_energy_gradient_kernel_mod.F90",
     kernel_file="tangent_linear_tweaked/tl_kinetic_energy_gradient_kernel_"
     "mod_tweaked.F90",
@@ -142,6 +154,7 @@ all_kernels["kinetic_energy_gradient"] = KernelDesc(
 # i_3, idx_1_1, idx_2_1 declared but unused.
 # Passes once that declaration removed.
 all_kernels["vorticity_advection"] = KernelDesc(
+    passing=True,
     adj_file="adjoint/adj_vorticity_advection_kernel_mod.F90",
     kernel_file="tangent_linear_tweaked/tl_vorticity_advection_kernel_mod_"
     "tweaked.F90",
@@ -153,6 +166,7 @@ all_kernels["vorticity_advection"] = KernelDesc(
 
 # Passes.
 all_kernels["moist_dyn_gas"] = KernelDesc(
+    passing=True,
     adj_file="adjoint/adj_moist_dyn_gas_kernel_mod.F90",
     kernel_file="tangent_linear_tweaked/tl_moist_dyn_gas_kernel_mod_"
     "tweaked.F90",
@@ -162,6 +176,7 @@ all_kernels["moist_dyn_gas"] = KernelDesc(
 
 # Passes.
 all_kernels["moist_dyn_mass"] = KernelDesc(
+    passing=True,
     adj_file="adjoint/adj_moist_dyn_mass_kernel_mod.F90",
     kernel_file="tangent_linear/tl_moist_dyn_mass_kernel_mod.F90",
     harness_file="test_harness/moist_dyn_mass_harness.x90",
@@ -171,16 +186,18 @@ all_kernels["moist_dyn_mass"] = KernelDesc(
 
 # Passes.
 all_kernels["w3_advective_update"] = KernelDesc(
+    passing=True,
     adj_file="adjoint/adj_w3_advective_update_kernel_mod.F90",
     kernel_file="tangent_linear/w3_advective_update_kernel_mod.F90",
     harness_file="test_harness/w3_advective_update_harness.x90",
     active_vars="advective_increment u v w wind",
     coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
 
-# #1453 - passive scalars are assigned to multiple times. In the tweaked
+# #1458 - passive scalars are assigned to multiple times. In the tweaked
 # version I've changed the code so that a new scalar is used for each
 # assignment. Test then passes.
 all_kernels["poly_advective"] = KernelDesc(
+    passing=True,
     adj_file="adjoint/adj_poly_advective_kernel_mod.F90",
     kernel_file=("tangent_linear_tweaked/tl_poly_advective_kernel_"
                  "mod_tweaked.F90"),
@@ -188,8 +205,10 @@ all_kernels["poly_advective"] = KernelDesc(
     active_vars="advective dtdx dtdy v u tracer wind",
     coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
 
-# Scalar of type 'logical' not supported.
+# Scalar of type 'logical' not supported - #2013.
+# Passes once that limitation removed from test-harness generation.
 all_kernels["poly1d_vert_adv"] = KernelDesc(
+    passing=True,
     adj_file="adjoint/adj_poly1d_vert_adv_kernel_mod.F90",
     kernel_file=("tangent_linear_tweaked/tl_poly1d_vert_adv_kernel_mod_"
                  "tweaked.F90"),
@@ -199,6 +218,7 @@ all_kernels["poly1d_vert_adv"] = KernelDesc(
 
 # Has stencil
 all_kernels["poly1d_w3_reconstruction"] = KernelDesc(
+    passing=False,
     adj_file="adjoint/lbl_adj_poly1d_w3_reconstruction_kernel_mod.F90",
     kernel_file=("tangent_linear_tweaked/poly1d_w3_reconstruction_kernel_"
                  "mod_tweaked.F90"),
@@ -210,6 +230,7 @@ all_kernels["poly1d_w3_reconstruction"] = KernelDesc(
 # vars.
 # Passes (once above issues fixed).
 all_kernels["poly1d_vert_w3_reconstruction"] = KernelDesc(
+    passing=True,
     adj_file="adjoint/adj_poly1d_vert_w3_reconstruction_kernel_mod.F90",
     kernel_file=("tangent_linear_tweaked/tl_poly1d_vert_w3_reconstruction_"
                  "kernel_mod_tweaked.F90"),
@@ -219,6 +240,7 @@ all_kernels["poly1d_vert_w3_reconstruction"] = KernelDesc(
 
 # Passes.
 all_kernels["convert_hdiv_field"] = KernelDesc(
+    passing=True,
     adj_file="adjoint/adj_convert_hdiv_field_kernel_mod.F90",
     kernel_file=("tangent_linear_tweaked/"
                  "convert_hdiv_field_kernel_mod_tweaked.F90"),
@@ -229,6 +251,7 @@ all_kernels["convert_hdiv_field"] = KernelDesc(
 
 # Passes.
 all_kernels["combine_w2_field"] = KernelDesc(
+    passing=True,
     adj_file="adjoint/adj_combine_w2_field_kernel_mod.F90",
     kernel_file="tangent_linear/combine_w2_field_kernel_mod.F90",
     harness_file="test_harness/combine_w2_field_harness.x90",
@@ -238,6 +261,7 @@ all_kernels["combine_w2_field"] = KernelDesc(
 # tl_calc_exner_pointwise [-a rho theta exner]
 # Has no metadata.
 all_kernels["calc_exner_pointwise"] = KernelDesc(
+    passing=True,
     adj_file="adjoint/adj_calc_exner_pointwise_mod.F90",
     kernel_file=("tangent_linear_tweaked/tl_calc_exner_pointwise_mod_"
                  "tweaked.F90"),
@@ -247,6 +271,7 @@ all_kernels["calc_exner_pointwise"] = KernelDesc(
 
 # Passes.
 all_kernels["sample_flux"] = KernelDesc(
+    passing=True,
     adj_file="adjoint/adj_sample_flux_kernel_mod.F90",
     kernel_file="tangent_linear/sample_flux_kernel_mod.F90",
     harness_file="test_harness/sample_flux_harness.x90",
@@ -255,6 +280,7 @@ all_kernels["sample_flux"] = KernelDesc(
 
 # Passes.
 all_kernels["rhs_sample_eos"] = KernelDesc(
+    passing=True,
     adj_file="adjoint/adj_rhs_sample_eos_kernel_mod.F90",
     kernel_file="tangent_linear/tl_rhs_sample_eos_kernel_mod.F90",
     harness_file="test_harness/rhs_sample_eos_harness.x90",
@@ -264,6 +290,7 @@ all_kernels["rhs_sample_eos"] = KernelDesc(
 
 # Gravity_wave test harness gives NaNs.
 all_kernels["sample_eos_pressure"] = KernelDesc(
+    passing=False,
     adj_file="adjoint/adj_sample_eos_pressure_kernel_mod.F90",
     kernel_file=("tangent_linear_tweaked/tl_sample_eos_pressure_kernel_"
                  "mod_tweaked.F90"),
@@ -272,8 +299,9 @@ all_kernels["sample_eos_pressure"] = KernelDesc(
                  "moist_dyn_gas rho_cell rho_e rho"),
     coord_arg=-1, panel_id_arg=-1, mini_app="gravity_wave")
 
-# Fails: 64497.185136997694 62179.152620883135 318587963128852.00
+# Fails but would pass if 'uvw' zeroed before kernel runs.
 all_kernels["split_w2_field"] = KernelDesc(
+    passing=False,
     adj_file="adjoint/adj_split_w2_field_kernel_mod.F90",
     kernel_file="tangent_linear/split_w2_field_kernel_mod.F90",
     harness_file="test_harness/split_w2_field_harness.x90",
@@ -282,6 +310,7 @@ all_kernels["split_w2_field"] = KernelDesc(
 
 # Has stencil.
 all_kernels["tracer_viscosity"] = KernelDesc(
+    passing=False,
     adj_file="adjoint/adj_tracer_viscosity_kernel_mod.F90",
     kernel_file="tangent_linear/tracer_viscosity_kernel_mod.F90",
     harness_file="test_harness/tracer_viscosity_harness.x90",
@@ -291,6 +320,7 @@ all_kernels["tracer_viscosity"] = KernelDesc(
 # Passes once adjoint argument list updated with additional
 # basis and diff-basis arrays.
 all_kernels["strong_curl"] = KernelDesc(
+    passing=True,
     adj_file="adjoint/adj_strong_curl_kernel_mod.F90",
     kernel_file="tangent_linear/strong_curl_kernel_mod.F90",
     harness_file="test_harness/strong_curl_harness.x90",
@@ -299,6 +329,7 @@ all_kernels["strong_curl"] = KernelDesc(
 
 # Passes.
 all_kernels["w2_to_w1_projection"] = KernelDesc(
+    passing=True,
     adj_file="adjoint/adj_w2_to_w1_projection_kernel_mod.F90",
     kernel_file="tangent_linear/w2_to_w1_projection_kernel_mod.F90",
     harness_file="test_harness/w2_to_w1_projection_harness.x90",
@@ -313,19 +344,40 @@ all_kernels["w2_to_w1_projection"] = KernelDesc(
 #    coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
 
 
-def main():
+def main(cmd_args):
     ''' '''
-    kernels_to_process = []
-    tar_args = []
-    for arg in sys.argv:
-        if arg in all_kernels:
-            kern = all_kernels[arg]
-            kernels_to_process.append((arg, kern))
-            psyad_output = kern.adj_file.replace("adjoint/",
-                                                 "adjoint_partial/")
-            tar_args.extend(
-                [kern.kernel_file, kern.adj_file, psyad_output,
-                 kern.harness_file])
+    parser = argparse.ArgumentParser(description="Test adjoint kernel code")
+    parser.add_argument('-all', help='Test all kernels marked as passing',
+                        action='store_true')
+    parser.add_argument('-kernel', help='name of kernel to test')
+    parser.add_argument('-n', dest='nproc',
+                        help='Number of threads to instruct make to use',
+                        type=int, default=1)
+    args = parser.parse_args(cmd_args)
+
+    if args.all:
+        # We test all kernels marked as 'passing'
+        kernels_to_process = [(kname, kern) for (kname, kern) in
+                              all_kernels.items() if kern.passing]
+    elif args.kernel:
+        if args.kernel not in all_kernels:
+            print("Not a recognised kernel name", file=sys.stderr)
+            sys.exit(1)
+        kernels_to_process = [(args.kernel, all_kernels[args.kernel])]
+    else:
+        print("One of -all or -kernel <kernel-name> must be specified.",
+              file=sys.stderr)
+        sys.exit(1)
+
+#    tar_args = []
+#    for arg in sys.argv:
+#        if arg in all_kernels:
+#            kern = all_kernels[arg]
+#            psyad_output = kern.adj_file.replace("adjoint/",
+#                                                 "adjoint_partial/")
+#            tar_args.extend(
+#                [kern.kernel_file, kern.adj_file, psyad_output,
+#                 kern.harness_file])
 
     #print(" ".join(tar_args))
     #exit(0)
@@ -334,7 +386,8 @@ def main():
     for name, kern in kernels_to_process:
 
         # For each kernel, construct the 'make' command to execute.
-        arg_list = ["make", f"KERNEL_FILE={kern.kernel_file}",
+        arg_list = ["make", f"--jobs={args.nproc}",
+                    f"KERNEL_FILE={kern.kernel_file}",
                     f"ADJ_FILE={kern.adj_file}",
                     f"HARNESS_FILE={kern.harness_file}"]
         geom_args = []
@@ -352,10 +405,11 @@ def main():
 
         print(f"Running: '{' '.join(arg_list)}'")
         try:
-            process = subprocess.Popen(arg_list, stdout=subprocess.PIPE,
-                                       stderr=subprocess.STDOUT)
-            for c in iter(lambda: process.stdout.read(1), b""):
-                sys.stdout.buffer.write(c)
+            complete = subprocess.run(arg_list, check=True)
+            #process = subprocess.Popen(arg_list, stdout=subprocess.PIPE,
+            #                           stderr=subprocess.STDOUT)
+            #for c in iter(lambda: process.stdout.read(1), b""):
+            #    sys.stdout.buffer.write(c)
 
         except OSError as err:
             print(f"Failed to process kernel {name}: {err}",
@@ -364,4 +418,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])
