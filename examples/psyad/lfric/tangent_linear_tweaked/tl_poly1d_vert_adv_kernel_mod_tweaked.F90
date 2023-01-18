@@ -121,7 +121,7 @@ subroutine tl_poly1d_vert_adv_code( nlayers,              &
 
   ! Internal variables
 
-  integer(kind=i_def) :: k, kmin, kmax, ij, ik, p
+  integer(kind=i_def) :: k, kmin, kmax, ij, p, ik
   integer(kind=i_def) :: vertical_order, use_upwind, upwind_offset, upwind
 
   integer(kind=i_def), dimension(global_order+1) :: stencil
