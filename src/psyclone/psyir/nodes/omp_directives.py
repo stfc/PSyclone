@@ -502,7 +502,6 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     step.copy())
             output_list.append(second_val)
             return output_list
-        return []
 
     def _compare_ref_binop(self, ref1, ref2, task1, task2):
         # In this case we have two Reference/BinaryOperation as indices.
@@ -517,14 +516,8 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
 
         # If the first access in each accesses contains a Reference we 
         # should check that both are to the same symbol
-        if len(ref1_accesses) > 0:
-            ref1_ref = ref1_accesses[0].walk(Reference)
-        else:
-            ref1_ref = []
-        if len(ref2_accesses) > 0:
-            ref2_ref = ref2_accesses[0].walk(Reference)
-        else:
-            ref2_ref = []
+        ref1_ref = ref1_accesses[0].walk(Reference)
+        ref2_ref = ref2_accesses[0].walk(Reference)
         if len(ref1_ref) > 0 and len(ref2_ref) == 0:
             raise GenerationError("Found a pair of dependencies on the same "
                                   "array which are not valid under OpenMP, "
