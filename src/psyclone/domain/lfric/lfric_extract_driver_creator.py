@@ -1016,9 +1016,8 @@ class LFRicExtractDriverCreator:
         mod_manager = ModuleManager.get()
         for module in sorted_modules:
             try:
-                filename = mod_manager.get_file_for_module(module)
-                with open(filename, "r", encoding='utf-8') as f_in:
-                    out.append(f_in.read())
+                mod_info = mod_manager.get_module_info(module)
+                out.append(mod_info.get_source_code())
             except (FileNotFoundError, TypeError):
                 print(f"Could not find module '{module}' - ignored.")
 

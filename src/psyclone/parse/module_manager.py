@@ -47,6 +47,58 @@ from fparser.two.utils import walk
 from psyclone.errors import InternalError
 
 
+# ============================================================================
+class ModuleInfo:
+    '''This class stores mostly cached information about modules: it stores
+    the original filename, if requested it will read the file and then caches
+    the plain text file, and if required it will parse the file, and then
+    cache the fparser AST.
+
+    :param str name: the module name.
+    :param str filename: the name of the source file that stores this module \
+        (including path).
+
+    '''
+
+    def __init__(self, name, filename):
+        self._name = name
+        self._filename = filename
+        self._source_code = None
+
+    # ------------------------------------------------------------------------
+    @property
+    def filename(self):
+        ''':returns: the filename that contains the source code for this
+        module.
+        :rtype: str
+
+        '''
+        return self._filename
+
+    # ------------------------------------------------------------------------
+    def get_source_code(self):
+        '''Returns the source code for the module. The first time, it
+        will be read from the file, but the data is then cached.
+
+        :returns: the source code as string.
+        :rtype: str
+
+        :raises FileNotFoundError: when the file cannot be read.
+
+        '''
+        if self._source_code is None:
+            try:
+                with open(self._filename, "r", encoding='utf-8') as file_in:
+                    self._source_code = file_in.read()
+            except FileNotFoundError as err:
+                raise FileNotFoundError(
+                    f"Could not find file '{self._filename}' when trying to "
+                    f"read source code for module '{self._name}'") from err
+
+        return self._source_code
+
+
+# ============================================================================
 class ModuleManager:
     '''This class implements a singleton that manages module
     dependencies.
@@ -126,12 +178,13 @@ class ModuleManager:
                 all_modules = self.get_modules_in_file(full_path)
                 for module in all_modules:
                     if module not in self._mod_2_filename:
-                        self._mod_2_filename[module] = full_path
+                        mod_info = ModuleInfo(module, full_path)
+                        self._mod_2_filename[module] = mod_info
 
     # ------------------------------------------------------------------------
-    def get_file_for_module(self, module_name):
-        '''This function returns the file name that contains the
-        specified module.
+    def get_module_info(self, module_name):
+        '''This function returns the ModuleInformation for the specified
+        module.
 
         :param str module_name: name of the module.
 
@@ -145,9 +198,9 @@ class ModuleManager:
         mod_lower = module_name.lower()
 
         # First check if we already know about this file:
-        file_name = self._mod_2_filename.get(mod_lower, None)
-        if file_name:
-            return file_name
+        mod_info = self._mod_2_filename.get(mod_lower, None)
+        if mod_info:
+            return mod_info
 
         # If not, check the search paths. To avoid frequent accesses to
         # the directories, we search directories one at a time, and
@@ -159,9 +212,9 @@ class ModuleManager:
         for directory in search_paths_copy:
             self._add_all_files_from_dir(directory)
             self._search_paths.remove(directory)
-            file_name = self._mod_2_filename.get(mod_lower, None)
-            if file_name:
-                return file_name
+            mod_info = self._mod_2_filename.get(mod_lower, None)
+            if mod_info:
+                return mod_info
 
         raise FileNotFoundError(f"Could not find source file for module "
                                 f"'{module_name}'.")
@@ -211,11 +264,11 @@ class ModuleManager:
 
         # Otherwise, parse the file:
         try:
-            filename = self.get_file_for_module(module_name)
+            mod_info = self.get_module_info(module_name)
         except FileNotFoundError:
             return []
 
-        reader = FortranFileReader(filename)
+        reader = FortranFileReader(mod_info.filename)
         parser = ParserFactory().create(std="f2003")
         parse_tree = parser(reader)
         results = []

@@ -41,7 +41,7 @@ import os
 import pytest
 
 from psyclone.errors import InternalError
-from psyclone.parse import ModuleManager
+from psyclone.parse import ModuleInfo, ModuleManager
 from psyclone.tests.utilities import get_base_path
 
 
@@ -62,6 +62,32 @@ def clear_module_manager_instance():
 
     # Enforce loading of the default ModuleManager
     ModuleManager._instance = None
+
+
+# ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_module_info():
+    '''Tests the module info object.'''
+    mod_info = ModuleInfo("a_mod", "file_for_a")
+    assert mod_info.filename == "file_for_a"
+    assert mod_info._source_code is None
+
+    with pytest.raises(FileNotFoundError) as err:
+        mod_info.get_source_code()
+    assert ("Could not find file 'file_for_a' when trying to read source "
+            "code for module 'a_mod'" in str(err.value))
+
+    # Try to read the file a_mod.f90, which is contained in the d1 directory
+    mod_man_test_setup_directories()
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path("d1")
+    mod_info = mod_man.get_module_info("a_mod")
+    assert isinstance(mod_info, ModuleInfo)
+    assert mod_info._source_code is None
+    source_code = mod_info.get_source_code()
+    assert "module a_mod" in source_code[:15]
+    assert "module a_mod" in mod_info._source_code[:15]
+    assert "end module a_mod" in mod_info._source_code
 
 
 # ----------------------------------------------------------------------------
@@ -211,35 +237,35 @@ def test_mod_manager_get_file_for_module():
     assert len(mod_man._mod_2_filename) == 0
 
     # First finds a_mod, which will parse the first directory
-    filename = mod_man.get_file_for_module("a_mod")
-    assert filename == "d1/a_mod.f90"
+    mod_info = mod_man.get_module_info("a_mod")
+    assert mod_info.filename == "d1/a_mod.f90"
     assert mod_man._search_paths == ["d1/d3", "d2", "d2/d4"]
     assert set(mod_man._mod_2_filename.keys()) == set(["a_mod"])
 
     # This should be cached now, so no more change:
-    filename_cached = mod_man.get_file_for_module("a_mod")
-    assert filename == filename_cached
+    mod_info_cached = mod_man.get_module_info("a_mod")
+    assert mod_info == mod_info_cached
     assert mod_man._search_paths == ["d1/d3", "d2", "d2/d4"]
     assert set(mod_man._mod_2_filename.keys()) == set(["a_mod"])
 
     # Then parse the second file, it should cache two modules (b and c):
-    filename = mod_man.get_file_for_module("b_mod")
-    assert filename == "d1/d3/b_mod.F90"
+    mod_info = mod_man.get_module_info("b_mod")
+    assert mod_info.filename == "d1/d3/b_mod.F90"
     assert mod_man._search_paths == ["d2", "d2/d4"]
     assert set(mod_man._mod_2_filename.keys()) == set(["a_mod", "b_mod",
                                                       "c_mod"])
 
     # Then parse the e_mod, which should remove two paths from
     # the search path:
-    filename = mod_man.get_file_for_module("e_mod")
-    assert filename == "d2/d4/e_mod.F90"
+    mod_info = mod_man.get_module_info("e_mod")
+    assert mod_info.filename == "d2/d4/e_mod.F90"
     assert mod_man._search_paths == []
     assert set(mod_man._mod_2_filename.keys()) == set(["a_mod", "b_mod",
                                                        "c_mod", "d_mod",
                                                        "e_mod"])
 
     with pytest.raises(FileNotFoundError) as err:
-        mod_man.get_file_for_module("does_not_exist")
+        mod_man.get_module_info("does_not_exist")
     assert ("Could not find source file for module 'does_not_exist'."
             in str(err.value))
 
