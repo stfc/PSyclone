@@ -390,6 +390,10 @@ are:
 
 - .. autoclass:: psyclone.psyir.symbols.DataSymbol
 
+- .. autoclass:: psyclone.psyir.symbols.DataTypeSymbol
+
+- .. autoclass:: psyclone.psyir.symbols.IntrinsicSymbol
+
 - .. autoclass:: psyclone.psyir.symbols.RoutineSymbol
 
 See the reference guide for the full API documentation of the

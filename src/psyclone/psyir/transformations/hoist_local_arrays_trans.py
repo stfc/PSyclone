@@ -44,7 +44,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (Routine, Container, ArrayReference, Range,
                                   FileContainer, IfBlock, UnaryOperation,
                                   CodeBlock, ACCRoutineDirective, Literal,
-                                  BinaryOperation, Reference)
+                                  IntrinsicCall, BinaryOperation, Reference)
 from psyclone.psyir.symbols import ArrayType, Symbol, INTEGER_TYPE
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -151,10 +151,8 @@ then
         # associated with the symbol being hoisted.
         tags_dict = node.symbol_table.get_reverse_tags_dict()
 
-        # Fortran reader and writer needed to manipulate Codeblocks in the
-        # following loop
+        # Fortran reader needed to create Codeblocks in the following loop
         freader = FortranReader()
-        fwriter = FortranWriter()
 
         for sym in automatic_arrays:
             # Keep a copy of the original shape of the array.
@@ -226,19 +224,17 @@ then
                                     cond_expr, expr)
                     check_added = True
 
-            # TODO #1366: we also have to use a CodeBlock for the allocate()
-            # and deallocate() inside the conditional body.
             body = []
             if check_added:
                 body.append(
                     IfBlock.create(
                         allocated_expr.copy(),
-                        [freader.psyir_from_statement(
-                            f"deallocate({sym.name})",
-                            node.symbol_table)]))
+                        [IntrinsicCall.create(
+                            IntrinsicCall.Intrinsic.DEALLOCATE,
+                            [Reference(sym)])]))
             body.append(
-                freader.psyir_from_statement(f"allocate({fwriter(aref)})",
-                                             node.symbol_table))
+                IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,
+                                     [aref]))
             # Insert the conditional allocation at the start of the supplied
             # routine.
             node.children.insert(0, IfBlock.create(cond_expr, body))
@@ -246,7 +242,7 @@ then
         # Finally, remove the hoisted symbols (and any associated tags)
         # from the routine scope.
         for sym in automatic_arrays:
-            # TODO #898:Currently the SymbolTable.remove() method does not
+            # TODO #898: Currently the SymbolTable.remove() method does not
             # support DataSymbols.
             # pylint: disable=protected-access
             del node.symbol_table._symbols[sym.name]
