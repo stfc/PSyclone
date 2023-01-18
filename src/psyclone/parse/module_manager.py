@@ -108,6 +108,13 @@ class ModuleManager:
 
     # ------------------------------------------------------------------------
     def _add_all_files_from_dir(self, directory):
+        '''This function adds all files with an extension of (F/f/X/x)90 in the
+        given directory to the mapping of module names to file names. The
+        module names are based on the filename using `get_modules_in_file()`.
+        By default it is assumed that `a_mod.f90` contains the module `a_mod`.
+
+        :param str directory: the directory to list all files from
+        '''
 
         with os.scandir(directory) as all_entries:
             for entry in all_entries:
