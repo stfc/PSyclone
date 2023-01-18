@@ -404,15 +404,15 @@ def test_cma_kernel_type():
     assert lfric_kernel_metadata._cma_kernel_type() == "matrix-matrix"
 
 
-def test_validate_cma_kernel():
-    '''Test that the _validate_cma_kernel method behaves as
+def test_validate_generic_cma_kernel():
+    '''Test that the _validate_generic_cma_kernel method behaves as
     expected.
 
     '''
     # Check validate_generic_kernel is called.
     lfric_kernel_metadata = LFRicKernelMetadata(operates_on="cell_column")
     with pytest.raises(ParseError) as info:
-        lfric_kernel_metadata._validate_cma_kernel()
+        lfric_kernel_metadata._validate_generic_cma_kernel()
     assert ("Kernel metadata with 'operates_on != domain' must have at least "
             "one meta_args argument that is a field, field vector, intergrid "
             "field, intergrid vector field, LMA operator or CMA operator (in "
@@ -423,7 +423,7 @@ def test_validate_cma_kernel():
     # Operates on cell_column.
     lfric_kernel_metadata = LFRicKernelMetadata(operates_on="domain")
     with pytest.raises(ParseError) as info:
-        lfric_kernel_metadata._validate_cma_kernel()
+        lfric_kernel_metadata._validate_generic_cma_kernel()
     assert ("A CMA kernel should only operate on a 'cell_column'. However, "
             "the kernel metadata 'None' for procedure 'None' operates on "
             "'domain'." in str(info.value))
@@ -434,7 +434,7 @@ def test_validate_cma_kernel():
     lfric_kernel_metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
     with pytest.raises(ParseError) as info:
-        lfric_kernel_metadata._validate_cma_kernel()
+        lfric_kernel_metadata._validate_generic_cma_kernel()
     assert ("A CMA kernel should contain at least one cma operator argument "
             "but none are specified in the meta_args metadata in kernel "
             "metadata 'None' for procedure 'None'." in str(info.value))
@@ -446,7 +446,7 @@ def test_validate_cma_kernel():
     lfric_kernel_metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
     with pytest.raises(ParseError) as info:
-        lfric_kernel_metadata._validate_cma_kernel()
+        lfric_kernel_metadata._validate_generic_cma_kernel()
     assert ("A CMA kernel should not contain any intergrid arguments, but at "
             "least one was found in kernel metadata 'None' for procedure "
             "'None'." in str(info.value))
@@ -458,7 +458,7 @@ def test_validate_cma_kernel():
     lfric_kernel_metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
     with pytest.raises(ParseError) as info:
-        lfric_kernel_metadata._validate_cma_kernel()
+        lfric_kernel_metadata._validate_generic_cma_kernel()
     assert ("A CMA kernel should not contain any field vector arguments, but "
             "at least one was found in kernel metadata 'None' for procedure "
             "'None'." in str(info.value))
@@ -470,7 +470,7 @@ def test_validate_cma_kernel():
     lfric_kernel_metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
     with pytest.raises(ParseError) as info:
-        lfric_kernel_metadata._validate_cma_kernel()
+        lfric_kernel_metadata._validate_generic_cma_kernel()
     assert ("A CMA kernel should not contain any fields with stencil "
             "accesses, but at least one was found in kernel metadata 'None' "
             "for procedure 'None'." in str(info.value))
@@ -480,7 +480,7 @@ def test_validate_cma_kernel():
         ColumnwiseOperatorArgMetadata("gh_real", "gh_read", "w3", "w2")]
     lfric_kernel_metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
-    lfric_kernel_metadata._validate_cma_kernel()
+    lfric_kernel_metadata._validate_generic_cma_kernel()
 
 
 def test_validate_cma_assembly_kernel():
@@ -488,7 +488,7 @@ def test_validate_cma_assembly_kernel():
     expected.
 
     '''
-    # Check validate_cma_kernel is called.
+    # Check validate_generic_cma_kernel is called.
     lfric_kernel_metadata = LFRicKernelMetadata(operates_on="domain")
     with pytest.raises(ParseError) as info:
         lfric_kernel_metadata._validate_cma_assembly_kernel()
@@ -558,7 +558,7 @@ def test_validate_cma_apply_kernel():
     expected.
 
     '''
-    # Check validate_cma_kernel is called.
+    # Check validate_generic_cma_kernel is called.
     lfric_kernel_metadata = LFRicKernelMetadata(operates_on="domain")
     with pytest.raises(ParseError) as info:
         lfric_kernel_metadata._validate_cma_apply_kernel()
@@ -711,7 +711,7 @@ def test_validate_cma_matrix_kernel():
     expected.
 
     '''
-    # Check validate_cma_kernel is called.
+    # Check validate_generic_cma_kernel is called.
     lfric_kernel_metadata = LFRicKernelMetadata(operates_on="domain")
     with pytest.raises(ParseError) as info:
         lfric_kernel_metadata._validate_cma_matrix_matrix_kernel()
@@ -738,13 +738,18 @@ def test_validate_cma_matrix_kernel():
         operates_on="cell_column", meta_args=meta_args)
     with pytest.raises(ParseError) as info:
         lfric_kernel_metadata._validate_cma_matrix_matrix_kernel()
-    assert ("A CMA matrix-matrix kernel must write to one CMA operator "
-            "argument, but found 0 writers in kernel metadata 'None' for "
-            "procedure 'None'." in str(info.value))
+    assert ("A CMA matrix-matrix kernel must write to exactly one CMA "
+            "operator argument, but found 0 writers in kernel metadata "
+            "'None' for procedure 'None'." in str(info.value))
 
     # Other arguments must also be read only but remaining args will
     # be scalars which must already be read only so no more checks
-    # required.
+    # required. However, in case things change in the future, let's
+    # check that a scalar must be read only.
+    with pytest.raises(ValueError) as info:
+        ScalarArgMetadata("gh_real", "gh_write")
+    assert ("The 'access descriptor' metadata should be a recognised value "
+            "(one of ['gh_read']) but found 'gh_write'." in str(info.value))
 
     # OK.
     meta_args = [
@@ -846,7 +851,7 @@ def test_validate_intergrid_kernel():
             "'w1' differ in kernel metadata 'None' for procedure 'None'."
             in str(info.value))
 
-    # Fine mesh and coarse mesh function spaces differ.
+    # Fine mesh and coarse mesh function spaces should differ.
     meta_args = [
         InterGridArgMetadata("gh_real", "gh_read", "w0", "gh_coarse"),
         InterGridArgMetadata("gh_real", "gh_read", "w0", "gh_coarse"),
@@ -1416,13 +1421,14 @@ def test_meta_args_get():
     with pytest.raises(TypeError) as info:
         metadata.meta_args_get(None)
     assert ("Expected a subclass of CommonMetaArgMetadata or a list for the "
-            "types argument, but found 'NoneType'." in str(info.value))
+            "'types' argument, but found 'NoneType'." in str(info.value))
 
     # types has invalid values in its list.
     with pytest.raises(TypeError) as info:
         metadata.meta_args_get([None])
-    assert ("Expected list entries in the types argument to be subclasses of "
-            "CommonMetaArgMetadata, but found 'NoneType'." in str(info.value))
+    assert ("Expected list entries in the 'types' argument to be subclasses "
+            "of CommonMetaArgMetadata, but found 'NoneType'."
+            in str(info.value))
 
     meta_args = [
         ScalarArgMetadata("gh_real", "gh_read"),
@@ -1433,13 +1439,13 @@ def test_meta_args_get():
     # OK (types single value)
     result = metadata.meta_args_get(ScalarArgMetadata)
     assert len(result) == 1
-    assert result[0] == metadata.meta_args[0]
+    assert result[0] is metadata.meta_args[0]
 
     # OK (types list)
     result = metadata.meta_args_get([FieldArgMetadata, OperatorArgMetadata])
     assert len(result) == 2
-    assert result[0] == metadata.meta_args[1]
-    assert result[1] == metadata.meta_args[2]
+    assert result[0] is metadata.meta_args[1]
+    assert result[1] is metadata.meta_args[2]
 
     # OK (empty list matches nothing)
     result = metadata.meta_args_get([])

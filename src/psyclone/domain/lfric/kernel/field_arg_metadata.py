@@ -68,7 +68,8 @@ class FieldArgMetadata(ScalarArgMetadata):
     stencil_arg_index = 4
     # The name to use for any exceptions.
     check_name = "field"
-    # The number of arguments in the language-level metadata (low and high).
+    # The number of arguments in the language-level metadata (min and
+    # max values).
     nargs = (4, 5)
 
     def __init__(self, datatype, access, function_space, stencil=None):
@@ -101,8 +102,8 @@ class FieldArgMetadata(ScalarArgMetadata):
 
     @classmethod
     def get_stencil(cls, fparser2_tree):
-        '''Retrieves the stencil metadata value found within the
-        supplied fparser2 tree and checks that it is valid.
+        '''Retrieves the stencil metadata value found within the supplied
+        fparser2 tree (if there is one) and checks that it is valid.
 
         :param fparser2_tree: fparser2 tree capturing the required metadata.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
@@ -182,8 +183,10 @@ class FieldArgMetadata(ScalarArgMetadata):
     @property
     def stencil(self):
         '''
-        :returns: the stencil for this field argument.
+        :returns: the stencil for this field argument, or None if there
+            isn't one.
         :rtype: Optional[str]
+
         '''
         return self._stencil
 

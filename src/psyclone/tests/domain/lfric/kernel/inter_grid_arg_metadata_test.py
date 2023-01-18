@@ -140,7 +140,7 @@ def test_get_mesh_arg():
         _ = InterGridArgMetadata.get_mesh_arg(fparser2_tree, 4)
     assert ("At argument index 4 for metadata 'arg_type(GH_FIELD, GH_REAL, "
             "GH_READ, W0, invalid = GH_COARSE)' expected the left hand side "
-            "to be MESH_ARG but found 'invalid'." in str(info.value))
+            "to be 'mesh_arg' but found 'invalid'." in str(info.value))
 
 
 @pytest.mark.parametrize("fortran_string", [

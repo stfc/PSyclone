@@ -92,7 +92,7 @@ class InterGridVectorArgMetadata(InterGridArgMetadata):
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`
 
         :returns: a tuple containing the datatype, access, function \
-            space, mesh and vector-length metadata.
+            space, mesh, vector-length and stencil metadata.
         :rtype: Tuple[str, str, str, str, str, Optional[str]]
 
         '''

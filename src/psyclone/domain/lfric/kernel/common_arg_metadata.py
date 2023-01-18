@@ -71,7 +71,6 @@ class CommonArgMetadata(CommonMetadata):
         :param fparser2_tree: fparser2 tree capturing a metadata argument.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`
-
         :param nargs: the number of expected arguments. This can \
             either be a single value or a list containing a lower and an \
             upper value.

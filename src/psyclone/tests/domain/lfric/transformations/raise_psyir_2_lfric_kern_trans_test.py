@@ -206,7 +206,8 @@ def test_validate_metadata_name(fortran_reader):
             "variable containing the metadata to be provided in the options "
             "argument with lookup name 'metadata_name', but found "
             "'['invalid']'." in str(info.value))
-    # No name provided (causes TypeError internally).
+    # No name provided, so options defaults to None (causes TypeError
+    # internally).
     with pytest.raises(TransformationError) as info:
         kern_trans.validate(kernel_psyir)
     assert ("Transformation Error: Error in RaisePSyIR2LFRicKernTrans "

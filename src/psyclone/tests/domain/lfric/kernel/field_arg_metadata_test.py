@@ -95,17 +95,23 @@ def test_init_invalid_stencil():
             "'int'." in str(info.value))
 
 
-def test_get_metadata():
-    '''Test that the _get_metadata class method works as expecteqd.'''
+@pytest.mark.parametrize(
+    "metadata,expected_stencil",
+    [("arg_type(GH_FIELD, GH_REAL, GH_READ, W0)", None),
+     ("arg_type(GH_FIELD, GH_REAL, GH_READ, W0, stencil(region))", "region")])
+def test_get_metadata(metadata, expected_stencil):
+    '''Test that the _get_metadata class method works as expected, with
+    and without optional stencil metadata.
 
+    '''
     fparser2_tree = FieldArgMetadata.create_fparser2(
-        "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)", Fortran2003.Part_Ref)
+        metadata, Fortran2003.Part_Ref)
     datatype, access, function_space, stencil = FieldArgMetadata._get_metadata(
         fparser2_tree)
     assert datatype == "GH_REAL"
     assert access == "GH_READ"
     assert function_space == "W0"
-    assert stencil is None
+    assert stencil == expected_stencil
 
 
 def test_get_stencil():

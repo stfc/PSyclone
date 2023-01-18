@@ -146,7 +146,7 @@ class InterGridArgMetadata(FieldArgMetadata):
             raise ValueError(
                 f"At argument index {mesh_arg_index} for metadata "
                 f"'{fparser2_tree}' expected the left hand side "
-                f"to be MESH_ARG but found '{mesh_arg_lhs}'.")
+                f"to be 'mesh_arg' but found '{mesh_arg_lhs}'.")
         mesh_arg = fparser2_tree.children[1].\
             children[mesh_arg_index].children[1].tostr()
         return mesh_arg

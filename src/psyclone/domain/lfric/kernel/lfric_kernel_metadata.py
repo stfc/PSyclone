@@ -166,7 +166,7 @@ class LFRicKernelMetadata(CommonMetadata):
         '''Only certain metadata combinations are allowed in LFRic. This
         routine checks that any such constraints are respected.
 
-        raises ParseError: if any validation checks fail.
+        :raises ParseError: if any validation checks fail.
 
         '''
         # The _get_kernel_type method returns the type of kernel that
@@ -183,20 +183,20 @@ class LFRicKernelMetadata(CommonMetadata):
         #   if quadrature or evaluator
         # - evaluator_targets only if required
         # - evaluator_targets function spaces exist
-        # - Disallow duplicates of in meta_args,
+        # - Disallow duplicate metadata in meta_args,
         #   meta_funcs etc. lists
         # - Writing to read-only function spaces (Check within
         #   meta_arg classes?)
 
     def _get_kernel_type(self):
-        '''Returns the type of kernel based on the supplied metadata. LFRic
-        supports different types of kernel and the type can be infered
-        from the kernel metadata as each kernel type has different
-        constraints on the allowed metadata values and
-        combinations. Also checks that the metadata conforms to any
-        rules associated with the particular kernel type.
+        '''Returns the type of kernel, based on the metadata stored in this
+        instance. LFRic supports different types of kernel and the
+        type can be inferred from the kernel metadata as each kernel
+        type has different constraints on the allowed metadata values
+        and combinations. Also checks that the metadata conforms to
+        any rules associated with the particular kernel type.
 
-        :returns: the type of kernel that this is.
+        :returns: the type of kernel that this metadata describes.
         :rtype: str
 
         '''
@@ -220,7 +220,7 @@ class LFRicKernelMetadata(CommonMetadata):
     def _validate_generic_kernel(self):
         '''Validation checks common to multiple kernel types.
 
-        raises ParseError: if any validation checks fail.
+        :raises ParseError: if any validation checks fail.
 
         '''
         # Kernel metadata with operates_on != domain must have at
@@ -242,7 +242,7 @@ class LFRicKernelMetadata(CommonMetadata):
                 f"none.")
 
         # A kernel that contains an operator argument must only
-        # contains real-valued fields.
+        # accept real-valued fields.
         operator_args = self.meta_args_get(
             [OperatorArgMetadata, ColumnwiseOperatorArgMetadata])
         if operator_args:
@@ -261,7 +261,7 @@ class LFRicKernelMetadata(CommonMetadata):
     def _validate_general_purpose_kernel(self):
         '''Validation checks for a general purpose kernel.
 
-        raises ParseError: if any validation checks fail.
+        :raises ParseError: if any validation checks fail.
 
         '''
         # Generic constraints.
@@ -308,11 +308,11 @@ class LFRicKernelMetadata(CommonMetadata):
         # of DoFs uniquely when a scalar is written to;
         # 5: Built-ins that update real-valued fields can, in general, only
         # read from other real-valued fields, but they can take both real and
-        # integer scalar arguments (see rule 8 for exceptions);
+        # integer scalar arguments (see rule 7 for exceptions);
         # 6: Built-ins that update integer-valued fields can, in
         # general, only read from other integer-valued fields and take
         # integer scalar arguments (see rule 7 for exceptions);
-        # 7: The only two exceptions from the rules 6) and 7) above
+        # 7: The only two exceptions from the rules 5) and 6) above
         # regarding the same data type of “write” and “read” field
         # arguments are Built-ins that convert field data from real to
         # integer, int_X, and from integer to real, real_X.
@@ -320,7 +320,7 @@ class LFRicKernelMetadata(CommonMetadata):
     def _validate_domain_kernel(self):
         '''Validation checks for a domain kernel.
 
-        raises ParseError: if any validation checks fail.
+        :raises ParseError: if any validation checks fail.
 
         '''
         # Generic constraints.
@@ -381,9 +381,9 @@ class LFRicKernelMetadata(CommonMetadata):
                 f"'{self.procedure_name}' does.")
 
     def _cma_kernel_type(self):
-        '''Determine the type of cma kernel this is.
+        '''Determine the type of CMA (Column Matrix Assembly) kernel this is.
 
-        :returns: the type of cma kernel this instance is.
+        :returns: the type of cma kernel this metadata respresents.
         :rtype: str
 
         '''
@@ -398,10 +398,10 @@ class LFRicKernelMetadata(CommonMetadata):
         self._validate_cma_matrix_matrix_kernel()
         return "matrix-matrix"
 
-    def _validate_cma_kernel(self):
+    def _validate_generic_cma_kernel(self):
         '''Validation checks for a generic CMA kernel.
 
-        raises ParseError: if any validation checks fail.
+        :raises ParseError: if any validation checks fail.
 
         '''
         # Generic constraints.
@@ -450,13 +450,11 @@ class LFRicKernelMetadata(CommonMetadata):
     def _validate_cma_assembly_kernel(self):
         '''Validation checks for a CMA assembly kernel.
 
-        raises ParseError: if any validation checks fail.
+        :raises ParseError: if any validation checks fail.
 
         '''
-        lfric_constants = LFRicConstants()
-
         # Generic CMA constraints.
-        self._validate_cma_kernel()
+        self._validate_generic_cma_kernel()
 
         # One CMA operator argument.
         cma_ops = self.meta_args_get(ColumnwiseOperatorArgMetadata)
@@ -497,13 +495,13 @@ class LFRicKernelMetadata(CommonMetadata):
     def _validate_cma_apply_kernel(self):
         '''Validation checks for a CMA apply kernel.
 
-        raises ParseError: if any validation checks fail.
+        :raises ParseError: if any validation checks fail.
 
         '''
         lfric_constants = LFRicConstants()
 
         # Generic CMA constraints.
-        self._validate_cma_kernel()
+        self._validate_generic_cma_kernel()
 
         # Only CMA and field arguments.
         for meta_arg in self.meta_args:
@@ -514,7 +512,7 @@ class LFRicKernelMetadata(CommonMetadata):
                     f"operator arguments, but found '{meta_arg.check_name}' "
                     f"in kernel metadata '{self.name}' for procedure "
                     f"'{self.procedure_name}'.")
-        
+
         # One CMA operator argument.
         cma_ops = self.meta_args_get(ColumnwiseOperatorArgMetadata)
         if len(cma_ops) != 1:
@@ -591,13 +589,13 @@ class LFRicKernelMetadata(CommonMetadata):
     def _validate_cma_matrix_matrix_kernel(self):
         '''Validation checks for a CMA matrix-matrix kernel.
 
-        raises ParseError: if any validation checks fail.
+        :raises ParseError: if any validation checks fail.
 
         '''
         lfric_constants = LFRicConstants()
 
         # Generic CMA constraints.
-        self._validate_cma_kernel()
+        self._validate_generic_cma_kernel()
 
         # Arguments must be CMA operators and, optionally, one or more scalars.
         for meta_arg in self.meta_args:
@@ -617,9 +615,9 @@ class LFRicKernelMetadata(CommonMetadata):
         # pylint: enable=unidiomatic-typecheck
         if len(cma_writers) != 1:
             raise ParseError(
-                f"A CMA matrix-matrix kernel must write to one CMA operator "
-                f"argument, but found {len(cma_writers)} writers in kernel "
-                f"metadata '{self.name}' for procedure "
+                f"A CMA matrix-matrix kernel must write to exactly one CMA "
+                f"operator argument, but found {len(cma_writers)} writers in "
+                f"kernel metadata '{self.name}' for procedure "
                 f"'{self.procedure_name}'.")
 
         # All arguments other than a single CMA argument should be read
@@ -630,7 +628,7 @@ class LFRicKernelMetadata(CommonMetadata):
     def _validate_intergrid_kernel(self):
         '''Validation checks for an inter-grid kernel.
 
-        raises ParseError: if any validation checks fail.
+        :raises ParseError: if any validation checks fail.
 
         '''
         # Generic constraints.
@@ -645,8 +643,7 @@ class LFRicKernelMetadata(CommonMetadata):
 
         # All args must be intergrid args.
         for meta_arg in self.meta_args:
-            if type(meta_arg) not in [
-                    InterGridArgMetadata, InterGridVectorArgMetadata]:
+            if not isinstance(meta_arg, InterGridArgMetadata):
                 raise ParseError(
                     f"An intergrid kernel should only have intergrid "
                     f"arguments, but found '{meta_arg.check_name}' in kernel "
@@ -687,7 +684,7 @@ class LFRicKernelMetadata(CommonMetadata):
                 f"'{self.procedure_name}'.")
 
         fine_function_space = fine_args[0].function_space
-        # All intergrid args on the coarse mesh are on the same
+        # All intergrid args on the fine mesh are on the same
         # function space.
         for fine_arg in fine_args[1:]:
             if fine_arg.function_space != fine_function_space:
@@ -1174,7 +1171,7 @@ class LFRicKernelMetadata(CommonMetadata):
                  issubclass(types, CommonMetaArgMetadata))):
             raise TypeError(
                 f"Expected a subclass of CommonMetaArgMetadata or a list for "
-                f"the types argument, but found '{type(types).__name__}'.")
+                f"the 'types' argument, but found '{type(types).__name__}'.")
         if isinstance(types, list):
             my_types = types
         else:
@@ -1183,7 +1180,7 @@ class LFRicKernelMetadata(CommonMetadata):
             if not (inspect.isclass(my_type) and
                     issubclass(my_type, CommonMetaArgMetadata)):
                 raise TypeError(
-                    f"Expected list entries in the types argument to be "
+                    f"Expected list entries in the 'types' argument to be "
                     f"subclasses of CommonMetaArgMetadata, but found "
                     f"'{type(my_type).__name__}'.")
         if not self.meta_args:
