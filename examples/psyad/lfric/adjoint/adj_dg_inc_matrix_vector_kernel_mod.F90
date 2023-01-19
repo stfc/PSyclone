@@ -1,6 +1,7 @@
 module adj_dg_inc_matrix_vector_kernel_mod
-  use argument_mod, only : any_discontinuous_space_1, any_space_1, arg_type, cell_column, gh_field, gh_operator, gh_read, &
-&gh_readwrite, gh_real
+  use argument_mod, only : any_discontinuous_space_1, any_space_1, arg_type, &
+       cell_column, gh_field, gh_operator, gh_read, gh_inc, &
+       gh_readwrite, gh_real
   use constants_mod, only : i_def, r_double, r_single
   use kernel_mod, only : kernel_type
   implicit none
