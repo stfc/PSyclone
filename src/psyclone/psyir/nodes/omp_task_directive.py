@@ -44,8 +44,8 @@ from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import Reference, Assignment, IfBlock, \
                                  ArrayReference, ArrayOfStructuresReference, \
                                  StructureReference, Call, ArrayMember
-from psyclone.psyir.nodes.array_mixin import ArrayMixin
-from psyclone.psyir.nodes.array_of_structures_member import ArrayOfStructuresMember
+from psyclone.psyir.nodes.array_of_structures_member import \
+        ArrayOfStructuresMember
 from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.literal import Literal
@@ -59,10 +59,16 @@ from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol
 
 
-
 class OMPTaskDirective(OMPRegionDirective):
     '''
-    TODO
+    Class representing an OpenMP TASK directive in the PSyIR after lowering.
+    This node should not be created by any transformation, and it solely used
+    to represent TASK directives after lowering a DynamicOMPTaskDirective.
+
+    :param list children: list of Nodes that are children of this Node.
+    :param parent: the Node in the AST that has this directive as a child
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
+    :param bool lowering: If this node is being lowered from another node.
     '''
     _children_valid_format = ("Schedule, OMPPrivateClause,"
                               "OMPFirstprivateClause, OMPSharedClause"
@@ -71,7 +77,8 @@ class OMPTaskDirective(OMPRegionDirective):
     def __init__(self, children=None, parent=None, lowering=False):
         if lowering:
             sched_childs = children[0].pop_all_children()
-            super(OMPTaskDirective, self).__init__(children=sched_childs, parent=parent)
+            super(OMPTaskDirective, self).__init__(
+                    children=sched_childs, parent=parent)
             for child in children[1:]:
                 self.addchild(child)
         else:
@@ -187,7 +194,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # symbols.
         self._in_kern = False
 
-
     def _find_parent_loop_vars(self):
         '''
         Finds the loop variable of each parent loop inside the same
@@ -205,15 +211,27 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
         # Store the parent parallel directive node
         self._parent_parallel = anc
+        # pylint: disable=protected-access
         self._parallel_private = anc._get_private_clause().children
 
     def _is_reference_private(self, ref):
-        '''TODO
+        '''
+        Determines whether the provided reference is private or shared in the
+        enclosing parallel region.
+
+        :param ref: The Reference object to be determined if it is private \
+                    or shared.
+        :type ref: :py:class:`psyclone.psyir.nodes.Reference`
+
+        :returns: True if ref is private, else False.
+        :rtype: bool
         '''
         for parent_ref in self._parallel_private:
-            if (ref.symbol.name == parent_ref.symbol.name and 
-                ref.symbol.datatype.intrinsic == parent_ref.symbol.datatype.intrinsic
-                and ref.symbol.datatype.precision ==  parent_ref.symbol.datatype.precision):
+            if (ref.symbol.name == parent_ref.symbol.name and
+                ref.symbol.datatype.intrinsic ==
+                parent_ref.symbol.datatype.intrinsic
+                and ref.symbol.datatype.precision ==
+                    parent_ref.symbol.datatype.precision):
                 return True
         return False
 
@@ -368,10 +386,10 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         if is_proxy:
             # Treat it as though we came across the parent loop variable.
             parent_loop = self._proxy_loop_vars[index_symbol]['parent_loop']
-            real_var = self._proxy_loop_vars[index_symbol]['parent_var']
 
             # Create a Reference to the real variable
-            real_ref = self._proxy_loop_vars[index_symbol]['parent_node'].copy() #Reference(real_var)
+            real_ref = \
+                self._proxy_loop_vars[index_symbol]['parent_node'].copy()
             # We have a Literal step value, and a Literal in
             # the Binary Operation. These Literals must both be
             # Integer types, so we will convert them to integers
@@ -451,7 +469,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         array_member = sub_ref.walk(Member)[-1]
                         num_child = len(array_member.children)
                         array_member.pop_all_children()
-                        for i in range(num_child):
+                        for _ in range(num_child):
                             array_member.addchild(one.copy())
                     else:
                         arrayref = ref.parent.parent
@@ -652,8 +670,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         # Special case 2. the index is a proxy for a parent
                         # loop's variable. In this case, we add a reference to
                         # the parent loop's value.
-                        parent_var =\
-                            self._proxy_loop_vars[index.symbol]['parent_var']
                         parent_ref = \
                             self._proxy_loop_vars[index.symbol]['parent_node']\
                             .copy()
@@ -740,7 +756,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
         :param node: The Reference to be evaluated.
         :type node: :py:class:`psyclone.psyir.nodes.Reference`
-        :param array_access_member: The ArrayMixin member child of the 
+        :param array_access_member: The ArrayMixin member child of the
                                     node.
         :type array_access_member: \
                 :py:class:psyclone.psyir.nodes.array_mixin.ArrayMixin`
@@ -795,7 +811,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         final_member = new_member.walk(Member)[-1]
                         num_child = len(final_member.children)
                         final_member.pop_all_children()
-                        for i in range(num_child):
+                        for _ in range(num_child):
                             final_member.addchild(one.copy())
 
                         # Need a copy of the members for ubound as well
@@ -821,8 +837,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         # Special case 2. the index is a proxy for a parent
                         # loop's variable. In this case, we add a reference to
                         # the parent loop's value.
-                        parent_var =\
-                            self._proxy_loop_vars[index.symbol]['parent_var']
                         parent_ref = \
                             self._proxy_loop_vars[index.symbol]['parent_node']\
                             .copy()
@@ -868,7 +882,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 new_index_list.append([element])
         combinations = itertools.product(*new_index_list)
 
-
         for temp_list in combinations:
             # We need to make copies of the members as each
             # member can only be the child of one ArrayRef
@@ -888,8 +901,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         sclause = Reference(ref.symbol)
         if sclause not in shared_list:
             shared_list.append(sclause)
-
-    # Untested but seems to work
 
     def _evaluate_readonly_reference(self, ref, private_list,
                                      firstprivate_list, shared_list, in_list):
@@ -911,6 +922,10 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         :type shared_list: List of :py:class:`psyclone.psyir.nodes.Reference`
         :param in_list: The list of input References for this task.
         :type in_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+
+        :raises GenerationError: If a StructureReference containing multiple \
+                                 ArrayMember or ArrayOfStructuresMember as \
+                                 children is found.
         '''
         if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
             # Resolve ArrayReference (AOSReference)
@@ -925,8 +940,8 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             array_children = ref.walk((ArrayOfStructuresMember, ArrayMember))
             if len(array_children) > 0:
                 if len(array_children) > 1:
-                    # TODO Document
-                    raise GenerationError("Doesn't support a "
+                    raise GenerationError(
+                            "Doesn't support a "
                             "StructureReference child with multiple array "
                             "accessing members.")
                 self._evaluate_structure_with_array_reference_read(
@@ -970,7 +985,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
         :param ref: The Reference to be evaluated.
         :type ref: :py:class:`psyclone.psyir.nodes.Reference`
-        :param array_access_member: The ArrayMixin member child of the 
+        :param array_access_member: The ArrayMixin member child of the
                                     node.
         :type array_access_member: \
                 :py:class:psyclone.psyir.nodes.array_mixin.ArrayMixin`
@@ -1029,7 +1044,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         final_member = new_member.walk(Member)[-1]
                         num_child = len(final_member.children)
                         final_member.pop_all_children()
-                        for i in range(num_child):
+                        for _ in range(num_child):
                             final_member.addchild(one.copy())
 
                         # Need a copy of the members for ubound as well
@@ -1055,8 +1070,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         # Special case 2. the index is a proxy for a parent
                         # loop's variable. In this case, we add a reference to
                         # the parent loop's value.
-                        parent_var =\
-                            self._proxy_loop_vars[index.symbol]['parent_var']
                         parent_ref = \
                             self._proxy_loop_vars[index.symbol]['parent_node']\
                             .copy()
@@ -1112,7 +1125,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         sclause = Reference(ref.symbol)
         if sclause not in shared_list:
             shared_list.append(sclause)
-
 
     def _evaluate_write_arrayref(self, ref, private_list, firstprivate_list,
                                  shared_list, out_list):
@@ -1193,8 +1205,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         # Special case 2. the index is a proxy for a parent
                         # loop's variable. In this case, we add a reference to
                         # the parent loop's value.
-                        parent_var =\
-                            self._proxy_loop_vars[index.symbol]['parent_var']
                         parent_ref = \
                             self._proxy_loop_vars[index.symbol]['parent_node']\
                             .copy()
@@ -1295,9 +1305,12 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         :type shared_list: List of :py:class:`psyclone.psyir.nodes.Reference`
         :param out_list: The list of output References for this task.
         :type out_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+
+        :raises GenerationError: If a StructureReference containing multiple \
+                                 ArrayMember or ArrayOfStructuresMember as \
+                                 children is found.
         '''
         if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
-            # Resoolve ArrayReference (AOSRef)
             self._evaluate_write_arrayref(ref, private_list, firstprivate_list,
                                           shared_list, out_list)
         elif isinstance(ref, StructureReference):
@@ -1308,10 +1321,10 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             array_children = ref.walk((ArrayOfStructuresMember, ArrayMember))
             if len(array_children) > 0:
                 if len(array_children) > 1:
-                    # TODO Document
-                    raise GenerationError("Doesn't support a "
-                            "StructureReference child with multiple array "
-                            "accessing members.")
+                    raise GenerationError(
+                        "Doesn't support a "
+                        "StructureReference child with multiple array "
+                        "accessing members.")
                 self._evaluate_structure_with_array_reference_write(
                         ref, array_children[0], private_list,
                         firstprivate_list, shared_list, out_list)
@@ -1367,7 +1380,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     subdict['parent_var'] = parent_var
                     subdict['parent_node'] = rhs.copy()
                     subdict['loop'] = node
-                    subdict['parent_loop'] = self._parent_loops[index] # TODO
+                    subdict['parent_loop'] = self._parent_loops[index]
 
                     self._proxy_loop_vars[lhs.symbol] = subdict
                     added = True
@@ -1474,9 +1487,9 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             # base symbol to the lists
             if isinstance(ref, StructureReference):
                 ref_copy = Reference(ref.symbol)
-                # start_val can't be written to in Fortran so if its a structure
-                # we should make it shared
-                # Only the base Structure is allowed to be in a depend clause. 
+                # start_val can't be written to in Fortran so if its a
+                # structure we should make it shared
+                # Only the base Structure is allowed to be in a depend clause.
                 if ref_copy not in shared_list:
                     shared_list.append(ref_copy.copy())
                 if ref_copy not in in_list:
@@ -1498,7 +1511,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 ref_copy = Reference(ref.symbol)
                 # stop_val can't be written to in Fortran so if its a structure
                 # we should make it shared
-                # Only the base Structure is allowed to be in a depend clause. 
+                # Only the base Structure is allowed to be in a depend clause.
                 if ref_copy not in shared_list:
                     shared_list.append(ref_copy.copy())
                 if ref_copy not in in_list:
@@ -1520,7 +1533,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 ref_copy = Reference(ref.symbol)
                 # stop_val can't be written to in Fortran so if its a structure
                 # we should make it shared
-                # Only the base Structure is allowed to be in a depend clause. 
+                # Only the base Structure is allowed to be in a depend clause.
                 if ref_copy not in shared_list:
                     shared_list.append(ref_copy.copy())
                 if ref_copy not in in_list:
@@ -1604,8 +1617,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         :param out_list: The list of output References for this task.
         :type out_list: List of :py:class:`psyclone.psyir.nodes.Reference`
         '''
-#        from psyclone.psyGen import Kern
-
         # For the node, check if it is Loop, Assignment or IfBlock
         if isinstance(node, Assignment):
             # Resolve assignment
@@ -1620,9 +1631,10 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             self._evaluate_ifblock(node, private_list, firstprivate_list,
                                    shared_list, in_list, out_list)
 
-        # All other node types are ignored (for now, maybe some error
-        # checking might be useful, though I don't have rules on what isn't
-        # allowed).
+        # All other node types are ignored as they shouldn't affect
+        # dependency computation, as these are the only nodes that
+        # have read or write accesses that can get to this function
+        # as Calls are prohibited in validation.
 
     def _compute_clauses(self):
         '''
@@ -1678,18 +1690,21 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             firstprivate_clause.addchild(ref)
         shared_clause = OMPSharedClause()
         for ref in shared_list:
-            if not (isinstance(ref.symbol, DataSymbol) and ref.symbol.is_constant):
+            if (not (isinstance(ref.symbol, DataSymbol) and
+                     ref.symbol.is_constant)):
                 shared_clause.addchild(ref)
 
         in_clause = OMPDependClause(
                         depend_type=OMPDependClause.DependClauseTypes.IN)
         for ref in in_list:
-            if not (isinstance(ref.symbol, DataSymbol) and ref.symbol.is_constant):
+            if (not (isinstance(ref.symbol, DataSymbol) and
+                     ref.symbol.is_constant)):
                 in_clause.addchild(ref)
         out_clause = OMPDependClause(
                         depend_type=OMPDependClause.DependClauseTypes.OUT)
         for ref in out_list:
-            if not (isinstance(ref.symbol, DataSymbol) and ref.symbol.is_constant):
+            if (not (isinstance(ref.symbol, DataSymbol) and
+                     ref.symbol.is_constant)):
                 out_clause.addchild(ref)
 
         return (private_clause, firstprivate_clause, shared_clause, in_clause,
@@ -1700,10 +1715,16 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         Lowers the structure of the PSyIR tree inside the Directive
         to generate the Clauses that are required for this Directive.
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyGen import Kern
 
-        #Inline the Kernels
-        # FIXME If we find a Kern or Call child then we abort.
-#        self._inline_kernels()
+        # If we find a Kern or Call child then we abort.
+        # Note that if the transformation is used it will have already
+        # attempted to do this inlining.
+        if len(self.walk((Kern, Call))) > 0:
+            raise GenerationError("Attempted to lower to OMPTaskDirective "
+                                  "node, but the node contains a Call or Kern "
+                                  "which must be inlined first.")
 
         # Create the clauses
         private_clause, firstprivate_clause, shared_clause, in_clause,\
@@ -1721,7 +1742,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             self.children[5] = out_clause
         super().lower_to_language_level()
 
-        #TODO Replace this node with an OMPTaskDirective
+        # Replace this node with an OMPTaskDirective
         childs = self.pop_all_children()
         replacement = OMPTaskDirective(children=childs, lowering=True)
         self.replace_with(replacement)

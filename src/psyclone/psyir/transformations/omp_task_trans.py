@@ -34,10 +34,15 @@
 # Author A. B. G. Chalk STFC Daresbury Lab
 ''' This module provides the OMPTaskTrans transformation.'''
 from psyclone.errors import GenerationError
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
+from psyclone.psyGen import Kern
+from psyclone.psyir.transformations.fold_conditional_return_expressions_trans \
+        import FoldConditionalReturnExpressionsTrans
 from psyclone.psyir.transformations.parallel_loop_trans import\
     ParallelLoopTrans
 from psyclone.psyir.nodes import CodeBlock, Call
 from psyclone.psyir.nodes import DynamicOMPTaskDirective
+from psyclone.psyir.transformations.inline_trans import InlineTrans
 from psyclone.psyir.transformations.transformation_error import \
         TransformationError
 
@@ -45,10 +50,7 @@ from psyclone.psyir.transformations.transformation_error import \
 class OMPTaskTrans(ParallelLoopTrans):
     ''' Apply an OpenMP Task Transformation to a Loop. The Loop must
     be within an OpenMP Serial region (Single or Master) at codegen time.
-
-    Note: At the moment it is up to the user to ensure their OMPTaskTrans
-    use generates correct code. We will implement a check into
-    OMPSerialDirective soon to validate this. '''
+    '''
 
     def __str__(self):
         return "Adds an 'OMP TASK' directive to a statement"
@@ -104,14 +106,9 @@ class OMPTaskTrans(ParallelLoopTrans):
 
     def _inline_kernels(self, node):
         '''
-        Searches the PsyIR tree inside the directive and inline's any kern
+        Searches the PsyIR tree inside the directive and inlines any kern
         objects found.
         '''
-        from psyclone.psyGen import Kern
-        from psyclone.psyir.transformations.inline_trans import InlineTrans
-        from psyclone.domain.common.transformations import KernelModuleInlineTrans
-        from psyclone.psyir.transformations.fold_conditional_return_expressions_trans \
-                import FoldConditionalReturnExpressionsTrans
 
         kerns = node.walk(Kern)
         kintrans = KernelModuleInlineTrans()
@@ -144,6 +141,10 @@ class OMPTaskTrans(ParallelLoopTrans):
         :py:meth:`OMPTaskDirective.gen_code` is called), this node must be
         within (i.e. a child of) an OpenMP Serial region (OpenMP Single or
         OpenMP Master)
+
+        Any kernels or Calls will be inlined into the region before the task
+        transformation is applied.
+
         :param node: the supplied node to which we will apply the \
                      OMPTaskTrans transformation
         :type node: :py:class:`psyclone.psyir.nodes.Loop`

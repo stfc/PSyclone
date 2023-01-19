@@ -40,33 +40,19 @@
 
 import os
 import pytest
-from psyclone.f2pygen import ModuleGen
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
-from psyclone.psyir import nodes
-from psyclone import psyGen
-from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, \
-    OMPParallelDoDirective, OMPMasterDirective, OMPTaskloopDirective, \
-    OMPTaskwaitDirective, OMPTargetDirective, OMPLoopDirective, Schedule, \
-    Return, OMPSingleDirective, Loop, Literal, Routine, Assignment, \
-    Reference, OMPDeclareTargetDirective, OMPNowaitClause, \
-    OMPGrainsizeClause, OMPNumTasksClause, OMPNogroupClause, \
-    OMPTaskDirective, OMPPrivateClause, OMPDefaultClause,\
-    OMPReductionClause, OMPFirstprivateClause, OMPSharedClause, \
-    OMPDependClause, OMPScheduleClause, DynamicOMPTaskDirective
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, SymbolTable, \
-    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE
-from psyclone.errors import InternalError, GenerationError
-from psyclone.transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans, \
-    OMPParallelLoopTrans, DynamoOMPParallelLoopTrans, OMPSingleTrans, \
-    OMPMasterTrans, OMPTaskloopTrans, OMPLoopTrans
-from psyclone.tests.utilities import get_invoke
+from psyclone.psyir.nodes import Schedule, \
+    Loop, OMPTaskDirective, OMPPrivateClause, OMPFirstprivateClause, \
+    OMPSharedClause, OMPDependClause, DynamicOMPTaskDirective
+from psyclone.errors import GenerationError
+from psyclone.transformations import OMPSingleTrans, \
+    OMPLoopTrans, OMPParallelTrans
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 os.pardir, os.pardir, "test_files",
                                 "gocean1p0")
+
 
 def test_omp_task_directive_validate_global_constraints():
     ''' Test the validate_global_constraints method of the
@@ -155,7 +141,7 @@ end subroutine my_subroutine\n'''
     assert fortran_writer(tree) == correct
 
 
-def test_omp_task_directive_2(fortran_reader, fortran_writer):
+def test_omp_task_directive_2(fortran_reader):
     ''' Test the code generation fails when attempting to access an array
     when using an array element as an index.'''
     code = '''
@@ -818,7 +804,7 @@ end subroutine my_subroutine\n'''
     assert fortran_writer(tree) == correct
 
 
-def test_omp_task_directive_mul_index_fail(fortran_reader, fortran_writer):
+def test_omp_task_directive_mul_index_fail(fortran_reader):
     ''' Test the code generation throws an Error when a multiplication is
     inside an index Binop. '''
     code = '''
@@ -859,7 +845,7 @@ def test_omp_task_directive_mul_index_fail(fortran_reader, fortran_writer):
             "OMPTaskDirective which is not supported" in str(excinfo.value))
 
 
-def test_omp_task_directive_refref_index_fail(fortran_reader, fortran_writer):
+def test_omp_task_directive_refref_index_fail(fortran_reader):
     ''' Test the code generation throws an Error when an index Binop is on two
     references. '''
     code = '''
@@ -960,7 +946,7 @@ end subroutine my_subroutine\n'''
     assert fortran_writer(tree) == correct
 
 
-def test_omp_task_directive_write_index_shared(fortran_reader, fortran_writer):
+def test_omp_task_directive_write_index_shared(fortran_reader):
     ''' Test the code generation correctly generates an error if an array index
     of a written array is a shared variable.'''
     code = '''
@@ -1001,7 +987,7 @@ def test_omp_task_directive_write_index_shared(fortran_reader, fortran_writer):
             "Reference[name:'k']" in str(excinfo.value))
 
 
-def test_omp_task_directive_read_index_shared(fortran_reader, fortran_writer):
+def test_omp_task_directive_read_index_shared(fortran_reader):
     ''' Test the code generation correctly generates an error if an array index
     of a read array is a shared variable.'''
     code = '''
@@ -1545,7 +1531,7 @@ end subroutine my_subroutine\n'''
     assert fortran_writer(tree) == correct
 
 
-def test_omp_task_directive_shared_index(fortran_reader, fortran_writer):
+def test_omp_task_directive_shared_index(fortran_reader):
     ''' Test the code generation correctly throws an error if a shared variable
     is used as an array index.'''
     code = '''
@@ -1586,7 +1572,7 @@ def test_omp_task_directive_shared_index(fortran_reader, fortran_writer):
             "Reference[name:'k']" in str(excinfo.value))
 
 
-def test_omp_task_directive_non_loop(fortran_reader, fortran_writer):
+def test_omp_task_directive_non_loop(fortran_reader):
     ''' Test the code generation correctly throws an error if an
     OMPTaskDirective's child is a non Loop node.'''
     code = '''
@@ -1621,7 +1607,7 @@ def test_omp_task_directive_non_loop(fortran_reader, fortran_writer):
             str(excinfo.value))
 
 
-def test_omp_task_directive_multichild(fortran_reader, fortran_writer):
+def test_omp_task_directive_multichild(fortran_reader):
     ''' Test the code generation correctly throws an error if it an
     OMPTaskDirective has multiple children.'''
     code = '''
@@ -1663,7 +1649,7 @@ def test_omp_task_directive_multichild(fortran_reader, fortran_writer):
             "children." in str(excinfo.value))
 
 
-def test_omp_task_directive_loop_start_array(fortran_reader, fortran_writer):
+def test_omp_task_directive_loop_start_array(fortran_reader):
     ''' Test the code generation correctly throws an error if it a
     Loop inside an OMPTaskDirective has an array start value.'''
     code = '''
@@ -1700,7 +1686,7 @@ def test_omp_task_directive_loop_start_array(fortran_reader, fortran_writer):
             "in a OMPTaskDirective node." in str(excinfo.value))
 
 
-def test_omp_task_directive_loop_stop_array(fortran_reader, fortran_writer):
+def test_omp_task_directive_loop_stop_array(fortran_reader):
     ''' Test the code generation correctly throws an error if it a
     Loop inside an OMPTaskDirective has an array stop value.'''
     code = '''
@@ -1737,7 +1723,7 @@ def test_omp_task_directive_loop_stop_array(fortran_reader, fortran_writer):
             "in a OMPTaskDirective node." in str(excinfo.value))
 
 
-def test_omp_task_directive_loop_step_array(fortran_reader, fortran_writer):
+def test_omp_task_directive_loop_step_array(fortran_reader):
     ''' Test the code generation correctly throws an error if it a
     Loop inside an OMPTaskDirective has an array step value.'''
     code = '''
@@ -2025,7 +2011,7 @@ end subroutine my_subroutine\n'''
     assert fortran_writer(tree) == correct
 
 
-def test_omp_task_directive_26(fortran_reader, fortran_writer):
+def test_omp_task_directive_26(fortran_reader):
     ''' Test the code generation correctly throws an error if an
     index is a shared non-array variable.'''
     code = '''
@@ -2061,7 +2047,7 @@ def test_omp_task_directive_26(fortran_reader, fortran_writer):
             "OMPTaskDirective which is not supported." in str(excinfo.value))
 
 
-def test_omp_task_directive_27(fortran_reader, fortran_writer):
+def test_omp_task_directive_27(fortran_reader):
     ''' Test the code generation correctly throws an error if an
     index is a shared non-array variable.'''
     code = '''
@@ -2095,6 +2081,7 @@ def test_omp_task_directive_27(fortran_reader, fortran_writer):
         tree.lower_to_language_level()
     assert ("Found shared loop variable which isnot allowed in OpenMP Task "
            "directive. Variable name is j" in str(excinfo.value))
+
 
 def test_omp_task_directive_28(fortran_reader, fortran_writer):
     ''' Test the code generation correctly makes the depend clause when
@@ -2182,7 +2169,8 @@ def test_omp_task_directive_29(fortran_reader, fortran_writer):
                 do ii=i, i+32
                     do jj = j,j+32
                         k = ty%y%jp(index) + ii
-                        ty%y%jp(index+1) = ty%y%jp(index+1) - (1 - ty%y%jp(index+1))
+                        ty%y%jp(index+1) = ty%y%jp(index+1) - (1 - \
+ty%y%jp(index+1))
                     end do
                 end do
             end do
@@ -2223,7 +2211,8 @@ def test_omp_task_directive_29(fortran_reader, fortran_writer):
   enddo
   index = 1
   do i = 1, 320, 32
-    !$omp task private(j,ii,jj), firstprivate(i,index), shared(k,ty), depend(in: ty%y%jp(index),ty%y%jp(index + 1)), depend(out: k,ty%y%jp(index + 1))
+    !$omp task private(j,ii,jj), firstprivate(i,index), shared(k,ty), depend(\
+in: ty%y%jp(index),ty%y%jp(index + 1)), depend(out: k,ty%y%jp(index + 1))
     do j = 1, 320, 32
       do ii = i, i + 32, 1
         do jj = j, j + 32, 1
@@ -2239,6 +2228,7 @@ def test_omp_task_directive_29(fortran_reader, fortran_writer):
 
 end subroutine my_subroutine\n'''
     assert fortran_writer(tree) == correct
+
 
 def test_omp_task_directive_30(fortran_reader, fortran_writer):
     ''' Test the code generation correctly generates the correct code if
@@ -2298,7 +2288,8 @@ def test_omp_task_directive_30(fortran_reader, fortran_writer):
   !$omp single
   do i = 1, 320, 32
     do j = 1, 320, 32
-      !$omp task private(ii,jj), firstprivate(i,j), shared(k,ty), depend(in: ty%y%jp(j),ty%y%jp(j + 32)), depend(out: k,ty%y%jp(j + 32),ty%y%jp(j))
+      !$omp task private(ii,jj), firstprivate(i,j), shared(k,ty), depend(in: \
+ty%y%jp(j),ty%y%jp(j + 32)), depend(out: k,ty%y%jp(j + 32),ty%y%jp(j))
       do ii = i, i + 32, 1
         do jj = j, j + 32, 1
           k = ty%y%jp(j) + ii
@@ -2313,6 +2304,7 @@ def test_omp_task_directive_30(fortran_reader, fortran_writer):
 
 end subroutine my_subroutine\n'''
     assert fortran_writer(tree) == correct
+
 
 def test_omp_task_directive_31(fortran_reader, fortran_writer):
     ''' Test the code generation correctly generates the correct code if
@@ -2372,7 +2364,9 @@ def test_omp_task_directive_31(fortran_reader, fortran_writer):
   !$omp parallel default(shared), private(i,ii,j,jj)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j,ii,jj), firstprivate(i), shared(k,ty), depend(in: ty%y%jp(i),ty%y%jp(i + 32),ty%y%jp(1)), depend(out: k,ty%y%jp(i + 32),ty%y%jp(i),ty%y%jp(1))
+    !$omp task private(j,ii,jj), firstprivate(i), shared(k,ty), depend(in: \
+ty%y%jp(i),ty%y%jp(i + 32),ty%y%jp(1)), depend(out: k,ty%y%jp(i + 32),\
+ty%y%jp(i),ty%y%jp(1))
     do j = 1, 320, 32
       do ii = i, i + 32, 1
         do jj = j, j + 32, 1
@@ -2391,7 +2385,7 @@ end subroutine my_subroutine\n'''
     assert fortran_writer(tree) == correct
 
 
-def test_omp_task_directive_32(fortran_reader, fortran_writer):
+def test_omp_task_directive_32(fortran_reader):
     ''' Test the code generation correctly generates the correct code if
     code contains a type within a type .'''
     code = '''
@@ -2412,7 +2406,8 @@ def test_omp_task_directive_32(fortran_reader, fortran_writer):
                 do ii=i, i+32
                     do jj = j,j+32
                         k = ty%y%jp(ii) + ii
-                        ty%y(2)%jp(ii+1) = ty%y(1)%jp(ii+1) - (1 - ty%y(3)%jp(ii+1))
+                        ty%y(2)%jp(ii+1) = ty%y(1)%jp(ii+1) - (1 - \
+ty%y(3)%jp(ii+1))
                     end do
                 end do
             end do
@@ -2437,7 +2432,7 @@ def test_omp_task_directive_32(fortran_reader, fortran_writer):
            "array accessing members." in str(excinfo.value))
 
 
-def test_omp_task_directive_write_index_shared_type(fortran_reader, fortran_writer):
+def test_omp_task_directive_write_index_shared_type(fortran_reader):
     ''' Test the code generation correctly generates an error if an array index
     of a written array is a shared variable.'''
     code = '''
@@ -2481,7 +2476,7 @@ def test_omp_task_directive_write_index_shared_type(fortran_reader, fortran_writ
             "Reference[name:'k']" in str(excinfo.value))
 
 
-def test_omp_task_directive_read_index_shared_type(fortran_reader, fortran_writer):
+def test_omp_task_directive_read_index_shared_type(fortran_reader):
     ''' Test the code generation correctly generates an error if an array index
     of a read array is a shared variable.'''
     code = '''
@@ -2524,7 +2519,7 @@ def test_omp_task_directive_read_index_shared_type(fortran_reader, fortran_write
             "Reference[name:'k']" in str(excinfo.value))
 
 
-def test_omp_task_directive_33(fortran_reader, fortran_writer):
+def test_omp_task_directive_33(fortran_reader):
     ''' Test the code generation fails when attempting to access an array
     when using an array element as an index.'''
     code = '''
@@ -2566,7 +2561,7 @@ def test_omp_task_directive_33(fortran_reader, fortran_writer):
             "expression inside an OMPTaskDirective.") in str(excinfo.value)
 
 
-def test_omp_task_directive_34(fortran_reader, fortran_writer):
+def test_omp_task_directive_34(fortran_reader):
     ''' Test the code generation correctly generates the correct code if
     code contains a type within a type .'''
     code = '''
@@ -2670,7 +2665,8 @@ def test_omp_task_directive_35(fortran_reader, fortran_writer):
   !$omp parallel default(shared), private(i,ii,j,jj)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j,ii,jj), firstprivate(i), shared(k,ty), depend(in: ty%y%jp(i),ty%y%jp(1)), depend(out: k,ty%y%jp(i),ty%y%jp(1))
+    !$omp task private(j,ii,jj), firstprivate(i), shared(k,ty), depend(in: \
+ty%y%jp(i),ty%y%jp(1)), depend(out: k,ty%y%jp(i),ty%y%jp(1))
     do j = 1, 320, 32
       do ii = i, i + 32, 1
         do jj = j, j + 32, 1
@@ -2818,6 +2814,7 @@ depend(in: l,m,n,k,b(i + 1,:)), depend(out: a(i,:))
 end subroutine my_subroutine\n'''
     assert fortran_writer(tree) == correct
 
+
 def test_omp_task_directive_38(fortran_reader, fortran_writer):
     ''' Test the code generation correctly makes the depend clause when
     accessing an array access child of a type'''
@@ -2860,7 +2857,8 @@ def test_omp_task_directive_38(fortran_reader, fortran_writer):
 
   !$omp parallel default(shared), private(i,j)
   !$omp single
-  !$omp task private(i,j), shared(b,aa), depend(in: aa%A(:,:)), depend(out: b(:,:))
+  !$omp task private(i,j), shared(b,aa), depend(in: aa%A(:,:)), \
+depend(out: b(:,:))
   do i = 1, 10, 1
     do j = 1, 10, 1
       b(i,j) = aa%A(i,j) + 1

@@ -238,7 +238,19 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
     '''
 
     def _compare_literals(self, lit1, lit2):
-        # Check lit2 is a Literal
+        '''
+        Compares two Nodes to check whether they are a valid dependency
+        pair. For two Nodes where at least one is a Literal, a valid
+        dependency is any pair of Literals.
+
+        :param lit1: The first node to compare.
+        :type lit1: :py:class:`psyclone.psyir.nodes.Node`
+        :param lit2: The second node to compare.
+        :type lit2: :py:class:`psyclone.psyir.nodes.Node`
+
+        :raises GenerationError: If either node is not a Literal.
+        '''
+        # Check both are Literals
         if not isinstance(lit1, Literal) or not isinstance(lit2, Literal):
             raise GenerationError("Literal index to dependency has calculated "
                                   "dependency to a non-Literal index, which is"
@@ -247,7 +259,20 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         # to a(2), so as long as both are Literals this is ok.
 
     def _compare_ranges(self, range1, range2):
-        # Check range2 is a Range
+        '''
+        Compares two Nodes to check whether they are a valid dependency
+        pair. For two Nodes where at least one is a Range, they must both
+        be Ranges, and both be full ranges, i.e. ":".
+
+        :param range1: The first node to compare.
+        :type range1: :py:class:`psyclone.psyir.nodes.Node`
+        :param range2: The second node to compare.
+        :type range2: :py:class:`psyclone.psyir.nodes.Node`
+
+        :raises GenerationError: If either node is not a Range.
+        :raises GenerationError: If either node is not a full range.
+        '''
+        # Check both are Ranges
         if not isinstance(range1, Range) or not isinstance(range2, Range):
             raise GenerationError("Range index to a dependency has calculated "
                                   "dependency to a non-Range index, which is "
@@ -277,6 +302,44 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                                   "PSyclone (due to OpenMP limitations).")
 
     def _compute_accesses(self, ref, preceding_nodes, task):
+        '''
+        Computes the set of accesses for a Reference or BinaryOperation
+        Node, based upon the preceding_nodes and containing task.
+
+        The returned result is either a set of Literals, or Literals
+        and BinaryOperations.
+
+
+        :param ref: The Reference or BinaryOperation node to compute \
+                    accesses for.
+        :type ref: Union[:py:class:`psyclone.psyir.nodes.Reference, \
+                   :py:class:`psyclone.psyir.nodes.BinaryOperation]
+        :param preceding_nodes: A list of nodes that precede the task in the \
+                                tree.
+        :type preceding_nodes: list of :py:class:`psyclone.psyir.nodes.Node`
+        :param task: The OMPTaskDirective node containing ref as a child.
+        :type task: :py:class:`psyclone.psyir.nodes.OMPTaskDirective`
+
+        :raises GenerationError: If the ref contains an unsupported \
+                                 BinaryOperation structure, such as a \
+                                 non-ADD/SUB/MUL operator. Check error \
+                                 message for more details.
+        :raises GenerationError: If preceding_nodes contains a Call node.
+        :raises GenerationError: If ref is a BinaryOperation and neither \
+                                 child of ref is a Literal or BinaryOperation.
+        :raises GenerationError: If there is a dependency between ref (a \
+                                 BinaryOperation) and a previously set \
+                                 constant.
+        :raises GenerationError: If there is a dependency between ref and a \
+                                 Loop variable that is not an ancestor of \
+                                 task.
+        :raises GenerationError: If preceding_nodes contains a dependent loop \
+                                 with a non-Literal step.
+
+        :returns: a list of the dependency values for the input ref.
+        :rtype: list of Union[:py:class:`psyclone.psyir.nodes.Literal`, \
+                :py:class:`psyclone.psyir.nodes.BinaryOperation`].
+        '''
         if isinstance(ref, Reference):
             symbol = ref.symbol
         else:
@@ -402,13 +465,11 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 continue
             if isinstance(node, Call):
                 # Currently opting to fail on any Call.
-                # Potentially it might be possible to check if the Symbol is 
+                # Potentially it might be possible to check if the Symbol is
                 # written to and only if so then raise an error
                 raise GenerationError("Found a Call in preceding_nodes, which "
                                       "is not yet supported.")
             if isinstance(node, Assignment) and node.lhs.symbol == symbol:
-                # FIXME Check if this makes sense? Probably it does.
-                # Maybe only if rhs is Literal or Reference?
                 start = node.rhs.copy()
                 break
             if isinstance(node, Loop) and node.variable == symbol:
@@ -433,14 +494,14 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 step = node.step_expr
                 break
 
-        # FIXME If ref is a binop we need to do something special too.
         if isinstance(ref, BinaryOperation):
             output_list = []
             if step is None:
-                raise GenerationError("Found a dependency between a BinaryOperation "
-                                      "and a previously set constant value. PSyclone "
-                                      "cannot yet handle this interaction.")
-            # FIXME Implement me.
+                raise GenerationError("Found a dependency between a "
+                                      "BinaryOperation and a previously "
+                                      "set constant value. "
+                                      "PSyclone cannot yet handle this "
+                                      "interaction.")
             if not isinstance(step, Literal):
                 raise GenerationError("Found a dependency index that is a "
                                       "Loop variable with a non-Literal step "
@@ -450,8 +511,8 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 stopval = int(stop.value)
                 stepval = int(step.value)
                 for i in range(startval, stopval, stepval):
-                    x = i + binop_val
-                    output_list.append(Literal(f"{x}", INTEGER_TYPE))
+                    new_x = i + binop_val
+                    output_list.append(Literal(f"{new_x}", INTEGER_TYPE))
                 return output_list
 
             first_val = BinaryOperation.create(
@@ -471,38 +532,62 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                             Literal(f"{val}", INTEGER_TYPE)))
             return output_list
         if step is None:
-            # FIXME result for an assignment - does this make sense for sure?
+            # Result for an assignment.
             output_list = [start]
             return output_list
-        else:
-            output_list = []
-            # If step is not a Literal then we probably can't resolve this
-            if not isinstance(step, Literal):
-                raise GenerationError("Found a dependency index that is a "
-                                      "Loop variable with a non-Literal step "
-                                      "which we can't resolve in PSyclone.")
-            # Special case when all are Literals
-            if (isinstance(start, Literal) and isinstance(stop, Literal)):
-                # FIXME Fill the output list with all values from start to stop
-                # incremented by step
-                startval = int(start.value)
-                stopval = int(stop.value)
-                stepval = int(step.value)
-                for i in range(startval, stopval, stepval):
-                    output_list.append(Literal(f"{i}", INTEGER_TYPE))
-                return output_list
-
-            # If ref is a reference then we generate the first two values of
-            # the sequence only.
-            output_list.append(start.copy())
-            second_val = BinaryOperation.create(
-                    BinaryOperation.Operator.ADD,
-                    start.copy(),
-                    step.copy())
-            output_list.append(second_val)
+        output_list = []
+        # If step is not a Literal then we probably can't resolve this
+        if not isinstance(step, Literal):
+            raise GenerationError("Found a dependency index that is a "
+                                  "Loop variable with a non-Literal step "
+                                  "which we can't resolve in PSyclone.")
+        # Special case when all are Literals
+        if (isinstance(start, Literal) and isinstance(stop, Literal)):
+            # Fill the output list with all values from start to stop
+            # incremented by step
+            startval = int(start.value)
+            stopval = int(stop.value)
+            stepval = int(step.value)
+            for i in range(startval, stopval, stepval):
+                output_list.append(Literal(f"{i}", INTEGER_TYPE))
             return output_list
 
+        # If ref is a reference then we generate the first two values of
+        # the sequence only.
+        output_list.append(start.copy())
+        second_val = BinaryOperation.create(
+                BinaryOperation.Operator.ADD,
+                start.copy(),
+                step.copy())
+        output_list.append(second_val)
+        return output_list
+
     def _compare_ref_binop(self, ref1, ref2, task1, task2):
+        '''
+        Compares two Reference/BinaryOperations Nodes to check they are a valid
+        dependency structure.
+
+        :param ref1: The first Node to compare.
+        :type ref1: Union[:py:class:`psyclone.psyir.nodes.Reference, \
+                    :py:class:`psyclone.psyir.nodes.BinaryOperation]
+        :param ref2: The second Node to compare.
+        :type ref2: Union[:py:class:`psyclone.psyir.nodes.Reference, \
+                    :py:class:`psyclone.psyir.nodes.BinaryOperation]
+        :param task1: The task containing ref1 as a child.
+        :type task1: :py:class:`psyclone.psyir.nodes.OMPTaskDirective
+        :param task2: The task containing ref2 as a child.
+        :type task2: :py:class:`psyclone.psyir.nodes.OMPTaskDirective
+
+        :raises GenerationError: If ref1 and ref2 are dependencies on the \
+                                 same array, but one does not contain a \
+                                 Reference but the other does.
+        :raises GenerationError: If ref1 and ref2 are dependencies on the \
+                                 same array but are References to different \
+                                 variables.
+        :raises GenerationError: If ref1 and ref2 are dependencies on the \
+                                 same array, but the computed index values \
+                                 are not dependent accordign to OpenMP.
+        '''
         # In this case we have two Reference/BinaryOperation as indices.
         # We need to attempt to find their value set and check the value
         # set matches.
@@ -511,10 +596,9 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         preceding_t2 = task2.preceding(reverse=True)
         ref1_accesses = self._compute_accesses(ref1, preceding_t1, task1)
         ref2_accesses = self._compute_accesses(ref2, preceding_t2, task2)
-        # FIXME How do we resolve accesses.
 
-        # If the first access in each accesses contains a Reference we 
-        # should check that both are to the same symbol
+        # If the first access in each accesses contains a Reference
+        # we should check that both are to the same symbol
         ref1_ref = ref1_accesses[0].walk(Reference)
         ref2_ref = ref2_accesses[0].walk(Reference)
         if len(ref1_ref) > 0 and len(ref2_ref) == 0:
@@ -534,6 +618,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                                   "as they are both References but to "
                                   "different variables.")
 
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.backend.sympy_writer import SymPyWriter
         # Now we know if there is a Reference, both are to the same Reference
         if len(ref1_ref) > 0:
@@ -589,7 +674,8 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             r1_min = sys.maxsize
             r1_max = 0
             # Convert the expressions to a sympy expression
-            sympy_ref1s = SymPyWriter.convert_to_sympy_expressions(ref1_accesses)
+            sympy_ref1s = \
+                SymPyWriter.convert_to_sympy_expressions(ref1_accesses)
             values = []
             for member in sympy_ref1s:
                 # Since we were all literals, the SymPyWriter converts this
@@ -601,7 +687,8 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 if val > r1_max:
                     r1_max = val
 
-            sympy_ref2s = SymPyWriter.convert_to_sympy_expressions(ref2_accesses)
+            sympy_ref2s = \
+                SymPyWriter.convert_to_sympy_expressions(ref2_accesses)
             for member in sympy_ref2s:
                 # If the value is between min and max of r1 then we check that
                 # the value is in the values list
@@ -613,11 +700,19 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                                 f"array accesses, ref1 is in range {r1_min} "
                                 f"to {r1_max}, but doesn't contain {val}.")
 
-
     def _check_task_dependencies(self):
         '''
-            TODO
+        Checks all task dependencies in this OMPSerialDirective region are
+        valid within the restraints of OpenMP & PSyclone. This is done through
+        a variety of helper functions, and checks each pair of tasks' inout,
+        outin and outout combinations.
+
+        :raises GenerationError: If this region contains both an \
+                                 OMPTaskDirective and an OMPTaskloopDirective.
+        :raises GenerationError: If this region contains both an \
+                                 OMPTaskDirective and an OMPTaskwaitDirective.
         '''
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.omp_task_directive import OMPTaskDirective
         tasks = self.walk(OMPTaskDirective)
         # For now we disallow Tasks and Taskloop directives in the same Serial
@@ -654,8 +749,6 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 # References
                 if mem[0].symbol != mem[1].symbol:
                     continue
-                # FIXME Can two Reference objects to the same
-                # symbol be different types?
                 # For structure reference we need to check they access
                 # the same member
                 if isinstance(mem[0], StructureReference):
@@ -692,8 +785,6 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     array1 = mem[0]
                     array2 = mem[1]
                 else:
-                    # FIXME remove this check
-                    assert isinstance(mem[0], StructureReference)
                     array1 = mem[0].walk(ArrayMixin)[0]
                     array2 = mem[1].walk(ArrayMixin)[0]
                 for i, index in enumerate(array1.indices):
@@ -704,15 +795,14 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     else:
                         # The only remaining option is that the indices are
                         # References or BinaryOperations
-                        self._compare_ref_binop(index, array2.indices[i], task1, task2)
+                        self._compare_ref_binop(index, array2.indices[i],
+                                                task1, task2)
 
             for mem in outin:
                 # Checking the symbol is the same works for non-structure
                 # References
                 if mem[0].symbol != mem[1].symbol:
                     continue
-                # FIXME Can two Reference objects to the same
-                # symbol be different types?
                 # For structure reference we need to check they access
                 # the same member
                 if isinstance(mem[0], StructureReference):
@@ -748,8 +838,6 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     array1 = mem[0]
                     array2 = mem[1]
                 else:
-                    # FIXME remove this check
-                    assert isinstance(mem[0], StructureReference)
                     array1 = mem[0].walk(ArrayMixin)[0]
                     array2 = mem[1].walk(ArrayMixin)[0]
 
@@ -761,15 +849,14 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     else:
                         # The only remaining option is that the indices are
                         # References or BinaryOperations
-                        self._compare_ref_binop(index, array2.indices[i], task1, task2)
+                        self._compare_ref_binop(index, array2.indices[i],
+                                                task1, task2)
 
             for mem in outout:
                 # Checking the symbol is the same works for non-structure
                 # References
                 if mem[0].symbol != mem[1].symbol:
                     continue
-                # FIXME Can two Reference objects to the same
-                # symbol be different types?
                 # For structure reference we need to check they access
                 # the same member
                 if isinstance(mem[0], StructureReference):
@@ -805,21 +892,25 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     array1 = mem[0]
                     array2 = mem[1]
                 else:
-                    # FIXME remove this check
-                    assert isinstance(mem[0], StructureReference)
                     array1 = mem[0].walk(ArrayMixin)[0]
                     array2 = mem[1].walk(ArrayMixin)[0]
                 for i, index in enumerate(array1.indices):
-                    if isinstance(index, Literal) or isinstance(array2.indices[i], Literal):
+                    if (isinstance(index, Literal) or
+                            isinstance(array2.indices[i], Literal)):
                         self._compare_literals(index, array2.indices[i])
-                    elif isinstance(index, Range) or isinstance(array2.indices[i], Range):
+                    elif (isinstance(index, Range) or
+                          isinstance(array2.indices[i], Range)):
                         self._compare_ranges(index, array2.indices[i])
                     else:
                         # The only remaining option is that the indices are
                         # References or BinaryOperations
-                        self._compare_ref_binop(index, array2.indices[i], task1, task2)
+                        self._compare_ref_binop(index, array2.indices[i],
+                                                task1, task2)
 
     def lower_to_language_level(self):
+        '''
+        Checks that any task dependencies inside this node are valid.
+        '''
         # Perform parent ops
         super().lower_to_language_level()
 
