@@ -239,7 +239,6 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
 
     def _compare_literals(self, lit1, lit2):
         # Check lit2 is a Literal
-        print(lit1, lit2)
         if not isinstance(lit1, Literal) or not isinstance(lit2, Literal):
             raise GenerationError("Literal index to dependency has calculated "
                                   "dependency to a non-Literal index, which is"
@@ -687,12 +686,6 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 if type(mem[0]) is Reference:
                     continue
 
-                # If we have a StructureReference with no ArrayMixin children
-                # then we can skip it, as it will be done
-                if isinstance(mem[0], StructureReference):
-                    if len(mem[0].walk(ArrayMixin)) == 0:
-                        continue
-
                 # All remaining objects are some sort of Array access
                 array1 = None
                 array2 = None
@@ -750,12 +743,6 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 if type(mem[0]) is Reference:
                     continue
 
-                # If we have a StructureReference with no ArrayMixin children
-                # then we can skip it, as it will be done
-                if isinstance(mem[0], StructureReference):
-                    if len(mem[0].walk(ArrayMixin)) == 0:
-                        continue
-
                 # All remaining objects are some sort of Array access
                 array1 = None
                 array2 = None
@@ -812,12 +799,6 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 # are always valid since they are simple accesses.
                 if type(mem[0]) is Reference:
                     continue
-
-                # If we have a StructureReference with no ArrayMixin children
-                # then we can skip it, as it will be done
-                if isinstance(mem[0], StructureReference):
-                    if len(mem[0].walk(ArrayMixin)) == 0:
-                        continue
 
                 # All remaining objects are some sort of Array access
                 array1 = None

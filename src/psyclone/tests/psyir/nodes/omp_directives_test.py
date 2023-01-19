@@ -1939,7 +1939,45 @@ def test_omp_serial_check_task_dependencies_outout():
     task1.lower_to_language_level()
     task2.children[0].addchild(subloop2)
     task2.lower_to_language_level()
+    sing._check_task_dependencies()
 
+
+    # Check outout accesses to range and literal indexes.
+    subroutine = Routine("testsub")
+    temporary_module = ModuleGen("test")
+    parallel = OMPParallelDirective.create()
+    subroutine.addchild(parallel)
+    sing = OMPSingleDirective()
+    parallel.children[0].addchild(sing)
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    rval = DataSymbol("rval", grid_type)
+    subroutine.symbol_table.add(tmp)
+    subroutine.symbol_table.add(tmp2)
+    subroutine.symbol_table.add(tmp3)
+    subroutine.symbol_table.add(rval)
+    
+    task1 = DynamicOMPTaskDirective()
+    loop1 = Loop.create(tmp, Literal("1", INTEGER_SINGLE_TYPE), Literal("128", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task1])
+    assign1 = Assignment.create(StructureReference.create(rval, [("data", [Literal("1", INTEGER_SINGLE_TYPE), Reference(tmp2)])]), Reference(tmp2))
+    subloop1 = Loop.create(tmp2, Reference(tmp3), Literal("32", INTEGER_SINGLE_TYPE), Literal("1", INTEGER_SINGLE_TYPE), [assign1])
+
+
+    task2 = DynamicOMPTaskDirective()
+    loop2 = Loop.create(tmp, Literal("1", INTEGER_SINGLE_TYPE), Literal("128", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task2])
+    assign2 = Assignment.create(StructureReference.create(rval, [("data", [Literal("1", INTEGER_SINGLE_TYPE), Reference(tmp2)])]), Reference(tmp2))
+    subloop2 = Loop.create(tmp2, Reference(tmp3), Literal("32", INTEGER_SINGLE_TYPE), Literal("1", INTEGER_SINGLE_TYPE), [assign2])
+
+    sing.children[0].addchild(loop1)
+    sing.children[0].addchild(loop2)
+
+    task1.children[0].addchild(subloop1)
+    task1.lower_to_language_level()
+    task2.children[0].addchild(subloop2)
+    task2.lower_to_language_level()
+
+    sing._check_task_dependencies()
 
 def test_omp_serial_check_task_dependencies_inout():
 
@@ -2196,6 +2234,44 @@ def test_omp_serial_check_task_dependencies_inout():
 
     sing._check_task_dependencies()
 
+    # Check inout accesses to range and literal indexes.
+    subroutine = Routine("testsub")
+    temporary_module = ModuleGen("test")
+    parallel = OMPParallelDirective.create()
+    subroutine.addchild(parallel)
+    sing = OMPSingleDirective()
+    parallel.children[0].addchild(sing)
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    tmp4 = DataSymbol("tmp4", INTEGER_SINGLE_TYPE)
+    rval = DataSymbol("rval", grid_type)
+    subroutine.symbol_table.add(tmp)
+    subroutine.symbol_table.add(tmp2)
+    subroutine.symbol_table.add(tmp3)
+    subroutine.symbol_table.add(tmp4)
+    subroutine.symbol_table.add(rval)
+    
+    task1 = DynamicOMPTaskDirective()
+    loop1 = Loop.create(tmp, Literal("1", INTEGER_SINGLE_TYPE), Literal("128", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task1])
+    assign1 = Assignment.create(Reference(tmp4), StructureReference.create(rval, [("data", [Literal("1", INTEGER_SINGLE_TYPE), Reference(tmp2)])]))
+    subloop1 = Loop.create(tmp2, Reference(tmp3), Literal("32", INTEGER_SINGLE_TYPE), Literal("1", INTEGER_SINGLE_TYPE), [assign1])
+
+
+    task2 = DynamicOMPTaskDirective()
+    loop2 = Loop.create(tmp, Literal("1", INTEGER_SINGLE_TYPE), Literal("128", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task2])
+    assign2 = Assignment.create(Reference(tmp4), StructureReference.create(rval, [("data", [Literal("1", INTEGER_SINGLE_TYPE), Reference(tmp2)])]))
+    subloop2 = Loop.create(tmp2, Reference(tmp3), Literal("32", INTEGER_SINGLE_TYPE), Literal("1", INTEGER_SINGLE_TYPE), [assign2])
+
+    sing.children[0].addchild(loop1)
+    sing.children[0].addchild(loop2)
+
+    task1.children[0].addchild(subloop1)
+    task1.lower_to_language_level()
+    task2.children[0].addchild(subloop2)
+    task2.lower_to_language_level()
+
+    sing._check_task_dependencies()
 
 
 def test_omp_serial_check_task_dependencies_outin():
@@ -2442,6 +2518,45 @@ def test_omp_serial_check_task_dependencies_outin():
     loop2 = Loop.create(tmp, Literal("1", INTEGER_SINGLE_TYPE), Literal("128", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task2])
     assign2 = Assignment.create(Reference(tmp3), StructureReference.create(rval, [("data2", [Reference(tmp2),Reference(tmp2)])]))
     subloop2 = Loop.create(tmp2, Reference(tmp), Literal("32", INTEGER_SINGLE_TYPE), Literal("1", INTEGER_SINGLE_TYPE), [assign2])
+
+    sing.children[0].addchild(loop1)
+    sing.children[0].addchild(loop2)
+
+    task1.children[0].addchild(subloop1)
+    task1.lower_to_language_level()
+    task2.children[0].addchild(subloop2)
+    task2.lower_to_language_level()
+
+    sing._check_task_dependencies()
+
+    # Check outin accesses to range and literal indexes.
+    subroutine = Routine("testsub")
+    temporary_module = ModuleGen("test")
+    parallel = OMPParallelDirective.create()
+    subroutine.addchild(parallel)
+    sing = OMPSingleDirective()
+    parallel.children[0].addchild(sing)
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    tmp4 = DataSymbol("tmp4", INTEGER_SINGLE_TYPE)
+    rval = DataSymbol("rval", grid_type)
+    subroutine.symbol_table.add(tmp)
+    subroutine.symbol_table.add(tmp2)
+    subroutine.symbol_table.add(tmp3)
+    subroutine.symbol_table.add(tmp4)
+    subroutine.symbol_table.add(rval)
+    
+    task1 = DynamicOMPTaskDirective()
+    loop1 = Loop.create(tmp, Literal("1", INTEGER_SINGLE_TYPE), Literal("128", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task1])
+    assign1 = Assignment.create(Reference(tmp4), StructureReference.create(rval, [("data", [Literal("1", INTEGER_SINGLE_TYPE), Reference(tmp2)])]))
+    subloop1 = Loop.create(tmp2, Reference(tmp3), Literal("32", INTEGER_SINGLE_TYPE), Literal("1", INTEGER_SINGLE_TYPE), [assign1])
+
+
+    task2 = DynamicOMPTaskDirective()
+    loop2 = Loop.create(tmp, Literal("1", INTEGER_SINGLE_TYPE), Literal("128", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task2])
+    assign2 = Assignment.create(Reference(tmp4), StructureReference.create(rval, [("data", [Literal("1", INTEGER_SINGLE_TYPE), Reference(tmp2)])]))
+    subloop2 = Loop.create(tmp2, Reference(tmp3), Literal("32", INTEGER_SINGLE_TYPE), Literal("1", INTEGER_SINGLE_TYPE), [assign2])
 
     sing.children[0].addchild(loop1)
     sing.children[0].addchild(loop2)
