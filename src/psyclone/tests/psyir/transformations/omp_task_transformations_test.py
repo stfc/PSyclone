@@ -39,20 +39,19 @@ from __future__ import absolute_import, print_function
 import os
 import pytest
 
-from psyclone.errors import InternalError, GenerationError
+from psyclone.errors import GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Loop, Node, OMPTaskwaitDirective, \
-    OMPTaskloopDirective, OMPParallelDirective, \
-    OMPDoDirective, OMPSingleDirective, CodeBlock
+from psyclone.psyir.nodes import Loop, CodeBlock
 from psyclone.psyir.transformations import TransformationError
-from psyclone.transformations import OMPLoopTrans, OMPParallelTrans, \
-    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans, MoveTrans
+from psyclone.transformations import OMPParallelTrans, \
+    OMPMasterTrans
 from psyclone.psyir.transformations import OMPTaskTrans
 
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 os.pardir, os.pardir, "test_files",
                                 "gocean1p0")
+
 
 def test_omptask_trans_str():
     '''Test the __str__ and name method of the OMPTaskTrans'''
@@ -112,11 +111,12 @@ def test_omptask_apply():
     parallel.apply(schedule.children[0])
 
     code = str(psy.gen)
-    print(code)
     assert (
         "    !$omp parallel default(shared), private(i,j)\n" +
         "      !$omp master\n" +
-        "      !$omp task private(j,i), shared(cu_fld,p_fld,u_fld), depend(in: cu_fld,p_fld%data(:,:),u_fld%data(:,:)), depend(out: cu_fld%data(:,:))" + 
+        "      !$omp task private(j,i), shared(cu_fld,p_fld,u_fld), depend(" +
+        "in: cu_fld,p_fld%data(:,:),u_fld%data(:,:)), depend(" +
+        "out: cu_fld%data(:,:))" +
         "\n" + "      DO" in code)
     assert (
         "      END DO\n" +
