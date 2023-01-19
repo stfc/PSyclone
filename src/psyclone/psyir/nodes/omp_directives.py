@@ -649,7 +649,6 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             inout = itertools.product(task1_in, task2_out)
             outin = itertools.product(task1_out, task2_in)
             outout = itertools.product(task1_out, task2_out)
-
             for mem in inout:
                 # Checking the symbol is the same works for non-structure
                 # References
@@ -697,7 +696,6 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     assert isinstance(mem[0], StructureReference)
                     array1 = mem[0].walk(ArrayMixin)[0]
                     array2 = mem[1].walk(ArrayMixin)[0]
-
                 for i, index in enumerate(array1.indices):
                     if isinstance(index, Literal):
                         self._compare_literals(index, array2.indices[i])

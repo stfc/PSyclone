@@ -2260,7 +2260,7 @@ def test_omp_serial_check_task_dependencies_inout():
 
     task2 = DynamicOMPTaskDirective()
     loop2 = Loop.create(tmp, Literal("1", INTEGER_SINGLE_TYPE), Literal("128", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task2])
-    assign2 = Assignment.create(Reference(tmp4), StructureReference.create(rval, [("data", [Literal("1", INTEGER_SINGLE_TYPE), Reference(tmp2)])]))
+    assign2 = Assignment.create(StructureReference.create(rval, [("data", [Literal("1", INTEGER_SINGLE_TYPE), Reference(tmp2)])]), Reference(tmp2))
     subloop2 = Loop.create(tmp2, Reference(tmp3), Literal("32", INTEGER_SINGLE_TYPE), Literal("1", INTEGER_SINGLE_TYPE), [assign2])
 
     sing.children[0].addchild(loop1)
@@ -2549,7 +2549,7 @@ def test_omp_serial_check_task_dependencies_outin():
     
     task1 = DynamicOMPTaskDirective()
     loop1 = Loop.create(tmp, Literal("1", INTEGER_SINGLE_TYPE), Literal("128", INTEGER_SINGLE_TYPE), Literal("32", INTEGER_SINGLE_TYPE), [task1])
-    assign1 = Assignment.create(Reference(tmp4), StructureReference.create(rval, [("data", [Literal("1", INTEGER_SINGLE_TYPE), Reference(tmp2)])]))
+    assign1 = Assignment.create(StructureReference.create(rval, [("data", [Literal("1", INTEGER_SINGLE_TYPE), Reference(tmp2)])]), Reference(tmp2))
     subloop1 = Loop.create(tmp2, Reference(tmp3), Literal("32", INTEGER_SINGLE_TYPE), Literal("1", INTEGER_SINGLE_TYPE), [assign1])
 
 
