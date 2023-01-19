@@ -190,8 +190,8 @@ def test_mod_manager_add_files_from_dir():
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir")
 def test_mod_manager_get_module_info():
-    '''Tests that directories are read as expected. We use the standard
-    directory and file setup (see mod_man_test_setup_directories).
+    '''Tests that module information is returned as expected. We use the
+    standard directory and file setup (see mod_man_test_setup_directories).
     tmp/d1/a_mod.f90
     tmp/d1/d3/b_mod.F90
     tmp/d1/d3/c_mod.x90
@@ -241,3 +241,36 @@ def test_mod_manager_get_module_info():
         mod_man.get_module_info("does_not_exist")
     assert ("Could not find source file for module 'does_not_exist'."
             in str(err.value))
+
+
+# ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_mod_manager_get_all_dependencies_recursively(capsys):
+    '''Tests that dependencies are correctly collected recursively. We use
+    the standard directory and file setup (see mod_man_test_setup_directories)
+    tmp/d1/a_mod.f90       : no dependencies
+    tmp/d1/d3/b_mod.F90    : no dependencies
+    tmp/d1/d3/c_mod.x90    : depends on a_mod/b_mod
+    tmp/d2/d_mod.X90       : depends on c_mod
+    tmp/d2/d4/e_mod.F90    : depends on netcdf
+    tmp/d2/d4/f_mod.ignore
+    '''
+
+    mod_man_test_setup_directories()
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path("d1")
+    mod_man.add_search_path("d2")
+
+    all_d = mod_man.get_all_dependencies_recursively({"d_mod"})
+    assert len(all_d.keys()) == 4
+    assert all_d["a_mod"] == set()
+    assert all_d["b_mod"] == set()
+    assert all_d["c_mod"] == set(("a_mod", "b_mod"))
+    assert all_d["d_mod"] == set(("c_mod", ))
+
+    # Test ignoring of unknown modules, in this case NetCDF
+    all_e = mod_man.get_all_dependencies_recursively({"e_mod"})
+    assert len(all_e.keys()) == 1
+    assert all_e["e_mod"] == set()
+    out, _ = capsys.readouterr()
+    assert "Could not find module 'netcdf'" in out

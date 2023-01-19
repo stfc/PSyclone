@@ -38,7 +38,7 @@
 
 import pytest
 
-from psyclone.parse import ModuleInfo, ModuleManager
+from psyclone.parse import ModuleInfo, ModuleInfoError, ModuleManager
 from psyclone.tests.utilities import get_base_path
 from psyclone.tests.parse.module_manager_test import (
     mod_man_test_setup_directories)
@@ -71,7 +71,7 @@ def test_module_info():
     assert mod_info.filename == "file_for_a"
     assert mod_info._source_code is None
 
-    with pytest.raises(FileNotFoundError) as err:
+    with pytest.raises(ModuleInfoError) as err:
         mod_info.get_source_code()
     assert ("Could not find file 'file_for_a' when trying to read source "
             "code for module 'a_mod'" in str(err.value))
@@ -113,16 +113,22 @@ def test_mod_info_get_used_modules():
     mod_man.add_search_path("d1")
     mod_man.add_search_path("d2")
 
-    assert mod_man.get_module_info("a_mod").get_used_modules() == []
-    assert mod_man.get_module_info("b_mod").get_used_modules() == []
+    assert mod_man.get_module_info("a_mod").get_used_modules() == set()
+    assert mod_man.get_module_info("b_mod").get_used_modules() == set()
 
     mod_c_info = mod_man.get_module_info("c_mod")
     dep = mod_c_info.get_used_modules()
-    assert dep == [("a_mod", ["a_mod_symbol"]),
-                   ("b_mod", ["b_mod_symbol"])]
+    assert dep == set(("a_mod", "b_mod"))
+
     dep_cached = mod_c_info.get_used_modules()
     # The cached copy should be the same list:
     assert dep_cached is dep
+
+    # Check error conditions:
+    with pytest.raises(ModuleInfoError) as err:
+        mod_c_info._extract_import_information()
+    assert ("_extract_import_information for 'c_mod' should not be "
+            "called twice" in str(err.value))
 
     dyn_path = get_base_path("dynamo0.3")
     # This will add all subdirectories, including infrastructure:
@@ -130,13 +136,42 @@ def test_mod_info_get_used_modules():
     # This module imports the intrinsic module iso_fortran_env,
     # (which should be ignored):
     deps = mod_man.get_module_info("field_r64_mod").get_used_modules()
-    for (module, _) in deps:
+    for module in deps:
         assert module != "iso_fortran_env"
 
     # This module has a 'use' without 'only'. Make sure that
     # the list of symbols is always an empty list
     deps = mod_man.get_module_info("testkern_wtheta_mod").get_used_modules()
-    for (module, dep) in deps:
+    for module in deps:
         assert module in ["constants_mod", "argument_mod",
                           "fs_continuity_mod", "kernel_mod"]
-        assert dep == []
+
+
+# ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_mod_info_get_used_symbols_from_modules():
+    '''Tests that symbols from dependencies are reported as expected. We
+    use the standard directory and file setup (see
+    mod_man_test_setup_directories).
+    tmp/d1/a_mod.f90       : no dependencies
+    tmp/d1/d3/b_mod.F90    : no dependencies
+    tmp/d1/d3/c_mod.x90    : depends on a_mod/b_mod
+    tmp/d2/d_mod.X90       : depends on c_mod
+    tmp/d2/d4/e_mod.F90    : depends on netcdf
+    tmp/d2/d4/f_mod.ignore
+    '''
+
+    mod_man_test_setup_directories()
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path("d1")
+    mod_man.add_search_path("d2")
+
+    mod_info = mod_man.get_module_info("c_mod")
+    assert mod_info._used_symbols_from_module is None
+    used_symbols = mod_info.get_used_symbols_from_modules()
+    assert used_symbols["a_mod"] == {"a_mod_symbol"}
+    assert used_symbols["b_mod"] == {"b_mod_symbol"}
+
+    used_symbols_cached = mod_info.get_used_symbols_from_modules()
+    # The cached copy should be the same dictionary
+    assert used_symbols_cached is used_symbols

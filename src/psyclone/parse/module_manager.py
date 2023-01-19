@@ -68,7 +68,6 @@ class ModuleManager:
         if ModuleManager._instance is not None:
             raise InternalError("You need to use 'ModuleManager.get()' "
                                 "to get the singleton instance.")
-        self._cached_module_info = {}
         self._mod_2_filename = {}
         self._search_paths = []
 
@@ -184,3 +183,62 @@ class ModuleManager:
             return [root]
 
         return []
+
+    # ------------------------------------------------------------------------
+    def get_all_dependencies_recursively(self, all_mods):
+        '''This function collects recursively all module dependencies
+        for any of the modules in the all_mods set.
+
+        :param Set[str] all_mods: the set of all modules to collect the \
+            modules they use from.
+
+        :returns: a set with all modules that are required for the modules \
+            in all_mods.
+        :rtype: Set[str]
+
+        '''
+        # This contains the mapping from each module name to the
+        # list of the dependencies and is returned as result:
+        module_dependencies = {}
+
+        # Work on a copy to avoid modifying the caller's set:
+        todo = all_mods.copy()
+
+        # This set contains module that could not be found (to avoid
+        # adding them to the todo list again
+        not_found = set()
+
+        while todo:
+            # Pick one (random) module to handle:
+            module = todo.pop()
+            try:
+                mod_deps = self.get_module_info(module).get_used_modules()
+            except FileNotFoundError:
+                if module not in not_found:
+                    # We don't have any information about this module,
+                    # ignore it.
+                    print(f"Could not find module '{module}'.")
+                    not_found.add(module)
+                    # Remove this module as dependencies from any other
+                    # module in our todo list, so the final result will
+                    # only contain known modules
+                    for dep in module_dependencies.values():
+                        if module in dep:
+                            dep.remove(module)
+                continue
+
+            # Remove all dependencies which we don't know anything about:
+            mod_deps = mod_deps.difference(not_found)
+
+            # Add the dependencies of `module` to the result dictionary:
+            module_dependencies[module] = mod_deps
+
+            # Remove all dependencies from the list of new dependencies
+            # of `module` that have already been handled:
+            new_deps = mod_deps.difference(module_dependencies.keys())
+
+            # Then add these really new modules to the list of modules
+            # that still need to be handled
+            todo |= new_deps
+
+        return module_dependencies

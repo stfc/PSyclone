@@ -36,11 +36,13 @@
 '''This directory contains classes related to parsing Fortran.
 '''
 
-from psyclone.parse.module_manager import ModuleInfo, ModuleManager
+from psyclone.parse.module_info import ModuleInfo, ModuleInfoError
+from psyclone.parse.module_manager import ModuleManager
 
 # The entities in the __all__ list are made available to import directly from
-# this package e.g. 'from psyclone.parse import ModuleManager'
+# this package e.g. 'from psyclone.parse import ModuleManager'.
 __all__ = [
         'ModuleInfo',
+        'ModuleInfoError',
         'ModuleManager'
         ]

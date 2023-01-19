@@ -903,34 +903,9 @@ class LFRicExtractDriverCreator:
                     ",intrinsic" not in symbol.name:
                 all_mods.add(symbol.name)
 
-        # This contains a mapping: for each module name as key,
-        # this dictionary contains a list of all module it depends on
-        module_dependencies = {}
         mod_manager = ModuleManager.get()
-        while all_mods:
-            module = all_mods.pop()
-            try:
-                mod_info = mod_manager.get_module_info(module)
-                mod_deps = mod_info.get_used_modules()
-                # The variable deps contains tuples: module and imported
-                # symbols, which we don't need here. Also convert it to
-                # a set, which makes for shorter code later:
-                mod_deps = set(mod_info[0] for mod_info in mod_deps)
-            except FileNotFoundError:
-                # We don't have any information about this module,
-                # ignore for now.
-                print(f"Could not find module '{module}'.")
-                for dep in module_dependencies.values():
-                    if module in dep:
-                        dep.remove(module)
-
-                continue
-
-            module_dependencies[module] = mod_deps
-            # Remove all dependencies from the list of new dependencies
-            # that have already been handled:
-            new_deps = mod_deps.difference(module_dependencies.keys())
-            all_mods |= new_deps
+        module_dependencies = \
+            mod_manager.get_all_dependencies_recursively(all_mods)
 
         return module_dependencies
 

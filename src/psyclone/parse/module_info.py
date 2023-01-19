@@ -43,6 +43,22 @@ from fparser.two.Fortran2003 import Use_Stmt
 from fparser.two.parser import ParserFactory
 from fparser.two.utils import walk
 
+from psyclone.errors import PSycloneError
+
+
+# ============================================================================
+class ModuleInfoError(PSycloneError):
+    '''
+    PSyclone-specific exception for use when an error with the module manager
+    happens - typically indicating that some module information cannot be
+    found.
+
+    :param str value: the message associated with the error.
+    '''
+    def __init__(self, value):
+        PSycloneError.__init__(self, value)
+        self.value = "ModuleInfo error: "+str(value)
+
 
 # ============================================================================
 class ModuleInfo:
@@ -62,10 +78,18 @@ class ModuleInfo:
         self._filename = filename
         # A cache for the source code:
         self._source_code = None
+
         # A cache for the fparser tree
         self._parse_tree = None
-        # A cache for the module dependencies
+
+        # A cache for the module dependencies: this is just a set
+        # of all modules used by this module. Type: Set[str]
         self._used_modules = None
+
+        # This is a dictionary, with the modules from the list of all used
+        # modules as key, and it stores the set of all symbols imported from
+        # this module: Dict[str, Set(str)]
+        self._used_symbols_from_module = None
 
     # ------------------------------------------------------------------------
     @property
@@ -85,7 +109,7 @@ class ModuleInfo:
         :returns: the source code as string.
         :rtype: str
 
-        :raises FileNotFoundError: when the file cannot be read.
+        :raises ModuleInfoError: when the file cannot be read.
 
         '''
         if self._source_code is None:
@@ -93,7 +117,7 @@ class ModuleInfo:
                 with open(self._filename, "r", encoding='utf-8') as file_in:
                     self._source_code = file_in.read()
             except FileNotFoundError as err:
-                raise FileNotFoundError(
+                raise ModuleInfoError(
                     f"Could not find file '{self._filename}' when trying to "
                     f"read source code for module '{self._name}'") from err
 
@@ -114,6 +138,43 @@ class ModuleInfo:
         return self._parse_tree
 
     # ------------------------------------------------------------------------
+    def _extract_import_information(self):
+        '''This internal function analyses a given module source file and
+        caches which modules are imported (in self._used_modules), and which
+        symbol is imported from each of these modules (in
+        self._used_symbols_from_module).
+
+        '''
+        if self._used_modules is not None or \
+                self._used_symbols_from_module is not None:
+            raise ModuleInfoError(f"_extract_import_information for "
+                                  f"'{self._name}' should not be called "
+                                  f"twice.")
+        # Initialise the caches:
+        self._used_modules = set()
+        self._used_symbols_from_module = {}
+
+        parse_tree = self.get_parse_tree()
+        for use in walk(parse_tree, Use_Stmt):
+            # Ignore intrinsic modules:
+            if str(use.items[0]) == "INTRINSIC":
+                continue
+
+            mod_name = str(use.items[2])
+            self._used_modules.add(mod_name)
+            all_symbols = set()
+
+            only_list = use.items[4]
+            # If there is no only_list, then the set of symbols is
+            # will stay empty
+            if only_list:
+                # Parse the only list:
+                for symbol in use.items[4].children:
+                    all_symbols.add(str(symbol))
+
+            self._used_symbols_from_module[mod_name] = all_symbols
+
+    # ------------------------------------------------------------------------
     def get_used_modules(self):
         '''This function analyses a given module source file and returns
         a list of 2-tuples containing the module name, and a list of
@@ -123,32 +184,31 @@ class ModuleInfo:
         :param str module_name: the file name (including path if required) \
             for which all modules should be found.
 
-        :returns: a list of with all module names and symbols imported.
-        :rtype: List[Tuple[str, List[str]]]
+        :returns: a set with all imported module names.
+        :rtype: Set[str]
 
         '''
-
-        if self._used_modules:
-            return self._used_modules
-
-        parse_tree = self.get_parse_tree()
-
-        self._used_modules = []
-        for use in walk(parse_tree, Use_Stmt):
-            # Ignore intrinsic modules:
-            if str(use.items[0]) == "INTRINSIC":
-                continue
-
-            only_list = use.items[4]
-            if not only_list:
-                # Imports everything. Indicate this by
-                # using an empty list for the symbols
-                self._used_modules.append((str(use.items[2]), []))
-                continue
-            # Parse the only list:
-            all_symbols = []
-            for symbol in use.items[4].children:
-                all_symbols.append(str(symbol))
-            self._used_modules.append((str(use.items[2]), all_symbols))
+        if not self._used_modules:
+            self._extract_import_information()
 
         return self._used_modules
+
+    # ------------------------------------------------------------------------
+    def get_used_symbols_from_modules(self):
+        '''This function analyses a given module source file and returns
+        a list of 2-tuples containing the module name, and a list of
+        all imported symbols from that module. If all symbols are imported,
+        the list of symbols will be empty.
+
+        :param str module_name: the file name (including path if required) \
+            for which all modules should be found.
+
+        :returns: a dictionary that gives for each module name the list \
+            of symbols imported from it.
+        :rtype: Dict[str, Set[str]]
+
+        '''
+        if not self._used_symbols_from_module:
+            self._extract_import_information()
+
+        return self._used_symbols_from_module
