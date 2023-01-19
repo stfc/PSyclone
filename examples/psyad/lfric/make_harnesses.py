@@ -184,7 +184,8 @@ all_kernels["moist_dyn_mass"] = KernelDesc(
     "mr_cl_at_dof mr_r_at_dof mr_ci_at_dof mr_s_at_dof mr_g_at_dof",
     coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
 
-# Passes.
+# Passes but cannot copy TL kernel into test harness because it's identical
+# to the kernel on trunk.
 all_kernels["w3_advective_update"] = KernelDesc(
     passing=True,
     adj_file="adjoint/adj_w3_advective_update_kernel_mod.F90",
@@ -206,7 +207,9 @@ all_kernels["poly_advective"] = KernelDesc(
     coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
 
 # Scalar of type 'logical' not supported - #2013.
-# Passes once that limitation removed from test-harness generation.
+# Passes once that limitation removed from test-harness generation and unused
+# scalar removed from test harness.
+# TODO record that 'tweaked' harness must be used.
 all_kernels["poly1d_vert_adv"] = KernelDesc(
     passing=True,
     adj_file="adjoint/adj_poly1d_vert_adv_kernel_mod.F90",
@@ -228,6 +231,7 @@ all_kernels["poly1d_w3_reconstruction"] = KernelDesc(
 
 # Has logical scalar argument and loop that updates both active and passive
 # vars.
+# Generated test harness has unused scalars.
 # Passes (once above issues fixed).
 all_kernels["poly1d_vert_w3_reconstruction"] = KernelDesc(
     passing=True,
