@@ -8,8 +8,8 @@ module adjoint_test_mod
     use function_space_mod, only : function_space_type
     use mesh_mod, only : mesh_type
     use function_space_collection_mod, only : function_space_collection
-    use tl_rhs_sample_eos_kernel_mod, only : tl_rhs_sample_eos_kernel_type
-    use adj_rhs_sample_eos_kernel_mod, only : adj_rhs_sample_eos_kernel_type
+    use tl_sample_eos_pressure_kernel_mod, only : tl_sample_eos_pressure_kernel_type
+    use adj_sample_eos_pressure_kernel_mod, only : adj_sample_eos_pressure_kernel_type
     use constants_mod, only : i_def, r_def
     use fs_continuity_mod, only : w3, wtheta
     integer(kind=i_def), parameter :: element_order = 1_i_def
@@ -17,8 +17,8 @@ module adjoint_test_mod
     type(mesh_type), pointer, intent(in) :: mesh
     type(field_type), dimension(3), intent(in), optional :: chi
     type(field_type), intent(in), optional :: panel_id
-    TYPE(function_space_type), POINTER :: vector_space_wtheta_ptr
     TYPE(function_space_type), POINTER :: vector_space_w3_ptr
+    TYPE(function_space_type), POINTER :: vector_space_wtheta_ptr
     type(field_type) :: field_1
     type(field_type) :: field_2
     type(field_type) :: field_3
@@ -26,14 +26,6 @@ module adjoint_test_mod
     type(field_type) :: field_5
     type(field_type) :: field_6
     type(field_type) :: field_7
-    type(field_type) :: field_8
-    type(field_type) :: field_9
-    real(kind=r_def) :: rscalar_10
-    real(kind=r_def) :: rscalar_11
-    real(kind=r_def) :: rscalar_12
-    real(kind=r_def) :: rscalar_10_input
-    real(kind=r_def) :: rscalar_11_input
-    real(kind=r_def) :: rscalar_12_input
     type(field_type) :: field_1_input
     type(field_type) :: field_2_input
     type(field_type) :: field_3_input
@@ -41,8 +33,6 @@ module adjoint_test_mod
     type(field_type) :: field_5_input
     type(field_type) :: field_6_input
     type(field_type) :: field_7_input
-    type(field_type) :: field_8_input
-    type(field_type) :: field_9_input
     real(kind=r_def) :: field_1_inner_prod
     real(kind=r_def) :: field_2_inner_prod
     real(kind=r_def) :: field_3_inner_prod
@@ -50,8 +40,6 @@ module adjoint_test_mod
     real(kind=r_def) :: field_5_inner_prod
     real(kind=r_def) :: field_6_inner_prod
     real(kind=r_def) :: field_7_inner_prod
-    real(kind=r_def) :: field_8_inner_prod
-    real(kind=r_def) :: field_9_inner_prod
     real(kind=r_def) :: inner1
     real(kind=r_def) :: field_1_field_1_input_inner_prod
     real(kind=r_def) :: field_2_field_2_input_inner_prod
@@ -60,38 +48,26 @@ module adjoint_test_mod
     real(kind=r_def) :: field_5_field_5_input_inner_prod
     real(kind=r_def) :: field_6_field_6_input_inner_prod
     real(kind=r_def) :: field_7_field_7_input_inner_prod
-    real(kind=r_def) :: field_8_field_8_input_inner_prod
-    real(kind=r_def) :: field_9_field_9_input_inner_prod
     real(kind=r_def) :: inner2
     real(kind=r_def) :: MachineTol
     real(kind=r_def) :: relative_diff
 
-    vector_space_wtheta_ptr => function_space_collection % get_fs(mesh, element_order, wtheta)
     vector_space_w3_ptr => function_space_collection % get_fs(mesh, element_order, w3)
+    vector_space_wtheta_ptr => function_space_collection % get_fs(mesh, element_order, wtheta)
     call field_1 % initialise(vector_space=vector_space_w3_ptr, name='field_1')
     call field_2 % initialise(vector_space=vector_space_w3_ptr, name='field_2')
-    call field_3 % initialise(vector_space=vector_space_w3_ptr, name='field_3')
+    call field_3 % initialise(vector_space=vector_space_wtheta_ptr, name='field_3')
     call field_4 % initialise(vector_space=vector_space_wtheta_ptr, name='field_4')
-    call field_5 % initialise(vector_space=vector_space_wtheta_ptr, name='field_5')
-    call field_6 % initialise(vector_space=vector_space_w3_ptr, name='field_6')
-    call field_7 % initialise(vector_space=vector_space_w3_ptr, name='field_7')
-    call field_8 % initialise(vector_space=vector_space_wtheta_ptr, name='field_8')
-    call field_9 % initialise(vector_space=vector_space_wtheta_ptr, name='field_9')
+    call field_5 % initialise(vector_space=vector_space_w3_ptr, name='field_5')
+    call field_6 % initialise(vector_space=vector_space_wtheta_ptr, name='field_6')
+    call field_7 % initialise(vector_space=vector_space_wtheta_ptr, name='field_7')
     call field_1_input % initialise(vector_space=vector_space_w3_ptr, name='field_1_input')
     call field_2_input % initialise(vector_space=vector_space_w3_ptr, name='field_2_input')
-    call field_3_input % initialise(vector_space=vector_space_w3_ptr, name='field_3_input')
+    call field_3_input % initialise(vector_space=vector_space_wtheta_ptr, name='field_3_input')
     call field_4_input % initialise(vector_space=vector_space_wtheta_ptr, name='field_4_input')
-    call field_5_input % initialise(vector_space=vector_space_wtheta_ptr, name='field_5_input')
-    call field_6_input % initialise(vector_space=vector_space_w3_ptr, name='field_6_input')
-    call field_7_input % initialise(vector_space=vector_space_w3_ptr, name='field_7_input')
-    call field_8_input % initialise(vector_space=vector_space_wtheta_ptr, name='field_8_input')
-    call field_9_input % initialise(vector_space=vector_space_wtheta_ptr, name='field_9_input')
-    call random_number(rscalar_10)
-    rscalar_10_input = rscalar_10
-    call random_number(rscalar_11)
-    rscalar_11_input = rscalar_11
-    call random_number(rscalar_12)
-    rscalar_12_input = rscalar_12
+    call field_5_input % initialise(vector_space=vector_space_w3_ptr, name='field_5_input')
+    call field_6_input % initialise(vector_space=vector_space_wtheta_ptr, name='field_6_input')
+    call field_7_input % initialise(vector_space=vector_space_wtheta_ptr, name='field_7_input')
     field_1_inner_prod = 0.0_r_def
     field_2_inner_prod = 0.0_r_def
     field_3_inner_prod = 0.0_r_def
@@ -99,23 +75,16 @@ module adjoint_test_mod
     field_5_inner_prod = 0.0_r_def
     field_6_inner_prod = 0.0_r_def
     field_7_inner_prod = 0.0_r_def
-    field_8_inner_prod = 0.0_r_def
-    field_9_inner_prod = 0.0_r_def
     ! Initialise arguments and call the tangent-linear kernel.
     call invoke(setval_random(field_1), setval_x(field_1_input, field_1), setval_random(field_2), setval_x(field_2_input, &
 &field_2), setval_random(field_3), setval_x(field_3_input, field_3), setval_random(field_4), setval_x(field_4_input, field_4), &
 &setval_random(field_5), setval_x(field_5_input, field_5), setval_random(field_6), setval_x(field_6_input, field_6), &
-&setval_random(field_7), setval_x(field_7_input, field_7), setval_random(field_8), setval_x(field_8_input, field_8), &
-&setval_random(field_9), setval_x(field_9_input, field_9), tl_rhs_sample_eos_kernel_type(field_1, field_2, field_3, field_4, &
-&field_5, field_6, field_7, field_8, field_9, rscalar_10, rscalar_11, rscalar_12), x_innerproduct_x(field_1_inner_prod, field_1), &
-&x_innerproduct_x(field_2_inner_prod, field_2), x_innerproduct_x(field_3_inner_prod, field_3), &
-&x_innerproduct_x(field_4_inner_prod, field_4), x_innerproduct_x(field_5_inner_prod, field_5), &
-&x_innerproduct_x(field_6_inner_prod, field_6), x_innerproduct_x(field_7_inner_prod, field_7), &
-&x_innerproduct_x(field_8_inner_prod, field_8), x_innerproduct_x(field_9_inner_prod, field_9))
+&setval_random(field_7), setval_x(field_7_input, field_7), tl_sample_eos_pressure_kernel_type(field_1, field_2, field_3, field_4, &
+&field_5, field_6, field_7), x_innerproduct_x(field_1_inner_prod, field_1), x_innerproduct_x(field_2_inner_prod, field_2), &
+&x_innerproduct_x(field_3_inner_prod, field_3), x_innerproduct_x(field_4_inner_prod, field_4), &
+&x_innerproduct_x(field_5_inner_prod, field_5), x_innerproduct_x(field_6_inner_prod, field_6), &
+&x_innerproduct_x(field_7_inner_prod, field_7))
     inner1 = 0.0_r_def
-    inner1 = inner1 + rscalar_10 * rscalar_10
-    inner1 = inner1 + rscalar_11 * rscalar_11
-    inner1 = inner1 + rscalar_12 * rscalar_12
     inner1 = inner1 + field_1_inner_prod
     inner1 = inner1 + field_2_inner_prod
     inner1 = inner1 + field_3_inner_prod
@@ -123,8 +92,6 @@ module adjoint_test_mod
     inner1 = inner1 + field_5_inner_prod
     inner1 = inner1 + field_6_inner_prod
     inner1 = inner1 + field_7_inner_prod
-    inner1 = inner1 + field_8_inner_prod
-    inner1 = inner1 + field_9_inner_prod
     field_1_field_1_input_inner_prod = 0.0_r_def
     field_2_field_2_input_inner_prod = 0.0_r_def
     field_3_field_3_input_inner_prod = 0.0_r_def
@@ -132,20 +99,13 @@ module adjoint_test_mod
     field_5_field_5_input_inner_prod = 0.0_r_def
     field_6_field_6_input_inner_prod = 0.0_r_def
     field_7_field_7_input_inner_prod = 0.0_r_def
-    field_8_field_8_input_inner_prod = 0.0_r_def
-    field_9_field_9_input_inner_prod = 0.0_r_def
-    call invoke(adj_rhs_sample_eos_kernel_type(field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8, field_9, &
-&rscalar_10, rscalar_11, rscalar_12), x_innerproduct_y(field_1_field_1_input_inner_prod, field_1, field_1_input), &
-&x_innerproduct_y(field_2_field_2_input_inner_prod, field_2, field_2_input), x_innerproduct_y(field_3_field_3_input_inner_prod, &
-&field_3, field_3_input), x_innerproduct_y(field_4_field_4_input_inner_prod, field_4, field_4_input), &
-&x_innerproduct_y(field_5_field_5_input_inner_prod, field_5, field_5_input), x_innerproduct_y(field_6_field_6_input_inner_prod, &
-&field_6, field_6_input), x_innerproduct_y(field_7_field_7_input_inner_prod, field_7, field_7_input), &
-&x_innerproduct_y(field_8_field_8_input_inner_prod, field_8, field_8_input), x_innerproduct_y(field_9_field_9_input_inner_prod, &
-&field_9, field_9_input))
+    call invoke(adj_sample_eos_pressure_kernel_type(field_1, field_2, field_3, field_4, field_5, field_6, field_7), &
+&x_innerproduct_y(field_1_field_1_input_inner_prod, field_1, field_1_input), x_innerproduct_y(field_2_field_2_input_inner_prod, &
+&field_2, field_2_input), x_innerproduct_y(field_3_field_3_input_inner_prod, field_3, field_3_input), &
+&x_innerproduct_y(field_4_field_4_input_inner_prod, field_4, field_4_input), x_innerproduct_y(field_5_field_5_input_inner_prod, &
+&field_5, field_5_input), x_innerproduct_y(field_6_field_6_input_inner_prod, field_6, field_6_input), &
+&x_innerproduct_y(field_7_field_7_input_inner_prod, field_7, field_7_input))
     inner2 = 0.0_r_def
-    inner2 = inner2 + rscalar_10 * rscalar_10_input
-    inner2 = inner2 + rscalar_11 * rscalar_11_input
-    inner2 = inner2 + rscalar_12 * rscalar_12_input
     inner2 = inner2 + field_1_field_1_input_inner_prod
     inner2 = inner2 + field_2_field_2_input_inner_prod
     inner2 = inner2 + field_3_field_3_input_inner_prod
@@ -153,15 +113,13 @@ module adjoint_test_mod
     inner2 = inner2 + field_5_field_5_input_inner_prod
     inner2 = inner2 + field_6_field_6_input_inner_prod
     inner2 = inner2 + field_7_field_7_input_inner_prod
-    inner2 = inner2 + field_8_field_8_input_inner_prod
-    inner2 = inner2 + field_9_field_9_input_inner_prod
     ! Test the inner-product values for equality, allowing for the precision of the active variables
     MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
     relative_diff = ABS(inner1 - inner2) / MachineTol
     if (relative_diff < overall_tolerance) then
-      WRITE(*, *) 'Test of adjoint of ''tl_rhs_sample_eos_kernel_type'' PASSED: ', inner1, inner2, relative_diff
+      WRITE(*, *) 'Test of adjoint of ''tl_sample_eos_pressure_kernel_type'' PASSED: ', inner1, inner2, relative_diff
     else
-      WRITE(*, *) 'Test of adjoint of ''tl_rhs_sample_eos_kernel_type'' FAILED: ', inner1, inner2, relative_diff
+      WRITE(*, *) 'Test of adjoint of ''tl_sample_eos_pressure_kernel_type'' FAILED: ', inner1, inner2, relative_diff
     end if
 
   end subroutine adjoint_test
