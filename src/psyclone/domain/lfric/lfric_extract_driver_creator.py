@@ -910,12 +910,13 @@ class LFRicExtractDriverCreator:
         while all_mods:
             module = all_mods.pop()
             try:
-                mod_deps = mod_manager.find_modules_used_in(module)
+                mod_info = mod_manager.get_module_info(module)
+                mod_deps = mod_info.get_used_modules()
                 # The variable deps contains tuples: module and imported
                 # symbols, which we don't need here. Also convert it to
                 # a set, which makes for shorter code later:
                 mod_deps = set(mod_info[0] for mod_info in mod_deps)
-            except KeyError:
+            except FileNotFoundError:
                 # We don't have any information about this module,
                 # ignore for now.
                 print(f"Could not find module '{module}'.")
