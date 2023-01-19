@@ -81,6 +81,7 @@ def test_module_info():
     mod_man_test_setup_directories()
     mod_man = ModuleManager.get()
     mod_man.add_search_path("d1")
+
     mod_info = mod_man.get_module_info("a_mod")
     assert isinstance(mod_info, ModuleInfo)
     assert mod_info._source_code is None
@@ -88,6 +89,11 @@ def test_module_info():
     assert "module a_mod" in source_code[:15]
     assert "module a_mod" in mod_info._source_code[:15]
     assert "end module a_mod" in mod_info._source_code
+
+    # Now access the parse tree:
+    assert mod_info._parse_tree is None
+    parse_tree = mod_info.get_parse_tree()
+    assert mod_info._parse_tree is parse_tree
 
 
 # ----------------------------------------------------------------------------

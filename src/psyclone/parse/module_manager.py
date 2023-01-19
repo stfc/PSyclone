@@ -39,7 +39,7 @@ which module is contained in which file (including full location). '''
 
 import os
 
-from fparser.common.readfortran import FortranFileReader
+from fparser.common.readfortran import FortranStringReader
 from fparser.two.Fortran2003 import Use_Stmt
 from fparser.two.parser import ParserFactory
 from fparser.two.utils import walk
@@ -63,7 +63,10 @@ class ModuleInfo:
     def __init__(self, name, filename):
         self._name = name
         self._filename = filename
+        # A cache for the source code:
         self._source_code = None
+        # A cache for the fparser tree
+        self._parse_tree = None
 
     # ------------------------------------------------------------------------
     @property
@@ -96,6 +99,20 @@ class ModuleInfo:
                     f"read source code for module '{self._name}'") from err
 
         return self._source_code
+
+    # ------------------------------------------------------------------------
+    def get_parse_tree(self):
+        '''Returns the fparser AST for this module. The first time, the file
+        will be parsed by fpaser, then the AST is cached for any future uses.
+        :returns: the fparser AST for this module.
+        :rtype:
+
+        '''
+        if not self._parse_tree:
+            reader = FortranStringReader(self.get_source_code())
+            parser = ParserFactory().create(std="f2003")
+            self._parse_tree = parser(reader)
+        return self._parse_tree
 
 
 # ============================================================================
@@ -268,9 +285,7 @@ class ModuleManager:
         except FileNotFoundError:
             return []
 
-        reader = FortranFileReader(mod_info.filename)
-        parser = ParserFactory().create(std="f2003")
-        parse_tree = parser(reader)
+        parse_tree = mod_info.get_parse_tree()
         results = []
         for use in walk(parse_tree, Use_Stmt):
             # Ignore intrinsic modules:
