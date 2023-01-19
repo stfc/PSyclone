@@ -13,7 +13,7 @@ all:
 	cp -f ${HARNESS_FILE} ${MINI_APP_DIR}/source/algorithm/adjoint_test_mod.x90
 	cp -f ${KERNEL_FILE} ${MINI_APP_DIR}/source/kernel/${KFILE_NO_DIR}
 	cp -f ${ADJ_FILE} ${MINI_APP_DIR}/source/kernel/.
-	${MAKE} -C ${MINI_APP_DIR} build
+	${MAKE} -j 6 -C ${MINI_APP_DIR} build
 	cd ${MINI_APP_DIR}/example; ../bin/${MINI_APP} configuration.nml
 
 clean:

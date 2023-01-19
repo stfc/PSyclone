@@ -21,7 +21,7 @@ module tl_kinetic_energy_gradient_kernel_mod
                                 GH_BASIS, GH_DIFF_BASIS,   &
                                 CELL_COLUMN, GH_QUADRATURE_XYoZ
   use constants_mod,     only : r_def, i_def
-  use fs_continuity_mod, only : W2
+  use fs_continuity_mod, only : W2, WChi
   use kernel_mod,        only : kernel_type
 
   implicit none
@@ -38,12 +38,12 @@ module tl_kinetic_energy_gradient_kernel_mod
         arg_type(GH_FIELD,   GH_REAL, GH_INC,  W2),                       &
         arg_type(GH_FIELD,   GH_REAL, GH_READ, W2),                       &
         arg_type(GH_FIELD,   GH_REAL, GH_READ, W2),                       &
-        arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9),              &
+        arg_type(GH_FIELD*3, GH_REAL, GH_READ, WChi),                     &
         arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3) &
         /)
     type(func_type) :: meta_funcs(2) = (/                 &
         func_type(W2,           GH_BASIS, GH_DIFF_BASIS), &
-        func_type(ANY_SPACE_9,  GH_BASIS, GH_DIFF_BASIS)  &
+        func_type(WChi,         GH_BASIS, GH_DIFF_BASIS)  &
         /)
     integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
