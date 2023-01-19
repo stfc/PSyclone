@@ -87,15 +87,12 @@ END TYPE
     integer :: idx_1
     integer :: idx_2
     integer :: idx_3
-    integer :: i_3
     integer :: j
     integer :: ii
     integer :: i_1
     integer :: j_1
     integer :: i_2
     integer :: j_2
-    integer :: idx_2_1
-    integer :: idx_1_1
 
     res_dot_product = 0.0_r_def
     vorticity_term = 0.0_r_def

@@ -20,7 +20,7 @@ use argument_mod,            only: arg_type, func_type,                 &
                                    GH_BASIS, GH_DIFF_BASIS,             &
                                    CELL_COLUMN, GH_QUADRATURE_XYoZ
 use constants_mod,           only: r_def, i_def
-use fs_continuity_mod,       only: W1, W2
+use fs_continuity_mod,       only: W1, W2, Wchi
 use cross_product_mod,       only: cross_product
 
 implicit none
@@ -37,13 +37,13 @@ type, public, extends(kernel_type) :: tl_vorticity_advection_kernel_type
        arg_type(GH_FIELD,   GH_REAL, GH_READ, W1),                     &
        arg_type(GH_FIELD,   GH_REAL, GH_READ, W2),                     &
        arg_type(GH_FIELD,   GH_REAL, GH_READ, W1),                     &
-       arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9),            &
-       arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3)        &
+       arg_type(GH_FIELD*3, GH_REAL, GH_READ, WChi),                   &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3) &
        /)
   type(func_type) :: meta_funcs(3) = (/                                &
        func_type(W2, GH_BASIS),                                        &
        func_type(W1, GH_BASIS),                                        &
-       func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                 &
+       func_type(WChi, GH_BASIS, GH_DIFF_BASIS)                        &
        /)
   integer :: operates_on = CELL_COLUMN
   integer :: gh_shape = GH_QUADRATURE_XYoZ

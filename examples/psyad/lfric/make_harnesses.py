@@ -158,7 +158,7 @@ all_kernels["vorticity_advection"] = KernelDesc(
     adj_file="adjoint/adj_vorticity_advection_kernel_mod.F90",
     kernel_file="tangent_linear_tweaked/tl_vorticity_advection_kernel_mod_"
     "tweaked.F90",
-    harness_file="test_harness/adj_vorticity_advection_harness.x90",
+    harness_file="test_harness/vorticity_advection_harness.x90",
     active_vars="r_u res_dot_product vorticity_term cross_product1 "
     "cross_product2 j_vorticity u_at_quad mul2 vorticity_at_quad wind "
     "vorticity",
@@ -386,7 +386,7 @@ def main(cmd_args):
     for name, kern in kernels_to_process:
 
         # For each kernel, construct the 'make' command to execute.
-        arg_list = ["make", f"--jobs={args.nproc}",
+        arg_list = ["make", #f"--jobs={args.nproc}",
                     f"KERNEL_FILE={kern.kernel_file}",
                     f"ADJ_FILE={kern.adj_file}",
                     f"HARNESS_FILE={kern.harness_file}"]
@@ -405,17 +405,20 @@ def main(cmd_args):
 
         print(f"Running: '{' '.join(arg_list)}'")
         try:
-            complete = subprocess.run(arg_list, check=True)
-            #process = subprocess.Popen(arg_list, stdout=subprocess.PIPE,
-            #                           stderr=subprocess.STDOUT)
-            #for c in iter(lambda: process.stdout.read(1), b""):
-            #    sys.stdout.buffer.write(c)
-
+            complete = subprocess.run(arg_list, check=True,
+                                      capture_output=False,
+                                      text=True)
+            #if "PASSED: " in complete.stdout:
+            #    print(f"Test of kernel {name} passed.")
+            #else:
+            #    print(f"Test of kernel {name} failed:\n{complete.stdout}")
         except OSError as err:
             print(f"Failed to process kernel {name}: {err}",
                   file=sys.stderr)
             continue
-
+        except subprocess.CalledProcessError as err:
+            print(f"Build and run of test harness failed:\n{err.output}")
+            continue
 
 if __name__ == "__main__":
     main(sys.argv[1:])
