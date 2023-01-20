@@ -736,8 +736,14 @@ class ArgOrdering:
                 f"{const.VALID_SCALAR_NAMES} but got "
                 f"'{scalar_arg.argument_type}'")
 
-        self.append(scalar_arg.name, var_accesses, mode=scalar_arg.access,
-                    metadata_posn=scalar_arg.metadata_index)
+        if scalar_arg.is_literal:
+            # If we have a literal, do not add it to the variable access
+            # information. We do this by providing None as var access.
+            self.append(scalar_arg.name, None, mode=scalar_arg.access,
+                        metadata_posn=scalar_arg.metadata_index)
+        else:
+            self.append(scalar_arg.name, var_accesses, mode=scalar_arg.access,
+                        metadata_posn=scalar_arg.metadata_index)
 
     def fs_common(self, function_space, var_accesses=None):
         '''Add function-space related arguments common to LMA operators and
