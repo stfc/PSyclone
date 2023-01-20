@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -305,6 +305,7 @@ class LFRicConstants():
                                         "r_double": 8,
                                         "r_ncdf": 8,
                                         "r_quad": 16,
+                                        "r_second": 8,
                                         "r_single": 4,
                                         "r_solver": 4,
                                         "r_tran": 8,
