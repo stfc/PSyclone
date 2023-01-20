@@ -188,7 +188,7 @@ class ModuleInfo:
         :rtype: Set[str]
 
         '''
-        if not self._used_modules:
+        if self._used_modules is None:
             self._extract_import_information()
 
         return self._used_modules
@@ -208,7 +208,7 @@ class ModuleInfo:
         :rtype: Dict[str, Set[str]]
 
         '''
-        if not self._used_symbols_from_module:
+        if self._used_symbols_from_module is None:
             self._extract_import_information()
 
         return self._used_symbols_from_module
