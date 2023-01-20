@@ -150,13 +150,10 @@ class ModuleManager:
         # the directories, we search directories one at a time, and
         # add the list of all files in that directory to our cache
         # _mod_2_filename
-
-        search_paths_copy = self._search_paths.copy()
-
-        # use while .. and pop(0)
-        for directory in search_paths_copy:
+        while self._search_paths:
+            # Get the first element from the search path list:
+            directory = self._search_paths.pop(0)
             self._add_all_files_from_dir(directory)
-            self._search_paths.remove(directory)
             mod_info = self._mod_2_filename.get(mod_lower, None)
             if mod_info:
                 return mod_info
