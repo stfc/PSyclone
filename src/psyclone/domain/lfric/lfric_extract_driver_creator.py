@@ -149,31 +149,9 @@ class LFRicExtractDriverCreator:
        then be compared with `f_post`.
 
     '''
-    def __init__(self, precision=None):
+    def __init__(self):
         self._all_field_types = ["field_type", "integer_field_type",
                                  "r_solver_field_type", "r_tran_field_type"]
-        # Set the size of the various precision types used in LFRic.
-        self._precision = {"i_def": "int32",
-                           "r_def": "real64",
-                           "r_second": "real64",
-                           "r_solver": "real32",
-                           "r_tran": "real32"}
-        if precision:
-            if not isinstance(precision, dict):
-                raise InternalError(
-                    f"The precision argument of the LFRic driver creator "
-                    f"must be a dictionary, but got "
-                    f"'{type(precision).__name__}'.")
-            self._precision.update(precision)
-
-        # Create a mapping from the proxy type (e.g. "operator_proxy_type")
-        # to the kind value (e.g. "r_def")
-        const = LFRicConstants()
-        self._map_fields_to_precision = {}
-        for field_info in const.DATA_TYPE_MAP.values():
-            if field_info["proxy_type"] is not None:
-                self._map_fields_to_precision[field_info["proxy_type"]] \
-                    = field_info["kind"]
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -634,59 +612,28 @@ class LFRicExtractDriverCreator:
 
     # -------------------------------------------------------------------------
     def add_precision_symbols(self, symbol_table):
-        '''This function adds an import of the iso_fortran_env standard
-        module to the given symbol table. It uses the various precision
-        symbols defined there to define the LFRic specific precision
-        symbols like 'r_def' ... The actual type is picked depending on
-        the setting in the `self._precision` dictionary.
+        '''This function adds an import of the various precision
+        symbols used by LFRic from the constants_mod module.
 
         :param symbol_table: the symbol table to which the precision symbols \
             must be added.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
-        # Using the intrinsic module requires a ",". Just add this
-        # as part of the name, the writer then produces the expected
-        # Fortran code (`use ,intrinsic::iso_fortran_env, only:`)
-        intrinsic_mod = ContainerSymbol(",intrinsic::iso_fortran_env")
-        symbol_table.add(intrinsic_mod)
-
-        # Add the import of the real32 and real64 symbols from
-        # iso_fortran_env:
-        real32_type = DataTypeSymbol("real32", INTEGER_TYPE,
-                                     interface=ImportInterface(intrinsic_mod))
-        symbol_table.add(real32_type)
-        real64_type = DataTypeSymbol("real64", INTEGER_TYPE,
-                                     interface=ImportInterface(intrinsic_mod))
-        symbol_table.add(real64_type)
-
-        # Define all required real precision symbols:
-        map_prec = {"real32": real32_type,
-                    "real64": real64_type}
-
-        for prec_name in ["r_def", "r_second", "r_solver", "r_tran"]:
-            prec_type = map_prec[self._precision[prec_name]]
+        const = LFRicConstants()
+        mod_name = const.UTILITIES_MOD_MAP["constants"]["module"]
+        constant_mod = ContainerSymbol(mod_name)
+        symbol_table.add(constant_mod)
+        # r_quad is defined in constants_mod, but not exported. So
+        # we have to remove it from the lists of precisions to import.
+        # TODO #2018
+        all_precisions = [name for name in const.PRECISION_MAP
+                          if name != "r_quad"]
+        for prec_name in all_precisions:
             symbol_table.new_symbol(prec_name,
                                     symbol_type=DataSymbol,
                                     datatype=INTEGER_TYPE,
-                                    constant_value=Reference(prec_type))
-
-        # Add integer32 or integer64
-        int_type = DataTypeSymbol(self._precision["i_def"],
-                                  INTEGER_TYPE,
-                                  interface=ImportInterface(intrinsic_mod))
-        symbol_table.add(int_type)
-
-        symbol_table.new_symbol("i_def",
-                                symbol_type=DataSymbol,
-                                datatype=INTEGER_TYPE,
-                                constant_value=Reference(int_type))
-
-        # Add l_def:
-        symbol_table.new_symbol("l_def",
-                                symbol_type=DataSymbol,
-                                datatype=INTEGER_TYPE,
-                                constant_value=Reference(int_type))
+                                    interface=ImportInterface(constant_mod))
 
     # -------------------------------------------------------------------------
     @staticmethod

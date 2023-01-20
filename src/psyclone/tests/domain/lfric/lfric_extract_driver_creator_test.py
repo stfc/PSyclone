@@ -39,7 +39,7 @@ import re
 
 import pytest
 
-from psyclone.domain.lfric import LFRicConstants, LFRicExtractDriverCreator
+from psyclone.domain.lfric import LFRicExtractDriverCreator
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Literal, Routine, Schedule
@@ -49,53 +49,6 @@ from psyclone.tests.utilities import get_invoke
 
 
 API = "dynamo0.3"
-
-
-def test_lfric_driver_constructor():
-    '''Tests the constructor of the LFRic driver creator.'''
-
-    driver_creator = LFRicExtractDriverCreator()
-    default_precision = {"i_def": "int32", "r_def": "real64",
-                         "r_second": "real64", "r_solver": "real32",
-                         "r_tran": "real32"}
-
-    assert driver_creator._precision == default_precision
-
-    # Check that we can modify the default precisions:
-    new_precision = {"r_solver": "real64", "r_tran": "real64"}
-    driver_creator = LFRicExtractDriverCreator(new_precision)
-    assert (driver_creator._precision ==
-            {"i_def": "int32", "r_def": "real64",
-             "r_second": "real64", "r_solver": "real64",
-             "r_tran": "real64"})
-
-
-# ----------------------------------------------------------------------------
-def test_lfric_driver_field_mapping():
-    '''Tests that the mapping of fields to precision is as expected.'''
-    mapping = LFRicConstants().DATA_TYPE_MAP
-    correct = {}
-
-    for field in ["columnwise_operator",
-                  "field", "integer_field",
-                  "operator", "r_solver_field",
-                  "r_solver_operator", "r_tran_field"]:
-        correct[mapping[field]["proxy_type"]] = mapping[field]["kind"]
-
-    driver_creator = LFRicExtractDriverCreator()
-    assert driver_creator._map_fields_to_precision == correct
-
-
-# ----------------------------------------------------------------------------
-def test_lfric_driver_constructor_error():
-    '''Tests the error handling of the constructor of the LFRic driver
-    creator.'''
-
-    # Wrong argument type:
-    with pytest.raises(InternalError) as err:
-        _ = LFRicExtractDriverCreator(precision=1)
-    assert ("The precision argument of the LFRic driver creator must be a "
-            "dictionary, but got 'int'." in str(err.value))
 
 
 # ----------------------------------------------------------------------------
