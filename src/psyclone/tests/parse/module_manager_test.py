@@ -274,3 +274,41 @@ def test_mod_manager_get_all_dependencies_recursively(capsys):
     assert all_e["e_mod"] == set()
     out, _ = capsys.readouterr()
     assert "Could not find module 'netcdf'" in out
+
+
+# ----------------------------------------------------------------------------
+def test_mod_man_sort_modules(capsys):
+    '''Tests that sorting of modules works as expected.'''
+
+    # Empty input:
+    assert ModuleManager.sort_modules({}) == []
+
+    # A depends on B:
+    deps = {"a": {"b"}, "b": set()}
+    assert ModuleManager.sort_modules(deps) == ["b", "a"]
+
+    deps = {"a": {"b", "c"}, "b": set(), "c": {"b"}}
+    assert ModuleManager.sort_modules(deps) == ["b", "c", "a"]
+
+    deps = {"a": {"b", "c"}, "b": set(), "c": {"netcdf", "b"}}
+    deps_sorted = ModuleManager.sort_modules(deps)
+    assert deps_sorted == ["b", "c", "a"]
+    out, _ = capsys.readouterr()
+    assert ("Module 'c' contains a dependency to 'netcdf', for which we "
+            "have no dependencies." in out)
+
+    deps = {"a": {"b", "c"}, "b": {"c"}, "c": {"b"}}
+    deps_sorted = ModuleManager.sort_modules(deps)
+    out, _ = capsys.readouterr()
+    # The dependencies for a can be given in two orders (b,c or c,b),
+    # since it is an unsorted set. Only test for the rest of the output
+    # message, especially the part that shows the dependencies between
+    # b and c:
+    assert ("Circular dependency - cannot sort module dependencies: "
+            "{'a': " in out)
+    assert "'b': {'c'}, 'c': {'b'}}" in out
+
+    # b and c must be the first two elements, but they can be in any
+    # order (unsorted set)
+    assert set(deps_sorted[:2]) == {"b", "c"}
+    assert deps_sorted[2:] == ["a"]

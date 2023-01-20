@@ -37,6 +37,7 @@
 which module is contained in which file (including full location). '''
 
 
+import copy
 import os
 
 from psyclone.errors import InternalError
@@ -152,6 +153,7 @@ class ModuleManager:
 
         search_paths_copy = self._search_paths.copy()
 
+        # use while .. and pop(0)
         for directory in search_paths_copy:
             self._add_all_files_from_dir(directory)
             self._search_paths.remove(directory)
@@ -242,3 +244,71 @@ class ModuleManager:
             todo |= new_deps
 
         return module_dependencies
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def sort_modules(module_dependencies):
+        '''This function sorts the given dependencies so that all
+        dependencies of a module are before any module that
+        needs it. Input is a dictionary that contains all modules to
+        be sorted as keys, and the value for each module is the set
+        of dependencies that the module depends on.
+
+        :param module_dependencies: the list of modules required as keys, \
+            with all their dependencies as value.
+        :type module_dependencies: Dict[str, Set[str]]
+
+        :returns: the sorted list of modules.
+        :rtype: List[str]
+
+        '''
+        result = []
+
+        # Create a copy to avoid modifying the callers data structure:
+        todo = copy.deepcopy(module_dependencies)
+
+        # Consistency check: test that all dependencies listed are also
+        # a key in the list, otherwise there will be a dependency that
+        # breaks sorting. If an unknown dependency is detected, print
+        # a warning, and remove it (otherwise no sort order could be
+        # determined).
+        for module, dependencies in todo.items():
+            # Take a copy so we can modify the original set of dependencies:
+            dependencies_copy = dependencies.copy()
+            for dep in dependencies_copy:
+                if dep not in todo:
+                    print(f"Module '{module}' contains a dependency to "
+                          f"'{dep}', for which we have no dependencies.")
+                    dependencies.remove(dep)
+
+        while todo:
+            # Find one module that has no dependencies, which is the
+            # next module to be added to the results.
+            for mod, dep in todo.items():
+                if not dep:
+                    break
+            else:
+                # If there is no module without a dependency, there
+                # is a circular dependency
+                print(f"Circular dependency - cannot sort "
+                      f"module dependencies: {todo}")
+                # In this case pick a module with the least number of
+                # dependencies, the best we can do in this case - and
+                # it's better to provide all modules (even if they cannot)
+                # be sorted, than missing some.
+                all_mods_sorted = sorted((mod for mod in todo.keys()),
+                                         key=lambda x: len(todo[x]))
+                mod = all_mods_sorted[0]
+
+            # Add the current module to the result and remove it from
+            # the todo list.
+            result.append(mod)
+            del todo[mod]
+
+            # Then remove this module from the dependencies of all other
+            # modules:
+            for dep in todo.values():
+                if mod in dep:
+                    dep.remove(mod)
+
+        return result

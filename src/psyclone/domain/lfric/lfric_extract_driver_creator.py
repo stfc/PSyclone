@@ -910,35 +910,6 @@ class LFRicExtractDriverCreator:
         return module_dependencies
 
     # -------------------------------------------------------------------------
-    def sort_modules(self, module_dependencies):
-        '''This function sorts the given dependencies so that all
-        dependencies of a module are before any module that
-        needs it.
-
-        :returns: the sorted list of modules.
-        :rtype: List[str]
-
-        '''
-        result = []
-
-        while module_dependencies:
-            for mod, dep in module_dependencies.items():
-                if not dep:
-                    break
-            else:
-                print("REST", module_dependencies)
-                print("Circular dependency???")
-                return result
-
-            result.append(mod)
-            del module_dependencies[mod]
-            for dep in module_dependencies.values():
-                if mod in dep:
-                    dep.remove(mod)
-
-        return result
-
-    # -------------------------------------------------------------------------
     def get_driver_as_string(self, nodes, input_list, output_list,
                              prefix, postfix, region_name,
                              writer=FortranWriter()):
@@ -986,7 +957,7 @@ class LFRicExtractDriverCreator:
             return ""
 
         module_dependencies = self.collect_all_required_modules(file_container)
-        sorted_modules = self.sort_modules(module_dependencies)
+        sorted_modules = ModuleManager.sort_modules(module_dependencies)
 
         out = []
         mod_manager = ModuleManager.get()
