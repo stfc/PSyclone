@@ -162,6 +162,20 @@ class LFRicKernelMetadata(CommonMetadata):
             # Validate name via setter
             self.name = name
 
+    def _validation_error_str(self, description):
+        '''Utility to extend a validation error message in a standard form,
+        with additional context information.
+
+        :param str description: the original error description.
+
+        :returns: an updated error description.
+        :rtype: str
+
+        '''
+        return (
+            f"{description} in kernel metadata '{self.name}' for procedure "
+            f"'{self.procedure_name}'.")
+
     def validate(self):
         '''Only certain metadata combinations are allowed in LFRic. This
         routine checks that any such constraints are respected.
@@ -251,12 +265,11 @@ class LFRicKernelMetadata(CommonMetadata):
                  InterGridArgMetadata, InterGridVectorArgMetadata])
             for field_arg in field_args:
                 if field_arg.datatype != "gh_real":
-                    raise ParseError(
+                    raise ParseError(self._validation_error_str(
                         f"Kernel metadata with a meta_args operator argument "
-                        f"must only contain meta_args real-valued "
-                        f"field arguments. However, the kernel metadata "
-                        f"'{self.name}' for procedure '{self.procedure_name}' "
-                        f"contains a field of type '{field_arg.datatype}'.")
+                        f"must only contain meta_args real-valued field "
+                        f"arguments, however found a field of type "
+                        f"'{field_arg.datatype}'"))
 
     def _validate_general_purpose_kernel(self):
         '''Validation checks for a general purpose kernel.
@@ -269,10 +282,9 @@ class LFRicKernelMetadata(CommonMetadata):
 
         # General-purpose kernels do not operate over the domain.
         if self.operates_on == "domain":
-            raise ParseError(
-                f"A general purpose kernel should not operate on a domain. "
-                f"However, the kernel metadata '{self.name}' for procedure "
-                f"'{self.procedure_name}' does.")
+            raise ParseError(self._validation_error_str(
+                "A general purpose kernel should not operate on a domain, "
+                "however this does"))
 
         # General-purpose kernels with operates_on = CELL_COLUMN only
         # accept meta_arg arguments of the following types: field,
@@ -285,13 +297,11 @@ class LFRicKernelMetadata(CommonMetadata):
                 if type(meta_arg) not in [
                         FieldArgMetadata, FieldVectorArgMetadata,
                         OperatorArgMetadata, ScalarArgMetadata]:
-                    raise ParseError(
+                    raise ParseError(self._validation_error_str(
                         f"General purpose kernels with 'operates_on == "
                         f"cell_column' should only have meta_arg arguments "
-                        f"of type field, field vector, LMA operator or "
-                        f"scalar, but found '{meta_arg.check_name}' in kernel "
-                        f"metadata '{self.name}' for procedure "
-                        f"'{self.procedure_name}'.")
+                        f"of type field, field vector, LMA operator or scalar"
+                        f", but found '{meta_arg.check_name}'"))
 
         # TODO issue #1953: constraints when operates_on == dofs
         # 1: They must have one and only one modified (i.e. written
@@ -327,22 +337,19 @@ class LFRicKernelMetadata(CommonMetadata):
         self._validate_generic_kernel()
 
         if self.operates_on != "domain":
-            raise ParseError(
+            raise ParseError(self._validation_error_str(
                 f"Domain kernels should have their operates_on metadata set "
-                f"to 'domain', but found '{self.operates_on}' in kernel "
-                f"metadata '{self.name}' for procedure "
-                f"'{self.procedure_name}'.")
+                f"to 'domain', but found '{self.operates_on}'"))
 
         # Only scalar, field and field vector arguments are permitted.
         for meta_arg in self.meta_args:
             if type(meta_arg) not in [
                     ScalarArgMetadata, FieldArgMetadata,
                     FieldVectorArgMetadata]:
-                raise ParseError(
+                raise ParseError(self._validation_error_str(
                     f"Domain kernels should only have meta_arg arguments "
                     f"of type field, field vector, or scalar, but found "
-                    f"'{meta_arg.check_name}' in kernel metadata "
-                    f"'{self.name}' for procedure '{self.procedure_name}'.")
+                    f"'{meta_arg.check_name}'"))
 
         # All fields must be on discontinuous function spaces and
         # stencil accesses are not permitted.
@@ -352,33 +359,27 @@ class LFRicKernelMetadata(CommonMetadata):
         for meta_arg in fields_metadata:
             if meta_arg.function_space not in \
                lfric_constants.DISCONTINUOUS_FUNCTION_SPACES:
-                raise ParseError(
+                raise ParseError(self._validation_error_str(
                     f"Domain kernels meta_arg arguments of type field, or "
                     f"field vector should be on a discontinuous function "
-                    f"space, but found '{meta_arg.function_space}' in kernel "
-                    f"metadata '{self.name}' for procedure "
-                    f"'{self.procedure_name}'.")
+                    f"space, but found '{meta_arg.function_space}'"))
             if meta_arg.stencil:
-                raise ParseError(
+                raise ParseError(self._validation_error_str(
                     f"Domain kernels meta_arg arguments of type field, or "
                     f"field vector should not have any stencil accesses, but "
-                    f"found a stencil of type '{meta_arg.stencil}' in kernel "
-                    f"metadata '{self.name}' for procedure "
-                    f"'{self.procedure_name}'.")
+                    f"found a stencil of type '{meta_arg.stencil}'"))
 
         # No basis/diff basis functions are allowed.
         if self.meta_funcs:
-            raise ParseError(
-                f"Domain kernels should not contain basis or differential "
-                f"basis functions, but kernel metadata '{self.name}' for "
-                f"procedure '{self.procedure_name}' does.")
+            raise ParseError(self._validation_error_str(
+                "Domain kernels should not contain basis or differential "
+                "basis functions, but this does"))
 
         # No mesh properties are allowed.
         if self.meta_mesh:
-            raise ParseError(
-                f"Domain kernels should not contain mesh properties but "
-                f"kernel metadata '{self.name}' for procedure "
-                f"'{self.procedure_name}' does.")
+            raise ParseError(self._validation_error_str(
+                "Domain kernels should not contain mesh properties, but "
+                "this does"))
 
     def _cma_kernel_type(self):
         '''Determine the type of CMA (Column Matrix Assembly) kernel this is.
@@ -409,43 +410,37 @@ class LFRicKernelMetadata(CommonMetadata):
 
         # Must operate on a cell_column.
         if self.operates_on != "cell_column":
-            raise ParseError(
-                f"A CMA kernel should only operate on a 'cell_column'. "
-                f"However, the kernel metadata '{self.name}' for procedure "
-                f"'{self.procedure_name}' operates on '{self.operates_on}'.")
+            raise ParseError(self._validation_error_str(
+                f"A CMA kernel should only operate on a 'cell_column', but "
+                f"found '{self.operates_on}'"))
 
         # At least one CMA operator argument required.
         cma_ops = self.meta_args_get(ColumnwiseOperatorArgMetadata)
         if not cma_ops:
-            raise ParseError(
-                f"A CMA kernel should contain at least one cma operator "
-                f"argument but none are specified in the meta_args metadata "
-                f"in kernel metadata '{self.name}' for procedure "
-                f"'{self.procedure_name}'.")
+            raise ParseError(self._validation_error_str(
+                "A CMA kernel should contain at least one cma operator "
+                "argument but none are specified in the meta_args metadata"))
 
         # No intergrid arguments allowed.
         if self.meta_args_get(
                 [InterGridArgMetadata, InterGridVectorArgMetadata]):
-            raise ParseError(
-                f"A CMA kernel should not contain any intergrid arguments, "
-                f"but at least one was found in kernel metadata '{self.name}' "
-                f"for procedure '{self.procedure_name}'.")
+            raise ParseError(self._validation_error_str(
+                "A CMA kernel should not contain any intergrid arguments, "
+                "but at least one was found"))
 
         # No field vector arguments allowed.
         if self.meta_args_get(FieldVectorArgMetadata):
-            raise ParseError(
-                f"A CMA kernel should not contain any field vector arguments, "
-                f"but at least one was found in kernel metadata '{self.name}' "
-                f"for procedure '{self.procedure_name}'.")
+            raise ParseError(self._validation_error_str(
+                "A CMA kernel should not contain any field vector arguments, "
+                "but at least one was found"))
 
         # No stencils in field arguments.
         fields_metadata = self.meta_args_get(FieldArgMetadata)
         for meta_arg in fields_metadata:
             if meta_arg.stencil:
-                raise ParseError(
-                    f"A CMA kernel should not contain any fields with stencil "
-                    f"accesses, but at least one was found in kernel metadata "
-                    f"'{self.name}' for procedure '{self.procedure_name}'.")
+                raise ParseError(self._validation_error_str(
+                    "A CMA kernel should not contain any fields with stencil "
+                    "accesses, but at least one was found"))
 
     def _validate_cma_assembly_kernel(self):
         '''Validation checks for a CMA assembly kernel.
@@ -459,37 +454,31 @@ class LFRicKernelMetadata(CommonMetadata):
         # One CMA operator argument.
         cma_ops = self.meta_args_get(ColumnwiseOperatorArgMetadata)
         if len(cma_ops) != 1:
-            raise ParseError(
+            raise ParseError(self._validation_error_str(
                 f"A CMA assembly kernel should contain one CMA operator "
-                f"argument, however kernel metadata '{self.name}' for "
-                f"procedure '{self.procedure_name}' contains {len(cma_ops)}.")
+                f"argument, however {len(cma_ops)} were found"))
 
         # CMA operator argument must have write access.
         if cma_ops[0].access == "gh_read":
-            raise ParseError(
+            raise ParseError(self._validation_error_str(
                 f"A CMA assembly kernel should contain one CMA operator "
-                f"argument with write access, however the operator in kernel "
-                f"metadata '{self.name}' for procedure "
-                f"'{self.procedure_name}' has access '{cma_ops[0].access}'.")
+                f"argument with write access, however it has access "
+                f"'{cma_ops[0].access}'"))
 
         # One or more LMA operators required.
         if not self.meta_args_get(OperatorArgMetadata):
-            raise ParseError(
-                f"A CMA assembly kernel should contain at least one LMA "
-                f"operator but none were found in kernel metadata "
-                f"'{self.name}' for procedure '{self.procedure_name}'.")
-
+            raise ParseError(self._validation_error_str(
+                "A CMA assembly kernel should contain at least one LMA "
+                "operator but none were found"))
         # All arguments except the CMA argument must be read-only.
         # pylint: disable=unidiomatic-typecheck
         for meta_arg in self.meta_args:
             if type(meta_arg) != ColumnwiseOperatorArgMetadata:
                 if meta_arg.access != "gh_read":
-                    raise ParseError(
+                    raise ParseError(self._validation_error_str(
                         f"A CMA assembly kernel should have all arguments as "
-                        f"read-only apart from the CMA argument, but kernel "
-                        f"metadata '{self.name}' for procedure "
-                        f"'{self.procedure_name}' has a non-CMA argument with "
-                        f"access '{meta_arg.access}'.")
+                        f"read-only apart from the CMA argument, but found "
+                        f"non-CMA argument with access '{meta_arg.access}'"))
         # pylint: enable=unidiomatic-typecheck
 
     def _validate_cma_apply_kernel(self):
@@ -507,56 +496,48 @@ class LFRicKernelMetadata(CommonMetadata):
         for meta_arg in self.meta_args:
             if type(meta_arg) not in [
                     ColumnwiseOperatorArgMetadata, FieldArgMetadata]:
-                raise ParseError(
+                raise ParseError(self._validation_error_str(
                     f"A CMA apply kernel should only contain field or CMA "
-                    f"operator arguments, but found '{meta_arg.check_name}' "
-                    f"in kernel metadata '{self.name}' for procedure "
-                    f"'{self.procedure_name}'.")
+                    f"operator arguments, but found '{meta_arg.check_name}'"))
 
         # One CMA operator argument.
         cma_ops = self.meta_args_get(ColumnwiseOperatorArgMetadata)
         if len(cma_ops) != 1:
-            raise ParseError(
+            raise ParseError(self._validation_error_str(
                 f"A CMA apply kernel should contain one CMA operator "
-                f"argument, however kernel metadata '{self.name}' for "
-                f"procedure '{self.procedure_name}' contains {len(cma_ops)}.")
+                f"argument, however found {len(cma_ops)}"))
         cma_op = cma_ops[0]
 
         # CMA operator argument must be read only.
         if cma_op.access != "gh_read":
-            raise ParseError(
-                f"A CMA apply kernel should contain one CMA operator "
-                f"argument with read access, however the operator in kernel "
-                f"metadata '{self.name}' for procedure "
-                f"'{self.procedure_name}' has access '{cma_op.access}'.")
+            raise ParseError(self._validation_error_str(
+                f"A CMA apply kernel should contain one CMA operator argument "
+                f"with read access, however the operator has access "
+                f"'{cma_op.access}'"))
 
         # Two field arguments.
         field_args = self.meta_args_get(FieldArgMetadata)
         if not field_args:
-            raise ParseError(
-                f"A CMA apply kernel should contain two field arguments, but "
-                f"none were found in kernel metadata '{self.name}' for "
-                f"procedure '{self.procedure_name}'.")
+            raise ParseError(self._validation_error_str(
+                "A CMA apply kernel should contain two field arguments, but "
+                "none were found"))
         if len(field_args) != 2:
             word = "were"
             if len(field_args) == 1:
                 word = "was"
-            raise ParseError(
+            raise ParseError(self._validation_error_str(
                 f"A CMA apply kernel should contain two field arguments, but "
-                f"{len(field_args)} {word} found in kernel metadata "
-                f"'{self.name}' for procedure '{self.procedure_name}'.")
+                f"{len(field_args)} {word} found"))
 
         # One field that is read and one field that is written.
         if not ((field_args[0].access == "gh_read" and
                  field_args[1].access in lfric_constants.WRITE_ACCESSES) or
                 (field_args[0].access in lfric_constants.WRITE_ACCESSES and
                  field_args[1].access == "gh_read")):
-            raise ParseError(
+            raise ParseError(self._validation_error_str(
                 f"A CMA apply kernel should contain two field arguments, one "
                 f"of which is read and the other written, but found "
-                f"'{field_args[0].access}' and '{field_args[1].access}' in "
-                f"kernel metadata '{self.name}' for procedure "
-                f"'{self.procedure_name}'.")
+                f"'{field_args[0].access}' and '{field_args[1].access}'"))
 
         # The function spaces of the read and written fields must
         # match the from and to spaces, respectively, of the CMA
@@ -568,23 +549,19 @@ class LFRicKernelMetadata(CommonMetadata):
             reader_field = field_args[0]
             writer_field = field_args[1]
         if writer_field.function_space != cma_op.function_space_to:
-            raise ParseError(
+            raise ParseError(self._validation_error_str(
                 f"In a CMA apply kernel, the function space of the written "
                 f"field must match the function space of the CMA operator's "
                 f"'to' function space, but found "
                 f"'{writer_field.function_space}' and "
-                f"'{cma_op.function_space_to}' respectively in kernel "
-                f"metadata '{self.name}' for procedure "
-                f"'{self.procedure_name}'.")
+                f"'{cma_op.function_space_to}' respectively"))
         if reader_field.function_space != cma_op.function_space_from:
-            raise ParseError(
+            raise ParseError(self._validation_error_str(
                 f"In a CMA apply kernel, the function space of the read "
                 f"field must match the function space of the CMA operator's "
                 f"'from' function space, but found "
                 f"'{reader_field.function_space}' and "
-                f"'{cma_op.function_space_from}' respectively in kernel "
-                f"metadata '{self.name}' for procedure "
-                f"'{self.procedure_name}'.")
+                f"'{cma_op.function_space_from}' respectively"))
 
     def _validate_cma_matrix_matrix_kernel(self):
         '''Validation checks for a CMA matrix-matrix kernel.
@@ -601,11 +578,10 @@ class LFRicKernelMetadata(CommonMetadata):
         for meta_arg in self.meta_args:
             if type(meta_arg) not in [
                     ColumnwiseOperatorArgMetadata, ScalarArgMetadata]:
-                raise ParseError(
+                raise ParseError(self._validation_error_str(
                     f"A CMA matrix-matrix kernel must only contain CMA "
-                    f"operators or scalars, but found '{meta_arg.check_name}' "
-                    f"in kernel metadata '{self.name}' for procedure "
-                    f"'{self.procedure_name}'.")
+                    f"operators or scalars, but found "
+                    f"'{meta_arg.check_name}'"))
 
         # Exactly one of the CMA arguments must be written to.
         # pylint: disable=unidiomatic-typecheck
@@ -614,11 +590,9 @@ class LFRicKernelMetadata(CommonMetadata):
                        and meta_arg.access in lfric_constants.WRITE_ACCESSES]
         # pylint: enable=unidiomatic-typecheck
         if len(cma_writers) != 1:
-            raise ParseError(
+            raise ParseError(self._validation_error_str(
                 f"A CMA matrix-matrix kernel must write to exactly one CMA "
-                f"operator argument, but found {len(cma_writers)} writers in "
-                f"kernel metadata '{self.name}' for procedure "
-                f"'{self.procedure_name}'.")
+                f"operator argument, but found {len(cma_writers)} writers"))
 
         # All arguments other than a single CMA argument should be read
         # only. CMA arguments have been checked. Only scalars remain
@@ -636,76 +610,64 @@ class LFRicKernelMetadata(CommonMetadata):
 
         # Must operate on a cell_column.
         if self.operates_on != "cell_column":
-            raise ParseError(
-                f"An intergrid kernel should only operate on a 'cell_column'. "
-                f"However, the kernel metadata '{self.name}' for procedure "
-                f"'{self.procedure_name}' operates on '{self.operates_on}'.")
+            raise ParseError(self._validation_error_str(
+                f"An intergrid kernel should only operate on a "
+                f"'cell_column', but found '{self.operates_on}'."))
 
         # All args must be intergrid args.
         for meta_arg in self.meta_args:
             if not isinstance(meta_arg, InterGridArgMetadata):
-                raise ParseError(
+                raise ParseError(self._validation_error_str(
                     f"An intergrid kernel should only have intergrid "
-                    f"arguments, but found '{meta_arg.check_name}' in kernel "
-                    f"metadata '{self.name}' for procedure "
-                    f"'{self.procedure_name}'.")
+                    f"arguments, but found '{meta_arg.check_name}'"))
 
         coarse_args = [meta_arg for meta_arg in self.meta_args
                        if meta_arg.mesh_arg == "gh_coarse"]
         # There must be at least one intergrid arg on a coarse mesh.
         if not coarse_args:
-            raise ParseError(
-                f"An intergrid kernel should have at least one intergrid "
-                f"argument on the coarse mesh, but none were found in kernel "
-                f"metadata '{self.name}' for procedure "
-                f"'{self.procedure_name}'.")
+            raise ParseError(self._validation_error_str(
+                "An intergrid kernel should have at least one intergrid "
+                "argument on the coarse mesh, but none were found"))
 
         # All intergrid args on the coarse mesh are on the same
         # function space.
         coarse_function_space = coarse_args[0].function_space
         for coarse_arg in coarse_args[1:]:
             if coarse_arg.function_space != coarse_function_space:
-                raise ParseError(
+                raise ParseError(self._validation_error_str(
                     f"An intergrid kernel should have all of its arguments, "
                     f"that are on the coarse mesh, on the same function "
                     f"space. However, '{coarse_arg.function_space}' and "
-                    f"'{coarse_function_space}' differ in kernel "
-                    f"metadata '{self.name}' for procedure "
-                    f"'{self.procedure_name}'.")
+                    f"'{coarse_function_space}' differ"))
 
         fine_args = [meta_arg for meta_arg in self.meta_args
                      if meta_arg.mesh_arg == "gh_fine"]
         # There must be at least one intergrid arg on a fine mesh.
         if not fine_args:
-            raise ParseError(
-                f"An intergrid kernel should have at least one intergrid "
-                f"argument on the fine mesh, but none were found in kernel "
-                f"metadata '{self.name}' for procedure "
-                f"'{self.procedure_name}'.")
+            raise ParseError(self._validation_error_str(
+                "An intergrid kernel should have at least one intergrid "
+                "argument on the fine mesh, but none were found"))
 
         fine_function_space = fine_args[0].function_space
         # All intergrid args on the fine mesh are on the same
         # function space.
         for fine_arg in fine_args[1:]:
             if fine_arg.function_space != fine_function_space:
-                raise ParseError(
+                raise ParseError(self._validation_error_str(
                     f"An intergrid kernel should have all of its arguments, "
                     f"that are on the fine mesh, on the same function "
                     f"space. However, '{fine_arg.function_space}' and "
-                    f"'{fine_function_space}' differ in kernel "
-                    f"metadata '{self.name}' for procedure "
-                    f"'{self.procedure_name}'.")
+                    f"'{fine_function_space}' differ"))
 
         # The function space used by the args on the coarse mesh must
         # differ from the function space used by the args on the fine
         # mesh.
         if coarse_function_space == fine_function_space:
-            raise ParseError(
+            raise ParseError(self._validation_error_str(
                 f"An intergrid kernel should have different function spaces "
                 f"for the arguments on the coarse mesh and the arguments on "
                 f"the fine mesh. However, both are on "
-                f"'{coarse_function_space}' in kernel metadata '{self.name}' "
-                f"for procedure '{self.procedure_name}'.")
+                f"'{coarse_function_space}'"))
 
     @staticmethod
     def create_from_psyir(symbol):
