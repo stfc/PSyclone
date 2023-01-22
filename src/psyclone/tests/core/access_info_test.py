@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -683,6 +683,19 @@ def test_variables_access_info_shape_bounds(fortran_reader, function):
     vai = VariablesAccessInfo(node1,
                               options={"COLLECT-ARRAY-SHAPE-READS": True})
     assert str(vai) == "a: READ, n: WRITE"
+
+
+# -----------------------------------------------------------------------------
+def test_variables_access_info_domain_loop():
+    '''Tests that LFRic domain loop (that do not have an actual loop
+    structure, so especially the loop variable is not defined) work as
+    expected.
+    '''
+    _, invoke = get_invoke("25.1_kern_two_domain.f90", "dynamo0.3", idx=0)
+    vai = VariablesAccessInfo(invoke.schedule)
+    assert str(vai) == ("a: READ, b: READ, f1: READWRITE, f2: READWRITE, "
+                        "map_w3: READ, ncell_2d_no_halos: READ, ndf_w3: READ, "
+                        "nlayers: READ, undf_w3: READ")
 
 
 # -----------------------------------------------------------------------------
