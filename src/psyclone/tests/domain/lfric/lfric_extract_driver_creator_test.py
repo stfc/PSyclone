@@ -219,6 +219,27 @@ def test_lfric_driver_simple_test():
 
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir")
+def test_lfric_driver_import_precision():
+    '''Test that all required precision symbols are imported from
+    constants_mod'''
+
+    _, invoke = get_invoke("26.6_mixed_precision_solver_vector.f90", API,
+                           dist_mem=False, idx=0)
+
+    extract = LFRicExtractTrans()
+    extract.apply(invoke.schedule.children[0],
+                  options={"create_driver": True,
+                           "region_name": ("field", "test")})
+
+    filename = ("driver-field-test.F90")
+    with open(filename, "r", encoding='utf-8') as my_file:
+        driver = my_file.read()
+    assert ("use constants_mod, only : i_def, l_def, r_def, r_double, r_ncdf, "
+            "r_second, r_single, r_solver, r_tran, r_um" in driver)
+
+
+# ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir")
 def test_lfric_driver_field_arrays():
     '''Test handling of array of fields: they are written in one call to
     the extraction library, but the library will write each array member

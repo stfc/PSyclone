@@ -627,8 +627,10 @@ class LFRicExtractDriverCreator:
         # r_quad is defined in constants_mod, but not exported. So
         # we have to remove it from the lists of precisions to import.
         # TODO #2018
+        # Also add l_def into the list (which has no precision, so it's
+        # not in the PRECISION_MAP).
         all_precisions = [name for name in const.PRECISION_MAP
-                          if name != "r_quad"]
+                          if name != "r_quad"] + ["l_def"]
         for prec_name in all_precisions:
             symbol_table.new_symbol(prec_name,
                                     symbol_type=DataSymbol,
