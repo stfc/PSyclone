@@ -1619,7 +1619,7 @@ def test_omp_serial_compute_accesses_other_fails():
     )
 
 
-def test_omp_serial_compute_accesses_results():
+def test_omp_serial_compute_accesses_results(fortran_writer):
     '''
     Tests the _compute_accesses fucntion in OMPSerialDirective
     '''
@@ -1820,7 +1820,7 @@ def test_omp_serial_compute_accesses_results():
         BinaryOperation.Operator.SUB, ref.copy(), binop
     )
     res = sing._compute_accesses(binop2, [loop], task)
-    assert len(res) == 5
+    assert len(res) == 4
     assert isinstance(res[0], BinaryOperation)
     assert res[0].operator == BinaryOperation.Operator.ADD
     assert res[0].children[0].symbol == tmp2
@@ -1837,10 +1837,6 @@ def test_omp_serial_compute_accesses_results():
     assert res[3].operator == BinaryOperation.Operator.ADD
     assert res[3].children[0].symbol == tmp2
     assert res[3].children[1].value == "-128"
-    assert isinstance(res[4], BinaryOperation)
-    assert res[4].operator == BinaryOperation.Operator.ADD
-    assert res[4].children[0].symbol == tmp2
-    assert res[4].children[1].value == "-160"
 
     task = OMPTaskDirective()
     loop = Loop.create(

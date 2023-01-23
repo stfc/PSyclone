@@ -441,7 +441,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                                 "BinaryOperation with a non-Literal child "
                                 "which is not supported.")
                     binop_val = -int(binop.children[1].value)
-                    num_entries = int(binop.children[0].value)+1
+                    num_entries = int(binop.children[0].value)
                 else:
                     raise GenerationError("Found a dependency index that is "
                                           "a BinaryOperation where the "
@@ -594,6 +594,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         # Find all the nodes before these tasks
         preceding_t1 = task1.preceding(reverse=True)
         preceding_t2 = task2.preceding(reverse=True)
+        # Get access list for each ref
         ref1_accesses = self._compute_accesses(ref1, preceding_t1, task1)
         ref2_accesses = self._compute_accesses(ref2, preceding_t2, task2)
 
@@ -612,6 +613,8 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                                   "array which are not valid under OpenMP, "
                                   "as one contains a Reference while the "
                                   "other does not.")
+        # If we have elements in the accesses lists, check the first element is
+        # the same in both.
         if len(ref1_ref) > 0 and ref1_ref[0] != ref2_ref[0]:
             raise GenerationError("Found a pair of dependencies on the same "
                                   "array which are not supported in PSyclone, "
