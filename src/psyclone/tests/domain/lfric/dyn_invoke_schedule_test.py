@@ -35,8 +35,8 @@
 
 ''' This module contains pytest tests for the DynInvokeSchedule class. '''
 
-from __future__ import absolute_import, print_function
 import os
+from psyclone.domain.lfric import LFRicSymbolTable
 from psyclone.dynamo0p3 import DynInvokeSchedule
 from psyclone.parse.algorithm import parse
 from psyclone.psyir.nodes import Container
@@ -58,6 +58,6 @@ def test_dyninvsched_parent():
     dsched = DynInvokeSchedule("my_sched", kcalls)
     assert dsched.parent is None
     # With a parent
-    fake_parent = Container("my_mod")
+    fake_parent = Container("my_mod", symbol_table=LFRicSymbolTable())
     dsched2 = DynInvokeSchedule("my_sched", kcalls, parent=fake_parent)
     assert dsched2.parent is fake_parent

@@ -281,16 +281,11 @@ class KernCallArgList(ArgOrdering):
         '''
         super().scalar(scalar_arg, var_accesses)
         if scalar_arg.is_literal:
-            literal_string = scalar_arg.name
             try:
-                # Since we know it must be a literal, we need to provide an
-                # empty SymbolTable (to make sure an invalid strings is not
-                # recognised as an existing symbol)
-                literal = FortranReader().psyir_from_expression(literal_string,
-                                                                SymbolTable())
+                literal = scalar_arg.psyir_expression()
             except SymbolError as err:
                 raise InternalError(f"Unexpected literal expression "
-                                    f"'{literal_string}' in scalar() when "
+                                    f"'{scalar_arg.name}' in scalar() when "
                                     f"processing kernel "
                                     f"'{self._kern.name}'.") from err
             self.psyir_append(literal)

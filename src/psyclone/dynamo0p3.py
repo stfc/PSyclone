@@ -5800,9 +5800,9 @@ class DynInvokeSchedule(InvokeSchedule):
     '''
 
     def __init__(self, name, arg, reserved_names=None, parent=None):
-        InvokeSchedule.__init__(self, name, DynKernCallFactory,
-                                LFRicBuiltInCallFactory, arg, reserved_names,
-                                parent=parent)
+        super().__init__(name, DynKernCallFactory,
+                         LFRicBuiltInCallFactory, arg, reserved_names,
+                         parent=parent, symbol_table=LFRicSymbolTable())
 
     def node_str(self, colour=True):
         ''' Creates a text summary of this node.
@@ -9759,6 +9759,9 @@ class DynKernelArgument(KernelArgument):
 
         if self.is_literal:
             reader = FortranReader()
+            if self.precision:
+                # Ensure any associated precision symbol is in the table.
+                symbol_table.add_lfric_precision_symbol(self.precision)
             return reader.psyir_from_expression(self.name, symbol_table)
 
         if self.is_scalar:

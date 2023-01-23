@@ -289,6 +289,7 @@ class LFRicConstants():
         LFRicConstants.VALID_MESH_NAMES = ["adjacent_face"]
 
         # ---------- Map from scalar intrinsic type to its precision ----------
+        # TODO this doesn't work for e.g. a scalar of r_solver type.
         LFRicConstants.SCALAR_PRECISION_MAP = \
             OrderedDict(zip(LFRicConstants.VALID_INTRINSIC_TYPES,
                             ["r_def", "i_def", "l_def"]))
@@ -301,6 +302,7 @@ class LFRicConstants():
         # values for 'r_tran', 'r_solver' and 'r_def' are set according to
         # CPP ifdefs. The values given below are the defaults.
         LFRicConstants.PRECISION_MAP = {"i_def": 4,
+                                        "l_def": 4, # TODO
                                         "r_def": 8,
                                         "r_double": 8,
                                         "r_ncdf": 8,
