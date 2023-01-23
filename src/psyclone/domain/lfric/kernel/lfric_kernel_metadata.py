@@ -372,14 +372,14 @@ class LFRicKernelMetadata(CommonMetadata):
         # No basis/diff basis functions are allowed.
         if self.meta_funcs:
             raise ParseError(self._validation_error_str(
-                "Domain kernels should not contain basis or differential "
-                "basis functions, but this does"))
+                "Domain kernels should not specify basis or differential "
+                "basis functions metadata, but this does"))
 
         # No mesh properties are allowed.
         if self.meta_mesh:
             raise ParseError(self._validation_error_str(
-                "Domain kernels should not contain mesh properties, but "
-                "this does"))
+                "Domain kernels should not specify mesh property metadata, "
+                "but this does"))
 
     def _cma_kernel_type(self):
         '''Determine the type of CMA (Column Matrix Assembly) kernel this is.

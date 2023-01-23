@@ -382,9 +382,9 @@ def test_validate_domain_kernel():
         operates_on="domain", meta_args=meta_args, meta_funcs=meta_funcs)
     with pytest.raises(ParseError) as info:
         lfric_kernel_metadata._validate_domain_kernel()
-    assert ("Domain kernels should not contain basis or differential basis "
-            "functions, but this does in kernel metadata 'unset' for "
-            "procedure 'unset'." in str(info.value))
+    assert ("Domain kernels should not specify basis or differential basis "
+            "functions metadata, but this does in kernel metadata "
+            "'unset' for procedure 'unset'." in str(info.value))
 
     # No mesh properties.
     meta_args = [FieldArgMetadata(
@@ -394,8 +394,8 @@ def test_validate_domain_kernel():
         operates_on="domain", meta_args=meta_args, meta_mesh=meta_mesh)
     with pytest.raises(ParseError) as info:
         lfric_kernel_metadata._validate_domain_kernel()
-    assert ("Domain kernels should not contain mesh properties, but this "
-            "does in kernel metadata 'unset' for procedure 'unset'."
+    assert ("Domain kernels should not specify mesh property metadata, "
+            "but this does in kernel metadata 'unset' for procedure 'unset'."
             in str(info.value))
 
     # OK
