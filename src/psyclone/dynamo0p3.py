@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -79,7 +79,7 @@ from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
                                   ACCRegionDirective, OMPRegionDirective,
                                   ScopingNode, KernelSchedule)
 from psyclone.psyir.symbols import (
-    INTEGER_TYPE, INTEGER_SINGLE_TYPE, DataSymbol, ScalarType,
+    INTEGER_TYPE, DataSymbol, ScalarType, SymbolError,
     DeferredType, DataTypeSymbol, ContainerSymbol, ImportInterface, ArrayType)
 
 # pylint: disable=too-many-lines
@@ -9751,6 +9751,8 @@ class DynKernelArgument(KernelArgument):
         :returns: the PSyIR for this kernel argument.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
+        :raises InternalError: if this argument is a literal but we fail to \
+                               construct PSyIR that is consistent with this.
         :raises NotImplementedError: if this argument is not a literal, scalar
                                      or field.
 
@@ -9762,7 +9764,20 @@ class DynKernelArgument(KernelArgument):
             if self.precision:
                 # Ensure any associated precision symbol is in the table.
                 symbol_table.add_lfric_precision_symbol(self.precision)
-            return reader.psyir_from_expression(self.name, symbol_table)
+            try:
+                lit = reader.psyir_from_expression(self.name, symbol_table)
+            except SymbolError as err:
+                raise InternalError(
+                    f"Unexpected literal expression '{self.name}' when "
+                    f"processing kernel '{self.call.name}'.") from err
+
+            # Sanity check that the resulting expression is a literal.
+            if lit.walk(Reference):
+                raise InternalError(
+                    f"Expected argument '{self.name}' to kernel "
+                    f"'{self.call.name}' to be a literal but the created "
+                    f"PSyIR contains one or more References.")
+            return lit
 
         if self.is_scalar:
             try:

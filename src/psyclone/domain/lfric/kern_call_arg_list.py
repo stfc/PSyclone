@@ -275,20 +275,10 @@ class KernCallArgList(ArgOrdering):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: if a scalar of type other than real, \
-            logical, or integer is found.
-
         '''
         super().scalar(scalar_arg, var_accesses)
         if scalar_arg.is_literal:
-            try:
-                literal = scalar_arg.psyir_expression()
-            except SymbolError as err:
-                raise InternalError(f"Unexpected literal expression "
-                                    f"'{scalar_arg.name}' in scalar() when "
-                                    f"processing kernel "
-                                    f"'{self._kern.name}'.") from err
-            self.psyir_append(literal)
+            self.psyir_append(scalar_arg.psyir_expression())
         else:
             sym = self._symtab.lookup(scalar_arg.name)
             self.psyir_append(Reference(sym))

@@ -475,10 +475,11 @@ def test_kerncallarglist_scalar_literal(fortran_writer):
     assert isinstance(lit, Literal)
     assert lit.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN
 
-    # Now set the intrinsic type to be invalid:
+    # Now set the intrinsic type to be invalid and check that the
+    # underlying PSyIR creation catches it.
     args[3]._name = "invalid"
     args[3]._intrinsic_type = "invalid"
     with pytest.raises(InternalError) as err:
         create_arg_list.scalar(args[3])
-    assert ("Unexpected literal expression 'invalid' in scalar() when "
+    assert ("Unexpected literal expression 'invalid' when "
             "processing kernel 'testkern_qr_code'" in str(err.value))
