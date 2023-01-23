@@ -133,7 +133,7 @@ class ModuleInfo:
         '''
         if not self._parse_tree:
             reader = FortranStringReader(self.get_source_code())
-            parser = ParserFactory().create(std="f2003")
+            parser = ParserFactory().create(std="f2008")
             self._parse_tree = parser(reader)
         return self._parse_tree
 
