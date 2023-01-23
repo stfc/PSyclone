@@ -172,9 +172,11 @@ class LFRicKernelMetadata(CommonMetadata):
         :rtype: str
 
         '''
+        name = self.name if self.name else 'unset'
+        proc_name = self.procedure_name if self.procedure_name else 'unset'
         return (
-            f"{description} in kernel metadata '{self.name}' for procedure "
-            f"'{self.procedure_name}'.")
+            f"{description} in kernel metadata '{name}' for procedure "
+            f"'{proc_name}'.")
 
     def validate(self):
         '''Only certain metadata combinations are allowed in LFRic. This
@@ -246,14 +248,12 @@ class LFRicKernelMetadata(CommonMetadata):
                 [FieldArgMetadata, FieldVectorArgMetadata, OperatorArgMetadata,
                  ColumnwiseOperatorArgMetadata, InterGridArgMetadata,
                  InterGridVectorArgMetadata]):
-            raise ParseError(
-                f"Kernel metadata with 'operates_on != domain' must have at "
-                f"least one meta_args argument that is a field, field vector, "
-                f"intergrid field, intergrid vector field, LMA operator or "
-                f"CMA operator (in order to determine the appropriate "
-                f"iteration space). However, the kernel metadata "
-                f"'{self.name}' for procedure '{self.procedure_name}' has "
-                f"none.")
+            raise ParseError(self._validation_error_str(
+                "Kernel metadata with 'operates_on != domain' must have at "
+                "least one meta_args argument that is a field, field vector, "
+                "intergrid field, intergrid vector field, LMA operator or "
+                "CMA operator (in order to determine the appropriate "
+                "iteration space), however this metadata has none"))
 
         # A kernel that contains an operator argument must only
         # accept real-valued fields.
