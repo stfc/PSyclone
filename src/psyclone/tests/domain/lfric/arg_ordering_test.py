@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,8 @@ import pytest
 
 from psyclone.core import AccessType, VariablesAccessInfo, Signature
 from psyclone.domain.lfric import (KernCallArgList,
-                                   KernStubArgList, LFRicConstants)
+                                   KernStubArgList, LFRicConstants,
+                                   LFRicSymbolTable)
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynLoop
 from psyclone.errors import GenerationError, InternalError
@@ -282,6 +283,14 @@ def test_arg_ordering_generate_cma_kernel(dist_mem, fortran_writer):
         'cbanded_map_adspc2_lma_op1']
 
     check_psyir_results(create_arg_list, fortran_writer)
+    psyir_arglist = create_arg_list.psyir_arglist
+
+    sym_tab = LFRicSymbolTable()
+    arr_2d = sym_tab.find_or_create_array("doesnt_matter", 2,
+                                          ScalarType.Intrinsic.INTEGER)
+    # Check datatype of the cbanded_map parameters are indeed 2d int arrays
+    for i in [14, 16]:
+        assert psyir_arglist[i].datatype == arr_2d.datatype
 
 
 def test_arg_ordering_mdata_index():
