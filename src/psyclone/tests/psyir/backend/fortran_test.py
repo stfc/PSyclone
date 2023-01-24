@@ -1156,6 +1156,51 @@ def test_fw_routine_nameclash(fortran_writer):
             "  end if" in result)
 
 
+def test_fw_routine_kind_param_nameclash(fortran_writer):
+    '''
+    Check that the backend does *not* rename Container or imported symbols
+    when flattening scoping regions.
+
+    '''
+    sym1 = DataSymbol("var1", INTEGER_TYPE)
+    csym1 = ContainerSymbol("kind_params_mod")
+    csym2 = csym1.copy()
+    real_kind1 = DataSymbol("RKIND", datatype=INTEGER_TYPE, constant_value=8,
+                            interface=ImportInterface(csym1))
+    real_kind2 = DataSymbol("RKIND", datatype=INTEGER_TYPE, constant_value=8,
+                            interface=ImportInterface(csym2))
+    sym2 = DataSymbol("var2", datatype=DeferredType(),
+                      interface=ImportInterface(csym2))
+    scalar_type1 = ScalarType(ScalarType.Intrinsic.REAL, real_kind1)
+    scalar_type2 = ScalarType(ScalarType.Intrinsic.REAL, real_kind2)
+    assign1 = Assignment.create(Reference(sym1), Literal("1", scalar_type1))
+    assign2 = Assignment.create(Reference(sym1), Literal("2", scalar_type2))
+    assign3 = Assignment.create(Reference(sym1), Reference(sym2))
+    ifblock = IfBlock.create(Literal("true", BOOLEAN_TYPE),
+                             [assign1], [assign2, assign3])
+    symtable = SymbolTable()
+    symtable.add(sym1)
+    # Place symbols for the container and the kind parameters in each of
+    # the tables associated with the two branches of the IfBlock. These
+    # represent the *same* entities and so should not be renamed by the
+    # backend.
+    ifblock.if_body.symbol_table.add(csym1)
+    ifblock.if_body.symbol_table.add(real_kind1)
+    ifblock.else_body.symbol_table.add(csym2)
+    ifblock.else_body.symbol_table.add(real_kind2)
+    ifblock.else_body.symbol_table.add(sym2)
+    routine = Routine.create("my_sub", symtable, [ifblock])
+    result = fortran_writer(routine)
+    print(result)
+    assert ("subroutine my_sub()\n"
+            "  use kind_params_mod, only : RKIND, var2\n"
+            "  integer :: var1\n" in result)
+    assert ("    var1 = 1_RKIND\n"
+            "  else\n"
+            "    var1 = 2_RKIND\n"
+            "    var1 = var2\n" in result)
+
+
 def test_fw_routine_program(fortran_reader, fortran_writer, tmpdir):
     '''Check the FortranWriter class outputs correct code when a routine node
     is found with is_program set to True i.e. it should be output as a program.

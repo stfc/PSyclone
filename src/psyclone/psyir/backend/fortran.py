@@ -47,11 +47,13 @@ from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
-from psyclone.psyir.nodes import BinaryOperation, Call, CodeBlock, DataNode, \
-    Literal, Operation, Range, Routine, Schedule, UnaryOperation, IntrinsicCall
-from psyclone.psyir.symbols import ArgumentInterface, ArrayType, \
-    ContainerSymbol, DataSymbol, DataTypeSymbol, DeferredType, RoutineSymbol, \
-    ScalarType, Symbol, SymbolTable, UnknownFortranType, UnknownType
+from psyclone.psyir.nodes import (
+    BinaryOperation, Call, CodeBlock, DataNode, Literal, Operation, Range,
+    Reference, Routine, Schedule, UnaryOperation, IntrinsicCall)
+from psyclone.psyir.symbols import (
+    ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
+    DeferredType, ImportInterface, RoutineSymbol,
+    ScalarType, Symbol, SymbolTable, UnknownFortranType, UnknownType)
 
 
 # The list of Fortran instrinsic functions that we know about (and can
@@ -1124,9 +1126,48 @@ class FortranWriter(LanguageWriter):
                 if symbol is own_symbol and isinstance(symbol, RoutineSymbol):
                     continue
 
+                # TODO #2019 - move functionality _inline_container_symbols and
+                # _inline_symbols out of InlineTrans and re-use here.
                 try:
                     whole_routine_scope.add(symbol)
                 except KeyError:
+                    osym = whole_routine_scope.lookup(symbol.name)
+                    if isinstance(symbol, ContainerSymbol):
+                        # We can't rename Container symbols.
+                        if not isinstance(osym, ContainerSymbol):
+                            raise VisitorError(
+                                f"Cannot merge the nested scoping regions in "
+                                f"Routine '{node.name}' because a "
+                                f"ContainerSymbol has the same name "
+                                f"('{symbol.name}') as a "
+                                f"'{type(osym).__name__}' and cannot be "
+                                f"renamed.")
+                        # This symbol matches that in the whole_routine_scope so
+                        # we must update any Symbols that are imported from it.
+                        for sym in schedule.symbol_table.imported_symbols:
+                            if sym.interface.container_symbol is symbol:
+                                sym.interface = ImportInterface(osym)
+                        pass # TODO
+                        continue
+                    if isinstance(symbol.interface, ImportInterface):
+                        # We can't rename imported symbols either.
+                        cname = symbol.interface.container_symbol.name.lower()
+                        # TODO #744 - ideally we'd test the interfaces of
+                        # the two symbols for equality.
+                        if (not isinstance(osym.interface, ImportInterface) or
+                                osym.interface.container_symbol.name.lower()
+                                != cname):
+                            raise VisitorError(
+                                f"Cannot merge the nested scoping regions in "
+                                f"Routine '{node.name}' because symbol "
+                                f"'{symbol.name}' is imported from Container "
+                                f"'{symbol.interface.container_symbol.name}' "
+                                f"but has the same name as another symbol that"
+                                f" is not imported from that Container.")
+                        # This Symbol matches that in the whole_routine_scope so
+                        # we must replace any references to it.
+                        TODO
+                        continue
                     new_name = whole_routine_scope.next_available_name(
                         symbol.name, other_table=schedule.symbol_table)
                     schedule.symbol_table.rename_symbol(symbol, new_name)
