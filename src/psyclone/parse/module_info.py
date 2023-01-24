@@ -44,6 +44,7 @@ from fparser.two.parser import ParserFactory
 from fparser.two.utils import walk
 
 from psyclone.errors import PSycloneError
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
 # ============================================================================
@@ -62,6 +63,7 @@ class ModuleInfoError(PSycloneError):
 
 # ============================================================================
 class ModuleInfo:
+    # pylint: disable=too-many-instance-attributes
     '''This class stores mostly cached information about modules: it stores
     the original filename, if requested it will read the file and then caches
     the plain text file, and if required it will parse the file, and then
@@ -82,6 +84,9 @@ class ModuleInfo:
         # A cache for the fparser tree
         self._parse_tree = None
 
+        # A cache for the PSyIR representation
+        self._psyir = None
+
         # A cache for the module dependencies: this is just a set
         # of all modules used by this module. Type: Set[str]
         self._used_modules = None
@@ -90,6 +95,8 @@ class ModuleInfo:
         # modules as key, and it stores the set of all symbols imported from
         # this module: Dict[str, Set(str)]
         self._used_symbols_from_module = None
+
+        self._processor = Fparser2Reader()
 
     # ------------------------------------------------------------------------
     @property
@@ -212,3 +219,20 @@ class ModuleInfo:
             self._extract_import_information()
 
         return self._used_symbols_from_module
+
+    # ------------------------------------------------------------------------
+    def get_psyir(self):
+        '''Returns the PSyIR representation of this module. This is based
+        on the fparser tree (see get_parse_tree), and the information is
+        cached. If the PSyIR must be modified, it needs to be copied,
+        otherwise the modified tree will be returned from the cache.
+        #TODO: Maybe return a copy of the tree??
+
+        :returns: PSyIR representing this module.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        if self._psyir is None:
+            self._psyir = self._processor.generate_psyir(self.get_parse_tree())
+
+        return self._psyir

@@ -39,6 +39,7 @@
 import pytest
 
 from psyclone.parse import ModuleInfo, ModuleInfoError, ModuleManager
+from psyclone.psyir.nodes import FileContainer
 from psyclone.tests.utilities import get_base_path
 from psyclone.tests.parse.module_manager_test import (
     mod_man_test_setup_directories)
@@ -175,3 +176,25 @@ def test_mod_info_get_used_symbols_from_modules():
     used_symbols_cached = mod_info.get_used_symbols_from_modules()
     # The cached copy should be the same dictionary
     assert used_symbols_cached is used_symbols
+
+
+# ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_mod_info_get_psyir():
+    '''This tests the handling of PSyIR representation of the module.
+    '''
+
+    mod_man = ModuleManager.get()
+    dyn_path = get_base_path("dynamo0.3")
+    mod_man.add_search_path(dyn_path, recursive=False)
+
+    mod_info = mod_man .get_module_info("testkern_import_symbols_mod")
+    assert mod_info._psyir is None
+    psyir = mod_info.get_psyir()
+    assert isinstance(psyir, FileContainer)
+    assert psyir.children[0].name == "testkern_import_symbols_mod"
+    # Make sure the PSyIR is cached:
+    assert mod_info._psyir is psyir
+    # Test that we get the cached value (and not a new instance)
+    psyir_cached = mod_info.get_psyir()
+    assert psyir_cached is psyir
