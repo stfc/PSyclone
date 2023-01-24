@@ -815,7 +815,7 @@ def test_validate_intergrid_kernel():
     with pytest.raises(ParseError) as info:
         lfric_kernel_metadata._validate_intergrid_kernel()
     assert ("An intergrid kernel should only operate on a 'cell_column', but "
-            "found 'domain'. in kernel metadata 'unset' for procedure 'unset'."
+            "found 'domain' in kernel metadata 'unset' for procedure 'unset'."
             in str(info.value))
 
     # All args are inter-grid args.

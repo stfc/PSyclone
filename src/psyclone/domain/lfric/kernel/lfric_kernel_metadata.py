@@ -612,7 +612,7 @@ class LFRicKernelMetadata(CommonMetadata):
         if self.operates_on != "cell_column":
             raise ParseError(self._validation_error_str(
                 f"An intergrid kernel should only operate on a "
-                f"'cell_column', but found '{self.operates_on}'."))
+                f"'cell_column', but found '{self.operates_on}'"))
 
         # All args must be intergrid args.
         for meta_arg in self.meta_args:
