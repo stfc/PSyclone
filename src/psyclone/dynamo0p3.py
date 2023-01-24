@@ -8269,12 +8269,8 @@ class DynKern(CodedKern):
             cmap = invoke.meshes.intergrid_kernels[id(self)].\
                 colourmap_symbol.name
         else:
-            # TODO 1876, Item 2
-            # cmap = self.scope.symbol_table.lookup_with_tag("cmap").name
-            try:
-                cmap = self.scope.symbol_table.lookup_with_tag("cmap").name
-            except KeyError:
-                return "cmap"
+            cmap = self.scope.symbol_table.lookup_with_tag("cmap").name
+
         return cmap
 
     @property
