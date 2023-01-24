@@ -276,6 +276,9 @@
 	94) PR #2014. Extends psyir_from_source() so that the caller
 	can specify if the Fortran is in fixed format.
 
+	95) PR #1993 towards #1953. Extends the LFRicKernelMetadata
+	class to support stencil specifications.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
