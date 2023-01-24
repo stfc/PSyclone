@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -79,9 +79,10 @@ from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
                                   ACCRegionDirective, OMPRegionDirective,
                                   Routine, ScopingNode, StructureReference,
                                   KernelSchedule)
-from psyclone.psyir.symbols import (
-    INTEGER_TYPE, INTEGER_SINGLE_TYPE, DataSymbol, ScalarType,
-    DeferredType, DataTypeSymbol, ContainerSymbol, ImportInterface, ArrayType)
+from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, ScalarType,
+                                    DeferredType, DataTypeSymbol,
+                                    ContainerSymbol, ImportInterface,
+                                    ArrayType)
 
 # pylint: disable=too-many-lines
 # --------------------------------------------------------------------------- #
@@ -7103,58 +7104,6 @@ class DynLoop(PSyLoop):
         self._lower_bound_index = None
         self._upper_bound_name = None
         self._upper_bound_halo_depth = None
-
-    def XXreference_accesses(self, var_accesses):
-        # TODO 1876, Item 1
-        '''Get all variable access information. It combines the data from
-        the loop bounds (start, stop and step), as well as the loop body.
-        The loop variable is marked as 'READ+WRITE' and references in start,
-        stop and step are marked as 'READ'.
-
-        :param var_accesses: VariablesAccessInfo instance that stores the \
-            information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
-        '''
-
-        # It is important to first add the WRITE access, since this way
-        # the dependency analysis for declaring openmp private variables
-        # will automatically declare the loop variables to be private
-        # (write access before read)
-        var_accesses.add_access(Signature(self.variable.name),
-                                AccessType.WRITE, self)
-        var_accesses.add_access(Signature(self.variable.name),
-                                AccessType.READ, self)
-
-        # Accesses of the start/stop/step expressions
-        inv_sched = self.ancestor(InvokeSchedule)
-        sym_table = inv_sched.symbol_table
-        loops = inv_sched.loops()
-        posn = None
-        for index, loop in enumerate(loops):
-            if loop is self:
-                posn = index
-                break
-
-        var_accesses.add_access(Signature(f"loop{posn}_start"),
-                                AccessType.READ, self)
-
-        if self._loop_type == "colour":
-            const = LFRicConstants()
-            if (self.ancestor(Loop).upper_bound_name in
-                    const.HALO_ACCESS_LOOP_BOUNDS):
-                stop = "last_halo_cell_all_colours"
-            else:
-                stop = "last_edge_cell_all_colours"
-        else:
-            stop = f"loop{posn}_stop"
-        var_accesses.add_access(Signature(stop), AccessType.READ, self)
-        self.step_expr.reference_accesses(var_accesses)
-        var_accesses.next_location()
-
-        for child in self.loop_body.children:
-            child.reference_accesses(var_accesses)
-            var_accesses.next_location()
 
     def lower_to_language_level(self):
         '''In-place replacement of DSL or high-level concepts into generic
