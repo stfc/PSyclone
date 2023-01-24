@@ -75,6 +75,7 @@ API_WITHOUT_ALGORITHM = ["nemo"]
 
 
 def handle_script(script_name, info, function_name, is_optional=False):
+    # pylint: disable=too-many-locals
     '''Loads and applies the specified script to the given algorithm or
     psy layer. The relevant script function (in 'function_name') is
     called with 'info' as the argument.
@@ -159,7 +160,8 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
              distributed_memory=None,
              kern_out_path="",
              kern_naming="multiple"):
-    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments, too-many-statements
+    # pylint: disable=too-many-branches, too-many-locals
     '''Takes a PSyclone algorithm specification as input and outputs the
     associated generated algorithm and psy codes suitable for
     compiling with the specified kernel(s) and support
@@ -445,7 +447,17 @@ def main(args):
     except ConfigurationError as err:
         print(str(err), file=sys.stderr)
         sys.exit(1)
-    ModuleManager.get().add_search_path(args.directory)
+
+    try:
+        ModuleManager.get().add_search_path(args.directory)
+    except IOError:
+        # TODO #2011: We ignore the error here (indicating an invalid
+        # search path), since atm the kernel search path (args.directory)
+        # is checked later, and this way no existing code is broken (raising
+        # the error in the ModuleManager would have to change the error
+        # message to be a bit less specific, since it handles generic
+        # search paths, not only kernel directories).
+        pass
 
     try:
         alg, psy = generate(args.filename, api=api,
