@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,16 +40,15 @@
 
 # pylint: disable=too-many-lines
 
-from __future__ import print_function, absolute_import
 from collections import OrderedDict
 import inspect
 import copy
 from psyclone.configuration import Config
+from psyclone.errors import InternalError
 from psyclone.psyir.symbols import Symbol, DataSymbol, ImportInterface, \
     ContainerSymbol, DataTypeSymbol, RoutineSymbol, SymbolError, \
     UnresolvedInterface
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
-from psyclone.errors import InternalError
 
 
 class SymbolTable():
@@ -1248,7 +1247,7 @@ class SymbolTable():
                                 symbol_match.specialise(type(symbol))
 
                         symbol_match.copy_properties(symbol)
-                        # Restore the interface and visibility as this are
+                        # Restore the interface and visibility as these are
                         # local (not imported) properties
                         symbol_match.interface = interface
                         symbol_match.visibility = visibility

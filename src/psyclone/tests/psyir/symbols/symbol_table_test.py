@@ -2098,8 +2098,9 @@ def test_resolve_imports_common_symbol(fortran_reader, tmpdir, monkeypatch,
 
 
 def test_resolve_imports_parent_scope(fortran_reader, tmpdir, monkeypatch):
-    '''Test that resolve_imports() works as expected if a symbol is brought
-    into scope from a parent table.'''
+    '''Test that resolve_imports() works as expected if a Symbol is brought
+    into scope from a parent table (which does not itself contain the Symbol
+    in question).'''
     # Set up include_path to import the proper modules
     monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
     filename = os.path.join(str(tmpdir), "a_mod.f90")
@@ -2123,14 +2124,15 @@ def test_resolve_imports_parent_scope(fortran_reader, tmpdir, monkeypatch):
         ''')
     mod = psyir.children[0]
     subroutine = psyir.walk(Routine)[0]
-    symtab = subroutine.symbol_table
     lit = subroutine.walk(Literal)[0]
     sym = lit.datatype.precision
-    import pdb; pdb.set_trace()
-    #assign = subroutine[0]
-    #sym = assign.lhs.symbol
     mod.symbol_table.resolve_imports(symbol_target=sym)
- 
+    # A new Symbol with the correct properties should have been added to the
+    # table associated with the Container.
+    new_sym = mod.symbol_table.lookup(sym.name)
+    assert isinstance(new_sym.interface, ImportInterface)
+    assert new_sym.interface.container_symbol.name == "a_mod"
+
 
 def test_scope():
     ''' Test that the scope property returns the SymbolTable associated with
