@@ -1644,7 +1644,7 @@ def test_validate_resolved_precision_sym(fortran_reader, monkeypatch,
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(calls[0])
     assert ("Routine 'sub' cannot be inlined because it accesses variable "
-            "'i_def' from its parent container." in str(err.value))
+            "'i_def' imported into its parent container." in str(err.value))
     # Second subroutine imports i_def directly into its own SymbolTable and
     # so is OK to inline.
     inline_trans.validate(calls[1])
