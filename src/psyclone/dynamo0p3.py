@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -78,9 +78,10 @@ from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
                                   ArrayReference, ACCEnterDataDirective,
                                   ACCRegionDirective, OMPRegionDirective,
                                   ScopingNode, KernelSchedule)
-from psyclone.psyir.symbols import (
-    INTEGER_TYPE, INTEGER_SINGLE_TYPE, DataSymbol, ScalarType,
-    DeferredType, DataTypeSymbol, ContainerSymbol, ImportInterface, ArrayType)
+from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, ScalarType,
+                                    DeferredType, DataTypeSymbol,
+                                    ContainerSymbol, ImportInterface,
+                                    ArrayType)
 
 # pylint: disable=too-many-lines
 # --------------------------------------------------------------------------- #
@@ -2322,9 +2323,7 @@ class DynReferenceElement(DynCollection):
 
     def kern_args(self):
         '''
-        Create argument list for kernel call and stub.
-
-        :return: kernel call/stub arguments.
+        :returns: the argument list for kernel call/stub arguments.
         :rtype: List[str]
 
         '''
@@ -2336,9 +2335,7 @@ class DynReferenceElement(DynCollection):
 
     def kern_args_symbols(self):
         '''
-        Create argument symbol list for kernel call and stub.
-
-        :return: kernel call/stub arguments.
+        :returns: the argument symbol list for kernel call/stub arguments.
         :rtype: List[:py:class:`psyclone.psyir.symbols.Symbol`]
 
         '''

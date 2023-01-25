@@ -484,8 +484,8 @@ def test_kerncallarglist_scalar_literal(fortran_writer):
             "processing kernel 'testkern_qr_code'" in str(err.value))
 
 
-def test_indirect_dofmap_apply(fortran_writer):
-    '''Test the indirect dofmap apply function.
+def test_indirect_dofmap(fortran_writer):
+    '''Test the indirect dofmap functionality.
     '''
     psy, _ = get_invoke("20.1.2_cma_apply_disc.f90", TEST_API,
                         dist_mem=False, idx=0)
