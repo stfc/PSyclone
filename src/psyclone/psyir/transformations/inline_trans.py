@@ -786,6 +786,9 @@ class InlineTrans(Transformation):
         # table. If a precision symbol is only used within Statements then we
         # don't currently capture the fact that it is a precision symbol.
         ref_or_lits = routine.walk((Reference, Literal))
+        # Keep a reference to each Symbol that we check so that we can avoid
+        # repeatedly checking the same Symbol.
+        _symbol_cache = set()
         for lnode in ref_or_lits:
             if isinstance(lnode, Literal):
                 if not isinstance(lnode.datatype.precision, DataSymbol):
@@ -793,56 +796,32 @@ class InlineTrans(Transformation):
                 sym = lnode.datatype.precision
             else:
                 sym = lnode.symbol
+            # If we've already seen this Symbol then we can skip it.
+            if sym in _symbol_cache:
+                continue
+            _symbol_cache.add(sym)
+            # We haven't seen this Symbol before.
             if sym.is_unresolved:
-                cursor = routine_table
-                while cursor:
-                    csyms = cursor.containersymbols
-                    for csym in csyms:
-                        if csym.wildcard_import:
-                            try:
-                                cursor.resolve_imports(
-                                    container_symbols=[csym],
-                                    symbol_target=sym)
-                            except KeyError:
-                                # TODO #11 - it would be useful to log the fact
-                                # that we've looked in this Container.
-                                continue
-                            # We've successfully resolved the symbol.
-                            if cursor is routine_table:
-                                # The resolved symbol is in the routine_table
-                                # so we don't need to do anything else.
-                                continue
-                            # The resolved symbol is in a parent symbol table
-                            # so we must update all references so that they
-                            # refer to the new symbol.
-                            #=============================================
-                            # TODO we're going to reject this case anyway
-                            # (below) although we could permit it??
-                            new_sym = cursor.lookup(sym.name)
-                            if sym.name in routine_table:
-                                for anode in ref_or_lits:
-                                    if (isinstance(anode, Literal) and
-                                            anode.datatype.precision is sym):
-                                        anode.datatype._precision = new_sym
-                                    elif (isinstance(anode, Reference) and
-                                          anode.symbol is sym):
-                                        anode.symbol = new_sym
-                                del routine_table._symbols[sym.name]
-                            break
-                    else:
-                        # We didn't find the symbol in any of the Containers
-                        # in this SymbolTable so go up to the next scoping
-                        # unit and try again.
-                        cursor = cursor.parent_symbol_table()
-                        continue
-                    # We resolved the symbol so we're done.
-                    break
-                new_sym = routine_table.lookup(sym.name)
-                if new_sym.is_unresolved:
+                cursor = self._resolve_symbol(sym, routine_table)
+                if not cursor:
                     raise TransformationError(
                         f"Routine '{routine.name}' cannot be inlined because "
                         f"it accesses an un-resolved variable "
                         f"'{sym.name}'.")
+                if cursor is routine_table:
+                    # The resolved symbol is in the routine_table
+                    # so we can carry on to the next Reference or Literal.
+                    continue
+                # TODO #1904 - the resolved symbol is in a parent symbol table
+                # and we don't yet support that. If we did we would (in
+                # apply()) update all references so that they refer to the new
+                # symbol. (see the version of this code at commit
+                # c115c6154ba9a980ba0d4ac723809688e3e643db)
+                raise TransformationError(
+                    f"Routine '{routine.name}' cannot be inlined "
+                    f"because it accesses variable '{sym.name}' "
+                    f"imported into its parent container.")
+
             if sym.name not in routine_table and not sym.is_import:
                 raise TransformationError(
                     f"Routine '{routine.name}' cannot be inlined because "
@@ -904,6 +883,39 @@ class InlineTrans(Transformation):
                             f"because one of its arguments is an array slice "
                             f"with a non-unit stride: '{visitor(actual_arg)}' "
                             f"(TODO #1646)"))
+
+    # TODO should this be a method of SymbolTable?
+    @staticmethod
+    def _resolve_symbol(sym, table):
+        '''
+        Resolves the supplied Symbol, starting at the supplied SymbolTable
+        and working up through parent scopes if necessary.
+
+        :returns: the symbol table containing the resolved symbol or None if \
+                  it wasn't found.
+        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable` or NoneType
+
+        '''
+        cursor = table
+        while cursor:
+            csyms = cursor.containersymbols
+            for csym in csyms:
+                if csym.wildcard_import:
+                    try:
+                        cursor.resolve_imports(
+                            container_symbols=[csym],
+                            symbol_target=sym)
+                    except KeyError:
+                        # TODO #11 - it would be useful to log the fact
+                        # that we've looked in this Container.
+                        continue
+                    # We've successfully resolved the symbol.
+                    return cursor
+            # We didn't find the symbol in any of the Containers
+            # in this SymbolTable so go up to the next scoping
+            # unit and try again.
+            cursor = cursor.parent_symbol_table()
+        return None
 
     @staticmethod
     def _find_routine(call_node):
