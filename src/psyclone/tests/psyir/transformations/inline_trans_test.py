@@ -37,10 +37,13 @@
 '''This module tests the inlining transformation.
 '''
 
+import os
 import pytest
 
+from psyclone.configuration import Config
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Call, IntrinsicCall, Routine
+from psyclone.psyir.nodes import Call, IntrinsicCall, Reference, Routine
+from psyclone.psyir.symbols import DataSymbol, DeferredType
 from psyclone.psyir.transformations import (InlineTrans,
                                             TransformationError)
 from psyclone.tests.utilities import Compile
@@ -1174,34 +1177,6 @@ def test_inline_symbols_check(fortran_reader):
             "refer to that container at the call site." in str(err.value))
 
 
-def test_validate_unresolved_precision_sym(fortran_reader):
-    '''Test that a routine that uses an unresolved precision symbol is
-    rejected.'''
-    code = (
-        "module test_mod\n"
-        "  use kinds_mod\n"
-        "contains\n"
-        "  subroutine run_it()\n"
-        "    use a_mod\n"
-        "    integer :: i\n"
-        "    a_var = a_clash\n"
-        "    i = 10_i_def\n"
-        "    call sub(i)\n"
-        "  end subroutine run_it\n"
-        "  subroutine sub(idx)\n"
-        "    integer, intent(inout) :: idx\n"
-        "    idx = idx + 5_i_def\n"
-        "  end subroutine sub\n"
-        "end module test_mod\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    inline_trans = InlineTrans()
-    call = psyir.walk(Call)[0]
-    with pytest.raises(TransformationError) as err:
-        inline_trans.validate(call)
-    assert (f"Routine 'sub' cannot be inlined because it accesses an "
-            f"un-resolved variable 'i_def'" in str(err.value))
-
-
 def test_inline_non_local_import(fortran_reader, fortran_writer):
     '''Test that we correctly handle the case where the routine to be
     inlined accesses a symbol from an import in its parent container.'''
@@ -1483,6 +1458,12 @@ def test_validate_node():
         inline_trans.validate(None)
     assert ("The target of the InlineTrans transformation should be "
             "a Call but found 'NoneType'." in str(info.value))
+    call = IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,
+                                [Reference(DataSymbol("array",
+                                                      DeferredType()))])
+    with pytest.raises(TransformationError) as info:
+        inline_trans.validate(call)
+    assert "Cannot inline an IntrinsicCall ('ALLOCATE')" in str(info.value)
 
 
 def test_validate_calls_find_routine(fortran_reader):
@@ -1591,6 +1572,82 @@ def test_validate_saved_var(fortran_reader):
     assert ("Routine 'sub' cannot be inlined because it contains a Symbol "
             "'state' which is of unknown type: 'REAL, SAVE :: state"
             in str(err.value))
+
+
+def test_validate_unresolved_precision_sym(fortran_reader):
+    '''Test that a routine that uses an unresolved precision symbol is
+    rejected.'''
+    code = (
+        "module test_mod\n"
+        "  use kinds_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "    use a_mod\n"
+        "    integer :: i\n"
+        "    a_var = a_clash\n"
+        "    i = 10_i_def\n"
+        "    call sub(i)\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(idx)\n"
+        "    integer, intent(inout) :: idx\n"
+        "    idx = idx + 5_i_def\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    inline_trans = InlineTrans()
+    call = psyir.walk(Call)[0]
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(call)
+    assert ("Routine 'sub' cannot be inlined because it accesses an "
+            "un-resolved variable 'i_def'" in str(err.value))
+
+
+def test_validate_resolved_precision_sym(fortran_reader, monkeypatch,
+                                         tmpdir):
+    '''Test that a routine that uses a resolved precision symbol is
+    rejected.'''
+    code = (
+        "module test_mod\n"
+        "  use kinds_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "    use a_mod\n"
+        "    integer :: i\n"
+        "    a_var = a_clash\n"
+        "    i = 10_i_def\n"
+        "    call sub(i)\n"
+        "    call sub2(i)\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(idx)\n"
+        "    integer, intent(inout) :: idx\n"
+        "    idx = idx + 5_i_def\n"
+        "  end subroutine sub\n"
+        "  subroutine sub2(idx)\n"
+        "    use kinds_mod\n"
+        "    integer, intent(inout) :: idx\n"
+        "    idx = idx + 5_i_def\n"
+        "  end subroutine sub2\n"
+        "end module test_mod\n")
+    # Set up include_path to import the proper module
+    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+    filename = os.path.join(str(tmpdir), "kinds_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module kinds_mod
+          integer, parameter :: i_def = kind(1)
+        end module kinds_mod
+        ''')
+    psyir = fortran_reader.psyir_from_source(code)
+    inline_trans = InlineTrans()
+    # First subroutine accesses i_def from parent Container.
+    calls = psyir.walk(Call)
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(calls[0])
+    assert ("Routine 'sub' cannot be inlined because it accesses variable "
+            "'i_def' from its parent container." in str(err.value))
+    # Second subroutine imports i_def directly into its own SymbolTable and
+    # so is OK to inline.
+    inline_trans.validate(calls[1])
 
 
 def test_validate_import_clash(fortran_reader):

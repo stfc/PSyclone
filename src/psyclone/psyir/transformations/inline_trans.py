@@ -659,8 +659,6 @@ class InlineTrans(Transformation):
                             f"'{callsite_csym.name}' has not been updated to "
                             f"refer to that container at the call site.")
                 else:
-                    # TODO if this symbol is imported from a Container (via a
-                    # wildcard) then we CANNOT rename it!
                     # A Symbol with the same name already exists so we rename
                     # the one that we are adding.
                     new_name = table.next_available_name(
@@ -753,7 +751,7 @@ class InlineTrans(Transformation):
         # Check that there are no static variables in the routine (because we
         # don't know whether the routine is called from other places).
         # TODO #2008 - at the moment we only check for symbols of UnknownType
-        # which is safe but will give a lot of false positives.
+        # which is safe but possibly overkill.
         for sym in routine_table.local_datasymbols:
             if isinstance(sym.datatype, UnknownType):
                 raise TransformationError(
@@ -802,28 +800,42 @@ class InlineTrans(Transformation):
                     for csym in csyms:
                         if csym.wildcard_import:
                             try:
-                                cursor.resolve_imports(container_symbols=[csym],
-                                                       symbol_target=sym)
-                                # We've successfully resolved the type of the
-                                # symbol but it might be in a parent symbol
-                                # table rather than routine_table.
-                                if cursor is not routine_table:
-                                    new_sym = cursor.lookup(sym.name)
-                                    if sym.name in routine_table:
-                                        for anode in ref_or_lits:
-                                            if isinstance(anode, Literal) and anode.datatype.precision is sym:
-                                                anode.datatype._precision = new_sym
-                                            elif isinstance(anode, Reference) and anode.symbol is sym:
-                                                anode.symbol = new_sym
-                                        del routine_table._symbols[sym.name]
-                                break
+                                cursor.resolve_imports(
+                                    container_symbols=[csym],
+                                    symbol_target=sym)
                             except KeyError:
-                                # TODO #11 - it would be useful to log this.
-                                print(f"Failed to find '{sym.name}' in container '{csym.name}'")
+                                # TODO #11 - it would be useful to log the fact
+                                # that we've looked in this Container.
                                 continue
+                            # We've successfully resolved the symbol.
+                            if cursor is routine_table:
+                                # The resolved symbol is in the routine_table
+                                # so we don't need to do anything else.
+                                continue
+                            # The resolved symbol is in a parent symbol table
+                            # so we must update all references so that they
+                            # refer to the new symbol.
+                            #=============================================
+                            # TODO we're going to reject this case anyway
+                            # (below) although we could permit it??
+                            new_sym = cursor.lookup(sym.name)
+                            if sym.name in routine_table:
+                                for anode in ref_or_lits:
+                                    if (isinstance(anode, Literal) and
+                                            anode.datatype.precision is sym):
+                                        anode.datatype._precision = new_sym
+                                    elif (isinstance(anode, Reference) and
+                                          anode.symbol is sym):
+                                        anode.symbol = new_sym
+                                del routine_table._symbols[sym.name]
+                            break
                     else:
+                        # We didn't find the symbol in any of the Containers
+                        # in this SymbolTable so go up to the next scoping
+                        # unit and try again.
                         cursor = cursor.parent_symbol_table()
                         continue
+                    # We resolved the symbol so we're done.
                     break
                 new_sym = routine_table.lookup(sym.name)
                 if new_sym.is_unresolved:
