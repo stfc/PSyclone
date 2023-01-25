@@ -802,31 +802,22 @@ class InlineTrans(Transformation):
             _symbol_cache.add(sym)
             # We haven't seen this Symbol before.
             if sym.is_unresolved:
-                cursor = self._resolve_symbol(sym, routine_table)
-                if not cursor:
+                try:
+                    routine_table.resolve_imports(symbol_target=sym)
+                except KeyError:
+                    # The symbol is not (directly) imported into the symbol
+                    # table local to the routine.
+                    raise TransformationError(
+                        f"Routine '{routine.name}' cannot be inlined "
+                        f"because it accesses variable '{sym.name}' and this "
+                        f"cannot be found in any of the containers directly "
+                        f"imported into its symbol table.")
+            else:
+                if sym.name not in routine_table:
                     raise TransformationError(
                         f"Routine '{routine.name}' cannot be inlined because "
-                        f"it accesses an un-resolved variable "
-                        f"'{sym.name}'.")
-                if cursor is routine_table:
-                    # The resolved symbol is in the routine_table
-                    # so we can carry on to the next Reference or Literal.
-                    continue
-                # TODO #1904 - the resolved symbol is in a parent symbol table
-                # and we don't yet support that. If we did we would (in
-                # apply()) update all references so that they refer to the new
-                # symbol. (see the version of this code at commit
-                # c115c6154ba9a980ba0d4ac723809688e3e643db)
-                raise TransformationError(
-                    f"Routine '{routine.name}' cannot be inlined "
-                    f"because it accesses variable '{sym.name}' "
-                    f"imported into its parent container.")
-
-            if sym.name not in routine_table and not sym.is_import:
-                raise TransformationError(
-                    f"Routine '{routine.name}' cannot be inlined because "
-                    f"it accesses variable '{sym.name}' from its "
-                    f"parent container.")
+                        f"it accesses variable '{sym.name}' from its "
+                        f"parent container.")
 
         # Check that the shape of any dummy array arguments are the same as
         # those at the call site.
@@ -883,39 +874,6 @@ class InlineTrans(Transformation):
                             f"because one of its arguments is an array slice "
                             f"with a non-unit stride: '{visitor(actual_arg)}' "
                             f"(TODO #1646)"))
-
-    # TODO should this be a method of SymbolTable?
-    @staticmethod
-    def _resolve_symbol(sym, table):
-        '''
-        Resolves the supplied Symbol, starting at the supplied SymbolTable
-        and working up through parent scopes if necessary.
-
-        :returns: the symbol table containing the resolved symbol or None if \
-                  it wasn't found.
-        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable` or NoneType
-
-        '''
-        cursor = table
-        while cursor:
-            csyms = cursor.containersymbols
-            for csym in csyms:
-                if csym.wildcard_import:
-                    try:
-                        cursor.resolve_imports(
-                            container_symbols=[csym],
-                            symbol_target=sym)
-                    except KeyError:
-                        # TODO #11 - it would be useful to log the fact
-                        # that we've looked in this Container.
-                        continue
-                    # We've successfully resolved the symbol.
-                    return cursor
-            # We didn't find the symbol in any of the Containers
-            # in this SymbolTable so go up to the next scoping
-            # unit and try again.
-            cursor = cursor.parent_symbol_table()
-        return None
 
     @staticmethod
     def _find_routine(call_node):
