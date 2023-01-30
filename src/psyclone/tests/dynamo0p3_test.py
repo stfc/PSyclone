@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -59,7 +59,8 @@ from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import Arg, parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange, BuiltIn
-from psyclone.psyir.nodes import colored, UnaryOperation, Reference, Routine
+from psyclone.psyir.nodes import (colored, BinaryOperation, UnaryOperation,
+                                  Reference, Routine)
 from psyclone.psyir.symbols import ScalarType, DataTypeSymbol
 from psyclone.psyir.transformations import LoopFuseTrans
 from psyclone.tests.lfric_build import LFRicBuild
@@ -1466,6 +1467,11 @@ def test_dynkernelargument_psyir_expression(monkeypatch):
     psyir = kern.arguments.args[1].psyir_expression()
     assert isinstance(psyir, UnaryOperation)
     assert psyir.operator == UnaryOperation.Operator.MINUS
+    # Test an expression involving only literals
+    monkeypatch.setattr(kern.arguments.args[1], "_name", "3.0 + 1.0")
+    psyir = kern.arguments.args[1].psyir_expression()
+    assert isinstance(psyir, BinaryOperation)
+    assert psyir.operator == BinaryOperation.Operator.ADD
     # Test that we catch invalid literal expressions
     monkeypatch.setattr(kern.arguments.args[1], "_name", "missing")
     with pytest.raises(InternalError) as err:
