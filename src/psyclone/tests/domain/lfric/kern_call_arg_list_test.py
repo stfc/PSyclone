@@ -42,7 +42,7 @@ import os
 import pytest
 
 from psyclone.core import Signature, VariablesAccessInfo
-from psyclone.domain.lfric import KernCallArgList, psyir
+from psyclone.domain.lfric import KernCallArgList, LFRicSymbolTable, psyir
 from psyclone.errors import GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKern
 from psyclone.parse.algorithm import parse
@@ -504,6 +504,45 @@ def test_indirect_dofmap(fortran_writer):
 
     check_psyir_results(create_arg_list, fortran_writer)
 
+    psyir_args = create_arg_list.psyir_arglist
+    sym_tab = schedule.symbol_table
+    for ref in psyir_args:
+        assert ref.symbol.name in sym_tab
+
+    # Create a dummy LFRic symbol table to simplify creating
+    # standard LFRic types:
+    dummy_sym_tab = LFRicSymbolTable()
+    int_symbol = dummy_sym_tab.find_or_create_integer_symbol("ignore")
+    for i in [0, 1, 5, 6, 7, 8, 9, 10, 11, 12, 13, 16, 17]:
+        assert psyir_args[i].symbol.datatype == int_symbol.datatype
+
+    # Test all 1d real arrays:
+    real_1d = dummy_sym_tab.find_or_create_array("doesnt_matter1dreal", 1,
+                                                 ScalarType.Intrinsic.REAL)
+    for i in [2, 3]:
+        # The datatype of a field  reference is the type of the member
+        # accessed, i.e. it's the 1D real array.
+        assert psyir_args[i].datatype == real_1d.datatype
+
+    # Test all 2d real arrays:
+    real_3d = dummy_sym_tab.find_or_create_array("doesnt_matter2dreal", 3,
+                                                 ScalarType.Intrinsic.REAL)
+    # The datatype of the reference is the type of the member accessed,
+    # i.e. in the case of fields it's the 1d real array.
+    assert psyir_args[4].datatype == real_3d.datatype
+
+    # Test all 1d integer arrays:
+    int_1d = dummy_sym_tab.find_or_create_array("doesnt_matter1dint", 1,
+                                                ScalarType.Intrinsic.INTEGER)
+    for i in [15, 19]:
+        assert psyir_args[i].datatype == int_1d.datatype
+
+    # Test all 2d integer arrays:
+    int_2d = dummy_sym_tab.find_or_create_array("doesnt_matter2dint", 2,
+                                                ScalarType.Intrinsic.INTEGER)
+    for i in [14, 18]:
+        assert psyir_args[i].symbol.datatype == int_2d.datatype
+
 
 def test_ref_element_handling(fortran_writer):
     '''Test the handling of the reference element.
@@ -527,3 +566,37 @@ def test_ref_element_handling(fortran_writer):
             "undf_w1: READ" == str(vai))
 
     check_psyir_results(create_arg_list, fortran_writer)
+
+    psyir_args = create_arg_list.psyir_arglist
+    sym_tab = schedule.symbol_table
+    for ref in psyir_args:
+        assert ref.symbol.name in sym_tab
+
+    # Create a dummy LFRic symbol table to simplify creating
+    # standard LFRic types:
+    dummy_sym_tab = LFRicSymbolTable()
+    int_symbol = dummy_sym_tab.find_or_create_integer_symbol("ignore")
+    for i in [0, 2, 3, 5, 6]:
+        assert psyir_args[i].symbol.datatype == int_symbol.datatype
+
+    # Test the 1d real array, which is of type r_solver
+    # The datatype of a field  reference is the type of the member
+    # accessed, i.e. it's the 1D real array.
+    assert isinstance(psyir_args[1].datatype, ArrayType)
+    assert len(psyir_args[1].datatype.shape) == 1
+    assert psyir_args[1].datatype.intrinsic == ScalarType.Intrinsic.REAL
+    assert psyir_args[1].datatype.precision.name == "r_solver"
+    # TODO #2022: it would be convenient if find_or_create_array could
+    # create an r_solver based array, then the above tests would  just be:
+    # assert psyir_args[i].datatype == r_solver_1d.datatype
+
+    # Test all 2d integer arrays:
+    int_2d = dummy_sym_tab.find_or_create_array("doesnt_matter2dint", 2,
+                                                ScalarType.Intrinsic.INTEGER)
+    for i in [4]:
+        assert psyir_args[i].symbol.datatype == int_2d.datatype
+
+    int_arr_2d = dummy_sym_tab.find_or_create_array("doesnt_matter2dreal", 2,
+                                                    ScalarType.Intrinsic.REAL)
+    for i in [7, 8]:
+        assert psyir_args[i].symbol.datatype == int_arr_2d.datatype
