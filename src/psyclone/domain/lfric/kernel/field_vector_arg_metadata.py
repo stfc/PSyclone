@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council
+# Copyright (c) 2022-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,6 +50,8 @@ class FieldVectorArgMetadata(FieldArgMetadata):
     :param str function_space: the function space that this field is on \
         (W0, ...).
     :param str vector_length: the size of the vector.
+    :param Optional[str] stencil: the type of stencil used by the \
+        kernel when accessing this field.
 
     '''
     # The relative position of LFRic vector length metadata. Metadata
@@ -65,8 +67,9 @@ class FieldVectorArgMetadata(FieldArgMetadata):
     # Whether the class captures vector metadata.
     vector = True
 
-    def __init__(self, datatype, access, function_space, vector_length):
-        super().__init__(datatype, access, function_space)
+    def __init__(self, datatype, access, function_space, vector_length,
+                 stencil=None):
+        super().__init__(datatype, access, function_space, stencil=stencil)
         self.vector_length = vector_length
 
     @classmethod
@@ -81,20 +84,24 @@ class FieldVectorArgMetadata(FieldArgMetadata):
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
 
         :returns: a tuple containing the datatype, access, function \
-            space and vector-length metadata.
-        :rtype: Tuple[str, str, str, str]
+            space, vector-length and stencil metadata.
+        :rtype: Tuple[str, str, str, str, Optional[str]]
 
         '''
-        datatype, access, function_space = super()._get_metadata(
+        datatype, access, function_space, stencil = super()._get_metadata(
             fparser2_tree)
         vector_length = cls.get_vector_length(fparser2_tree)
-        return (datatype, access, function_space, vector_length)
+        return (datatype, access, function_space, vector_length, stencil)
 
     def fortran_string(self):
         '''
         :returns: the metadata represented by this class as Fortran.
         :rtype: str
         '''
+        if self.stencil:
+            return (f"arg_type({self.form}*{self.vector_length}, "
+                    f"{self.datatype}, {self.access}, {self.function_space}, "
+                    f"stencil({self.stencil}))")
         return (f"arg_type({self.form}*{self.vector_length}, {self.datatype}, "
                 f"{self.access}, {self.function_space})")
 

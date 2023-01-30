@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -231,7 +231,9 @@ def test_psyirvisitor_lower_dsl_concepts():
     assert (
         "Failed to lower 'MyDSLNode[]'. Note that some nodes need to be "
         "lowered from an ancestor in order to properly apply their in-tree "
-        "modifications." in str(excinfo.value))
+        "modifications. Original error was 'PSyclone SymbolTable error: "
+        "Unable to find the scope of node 'MyDSLNode[]' as none of its "
+        "ancestors are Container or Schedule nodes.'." in str(excinfo.value))
 
 
 def test_psyirvisitor_visit_no_method1():

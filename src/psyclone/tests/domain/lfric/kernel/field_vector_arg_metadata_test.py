@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council
+# Copyright (c) 2022-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -58,9 +58,26 @@ def test_create(datatype, access, function_space):
     assert field_vector_arg._access == "gh_read"
     assert field_vector_arg._function_space == "w0"
     assert field_vector_arg._vector_length == "2"
+    assert field_vector_arg._stencil is None
 
 
-def test_init_invalid():
+def test_create_stencil():
+    '''Test that an instance of FieldVectorArgMetadata can be created
+    successfully when stencil metadata is supplied.
+
+    '''
+    field_vector_arg = FieldVectorArgMetadata(
+        "gh_real", "gh_read", "w0", "2", stencil="xory1d")
+    assert isinstance(field_vector_arg, FieldVectorArgMetadata)
+    assert field_vector_arg.form == "gh_field"
+    assert field_vector_arg._datatype == "gh_real"
+    assert field_vector_arg._access == "gh_read"
+    assert field_vector_arg._function_space == "w0"
+    assert field_vector_arg._vector_length == "2"
+    assert field_vector_arg._stencil == "xory1d"
+
+
+def test_init_invalid_vector_length():
     '''Test that an invalid vector length supplied to the constructor
     raises the expected exception.
 
@@ -71,26 +88,38 @@ def test_init_invalid():
             in str(info.value))
 
 
-def test_get_metadata():
-    '''Test that the get_metadata class method works as expected. Test
-    that all relevant check and get methods are called by raising
-    exceptions within them, as well as checking for valid input.
+def test_init_invalid_stencil():
+    '''Test that an invalid stencil supplied to the constructor
+    raises the expected exception.
 
     '''
+    with pytest.raises(ValueError) as info:
+        _ = FieldVectorArgMetadata(
+            "GH_REAL", "GH_READ", "W0", "2", stencil="invalid")
+    assert ("The 'stencil' metadata should be a recognised value (one of "
+            "['x1d', 'y1d', 'xory1d', 'cross', 'region', 'cross2d']) but "
+            "found 'invalid'." in str(info.value))
+
+
+def test_get_metadata():
+    '''Test that the get_metadata class method works as expected.'''
     fparser2_tree = FieldVectorArgMetadata.create_fparser2(
         "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)", Fortran2003.Part_Ref)
-    datatype, access, function_space, vector_length = \
+    datatype, access, function_space, vector_length, stencil = \
         FieldVectorArgMetadata._get_metadata(fparser2_tree)
     assert datatype == "GH_REAL"
     assert access == "GH_READ"
     assert function_space == "W0"
     assert vector_length == "3"
+    assert stencil is None
 
 
-def test_fortran_string():
+@pytest.mark.parametrize("fortran_string", [
+    "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)",
+    "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0, STENCIL(Y1D))"])
+def test_fortran_string(fortran_string):
     '''Test that the fortran_string method works as expected.'''
 
-    fortran_string = "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)"
     field_vector_arg = FieldVectorArgMetadata.create_from_fortran_string(
         fortran_string)
     result = field_vector_arg.fortran_string()

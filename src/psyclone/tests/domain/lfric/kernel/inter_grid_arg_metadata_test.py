@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council
+# Copyright (c) 2022-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,12 +43,13 @@ from fparser.two import Fortran2003
 from psyclone.domain.lfric.kernel import InterGridArgMetadata
 
 
-@pytest.mark.parametrize("datatype, access, function_space, mesh", [
-    ("GH_REAL", "GH_READ", "W0", "GH_FINE"),
-    ("gh_real", "gh_read", "w0", "gh_fine")])
-def test_create(datatype, access, function_space, mesh):
+@pytest.mark.parametrize("datatype, access, function_space, mesh, stencil", [
+    ("GH_REAL", "GH_READ", "W0", "GH_FINE", "REGION"),
+    ("gh_real", "gh_read", "w0", "gh_fine", "region")])
+def test_create(datatype, access, function_space, mesh, stencil):
     '''Test that an instance of InterGridArgMetadata can be created
-    successfully.
+    successfully. Test that the input is case insensitive and for
+    optional stencil information.
 
     '''
     inter_grid_arg = InterGridArgMetadata(
@@ -59,6 +60,11 @@ def test_create(datatype, access, function_space, mesh):
     assert inter_grid_arg._access == "gh_read"
     assert inter_grid_arg._function_space == "w0"
     assert inter_grid_arg._mesh_arg == "gh_fine"
+    assert inter_grid_arg._stencil is None
+
+    inter_grid_arg = InterGridArgMetadata(
+        datatype, access, function_space, mesh, stencil=stencil)
+    assert inter_grid_arg._stencil == "region"
 
 
 def test_init_invalid():
@@ -80,12 +86,31 @@ def test_get_metadata():
     metadata = "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, mesh_arg=GH_COARSE)"
     fparser2_tree = InterGridArgMetadata.create_fparser2(
         metadata, encoding=Fortran2003.Structure_Constructor)
-    datatype, access, function_space, mesh_arg = \
+    datatype, access, function_space, mesh_arg, stencil = \
         InterGridArgMetadata._get_metadata(fparser2_tree)
     assert datatype == "GH_REAL"
     assert access == "GH_READ"
     assert function_space == "W0"
     assert mesh_arg == "GH_COARSE"
+    assert stencil is None
+
+
+def test_get_metadata_stencil():
+    '''Test that the get_metadata class method works as expected when an
+    optional stencil value is provided.
+
+    '''
+    metadata = ("arg_type(GH_FIELD, GH_REAL, GH_READ, W0, stencil(region), "
+                "mesh_arg=GH_COARSE)")
+    fparser2_tree = InterGridArgMetadata.create_fparser2(
+        metadata, encoding=Fortran2003.Structure_Constructor)
+    datatype, access, function_space, mesh_arg, stencil = \
+        InterGridArgMetadata._get_metadata(fparser2_tree)
+    assert datatype == "GH_REAL"
+    assert access == "GH_READ"
+    assert function_space == "W0"
+    assert mesh_arg == "GH_COARSE"
+    assert stencil == "region"
 
 
 def test_get_mesh_arg():
@@ -96,24 +121,37 @@ def test_get_mesh_arg():
     fparser2_tree = InterGridArgMetadata.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, mesh_arg=GH_COARSE)",
         encoding=Fortran2003.Structure_Constructor)
-    mesh_arg = InterGridArgMetadata.get_mesh_arg(fparser2_tree)
+    mesh_arg = InterGridArgMetadata.get_mesh_arg(fparser2_tree, 4)
     assert mesh_arg == "GH_COARSE"
+
+    # Test when metadata is not in the expected 'mesh_arg = value'
+    # form. For simplicity, just choose the wrong argument index for
+    # the existing valid metadata.
+    with pytest.raises(ValueError) as info:
+        _ = InterGridArgMetadata.get_mesh_arg(fparser2_tree, 3)
+    assert ("At argument index 3 for metadata 'arg_type(GH_FIELD, GH_REAL, "
+            "GH_READ, W0, mesh_arg = GH_COARSE)' expected the metadata to be "
+            "in the form 'mesh_arg=value' but found 'W0'." in str(info.value))
 
     fparser2_tree = InterGridArgMetadata.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, invalid=GH_COARSE)",
         encoding=Fortran2003.Structure_Constructor)
     with pytest.raises(ValueError) as info:
-        _ = InterGridArgMetadata.get_mesh_arg(fparser2_tree)
+        _ = InterGridArgMetadata.get_mesh_arg(fparser2_tree, 4)
     assert ("At argument index 4 for metadata 'arg_type(GH_FIELD, GH_REAL, "
             "GH_READ, W0, invalid = GH_COARSE)' expected the left hand side "
-            "to be MESH_ARG but found 'invalid'." in str(info.value))
+            "to be 'mesh_arg' but found 'invalid'." in str(info.value))
 
 
-def test_fortran_string():
-    '''Test that the fortran_string method works as expected.'''
+@pytest.mark.parametrize("fortran_string", [
+    "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, mesh_arg=GH_FINE)",
+    "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, STENCIL(X1D), "
+    "mesh_arg=GH_FINE)"])
+def test_fortran_string(fortran_string):
+    '''Test that the fortran_string method works as expected. Test with
+    and without a stencil.
 
-    fortran_string = ("arg_type(GH_FIELD, GH_REAL, GH_READ, W0, "
-                      "mesh_arg=GH_FINE)")
+    '''
     inter_grid_arg = InterGridArgMetadata.create_from_fortran_string(
         fortran_string)
     result = inter_grid_arg.fortran_string()
