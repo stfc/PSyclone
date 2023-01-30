@@ -48,13 +48,12 @@ from psyclone import psyGen
 from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric import ArgOrdering, LFRicConstants, psyir
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (ArrayOfStructuresReference, Literal,
                                   Reference, StructureReference)
 from psyclone.psyir.symbols import (ArrayType, DataSymbol, DataTypeSymbol,
                                     DeferredType, ContainerSymbol,
                                     ImportInterface, INTEGER_SINGLE_TYPE,
-                                    ScalarType, SymbolError, SymbolTable)
+                                    ScalarType)
 
 # psyir has classes created at runtime
 # pylint: disable=no-member
