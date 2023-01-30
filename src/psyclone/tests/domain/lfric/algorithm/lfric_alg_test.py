@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council
+# Copyright (c) 2022-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified by: R. W. Ford, STFC Daresbury Lab
 
 ''' pytest tests for the LFRic-specifc algorithm-generation functionality. '''
 
@@ -245,7 +246,8 @@ def test_kernel_from_metadata(lfric_alg):
     with pytest.raises(ValueError) as err:
         lfric_alg.kernel_from_metadata("not fortran", "john")
     assert ("Failed to find kernel 'john' in supplied code: 'not fortran'. "
-            "Is it a valid LFRic kernel?" in str(err.value))
+            "Is it a valid LFRic kernel? Original error was 'Parse Error: "
+            "Kernel type john does not exist'." in str(err.value))
     code = '''\
 module testkern_mod
 
@@ -277,6 +279,8 @@ end module testkern_mod
     with pytest.raises(ValueError) as err:
         lfric_alg.kernel_from_metadata(ptree, "john")
     assert "Failed to find kernel 'john' in supplied code: '" in str(err.value)
+    assert ("Is it a valid LFRic kernel? Original error was 'Parse Error: "
+            "Kernel type john does not exist'." in str(err.value))
     # Valid parse tree and correct name.
     kern = lfric_alg.kernel_from_metadata(ptree, "testkern_type")
     assert isinstance(kern, DynKern)
