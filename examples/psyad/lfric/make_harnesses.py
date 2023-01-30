@@ -153,6 +153,7 @@ all_kernels["kinetic_energy_gradient"] = KernelDesc(
 # Change coord. field to be on Wchi.
 # i_3, idx_1_1, idx_2_1 declared but unused.
 # Passes once that declaration removed.
+# Status doc. number = 23
 all_kernels["vorticity_advection"] = KernelDesc(
     passing=True,
     adj_file="adjoint/adj_vorticity_advection_kernel_mod.F90",
@@ -165,6 +166,7 @@ all_kernels["vorticity_advection"] = KernelDesc(
     coord_arg=6, panel_id_arg=7, mini_app="skeleton")
 
 # Passes.
+# Status doc. number = 1
 all_kernels["moist_dyn_gas"] = KernelDesc(
     passing=True,
     adj_file="adjoint/adj_moist_dyn_gas_kernel_mod.F90",
@@ -175,6 +177,7 @@ all_kernels["moist_dyn_gas"] = KernelDesc(
     coord_arg=-1, panel_id_arg=-1, mini_app="gravity_wave")
 
 # Passes.
+# Status doc. number = 2
 all_kernels["moist_dyn_mass"] = KernelDesc(
     passing=True,
     adj_file="adjoint/adj_moist_dyn_mass_kernel_mod.F90",
@@ -186,6 +189,7 @@ all_kernels["moist_dyn_mass"] = KernelDesc(
 
 # Passes but cannot copy TL kernel into test harness because it's identical
 # to the kernel on trunk.
+# Status doc. number = 8
 all_kernels["w3_advective_update"] = KernelDesc(
     passing=True,
     adj_file="adjoint/adj_w3_advective_update_kernel_mod.F90",
@@ -197,6 +201,7 @@ all_kernels["w3_advective_update"] = KernelDesc(
 # #1458 - passive scalars are assigned to multiple times. In the tweaked
 # version I've changed the code so that a new scalar is used for each
 # assignment. Test then passes.
+# Status doc. number = 9
 all_kernels["poly_advective"] = KernelDesc(
     passing=True,
     adj_file="adjoint/adj_poly_advective_kernel_mod.F90",
@@ -210,6 +215,7 @@ all_kernels["poly_advective"] = KernelDesc(
 # Passes once that limitation removed from test-harness generation and unused
 # scalar removed from test harness.
 # TODO record that 'tweaked' harness must be used.
+# Status doc. number = 10
 all_kernels["poly1d_vert_adv"] = KernelDesc(
     passing=True,
     adj_file="adjoint/adj_poly1d_vert_adv_kernel_mod.F90",
@@ -220,6 +226,7 @@ all_kernels["poly1d_vert_adv"] = KernelDesc(
     coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
 
 # Has stencil
+# Status doc. number = 11
 all_kernels["poly1d_w3_reconstruction"] = KernelDesc(
     passing=False,
     adj_file="adjoint/lbl_adj_poly1d_w3_reconstruction_kernel_mod.F90",
@@ -233,6 +240,7 @@ all_kernels["poly1d_w3_reconstruction"] = KernelDesc(
 # vars.
 # Generated test harness has unused scalars.
 # Passes (once above issues fixed).
+# Status doc. number = 12
 all_kernels["poly1d_vert_w3_reconstruction"] = KernelDesc(
     passing=True,
     adj_file="adjoint/adj_poly1d_vert_w3_reconstruction_kernel_mod.F90",
@@ -243,6 +251,7 @@ all_kernels["poly1d_vert_w3_reconstruction"] = KernelDesc(
     coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
 
 # Passes.
+# Status doc. number = 13
 all_kernels["convert_hdiv_field"] = KernelDesc(
     passing=True,
     adj_file="adjoint/adj_convert_hdiv_field_kernel_mod.F90",
@@ -254,6 +263,7 @@ all_kernels["convert_hdiv_field"] = KernelDesc(
     coord_arg=3, panel_id_arg=4, mini_app="gravity_wave")
 
 # Passes.
+# Status doc. number = 14
 all_kernels["combine_w2_field"] = KernelDesc(
     passing=True,
     adj_file="adjoint/adj_combine_w2_field_kernel_mod.F90",
@@ -264,6 +274,7 @@ all_kernels["combine_w2_field"] = KernelDesc(
 
 # tl_calc_exner_pointwise [-a rho theta exner]
 # Has no metadata.
+# Status doc. number = 17
 all_kernels["calc_exner_pointwise"] = KernelDesc(
     passing=True,
     adj_file="adjoint/adj_calc_exner_pointwise_mod.F90",
@@ -274,6 +285,7 @@ all_kernels["calc_exner_pointwise"] = KernelDesc(
     coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
 
 # Passes.
+# Status doc. number = 18
 all_kernels["sample_flux"] = KernelDesc(
     passing=True,
     adj_file="adjoint/adj_sample_flux_kernel_mod.F90",
@@ -282,7 +294,8 @@ all_kernels["sample_flux"] = KernelDesc(
     active_vars="flux u",
     coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
 
-# Passes.
+# Passes once adj. kernel updated with additional args.
+# Status doc. number = 24
 all_kernels["rhs_sample_eos"] = KernelDesc(
     passing=True,
     adj_file="adjoint/adj_rhs_sample_eos_kernel_mod.F90",
@@ -293,6 +306,7 @@ all_kernels["rhs_sample_eos"] = KernelDesc(
     coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
 
 # Gravity_wave test harness gives NaNs.
+# Status doc. number = 25
 all_kernels["sample_eos_pressure"] = KernelDesc(
     passing=False,
     adj_file="adjoint/adj_sample_eos_pressure_kernel_mod.F90",
@@ -304,6 +318,7 @@ all_kernels["sample_eos_pressure"] = KernelDesc(
     coord_arg=-1, panel_id_arg=-1, mini_app="gravity_wave")
 
 # Fails but would pass if 'uvw' zeroed before kernel runs.
+# Status doc. number = 15
 all_kernels["split_w2_field"] = KernelDesc(
     passing=False,
     adj_file="adjoint/adj_split_w2_field_kernel_mod.F90",
@@ -313,6 +328,7 @@ all_kernels["split_w2_field"] = KernelDesc(
     coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
 
 # Has stencil.
+# Status doc. number = 26
 all_kernels["tracer_viscosity"] = KernelDesc(
     passing=False,
     adj_file="adjoint/adj_tracer_viscosity_kernel_mod.F90",
@@ -323,6 +339,7 @@ all_kernels["tracer_viscosity"] = KernelDesc(
 
 # Passes once adjoint argument list updated with additional
 # basis and diff-basis arrays.
+# Status doc. number = 29
 all_kernels["strong_curl"] = KernelDesc(
     passing=True,
     adj_file="adjoint/adj_strong_curl_kernel_mod.F90",
@@ -332,6 +349,7 @@ all_kernels["strong_curl"] = KernelDesc(
     coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
 
 # Passes.
+# Status doc. number = 28
 all_kernels["w2_to_w1_projection"] = KernelDesc(
     passing=True,
     adj_file="adjoint/adj_w2_to_w1_projection_kernel_mod.F90",
