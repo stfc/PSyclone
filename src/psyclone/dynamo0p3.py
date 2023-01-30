@@ -2192,10 +2192,7 @@ class DynReferenceElement(DynCollection):
         if self._properties:
             self._properties = list(OrderedDict.fromkeys(self._properties))
 
-        if isinstance(node, DynKern) and node.parent is not None:
-            symtab = node.ancestor(InvokeSchedule).symbol_table
-        else:
-            symtab = self._symbol_table
+        symtab = self._symbol_table
 
         # Create and store a name for the reference element object
         self._ref_elem_name = \
