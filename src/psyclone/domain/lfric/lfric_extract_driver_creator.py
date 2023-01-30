@@ -840,7 +840,7 @@ class LFRicExtractDriverCreator:
 
         :returns: a dictionary, with the required module names as key, and \
             as value a set of all modules required by the key module.
-        :rtype: Dict[str, Set[str]
+        :rtype: Set[str]
 
         '''
         sym_tab = file_container.children[0].symbol_table
@@ -911,11 +911,10 @@ class LFRicExtractDriverCreator:
         out = []
         mod_manager = ModuleManager.get()
         for module in sorted_modules:
-            try:
-                mod_info = mod_manager.get_module_info(module)
-                out.append(mod_info.get_source_code())
-            except (FileNotFoundError, TypeError):
-                print(f"Could not find module '{module}' - ignored.")
+            # Note that all modules in sorted_modules are known to be in
+            # the module manager, so we can always get the module info here.
+            mod_info = mod_manager.get_module_info(module)
+            out.append(mod_info.get_source_code())
 
         out.append(writer(file_container))
 
