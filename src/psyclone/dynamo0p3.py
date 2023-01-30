@@ -2324,9 +2324,7 @@ class DynReferenceElement(DynCollection):
 
     def kern_args(self):
         '''
-        Create argument list for kernel call and stub.
-
-        :return: kernel call/stub arguments.
+        :returns: the argument list for kernel call/stub arguments.
         :rtype: List[str]
 
         '''
@@ -2338,9 +2336,7 @@ class DynReferenceElement(DynCollection):
 
     def kern_args_symbols(self):
         '''
-        Create argument symbol list for kernel call and stub.
-
-        :return: kernel call/stub arguments.
+        :returns: the argument symbol list for kernel call/stub arguments.
         :rtype: List[:py:class:`psyclone.psyir.symbols.Symbol`]
 
         '''
