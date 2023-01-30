@@ -273,7 +273,13 @@
 	93) PR #2015 for #2012. Fixes crash in access-information
 	collection when there is an LFRic 'domain' loop.
 
-	94) PR #2020 for #2019. Fix inconsistencies in handling of precision
+	94) PR #2014. Extends psyir_from_source() so that the caller
+	can specify if the Fortran is in fixed format.
+
+	95) PR #1993 towards #1953. Extends the LFRicKernelMetadata
+	class to support stencil specifications.
+
+	96) PR #2020 for #2019. Fix inconsistencies in handling of precision
 	symbols
 
 release 2.3.1 17th of June 2022
