@@ -101,7 +101,13 @@ def test_cellmap_intergrid(dist_mem, fortran_writer):
     kernel = schedule.kernels()[0]
 
     create_arg_list = KernCallArgList(kernel)
-    create_arg_list.generate()
+    vai = VariablesAccessInfo()
+    create_arg_list.generate(vai)
+
+    # Verify that no array expression turns up in the access information
+    assert "cell_map_field2(:,:,cell)" not in str(vai)
+    assert Signature("cell_map_field2") in vai
+
     assert create_arg_list._arglist == [
         'nlayers', 'cell_map_field2(:,:,cell)', 'ncpc_field1_field2_x',
         'ncpc_field1_field2_y', 'ncell_field1', 'field1_proxy%data',
@@ -422,8 +428,13 @@ def test_kerncallarglist_scalar_literal(fortran_writer):
                         dist_mem=False, idx=0)
 
     schedule = psy.invokes.invoke_list[0].schedule
+    vai = VariablesAccessInfo()
     create_arg_list = KernCallArgList(schedule.kernels()[0])
-    create_arg_list.generate()
+    create_arg_list.generate(vai)
+
+    # Verify that a constant is not returned in the access info list
+    assert "1.0" not in str(vai)
+
     assert create_arg_list._arglist == [
         'nlayers', 'f1_proxy%data', 'f2_proxy%data', 'm1_proxy%data',
         '1.0_r_def', 'm2_proxy%data', '2_i_def', 'ndf_w1', 'undf_w1',

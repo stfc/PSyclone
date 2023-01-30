@@ -267,6 +267,18 @@
 	91) PR #2007 for #2000. Removes pinning of Sphinx version in setup.py
 	now that the linkcheck bug has been fixed in a new release.
 
+	92) PR #1976 for #1974. Fixes issues with literal constants and
+	array accesses in VariableAccessInfo for the LFRic API.
+
+	93) PR #2015 for #2012. Fixes crash in access-information
+	collection when there is an LFRic 'domain' loop.
+
+	94) PR #2014. Extends psyir_from_source() so that the caller
+	can specify if the Fortran is in fixed format.
+
+	95) PR #1993 towards #1953. Extends the LFRicKernelMetadata
+	class to support stencil specifications.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
