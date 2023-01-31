@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2018-2021, Science and Technology Facilities Council
+! Modifications copyright (c) 2018-2022, Science and Technology Facilities Council
 ! All rights reserved.
 ! 
 ! Redistribution and use in source and binary forms, with or without
@@ -36,8 +36,8 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified I. Kavcic, Met Office
+! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified: I. Kavcic, Met Office
 
 ! Kernel which applies a columnwise assembled operator to a field on W2V (discontinuous)
 module columnwise_op_app_w2v_kernel_mod
@@ -48,7 +48,7 @@ use argument_mod,            only : arg_type, func_type,              &
                                     GH_FIELD, GH_COLUMNWISE_OPERATOR, &
                                     GH_REAL, GH_READ, GH_WRITE,       &
                                     ANY_SPACE_2, CELL_COLUMN
-use constants_mod,           only : r_def, i_def
+use constants_mod,           only : r_def, r_solver, i_def
 
 implicit none
 
@@ -117,7 +117,7 @@ contains
     integer(kind=i_def), intent(in), dimension(cma_op_ncol) :: cma_indirection_map_aspc2
     real(kind=r_def), intent(inout), dimension(undf_w2v) :: field1
     real(kind=r_def), intent(in), dimension(undf_aspc2)  :: field2
-    real(kind=r_def), intent(in), dimension(cma_op_bandwidth,cma_op_nrow,ncell_2d) :: cma_op
+    real(kind=r_solver), intent(in), dimension(cma_op_bandwidth,cma_op_nrow,ncell_2d) :: cma_op
 
     write(*,*) "A kernel that applies CMA operator to a field on discontinuous space W2V"
 

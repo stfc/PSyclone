@@ -5,12 +5,7 @@ max-line-length=79
 
 # fparser dynamically generates *_List classes so pylint can't
 # find them.
-generated-members=Fortran2003.*_List
-
-[MESSAGES CONTROL]
-
-# These can be re-enabled when we drop support for python2
-disable=super-with-arguments,useless-object-inheritance
+generated-members=Fortran2003.*_List,psyir.Lfric*
 
 [DESIGN]
 # Maximum number of parents for a class (see R0901)

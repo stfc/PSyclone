@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,12 +33,13 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 # Modified S. Siso, STFC Daresbury Lab
+# Modified J. Henrichs, Bureau of Meteorology
 
 '''Test that the LFRic-specific PSyIR classes are created and declared
 correctly'''
 
-from __future__ import absolute_import
 import pytest
+
 from psyclone.domain.lfric import psyir as lfric_psyir
 from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, \
     ImportInterface, ScalarType, LocalInterface, ArgumentInterface, \
@@ -110,8 +111,8 @@ def test_scalar_literals():
                       lfric_psyir.LfricDimension)
     with pytest.raises(ValueError) as info:
         lfric_psyir.LfricDimension("2")
-    assert("An LFRic dimension object must be '1' or '3', but found '2'."
-           in str(info.value))
+    assert ("An LFRic dimension object must be '1' or '3', but found '2'."
+            in str(info.value))
     # LFRIC_SCALAR_DIMENSION instance
     assert isinstance(lfric_psyir.LFRIC_SCALAR_DIMENSION,
                       lfric_psyir.LfricDimension)
@@ -390,9 +391,8 @@ def test_arrays(data_type, symbol, scalar_type, dims, attribute_map):
     # Wrong number of dims
     with pytest.raises(TypeError) as info:
         _ = data_type([])
-    assert ("{0} expected the number of supplied dimensions to be {1} but "
-            "found 0.".format(type(lfric_datatype).__name__, len(dims))
-            in str(info.value))
+    assert (f"{type(lfric_datatype).__name__} expected the number of supplied "
+            f"dimensions to be {len(dims)} but found 0." in str(info.value))
     # Datasymbol creation
     args = list(attribute_map.values())
     lfric_symbol = symbol("symbol", dims, *args)

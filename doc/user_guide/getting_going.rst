@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2021, Science and Technology Facilities Council.
+.. Copyright (c) 2017-2022, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 .. Modified by I. Kavcic, Met Office
 
 .. _getting-going:
@@ -63,12 +63,12 @@ PyPI using ``pip install``, see :ref:`getting-going-env-pypi` for
 more detailed information.
 
 Alternatively, PSyclone can be downloaded from GitHub - either see |release|
-in the ``Releases`` `tab <https://github.com/stfc/PSyclone/releases>`_
+in the ``Tags`` `tab <https://github.com/stfc/PSyclone/tags>`_
 on the PSyclone page or download and extract the latest release of
 PSyclone directly, e.g.
 
 .. parsed-literal::
-   > wget https://github.com/stfc/PSyclone/archive/\ |release|\ .tar.gz
+   > wget \https://github.com/stfc/PSyclone/archive/\ |release|\ .tar.gz
    > tar zxf \ |release|\ .tar.gz
    > ls
    PSyclone-\ |release|\
@@ -113,8 +113,7 @@ to do a user-local install instead then supply the ``--user`` flag::
    > pip install --user psyclone
 
 PSyclone can also be installed to a specific location using ``--install-option``
-(see ``pip``
-`documentation <https://pip.pypa.io/en/stable/reference/pip_install/#install-install-option>`_
+(see ``pip`` `documentation <https://pip.pypa.io/en/stable/cli/pip_install/>`_
 for more detailed information)::
 
    > pip install --install-option="--prefix=/my/install/path" psyclone==X.Y.Z
@@ -203,7 +202,7 @@ for instance the script directory is usually called ``Scripts`` instead
 of ``bin`` and the modules directory ``Lib`` instead of ``lib``.
 
 Installation in an `Anaconda Python
-<https://www.anaconda.com/products/individual>`_ environment on
+<https://www.anaconda.com/products/distribution>`_ environment on
 Windows also needs to be done using ``pip`` as ``conda install`` for
 PSyclone is currently not supported.
 
@@ -213,15 +212,14 @@ Dependencies
 ------------
 
 PSyclone is written in Python so needs Python 3 to be installed on the
-target machine. PSyclone is regularly tested with Python 3.6 and 3.8
+target machine. PSyclone is regularly tested with Python 3.7, 3.8 and 3.11
 but should work with any version >= 3.6. (The last PSyclone release to
 support Python 2.7 was version 2.1.0.)
 
-PSyclone immediately relies on five external Python packages; ``six``,
-``configparser``, ``fparser``, ``sympy``, and ``pyparsing``. (Note that
-the use of ``six`` is being phased out now that Python 2.7 is not
-supported.) The easiest way to satisfy the Python dependencies is to
-use the `PyPI installation <https://packaging.python.org/installing>`_
+PSyclone immediately relies on four external Python packages; ``configparser``,
+``fparser``, ``sympy``, and ``pyparsing``. The easiest way to satisfy the
+Python dependencies is to use the
+`PyPI installation <https://packaging.python.org/installing>`_
 and ``pip``.
 
 If everything is working correctly then using ``pip`` to install PSyclone::
@@ -469,7 +467,7 @@ is on your ``PATH``::
    usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-okern OKERN] [-api API]
                    [-s SCRIPT] [-d DIRECTORY] [-I INCLUDE] [-l {off,all,output}]
                    [-dm] [-nodm] [--kernel-renaming {multiple,single}]
-                   [--profile {invokes,kernels}] [--config CONFIG] [-v]
+                   [--profile {invokes,kernels}] [--config CONFIG] [--version]
                    filename
    psyclone: error: the following arguments are required: filename
 

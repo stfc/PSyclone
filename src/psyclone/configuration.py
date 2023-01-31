@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council.
+# Copyright (c) 2018-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,9 +31,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and S. Siso STFC Daresbury Lab
-# Modified: J. Henrichs, Bureau of Meteorology,
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified: J. Henrichs, Bureau of Meteorology
 #           I. Kavcic, Met Office
+#           N. Nobre, STFC Daresbury Lab
 
 '''
 PSyclone configuration management module.
@@ -41,16 +42,14 @@ PSyclone configuration management module.
 Deals with reading the config file and storing default settings.
 '''
 
-from __future__ import absolute_import, print_function
 import abc
-from configparser import ConfigParser, MissingSectionHeaderError, \
-    ParsingError
+from configparser import (ConfigParser, MissingSectionHeaderError,
+                          ParsingError)
 from collections import namedtuple
 import os
 import re
 import sys
-
-import six
+import psyclone
 
 from psyclone.errors import PSycloneError, InternalError
 
@@ -66,8 +65,6 @@ _FILE_NAME = "psyclone.cfg"
 #          applied and only one version of the transformed kernel is created.
 VALID_KERNEL_NAMING_SCHEMES = ["multiple", "single"]
 
-# pylint: disable=too-many-lines
-
 
 # pylint: disable=too-many-lines
 class ConfigurationError(PSycloneError):
@@ -82,12 +79,12 @@ class ConfigurationError(PSycloneError):
         PSycloneError.__init__(self, value)
         self.value = "PSyclone configuration error"
         if config:
-            self.value += " (file={0})".format(config.filename)
-        self.value += ": "+str(value)
+            self.value = f"{self.value} (file={config.filename})"
+        self.value += f": {value}"
 
 
 # =============================================================================
-class Config(object):
+class Config:
     # pylint: disable=too-many-instance-attributes, too-many-public-methods
     '''
     Handles all configuration management. It is implemented as a singleton
@@ -96,16 +93,19 @@ class Config(object):
     # Class variable to store the singleton instance
     _instance = None
 
+    # Static specification of a valid name for use in checking for
+    # variable names etc.
+    valid_name = re.compile(r'[a-zA-Z_][\w]*')
+
     # List of supported API by PSyclone
-    _supported_api_list = ["dynamo0.1", "dynamo0.3",
-                           "gocean0.1", "gocean1.0", "nemo"]
+    _supported_api_list = ["dynamo0.3", "gocean1.0", "nemo"]
 
     # List of supported stub API by PSyclone
     _supported_stub_api_list = ["dynamo0.3"]
 
     # The default API, i.e. the one to be used if neither a command line
     # option is specified nor is the API in the config file used.
-    _default_api = u"dynamo0.3"
+    _default_api = "dynamo0.3"
 
     # The default scheme to use when (re)naming transformed kernels.
     # By default we support multiple, different versions of any given
@@ -227,7 +227,7 @@ class Config(object):
             # file to read
             if not os.path.isfile(config_file):
                 raise ConfigurationError(
-                    "File {0} does not exist".format(config_file))
+                    f"File {config_file} does not exist")
             self._config_file = config_file[:]
         else:
             # Search for the config file in various default locations
@@ -241,10 +241,10 @@ class Config(object):
         # Check for missing section headers and general parsing errors
         # (e.g. incomplete or incorrect key-value mapping)
         except (MissingSectionHeaderError, ParsingError) as err:
-            six.raise_from(ConfigurationError(
-                "ConfigParser failed to read the configuration file. Is it "
-                "formatted correctly? (Error was: {0})".format(str(err)),
-                config=self), err)
+            raise ConfigurationError(
+                f"ConfigParser failed to read the configuration file. Is it "
+                f"formatted correctly? (Error was: {err})",
+                config=self) from err
 
         # Check that the configuration file has a [DEFAULT] section. Even
         # if there isn't one in the file, ConfigParser creates an (empty)
@@ -264,13 +264,13 @@ class Config(object):
             self._distributed_mem = self._config['DEFAULT'].getboolean(
                 'DISTRIBUTED_MEMORY')
         except ValueError as err:
-            six.raise_from(ConfigurationError(
-                "Error while parsing DISTRIBUTED_MEMORY: {0}".
-                format(str(err)), config=self), err)
+            raise ConfigurationError(
+                f"Error while parsing DISTRIBUTED_MEMORY: {err}",
+                config=self) from err
 
-        # API for psyclone
-        if "API" in self._config["DEFAULT"]:
-            self._api = self._config['DEFAULT']['API']
+        # API for PSyclone
+        if "DEFAULTAPI" in self._config["DEFAULT"]:
+            self._api = self._config['DEFAULT']['DEFAULTAPI']
         else:
             self._api = Config._default_api
             # Test if we have exactly one section (besides DEFAULT).
@@ -285,10 +285,8 @@ class Config(object):
         # Sanity check
         if self._api not in Config._supported_api_list:
             raise ConfigurationError(
-                "The API ({0}) is not in the list of supported "
-                "APIs ({1}).".format(self._api,
-                                     Config._supported_api_list),
-                config=self)
+                f"The API ({self._api}) is not in the list of supported "
+                f"APIs ({Config._supported_api_list}).", config=self)
 
         # Default API for stub-generator
         if 'defaultstubapi' not in self._config['DEFAULT']:
@@ -300,27 +298,25 @@ class Config(object):
         # Sanity check for defaultstubapi:
         if self._default_stub_api not in Config._supported_stub_api_list:
             raise ConfigurationError(
-                "The default stub API ({0}) is not in the list of "
-                "supported stub APIs ({1}).".format(
-                    self._default_stub_api,
-                    Config._supported_stub_api_list),
-                config=self)
+                f"The default stub API ({self._default_stub_api}) is not in "
+                f"the list of supported stub APIs ("
+                f"{Config._supported_stub_api_list}).", config=self)
 
         try:
             self._reproducible_reductions = self._config['DEFAULT'].getboolean(
                 'REPRODUCIBLE_REDUCTIONS')
         except ValueError as err:
-            six.raise_from(ConfigurationError(
-                "Error while parsing REPRODUCIBLE_REDUCTIONS: {0}".
-                format(str(err)), config=self), err)
+            raise ConfigurationError(
+                f"Error while parsing REPRODUCIBLE_REDUCTIONS: {err}",
+                config=self) from err
 
         try:
             self._reprod_pad_size = self._config['DEFAULT'].getint(
                 'REPROD_PAD_SIZE')
         except ValueError as err:
-            six.raise_from(ConfigurationError(
-                "error while parsing REPROD_PAD_SIZE: {0}".format(str(err)),
-                config=self), err)
+            raise ConfigurationError(
+                f"error while parsing REPROD_PAD_SIZE: {err}",
+                config=self) from err
 
         if 'PSYIR_ROOT_NAME' not in self._config['DEFAULT']:
             # Use the default name if no default is specified for the
@@ -339,20 +335,18 @@ class Config(object):
             self._ocl_devices_per_node = self._config['DEFAULT'].getint(
                 'OCL_DEVICES_PER_NODE')
         except ValueError as err:
-            six.raise_from(ConfigurationError(
-                "error while parsing OCL_DEVICES_PER_NODE: "
-                "{0}".format(str(err)), config=self), err)
+            raise ConfigurationError(
+                f"error while parsing OCL_DEVICES_PER_NODE: {err}",
+                config=self) from err
 
         # Verify that the prefixes will result in valid Fortran names:
         valid_var = re.compile(r"[A-Z][A-Z0-9_]*$", re.I)
         for prefix in self._valid_psy_data_prefixes:
             if not valid_var.match(prefix):
-                raise ConfigurationError("Invalid PsyData-prefix '{0}' in "
-                                         "config file. The prefix must be "
-                                         "valid for use as the start of a "
-                                         "Fortran variable name."
-                                         .format(prefix),
-                                         config=self)
+                raise ConfigurationError(
+                    f"Invalid PsyData-prefix '{prefix}' in config file. The "
+                    f"prefix must be valid for use as the start of a Fortran "
+                    f"variable name.", config=self)
 
         # Now we deal with the API-specific sections of the config file. We
         # create a dictionary to hold the API-specifc Config objects.
@@ -360,27 +354,15 @@ class Config(object):
         for api in Config._supported_api_list:
             if api in self._config:
                 if api == "dynamo0.3":
-                    self._api_conf[api] = DynConfig(self, self._config[api])
-                elif api == "dynamo0.1":
-                    # For now we use the same class as dynamo0.3.
-                    # However, we use it to read a different section of the
-                    # config file, so the dynamo0.1 mapping will be correctly
-                    # used.
-                    self._api_conf[api] = DynConfig(self, self._config[api])
-                elif api == "gocean0.1":
-                    # For now we use the same class as gocean1.0.
-                    # However, we use it to read a different section of the
-                    # config file
-                    self._api_conf[api] = GOceanConfig(self, self._config[api])
+                    self._api_conf[api] = LFRicConfig(self, self._config[api])
                 elif api == "gocean1.0":
                     self._api_conf[api] = GOceanConfig(self, self._config[api])
                 elif api == "nemo":
                     self._api_conf[api] = NemoConfig(self, self._config[api])
                 else:
                     raise NotImplementedError(
-                        "Configuration file contains a {0} section but no "
-                        "Config sub-class has been implemented for this API".
-                        format(api))
+                        f"Configuration file contains a {api} section but no "
+                        f"Config sub-class has been implemented for this API")
 
         # The scheme to use when re-naming transformed kernels.
         # By default we ensure that each transformed kernel is given a
@@ -395,7 +377,7 @@ class Config(object):
                 required. If none is specified, returns the config for the
                 default API.
         :returns: object containing API-specific configuration
-        :rtype: One of :py:class:`psyclone.configuration.DynConfig`,
+        :rtype: One of :py:class:`psyclone.configuration.LFRicConfig`,
                 :py:class:`psyclone.configuration.GOceanConfig` or None.
 
         :raises ConfigurationError: if api is not in the list of supported \
@@ -409,12 +391,12 @@ class Config(object):
 
         if api not in self.supported_apis:
             raise ConfigurationError(
-                "API '{0}' is not in the list '{1}'' of supported APIs."
-                .format(api, self.supported_apis))
+                f"API '{api}' is not in the list '{self.supported_apis}'' of "
+                f"supported APIs.")
         if api not in self._api_conf:
             raise ConfigurationError(
-                "Configuration file did not contain a section for the '{0}' "
-                "API".format(api), config=self)
+                f"Configuration file did not contain a section for the "
+                f"'{api}' API", config=self)
         return self._api_conf[api]
 
     @staticmethod
@@ -430,6 +412,7 @@ class Config(object):
               <base-dir-of-virtual-env>/share/psyclone/
         - ${HOME}/.local/share/psyclone/
         - <system-install-prefix>/share/psyclone/
+        - <psyclone-installation-base>/share/psyclone/
 
         :returns: the fully-qualified path to the configuration file
         :rtype: str
@@ -449,6 +432,9 @@ class Config(object):
 
         # Set up list of locations to search
         share_dir = os.path.join(sys.prefix, "share", "psyclone")
+        pkg_share_dir = [
+            os.path.join(os.path.dirname(psyclone_path), "share", "psyclone")
+            for psyclone_path in psyclone.__path__]
 
         # 1. .psyclone/ in the CWD
         _file_paths = [os.path.join(os.getcwd(), ".psyclone")]
@@ -461,14 +447,16 @@ class Config(object):
         if not within_virtual_env():
             # 4. <python-installation-base>/share/psyclone/
             _file_paths.append(share_dir)
+        # 5. <psyclone-installation-base>/share/psyclone/
+        _file_paths.extend(pkg_share_dir)
 
         for cfile in [os.path.join(cdir, _FILE_NAME) for cdir in _file_paths]:
             if os.path.isfile(cfile):
                 return cfile
 
         # If we get to here then we have failed to find a config file
-        raise ConfigurationError("{0} not found in any of {1}".
-                                 format(_FILE_NAME, _file_paths))
+        raise ConfigurationError(f"{_FILE_NAME} not found in any of "
+                                 f"{_file_paths}")
 
     @property
     def distributed_memory(self):
@@ -490,8 +478,8 @@ class Config(object):
         '''
         if not isinstance(dist_mem, bool):
             raise ConfigurationError(
-                "distributed_memory must be a boolean but got {0}".
-                format(type(dist_mem)))
+                f"distributed_memory must be a boolean but got "
+                f"{type(dist_mem)}")
         self._distributed_mem = dist_mem
 
     @property
@@ -522,9 +510,8 @@ class Config(object):
         :raises ValueError if api is not a supported API.
         '''
         if api not in self._supported_api_list:
-            raise ValueError("'{0}' is not a valid API, it must be one "
-                             "of {1}'.".format(api,
-                                               Config._supported_api_list))
+            raise ValueError(f"'{api}' is not a valid API, it must be one "
+                             f"of {Config._supported_api_list}'.")
         self._api = api
 
     @property
@@ -639,8 +626,8 @@ class Config(object):
         '''
         if value not in VALID_KERNEL_NAMING_SCHEMES:
             raise ValueError(
-                "kernel_naming must be one of '{0}' but got '{1}'".
-                format(VALID_KERNEL_NAMING_SCHEMES, value))
+                f"kernel_naming must be one of '{VALID_KERNEL_NAMING_SCHEMES}'"
+                f" but got '{value}'")
         self._kernel_naming = value
 
     @property
@@ -668,12 +655,11 @@ class Config(object):
             for path in path_list:
                 if not os.path.exists(path):
                     raise ConfigurationError(
-                        "Include path '{0}' does not exist".format(path))
+                        f"Include path '{path}' does not exist")
                 self._include_paths.append(path)
         except (TypeError, ValueError) as err:
-            six.raise_from(ValueError("include_paths must be a list but got: "
-                                      "{0}". format(type(path_list))),
-                           err)
+            raise ValueError(f"include_paths must be a list but got: "
+                             f"{type(path_list)}") from err
 
     @property
     def valid_psy_data_prefixes(self):
@@ -703,7 +689,7 @@ class Config(object):
 
 
 # =============================================================================
-class APISpecificConfig(object):
+class APISpecificConfig:
     '''A base class for functions that each API-specific class must provide.
     At the moment this is just the function 'access_mapping' that maps between
     API-specific access-descriptor strings and the PSyclone internal
@@ -740,11 +726,9 @@ class APISpecificConfig(object):
                     AccessType.from_string(access_type)
             except ValueError as err:
                 # Raised by from_string()
-                six.raise_from(ConfigurationError("Unknown access type '{0}' "
-                                                  "found for key '{1}'"
-                                                  .format(access_type,
-                                                          api_access_name)),
-                               err)
+                raise ConfigurationError(
+                    f"Unknown access type '{access_type}' found for key "
+                    f"'{api_access_name}'") from err
 
         # Now create the reverse lookup (for better error messages):
         self._reverse_access_mapping = {v: k for k, v in
@@ -773,10 +757,8 @@ class APISpecificConfig(object):
                 key, value = entry.split(":", 1)
             except ValueError as err:
                 # Raised when split does not return two elements:
-                six.raise_from(ConfigurationError("Invalid format for "
-                                                  "mapping: {0}".
-                                                  format(entry.strip())),
-                               err)
+                raise ConfigurationError(
+                    f"Invalid format for mapping: {entry.strip()}") from err
             # Remove spaces and convert unicode to normal strings in Python2
             return_dict[str(key.strip())] = str(value.strip())
         return return_dict
@@ -818,10 +800,10 @@ class APISpecificConfig(object):
 
 
 # =============================================================================
-class DynConfig(APISpecificConfig):
+class LFRicConfig(APISpecificConfig):
     '''
     LFRic-specific (Dynamo 0.3) Config sub-class. Holds configuration options
-    specific to the LFRic (Dynamo 0.3) API and Dynamo 0.1 API.
+    specific to the LFRic (Dynamo 0.3) API.
 
     :param config: the 'parent' Config object.
     :type config: :py:class:`psyclone.configuration.Config`
@@ -848,7 +830,7 @@ class DynConfig(APISpecificConfig):
     '''
     # pylint: disable=too-few-public-methods, too-many-instance-attributes
     def __init__(self, config, section):
-        super(DynConfig, self).__init__(section)
+        super().__init__(section)
         # Ref. to parent Config object
         self._config = config
         # Initialise redundant computation setting
@@ -861,123 +843,111 @@ class DynConfig(APISpecificConfig):
         # Number of ANY_SPACE and ANY_DISCONTINUOUS_SPACE function spaces
         self._num_any_space = None
         self._num_any_discontinuous_space = None
-        # Set mandatory keys
-        # TODO: to be fully populated here for LFRic (Dynamo0.3) API in #282
-        # when Dynamo0.1 API is removed.
-        self._mandatory_keys = []
 
-        # TODO: This "if" clause will become redundant in #282 as there will be
-        # just LFRic (Dynamo0.3) API configuration
-        if section.name == "dynamo0.3":
-            # Define and check mandatory keys
-            self._mandatory_keys = ["access_mapping",
-                                    "compute_annexed_dofs",
-                                    "supported_fortran_datatypes",
-                                    "default_kind",
-                                    "run_time_checks",
-                                    "num_any_space",
-                                    "num_any_discontinuous_space"]
-            mdkeys = set(self._mandatory_keys)
-            if not mdkeys.issubset(set(section.keys())):
-                raise ConfigurationError(
-                    "Missing mandatory configuration option in the '[{0}]' "
-                    "section of the configuration file '{1}'. "
-                    "Valid options are: {2}."
-                    .format(section.name, config.filename,
-                            self._mandatory_keys))
+        # Define and check mandatory keys
+        self._mandatory_keys = ["access_mapping",
+                                "compute_annexed_dofs",
+                                "supported_fortran_datatypes",
+                                "default_kind",
+                                "run_time_checks",
+                                "num_any_space",
+                                "num_any_discontinuous_space"]
+        mdkeys = set(self._mandatory_keys)
+        if not mdkeys.issubset(set(section.keys())):
+            raise ConfigurationError(
+                f"Missing mandatory configuration option in the "
+                f"'[{section.name}]' section of the configuration file "
+                f"'{config.filename}'. Valid options are: "
+                f"{self._mandatory_keys}.")
 
-            # Parse setting for redundant computation over annexed dofs
-            try:
-                self._compute_annexed_dofs = section.getboolean(
-                    "compute_annexed_dofs")
-            except ValueError as err:
-                six.raise_from(ConfigurationError(
-                    "Error while parsing COMPUTE_ANNEXED_DOFS in the "
-                    "'[{0}]' section of the configuration file '{1}': {2}."
-                    .format(section.name, config.filename, str(err)),
-                    config=self._config), err)
+        # Parse setting for redundant computation over annexed dofs
+        try:
+            self._compute_annexed_dofs = section.getboolean(
+                "compute_annexed_dofs")
+        except ValueError as err:
+            raise ConfigurationError(
+                f"Error while parsing COMPUTE_ANNEXED_DOFS in the "
+                f"'[{section.name}]' section of the configuration file "
+                f"'{config.filename}': {str(err)}.",
+                config=self._config) from err
 
-            # Parse setting for run_time_checks flag
-            try:
-                self._run_time_checks = section.getboolean(
-                    "run_time_checks")
-            except ValueError as err:
-                six.raise_from(ConfigurationError(
-                    "Error while parsing RUN_TIME_CHECKS in the '[{0}]' "
-                    "section of the configuration file '{1}': {2}."
-                    .format(section.name, config.filename, str(err)),
-                    config=self._config), err)
+        # Parse setting for run_time_checks flag
+        try:
+            self._run_time_checks = section.getboolean(
+                "run_time_checks")
+        except ValueError as err:
+            raise ConfigurationError(
+                f"Error while parsing RUN_TIME_CHECKS in the "
+                f"'[{section.name}]' section of the configuration file "
+                f"'{config.filename}': {str(err)}.",
+                config=self._config) from err
 
-            # Parse setting for the supported Fortran datatypes. No
-            # need to check whether the keyword is found as it is
-            # mandatory (and therefore already checked).
-            self._supported_fortran_datatypes = section.getlist(
-                "supported_fortran_datatypes")
+        # Parse setting for the supported Fortran datatypes. No
+        # need to check whether the keyword is found as it is
+        # mandatory (and therefore already checked).
+        self._supported_fortran_datatypes = section.getlist(
+            "supported_fortran_datatypes")
 
-            # Parse setting for default kinds (precisions). No need to
-            # check whether the keyword is found as it is mandatory
-            # (and therefore already checked).
-            kind_list = section.getlist("default_kind")
-            all_kinds = self.create_dict_from_list(kind_list)
-            # Set default kinds (precisions) from config file
-            # Check for valid datatypes (filter to remove empty values)
-            datatypes = set(filter(None, all_kinds.keys()))
-            if datatypes != set(self._supported_fortran_datatypes):
-                raise ConfigurationError(
-                    "Fortran datatypes in the 'default_kind' mapping in the "
-                    "'[{0}]' section of the configuration file '{1}' do "
-                    "not match the supported Fortran datatypes {2}."
-                    .format(section.name, config.filename,
-                            self._supported_fortran_datatypes))
-            # Check for valid kinds (filter to remove any empty values)
-            datakinds = set(filter(None, all_kinds.values()))
-            if len(datakinds) != len(set(self._supported_fortran_datatypes)):
-                raise ConfigurationError(
-                    "Supplied kind parameters {0} in the '[{1}]' section "
-                    "of the configuration file '{2}' do not define the "
-                    "default kind for one or more supported datatypes {3}."
-                    .format(sorted(datakinds), section.name, config.filename,
-                            self._supported_fortran_datatypes))
-            self._default_kind = all_kinds
+        # Parse setting for default kinds (precisions). No need to
+        # check whether the keyword is found as it is mandatory
+        # (and therefore already checked).
+        kind_list = section.getlist("default_kind")
+        all_kinds = self.create_dict_from_list(kind_list)
+        # Set default kinds (precisions) from config file
+        # Check for valid datatypes (filter to remove empty values)
+        datatypes = set(filter(None, all_kinds.keys()))
+        if datatypes != set(self._supported_fortran_datatypes):
+            raise ConfigurationError(
+                f"Fortran datatypes in the 'default_kind' mapping in the "
+                f"'[{section.name}]' section of the configuration file "
+                f"'{config.filename}' do not match the supported Fortran "
+                f"datatypes {self._supported_fortran_datatypes}.")
+        # Check for valid kinds (filter to remove any empty values)
+        datakinds = set(filter(None, all_kinds.values()))
+        if len(datakinds) != len(set(self._supported_fortran_datatypes)):
+            raise ConfigurationError(
+                f"Supplied kind parameters {sorted(datakinds)} in the "
+                f"'[{section.name}]' section of the configuration file "
+                f"'{config.filename}' do not define the default kind for "
+                f"one or more supported datatypes "
+                f"{self._supported_fortran_datatypes}.")
+        self._default_kind = all_kinds
 
-            # Parse setting for the number of ANY_SPACE function spaces
-            # (check for an invalid value and numbers <= 0)
-            try:
-                self._num_any_space = section.getint("NUM_ANY_SPACE")
-            except ValueError as err:
-                six.raise_from(ConfigurationError(
-                    "Error while parsing NUM_ANY_SPACE in the '[{0}]' "
-                    "section of the configuration file '{1}': {2}."
-                    .format(section.name, config.filename, str(err)),
-                    config=self._config), err)
+        # Parse setting for the number of ANY_SPACE function spaces
+        # (check for an invalid value and numbers <= 0)
+        try:
+            self._num_any_space = section.getint("NUM_ANY_SPACE")
+        except ValueError as err:
+            raise ConfigurationError(
+                f"Error while parsing NUM_ANY_SPACE in the '[{section.name}]' "
+                f"section of the configuration file '{config.filename}': "
+                f"{str(err)}.", config=self._config) from err
 
-            if self._num_any_space <= 0:
-                raise ConfigurationError(
-                    "The supplied number of ANY_SPACE function spaces "
-                    "in the '[{0}]' section of the configuration "
-                    "file '{1}' must be greater than 0 but found {2}."
-                    .format(section.name, config.filename,
-                            self._num_any_space))
+        if self._num_any_space <= 0:
+            raise ConfigurationError(
+                f"The supplied number of ANY_SPACE function spaces "
+                f"in the '[{section.name}]' section of the configuration "
+                f"file '{config.filename}' must be greater than 0 but found "
+                f"{self._num_any_space}.")
 
-            # Parse setting for the number of ANY_DISCONTINUOUS_SPACE
-            # function spaces (checks for an invalid value and numbers <= 0)
-            try:
-                self._num_any_discontinuous_space = section.getint(
-                    "NUM_ANY_DISCONTINUOUS_SPACE")
-            except ValueError as err:
-                six.raise_from(ConfigurationError(
-                    "Error while parsing NUM_ANY_DISCONTINUOUS_SPACE in the "
-                    "'[{0}]' section of the configuration file '{1}': {2}."
-                    .format(section.name, config.filename, str(err)),
-                    config=self._config), err)
+        # Parse setting for the number of ANY_DISCONTINUOUS_SPACE
+        # function spaces (checks for an invalid value and numbers <= 0)
+        try:
+            self._num_any_discontinuous_space = section.getint(
+                "NUM_ANY_DISCONTINUOUS_SPACE")
+        except ValueError as err:
+            raise ConfigurationError(
+                f"Error while parsing NUM_ANY_DISCONTINUOUS_SPACE in the "
+                f"'[{section.name}]' section of the configuration file "
+                f"'{config.filename}': {str(err)}.",
+                config=self._config) from err
 
-            if self._num_any_discontinuous_space <= 0:
-                raise ConfigurationError(
-                    "The supplied number of ANY_DISCONTINUOUS_SPACE function "
-                    "spaces in the '[{0}]' section of the configuration "
-                    "file '{1}' must be greater than 0 but found {2}."
-                    .format(section.name, config.filename,
-                            self._num_any_discontinuous_space))
+        if self._num_any_discontinuous_space <= 0:
+            raise ConfigurationError(
+                f"The supplied number of ANY_DISCONTINUOUS_SPACE function "
+                f"spaces in the '[{section.name}]' section of the "
+                f"configuration file '{config.filename}' must be greater than "
+                f"0 but found {self._num_any_discontinuous_space}.")
 
     @property
     def compute_annexed_dofs(self):
@@ -1070,7 +1040,7 @@ class GOceanConfig(APISpecificConfig):
     # pylint: disable=too-few-public-methods, too-many-branches
     def __init__(self, config, section):
         # pylint: disable=too-many-locals
-        super(GOceanConfig, self).__init__(section)
+        super().__init__(section)
         # Setup the mapping for the grid properties. This dictionary stores
         # the name of the grid property as key (e.g. ``go_grid_dx_t``),
         # with the value being a named tuple with an entry for 'property'
@@ -1105,10 +1075,9 @@ class GOceanConfig(APISpecificConfig):
                 try:
                     self._debug_mode = section.getboolean("debug_mode")
                 except ValueError as err:
-                    six.raise_from(ConfigurationError(
-                        "error while parsing DEBUG_MODE in the "
-                        "[gocean1p0] section of the config file: {0}"
-                        .format(str(err))), err)
+                    raise ConfigurationError(
+                        f"error while parsing DEBUG_MODE in the [gocean1p0] "
+                        f"section of the config file: {err}") from err
             elif key == "grid-properties":
                 # Grid properties have the format:
                 # go_grid_area_u: {0}%%grid%%area_u: array: real,
@@ -1116,23 +1085,21 @@ class GOceanConfig(APISpecificConfig):
                 # followed by the type ("array" or "scalar") and then the
                 # intrinsic type ("integer" or "real")
                 all_props = self.create_dict_from_list(section.getlist(key))
-                for grid_property in all_props:
+                for grid_property, property_str in all_props.items():
                     try:
                         fortran, variable_type, intrinsic_type = \
-                            all_props[grid_property].split(":")
+                            property_str.split(":")
                     except ValueError as err:
                         # Raised when the string does not contain exactly
                         # three values separated by ":"
-                        error = "Invalid property \"{0}\" found with value " \
-                                "\"{1}\" in \"{2}\". It must have exactly " \
-                                "three ':'-delimited separated values: the " \
-                                "property, whether it is a scalar or an " \
-                                "array, and the intrinsic type (real or " \
-                                "integer)." \
-                                .format(grid_property,
-                                        all_props[grid_property],
-                                        config.filename)
-                        six.raise_from(ConfigurationError(error), err)
+                        error = (f"Invalid property '{grid_property}' found "
+                                 f"with value '{property_str}' in "
+                                 f"'{config.filename}'. It must have exactly "
+                                 f"three ':'-delimited separated values: the "
+                                 f"property, whether it is a scalar or an "
+                                 f"array, and the intrinsic type (real or "
+                                 f"integer).")
+                        raise ConfigurationError(error) from err
                     # Make sure to remove the spaces which the config
                     # file might contain
                     self._grid_properties[grid_property] = \
@@ -1152,15 +1119,13 @@ class GOceanConfig(APISpecificConfig):
                                  "go_grid_whole_outer_start",
                                  "go_grid_whole_outer_stop"]:
                     if required not in self._grid_properties:
-                        error = "The config file {0} does not contain " \
-                                "values for the following, mandatory grid " \
-                                "property: \"{1}\".".format(config.filename,
-                                                            required)
+                        error = (f"The config file {config.filename} does not "
+                                 f"contain values for the following, mandatory"
+                                 f" grid property: '{required}'.")
                         raise ConfigurationError(error)
             else:
-                raise ConfigurationError("Invalid key \"{0}\" found in "
-                                         "\"{1}\".".format(key,
-                                                           config.filename))
+                raise ConfigurationError(f"Invalid key '{key}' found in "
+                                         f"'{config.filename}'.")
 
     # ---------------------------------------------------------------------
     @staticmethod
@@ -1183,12 +1148,12 @@ class GOceanConfig(APISpecificConfig):
         :raises InternalError: if intrinsic_type is not 'integer' or 'real'
         '''
         if type_name not in ['array', 'scalar']:
-            raise InternalError("Type must be 'array' or 'scalar' but is "
-                                "'{0}'.".format(type_name))
+            raise InternalError(f"Type must be 'array' or 'scalar' but is "
+                                f"'{type_name}'.")
 
         if intrinsic_type not in ['integer', 'real']:
-            raise InternalError("Intrinsic type must be 'integer' or 'real' "
-                                "but is '{0}'.".format(intrinsic_type))
+            raise InternalError(f"Intrinsic type must be 'integer' or 'real' "
+                                f"but is '{intrinsic_type}'.")
 
         Property = namedtuple("Property", "fortran type intrinsic_type")
         return Property(dereference_format, type_name, intrinsic_type)
@@ -1237,7 +1202,7 @@ class NemoConfig(APISpecificConfig):
     '''
     # pylint: disable=too-few-public-methods
     def __init__(self, config, section):
-        super(NemoConfig, self).__init__(section)
+        super().__init__(section)
 
         # Maps a variable name to lon, lat etc. to determine the loop type
         # (e.g. lon, lat, ...)
@@ -1266,19 +1231,16 @@ class NemoConfig(APISpecificConfig):
                 # Make sure the required keys exist:
                 for subkey in ["var", "start", "stop"]:
                     if subkey not in data:
-                        raise ConfigurationError("mapping-'{0}' does not "
-                                                 "contain key '{1}' "
-                                                 "in file '{2}'."
-                                                 .format(loop_type, subkey,
-                                                         config.filename))
+                        raise ConfigurationError(
+                            f"mapping-'{loop_type}' does not contain key "
+                            f"'{subkey}' in file '{config.filename}'.")
 
                 var = data['var']
                 if var in var_defined:
-                    raise ConfigurationError("mapping-{0} defines variable "
-                                             "\"{1}\" again in the \"nemo\" "
-                                             "section of the file \"{2}\"."
-                                             .format(loop_type, var,
-                                                     config.filename))
+                    raise ConfigurationError(
+                        f"mapping-{loop_type} defines variable '{var}' again "
+                        f"in the 'nemo' section of the file "
+                        f"'{config.filename}'.")
                 var_defined.append(var)
 
                 # Update the mapping of variable to loop type
@@ -1290,20 +1252,17 @@ class NemoConfig(APISpecificConfig):
                 self._index_order = section.getlist(key)
 
             else:
-                raise ConfigurationError("Invalid key \"{0}\" found in "
-                                         "the \"nemo\" section of the "
-                                         "configuration file \"{1}\"."
-                                         .format(key, config.filename))
+                raise ConfigurationError(
+                    f"Invalid key '{key}' found in the 'nemo' section of the "
+                    f"configuration file '{config.filename}'.")
         # Consistency test: any value in index-order must have a
         # corresponding key in valid_loop_types:
         for loop_type in self._index_order:
             if loop_type not in self._loop_type_data:
                 valid = str(list(self._loop_type_data.keys()))
-                raise ConfigurationError("Invalid loop type \"{0}\" found in "
-                                         "index-order in \"{1}\".\n"
-                                         "Must be one of {2}."
-                                         .format(loop_type, config.filename,
-                                                 valid))
+                raise ConfigurationError(
+                    f"Invalid loop type '{loop_type}' found in index-order in "
+                    f"'{config.filename}'.\nMust be one of {valid}.")
 
     def get_loop_type_mapping(self):
         '''
@@ -1360,6 +1319,6 @@ class NemoConfig(APISpecificConfig):
 __all__ = ["APISpecificConfig",
            "Config",
            "ConfigurationError",
-           "DynConfig",
+           "LFRicConfig",
            "GOceanConfig",
            "NemoConfig"]

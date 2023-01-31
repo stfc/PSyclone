@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2021, Science and Technology Facilities Council.
+! Copyright (c) 2021-2022, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -55,10 +55,6 @@ contains
     real :: tmp, tmp2, tmp3
     integer :: i
 
-    ! issue #1430. Array notation does not work with the assignment
-    ! transformation so temporarily change the assignment to a single
-    ! index, e.g. previously we had:
-    !    field1(:) = ascalar*field1(:) + field2(:) + field3(:)
     tmp = ascalar*ascalar
     do i=1,npts
        tmp2 = tmp*i
@@ -66,7 +62,13 @@ contains
        tmp3 = tmp2*3.0
        field2(i) = field2(i) + field1(i)/tmp2
     end do
-    field2(npts) = field2(npts) + field1(1)   
+    field2(npts) = field2(npts) + field1(1)
+    ! The transformation from array notation to loops triggers the
+    ! unary minus error captured in issue #1583. This is because the
+    ! simplify method reorders the statements and turns the minus into
+    ! a unary operator.
+    ! field2(:) = field1(:) - tmp*field3(:)
+    field2(:) = field1(:) + tmp*field3(:)
 
   end subroutine testkern_code
   

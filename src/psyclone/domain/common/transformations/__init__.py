@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,17 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-from psyclone.domain.common.transformations.invokecall_trans import \
-    InvokeCallTrans
+from psyclone.domain.common.transformations.raise_psyir_2_alg_trans import \
+    RaisePSyIR2AlgTrans
+from psyclone.domain.common.transformations.alg_invoke_2_psy_call_trans \
+    import AlgInvoke2PSyCallTrans
 from psyclone.domain.common.transformations.alg_trans import AlgTrans
+from psyclone.domain.common.transformations.kernel_module_inline_trans import \
+    KernelModuleInlineTrans
 
-__all__ = ["InvokeCallTrans", "AlgTrans"]
+__all__ = [
+        "AlgInvoke2PSyCallTrans",
+        "AlgTrans",
+        "KernelModuleInlineTrans",
+        "RaisePSyIR2AlgTrans",
+        ]

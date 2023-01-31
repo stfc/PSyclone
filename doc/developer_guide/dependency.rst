@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
    BSD 3-Clause License
 
-   Copyright (c) 2021, Science and Technology Facilities Council.
+   Copyright (c) 2021-2022, Science and Technology Facilities Council.
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,8 @@
    ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
    POSSIBILITY OF SUCH DAMAGE.
    -----------------------------------------------------------------------------
-   Written by: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-               J. Henrichs, Bureau of Meteorology
+   Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+            J. Henrichs, Bureau of Meteorology
 
 .. testsetup::
 
@@ -319,6 +319,26 @@ combine two `VariablesAccessInfo` objects into one. It is up to the user to
 keep track of which statements (PSyIR nodes) a given `VariablesAccessInfo`
 instance is holding information about.
 
+
+VariablesAccessInfo Options
++++++++++++++++++++++++++++
+
+By default, `VariablesAccessInfo` will not report the first argument of
+the PSyIR operators `lbound`, `ubound`, or `size` as read accesses,
+since these functions do not actually access the content of the array,
+they only query the size. If these accesses are required (e.g. in kernel
+extraction this could be important if an array is only used in these
+intrinsic - a driver would still need these arrays in order to query
+the size), the optional `options` parameter of the `VariablesAccessInfo`
+constructor can be used: add the key
+`COLLECT-ARRAY-SHAPE-READS` and set it to true::
+
+    vai = VariablesAccessInfo(options={'COLLECT-ARRAY-SHAPE-READS': True})
+
+In this case all arrays specified as first parameter to one of the
+PSyIR operators above will be reported as read access.
+
+
 SingleVariableAccessInfo
 ------------------------
 The class `VariablesAccessInfo` uses a dictionary of
@@ -385,8 +405,7 @@ valid 2-tuples of component index and dimension index. For example:
   for count, indx in enumerate(access_info.component_indices.iterate()):
       psyir_index = access_info.component_indices[indx]
       # fortran writer converts a PSyIR node to Fortran:
-      print("Index-id {0} of 'a(i,j)': {1}"
-            .format(count, fortran_writer(psyir_index)))
+      print(f"Index-id {count} of 'a(i,j)': {fortran_writer(psyir_index)}")
 
 .. testoutput::
 
@@ -426,10 +445,10 @@ wrapped in an outer loop over all accesses.
       if index_variable in accesses:
           # The index variable is used as an index
           # at the specified location.
-          print("Index '{0}' is used.".format(str(index_variable)))
+          print(f"Index '{index_variable}' is used.")
           break
   else:
-      print("Index '{0}' is not used.".format(str(index_variable)))
+      print(f"Index '{index_variable}' is not used.")
 
 
 .. testoutput::
@@ -569,8 +588,8 @@ until we find accesses that would prevent parallelisation:
            break
        list_of_parallelisable_statements.append(next_statement)
 
-   print("The first {0} statements can be parallelised."
-         .format(len(list_of_parallelisable_statements)))
+   print(f"The first {len(list_of_parallelisable_statements)} statements can "
+         f"be parallelised.")
 
 .. testoutput::
     :hide:
@@ -587,16 +606,24 @@ until we find accesses that would prevent parallelisation:
           code.
 
 Dependency Tools
-----------------
+================
 
 PSyclone contains a class that builds upon the data-dependency functionality
-to provide useful tools for dependency analaysis. It especially provides
+to provide useful tools for dependency analysis. It especially provides
 messages for the user to indicate why parallelisation was not possible. It
 uses `SymPy` internally to compare expressions symbolically.
 
 .. autoclass:: psyclone.psyir.tools.dependency_tools.DependencyTools
     :members:
 
+
+.. note:: PSyclone provides :ref:`user_guide:replace_induction_variable_trans`,
+          a transformation that can be very useful to improve the ability of
+          the dependency analysis to provide useful information. It is
+          recommended to run this transformation on a copy of the tree, since
+          the transformation might prevent other optimisations. For example,
+          it will set the values of removed variables at the end of the loop,
+          which can prevent loop fusion etc to work as expected.
 
 An example of how to use this class is shown below. It takes a list of statements
 (i.e. nodes in the PSyIR), and adds 'OMP DO' directives around loops that

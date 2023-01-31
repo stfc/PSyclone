@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,14 +32,14 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
-# Modified by R. W. Ford, STFC Daresbury Laboratory
+# Modified by R. W. Ford and N. Nobre, STFC Daresbury Lab
 
 ''' Single location for the current version number of PSyclone. This is
     used in setup.py and doc/conf.py '''
 
 __MAJOR__ = 2
-__MINOR__ = 1
-__MICRO__ = 0
+__MINOR__ = 3
+__MICRO__ = 1
 
-__SHORT_VERSION__ = "{0:d}.{1:d}".format(__MAJOR__, __MINOR__)
-__VERSION__ = "{0:d}.{1:d}.{2:d}".format(__MAJOR__, __MINOR__, __MICRO__)
+__SHORT_VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}"
+__VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}.{__MICRO__:d}"

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,12 +31,14 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors J. Henrichs, Bureau of Meteorology
+# Authors: J. Henrichs, Bureau of Meteorology
+#          N. Nobre, STFC Daresbury Lab
 
 '''This module contains the NEMO-specific loop fusion transformation.
 '''
 
 from psyclone.core import AccessType, SymbolicMaths, VariablesAccessInfo
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations import LoopFuseTrans, TransformationError
 
@@ -54,7 +56,7 @@ class NemoLoopFuseTrans(LoopFuseTrans):
         :param node2: the second Node that is being checked.
         :type node2: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dict with options for transformations.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the lower or upper loop boundaries \
             are not the same.
@@ -65,32 +67,29 @@ class NemoLoopFuseTrans(LoopFuseTrans):
         # pylint: disable=too-many-locals
         # First check constraints on the nodes inherited from the parent
         # LoopFuseTrans:
-        super(NemoLoopFuseTrans, self).validate(node1, node2, options)
+        super().validate(node1, node2, options)
 
         sym_maths = SymbolicMaths.get()
 
         if not sym_maths.equal(node1.start_expr, node2.start_expr):
-            raise TransformationError("Lower loop bounds must be identical, "
-                                      "but are '{0}'' and '{1}'"
-                                      .format(node1.start_expr,
-                                              node2.start_expr))
+            raise TransformationError(f"Lower loop bounds must be identical, "
+                                      f"but are '{node1.start_expr}' and "
+                                      f"'{node2.start_expr}'")
         if not sym_maths.equal(node1.stop_expr, node2.stop_expr):
-            raise TransformationError("Upper loop bounds must be identical, "
-                                      "but are '{0}'' and '{1}'"
-                                      .format(node1.stop_expr,
-                                              node2.stop_expr))
+            raise TransformationError(f"Upper loop bounds must be identical, "
+                                      f"but are '{node1.stop_expr}' and "
+                                      f"'{node2.stop_expr}'")
         if not sym_maths.equal(node1.step_expr, node2.step_expr):
-            raise TransformationError("Step size in loops must be identical, "
-                                      "but are '{0}'' and '{1}'"
-                                      .format(node1.step_expr,
-                                              node2.step_expr))
+            raise TransformationError(f"Step size in loops must be identical, "
+                                      f"but are '{node1.step_expr}' and "
+                                      f"'{node2.step_expr}'")
         loop_var1 = node1.variable
         loop_var2 = node2.variable
 
         if loop_var1 != loop_var2:
-            raise TransformationError("Loop variables must be the same, "
-                                      "but are '{0}' and '{1}'".
-                                      format(loop_var1.name, loop_var2.name))
+            raise TransformationError(f"Loop variables must be the same, "
+                                      f"but are '{loop_var1.name}' and "
+                                      f"'{loop_var2.name}'")
         vars1 = VariablesAccessInfo(node1)
         vars2 = VariablesAccessInfo(node2)
 
@@ -150,8 +149,8 @@ class NemoLoopFuseTrans(LoopFuseTrans):
             return
 
         raise TransformationError(
-            "Scalar variable '{0}' is written in one loop, but only read "
-            "in the other loop.".format(var_info1.var_name))
+            f"Scalar variable '{var_info1.var_name}' is written in one loop, "
+            f"but only read in the other loop.")
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -174,35 +173,48 @@ class NemoLoopFuseTrans(LoopFuseTrans):
             inconsistent indices, e.g. a(i,j) and a(j,i).
 
         '''
-
+        # TODO #1075: Loop fusion should be verified using a method in
+        # DependencyTools.
+        # pylint: disable=too-many-locals
         dep_tools = DependencyTools()
-        all_indices = []
-        consistent = dep_tools.array_accesses_consistent(loop_variable,
-                                                         [var_info1,
-                                                          var_info2],
-                                                         all_indices)
-
-        if not consistent:
-            errors = dep_tools.get_all_messages()
-            raise TransformationError(errors[0])
-
-        if not all_indices:
-            # An array is used that is not actually dependent on the
-            # loop variable. This means the variable can not always be safely
-            # fused.
-            # do j=1, n
-            #    a(1) = b(j)+1
-            # enddo
-            # do j=1, n
-            #    c(j) = a(1) * 2
-            # enddo
-            # More tests could be done here, e.g. to see if it can be shown
-            # that each access in the first loop is different from the
-            # accesses in the second loop: a(1) in first, a(2) in second.
-            # Other special cases: reductions (a(1) = a(1) + x),
-            # array expressions : a(:) = b(j) * x(:)
-            # Potentially this could use the scalar handling code!
-            raise TransformationError(
-                "Variable '{0}' does not depend on loop variable '{1}', "
-                "but is read and written.".format(var_info1.var_name,
-                                                  loop_variable.name))
+        all_accesses = var_info1.all_accesses + var_info2.all_accesses
+        loop_var_name = loop_variable.name
+        # Compare all accesses with the first one. If the loop variable
+        # is used in a different subscript, raise an error. We test this
+        # by computing the partition of the indices:s
+        comp_1 = all_accesses[0].component_indices
+        # Note that we compare an access with itself, this will
+        # help us detecting if an array is accessed without using
+        # the loop variable (which would indicate a kind of reduction):
+        for other_access in all_accesses:
+            comp_other = other_access.component_indices
+            # TODO #1075: when this functionality is moved into the
+            # DependencyTools, the access to partition is not an
+            # access to a protected member anymore.
+            # pylint: disable=protected-access
+            partitions = dep_tools._partition(comp_1, comp_other,
+                                              [loop_var_name])
+            var_found = False
+            for (set_of_vars, index) in partitions:
+                # Find the partition that contains the loop variable:
+                if loop_var_name not in set_of_vars:
+                    continue
+                var_found = True
+                # If the loop variable contains more than one index, it is
+                # used inconsistent:
+                if len(index) <= 1:
+                    continue
+                # Raise the appropriate error message:
+                writer = FortranWriter()
+                access1 = writer(all_accesses[0].node)
+                access2 = writer(other_access.node)
+                error = (f"Variable '{var_info1.signature[0]}' is written to "
+                         f"and the loop variable '{loop_var_name}' is used "
+                         f"in different index locations: {access1} and "
+                         f"{access2}.")
+                raise TransformationError(error)
+            if not var_found:
+                error = (f"Variable '{var_info1.signature[0]}' does not "
+                         f"depend on loop variable '{loop_var_name}', but is "
+                         f"read and written")
+                raise TransformationError(error)

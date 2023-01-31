@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,16 +41,16 @@
 ''' This module contains the Directive, RegionDirective, StandaloneDirective
     node implementation.'''
 
-from __future__ import absolute_import
 import abc
-import six
+from psyclone.configuration import Config
+from psyclone.errors import InternalError
+from psyclone.f2pygen import CommentGen
+from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.errors import InternalError
 
 
-@six.add_metaclass(abc.ABCMeta)
-class Directive(Statement):
+class Directive(Statement, metaclass=abc.ABCMeta):
     '''
     Abstract base class for all Directive statements.
 
@@ -59,6 +59,14 @@ class Directive(Statement):
     # (e.g. "OMP") must be set by a mixin or sub-class.
     _PREFIX = ""
     _colour = "green"
+
+    @property
+    @abc.abstractmethod
+    def clauses(self):
+        '''
+        :returns: the Clauses associated with this directive.
+        :rtype: List of :py:class:`psyclone.psyir.nodes.Clause`
+        '''
 
 
 class RegionDirective(Directive):
@@ -85,8 +93,7 @@ class RegionDirective(Directive):
     def __init__(self, ast=None, children=None, parent=None):
         # A Directive always contains a Schedule
         sched = Schedule(children=children, parent=self)
-        super(RegionDirective, self).__init__(ast, children=[sched],
-                                              parent=parent)
+        super().__init__(ast, children=[sched], parent=parent)
 
     @staticmethod
     def _validate_child(position, child):
@@ -107,16 +114,65 @@ class RegionDirective(Directive):
         :returns: the Schedule associated with this directive.
         :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
 
-        :raises InternalError: if this node does not have a single Schedule as\
-                               its child.
+        :raises InternalError: if this node does not have a Schedule as \
+                               its first child.
         '''
-        if len(self.children) != 1 or not \
-           isinstance(self.children[0], Schedule):
+        if len(self.children) < 1 or not isinstance(self.children[0],
+                                                    Schedule):
             raise InternalError(
-                "Directive malformed or incomplete. It should have a single "
-                "Schedule as a child but found: {0}".format(
-                    [type(child).__name__ for child in self.children]))
+                "Directive malformed or incomplete. It should have a "
+                "Schedule as child 0 but found: "
+                f"{[type(child).__name__ for child in self.children]}")
         return self.children[0]
+
+    @property
+    def clauses(self):
+        '''
+        :returns: the Clauses associated with this directive.
+        :rtype: List of :py:class:`psyclone.psyir.nodes.Clause`
+        '''
+        if len(self.children) > 1:
+            return self.children[1:]
+        return []
+
+    def gen_post_region_code(self, parent):
+        '''
+        Generates any code that must be executed immediately after the end of
+        the region defined by this directive.
+
+        TODO #1648 this method is only used by the gen_code() code-generation
+        path and should be replaced by functionality in a
+        'lower_to_language_level' method in an LFRic-specific subclass
+        of the appropriate directive.
+
+        :param parent: where to add new f2pygen nodes.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
+        if not Config.get().distributed_memory or self.ancestor(Loop):
+            return
+        # Have to import PSyLoop here to avoid a circular dependence.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.common.psylayer import PSyLoop
+
+        commented = False
+        for loop in self.walk(PSyLoop):
+            if not isinstance(loop.parent, Loop):
+                if not commented and loop.unique_modified_args("gh_field"):
+                    commented = True
+                    parent.add(CommentGen(parent, ""))
+                    parent.add(CommentGen(parent,
+                                          " Set halos dirty/clean for fields "
+                                          "modified in the above loop(s)"))
+                    parent.add(CommentGen(parent, ""))
+                loop.gen_mark_halos_clean_dirty(parent)
+
+        if commented:
+            parent.add(CommentGen(parent, ""))
+            parent.add(CommentGen(parent,
+                                  " End of set dirty/clean section for "
+                                  "above loop(s)"))
+            parent.add(CommentGen(parent, ""))
 
 
 class StandaloneDirective(Directive):
@@ -145,6 +201,18 @@ class StandaloneDirective(Directive):
         '''
         # Children are not allowed for StandaloneDirective
         return False
+
+    @property
+    def clauses(self):
+        '''
+        :returns: the Clauses associated with this directive.
+        :rtype: List of :py:class:`psyclone.psyir.nodes.Clause`
+        '''
+        # This should be uncommented once a standalone directive with
+        # clauses exists
+        # if len(self.children) > 0:
+        #    return self.children
+        return []
 
 
 # For automatic API documentation generation

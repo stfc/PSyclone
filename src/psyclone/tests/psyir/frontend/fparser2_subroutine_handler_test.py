@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, STFC Daresbury Lab
-#          A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''Module containing pytest tests for the _subroutine_handler method
 in the class Fparser2Reader. This handler deals with the translation
@@ -40,14 +39,14 @@ of the fparser2 Subroutine_Subprogram and Function_Subprogram constructs
 to PSyIR.
 
 '''
-from __future__ import absolute_import
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
-from psyclone.psyir.symbols import DataSymbol, ScalarType, UnknownFortranType
+from psyclone.psyir.symbols import (DataSymbol, ScalarType, UnknownFortranType,
+                                    RoutineSymbol)
 from psyclone.psyir.nodes import Container, Routine, CodeBlock, FileContainer
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
-    TYPE_MAP_FROM_FORTRAN
+from psyclone.psyir.frontend.fparser2 import (Fparser2Reader,
+                                              TYPE_MAP_FROM_FORTRAN)
 
 # subroutine no declarations
 SUB1_IN = (
@@ -126,13 +125,21 @@ def test_function_handler(fortran_reader, fortran_writer):
         "end module a\n")
     psyir = fortran_reader.psyir_from_source(code)
     # Check PSyIR nodes are being created
-    assert isinstance(psyir, Container)
+    assert isinstance(psyir, FileContainer)
+    container = psyir.children[0]
+    assert isinstance(container, Container)
+    # Check that an appropriate RoutineSymbol has been created.
+    func_sym = container.symbol_table.lookup("my_func")
+    assert isinstance(func_sym, RoutineSymbol)
     routines = psyir.walk(Routine)
     assert len(routines) == 1
+    # Check that there's a DataSymbol of the same name inside the function.
     assert isinstance(routines[0].return_symbol, DataSymbol)
     assert routines[0].return_symbol.name == "my_func"
     assert (routines[0].return_symbol.datatype.intrinsic ==
             ScalarType.Intrinsic.INTEGER)
+    assert (routines[0].symbol_table.lookup("my_func") is
+            routines[0].return_symbol)
     assert psyir.parent is None
     result = fortran_writer(psyir)
     assert result == expected
@@ -150,26 +157,26 @@ def test_function_type_prefix(fortran_reader, fortran_writer,
 
     '''
     code = (
-        "module a\n"
-        "contains\n"
-        "  {0} function my_fUnc()\n"
-        "    my_Func = {1}\n"
-        "  end function my_func\n"
-        "end module\n".format(basic_type, rhs_val))
+        f"module a\n"
+        f"contains\n"
+        f"  {basic_type} function my_fUnc()\n"
+        f"    my_Func = {rhs_val}\n"
+        f"  end function my_func\n"
+        f"end module\n")
     expected = (
-        "module a\n"
-        "  implicit none\n"
-        "  public\n\n"
-        "  public :: my_func\n\n"
-        "  contains\n"
-        "  function my_fUnc()\n"
-        "    {0} :: my_fUnc\n"
-        "\n"
-        "    my_fUnc = {1}\n"
-        "\n"
-        "  end function my_fUnc\n"
-        "\n"
-        "end module a\n".format(basic_type, rhs_val))
+        f"module a\n"
+        f"  implicit none\n"
+        f"  public\n\n"
+        f"  public :: my_func\n\n"
+        f"  contains\n"
+        f"  function my_fUnc()\n"
+        f"    {basic_type} :: my_fUnc\n"
+        f"\n"
+        f"    my_fUnc = {rhs_val}\n"
+        f"\n"
+        f"  end function my_fUnc\n"
+        f"\n"
+        f"end module a\n")
     psyir = fortran_reader.psyir_from_source(code)
     assert isinstance(psyir, FileContainer)
     module = psyir.children[0]
@@ -181,6 +188,9 @@ def test_function_type_prefix(fortran_reader, fortran_writer,
     assert return_sym.datatype.intrinsic == TYPE_MAP_FROM_FORTRAN[basic_type]
     result = fortran_writer(psyir)
     assert result == expected
+    # Also check that the "own_routine_symbol" tag is maintained
+    assert routine.symbol_table.lookup_with_tag("own_routine_symbol") \
+        is return_sym
 
 
 FN1_IN = ("  function my_func() result(my_val)\n"
@@ -217,10 +227,10 @@ def test_function_result_suffix(fortran_reader, fortran_writer,
 
     '''
     code = (
-        "module a\n"
-        "use kind_params, only: wp\n"
-        "contains\n"
-        "{0}end module\n".format(code))
+        f"module a\n"
+        f"use kind_params, only: wp\n"
+        f"contains\n"
+        f"{code}end module\n")
     psyir = fortran_reader.psyir_from_source(code)
     # Check PSyIR nodes are being created
     assert isinstance(psyir, Container)
@@ -302,12 +312,12 @@ def test_unsupported_function_prefix(fortran_reader, fn_prefix):
     ''' Check that we get a CodeBlock if a Fortran function has an unsupported
     prefix. '''
     code = (
-        "module a\n"
-        "contains\n"
-        "  {0} function my_func()\n"
-        "    my_func = 1.0\n"
-        "  end function my_func\n"
-        "end module\n".format(fn_prefix))
+        f"module a\n"
+        f"contains\n"
+        f"  {fn_prefix} function my_func()\n"
+        f"    my_func = 1.0\n"
+        f"  end function my_func\n"
+        f"end module\n")
     psyir = fortran_reader.psyir_from_source(code)
     assert isinstance(psyir.children[0].children[0], CodeBlock)
 

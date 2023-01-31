@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,10 +44,10 @@ import re
 import pytest
 
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
-from psyclone.psyir.nodes import CodeBlock
+from psyclone.psyir.nodes import CodeBlock, Loop
 from psyclone.psyir.symbols import ContainerSymbol
 from psyclone.psyir.transformations import LoopSwapTrans, TransformationError
-from psyclone.tests.gocean1p0_build import GOcean1p0Build
+from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.utilities import get_invoke
 
 
@@ -65,14 +65,14 @@ def test_loop_swap_apply(tmpdir):
     # First make sure to throw an early error if the source file
     # test27_loop_swap.f90 should have been changed
     expected = (
-        r"Loop\[id:'', variable:'j'.*?"
-        r"Loop\[id:'', variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
         r"kern call: bc_ssh_code.*?"
-        r"Loop\[id:'', variable:'j'.*?"
-        r"Loop\[id:'', variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
         r"kern call: bc_solid_u_code .*?"
-        r"Loop\[id:'', variable:'j'.*?"
-        r"Loop\[id:'', variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
         r"kern call: bc_solid_v_code")
 
     assert re.search(expected, schedule_str.replace("\n", " "))
@@ -83,14 +83,14 @@ def test_loop_swap_apply(tmpdir):
     schedule_str = str(schedule)
 
     expected = (
-        r"Loop\[id:'', variable:'i'.*?"
-        r"Loop\[id:'', variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
         r"kern call: bc_ssh_code.*?"
-        r"Loop\[id:'', variable:'j'.*?"
-        r"Loop\[id:'', variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
         r"kern call: bc_solid_u_code .*?"
-        r"Loop\[id:'', variable:'j'.*?"
-        r"Loop\[id:'', variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
         r"kern call: bc_solid_v_code")
 
     assert re.search(expected, schedule_str.replace("\n", " "))
@@ -100,14 +100,14 @@ def test_loop_swap_apply(tmpdir):
     schedule_str = str(schedule)
 
     expected = (
-        r"Loop\[id:'', variable:'i'.*?"
-        r"Loop\[id:'', variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
         r"kern call: bc_ssh_code.*?"
-        r"Loop\[id:'', variable:'i'.*?"
-        r"Loop\[id:'', variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
         r"kern call: bc_solid_u_code .*?"
-        r"Loop\[id:'', variable:'j'.*?"
-        r"Loop\[id:'', variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
         r"kern call: bc_solid_v_code")
 
     assert re.search(expected, schedule_str.replace("\n", " "))
@@ -117,19 +117,19 @@ def test_loop_swap_apply(tmpdir):
     schedule_str = str(schedule)
 
     expected = (
-        r"Loop\[id:'', variable:'i'.*?"
-        r"Loop\[id:'', variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
         r"kern call: bc_ssh_code.*?"
-        r"Loop\[id:'', variable:'i'.*?"
-        r"Loop\[id:'', variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
         r"kern call: bc_solid_u_code .*?"
-        r"Loop\[id:'', variable:'i'.*?"
-        r"Loop\[id:'', variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
         r"kern call: bc_solid_v_code")
 
     assert re.search(expected, schedule_str.replace("\n", " "))
 
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_loop_swap_validate():
@@ -238,6 +238,43 @@ def test_loop_swap_validate_nodes_in_loop(fortran_reader):
             "transformation" in str(err.value))
 
 
+def test_loop_swap_validate_dependent_loop(fortran_reader):
+    '''
+    Tests that loops containing dependencies between the inner or the outer
+    loop variables and boundary expressions are not validated for swapping.
+    '''
+    swap_trans = LoopSwapTrans()
+    psyir = fortran_reader.psyir_from_source('''
+        program test_prog
+            integer :: i, j
+            real, dimension(10) :: a
+            do j = 1, 10
+                do i = 1, j
+                    a = a + 1
+                enddo
+            enddo
+            do j = 3 + 2 * i, 10
+                do i = 1, 10
+                    a = a + 1
+                enddo
+            enddo
+         end program test_prog''')
+
+    loops = psyir.walk(Loop, stop_type=Loop)
+
+    with pytest.raises(TransformationError) as err:
+        swap_trans.apply(loops[0])
+    assert ("Error in LoopSwap transformation: The outer loop iteration "
+            "variable 'j' is part of the inner loop boundary expressions, "
+            "so their order can not be swapped." in str(err.value))
+
+    with pytest.raises(TransformationError) as err:
+        swap_trans.apply(loops[1])
+    assert ("Error in LoopSwap transformation: The inner loop iteration "
+            "variable 'i' is part of the outer loop boundary expressions, "
+            "so their order can not be swapped." in str(err.value))
+
+
 def test_loop_swap_schedule_is_kept():
     ''' Testing that the existing schedules remain in place (since they could
     contain annotations).
@@ -252,14 +289,14 @@ def test_loop_swap_schedule_is_kept():
     # First make sure to throw an early error if the source file
     # test27_loop_swap.f90 should have been changed
     expected = (
-        r"Loop\[id:'', variable:'j'.*?"
-        r"Loop\[id:'', variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
         r"kern call: bc_ssh_code.*?"
-        r"Loop\[id:'', variable:'j'.*?"
-        r"Loop\[id:'', variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
         r"kern call: bc_solid_u_code .*?"
-        r"Loop\[id:'', variable:'j'.*?"
-        r"Loop\[id:'', variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
         r"kern call: bc_solid_v_code")
 
     assert re.search(expected, schedule_str.replace("\n", " "))
@@ -294,14 +331,14 @@ def test_loop_swap_abort_if_symbols():
     # First make sure to throw an early error if the source file
     # test27_loop_swap.f90 should have been changed
     expected = (
-        r"Loop\[id:'', variable:'j'.*?"
-        r"Loop\[id:'', variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
         r"kern call: bc_ssh_code.*?"
-        r"Loop\[id:'', variable:'j'.*?"
-        r"Loop\[id:'', variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
         r"kern call: bc_solid_u_code .*?"
-        r"Loop\[id:'', variable:'j'.*?"
-        r"Loop\[id:'', variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
         r"kern call: bc_solid_v_code")
 
     assert re.search(expected, schedule_str.replace("\n", " "))

@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2021, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2022, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -31,22 +31,15 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+.. Written by R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 .. testsetup::
 
-    # TODO 1238: This is not necessary anymore once we can explicitly
-    #            disable colouring.
-    import psyclone.psyir.nodes.node
-    def new_colored(text, _):
-        return text
-
-    # Disable colouring in output to allow passing of tests
-    psyclone.psyir.nodes.node.colored = new_colored
-
-    # Define SOURCE_FILE to point to an existing gocean 1.0 file.
-    SOURCE_FILE = ("../../src/psyclone/tests/test_files/"
+    # Define GOCEAN_SOURCE_FILE to point to an existing gocean 1.0 file.
+    GOCEAN_SOURCE_FILE = ("../../src/psyclone/tests/test_files/"
         "gocean1p0/test11_different_iterates_over_one_invoke.f90")
+    # Define NEMO_SOURCE_FILE to point to an existing nemo file.
+    NEMO_SOURCE_FILE = ("../../examples/nemo/code/tra_adv.F90")
 
 
 Transformations
@@ -55,45 +48,20 @@ Transformations
 Kernel Transformations
 ======================
 
-PSyclone is able to perform kernel transformations. Currently it has
-two ways to apply transformations: by directly manipulating the
-language AST or by translating the language AST to PSyIR, applying the
-transformation in the PSyIR and using one of the back-ends to generate
-the resulting code.
-
-For now, both methods only support the fparser2 AST for kernel code.
-This AST is obtained by converting the fparser1 AST (stored
-when the kernel code was originally parsed to process the meta-data)
-back into a Fortran string and then parsing that with fparser2.
-(Note that in future we intend to adopt fparser2 throughout PSyclone so that
-this translation between ASTs will be unnecessary.)
-The `ast` property of the `psyclone.psyGen.Kern` class is responsible
-for performing this translation the first time it is called. It also
-stores the resulting AST in `Kern._fp2_ast` for return by future calls.
-
-See `psyclone.transformations.ACCRoutineTrans` for an example of directly
-manipulating the fparser2 AST.
-
-Alternatively, one can call the `psyclone.psyGen.CodedKern.get_kernel_schedule()`
-to generate the PSyIR representation of the kernel code. 
+PSyclone is able to perform kernel transformations by obtaining the PSyIR
+representation of the kernel with:
 
 .. automethod:: psyclone.psyGen.CodedKern.get_kernel_schedule
-
-The language AST to PSyIR transformation is done using a PSyIR front-end.
-This are found in the `psyclone.psyir.frontend` module. 
-The only currently available front-end is `Fparser2Reader` but this can
-be specialized for by the application APIs (e.g. Nemo has `NemoFparser2Reader`
-sub-class).
-The naming convention used for the PSyIR front-ends is
-<API><languageAST>Reader.
-
-.. autoclass:: psyclone.psyir.frontend.fparser2.Fparser2Reader
-    :members:
 
 The result of `psyclone.psyGen.Kern.get_kernel_schedule` is a
 `psyclone.psyir.nodes.KernelSchedule` which is a specialisation of the
 `Routine` class with the `is_program` and `return_type` properties set to
 `False` and `None`, respectively.
+
+In addition to modifying the kernel PSyIR with the desired transformations,
+the `modified` flag of the `CodedKern` node has to be set. This will let
+PSyclone know which kernel files it may have to rename and rewrite
+during the code generation.
 
 Raising Transformations
 =======================
@@ -126,7 +94,38 @@ Raising Transformations for the LFRic API
 
 .. autoclass:: psyclone.domain.lfric.transformations.LFRicAlgTrans
 
-.. autoclass:: psyclone.domain.lfric.transformations.LFRicInvokeCallTrans
+.. autoclass:: psyclone.domain.lfric.transformations.RaisePSyIR2LFRicAlgTrans
+
+.. autoclass:: psyclone.domain.lfric.transformations.RaisePSyIR2LFRicKernTrans
+
+Algorithm Transformations
+=========================
+
+In order to generate the transformed version of the algorithm with normal
+subroutine calls to PSy-layer routines, PSyclone provides a transformation that
+converts an individual ``AlgorithmInvokeCall`` into a ``Call`` to an
+appropriate subroutine:
+
+.. autoclass:: psyclone.domain.common.transformations.AlgInvoke2PSyCallTrans
+
+Algorithm Transformations for the LFRic API
+-------------------------------------------
+
+Since the LFRic API has the concept of Builtin kernels, there is more work
+to do when transforming an invoke into a call to a PSy layer routine and
+therefore there is a specialised class for this:
+
+.. autoclass:: psyclone.domain.lfric.transformations.LFRicAlgInvoke2PSyCallTrans
+
+Kernel Transformations for the GOCean and LFRic APIs
+----------------------------------------------------
+
+The LFRic RaisePSyIR2LFRicKernTrans and GOcean
+RaisePSyIR2GOceanKernTrans translate generic PSyIR to LFRic-specific
+Kernel PSyIR. At the moment these transformations are limited to
+creating Python classes for LFRic or GOcean kernel metadata,
+respectively. These classes allow easy reading, modification, creation
+and writing back of generic Kernel PSyIR.
 
 OpenACC
 =======
@@ -135,32 +134,59 @@ PSyclone is able to generate code for execution on a GPU through the
 use of OpenACC. Support for generating OpenACC code is implemented via
 :ref:`transformations`. The specification of parallel regions and
 loops is very similar to that in OpenMP and does not require any
-special treatment.  However, a key feature of GPUs is the fact that
+special treatment.  However, a key feature of GPUs is that, typically,
 they have their own, on-board memory which is separate from that of
 the host. Managing (i.e. minimising) data movement between host and
 GPU is then a very important part of obtaining good performance.
 
-Since PSyclone operates at the level of Invokes, it has no information
-about when an application starts and thus no single place in which to
-initiate data transfers to a GPU. (We assume that the host is
-responsible for model I/O and therefore for populating fields with
-initial values.) Fortunately, OpenACC provides support for this kind of
-situation with the ``enter data`` directive. This may be used to
-"define scalars, arrays and subarrays to be allocated in the current
-device memory for the remaining duration of the program"
+Since PSyclone operates at the level of Invokes for the LFRic (Dynamo0.3) and
+GOcean1.0 APIs and of single routines for the NEMO API, it has no information
+about where an application starts and thus no single place in which to initiate
+data transfers to a GPU. (We assume that the host is responsible for model I/O
+and therefore for populating fields with initial values.) Fortunately, OpenACC
+provides support for this kind of situation with the ``enter data`` directive.
+This may be used to "define scalars, arrays and subarrays to be allocated in
+the current device memory for the remaining duration of the program"
 :cite:`openacc_enterdata`. The ``ACCEnterDataTrans`` transformation adds
-an ``enter data`` directive to an Invoke:
+an ``enter data`` directive to an Invoke or a routine:
 
 .. autoclass:: psyclone.transformations.ACCEnterDataTrans
    :noindex:
 
-The resulting generated code will then contain an ``enter data``
-directive.
+The resulting generated code will then contain an ``enter data`` directive. The
+directive is placed in the body of the Invoke or the routine just before the
+first of its statements containing an OpenACC parallel or kernels construct.
+All the data that is accessed on the device, i.e. on at least one of all the
+OpenACC parallel and kernels constructs in the Invoke or the routine, is copied
+to the device's memory. For derived types, if a member is accessed on one of
+these constructs, in addition to that member, its parent is also copied in
+beforehand. This guarantees that, if the member is an allocatable or pointer,
+we levarage the implicit pointer attach behaviour of OpenACC.
 
 Of course, a given field may already be on the device (and have been
-updated) due to a previous Invoke. In this case, the fact that the
-OpenACC run-time does not copy over the now out-dated host version of
-the field is essential for correctness.
+updated) due to a previous Invoke or routine. In this case, the fact that the
+OpenACC runtime does not copy over the now outdated host version of the field
+is essential for correctness.
+
+On the other hand, if a section of the code must be executed on the host, it is
+paramount it accesses an up to date version of the data and that, at the end,
+any written data is returned to the device. To enable this workflow, the NEMO
+API supports the OpenACC ``update`` directive with either the ``self``/``host``
+or the ``device`` clause to update each target before and after a host code
+section in a routine:
+
+.. autoclass:: psyclone.psyir.transformations.ACCUpdateTrans
+   :noindex:
+
+The ``update`` directives will not necessarily be placed immediately next to
+the host code section. In fact, this could lead to poor performance whenever
+those sections happen to be inside a loop statement. Instead, the algorithm
+tries to push the directives up the routine's body as far as legally possible
+as determined by the data dependencies of parallel and kernels constructs in
+the routine and potential dependencies in called routines. In addition,
+whenever the scheme would place an ``update`` directive immediately next to a
+previously placed ``update`` directive with the same target, these are instead
+combined together.
 
 In order to support the incremental porting and/or debugging of an
 application, PSyclone also supports the OpenACC ``data`` directive
@@ -177,16 +203,6 @@ PSyclone is able to generate an OpenCL :cite:`opencl` version of
 PSy-layer code for the GOcean 1.0 API and its associated kernels.
 Such code may then be executed on devices such as GPUs and FPGAs
 (Field-Programmable Gate Arrays).
-
-Since OpenCL code is very different to that which PSyclone
-normally generates, its creation is handled by ``gen_ocl`` methods
-instead of the normal ``gen_code``. There is work in progress to
-deprecate both of these generation methods and let the
-``psyclone.domain.gocean.transformations.GOOpenCLTrans``
-transformation handle the code modification entirely in PSyIR.
-However, for the time being the transformation only modifies part of
-the schedule and sets the  ``InvokeSchedule.opencl`` flag, which
-in turn triggers the ``gen_ocl`` path at generation time.
 
 The PSyKAl model of calling kernels for pre-determined iteration
 spaces is a natural fit to OpenCL's concept of an

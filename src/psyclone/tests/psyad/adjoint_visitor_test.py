@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 '''A module to perform pytest tests on the code in the
 adjoint_visitor.py file within the psyad directory.
@@ -46,7 +46,8 @@ from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import FileContainer, Schedule, Assignment, Loop
+from psyclone.psyir.nodes import (FileContainer, Schedule, Assignment, Loop,
+                                  IfBlock)
 from psyclone.psyir.symbols import Symbol, ArgumentInterface
 from psyclone.tests.utilities import Compile
 
@@ -58,6 +59,9 @@ TL_CODE = (
 EXPECTED_ADJ_CODE = (
     "program test\n"
     "  real :: a\n  real :: b\n  real :: c\n\n"
+    "  a = 0.0\n"
+    "  b = 0.0\n"
+    "  c = 0.0\n"
     "  b = b + a\n"
     "  c = c + a\n"
     "  a = 0.0\n\n"
@@ -73,6 +77,18 @@ TL_LOOP_CODE = (
     "    a(i) = b(i) + c(i)\n"
     "  end do\n"
     "  d = d - e\n"
+    "end subroutine test\n"
+)
+TL_IF_CODE = (
+    "subroutine test(a,b,c,d,e,f,g)\n"
+    "  real, intent(in) :: a, b, c\n"
+    "  real, intent(out) :: d, e, f, g\n"
+    "  f=0.0\n"
+    "  if (a+b<c) then\n"
+    "    d=e\n"
+    "  else\n"
+    "    g=0.0\n"
+    "  endif\n"
     "end subroutine test\n"
 )
 
@@ -100,10 +116,9 @@ def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran,
 
     '''
     # Add "subroutine / end subroutine" lines to the incoming code.
-    input_code = ("subroutine test()\n{0}end subroutine test\n"
-                  "".format(tl_fortran))
-    expected_output_code = ("subroutine test()\n{0}end subroutine test\n"
-                            "".format(expected_ad_fortran))
+    input_code = f"subroutine test()\n{tl_fortran}end subroutine test\n"
+    expected_output_code = (f"subroutine test()\n{expected_ad_fortran}"
+                            f"end subroutine test\n")
 
     # Translate the tangent-linear code to PSyIR.
     reader = FortranReader()
@@ -235,10 +250,12 @@ def test_create_schedule_logger(caplog, fortran_reader):
     with caplog.at_level(logging.DEBUG):
         _ = adj_visitor._visit(tl_schedule)
     assert "Transforming Schedule" in caplog.text
+    assert "Zero-ing any local active variables" in caplog.text
     assert "Adding passive code into new schedule" in caplog.text
     assert "Reversing order of active code" in caplog.text
     assert ("Processing active code and adding results into new schedule"
             in caplog.text)
+    assert "Transforming active assignment" in caplog.text
 
 
 def test_create_schedule_active_variables(fortran_reader):
@@ -285,6 +302,8 @@ def test_schedule_active_assign(tmpdir, fortran_writer):
         "  real :: w\n  real :: x\n"
         "  real :: y\n  real :: z\n\n"
         ""
+        "  a = 0.0\n  b = 0.0\n  c = 0.0\n  d = 0.0\n"
+        ""
         "  a = a + y * c\n"
         "  c = 0.0\n"
         ""
@@ -314,6 +333,9 @@ def test_schedule_inactive_assign(tmpdir, fortran_writer):
         "  real :: c\n  real :: d\n"
         "  real :: w\n  real :: x\n"
         "  real :: y\n  real :: z\n\n"
+        ""
+        "  a = 0.0\n  b = 0.0\n  c = 0.0\n  d = 0.0\n"
+        ""
         "  w = x * y * z\n"
         "  x = y\n"
         "  z = z / w\n\n")
@@ -340,6 +362,8 @@ def test_schedule_mixed(tmpdir, fortran_writer):
         "  real :: w\n  real :: x\n"
         "  real :: y\n  real :: z\n\n"
         ""
+        "  a = 0.0\n  b = 0.0\n  c = 0.0\n  d = 0.0\n"
+        ""
         "  x = y * z\n"
         "  z = x + y\n"
         ""
@@ -354,6 +378,102 @@ def test_schedule_mixed(tmpdir, fortran_writer):
         "  c = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir,
                   fortran_writer)
+
+
+@pytest.mark.parametrize("datatype,precision,value",
+                         [("real", "r_def", "0.0"), ("integer", "i_def", "0")])
+def test_schedule_zero(tmpdir, fortran_writer, datatype, precision, value):
+    '''Test the visitor schedule_node method sets active variables with
+    the real and integer datatypes to zero. Tests for both scalars and
+    arrays, with and without specified precision.
+
+    '''
+    tl_fortran = (
+        f"  integer, parameter :: n=10\n"
+        f"  integer, parameter :: {precision}=8\n"
+        f"  {datatype} :: a\n"
+        f"  {datatype} :: b(n)\n"
+        f"  {datatype}(kind={precision}) :: c\n"
+        f"  {datatype}(kind={precision}) :: d(n)\n")
+    active_variables = ["a", "b", "c", "d"]
+    ad_fortran = (
+        f"  integer, parameter :: n = 10\n"
+        f"  integer, parameter :: {precision} = 8\n"
+        f"  {datatype} :: a\n"
+        f"  {datatype}, dimension(n) :: b\n"
+        f"  {datatype}(kind={precision}) :: c\n"
+        f"  {datatype}(kind={precision}), dimension(n) :: d\n\n"
+        f"  a = {value}\n"
+        f"  b = {value}\n"
+        f"  c = {value}_{precision}\n"
+        f"  d = {value}_{precision}\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir,
+                  fortran_writer)
+
+
+def test_schedule_zero_global(fortran_reader, fortran_writer, tmpdir):
+    '''Test the visitor schedule_node does not zero non-local data.'''
+
+    tl_fortran = (
+        "subroutine global_test(a)\n"
+        "  real, intent(in) :: a\n"
+        "  real :: b\n"
+        "end subroutine global_test\n")
+    tl_psyir = fortran_reader.psyir_from_source(tl_fortran)
+    tl_schedule = tl_psyir.children[0]
+    adj_visitor = AdjointVisitor(["a", "b"])
+    ad_psyir = adj_visitor(tl_schedule)
+    ad_fortran = fortran_writer(ad_psyir)
+    assert ad_fortran == (
+        "subroutine global_test(a)\n"
+        "  real, intent(out) :: a\n"
+        "  real :: b\n\n"
+        "  b = 0.0\n\n"
+        "end subroutine global_test\n")
+    assert Compile(tmpdir).string_compiles(ad_fortran)
+
+
+def test_schedule_zero_datatype_error1(fortran_reader):
+    '''Test the visitor schedule_node method raises the expected exception
+    if an unsupported datatype (a structure in this test) is found for
+    a local active variable. Supported types are scalars and arrays.
+
+    '''
+    tl_fortran = (
+        "program structure_test\n"
+        "  type :: field_type\n"
+        "    real :: data(10)\n"
+        "  end type\n"
+        "  type(field_type) :: a\n"
+        "end program structure_test\n")
+    tl_psyir = fortran_reader.psyir_from_source(tl_fortran)
+    tl_schedule = tl_psyir.children[0]
+    adj_visitor = AdjointVisitor(["a"])
+    with pytest.raises(NotImplementedError) as info:
+        _ = adj_visitor.schedule_node(tl_schedule)
+    assert ("Active local variables can only be scalars and arrays, but "
+            "found 'a: DataSymbol<field_type: DataTypeSymbol, Local>'."
+            in str(info.value))
+
+
+def test_schedule_zero_datatype_error2(fortran_reader):
+    '''Test the visitor schedule_node method raises the expected exception
+    if an unsupported intrinsic datatype (logical in this test) is
+    found for a local active variable.
+
+    '''
+    tl_fortran = (
+        "program logical_test\n"
+        "  logical :: l\n"
+        "end program logical_test\n")
+    tl_psyir = fortran_reader.psyir_from_source(tl_fortran)
+    tl_schedule = tl_psyir.children[0]
+    adj_visitor = AdjointVisitor(["l"])
+    with pytest.raises(NotImplementedError) as info:
+        _ = adj_visitor.schedule_node(tl_schedule)
+    assert ("Datatype 'BOOLEAN' is not supported (for active local variable "
+            "'l'). Supported types are 'REAL' and 'INTEGER'."
+            in str(info.value))
 
 
 @pytest.mark.xfail(reason="Incorrect code is output if the variable in an "
@@ -498,25 +618,80 @@ def test_loop_node_bounds_error(fortran_reader):
     with pytest.raises(VisitorError) as info:
         _ = adj_visitor(tl_psyir)
     assert ("The lower bound of a loop should not contain active variables, "
-            "but found 'lo'" in str(info.value))
+            "but found 'lo' in 'lo'" in str(info.value))
     # upper bound
     adj_visitor = AdjointVisitor(["a", "b", "c", "hi"])
     with pytest.raises(VisitorError) as info:
         _ = adj_visitor(tl_psyir)
     assert ("The upper bound of a loop should not contain active variables, "
-            "but found 'hi'" in str(info.value))
+            "but found 'hi' in 'hi'" in str(info.value))
     # step
     adj_visitor = AdjointVisitor(["a", "b", "c", "step"])
     with pytest.raises(VisitorError) as info:
         _ = adj_visitor(tl_psyir)
     assert ("The step of a loop should not contain active variables, "
-            "but found 'step'" in str(info.value))
+            "but found 'step' in 'step'" in str(info.value))
     # loop variable
     adj_visitor = AdjointVisitor(["a", "b", "c", "i"])
     with pytest.raises(VisitorError) as info:
         _ = adj_visitor(tl_psyir)
     assert ("The loop iterator 'i' should not be an active variable."
             in str(info.value))
+
+
+def test_loop_node_bounds_intrinsic(fortran_reader, fortran_writer, tmpdir):
+    '''Test that the loop_node method does not raise an exception if an
+    active variable is found in a loop bound but is the first argument
+    to one of the LBOUND or UBOUND intrinsic functions as these
+    determine the size of arrays rather than modifying their
+    values. Also test that it does raise an exception if an active
+    variable is found in a loop bound if it is part of the second
+    argument to one of the LBOUND and UBOUND intrinsic functions.
+
+    '''
+    # active variables within 1st arg of lbound or ubound are OK
+    tl_code = (
+        "program test\n"
+        "  real :: a(10), b(2)\n"
+        "  integer :: i\n"
+        "  do i = lbound(a,1), ubound(a,1), 2*ubound(b,1)\n"
+        "    a(i) = 0.0\n"
+        "  end do\n"
+        "end program test\n")
+    expected_ad_code = (
+        "program test\n"
+        "  real, dimension(10) :: a\n"
+        "  real, dimension(2) :: b\n"
+        "  integer :: i\n\n"
+        "  a = 0.0\n"
+        "  b = 0.0\n"
+        "  do i = UBOUND(a, 1) - MOD(UBOUND(a, 1) - LBOUND(a, 1), "
+        "2 * UBOUND(b, 1)), LBOUND(a, 1), -1 * (2 * UBOUND(b, 1))\n"
+        "    a(i) = 0.0\n"
+        "  enddo\n\n"
+        "end program test\n")
+    tl_psyir = fortran_reader.psyir_from_source(tl_code)
+    adj_visitor = AdjointVisitor(["a", "b"])
+    ad_psyir = adj_visitor(tl_psyir)
+    result = fortran_writer(ad_psyir)
+    assert result == expected_ad_code
+    assert Compile(tmpdir).string_compiles(result)
+
+    # active variables within 2nd arg of lbound or ubound are not OK
+    tl_code = (
+        "program test\n"
+        "  real :: a(10), b\n"
+        "  integer :: i\n"
+        "  do i = 1,ubound(a,b)\n"
+        "    a(i) = b\n"
+        "  end do\n"
+        "end program test\n")
+    tl_psyir = fortran_reader.psyir_from_source(tl_code)
+    adj_visitor = AdjointVisitor(["a", "b"])
+    with pytest.raises(VisitorError) as error:
+        _ = adj_visitor(tl_psyir)
+    assert ("The upper bound of a loop should not contain active variables, "
+            "but found 'b' in 'UBOUND(a, b)'." in str(error.value))
 
 
 def test_loop_node_passive(fortran_reader):
@@ -528,8 +703,7 @@ def test_loop_node_passive(fortran_reader):
     tl_psyir = fortran_reader.psyir_from_source(TL_LOOP_CODE)
     tl_loop = tl_psyir.walk(Loop)[0]
     adj_visitor = AdjointVisitor(["d", "e"])
-    ad_psyir = adj_visitor._visit(tl_psyir)
-    ad_loop = ad_psyir.walk(Loop)[0]
+    _ = adj_visitor._visit(tl_psyir)
 
     with pytest.raises(VisitorError) as info:
         _ = adj_visitor.loop_node(tl_loop)
@@ -556,17 +730,16 @@ def test_loop_node_active(fortran_reader, fortran_writer, in_bounds,
     '''
     code = TL_LOOP_CODE.replace("lo,hi,step", in_bounds)
     tl_psyir = fortran_reader.psyir_from_source(code)
-    tl_loop = tl_psyir.walk(Loop)[0]
     adj_visitor = AdjointVisitor(["a", "b", "c"])
     ad_psyir = adj_visitor(tl_psyir)
     ad_loop = ad_psyir.walk(Loop)[0]
     result = fortran_writer(ad_loop)
     expected_result = (
-        "do i = {0}\n"
-        "  b(i) = b(i) + a(i)\n"
-        "  c(i) = c(i) + a(i)\n"
-        "  a(i) = 0.0\n"
-        "enddo\n".format(out_bounds))
+        f"do i = {out_bounds}\n"
+        f"  b(i) = b(i) + a(i)\n"
+        f"  c(i) = c(i) + a(i)\n"
+        f"  a(i) = 0.0\n"
+        f"enddo\n")
     assert result == expected_result
 
 
@@ -618,6 +791,136 @@ def test_loop_logger(fortran_reader, caplog):
         _ = adj_visitor.loop_node(tl_loop)
     assert ("Returning a copy of the original loop and its descendants as it "
             "contains no active variables" in caplog.text)
+
+
+# AdjointVisitor.ifblock_node()
+
+def test_ifblock_node_active_error(fortran_reader):
+    '''Test that the ifblock_node method raises the expected exception
+    if no active variables are specified.
+
+    '''
+    tl_psyir = fortran_reader.psyir_from_source(TL_IF_CODE)
+    ifblock = tl_psyir.walk(IfBlock)[0]
+    adj_visitor = AdjointVisitor(["a", "b", "c"])
+    with pytest.raises(VisitorError) as info:
+        _ = adj_visitor.ifblock_node(ifblock)
+    assert ("An ifblock node should not be visited before a schedule, as "
+            "the latter sets up the active variables." in str(info.value))
+
+
+@pytest.mark.parametrize("active_variables", [["a"], ["b"], ["c"],
+                                              ["a", "b", "c"]])
+def test_ifblock_node_active_condition_error(fortran_reader, active_variables):
+    '''Test that the ifblock_node method raises the expected exception if
+    an active variable is found in the condition of an ifblock node.
+
+    '''
+    tl_psyir = fortran_reader.psyir_from_source(TL_IF_CODE)
+    adj_visitor = AdjointVisitor(active_variables)
+    with pytest.raises(VisitorError) as info:
+        _ = adj_visitor._visit(tl_psyir)
+    assert (f"The if condition 'a + b < c' of an ifblock node should "
+            f"not contain an active variable (one or more of "
+            f"{active_variables})." in str(info.value))
+
+
+def test_ifblock_node_passive(fortran_reader):
+    '''Test that the ifblock_node method raises an exception if there are no
+    active variables within the supplied ifblock node. This is because
+    the schedule node should have already dealt with this case.
+
+    '''
+    tl_psyir = fortran_reader.psyir_from_source(TL_IF_CODE)
+    tl_ifblock = tl_psyir.walk(IfBlock)[0]
+    adj_visitor = AdjointVisitor(["f"])
+    _ = adj_visitor._visit(tl_psyir)
+
+    with pytest.raises(VisitorError) as info:
+        _ = adj_visitor.ifblock_node(tl_ifblock)
+    assert ("A passive ifblock node should not be processed by the "
+            "ifblock_node() method within the AdjointVisitor() class, as it "
+            "should have been dealt with by the schedule_node() method."
+            in str(info.value))
+
+
+@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
+                   "github actions.", strict=False)
+def test_ifblock_logger(fortran_reader, caplog):
+    '''Test that the logger writes the expected output if it transforms
+    the ifblock.
+
+    '''
+    tl_psyir = fortran_reader.psyir_from_source(TL_IF_CODE)
+
+    adj_visitor = AdjointVisitor(["d", "e"])
+    with caplog.at_level(logging.INFO):
+        _ = adj_visitor._visit(tl_psyir)
+    assert "Transforming active ifblock" not in caplog.text
+    with caplog.at_level(logging.DEBUG):
+        _ = adj_visitor._visit(tl_psyir)
+    assert "Transforming active ifblock" in caplog.text
+
+
+def test_ifblock_active(tmpdir, fortran_writer):
+    '''Test the visitor ifblock_node method works when there is an active
+    then part.
+
+    '''
+    tl_fortran = (
+        "  real :: a, b, c, d, e, f, g, h\n"
+        "  f=0.0\n"
+        "  if (a+b<c) then\n"
+        "    d=e\n"
+        "  else\n"
+        "    g=h\n"
+        "  endif\n")
+    # active then
+    ad_fortran = (
+        "  real :: a\n  real :: b\n  real :: c\n  real :: d\n  real :: e\n"
+        "  real :: f\n  real :: g\n  real :: h\n\n"
+        "  d = 0.0\n"
+        "  e = 0.0\n"
+        "  f = 0.0\n"
+        "  if (a + b < c) then\n"
+        "    e = e + d\n"
+        "    d = 0.0\n"
+        "  else\n"
+        "    g = h\n"
+        "  end if\n\n")
+    check_adjoint(tl_fortran, ["d", "e"], ad_fortran, tmpdir, fortran_writer)
+    # active else
+    ad_fortran = (
+        "  real :: a\n  real :: b\n  real :: c\n  real :: d\n  real :: e\n"
+        "  real :: f\n  real :: g\n  real :: h\n\n"
+        "  g = 0.0\n"
+        "  h = 0.0\n"
+        "  f = 0.0\n"
+        "  if (a + b < c) then\n"
+        "    d = e\n"
+        "  else\n"
+        "    h = h + g\n"
+        "    g = 0.0\n"
+        "  end if\n\n")
+    check_adjoint(tl_fortran, ["g", "h"], ad_fortran, tmpdir, fortran_writer)
+    # active then/else
+    ad_fortran = (
+        "  real :: a\n  real :: b\n  real :: c\n  real :: d\n  real :: e\n"
+        "  real :: f\n  real :: g\n  real :: h\n\n"
+        "  d = 0.0\n"
+        "  e = 0.0\n"
+        "  g = 0.0\n"
+        "  h = 0.0\n"
+        "  f = 0.0\n"
+        "  if (a + b < c) then\n"
+        "    e = e + d\n"
+        "    d = 0.0\n"
+        "  else\n"
+        "    h = h + g\n"
+        "    g = 0.0\n"
+        "  end if\n\n")
+    check_adjoint(tl_fortran, ["d", "e", "g", "h"], ad_fortran, tmpdir,
+                  fortran_writer)
 
 
 # AdjointVisitor._copy_and_process()

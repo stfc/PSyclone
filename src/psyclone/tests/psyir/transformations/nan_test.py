@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified by: R. W. Ford and S. Siso, STFC Daresbury
+# Modified by: R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Module containing tests for NanTestTrans and NanTestNode
@@ -75,22 +75,21 @@ def test_malformed_extract_node(monkeypatch):
 
 
 # -----------------------------------------------------------------------------
-def test_nan_test_basic(capsys):
+def test_nan_test_basic():
     '''Check basic functionality: node names, schedule view.
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean1.0", idx=0, dist_mem=False)
     nan_test = NanTestTrans()
     nan_test.apply(invoke.schedule[0].loop_body[0])
-    invoke.schedule.view()
-    result, _ = capsys.readouterr()
+    result = invoke.schedule.view()
 
     # Create the coloured text (if required)
     read_node = colored("NanTest", NanTestNode._colour)
     sched_node = colored("Schedule", Schedule._colour)
-    assert """{0}[]
-            0: {1}[]
-                {0}[]""".format(sched_node, read_node) in result
+    assert f"""{sched_node}[]
+            0: {read_node}[]
+                {sched_node}[]""" in result
 
 
 # -----------------------------------------------------------------------------

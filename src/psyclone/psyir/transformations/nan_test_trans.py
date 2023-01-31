@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+#         N. Nobre, STFC Daresbury Lab
 
 
 '''This module contains the base class for verifying that input and output
@@ -74,7 +75,7 @@ class NanTestTrans(ReadOnlyVerifyTrans):
 
     def __init__(self, node_class=NanTestNode):
         # This function is only here to change the default node type
-        super(NanTestTrans, self).__init__(node_class=node_class)
+        super().__init__(node_class=node_class)
 
     def validate(self, node_list, options=None):
         '''Performs validation checks specific to nan-test
@@ -84,7 +85,7 @@ class NanTestTrans(ReadOnlyVerifyTrans):
         :param node_list: the list of Node(s) we are checking.
         :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
-        :type options: dict of string:values or NoneType
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if transformation is applied to a \
                                      Kernel or a BuiltIn call without its \
@@ -99,7 +100,7 @@ class NanTestTrans(ReadOnlyVerifyTrans):
         '''
         # pylint: disable=useless-super-delegation
 
-        super(NanTestTrans, self).validate(node_list, options)
+        super().validate(node_list, options)
 
 
 # ============================================================================

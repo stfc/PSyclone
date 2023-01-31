@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford, STFC Daresbury Lab
+# Modified by R. W. Ford and N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''This module implements the AccessType used throughout PSyclone.'''
@@ -90,8 +90,8 @@ class AccessType(Enum):
             if access.name == access_string.upper():
                 return access
         valid = [str(access).lower() for access in AccessType]
-        raise ValueError("Unknown access type '{0}'. Valid values are {1}."
-                         .format(access_string, valid))
+        raise ValueError(f"Unknown access type '{access_string}'. "
+                         f"Valid values are {valid}.")
 
     @staticmethod
     def all_write_accesses():

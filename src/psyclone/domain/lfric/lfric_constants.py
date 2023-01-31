@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,27 +33,27 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 # Modified: I. Kavcic, Met Office
+#           A. R. Porter, STFC Daresbury Laboratory
+#           R. W. Ford, STFC Daresbury Laboratory
 
 '''
 This module provides a class with all LFRic related constants.
 '''
 
-# Imports
-from __future__ import print_function, absolute_import
-
 from collections import OrderedDict
 
 from psyclone.configuration import Config
+from psyclone.errors import InternalError
 
 
 # pylint: disable=too-few-public-methods
-class LFRicConstants(object):
+class LFRicConstants():
     '''This class stores all LFRic constants. Note that some constants
     depend on values in the config file, so this class can only be
     used after the config file has been read.
     It stores all values in class variables (to avoid re-evaluating them).
-    '''
 
+    '''
     HAS_BEEN_INITIALISED = False
 
     def __init__(self):
@@ -92,6 +92,18 @@ class LFRicConstants(object):
         LFRicConstants.VALID_OPERATOR_DATA_TYPES = ["gh_real"]
 
         # pylint: disable=too-many-instance-attributes
+
+        # Supported access types
+        LFRicConstants.VALID_SCALAR_ACCESS_TYPES = ["gh_read"]
+        LFRicConstants.VALID_FIELD_ACCESS_TYPES = [
+            "gh_read", "gh_write", "gh_readwrite", "gh_inc", "gh_readinc"]
+        LFRicConstants.VALID_OPERATOR_ACCESS_TYPES = [
+            "gh_read", "gh_write", "gh_readwrite"]
+        LFRicConstants.VALID_ACCESS_TYPES = [
+            "gh_read", "gh_write", "gh_readwrite", "gh_inc", "gh_readinc"]
+
+        LFRicConstants.WRITE_ACCESSES = [
+            "gh_write", "gh_readwrite", "gh_inc", "gh_readinc", "gh_sum"]
 
         # Supported LFRic API stencil types and directions
         LFRicConstants.VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross",
@@ -227,14 +239,14 @@ class LFRicConstants(object):
         # discontinuous). The number of 'ANY_SPACE' spaces is set in the
         # PSyclone configuration file.
         LFRicConstants.VALID_ANY_SPACE_NAMES = [
-            "any_space_{0}".format(x+1) for x in
+            f"any_space_{x+1}" for x in
             range(api_config.num_any_space)]
 
         # Valid any_discontinuous_space metadata (general FS known to be
         # discontinuous). The number of 'ANY_DISCONTINUOU_SPACE' spaces is
         # set in the PSyclone configuration file.
         LFRicConstants.VALID_ANY_DISCONTINUOUS_SPACE_NAMES = [
-            "any_discontinuous_space_{0}".format(x+1) for x in
+            f"any_discontinuous_space_{x+1}" for x in
             range(api_config.num_any_discontinuous_space)]
 
         # Valid discontinuous FS names (for optimisation purposes)
@@ -270,10 +282,39 @@ class LFRicConstants(object):
         LFRicConstants.VALID_METAFUNC_NAMES = \
             LFRicConstants.VALID_EVALUATOR_NAMES
 
+        # Valid Reference Element names
+        LFRicConstants.VALID_REF_ELEMENT_NAMES = [
+            "normals_to_horizontal_faces", "normals_to_vertical_faces",
+            "normals_to_faces", "outward_normals_to_horizontal_faces",
+            "outward_normals_to_vertical_faces", "outward_normals_to_faces"]
+
+        # Valid mesh names
+        LFRicConstants.VALID_MESH_NAMES = ["adjacent_face"]
+
         # ---------- Map from scalar intrinsic type to its precision ----------
         LFRicConstants.SCALAR_PRECISION_MAP = \
             OrderedDict(zip(LFRicConstants.VALID_INTRINSIC_TYPES,
                             ["r_def", "i_def", "l_def"]))
+
+        # ----------- Map from symbolic to actual precision -------------------
+
+        # The value of the actual precision is in bytes.
+        # TODO #1941: this mapping should be in the config file or obtained
+        # from the constants_mod.f90 file in the LFRic infrastructure. The
+        # values for 'r_tran', 'r_solver' and 'r_def' are set according to
+        # CPP ifdefs. The values given below are the defaults.
+        # l_def is included in this dict so that it contains a complete record
+        # of the various precision symbols used in LFRic.
+        LFRicConstants.PRECISION_MAP = {"i_def": 4,
+                                        "l_def": 1,
+                                        "r_def": 8,
+                                        "r_double": 8,
+                                        "r_ncdf": 8,
+                                        "r_quad": 16,
+                                        "r_single": 4,
+                                        "r_solver": 4,
+                                        "r_tran": 8,
+                                        "r_um": 8}
 
         # ---------- Infrastructure module maps -------------------------------
 
@@ -301,6 +342,12 @@ class LFRicConstants(object):
                                "proxy_type": "r_solver_field_proxy_type",
                                "intrinsic": "real",
                                "kind": "r_solver"},
+            # 'real'-valued field with data of kind 'r_tran'
+            "r_tran_field": {"module": "r_tran_field_mod",
+                             "type": "r_tran_field_type",
+                             "proxy_type": "r_tran_field_proxy_type",
+                             "intrinsic": "real",
+                             "kind": "r_tran"},
             # 'integer'-valued field with data of kind 'i_def'
             "integer_field": {"module": "integer_field_mod",
                               "type": "integer_field_type",
@@ -313,13 +360,27 @@ class LFRicConstants(object):
                          "proxy_type": "operator_proxy_type",
                          "intrinsic": "real",
                          "kind": "r_def"},
-            # 'real'-valued columnwise operator with data of kind 'r_def'
+            # 'real'-valued operator with data of kind 'r_solver'
+            "r_solver_operator": {
+                "module": "r_solver_operator_mod",
+                "type": "r_solver_operator_type",
+                "proxy_type": "r_solver_operator_proxy_type",
+                "intrinsic": "real",
+                "kind": "r_solver"},
+            # 'real'-valued columnwise operator with data of kind 'r_solver'
             "columnwise_operator": {
-                "module": "operator_mod",
+                "module": "columnwise_operator_mod",
                 "type": "columnwise_operator_type",
                 "proxy_type": "columnwise_operator_proxy_type",
                 "intrinsic": "real",
-                "kind": "r_def"}}
+                "kind": "r_solver"}}
+
+        # Mapping from a vector type used in the algorithm-layer to
+        # the actual type used in the PSy-layer.
+        LFRicConstants.FIELD_VECTOR_TO_FIELD_MAP = {
+            "field_vector_type": "field_type",
+            "r_solver_field_vector_type": "r_solver_field_type",
+            "r_tran_field_vector_type": "r_tran_field_type"}
 
         # Dictionary allowing us to look-up the name of the Fortran module
         # and type (if existing) associated with stencil shapes and directions.
@@ -335,13 +396,19 @@ class LFRicConstants(object):
         LFRicConstants.QUADRATURE_TYPE_MAP = {
             "gh_quadrature_xyoz": {"module": "quadrature_xyoz_mod",
                                    "type": "quadrature_xyoz_type",
-                                   "proxy_type": "quadrature_xyoz_proxy_type"},
+                                   "proxy_type": "quadrature_xyoz_proxy_type",
+                                   "intrinsic": "real",
+                                   "kind": "r_def"},
             "gh_quadrature_face": {"module": "quadrature_face_mod",
                                    "type": "quadrature_face_type",
-                                   "proxy_type": "quadrature_face_proxy_type"},
+                                   "proxy_type": "quadrature_face_proxy_type",
+                                   "intrinsic": "real",
+                                   "kind": "r_def"},
             "gh_quadrature_edge": {"module": "quadrature_edge_mod",
                                    "type": "quadrature_edge_type",
-                                   "proxy_type": "quadrature_edge_proxy_type"}}
+                                   "proxy_type": "quadrature_edge_proxy_type",
+                                   "intrinsic": "real",
+                                   "kind": "r_def"}}
 
         # Dictionary allowing us to look-up the name of the Fortran module
         # and type associated with mesh.
@@ -373,6 +440,45 @@ class LFRicConstants(object):
             "constants": {"module": "constants_mod"},
             # Logging module (used for runtime checks)
             "logging": {"module": "log_mod"}}
+
+    @staticmethod
+    def specific_function_space(name):
+        '''
+        Maps from a valid kernel metadata function-space name to one
+        that exists within the LFRic infrastructure. This is necessary
+        because meta-data can contain 'generic' names such as 'any_w2' but,
+        when generating code, we need the name of a specific function space
+        that is recognised by the LFRic infrastructure.
+
+        :param str name: the name of the function space in metadata.
+
+        :returns: the name of a specific function space.
+        :rtype: str
+
+        :raises ValueError: if the supplied name is not a valid LFRic \
+                            function-space name.
+        :raises InternalError: if an unrecognised wildcard function-space \
+                               name is supplied.
+        '''
+        space = name.lower()
+        if space not in LFRicConstants.VALID_FUNCTION_SPACE_NAMES:
+            raise ValueError(
+                f"'{space}' is not a recognised LFRic function space (one of "
+                f"{LFRicConstants.VALID_FUNCTION_SPACE_NAMES}).")
+
+        # TODO #1709 - make this mapping configurable rather than
+        # hardwiring it here.
+        if not space.startswith("any_"):
+            return space
+        if space == "any_w2":
+            return "w2"
+        if space.startswith("any_space_"):
+            return LFRicConstants.CONTINUOUS_FUNCTION_SPACES[0]
+        if space.startswith("any_discontinuous_space_"):
+            return LFRicConstants.DISCONTINUOUS_FUNCTION_SPACES[0]
+
+        raise InternalError(f"Error mapping from meta-data function space "
+                            f"to actual space: cannot handle '{space}'")
 
 
 # =============================================================================

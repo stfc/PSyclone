@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,8 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.nodes import Container, Return, KernelSchedule
+from psyclone.psyir.nodes import Container, Return, KernelSchedule, \
+    FileContainer
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_SINGLE_TYPE
 from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -56,10 +57,24 @@ def test_container_init():
     assert isinstance(container._symbol_table, SymbolTable)
 
 
+def test_container_equality():
+    '''Test the __eq__ method of the container class.'''
+    # Subclasses of ScopingNode need to have the same SymbolTable
+    symboltable = SymbolTable()
+    container1 = Container("test")
+    container2 = Container("test")
+    container3 = Container("not_test")
+    container1._symbol_table = symboltable
+    container2._symbol_table = symboltable
+    container3._symbol_table = symboltable
+    assert container1 == container2
+    assert container1 != container3
+
+
 def test_container_init_parent():
     '''Test that a container parent argument is stored as expected.'''
-    container = Container("test", parent="hello")
-    assert container.parent == "hello"
+    container = Container("test", parent=FileContainer("hello"))
+    assert container.parent.name == "hello"
 
 
 def test_container_name():

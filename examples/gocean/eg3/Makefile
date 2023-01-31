@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,13 +34,21 @@
 # Author: A. R. Porter and S. Siso, STFC Daresbury Laboratory
 # Modified J. Henrichs, Bureau of Meteorology
 
+# The compiler to use may be specified via the F90 environment
+# variable.
+#
+# export F90=mpifc
+# export F90FLAGS="-O1"
+# export LDFLAGS="-lOpenCL"
+
+LDFLAGS ?= -lOpenCL
 include ../../common.mk
 
 KERNELS=compute_cu_mod.o compute_cv_mod.o compute_z_mod.o compute_h_mod.o
 
-GENERATED_FILES += compute_cu_*.cl compute_cv_*.cl compute_h_*.cl \
-	compute_z_*.cl psy_gen.f90 alg_gen.f90 ${KERNELS} ${KERNELS:.o=.mod} \
-	alg_opencl.exe allkernels.cl alg_gen_dm.f90 psy_gen_dm.f90 *.exe *.o
+GENERATED_FILES += opencl_kernels_*.cl psy_gen.f90 alg_gen.f90 ${KERNELS} \
+	${KERNELS:.o=.mod} alg_opencl.exe allkernels.cl alg_gen_dm.f90 \
+	psy_gen_dm.f90 *.exe *.o
 
 # Location of the infrastucture code (which is a submodule of the
 # PSyclone git repo).
@@ -77,22 +85,18 @@ psy_gen_dm.f90 alg_gen_dm.f90: alg.f90
 		 -oalg alg_gen_dm.f90 alg.f90
 
 compile-ocl: fd_lib ${FORTCL_LIB} ${KERNELS} psy_gen.o alg_gen.f90
-	${F90} ${LDFLAGS} -I${INF_INC} alg_gen.f90 psy_gen.o ${INF_LIB} ${FORTCL_LIB} \
-		-lOpenCL -o alg_opencl.exe
-	@echo "//OpenCL Kernels file" > allkernels.cl
-	cat compute_*_0.cl >> allkernels.cl
+	${F90} ${F90FLAGS} -I${INF_INC} alg_gen.f90 psy_gen.o ${INF_LIB} ${FORTCL_LIB} \
+		${LDFLAGS} -o alg_opencl.exe
 	@echo "OpenCL compilation complete!"
-	@echo "Use 'FORTCL_KERNELS_FILE=allkernels.cl ./alg_opencl.exe' to run."
+	@echo "Use 'FORTCL_KERNELS_FILE=opencl_kernels_0.cl ./alg_opencl.exe' to run."
 
 compile-mpi-ocl: dm_fd_lib ${FORTCL_LIB} ${KERNELS} psy_gen_dm.o alg_gen_dm.f90
 	# TODO dl_esm_inf/#54: The generated binary will not execute properly until
 	# this issue is fixed.
-	${F90} ${LDFLAGS} -I${INF_INC} alg_gen_dm.f90 psy_gen_dm.o ${INF_LIB} \
-		${FORTCL_LIB} -lOpenCL -o alg_dm_opencl.exe
-	@echo "//OpenCL Kernels file" > allkernels.cl
-	cat compute_*_0.cl >> allkernels.cl
+	${F90} ${F90FLAGS} -I${INF_INC} alg_gen_dm.f90 psy_gen_dm.o ${INF_LIB} \
+		${FORTCL_LIB} ${LDFLAGS} -o alg_dm_opencl.exe
 	@echo "OpenCL compilation complete!"
-	@echo "Use 'FORTCL_KERNELS_FILE=allkernels.cl mpirun -n <NUM_RANKS>" \
+	@echo "Use 'FORTCL_KERNELS_FILE=opencl_kernels_0.cl mpirun -n <NUM_RANKS>" \
 	 "./alg_dm_opencl.exe' to run."
 
 %.o: %.f90

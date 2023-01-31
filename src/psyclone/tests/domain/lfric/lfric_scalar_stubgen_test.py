@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,10 +31,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab;
-#         I. Kavcic and A. Coughtrie, Met Office;
-#         C. M. Maynard, Met Office/University of Reading;
-#         J. Henrichs, Bureau of Meteorology.
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab;
+#          I. Kavcic and A. Coughtrie, Met Office;
+#          C. M. Maynard, Met Office/University of Reading;
+#          J. Henrichs, Bureau of Meteorology.
 
 '''
 Module containing pytest tests for kernel stub code generation for the
@@ -79,10 +79,9 @@ def test_lfricscalars_stub_err():
     with pytest.raises(InternalError) as err:
         LFRicScalarArgs(kernel)._stub_declarations(ModuleGen(name="my_mod"))
     const = LFRicConstants()
-    assert ("Found an unsupported data type 'gh_invalid_scalar' for the "
-            "scalar argument 'iscalar_2'. Supported types are {0}.".
-            format(const.VALID_SCALAR_DATA_TYPES)
-            in str(err.value))
+    assert (f"Found an unsupported data type 'gh_invalid_scalar' for the "
+            f"scalar argument 'iscalar_2'. Supported types are "
+            f"{const.VALID_SCALAR_DATA_TYPES}." in str(err.value))
 
 
 def test_stub_generate_with_scalars():
@@ -100,7 +99,7 @@ def test_stub_generate_with_scalars():
         "field_2_w1, field_3_w2, field_4_w2, field_5_w3, lscalar_6, "
         "iscalar_7, ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, "
         "ndf_w3, undf_w3, map_w3)\n"
-        "      USE constants_mod, ONLY: r_def, l_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"

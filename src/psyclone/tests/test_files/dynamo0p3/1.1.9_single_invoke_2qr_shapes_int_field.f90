@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2021, Science and Technology Facilities Council.
+! Copyright (c) 2021-2022, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,8 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author I. Kavcic, Met Office
+! Author: I. Kavcic, Met Office
+! Modified: R. W. Ford, STFC Daresbury Lab
 
 program single_invoke
 
@@ -43,7 +44,7 @@ program single_invoke
 
   implicit none
 
-  type(field_type)           :: f1, f2(3), f3
+  type(integer_field_type)   :: f1, f2(3), f3
   type(quadrature_xyoz_type) :: qr_xyoz
   type(quadrature_face_type) :: qr_face
   integer(i_def)             :: istp

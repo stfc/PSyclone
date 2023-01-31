@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2021, Science and Technology Facilities Council.
+.. Copyright (c) 2017-2022, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 .. Modified by I. Kavcic, Met Office
 
 .. _psyclone_command:
@@ -62,11 +62,10 @@ by the command:
 .. parsed-literal::
 
   > psyclone -h
-
   usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-okern OKERN] [-api API]
                   [-s SCRIPT] [-d DIRECTORY] [-I INCLUDE] [-l {off,all,output}]
                   [-dm] [-nodm] [--kernel-renaming {multiple,single}]
-                  [--profile {invokes,kernels}] [--config CONFIG] [-v]
+                  [--profile {invokes,kernels}] [--config CONFIG] [--version]
                   filename
 
   Run the PSyclone code generator on a particular file
@@ -78,10 +77,10 @@ by the command:
     -h, --help            show this help message and exit
     -oalg OALG            filename of transformed algorithm code
     -opsy OPSY            filename of generated PSy code
-    -okern OKERN          directory in which to put transformed kernels
-    -api API              choose a particular api from ['dynamo0.1',
-                          'dynamo0.3', 'gocean0.1', 'gocean1.0', 'nemo'],
-                          default 'dynamo0.3'.
+    -okern OKERN          directory in which to put transformed kernels,
+                          default is the current working directory.
+    -api API              choose a particular api from ['dynamo0.3',
+                          'gocean1.0', 'nemo'], default 'dynamo0.3'.
     -s SCRIPT, --script SCRIPT
                           filename of a PSyclone optimisation script
     -d DIRECTORY, --directory DIRECTORY
@@ -89,21 +88,21 @@ by the command:
                           source code. Multiple roots can be specified by using
                           multiple -d arguments.
     -I INCLUDE, --include INCLUDE
-                          path to Fortran INCLUDE files (nemo API only)
+                          path to Fortran INCLUDE or module files
     -l {off,all,output}, --limit {off,all,output}
                           limit the Fortran line length to 132 characters
-                          (default 'off'). Use 'on' to apply limit to both input
-                          and output Fortran. Use 'output' to apply line-length
-                          limit to output Fortran only.
+                          (default 'off'). Use 'all' to apply limit to both
+                          input and output Fortran. Use 'output' to apply
+                          line-length limit to output Fortran only.
     -dm, --dist_mem       generate distributed memory code
     -nodm, --no_dist_mem  do not generate distributed memory code
-    --kernel-renaming {single,multiple}
+    --kernel-renaming {multiple,single}
                           Naming scheme to use when re-naming transformed
-                          kernels.
+                          kernels
     --profile {invokes,kernels}, -p {invokes,kernels}
                           Add profiling hooks for either 'kernels' or 'invokes'
     --config CONFIG       Config file with PSyclone specific options.
-    -v, --version         Display version information (\ |release|\ )
+    --version, -v         Display version information (\ |release|\ )
 
 Basic Use
 ---------
@@ -115,12 +114,12 @@ algorithm file::
 
 If the algorithm file is invalid for some reason, the command should
 return with an appropriate error. For example, if we use the Python
-``genkernelstub`` script as an algorithm file we get the following::
+``psyclone-kern`` script as an algorithm file we get the following::
 
-    > psyclone <PSYCLONEHOME>/bin/genkernelstub
-    ...
-        1:#!/usr/bin/env python <== no parse pattern found for "#" in 'BeginSource' block.
-    'Parse Error: Fatal error in external fparser tool'
+    > psyclone <PSYCLONEHOME>/bin/psyclone-kern
+    Parse Error: algorithm.py:parse_fp2: Syntax error in file '<PSYCLONEHOME>/bin/psyclone-kern':
+    at line 1
+    >>>#!/usr/bin/env python
 
 If the algorithm file is valid then the modified algorithm code and
 the generated PSy code will be output to the terminal screen.
@@ -141,7 +140,7 @@ If your code uses an API that is different to the default then you can
 specify this as an argument to the ``psyclone`` command.
 ::
 
-    > psyclone -api dynamo0.1 alg.f90
+    > psyclone -api gocean1.0 alg.f90
 
 File output
 -----------
@@ -245,10 +244,15 @@ specified directory:
 Transformation script
 ---------------------
 
-By default the ``psyclone`` command will generate 'vanilla' PSy layer
-code. The -s option allows a Python script to be specified which can
-transform the PSy layer. This option is discussed in more detail in
-the :ref:`sec_transformations_script` section.
+By default the ``psyclone`` command will generate 'vanilla'
+Algorithm-layer and PSy-layer code with unmodified kernels for the
+gocean1.0 and lfric (dynamo0.3) APIs. For the nemo API, ``psyclone``
+will not perform any transformations on the input code.
+
+The -s option allows a Python script to be specified which can contain
+PSyclone transformations to transform the code. This option is
+discussed in more detail in the :ref:`sec_transformations_script`
+section.
 
 .. _fort_line_length:
 

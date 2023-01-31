@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
 
 '''This module contains a transformation that replaces a PSyIR
@@ -42,6 +42,7 @@ from __future__ import absolute_import
 from psyclone.core import SymbolicMaths
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
     Literal, UnaryOperation
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import REAL_TYPE
 from psyclone.psyir.transformations import TransformationError
 
@@ -65,19 +66,18 @@ class AssignmentTrans(AdjointTransformation):
         :param node: an Assignment node.
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`
         :param options: a dictionary with options for transformations.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(node)
 
-        # Split the RHS of the assignment into <term> +- <term> +- ...
+        # Split the RHS of the assignment into [-]<term> +- <term> +- ...
         rhs_terms = self._split_nodes(
             node.rhs, [BinaryOperation.Operator.ADD,
                        BinaryOperation.Operator.SUB])
 
         deferred_inc = []
         sym_maths = SymbolicMaths.get()
-        # For each term
         for rhs_term in rhs_terms:
 
             # Find the active var in rhs_term if one exists (we may
@@ -89,15 +89,28 @@ class AssignmentTrans(AdjointTransformation):
             active_var = None
             new_rhs_term = rhs_term.copy()
             for ref in new_rhs_term.walk(Reference):
-                if ref.symbol in self._active_variables:
-                    active_var = ref
+                if ref.symbol not in self._active_variables:
+                    continue
+                active_var = ref
+                # Identify whether this reference on the RHS matches the
+                # one on the LHS - if so we have an increment.
+                if node.is_array_range and isinstance(ref, ArrayMixin):
+                    # TODO #1537 - we can't just do `sym_maths.equal` if we
+                    # have an array range because the SymbolicMaths class does
+                    # not currently support them.
+                    # Since we have already checked (in validate) that any
+                    # references to the same symbol on the RHS have the same
+                    # range, this is an increment if the symbols match.
+                    if node.lhs.symbol is ref.symbol:
+                        increment = True
+                else:
                     if sym_maths.equal(ref, node.lhs):
                         increment = True
-                    if ref.parent:
-                        ref.replace_with(node.lhs.copy())
-                    else:
-                        new_rhs_term = node.lhs.copy()
-                    break
+                if ref.parent:
+                    ref.replace_with(node.lhs.copy())
+                else:
+                    new_rhs_term = node.lhs.copy()
+                break
 
             # Work out whether the binary operation for this term is a
             # '+' or a '-' and return it in 'rhs_operator'.
@@ -159,6 +172,59 @@ class AssignmentTrans(AdjointTransformation):
         # Remove the original node
         node.detach()
 
+    def _array_ranges_match(self, assign, active_variable):
+        '''
+        If the supplied assignment is to an array range and the supplied
+        active variable is the entity being assigned to then this routine
+        checks that the array ranges of the LHS and the supplied reference
+        match. If they do not then an exception is raised.
+
+        :param assign: the assignment that we are checking.
+        :type assign: :py:class:`psyclone.psyir.nodes.Assignment`
+        :param active_variable: an active variable that appears on the \
+            LHS and RHS of the supplied assignment.
+        :type active_variable: :py:class:`psyclone.psyir.nodes.Reference`
+
+        :raises TangentLinearError: if the supplied assignment is to a \
+            symbol with an array range but the same symbol occurs on the \
+            RHS without an array range.
+        :raises NotImplementedError: if the array ranges on the LHS and \
+            RHS of the assignment for the supplied variable do not match.
+
+        '''
+        # This check only needs to proceed if the assignment is to an array
+        # range and the supplied active variable is the one being assigned to.
+        if not (assign.is_array_range and active_variable.symbol is
+                assign.lhs.symbol):
+            return
+
+        if not isinstance(active_variable, ArrayMixin):
+            raise TangentLinearError(
+                f"Assignment is to an array range but found a "
+                f"reference to the LHS variable "
+                f"'{assign.lhs.symbol.name}' without array notation"
+                f" on the RHS: '{self._writer(assign)}'")
+
+        sym_maths = SymbolicMaths.get()
+
+        for pos, idx in enumerate(active_variable.indices):
+            lhs_idx = assign.lhs.indices[pos]
+            # TODO #1537. This is a workaround until the SymbolicMaths
+            # class supports the comparison of array ranges.
+            # pylint: disable=unidiomatic-typecheck
+            if not (type(idx) == type(lhs_idx) and
+                    sym_maths.equal(idx.start,
+                                    lhs_idx.start) and
+                    sym_maths.equal(idx.stop,
+                                    lhs_idx.stop) and
+                    sym_maths.equal(idx.step,
+                                    lhs_idx.step)):
+                raise NotImplementedError(
+                    f"Different sections of the same active array "
+                    f"'{assign.lhs.symbol.name}' are "
+                    f"accessed on the LHS and RHS of an assignment: "
+                    f"'{self._writer(assign)}'. This is not supported.")
+
     def validate(self, node, options=None):
         '''Perform various checks to ensure that it is valid to apply the
         AssignmentTrans transformation to the supplied PSyIR Node.
@@ -166,7 +232,7 @@ class AssignmentTrans(AdjointTransformation):
         :param node: the node that is being checked.
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`
         :param options: a dictionary with options for transformations.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the node argument is not an \
             Assignment.
@@ -177,12 +243,13 @@ class AssignmentTrans(AdjointTransformation):
         # Check node argument is an assignment node
         if not isinstance(node, Assignment):
             raise TransformationError(
-                "Node argument in assignment transformation should be a PSyIR "
-                "Assignment, but found '{0}'.".format(type(node).__name__))
+                f"Node argument in assignment transformation should be a "
+                f"PSyIR Assignment, but found '{type(node).__name__}'.")
+        assign = node
 
         # If there are no active variables then return
         assignment_active_var_names = [
-            var.name for var in node.walk(Reference)
+            var.name for var in assign.walk(Reference)
             if var.symbol in self._active_variables]
         if not assignment_active_var_names:
             # No active variables in this assigment so the assignment
@@ -190,18 +257,17 @@ class AssignmentTrans(AdjointTransformation):
             return
 
         # The lhs of the assignment node should be an active variable
-        if node.lhs.symbol not in self._active_variables:
+        if assign.lhs.symbol not in self._active_variables:
             # There are active vars on RHS but not on LHS
             raise TangentLinearError(
-                "Assignment node '{0}' has the following active variables on "
-                "its RHS '{1}' but its LHS '{2}' is not an active variable."
-                "".format(self._writer(node), assignment_active_var_names,
-                          node.lhs.name))
+                f"Assignment node '{self._writer(assign)}' has the following "
+                f"active variables on its RHS '{assignment_active_var_names}' "
+                f"but its LHS '{assign.lhs.name}' is not an active variable.")
 
         # Split the RHS of the assignment into <expr> +- <expr> +- <expr>
         rhs_terms = self._split_nodes(
-            node.rhs, [BinaryOperation.Operator.ADD,
-                       BinaryOperation.Operator.SUB])
+            assign.rhs, [BinaryOperation.Operator.ADD,
+                         BinaryOperation.Operator.SUB])
 
         # Check for the special case where RHS=0.0. This is really a
         # representation of multiplying an active variable by zero but
@@ -215,30 +281,49 @@ class AssignmentTrans(AdjointTransformation):
         # A */ <expr> where A is an active variable.
         for rhs_term in rhs_terms:
 
-            active_vars = [
-                ref for ref in rhs_term.walk(Reference) if ref.symbol
-                in self._active_variables]
+            # When searching for references to an active variable we must
+            # take care to exclude those cases where they are present as
+            # arguments to the L/UBOUND intrinsics (as they will be when
+            # array notation is used).
+            active_vars = []
+            lu_bound_ops = [BinaryOperation.Operator.LBOUND,
+                            BinaryOperation.Operator.UBOUND]
+            for ref in rhs_term.walk(Reference):
+                if (ref.symbol in self._active_variables and
+                        not (isinstance(ref.parent, BinaryOperation) and
+                             ref.parent.operator in lu_bound_ops)):
+                    active_vars.append(ref)
 
             if not active_vars:
                 # This term must contain an active variable
                 raise TangentLinearError(
-                    "Each non-zero term on the RHS of the assigment '{0}' "
-                    "must have an active variable but '{1}' does not."
-                    "".format(self._writer(node), self._writer(rhs_term)))
+                    f"Each non-zero term on the RHS of the assigment "
+                    f"'{self._writer(assign)}' must have an active variable "
+                    f"but '{self._writer(rhs_term)}' does not.")
 
             if len(active_vars) > 1:
                 # This term can only contain one active variable
                 raise TangentLinearError(
-                    "Each term on the RHS of the assigment '{0}' must not "
-                    "have more than one active variable but '{1}' has {2}."
-                    "".format(self._writer(node), self._writer(rhs_term),
-                              len(active_vars)))
+                    f"Each term on the RHS of the assigment "
+                    f"'{self._writer(assign)}' must not have more than one "
+                    f"active variable but '{self._writer(rhs_term)}' has "
+                    f"{len(active_vars)}.")
 
-            if isinstance(rhs_term, Reference) and rhs_term.symbol \
-               in self._active_variables:
+            if (isinstance(rhs_term, Reference) and rhs_term.symbol
+                    in self._active_variables):
+                self._array_ranges_match(assign, rhs_term)
                 # This term consists of a single active variable (with
                 # a multiplier of unity) and is therefore valid.
                 continue
+
+            # Ignore unary minus if it is the parent. unary minus does
+            # not cause a problem when applying the transformation but
+            # does cause a problem here in the validation when
+            # splitting the term into expressions.
+            if (isinstance(rhs_term, UnaryOperation) and
+                    rhs_term.operator ==
+                    UnaryOperation.Operator.MINUS):
+                rhs_term = rhs_term.children[0]
 
             # Split the term into <expr> */ <expr> */ <expr>
             expr_terms = self._split_nodes(
@@ -259,10 +344,10 @@ class AssignmentTrans(AdjointTransformation):
                     break
             else:
                 raise TangentLinearError(
-                    "Each term on the RHS of the assignment '{0}' must "
-                    "be linear with respect to the active variable, but "
-                    "found '{1}'.".format(
-                        self._writer(node), self._writer(rhs_term)))
+                    f"Each term on the RHS of the assignment "
+                    f"'{self._writer(assign)}' must be linear with respect "
+                    f"to the active variable, but found "
+                    f"'{self._writer(rhs_term)}'.")
 
             # The term must be a product of an active variable with an
             # inactive expression. Check that the active variable does
@@ -278,13 +363,18 @@ class AssignmentTrans(AdjointTransformation):
                         parent.children[1] is candidate):
                     # Found a divide and the active variable is on its RHS
                     raise TangentLinearError(
-                        "In tangent-linear code an active variable cannot "
-                        "appear as a denominator but '{0}' was found in "
-                        "'{1}'.".format(
-                            self._writer(rhs_term), self._writer(node)))
+                        f"In tangent-linear code an active variable cannot "
+                        f"appear as a denominator but "
+                        f"'{self._writer(rhs_term)}' was found in "
+                        f"'{self._writer(assign)}'.")
                 # Continue up the PSyIR tree
                 candidate = parent
                 parent = candidate.parent
+
+            # If the LHS of the assignment is an array range then we only
+            # support accesses of the same variable on the RHS if they have
+            # the same range.
+            self._array_ranges_match(assign, active_variable)
 
     @staticmethod
     def _split_nodes(node, binary_operator_list):

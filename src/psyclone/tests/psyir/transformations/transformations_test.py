@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council.
+# Copyright (c) 2018-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,21 +40,23 @@
 API-agnostic tests for various transformation classes.
 '''
 
-from __future__ import absolute_import, print_function
 import os
 import pytest
 
+from fparser.common.readfortran import FortranStringReader
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import CodeBlock, IfBlock, Literal, Loop, Node, \
     Reference, Schedule, Statement, ACCLoopDirective, OMPMasterDirective, \
-    OMPDoDirective, OMPLoopDirective, OMPTargetDirective, Routine
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE
+    OMPDoDirective, OMPLoopDirective, Routine
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE, \
+    ImportInterface, ContainerSymbol
+from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
     TransformationError
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
     ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans, OMPParallelTrans, \
-    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans, OMPTargetTrans
+    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans, OMPDeclareTargetTrans
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 
@@ -153,9 +155,9 @@ def test_omptaskloop_getters_and_setters():
     assert trans.omp_num_tasks == 32
     with pytest.raises(TransformationError) as err:
         trans.omp_grainsize = 32
-    assert("The grainsize and num_tasks clauses would both "
-           "be specified for this Taskloop transformation"
-           in str(err.value))
+    assert ("The grainsize and num_tasks clauses would both "
+            "be specified for this Taskloop transformation"
+            in str(err.value))
     trans.omp_num_tasks = None
     assert trans.omp_num_tasks is None
     trans.omp_grainsize = 32
@@ -170,9 +172,9 @@ def test_omptaskloop_getters_and_setters():
 
     with pytest.raises(TransformationError) as err:
         trans = OMPTaskloopTrans(grainsize=32, num_tasks=32)
-    assert("The grainsize and num_tasks clauses would both "
-           "be specified for this Taskloop transformation"
-           in str(err.value))
+    assert ("The grainsize and num_tasks clauses would both "
+            "be specified for this Taskloop transformation"
+            in str(err.value))
 
     with pytest.raises(TypeError) as err:
         trans = OMPTaskloopTrans(nogroup=32)
@@ -205,19 +207,18 @@ def test_omptaskloop_apply(monkeypatch):
     code = str(psy.gen)
 
     clauses = " nogroup"
-
     assert (
-        "    !$omp parallel default(shared), private(i,j)\n" +
-        "      !$omp master\n" +
-        "      !$omp taskloop{0}\n".format(clauses) +
-        "      DO" in code)
+        f"    !$omp parallel default(shared), private(i,j)\n"
+        f"      !$omp master\n"
+        f"      !$omp taskloop{clauses}\n"
+        f"      DO" in code)
     assert (
-        "      END DO\n" +
-        "      !$omp end taskloop\n" +
-        "      !$omp end master\n" +
+        "      END DO\n"
+        "      !$omp end taskloop\n"
+        "      !$omp end master\n"
         "      !$omp end parallel" in code)
 
-    assert taskloop_node.begin_string() == "omp taskloop{0}".format(clauses)
+    assert taskloop_node.begin_string() == "omp taskloop"
 
     # Create a fake validate function to throw an exception
     def validate(self, options):
@@ -235,42 +236,81 @@ def test_omptaskloop_apply(monkeypatch):
     assert taskloop._nogroup is False
 
 
-def test_omptargettrans(sample_psyir):
-    ''' Test OMPTargetTrans works as expected with the different options. '''
+def test_ompdeclaretargettrans(sample_psyir, fortran_writer):
+    ''' Test OMPDeclareTargetTrans works as expected.'''
 
-    # Insert a OMPTarget just on the first loop
-    omptargettrans = OMPTargetTrans()
-    tree = sample_psyir.copy()
-    loops = tree.walk(Loop, stop_type=Loop)
-    omptargettrans.apply(loops[0])
-    assert isinstance(loops[0].parent, Schedule)
-    assert isinstance(loops[0].parent.parent, OMPTargetDirective)
-    assert isinstance(tree.children[0].children[0], OMPTargetDirective)
-    assert tree.children[0].children[0] is loops[0].parent.parent
-    assert not isinstance(loops[1].parent.parent, OMPTargetDirective)
-    assert len(tree.walk(Routine)[0].children) == 2
+    # Try to insert a OMPDeclareTarget on a wrong node type
+    ompdeclaretargettrans = OMPDeclareTargetTrans()
+    loop = sample_psyir.walk(Loop)[0]
+    with pytest.raises(TransformationError) as err:
+        ompdeclaretargettrans.apply(loop)
+    assert ("The OMPDeclareTargetTrans must be applied to a Routine, but "
+            "found: 'Loop'." in str(err.value))
 
-    # Insert a combined OMPTarget in both loops (providing a list of nodes)
-    tree = sample_psyir.copy()
-    loops = tree.walk(Loop, stop_type=Loop)
-    omptargettrans.apply(tree.children[0].children)
-    assert isinstance(loops[0].parent, Schedule)
-    assert isinstance(loops[0].parent.parent, OMPTargetDirective)
-    assert isinstance(loops[1].parent, Schedule)
-    assert isinstance(loops[1].parent.parent, OMPTargetDirective)
-    assert len(tree.walk(Routine)[0].children) == 1
-    assert loops[0].parent.parent is loops[1].parent.parent
+    # Insert a OMPDeclareTarget on a Routine
+    routine = sample_psyir.walk(Routine)[0]
+    ompdeclaretargettrans.apply(routine)
+    expected = '''\
+subroutine my_subroutine()
+  integer, dimension(10,10) :: a
+  integer :: i
+  integer :: j
 
-    # Insert a combined OMPTarget in both loops (now providing a Schedule)
-    tree = sample_psyir.copy()
-    loops = tree.walk(Loop, stop_type=Loop)
-    omptargettrans.apply(tree.children[0])
-    assert isinstance(loops[0].parent, Schedule)
-    assert isinstance(loops[0].parent.parent, OMPTargetDirective)
-    assert isinstance(loops[1].parent, Schedule)
-    assert isinstance(loops[1].parent.parent, OMPTargetDirective)
-    assert len(tree.walk(Routine)[0].children) == 1
-    assert loops[0].parent.parent is loops[1].parent.parent
+  !$omp declare target
+  do i = 1, 10, 1
+'''
+    assert expected in fortran_writer(sample_psyir)
+
+    # If the OMPDeclareTarget directive is already there do not repeat it
+    previous_num_children = len(routine.children)
+    ompdeclaretargettrans.apply(routine)
+    assert previous_num_children == len(routine.children)
+
+
+def test_ompdeclaretargettrans_with_globals(sample_psyir, parser):
+    ''' Test that the ompdelcaretarget is not added if there is any global
+    symbol'''
+    ompdeclaretargettrans = OMPDeclareTargetTrans()
+    routine = sample_psyir.walk(Routine)[0]
+    ref1 = sample_psyir.walk(Reference)[0]
+
+    # Symbol not defined in the symbol table will be considered global
+    ref1.symbol = DataSymbol("new_symbol", INTEGER_TYPE)
+    with pytest.raises(TransformationError) as err:
+        ompdeclaretargettrans.apply(routine)
+    assert ("Kernel 'my_subroutine' contains accesses to data (variable "
+            "'new_symbol') that are not present in the Symbol Table(s) within "
+            "the scope of this routine. Cannot transform such a kernel."
+            in str(err.value))
+
+    # If it is local but comes from an import it is also a global
+    routine.symbol_table.add(ref1.symbol)
+    ref1.symbol.interface = ImportInterface(ContainerSymbol('my_mod'))
+    with pytest.raises(TransformationError) as err:
+        ompdeclaretargettrans.apply(routine)
+    assert ("The Symbol Table for kernel 'my_subroutine' contains the "
+            "following symbol(s) with imported interface: ['new_symbol']. "
+            "If these symbols represent data then they must first be "
+            "converted to kernel arguments using the KernelImportsToArguments "
+            "transformation. If the symbols represent external routines then "
+            "PSyclone cannot currently transform this kernel for execution on "
+            "an OpenMP target." in str(err.value))
+
+    # If the symbol is inside a CodeBlock it is also captured
+    reader = FortranStringReader('''
+    subroutine mytest
+        not_declared1 = not_declared1 + not_declared2
+    end subroutine mytest''')
+    prog = parser(reader)
+    block = CodeBlock(prog.children[0].children[1].children[0].children,
+                      CodeBlock.Structure.EXPRESSION)
+    ref1.replace_with(block)
+    with pytest.raises(TransformationError) as err:
+        ompdeclaretargettrans.apply(routine)
+    assert ("Kernel 'my_subroutine' contains accesses to data (variable "
+            "'not_declared1') that are not present in the Symbol Table(s) "
+            "within the scope of this routine. Cannot transform such a kernel."
+            in str(err.value))
 
 
 def test_omplooptrans_properties():
@@ -279,26 +319,28 @@ def test_omplooptrans_properties():
 
     # Check default values
     omplooptrans = OMPLoopTrans()
-    assert omplooptrans.omp_schedule == "static"
-    assert omplooptrans.omp_worksharing is True
+    assert omplooptrans.omp_schedule == "auto"
+    assert omplooptrans.omp_directive == "do"
 
     # Use setters with valid values
     omplooptrans.omp_schedule = "dynamic,2"
-    omplooptrans.omp_worksharing = False
+    omplooptrans.omp_directive = "paralleldo"
     assert omplooptrans.omp_schedule == "dynamic,2"
-    assert omplooptrans.omp_worksharing is False
+    assert omplooptrans.omp_directive == "paralleldo"
 
     # Setting things at the constructor also works
     omplooptrans = OMPLoopTrans(omp_schedule="dynamic,2",
-                                omp_worksharing=False)
+                                omp_directive="loop")
     assert omplooptrans.omp_schedule == "dynamic,2"
-    assert omplooptrans.omp_worksharing is False
+    assert omplooptrans.omp_directive == "loop"
 
     # Use setters with invalid values
     with pytest.raises(TypeError) as err:
-        omplooptrans.omp_worksharing = "invalid"
-    assert ("The OMPLoopTrans.omp_worksharing property must be a boolean but"
-            " found a 'str'." in str(err.value))
+        omplooptrans.omp_directive = "invalid"
+    assert ("The OMPLoopTrans.omp_directive property must be a str with "
+            "the value of ['do', 'paralleldo', 'teamsdistributeparalleldo', "
+            "'loop'] but found a 'str' with value 'invalid'."
+            in str(err.value))
 
     with pytest.raises(TypeError) as err:
         omplooptrans.omp_schedule = 3
@@ -308,7 +350,7 @@ def test_omplooptrans_properties():
     with pytest.raises(ValueError) as err:
         omplooptrans.omp_schedule = "invalid"
     assert ("Valid OpenMP schedules are ['runtime', 'static', 'dynamic', "
-            "'guided', 'auto'] but got 'invalid'." in str(err.value))
+            "'guided', 'auto', 'none'] but got 'invalid'." in str(err.value))
 
     with pytest.raises(ValueError) as err:
         omplooptrans.omp_schedule = "auto,3"
@@ -326,6 +368,82 @@ def test_omplooptrans_properties():
             in str(err.value))
 
 
+def test_parallellooptrans_validate_dependencies(fortran_reader):
+    ''' Test that the parallellooptrans validation checks for loop carried
+    dependencies. '''
+
+    def create_loops(body):
+        psyir = fortran_reader.psyir_from_source(f'''
+        subroutine my_subroutine()
+            integer :: ji, jj, jk, jpkm1, jpjm1, jpim1
+            real, dimension(10, 10, 10) :: zwt, zwd, zwi, zws
+            real :: total
+            {body}
+        end subroutine''')
+        return psyir.walk(Loop)
+
+    # Use OMPLoopTrans as a concrete class of ParallelLoopTrans
+    omplooptrans = OMPLoopTrans()
+    # Example with a loop carried dependency in jk dimension
+    loops = create_loops('''
+        do jk = 2, jpkm1, 1
+          do jj = 2, jpjm1, 1
+            do ji = 2, jpim1, 1
+              zwt(ji,jj,jk) = zwd(ji,jj,jk) - zwi(ji,jj,jk) * &
+                              zws(ji,jj,jk - 1) / zwt(ji,jj,jk - 1)
+            enddo
+          enddo
+        enddo''')
+
+    # Check that the loop can not be parallelised due to the loop-carried
+    # dependency.
+    with pytest.raises(TransformationError) as err:
+        omplooptrans.validate(loops[0])
+    assert ("Transformation Error: Dependency analysis failed with the "
+            "following messages:\nError: The write access to 'zwt(ji,jj,jk)' "
+            "and to 'zwt(ji,jj,jk - 1)' are dependent and cannot be "
+            "parallelised" in str(err.value))
+
+    # However, the inner loop can be parallelised because the dependency is
+    # just with 'jk' and it is not modified in the inner loops
+    omplooptrans.validate(loops[1])
+
+    # Check if there is missing symbol information it still validates
+    del loops[1].ancestor(Routine).symbol_table._symbols['zws']
+    omplooptrans.validate(loops[1])
+
+    # Reductions also indicate a data dependency that needs to be handled, so
+    # we don't permit the parallelisation of the loop (until we support
+    # reduction clauses)
+    loops = create_loops('''
+        do jk = 2, jpkm1, 1
+          do jj = 2, jpjm1, 1
+            do ji = 2, jpim1, 1
+              total = total + zwt(ji,jj,jk)
+            enddo
+          enddo
+        enddo''')
+    with pytest.raises(TransformationError) as err:
+        omplooptrans.validate(loops[0])
+    assert ("Transformation Error: Dependency analysis failed with the "
+            "following messages:\nWarning: Variable 'total' is read first, "
+            "which indicates a reduction." in str(err.value))
+
+    # Shared scalars are race conditions but these are accepted because it
+    # can be manage with the appropriate clause
+    loops = create_loops('''
+        do jk = 2, jpkm1, 1
+          do jj = 2, jpjm1, 1
+            do ji = 2, jpim1, 1
+              total = zwt(ji,jj,jk)
+            enddo
+          enddo
+        enddo''')
+    assert not DependencyTools().can_loop_be_parallelised(
+                    loops[0], only_nested_loops=False)
+    omplooptrans.validate(loops[0])
+
+
 def test_omplooptrans_apply(sample_psyir, fortran_writer):
     ''' Test OMPLoopTrans works as expected with the different options. '''
 
@@ -335,7 +453,7 @@ def test_omplooptrans_apply(sample_psyir, fortran_writer):
     omplooptrans.apply(tree.walk(Loop)[0])
     assert isinstance(tree.walk(Loop)[0].parent, Schedule)
     assert isinstance(tree.walk(Loop)[0].parent.parent, OMPDoDirective)
-    assert tree.walk(Loop)[0].parent.parent._omp_schedule == 'static'
+    assert tree.walk(Loop)[0].parent.parent._omp_schedule == 'auto'
 
     # The omp_schedule can be changed
     omplooptrans = OMPLoopTrans(omp_schedule="dynamic,2")
@@ -348,12 +466,13 @@ def test_omplooptrans_apply(sample_psyir, fortran_writer):
     assert loop1.parent.parent._omp_schedule == 'dynamic,2'
     ompparalleltrans.apply(loop1.parent.parent)  # Needed for generation
 
-    # If omp_worksharing is False, it adds a OMPLoopDirective instead
-    omplooptrans = OMPLoopTrans(omp_worksharing=False)
+    # The omp_directive can be changed
+    omplooptrans = OMPLoopTrans(omp_directive="loop")
     loop2 = tree.walk(Loop, stop_type=Loop)[1]
     omplooptrans.apply(loop2, {'collapse': 2})
     assert isinstance(loop2.parent, Schedule)
     assert isinstance(loop2.parent.parent, OMPLoopDirective)
+    ompparalleltrans.apply(loop2.parent.parent)  # Needed for generation
 
     # Check that the full resulting code looks like this
     expected = '''
@@ -366,13 +485,16 @@ def test_omplooptrans_apply(sample_psyir, fortran_writer):
   enddo
   !$omp end do
   !$omp end parallel
+  !$omp parallel default(shared), private(i,j)
   !$omp loop collapse(2)
   do i = 1, 10, 1
     do j = 1, 10, 1
       a(i,j) = 0
     enddo
   enddo
-  !$omp end loop\n'''
+  !$omp end loop
+  !$omp end parallel\n'''
+
     assert expected in fortran_writer(tree)
 
 
@@ -486,9 +608,9 @@ def test_ompsingle_nested():
     single.apply(schedule[0])
     with pytest.raises(TransformationError) as err:
         single.apply(schedule[0])
-    assert("Transformation Error: Nodes of type 'OMPSingleDirective' cannot" +
-           " be enclosed by a OMPSingleTrans transformation"
-           in str(err.value))
+    assert ("Transformation Error: Nodes of type 'OMPSingleDirective' cannot"
+            " be enclosed by a OMPSingleTrans transformation"
+            in str(err.value))
 
 
 # Tests for OMPMasterTrans
@@ -517,9 +639,9 @@ def test_ompmaster_nested():
     assert schedule[0].dir_body[0] is node
     with pytest.raises(TransformationError) as err:
         master.apply(schedule[0])
-    assert("Transformation Error: Nodes of type 'OMPMasterDirective' cannot" +
-           " be enclosed by a OMPMasterTrans transformation"
-           in str(err.value))
+    assert ("Transformation Error: Nodes of type 'OMPMasterDirective' cannot"
+            " be enclosed by a OMPMasterTrans transformation"
+            in str(err.value))
 
 
 # Tests for ProfileTrans

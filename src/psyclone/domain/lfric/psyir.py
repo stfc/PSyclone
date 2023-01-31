@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,10 +42,12 @@ definitions.
 # pylint: disable=exec-used
 from __future__ import absolute_import
 from collections import namedtuple
-from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, DeferredType, \
-    ImportInterface, ScalarType, ArrayType
-from psyclone.psyir.nodes import Literal
 from psyclone.domain.lfric import LFRicConstants
+from psyclone.errors import InternalError
+from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol, DeferredType,
+                                    ImportInterface, ScalarType, ArrayType,
+                                    INTEGER_TYPE)
+from psyclone.psyir.nodes import Literal
 
 # Define LFRic module symbols.
 
@@ -56,19 +58,18 @@ from psyclone.domain.lfric import LFRicConstants
 Module = namedtuple('Module', ["name", "vars"])
 MODULES = [
     Module(LFRicConstants().UTILITIES_MOD_MAP["constants"]["module"],
-           ["i_def", "r_def", "l_def"])]
+           ["i_def", "r_def", "r_solver", "r_tran", "l_def"])]
 
 # Generate LFRic module symbols from definitions
 for module in MODULES:
     MODULE_NAME = module.name
     # Create the module (using a PSyIR ContainerSymbol)
-    exec("{0} = ContainerSymbol('{1}')\n".format(
-        MODULE_NAME.upper(), MODULE_NAME))
+    exec(f"{MODULE_NAME.upper()} = ContainerSymbol('{MODULE_NAME}')\n")
+
     # Create the variables specified by the module (using PSyIR DataSymbols)
     for module_var in module.vars:
-        exec("{0} = DataSymbol('{1}', DeferredType(), interface="
-             "ImportInterface({2}))".format(
-                 module_var.upper(), module_var, MODULE_NAME.upper()))
+        exec(f"{module_var.upper()} = DataSymbol('{module_var}', INTEGER_TYPE,"
+             f" interface=ImportInterface({MODULE_NAME.upper()}))")
 
 # Define generic LFRic scalar datatypes and symbols
 
@@ -91,21 +92,19 @@ for info in GENERIC_SCALAR_DATATYPES:
     PRECISION = info.precision
     # Create the specific datatype
     exec(
-        "class {0}DataType(ScalarType):\n"
-        "    def __init__(self, precision=None):\n"
-        "        if not precision:\n"
-        "            precision = {1}\n"
-        "        super({0}DataType, self).__init__(\n"
-        "            ScalarType.Intrinsic.{2}, precision)\n"
-        "".format(NAME, PRECISION.upper(), INTRINSIC))
+        f"class {NAME}DataType(ScalarType):\n"
+        f"    def __init__(self, precision=None):\n"
+        f"        if not precision:\n"
+        f"            precision = {PRECISION.upper()}\n"
+        f"        super({NAME}DataType, self).__init__(\n"
+        f"            ScalarType.Intrinsic.{INTRINSIC}, precision)\n")
     # Create the specific symbol
     exec(
-        "class {0}DataSymbol(DataSymbol):\n"
-        "    def __init__(self, name, precision=None, **kwargs):\n"
-        "        super().__init__(\n"
-        "            name, {0}DataType(precision=precision),\n"
-        "            **kwargs)\n"
-        "".format(NAME))
+        f"class {NAME}DataSymbol(DataSymbol):\n"
+        f"    def __init__(self, name, precision=None, **kwargs):\n"
+        f"        super().__init__(\n"
+        f"            name, {NAME}DataType(precision=precision),\n"
+        f"            **kwargs)\n")
 
 
 # Define any LFRic-specific scalar literals
@@ -122,12 +121,10 @@ class LfricDimension(Literal):
     '''
     # pylint: disable=undefined-variable
     def __init__(self, value):
-        super(LfricDimension, self).__init__(
-            value, LfricIntegerScalarDataType())
+        super().__init__(value, LfricIntegerScalarDataType())
         if value not in ['1', '3']:
-            raise ValueError(
-                "An LFRic dimension object must be '1' or '3', but "
-                "found '{0}'.".format(value))
+            raise ValueError(f"An LFRic dimension object must be '1' or '3', "
+                             f"but found '{value}'.")
 
 
 LFRIC_SCALAR_DIMENSION = LfricDimension("1")
@@ -161,19 +158,16 @@ for info in SPECIFIC_SCALAR_DATATYPES:
     NAME = "".join(info.name.title().split())
     TYPE = "".join(info.generic_type.title().split())
     ARGS = ["self", "name"] + info.properties
-    VARS = ["        self.{0} = {0}".format(var) for var in info.properties]
+    VARS = [f"        self.{var} = {var}\n" for var in info.properties]
     # Create the specific datatype
-    exec(
-        "class {0}DataType({1}DataType):\n"
-        "    pass\n"
-        "".format(NAME, TYPE))
+    exec(f"class {NAME}DataType({TYPE}DataType):\n"
+         f"    pass\n")
     # Create the specific symbol
     exec(
-        "class {0}DataSymbol({1}DataSymbol):\n"
-        "    def __init__({2}, **kwargs):\n"
-        "{3}\n"
-        "        super().__init__(name, **kwargs)\n"
-        "".format(NAME, TYPE, ", ".join(ARGS), "\n".join(VARS)))
+        f"class {NAME}DataSymbol({TYPE}DataSymbol):\n"
+        f"    def __init__({', '.join(ARGS)}, **kwargs):\n"
+        f"{''.join(VARS)}\n"
+        f"        super().__init__(name, **kwargs)\n")
 
 # Define LFRic field datatypes and symbols
 
@@ -256,34 +250,31 @@ for array_type in ARRAY_DATATYPES + FIELD_DATATYPES:
     NAME = "".join(array_type.name.title().split())
     DIMS = array_type.dims
     SCALAR_TYPE = "".join(array_type.scalar_type.title().split())
-    ARGS = (["self", "name", "dims"] + array_type.properties)
-    VARS = ["        self.{0} = {0}".format(var) for var in
-            array_type.properties]
     # Create the specific datatype
     exec(
-        "class {0}DataType(ArrayType):\n"
-        "    def __init__(self, dims):\n"
-        "        if (len(dims) != {2}):\n"
-        "            raise TypeError(\n"
-        "                \"{0}DataType expected the number of supplied \"\n"
-        "                \"dimensions to be {2} but found {{0}}.\"\n"
-        "                \"\".format(len(dims)))\n"
-        "        super({0}DataType, self).__init__(\n"
-        "            {1}DataType(), dims)\n"
-        "".format(NAME, SCALAR_TYPE, len(DIMS)))
+        f"class {NAME}DataType(ArrayType):\n"
+        f"    def __init__(self, dims):\n"
+        f"        if (len(dims) != {len(DIMS)}):\n"
+        f"            raise TypeError(\n"
+        f"                '{NAME}DataType expected the number of supplied '\n"
+        f"                'dimensions to be {len(DIMS)} but found {{0}}.'\n"
+        f"                ''.format(len(dims)))\n"
+        f"        super({NAME}DataType, self).__init__(\n"
+        f"            {SCALAR_TYPE}DataType(), dims)\n")
     # Create the specific symbol
+    ARGS = (["self", "name", "dims"] + array_type.properties)
+    VARS = [f"        self.{var} = {var}\n" for var in array_type.properties]
     exec(
-        "class {0}DataSymbol(DataSymbol):\n"
-        "    def __init__({1}, **kwargs):\n"
-        "{2}\n"
-        "        super().__init__(name, {0}DataType(dims),  **kwargs)\n"
-        "".format(NAME, ", ".join(ARGS), "\n".join(VARS)))
+        f"class {NAME}DataSymbol(DataSymbol):\n"
+        f"    def __init__({', '.join(ARGS)}, **kwargs):\n"
+        f"{''.join(VARS)}\n"
+        f"        super().__init__(name, {NAME}DataType(dims),  **kwargs)\n")
 
 # Generate LFRic vector-field-data symbols as subclasses of field-data symbols
 for array_type in FIELD_DATATYPES:
     NAME = "".join(array_type.name.title().split())
     VECTOR_NAME = NAME.replace("Field", "VectorField")
-    exec(
-        "class {0}DataSymbol({1}DataSymbol):\n"
-        "    pass\n"
-        "".format(VECTOR_NAME, NAME))
+    exec(f"class {VECTOR_NAME}DataSymbol({NAME}DataSymbol):\n"
+         f"    pass\n")
+
+__all__ = []

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,33 +32,34 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Authors A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified work Copyright (c) 2018-2019 by J. Henrichs, Bureau of Meteorology
+# Modified J. Henrichs, Bureau of Meteorology
 # Modified R. W. Ford, STFC Daresbury Lab
-# Modified: I. Kavcic, Met Office
+# Modified I. Kavcic, Met Office
 
 '''Tests for PSy-layer code generation that are specific to the
 GOcean 1.0 API.'''
 
-from __future__ import absolute_import, print_function
 import os
 import re
+
 import pytest
+
 from psyclone.configuration import Config
-from psyclone.parse.algorithm import parse, Arg
+from psyclone.parse.algorithm import Arg, parse
 from psyclone.parse.kernel import Descriptor
 from psyclone.parse.utils import ParseError
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import PSyFactory
-from psyclone.gocean1p0 import GOKern, GOLoop, \
-    GOKernelArgument, GOKernelArguments, GOKernelGridArgument, \
-    GOBuiltInCallFactory, GOSymbolTable
-from psyclone.tests.utilities import get_invoke
-from psyclone.tests.gocean1p0_build import GOcean1p0Build
-from psyclone.psyir.symbols import SymbolTable, DeferredType, \
-    ContainerSymbol, DataSymbol, ImportInterface, ScalarType, INTEGER_TYPE, \
-    ArgumentInterface, DataTypeSymbol
-from psyclone.psyir.nodes import Node, StructureReference, Member, \
-    StructureMember, Reference, Literal
+from psyclone.gocean1p0 import (GOKern, GOLoop, GOKernelArgument,
+                                GOKernelArguments, GOKernelGridArgument,
+                                GOBuiltInCallFactory)
+from psyclone.tests.utilities import get_base_path, get_invoke
+from psyclone.tests.gocean_build import GOceanBuild
+from psyclone.psyir.nodes import (Node, StructureReference, Member,
+                                  StructureMember, Reference, Literal)
+from psyclone.psyir.symbols import (
+    ContainerSymbol, ImportInterface, SymbolTable,
+    INTEGER_TYPE, DataTypeSymbol, ScalarType)
 from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
 
 API = "gocean1.0"
@@ -70,7 +71,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 def setup():
     '''Make sure that all tests here use gocean1.0 as API.'''
     Config.get().api = "gocean1.0"
-    yield()
+    yield
     Config._instance = None
 
 
@@ -118,7 +119,7 @@ def test_field(tmpdir, dist_mem):
         expected_output = before_kernel + remaining_code
 
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_two_kernels(tmpdir, dist_mem):
@@ -176,7 +177,7 @@ def test_two_kernels(tmpdir, dist_mem):
         expected_output = before_kernels + first_kernel + second_kernel
 
     assert str(generated_code) == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_two_kernels_with_dependencies(tmpdir, dist_mem):
@@ -230,7 +231,7 @@ def test_two_kernels_with_dependencies(tmpdir, dist_mem):
         expected_output = before_kernels + first_kernel + second_kernel
 
     assert str(generated_code) == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_grid_property(tmpdir, dist_mem):
@@ -286,7 +287,7 @@ def test_grid_property(tmpdir, dist_mem):
         expected_output = before_kernels + first_kernel + second_kernel
 
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_scalar_int_arg(tmpdir, dist_mem):
@@ -329,7 +330,7 @@ def test_scalar_int_arg(tmpdir, dist_mem):
     expected_output = before_kernels + first_kernel
 
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_scalar_float_arg(tmpdir, dist_mem):
@@ -372,7 +373,7 @@ def test_scalar_float_arg(tmpdir, dist_mem):
     expected_output = before_kernel + first_kernel
 
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_scalar_float_arg_from_module():
@@ -479,7 +480,7 @@ def test_ne_offset_cf_points(tmpdir):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_ne_offset_ct_points(tmpdir):
@@ -528,7 +529,7 @@ def test_ne_offset_ct_points(tmpdir):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_ne_offset_all_cu_points(tmpdir):
@@ -574,7 +575,7 @@ def test_ne_offset_all_cu_points(tmpdir):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_ne_offset_all_cv_points(tmpdir):
@@ -620,7 +621,7 @@ def test_ne_offset_all_cv_points(tmpdir):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_ne_offset_all_cf_points(tmpdir):
@@ -666,7 +667,7 @@ def test_ne_offset_all_cf_points(tmpdir):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_sw_offset_cf_points(tmpdir):
@@ -713,7 +714,7 @@ def test_sw_offset_cf_points(tmpdir):
         "    END SUBROUTINE invoke_0_compute_z\n"
         "  END MODULE psy_single_invoke_test")
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_sw_offset_all_cf_points(tmpdir):
@@ -764,7 +765,7 @@ def test_sw_offset_all_cf_points(tmpdir):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_sw_offset_ct_points(tmpdir):
@@ -814,7 +815,7 @@ def test_sw_offset_ct_points(tmpdir):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_sw_offset_all_ct_points(tmpdir):
@@ -865,7 +866,7 @@ def test_sw_offset_all_ct_points(tmpdir):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_sw_offset_all_cu_points(tmpdir):
@@ -913,7 +914,7 @@ def test_sw_offset_all_cu_points(tmpdir):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_sw_offset_all_cv_points(tmpdir):
@@ -961,7 +962,7 @@ def test_sw_offset_all_cv_points(tmpdir):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_offset_any_all_cu_points(tmpdir):
@@ -1011,7 +1012,7 @@ def test_offset_any_all_cu_points(tmpdir):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_offset_any_all_points(tmpdir):
@@ -1058,7 +1059,7 @@ def test_offset_any_all_points(tmpdir):
         "    END SUBROUTINE invoke_0_copy\n"
         "  END MODULE psy_single_invoke_test")
     assert generated_code == expected_output
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_find_grid_access(monkeypatch):
@@ -1136,7 +1137,7 @@ def test_compile_with_dependency(tmpdir):
         os.path.join(BASE_PATH, "single_invoke_kern_with_use.f90"),
         api=API)
     psy = PSyFactory(API).create(invoke_info)
-    assert GOcean1p0Build(tmpdir).code_compiles(psy, ["model_mod"])
+    assert GOceanBuild(tmpdir).code_compiles(psy, ["model_mod"])
 
 
 # -----------------------------------
@@ -1284,12 +1285,12 @@ def test05p1_kernel_add_iteration_spaces(tmpdir):
     schedule = psy.invokes.invoke_list[0].schedule
 
     expected_sched = (
-        "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
+        "GOLoop[variable:'j', loop_type:'outer']\n"
         "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
         "Literal[value:'2', Scalar<INTEGER, UNDEFINED>]\n"
         "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
         "Schedule:\n"
-        "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
+        "GOLoop[variable:'i', loop_type:'inner']\n"
         "Literal[value:'3', Scalar<INTEGER, UNDEFINED>]\n"
         "StructureReference[name:'cu_fld']\n"
         "StructureMember[name:'grid']\n"
@@ -1305,19 +1306,19 @@ def test05p1_kernel_add_iteration_spaces(tmpdir):
     clb_trans = GOConstLoopBoundsTrans()
     clb_trans.apply(schedule)
     expected_sched = (
-        "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
+        "GOLoop[variable:'j', loop_type:'outer']\n"
         "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
         "Literal[value:'2', Scalar<INTEGER, UNDEFINED>]\n"
         "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
         "Schedule:\n"
-        "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
+        "GOLoop[variable:'i', loop_type:'inner']\n"
         "Literal[value:'3', Scalar<INTEGER, UNDEFINED>]\n"
         "Reference[name:'istop']\n"
         "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
         "Schedule:\n"
         "kern call: compute_cu_code\n")
     assert expected_sched in str(schedule)
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test06_kernel_invalid_access():
@@ -1329,8 +1330,8 @@ def test06_kernel_invalid_access():
                            "test_files", "gocean1p0",
                            "test06_invoke_kernel_wrong_access.f90"),
               api="gocean1.0")
-    assert "compute_cu: argument access  is given as 'wrong' but must be one "\
-           "of ['go_read', 'go_readwrite', 'go_write']" in str(err.value)
+    assert ("compute_cu: argument access is given as 'wrong' but must be one "
+            "of ['go_read', 'go_readwrite', 'go_write']" in str(err.value))
 
 
 def test07_kernel_wrong_gridpt_type():
@@ -1358,7 +1359,7 @@ def test08_kernel_invalid_grid_property():
 
     # GOKernelGridArgument contains also a test for the validity of
     # a grid property. It's easier to create a dummy class to test this:
-    class DummyDescriptor(object):
+    class DummyDescriptor():
         '''Dummy class to test error handling.'''
         def __init__(self):
             self.access = "read"
@@ -1672,7 +1673,7 @@ def test_gokernelargument_type(monkeypatch):
     dummy_node.symbol_table = SymbolTable()
 
     # Create a dummy GOKernelArgument
-    descriptor = Descriptor(None, "go_r_scalar")
+    descriptor = Descriptor(None, "go_r_scalar", 0)
     arg = Arg("variable", "arg", "arg")
     argument = GOKernelArgument(descriptor, arg, dummy_node)
 
@@ -1685,24 +1686,31 @@ def test_gokernelargument_type(monkeypatch):
     assert argument.argument_type == "descriptor_type"
 
 
-def test_gosymboltable_conformity_check():
-    '''Test that the expected exception is raised in method
-    _check_gocean_conformity within GOSymbolTable when one or both of
-    the first two kernel arguments are nor scalar integers.
-
+def test_go_descriptor_str():
+    '''Tests  the __str__ function of a GO1p0Descriptor.
     '''
-    symbol_table = GOSymbolTable()
-    i_var = DataSymbol("i", INTEGER_TYPE,
-                       interface=ArgumentInterface(
-                           ArgumentInterface.Access.READ))
-    j_var = DataSymbol("j", INTEGER_TYPE,
-                       interface=ArgumentInterface(
-                           ArgumentInterface.Access.READ))
-    symbol_table.specify_argument_list([i_var, j_var])
-    # Set the datatype of the first datasymbol to have an invalid type
-    # in order to raise the required exception.
-    symbol_table._argument_list[0].datatype = DeferredType()
-    with pytest.raises(GenerationError) as excinfo:
-        symbol_table._check_gocean_conformity()
-    assert ("GOcean 1.0 API kernels first argument should be a scalar integer "
-            "but got 'DeferredType'." in str(excinfo.value))
+    # Parse an existing kernel to create the required kernel_call
+    # type.
+    _, invoke_info = parse(os.path.join(get_base_path(API),
+                                        "single_invoke_scalar_float_arg.f90"),
+                           api=API)
+
+    kernel_call = invoke_info.calls[0].kcalls[0]
+    arg_descriptors = kernel_call.ktype.arg_descriptors
+
+    assert "Descriptor(READ, go_r_scalar, 0)" == str(arg_descriptors[0])
+
+
+def test_go_kerneltype_str():
+    '''Tests  the __str__ function of a GOKernelType1p0.
+    '''
+    # Parse an existing kernel to create the required kernel_call
+    # type.
+    _, invoke_info = parse(os.path.join(get_base_path(API),
+                                        "single_invoke_scalar_float_arg.f90"),
+                           api=API)
+
+    kernel_call = invoke_info.calls[0].kcalls[0]
+
+    assert ("GOcean 1.0 kernel bc_ssh, index-offset = go_offset_ne, "
+            "iterates-over = go_all_pts" == str(kernel_call.ktype))

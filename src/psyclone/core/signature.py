@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,20 +32,17 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
+# Modified by N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''This module provides management of variable access information.'''
-
-from __future__ import print_function, absolute_import
-
-import six
 
 from psyclone.errors import InternalError
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 
 
 # =============================================================================
-class Signature(object):
+class Signature:
     '''Given a variable access of the form ``a(i,j)%b(k,l)%c``, the signature
     of this access is the tuple ``(a,b,c)``. For a simple scalar variable
     ``a`` the signature would just be ``(a,)``.
@@ -71,9 +68,8 @@ class Signature(object):
         else:
             # null-tuple
             sub_tuple = ()
-        if isinstance(variable, (str, six.text_type)):
-            # str() required for python2 unicode support
-            self._signature = (str(variable),) + sub_tuple
+        if isinstance(variable, str):
+            self._signature = tuple(variable.split("%")) + sub_tuple
         elif isinstance(variable, tuple):
             self._signature = variable + sub_tuple
         elif isinstance(variable, list):
@@ -81,8 +77,9 @@ class Signature(object):
         elif isinstance(variable, Signature):
             self._signature = variable._signature + sub_tuple
         else:
-            raise InternalError("Got unexpected type '{0}' in Signature "
-                                "constructor".format(type(variable).__name__))
+            raise InternalError(f"Got unexpected type "
+                                f"'{type(variable).__name__}' in Signature "
+                                f"constructor")
 
     # ------------------------------------------------------------------------
     @property
@@ -100,6 +97,8 @@ class Signature(object):
 
     # ------------------------------------------------------------------------
     def __getitem__(self, indx):
+        if isinstance(indx, slice):
+            return Signature(self._signature[indx])
         return self._signature[indx]
 
     # ------------------------------------------------------------------------
@@ -107,7 +106,7 @@ class Signature(object):
         return "%".join(self._signature)
 
     # ------------------------------------------------------------------------
-    def to_language(self, component_indices, language_writer=None):
+    def to_language(self, component_indices=None, language_writer=None):
         # pylint: disable=too-many-locals
         '''Converts this signature with the provided indices to a string
         in the selected language.
@@ -118,27 +117,33 @@ class Signature(object):
 
         :param component_indices: the indices for each component of \
             the signature.
-        :type component_indices: \
+        :type component_indices: None (default is scalar access), or \
             :py:class:`psyclone.core.component_indices.ComponentIndices`
         :param language_writer: a backend visitor to convert PSyIR \
             expressions to a representation in the selected language. \
             This is used when creating error and warning messages.
-        :type language_writer: None (default is Fortran), or an \
-            instance of \
+        :type language_writer: None (default is Fortran), or an instance of \
             :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
 
         :raises InternalError: if the number of components in this signature \
             is different from the number of indices in component_indices.
         '''
 
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.core import ComponentIndices
+
+        # By default, if component_indices is None, we assume a scalar access:
+        if component_indices is None:
+            component_indices = ComponentIndices([[]] * len(self))
+
         # Check if number of components between self and component_indices
         # is consistent:
         if len(self._signature) != len(component_indices):
-            raise InternalError("Signature '{0}' has {1} components, but "
-                                "component_indices {2} has {3}."
-                                .format(self, len(self._signature),
-                                        component_indices,
-                                        len(component_indices)))
+            raise InternalError(f"Signature '{self}' has {len(self)} "
+                                f"components, but component_indices "
+                                f"{component_indices} has "
+                                f"{len(component_indices)}.")
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.backend.fortran import FortranWriter
@@ -185,7 +190,7 @@ class Signature(object):
 
     # ------------------------------------------------------------------------
     def __repr__(self):
-        return "Signature({0})".format("%".join(self._signature))
+        return f"Signature({str(self)})"
 
     # ------------------------------------------------------------------------
     def __hash__(self):
@@ -215,36 +220,32 @@ class Signature(object):
     def __lt__(self, other):
         '''Required to sort signatures. It just compares the tuples.'''
         if not isinstance(other, Signature):
-            raise TypeError("'<' not supported between instances of "
-                            "'Signature' and '{0}'."
-                            .format(type(other).__name__))
+            raise TypeError(f"'<' not supported between instances of "
+                            f"'Signature' and '{type(other).__name__}'.")
         return self._signature < other._signature
 
     # ------------------------------------------------------------------------
     def __le__(self, other):
         '''Required to compare signatures. It just compares the tuples.'''
         if not isinstance(other, Signature):
-            raise TypeError("'<=' not supported between instances of "
-                            "'Signature' and '{0}'."
-                            .format(type(other).__name__))
+            raise TypeError(f"'<=' not supported between instances of "
+                            f"'Signature' and '{type(other).__name__}'.")
         return self._signature <= other._signature
 
     # ------------------------------------------------------------------------
     def __gt__(self, other):
         '''Required to compare signatures. It just compares the tuples.'''
         if not isinstance(other, Signature):
-            raise TypeError("'>' not supported between instances of "
-                            "'Signature' and '{0}'."
-                            .format(type(other).__name__))
+            raise TypeError(f"'>' not supported between instances of "
+                            f"'Signature' and '{type(other).__name__}'.")
         return self._signature > other._signature
 
     # ------------------------------------------------------------------------
     def __ge__(self, other):
         '''Required to compare signatures. It just compares the tuples.'''
         if not isinstance(other, Signature):
-            raise TypeError("'>=' not supported between instances of "
-                            "'Signature' and '{0}'."
-                            .format(type(other).__name__))
+            raise TypeError(f"'>=' not supported between instances of "
+                            f"'Signature' and '{type(other).__name__}'.")
         return self._signature >= other._signature
 
     # ------------------------------------------------------------------------

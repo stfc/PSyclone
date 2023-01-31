@@ -1,7 +1,7 @@
 !-------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2021, Science and Technology Facilities Council
+! Copyright (c) 2021-2022, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@ module self_example
   use r_solver_field_mod, only : r_solver_field_type
   use r_solver_operator_mod, only : r_solver_operator_type
   use quadrature_xyoz_mod, only : quadrature_xyoz_type
-  use testkern_operator_mod, only : testkern_operator_type
+  use testkern_operator_real_mod, only : testkern_operator_type
 
   type :: my_type
      type(r_solver_field_type) :: coord(3)

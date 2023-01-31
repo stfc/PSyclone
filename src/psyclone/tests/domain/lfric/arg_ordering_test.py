@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,20 +37,150 @@
 
 ''' This module tests the LFric classes based on ArgOrdering.'''
 
-from __future__ import absolute_import
 import os
 import pytest
 
+from psyclone.core import AccessType, VariablesAccessInfo, Signature
 from psyclone.domain.lfric import (KernCallArgList,
                                    KernStubArgList, LFRicConstants)
+from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynLoop
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
+from psyclone.psyir.nodes import ArrayReference, Literal, Reference
+from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_ast, get_base_path, get_invoke
 
 TEST_API = "dynamo0.3"
+
+
+def check_psyir_results(create_arg_list, fortran_writer):
+    '''Helper function to check if the PSyIR representation of the arguments
+     is identical to the old style textual representation. It checks that each
+     member of the psyir_arglist is a Reference, and that the textual
+     representation matches the textual presentation (which was already
+     verified).
+
+     '''
+    # Check the PSyIR representation
+    result = []
+    for node in create_arg_list.psyir_arglist:
+        assert isinstance(node, Reference)
+        result.append(fortran_writer(node))
+
+    assert result == create_arg_list._arglist
+
+
+def test_argordering_append():
+    '''
+    Tests for the append() method of ArgOrdering.
+
+    '''
+    full_path = os.path.join(get_base_path(TEST_API),
+                             "1.0.1_single_named_invoke.f90")
+    _, invoke_info = parse(full_path, api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kern = schedule.walk(DynKern)[0]
+    arg_list = ArgOrdering(kern)
+    arg_list.append("roger")
+    assert len(arg_list._arglist) == 1
+    assert arg_list._arg_index_to_metadata_index[0] is None
+    arg_list.append("susan", metadata_posn=3)
+    assert len(arg_list._arglist) == 2
+    assert arg_list._arg_index_to_metadata_index[1] == 3
+    # Access info captured.
+    vinfo = VariablesAccessInfo()
+    arg_list.append("beckfoot", var_accesses=vinfo, mode=AccessType.WRITE)
+    assert len(arg_list._arglist) == 3
+    assert vinfo.all_signatures == [Signature("beckfoot")]
+    # Alternate name supplied for the access.
+    arg_list.append("john", var_access_name="john_walker",
+                    var_accesses=vinfo, mode=AccessType.WRITE)
+    assert vinfo.is_written(Signature("john_walker"))
+
+
+def test_argordering_get_array_reference():
+    '''
+    Tests for the get_array_reference() method of ArgOrdering.
+
+    '''
+
+    psy, _ = get_invoke("1.0.1_single_named_invoke.f90",
+                        TEST_API, 0)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kern = schedule.walk(DynKern)[0]
+    arg_list = ArgOrdering(kern)
+
+    # First test access using an index, e.g. `array(1)`
+    one = Literal("1", INTEGER_TYPE)
+    ref = arg_list.get_array_reference("array1", [one],
+                                       ScalarType.Intrinsic.REAL)
+    assert isinstance(ref, ArrayReference)
+    ref = arg_list.get_array_reference("array2", [":"],
+                                       ScalarType.Intrinsic.INTEGER)
+    assert not isinstance(ref, ArrayReference)
+
+    # Now test access using ":" only, e.g. `array(:)` -> this should
+    # be returned just a reference to `array`
+    ref = arg_list.get_array_reference("array3", [":", ":"],
+                                       ScalarType.Intrinsic.REAL)
+    assert isinstance(ref, Reference)
+    assert not isinstance(ref, ArrayReference)
+    ref = arg_list.get_array_reference("array4", [":", ":"],
+                                       ScalarType.Intrinsic.INTEGER)
+    assert isinstance(ref, Reference)
+    assert not isinstance(ref, ArrayReference)
+
+    # Now specify a symbol, but an incorrect array name:
+    with pytest.raises(InternalError) as err:
+        arg_list.get_array_reference("wrong-name", [":", ":"],
+                                     ScalarType.Intrinsic.INTEGER,
+                                     symbol=ref.symbol)
+    assert ("Specified symbol 'array4' has a different name than the "
+            "specified array name 'wrong-name'" in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        arg_list.get_array_reference("does-not-exist", [":"], "invalid")
+    assert ("Unsupported data type 'invalid' in find_or_create_array"
+            in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        arg_list.get_array_reference("array4", [":"],
+                                     ScalarType.Intrinsic.INTEGER)
+    assert ("Array 'array4' already exists, but has 2 dimensions, not 1."
+            in str(err.value))
+
+
+def test_argordering_extend():
+    '''
+    Tests for the extend() method of ArgOrdering.
+
+    '''
+    full_path = os.path.join(get_base_path(TEST_API),
+                             "10.7_operator_read.f90")
+    _, invoke_info = parse(full_path, api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kern = schedule.walk(DynKern)[0]
+    arg_list = ArgOrdering(kern)
+    arg_list.append("roger")
+    arg_list.extend(["peggy", "nancy"])
+    assert len(arg_list._arglist) == 3
+    vinfo = VariablesAccessInfo()
+    arg_list.extend(["flint", "captain"], var_accesses=vinfo,
+                    mode=AccessType.WRITE)
+    assert len(arg_list._arglist) == 5
+    assert Signature("flint") in vinfo.all_signatures
+    assert Signature("captain") in vinfo.all_signatures
+    assert vinfo.is_written(Signature("flint"))
+    arg_list.extend(["richard", "dorothea"], var_accesses=vinfo,
+                    mode=AccessType.READ, list_metadata_posn=[5, 7])
+    assert len(arg_list._arglist) == 7
+    assert arg_list._arg_index_to_metadata_index[5] == 5
+    assert arg_list._arg_index_to_metadata_index[6] == 7
 
 
 def test_unexpected_type_error(dist_mem):
@@ -65,12 +195,7 @@ def test_unexpected_type_error(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    if dist_mem:
-        index = 4
-    else:
-        index = 0
-    loop = schedule.children[index]
-    kernel = loop.loop_body[0]
+    kernel = schedule.walk(DynKern)[0]
     # Sabotage one of the arguments to make it have an invalid type.
     kernel.arguments.args[0]._argument_type = "invalid"
     # Now call KernCallArgList to raise an exception
@@ -79,10 +204,9 @@ def test_unexpected_type_error(dist_mem):
         create_arg_list.generate()
     const = LFRicConstants()
     assert (
-        "ArgOrdering.generate(): Unexpected argument "
-        "type found. Expected one of '{0}' but found 'invalid'".
-        format(const.VALID_ARG_TYPE_NAMES)
-        in str(excinfo.value))
+        f"ArgOrdering.generate(): Unexpected argument "
+        f"type found. Expected one of '{const.VALID_ARG_TYPE_NAMES}' "
+        f"but found 'invalid'" in str(excinfo.value))
 
 
 def test_kernel_stub_invalid_scalar_argument():
@@ -101,12 +225,11 @@ def test_kernel_stub_invalid_scalar_argument():
     with pytest.raises(InternalError) as excinfo:
         create_arg_list.scalar(arg)
     const = LFRicConstants()
-    assert ("Expected argument type to be one of {0} but got "
-            "'invalid'".format(const.VALID_SCALAR_NAMES)
-            in str(excinfo.value))
+    assert (f"Expected argument type to be one of {const.VALID_SCALAR_NAMES} "
+            f"but got 'invalid'" in str(excinfo.value))
 
 
-def test_arg_ordering_generate_domain_kernel(dist_mem):
+def test_arg_ordering_generate_domain_kernel(dist_mem, fortran_writer):
     '''
     Check that the LFRic ArgOrdering class generates the expected arguments
     for a kernel that iterates over the 'domain'.
@@ -123,13 +246,16 @@ def test_arg_ordering_generate_domain_kernel(dist_mem):
 
     create_arg_list = KernCallArgList(kernel)
     assert create_arg_list._arglist == []
+    assert create_arg_list._psyir_arglist == []
     create_arg_list.generate()
     assert create_arg_list._arglist == [
         'nlayers', 'ncell_2d_no_halos', 'b', 'f1_proxy%data', 'ndf_w3',
         'undf_w3', 'map_w3']
 
+    check_psyir_results(create_arg_list, fortran_writer)
 
-def test_arg_ordering_generate_cma_kernel(dist_mem):
+
+def test_arg_ordering_generate_cma_kernel(dist_mem, fortran_writer):
     '''
     Check that the LFRic ArgOrdering class generates the expected arguments
     for a CMA kernel.
@@ -155,6 +281,29 @@ def test_arg_ordering_generate_cma_kernel(dist_mem):
         'cbanded_map_adspc1_lma_op1', 'ndf_adspc2_lma_op1',
         'cbanded_map_adspc2_lma_op1']
 
+    check_psyir_results(create_arg_list, fortran_writer)
+
+
+def test_arg_ordering_mdata_index():
+    '''
+    Check that the metadata_index_from_actual_index() method of ArgOrdering
+    works as expected.
+
+    '''
+    full_path = os.path.join(get_base_path(TEST_API),
+                             "1.0.1_single_named_invoke.f90")
+    _, invoke_info = parse(full_path, api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernels = schedule.walk(DynKern)
+    arg_list = ArgOrdering(kernels[0])
+    arg_list.generate()
+    # Scalar argument.
+    assert arg_list.metadata_index_from_actual_index(0) == 0
+    with pytest.raises(KeyError):
+        arg_list.metadata_index_from_actual_index(20)
+
 
 def test_kernel_stub_ind_dofmap_errors():
     '''Check that we raise the expected exceptions if the wrong arguments
@@ -174,7 +323,7 @@ def test_kernel_stub_ind_dofmap_errors():
     with pytest.raises(InternalError) as excinfo:
         create_arg_list.indirection_dofmap("w3", kernel.arguments.args[1])
     assert ("A CMA operator (gh_columnwise_operator) must be supplied but "
-            "got") in str(excinfo.value)
+            "got 'gh_scalar'") in str(excinfo.value)
 
 
 def test_kerncallarglist_args_error(dist_mem):
@@ -221,6 +370,14 @@ def test_kerncallarglist_args_error(dist_mem):
         "is empty. Has the generate() method been called?"
         ) in str(excinfo.value)
 
+    # arglist method
+    with pytest.raises(InternalError) as excinfo:
+        _ = create_arg_list.psyir_arglist
+    assert (
+        "The PSyIR argument list in KernCallArgList "
+        "is empty. Has the generate() method been called?"
+        ) in str(excinfo.value)
+
 
 def test_kerncallarglist_quad_rule_error(dist_mem, tmpdir):
     ''' Check that we raise the expected exception if we encounter an
@@ -239,6 +396,33 @@ def test_kerncallarglist_quad_rule_error(dist_mem, tmpdir):
         create_arg_list.quad_rule()
     assert ("no support implemented for quadrature with a shape of 'broken'"
             in str(err.value))
+
+
+def test_kerncallarglist_metadata_index_op_vector():
+    '''
+    Check that the lookup_metadata_index() and
+    metadata_index_from_actual_index() methods of KernCallArgList work
+    as expected for operator and field-vector arguments.
+
+    '''
+    full_path = os.path.join(get_base_path(TEST_API),
+                             "4.4_multikernel_invokes.f90")
+    _, invoke_info = parse(full_path, api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernels = schedule.walk(DynKern)
+    arg_list = KernCallArgList(kernels[0])
+    arg_list.generate()
+    # Operator
+    assert arg_list.metadata_index_from_actual_index(3) == 0
+    # All three members of the vector originate from a single argument
+    # description in the metadata.
+    assert arg_list.metadata_index_from_actual_index(4) == 1
+    assert arg_list.metadata_index_from_actual_index(5) == 1
+    assert arg_list.metadata_index_from_actual_index(6) == 1
+    # Scalar
+    assert arg_list.metadata_index_from_actual_index(7) == 2
 
 
 def test_kernstubarglist_arglist_error():

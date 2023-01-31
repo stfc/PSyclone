@@ -60,7 +60,7 @@ download the latest stable release of PSyclone.
 .. parsed-literal::
 
    > cd <PSYCLONEHOME>
-   > wget https://github.com/stfc/PSyclone/archive/\ |release|\ .tar.gz
+   > wget \https://github.com/stfc/PSyclone/archive/\ |release|\ .tar.gz
    > gunzip \ |release|\ .tar.gz
    > tar xf \ |release|\ .tar
    > rm \ |release|\ .tar
@@ -109,8 +109,7 @@ using the graphviz package. This is optional and the associated
 routine will silently return if the graphviz bindings are not
 installed. If you have the graphviz package installed (see
 especially section :ref:`ubuntu_user` if you are on Ubuntu), you also need
-to install the python bindings to the graphviz package:
-::
+to install the python bindings to the graphviz package::
 
    > sudo pip install graphviz
 

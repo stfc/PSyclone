@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,24 +31,23 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+# Modified J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module contains the datatype definitions.'''
 
-from __future__ import absolute_import
 import abc
 from collections import OrderedDict, namedtuple
 from enum import Enum
-import six
+
 from psyclone.errors import InternalError
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.datasymbol import DataSymbol
 from psyclone.psyir.symbols.symbol import Symbol
 
 
-@six.add_metaclass(abc.ABCMeta)
-class DataType(object):
+class DataType(metaclass=abc.ABCMeta):
     '''Abstract base class from which all types are derived.'''
 
     @abc.abstractmethod
@@ -59,8 +58,18 @@ class DataType(object):
 
         '''
 
+    def __eq__(self, other):
+        '''
+        :param Any other: the object to check equality to.
+
+        :returns: whether this type is equal to the 'other' type.
+        :rtype: bool
+        '''
+        return type(other) is type(self)
+
 
 class DeferredType(DataType):
+    # pylint: disable=too-few-public-methods
     '''Indicates that the type is unknown at this point.'''
 
     def __str__(self):
@@ -73,6 +82,7 @@ class DeferredType(DataType):
 
 
 class NoType(DataType):
+    # pylint: disable=too-few-public-methods
     ''' Indicates that the associated symbol has an empty type (equivalent
     to `void` in C). '''
 
@@ -80,8 +90,7 @@ class NoType(DataType):
         return "NoType"
 
 
-@six.add_metaclass(abc.ABCMeta)
-class UnknownType(DataType):
+class UnknownType(DataType, metaclass=abc.ABCMeta):
     '''
     Indicates that a variable declaration is not supported by the PSyIR.
     This class is abstract and must be subclassed for each language
@@ -96,9 +105,9 @@ class UnknownType(DataType):
     def __init__(self, declaration_txt):
         if not isinstance(declaration_txt, str):
             raise TypeError(
-                "UnknownType constructor expects the original variable "
-                "declaration as a string but got an argument of type '{0}'".
-                format(type(declaration_txt).__name__))
+                f"UnknownType constructor expects the original variable "
+                f"declaration as a string but got an argument of type "
+                f"'{type(declaration_txt).__name__}'")
         self._declaration = None
         self.declaration = declaration_txt
 
@@ -132,12 +141,81 @@ class UnknownFortranType(UnknownType):
 
     :param str declaration_txt: string containing the original variable \
                                 declaration.
-
-    :raises TypeError: if the supplied declaration_txt is not a str.
-
     '''
+    def __init__(self, declaration_txt):
+        super().__init__(declaration_txt)
+        # This will hold the Fortran type specification (as opposed to
+        # the whole declaration).
+        self._type_text = ""
+
     def __str__(self):
-        return "UnknownFortranType('{0}')".format(self._declaration)
+        return f"UnknownFortranType('{self._declaration}')"
+
+    @property
+    def declaration(self):
+        '''
+        This useless routine is required so that we can override the associated
+        setter method below.
+        '''
+        return super().declaration
+
+    @declaration.setter
+    def declaration(self, value):
+        '''
+        Sets the original declaration that this instance represents and
+        removes any cached type text.
+
+        :param str value: the original declaration.
+
+        '''
+        self._declaration = value[:]
+        self._type_text = ""
+
+    @property
+    def type_text(self):
+        '''
+        Parses the original Fortran declaration and uses the resulting
+        parse tree to extract the type information. This is returned in
+        text form and also cached.
+
+        TODO #1419 - alter Unknown(Fortran)Type so that it is only the
+        type information that is stored as a string. i.e. remove the name
+        of the variable being declared. Once that is done this method
+        won't be required.
+
+        :returns: the Fortran code specifying the type.
+        :rtype: str
+        '''
+        if self._type_text:
+            return self._type_text
+
+        # Encapsulate fparser2 functionality here.
+        # pylint:disable=import-outside-toplevel
+        from fparser.common.readfortran import FortranStringReader
+        from fparser.common.sourceinfo import FortranFormat
+        from fparser.two import Fortran2008
+        from fparser.two.parser import ParserFactory
+        string_reader = FortranStringReader(self._declaration)
+        # Set reader to free format.
+        string_reader.set_format(FortranFormat(True, False))
+        ParserFactory().create(std="f2008")
+        ptree = Fortran2008.Declaration_Construct(
+            string_reader)
+        self._type_text = str(ptree.children[0])
+
+        return self._type_text
+
+    def __eq__(self, other):
+        '''
+        :param Any other: the object to check equality to.
+
+        :returns: whether this type is equal to the 'other' type.
+        :rtype: bool
+        '''
+        if not super().__eq__(other):
+            return False
+
+        return other.type_text == self.type_text
 
 
 class ScalarType(DataType):
@@ -176,28 +254,27 @@ class ScalarType(DataType):
     def __init__(self, intrinsic, precision):
         if not isinstance(intrinsic, ScalarType.Intrinsic):
             raise TypeError(
-                "ScalarType expected 'intrinsic' argument to be of type "
-                "ScalarType.Intrinsic but found '{0}'."
-                "".format(type(intrinsic).__name__))
+                f"ScalarType expected 'intrinsic' argument to be of type "
+                f"ScalarType.Intrinsic but found "
+                f"'{type(intrinsic).__name__}'.")
         if not isinstance(precision, (int, ScalarType.Precision, DataSymbol)):
             raise TypeError(
-                "ScalarType expected 'precision' argument to be of type "
-                "int, ScalarType.Precision or DataSymbol, but found '{0}'."
-                "".format(type(precision).__name__))
+                f"ScalarType expected 'precision' argument to be of type "
+                f"int, ScalarType.Precision or DataSymbol, but found "
+                f"'{type(precision).__name__}'.")
         if isinstance(precision, int) and precision <= 0:
             raise ValueError(
-                "The precision of a DataSymbol when specified as an "
-                "integer number of bytes must be > 0 but found '{0}'."
-                "".format(precision))
+                f"The precision of a DataSymbol when specified as an integer "
+                f"number of bytes must be > 0 but found '{precision}'.")
         if (isinstance(precision, DataSymbol) and
                 not (isinstance(precision.datatype, ScalarType) and
                      precision.datatype.intrinsic ==
                      ScalarType.Intrinsic.INTEGER) and
                 not isinstance(precision.datatype, DeferredType)):
             raise ValueError(
-                "A DataSymbol representing the precision of another "
-                "DataSymbol must be of either 'deferred' or scalar, "
-                "integer type but got: {0}".format(str(precision)))
+                f"A DataSymbol representing the precision of another "
+                f"DataSymbol must be of either 'deferred' or scalar, "
+                f"integer type but got: {precision}")
 
         self._intrinsic = intrinsic
         self._precision = precision
@@ -229,7 +306,20 @@ class ScalarType(DataType):
             precision_str = self.precision.name
         else:
             precision_str = str(self.precision)
-        return "Scalar<{0}, {1}>".format(self.intrinsic.name, precision_str)
+        return f"Scalar<{self.intrinsic.name}, {precision_str}>"
+
+    def __eq__(self, other):
+        '''
+        :param Any other: the object to check equality to.
+
+        :returns: whether this type is equal to the 'other' type.
+        :rtype: bool
+        '''
+        if not super().__eq__(other):
+            return False
+
+        return (self.precision == other.precision and
+                self.intrinsic == other.intrinsic)
 
 
 class ArrayType(DataType):
@@ -302,16 +392,20 @@ class ArrayType(DataType):
                     "When creating an array of structures, the type of "
                     "those structures must be supplied as a DataTypeSymbol "
                     "but got a StructureType instead.")
-            self._intrinsic = datatype.intrinsic
-            self._precision = datatype.precision
+            if not isinstance(datatype, UnknownType):
+                self._intrinsic = datatype.intrinsic
+                self._precision = datatype.precision
+            else:
+                self._intrinsic = datatype
+                self._precision = None
         elif isinstance(datatype, DataTypeSymbol):
             self._intrinsic = datatype
             self._precision = None
         else:
             raise TypeError(
-                "ArrayType expected 'datatype' argument to be of type "
-                "DataType or DataTypeSymbol but found '{0}'."
-                "".format(type(datatype).__name__))
+                f"ArrayType expected 'datatype' argument to be of type "
+                f"DataType or DataTypeSymbol but found "
+                f"'{type(datatype).__name__}'.")
         # We do not have a setter for shape as it is an immutable property,
         # therefore we have a separate validation routine.
         self._validate_shape(shape)
@@ -332,6 +426,15 @@ class ArrayType(DataType):
                 self._shape.append(dim)
 
         self._datatype = datatype
+
+    @property
+    def datatype(self):
+        '''
+        :returns: the datatype of each element in the array.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        '''
+        # TODO #1857: This property might be affected.
+        return self._datatype
 
     @property
     def intrinsic(self):
@@ -360,8 +463,8 @@ class ArrayType(DataType):
 
         :rtype: a list of ArrayType.Extent.ATTRIBUTE, \
             ArrayType.Extent.DEFERRED, or \
-            :py:class:`psyclone.psyir.nodes.DataNode`. If an entry is \
-            ArrayType.Extent.ATTRIBUTE the extent of that dimension \
+            :py:class:`psyclone.psyir.nodes.ArrayType.ArrayBounds`. If an \
+            entry is ArrayType.Extent.ATTRIBUTE the extent of that dimension \
             is unknown but can be obtained by querying the run-time \
             system (e.g. using the SIZE intrinsic in Fortran). If it \
             is ArrayType.Extent.DEFERRED then the extent is also \
@@ -405,7 +508,7 @@ class ArrayType(DataType):
             :raises TypeError: if the DataNode is not valid in this context.
 
             '''
-            # When issue #685 is addressed then check that the
+            # When issue #1799 is addressed then check that the
             # datatype returned is an int (or is unknown). For the
             # moment, just check that if the DataNode is a
             # Reference then the associated symbol is a scalar
@@ -413,24 +516,27 @@ class ArrayType(DataType):
             if isinstance(dim_node, Reference):
                 # Check the DataSymbol instance is a scalar
                 # integer or is unknown
-                symbol = dim_node.symbol
-                if not ((symbol.is_scalar and symbol.datatype.intrinsic ==
-                         ScalarType.Intrinsic.INTEGER) or
-                        isinstance(symbol.datatype,
-                                   (UnknownFortranType, DeferredType))):
+                dtype = dim_node.datatype
+                if isinstance(dtype, ArrayType) and dtype.shape:
                     raise TypeError(
-                        "If a DataSymbol is referenced in a dimension "
-                        "declaration then it should be a scalar integer or "
-                        "of UnknownType or DeferredType, but '{0}' is a "
-                        "'{1}'.".format(symbol.name, symbol.datatype))
+                        f"If a DataSymbol is referenced in a dimension "
+                        f"declaration then it should be a scalar but "
+                        f"'{dim_node}' is not.")
+                if not (isinstance(dtype, (UnknownType, DeferredType)) or
+                        dtype.intrinsic == ScalarType.Intrinsic.INTEGER):
+                    raise TypeError(
+                        f"If a DataSymbol is referenced in a dimension "
+                        f"declaration then it should be an integer or "
+                        f"of UnknownType or DeferredType, but "
+                        f"'{dim_node.name}' is a '{dtype}'.")
                 # TODO #1089 - add check that any References are not to a
                 # local datasymbol that is not constant (as this would have
                 # no value).
 
         if not isinstance(extents, list):
             raise TypeError(
-                "ArrayType 'shape' must be of type list but found '{0}'."
-                "".format(type(extents).__name__))
+                f"ArrayType 'shape' must be of type list but found "
+                f"'{type(extents).__name__}'.")
 
         for dimension in extents:
             if isinstance(dimension, DataNode):
@@ -438,24 +544,23 @@ class ArrayType(DataType):
             elif isinstance(dimension, tuple):
                 if len(dimension) != 2:
                     raise TypeError(
-                        "A DataSymbol shape-list element specifying lower "
-                        "and upper bounds must be a 2-tuple but '{0}' has {1} "
-                        "entries.".format(str(dimension), len(dimension)))
+                        f"A DataSymbol shape-list element specifying lower "
+                        f"and upper bounds must be a 2-tuple but "
+                        f"'{dimension}' has {len(dimension)} entries.")
                 for dim in dimension:
                     if isinstance(dim, DataNode):
                         _validate_data_node(dim)
                     elif not isinstance(dim, int):
                         raise TypeError(
-                            "A DataSymbol shape-list element specifying lower "
-                            "and upper bounds must be a 2-tuple containing "
-                            "either int or DataNode entries but '{0}' contains"
-                            " '{1}'".format(str(dimension),
-                                            type(dim).__name__))
+                            f"A DataSymbol shape-list element specifying lower"
+                            f" and upper bounds must be a 2-tuple containing "
+                            f"either int or DataNode entries but '{dimension}'"
+                            f" contains '{type(dim).__name__}'")
             elif not isinstance(dimension, (self.Extent, int)):
                 raise TypeError(
-                    "DataSymbol shape list elements can only be 'int', "
-                    "ArrayType.Extent, 'DataNode' or tuple but found "
-                    "'{0}'.".format(type(dimension).__name__))
+                    f"DataSymbol shape list elements can only be 'int', "
+                    f"ArrayType.Extent, 'DataNode' or tuple but found "
+                    f"'{type(dimension).__name__}'.")
 
     def __str__(self):
         '''
@@ -487,14 +592,41 @@ class ArrayType(DataType):
                     dim_text += str(dimension.upper)
                 dims.append(dim_text)
             elif isinstance(dimension, ArrayType.Extent):
-                dims.append("'{0}'".format(dimension.name))
+                dims.append(f"'{dimension.name}'")
             else:
                 raise InternalError(
-                    "ArrayType shape list elements can only be 'ArrayType."
-                    "ArrayBounds', or 'ArrayType.Extent', but found '{0}'."
-                    "".format(type(dimension).__name__))
-        return ("Array<{0}, shape=[{1}]>".format(
-            self._datatype, ", ".join(dims)))
+                    f"ArrayType shape list elements can only be 'ArrayType."
+                    f"ArrayBounds', or 'ArrayType.Extent', but found "
+                    f"'{type(dimension).__name__}'.")
+        return f"Array<{self._datatype}, shape=[{', '.join(dims)}]>"
+
+    def __eq__(self, other):
+        '''
+        :param Any other: the object to check equality to.
+
+        :returns: whether this ArrayType is equal to the 'other' ArrayType.
+        :rtype: bool
+        '''
+        if not super().__eq__(other):
+            return False
+
+        if (self.intrinsic != other.intrinsic or
+                self.precision != other.precision):
+            return False
+
+        if len(self.shape) != len(other.shape):
+            return False
+
+        # TODO #1799 - this implementation currently has some limitations.
+        # e.g. a(1:10) and b(2:11) have the same datatype (an array of 1
+        # dimension and 10 elements) but we will currently return false.
+        # One improvement could be to use the SymbolicMath to do the comparison
+        # but this won't resolve all cases as shape can be references.
+        for this_dim, other_dim in zip(self.shape, other.shape):
+            if this_dim != other_dim:
+                return False
+
+        return True
 
 
 class StructureType(DataType):
@@ -536,10 +668,9 @@ class StructureType(DataType):
         for component in components:
             if len(component) != 3:
                 raise TypeError(
-                    "Each component must be specified using a 3-tuple of "
-                    "(name, type, visibility) but found a tuple with {0} "
-                    "members: {1}".format(
-                        len(component), str(component)))
+                    f"Each component must be specified using a 3-tuple of "
+                    f"(name, type, visibility) but found a tuple with "
+                    f"{len(component)} members: {component}")
             stype.add(component[0], component[1], component[2])
         return stype
 
@@ -568,24 +699,24 @@ class StructureType(DataType):
         '''
         if not isinstance(name, str):
             raise TypeError(
-                "The name of a component of a StructureType must be a 'str' "
-                "but got '{0}'".format(type(name).__name__))
+                f"The name of a component of a StructureType must be a 'str' "
+                f"but got '{type(name).__name__}'")
         if not isinstance(datatype, (DataType, DataTypeSymbol)):
             raise TypeError(
-                "The type of a component of a StructureType must be a "
-                "'DataType' or 'DataTypeSymbol' but got '{0}'".format(
-                    type(datatype).__name__))
+                f"The type of a component of a StructureType must be a "
+                f"'DataType' or 'DataTypeSymbol' but got "
+                f"'{type(datatype).__name__}'")
         if not isinstance(visibility, Symbol.Visibility):
             raise TypeError(
-                "The visibility of a component of a StructureType must be "
-                "an instance of 'Symbol.Visibility' but got '{0}'".format(
-                    type(visibility).__name__))
+                f"The visibility of a component of a StructureType must be "
+                f"an instance of 'Symbol.Visibility' but got "
+                f"'{type(visibility).__name__}'")
         if datatype is self:
             # A StructureType cannot contain a component of its own type
             raise TypeError(
-                "Error attempting to add component '{0}' - a StructureType "
-                "definition cannot be recursive - i.e. it cannot contain "
-                "components with the same type as itself.".format(name))
+                f"Error attempting to add component '{name}' - a "
+                f"StructureType definition cannot be recursive - i.e. it "
+                f"cannot contain components with the same type as itself.")
 
         self._components[name] = self.ComponentType(name, datatype, visibility)
 
@@ -596,6 +727,24 @@ class StructureType(DataType):
         :rtype: :py:class:`psyclone.psyir.symbols.StructureType.ComponentType`
         '''
         return self._components[name]
+
+    def __eq__(self, other):
+        '''
+        :param Any other: the object to check equality to.
+
+        :returns: whether this StructureType is equal to the 'other' type.
+        :rtype: bool
+        '''
+        if not super().__eq__(other):
+            return False
+
+        if len(self.components) != len(other.components):
+            return False
+
+        if self.components != other.components:
+            return False
+
+        return True
 
 
 # Create common scalar datatypes

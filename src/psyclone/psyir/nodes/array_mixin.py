@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,29 +31,30 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the abstract ArrayMixin. '''
 
-from __future__ import absolute_import
-
 import abc
-import six
 
 from psyclone.errors import InternalError
+from psyclone.psyir.nodes.call import Call
+from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.literal import Literal
-from psyclone.psyir.nodes.operation import BinaryOperation
+from psyclone.psyir.nodes.member import Member
+from psyclone.psyir.nodes.operation import Operation, BinaryOperation
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols.datatypes import ScalarType
+from psyclone.psyir.symbols import SymbolError, DataSymbol
+from psyclone.psyir.symbols.datatypes import (ScalarType, ArrayType,
+                                              INTEGER_TYPE)
 
 
-@six.add_metaclass(abc.ABCMeta)
-class ArrayMixin(object):
+class ArrayMixin(metaclass=abc.ABCMeta):
     '''
     Abstract class used to add functionality common to Nodes that represent
     Array accesses.
@@ -73,6 +74,14 @@ class ArrayMixin(object):
         # pylint: disable=unused-argument
         return isinstance(child, (DataNode, Range))
 
+    @property
+    def is_array(self):
+        ''':returns: if this instance indicates an array access.
+        :rtype: bool
+
+        '''
+        return True
+
     def get_signature_and_indices(self):
         '''
         Constructs the Signature of this array access and a list of the
@@ -86,7 +95,7 @@ class ArrayMixin(object):
         :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \
             lists of indices)
         '''
-        sig, _ = super(ArrayMixin, self).get_signature_and_indices()
+        sig, _ = super().get_signature_and_indices()
         return (sig, [self.indices[:]])
 
     def _validate_index(self, index):
@@ -102,20 +111,22 @@ class ArrayMixin(object):
         '''
         if not isinstance(index, int):
             raise TypeError(
-                "The index argument should be an integer but found '{0}'."
-                "".format(type(index).__name__))
+                f"The index argument should be an integer but found "
+                f"'{type(index).__name__}'.")
         if index > len(self.indices)-1:
             raise ValueError(
-                "In ArrayReference '{0}' the specified index '{1}' must be "
-                "less than the number of dimensions '{2}'."
-                "".format(self.name, index, len(self.indices)))
+                f"In ArrayReference '{self.name}' the specified index "
+                f"'{index}' must be less than the number of dimensions "
+                f"'{len(self.indices)}'.")
 
     def is_lower_bound(self, index):
         '''Returns True if the specified array index contains a Range node
         which has a starting value given by the 'LBOUND(name,index)'
         intrinsic where 'name' is the name of the current Array and
-        'index' matches the specified array index. Otherwise False is
-        returned.
+        'index' matches the specified array index. Also returns True
+        if the starting value of the range node is an integer that
+        matches the starting value of the declaration. Otherwise False
+        is returned.
 
         For example, if a Fortran array A was declared as
         A(10) then the starting value is 1 and LBOUND(A,1) would
@@ -135,6 +146,31 @@ class ArrayMixin(object):
             return False
 
         lower = array_dimension.start
+
+        if isinstance(lower, Literal):
+            try:
+                symbol = self.scope.symbol_table.lookup(self.name)
+                if not isinstance(symbol, DataSymbol):
+                    # We don't have any type information on this symbol
+                    # (probably because it originates from a wildcard import).
+                    return False
+                datatype = symbol.datatype
+                # Check that the symbol is of ArrayType. (It may be of
+                # UnknownFortranType if the symbol is of e.g. character type.)
+                if not isinstance(datatype, ArrayType):
+                    return False
+                shape = datatype.shape
+                array_bounds = shape[index]
+                if (isinstance(array_bounds, ArrayType.ArrayBounds)
+                        and isinstance(array_bounds.lower, Literal)):
+                    if lower.value == array_bounds.lower.value:
+                        return True
+            except (KeyError, SymbolError, AttributeError):
+                # If any issue is found we can not guarantee that it is
+                # the lower bound
+                pass
+            return False
+
         if not (isinstance(lower, BinaryOperation) and
                 lower.operator == BinaryOperation.Operator.LBOUND):
             return False
@@ -142,7 +178,7 @@ class ArrayMixin(object):
         if not isinstance(lower.children[0], Reference):
             return False
 
-        if not self._matching_access(lower.children[0]):
+        if not self.is_same_array(lower.children[0]):
             return False
 
         if not (isinstance(lower.children[1], Literal) and
@@ -155,9 +191,11 @@ class ArrayMixin(object):
     def is_upper_bound(self, index):
         '''Returns True if the specified array index contains a Range node
         which has a stopping value given by the 'UBOUND(name,index)'
-        intrinsic where 'name' is the name of the current ArrayReference and
-        'index' matches the specified array index. Otherwise False is
-        returned.
+        intrinsic where 'name' is the name of the current
+        ArrayReference and 'index' matches the specified array index.
+        Also returns True if the stopping value of the range node is
+        an integer that matches the stopping value of the
+        declaration. Otherwise False is returned.
 
         For example, if a Fortran array A was declared as
         A(10) then the stopping value is 10 and UBOUND(A,1) would
@@ -177,6 +215,31 @@ class ArrayMixin(object):
             return False
 
         upper = array_dimension.stop
+
+        if isinstance(upper, Literal):
+            try:
+                symbol = self.scope.symbol_table.lookup(self.name)
+                if not isinstance(symbol, DataSymbol):
+                    # We don't have any type information on this symbol
+                    # (probably because it originates from a wildcard import).
+                    return False
+                datatype = symbol.datatype
+                # Check that the symbol is of ArrayType. (It may be of
+                # UnknownFortranType if the symbol is of e.g. character type.)
+                if not isinstance(datatype, ArrayType):
+                    return False
+                shape = datatype.shape
+                array_bounds = shape[index]
+                if (isinstance(array_bounds, ArrayType.ArrayBounds) and
+                        isinstance(array_bounds.upper, Literal)):
+                    if upper.value == array_bounds.upper.value:
+                        return True
+            except (KeyError, SymbolError, AttributeError):
+                # If any issue is found we can not guarantee that it is
+                # the upper bound
+                pass
+            return False
+
         if not (isinstance(upper, BinaryOperation) and
                 upper.operator == BinaryOperation.Operator.UBOUND):
             return False
@@ -184,51 +247,56 @@ class ArrayMixin(object):
         if not isinstance(upper.children[0], Reference):
             return False
 
-        if not self._matching_access(upper.children[0]):
+        if not self.is_same_array(upper.children[0]):
             return False
 
-        if not (isinstance(upper.children[1], Literal) and
+        return (isinstance(upper.children[1], Literal) and
                 upper.children[1].datatype.intrinsic ==
                 ScalarType.Intrinsic.INTEGER
-                and upper.children[1].value == str(index+1)):
-            return False
-        return True
+                and upper.children[1].value == str(index+1))
 
-    def _matching_access(self, node):
+    def is_same_array(self, node):
         '''
-        Examines the full structure access represented by the supplied node
-        to see whether it is the same as the one for this node. Any indices
-        on the innermost member access are ignored. e.g.
+        Checks that the provided array is the same as this node (including the
+        chain of parent accessor expressions if the array is part of a
+        Structure). If the array is part of a structure then any indices on
+        the innermost member access are ignored, e.g.
         A(3)%B%C(1) will match with A(3)%B%C but not with A(2)%B%C(1)
 
-        :returns: True if the structure accesses match, False otherwise.
+        :param node: the node representing the access that is to be compared \
+                     with this node.
+        :type node: :py:class:`psyclone.psyir.nodes.Reference` or \
+                    :py:class:`psyclone.psyir.nodes.Member`
+
+        :returns: True if the array accesses match, False otherwise.
         :rtype: bool
 
         '''
-        if isinstance(self, Reference):
-            if not isinstance(node, Reference):
-                return False
-            # This node is a reference so just compare symbol names.
-            return self.symbol.name == node.symbol.name
-
-        # This node is somewhere within a structure access so we need to
-        # get the parent Reference and keep a record of how deep this node
-        # is within the structure access. e.g. if this node was the
-        # StructureMember 'b' in a%c%b%d then its depth would be 2.
-        current = self
-        depth = 1
-        while current.parent and not isinstance(current.parent, Reference):
-            depth += 1
-            current = current.parent
-        parent_ref = current.parent
-        if not parent_ref:
+        if not isinstance(node, (Member, Reference)):
             return False
+
+        if isinstance(self, Member):
+            # This node is somewhere within a structure access so we need to
+            # get the parent Reference and keep a record of how deep this node
+            # is within the structure access. e.g. if this node was the
+            # StructureMember 'b' in a%c%b%d then its depth would be 2.
+            depth = 1
+            current = self
+            while current.parent and not isinstance(current.parent, Reference):
+                depth += 1
+                current = current.parent
+            parent_ref = current.parent
+            if not parent_ref:
+                return False
+        else:
+            depth = 0
+            parent_ref = self
 
         # Now we have the parent Reference and the depth, we can construct the
         # Signatures and compare them to the required depth.
         self_sig, self_indices = parent_ref.get_signature_and_indices()
         node_sig, node_indices = node.get_signature_and_indices()
-        if self_sig[:depth+1] != node_sig[:depth+1]:
+        if self_sig[:depth+1] != node_sig[:]:
             return False
 
         # We use the FortranWriter to simplify the job of comparing array-index
@@ -293,17 +361,102 @@ class ArrayMixin(object):
         '''
         if not self._children:
             raise InternalError(
-                "{0} malformed or incomplete: must have one or more "
-                "children representing array-index expressions but found "
-                "none.".format(type(self).__name__))
+                f"{type(self).__name__} malformed or incomplete: must have "
+                f"one or more children representing array-index expressions "
+                f"but array '{self.name}' has none.")
         for idx, child in enumerate(self._children):
             if not self._validate_child(idx, child):
                 raise InternalError(
-                    "{0} malformed or incomplete: child {1} must by a psyir."
-                    "nodes.DataNode or Range representing an array-index "
-                    "expression but found '{2}'".format(
-                        type(self).__name__, idx, type(child).__name__))
+                    f"{type(self).__name__} malformed or incomplete: child "
+                    f"{idx} of array '{self.name}' must be a psyir.nodes."
+                    f"DataNode or Range representing an array-index "
+                    f"expression but found '{type(child).__name__}'")
         return self.children
+
+    def _get_effective_shape(self):
+        '''
+        :returns: the shape of the array access represented by this node.
+        :rtype: List[:py:class:`psyclone.psyir.nodes.DataNode`]
+
+        :raises NotImplementedError: if any of the array-indices involve a
+                                     function call or an expression.
+        '''
+        def _num_elements(expr):
+            '''
+            Create PSyIR for the number of elements in this range. It
+            is given by (stop - start)/step + 1.
+
+            :param expr: the range for which to compute the number of elements.
+            :type expr: :py:class:`psyclone.psyir.nodes.Range` or \
+                :py:class:`psyclone.psyir.symbols.ArrayType.ArrayBounds`
+
+            :returns: the PSyIR expression for the number of elements in the \
+                      supplied range.
+            :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation`
+
+            '''
+            if isinstance(expr, Range):
+                start = expr.start
+                stop = expr.stop
+                step = expr.step
+            elif isinstance(expr, ArrayType.ArrayBounds):
+                start = expr.lower
+                stop = expr.upper
+                step = Literal("1", INTEGER_TYPE)
+            minus = BinaryOperation.create(BinaryOperation.Operator.SUB,
+                                           stop.copy(), start.copy())
+            div = BinaryOperation.create(BinaryOperation.Operator.DIV,
+                                         minus, step.copy())
+            plus = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                          div, Literal("1", INTEGER_TYPE))
+            return plus
+
+        shape = []
+        for idx_expr in self.indices:
+            if isinstance(idx_expr, Range):
+                shape.append(_num_elements(idx_expr))
+
+            elif isinstance(idx_expr, Reference):
+                dtype = idx_expr.datatype
+                if dtype.shape:
+                    # An array slice can be defined by a 1D slice of another
+                    # array, e.g. `a(b(1:4))`.
+                    if len(dtype.shape) > 1:
+                        raise InternalError(
+                            f"An array defining a slice of a dimension of "
+                            f"another array must be 1D but '{idx_expr.name}' "
+                            f"used to index into '{self.name}' has "
+                            f"{len(dtype.shape)} dimensions.")
+                    shape.append(_num_elements(dtype.shape[0]))
+            elif isinstance(idx_expr, (Call, Operation, CodeBlock)):
+                # We can't yet straightforwardly query the type of a function
+                # call or Operation - TODO #1799.
+                # pylint: disable=import-outside-toplevel
+                from psyclone.psyir.backend.fortran import FortranWriter
+                # TODO #1887 - get type of writer to use from Config object?
+                fvisitor = FortranWriter()
+                raise NotImplementedError(
+                    f"The array index expressions for access "
+                    f"'{fvisitor(self)}' include a function call or "
+                    f"expression. Querying the return type of "
+                    f"such things is yet to be implemented.")
+
+        return shape
+
+    def get_outer_range_index(self):
+        ''' Return the index of the child that represents the outermost
+        array dimension with a Range construct.
+
+        :returns: the outermost index of the children that is a Range node.
+        :rtype: int
+
+        :raises IndexError: if the array does not contain a Range node.
+
+        '''
+        for child in reversed(self.indices):
+            if isinstance(child, Range):
+                return child.position
+        raise IndexError
 
 
 # For AutoAPI documentation generation

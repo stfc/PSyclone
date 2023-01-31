@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2021-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,8 @@ from psyclone.psyir.nodes import Call
 
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
     KernelFunctor
-from psyclone.domain.common.transformations import InvokeCallTrans, AlgTrans
+from psyclone.domain.common.transformations import (RaisePSyIR2AlgTrans,
+                                                    AlgTrans)
 
 
 def test_init():
@@ -58,7 +59,7 @@ def test_init():
     alg_trans = AlgTrans()
     assert alg_trans.name == "AlgTrans"
     assert isinstance(alg_trans, AlgTrans)
-    assert isinstance(alg_trans._invoke_trans, InvokeCallTrans)
+    assert isinstance(alg_trans._invoke_trans, RaisePSyIR2AlgTrans)
 
 
 def test_validate_node_error(fortran_reader):

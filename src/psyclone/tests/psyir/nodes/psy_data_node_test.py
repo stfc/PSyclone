@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council
+# Copyright (c) 2020-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -60,7 +60,9 @@ def test_psy_data_node_constructor():
     assert psy_node._var_name == ""
     assert psy_node._module_name is None
     assert psy_node._region_name is None
+    assert psy_node.options == {}
     psy_node = PSyDataNode(options={"prefix": "profile"})
+    assert psy_node.options == {"prefix": "profile"}
     assert psy_node._prefix == "profile_"
     assert psy_node.fortran_module == "profile_psy_data_mod"
     assert psy_node.type_name == "profile_PSyDataType"
@@ -84,6 +86,23 @@ def test_psy_data_node_constructor():
         PSyDataNode(options={"prefix": "not-a-valid-prefix"})
     assert ("Invalid 'prefix' parameter: found 'not-a-valid-prefix', "
             "expected" in str(err.value))
+
+
+def test_psy_data_node_equality():
+    ''' Check the __eq__ member of the PSyDataNode.'''
+    options1 = {"prefix": "profile", "region_name": ("a_routine", "ref1")}
+    options2 = {"prefix": "extract", "region_name": ("a_routine", "ref1")}
+    options3 = {"prefix": "profile", "region_name": ("a_routine1", "ref1")}
+    options4 = {"prefix": "profile", "region_name": ("a_routine", "ref2")}
+    psy_node1 = PSyDataNode(options=options1)
+    psy_node1_1 = PSyDataNode(options=options1)
+    psy_node2 = PSyDataNode(options=options2)
+    psy_node3 = PSyDataNode(options=options3)
+    psy_node4 = PSyDataNode(options=options4)
+    assert psy_node1 == psy_node1_1
+    assert psy_node1 != psy_node2
+    assert psy_node1 != psy_node3
+    assert psy_node1 != psy_node4
 
 
 # -----------------------------------------------------------------------------

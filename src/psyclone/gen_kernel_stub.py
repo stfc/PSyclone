@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council
+# Copyright (c) 2017-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,28 +34,24 @@
 # Author R. Ford STFC Daresbury Lab
 # Modified work Copyright (c) 2017 by J. Henrichs, Bureau of Meteorology
 # Modified: I. Kavcic, Met Office
-#           A. R. Porter, STFC Daresbury Lab
+#           A. R. Porter and N. Nobre, STFC Daresbury Lab
 
-'''A python script and python function to generate an empty kernel
+''' Contains a Python function to generate an empty kernel
     subroutine with the required arguments and datatypes (which we
     call a stub) when presented with Kernel Metadata.
 '''
 
 from __future__ import print_function
 import os
-import sys
-import traceback
 
 import fparser
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata
 from psyclone.errors import GenerationError
 from psyclone.parse.utils import ParseError
 from psyclone.configuration import Config
-from psyclone.line_length import FortLineLength
 
 
 def generate(filename, api=""):
-
     '''
     Generates an empty kernel subroutine with the required arguments
     and datatypes (which we call a stub) when presented with Kernel
@@ -81,13 +77,11 @@ def generate(filename, api=""):
         api = Config.get().default_stub_api
     if api not in Config.get().supported_stub_apis:
         raise GenerationError(
-            "Kernel stub generator: Unsupported API '{0}' specified. "
-            "Supported APIs are {1}.".
-            format(api, Config.get().supported_stub_apis))
+            f"Kernel stub generator: Unsupported API '{api}' specified. "
+            f"Supported APIs are {Config.get().supported_stub_apis}.")
 
     if not os.path.isfile(filename):
-        raise IOError("Kernel stub generator: File '{0}' not found.".
-                      format(filename))
+        raise IOError(f"Kernel stub generator: File '{filename}' not found.")
 
     # Drop cache
     fparser.one.parsefortran.FortranParser.cache.clear()
@@ -96,56 +90,11 @@ def generate(filename, api=""):
         ast = fparser.api.parse(filename, ignore_comments=False)
 
     except (fparser.common.utils.AnalyzeError, AttributeError) as error:
-        raise ParseError("Kernel stub generator: Code appears to be invalid "
-                         "Fortran: {0}.".format(str(error)))
+        raise ParseError(f"Kernel stub generator: Code appears to be invalid "
+                         f"Fortran: {error}.")
 
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
 
     return kernel.gen_stub
-
-
-def run():
-    ''' Top-level driver for the kernel-stub generator. Handles command-line
-    flags, calls generate() and applies line-length limiting to the output (if
-    requested). '''
-    import argparse
-    parser = argparse.ArgumentParser(description="Create Kernel stub code from"
-                                                 " Kernel metadata")
-    parser.add_argument("-o", "--outfile", help="filename of output")
-    parser.add_argument("-api", default=Config.get().default_stub_api,
-                        help="choose a particular api from {0}, default {1}".
-                        format(str(Config.get().supported_stub_apis),
-                               Config.get().default_stub_api))
-    parser.add_argument('filename', help='Kernel metadata')
-    parser.add_argument(
-        '-l', '--limit', dest='limit', action='store_true', default=False,
-        help='limit the fortran line length to 132 characters')
-
-    args = parser.parse_args()
-
-    try:
-        stub = generate(args.filename, api=args.api)
-    except (IOError, ParseError, GenerationError, RuntimeError) as error:
-        print("Error:", error)
-        exit(1)
-    except Exception as error:   # pylint: disable=broad-except
-        print("Error, unexpected exception:\n")
-        exc_type, exc_value, exc_traceback = sys.exc_info()
-        print(exc_type)
-        print(exc_value)
-        traceback.print_tb(exc_traceback)
-        exit(1)
-
-    if args.limit:
-        fll = FortLineLength()
-        stub_str = fll.process(str(stub))
-    else:
-        stub_str = str(stub)
-    if args.outfile is not None:
-        my_file = open(args.outfile, "w")
-        my_file.write(stub_str)
-        my_file.close()
-    else:
-        print("Kernel stub code:\n", stub_str)

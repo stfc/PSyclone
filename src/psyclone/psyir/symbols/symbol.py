@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
@@ -43,7 +43,6 @@ class and its subclasses and the generic Symbol class.
 
 from __future__ import absolute_import
 from enum import Enum
-import six
 from psyclone.errors import PSycloneError, InternalError
 
 
@@ -59,7 +58,7 @@ class SymbolError(PSycloneError):
         self.value = "PSyclone SymbolTable error: "+str(value)
 
 
-class SymbolInterface(object):   # pylint: disable=too-few-public-methods
+class SymbolInterface():   # pylint: disable=too-few-public-methods
     ''' Abstract class of a Symbol Interface '''
 
     def copy(self):
@@ -95,23 +94,12 @@ class ImportInterface(SymbolInterface):
     :type container_symbol: \
         :py:class:`psyclone.psyir.symbols.ContainerSymbol`
 
-    :raise TypeError: if the container_symbol is not a ContainerSymbol.
 
     '''
     def __init__(self, container_symbol):
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.symbols import ContainerSymbol
-
-        super(ImportInterface, self).__init__()
-
-        if not isinstance(container_symbol, ContainerSymbol):
-            raise TypeError(
-                "ImportInterface container_symbol parameter must be of type"
-                " ContainerSymbol, but found '{0}'."
-                "".format(type(container_symbol).__name__))
-
-        self._container_symbol = container_symbol
+        super().__init__()
+        # Use error-checking setter
+        self.container_symbol = container_symbol
 
     @property
     def container_symbol(self):
@@ -121,8 +109,29 @@ class ImportInterface(SymbolInterface):
         '''
         return self._container_symbol
 
+    @container_symbol.setter
+    def container_symbol(self, value):
+        '''
+        :param value: the ContainerSymbol that imports the symbol with \
+            this interface.
+        :type value: :py:class:`psyclone.psyir.symbols.ContainerSymbol`
+
+        :raise TypeError: if the provided value is not a ContainerSymbol.
+        '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.symbols import ContainerSymbol
+
+        if not isinstance(value, ContainerSymbol):
+            raise TypeError(
+                f"ImportInterface container_symbol parameter must be of type"
+                f" ContainerSymbol, but found "
+                f"'{type(value).__name__}'.")
+
+        self._container_symbol = value
+
     def __str__(self):
-        return "Import(container='{0}')".format(self.container_symbol.name)
+        return f"Import(container='{self.container_symbol.name}')"
 
     def copy(self):
         '''
@@ -161,7 +170,6 @@ class ArgumentInterface(SymbolInterface):
 
     def __init__(self, access=None):
         super(ArgumentInterface, self).__init__()
-        self._pass_by_value = False
         self._access = None
         # Use the setter as that has error checking
         if not access:
@@ -188,12 +196,12 @@ class ArgumentInterface(SymbolInterface):
         '''
         if not isinstance(value, ArgumentInterface.Access):
             raise TypeError(
-                "SymbolInterface.access must be an 'ArgumentInterface.Access' "
-                "but got '{0}'.".format(type(value).__name__))
+                f"SymbolInterface.access must be an 'ArgumentInterface.Access'"
+                f" but got '{type(value).__name__}'.")
         self._access = value
 
     def __str__(self):
-        return "Argument(pass-by-value={0})".format(self._pass_by_value)
+        return f"Argument({self.access})"
 
     def copy(self):
         '''
@@ -203,7 +211,7 @@ class ArgumentInterface(SymbolInterface):
         return self.__class__(access=self.access)
 
 
-class Symbol(object):
+class Symbol():
     '''Generic Symbol item for the Symbol Table and PSyIR References.
     It has an immutable name label because it must always match with the
     key in the SymbolTable. If the symbol is private then it is only visible
@@ -242,11 +250,10 @@ class Symbol(object):
 
     def __init__(self, name, visibility=DEFAULT_VISIBILITY, interface=None):
 
-        if not isinstance(name, six.string_types):
+        if not isinstance(name, str):
             raise TypeError(
-                "{0} 'name' attribute should be of type 'str'"
-                " but '{1}' found.".format(
-                    type(self).__name__, type(name).__name__))
+                f"{type(self).__name__} 'name' attribute should be of type "
+                f"'str' but '{type(name).__name__}' found.")
 
         self._name = name
 
@@ -304,8 +311,8 @@ class Symbol(object):
 
         '''
         if not isinstance(symbol_in, Symbol):
-            raise TypeError("Argument should be of type 'Symbol' but "
-                            "found '{0}'.".format(type(symbol_in).__name__))
+            raise TypeError(f"Argument should be of type 'Symbol' but "
+                            f"found '{type(symbol_in).__name__}'.")
         self._interface = symbol_in.interface
 
     def specialise(self, subclass, **kwargs):
@@ -324,16 +331,16 @@ class Symbol(object):
         try:
             is_subclass = issubclass(subclass, self.__class__)
         except TypeError as info:
-            message = ("The specialise method in '{0}' expects the "
-                       "subclass argument to be a class.".format(self.name))
-            six.raise_from(TypeError(message), info)
+            raise TypeError(
+                f"The specialise method in '{self.name}' expects the "
+                f"subclass argument to be a class.") from info
         # pylint: disable = unidiomatic-typecheck
         if not is_subclass or type(self) is subclass:
             raise TypeError(
-                "The specialise method in '{0}', an instance of '{1}', "
-                "expects the subclass argument to be a subclass of '{1}', "
-                "but found '{2}'.".format(
-                    self.name, type(self).__name__, subclass.__name__))
+                f"The specialise method in '{self.name}', an instance of "
+                f"'{type(self).__name__}', expects the subclass argument to "
+                f"be a subclass of '{type(self).__name__}', but found "
+                f"'{subclass.__name__}'.")
         self.__class__ = subclass
         self._process_arguments(**kwargs)
 
@@ -351,25 +358,24 @@ class Symbol(object):
         '''
         if not self.is_import:
             raise NotImplementedError(
-                "Error trying to resolve symbol '{0}' properties, the lazy"
-                " evaluation of '{1}' interfaces is not supported."
-                "".format(self.name, self.interface))
+                f"Error trying to resolve symbol '{self.name}' properties, "
+                f"the lazy evaluation of '{self.interface}' interfaces is "
+                f"not supported.")
 
         module = self.interface.container_symbol
         try:
             return module.container.symbol_table.lookup(
                 self.name, visibility=self.Visibility.PUBLIC)
         except KeyError as kerr:
-            six.raise_from(SymbolError(
-                "Error trying to resolve the properties of symbol "
-                "'{0}'. The interface points to module '{1}' but "
-                "could not find the definition of '{0}' in that "
-                "module.".format(self.name, module.name)), kerr)
+            raise SymbolError(
+                f"Error trying to resolve the properties of symbol "
+                f"'{self.name}'. The interface points to module "
+                f"'{module.name}' but could not find the definition of "
+                f"'{self.name}' in that module.") from kerr
         except SymbolError as err:
-            six.raise_from(SymbolError(
-                "Error trying to resolve the properties of symbol "
-                "'{0}' in module '{1}': {2}".format(
-                    self.name, module.name, str(err.value))), err)
+            raise SymbolError(
+              f"Error trying to resolve the properties of symbol "
+              f"'{self.name}' in module '{module.name}': {err.value}") from err
 
     def resolve_deferred(self):
         '''
@@ -423,9 +429,9 @@ class Symbol(object):
         '''
         if not isinstance(value, Symbol.Visibility):
             raise TypeError(
-                "{0} 'visibility' attribute should be of type "
-                "psyir.symbols.Symbol.Visibility but got '{1}'.".format(
-                    type(self).__name__, type(value).__name__))
+                f"{type(self).__name__} 'visibility' attribute should be of "
+                f"type psyir.symbols.Symbol.Visibility but got "
+                f"'{type(value).__name__}'.")
         self._visibility = value
 
     @property
@@ -450,9 +456,9 @@ class Symbol(object):
         :raises TypeError: if the supplied `value` is of the wrong type.
         '''
         if not isinstance(value, SymbolInterface):
-            raise TypeError("The interface to a Symbol must be a "
-                            "SymbolInterface but got '{0}'".
-                            format(type(value).__name__))
+            raise TypeError(f"The interface to a Symbol must be a "
+                            f"SymbolInterface but got "
+                            f"'{type(value).__name__}'")
         self._interface = value
 
     @property
@@ -511,8 +517,8 @@ class Symbol(object):
         from psyclone.psyir.nodes import Node
         if not isinstance(node, Node):
             raise TypeError(
-                "find_symbol_table: expected to be passed an instance of "
-                "psyir.nodes.Node but got '{0}'".format(type(node).__name__))
+                f"find_symbol_table: expected to be passed an instance of "
+                f"psyir.nodes.Node but got '{type(node).__name__}'")
 
         try:
             current = node.scope.symbol_table
@@ -530,7 +536,7 @@ class Symbol(object):
             return None
 
     def __str__(self):
-        return self.name
+        return f"{self.name}: Symbol<{self.interface}>"
 
     @property
     def is_array(self):
@@ -547,8 +553,8 @@ class Symbol(object):
             since there is no information available.
 
         '''
-        raise ValueError("No array information is available for the "
-                         "symbol '{0}'.".format(self.name))
+        raise ValueError(f"No array information is available for the "
+                         f"symbol '{self.name}'.")
 
     def is_array_access(self, index_variable=None, access_info=None):
         '''This method detects if a variable is used as an array or not.
@@ -584,8 +590,6 @@ class Symbol(object):
 
         :raises InternalError: if a loop_variable is specified, but no \
             access information is given.
-        :raises InternalError: if a loop_variable is specified, but no \
-            access information is given.
 
         '''
         # TODO #1270: this function might either be better off elsewhere,
@@ -593,10 +597,9 @@ class Symbol(object):
         # information and symbol table - if required, the user can
         # query both in two simple statements anyway.
         if index_variable and not access_info:
-            raise InternalError("In Symbol.is_array_access: index variable "
-                                "'{0}' specified, but no access information "
-                                "given."
-                                .format(index_variable))
+            raise InternalError(f"In Symbol.is_array_access: index variable "
+                                f"'{index_variable}' specified, but no access "
+                                f"information given.")
 
         # TODO #1244: If as a result of 1244 we have more reliable
         # information in the symbol table, the implementation here might
@@ -629,4 +632,10 @@ class Symbol(object):
         # is just a Symbol, not a DataSymbol), the `is_array` function will
         # raise an exception.
         # TODO #1213: check for wildcard imports
-        return self.is_array
+        try:
+            return self.is_array
+        except ValueError:
+            # Generic symbols produce a ValueError, since this does not have
+            # a datatype and an Array access was not found, we don't consider
+            # it an array.
+            return False

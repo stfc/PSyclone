@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -320,8 +320,8 @@ def test_goloop_field_accesses():
     assert len(p_fld.all_accesses) == 9
 
 
-def test_dynamo():
-    ''' Test the handling of an LFRic (Dynamo0.3) loop. Note that the variable
+def test_lfric():
+    ''' Test the handling of an LFRic loop. Note that the variable
     accesses are reported based on the user's point of view, not the code
     actually created by PSyclone, e.g. it shows a dependency on 'some_field',
     but not on some_field_proxy etc. Also the dependency is at this stage taken
@@ -335,12 +335,55 @@ def test_dynamo():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(info)
     invoke = psy.invokes.get('invoke_0_testkern_type')
     schedule = invoke.schedule
-
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_accesses = VariablesAccessInfo(schedule)
     assert (str(var_accesses) == "a: READ, cell: READ+WRITE, f1: READ+WRITE, "
-            "f2: READ, m1: READ, m2: READ, map_w1: READ, map_w2: READ, "
+            "f2: READ, loop0_start: READ, loop0_stop: READ, m1: READ, "
+            "m2: READ, map_w1: READ, map_w2: READ, "
             "map_w3: READ, ndf_w1: READ, ndf_w2: READ, ndf_w3: READ, "
             "nlayers: READ, undf_w1: READ, undf_w2: READ, undf_w3: READ")
+
+
+def test_lfric_kern_cma_args():
+    ''' Test the handling of LFRic kernel arguments.
+
+    '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "27.access_tests.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(info)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
+    invoke_read = psy.invokes.get('invoke_read')
+    invoke_write = psy.invokes.get('invoke_write')
+    var_accesses_read = VariablesAccessInfo(invoke_read.schedule)
+    var_accesses_write = VariablesAccessInfo(invoke_write.schedule)
+
+    # Check the parameters that will change access type according to read or
+    # write declaration of the argument:
+    assert (var_accesses_read[Signature("cma_op1_matrix")][0].access_type
+            == AccessType.READ)
+    assert (var_accesses_write[Signature("cma_op1_matrix")][0].access_type
+            == AccessType.WRITE)
+
+    # All other parameters are read-only (e.g. sizes, ... - they will not
+    # be modified, even if the actual data is written):
+    for name in ["nrow", "bandwidth", "alpha", "beta", "gamma_m",
+                 "gamma_p"]:
+        assert (var_accesses_read[Signature(f"cma_op1_{name}")][0].access_type
+                == AccessType.READ)
+        assert (var_accesses_write[Signature(f"cma_op1_{name}")][0].access_type
+                == AccessType.READ)
 
 
 def test_location(parser):
@@ -423,7 +466,12 @@ def test_user_defined_variables(parser):
     prog = parser(reader)
     psy = PSyFactory("nemo", distributed_memory=False).create(prog)
     loops = psy.invokes.get("test_prog").schedule
-
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_accesses = VariablesAccessInfo(loops)
     assert var_accesses[Signature(("a", "b", "c"))].is_written
     assert var_accesses[Signature(("e", "f"))].is_written
@@ -433,8 +481,14 @@ def test_lfric_ref_element():
     '''Test handling of variables if an LFRic's RefElement is used.
 
     '''
-    _, invoke_info = get_invoke("23.4_ref_elem_all_faces_invoke.f90",
-                                "dynamo0.3", idx=0)
+    psy, invoke_info = get_invoke("23.4_ref_elem_all_faces_invoke.f90",
+                                  "dynamo0.3", idx=0)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
     assert "normals_to_faces: READ" in var_info
     assert "out_normals_to_faces: READ" in var_info
@@ -446,8 +500,16 @@ def test_lfric_operator():
     handled correctly.
 
     '''
-    _, invoke_info = get_invoke("6.1_eval_invoke.f90", "dynamo0.3", idx=0)
+    psy, invoke_info = get_invoke("6.1_eval_invoke.f90", "dynamo0.3", idx=0)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    assert "f0: READ+WRITE" in var_info
+    assert "f1: READ" in var_info
     assert "basis_w0_on_w0: READ" in var_info
     assert "diff_basis_w1_on_w0: READ" in var_info
 
@@ -457,7 +519,13 @@ def test_lfric_cma():
     correctly in the variable usage analysis.
 
     '''
-    _, invoke_info = get_invoke("20.0_cma_assembly.f90", "dynamo0.3", idx=0)
+    psy, invoke_info = get_invoke("20.0_cma_assembly.f90", "dynamo0.3", idx=0)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
     assert "ncell_2d: READ" in var_info
     assert "cma_op1_alpha: READ" in var_info
@@ -470,7 +538,7 @@ def test_lfric_cma():
     assert "cma_op1_nrow: READ," in var_info
     assert "cbanded_map_adspc1_lma_op1: READ" in var_info
     assert "cbanded_map_adspc2_lma_op1: READ" in var_info
-    assert "op1_proxy%local_stencil: WRITE" in var_info
+    assert "op1_proxy%local_stencil: READ" in var_info
     assert "op1_proxy%ncell_3d: READ" in var_info
 
 
@@ -479,7 +547,13 @@ def test_lfric_cma2():
     correctly in the variable usage analysis.
 
     '''
-    _, invoke_info = get_invoke("20.1_cma_apply.f90", "dynamo0.3", idx=0)
+    psy, invoke_info = get_invoke("20.1_cma_apply.f90", "dynamo0.3", idx=0)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
     assert "cma_indirection_map_aspc1_field_a: READ" in var_info
     assert "cma_indirection_map_aspc2_field_b: READ" in var_info
@@ -489,7 +563,13 @@ def test_lfric_stencils():
     '''Test that stencil parameters are correctly detected.
 
     '''
-    _, invoke_info = get_invoke("14.4_halo_vector.f90", "dynamo0.3", idx=0)
+    psy, invoke_info = get_invoke("14.4_halo_vector.f90", "dynamo0.3", idx=0)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
     assert "f2_stencil_size: READ" in var_info
     assert "f2_stencil_dofmap: READ" in var_info
@@ -500,8 +580,14 @@ def test_lfric_various_basis():
     functionality work as expected.
 
     '''
-    _, invoke_info = get_invoke("10.3_operator_different_spaces.f90",
-                                "dynamo0.3", idx=0)
+    psy, invoke_info = get_invoke("10.3_operator_different_spaces.f90",
+                                  "dynamo0.3", idx=0)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
     assert "basis_w3_qr: READ" in var_info
     assert "diff_basis_w0_qr: READ" in var_info
@@ -517,8 +603,14 @@ def test_lfric_field_bc_kernel():
     array fix are created correctly.
 
     '''
-    _, invoke_info = get_invoke("12.2_enforce_bc_kernel.f90",
-                                "dynamo0.3", idx=0)
+    psy, invoke_info = get_invoke("12.2_enforce_bc_kernel.f90",
+                                  "dynamo0.3", idx=0)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
     assert "boundary_dofs_a: READ" in var_info
 
@@ -528,8 +620,14 @@ def test_lfric_stencil_xory_vector():
     or y with a vector field are created.
 
     '''
-    _, invoke_info = get_invoke("14.4.2_halo_vector_xory.f90",
-                                "dynamo0.3", idx=0)
+    psy, invoke_info = get_invoke("14.4.2_halo_vector_xory.f90",
+                                  "dynamo0.3", idx=0)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
     assert "f2_direction: READ" in var_info
 
@@ -539,8 +637,14 @@ def test_lfric_operator_bc_kernel():
     detects the right implicit paramaters.
 
     '''
-    _, invoke_info = get_invoke("12.4_enforce_op_bc_kernel.f90",
-                                "dynamo0.3", idx=0)
+    psy, invoke_info = get_invoke("12.4_enforce_op_bc_kernel.f90",
+                                  "dynamo0.3", idx=0)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
     assert "boundary_dofs_op_a: READ" in var_info
 
@@ -801,7 +905,8 @@ def test_lfric_acc_operator():
     create_acc_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
     assert "lma_op1_proxy%ncell_3d: READ" in var_info
-    assert "lma_op1_proxy%local_stencil: WRITE" in var_info
+    assert "lma_op1_proxy%local_stencil: READ" in var_info
+    assert "cma_op1_matrix: WRITE" in var_info
 
 
 def test_lfric_stencil():

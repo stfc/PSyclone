@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@
 # Author J. Henrichs, Bureau of Meteorology
 # Modified by: S. Siso, STFC Daresbury Laboratory
 #              A. R. Porter, STFC Daresbury Laboratory
+#              A. B. G. Chalk, STFC Daresbury Laboratory
 # -----------------------------------------------------------------------------
 
 '''This module provides management of variable access information.'''
@@ -46,7 +47,7 @@ from psyclone.core.signature import Signature
 from psyclone.errors import InternalError
 
 
-class AccessInfo(object):
+class AccessInfo():
     '''This class stores information about a single access
     pattern of one variable (e.g. variable is read at a certain location).
     A location is a number which can be used to compare different accesses
@@ -83,7 +84,7 @@ class AccessInfo(object):
     def __str__(self):
         '''Returns a string representation showing the access mode
         and location, e.g.: WRITE(5).'''
-        return "{0}({1})".format(self._access_type, self._location)
+        return f"{self._access_type}({self._location})"
 
     def change_read_to_write(self):
         '''This changes the access mode from READ to WRITE.
@@ -132,10 +133,9 @@ class AccessInfo(object):
         '''
 
         if not isinstance(component_indices, ComponentIndices):
-            raise InternalError("The component_indices object in the setter "
-                                "of AccessInfo must be an instance of "
-                                "ComponentIndices, got '{0}'".
-                                format(component_indices))
+            raise InternalError(f"The component_indices object in the setter "
+                                f"of AccessInfo must be an instance of "
+                                f"ComponentIndices, got '{component_indices}'")
         self._component_indices = component_indices
 
     def is_array(self):
@@ -170,7 +170,7 @@ class AccessInfo(object):
 
 
 # =============================================================================
-class SingleVariableAccessInfo(object):
+class SingleVariableAccessInfo():
     '''This class stores a list with all accesses to one variable.
 
     :param signature: signature of the variable.
@@ -192,9 +192,9 @@ class SingleVariableAccessInfo(object):
         the same statement as another access.
 
         '''
-        return "{0}:{1}".format(self._signature,
-                                ",".join([str(access)
-                                          for access in self._accesses]))
+        all_accesses = ",".join([str(access) for access in self._accesses])
+
+        return f"{self._signature}:{all_accesses}"
 
     @property
     def signature(self):
@@ -255,9 +255,27 @@ class SingleVariableAccessInfo(object):
     @property
     def all_accesses(self):
         ''':returns: a list with all AccessInfo data for this variable.
-        :rtype: List of :py:class:`psyclone.core.access_info.AccessInfo`
+        :rtype: List[:py:class:`psyclone.core.access_info.AccessInfo`]
         '''
         return self._accesses
+
+    @property
+    def all_read_accesses(self):
+        ''':returns: a list with all AccessInfo data for this variable
+            that involve reading this variable.
+        :rtype: List[:py:class:`psyclone.core.access_info.AccessInfo`]
+        '''
+        return [access for access in self._accesses
+                if access.access_type in AccessType.all_read_accesses()]
+
+    @property
+    def all_write_accesses(self):
+        ''':returns: a list with all AccessInfo data for this variable
+            that involve writing this variable.
+        :rtype: List[:py:class:`psyclone.core.access_info.AccessInfo`]
+        '''
+        return [access for access in self._accesses
+                if access.access_type in AccessType.all_write_accesses()]
 
     def add_access_with_location(self, access_type, location, node,
                                  component_indices):
@@ -287,15 +305,14 @@ class SingleVariableAccessInfo(object):
         one entry for the variable.
         '''
         if len(self._accesses) != 1:
-            raise InternalError("Variable '{0}' had {1} accesses listed, "
-                                "not one in change_read_to_write.".
-                                format(self._signature,
-                                       len(self._accesses)))
+            raise InternalError(f"Variable '{self._signature}' had "
+                                f"{len(self._accesses)} accesses listed, "
+                                "not one in change_read_to_write.")
 
         if self._accesses[0].access_type != AccessType.READ:
-            raise InternalError("Trying to change variable '{0}' to 'WRITE' "
-                                "which does not have 'READ' access."
-                                .format(self._signature))
+            raise InternalError(f"Trying to change variable "
+                                f"'{self._signature}' to 'WRITE' "
+                                "which does not have 'READ' access.")
 
         self._accesses[0].change_read_to_write()
 
@@ -352,12 +369,12 @@ class SingleVariableAccessInfo(object):
         result = False
 
         for access in self._accesses:
-            if access.node == reference:
+            if access.node is reference:
                 return result
             if access.access_type == AccessType.WRITE:
                 result = True
-        raise ValueError("Reference not found in 'is_written_before' for "
-                         "variable '{0}'.".format(self.var_name))
+        raise ValueError(f"Reference not found in 'is_written_before' for "
+                         f"variable '{self.var_name}'.")
 
     def is_read_before(self, reference):
         '''Returns True if this variable is read before the specified
@@ -377,12 +394,12 @@ class SingleVariableAccessInfo(object):
         result = False
 
         for access in self._accesses:
-            if access.node == reference:
+            if access.node is reference:
                 return result
             if access.access_type == AccessType.READ:
                 result = True
-        raise ValueError("Reference not found in 'is_read_before' for "
-                         "variable '{0}'.".format(self.var_name))
+        raise ValueError(f"Reference not found in 'is_read_before' for "
+                         f"variable '{self.var_name}'.")
 
     def is_accessed_before(self, reference):
         '''Returns True if this variable is accessed before the specified
@@ -405,11 +422,11 @@ class SingleVariableAccessInfo(object):
         result = False
 
         for access in self._accesses:
-            if access.node == reference:
+            if access.node is reference:
                 return result
             result = True
-        raise ValueError("Reference not found in 'is_accessed_before' for "
-                         "variable '{0}'.".format(self.var_name))
+        raise ValueError(f"Reference not found in 'is_accessed_before' for "
+                         f"variable '{self.var_name}'.")
 
 
 # =============================================================================
@@ -421,15 +438,38 @@ class VariablesAccessInfo(dict):
     another.
 
     :param nodes: optional, a single PSyIR node or list of nodes from \
-                  which to initialise this object.
-    :type nodes: None, :py:class:`psyclone.psyir.nodes.Node` or a list of \
-                 :py:class:`psyclone.psyir.nodes.Node`
+        which to initialise this object.
+    :type nodes: Optional[:py:class:psyclone.psyir.nodes.Node | \
+        List[:py:class:`psyclone.psyir.nodes.Node`]]
+    :param options: a dictionary with options to influence which variable \
+        accesses are to be collected.
+    :type options: Dict[str, Any]
+    :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is set \
+        to a True value, arrays used as first parameter to the PSyIR query \
+        operators lbound, ubound, or size will be reported as 'read'.
+        Otherwise, these accesses will be ignored.
 
     '''
-    def __init__(self, nodes=None):
+
+    # List of valid options. Note that only the options method checks this,
+    # since it is convenient to pass in options from the DependencyTools
+    # that might contain options for these tools.
+    _VALID_OPTIONS = ["COLLECT-ARRAY-SHAPE-READS"]
+
+    def __init__(self, nodes=None, options=None):
         # This dictionary stores the mapping of signatures to the
         # corresponding SingleVariableAccessInfo instance.
         dict.__init__(self)
+
+        if options:
+            if not isinstance(options, dict):
+                raise InternalError(f"The options argument for "
+                                    f"VariablesAccessInfo must be a "
+                                    f"dictionary or None, but got "
+                                    f"'{type(options).__name__}'.")
+            self._options = options.copy()
+        else:
+            self._options = {}
 
         # Stores the current location information
         self._location = 0
@@ -440,22 +480,21 @@ class VariablesAccessInfo(dict):
             if isinstance(nodes, list):
                 for node in nodes:
                     if not isinstance(node, Node):
-                        raise InternalError("Error in VariablesAccessInfo. "
-                                            "One element in the node list is "
-                                            "not a Node, but of type {0}"
-                                            .format(type(node)))
+                        raise InternalError(f"Error in VariablesAccessInfo. "
+                                            f"One element in the node list is "
+                                            f"not a Node, but of type "
+                                            f"{type(node)}")
 
                     node.reference_accesses(self)
             elif isinstance(nodes, Node):
                 nodes.reference_accesses(self)
             else:
                 arg_type = str(type(nodes))
-                raise InternalError("Error in VariablesAccessInfo. "
-                                    "Argument must be a single Node in a "
-                                    "schedule or a list of Nodes in a "
-                                    "schedule but have been passed an "
-                                    "object of type: {0}".
-                                    format(arg_type))
+                raise InternalError(f"Error in VariablesAccessInfo. "
+                                    f"Argument must be a single Node in a "
+                                    f"schedule or a list of Nodes in a "
+                                    f"schedule but have been passed an "
+                                    f"object of type: {arg_type}")
 
     def __str__(self):
         '''Gives a shortened visual representation of all variables
@@ -487,8 +526,32 @@ class VariablesAccessInfo(dict):
                         mode = "READ"
                 elif self.is_written(signature):
                     mode = "WRITE"
-            output_list.append("{0}: {1}".format(str(signature), mode))
+            output_list.append(f"{signature}: {mode}")
         return ", ".join(output_list)
+
+    def options(self, key=None):
+        '''Returns the value of the options for a specified key,
+        or None if the key is not specified in the options. If no
+        key is specified, the whole option dictionary is returned.
+
+        :param key: the option to query, or None if all options should \
+            be returned.
+        :type key: Optional[str]
+
+        :returns: the value of the option or the whole option dictionary.
+        :rtype: Any
+
+        :raises InternalError: if an invalid key is specified.
+
+        '''
+        if key:
+            if key not in VariablesAccessInfo._VALID_OPTIONS:
+                raise InternalError(f"Option key '{key}' is invalid, it "
+                                    f"must be one of "
+                                    f"{VariablesAccessInfo._VALID_OPTIONS}"
+                                    f".")
+            return self._options.get(key, None)
+        return self._options
 
     @property
     def location(self):
@@ -529,14 +592,14 @@ class VariablesAccessInfo(dict):
         :type component_indices: \
             :py:class:`psyclone.core.component_indices.ComponentIndices`, or \
             any other type that can be used to construct a ComponentIndices \
-            instance (None, list or lists of \
-            :py:class:`psyclone.psyir.nodes.Node`)
+            instance (None, List[:py:class:`psyclone.psyir.nodes.Node`] \
+             or List[List[:py:class:`psyclone.psyir.nodes.Node`]])
 
         '''
         if not isinstance(signature, Signature):
-            raise InternalError("Got '{0}' of type '{1}' but expected it to "
-                                "be of type psyclone.core.Signature."
-                                .format(signature, type(signature).__name__))
+            raise InternalError(f"Got '{signature}' of type "
+                                f"'{type(signature).__name__}' but expected "
+                                f"it to be of type psyclone.core.Signature.")
 
         # To make it easier for the user, we allow to implicitly create the
         # component indices instance here:
@@ -559,12 +622,10 @@ class VariablesAccessInfo(dict):
             component_indices = ComponentIndices(component_indices)
 
         if len(signature) != len(component_indices):
-            raise InternalError("Cannot add '{0}' with length {1} as "
-                                "indices for '{2}' which requires {3} "
-                                "elements."
-                                .format(str(component_indices),
-                                        len(component_indices),
-                                        str(signature), len(signature)))
+            raise InternalError(f"Cannot add '{component_indices}' with "
+                                f"length {len(component_indices)} as "
+                                f"indices for '{signature}' which "
+                                f"requires {len(signature)} elements.")
 
         if signature in self:
             self[signature].add_access_with_location(access_type,
@@ -580,7 +641,7 @@ class VariablesAccessInfo(dict):
     def all_signatures(self):
         ''':returns: all signatures contained in this instance, sorted (in \
                      order to make test results reproducible).
-        :rtype: list of :py:class:`psyclone.core.signature`
+        :rtype: List[:py:class:`psyclone.core.signature`]
         '''
         list_of_vars = list(self.keys())
         list_of_vars.sort()

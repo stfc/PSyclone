@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2022, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,7 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 !------------------------------------------------------------------------------
-! Modified I. Kavcic, Met Office
+! Modified: I. Kavcic, Met Office
 
 !> @brief Kernel which (incrementally) applies a columnwise assembled operator to a field
 
@@ -51,7 +51,7 @@ use argument_mod,            only : arg_type, func_type,                    &
                                     ANY_SPACE_1, ANY_SPACE_2,               &
                                     CELL_COLUMN
 
-use constants_mod,           only : r_def, i_def
+use constants_mod,           only : r_def, r_solver, i_def
 
 implicit none
 
@@ -115,7 +115,7 @@ contains
     integer(kind=i_def), intent(in) :: ndf_aspc2
     integer(kind=i_def), intent(in), dimension(ndf_aspc2) :: map_aspc2
     integer(kind=i_def), intent(in), dimension(nrow) :: indirection_dofmap_to
-    real(kind=r_def), intent(in), dimension(bandwidth,nrow,ncell_2d) :: columnwise_matrix
+    real(kind=r_solver), intent(in), dimension(bandwidth,nrow,ncell_2d) :: columnwise_matrix
     real(kind=r_def), intent(inout), dimension(undf_aspc2) :: lhs
     real(kind=r_def), intent(in), dimension(undf_aspc2)    :: x
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,11 +31,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
-# Modified by A. R. Porter, STFC Daresbury Lab
+# Modified by A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified by I. Kavcic, Met Office
-# Modified by S. Siso, STFC Daresbury Lab
 
 
 '''
@@ -44,19 +43,16 @@ the generator.py file. This includes the generate and the main
 functions.
 '''
 
-from __future__ import absolute_import
-import io
 import os
 import re
 import stat
 from sys import modules
 import pytest
-import six
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import GenerationError
-from psyclone.generator import generate, main, write_unicode_file
+from psyclone.generator import generate, main
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.profiler import Profiler
@@ -71,6 +67,8 @@ NEMO_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                               "nemo", "test_files")
 DYN03_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "test_files", "dynamo0p3")
+GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                "test_files", "gocean1p0")
 
 
 def delete_module(modname):
@@ -96,8 +94,153 @@ def teardown_function():
     Config._instance = None
 
 
-# a set of unit tests for the generate function
+# handle_script() tests
 
+def test_script_file_not_found():
+    '''Checks that handle_script() in generator.py raises the expected
+    exception when a script file is supplied that can't be found in
+    the Python path.  In this case the script path ('./') is
+    supplied. This test uses the generate() function to call
+    handle_script as this is a simple way to create its required
+    arguments.
+
+    '''
+    with pytest.raises(IOError) as error:
+        _, _ = generate(os.path.join(BASE_PATH, "dynamo0p3",
+                                     "1_single_invoke.f90"),
+                        api="dynamo0.3", script_name="./non_existent.py")
+    assert "script file './non_existent.py' not found" in str(error.value)
+
+
+def test_script_file_no_extension():
+    '''Checks that handle_script() in generator.py raises the expected
+    exception when a script file does not have an extension. This test
+    uses the generate() function to call handle_script as this is a
+    simple way to create its required arguments.
+
+    '''
+    with pytest.raises(GenerationError) as error:
+        _, _ = generate(
+            os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
+            api="dynamo0.3",
+            script_name=os.path.join(
+                BASE_PATH, "dynamo0p3", "invalid_script_name"))
+    assert ("expected the script file 'invalid_script_name' to have the "
+            "'.py' extension" in str(error.value))
+
+
+def test_script_file_wrong_extension():
+    '''Checks that handle_script() in generator.py raises the excepted
+    exception when a script file does not have the '.py'
+    extension. This test uses the generate() function to call
+    handle_script as this is a simple way to create its required
+    arguments.
+
+    '''
+    with pytest.raises(GenerationError) as error:
+        _, _ = generate(
+            os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
+            api="dynamo0.3",
+            script_name=os.path.join(
+                BASE_PATH, "dynamo0p3", "1_single_invoke.f90"))
+    assert ("expected the script file '1_single_invoke' to have the '.py' "
+            "extension" in str(error.value))
+
+
+def test_script_file_not_found_relative():
+    '''Checks that handle_script() in generator.py raises the expected
+    exception when a script file is supplied that can't be found in
+    the Python path. In this case the script path is not supplied so
+    must be found via the PYTHONPATH variable. This test uses the
+    generate() function to call handle_script as this is a simple way
+    to create its required arguments.
+
+    '''
+    with pytest.raises(GenerationError) as error:
+        _, _ = generate(os.path.join(BASE_PATH, "dynamo0p3",
+                                     "1_single_invoke.f90"),
+                        api="dynamo0.3", script_name="non_existent.py")
+    assert ("attempted to import 'non_existent' but script file "
+            "'non_existent.py' has not been found" in str(error.value))
+
+
+def test_script_invalid_content():
+    '''Checks that handle_script() in generator.py raises the expected
+    exception when a script file does not contain valid python. This
+    test uses the generate() function to call handle_script as this is
+    a simple way to create its required arguments.
+
+    '''
+    with pytest.raises(GenerationError) as error:
+        _, _ = generate(
+            os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
+            api="dynamo0.3",
+            script_name=os.path.join(
+                BASE_PATH, "dynamo0p3", "error.py"))
+    assert "attempted to import 'error' but script file " in str(error.value)
+    assert ("src/psyclone/tests/test_files/dynamo0p3/error.py' is "
+            "not valid python" in str(error.value))
+
+
+def test_script_invalid_content_runtime():
+    '''Checks that handle_script() function in generator.py raises the
+    expected exception when a script file contains valid python
+    syntactically but produces a runtime exception. This test uses the
+    generate() function to call handle_script as this is a simple way
+    to create its required arguments.
+
+    '''
+    with pytest.raises(GenerationError) as error:
+        _, _ = generate(
+            os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
+            api="dynamo0.3",
+            script_name=os.path.join(
+                BASE_PATH, "dynamo0p3", "runtime_error.py"))
+    assert ("raised the following exception during execution ..."
+            in str(error.value))
+    assert ("line 3, in trans\n"
+            "    psy = b\n" in str(error.value))
+    assert ("    NameError: name 'b' is not defined\n"
+            "}\n"
+            "Please check your script" in str(error.value))
+
+
+def test_script_no_trans():
+    '''Checks that handle_script() function in generator.py raises the
+    expected exception when a script file does not contain a trans()
+    function. This test uses the generate() function to call
+    handle_script as this is a simple way to create its required
+    arguments.
+
+    '''
+    with pytest.raises(GenerationError) as error:
+        _, _ = generate(
+            os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
+            api="dynamo0.3",
+            script_name=os.path.join(
+                BASE_PATH, "dynamo0p3", "no_trans.py"))
+    assert ("attempted to import 'no_trans' but script file "
+            in str(error.value))
+    assert ("src/psyclone/tests/test_files/dynamo0p3/no_trans.py' "
+            "does not contain a 'trans' function" in str(error.value))
+
+
+def test_script_no_trans_alg():
+    '''Checks that handle_script() function in generator.py does not raise
+    an exception when a script file does not contain a trans_alg()
+    function as these are optional. At the moment this function is
+    only supported in the gocean1.0 API. This test uses the generate()
+    function to call handle_script as this is a simple way to create
+    its required arguments.
+
+    '''
+    _, _ = generate(
+        os.path.join(BASE_PATH, "gocean1p0", "single_invoke.f90"),
+        api="gocean1.0",
+        script_name=os.path.join(BASE_PATH, "gocean1p0", "script.py"))
+
+
+# a set of unit tests for the generate function
 
 def test_non_existent_filename():
     '''Checks that alg_gen raises appropriate error when a non-existent
@@ -114,8 +257,8 @@ def test_invalid_api():
 
     '''
     with pytest.raises(GenerationError):
-        generate(os.path.join(BASE_PATH, "dynamo0p1", "algorithm",
-                              "1_single_function.f90"), api="invalid")
+        generate(os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
+                 api="invalid")
 
 
 def test_invalid_kernel_paths():
@@ -125,11 +268,10 @@ def test_invalid_kernel_paths():
 
     '''
     with pytest.raises(IOError) as info:
-        generate(os.path.join(BASE_PATH, "dynamo0p1", "algorithm",
-                              "1_single_function.f90"),
-                 api="dynamo0.1",
-                 kernel_paths=[os.path.join(BASE_PATH, "dynamo0p1"),
-                               "does_not_exist"])
+        generate(os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
+                 api="dynamo0.3",
+                 kernel_paths=[
+                     os.path.join(BASE_PATH, "dynamo0p3"), "does_not_exist"])
     assert "Kernel search path 'does_not_exist' not found" in str(info.value)
 
 
@@ -142,7 +284,7 @@ def test_wrong_kernel_paths():
         generate(os.path.join(BASE_PATH, "dynamo0p3",
                               "1.1.0_single_invoke_xyoz_qr.f90"),
                  api="dynamo0.3",
-                 kernel_paths=[os.path.join(BASE_PATH, "gocean0p1")])
+                 kernel_paths=[os.path.join(BASE_PATH, "gocean1p0")])
 
 
 def test_correct_kernel_paths():
@@ -151,13 +293,12 @@ def test_correct_kernel_paths():
     path that does not contain the required kernel.
 
     '''
-    _, _ = generate(os.path.join(BASE_PATH, "dynamo0p1", "algorithm",
-                                 "1_single_function.f90"),
-                    api="dynamo0.1",
-                    kernel_paths=[
-                        os.path.join(
-                            BASE_PATH, "dynamo0p1", "kernels3", "dead_end"),
-                        os.path.join(BASE_PATH, "dynamo0p1", "kernels")])
+    _, _ = generate(
+        os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke_kern.f90"),
+        api="dynamo0.3",
+        kernel_paths=[
+            os.path.join(BASE_PATH, "dynamo0p3", "kernels", "dead_end"),
+            os.path.join(BASE_PATH, "dynamo0p3", "kernels", "in_here")])
 
 
 def test_same_kernel_paths():
@@ -165,19 +306,23 @@ def test_same_kernel_paths():
     same as the algorithm code directory and a path is specified.
 
     '''
-    path = os.path.join(BASE_PATH, "dynamo0p1", "algorithm")
-    _, _ = generate(os.path.join(path, "1_single_function.f90"),
-                    api="dynamo0.1", kernel_paths=[path])
+    path = os.path.join(BASE_PATH, "dynamo0p3")
+    _, _ = generate(os.path.join(path, "1_single_invoke.f90"),
+                    api="dynamo0.3", kernel_paths=[path])
 
 
 def test_similar_kernel_name():
     '''Checks that the generator does not match incorrect files.'''
 
-    _, _ = generate(os.path.join(BASE_PATH, "dynamo0p1",
-                                 "algorithm", "1_single_function.f90"),
-                    api="dynamo0.1",
-                    kernel_paths=[
-                        os.path.join(BASE_PATH, "dynamo0p1", "kernels2")])
+    with pytest.raises(ParseError) as info:
+        _, _ = generate(
+            os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
+            api="dynamo0.3",
+            kernel_paths=[os.path.join(BASE_PATH, "dynamo0p3", "kernels",
+                                       "dead_end", "no_really")])
+    assert ("Kernel file 'testkern_mod.[fF]90' not found in"
+            in str(info.value))
+    assert "kernels/dead_end/no_really" in str(info.value)
 
 
 def test_recurse_correct_kernel_paths():
@@ -186,36 +331,34 @@ def test_recurse_correct_kernel_paths():
     recursion through subdirectories is required.
 
     '''
-    _, _ = generate(os.path.join(BASE_PATH, "dynamo0p1",
-                                 "algorithm", "1_single_function.f90"),
-                    api="dynamo0.1",
-                    kernel_paths=[os.path.join(
-                        BASE_PATH, "dynamo0p1", "kernels3")])
+    _, _ = generate(
+        os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke_kern.f90"),
+        api="dynamo0.3",
+        kernel_paths=[os.path.join(BASE_PATH, "dynamo0p3", "kernels")])
 
 
-def test_script_file_not_found():
-    '''Checks that generator.py raises an appropriate error when a script
-    file is supplied that can't be found in the Python path.  In this
-    case the script path is supplied.
+def test_kernel_parsing_internalerror(capsys):
+    '''Checks that the expected output is provided if an internal error is
+    caught when parsing a kernel using fparser2.
 
     '''
-    with pytest.raises(IOError):
-        _, _ = generate(os.path.join(BASE_PATH, "dynamo0p3",
-                                     "1_single_invoke.f90"),
-                        api="dynamo0.3", script_name="./non_existent.py")
-
-
-def test_script_file_not_found_relative():
-    '''Checks that generator.py raises an appropriate error when a script
-    file is supplied that can't be found in the Python path. In this
-    case the script path is not supplied so must be found via the
-    PYTHONPATH variable.
-
-    '''
-    with pytest.raises(GenerationError):
-        _, _ = generate(os.path.join(BASE_PATH, "dynamo0p3",
-                                     "1_single_invoke.f90"),
-                        api="dynamo0.3", script_name="non_existent.py")
+    kern_filename = (os.path.join(
+        GOCEAN_BASE_PATH, "test30_invalid_kernel_declaration.f90"))
+    with pytest.raises(SystemExit):
+        main([kern_filename, "-api", "gocean1.0"])
+    out, err = capsys.readouterr()
+    assert out == ""
+    assert "In kernel file " in str(err)
+    assert (
+        "PSyclone internal error: The kernel argument list:\n"
+        "'['i', 'j', 'cu', 'p', 'u']'\n"
+        "does not match the variable declarations:\n"
+        "IMPLICIT NONE\n"
+        "INTEGER, INTENT(IN) :: I, J\n"
+        "REAL(KIND = go_wp), INTENT(OUT), DIMENSION(:, :) :: cu\n"
+        "REAL(KIND = go_wp), INTENT(IN), DIMENSION(:, :) :: p\n"
+        "Specific PSyIR error is \"Could not find 'u' in the Symbol "
+        "Table.\".\n" in str(err))
 
 
 def test_script_file_too_short():
@@ -231,71 +374,41 @@ def test_script_file_too_short():
                                                  "dynamo0p3", "xyz"))
 
 
-def test_script_file_no_extension():
-    '''Checks that generator.py raises an appropriate error when a script
-    file does not have an extension.
+def test_no_script_gocean():
+    '''Test that the generate function in generator.py returns
+    successfully if no script is specified for the gocean1.0 api.
 
     '''
-    with pytest.raises(GenerationError):
-        _, _ = generate(os.path.join(BASE_PATH, "dynamo0p3",
-                                     "1_single_invoke.f90"),
-                        api="dynamo0.3",
-                        script_name=os.path.join(BASE_PATH, "dynamo0p3",
-                                                 "invalid_script_name"))
+    alg, psy = generate(
+        os.path.join(BASE_PATH, "gocean1p0", "single_invoke.f90"),
+        api="gocean1.0")
+    assert "program single_invoke_test" in alg
+    assert "MODULE psy_single_invoke_test" in str(psy)
 
 
-def test_script_file_wrong_extension():
-    '''Checks that generator.py raises an appropriate error when a script
-    file does not have the '.py' extension.
-
-    '''
-    with pytest.raises(GenerationError):
-        _, _ = generate(os.path.join(BASE_PATH, "dynamo0p3",
-                                     "1_single_invoke.f90"),
-                        api="dynamo0.3",
-                        script_name=os.path.join(BASE_PATH, "dynamo0p3",
-                                                 "1_single_invoke.f90"))
-
-
-def test_script_invalid_content():
-    '''Checks that generator.py raises an appropriate error when a script
-    file does not contain valid python.
+def test_script_gocean():
+    '''Test that the generate function in generator.py returns
+    successfully if a script (containing both trans_alg() and trans()
+    functions) is specified.
 
     '''
-    with pytest.raises(GenerationError):
-        _, _ = generate(os.path.join(BASE_PATH, "dynamo0p3",
-                                     "1_single_invoke.f90"),
-                        api="dynamo0.3",
-                        script_name=os.path.join(
-                            BASE_PATH, "dynamo0p3", "error.py"))
+    _, _ = generate(
+        os.path.join(BASE_PATH, "gocean1p0", "single_invoke.f90"),
+        api="gocean1.0",
+        script_name=os.path.join(BASE_PATH, "gocean1p0", "alg_script.py"))
 
 
-def test_script_invalid_content_runtime():
-    '''Checks that generator.py raises an appropriate error when a script
-    file contains valid python syntactically but produces a runtime
-    exception.
+def test_profile_gocean():
+    '''Test that the generate function in generator.py adds profiling
+    information if this has been specified.
 
     '''
-    with pytest.raises(GenerationError):
-        _, _ = generate(os.path.join(BASE_PATH, "dynamo0p3",
-                                     "1_single_invoke.f90"),
-                        api="dynamo0.3",
-                        script_name=os.path.join(
-                            BASE_PATH, "dynamo0p3", "runtime_error.py"))
-
-
-def test_script_no_trans():
-    '''Checks that generator.py raises an appropriate error when a script
-    file does not contain a trans() function.
-
-    '''
-    with pytest.raises(GenerationError) as excinfo:
-        _, _ = generate(os.path.join(BASE_PATH, "dynamo0p3",
-                                     "1_single_invoke.f90"),
-                        api="dynamo0.3",
-                        script_name=os.path.join(BASE_PATH, "dynamo0p3",
-                                                 "no_trans.py"))
-    assert 'attempted to import' in str(excinfo.value)
+    Profiler.set_options(['invokes'])
+    _, psy = generate(
+        os.path.join(BASE_PATH, "gocean1p0", "single_invoke.f90"),
+        api="gocean1.0")
+    assert "CALL profile_psy_data" in str(psy)
+    Profiler.set_options([])
 
 
 def test_script_attr_error():
@@ -366,7 +479,7 @@ def test_script_null_trans_relative():
     assert str(psy1) == str(psy2)
 
 
-def test_script_trans():
+def test_script_trans_dynamo0p3():
     '''Checks that generator.py works correctly when a transformation is
     provided as a script, i.e. it applies the transformations
     correctly. We use loop fusion as an example.
@@ -401,7 +514,7 @@ def test_api_no_alg():
     alg, psy = generate(os.path.join(NEMO_BASE_PATH, "explicit_do.f90"),
                         api="nemo")
     assert alg is None
-    assert isinstance(psy, six.string_types)
+    assert isinstance(psy, str)
     assert psy.startswith("program")
 
 
@@ -469,18 +582,17 @@ def test_main_version(capsys):
     '''Tests that the version info is printed correctly.'''
 
     # First test if -h includes the right version info:
-    with pytest.raises(SystemExit):
-        main(["-h"])
-    output, _ = capsys.readouterr()
-    assert "Display version information ({0})".format(__VERSION__) in output
+    for arg in ["-h", "--help"]:
+        with pytest.raises(SystemExit):
+            main([arg])
+        output, _ = capsys.readouterr()
+        assert f"Display version information ({__VERSION__})" in output
 
-    # Now test -v, but it needs a filename for argparse to work. Just use
-    # some invalid parameters - "-v" prints its output before that.
-    with pytest.raises(SystemExit) as _:
-        main(["-v", "does-not-exist"])
-    output, _ = capsys.readouterr()
-
-    assert "PSyclone version: {0}".format(__VERSION__) in output
+    for arg in ["-v", "--version"]:
+        with pytest.raises(SystemExit) as _:
+            main([arg])
+        output, _ = capsys.readouterr()
+        assert f"PSyclone version: {__VERSION__}" in output
 
 
 def test_main_profile(capsys):
@@ -543,9 +655,8 @@ def test_main_invalid_api(capsys):
     # The error code should be 1
     assert str(excinfo.value) == "1"
     _, output = capsys.readouterr()
-    expected_output = ("Unsupported API 'madeup' specified. Supported API's "
-                       "are ['dynamo0.1', 'dynamo0.3', "
-                       "'gocean0.1', 'gocean1.0', 'nemo'].\n")
+    expected_output = ("Unsupported API 'madeup' specified. Supported APIs "
+                       "are ['dynamo0.3', 'gocean1.0', 'nemo'].\n")
     assert output == expected_output
 
 
@@ -569,16 +680,18 @@ def test_main_api():
                              "test_files", "gocean1p0",
                              "single_invoke.f90"))
 
+    assert Config.get().api != "gocean1.0"
     main([filename, "-api", "gocean1.0"])
     assert Config.get().api == "gocean1.0"
 
     # 3) Check that a config option will overwrite the default
     Config._instance = None
     Config.get()
-    # This config file specifies the gocean1.0 api
+    # This config file specifies the gocean1.0 as the default API
     config_name = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "test_files", "gocean1p0",
-                                "new_iteration_space.psyclone"))
+                                "gocean_default.cfg"))
+    assert Config.get().api != "gocean1.0"
     main([filename, "--config", config_name])
     assert Config.get().api == "gocean1.0"
 
@@ -588,13 +701,12 @@ def test_main_api():
     Config.get()
 
     filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "test_files", "dynamo0p1",
-                             "1_kg_inline.f90"))
+                             "test_files", "dynamo0p3", "1_single_invoke.f90"))
 
     # This config file specifies the gocean1.0 api, but
     # command line should take precedence
-    main([filename, "--config", config_name, "-api", "dynamo0.1"])
-    assert Config.get().api == "dynamo0.1"
+    main([filename, "--config", config_name, "-api", "dynamo0.3"])
+    assert Config.get().api == "dynamo0.3"
 
 
 def test_main_directory_arg(capsys):
@@ -654,14 +766,10 @@ def test_main_unexpected_fatal_error(capsys, monkeypatch):
     # the error code should be 1
     assert str(excinfo.value) == "1"
     _, output = capsys.readouterr()
-    expected_output = (
-        "Error, unexpected exception, please report to the authors:\n"
-        "Description ...\n"
-        "argument of type 'int' is not iterable\n"
-        "Type ...\n"
-        "%s\n"
-        "Stacktrace ...\n" % type(TypeError()))
-    assert expected_output in output
+    assert ("Error, unexpected exception, please report to the authors:"
+            in output)
+    assert "Traceback (most recent call last):" in output
+    assert "TypeError: argument of type 'int' is not iterable" in output
 
 
 @pytest.mark.parametrize("limit", ['all', 'output'])
@@ -728,12 +836,13 @@ def test_main_no_invoke_alg_stdout(capsys):
     main([kern_filename])
     out, _ = capsys.readouterr()
 
-    kern_file = open(kern_filename)
-    kern_str = kern_file.read()
-    expected_output = ("Warning: Algorithm Error: Algorithm file contains no "
-                       "invoke() calls: refusing to generate empty PSy code\n"
-                       "Transformed algorithm code:\n") + kern_str + "\n"
-    assert expected_output == out
+    with open(kern_filename, encoding="utf8") as kern_file:
+        kern_str = kern_file.read()
+        expected_output = (
+            f"Warning: Algorithm Error: Algorithm file contains no "
+            f"invoke() calls: refusing to generate empty PSy code\n"
+            f"Transformed algorithm code:\n{kern_str}\n")
+        assert expected_output == out
 
 
 def test_main_write_psy_file(capsys, tmpdir):
@@ -753,14 +862,12 @@ def test_main_write_psy_file(capsys, tmpdir):
     assert os.path.isfile(psy_filename)
 
     # extract psy file content
-    psy_file = open(psy_filename)
-    psy_str = psy_file.read()
-
-    # check content of generated psy file by comparing it with stdout
-    main([alg_filename])
-    stdout, _ = capsys.readouterr()
-
-    assert psy_str in stdout
+    with open(psy_filename, encoding="utf8") as psy_file:
+        psy_str = psy_file.read()
+        # check content of generated psy file by comparing it with stdout
+        main([alg_filename])
+        stdout, _ = capsys.readouterr()
+        assert psy_str in stdout
 
 
 def test_main_no_invoke_alg_file(capsys, tmpdir):
@@ -782,17 +889,17 @@ def test_main_no_invoke_alg_file(capsys, tmpdir):
     stdout, _ = capsys.readouterr()
 
     # check stdout contains warning
-    kern_file = open(kern_filename)
-    kern_str = kern_file.read()
-    expected_stdout = ("Warning: Algorithm Error: Algorithm file contains "
-                       "no invoke() calls: refusing to generate empty PSy "
-                       "code\n")
-    assert expected_stdout == stdout
+    with open(kern_filename, encoding="utf8") as kern_file:
+        kern_str = kern_file.read()
+        expected_stdout = ("Warning: Algorithm Error: Algorithm file contains "
+                           "no invoke() calls: refusing to generate empty PSy "
+                           "code\n")
+        assert expected_stdout == stdout
 
     # check alg file has same output as input file
-    expected_file = open(alg_filename)
-    expected_alg_str = expected_file.read()
-    assert expected_alg_str == kern_str
+    with open(alg_filename, encoding="utf8") as expected_file:
+        expected_alg_str = expected_file.read()
+        assert expected_alg_str == kern_str
     os.remove(alg_filename)
 
     # check psy file is not created
@@ -831,8 +938,8 @@ def test_main_kern_output_no_write(tmpdir, capsys):
         main([alg_filename, '-okern', str(new_dir)])
     assert str(err.value) == "1"
     _, output = capsys.readouterr()
-    assert ("Cannot write to specified kernel output directory ({0})".
-            format(str(new_dir)) in output)
+    assert (f"Cannot write to specified kernel output directory "
+            f"({str(new_dir)})" in output)
 
 
 def test_main_kern_output_dir(tmpdir):
@@ -915,27 +1022,6 @@ def test_main_include_path(capsys):
     assert str(inc_path2) in Config.get().include_paths
 
 
-def test_write_utf_file(tmpdir):
-    '''Unit tests for the write_unicode_file utility routine.'''
-
-    # First for plain ASCII
-    out_file1 = os.path.join(str(tmpdir), "out1.txt")
-    write_unicode_file("This contains only ASCII", out_file1)
-
-    # Second with a character that has no ASCII representation
-    with open(out_file1, "r") as infile:
-        content = infile.read()
-        assert "This contains only ASCII" in content
-    out_file2 = os.path.join(str(tmpdir), "out2.txt")
-    test_str = "This contains UTF: "+chr(1200)
-    encoding = {'encoding': 'utf-8'}
-    write_unicode_file(test_str, out_file2)
-
-    with io.open(out_file2, mode="r", **encoding) as infile:
-        content = infile.read()
-    assert test_str in content
-
-
 def test_utf_char(tmpdir):
     '''Test that the generate method works OK when both the Algorithm and
     Kernel code contain utf-encoded chars.
@@ -947,8 +1033,7 @@ def test_utf_char(tmpdir):
     # We only check the algorithm layer since we generate the PSy
     # layer from scratch in this API (and thus it contains no
     # non-ASCII characters).
-    encoding = {'encoding': 'utf-8'}
-    with io.open(algfile, "r", **encoding) as afile:
+    with open(algfile, "r", encoding="utf8") as afile:
         alg = afile.read().lower()
         assert "max reachable coeff" in alg
         assert "call invoke_0_kernel_utf" in alg

@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2021, Science and Technology Facilities Council
+.. Copyright (c) 2017-2022, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -41,10 +41,11 @@ Transformations
 ===============
 
 As discussed in the previous section, transformations can be applied
-to a schedule to modify it. Typically transformations will be used to
-optimise the PSy and/or Kernel layer(s) for a particular architecture,
-however transformations could be added for other reasons, such as to
-aid debugging or for performance monitoring.
+to PSyclone's internal representation (PSyIR) to modify it. Typically
+transformations will be used to optimise the Algorithm, PSy and/or
+Kernel layer(s) for a particular architecture, however transformations
+could be added for other reasons, such as to aid debugging or for
+performance monitoring.
 
 Finding
 -------
@@ -120,12 +121,11 @@ The same ``options`` dictionary will be used when calling ``validate``.
 Available transformations
 -------------------------
 
-Most transformations are generic as the schedule structure is
+Some transformations are generic as the schedule structure is
 independent of the API, however it often makes sense to specialise
 these for a particular API by adding API-specific errors checks. Some
-transformations are API-specific (or specific to a set of APIs
-e.g. dynamo). Currently these different types of transformation are
-indicated by their names.
+transformations are API-specific. Currently these different types of
+transformation are indicated by their names.
 
 The generic transformations currently available are listed in
 alphabetical order below (a number of these have specialisations which
@@ -135,7 +135,7 @@ can be found in the API-specific sections).
           KernelImportsToArguments transformations for the GOcean 1.0
           API, the OpenACC Data transformation is limited to
           the NEMO and GOcean 1.0 APIs and the OpenACC Kernels
-          transformation is limited to the NEMO and Dynamo0.3 APIs.
+          transformation is limited to the NEMO and LFRic (Dynamo0.3) APIs.
 
 .. note:: The directory layout of PSyclone is currently being restructured.
           As a result of this some transformations are already in the new
@@ -190,7 +190,19 @@ can be found in the API-specific sections).
   
 ####
 
+.. autoclass:: psyclone.psyir.transformations.ChunkLoopTrans
+    :members: apply
+    :noindex:
+
+####
+
 .. autoclass:: psyclone.transformations.ColourTrans
+    :members: apply
+    :noindex:
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.DotProduct2CodeTrans
     :members: apply
     :noindex:
 
@@ -202,13 +214,31 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.HoistLocalArraysTrans
+      :members: apply
+      :noindex:
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.HoistLoopBoundExprTrans
+      :members: apply
+      :noindex:
+
+####
+
 .. autoclass:: psyclone.psyir.transformations.HoistTrans
       :members: apply
       :noindex:
 
 ####
 
-.. autoclass:: psyclone.transformations.KernelModuleInlineTrans
+.. autoclass:: psyclone.psyir.transformations.InlineTrans
+      :members: apply
+      :noindex:
+
+####
+
+.. autoclass:: psyclone.domain.common.transformations.KernelModuleInlineTrans
     :members: apply
     :noindex:
 
@@ -223,6 +253,12 @@ can be found in the API-specific sections).
 .. autoclass:: psyclone.psyir.transformations.LoopSwapTrans
    :members: apply
    :noindex:
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.LoopTiling2DTrans
+    :members: apply
+    :noindex:
 
 ####
 
@@ -265,43 +301,42 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.psyir.transformations.ChunkLoopTrans
-    :members: apply
-    :noindex:
-
-####
-
 .. autoclass:: psyclone.domain.gocean.transformations.GOOpenCLTrans
       :members: apply
       :noindex:
 
 ####
 
-.. autoclass:: psyclone.transformations.OMPLoopTrans
-    :members: apply, omp_schedule, omp_worksharing
-    :noindex:
-
-####
-
-.. autoclass:: psyclone.transformations.OMPTaskloopTrans
-    :members: apply, omp_grainsize, omp_num_tasks
-    :noindex:
-
-####
-
-.. autoclass:: psyclone.psyir.transformations.OMPTaskwaitTrans
+.. autoclass:: psyclone.transformations.OMPDeclareTargetTrans
     :members: apply
     :noindex:
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.OMPLoopTrans
+    :members: apply, omp_schedule, omp_directive
+    :noindex:
+
+####
+
+.. autoclass:: psyclone.transformations.OMPMasterTrans
+    :inherited-members:
+    :exclude-members: name
+    :noindex:
+
+.. note:: PSyclone does not support (distributed-memory) halo swaps or
+          global sums within OpenMP master regions.  Attempting to
+          create a master region for a set of nodes that includes
+          halo swaps or global sums will produce an error. In such
+          cases it may be possible to re-order the nodes in the
+          Schedule such that the halo swaps or global sums are
+          performed outside the single region. The
+          :ref:`MoveTrans <sec_move_trans>` transformation may be used
+          for this.
 
 ####
 
 .. autoclass:: psyclone.transformations.OMPParallelLoopTrans
-    :members: apply
-    :noindex:
-
-####
-
-.. autoclass:: psyclone.transformations.OMPTargetTrans
     :members: apply
     :noindex:
 
@@ -341,20 +376,21 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.OMPMasterTrans
-    :inherited-members:
-    :exclude-members: name
+.. autoclass:: psyclone.psyir.transformations.OMPTargetTrans
+    :members: apply
     :noindex:
 
-.. note:: PSyclone does not support (distributed-memory) halo swaps or
-          global sums within OpenMP master regions.  Attempting to
-          create a master region for a set of nodes that includes
-          halo swaps or global sums will produce an error. In such
-          cases it may be possible to re-order the nodes in the
-          Schedule such that the halo swaps or global sums are
-          performed outside the single region. The
-          :ref:`MoveTrans <sec_move_trans>` transformation may be used
-          for this.
+####
+
+.. autoclass:: psyclone.transformations.OMPTaskloopTrans
+    :members: apply, omp_grainsize, omp_num_tasks
+    :noindex:
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.OMPTaskwaitTrans
+    :members: apply
+    :noindex:
 
 ####
 
@@ -370,6 +406,20 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.Reference2ArrayRangeTrans
+    :members: apply
+    :noindex:
+
+####
+
+.. _replace_induction_variable_trans:
+
+.. autoclass:: psyclone.psyir.transformations.ReplaceInductionVariablesTrans
+      :members: apply
+      :noindex:
+
+####
+
 .. autoclass:: psyclone.psyir.transformations.Sign2CodeTrans
       :members: apply
       :noindex:
@@ -378,6 +428,24 @@ can be found in the API-specific sections).
              on PSyIR Real scalar data and does not check whether or not
              this is the case. Once issue #658 is on master then this
              limitation can be fixed.
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.Sum2CodeTrans
+      :members: apply
+      :noindex:
+
+####
+
+Algorithm-layer
+---------------
+
+The gocean1.0 API supports the transformation of the algorithm
+layer. In the future the LFRic (dynamo0.3) API will also support
+this. However, this is not relevant to the nemo API as it does not
+have the concept of an algorithm layer (just PSy and Kernel
+layers). The ability to transformation the algorithm layer is new and
+at this time no relevant transformations have been developed.
 
 Kernels
 -------
@@ -488,6 +556,8 @@ variable that is available to it from the enclosing module scope.
 .. note:: these rules *only* apply to kernels that are the target of
       PSyclone kernel transformations.
 
+.. _available_kernel_trans:
+
 Available Kernel Transformations
 ++++++++++++++++++++++++++++++++
 
@@ -535,50 +605,100 @@ Interactive
 To apply a transformation interactively we first parse and analyse the
 code. This allows us to generate a "vanilla" PSy layer. For example::
 
-    >>> from psyclone.parse.algorithm import parse
+    >>> from fparser.common.readfortran import FortranStringReader
+    >>> from psyclone.parse.algorithm import Parser
     >>> from psyclone.psyGen import PSyFactory
+    >>> from fparser.two.parser import ParserFactory
 
-    # This example uses the LFRic (Dynamo 0.3) API
+    >>> example_str = (
+    ...     "program example\n"
+    ...     "  use field_mod, only: field_type\n"
+    ...     "  type(field_type) :: field\n"
+    ...     "  call invoke(setval_c(field, 0.0))\n"
+    ...     "end program example\n")
+
+    >>> parser = ParserFactory().create(std="f2008")
+    >>> reader = FortranStringReader(example_str)
+    >>> ast = parser(reader)
+    >>> invoke_info = Parser().invoke_info(ast)
+
+    # This example uses the LFRic (dynamo0.3) API
     >>> api = "dynamo0.3"
 
-    # Parse the file containing the algorithm specification and
-    # return the Abstract Syntax Tree and invokeInfo objects
-    >>> ast, invokeInfo = parse("dynamo.F90", api=api)
-
     # Create the PSy-layer object using the invokeInfo
-    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>> psy = PSyFactory(api, distributed_memory=False).create(invoke_info)
 
     # Optionally generate the vanilla PSy layer fortran
     >>> print(psy.gen)
+      MODULE example_psy
+        USE constants_mod, ONLY: r_def, i_def
+        USE field_mod, ONLY: field_type, field_proxy_type
+        IMPLICIT NONE
+        CONTAINS
+        SUBROUTINE invoke_0(field)
+          TYPE(field_type), intent(in) :: field
+          INTEGER df
+          INTEGER(KIND=i_def) loop0_start, loop0_stop
+          TYPE(field_proxy_type) field_proxy
+          INTEGER(KIND=i_def) undf_aspc1_field
+          !
+          ! Initialise field and/or operator proxies
+          !
+          field_proxy = field%get_proxy()
+          !
+          ! Initialise number of DoFs for aspc1_field
+          !
+          undf_aspc1_field = field_proxy%vspace%get_undf()
+          !
+          ! Set-up all of the loop bounds
+          !
+          loop0_start = 1
+          loop0_stop = undf_aspc1_field
+          !
+          ! Call our kernels
+          !
+          DO df=loop0_start,loop0_stop
+            field_proxy%data(df) = 0.0
+          END DO
+          !
+        END SUBROUTINE invoke_0
+      END MODULE example_psy
 
 We then extract the particular schedule we are interested
 in. For example::
 
     # List the various invokes that the PSy layer contains
     >>> print(psy.invokes.names)
+    dict_keys(['invoke_0'])
 
     # Get the required invoke
-    >>> invoke = psy.invokes.get('invoke_0_v3_kernel_type')
+    >>> invoke = psy.invokes.get('invoke_0')
 
     # Get the schedule associated with the required invoke
-    >>> schedule = invoke.schedule
-    >>> schedule.view()
-
+    > schedule = invoke.schedule
+    > print(schedule.view())
+    InvokeSchedule[invoke='invoke_0', dm=True]
+        0: Loop[type='dof', field_space='any_space_1', it_space='dof', upper_bound='ndofs']
+            Literal[value:'NOT_INITIALISED', Scalar<INTEGER, UNDEFINED>]
+            Literal[value:'NOT_INITIALISED', Scalar<INTEGER, UNDEFINED>]
+            Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+            Schedule[]
+                0: BuiltIn setval_c(field,0.0)
 
 Now we have the schedule we can create and apply a transformation to
 it to create a new schedule and then replace the original schedule
 with the new one. For example::
 
     # Create an OpenMPParallelLoopTrans
-    >>> from psyclone.transformations import OMPParallelLoopTrans
-    >>> ol = OMPParallelLoopTrans()
+    > from psyclone.transformations import OMPParallelLoopTrans
+    > ol = OMPParallelLoopTrans()
 
     # Apply it to the loop schedule of the selected invoke
-    >>> ol.apply(schedule.children[0])
-    >>> schedule.view()
+    > ol.apply(schedule.children[0])
+    > print(schedule.view())
 
     # Generate the Fortran code for the new PSy layer
-    >> print(psy.gen)
+    > print(psy.gen)
 
 .. _sec_transformations_script:
 
@@ -588,7 +708,8 @@ Script
 PSyclone provides a Python script (**psyclone**) that can be used from
 the command line to generate PSy layer code and to modify algorithm
 layer code appropriately. By default this script will generate
-"vanilla" (unoptimised) PSy layer code. For example::
+"vanilla" (unoptimised) PSy-layer and algorithm layer code. For
+example::
 
     > psyclone algspec.f90
     > psyclone -oalg alg.f90 -opsy psy.f90 -api dynamo0.3 algspec.f90
@@ -615,40 +736,64 @@ example ...
 PSyclone also provides the same functionality via a function (which is
 what the **psyclone** script calls internally).
 
-.. autofunction:: psyclone.generator.generate
-          :noindex:
+###.. autofunction:: psyclone.generator.generate
+###          :noindex:
 
 A valid script file must contain a **trans** function which accepts a **PSy**
 object as an argument and returns a **PSy** object, i.e.:
 ::
 
-    def trans(psy)
-        ...
-        return psy
+    >>> def trans(psy):
+    ...     # ...
+    ...     return psy
 
 It is up to the script what it does with the PSy object. The example
 below does the same thing as the example in the
 :ref:`sec_transformations_interactive` section.
 ::
 
-    def trans(psy):
-        from psyclone.transformations import OMPParallelLoopTrans
-        invoke = psy.invokes.get('invoke_0_v3_kernel_type')
-        schedule = invoke.schedule
-        ol = OMPParallelLoopTrans()
-        ol.apply(schedule.children[0])
-        return psy
+    >>> def trans(psy):
+    ...     from psyclone.transformations import OMPParallelLoopTrans
+    ...     invoke = psy.invokes.get('invoke_0_v3_kernel_type')
+    ...     schedule = invoke.schedule
+    ...     ol = OMPParallelLoopTrans()
+    ...     ol.apply(schedule.children[0])
+    ...     return psy
+
+In the gocean1.0 API (and in the future the lfric (dynamo0.3) API) an
+optional **trans_alg** function may also be supplied. This function
+accepts **PSyIR** (reprenting the algorithm layer) as an argument and
+returns **PSyIR** i.e.:
+::
+
+   >>> def trans_alg(psyir):
+   ...     # ...
+   ...    return psyir
+
+As with the `trans()` function it is up to the script what it does with
+the algorithm PSyIR. Note that the `trans_alg()` script is applied to
+the algorithm layer before the PSy-layer is generated so any changes
+applied to the algorithm layer will be reflected in the **PSy** object
+that is passed to the `trans()` function.
+
+For example, if the `trans_alg()` function in the script merged two
+`invoke` calls into one then the **Alg** object passed to the
+`trans()` function of the script would only contain one schedule
+associated with the merged invoke.
 
 Of course the script may apply as many transformations as is required
-for a particular schedule and may apply transformations to all the
-schedules (i.e. invokes and/or kernels) contained within the PSy
-layer.
+for a particular algorithm and/or schedule and may apply
+transformations to all the schedules (i.e. invokes and/or kernels)
+contained within the PSy layer.
 
 Examples of the use of transformation scripts can be found in many of
 the examples, such as examples/lfric/eg3 and
 examples/lfric/scripts. Please read the examples/lfric/README file
 first as it explains how to run the examples (and see also the
 examples/check_examples script).
+
+An example of the use of a script making use of the `trans_alg()`
+function can be found in examples/gocean/eg7.
 
 OpenMP
 ------
@@ -658,6 +803,7 @@ transformations currently supported allow the addition of:
 
 * an **OpenMP Parallel** directive
 * an **OpenMP Target** directive
+* an **OpenMP Declare Target** directive
 * an **OpenMP Do/For/Loop** directive
 * an **OpenMP Single** directive
 * an **OpenMP Master** directive
@@ -748,10 +894,9 @@ OpenCL functionality. It also relies upon the device acceleration support
 provided by the dl_esm_inf library (https://github.com/stfc/dl_esm_inf).
 
 
-.. note:: The generated OpenCL files follow the `--kernel-renaming` argument
-    conventions, but in addition to the `<modulename>` they also include the
-    `<kernelname>` as part of the filename in the format:
-    `<modulename>_<kernelname>_index.cl`
+.. note:: The generated OpenCL kernels are written in a file called
+    opencl_kernels_<index>.cl where the index keeps increasing if the
+    file name already exist.
 
 
 The ``GOOpenCLTrans`` transformation accepts an `options` argument with a
@@ -902,17 +1047,25 @@ user-supplied kernel routines are called from within
 PSyclone-generated loops in the PSy layer. PSyclone therefore provides
 the ``ACCRoutineTrans`` transformation which, given a Kernel node in
 the PSyIR, creates a new version of that kernel with the ``routine``
-directive added. Again, please see PSyclone/examples/gocean/eg2 for an
-example. This transformation is currently not supported for kernels in
-the Dynamo0.3 API.
+directive added. See either PSyclone/examples/gocean/eg2 or
+PSyclone/examples/lfric/eg14 for an example (although please note that
+this transformation is not yet fully working for kernels in
+the LFRic (Dynamo0.3) API - see #1724).
 
 SIR
 ---
 
 It is currently not possible for PSyclone to output SIR code without
-using a script. Two examples of such scripts are given in example 4
-for the NEMO API, one of which includes transformations to remove
-PSyIR intrinsics, hoist code out of a loop, translate array-index
-notation into explicit loops and translate a single access to an array
-dimension to a one-trip loop (to make the code suitable for the SIR
-backend).
+using a script. Three examples of such scripts are given in example 4
+for the NEMO API. The first `sir_trans.py` simply outputs SIR. This
+will raise an exception if used with the `tracer advection` example as
+the example contains array-index notation which is not supported by
+the SIR backend, but will generate code for the other examples. The
+second, `sir_trans_loop.py` includes transformations to hoist code out
+of a loop, translate array-index notation into explicit loops and
+translate a single access to an array dimension to a one-trip loop (to
+make the code suitable for the SIR backend). This works with the
+`tracer-advection` example. The third script `sir_trans_all.py`
+additionally replaces any intrinsics with equivalent code and can also
+be used with the `tracer-advection` example (and the
+`intrinsic_example.f90` example).

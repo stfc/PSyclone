@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,16 +38,12 @@
 
 ''' Module containing tests of LFRic stencils through the LFRic API '''
 
-# imports
-from __future__ import absolute_import, print_function
-
 import os
 
 import pytest
 import fparser
 from fparser import api as fpapi
 
-from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.dynamo0p3 import (DynKern, DynKernelArguments,
                                 DynKernMetadata, DynStencils)
@@ -64,17 +60,6 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "../..", "test_files", "dynamo0p3")
 
 TEST_API = "dynamo0.3"
-
-
-@pytest.fixture(scope="module", autouse=True)
-def setup():
-    '''Make sure that all tests here use dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
-    yield()
-    Config._instance = None
-
-# Tests
-
 
 STENCIL_CODE = '''
 module stencil_mod
@@ -210,10 +195,10 @@ def test_stencil_field_arg_lfricconst_properties(monkeypatch):
     const = LFRicConstants()
     monkeypatch.setattr(stencil_arg, "_intrinsic_type", "tortoiseshell")
     with pytest.raises(InternalError) as err:
-        stencil_arg._init_data_type_properties()
-    assert ("Expected one of {0} intrinsic types for a field "
-            "argument but found 'tortoiseshell'.".
-            format(const.VALID_FIELD_INTRINSIC_TYPES)) in str(err.value)
+        stencil_arg._init_data_type_properties(None, False)
+    assert (f"Expected one of {const.VALID_FIELD_INTRINSIC_TYPES} intrinsic "
+            f"types for a field argument but found 'tortoiseshell'." in
+            str(err.value))
 
 
 def test_single_kernel_any_dscnt_space_stencil(dist_mem, tmpdir):
@@ -260,11 +245,14 @@ def test_single_kernel_any_dscnt_space_stencil(dist_mem, tmpdir):
     # Check for halo exchanges and correct loop bounds
     if dist_mem:
         assert result.count("_proxy%halo_exchange(depth=extent)") == 4
-        assert result.count("DO cell=1,mesh%get_last_edge_cell()") == 2
+        assert "loop0_stop = mesh%get_last_edge_cell()" in result
+        assert "loop1_stop = mesh%get_last_edge_cell()" in result
     else:
         assert "halo_exchange(depth=extent)" not in result
-        assert "DO cell=1,f0_proxy%vspace%get_ncell()" in result
-        assert "DO cell=1,f3_proxy%vspace%get_ncell()" in result
+        assert "loop0_stop = f0_proxy%vspace%get_ncell()" in result
+        assert "loop1_stop = f3_proxy%vspace%get_ncell()" in result
+    assert "DO cell=loop0_start,loop0_stop" in result
+    assert "DO cell=loop1_start,loop1_stop" in result
 
 
 def test_stencil_args_unique_1(dist_mem, tmpdir):

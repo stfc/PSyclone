@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors A. B. G. Chalk STFC Daresbury Lab
+# Authors A. B. G. Chalk, STFC Daresbury Lab
+# Modified S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''This module contains the unit tests for the ChunkLoopTrans module'''
@@ -167,9 +168,9 @@ def test_chunkloop_trans_validate4():
     parent._variable = lvar
     with pytest.raises(TransformationError) as excinfo:
         chunktrans.validate(parent)
-    assert("Cannot apply a ChunkLoopTrans to this loop because the boundary "
-           "variable 'lvar' is written to inside the loop body.") in \
-        str(excinfo.value)
+    assert ("Cannot apply a ChunkLoopTrans to this loop because the boundary "
+            "variable 'lvar' is written to inside the loop body."
+            in str(excinfo.value))
 
     # Construct a loop that writes to the variable used for the initial value
     symbol_table = SymbolTable()
@@ -192,13 +193,13 @@ def test_chunkloop_trans_validate4():
                                    Reference(lvar), Literal("1", INTEGER_TYPE))
     assign = Assignment.create(Reference(ivar), binop)
     sched.addchild(assign)
-    parent.children[0].replace_with(Reference(ivar))
+    parent.start_expr.replace_with(Reference(ivar))
     parent._variable = lvar
     with pytest.raises(TransformationError) as excinfo:
         chunktrans.validate(parent)
-    assert("Cannot apply a ChunkLoopTrans to this loop because the boundary "
-           "variable 'ivar' is written to inside the loop body.") in \
-        str(excinfo.value)
+    assert ("Cannot apply a ChunkLoopTrans to this loop because the boundary "
+            "variable 'ivar' is written to inside the loop body."
+            in str(excinfo.value))
 
     # Construct a loop that writes to the variable used for the final value
     symbol_table = SymbolTable()
@@ -221,13 +222,13 @@ def test_chunkloop_trans_validate4():
                                    Reference(ivar), Literal("1", INTEGER_TYPE))
     assign = Assignment.create(Reference(ivar), binop)
     sched.addchild(assign)
-    parent.children[1].replace_with(Reference(ivar))
+    parent.stop_expr.replace_with(Reference(ivar))
     parent._variable = lvar
     with pytest.raises(TransformationError) as excinfo:
         chunktrans.validate(parent)
-    assert("Cannot apply a ChunkLoopTrans to this loop because the boundary "
-           "variable 'ivar' is written to inside the loop body.") in \
-        str(excinfo.value)
+    assert ("Cannot apply a ChunkLoopTrans to this loop because the boundary "
+            "variable 'ivar' is written to inside the loop body."
+            in str(excinfo.value))
 
 
 def test_chunkloop_trans_validate5():
@@ -294,6 +295,41 @@ def test_chunkloop_trans_validate7():
             "CodeBlock node.") in str(excinfo.value)
 
 
+def test_chunkloop_trans_validation_options(fortran_reader):
+    ''' Validation fails if an invalid option map is provided '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine test(tmp)
+            integer:: i, j
+            integer, intent(inout), dimension(100,100) :: tmp
+
+            do i=1, 100
+              do j=1, 100
+                tmp(i,j) = 2 * tmp(i,j)
+              enddo
+            enddo
+        end subroutine test
+     ''')
+    outer_loop = psyir.walk(Loop)[0]
+    with pytest.raises(TransformationError) as err:
+        ChunkLoopTrans().validate(outer_loop, {'unsupported': None})
+    assert ("The ChunkLoopTrans does not support the transformation option"
+            " 'unsupported', the supported options are: ['chunksize']."
+            in str(err.value))
+
+    with pytest.raises(TransformationError) as err:
+        ChunkLoopTrans().validate(outer_loop, {'chunksize': '32'})
+    assert ("The ChunkLoopTrans chunksize option must be a positive integer "
+            "but found a 'str'." in str(err.value))
+
+    with pytest.raises(TransformationError) as err:
+        ChunkLoopTrans().validate(outer_loop, {'chunksize': -64})
+    assert ("The ChunkLoopTrans chunksize option must be a positive integer "
+            "but found '-64'." in str(err.value))
+
+    # Positive integers are accepted
+    ChunkLoopTrans().validate(outer_loop, {'chunksize': 64})
+
+
 def test_chunkloop_trans_apply_pos():
     '''Test the apply method of ChunkLoopTrans for a positive step index'''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
@@ -306,7 +342,7 @@ def test_chunkloop_trans_apply_pos():
     code = str(psy.gen)
     correct = \
         '''DO j_out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, 32
-        j_el_inner = MIN(j_out_var + 32, cu_fld%internal%ystop)
+        j_el_inner = MIN(j_out_var + (32 - 1), cu_fld%internal%ystop)
         DO j = j_out_var, j_el_inner, 1
           DO i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1
     '''
@@ -326,13 +362,13 @@ def test_chunkloop_trans_apply_neg():
     psy = PSyFactory("gocean1.0", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    schedule.children[0].children[2].replace_with(Literal("-1", INTEGER_TYPE))
+    schedule.children[0].step_expr.replace_with(Literal("-1", INTEGER_TYPE))
     chunktrans = ChunkLoopTrans()
     chunktrans.apply(schedule.children[0])
     code = str(psy.gen)
     correct = \
         '''DO j_out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, -32
-        j_el_inner = MAX(j_out_var - 32, cu_fld%internal%ystop)
+        j_el_inner = MAX(j_out_var - (32 + 1), cu_fld%internal%ystop)
         DO j = j_out_var, j_el_inner, -1
           DO i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1
     '''
@@ -340,6 +376,24 @@ def test_chunkloop_trans_apply_neg():
     correct = '''END DO
         END DO
       END DO'''
+    assert correct in code
+
+
+def test_chunkloop_trans_apply_with_options():
+    ''' Check that a non-default chunksize option is used correctly. '''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
+                           api="gocean1.0")
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    chunktrans = ChunkLoopTrans()
+    chunktrans.apply(schedule.children[0], {'chunksize': 4})
+    code = str(psy.gen)
+    correct = \
+        '''DO j_out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, 4
+        j_el_inner = MIN(j_out_var + (4 - 1), cu_fld%internal%ystop)
+        DO j = j_out_var, j_el_inner, 1
+    '''
     assert correct in code
 
 
@@ -380,10 +434,10 @@ def test_chunkloop_trans_apply_double_chunk(tmpdir):
 
     correct = \
         '''do i_out_var = 1, end, 32
-    i_el_inner = MIN(i_out_var + 32, end)
+    i_el_inner = MIN(i_out_var + (32 - 1), end)
     do i = i_out_var, i_el_inner, 1
       do j_out_var = 1, end, 32
-        j_el_inner = MIN(j_out_var + 32, end)
+        j_el_inner = MIN(j_out_var + (32 - 1), end)
         do j = j_out_var, j_el_inner, 1
           ai(i,j) = 1
         enddo
@@ -391,10 +445,10 @@ def test_chunkloop_trans_apply_double_chunk(tmpdir):
     enddo
   enddo
   do i_out_var = 1, end, 32
-    i_el_inner = MIN(i_out_var + 32, end)
+    i_el_inner = MIN(i_out_var + (32 - 1), end)
     do i = i_out_var, i_el_inner, 2
       do j_out_var = 1, end, 32
-        j_el_inner = MIN(j_out_var + 32, end)
+        j_el_inner = MIN(j_out_var + (32 - 1), end)
         do j = j_out_var, j_el_inner, 2
           aj(i,j) = 1
         enddo

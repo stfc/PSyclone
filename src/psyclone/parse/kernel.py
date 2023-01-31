@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: L. Mitchell Imperial College
-#          R. W. Ford and A. R. Porter STFC Daresbury Lab
+#          R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 # Modified: C.M. Maynard, Met Office / University of Reading,
 #           I. Kavcic, Met Office
 #           J. Henrichs, Bureau of Meteorology
@@ -45,7 +45,6 @@ PSyclone-conformant kernel code.
 import os
 import sys
 
-import six
 from pyparsing import ParseException
 
 import fparser
@@ -99,7 +98,7 @@ def get_kernel_filepath(module_name, kernel_paths, alg_filename):
     # Only consider files with the suffixes .f90 and .F90 when
     # searching for the kernel source (we perform a case insensitive
     # match).
-    search_string = "{0}.F90".format(module_name)
+    search_string = f"{module_name}.F90"
     matches = []
 
     # If a search path has been specified then look there. Otherwise
@@ -111,8 +110,8 @@ def get_kernel_filepath(module_name, kernel_paths, alg_filename):
 
         if not os.access(cdir, os.R_OK):
             raise ParseError(
-                "kernel.py:get_kernel_filepath: Supplied kernel search path "
-                "does not exist or cannot be read: {0}".format(cdir))
+                f"kernel.py:get_kernel_filepath: Supplied kernel search path "
+                f"does not exist or cannot be read: {cdir}")
 
         # Recursively search down through the directory tree starting
         # at the specified path.
@@ -134,14 +133,12 @@ def get_kernel_filepath(module_name, kernel_paths, alg_filename):
     if not matches:
         # There were no matches.
         raise ParseError(
-            "Kernel file '{0}.[fF]90' not found in {1}".
-            format(module_name, cdir))
+            f"Kernel file '{module_name}.[fF]90' not found in {cdir}")
     if len(matches) > 1:
         # There was more than one match
         raise ParseError(
-            "kernel.py:get_kernel_filepath: More than one match for kernel "
-            "file '{0}.[fF]90' found!".
-            format(module_name))
+            f"kernel.py:get_kernel_filepath: More than one match for kernel "
+            f"file '{module_name}.[fF]90' found!")
     # There is a single match
     return matches[0]
 
@@ -174,9 +171,9 @@ def get_kernel_parse_tree(filepath):
         # empty.
         parse_tree.name = ""
     except Exception as err:
-        six.raise_from(ParseError(
-            "Failed to parse kernel code '{0}'. Is the Fortran "
-            "correct?".format(filepath)), err)
+        raise ParseError(
+            f"Failed to parse kernel code '{filepath}'. Is the Fortran "
+            f"correct?") from err
     return parse_tree
 
 
@@ -210,7 +207,7 @@ def get_kernel_ast(module_name, alg_filename, kernel_paths, line_length):
 
 
 # pylint: disable=too-few-public-methods
-class KernelTypeFactory(object):
+class KernelTypeFactory():
     '''Factory to create the required API-specific information about
     coded-kernel metadata and a reference to its code.
 
@@ -244,21 +241,15 @@ class KernelTypeFactory(object):
         '''
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
-        if self._type == "dynamo0.1":
-            from psyclone.dynamo0p1 import DynKernelType
-            return DynKernelType(parse_tree, name=name)
         if self._type == "dynamo0.3":
             from psyclone.dynamo0p3 import DynKernMetadata
             return DynKernMetadata(parse_tree, name=name)
-        if self._type == "gocean0.1":
-            from psyclone.gocean0p1 import GOKernelType
-            return GOKernelType(parse_tree, name=name)
         if self._type == "gocean1.0":
             from psyclone.gocean1p0 import GOKernelType1p0
             return GOKernelType1p0(parse_tree, name=name)
         raise ParseError(
-            "KernelTypeFactory:create: Unsupported kernel type '{0}' "
-            "found.".format(self._type))
+            f"KernelTypeFactory:create: Unsupported kernel type '{self._type}'"
+            f" found.")
 
 
 class BuiltInKernelTypeFactory(KernelTypeFactory):
@@ -293,9 +284,8 @@ class BuiltInKernelTypeFactory(KernelTypeFactory):
         '''
         if name not in builtin_names:
             raise ParseError(
-                "BuiltInKernelTypeFactory:create unrecognised built-in name. "
-                "Got '{0}' but expected one of {1}".format(name,
-                                                           builtin_names))
+                f"BuiltInKernelTypeFactory:create unrecognised built-in name. "
+                f"Got '{name}' but expected one of {builtin_names}")
         # The meta-data for these lives in a Fortran module file
         # passed in to this method.
         fname = os.path.join(
@@ -303,20 +293,19 @@ class BuiltInKernelTypeFactory(KernelTypeFactory):
             builtin_defs_file)
         if not os.path.isfile(fname):
             raise ParseError(
-                "BuiltInKernelTypeFactory:create Kernel '{0}' is a recognised "
-                "Built-in but cannot find file '{1}' containing the meta-data "
-                "describing the Built-in operations for API '{2}'"
-                .format(name, fname, self._type))
+                f"BuiltInKernelTypeFactory:create Kernel '{name}' is a "
+                f"recognised Built-in but cannot find file '{fname}' "
+                f"containing the meta-data describing the Built-in operations "
+                f"for API '{self._type}'")
         # Attempt to parse the meta-data
         try:
             parsefortran.FortranParser.cache.clear()
             fparser.logging.disable(fparser.logging.CRITICAL)
             parse_tree = fpapi.parse(fname)
         except Exception as err:
-            six.raise_from(ParseError(
-                "BuiltInKernelTypeFactory:create: Failed to parse the meta-"
-                "data for PSyclone built-ins in file '{0}'.".format(fname)),
-                err)
+            raise ParseError(
+                f"BuiltInKernelTypeFactory:create: Failed to parse the meta-"
+                f"data for PSyclone built-ins in file '{fname}'.") from err
 
         # Now we have the parse tree, call our parent class to create \
         # the object
@@ -344,13 +333,13 @@ def get_mesh(metadata, valid_mesh_types):
     if not isinstance(metadata, expr.NamedArg) or \
        metadata.name.lower() != "mesh_arg":
         raise ParseError(
-            "{0} is not a valid mesh identifier (expected "
-            "mesh_arg=MESH_TYPE where MESH_TYPE is one of {1}))".
-            format(str(metadata), valid_mesh_types))
+            f"{metadata} is not a valid mesh identifier (expected "
+            f"mesh_arg=MESH_TYPE where MESH_TYPE is one of "
+            f"{valid_mesh_types}))")
     mesh = metadata.value.lower()
     if mesh not in valid_mesh_types:
-        raise ParseError("mesh_arg must be one of {0} but got {1}".
-                         format(valid_mesh_types, mesh))
+        raise ParseError(f"mesh_arg must be one of {valid_mesh_types} but got "
+                         f"{mesh}")
     return mesh
 
 
@@ -374,28 +363,25 @@ def get_stencil(metadata, valid_types):
 
     if not isinstance(metadata, expr.FunctionVar):
         raise ParseError(
-            "Expecting format stencil(<type>[,<extent>]) but found the "
-            "literal {0}".format(metadata))
+            f"Expecting format stencil(<type>[,<extent>]) but found the "
+            f"literal {metadata}")
     if metadata.name.lower() != "stencil" or not metadata.args:
         raise ParseError(
-            "Expecting format stencil(<type>[,<extent>]) but found {0}".
-            format(metadata))
+            f"Expecting format stencil(<type>[,<extent>]) but found {metadata}"
+            )
     if len(metadata.args) > 2:
         raise ParseError(
-            "Expecting format stencil(<type>[,<extent>]) so there must "
-            "be at most two arguments inside the brackets {0}".
-            format(metadata))
+            f"Expecting format stencil(<type>[,<extent>]) so there must "
+            f"be at most two arguments inside the brackets {metadata}")
     if not isinstance(metadata.args[0], expr.FunctionVar):
-        if isinstance(metadata.args[0], six.string_types):
+        if isinstance(metadata.args[0], str):
             raise ParseError(
-                "Expecting format stencil(<type>[,<extent>]). However, "
-                "the specified <type> '{0}' is a literal and therefore is "
-                "not one of the valid types '{1}'".
-                format(metadata.args[0], valid_types))
+                f"Expecting format stencil(<type>[,<extent>]). However, "
+                f"the specified <type> '{metadata.args[0]}' is a literal and "
+                f"therefore is not one of the valid types '{valid_types}'")
         raise ParseError(
-            "Internal error, expecting either FunctionVar or "
-            "str from the expression analyser but found {0}".
-            format(type(metadata.args[0])))
+            f"Internal error, expecting either FunctionVar or str from the "
+            f"expression analyser but found {type(metadata.args[0])}")
     if metadata.args[0].args:
         raise ParseError(
             "Expected format stencil(<type>[,<extent>]). However, the "
@@ -403,37 +389,36 @@ def get_stencil(metadata, valid_types):
     stencil_type = metadata.args[0].name
     if stencil_type not in valid_types:
         raise ParseError(
-            "Expected format stencil(<type>[,<extent>]). However, the "
-            "specified <type> '{0}' is not one of the valid types '{1}'".
-            format(stencil_type, valid_types))
+            f"Expected format stencil(<type>[,<extent>]). However, the "
+            f"specified <type> '{stencil_type}' is not one of the valid types "
+            f"'{valid_types}'")
 
     stencil_extent = None
     if len(metadata.args) == 2:
-        if not isinstance(metadata.args[1], six.string_types):
+        if not isinstance(metadata.args[1], str):
             raise ParseError(
-                "Expected format stencil(<type>[,<extent>]). However, the "
-                "specified <extent> '{0}' is not an integer".
-                format(metadata.args[1]))
+                f"Expected format stencil(<type>[,<extent>]). However, the "
+                f"specified <extent> '{metadata.args[1]}' is not an integer")
         stencil_extent = int(metadata.args[1])
         if stencil_extent < 1:
             raise ParseError(
-                "Expected format stencil(<type>[,<extent>]). However, the "
-                "specified <extent> '{0}' is less than 1".
-                format(str(stencil_extent)))
+                f"Expected format stencil(<type>[,<extent>]). However, the "
+                f"specified <extent> '{stencil_extent}' is less than 1")
         raise NotImplementedError(
             "Kernels with fixed stencil extents are not currently "
             "supported")
     return {"type": stencil_type, "extent": stencil_extent}
 
 
-class Descriptor(object):
+class Descriptor():
     '''
     A description of how a kernel argument is accessed, constructed from
     the kernel metadata.
 
     :param str access: whether argument is read/write etc.
-    :param str space: which function space/grid-point type argument is \
-                      on.
+    :param str space: which function space/grid-point type argument is on.
+    :param int metadata_index: position of this argument in the list of \
+                               arguments specified in the metadata.
     :param dict stencil: type of stencil access for this argument. \
                          Defaults to None if the argument is not supplied.
     :param str mesh: which mesh this argument is on. Defaults to None \
@@ -441,12 +426,20 @@ class Descriptor(object):
     :param str argument_type: the type of this argument. Defaults to \
                               None if the argument is not supplied.
 
+    :raises InternalError: if the metadata_index argument is not an int or is \
+                           less than zero.
+
     '''
     # pylint: disable=too-many-arguments
-    def __init__(self, access, space, stencil=None, mesh=None,
+    def __init__(self, access, space, metadata_index, stencil=None, mesh=None,
                  argument_type=None):
         self._access = access
         self._space = space
+        if not isinstance(metadata_index, int) or metadata_index < 0:
+            raise InternalError(
+                f"The metadata index must be an integer and greater than or "
+                f"equal to zero but got: {metadata_index}")
+        self._metadata_index = metadata_index
         self._stencil = stencil
         self._mesh = mesh
         self._argument_type = argument_type
@@ -468,6 +461,15 @@ class Descriptor(object):
 
         '''
         return self._space
+
+    @property
+    def metadata_index(self):
+        '''
+        :returns: the position of the corresponding argument descriptor in \
+                  the kernel metadata.
+        :rtype: int
+        '''
+        return self._metadata_index
 
     @property
     def stencil(self):
@@ -498,10 +500,11 @@ class Descriptor(object):
         return self._argument_type
 
     def __repr__(self):
-        return "Descriptor({0}, {1})".format(self.access, self.function_space)
+        return (f"Descriptor({self.access}, {self.function_space}, "
+                f"{self.metadata_index})")
 
 
-class KernelProcedure(object):
+class KernelProcedure():
     '''
     Captures the parse tree and name of a kernel subroutine.
 
@@ -557,15 +560,14 @@ class KernelProcedure(object):
         # Search the the meta-data for a SpecificBinding
         for statement in ast.content:
             if isinstance(statement, fparser1.statements.SpecificBinding):
-                # We support either:
+                # We support:
                 # PROCEDURE, nopass :: code => <proc_name> or
                 # PROCEDURE, nopass :: <proc_name>
                 if statement.bname:
                     if statement.name.lower() != "code":
                         raise ParseError(
-                            "Kernel type {0} binds to a specific procedure but"
-                            " does not use 'code' as the generic name.".
-                            format(name))
+                            f"Kernel type {name} binds to a specific procedure"
+                            f" but does not use 'code' as the generic name.")
                     bname = statement.bname.lower()
                 else:
                     bname = statement.name.lower()
@@ -577,11 +579,11 @@ class KernelProcedure(object):
             if bname is None:
                 # no interface found either
                 raise ParseError(
-                    "Kernel type {0} does not bind a specific procedure or \
-                    provide an explicit interface".format(name))
+                    f"Kernel type {name} does not bind a specific procedure "
+                    f"or provide an explicit interface")
         elif bname == '':
             raise InternalError(
-                "Empty Kernel name returned for Kernel type {0}.".format(name))
+                f"Empty Kernel name returned for Kernel type {name}.")
         else:
             # add the name of the tbp to the list of strings to search for.
             subnames = [bname]
@@ -602,8 +604,8 @@ class KernelProcedure(object):
                     break
             else:
                 raise ParseError(
-                    "kernel.py:KernelProcedure:get_procedure: Kernel "
-                    "subroutine '{0}' not found.".format(subname))
+                    f"kernel.py:KernelProcedure:get_procedure: Kernel "
+                    f"subroutine '{subname}' not found.")
         return code, bname
 
     @property
@@ -625,7 +627,7 @@ class KernelProcedure(object):
         return self._ast
 
     def __repr__(self):
-        return "KernelProcedure({0})".format(self.name)
+        return f"KernelProcedure({self.name})"
 
     def __str__(self):
         return str(self._ast)
@@ -657,7 +659,7 @@ def get_kernel_metadata(name, ast):
             ktype = statement
             break
     if ktype is None:
-        raise ParseError("Kernel type {0} does not exist".format(name))
+        raise ParseError(f"Kernel type {name} does not exist")
     return ktype
 
 
@@ -685,9 +687,9 @@ def get_kernel_interface(name, ast):
             # count the interfaces, then can be only one!
             count = count + 1
             if count >= 2:
-                raise ParseError("Module containing kernel {0} has more than "
-                                 "one interface, this is forbidden in the "
-                                 "LFRic API.".format(name))
+                raise ParseError(f"Module containing kernel {name} has more "
+                                 f"than one interface, this is forbidden in "
+                                 f"the LFRic API.")
             # Check the interfaces assigns one or more module procedures.
             if statement.a.module_procedures:
                 iname = statement.name.lower()
@@ -734,45 +736,45 @@ def getkerneldescriptors(name, ast, var_name='meta_args', var_type=None):
         # INTEGER in above 'if' test is an fparser1 hack as get_variable()
         # returns an integer if the variable is not found.
         raise ParseError(
-            "No variable named '{0}' found in the metadata for kernel "
-            "'{1}': '{2}'.".format(var_name, name, str(ast).strip()))
+            f"No variable named '{var_name}' found in the metadata for kernel "
+            f"'{name}': '{str(ast).strip()}'.")
     try:
         nargs = int(descs.shape[0])
     except AttributeError as err:
-        six.raise_from(ParseError(
-            "In kernel metadata '{0}': '{1}' variable must be an array.".
-            format(name, var_name)), err)
+        raise ParseError(
+            f"In kernel metadata '{name}': '{var_name}' variable must be an "
+            f"array.") from err
     if len(descs.shape) != 1:
         raise ParseError(
-            "In kernel metadata '{0}': '{1}' variable must be a 1 dimensional "
-            "array.".format(name, var_name))
+            f"In kernel metadata '{name}': '{var_name}' variable must be a 1 "
+            f"dimensional array.")
     if descs.init.find("[") != -1 and descs.init.find("]") != -1:
         # there is a bug in fparser1
         raise ParseError(
-            "Parser does not currently support '[...]' initialisation for "
-            "'{0}', please use '(/.../)' instead.".format(var_name))
+            f"Parser does not currently support '[...]' initialisation for "
+            f"'{var_name}', please use '(/.../)' instead.")
     try:
         inits = expr.FORT_EXPRESSION.parseString(descs.init)[0]
     except ParseException as err:
-        six.raise_from(ParseError("Kernel metadata has an invalid format {0}.".
-                                  format(descs.init)), err)
+        raise ParseError(f"Kernel metadata has an invalid format "
+                         f"{descs.init}.") from err
     nargs = int(descs.shape[0])
     if len(inits) != nargs:
         raise ParseError(
-            "In the '{0}' metadata, the number of items in the array "
-            "constructor ({1}) does not match the extent of the "
-            "array ({2}).".format(var_name, len(inits), nargs))
+            f"In the '{var_name}' metadata, the number of items in the array "
+            f"constructor ({len(inits)}) does not match the extent of the "
+            f"array ({nargs}).")
     if var_type:
         # Check that each element in the list is of the correct type
         if not all(init.name == var_type for init in inits):
             raise ParseError(
-                "The '{0}' metadata must consist of an array of structure"
-                " constructors, all of type '{1}' but found: {2}.".format(
-                    var_name, var_type, [str(init.name) for init in inits]))
+                f"The '{var_name}' metadata must consist of an array of "
+                f"structure constructors, all of type '{var_type}' but found: "
+                f"{[str(init.name) for init in inits]}.")
     return inits
 
 
-class KernelType(object):
+class KernelType():
     '''Base class for describing Kernel Metadata.
 
     This contains the name of the elemental procedure and metadata associated
@@ -810,16 +812,14 @@ class KernelType(object):
             mn_len = len(module_name)
             if mn_len < 5:
                 raise ParseError(
-                    "Error, module name '{0}' is too short to have '_mod' as "
-                    "an extension. This convention is assumed.".
-                    format(module_name))
+                    f"Error, module name '{module_name}' is too short to have "
+                    f"'_mod' as an extension. This convention is assumed.")
             base_name = module_name.lower()[:mn_len-4]
             extension_name = module_name.lower()[mn_len-4:mn_len]
             if extension_name != "_mod":
                 raise ParseError(
-                    "Error, module name '{0}' does not have '_mod' as an "
-                    "extension. This convention is assumed.".
-                    format(module_name))
+                    f"Error, module name '{module_name}' does not have '_mod' "
+                    f"as an extension. This convention is assumed.")
             name = base_name + "_type"
 
         self._name = name
@@ -846,9 +846,9 @@ class KernelType(object):
         # iterates_over is API-specifc, we can check that the metadata doesn't
         # specify both of them because that doesn't make sense.
         if operates_on and iterates_over:
-            raise ParseError("The metadata for kernel '{0}' contains both "
-                             "'operates_on' and 'iterates_over'. Only one of "
-                             "these is permitted.".format(name))
+            raise ParseError(f"The metadata for kernel '{name}' contains both "
+                             f"'operates_on' and 'iterates_over'. Only one of "
+                             f"these is permitted.")
         self._procedure = KernelProcedure(self._ktype, name, ast)
         self._inits = getkerneldescriptors(name, self._ktype)
         self._arg_descriptors = []  # this is set up by the subclasses
@@ -901,7 +901,7 @@ class KernelType(object):
         return self._arg_descriptors
 
     def __repr__(self):
-        return 'KernelType(%s, %s)' % (self.name, self.iterates_over)
+        return f"KernelType({self.name}, {self.iterates_over})"
 
     def get_integer_variable(self, name):
         ''' Parse the kernel meta-data and find the value of the
@@ -931,8 +931,8 @@ class KernelType(object):
                 if str(assign.items[0]).lower() == lower_name:
                     if not isinstance(assign.items[2], Fortran2003.Name):
                         raise ParseError(
-                            "get_integer_variable: RHS of assignment is not "
-                            "a variable name: '{0}'".format(str(assign)))
+                            f"get_integer_variable: RHS of assignment is not "
+                            f"a variable name: '{assign}'")
                     return str(assign.items[2]).lower()
         return None
 
@@ -973,8 +973,8 @@ class KernelType(object):
             assign = Fortran2003.Assignment_Stmt(statement.entity_decls[0])
             names = walk(assign.children, Fortran2003.Name)
             if not names:
-                raise InternalError("Unsupported assignment statement: '{0}'".
-                                    format(str(assign)))
+                raise InternalError(f"Unsupported assignment statement: "
+                                    f"'{assign}'")
 
             if str(names[0]).lower() != lower_name:
                 # This is not the variable declaration we're looking for
@@ -987,46 +987,46 @@ class KernelType(object):
             if not isinstance(assign.children[0].children[1],
                               Fortran2003.Section_Subscript_List):
                 raise InternalError(
-                    "get_integer_array: expected array declaration to have a "
-                    "Section_Subscript_List but found '{0}' for: '{1}'".format(
-                        type(assign.children[0].children[1]).__name__,
-                        str(assign)))
+                    f"get_integer_array: expected array declaration to have a "
+                    f"Section_Subscript_List but found "
+                    f"'{type(assign.children[0].children[1]).__name__}' "
+                    f"for: '{assign}'")
 
             dim_stmt = assign.children[0].children[1]
             if len(dim_stmt.children) != 1:
                 raise ParseError(
-                    "get_integer_array: array must be 1D but found an array "
-                    "with {0} dimensions for name '{1}'".format(
-                        len(dim_stmt.children), name))
+                    f"get_integer_array: array must be 1D but found an array "
+                    f"with {len(dim_stmt.children)} dimensions for name '"
+                    f"{name}'")
             if not isinstance(dim_stmt.children[0],
                               Fortran2003.Int_Literal_Constant):
                 raise ParseError(
-                    "get_integer_array: array extent must be specified using "
-                    "an integer literal but found '{0}' for array '{1}'".
-                    format(str(dim_stmt.children[0]), name))
+                    f"get_integer_array: array extent must be specified using "
+                    f"an integer literal but found '{dim_stmt.children[0]}' "
+                    f"for array '{name}'")
             # Get the declared size of the array
             array_extent = int(str(dim_stmt.children[0]))
 
             if not isinstance(assign.children[2],
                               Fortran2003.Array_Constructor):
                 raise ParseError(
-                    "get_integer_array: RHS of assignment is not "
-                    "an array constructor: '{0}'".format(str(assign)))
+                    f"get_integer_array: RHS of assignment is not "
+                    f"an array constructor: '{assign}'")
             # fparser2 AST for Array_Constructor is:
             # Array_Constructor('[', Ac_Value_List(',', (Name('w0'),
             #                                      Name('w1'))), ']')
             # Construct a list of the names in the array constructor
             names = walk(assign.children[2].children, Fortran2003.Name)
             if not names:
-                raise InternalError("Failed to parse array constructor: "
-                                    "'{0}'".format(str(assign.items[2])))
+                raise InternalError(f"Failed to parse array constructor: "
+                                    f"'{assign.items[2]}'")
             if len(names) != array_extent:
                 # Ideally fparser would catch this but it isn't yet mature
                 # enough.
                 raise ParseError(
-                    "get_integer_array: declared length of array '{0}' is {1} "
-                    "but constructor only contains {2} names: '{3}'".format(
-                        name, array_extent, len(names), str(assign)))
+                    f"get_integer_array: declared length of array '{name}' is "
+                    f"{array_extent} but constructor only contains "
+                    f"{len(names)} names: '{assign}'")
             return [str(name).lower() for name in names]
         # No matching declaration for the provided name was found
         return []

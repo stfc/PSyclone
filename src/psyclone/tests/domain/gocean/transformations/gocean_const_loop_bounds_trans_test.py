@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,7 @@ from psyclone.gocean1p0 import GOLoop
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.symbols import LocalInterface, DataTypeSymbol
 from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
-from psyclone.tests.gocean1p0_build import GOcean1p0Build
+from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.utilities import get_invoke
 
 # The version of the PSyclone API that the tests in this file
@@ -107,7 +107,7 @@ def test_const_loop_bounds_trans(tmpdir):
     assert "DO j = 2, jstop - 1" in gen
     assert "DO i = 2, istop" in gen
 
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_const_loop_bounds_invalid_loop_attributes(monkeypatch):
