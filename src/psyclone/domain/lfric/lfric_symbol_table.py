@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -71,12 +71,13 @@ class LFRicSymbolTable(SymbolTable):
         super().__init__(node, default_visibility)
         # First time an instance of this is created, define
         # the precision mapping.
-        if LFRicSymbolTable._constants_mod is None:
+        if not LFRicSymbolTable._precision_map:
             const = LFRicConstants()
             mod_name = const.UTILITIES_MOD_MAP["constants"]["module"]
             LFRicSymbolTable._constants_mod = ContainerSymbol(mod_name)
-            for intrinsic, precision in const.SCALAR_PRECISION_MAP.items():
-                LFRicSymbolTable._precision_map[intrinsic] = \
+
+            for precision in const.PRECISION_MAP:
+                LFRicSymbolTable._precision_map[precision] = \
                     DataSymbol(precision, INTEGER_TYPE,
                                interface=ImportInterface(self._constants_mod))
 
@@ -217,26 +218,21 @@ class LFRicSymbolTable(SymbolTable):
             table but is not imported from the correct container.
 
         '''
-        if name == "i_def":
-            sym = LFRicSymbolTable._precision_map["integer"]
-        elif name == "r_def":
-            sym = LFRicSymbolTable._precision_map["real"]
-        elif name == "l_def":
-            sym = LFRicSymbolTable._precision_map["logical"]
-        else:
+        consts = LFRicConstants()
+        if name not in consts.PRECISION_MAP:
             raise ValueError(f"'{name}' is not a recognised LFRic precision.")
+        sym = LFRicSymbolTable._precision_map[name]
 
         if name in self:
             # Sanity check that the existing symbol is the right one.
             existing_sym = self.lookup(name)
             if (not isinstance(existing_sym.interface, ImportInterface) or
-                    existing_sym.interface.container_symbol !=
-                    LFRicSymbolTable._constants_mod):
+                    existing_sym.interface.container_symbol.name !=
+                    self._constants_mod.name):
                 raise ValueError(
                     f"Precision symbol '{name}' already exists in the "
                     f"supplied symbol table but is not imported from the "
-                    f"LFRic constants module "
-                    f"({LFRicSymbolTable._constants_mod.name}).")
+                    f"LFRic constants module ({self._constants_mod.name}).")
             return existing_sym
 
         # pylint: disable=undefined-variable
