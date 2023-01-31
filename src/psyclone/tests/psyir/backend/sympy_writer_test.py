@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 # Modified: R. W. Ford, STFC Daresbury Lab
+#           A. R. Porter, STFC Daresbury Lab
 
 ''' Module containing py.test tests the SymPy writer.'''
 
@@ -90,12 +91,13 @@ def test_sym_writer_int_constants(fortran_reader, expressions):
     # A dummy program to easily create the PSyIR for the
     # expressions we need. We just take the RHS of the assignments
     source = f'''program test_prog
+                use some_mod
                 integer :: x
                 x = {expressions[0]}
                 end program test_prog '''
     psyir = fortran_reader.psyir_from_source(source)
-    # psyir is a FileContainer, its first children the program, and its
-    # first children the assignment, of which we take the right hand side
+    # psyir is a FileContainer, its first child the program, and its
+    # first child the assignment, of which we take the right hand side
     lit = psyir.children[0].children[0].rhs
 
     type_map = SymPyWriter.create_type_map([])
