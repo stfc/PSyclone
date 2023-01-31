@@ -52,6 +52,9 @@ ifeq ($(TYPE), netcdf)
 else
 	GENERATED_FILES += main-update.binary main-init.binary
 endif
+GENERATED_FILES += driver-main-init driver-main-init.F90       \
+				   driver-main-update driver-main-update.F90   \
+				   *.o *.mod $(EXEC) main_alg.f90 main_psy.f90
 
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g
@@ -67,7 +70,6 @@ else
 endif
 
 EXEC = extract.$(TYPE)
-GENERATED_FILES = *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90
 EXTRACT_NAME ?= _extract
 EXTRACT_LIB = $(EXTRACT_DIR)/lib$(EXTRACT_NAME).a
 LFRIC_PATH ?= $(PSYROOT)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
