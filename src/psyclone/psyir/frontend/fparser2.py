@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -577,12 +577,12 @@ def _kind_find_or_create(name, symbol_table):
                 f"'{lower_name}'.")
     except KeyError:
         # The SymbolTable does not contain an entry for this kind parameter
-        # so create one. We specify an UnresolvedInterface as we don't
-        # currently know how this symbol is brought into scope.
-        kind_symbol = DataSymbol(lower_name, default_integer_type(),
-                                 visibility=symbol_table.default_visibility,
-                                 interface=UnresolvedInterface())
-        symbol_table.add(kind_symbol)
+        # so look to see if it is imported and if not create one.
+        kind_symbol = _find_or_create_imported_symbol(
+            symbol_table.node, lower_name,
+            symbol_type=DataSymbol,
+            datatype=default_integer_type(),
+            visibility=symbol_table.default_visibility)
     return kind_symbol
 
 

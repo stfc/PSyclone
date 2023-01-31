@@ -82,7 +82,7 @@ from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
 from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, ScalarType,
                                     DeferredType, DataTypeSymbol,
                                     ContainerSymbol, ImportInterface,
-                                    ArrayType)
+                                    ArrayType, SymbolError)
 
 # pylint: disable=too-many-lines
 # --------------------------------------------------------------------------- #
@@ -5830,9 +5830,9 @@ class DynInvokeSchedule(InvokeSchedule):
     '''
 
     def __init__(self, name, arg, reserved_names=None, parent=None):
-        InvokeSchedule.__init__(self, name, DynKernCallFactory,
-                                LFRicBuiltInCallFactory, arg, reserved_names,
-                                parent=parent)
+        super().__init__(name, DynKernCallFactory,
+                         LFRicBuiltInCallFactory, arg, reserved_names,
+                         parent=parent, symbol_table=LFRicSymbolTable())
 
     def node_str(self, colour=True):
         ''' Creates a text summary of this node.
@@ -9782,6 +9782,8 @@ class DynKernelArgument(KernelArgument):
         :returns: the PSyIR for this kernel argument.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
+        :raises InternalError: if this argument is a literal but we fail to \
+                               construct PSyIR that is consistent with this.
         :raises NotImplementedError: if this argument is not a literal, scalar
                                      or field.
 
@@ -9790,7 +9792,23 @@ class DynKernelArgument(KernelArgument):
 
         if self.is_literal:
             reader = FortranReader()
-            return reader.psyir_from_expression(self.name, symbol_table)
+            if self.precision:
+                # Ensure any associated precision symbol is in the table.
+                symbol_table.add_lfric_precision_symbol(self.precision)
+            try:
+                lit = reader.psyir_from_expression(self.name, symbol_table)
+            except SymbolError as err:
+                raise InternalError(
+                    f"Unexpected literal expression '{self.name}' when "
+                    f"processing kernel '{self.call.name}'.") from err
+
+            # Sanity check that the resulting expression is a literal.
+            if lit.walk(Reference):
+                raise InternalError(
+                    f"Expected argument '{self.name}' to kernel "
+                    f"'{self.call.name}' to be a literal but the created "
+                    f"PSyIR contains one or more References.")
+            return lit
 
         if self.is_scalar:
             try:
