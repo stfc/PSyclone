@@ -253,14 +253,17 @@ def test_gen_decls_routine_unresolved(fortran_writer):
 
 def test_gen_decls_routine(fortran_writer):
     '''Test that the gen_decls method raises an exception if the interface
-    of a routine symbol is not an UnresolvedInterface or
-    ImportInterface, unless there's a wildcard import from a
-    Container.
+    of a routine symbol is not an ImportInterface, unless there's a wildcard
+    import from a Container.
 
     '''
-    # Check a user-defined routine symbol with an (unsupported)
-    # ArgumentInterface
     symbol_table = SymbolTable()
+    # Check that a RoutineSymbol representing an intrinsic is OK
+    symbol_table.add(RoutineSymbol("nint", interface=UnresolvedInterface()))
+    result = fortran_writer.gen_decls(symbol_table)
+    assert result == ""
+    # Now add a user-defined routine symbol but with an (unsupported)
+    # ArgumentInterface
     rsym = RoutineSymbol("arg_sub", interface=ArgumentInterface())
     symbol_table.add(rsym)
     with pytest.raises(VisitorError) as info:
