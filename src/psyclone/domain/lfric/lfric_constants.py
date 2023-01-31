@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -303,7 +303,10 @@ class LFRicConstants():
         # from the constants_mod.f90 file in the LFRic infrastructure. The
         # values for 'r_tran', 'r_solver' and 'r_def' are set according to
         # CPP ifdefs. The values given below are the defaults.
+        # l_def is included in this dict so that it contains a complete record
+        # of the various precision symbols used in LFRic.
         LFRicConstants.PRECISION_MAP = {"i_def": 4,
+                                        "l_def": 1,
                                         "r_def": 8,
                                         "r_double": 8,
                                         "r_ncdf": 8,
