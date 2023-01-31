@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,6 @@
 
 ''' Performs py.test tests on the Fortran PSyIR front-end '''
 
-from __future__ import absolute_import
 import pytest
 from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -108,7 +107,8 @@ def test_fortran_psyir_from_source_fixed_form():
 def test_fortran_psyir_from_expression(fortran_reader):
     ''' Test that the psyir_from_expression method generates the
     expected PSyIR. '''
-    table = SymbolTable()
+    sched = Routine("malachi")
+    table = sched.symbol_table
     psyir = fortran_reader.psyir_from_expression("3.0", table)
     assert isinstance(psyir, Literal)
     assert psyir.value == "3.0"

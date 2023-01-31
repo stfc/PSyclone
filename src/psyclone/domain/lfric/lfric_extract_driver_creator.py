@@ -627,10 +627,8 @@ class LFRicExtractDriverCreator:
         # r_quad is defined in constants_mod, but not exported. So
         # we have to remove it from the lists of precisions to import.
         # TODO #2018
-        # Also add l_def into the list (which has no precision, so it's
-        # not in the PRECISION_MAP).
         all_precisions = [name for name in const.PRECISION_MAP
-                          if name != "r_quad"] + ["l_def"]
+                          if name != "r_quad"]
         for prec_name in all_precisions:
             symbol_table.new_symbol(prec_name,
                                     symbol_type=DataSymbol,
@@ -853,10 +851,7 @@ class LFRicExtractDriverCreator:
                 all_mods.add(symbol.name)
 
         mod_manager = ModuleManager.get()
-        module_dependencies = \
-            mod_manager.get_all_dependencies_recursively(all_mods)
-
-        return module_dependencies
+        return mod_manager.get_all_dependencies_recursively(all_mods)
 
     # -------------------------------------------------------------------------
     def get_driver_as_string(self, nodes, input_list, output_list,
@@ -906,12 +901,16 @@ class LFRicExtractDriverCreator:
             return ""
 
         module_dependencies = self.collect_all_required_modules(file_container)
+        # Sort the modules by dependencies, i.e. start with modules
+        # that have no dependency. This is required for compilation, the
+        # compiler must have found any dependent modules before it can
+        # compile a module.
         sorted_modules = ModuleManager.sort_modules(module_dependencies)
 
         out = []
         mod_manager = ModuleManager.get()
         for module in sorted_modules:
-            # Note that all modules in sorted_modules are known to be in
+            # Note that all modules in `sorted_modules` are known to be in
             # the module manager, so we can always get the module info here.
             mod_info = mod_manager.get_module_info(module)
             out.append(mod_info.get_source_code())

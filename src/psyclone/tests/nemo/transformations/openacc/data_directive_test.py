@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2022, Science and Technology Facilities Council.
+# Copyright (c) 2018-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,14 +39,11 @@
 
 '''
 
-from __future__ import print_function, absolute_import
-
 import os
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
 from psyclone.errors import InternalError
-from psyclone.gocean1p0 import GOACCEnterDataDirective
 from psyclone.psyGen import PSyFactory, TransInfo
 from psyclone.psyir.nodes import ACCDataDirective, Routine
 from psyclone.psyir.transformations import TransformationError
@@ -332,7 +329,8 @@ def test_no_code_blocks(parser):
     ''' Check that we refuse to include CodeBlocks (i.e. code that we
     don't recognise) within a data region. '''
     reader = FortranStringReader("program write_out\n"
-                                 " integer :: ji, jpj\n"
+                                 "integer, parameter :: wp = kind(1.0)\n"
+                                 "integer :: ji, jpj\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
                                  "do ji = 1,jpj\n"
                                  "read(*,*) sto_tmp(ji)\n"

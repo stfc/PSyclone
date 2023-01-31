@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2022, Science and Technology Facilities Council.
+# Copyright (c) 2018-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,6 @@
     representation of NEMO code '''
 
 
-from __future__ import print_function, absolute_import
 import os
 import pytest
 from fparser.common.readfortran import FortranStringReader
@@ -172,6 +171,7 @@ def test_fn_call_no_kernel(parser):
     ''' Check that we don't create a kernel if the loop body contains a
     function call. '''
     reader = FortranStringReader("program fn_call\n"
+                                 "integer, parameter :: wp = kind(1.0)\n"
                                  "integer :: ji, jpj\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
                                  "do ji = 1,jpj\n"
@@ -253,6 +253,7 @@ def test_kern_sched_parents(parser):
     ''' Check that the children of a Kernel schedule have that schedule
     as their parent. '''
     reader = FortranStringReader("program fake_kern\n"
+                                 "integer, parameter :: wp = kind(1.0)\n"
                                  "integer :: ji, jj, jpi, jpj\n"
                                  "real(kind=wp) :: sto_tmp(5,5)\n"
                                  "do ji = 1,jpi\n"
