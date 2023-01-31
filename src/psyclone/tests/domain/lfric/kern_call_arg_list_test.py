@@ -475,12 +475,13 @@ def test_kerncallarglist_scalar_literal(fortran_writer):
     assert isinstance(lit, Literal)
     assert lit.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN
 
-    # Now set the intrinsic type to be invalid:
+    # Now set the intrinsic type to be invalid and check that the
+    # underlying PSyIR creation catches it.
     args[3]._name = "invalid"
     args[3]._intrinsic_type = "invalid"
     with pytest.raises(InternalError) as err:
         create_arg_list.scalar(args[3])
-    assert ("Unexpected literal expression 'invalid' in scalar() when "
+    assert ("Unexpected literal expression 'invalid' when "
             "processing kernel 'testkern_qr_code'" in str(err.value))
 
 
@@ -509,14 +510,14 @@ def test_indirect_dofmap(fortran_writer):
     for ref in psyir_args:
         assert ref.symbol.name in sym_tab
 
+    for i in [0, 1, 5, 6, 7, 8, 9, 10, 11, 12, 13, 16, 17]:
+        assert (psyir_args[i].symbol.datatype ==
+                psyir.LfricIntegerScalarDataType())
+
     # Create a dummy LFRic symbol table to simplify creating
     # standard LFRic types:
     dummy_sym_tab = LFRicSymbolTable()
-    int_symbol = dummy_sym_tab.find_or_create_integer_symbol("ignore")
-    for i in [0, 1, 5, 6, 7, 8, 9, 10, 11, 12, 13, 16, 17]:
-        assert psyir_args[i].symbol.datatype == int_symbol.datatype
-
-    # Test all 1d real arrays:
+    # Test all 1D real arrays:
     real_1d = dummy_sym_tab.find_or_create_array("doesnt_matter1dreal", 1,
                                                  ScalarType.Intrinsic.REAL)
     for i in [2, 3]:
@@ -524,20 +525,18 @@ def test_indirect_dofmap(fortran_writer):
         # accessed, i.e. it's the 1D real array.
         assert psyir_args[i].datatype == real_1d.datatype
 
-    # Test all 2d real arrays:
+    # Test all 3D real arrays:
     real_3d = dummy_sym_tab.find_or_create_array("doesnt_matter2dreal", 3,
                                                  ScalarType.Intrinsic.REAL)
-    # The datatype of the reference is the type of the member accessed,
-    # i.e. in the case of fields it's the 1d real array.
     assert psyir_args[4].datatype == real_3d.datatype
 
-    # Test all 1d integer arrays:
+    # Test all 1D integer arrays:
     int_1d = dummy_sym_tab.find_or_create_array("doesnt_matter1dint", 1,
                                                 ScalarType.Intrinsic.INTEGER)
     for i in [15, 19]:
         assert psyir_args[i].datatype == int_1d.datatype
 
-    # Test all 2d integer arrays:
+    # Test all 2D integer arrays:
     int_2d = dummy_sym_tab.find_or_create_array("doesnt_matter2dint", 2,
                                                 ScalarType.Intrinsic.INTEGER)
     for i in [14, 18]:
@@ -572,12 +571,9 @@ def test_ref_element_handling(fortran_writer):
     for ref in psyir_args:
         assert ref.symbol.name in sym_tab
 
-    # Create a dummy LFRic symbol table to simplify creating
-    # standard LFRic types:
-    dummy_sym_tab = LFRicSymbolTable()
-    int_symbol = dummy_sym_tab.find_or_create_integer_symbol("ignore")
     for i in [0, 2, 3, 5, 6]:
-        assert psyir_args[i].symbol.datatype == int_symbol.datatype
+        assert (psyir_args[i].symbol.datatype ==
+                psyir.LfricIntegerScalarDataType())
 
     # Test the 1d real array, which is of type r_solver
     # The datatype of a field  reference is the type of the member
@@ -590,7 +586,10 @@ def test_ref_element_handling(fortran_writer):
     # create an r_solver based array, then the above tests would  just be:
     # assert psyir_args[i].datatype == r_solver_1d.datatype
 
-    # Test all 2d integer arrays:
+    # Create a dummy LFRic symbol table to simplify creating
+    # standard LFRic types:
+    dummy_sym_tab = LFRicSymbolTable()
+    # Test all 2D integer arrays:
     int_2d = dummy_sym_tab.find_or_create_array("doesnt_matter2dint", 2,
                                                 ScalarType.Intrinsic.INTEGER)
     for i in [4]:
