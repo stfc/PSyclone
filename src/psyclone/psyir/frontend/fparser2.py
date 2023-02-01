@@ -44,6 +44,8 @@ import os
 
 from fparser.two import Fortran2003, utils
 from fparser.two.utils import walk, BlockBase, StmtBase
+
+from psyclone.configuration import Config
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes import (
     UnaryOperation, BinaryOperation, NaryOperation, Schedule, CodeBlock,
@@ -929,6 +931,7 @@ class Fparser2Reader():
             Fortran2003.Subscript_Triplet: self._subscript_triplet_handler,
             Fortran2003.If_Stmt: self._if_stmt_handler,
             utils.NumberBase: self._number_handler,
+            #Fortran2003.Include_Stmt: self._include_handler,
             Fortran2003.Int_Literal_Constant: self._number_handler,
             Fortran2003.Char_Literal_Constant: self._char_literal_handler,
             Fortran2003.Logical_Literal_Constant: self._bool_literal_handler,
@@ -1917,6 +1920,7 @@ class Fparser2Reader():
         :type visibility_map: dict with str keys and values of type \
                         :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
 
+        :raises GenerationError: if an INCLUDE statement is encountered.
         :raises NotImplementedError: the provided declarations contain \
                                      attributes which are not supported yet.
         :raises GenerationError: if the parse tree for a USE statement does \
@@ -1938,6 +1942,20 @@ class Fparser2Reader():
         # the former.
         for decl in walk(nodes, Fortran2003.Derived_Type_Def):
             self._process_derived_type_decln(parent, decl, visibility_map)
+
+        # For some reason, INCLUDE statements in a Specification_Part end up
+        # inside an Implicit_Part node - fparser issue XXXX. Therefore we
+        # have to do a walk to make sure we find them if they are present.
+        incl_nodes = walk(nodes, Fortran2003.Include_Stmt)
+        if incl_nodes:
+            config = Config.get()
+            filenames = [inode.children[0].string for inode in incl_nodes]
+            raise GenerationError(
+                f"Fortran INCLUDE statements are not supported but found "
+                f"include(s) for file(s): {filenames}. These must be made "
+                f"available to the Fortran parser by specifying their "
+                f"location(s) via the -I flag. (The list of directories to "
+                f"search is currently set to: {config.include_paths}.)")
 
         # Now we've captured any derived-type definitions, proceed to look
         # at the variable declarations.
