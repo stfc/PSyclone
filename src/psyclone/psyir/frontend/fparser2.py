@@ -2029,15 +2029,35 @@ class Fparser2Reader():
                     # Restore the fparser2 parse tree
                     node.children[2].items = tuple(orig_children)
 
+            elif isinstance(node, Fortran2003.Common_Stmt):
+                # Ignore common blocks
+                # They are already defined in the symbol table but maybe
+                # we should create a different interface for them to mark
+                # that they live after before and after the subroutine?
+                continue
             elif isinstance(node, (Fortran2003.Access_Stmt,
                                    Fortran2003.Derived_Type_Def,
                                    Fortran2003.Stmt_Function_Stmt,
-                                   Fortran2003.Use_Stmt,
-                                   Fortran2003.Implicit_Part)):
-                # These node types are handled separately with the exception
-                # of Implicit_Part which we currently silently ignore
-                # (TODO #1254).
+                                   Fortran2003.Use_Stmt)):
                 pass
+            elif isinstance(node, Fortran2003.Implicit_Part):
+                for stmt in node.children:
+                    if isinstance(stmt, Fortran2003.Parameter_Stmt):
+                        for parameter_def in stmt.children[1].items:
+                            name, expr = parameter_def.items
+                            symbol = parent.symbol_table.lookup(str(name))
+
+                            # Parse its initialization into a dummy Assignment
+                            # (but connected to the parent scope since symbols
+                            # must be resolved)
+                            dummynode = Assignment(parent=parent)
+                            self.process_nodes(parent=dummynode, nodes=[expr])
+                            ct_expr = dummynode.children[0].detach()
+                            symbol.constant_value = ct_expr
+                    else:
+                        # TODO #1254: We currently silently ignore the rest of
+                        # the Implicit_Part statements
+                        pass
 
             else:
                 raise NotImplementedError(
@@ -2216,7 +2236,7 @@ class Fparser2Reader():
 
             try:
                 psy_child = self._create_child(child, parent)
-            except NotImplementedError:
+            except NotImplementedError as error:
                 # If child type implementation not found, add them on the
                 # ongoing code_block node list.
                 code_block_nodes.append(child)
