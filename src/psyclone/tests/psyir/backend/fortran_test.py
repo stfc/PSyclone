@@ -798,6 +798,12 @@ def test_gen_access_stmts(fortran_writer):
                       interface=ImportInterface(ContainerSymbol("some_mod"))))
     code = fortran_writer.gen_access_stmts(symbol_table)
     assert "public :: my_sub1\nprivate :: my_sub2, used_sub\n" in code
+    symbol_table.add(
+        Symbol("some_var", visibility=Symbol.Visibility.PUBLIC,
+               interface=UnresolvedInterface()))
+    code = fortran_writer.gen_access_stmts(symbol_table)
+    assert ("public :: my_sub1, some_var\nprivate :: my_sub2, used_sub\n"
+            in code)
     # Break the visibility of the second symbol
     sub2._visibility = "broken"
     with pytest.raises(InternalError) as err:
