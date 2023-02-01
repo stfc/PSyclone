@@ -931,7 +931,7 @@ class Fparser2Reader():
             Fortran2003.Subscript_Triplet: self._subscript_triplet_handler,
             Fortran2003.If_Stmt: self._if_stmt_handler,
             utils.NumberBase: self._number_handler,
-            #Fortran2003.Include_Stmt: self._include_handler,
+            Fortran2003.Include_Stmt: self._include_handler,
             Fortran2003.Int_Literal_Constant: self._number_handler,
             Fortran2003.Char_Literal_Constant: self._char_literal_handler,
             Fortran2003.Logical_Literal_Constant: self._bool_literal_handler,
@@ -2310,6 +2310,28 @@ class Fparser2Reader():
         :rtype: NoneType
         '''
         return None
+
+    def _include_handler(self, node, parent):
+        '''
+        Handler for Fortran INCLUDE statements. Since these are not supported
+        by the PSyIR it simply raises an error.
+
+        :param node: node in fparser2 tree.
+        :type node: :py:class:`fparser.two.Fortran2003.Include_Stmt`
+        :param parent: parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyir.nodes.Schedule`
+
+        :raises GenerationError: as INCLUDE statements must be handled by \
+                                 the parser.
+        '''
+        config = Config.get()
+        raise GenerationError(
+            f"Fortran INCLUDE statements are not supported but found an "
+            f"include of file '{node.children[0].string}' while processing "
+            f"routine '{parent.name}'. This file must be made available to "
+            f"the Fortran parser by specifying its location via the -I flag. "
+            f"(The list of directories to search is currently set to: "
+            f"{config.include_paths}.)")
 
     def _allocate_handler(self, node, parent):
         '''
