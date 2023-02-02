@@ -37,14 +37,17 @@
 and cache information about a module: the filename, source code (if requested)
 and the fparser tree (if requested). '''
 
+import os
 
 from fparser.common.readfortran import FortranStringReader
 from fparser.two.Fortran2003 import Use_Stmt
 from fparser.two.parser import ParserFactory
 from fparser.two.utils import walk
 
-from psyclone.errors import PSycloneError
+from psyclone.errors import InternalError, PSycloneError
+from psyclone.psyir.nodes import FileContainer
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.symbols import SymbolError
 
 
 # ============================================================================
@@ -225,7 +228,9 @@ class ModuleInfo:
         '''Returns the PSyIR representation of this module. This is based
         on the fparser tree (see get_parse_tree), and the information is
         cached. If the PSyIR must be modified, it needs to be copied,
-        otherwise the modified tree will be returned from the cache.
+        otherwise the modified tree will be returned from the cache in the
+        future.
+        If the conversion to PSyIR fails, an empty FileContainer is returned.
         #TODO: Maybe return a copy of the tree??
 
         :returns: PSyIR representing this module.
@@ -233,6 +238,10 @@ class ModuleInfo:
 
         '''
         if self._psyir is None:
-            self._psyir = self._processor.generate_psyir(self.get_parse_tree())
+            try:
+                self._psyir = \
+                    self._processor.generate_psyir(self.get_parse_tree())
+            except (KeyError, SymbolError, InternalError):
+                self._psyir = FileContainer(os.path.basename(self._filename))
 
         return self._psyir

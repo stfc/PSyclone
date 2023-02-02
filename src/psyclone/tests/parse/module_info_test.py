@@ -36,6 +36,8 @@
 
 '''Module containing tests for the ModuleInfo class.'''
 
+import os
+
 import pytest
 
 from psyclone.parse import ModuleInfo, ModuleInfoError, ModuleManager
@@ -188,7 +190,7 @@ def test_mod_info_get_psyir():
     dyn_path = get_base_path("dynamo0.3")
     mod_man.add_search_path(dyn_path, recursive=False)
 
-    mod_info = mod_man .get_module_info("testkern_import_symbols_mod")
+    mod_info = mod_man.get_module_info("testkern_import_symbols_mod")
     assert mod_info._psyir is None
     psyir = mod_info.get_psyir()
     assert isinstance(psyir, FileContainer)
@@ -198,3 +200,17 @@ def test_mod_info_get_psyir():
     # Test that we get the cached value (and not a new instance)
     psyir_cached = mod_info.get_psyir()
     assert psyir_cached is psyir
+
+    # Test that a file that can't be converted to PSyIR returns an
+    # empty FileContainer.
+    mod_man.add_search_path(os.path.join(dyn_path, "infrastructure",
+                                         "utilities"),
+                            recursive=False)
+    # The file constants_mod.F90 cannot be converted to PSyIR due
+    # to the usage of preprocessor directives.
+    constants_info = mod_man.get_module_info("constants_mod")
+    constants_psyir = constants_info.get_psyir()
+
+    assert isinstance(constants_psyir, FileContainer)
+    assert constants_psyir.name == "constants_mod.F90"
+    assert constants_psyir.children == []
