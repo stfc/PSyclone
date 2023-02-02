@@ -1943,9 +1943,9 @@ class Fparser2Reader():
         for decl in walk(nodes, Fortran2003.Derived_Type_Def):
             self._process_derived_type_decln(parent, decl, visibility_map)
 
-        # For some reason, INCLUDE statements in a Specification_Part end up
-        # inside an Implicit_Part node - fparser issue XXXX. Therefore we
-        # have to do a walk to make sure we find them if they are present.
+        # INCLUDE statements are *not* part of the Fortran language and
+        # can appear anywhere. Therefore we have to do a walk to make sure we
+        # find them if they are present.
         incl_nodes = walk(nodes, Fortran2003.Include_Stmt)
         if incl_nodes:
             config = Config.get()
