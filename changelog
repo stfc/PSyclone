@@ -285,6 +285,9 @@
 	97) PR #2023 for #1975. Extends DynReferenceElement to ensure that
 	it adds related kernel arguments to KernCallArgList as PSyIR.
 
+	98) PR #2030 for #1529. Update eg19 Makefile so that compilation
+	works.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
