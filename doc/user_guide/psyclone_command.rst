@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2022, Science and Technology Facilities Council.
+.. Copyright (c) 2017-20223, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -345,7 +345,7 @@ Fortran INCLUDE Files
 
 For the NEMO API, if the source code to be processed by PSyclone
 contains INCLUDE statements (other than those for libraries such as
-MPI) then the location of any INCLUDE'd files must be supplied to
+MPI) then the location of any INCLUDE'd files *must* be supplied to
 PSyclone via the ``-I`` or ``--include`` option. (This is necessary
 because INCLUDE lines are a part of the Fortran language and must
 therefore be parsed - they are not handled by any pre-processing
@@ -356,11 +356,8 @@ flags, e.g.::
 
 If no include paths are specified then the directory containing the
 source file currently being parsed is searched by default. If the
-specified include file is not found then ideally the INCLUDE line
-would be left unchanged. However, fparser currently treats any such
-INCLUDE lines as comments which results in them being lost (fparser
-issue #138). The workaround for this is to ensure that the location
-of *all* INCLUDE files is supplied to PSyclone.
+specified INCLUDE file is not found then PSyclone will abort with
+an appropriate error.
 
 Attempting to specify ``-I``/``--include`` for any API other than NEMO
 will be rejected by PSyclone.
