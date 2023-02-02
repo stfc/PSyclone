@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -169,7 +169,7 @@ class ArgumentInterface(SymbolInterface):
         UNKNOWN = 4
 
     def __init__(self, access=None):
-        super(ArgumentInterface, self).__init__()
+        super().__init__()
         self._access = None
         # Use the setter as that has error checking
         if not access:
@@ -583,7 +583,7 @@ class Symbol():
             to determine if an access is an array access using this variable.
         :param access_info: variable access information, optional.
         :type access_info: \
-            :py:class:`psyclone.core.access_info.SingleVariableAccessInfo`
+            :py:class:`psyclone.core.SingleVariableAccessInfo`
 
         :returns: if the variable is an array.
         :rtype bool:
