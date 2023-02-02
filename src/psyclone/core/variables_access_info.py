@@ -269,7 +269,7 @@ class VariablesAccessInfo(dict):
 
         :param other_access_info: the other VariablesAccessInfo instance.
         :type other_access_info: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
         '''
 
         # For each variable add all accesses. After merging the new data,

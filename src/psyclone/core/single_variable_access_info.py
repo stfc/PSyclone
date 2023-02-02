@@ -245,7 +245,7 @@ class SingleVariableAccessInfo():
 
     def __getitem__(self, index):
         ''':return: the access information for the specified index.
-        :rtype: py:class:`psyclone.core.access_info.AccessInfo`
+        :rtype: py:class:`psyclone.core.AccessInfo`
 
         :raises IndexError: If there is no access with the specified index.
         '''
@@ -254,7 +254,7 @@ class SingleVariableAccessInfo():
     @property
     def all_accesses(self):
         ''':returns: a list with all AccessInfo data for this variable.
-        :rtype: List[:py:class:`psyclone.core.access_info.AccessInfo`]
+        :rtype: List[:py:class:`psyclone.core.AccessInfo`]
         '''
         return self._accesses
 
@@ -262,7 +262,7 @@ class SingleVariableAccessInfo():
     def all_read_accesses(self):
         ''':returns: a list with all AccessInfo data for this variable
             that involve reading this variable.
-        :rtype: List[:py:class:`psyclone.core.access_info.AccessInfo`]
+        :rtype: List[:py:class:`psyclone.core.AccessInfo`]
         '''
         return [access for access in self._accesses
                 if access.access_type in AccessType.all_read_accesses()]
@@ -271,7 +271,7 @@ class SingleVariableAccessInfo():
     def all_write_accesses(self):
         ''':returns: a list with all AccessInfo data for this variable
             that involve writing this variable.
-        :rtype: List[:py:class:`psyclone.core.access_info.AccessInfo`]
+        :rtype: List[:py:class:`psyclone.core.AccessInfo`]
         '''
         return [access for access in self._accesses
                 if access.access_type in AccessType.all_write_accesses()]
