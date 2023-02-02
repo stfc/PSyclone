@@ -757,8 +757,6 @@ class FortranWriter(LanguageWriter):
                   symbols.
         :rtype: str
 
-        :raises InternalError: if a Routine symbol with an unrecognised \
-                               visibility is encountered.
         '''
         # Find the symbol that represents itself, this one will not need
         # an accessibility statement
@@ -786,16 +784,16 @@ class FortranWriter(LanguageWriter):
                 # uses a public symbol from some other module, the
                 # accessibility of that symbol is determined by the
                 # accessibility statements in the current module.
-                if symbol.visibility == Symbol.Visibility.PUBLIC:
-                    public_symbols.append(symbol.name)
-                elif symbol.visibility == Symbol.Visibility.PRIVATE:
-                    private_symbols.append(symbol.name)
+                if (symbol_table.default_visibility in
+                        [None, Symbol.Visibility.PUBLIC]):
+                    if symbol.visibility == Symbol.Visibility.PRIVATE:
+                        # Default vis. is public but this symbol is private
+                        private_symbols.append(symbol.name)
                 else:
-                    raise InternalError(
-                        f"Unrecognised visibility ('{symbol.visibility}') "
-                        f"found for symbol '{symbol.name}'. Should be either "
-                        f"'Symbol.Visibility.PUBLIC' or "
-                        f"'Symbol.Visibility.PRIVATE'.")
+                    if symbol.visibility == Symbol.Visibility.PUBLIC:
+                        # Default vis. is private but this symbol is public
+                        public_symbols.append(symbol.name)
+
         result = "\n"
         if public_symbols:
             result += f"{self._nindent}public :: {', '.join(public_symbols)}\n"

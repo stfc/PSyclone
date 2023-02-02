@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,6 @@
 the class Fparser2Reader. This handler deals with the translation of
 the fparser2 Module construct to PSyIR.'''
 
-from __future__ import absolute_import
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
@@ -67,7 +66,6 @@ MODULE2_OUT = (
     "  implicit none\n"
     "  real, public :: c\n"
     "  public\n\n"
-    "  public :: b\n\n"
     "  contains\n\n"
     "end module a\n")
 # module with subprograms
@@ -84,7 +82,6 @@ MODULE3_OUT = (
     "module a\n"
     "  implicit none\n"
     "  public\n\n"
-    "  public :: sub1, sub2\n\n"
     "  contains\n"
     "  subroutine sub1(a)\n"
     "    real :: a\n\n\n"
