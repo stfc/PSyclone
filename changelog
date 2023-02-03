@@ -288,6 +288,8 @@
 	98) PR #2030 for #1529. Update eg19 Makefile so that compilation
 	works.
 
+	99) PR #2029 for #1567. Fix visibility issues with imported symbols.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.

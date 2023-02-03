@@ -822,6 +822,24 @@ def test_process_declarations_accessibility():
 
 
 @pytest.mark.usefixtures("f2008_parser")
+def test_process_multiple_access_statements():
+    ''' Check that process_access_statements handles code containing multiple
+    access statements. '''
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "PUBLIC  fjb_typ\n"
+        "private y\n"
+        "PUBLIC  fbge_ctl_typ,  fbge_typ\n"
+        "private :: x\n")
+    fparser2spec = Specification_Part(reader).content
+    _, vis_map = processor.process_access_statements(fparser2spec)
+    assert vis_map["y"] == Symbol.Visibility.PRIVATE
+    assert vis_map["x"] == Symbol.Visibility.PRIVATE
+    assert vis_map["fjb_typ"] == Symbol.Visibility.PUBLIC
+    assert vis_map["fbge_typ"] == Symbol.Visibility.PUBLIC
+
+
+@pytest.mark.usefixtures("f2008_parser")
 def test_process_unsupported_declarations(fortran_reader):
     ''' Check that the frontend handles unsupported declarations by
     creating symbols of UnknownFortranType. '''
