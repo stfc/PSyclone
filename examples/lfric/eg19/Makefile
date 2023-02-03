@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,24 +31,45 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 include ../../common.mk
 
-GENERATED_FILES = psy.f90 alg.f90
+GENERATED_FILES = mixed_precision_psy.f90 alg.f90 ${EXEC} ${OBJ} *.mod
 
-.PHONY: transform vanilla compile run
+OBJ = alg.o mixed_precision_psy.o mixed_kernel_mod.o
 
-transform: vanilla
+EXEC = will_not_run.exe
+LFRIC_PATH = ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_NAME=lfric
+LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
-vanilla:
-	${PSYCLONE} algorithm.x90 -opsy psy.f90 -oalg alg.f90
+# This will add the required include flags to F90FLAGS
+include $(LFRIC_PATH)/lfric_include_flags.inc
 
-# TODO #1529 compilation of this example is not yet working. The
-# infrastructure needs updating to support mixed precision.
+.PHONY: transform compile run
 
-compile: transform
-	@echo "No compilation targets for lfric/eg19"
+transform:
+	${PSYCLONE} algorithm.x90 -opsy mixed_precision_psy.f90 -oalg alg.f90
+
+alg.f90 mixed_precision_psy.f90: transform
+
+compile: transform ${EXEC}
 
 run: compile
 	@echo "No run targets for lfric/eg19"
+
+$(EXEC): $(LFRIC_LIB) $(OBJ)
+	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
+
+$(LFRIC_LIB):
+	$(MAKE) -C $(LFRIC_PATH)
+
+alg.o: mixed_precision_psy.o
+mixed_precision_psy.o: mixed_kernel_mod.o
+
+%.o: %.F90
+	$(F90) $(F90FLAGS) -c $<
+
+%.o: %.f90
+	$(F90) $(F90FLAGS) -c $<

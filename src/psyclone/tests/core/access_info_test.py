@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,6 +44,7 @@ from psyclone.core import AccessInfo, ComponentIndices, Signature, \
 from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Assignment, Node
+from psyclone.tests.utilities import get_invoke
 
 
 def test_access_info():
@@ -682,3 +683,38 @@ def test_variables_access_info_shape_bounds(fortran_reader, function):
     vai = VariablesAccessInfo(node1,
                               options={"COLLECT-ARRAY-SHAPE-READS": True})
     assert str(vai) == "a: READ, n: WRITE"
+
+
+# -----------------------------------------------------------------------------
+def test_variables_access_info_domain_loop():
+    '''Tests that LFRic domain loop (that do not have an actual loop
+    structure, so especially the loop variable is not defined) work as
+    expected.
+    '''
+    _, invoke = get_invoke("25.1_kern_two_domain.f90", "dynamo0.3", idx=0)
+    vai = VariablesAccessInfo(invoke.schedule)
+    assert str(vai) == ("a: READ, b: READ, f1: READWRITE, f2: READWRITE, "
+                        "map_w3: READ, ncell_2d_no_halos: READ, ndf_w3: READ, "
+                        "nlayers: READ, undf_w3: READ")
+
+
+# -----------------------------------------------------------------------------
+def test_lfric_access_info():
+    '''Test some LFRic specific potential bugs:
+    '''
+
+    psy, _ = get_invoke("int_real_literal_scalar.f90", "dynamo0.3",
+                        dist_mem=False, idx=0)
+
+    schedule = psy.invokes.invoke_list[0].schedule
+    vai = VariablesAccessInfo(schedule)
+
+    # Make sure a literal (1.0_r_def in this example) is not reported as a
+    # variable in the access list:
+    assert ("basis_w1_qr: READ, basis_w3_qr: READ, cell: READ+WRITE, "
+            "diff_basis_w2_qr: READ, diff_basis_w3_qr: READ, f1: READ+WRITE, "
+            "f2: READ, loop0_start: READ, loop0_stop: READ, m1: READ, m2: "
+            "READ, map_w1: READ, map_w2: READ, map_w3: READ, ndf_w1: READ, "
+            "ndf_w2: READ, ndf_w3: READ, nlayers: READ, np_xy_qr: READ, "
+            "np_z_qr: READ, undf_w1: READ, undf_w2: READ, undf_w3: READ, "
+            "weights_xy_qr: READ, weights_z_qr: READ" == str(vai))

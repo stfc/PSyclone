@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,6 @@
 
 ''' Performs py.test tests on the Fortran PSyIR front-end '''
 
-from __future__ import absolute_import
 import pytest
 from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -60,6 +59,13 @@ subroutine sub(a)
     integer, dimension(:), intent(inout) :: a
     a = a + 1
 end subroutine sub
+'''
+
+FIXED_FORM_CODE = '''
+      subroutine insert_node (lstr, node, nnodes, ierr)
+      integer*4 lstr, ierr, i,j,k, lsffx, digits, power, ndots, idot(3)
+     &                                        , node,  nnodes
+      end
 '''
 
 
@@ -85,10 +91,24 @@ def test_fortran_psyir_from_source():
     assert isinstance(subroutine, Routine)
 
 
+def test_fortran_psyir_from_source_fixed_form():
+    '''
+    Test we parse also fixed-form fortran code when enabling the right
+    option.
+    '''
+    fortran_reader = FortranReader()
+    file_container = fortran_reader.psyir_from_source(FIXED_FORM_CODE,
+                                                      free_form=False)
+    assert isinstance(file_container, FileContainer)
+    subroutine = file_container.children[0]
+    assert isinstance(subroutine, Routine)
+
+
 def test_fortran_psyir_from_expression(fortran_reader):
     ''' Test that the psyir_from_expression method generates the
     expected PSyIR. '''
-    table = SymbolTable()
+    sched = Routine("malachi")
+    table = sched.symbol_table
     psyir = fortran_reader.psyir_from_expression("3.0", table)
     assert isinstance(psyir, Literal)
     assert psyir.value == "3.0"

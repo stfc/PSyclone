@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory.
+# Modified by: R. W. Ford, STFC Daresbury Laboratory.
 
 '''This module contains the LFRicAlg class which encapsulates tools for
    creating standalone LFRic algorithm-layer code.
@@ -402,7 +403,8 @@ class LFRicAlg:
         except ParseError as err:
             raise ValueError(
                 f"Failed to find kernel '{kernel_name}' in supplied "
-                f"code: '{parse_tree}'. Is it a valid LFRic kernel?") from err
+                f"code: '{parse_tree}'. Is it a valid LFRic kernel? Original "
+                f"error was '{err}'.") from err
         # Construct a DynKern using the metadata.
         kern = DynKern()
         kern.load_meta(ktype)
