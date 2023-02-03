@@ -12,6 +12,7 @@ module adjoint_test_mod
     use adj_strong_curl_kernel_mod, only : adj_strong_curl_kernel_type
     use constants_mod, only : i_def, r_def
     use fs_continuity_mod, only : w1, w2
+    use setop_random_kernel_mod, only : setop_random_kernel_type
     integer(kind=i_def), parameter :: element_order = 1_i_def
     real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
     type(mesh_type), pointer, intent(in) :: mesh

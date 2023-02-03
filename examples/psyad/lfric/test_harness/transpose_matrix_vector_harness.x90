@@ -13,6 +13,7 @@ module adjoint_test_mod
     use constants_mod, only : i_def, r_def
     use fs_continuity_mod, only : w0
     use operator_mod, only : operator_type
+    use setop_random_kernel_mod, only : setop_random_kernel_type
     integer(kind=i_def), parameter :: element_order = 1_i_def
     real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
     type(mesh_type), pointer, intent(in) :: mesh
@@ -43,7 +44,7 @@ module adjoint_test_mod
     field_2_inner_prod = 0.0_r_def
     ! Initialise arguments and call the tangent-linear kernel.
     call invoke(setval_random(field_1), setval_x(field_1_input, field_1), setval_random(field_2), setval_x(field_2_input, &
-&field_2), setval_random_operator(op_3), transpose_matrix_vector_kernel_type(field_1, field_2, op_3), &
+&field_2), setop_random_kernel_type(op_3), transpose_matrix_vector_kernel_type(field_1, field_2, op_3), &
 &x_innerproduct_x(field_1_inner_prod, field_1), x_innerproduct_x(field_2_inner_prod, field_2))
     inner1 = 0.0_r_def
     inner1 = inner1 + field_1_inner_prod

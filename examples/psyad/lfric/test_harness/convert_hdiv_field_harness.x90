@@ -12,14 +12,15 @@ module adjoint_test_mod
     use adj_convert_hdiv_field_kernel_mod, only : adj_convert_hdiv_field_kernel_type
     use constants_mod, only : i_def, r_def
     use fs_continuity_mod, only : w0, w3, wchi
+    use setop_random_kernel_mod, only : setop_random_kernel_type
     integer(kind=i_def), parameter :: element_order = 1_i_def
     real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
     type(mesh_type), pointer, intent(in) :: mesh
     type(field_type), dimension(3), intent(in), optional :: chi
     type(field_type), intent(in), optional :: panel_id
-    TYPE(function_space_type), POINTER :: vector_space_w0_ptr
     TYPE(function_space_type), POINTER :: vector_space_w3_ptr
     TYPE(function_space_type), POINTER :: vector_space_wchi_ptr
+    TYPE(function_space_type), POINTER :: vector_space_w0_ptr
     type(field_type), dimension(3) :: field_1
     type(field_type) :: field_2
     type(field_type), dimension(3) :: field_3
@@ -35,9 +36,9 @@ module adjoint_test_mod
     real(kind=r_def) :: MachineTol
     real(kind=r_def) :: relative_diff
 
-    vector_space_w0_ptr => function_space_collection % get_fs(mesh, element_order, w0)
     vector_space_w3_ptr => function_space_collection % get_fs(mesh, element_order, w3)
     vector_space_wchi_ptr => function_space_collection % get_fs(mesh, element_order, wchi)
+    vector_space_w0_ptr => function_space_collection % get_fs(mesh, element_order, w0)
     call field_1(1_i_def) % initialise(vector_space=vector_space_w0_ptr, name='field_1')
     call field_1(2_i_def) % initialise(vector_space=vector_space_w0_ptr, name='field_1')
     call field_1(3_i_def) % initialise(vector_space=vector_space_w0_ptr, name='field_1')

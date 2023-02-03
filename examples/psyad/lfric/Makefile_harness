@@ -1,5 +1,5 @@
 MINI_APP ?= skeleton
-MINI_APP_DIR=${HOME}/Projects/LFRic/NGMS-SoftwareStack/buildScripts/Linux/GCC10/trunk_r36316/miniapps/${MINI_APP}
+MINI_APP_DIR ?= ${HOME}/Projects/LFRic/NGMS-SoftwareStack/buildScripts/Linux/GCC10/trunk_r36316/miniapps/${MINI_APP}
 API ?= -api 'dynamo0.3'
 
 # Strip out '_tweaked' and any leading directory name to get the original
@@ -8,10 +8,13 @@ KFILE=$(subst _tweaked,,${KERNEL_FILE})
 KFILE_NO_DIR=$(KFILE:tangent_linear/%=%)
 ADJ_OUTPUT=$(subst adjoint/,adjoint_partial/,${ADJ_FILE})
 
+SETOP_RANDOM_KERNEL = ../../../src/psyclone/tests/test_files/dynamo0.3/setop_random_kernel_mod.f90
+
 all:
 	psyad ${API} ${KERNEL_FILE} -otest ${HARNESS_FILE} -oad ${ADJ_OUTPUT} ${GEOM_ARGS} -a ${ACTIVE_VARS}
 	cp -f ${HARNESS_FILE} ${MINI_APP_DIR}/source/algorithm/adjoint_test_mod.x90
 	cp -f ${KERNEL_FILE} ${MINI_APP_DIR}/source/kernel/${KFILE_NO_DIR}
+	cp -f ${SETOP_RANDOM_KERNEL} ${MINI_APP_DIR}/source/kernel/.
 	cp -f ${ADJ_FILE} ${MINI_APP_DIR}/source/kernel/.
 	${MAKE} -j 6 -C ${MINI_APP_DIR} build
 	cd ${MINI_APP_DIR}/example; ../bin/${MINI_APP} configuration.nml

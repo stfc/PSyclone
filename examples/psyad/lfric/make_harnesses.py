@@ -6,8 +6,8 @@ import sys
 
 
 KernelDesc = namedtuple("KernelDesc",
-                        "passing kernel_file adj_file harness_file active_vars "
-                        "coord_arg panel_id_arg, mini_app")
+                        "passing kernel_file adj_file harness_file active_vars"
+                        " coord_arg panel_id_arg mini_app")
 # 'Kernels' that have no metadata and therefore must be treated as a
 # standard Fortran subroutine by PSyAD (i.e. no 'API').
 NO_METADATA_KERNELS = ["calc_exner_pointwise"]
