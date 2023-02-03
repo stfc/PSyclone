@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -113,7 +113,6 @@ def test_function_handler(fortran_reader, fortran_writer):
         "module a\n"
         "  implicit none\n"
         "  public\n\n"
-        "  public :: my_func\n\n"
         "  contains\n"
         "  function my_func()\n"
         "    integer :: my_func\n"
@@ -167,7 +166,6 @@ def test_function_type_prefix(fortran_reader, fortran_writer,
         f"module a\n"
         f"  implicit none\n"
         f"  public\n\n"
-        f"  public :: my_func\n\n"
         f"  contains\n"
         f"  function my_fUnc()\n"
         f"    {basic_type} :: my_fUnc\n"
