@@ -896,8 +896,7 @@ class DynKernMetadata(KernelType):
         const = LFRicConstants()
         # A kernel which operates on the 'domain' is currently restricted
         # to only accepting scalar and field arguments.
-        valid_arg_types = (const.VALID_SCALAR_NAMES + const.VALID_FIELD_NAMES +
-                           const.VALID_OPERATOR_NAMES)
+        valid_arg_types = const.VALID_SCALAR_NAMES + const.VALID_FIELD_NAMES
         for arg in self._arg_descriptors:
             if arg.argument_type not in valid_arg_types:
                 raise ParseError(

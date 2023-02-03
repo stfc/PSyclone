@@ -39,10 +39,10 @@
 import pytest
 from fparser import api as fpapi
 
-from psyclone.domain.lfric import (KernCallInvokeArgList, LFRicSymbolTable,
-                                   LFRicConstants)
-from psyclone.domain.lfric.algorithm import (LFRicBuiltinFunctor, LFRicAlg,
-                                             LFRicBuiltinFunctorFactory)
+from psyclone.domain.lfric import LFRicSymbolTable, LFRicConstants
+from psyclone.domain.lfric.algorithm import (
+    LFRicBuiltinFunctor, LFRicAlg, LFRicBuiltinFunctorFactory,
+    LFRicKernelFunctor)
 from psyclone.errors import InternalError
 from psyclone.psyad.domain.lfric import lfric_adjoint_harness
 from psyclone.psyad.domain.lfric.lfric_adjoint_harness import (
@@ -306,10 +306,14 @@ def test_init_operators_random(type_map):
     table.add(op1)
     kernels = _init_operators_random(ops, table)
     assert len(kernels) == 2
-    assert isinstance(kernels[0], LFRicBuiltinFunctor)
-    assert kernels[0].symbol.name == "setval_random"
+    assert isinstance(kernels[0], LFRicKernelFunctor)
+    assert kernels[0].symbol.name == "setop_random_kernel_type"
     assert kernels[0].children[0].symbol is op1
     assert kernels[1].children[0].symbol is op2
+    csym = table.lookup("setop_random_kernel_mod")
+    assert isinstance(csym, ContainerSymbol)
+    assert (table.lookup("setop_random_kernel_type").interface.container_symbol
+            is csym)
 
 
 # _validate_geom_arg
@@ -528,8 +532,8 @@ def test_generate_lfric_adjoint_harness_operator(monkeypatch, fortran_reader,
     assert ("call op_3 % initialise(vector_space_w3_ptr, vector_space_w0_ptr)"
             in gen)
     # Operator is given random values and passed to the TL kernel.
-    assert ("setval_random(op_3), testkern_type(rscalar_1, field_2, op_3)"
-            in gen)
+    assert ("setop_random_kernel_type(op_3), "
+            "testkern_type(rscalar_1, field_2, op_3)" in gen)
     # Operator is passed to the Adjoint kernel too.
     assert "call invoke(adj_testkern_type(rscalar_1, field_2, op_3)"
 
