@@ -38,6 +38,11 @@
     derived types. '''
 
 import pytest
+
+from fparser.two import Fortran2003
+from fparser.two.utils import walk
+from fparser.common.readfortran import FortranStringReader
+
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import KernelSchedule, CodeBlock, Assignment, \
     ArrayOfStructuresReference, StructureReference, Member, StructureMember, \
@@ -49,9 +54,6 @@ from psyclone.psyir.symbols import SymbolError, DeferredType, StructureType, \
     ImportInterface
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _create_struct_reference
-from fparser.two import Fortran2003
-from fparser.two.utils import walk
-from fparser.common.readfortran import FortranStringReader
 
 
 def test_create_struct_reference():
