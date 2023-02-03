@@ -36,11 +36,12 @@
 ''' Provides LFRic-specific PSyclone adjoint test-harness functionality. '''
 
 from fparser import api as fpapi
+from psyclone.core import AccessType
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctorFactory, LFRicKernelFunctor)
 from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
-from psyclone.errors import InternalError
+from psyclone.errors import InternalError, GenerationError
 from psyclone.psyad.domain.common.adjoint_utils import (create_adjoint_name,
                                                         create_real_comparison,
                                                         find_container)
@@ -427,7 +428,7 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
     routine = container.walk(Routine)[0]
     table = routine.symbol_table
 
-    # Parse the kernel metadata . This still uses fparser1 as that's what
+    # Parse the kernel metadata. This still uses fparser1 as that's what
     # the meta-data handling is currently based upon. We therefore have to
     # convert back from PSyIR to Fortran for the moment.
     # TODO #1806 - replace this with the new PSyIR-based metadata handling.
@@ -494,6 +495,13 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
     # We don't need to do this for operators since they are never 'active'.
     field_args = [fsym for fsym, _ in kern_args.fields]
     scalar_and_field_args = kern_args.scalars + field_args
+    # Double check that there aren't any operator arguments that are written to
+    for op_sym, _, _ in kern_args.operators:
+        idx = kern_args.arglist.index(op_sym.name)
+        if kern.arguments.args[idx].access != AccessType.READ:
+            raise GenerationError(
+                f"Operator argument '{op_sym.name}' to TL kernel "
+                f"'{kernel_name}' is written to. This is not supported.")
 
     input_symbols = {}
     for sym in scalar_and_field_args:
@@ -521,8 +529,8 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
         lfalg.initialise_field(routine, input_symbols[sym.name], space)
         kernel_input_arg_list.append(sym)
 
-    # Initialise argument values and keep copies. For scalars we use the
-    # Fortran 'random_number' intrinsic directly.
+    # Initialise argument values and keep copies.
+    # Scalars - we use the Fortran 'random_number' intrinsic directly.
     # TODO #1345 - this is Fortran specific.
     random_num = RoutineSymbol("random_number")
     for sym in kern_args.scalars:
@@ -536,10 +544,10 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
         input_sym = table.lookup(sym.name+"_input")
         routine.addchild(Assignment.create(Reference(input_sym),
                                            Reference(sym)))
-
+    # Fields.
     kernel_list = _init_fields_random(kernel_input_arg_list, input_symbols,
                                       table)
-
+    # Operators.
     kernel_list.extend(_init_operators_random(
         [sym for sym, _, _ in kern_args.operators], table))
 

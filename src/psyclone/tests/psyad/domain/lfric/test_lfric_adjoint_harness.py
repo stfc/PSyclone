@@ -43,7 +43,7 @@ from psyclone.domain.lfric import LFRicSymbolTable, LFRicConstants
 from psyclone.domain.lfric.algorithm import (
     LFRicBuiltinFunctor, LFRicAlg, LFRicBuiltinFunctorFactory,
     LFRicKernelFunctor)
-from psyclone.errors import InternalError
+from psyclone.errors import InternalError, GenerationError
 from psyclone.psyad.domain.lfric import lfric_adjoint_harness
 from psyclone.psyad.domain.lfric.lfric_adjoint_harness import (
     _compute_lfric_inner_products,
@@ -501,14 +501,14 @@ def test_generate_lfric_adj_test_quadrature(fortran_reader):
     psyir = generate_lfric_adjoint_harness(tl_psyir)
     routine = psyir.walk(Routine)[0]
     for sym in routine.symbol_table.datasymbols:
-        # All input variables should be either scalars or fields.
-        # TODO #1864 add support for operators.
+        # All input variables should be either scalars or fields (operators
+        # are never active).
         if sym.name.endswith("_input"):
             assert (sym.name.startswith("field") or
                     sym.name.startswith("rscalar"))
 
 
-def test_generate_lfric_adjoint_harness_operator(monkeypatch, fortran_reader,
+def test_generate_lfric_adjoint_harness_operator(fortran_reader,
                                                  fortran_writer):
     '''Check the test harness generation for a kernel that has an operator
     as argument.
@@ -535,7 +535,24 @@ def test_generate_lfric_adjoint_harness_operator(monkeypatch, fortran_reader,
     assert ("setop_random_kernel_type(op_3), "
             "testkern_type(rscalar_1, field_2, op_3)" in gen)
     # Operator is passed to the Adjoint kernel too.
-    assert "call invoke(adj_testkern_type(rscalar_1, field_2, op_3)"
+    assert "call invoke(adj_testkern_type(rscalar_1, field_2, op_3)" in gen
+
+
+def test_gen_lfric_adjoint_harness_written_operator(fortran_reader,):
+    '''Check that the test-harness generation rejects a kernel that writes to
+    an operator argument.
+
+    '''
+    # Alter the metadata so that the kernel writes to an operator.
+    code = TL_CODE.replace("arg_type(gh_field,  gh_real, gh_write,  w3)  &",
+                           "arg_type(gh_field,  gh_real, gh_write,  w3), &\n"
+                           "arg_type(gh_operator,gh_real,gh_write,w3,w0) &")
+    code = code.replace("dimension(2)", "dimension(3)")
+    tl_psyir = fortran_reader.psyir_from_source(code)
+    with pytest.raises(GenerationError) as err:
+        generate_lfric_adjoint_harness(tl_psyir)
+    assert ("Operator argument 'op_3' to TL kernel 'testkern_type' is written "
+            "to. This is not supported." in str(err.value))
 
 
 def test_generate_lfric_adjoint_harness_invalid_geom_arg(fortran_reader):
