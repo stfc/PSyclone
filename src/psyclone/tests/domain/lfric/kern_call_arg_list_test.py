@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,17 +42,20 @@ import os
 import pytest
 
 from psyclone.core import Signature, VariablesAccessInfo
-from psyclone.domain.lfric import KernCallArgList
+from psyclone.domain.lfric import KernCallArgList, LFRicSymbolTable, psyir
 from psyclone.errors import GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKern
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Literal, Loop, Reference, UnaryOperation
-from psyclone.psyir.symbols import ScalarType
+from psyclone.psyir.symbols import ArrayType, ScalarType
 from psyclone.tests.utilities import get_base_path, get_invoke
 from psyclone.transformations import Dynamo0p3ColourTrans
 
 TEST_API = "dynamo0.3"
+
+# The PSyIR module contains classes generated at runtime
+# pylint: disable=no-member
 
 
 def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):
@@ -98,7 +101,13 @@ def test_cellmap_intergrid(dist_mem, fortran_writer):
     kernel = schedule.kernels()[0]
 
     create_arg_list = KernCallArgList(kernel)
-    create_arg_list.generate()
+    vai = VariablesAccessInfo()
+    create_arg_list.generate(vai)
+
+    # Verify that no array expression turns up in the access information
+    assert "cell_map_field2(:,:,cell)" not in str(vai)
+    assert Signature("cell_map_field2") in vai
+
     assert create_arg_list._arglist == [
         'nlayers', 'cell_map_field2(:,:,cell)', 'ncpc_field1_field2_x',
         'ncpc_field1_field2_y', 'ncell_field1', 'field1_proxy%data',
@@ -106,6 +115,9 @@ def test_cellmap_intergrid(dist_mem, fortran_writer):
         'map_w2(:,cell)']
 
     check_psyir_results(create_arg_list, fortran_writer)
+    array_1d = ArrayType(psyir.LfricRealScalarDataType(),
+                         [ArrayType.Extent.DEFERRED])
+    assert create_arg_list.psyir_arglist[5].datatype == array_1d
 
 
 def test_kerncallarglist_face_xyoz(dist_mem, fortran_writer):
@@ -132,6 +144,15 @@ def test_kerncallarglist_face_xyoz(dist_mem, fortran_writer):
         'np_xyz_qr_face', 'weights_xyz_qr_face']
 
     check_psyir_results(create_arg_list, fortran_writer)
+
+    # Check that the right datatype is set:
+    array_1d = ArrayType(psyir.LfricRealScalarDataType(),
+                         [ArrayType.Extent.DEFERRED])
+    assert create_arg_list.psyir_arglist[2].datatype == array_1d
+    array_4d = ArrayType(psyir.LfricRealScalarDataType(),
+                         [ArrayType.Extent.DEFERRED]*4)
+    assert create_arg_list.psyir_arglist[15].datatype == array_4d
+    assert create_arg_list.psyir_arglist[16].datatype == array_4d
 
 
 def test_kerncallarglist_face_edge(dist_mem, fortran_writer):
@@ -337,12 +358,66 @@ def test_kerncallarglist_bcs_operator(fortran_writer):
 
     schedule = psy.invokes.invoke_list[0].schedule
     create_arg_list = KernCallArgList(schedule.kernels()[0])
-    create_arg_list.generate()
+    access_info = VariablesAccessInfo()
+    create_arg_list.generate(access_info)
     assert create_arg_list._arglist == [
         'cell', 'nlayers', 'op_a_proxy%ncell_3d', 'op_a_proxy%local_stencil',
         'ndf_aspc1_op_a', 'ndf_aspc2_op_a', 'boundary_dofs_op_a']
 
     check_psyir_results(create_arg_list, fortran_writer)
+    assert (create_arg_list.psyir_arglist[2].datatype ==
+            psyir.LfricIntegerScalarDataType())
+    array_type_3d = ArrayType(psyir.LfricRealScalarDataType(),
+                              [ArrayType.Extent.DEFERRED]*3)
+    assert create_arg_list.psyir_arglist[3].datatype == array_type_3d
+
+    # Also check that the structure access is correctly converted
+    # into a 2-component signature:
+    sig = Signature(("op_a_proxy", "local_stencil"))
+    assert str(access_info[sig]) == "op_a_proxy%local_stencil:READWRITE(0)"
+
+
+def test_kerncallarglist_mixed_precision():
+    ''' Check the handling of mixed precision. This kernel has three invokes:
+    The first using r_def, the second r_solver, the third r_tran.
+    '''
+
+    psy, _ = get_invoke("26.8_mixed_precision_args.f90", TEST_API,
+                        dist_mem=False, idx=0)
+
+    schedule = psy.invokes.invoke_list[0].schedule
+    create_arg_list = KernCallArgList(schedule.kernels()[0])
+    create_arg_list.generate()
+    # TODO #744: Depending on the implementation of #744, we can replace
+    # the test for name with a test for the actual precision, e.g.:
+    # assert create_arg_list.psyir_arglist[3].datatype.precision == psyir.R_DEF
+
+    # Scalar:
+    assert create_arg_list.psyir_arglist[2].datatype.precision.name == "r_def"
+    # field
+    assert create_arg_list.psyir_arglist[3].datatype.precision.name == "r_def"
+    # operator: ncell_3d:
+    assert create_arg_list.psyir_arglist[4].datatype.precision.name == "i_def"
+    # operator: local_stencil
+    assert create_arg_list.psyir_arglist[5].datatype.precision.name == "r_def"
+
+    create_arg_list = KernCallArgList(schedule.kernels()[1])
+    create_arg_list.generate()
+    assert (create_arg_list.psyir_arglist[2].datatype.precision.name ==
+            "r_solver")
+    assert (create_arg_list.psyir_arglist[3].datatype.precision.name ==
+            "r_solver")
+    assert create_arg_list.psyir_arglist[4].datatype.precision.name == "i_def"
+    assert (create_arg_list.psyir_arglist[5].datatype.precision.name ==
+            "r_solver")
+
+    create_arg_list = KernCallArgList(schedule.kernels()[2])
+    create_arg_list.generate()
+    assert create_arg_list.psyir_arglist[2].datatype.precision.name == "r_tran"
+    assert create_arg_list.psyir_arglist[3].datatype.precision.name == "r_tran"
+    assert create_arg_list.psyir_arglist[4].datatype.precision.name == "i_def"
+    # There is no r_tran operator, so its type is r_def:
+    assert create_arg_list.psyir_arglist[5].datatype.precision.name == "r_def"
 
 
 def test_kerncallarglist_scalar_literal(fortran_writer):
@@ -353,8 +428,13 @@ def test_kerncallarglist_scalar_literal(fortran_writer):
                         dist_mem=False, idx=0)
 
     schedule = psy.invokes.invoke_list[0].schedule
+    vai = VariablesAccessInfo()
     create_arg_list = KernCallArgList(schedule.kernels()[0])
-    create_arg_list.generate()
+    create_arg_list.generate(vai)
+
+    # Verify that a constant is not returned in the access info list
+    assert "1.0" not in str(vai)
+
     assert create_arg_list._arglist == [
         'nlayers', 'f1_proxy%data', 'f2_proxy%data', 'm1_proxy%data',
         '1.0_r_def', 'm2_proxy%data', '2_i_def', 'ndf_w1', 'undf_w1',
@@ -395,10 +475,127 @@ def test_kerncallarglist_scalar_literal(fortran_writer):
     assert isinstance(lit, Literal)
     assert lit.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN
 
-    # Now set the intrinsic type to be invalid:
+    # Now set the intrinsic type to be invalid and check that the
+    # underlying PSyIR creation catches it.
     args[3]._name = "invalid"
     args[3]._intrinsic_type = "invalid"
     with pytest.raises(InternalError) as err:
         create_arg_list.scalar(args[3])
-    assert ("Unexpected literal expression 'invalid' in scalar() when "
+    assert ("Unexpected literal expression 'invalid' when "
             "processing kernel 'testkern_qr_code'" in str(err.value))
+
+
+def test_indirect_dofmap(fortran_writer):
+    '''Test the indirect dofmap functionality.
+    '''
+    psy, _ = get_invoke("20.1.2_cma_apply_disc.f90", TEST_API,
+                        dist_mem=False, idx=0)
+
+    schedule = psy.invokes.invoke_list[0].schedule
+    create_arg_list = KernCallArgList(schedule.kernels()[0])
+    create_arg_list.generate()
+    assert (create_arg_list._arglist == [
+        'cell', 'ncell_2d', 'field_a_proxy%data', 'field_b_proxy%data',
+        'cma_op1_matrix', 'cma_op1_nrow', 'cma_op1_ncol', 'cma_op1_bandwidth',
+        'cma_op1_alpha', 'cma_op1_beta', 'cma_op1_gamma_m', 'cma_op1_gamma_p',
+        'ndf_adspc1_field_a', 'undf_adspc1_field_a',
+        'map_adspc1_field_a(:,cell)', 'cma_indirection_map_adspc1_field_a',
+        'ndf_aspc1_field_b', 'undf_aspc1_field_b', 'map_aspc1_field_b(:,cell)',
+        'cma_indirection_map_aspc1_field_b'])
+
+    check_psyir_results(create_arg_list, fortran_writer)
+
+    psyir_args = create_arg_list.psyir_arglist
+    sym_tab = schedule.symbol_table
+    for ref in psyir_args:
+        assert ref.symbol.name in sym_tab
+
+    for i in [0, 1, 5, 6, 7, 8, 9, 10, 11, 12, 13, 16, 17]:
+        assert (psyir_args[i].symbol.datatype ==
+                psyir.LfricIntegerScalarDataType())
+
+    # Create a dummy LFRic symbol table to simplify creating
+    # standard LFRic types:
+    dummy_sym_tab = LFRicSymbolTable()
+    # Test all 1D real arrays:
+    real_1d = dummy_sym_tab.find_or_create_array("doesnt_matter1dreal", 1,
+                                                 ScalarType.Intrinsic.REAL)
+    for i in [2, 3]:
+        # The datatype of a field  reference is the type of the member
+        # accessed, i.e. it's the 1D real array.
+        assert psyir_args[i].datatype == real_1d.datatype
+
+    # Test all 3D real arrays:
+    real_3d = dummy_sym_tab.find_or_create_array("doesnt_matter2dreal", 3,
+                                                 ScalarType.Intrinsic.REAL)
+    assert psyir_args[4].datatype == real_3d.datatype
+
+    # Test all 1D integer arrays:
+    int_1d = dummy_sym_tab.find_or_create_array("doesnt_matter1dint", 1,
+                                                ScalarType.Intrinsic.INTEGER)
+    for i in [15, 19]:
+        assert psyir_args[i].datatype == int_1d.datatype
+
+    # Test all 2D integer arrays:
+    int_2d = dummy_sym_tab.find_or_create_array("doesnt_matter2dint", 2,
+                                                ScalarType.Intrinsic.INTEGER)
+    for i in [14, 18]:
+        assert psyir_args[i].symbol.datatype == int_2d.datatype
+
+
+def test_ref_element_handling(fortran_writer):
+    '''Test the handling of the reference element.
+    '''
+    psy, _ = get_invoke("23.5_ref_elem_mixed_prec.f90", TEST_API,
+                        dist_mem=False, idx=0)
+
+    schedule = psy.invokes.invoke_list[0].schedule
+    create_arg_list = KernCallArgList(schedule.kernels()[0])
+    vai = VariablesAccessInfo()
+    create_arg_list.generate(vai)
+
+    assert (create_arg_list._arglist == [
+        'nlayers', 'f1_proxy%data', 'ndf_w1', 'undf_w1', 'map_w1(:,cell)',
+        'nfaces_re_h', 'nfaces_re_v', 'normals_to_horiz_faces',
+        'normals_to_vert_faces'])
+
+    assert ("cell: READ, f1: READ+WRITE, map_w1: READ, ndf_w1: READ, "
+            "nfaces_re_h: READ, nfaces_re_v: READ, nlayers: READ, "
+            "normals_to_horiz_faces: READ, normals_to_vert_faces: READ, "
+            "undf_w1: READ" == str(vai))
+
+    check_psyir_results(create_arg_list, fortran_writer)
+
+    psyir_args = create_arg_list.psyir_arglist
+    sym_tab = schedule.symbol_table
+    for ref in psyir_args:
+        assert ref.symbol.name in sym_tab
+
+    for i in [0, 2, 3, 5, 6]:
+        assert (psyir_args[i].symbol.datatype ==
+                psyir.LfricIntegerScalarDataType())
+
+    # Test the 1d real array, which is of type r_solver
+    # The datatype of a field  reference is the type of the member
+    # accessed, i.e. it's the 1D real array.
+    assert isinstance(psyir_args[1].datatype, ArrayType)
+    assert len(psyir_args[1].datatype.shape) == 1
+    assert psyir_args[1].datatype.intrinsic == ScalarType.Intrinsic.REAL
+    assert psyir_args[1].datatype.precision.name == "r_solver"
+    # TODO #2022: it would be convenient if find_or_create_array could
+    # create an r_solver based array, then the above tests would  just be:
+    # assert psyir_args[i].datatype == r_solver_1d.datatype
+
+    # Create a dummy LFRic symbol table to simplify creating
+    # standard LFRic types:
+    dummy_sym_tab = LFRicSymbolTable()
+    # Test all 2D integer arrays:
+    int_2d = dummy_sym_tab.find_or_create_array("doesnt_matter2dint", 2,
+                                                ScalarType.Intrinsic.INTEGER)
+    for i in [4]:
+        assert psyir_args[i].symbol.datatype == int_2d.datatype
+
+    int_arr_2d = dummy_sym_tab.find_or_create_array("doesnt_matter2dreal", 2,
+                                                    ScalarType.Intrinsic.REAL)
+    for i in [7, 8]:
+        assert psyir_args[i].symbol.datatype == int_arr_2d.datatype

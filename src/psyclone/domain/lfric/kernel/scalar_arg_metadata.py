@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council
+# Copyright (c) 2022-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -65,9 +65,25 @@ class ScalarArgMetadata(CommonMetaArgMetadata):
     @classmethod
     def _get_metadata(cls, fparser2_tree):
         '''Extract the required metadata from the fparser2 tree and return it
-        as strings. Also check that the metadata is in the expected
-        form (but do not check the metadata values as that is done
-        separately).
+        as strings.
+
+        :param fparser2_tree: fparser2 tree containing the metadata \
+            for this argument.
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
+            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
+
+        :returns: a tuple containing the datatype and access metadata.
+        :rtype: Tuple[str, str]
+
+        '''
+        return cls._get_datatype_access_metadata(fparser2_tree)
+
+    @classmethod
+    def _get_datatype_access_metadata(cls, fparser2_tree):
+        '''Extract the datatype and access metadata from the fparser2 tree and
+        return them as strings. Also check that the metadata is in the
+        expected form (but do not check the metadata values as that is
+        done separately).
 
         :param fparser2_tree: fparser2 tree containing the metadata \
             for this argument.

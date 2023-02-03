@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,31 +33,39 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 
-''' This module contains pytest tests for the DynInvokeSchedule class. '''
 
-import os
-from psyclone.domain.lfric import LFRicSymbolTable
-from psyclone.dynamo0p3 import DynInvokeSchedule
-from psyclone.parse.algorithm import parse
-from psyclone.psyir.nodes import Container
+''' Performs pytest tests on the support for deallocate statements in the
+    fparser2 PSyIR front-end. '''
 
 
-BASE_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__)))), "test_files", "dynamo0p3")
-TEST_API = "dynamo0.3"
+from psyclone.psyir.nodes import IntrinsicCall, Reference, StructureReference
 
 
-def test_dyninvsched_parent():
-    ''' Check the setting of the parent of a DynInvokeSchedule. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.0.1_single_named_invoke.f90"),
-                           api=TEST_API)
-    kcalls = invoke_info.calls[0].kcalls
-    # With no parent specified
-    dsched = DynInvokeSchedule("my_sched", kcalls)
-    assert dsched.parent is None
-    # With a parent
-    fake_parent = Container("my_mod", symbol_table=LFRicSymbolTable())
-    dsched2 = DynInvokeSchedule("my_sched", kcalls, parent=fake_parent)
-    assert dsched2.parent is fake_parent
+def test_deallocate_handler(fortran_reader):
+    '''Check that a various forms of deallocate are correctly captured by
+    the frontend.
+
+    '''
+    code = '''
+program test_dealloc
+  use some_mod, only: my_var
+  implicit none
+  integer :: ierr
+  real, allocatable, dimension(:, :) :: var1, var2, var3
+  deallocate(var1)
+  deallocate(var2, var3, stat=ierr)
+  deallocate(my_var%data)
+end program test_dealloc
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    calls = psyir.walk(IntrinsicCall)
+    assert len(calls) == 3
+    call = calls[0]
+    assert len(call.children) == 1
+    assert isinstance(call.children[0], Reference)
+    assert call.children[0].symbol.name == "var1"
+    call = calls[1]
+    assert call.argument_names == [None, None, "STAT"]
+    assert call.children[1].symbol.name == "var3"
+    call = calls[2]
+    assert isinstance(call.children[0], StructureReference)

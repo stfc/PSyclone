@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,33 +31,26 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
-''' This module contains pytest tests for the DynInvokeSchedule class. '''
+''' This module contains the IntrinsicSymbol.'''
 
-import os
-from psyclone.domain.lfric import LFRicSymbolTable
-from psyclone.dynamo0p3 import DynInvokeSchedule
-from psyclone.parse.algorithm import parse
-from psyclone.psyir.nodes import Container
+from psyclone.psyir.symbols.routinesymbol import RoutineSymbol
 
 
-BASE_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__)))), "test_files", "dynamo0p3")
-TEST_API = "dynamo0.3"
+class IntrinsicSymbol(RoutineSymbol):
+    '''Symbol identifying a callable intrinsic routine.
+
+    :param str name: name of the symbol.
+    :param datatype: data type of the symbol. Default to NoType().
+    :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
+    :param kwargs: additional keyword arguments provided by \
+                   :py:class:`psyclone.psyir.symbols.TypedSymbol`
+    :type kwargs: unwrapped dict.
+
+    '''
 
 
-def test_dyninvsched_parent():
-    ''' Check the setting of the parent of a DynInvokeSchedule. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.0.1_single_named_invoke.f90"),
-                           api=TEST_API)
-    kcalls = invoke_info.calls[0].kcalls
-    # With no parent specified
-    dsched = DynInvokeSchedule("my_sched", kcalls)
-    assert dsched.parent is None
-    # With a parent
-    fake_parent = Container("my_mod", symbol_table=LFRicSymbolTable())
-    dsched2 = DynInvokeSchedule("my_sched", kcalls, parent=fake_parent)
-    assert dsched2.parent is fake_parent
+# For Sphinx AutoAPI documentation generation
+__all__ = ["IntrinsicSymbol"]

@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2022, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford, A. R. Porter, S. Siso and A. B. G. Chalk STFC Daresbury Lab
+..            J. Henrichs, Bureau of Meteorology
 
 The PSyclone Internal Representation (PSyIR)
 ############################################
@@ -490,6 +491,46 @@ var2, var3)` would be represented by a
 The PSyIR supports the concept of named arguments for operation
 nodes, see the :ref:`named_arguments-label` section for more details.
 
+IntrinsicCall Nodes
+-------------------
+
+There are certain intrinsic functions that do not lend themselves to
+being represented as `Operation` nodes. For example, Fortran's
+`allocate` statement has various *optional* arguments, one of which
+(`stat`) may be used to store a return value. It's therefore not clear
+what an allocation 'operation' would assign to (an `Operation`
+must be a child of a `Statement` and therefore could not be included
+in a `Schedule` on its own). Similarly, Fortran's `MAXVAL` and
+`MINVAL` intrinsics have optional `dim` and `mask` arguments. In order
+to represent these using `Operation` nodes, we would need one for each
+of the four possible forms of each intrinsic.
+
+Therefore, to support intrinsic 'operations' that have optional
+arguments, the PSyIR has the
+:ref_guide:`IntrinsicCall psyclone.psyir.nodes.html#psyclone.psyir.nodes.IntrinsicCall`
+Node. This single class supports the different intrinsics listed in the
+`IntrinsicCall.Intrinsic` enumeration:
+
++--------------+------------------------------+--------------------------------+
+| Name         | Positional arguments         | Optional arguments             |
++--------------+------------------------------+------+-------------------------+
+| ALLOCATE     | One or more Reference or     | stat | Reference which will    |
+|              | ArrayReferences to which     |      | hold status.            |
+|              | memory will be allocated.    +------+-------------------------+
+|              |                              | mold | Reference to an array   |
+|              |                              |      | which is used to specify|
+|              |                              |      | the dimensions of the   |
+|              |                              |      | allocated obect.        |
++--------------+------------------------------+------+-------------------------+
+| DEALLOCATE   | One or more References.      | stat | Reference which will    |
+|              |                              |      | hold status.            |
++--------------+------------------------------+------+-------------------------+
+| RANDOM_NUMBER| A single Reference which will|                                |
+|              | be filled with pseudo-random |                                |
+|              | numbers in the range         |                                |
+|              | [0.0, 1.0].                  |                                |
++--------------+------------------------------+--------------------------------+
+
 CodeBlock Node
 --------------
 
@@ -743,6 +784,31 @@ of structures that is itself a member of a structure. Its first child must be a
 subclass of ``Member``. Subsequent children represent the index expressions
 for the array access. The full API is given in the
 :ref_guide:`ArrayOfStructuresMember section of the reference guide psyclone.psyir.nodes.array_of_structures_member.html`.
+
+Data Type of a Structure Access
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+In order to get the actual data type of a structure reference, PSyclone
+needs to have access to the declaration of all structures involved
+in the accessor expression. However, these are often DeferredType if the
+module where they are declared has not been processed. In the case of
+some domain-API arguments added by PSyclone to a kernel call (e.g. the
+indices in GOcean, or additional field information in LFRic), the type
+of these structure accesses is actually known. When creating a
+structure reference, there is an option ``overwrite_datatype``,
+which can be set to avoid the need to have details of the required
+structures. For example, the following code is used to declare that
+an access like ``op_proxy%ncell_3d`` is an LFRic integer:
+
+.. code-block:: python
+
+        self.append_structure_reference(
+            operator["module"], operator["proxy_type"], ["ncell_3d"],
+            arg.proxy_name_indexed,
+            overwrite_datatype=psyir.LfricIntegerScalarDataType())
+
+While most of PSyclone works without having access to this detailed
+information, the driver creation for kernel extraction (see
+:ref:`psyke`) needs this information to declare the variables in the driver.
 
 Comments attached to PSyIR Nodes
 ================================

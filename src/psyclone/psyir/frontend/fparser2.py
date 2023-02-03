@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,18 +47,19 @@ from fparser.two.utils import walk, BlockBase, StmtBase
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes import (
     UnaryOperation, BinaryOperation, NaryOperation, Schedule, CodeBlock,
-    IfBlock, Reference, Literal, Loop, Container, Assignment, Return,
-    ArrayReference, Node, Range, StructureReference,
-    ArrayOfStructuresReference, Call, Routine, Member, FileContainer,
-    Directive, ArrayMember)
+    IfBlock, Reference, Literal, Loop, Container, Assignment, Return, Node,
+    ArrayReference, Range, StructureReference, Routine, Call, Member,
+    ArrayOfStructuresReference, FileContainer, Directive, ArrayMember,
+    IntrinsicCall)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_of_structures_mixin import \
     ArrayOfStructuresMixin
-from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
-    Symbol, ImportInterface, ArgumentInterface, UnresolvedInterface, \
-    LocalInterface, ScalarType, ArrayType, DeferredType, UnknownType, \
-    UnknownFortranType, StructureType, DataTypeSymbol, RoutineSymbol, \
-    SymbolTable, NoType, INTEGER_TYPE
+from psyclone.psyir.symbols import (
+    SymbolError, DataSymbol, ContainerSymbol, Symbol, ImportInterface,
+    ArgumentInterface, UnresolvedInterface, LocalInterface, ScalarType,
+    ArrayType, DeferredType, UnknownType, UnknownFortranType, StructureType,
+    DataTypeSymbol, RoutineSymbol, SymbolTable, NoType, INTEGER_TYPE,
+    IntrinsicSymbol)
 
 # fparser dynamically generates classes which confuses pylint membership checks
 # pylint: disable=maybe-no-member
@@ -576,12 +577,12 @@ def _kind_find_or_create(name, symbol_table):
                 f"'{lower_name}'.")
     except KeyError:
         # The SymbolTable does not contain an entry for this kind parameter
-        # so create one. We specify an UnresolvedInterface as we don't
-        # currently know how this symbol is brought into scope.
-        kind_symbol = DataSymbol(lower_name, default_integer_type(),
-                                 visibility=symbol_table.default_visibility,
-                                 interface=UnresolvedInterface())
-        symbol_table.add(kind_symbol)
+        # so look to see if it is imported and if not create one.
+        kind_symbol = _find_or_create_imported_symbol(
+            symbol_table.node, lower_name,
+            symbol_type=DataSymbol,
+            datatype=default_integer_type(),
+            visibility=symbol_table.default_visibility)
     return kind_symbol
 
 
@@ -916,8 +917,11 @@ class Fparser2Reader():
     def __init__(self):
         # Map of fparser2 node types to handlers (which are class methods)
         self.handlers = {
+            Fortran2003.Allocate_Stmt: self._allocate_handler,
+            Fortran2003.Allocate_Shape_Spec: self._allocate_shape_spec_handler,
             Fortran2003.Assignment_Stmt: self._assignment_handler,
             Fortran2003.Data_Ref: self._data_ref_handler,
+            Fortran2003.Deallocate_Stmt: self._deallocate_handler,
             Fortran2003.Function_Subprogram: self._subroutine_handler,
             Fortran2003.Name: self._name_handler,
             Fortran2003.Parenthesis: self._parenthesis_handler,
@@ -2289,6 +2293,97 @@ class Fparser2Reader():
         '''
         return None
 
+    def _allocate_handler(self, node, parent):
+        '''
+        Transforms an fparser2 Allocate_Stmt into its PSyIR form.
+
+        :param node: node in fparser2 tree.
+        :type node: :py:class:`fparser.two.Fortran2003.Allocate_Stmt`
+        :param parent: parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyir.nodes.Schedule`
+
+        :returns: PSyIR representation of an allocate.
+        :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+
+        '''
+        call = IntrinsicCall(
+            IntrinsicSymbol(IntrinsicCall.Intrinsic.ALLOCATE.name),
+            parent=parent)
+
+        alloc_list = node.children[1].children
+        # Loop over each 'Allocation' in the 'Allocation_List'
+        for alloc in alloc_list:
+            # Currently fparser produces an incorrect parse tree if 'mold' is
+            # specified - there is no Allocate object, just the bare Name or
+            # Data_Ref. This is the subject of fparser/#383.
+            if isinstance(alloc, (Fortran2003.Name, Fortran2003.Data_Ref)):
+                # If the allocate() has a 'mold' argument then its positional
+                # argument(s) is/are just references without any shape
+                # information.
+                self.process_nodes(parent=call, nodes=[alloc])
+            else:
+                # We have an Allocation(name, Allocate_Shape_Spec_List)
+                self.process_nodes(parent=call,
+                                   nodes=[alloc.children[0]])
+                cursor = call.children[-1]
+                while hasattr(cursor, "member"):
+                    cursor = cursor.member
+                if isinstance(cursor, Member):
+                    # Convert Member to ArrayMember.
+                    aref = ArrayMember(cursor.name)
+                else:
+                    # Convert Reference to ArrayReference.
+                    aref = ArrayReference(cursor.symbol)
+                cursor.replace_with(aref)
+                # Handle the index expressions (each of which is represented
+                # by an Allocate_Shape_Spec).
+                for shape_spec in walk(alloc,
+                                       Fortran2003.Allocate_Shape_Spec):
+                    self.process_nodes(parent=aref, nodes=[shape_spec])
+
+        # Handle any options to the allocate()
+        opt_list = walk(node, Fortran2003.Alloc_Opt)
+        for opt in opt_list:
+            self.process_nodes(parent=call, nodes=opt.children[1:])
+            call.append_named_arg(opt.children[0], call.children[-1].detach())
+
+        # Point to the original statement in the parse tree.
+        call.ast = node
+
+        return call
+
+    def _allocate_shape_spec_handler(self, node, parent):
+        '''
+        Creates a Range node describing the supplied Allocate_Shape_Spec.
+        This is similar to the subscript_triplet handler except that the
+        default lower bound is unity and the step is also unity.
+
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.Fortran2003.Allocate_Shape_Spec`
+        :param parent: parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyir.nodes.Reference`
+
+        :returns: PSyIR of fparser2 node.
+        :rtype: :py:class:`psyclone.psyir.nodes.Range`
+
+        '''
+        my_range = Range(parent=parent)
+        my_range.children = []
+        integer_type = default_integer_type()
+
+        if node.children[0]:
+            self.process_nodes(parent=my_range, nodes=[node.children[0]])
+        else:
+            # Default lower bound in Fortran is 1
+            my_range.addchild(Literal("1", integer_type))
+
+        self.process_nodes(parent=my_range, nodes=[node.children[1]])
+
+        # Step is always 1.
+        my_range.addchild(Literal("1", integer_type))
+
+        return my_range
+
     def _create_loop(self, parent, variable):
         '''
         Create a Loop instance. This is done outside _do_construct_handler
@@ -2305,9 +2400,40 @@ class Fparser2Reader():
         '''
         return Loop(parent=parent, variable=variable)
 
+    def _deallocate_handler(self, node, parent):
+        '''
+        Transforms a deallocate() statement into its PSyIR form.
+
+        :param node: node in fparser2 tree.
+        :type node: :py:class:`fparser.two.Fortran2003.Deallocate_Stmt`
+        :param parent: parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyir.nodes.Schedule`
+
+        :returns: PSyIR for a deallocate.
+        :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+
+        '''
+        call = IntrinsicCall(
+            IntrinsicSymbol(IntrinsicCall.Intrinsic.DEALLOCATE.name),
+            parent=parent)
+        dealloc_list = node.children[0].children
+        for dealloc in dealloc_list:
+            self.process_nodes(parent=call, nodes=[dealloc])
+
+        # Handle any options to the deallocate()
+        opt_list = walk(node, Fortran2003.Dealloc_Opt)
+        for opt in opt_list:
+            self.process_nodes(parent=call, nodes=opt.children[1:])
+            call.append_named_arg(opt.children[0], call.children[-1].detach())
+
+        # Point to the original statement in the parse tree.
+        call.ast = node
+
+        return call
+
     def _do_construct_handler(self, node, parent):
         '''
-        Transforms a fparser2 Do Construct into its PSyIR representation.
+        Transforms a fparser2 Do Construct into its PSyIR form.
 
         :param node: node in fparser2 tree.
         :type node: \
@@ -3551,7 +3677,7 @@ class Fparser2Reader():
         :param parent: parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
-        :returns: PSyIR representation of node.
+        :returns: PSyIR of fparser2 node.
         :rtype: :py:class:`psyclone.psyir.nodes.Range`
 
         :raises InternalError: if the supplied parent node is not a sub-class \

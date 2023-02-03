@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,17 +42,18 @@
     The LFRicBuiltInCallFactory creates the Python object required for
     a given built-in call. '''
 
+# pylint: disable=too-many-lines
 import abc
+
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
-from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric import LFRicConstants, psyir
 from psyclone.errors import InternalError
 from psyclone.f2pygen import AssignGen, PSyIRGen
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import BuiltIn
 from psyclone.psyir.nodes import (Assignment, BinaryOperation, Call, Reference,
                                   StructureReference)
-from psyclone.psyir.symbols import (DataSymbol, INTEGER_SINGLE_TYPE,
-                                    RoutineSymbol)
+from psyclone.psyir.symbols import ArrayType, RoutineSymbol
 
 # The name of the file containing the meta-data describing the
 # built-in operations for this API
@@ -162,7 +163,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         self.qr_rules = {}
         # Builtins cannot request mesh properties
         self.mesh = None
-        super(LFRicBuiltIn, self).__init__()
+        super().__init__()
 
     @abc.abstractmethod
     def __str__(self):
@@ -254,17 +255,17 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
             # Check valid argument types
             if arg.argument_type not in const.VALID_BUILTIN_ARG_TYPES:
                 raise ParseError(
-                    f"In the LFRic API an argument to a built-in kernel must "
-                    f"be one of {const.VALID_BUILTIN_ARG_TYPES} but kernel "
-                    f"'{self.name}' has an argument of type "
+                    f"In the LFRic API an argument to a built-in kernel "
+                    f"must be one of {const.VALID_BUILTIN_ARG_TYPES} but "
+                    f"kernel '{self.name}' has an argument of type "
                     f"'{arg.argument_type}'.")
             # Check valid data types
             if arg.data_type not in const.VALID_BUILTIN_DATA_TYPES:
                 raise ParseError(
-                    f"In the LFRic API an argument to a built-in kernel must "
-                    f"have one of {const.VALID_BUILTIN_DATA_TYPES} as a data "
-                    f"type but kernel '{self.name}' has an argument of data "
-                    f"type '{arg.data_type}'.")
+                    f"In the LFRic API an argument to a built-in kernel "
+                    f"must have one of {const.VALID_BUILTIN_DATA_TYPES} as "
+                    f"a data type but kernel '{self.name}' has an argument "
+                    f"of data type '{arg.data_type}'.")
             # Built-ins update fields DoF by DoF and therefore can have
             # WRITE/READWRITE access
             if arg.access in [AccessType.WRITE, AccessType.SUM,
@@ -278,20 +279,20 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
                 op_count += 1
 
         if write_count != 1:
-            raise ParseError(f"A built-in kernel in the LFRic API must have "
-                             f"one and only one argument that is written to "
-                             f"but found {write_count} for kernel "
-                             f"'{self.name}'.")
-        if field_count == 0 and op_count == 0:
+            raise ParseError(f"A built-in kernel in the LFRic API must "
+                             f"have one and only one argument that is "
+                             f"written to but found {write_count} for "
+                             f"kernel '{self.name}'.")
+        if field_count == 0:
             raise ParseError(f"A built-in kernel in the LFRic API must have "
                              f"at least one field or operator as an argument "
                              f"but kernel '{self.name}' has none.")
         if len(spaces) > 1:
             spaces_str = [str(x) for x in sorted(spaces)]
             raise ParseError(
-                f"All field arguments to a built-in in the LFRic API must be "
-                f"on the same space. However, found spaces {spaces_str} for "
-                f"arguments to '{self.name}'")
+                f"All field arguments to a built-in in the LFRic API "
+                f"must be on the same space. However, found spaces "
+                f"{spaces_str} for arguments to '{self.name}'")
 
         conversion_builtins = ["int_X", "real_X"]
         conversion_builtins_lower = [x.lower() for x in conversion_builtins]
@@ -406,10 +407,8 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         table = self.scope.symbol_table
         # The symbol representing the loop index is created in the DynLoop
         # constructor.
-        # TODO #696 - 'df' should have KIND i_def.
-        return table.find_or_create_tag(tag="dof_loop_idx", root_name="df",
-                                        symbol_type=DataSymbol,
-                                        datatype=INTEGER_SINGLE_TYPE)
+        return table.find_or_create_integer_symbol(
+            "df", tag="dof_loop_idx")
 
     def get_indexed_field_argument_references(self):
         '''
@@ -426,8 +425,11 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         '''
         idx_sym = self.get_dof_loop_index_symbol()
 
+        array_1d = ArrayType(psyir.LfricRealScalarDataType(),
+                             [ArrayType.Extent.DEFERRED])
         return [StructureReference.create(
-            arg.psyir_expression().symbol, [("data", [Reference(idx_sym)])])
+            arg.psyir_expression().symbol, [("data", [Reference(idx_sym)])],
+            overwrite_datatype=array_1d)
                 for arg in self._arguments.args if arg.is_field]
 
     def get_scalar_argument_references(self):

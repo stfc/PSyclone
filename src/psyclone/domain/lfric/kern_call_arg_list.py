@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,15 +46,18 @@ from collections import namedtuple
 
 from psyclone import psyGen
 from psyclone.core import AccessType, Signature
-from psyclone.domain.lfric import ArgOrdering, LFRicConstants
+from psyclone.domain.lfric import ArgOrdering, LFRicConstants, psyir
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (ArrayOfStructuresReference, Literal,
                                   Reference, StructureReference)
 from psyclone.psyir.symbols import (ArrayType, DataSymbol, DataTypeSymbol,
                                     DeferredType, ContainerSymbol,
                                     ImportInterface, INTEGER_SINGLE_TYPE,
-                                    ScalarType, SymbolError, SymbolTable)
+                                    ScalarType)
+
+# psyir has classes created at runtime
+# pylint: disable=no-member
+# pylint: disable=too-many-lines
 
 
 class KernCallArgList(ArgOrdering):
@@ -77,6 +80,24 @@ class KernCallArgList(ArgOrdering):
         self._nlayers_positions = []
         self._nqp_positions = []
         self._ndf_positions = []
+
+    @staticmethod
+    def _map_fields_to_precision(field_type):
+        '''This function return the precision required for the various
+        field types.
+
+        :param str field_type: the name of the field type.
+
+        :returns: the precision as defined in domain.lfric.psyir (one of \
+            R_SOLVER, R_TRAN, R_DEF).
+        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        '''
+        if field_type in ["r_solver_field_type", "r_solver_operator_type"]:
+            return psyir.R_SOLVER
+        if field_type == "r_tran_field_type":
+            return psyir.R_TRAN
+        return psyir.R_DEF
 
     def get_user_type(self, module_name, user_type, name, tag=None,
                       shape=None):
@@ -142,8 +163,8 @@ class KernCallArgList(ArgOrdering):
                                           datatype=user_type_symbol)
         return sym
 
-    def append_user_type(self, module_name, user_type, member_list, name,
-                         tag=None):
+    def append_structure_reference(self, module_name, user_type, member_list,
+                                   name, tag=None, overwrite_datatype=None):
         # pylint: disable=too-many-arguments
         '''Creates a reference to a variable of a user-defined type. If
         required, the required import statements will all be generated.
@@ -151,11 +172,17 @@ class KernCallArgList(ArgOrdering):
         :param str module_name: the name of the module from which the \
             user-defined type must be imported.
         :param str user_type: the name of the user-defined type.
+        :param member_list: the members used hierarchically.
+        :type member_list: List[str]
         :param str name: the name of the variable to be used in the Reference.
         :param Optional[str] tag: tag to use for the variable, defaults to \
             the name
-        :param shape: if specified, declare an array of user types
-        :type shape: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :param overwrite_datatype: the datatype for the reference, which will \
+            overwrite the value determined by analysing the corresponding \
+            user defined type. This is useful when e.g. the module that \
+            declares the structure cannot be accessed.
+        :type overwrite_datatype: \
+            Optional[:py:class:`psyclone.psyir.symbols.DataType`]
 
         :return: the symbol that is used in the reference
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
@@ -163,7 +190,9 @@ class KernCallArgList(ArgOrdering):
         '''
         sym = self.get_user_type(module_name, user_type, name,
                                  tag)
-        self.psyir_append(StructureReference.create(sym, member_list))
+        self.psyir_append(StructureReference.
+                          create(sym, member_list,
+                                 overwrite_datatype=overwrite_datatype))
         return sym
 
     def cell_position(self, var_accesses=None):
@@ -202,7 +231,7 @@ class KernCallArgList(ArgOrdering):
         sym = self.append_array_reference(base_name, [":", ":", cell_ref],
                                           ScalarType.Intrinsic.INTEGER)
         self.append(f"{sym.name}(:,:,{cell_ref_name})",
-                    var_accesses=var_accesses)
+                    var_accesses=var_accesses, var_access_name=sym.name)
 
         # No. of fine cells per coarse cell in x
         base_name = f"ncpc_{farg.name}_{carg.name}_x"
@@ -245,25 +274,10 @@ class KernCallArgList(ArgOrdering):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: if a scalar of type other than real, \
-            logical, or integer is found.
-
         '''
         super().scalar(scalar_arg, var_accesses)
         if scalar_arg.is_literal:
-            literal_string = scalar_arg.name
-            try:
-                # Since we know it must be a literal, we need to provide an
-                # empty SymbolTable (to make sure an invalid strings is not
-                # recognised as an existing symbol)
-                literal = FortranReader().psyir_from_expression(literal_string,
-                                                                SymbolTable())
-            except SymbolError as err:
-                raise InternalError(f"Unexpected literal expression "
-                                    f"'{literal_string}' in scalar() when "
-                                    f"processing kernel "
-                                    f"'{self._kern.name}'.") from err
-            self.psyir_append(literal)
+            self.psyir_append(scalar_arg.psyir_expression())
         else:
             sym = self._symtab.lookup(scalar_arg.name)
             self.psyir_append(Reference(sym))
@@ -371,10 +385,13 @@ class KernCallArgList(ArgOrdering):
         # the range function below returns values from
         # 1 to the vector size which is what we
         # require in our Fortran code
+        array_1d = ArrayType(psyir.LfricRealScalarDataType(),
+                             [ArrayType.Extent.DEFERRED])
         for idx in range(1, argvect.vector_size + 1):
             # Create the accesses to each element of the vector:
             lit_ind = Literal(str(idx), INTEGER_SINGLE_TYPE)
-            ref = ArrayOfStructuresReference.create(sym, [lit_ind], ["data"])
+            ref = ArrayOfStructuresReference.\
+                create(sym, [lit_ind], ["data"], overwrite_datatype=array_1d)
             self.psyir_append(ref)
             text = f"{sym.name}({idx})%data"
             self.append(text, metadata_posn=argvect.metadata_index)
@@ -404,8 +421,12 @@ class KernCallArgList(ArgOrdering):
                     mode=arg.access, metadata_posn=arg.metadata_index)
 
         # Add an access to field_proxy%data:
-        self.append_user_type(arg.module_name, arg.proxy_data_type, ["data"],
-                              arg.proxy_name)
+        precision = KernCallArgList._map_fields_to_precision(arg.data_type)
+        array_1d = ArrayType(psyir.LfricRealScalarDataType(precision),
+                             [ArrayType.Extent.DEFERRED])
+        self.append_structure_reference(
+            arg.module_name, arg.proxy_data_type, ["data"],
+            arg.proxy_name, overwrite_datatype=array_1d)
 
     def stencil_unknown_extent(self, arg, var_accesses=None):
         '''Add stencil information to the argument list associated with the
@@ -576,14 +597,24 @@ class KernCallArgList(ArgOrdering):
         # TODO we should only be including ncell_3d once in the argument
         # list but this adds it for every operator
         # This argument is always read only:
-        operator = LFRicConstants().DATA_TYPE_MAP["operator"]
-        self.append_user_type(operator["module"], operator["proxy_type"],
-                              ["ncell_3d"], arg.proxy_name_indexed)
+        if arg.data_type == "r_solver_operator_type":
+            op_name = "r_solver_operator"
+        else:
+            op_name = "operator"
+        operator = LFRicConstants().DATA_TYPE_MAP[op_name]
+        self.append_structure_reference(
+            operator["module"], operator["proxy_type"], ["ncell_3d"],
+            arg.proxy_name_indexed,
+            overwrite_datatype=psyir.LfricIntegerScalarDataType())
         self.append(arg.proxy_name_indexed + "%ncell_3d", var_accesses,
                     mode=AccessType.READ)
 
-        self.append_user_type(operator["module"], operator["proxy_type"],
-                              ["local_stencil"], arg.proxy_name_indexed)
+        precision = KernCallArgList._map_fields_to_precision(operator["type"])
+        array_type = ArrayType(psyir.LfricRealScalarDataType(precision),
+                               [ArrayType.Extent.DEFERRED]*3)
+        self.append_structure_reference(
+            operator["module"], operator["proxy_type"], ["local_stencil"],
+            arg.proxy_name_indexed, overwrite_datatype=array_type)
         # The access mode of `local_stencil` is taken from the meta-data:
         self.append(arg.proxy_name_indexed + "%local_stencil", var_accesses,
                     mode=arg.access, metadata_posn=arg.metadata_index)
@@ -721,7 +752,7 @@ class KernCallArgList(ArgOrdering):
                 qr_var=rule.psy_name)
             sym = self.append_array_reference(diff_basis_name,
                                               [":", ":", ":", ":"],
-                                              ScalarType.Intrinsic.INTEGER)
+                                              ScalarType.Intrinsic.REAL)
             self.append(sym.name, var_accesses)
 
         if "gh_evaluator" in self._kern.eval_shapes:
@@ -762,8 +793,8 @@ class KernCallArgList(ArgOrdering):
         farg = self._kern.arguments.get_arg_on_space(fspace)
         # Sanity check - expect the enforce_bc_code kernel to only have
         # a field argument.
-        const = LFRicConstants()
         if not farg.is_field:
+            const = LFRicConstants()
             raise GenerationError(
                 f"Expected an argument of {const.VALID_FIELD_NAMES} type "
                 f"from which to look-up boundary dofs for kernel "

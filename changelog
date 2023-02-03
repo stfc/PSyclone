@@ -250,6 +250,41 @@
 	psyclone script will now quit after outputting the version
 	information.
 
+	87) PR #1970 for #1966. Add an overwrite_datatype option to
+	StructureReferences for when an API knows what type a DeferedType is.
+
+	88) PR #2003. Pins the Sphinx version to < 6.1 to avoid a bug in
+	the link-checking functionality. Also corrects various links to
+	the VirtualBox site.
+
+	89) PR #1972 for #1967. Ensures that proper Signatures are created
+	for structure accesses that appear in LFRic kernel arguments.
+
+	90) PR #1907 for #1366. Introduces the IntrinsicCall node and the
+	IntrinsicSymbol symbol. Adds ALLOCATE, DEALLOCATE and RANDOM_NUMBER
+	intrinsics.
+
+	91) PR #2007 for #2000. Removes pinning of Sphinx version in setup.py
+	now that the linkcheck bug has been fixed in a new release.
+
+	92) PR #1976 for #1974. Fixes issues with literal constants and
+	array accesses in VariableAccessInfo for the LFRic API.
+
+	93) PR #2015 for #2012. Fixes crash in access-information
+	collection when there is an LFRic 'domain' loop.
+
+	94) PR #2014. Extends psyir_from_source() so that the caller
+	can specify if the Fortran is in fixed format.
+
+	95) PR #1993 towards #1953. Extends the LFRicKernelMetadata
+	class to support stencil specifications.
+
+	96) PR #2020 for #2019. Fix inconsistencies in handling of precision
+	symbols
+
+	97) PR #2023 for #1975. Extends DynReferenceElement to ensure that
+	it adds related kernel arguments to KernCallArgList as PSyIR.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
