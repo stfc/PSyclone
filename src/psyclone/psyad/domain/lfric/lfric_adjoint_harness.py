@@ -320,14 +320,18 @@ def _init_operators_random(operators, table):
     :rtype: List[:py:class:`psyclone.domain.common.algorithm.Functor`]
 
     '''
-    # We use the setval_random builtin to initialise all operators.
-    kernel_list = []
-    builtin_factory = LFRicBuiltinFunctorFactory.get()
-    for sym in operators:
-        # Initialise the operator with pseudo-random numbers.
-        kernel_list.append(
-            builtin_factory.create("setval_random_operator", table,
-                                   [Reference(sym)]))
+    # We use the 'setop_random' kernel to do the initialisation. This
+    # is a general-purpose kernel (not a built-in) that is part of the
+    # PSyclone distribution.
+    kname = "setop_random_kernel"
+    kernel_mod = table.new_symbol(kname+"_mod",
+                                  symbol_type=ContainerSymbol)
+    kernel_sym = table.new_symbol(kname+"_type", symbol_type=DataTypeSymbol,
+                                  datatype=DeferredType(),
+                                  interface=ImportInterface(kernel_mod))
+    # Create a functor to initialise each operator
+    kernel_list = [LFRicKernelFunctor.create(kernel_sym, [Reference(sym)])
+                   for sym in operators]
 
     # Return the list of kernel functors.
     return kernel_list

@@ -550,17 +550,6 @@ use argument_mod,  only : arg_type,            &
      procedure, nopass :: setval_random_code
   end type setval_random
 
-  !> operator = random()
-  type, public, extends(kernel_type) :: setval_random_operator
-     private
-     type(arg_type) :: meta_args(1) = (/                                     &
-          arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2) &
-          /)
-     integer :: operates_on = DOMAIN
-   contains
-     procedure, nopass :: setval_random_code
-  end type setval_random_operator
-
 ! ------------------------------------------------------------------- !
 ! ============== Inner product of real fields ======================= !
 ! ------------------------------------------------------------------- !
