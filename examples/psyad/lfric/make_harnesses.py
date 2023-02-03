@@ -212,6 +212,8 @@ all_kernels["poly_advective"] = KernelDesc(
     coord_arg=-1, panel_id_arg=-1, mini_app="skeleton")
 
 # Scalar of type 'logical' not supported - #2013.
+# #1458 - passive scalar computed in a loop alongside active variable. Must
+# be separated out.
 # Passes once that limitation removed from test-harness generation and unused
 # scalar removed from test harness.
 # TODO record that 'tweaked' harness must be used.
