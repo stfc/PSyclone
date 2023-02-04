@@ -2030,11 +2030,25 @@ class Fparser2Reader():
                     node.children[2].items = tuple(orig_children)
 
             elif isinstance(node, Fortran2003.Common_Stmt):
-                # Ignore common blocks
-                # They are already defined in the symbol table but maybe
+                if node.children[0][0][0]:
+                    # If its a named Common block, place the declaration
+                    # statement into a UnknownFortranType symbol with its
+                    # name.
+                    parent.symbol_table.add(
+                        DataSymbol(str(node.children[0][0][0]),
+                                   UnknownFortranType(str(node))))
+                else:
+                    # If its an unnamed Common Block, the whole subroutine
+                    # is placed in a CodeBlock.
+                    raise NotImplementedError(
+                        f"Unammed Common blocks not supported, but found "
+                        f"{str(node)}.")
+                # Get the names of the common block imported symbols,
+                # they are already defined in the symbol table but maybe
                 # we should create a different interface for them to mark
-                # that they live after before and after the subroutine?
-                continue
+                # that they live before and after the subroutine scope.
+                # for symbol_name in node.children[0][0][1].items:
+                #    parent.symbol_table.lookup(str(symbol_name))
             elif isinstance(node, (Fortran2003.Access_Stmt,
                                    Fortran2003.Derived_Type_Def,
                                    Fortran2003.Stmt_Function_Stmt,
