@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2021, Science and Technology Facilities Council.
+! Copyright (c) 2023, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,11 +32,13 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: I. Kavcic, Met Office
+! Modified: J. Henrichs, Bureau of Meteorology
 
 program single_invoke
 
   ! Description: single point-wise operation (Y = a + X, DoF-wise addition
-  ! of a real scalar value) specified in an invoke call.
+  ! of a real scalar value) specified in an invoke call, with the field
+  ! being a member of an array of fields.
   use constants_mod, only: r_def
   use field_mod,     only: field_type
 
