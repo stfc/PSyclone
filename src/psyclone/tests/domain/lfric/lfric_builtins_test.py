@@ -4695,11 +4695,13 @@ def mesh_code_present(field_str, code):
     assert output_dm_1 in code
 
 
-def test_field_arrays_in_builtins():
-    '''Tests that array of fields can be used in LFRic builtins, e.g.
+def test_field_access_info_for_arrays_in_builtins():
+    '''Tests that array of fields in LFRic builtins properly report access
+    information. For example,
     call invoke( a_plus_X(f2(i), a, f1) )
-    '''
+    must report the access to f2.
 
+    '''
     _, invoke = get_invoke("15.1.8_a_plus_X_builtin_array_of_fields.f90",
                            api=API, idx=0, dist_mem=False)
     schedule = invoke.schedule
