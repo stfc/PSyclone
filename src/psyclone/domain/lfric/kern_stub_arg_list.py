@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -76,7 +76,7 @@ class KernStubArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         self.append("cell", var_accesses)
@@ -88,7 +88,7 @@ class KernStubArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         self.append("nlayers", var_accesses)
@@ -100,7 +100,7 @@ class KernStubArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         self.append("ncell_2d", var_accesses)
@@ -115,7 +115,7 @@ class KernStubArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # The CMA operator itself
@@ -148,7 +148,7 @@ class KernStubArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # the range function below returns values from
@@ -169,7 +169,7 @@ class KernStubArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         text = arg.name + "_" + arg.function_space.mangled_name
@@ -185,7 +185,7 @@ class KernStubArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # Avoid circular import
@@ -204,7 +204,7 @@ class KernStubArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # Avoid circular import
@@ -224,7 +224,7 @@ class KernStubArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # Avoid circular import
@@ -264,7 +264,7 @@ class KernStubArgList(ArgOrdering):
         :param var_accesses: optional `VariablesAccessInfo` instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # Avoid circular import
@@ -284,7 +284,7 @@ class KernStubArgList(ArgOrdering):
         :param var_accesses: optional `VariablesAccessInfo` instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # The stencil_2D differs from the stencil in that the direction
@@ -309,7 +309,7 @@ class KernStubArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         size = arg.name + "_ncell_3d"
@@ -327,7 +327,7 @@ class KernStubArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         self.append(function_space.undf_name, var_accesses)
@@ -346,7 +346,7 @@ class KernStubArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises InternalError: if the evaluator shape is not recognised.
 
@@ -385,7 +385,7 @@ class KernStubArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises InternalError: if the evaluator shape is not recognised.
 
@@ -425,7 +425,7 @@ class KernStubArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         arg = self._kern.arguments.get_arg_on_space(function_space)
@@ -442,7 +442,7 @@ class KernStubArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         self.field_bcs_kernel(function_space, var_accesses=var_accesses)
@@ -455,7 +455,7 @@ class KernStubArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         if self._kern.mesh.properties:
@@ -473,7 +473,7 @@ class KernStubArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         for rule in self._kern.qr_rules.values():
@@ -492,7 +492,7 @@ class KernStubArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises InternalError: if no kernel argument is supplied.
         :raises InternalError: if the supplied kernel argument is not a \

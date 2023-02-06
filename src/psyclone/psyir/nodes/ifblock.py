@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -68,7 +68,7 @@ class IfBlock(Statement):
     _colour = "red"
 
     def __init__(self, parent=None, annotations=None):
-        super(IfBlock, self).__init__(parent=parent)
+        super().__init__(parent=parent)
         if annotations:
             for annotation in annotations:
                 if annotation in IfBlock.valid_annotations:
@@ -210,7 +210,7 @@ class IfBlock(Statement):
         :param var_accesses: VariablesAccessInfo instance that stores the \
             information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
         '''
 
         # The first child is the if condition - all variables are read-only

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2022, Science and Technology Facilities Council.
+# Copyright (c) 2018-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@ import os
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.core.access_info import AccessType
+from psyclone.core import AccessType
 from psyclone.dynamo0p3 import (
     DynLoop, DynHaloExchange, HaloDepth, _create_depth_list)
 from psyclone.errors import InternalError
