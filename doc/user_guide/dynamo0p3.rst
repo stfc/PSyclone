@@ -3131,6 +3131,22 @@ are ``real``-valued fields. The results are ``a`` for ``X >= 0`` and
 
   field2(:) = SIGN(rscalar, field1(:))
 
+Arctan of elements
+##################
+
+A Built-in which returns the arctan of a ``real``-valued field is denoted
+with the keyword **atan**.
+
+atan_X
+^^^^^^
+
+**atan_X** (**field2**, *field1*)
+
+Returns the arctan of a ``real``-valued field, e.g. in Fortran:
+``Y = ATAN(X)``. Here ``Y`` and ``X`` are ``real``-valued fields. ::
+
+  field2(:) = ATAN(field1(:))
+
 DoF-wise maximum of elements
 ############################
 

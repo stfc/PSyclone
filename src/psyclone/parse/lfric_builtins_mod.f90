@@ -852,6 +852,18 @@ use argument_mod,  only : arg_type,            &
      procedure, nopass :: int_inc_X_times_Y_code
   end type int_inc_X_times_Y
 
+  !> field2 = ATAN(field1)
+  type, public, extends(kernel_type) :: atan_X
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, ANY_SPACE_1),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1)         & 
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: atan_X_code
+  end type atan_X
+
 ! ------------------------------------------------------------------- !
 ! ============== Scaling integer fields ============================= !
 ! ------------------------------------------------------------------- !
@@ -924,7 +936,7 @@ use argument_mod,  only : arg_type,            &
      integer :: operates_on = DOF
    contains
      procedure, nopass :: int_sign_X_code
-  end type int_sign_X
+  end type int_sign_X 
 
 ! ------------------------------------------------------------------- !
 ! ======== Maximum of (integer scalar, integer field elements) ====== !
@@ -1232,5 +1244,9 @@ contains
   ! Converting integer to real field elements
   subroutine real_X_code()
   end subroutine real_X_code
+
+  ! Atan of a real field
+  subroutine atan_X_code()
+  end subroutine atan_X_code
 
 end module lfric_builtins_mod

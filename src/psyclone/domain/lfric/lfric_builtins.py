@@ -52,7 +52,7 @@ from psyclone.f2pygen import AssignGen, PSyIRGen
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import BuiltIn
 from psyclone.psyir.nodes import (Assignment, BinaryOperation, Call, Reference,
-                                  StructureReference)
+                                  StructureReference, UnaryOperation)
 from psyclone.psyir.symbols import ArrayType, RoutineSymbol
 
 # The name of the file containing the meta-data describing the
@@ -523,7 +523,6 @@ class LFRicXPlusYKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
-
 
 class LFRicIncXPlusYKern(LFRicBuiltIn):
     ''' Add the second, real-valued, field to the first field and return it.
@@ -1678,7 +1677,6 @@ class LFRicSignXKern(LFRicBuiltIn):
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
 
-
 # ------------------------------------------------------------------- #
 # ============== Maximum of (real scalar, real field elements) ====== #
 # ------------------------------------------------------------------- #
@@ -2133,6 +2131,37 @@ class LFRicRealXKern(LFRicXKern):
         return "Built-in: Convert an integer-valued to a real-valued field"
 
 
+# ------------------------------------------------------------------- #
+# ============== Finding the arctan of real field elements ========== #
+# ------------------------------------------------------------------- #
+
+
+class LFRicAtanXKern(LFRicBuiltIn):
+    ''' Returns the sign of a real-valued field elements using the
+    Fortran intrinsic `sign` function, `Y = ATAN(X)`.
+
+    '''
+    def __str__(self):
+        return "Built-in: Arctan of a real-valued field"
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = ATAN(proxy1%data)
+        rhs = UnaryOperation.create(UnaryOperation.Operator.ATAN,
+                                    arg_refs[1])
+        assign = Assignment.create(arg_refs[0], rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+
+
 # The built-in operations that we support for this API. The meta-data
 # describing these kernels is in lfric_builtins_mod.f90. This dictionary
 # can only be defined after all of the necessary 'class' statements have
@@ -2192,6 +2221,8 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     "sum_X": LFRicSumXKern,
     # Sign of real field elements applied to a scalar value
     "sign_X": LFRicSignXKern,
+    # Atan of real field elements
+    "atan_X": LFRicAtanXKern,
     # Maximum of a real scalar value and real field elements
     "max_aX": LFRicMaxAXKern,
     "inc_max_aX": LFRicIncMaxAXKern,
