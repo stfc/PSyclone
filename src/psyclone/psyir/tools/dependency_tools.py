@@ -46,8 +46,11 @@ import sympy
 from psyclone.configuration import Config
 from psyclone.core import (AccessType, SymbolicMaths,
                            VariablesAccessInfo)
+from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.errors import InternalError, LazyString
 from psyclone.psyir.nodes import Loop
+from psyclone.parse import ModuleManager
+from psyclone.psyGen import Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
@@ -912,3 +915,84 @@ class DependencyTools():
         variables_info = VariablesAccessInfo(node_list, options=options)
         return (self.get_input_parameters(node_list, variables_info),
                 self.get_output_parameters(node_list, variables_info))
+
+    # -------------------------------------------------------------------------
+    def get_in_out_parameters_recursive(self, node_list, options=None):
+        '''Return a 2-tuple of lists that contains all variables that are input
+        parameters (first entry) and output parameters (second entry).
+        This function calls get_in_out_parameter for the local accesses. It
+        will the recursively check all imported modules (using the module
+        manager) for any accesses to variables imported from other modules.
+        These accesses will be reported in the format (module)
+
+
+        :param node_list: list of PSyIR nodes to be analysed.
+        :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :param options: a dictionary with options for the dependency tools \
+            which will also be used when creating the VariablesAccessInfo \
+            instance if required.
+        :type options: Optional[Dict[str, Any]]
+        :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is \
+            set to a True value, arrays used as first parameter to the \
+            PSyIR operators lbound, ubound, or size will be reported as \
+            'read'. Otherwise, these accesses will be ignored.
+
+        :returns: a 2-tuple of two lists, the first one containing \
+            the input parameters, the second the output parameters.
+        :rtype: Tuple[List[:py:class:`psyclone.core.Signature`],
+                      List[:py:class:`psyclone.core.Signature`]]
+
+        '''
+        in_local, out_local = self.get_in_out_parameters(node_list,
+                                                         options=options)
+        # Find all kernels called from the currently processed PSyIR.
+        # While this might contain too many calls (e.g. if only one
+        # kernel out of 10 is instrumented), but makes the implementation
+        # much easier, and it is expected that typically everything
+        # gets instrumented anyway.
+        container = node_list[0].root
+        mod_manager = ModuleManager.get()
+
+        # Find all required modules for all kernel calls.
+        all_mods = set()
+        all_external_symbols = {}
+        for kern in container.walk(Kern):
+            if not isinstance(kern, LFRicBuiltIn):
+                all_mods.add(kern.module_name)
+                mod_info = mod_manager.get_module_info(kern.module_name)
+                ext_symbols = mod_info.get_external_symbols()
+                for (symbol, module_name) in ext_symbols:
+                    if module_name not in all_external_symbols:
+                        all_external_symbols[module_name] = set()
+                    all_external_symbols[module_name].add(symbol.name)
+
+        # The list of all modules would not contain any modules used in the
+        # psy-layer (e.g. constants_mod for i_def etc), but since we know
+        # that the psy-layer does not use any variables from these modules,
+        # they can be ignored (and they are likely to be included from
+        # other modules anyway).
+
+        # Now get the recursive list of all modules required:
+        all_deps = mod_manager.get_all_dependencies_recursively(all_mods)
+        # Sorting might not strictly be necessary, but this way we
+        # should get identical results, independent of the set ordering
+        sorted_modules = ModuleManager.sort_modules(all_deps)
+        print("Sorted modules", sorted_modules)
+        for mod in sorted_modules:
+            print("MODULE", mod)
+            mod_info = mod_manager.get_module_info(mod)
+            mod_psyir = mod_info.get_psyir()
+            if not mod_psyir:
+                # We can't parse the file, ignore:
+                continue
+            ext_symbols = mod_info.get_external_symbols()
+            for (symbol, module_name) in ext_symbols:
+                if module_name not in all_external_symbols:
+                    all_external_symbols[module_name] = set()
+                all_external_symbols[module_name].add(symbol.name)
+
+        import pprint
+        pretty_print = pprint.PrettyPrinter(indent=4)
+        print("EXTERNAL:")
+        pretty_print.pprint(all_external_symbols)
+        return in_local, out_local

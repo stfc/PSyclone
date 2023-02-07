@@ -45,9 +45,10 @@ from fparser.two.parser import ParserFactory
 from fparser.two.utils import walk
 
 from psyclone.errors import InternalError, PSycloneError
-from psyclone.psyir.nodes import FileContainer
+from psyclone.psyir.nodes import Container, FileContainer, Reference
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.symbols import SymbolError
+from psyclone.psyir.symbols import (ArgumentInterface, ImportInterface,
+                                    SymbolError)
 
 
 # ============================================================================
@@ -245,3 +246,55 @@ class ModuleInfo:
                 self._psyir = FileContainer(os.path.basename(self._filename))
 
         return self._psyir
+
+    # ------------------------------------------------------------------------
+    def get_external_symbols(self):
+        '''This function determines all external symbols used in any routine
+        inside this module. An external symbol in this context is either a
+        symbol imported from another module, or a symbol declared in this
+        module, and referenced in a routine.
+
+        :return: a list of tuples indicating the symbol and the module name \
+            it is imported from.
+        :rtype: List[Tuple[:py:class:`psyclone.psyir.symbols.Symbol`, str]]
+
+        '''
+
+        result = []
+        done = set()
+        for ref in self.get_psyir().walk(Reference):
+            sym = ref.symbol
+            if sym.name in done:
+                continue
+            done.add(sym.name)
+
+            # If the symbol is known to he imported, add it to the list
+            # of external symbols and continue
+            if isinstance(sym.interface, ImportInterface):
+                result.append((sym, sym.interface.container_symbol.name))
+                continue
+            if isinstance(sym.interface, ArgumentInterface):
+                # Arguments are not external symbols
+                continue
+
+            # Now it's a local interface - it still could be a local variable,
+            # or a variable declared in the surrounding module (TODO: #1089)
+            # So we need to identify the symbol table in which the symbol is
+            # actually declared, and check if it's in the routine, or further
+            # up in the tree:
+            node = ref
+            while node:
+                if hasattr(node, "_symbol_table"):
+                    if sym.name in node.symbol_table:
+                        if isinstance(node, Container):
+                            # It is a variable from the module in which the
+                            # current function is, so it is an external
+                            # reference
+                            result.append((sym, node.name))
+                        # If the node is not the container, it is a local
+                        # variable and does not need to be returned.
+                        break
+                # Otherwise keep on looking
+                node = node.parent
+
+        return result

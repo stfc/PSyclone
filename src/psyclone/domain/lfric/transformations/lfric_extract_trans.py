@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -150,7 +150,8 @@ class LFRicExtractTrans(ExtractTrans):
         region_name = self.get_unique_region_name(nodes, my_options)
         my_options["region_name"] = region_name
         my_options["prefix"] = my_options.get("prefix", "extract")
-        input_list, output_list = dep.get_in_out_parameters(nodes)
+        # TODO
+        input_list, output_list = dep.get_in_out_parameters_recursive(nodes)
         # Determine a unique postfix to be used for output variables
         # that avoid any name clashes
         postfix = ExtractTrans.determine_postfix(input_list,
