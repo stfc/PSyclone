@@ -724,7 +724,7 @@ types.
 1) A Kernel must have at least one argument that is a field, field
    vector, or operator. This rule reflects the fact that a Kernel
    operates on some subset of the whole domain (e.g. a cell-column)
-   and is therefore designed to be called from within a loop that
+   and is therefore deed tosign be called from within a loop that
    iterates over those subsets of the domain.
 
 2) The continuity of the iteration space of the Kernel is determined
@@ -3130,6 +3130,23 @@ are ``real``-valued fields. The results are ``a`` for ``X >= 0`` and
 ``-a`` for ``X < 0``::
 
   field2(:) = SIGN(rscalar, field1(:))
+
+Logarithm of elements
+#####################
+
+A Built-in which returns the logarithm of a ``real``-valued field is denoted
+with the keyword **log**.
+
+log_X
+^^^^^
+
+**log_X** (**field2**, *field1*)
+
+Returns the logarithm of a ``real``-valued field, e.g. in Fortran:
+``Y = log(X)``. Here ``Y`` and ``X`` are ``real``-valued fields. 
+The results are real for ``X > 0`` and returns an error for ``X =< 0``::
+
+  field2(:) = LOG(field1(:))
 
 DoF-wise maximum of elements
 ############################

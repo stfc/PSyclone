@@ -52,7 +52,7 @@ from psyclone.f2pygen import AssignGen, PSyIRGen
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import BuiltIn
 from psyclone.psyir.nodes import (Assignment, BinaryOperation, Call, Reference,
-                                  StructureReference)
+                                  StructureReference, UnaryOperation)
 from psyclone.psyir.symbols import ArrayType, RoutineSymbol
 
 # The name of the file containing the meta-data describing the
@@ -1678,6 +1678,37 @@ class LFRicSignXKern(LFRicBuiltIn):
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
 
+# ------------------------------------------------------------------- #
+# ============== Log of real field elements ======================== #
+# ------------------------------------------------------------------- #
+
+
+class LFRicLogXKern(LFRicBuiltIn):
+    ''' Returns the log of a real-valued field elements using the
+    Fortran intrinsic `log` function, `Y = log(X)`.
+
+    '''
+    def __str__(self):
+        return "Built-in: Log of a real-valued field"
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = LOG(proxy1%data)
+        rhs = UnaryOperation.create(UnaryOperation.Operator.LOG, arg_refs[1])
+        assign = Assignment.create(arg_refs[0], rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+
 
 # ------------------------------------------------------------------- #
 # ============== Maximum of (real scalar, real field elements) ====== #
@@ -2192,6 +2223,8 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     "sum_X": LFRicSumXKern,
     # Sign of real field elements applied to a scalar value
     "sign_X": LFRicSignXKern,
+    # Log of real field elements applied to a scalar value
+    "log_X": LFRicLogXKern,
     # Maximum of a real scalar value and real field elements
     "max_aX": LFRicMaxAXKern,
     "inc_max_aX": LFRicIncMaxAXKern,
@@ -2289,6 +2322,7 @@ __all__ = ['LFRicBuiltInCallFactory',
            'LFRicXInnerproductXKern',
            'LFRicSumXKern',
            'LFRicSignXKern',
+           'LFRicLogXKern',
            'LFRicMaxAXKern',
            'LFRicIncMaxAXKern',
            'LFRicMinAXKern',

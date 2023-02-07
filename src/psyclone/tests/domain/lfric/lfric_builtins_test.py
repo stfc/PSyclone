@@ -3596,6 +3596,71 @@ def test_sign_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
         assert output_dm_2 in code
 
+# ------------- Log of real field elements --------------------------------- #
+
+
+def test_log_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
+    ''' Test that 1) the str method of LFRicLogXKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Y = log(X) where  Y and X are real-valued fields. Test 
+    with and without annexed dofs being computed as this affects the 
+    generated code.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.10.8_log_X_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    # Test string method
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
+    assert str(kern) == "Built-in: Log of a real-valued field"
+    # Test code generation
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if not dist_mem:
+        output = (
+            "      loop0_stop = undf_aspc1_f2\n"
+            "      !\n"
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO df=loop0_start,loop0_stop\n"
+            "        f2_proxy%data(df) = LOG(f1_proxy%data(df))\n"
+            "      END DO\n"
+            "      !\n"
+            "    END SUBROUTINE invoke_0\n")
+        assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f2_proxy%data(df) = LOG(f1_proxy%data(df))\n"
+                "enddo") in code
+    else:
+        output_dm_2 = (
+            "      loop0_stop = f2_proxy%vspace%get_last_dof_annexed()\n"
+            "      !\n"
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      DO df=loop0_start,loop0_stop\n"
+            "        f2_proxy%data(df) = LOG(f1_proxy%data(df))\n"
+            "      END DO\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f2_proxy%set_dirty()\n"
+            "      !\n")
+        if not annexed:
+            output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
+        assert output_dm_2 in code
+
 
 # ------------- Maximum of (real scalar, real field elements) --------------- #
 

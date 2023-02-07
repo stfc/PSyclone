@@ -611,6 +611,22 @@ use argument_mod,  only : arg_type,            &
    contains
      procedure, nopass :: sign_X_code
   end type sign_X
+  
+! ------------------------------------------------------------------- !
+! =============== Log of real field elements ======================== !
+! ------------------------------------------------------------------- !
+
+  !> field2 = LOG(field1)
+  type, public, extends(kernel_type) :: log_X
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, ANY_SPACE_1),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1)         &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: log_X_code
+  end type log_X
 
 ! ------------------------------------------------------------------- !
 ! ============== Maximum of (real scalar, real field elements) ====== !
@@ -1136,6 +1152,10 @@ contains
   ! Sign of real field elements
   subroutine sign_X_code()
   end subroutine sign_X_code
+
+  ! Log of real field elements
+  subroutine log_X_code()
+  end subroutine log_X_code
 
   ! Maximum of (real scalar, real field elements)
   subroutine max_aX_code()
