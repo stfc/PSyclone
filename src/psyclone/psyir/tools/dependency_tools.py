@@ -46,11 +46,10 @@ import sympy
 from psyclone.configuration import Config
 from psyclone.core import (AccessType, SymbolicMaths,
                            VariablesAccessInfo)
-from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.errors import InternalError, LazyString
 from psyclone.psyir.nodes import Loop
 from psyclone.parse import ModuleManager
-from psyclone.psyGen import Kern
+from psyclone.psyGen import BuiltIn, Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
@@ -957,7 +956,7 @@ class DependencyTools():
         all_mods = set()
         all_external_symbols = {}
         for kern in container.walk(Kern):
-            if not isinstance(kern, LFRicBuiltIn):
+            if not isinstance(kern, BuiltIn):
                 all_mods.add(kern.module_name)
                 mod_info = mod_manager.get_module_info(kern.module_name)
                 ext_symbols = mod_info.get_external_symbols()
