@@ -73,6 +73,20 @@ use argument_mod,  only : arg_type,            &
      procedure, nopass :: X_plus_Y_code
   end type X_plus_Y
 
+  !> field4 = field1 + field2 + field3
+  type, public, extends(kernel_type) :: X_plus_Y_plus_Z
+     private
+     type(arg_type) :: meta_args(4) = (/                              &
+          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_SPACE_1),         &
+          arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_1),         &
+          arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_1),         &
+          arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_1)          &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: X_plus_Y_plus_Z_code
+  end type X_plus_Y_plus_Z
+
   !> field1 = field1 + field2
   type, public, extends(kernel_type) :: inc_X_plus_Y
      private
@@ -612,6 +626,26 @@ use argument_mod,  only : arg_type,            &
      procedure, nopass :: sign_X_code
   end type sign_X
 
+
+! ------------------------------------------------------------------- !
+! ============== Expoential of real field elements ================== !
+! ------------------------------------------------------------------- !
+
+  !> field2 = EXP(field1)
+  type, public, extends(kernel_type) :: exp_X
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, ANY_SPACE_1),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1)         &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: exp_X_code
+  end type exp_X
+
+! ------------------------------------------------------------------- !
+
+
 ! ------------------------------------------------------------------- !
 ! ============== Maximum of (real scalar, real field elements) ====== !
 ! ------------------------------------------------------------------- !
@@ -1007,6 +1041,9 @@ contains
   subroutine X_plus_Y_code()
   end subroutine X_plus_Y_code
 
+  subroutine X_plus_Y_plus_Z_code()
+  end subroutine X_plus_Y_plus_Z_code
+
   subroutine inc_X_plus_Y_code()
   end subroutine inc_X_plus_Y_code
 
@@ -1136,6 +1173,10 @@ contains
   ! Sign of real field elements
   subroutine sign_X_code()
   end subroutine sign_X_code
+
+  ! Expoential of real field elements
+  subroutine exp_X_code()
+  end subroutine exp_X_code
 
   ! Maximum of (real scalar, real field elements)
   subroutine max_aX_code()

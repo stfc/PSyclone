@@ -52,7 +52,7 @@ from psyclone.f2pygen import AssignGen, PSyIRGen
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import BuiltIn
 from psyclone.psyir.nodes import (Assignment, BinaryOperation, Call, Reference,
-                                  StructureReference)
+                                  StructureReference, UnaryOperation)
 from psyclone.psyir.symbols import ArrayType, RoutineSymbol
 
 # The name of the file containing the meta-data describing the
@@ -520,6 +520,35 @@ class LFRicXPlusYKern(LFRicBuiltIn):
         #      proxy0%data(df) = proxy1%data(df) + proxy2%data(df)
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                      arg_refs[1], arg_refs[2])
+        assign = Assignment.create(arg_refs[0], rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+
+
+class LFRicXPlusYPlusZKern(LFRicBuiltIn):
+    ''' Add three real-valued fields and return the result as
+    a fourth, real-valued, field.
+
+    '''
+    def __str__(self):
+        return "Built-in: Add three real-valued fields"
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = proxy1%data(df) + proxy2%data(df) 
+        #                        + proxy3%data(df)
+        temp = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                     arg_refs[1], arg_refs[2])
+        rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                     temp, arg_refs[3])
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
@@ -1679,6 +1708,31 @@ class LFRicSignXKern(LFRicBuiltIn):
         self.replace_with(assign)
 
 
+class LFRicExpXKern(LFRicBuiltIn):
+    ''' Returns the base exponential of a real-valued field elements
+    using the Fortran intrinsic `exp` function, `Y = exp(X)`.
+
+    '''
+    def __str__(self):
+        return "Built-in: Exponential of a real-valued field"
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = EXP(proxy1%data)
+        rhs = UnaryOperation.create(UnaryOperation.Operator.EXP, arg_refs[1])
+        assign = Assignment.create(arg_refs[0], rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+
+
 # ------------------------------------------------------------------- #
 # ============== Maximum of (real scalar, real field elements) ====== #
 # ------------------------------------------------------------------- #
@@ -2141,6 +2195,7 @@ class LFRicRealXKern(LFRicXKern):
 REAL_BUILTIN_MAP_CAPITALISED = {
     # Adding (scaled) real fields
     "X_plus_Y": LFRicXPlusYKern,
+    "X_plus_Y_plus_Z": LFRicXPlusYPlusZKern,
     "inc_X_plus_Y": LFRicIncXPlusYKern,
     "a_plus_X": LFRicAPlusXKern,
     "inc_a_plus_X": LFRicIncAPlusXKern,
@@ -2192,6 +2247,8 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     "sum_X": LFRicSumXKern,
     # Sign of real field elements applied to a scalar value
     "sign_X": LFRicSignXKern,
+    # Exponential of real field elements
+    "exp_X": LFRicExpXKern,
     # Maximum of a real scalar value and real field elements
     "max_aX": LFRicMaxAXKern,
     "inc_max_aX": LFRicIncMaxAXKern,

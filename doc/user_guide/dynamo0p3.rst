@@ -3131,6 +3131,22 @@ are ``real``-valued fields. The results are ``a`` for ``X >= 0`` and
 
   field2(:) = SIGN(rscalar, field1(:))
 
+Exponential of elements
+#######################
+
+A Built-in which returns the exponential of a ``real``-valued field is
+denoted with the keyword **exp**.
+
+exp_X
+^^^^^
+
+**exp_X** (**field2**, *field1*)
+
+Returns the exponential of a ``real``-valued field, e.g. in Fortran:
+``Y = exp(X)``. Here ``Y`` and ``X`` are ``real``-valued fields::
+
+  field2(:) = EXP(field1(:))
+
 DoF-wise maximum of elements
 ############################
 
