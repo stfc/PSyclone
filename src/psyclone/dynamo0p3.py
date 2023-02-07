@@ -2866,8 +2866,7 @@ class DynFunctionSpaces(DynCollection):
                                          rhs=name + "%" +
                                          arg.ref_name(function_space) +
                                          "%get_undf()"))
-            # If self._dofs_only is True and dist_mem is not enabled then we
-            # get a loopx_stop = undf_.... but undf_.... is never defined.
+
 
 class LFRicFields(DynCollection):
     '''
