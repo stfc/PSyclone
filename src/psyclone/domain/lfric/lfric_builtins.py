@@ -181,7 +181,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         # after all read access (which must happen before something is written)
         written = VariablesAccessInfo()
         for arg in self.args:
-            if arg.form == "variable":
+            if arg.form in ["variable", "indexed_variable"]:
                 if arg.access == AccessType.WRITE:
                     written.add_access(Signature(arg.declaration_name),
                                        arg.access, self)
