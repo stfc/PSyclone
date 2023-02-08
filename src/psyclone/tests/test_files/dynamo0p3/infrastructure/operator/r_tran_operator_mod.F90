@@ -8,7 +8,7 @@
 !-------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2022-2023, Science and Technology Facilities Council
+! Modifications copyright (c) 2023, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -43,17 +43,17 @@
 !> @details Implements the locally assembled operator (i.e. the stencil is
 !>          assembled in each cell of the 3D grid).
 
-module r_solver_operator_mod
+module r_tran_operator_mod
 
   ! Eventually the precision of the operator will be set in a module held
   ! within the model (as it is model information). For now, PSyclone is
   ! expecting to "use" the definitions from operator_mod, so it is set here
-#if (R_SOLVER_PRECISION == 32)
-  use operator_r32_mod, only: r_solver_operator_type => operator_r32_type, &
-                              r_solver_operator_proxy_type => operator_r32_proxy_type
+#if (R_TRAN_PRECISION == 32)
+  use operator_r32_mod, only: r_tran_operator_type => operator_r32_type, &
+                              r_tran_operator_proxy_type => operator_r32_proxy_type
 #else
-  use operator_r64_mod, only: r_solver_operator_type => operator_r64_type, &
-                              r_solver_operator_proxy_type => operator_r64_proxy_type
+  use operator_r64_mod, only: r_tran_operator_type => operator_r64_type, &
+                              r_tran_operator_proxy_type => operator_r64_proxy_type
 #endif
 
   implicit none
@@ -61,6 +61,6 @@ module r_solver_operator_mod
 ! appeared in Intel v19. Every item in the module has an explicit access set,
 ! so not setting the default has no effect. See ticket #3326 for details
 !  private
-  public :: r_solver_operator_type, r_solver_operator_proxy_type
+  public :: r_tran_operator_type, r_tran_operator_proxy_type
 
-end module r_solver_operator_mod
+end module r_tran_operator_mod

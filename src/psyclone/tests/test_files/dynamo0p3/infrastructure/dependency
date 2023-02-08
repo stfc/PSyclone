@@ -118,9 +118,8 @@ operator/operator_mod.o: function_space/function_space_mod.o mesh/mesh_mod.o \
 	operator/operator_parent_mod.o utilities/constants_mod.o utilities/log_mod.o
 operator/operator_parent_mod.o: function_space/function_space_mod.o \
 	mesh/mesh_mod.o utilities/constants_mod.o
-operator/r_solver_operator_mod.o: function_space/function_space_mod.o \
-	mesh/mesh_mod.o operator/operator_parent_mod.o utilities/constants_mod.o \
-	utilities/log_mod.o
+operator/r_solver_operator_mod.o: operator/operator_r32_mod.o operator/operator_r64_mod.o
+operator/r_tran_operator_mod.o: operator/operator_r32_mod.o operator/operator_r64_mod.o
 scalar/scalar_mod.o: scalar/scalar_r32_mod.o scalar/scalar_r64_mod.o
 scalar/scalar_r32_mod.o: utilities/constants_mod.o utilities/mpi_mod.o
 scalar/scalar_r64_mod.o: utilities/constants_mod.o utilities/mpi_mod.o

@@ -8,7 +8,7 @@
 !-------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2020-2022, Science and Technology Facilities Council
+! Modifications copyright (c) 2022-2023, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -39,10 +39,10 @@
 ! Modified by: J. Henrichs, Bureau of Meteorology,
 !              I. Kavcic, Met Office.
 !
-!> @brief A module providing operator-related classes.
+!> @brief A module providing operator related classes.
 !>
 !> @details Implements the locally assembled operator (i.e. the stencil is
-!!          assembled in each cell of the 3D grid).
+!>          assembled in each cell of the 3D grid).
 
 module operator_mod
 
