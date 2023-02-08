@@ -95,7 +95,7 @@ class KernCallArgList(ArgOrdering):
         '''
         if field_type in ["r_solver_field_type", "r_solver_operator_type"]:
             return psyir.R_SOLVER
-        if field_type == "r_tran_field_type":
+        if field_type in ["r_tran_field_type", "r_tran_operator_type"]:
             return psyir.R_TRAN
         return psyir.R_DEF
 
@@ -599,6 +599,8 @@ class KernCallArgList(ArgOrdering):
         # This argument is always read only:
         if arg.data_type == "r_solver_operator_type":
             op_name = "r_solver_operator"
+        elif arg.data_type == "r_tran_operator_type":
+            op_name = "r_tran_operator"
         else:
             op_name = "operator"
         operator = LFRicConstants().DATA_TYPE_MAP[op_name]
