@@ -99,6 +99,9 @@ nan_test_base.o: psy_data_base.o
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
+nan_test.f90: nan_test.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) $< > nan_test.f90
+
 # The LFRic NaN checking library is built on the PSyData base library
 # and the NAN-checking base library. So add the rules to process
 # these files to get the plain Fortran files:
