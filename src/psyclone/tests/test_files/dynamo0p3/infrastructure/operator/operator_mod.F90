@@ -42,7 +42,7 @@
 !> @brief A module providing operator related classes.
 !>
 !> @details Implements the locally assembled operator (i.e. the stencil is
-!>          assembled in each cell of the 3D grid).
+!!          assembled in each cell of the 3D grid).
 
 module operator_mod
 

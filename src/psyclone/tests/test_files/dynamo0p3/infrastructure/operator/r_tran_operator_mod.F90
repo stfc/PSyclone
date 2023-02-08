@@ -38,10 +38,10 @@
 ! -----------------------------------------------------------------------------
 ! Modified by: I. Kavcic, Met Office
 !
-!> @brief A module providing operator related classes.
+!> @brief A module providing r_tran_operator-related classes.
 !>
 !> @details Implements the locally assembled operator (i.e. the stencil is
-!>          assembled in each cell of the 3D grid).
+!!          assembled in each cell of the 3D grid).
 
 module r_tran_operator_mod
 
