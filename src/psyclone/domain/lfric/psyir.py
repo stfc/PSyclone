@@ -270,11 +270,4 @@ for array_type in ARRAY_DATATYPES + FIELD_DATATYPES:
         f"{''.join(VARS)}\n"
         f"        super().__init__(name, {NAME}DataType(dims),  **kwargs)\n")
 
-# Generate LFRic vector-field-data symbols as subclasses of field-data symbols
-for array_type in FIELD_DATATYPES:
-    NAME = "".join(array_type.name.title().split())
-    VECTOR_NAME = NAME.replace("Field", "VectorField")
-    exec(f"class {VECTOR_NAME}DataSymbol({NAME}DataSymbol):\n"
-         f"    pass\n")
-
 __all__ = []

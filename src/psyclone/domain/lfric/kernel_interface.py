@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@
 # Author R. W. Ford, STFC Daresbury Lab
 # Modified: I. Kavcic, Met Office
 #           A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Modified: J. Henrichs, Bureau of Meteorology
 
 '''This module creates the expected arguments for an LFRic coded
 kernel based on the kernel metadata.
@@ -41,6 +42,7 @@ kernel based on the kernel metadata.
 '''
 from psyclone.core import AccessType
 from psyclone.domain.lfric import ArgOrdering, LFRicConstants
+from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.domain.lfric import psyir as lfric_psyir
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
@@ -74,16 +76,17 @@ class KernelInterface(ArgOrdering):
     '''
     #: Mapping from a generic PSyIR datatype to the equivalent
     #: LFRic-specific field datasymbol.
+    lfric_types = LFRicTypes.get()
     field_mapping = {
         "integer": lfric_psyir.IntegerFieldDataDataSymbol,
-        "real": lfric_psyir.RealFieldDataDataSymbol,
+        "real": lfric_types("RealFieldDataDataSymbol"),
         "logical": lfric_psyir.LogicalFieldDataDataSymbol}
     #: Mapping from a generic PSyIR datatype to the equivalent
     #: LFRic-specific vector field datasymbol.
     vector_field_mapping = {
-        "integer": lfric_psyir.IntegerVectorFieldDataDataSymbol,
-        "real": lfric_psyir.RealVectorFieldDataDataSymbol,
-        "logical": lfric_psyir.LogicalVectorFieldDataDataSymbol}
+        "integer": lfric_types("IntegerVectorFieldDataDataSymbol"),
+        "real": lfric_types("RealVectorFieldDataDataSymbol"),
+        "logical": lfric_types("LogicalVectorFieldDataDataSymbol")}
     #: Mapping from the LFRic metadata description of quadrature to the
     #: associated LFRic-specific basis function datasymbol.
     basis_mapping = {
@@ -99,7 +102,7 @@ class KernelInterface(ArgOrdering):
     _read_access = ArgumentInterface(ArgumentInterface.Access.READ)
 
     def __init__(self, kern):
-        super(KernelInterface, self).__init__(kern)
+        super().__init__(kern)
         self._symbol_table = SymbolTable()
         self._arglist = []
 
@@ -113,7 +116,7 @@ class KernelInterface(ArgOrdering):
             py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        super(KernelInterface, self).generate(var_accesses=var_accesses)
+        super().generate(var_accesses=var_accesses)
         # Set the argument list for the symbol table. This is done at
         # the end after incrementally adding symbols to the _args
         # list, as it is not possible to incrementally add symbols to
@@ -365,8 +368,9 @@ class KernelInterface(ArgOrdering):
         self._symbol_table.add(ncells)
         self._arglist.append(ncells)
 
+        lfric_types = LFRicTypes.get()
         op_arg_symbol = self._symbol_table.find_or_create_tag(
-            arg.name, symbol_type=lfric_psyir.OperatorDataSymbol,
+            arg.name, symbol_type=lfric_types("OperatorDataSymbol"),
             dims=[Reference(ndf_symbol_from), Reference(ndf_symbol_to),
                   Reference(ncells)],
             fs_from=fs_from_name, fs_to=fs_to_name,

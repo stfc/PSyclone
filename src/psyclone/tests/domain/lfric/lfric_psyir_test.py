@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@ correctly'''
 
 import pytest
 
-from psyclone.domain.lfric import psyir as lfric_psyir
+from psyclone.domain.lfric import psyir as lfric_psyir, LFRicTypes
 from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, \
     ImportInterface, ScalarType, LocalInterface, ArgumentInterface, \
     ArrayType, Symbol
@@ -410,23 +410,23 @@ def test_arrays(data_type, symbol, scalar_type, dims, attribute_map):
 # Vector field-data data-symbols
 @pytest.mark.parametrize(
     "symbol, parent_symbol, dims, attribute_map",
-    [(lfric_psyir.RealVectorFieldDataDataSymbol,
-      lfric_psyir.RealFieldDataDataSymbol,
+    [("RealVectorFieldDataDataSymbol",
+      "RealFieldDataDataSymbol",
       [Reference(
           lfric_psyir.NumberOfUniqueDofsDataSymbol(
               "ndofs", "w0",
               interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {"fs": "w0"}),
-     (lfric_psyir.IntegerVectorFieldDataDataSymbol,
-      lfric_psyir.IntegerFieldDataDataSymbol,
+     ("IntegerVectorFieldDataDataSymbol",
+      "IntegerFieldDataDataSymbol",
       [Reference(
           lfric_psyir.NumberOfUniqueDofsDataSymbol(
               "ndofs", "w1",
               visibility=Symbol.Visibility.PUBLIC,
               interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {"fs": "w1"}),
-     (lfric_psyir.LogicalVectorFieldDataDataSymbol,
-      lfric_psyir.LogicalFieldDataDataSymbol,
+     ("LogicalVectorFieldDataDataSymbol",
+      "LogicalFieldDataDataSymbol",
       [Reference(
           lfric_psyir.NumberOfUniqueDofsDataSymbol(
               "ndofs", "w2",
@@ -439,7 +439,9 @@ def test_vector_fields(symbol, parent_symbol, dims, attribute_map):
     datasymbols.
 
     '''
+    lfric_types = LFRicTypes.get()
+
     args = list(attribute_map.values())
-    lfric_symbol = symbol("symbol", dims, *args)
-    assert isinstance(lfric_symbol, parent_symbol)
+    lfric_symbol = lfric_types(symbol)("symbol", dims, *args)
+    assert isinstance(lfric_symbol, lfric_types(parent_symbol))
     assert lfric_symbol.name == "symbol"

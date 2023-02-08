@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,7 @@ import os
 import pytest
 from psyclone.psyir.symbols import SymbolTable, ArgumentInterface
 from psyclone.psyir.nodes import Reference, Literal
-from psyclone.domain.lfric import KernelInterface, FunctionSpace
+from psyclone.domain.lfric import FunctionSpace, KernelInterface, LFRicTypes
 from psyclone.domain.lfric import psyir as lfric_psyir
 from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 from psyclone.psyGen import PSyFactory
@@ -90,14 +90,15 @@ def test_generate(var_accesses):
     kernel_interface = KernelInterface(kernel0)
     kernel_interface.generate(var_accesses=var_accesses)
     # Check symbols
+    lfric_types = LFRicTypes.get()
     nlayers_symbol = kernel_interface._symbol_table.lookup("nlayers")
     assert isinstance(nlayers_symbol, lfric_psyir.MeshHeightDataSymbol)
     undf_w0_symbol = kernel_interface._symbol_table.lookup("undf_w0")
     assert isinstance(undf_w0_symbol, lfric_psyir.NumberOfUniqueDofsDataSymbol)
     f1_field_symbol = kernel_interface._symbol_table.lookup("f1")
-    assert isinstance(f1_field_symbol, lfric_psyir.RealFieldDataDataSymbol)
+    assert isinstance(f1_field_symbol, lfric_types("RealFieldDataDataSymbol"))
     f2_field_symbol = kernel_interface._symbol_table.lookup("f2")
-    assert isinstance(f2_field_symbol, lfric_psyir.RealFieldDataDataSymbol)
+    assert isinstance(f2_field_symbol, lfric_types("RealFieldDataDataSymbol"))
     ndf_w0_symbol = kernel_interface._symbol_table.lookup("ndf_w0")
     assert isinstance(ndf_w0_symbol, lfric_psyir.NumberOfDofsDataSymbol)
     dofmap_w0_symbol = kernel_interface._symbol_table.lookup("dofmap_w0")
@@ -233,10 +234,12 @@ def test_field_vector(monkeypatch):
 
     # vector fields declared, added to argument list, correct function
     # space specified and dimensioned correctly
+    lfric_types = LFRicTypes.get()
     for idx in range(vector_arg.vector_size):
         tag = f"{vector_arg.name}_v{idx}"
         symbol = kernel_interface._symbol_table.lookup(tag)
-        assert isinstance(symbol, lfric_psyir.RealVectorFieldDataDataSymbol)
+        assert isinstance(symbol,
+                          lfric_types("RealVectorFieldDataDataSymbol"))
         assert isinstance(symbol.interface, ArgumentInterface)
         assert (symbol.interface.access ==
                 ArgumentInterface(INTENT_MAPPING[vector_arg.intent]).access)
@@ -283,7 +286,8 @@ def test_field(monkeypatch):
     # space specified and dimensioned correctly
     tag = field_arg.name
     symbol = kernel_interface._symbol_table.lookup(tag)
-    assert isinstance(symbol, lfric_psyir.RealFieldDataDataSymbol)
+    lfric_types = LFRicTypes.get()
+    assert isinstance(symbol, lfric_types("RealFieldDataDataSymbol"))
     assert isinstance(symbol.interface, ArgumentInterface)
     assert (symbol.interface.access ==
             ArgumentInterface(INTENT_MAPPING[field_arg.intent]).access)
@@ -381,7 +385,8 @@ def test_operator():
     # spaces specified and dimensioned correctly
     tag = operator_arg.name
     symbol = kernel_interface._symbol_table.lookup(tag)
-    assert isinstance(symbol, lfric_psyir.OperatorDataSymbol)
+    lfric_types = LFRicTypes.get()
+    assert isinstance(symbol, lfric_types("OperatorDataSymbol"))
     assert isinstance(symbol.interface, ArgumentInterface)
     assert (symbol.interface.access ==
             ArgumentInterface(INTENT_MAPPING[operator_arg.intent]).access)
