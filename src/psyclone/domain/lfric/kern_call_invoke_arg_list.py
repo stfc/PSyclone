@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -302,7 +302,8 @@ class KernCallInvokeArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        tmap = LFRicConstants().DATA_TYPE_MAP
+        consts = LFRicConstants()
+        tmap = consts.DATA_TYPE_MAP
         try:
             otype = self._symtab.lookup(tmap["operator"]["type"])
         except KeyError:
@@ -314,7 +315,6 @@ class KernCallInvokeArgList(ArgOrdering):
                                             interface=ImportInterface(csym))
         sym = self._symtab.new_symbol(arg.name,
                                       symbol_type=DataSymbol, datatype=otype)
-        consts = LFRicConstants()
         fs_from = consts.specific_function_space(
             arg.function_space_from.orig_name)
         fs_to = consts.specific_function_space(arg.function_space_to.orig_name)

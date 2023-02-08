@@ -309,6 +309,7 @@ def test_init_operators_random(type_map):
     assert isinstance(kernels[0], LFRicKernelFunctor)
     assert kernels[0].symbol.name == "setop_random_kernel_type"
     assert kernels[0].children[0].symbol is op1
+    assert kernels[1].symbol.name == "setop_random_kernel_type"
     assert kernels[1].children[0].symbol is op2
     csym = table.lookup("setop_random_kernel_mod")
     assert isinstance(csym, ContainerSymbol)
@@ -489,14 +490,14 @@ def test_generate_lfric_adjoint_harness(fortran_reader, fortran_writer):
 
 def test_generate_lfric_adj_test_quadrature(fortran_reader):
     '''Check that input copies of quadrature arguments are not created.'''
-    new_code = TL_CODE.replace("     integer :: operates_on = cell_column\n",
-                               '''\
-    type(func_type) :: meta_funcs(1) = (/                                   &
-         func_type(W3,          GH_BASIS)                                   &
-         /)
-    integer :: operates_on = CELL_COLUMN
-    integer :: gh_shape = GH_QUADRATURE_XYOZ
-''')
+    # Change the metadata so that it requires quadrature.
+    new_code = TL_CODE.replace(
+        "     integer :: operates_on = cell_column\n",
+        "     type(func_type) :: meta_funcs(1) = (/               &\n"
+        "          func_type(W3, gh_basis)                        &\n"
+        "          /)\n"
+        "     integer :: operates_on = cell_column\n"
+        "     integer :: gh_shape = gh_quadrature_xyoz\n")
     tl_psyir = fortran_reader.psyir_from_source(new_code)
     psyir = generate_lfric_adjoint_harness(tl_psyir)
     routine = psyir.walk(Routine)[0]

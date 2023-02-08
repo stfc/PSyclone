@@ -415,7 +415,7 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
         PSyIR does not follow the LFRic naming convention of ending in '_mod'.
 
     '''
-    # pylint: disable=too-many-statements, too-many-locals
+    # pylint: disable=too-many-statements, too-many-locals, too-many-branches
     tl_container = find_container(tl_psyir)
     if not tl_container:
         raise ValueError(
