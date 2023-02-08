@@ -1,8 +1,8 @@
-{# Added this as jinja code so that it is understood that the
+{# Added this as Jinja code so that it is understood that the
    comment does not apply to THIS file. #}
 {{ "! ================================================== !" }}
-{{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE  !" }}
-{{ "! DO NOT MODIFY DIRECTLY                             !" }}
+{{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE. !" }}
+{{ "! DO NOT MODIFY DIRECTLY!                            !" }}
 {{ "! ================================================== !" }}
 
 {# This jinja template file creates a base class for a not-NAN
@@ -130,7 +130,7 @@ contains
     ! Implementation for all {{type}} types
     ! =========================================================================
     ! -------------------------------------------------------------------------
-    !> This subroutine checks if a floating point value is NAN or infinite
+    !> @brief This subroutine checks if a floating point value is NAN or infinite
     !! using the IEEE_IS_FINIT function (and does nothing for integer types).
     !! @param[in,out] this The instance of the NANTestBaseType.
     !! @param[in] name The name of the variable (string).
@@ -176,7 +176,7 @@ contains
     {% set indent = " "*3*dim %}
 
     ! -------------------------------------------------------------------------
-    !> This method checks if an array contains NAN or infinite IEEE values (it
+    !> @brief This method checks if an array contains NAN or infinite IEEE values (it
     !! does nothing in case that the array is an integer type).
     !! @param[in,out] this The instance of the NANTestBaseType.
     !! @param[in] name The name of the variable (string).

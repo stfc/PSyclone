@@ -290,6 +290,14 @@
 
 	99) PR #2029 for #1567. Fix visibility issues with imported symbols.
 
+	100) PR #2024 for #1984. Fixes the dependence analysis for the case
+	where a single element of an array of fields is passed as an
+	argument to an LFRic built-in.
+
+	101) PR #1980 for #1978. Updated LFRic Infrastructure files in
+	PSyclone repository and PSyData libraries to support 32- and
+	64-bit mixed precision.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
