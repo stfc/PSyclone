@@ -48,13 +48,12 @@ from psyclone import psyGen
 from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric import ArgOrdering, LFRicConstants, psyir
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (ArrayOfStructuresReference, Literal,
                                   Reference, StructureReference)
 from psyclone.psyir.symbols import (ArrayType, DataSymbol, DataTypeSymbol,
                                     DeferredType, ContainerSymbol,
                                     ImportInterface, INTEGER_SINGLE_TYPE,
-                                    ScalarType, SymbolError, SymbolTable)
+                                    ScalarType)
 
 # psyir has classes created at runtime
 # pylint: disable=no-member
@@ -232,7 +231,7 @@ class KernCallArgList(ArgOrdering):
         sym = self.append_array_reference(base_name, [":", ":", cell_ref],
                                           ScalarType.Intrinsic.INTEGER)
         self.append(f"{sym.name}(:,:,{cell_ref_name})",
-                    var_accesses=var_accesses)
+                    var_accesses=var_accesses, var_access_name=sym.name)
 
         # No. of fine cells per coarse cell in x
         base_name = f"ncpc_{farg.name}_{carg.name}_x"
@@ -275,25 +274,10 @@ class KernCallArgList(ArgOrdering):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: if a scalar of type other than real, \
-            logical, or integer is found.
-
         '''
         super().scalar(scalar_arg, var_accesses)
         if scalar_arg.is_literal:
-            literal_string = scalar_arg.name
-            try:
-                # Since we know it must be a literal, we need to provide an
-                # empty SymbolTable (to make sure an invalid strings is not
-                # recognised as an existing symbol)
-                literal = FortranReader().psyir_from_expression(literal_string,
-                                                                SymbolTable())
-            except SymbolError as err:
-                raise InternalError(f"Unexpected literal expression "
-                                    f"'{literal_string}' in scalar() when "
-                                    f"processing kernel "
-                                    f"'{self._kern.name}'.") from err
-            self.psyir_append(literal)
+            self.psyir_append(scalar_arg.psyir_expression())
         else:
             sym = self._symtab.lookup(scalar_arg.name)
             self.psyir_append(Reference(sym))

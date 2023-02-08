@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,11 +48,11 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.nodes import BinaryOperation, Call, CodeBlock, DataNode, \
-    Literal, Operation, Range, Routine, Schedule, UnaryOperation
-from psyclone.psyir.symbols import ArgumentInterface, ArrayType, \
-    ContainerSymbol, DataSymbol, DataTypeSymbol, DeferredType, RoutineSymbol, \
-    ScalarType, Symbol, SymbolTable, UnknownFortranType, UnknownType
-
+    Literal, Operation, Range, Routine, Schedule, UnaryOperation, IntrinsicCall
+from psyclone.psyir.symbols import (
+    ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
+    DeferredType, RoutineSymbol, ScalarType, Symbol, SymbolTable,
+    UnknownFortranType, UnknownType, UnresolvedInterface, ImportInterface)
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -714,7 +714,7 @@ class FortranWriter(LanguageWriter):
         result += f"{self._nindent}end type {symbol.name}\n"
         return result
 
-    def gen_access_stmt(self, symbol_table):
+    def gen_default_access_stmt(self, symbol_table):
         '''
         Generates the access statement for a module - either "private" or
         "public". Although the PSyIR captures the visibility of every Symbol
@@ -744,22 +744,20 @@ class FortranWriter(LanguageWriter):
             f"either 'Symbol.Visibility.PUBLIC' or "
             f"'Symbol.Visibility.PRIVATE'\n")
 
-    def gen_routine_access_stmts(self, symbol_table):
+    def gen_access_stmts(self, symbol_table):
         '''
-        Creates the accessibility statements (R518) for any routine symbols
-        in the supplied symbol table.
+        Creates the accessibility statements (R518) for any routine or
+        imported symbols in the supplied symbol table.
 
         :param symbol_table: the symbol table for which to generate \
                              accessibility statements.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
-        :returns: the accessibility statements for any routine symbols.
+        :returns: the accessibility statements for any routine or imported \
+                  symbols.
         :rtype: str
 
-        :raises InternalError: if a Routine symbol with an unrecognised \
-                               visibility is encountered.
         '''
-
         # Find the symbol that represents itself, this one will not need
         # an accessibility statement
         try:
@@ -767,40 +765,42 @@ class FortranWriter(LanguageWriter):
         except KeyError:
             itself = None
 
-        public_routines = []
-        private_routines = []
+        public_symbols = []
+        private_symbols = []
         for symbol in symbol_table.symbols:
-            if isinstance(symbol, RoutineSymbol):
+            if (isinstance(symbol, RoutineSymbol) or
+                    isinstance(symbol.interface, (UnresolvedInterface,
+                                                  ImportInterface))):
 
                 # Skip the symbol representing the routine where these
                 # declarations belong
-                if symbol is itself:
+                if isinstance(symbol, RoutineSymbol) and symbol is itself:
                     continue
 
-                # It doesn't matter whether this symbol has a local or global
+                # It doesn't matter whether this symbol has a local or import
                 # interface - its accessibility in *this* context is determined
                 # by the local accessibility statements. e.g. if we are
                 # dealing with the declarations in a given module which itself
                 # uses a public symbol from some other module, the
                 # accessibility of that symbol is determined by the
                 # accessibility statements in the current module.
-                if symbol.visibility == Symbol.Visibility.PUBLIC:
-                    public_routines.append(symbol.name)
-                elif symbol.visibility == Symbol.Visibility.PRIVATE:
-                    private_routines.append(symbol.name)
+                if (symbol_table.default_visibility in
+                        [None, Symbol.Visibility.PUBLIC]):
+                    if symbol.visibility == Symbol.Visibility.PRIVATE:
+                        # Default vis. is public but this symbol is private
+                        private_symbols.append(symbol.name)
                 else:
-                    raise InternalError(
-                        f"Unrecognised visibility ('{symbol.visibility}') "
-                        f"found for symbol '{symbol.name}'. Should be either "
-                        f"'Symbol.Visibility.PUBLIC' or "
-                        f"'Symbol.Visibility.PRIVATE'.")
+                    if symbol.visibility == Symbol.Visibility.PUBLIC:
+                        # Default vis. is private but this symbol is public
+                        public_symbols.append(symbol.name)
+
         result = "\n"
-        if public_routines:
-            result += f"{self._nindent}public :: "
-            result += ", ".join(public_routines) + "\n"
-        if private_routines:
-            result += f"{self._nindent}private :: "
-            result += ", ".join(private_routines) + "\n"
+        if public_symbols:
+            result += f"{self._nindent}public :: {', '.join(public_symbols)}\n"
+        if private_symbols:
+            result += (f"{self._nindent}private :: "
+                       f"{', '.join(private_symbols)}\n")
+
         if len(result) > 1:
             return result
         return ""
@@ -1049,10 +1049,10 @@ class FortranWriter(LanguageWriter):
         declarations = self.gen_decls(node.symbol_table, is_module_scope=True)
 
         # Generate the access statement (PRIVATE or PUBLIC)
-        declarations += self.gen_access_stmt(node.symbol_table)
+        declarations += self.gen_default_access_stmt(node.symbol_table)
 
-        # Accessibility statements for routine symbols
-        declarations += self.gen_routine_access_stmts(node.symbol_table)
+        # Accessibility statements for imported and routine symbols
+        declarations += self.gen_access_stmts(node.symbol_table)
 
         # Get the subroutine statements.
         subroutines = ""
@@ -1636,6 +1636,10 @@ class FortranWriter(LanguageWriter):
             else:
                 result_list.append(self._visit(child))
         args = ", ".join(result_list)
+        if isinstance(node, IntrinsicCall) and node.routine.name in [
+                "ALLOCATE", "DEALLOCATE"]:
+            # An allocate/deallocate doesn't have 'call'.
+            return f"{self._nindent}{node.routine.name}({args})\n"
         if not node.parent or isinstance(node.parent, Schedule):
             return f"{self._nindent}call {node.routine.name}({args})\n"
         # Otherwise it is inside-expression function call

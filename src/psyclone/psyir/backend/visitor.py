@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -180,7 +180,7 @@ class PSyIRVisitor():
             raise VisitorError(
                 f"Failed to lower '{node}'. Note that some nodes need to be "
                 f"lowered from an ancestor in order to properly apply their "
-                f"in-tree modifications.") from err
+                f"in-tree modifications. Original error was '{err}'.") from err
 
         # Find again the equivalent node in the lowered tree in case that it
         # has been replaced
