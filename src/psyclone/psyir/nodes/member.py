@@ -145,7 +145,9 @@ class Member(Node):
         Lookup the lower bound of this Member. If we don't have the
         necessary type information then a call to the LBOUND intrinsic is
         constructed and returned. This method has to be in this class so that
-        it is available to both StructureMember and ArrayMember.
+        it is available to both StructureMember and ArrayMember. Note that
+        if we don't have full information on a StructureType then we can
+        end up with a Member that in fact refers to a full array.
 
         :param int pos: the dimension of the array for which to lookup the \
                         lower bound.
@@ -155,6 +157,9 @@ class Member(Node):
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
+        # Have to import here to avoid circular dependencies.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.array_mixin import ArrayMixin
         # First, walk up to the parent reference and get its type.
         root_ref = self.ancestor(Reference)
         cursor_type = root_ref.symbol.datatype
@@ -168,7 +173,7 @@ class Member(Node):
         while cursor is not self:
             cursor = cursor.member
             # Collect member information.
-            if hasattr(cursor, "indices"):
+            if isinstance(cursor, ArrayMixin):
                 new_indices = [idx.copy() for idx in cursor.indices]
                 cnames.append((cursor.name, new_indices))
             else:
@@ -193,10 +198,9 @@ class Member(Node):
         if len(cnames[-1]) == 2:
             cnames[-1] = cnames[-1][0]
         # Have to import here to avoid circular dependencies.
-        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import (ArrayOfStructuresReference,
                                           StructureReference)
-        if hasattr(root_ref, "indices"):
+        if isinstance(root_ref, ArrayMixin):
             new_indices = [idx.copy() for idx in root_ref.indices]
             ref = ArrayOfStructuresReference.create(
                 root_ref.symbol, new_indices, cnames)

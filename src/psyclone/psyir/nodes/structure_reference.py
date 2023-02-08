@@ -42,8 +42,8 @@ from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.array_member import ArrayMember
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
-from psyclone.psyir.nodes.array_of_structures_member import \
-    ArrayOfStructuresMember
+from psyclone.psyir.nodes.array_of_structures_member import (
+    ArrayOfStructuresMember)
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.symbols import (ArrayType, DataSymbol, DataType,
                                     DataTypeSymbol, DeferredType, ScalarType,
@@ -319,7 +319,7 @@ class StructureReference(Reference):
 
         # Walk down the structure, collecting information on any array slices
         # as we go.
-        while hasattr(cursor, "member"):
+        while isinstance(cursor, (StructureMember, StructureReference)):
             cursor = cursor.member
             if isinstance(cursor_type, ArrayType):
                 cursor_type = cursor_type.intrinsic
