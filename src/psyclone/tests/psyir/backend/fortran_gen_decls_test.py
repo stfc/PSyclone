@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -251,16 +251,13 @@ def test_gen_decls_routine_unresolved(fortran_writer):
     assert result == ""
 
 
-def test_gen_decls_routine(fortran_writer):
+def test_gen_decls_routine_wrong_interface(fortran_writer):
     '''Test that the gen_decls method raises an exception if the interface
-    of a routine symbol is not an UnresolvedInterface or
-    ImportInterface, unless there's a wildcard import from a
-    Container.
+    of a routine symbol is of the wrong type.
 
     '''
-    # Check a user-defined routine symbol with an (unsupported)
-    # ArgumentInterface
     symbol_table = SymbolTable()
+    # Add a routine symbol with an unsupported ArgumentInterface
     rsym = RoutineSymbol("arg_sub", interface=ArgumentInterface())
     symbol_table.add(rsym)
     with pytest.raises(VisitorError) as info:

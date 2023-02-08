@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council.
+# Copyright (c) 2018-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,6 @@
 
 '''
 
-from __future__ import print_function, absolute_import
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
@@ -79,6 +78,7 @@ def test_no_kernels_error(parser):
     ''' Check that the transformation rejects an attempt to put things
     that aren't kernels inside a kernels region. '''
     reader = FortranStringReader("program write_out\n"
+                                 "integer, parameter :: wp = kind(1.0)\n"
                                  "integer :: ji, jpj\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
                                  "do ji = 1,jpj\n"
