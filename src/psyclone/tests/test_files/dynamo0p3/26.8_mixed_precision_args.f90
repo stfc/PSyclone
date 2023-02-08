@@ -58,10 +58,10 @@ program mixed_precision
   type(r_tran_field_type)      :: field_r_tran
   type(operator_type)          :: operator_r_def
   type(r_solver_operator_type) :: operator_r_solver
-  type(r_tran_operator_type)   :: operator_r_tran
+  type(r_tran_operator_type)   :: OperatoR_r_tran
 
   call invoke(mixed_type(scalar_r_deF, field_R_def, opeRator_r_def),          &
-              mixed_type(scalar_r_solver, field_r_solver, operator_r_solver), & ???
-              mixed_type(scalar_r_tran, field_r_tran, operator_r_def))
+              mixed_type(scalar_r_solver, field_r_solver, operator_r_solver), &
+              mixed_type(scalar_r_tran, field_r_tran, OperatoR_r_tran))
 
 end program mixed_precision
