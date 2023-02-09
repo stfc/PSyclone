@@ -46,12 +46,13 @@ This should output a Fortran representation of the LFRic-PSyIR.
 
 '''
 # pylint: disable=no-member
-from __future__ import print_function
-from psyclone.psyir.nodes import Call, Reference, Container, KernelSchedule
-from psyclone.psyir.symbols import RoutineSymbol, SymbolTable, \
-    ArgumentInterface
+
 from psyclone.domain.lfric import psyir as lfric_psyir, LFRicTypes
+from psyclone.psyir.nodes import Call, Reference, Container, KernelSchedule
+from psyclone.psyir.symbols import (RoutineSymbol, SymbolTable,
+                                    ArgumentInterface)
 from psyclone.psyir.backend.fortran import FortranWriter
+
 
 READ_ARG = ArgumentInterface(ArgumentInterface.Access.READ)
 
@@ -70,7 +71,7 @@ for symbol in [NDF_W3, UNDF_W3]:
     SYMBOL_TABLE.add(symbol)
 
 # Create LFRic field data symbols and add them to the symbol table
-LFRIC_TYPES = LFRicTypes.get()
+LFRIC_TYPES = LFRicTypes()
 FIELD1 = LFRIC_TYPES("RealFieldDataDataSymbol")(
     "field1", [Reference(UNDF_W3)], "w3")
 FIELD2 = LFRIC_TYPES("RealFieldDataDataSymbol")(

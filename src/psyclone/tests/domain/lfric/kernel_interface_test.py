@@ -40,18 +40,19 @@ metadata, are created and declared within a symbol table using
 LFRic-specific PSyIR classes.
 
 '''
-from __future__ import absolute_import
+
 import os
 import pytest
-from psyclone.psyir.symbols import SymbolTable, ArgumentInterface
-from psyclone.psyir.nodes import Reference, Literal
+
+from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.domain.lfric import FunctionSpace, KernelInterface, LFRicTypes
 from psyclone.domain.lfric import psyir as lfric_psyir
-from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
-from psyclone.psyGen import PSyFactory
-from psyclone.parse.algorithm import parse
 from psyclone.errors import InternalError
-from psyclone.core import AccessType, Signature, VariablesAccessInfo
+from psyclone.parse.algorithm import parse
+from psyclone.psyGen import PSyFactory
+from psyclone.psyir.symbols import SymbolTable, ArgumentInterface
+from psyclone.psyir.nodes import Reference, Literal
+from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          os.pardir, os.pardir, "test_files", "dynamo0p3")
@@ -90,7 +91,7 @@ def test_generate(var_accesses):
     kernel_interface = KernelInterface(kernel0)
     kernel_interface.generate(var_accesses=var_accesses)
     # Check symbols
-    lfric_types = LFRicTypes.get()
+    lfric_types = LFRicTypes()
     nlayers_symbol = kernel_interface._symbol_table.lookup("nlayers")
     assert isinstance(nlayers_symbol, lfric_psyir.MeshHeightDataSymbol)
     undf_w0_symbol = kernel_interface._symbol_table.lookup("undf_w0")
@@ -234,7 +235,7 @@ def test_field_vector(monkeypatch):
 
     # vector fields declared, added to argument list, correct function
     # space specified and dimensioned correctly
-    lfric_types = LFRicTypes.get()
+    lfric_types = LFRicTypes()
     for idx in range(vector_arg.vector_size):
         tag = f"{vector_arg.name}_v{idx}"
         symbol = kernel_interface._symbol_table.lookup(tag)
@@ -286,7 +287,7 @@ def test_field(monkeypatch):
     # space specified and dimensioned correctly
     tag = field_arg.name
     symbol = kernel_interface._symbol_table.lookup(tag)
-    lfric_types = LFRicTypes.get()
+    lfric_types = LFRicTypes()
     assert isinstance(symbol, lfric_types("RealFieldDataDataSymbol"))
     assert isinstance(symbol.interface, ArgumentInterface)
     assert (symbol.interface.access ==
@@ -385,7 +386,7 @@ def test_operator():
     # spaces specified and dimensioned correctly
     tag = operator_arg.name
     symbol = kernel_interface._symbol_table.lookup(tag)
-    lfric_types = LFRicTypes.get()
+    lfric_types = LFRicTypes()
     assert isinstance(symbol, lfric_types("OperatorDataSymbol"))
     assert isinstance(symbol.interface, ArgumentInterface)
     assert (symbol.interface.access ==
@@ -499,7 +500,7 @@ def test_fs_compulsory_field():
     # dofmap declared, added to argument list, correct function
     # space specified and dimensioned correctly
     tag = f"dofmap_{fs_name}"
-    lfric_types = LFRicTypes.get()
+    lfric_types = LFRicTypes()
     symbol = kernel_interface._symbol_table.lookup(tag)
     assert isinstance(symbol, lfric_types("DofMapDataSymbol"))
     assert isinstance(symbol.interface, ArgumentInterface)
@@ -575,7 +576,7 @@ def test_basis_xyoz():
             kernel_interface._read_access.access)
     # basis declared and added to argument list
     basis_symbol = kernel_interface._symbol_table.lookup("basis_w1_qr_xyoz")
-    lfric_types = LFRicTypes.get()
+    lfric_types = LFRicTypes()
     assert isinstance(basis_symbol,
                       lfric_types("BasisFunctionQrXyozDataSymbol"))
     assert isinstance(basis_symbol.interface, ArgumentInterface)
@@ -636,7 +637,7 @@ def test_basis_face():
             kernel_interface._read_access.access)
     # basis declared and added to argument list
     basis_symbol = kernel_interface._symbol_table.lookup("basis_w1_qr_face")
-    lfric_types = LFRicTypes.get()
+    lfric_types = LFRicTypes()
     assert isinstance(basis_symbol,
                       lfric_types("BasisFunctionQrFaceDataSymbol"))
     assert isinstance(basis_symbol.interface, ArgumentInterface)
@@ -696,7 +697,7 @@ def test_basis_edge():
             kernel_interface._read_access.access)
     # basis declared and added to argument list
     basis_symbol = kernel_interface._symbol_table.lookup("basis_w1_qr_edge")
-    lfric_types = LFRicTypes.get()
+    lfric_types = LFRicTypes()
     assert isinstance(basis_symbol,
                       lfric_types("BasisFunctionQrEdgeDataSymbol"))
     assert isinstance(basis_symbol.interface, ArgumentInterface)
@@ -760,7 +761,7 @@ def test_diff_basis():
     # diff basis declared and added to argument list
     diff_basis_symbol = kernel_interface._symbol_table.lookup(
         "diff_basis_w2_qr_xyoz")
-    lfric_types = LFRicTypes.get()
+    lfric_types = LFRicTypes()
     assert isinstance(
         diff_basis_symbol, lfric_types("DiffBasisFunctionQrXyozDataSymbol"))
     assert isinstance(diff_basis_symbol.interface, ArgumentInterface)
@@ -859,7 +860,7 @@ def test_quad_rule_xyoz():
     assert kernel_interface._arglist[-3] is nqpv_symbol
     # weights_xy declared and added to argument list
     weightsh_symbol = kernel_interface._symbol_table.lookup("weights_xy")
-    lfric_types = LFRicTypes.get()
+    lfric_types = LFRicTypes()
     assert isinstance(
         weightsh_symbol, lfric_types("QrWeightsInXyDataSymbol"))
     assert isinstance(weightsh_symbol.interface, ArgumentInterface)
@@ -914,7 +915,7 @@ def test_quad_rule_face():
     assert kernel_interface._arglist[-2] is nqp_symbol
     # weights declared and added to argument list
     weights_symbol = kernel_interface._symbol_table.lookup("weights_faces")
-    lfric_types = LFRicTypes.get()
+    lfric_types = LFRicTypes()
     assert isinstance(weights_symbol,
                       lfric_types("QrWeightsInFacesDataSymbol"))
     assert isinstance(weights_symbol.interface, ArgumentInterface)
@@ -958,7 +959,7 @@ def test_quad_rule_edge():
     assert kernel_interface._arglist[-2] is nqp_symbol
     # weights declared and added to argument list
     weights_symbol = kernel_interface._symbol_table.lookup("weights_edges")
-    lfric_types = LFRicTypes.get()
+    lfric_types = LFRicTypes()
     assert isinstance(weights_symbol,
                       lfric_types("QrWeightsInEdgesDataSymbol"))
     assert isinstance(weights_symbol.interface, ArgumentInterface)

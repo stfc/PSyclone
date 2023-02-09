@@ -76,7 +76,7 @@ class KernelInterface(ArgOrdering):
     '''
     #: Mapping from a generic PSyIR datatype to the equivalent
     #: LFRic-specific field datasymbol.
-    lfric_types = LFRicTypes.get()
+    lfric_types = LFRicTypes()
     field_mapping = {
         "integer": lfric_types("IntegerFieldDataDataSymbol"),
         "real": lfric_types("RealFieldDataDataSymbol"),
@@ -368,7 +368,7 @@ class KernelInterface(ArgOrdering):
         self._symbol_table.add(ncells)
         self._arglist.append(ncells)
 
-        lfric_types = LFRicTypes.get()
+        lfric_types = LFRicTypes()
         op_arg_symbol = self._symbol_table.find_or_create_tag(
             arg.name, symbol_type=lfric_types("OperatorDataSymbol"),
             dims=[Reference(ndf_symbol_from), Reference(ndf_symbol_to),
@@ -481,7 +481,7 @@ class KernelInterface(ArgOrdering):
             py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        lfric_types = LFRicTypes.get()
+        lfric_types = LFRicTypes()
         fs_name = function_space.orig_name
         undf_symbol = self._symbol_table.find_or_create_tag(
             f"undf_{fs_name}", fs=fs_name,
@@ -646,7 +646,7 @@ class KernelInterface(ArgOrdering):
 
         '''
         # The kernel captures all the required quadrature shapes
-        lfric_types = LFRicTypes.get()
+        lfric_types = LFRicTypes()
         for shape in self._kern.qr_rules:
             if shape == "gh_quadrature_xyoz":
                 nqp_xy = self._symbol_table.find_or_create_tag(

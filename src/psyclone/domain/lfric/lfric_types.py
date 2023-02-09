@@ -38,17 +38,15 @@
 
 from collections import namedtuple
 
-from psyclone.psyir.symbols import ArrayType, DataSymbol
-
-from psyclone.errors import InternalError
 from psyclone.domain.lfric import psyir
+from psyclone.psyir.symbols import ArrayType, DataSymbol
 
 
 class LFRicTypes:
     '''This class implements a singleton that manages LFRic types.
     Using the 'call' interface, you can query the data type for
     LFRic types, e.g.:
-    lfric_types = LFRicTypes.get()
+    lfric_types = LFRicTypes()
     rvfdds = lfric_types("RealVectorFieldDataDataSymbol")
 
     '''
@@ -57,25 +55,33 @@ class LFRicTypes:
     _instance = None
 
     # ------------------------------------------------------------------------
-    @staticmethod
-    def get():
-        '''Static function that if necessary creates and returns the singleton
-        LFricTypes instance.
+    def __new__(cls):
+        '''Implement a singleton - only one instance will ever be created.
 
         :returns: the singleton instance of LFRicTypes.
         :rtype: :py:class:`psyclone.domain.lfric.LFRicTypes`
 
         '''
-        if not LFRicTypes._instance:
-            LFRicTypes._instance = LFRicTypes()
+        if LFRicTypes._instance is None:
+            # Return a new instance. The constructor will set _instance
+            # in this case
+            return super().__new__(cls)
+
+        # Return the existing instance, in which case the constructor will
+        # not re-initialise the internal data structures
         return LFRicTypes._instance
 
     # ------------------------------------------------------------------------
     def __init__(self):
 
-        if LFRicTypes._instance is not None:
-            raise InternalError("You need to use 'LFRicTypes.get()' "
-                                "to get the singleton instance.")
+        # Test if this is returning the existing instance, if so, skip
+        # initialisation
+        if self == LFRicTypes._instance:
+            return
+
+        # First time __init__ is called, initialise all data structures.
+        LFRicTypes._instance = self
+
         self._name_to_class = {}
 
         self._create_fields()

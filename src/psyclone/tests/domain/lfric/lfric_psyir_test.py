@@ -366,7 +366,7 @@ def test_arrays(data_type_name, symbol_name, scalar_type, dims, attribute_map):
 
     '''
     # Datatype creation
-    lfric_types = LFRicTypes.get()
+    lfric_types = LFRicTypes()
     data_type = lfric_types(data_type_name)
     lfric_datatype = data_type(dims)
     assert isinstance(lfric_datatype, ArrayType)
@@ -433,7 +433,7 @@ def test_vector_fields(symbol, parent_symbol, dims, attribute_map):
     datasymbols.
 
     '''
-    lfric_types = LFRicTypes.get()
+    lfric_types = LFRicTypes()
 
     args = list(attribute_map.values())
     lfric_symbol = lfric_types(symbol)("symbol", dims, *args)
