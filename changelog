@@ -298,6 +298,9 @@
 	PSyclone repository and PSyData libraries to support 32- and
 	64-bit mixed precision.
 
+	102) PR #2034 for #1864: Add support for adjoint test-harness
+	generation for kernels with operator arguments.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
