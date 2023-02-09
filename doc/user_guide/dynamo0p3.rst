@@ -406,38 +406,35 @@ associated kernel metadata description and their precision:
 
 .. tabularcolumns:: |l|l|l|
 
-+--------------------------+------------------------+-----------+
-| Data Type                | Kernel Metadata        | Precision |
-+==========================+========================+===========+
-| REAL(R_DEF)              | GH_SCALAR, GH_REAL     | R_DEF     |
-+--------------------------+------------------------+-----------+
-| REAL(R_SOLVER)           | GH_SCALAR, GH_REAL     | R_SOLVER  |
-+--------------------------+------------------------+-----------+
-| REAL(R_TRAN)             | GH_SCALAR, GH_REAL     | R_TRAN    |
-+--------------------------+------------------------+-----------+
-| INTEGER(I_DEF)           | GH_SCALAR, GH_INTEGER  | I_DEF     |
-+--------------------------+------------------------+-----------+
-| LOGICAL(L_DEF)           | GH_SCALAR, GH_LOGICAL  | L_DEF     |
-+--------------------------+------------------------+-----------+
-| FIELD_TYPE               | GH_FIELD, GH_REAL      | R_DEF     |
-+--------------------------+------------------------+-----------+
-| R_SOLVER_FIELD_TYPE      | GH_FIELD, GH_REAL      | R_SOLVER  |
-+--------------------------+------------------------+-----------+
-| R_TRAN_FIELD_TYPE        | GH_FIELD, GH_REAL      | R_TRAN    |
-+--------------------------+------------------------+-----------+
-| INTEGER_FIELD_TYPE       | GH_FIELD, GH_INTEGER   | I_DEF     |
-+--------------------------+------------------------+-----------+
-| OPERATOR_TYPE            | GH_OPERATOR            | R_DEF     |
-+--------------------------+------------------------+-----------+
-| R_SOLVER_OPERATOR_TYPE   | GH_OPERATOR            | R_SOLVER  |
-+--------------------------+------------------------+-----------+
-| R_TRAN_OPERATOR_TYPE     | GH_OPERATOR            | R_TRAN    |
-+--------------------------+------------------------+-----------+
-| COLUMNWISE_OPERATOR_TYPE | GH_COLUMNWISE_OPERATOR | R_SOLVER  |
-+--------------------------+------------------------+-----------+
-
-Note, LMA and CMA operators can only have ``GH_REAL`` (:ref:`argument
-descriptors <dynamo0.3-api-meta-args>`) so they are not listed in the table.
++--------------------------+---------------------------------+-----------+
+| Data Type                | Kernel Metadata                 | Precision |
++==========================+=================================+===========+
+| REAL(R_DEF)              | GH_SCALAR, GH_REAL              | R_DEF     |
++--------------------------+---------------------------------+-----------+
+| REAL(R_SOLVER)           | GH_SCALAR, GH_REAL              | R_SOLVER  |
++--------------------------+---------------------------------+-----------+
+| REAL(R_TRAN)             | GH_SCALAR, GH_REAL              | R_TRAN    |
++--------------------------+---------------------------------+-----------+
+| INTEGER(I_DEF)           | GH_SCALAR, GH_INTEGER           | I_DEF     |
++--------------------------+---------------------------------+-----------+
+| LOGICAL(L_DEF)           | GH_SCALAR, GH_LOGICAL           | L_DEF     |
++--------------------------+---------------------------------+-----------+
+| FIELD_TYPE               | GH_FIELD, GH_REAL               | R_DEF     |
++--------------------------+---------------------------------+-----------+
+| R_SOLVER_FIELD_TYPE      | GH_FIELD, GH_REAL               | R_SOLVER  |
++--------------------------+---------------------------------+-----------+
+| R_TRAN_FIELD_TYPE        | GH_FIELD, GH_REAL               | R_TRAN    |
++--------------------------+---------------------------------+-----------+
+| INTEGER_FIELD_TYPE       | GH_FIELD, GH_INTEGER            | I_DEF     |
++--------------------------+---------------------------------+-----------+
+| OPERATOR_TYPE            | GH_OPERATOR, GH_REAL            | R_DEF     |
++--------------------------+---------------------------------+-----------+
+| R_SOLVER_OPERATOR_TYPE   | GH_OPERATOR, GH_REAL            | R_SOLVER  |
++--------------------------+---------------------------------+-----------+
+| R_TRAN_OPERATOR_TYPE     | GH_OPERATOR, GH_REAL            | R_TRAN    |
++--------------------------+---------------------------------+-----------+
+| COLUMNWISE_OPERATOR_TYPE | GH_COLUMNWISE_OPERATOR, GH_REAL | R_SOLVER  |
++--------------------------+---------------------------------+-----------+
 
 As can be seen from the above table, the kernel metadata does not
 capture all of the precision options. For example, from the metadata
@@ -635,7 +632,7 @@ of a column-wise (CMA) operator. The reason for this is that only one
 datatype is supported, a ``columnwise_operator_type`` which contains
 ``real``-valued data with precision ``r_solver``. PSyclone can therefore
 simply add this datatype in the PSy-layer. However, if the datatype
-information is found in the algorithm layer then and it is not of the
+information is found in the algorithm layer and it is not of the
 expected type then PSyclone will abort with a message that indicates
 the problem.
 

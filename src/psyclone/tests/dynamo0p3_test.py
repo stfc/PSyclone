@@ -1865,7 +1865,7 @@ def test_dynkernelargument_idtp_r_solver_operator(tmpdir):
     class for an r_solver_operator.
 
     '''
-    # Use one of the examples to create an instance of
+    # Use one of the test algorithms to create an instance of
     # DynKernelArgument that describes an r_solver_operator.
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "26.2_mixed_precision_self.f90"), api=TEST_API)
@@ -1903,7 +1903,7 @@ def test_dynkernelargument_idtp_r_tran_operator(tmpdir):
     class for an r_tran_operator.
 
     '''
-    # Use one of the examples to create an instance of
+    # Use one of the test algorithms to create an instance of
     # DynKernelArgument that describes an r_tran_operator.
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "26.8_mixed_precision_args.f90"), api=TEST_API)
@@ -1940,7 +1940,7 @@ def test_dynkernelargument_idtp_operator():
     class for an operator of type operator_type.
 
     '''
-    # Use one of the examples to create an instance of
+    # Use one of the test algorithms to create an instance of
     # DynKernelArgument that describes an operator.
     _, invoke_info = parse(os.path.join(BASE_PATH, "10_operator.f90"),
                            api=TEST_API)
@@ -1990,7 +1990,7 @@ def test_dynkernelargument_idtp_columnwise_operator():
     class for a columnwise operator.
 
     '''
-    # Use one of the examples to create an instance of
+    # Use one of the test algorithms to create an instance of
     # DynKernelArgument that describes a columnwise operator.
     _, invoke_info = parse(os.path.join(BASE_PATH, "20.1_cma_apply.f90"),
                            api=TEST_API)
