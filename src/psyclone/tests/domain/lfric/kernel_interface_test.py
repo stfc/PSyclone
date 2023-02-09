@@ -859,8 +859,9 @@ def test_quad_rule_xyoz():
     assert kernel_interface._arglist[-3] is nqpv_symbol
     # weights_xy declared and added to argument list
     weightsh_symbol = kernel_interface._symbol_table.lookup("weights_xy")
+    lfric_types = LFRicTypes.get()
     assert isinstance(
-        weightsh_symbol, lfric_psyir.QrWeightsInXyDataSymbol)
+        weightsh_symbol, lfric_types("QrWeightsInXyDataSymbol"))
     assert isinstance(weightsh_symbol.interface, ArgumentInterface)
     assert (weightsh_symbol.interface.access ==
             kernel_interface._read_access.access)
@@ -871,7 +872,7 @@ def test_quad_rule_xyoz():
     # weights_z declared and added to argument list
     weightsz_symbol = kernel_interface._symbol_table.lookup("weights_z")
     assert isinstance(
-        weightsz_symbol, lfric_psyir.QrWeightsInZDataSymbol)
+        weightsz_symbol, lfric_types("QrWeightsInZDataSymbol"))
     assert isinstance(weightsz_symbol.interface, ArgumentInterface)
     assert (weightsz_symbol.interface.access ==
             kernel_interface._read_access.access)
@@ -913,7 +914,9 @@ def test_quad_rule_face():
     assert kernel_interface._arglist[-2] is nqp_symbol
     # weights declared and added to argument list
     weights_symbol = kernel_interface._symbol_table.lookup("weights_faces")
-    assert isinstance(weights_symbol, lfric_psyir.QrWeightsInFacesDataSymbol)
+    lfric_types = LFRicTypes.get()
+    assert isinstance(weights_symbol,
+                      lfric_types("QrWeightsInFacesDataSymbol"))
     assert isinstance(weights_symbol.interface, ArgumentInterface)
     assert (weights_symbol.interface.access ==
             kernel_interface._read_access.access)
@@ -955,7 +958,9 @@ def test_quad_rule_edge():
     assert kernel_interface._arglist[-2] is nqp_symbol
     # weights declared and added to argument list
     weights_symbol = kernel_interface._symbol_table.lookup("weights_edges")
-    assert isinstance(weights_symbol, lfric_psyir.QrWeightsInEdgesDataSymbol)
+    lfric_types = LFRicTypes.get()
+    assert isinstance(weights_symbol,
+                      lfric_types("QrWeightsInEdgesDataSymbol"))
     assert isinstance(weights_symbol.interface, ArgumentInterface)
     assert (weights_symbol.interface.access ==
             kernel_interface._read_access.access)

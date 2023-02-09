@@ -63,7 +63,7 @@ class LFRicTypes:
         LFricTypes instance.
 
         :returns: the singleton instance of LFRicTypes.
-        :rtype: :py:class:`psyclone.domain.lfric.lfric_Types.LFRicTypes`
+        :rtype: :py:class:`psyclone.domain.lfric.LFRicTypes`
 
         '''
         if not LFRicTypes._instance:

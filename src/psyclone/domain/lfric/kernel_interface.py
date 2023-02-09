@@ -646,6 +646,7 @@ class KernelInterface(ArgOrdering):
 
         '''
         # The kernel captures all the required quadrature shapes
+        lfric_types = LFRicTypes.get()
         for shape in self._kern.qr_rules:
             if shape == "gh_quadrature_xyoz":
                 nqp_xy = self._symbol_table.find_or_create_tag(
@@ -658,11 +659,11 @@ class KernelInterface(ArgOrdering):
                     interface=self._read_access)
                 weights_xy = self._symbol_table.find_or_create_tag(
                     "weights_xy",
-                    symbol_type=lfric_psyir.QrWeightsInXyDataSymbol,
+                    symbol_type=lfric_types("QrWeightsInXyDataSymbol"),
                     dims=[Reference(nqp_xy)], interface=self._read_access)
                 weights_z = self._symbol_table.find_or_create_tag(
                     "weights_z",
-                    symbol_type=lfric_psyir.QrWeightsInZDataSymbol,
+                    symbol_type=lfric_types("QrWeightsInZDataSymbol"),
                     dims=[Reference(nqp_z)], interface=self._read_access)
                 self._arglist.extend([nqp_xy, nqp_z, weights_xy, weights_z])
             elif shape == "gh_quadrature_face":
@@ -676,7 +677,7 @@ class KernelInterface(ArgOrdering):
                     interface=self._read_access)
                 weights = self._symbol_table.find_or_create_tag(
                     "weights_faces",
-                    symbol_type=lfric_psyir.QrWeightsInFacesDataSymbol,
+                    symbol_type=lfric_types("QrWeightsInFacesDataSymbol"),
                     dims=[Reference(nqp)], interface=self._read_access)
                 self._arglist.extend([nfaces, nqp, weights])
             elif shape == "gh_quadrature_edge":
@@ -690,7 +691,7 @@ class KernelInterface(ArgOrdering):
                     interface=self._read_access)
                 weights = self._symbol_table.find_or_create_tag(
                     "weights_edges",
-                    symbol_type=lfric_psyir.QrWeightsInEdgesDataSymbol,
+                    symbol_type=lfric_types("QrWeightsInEdgesDataSymbol"),
                     dims=[Reference(nqp)], interface=self._read_access)
                 self._arglist.extend([nedges, nqp, weights])
             else:

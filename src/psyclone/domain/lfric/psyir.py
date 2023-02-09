@@ -245,29 +245,5 @@ ARRAY_DATATYPES = [
     Array("qr weights in edges", "lfric real scalar",
           ["number of qr points in edges"], [])]
 
-# Generate LFRic array (including field) datatypes and symbols from definitions
-for array_type in ARRAY_DATATYPES + FIELD_DATATYPES:
-    NAME = "".join(array_type.name.title().split())
-    DIMS = array_type.dims
-    SCALAR_TYPE = "".join(array_type.scalar_type.title().split())
-    # Create the specific datatype
-    exec(
-        f"class {NAME}DataType(ArrayType):\n"
-        f"    def __init__(self, dims):\n"
-        f"        if (len(dims) != {len(DIMS)}):\n"
-        f"            raise TypeError(\n"
-        f"                '{NAME}DataType expected the number of supplied '\n"
-        f"                'dimensions to be {len(DIMS)} but found {{0}}.'\n"
-        f"                ''.format(len(dims)))\n"
-        f"        super({NAME}DataType, self).__init__(\n"
-        f"            {SCALAR_TYPE}DataType(), dims)\n")
-    # Create the specific symbol
-    ARGS = (["self", "name", "dims"] + array_type.properties)
-    VARS = [f"        self.{var} = {var}\n" for var in array_type.properties]
-    exec(
-        f"class {NAME}DataSymbol(DataSymbol):\n"
-        f"    def __init__({', '.join(ARGS)}, **kwargs):\n"
-        f"{''.join(VARS)}\n"
-        f"        super().__init__(name, {NAME}DataType(dims),  **kwargs)\n")
 
 __all__ = []

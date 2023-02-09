@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
+# Modified: J. Henrichs, Bureau of Meteorology
 
 '''A simple Python script showing how to create an LFRic-specific
 PSyIR kernel tree using the create methods. In order to use it you must first
@@ -49,7 +50,7 @@ from __future__ import print_function
 from psyclone.psyir.nodes import Call, Reference, Container, KernelSchedule
 from psyclone.psyir.symbols import RoutineSymbol, SymbolTable, \
     ArgumentInterface
-from psyclone.domain.lfric import psyir as lfric_psyir
+from psyclone.domain.lfric import psyir as lfric_psyir, LFRicTypes
 from psyclone.psyir.backend.fortran import FortranWriter
 
 READ_ARG = ArgumentInterface(ArgumentInterface.Access.READ)
@@ -69,9 +70,10 @@ for symbol in [NDF_W3, UNDF_W3]:
     SYMBOL_TABLE.add(symbol)
 
 # Create LFRic field data symbols and add them to the symbol table
-FIELD1 = lfric_psyir.RealFieldDataDataSymbol(
+LFRIC_TYPES = LFRicTypes.get()
+FIELD1 = LFRIC_TYPES("RealFieldDataDataSymbol")(
     "field1", [Reference(UNDF_W3)], "w3")
-FIELD2 = lfric_psyir.RealFieldDataDataSymbol(
+FIELD2 = LFRIC_TYPES("RealFieldDataDataSymbol")(
     "field2", [Reference(UNDF_W3)], "w3",
     interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
 for symbol in [FIELD1, FIELD2]:
@@ -79,7 +81,7 @@ for symbol in [FIELD1, FIELD2]:
 
 # Create an LFRic operator and it to the symbol table
 NCELL_3D = lfric_psyir.NumberOfCellsDataSymbol("ncell_3d", interface=READ_ARG)
-OPERATOR = lfric_psyir.OperatorDataSymbol(
+OPERATOR = LFRIC_TYPES("OperatorDataSymbol")(
     "oper1", [Reference(NDF_W3), Reference(NDF_W3), Reference(NCELL_3D)],
     fs_from="w3", fs_to="w3", interface=READ_ARG)
 for symbol in [NCELL_3D, OPERATOR]:
@@ -92,14 +94,14 @@ NQP_XY = lfric_psyir.NumberOfQrPointsInXyDataSymbol(
     "nqp_xy", interface=READ_ARG)
 NQP_Z = lfric_psyir.NumberOfQrPointsInZDataSymbol(
     "nqp_z", interface=READ_ARG)
-WEIGHTS_XY = lfric_psyir.QrWeightsInXyDataSymbol(
+WEIGHTS_XY = LFRIC_TYPES("QrWeightsInXyDataSymbol")(
     "w_xy", [Reference(NQP_XY)], interface=READ_ARG)
-WEIGHTS_Z = lfric_psyir.QrWeightsInZDataSymbol(
+WEIGHTS_Z = LFRIC_TYPES("QrWeightsInZDataSymbol")(
     "w_z", [Reference(NQP_Z)], interface=READ_ARG)
-BASIS_W3 = lfric_psyir.BasisFunctionQrXyozDataSymbol(
+BASIS_W3 = LFRIC_TYPES("BasisFunctionQrXyozDataSymbol")(
     "basis_w3", [1, Reference(NDF_W3), Reference(NQP_XY), Reference(NQP_Z)],
     "w3", interface=READ_ARG)
-DIFF_BASIS_W3 = lfric_psyir.DiffBasisFunctionQrXyozDataSymbol(
+DIFF_BASIS_W3 = LFRIC_TYPES("DiffBasisFunctionQrXyozDataSymbol")(
     "diff_basis_w3",
     [3, Reference(NDF_W3), Reference(NQP_XY), Reference(NQP_Z)],
     "w3", interface=READ_ARG)
