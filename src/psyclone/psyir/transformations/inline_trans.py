@@ -49,6 +49,8 @@ from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol, ScalarType,
                                     RoutineSymbol, ImportInterface, Symbol,
                                     ArrayType, INTEGER_TYPE, DeferredType,
                                     UnknownType)
+from psyclone.psyir.transformations.reference2arrayrange_trans import (
+    Reference2ArrayRangeTrans)
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 
@@ -821,6 +823,7 @@ class InlineTrans(Transformation):
 
         # Check that the shape of any dummy array arguments are the same as
         # those at the call site.
+        ref2arraytrans = Reference2ArrayRangeTrans()
         visitor = FortranWriter()
         for dummy_arg, actual_arg in zip(routine_table.argument_list,
                                          node.children):
@@ -832,11 +835,25 @@ class InlineTrans(Transformation):
                 # anything that's not a Reference.
                 continue
 
-            if (isinstance(dummy_arg.datatype, DeferredType) or
-                    isinstance(actual_arg.datatype, DeferredType)):
-                # If we haven't resolved the type of either the actual or
-                # dummy argument (e.g. because their type is imported from a
-                # module) then we can't performing type checking.
+            # A Reference could in fact be to a whole array. For now we refuse
+            # to inline a call if we don't know the type of any of the
+            # arguments.
+            if isinstance(actual_arg.datatype, (DeferredType, UnknownType)):
+                raise TransformationError(
+                    f"Routine '{routine.name}' cannot be inlined because the "
+                    f"type of the actual argument '{actual_arg.symbol.name}' "
+                    f"is unknown.")
+
+            try:
+                # TODO #1858, this won't yet work for arrays inside structures.
+                ref2arraytrans.apply(actual_arg)
+            except TransformationError:
+                pass
+
+            if isinstance(dummy_arg.datatype, DeferredType):
+                # If we haven't resolved the type of the
+                # dummy argument (e.g. because its type is imported from a
+                # module) then we can't perform type checking.
                 continue
 
             if hasattr(dummy_arg.datatype, "shape"):

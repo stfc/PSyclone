@@ -430,8 +430,11 @@ def test_apply_struct_local_limits_caller_decln(fortran_reader, fortran_writer,
         f"  subroutine run_it()\n"
         f"    integer :: i\n"
         f"    type(my_type), dimension(2:9) :: varat2\n"
+        f"    real, dimension(4:8) :: varat3\n"
         f"    call sub2(varat2(:), 5, 6)\n"
         f"    call sub2(varat2(3:8), 5, 6)\n"
+        f"    call sub3(varat3(5:6))\n"
+        f"    call sub3(varat3)\n"
         f"  end subroutine run_it\n"
         f"  subroutine sub2(x, start, stop)\n"
         f"    type(my_type), dimension(:) :: x\n"
@@ -440,6 +443,10 @@ def test_apply_struct_local_limits_caller_decln(fortran_reader, fortran_writer,
         f"    x(:)%local%nx = 3\n"
         f"    x(start:stop+1)%local%nx = -2\n"
         f"  end subroutine sub2\n"
+        f"  subroutine sub3(x)\n"
+        f"    real, dimension(:) :: x\n"
+        f"    x(1:2) = 4.0\n"
+        f"  end subroutine sub3\n"
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
@@ -457,6 +464,8 @@ def test_apply_struct_local_limits_caller_decln(fortran_reader, fortran_writer,
     assert "varat2(3:8)%data(2) = 1.0\n" in output
     assert "varat2(3:8)%local%nx = 3\n" in output
     assert "varat2(5 - 1 + 3:6 + 1 - 1 + 3)%local%nx = -2" in output
+    assert "varat3(1 - 1 + 5:2 - 1 + 5) = 4.0\n" in output
+    assert "varat3(1 - 1 + 4:2 - 1 + 4) = 4.0\n" in output
     assert Compile(tmpdir).string_compiles(output)
 
 
