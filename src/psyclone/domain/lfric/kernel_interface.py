@@ -78,9 +78,9 @@ class KernelInterface(ArgOrdering):
     #: LFRic-specific field datasymbol.
     lfric_types = LFRicTypes.get()
     field_mapping = {
-        "integer": lfric_psyir.IntegerFieldDataDataSymbol,
+        "integer": lfric_types("IntegerFieldDataDataSymbol"),
         "real": lfric_types("RealFieldDataDataSymbol"),
-        "logical": lfric_psyir.LogicalFieldDataDataSymbol}
+        "logical": lfric_types("LogicalFieldDataDataSymbol")}
     #: Mapping from a generic PSyIR datatype to the equivalent
     #: LFRic-specific vector field datasymbol.
     vector_field_mapping = {
@@ -90,15 +90,15 @@ class KernelInterface(ArgOrdering):
     #: Mapping from the LFRic metadata description of quadrature to the
     #: associated LFRic-specific basis function datasymbol.
     basis_mapping = {
-        "gh_quadrature_xyoz": lfric_psyir.BasisFunctionQrXyozDataSymbol,
-        "gh_quadrature_face": lfric_psyir.BasisFunctionQrFaceDataSymbol,
-        "gh_quadrature_edge": lfric_psyir.BasisFunctionQrEdgeDataSymbol}
+        "gh_quadrature_xyoz": lfric_types("BasisFunctionQrXyozDataSymbol"),
+        "gh_quadrature_face": lfric_types("BasisFunctionQrFaceDataSymbol"),
+        "gh_quadrature_edge": lfric_types("BasisFunctionQrEdgeDataSymbol")}
     #: Mapping from the LFRic metadata description of quadrature to the
     #: associated LFRic-specific differential basis function datasymbol.
     diff_basis_mapping = {
-        "gh_quadrature_xyoz": lfric_psyir.DiffBasisFunctionQrXyozDataSymbol,
-        "gh_quadrature_face": lfric_psyir.DiffBasisFunctionQrFaceDataSymbol,
-        "gh_quadrature_edge": lfric_psyir.DiffBasisFunctionQrEdgeDataSymbol}
+        "gh_quadrature_xyoz": lfric_types("DiffBasisFunctionQrXyozDataSymbol"),
+        "gh_quadrature_face": lfric_types("DiffBasisFunctionQrFaceDataSymbol"),
+        "gh_quadrature_edge": lfric_types("DiffBasisFunctionQrEdgeDataSymbol")}
     _read_access = ArgumentInterface(ArgumentInterface.Access.READ)
 
     def __init__(self, kern):
@@ -481,6 +481,7 @@ class KernelInterface(ArgOrdering):
             py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
+        lfric_types = LFRicTypes.get()
         fs_name = function_space.orig_name
         undf_symbol = self._symbol_table.find_or_create_tag(
             f"undf_{fs_name}", fs=fs_name,
@@ -496,7 +497,7 @@ class KernelInterface(ArgOrdering):
 
         dofmap_symbol = self._symbol_table.find_or_create_tag(
             f"dofmap_{fs_name}", fs=fs_name,
-            symbol_type=lfric_psyir.DofMapDataSymbol,
+            symbol_type=lfric_types("DofMapDataSymbol"),
             dims=[Reference(ndf_symbol)], interface=self._read_access)
         self._arglist.append(dofmap_symbol)
 

@@ -102,7 +102,7 @@ def test_generate(var_accesses):
     ndf_w0_symbol = kernel_interface._symbol_table.lookup("ndf_w0")
     assert isinstance(ndf_w0_symbol, lfric_psyir.NumberOfDofsDataSymbol)
     dofmap_w0_symbol = kernel_interface._symbol_table.lookup("dofmap_w0")
-    assert isinstance(dofmap_w0_symbol, lfric_psyir.DofMapDataSymbol)
+    assert isinstance(dofmap_w0_symbol, lfric_types("DofMapDataSymbol"))
     # Check function spaces
     assert undf_w0_symbol.fs == "w0"
     assert f1_field_symbol.fs == "w0"
@@ -499,8 +499,9 @@ def test_fs_compulsory_field():
     # dofmap declared, added to argument list, correct function
     # space specified and dimensioned correctly
     tag = f"dofmap_{fs_name}"
+    lfric_types = LFRicTypes.get()
     symbol = kernel_interface._symbol_table.lookup(tag)
-    assert isinstance(symbol, lfric_psyir.DofMapDataSymbol)
+    assert isinstance(symbol, lfric_types("DofMapDataSymbol"))
     assert isinstance(symbol.interface, ArgumentInterface)
     assert symbol.interface.access == kernel_interface._read_access.access
     assert kernel_interface._arglist[-1] is symbol
@@ -574,7 +575,9 @@ def test_basis_xyoz():
             kernel_interface._read_access.access)
     # basis declared and added to argument list
     basis_symbol = kernel_interface._symbol_table.lookup("basis_w1_qr_xyoz")
-    assert isinstance(basis_symbol, lfric_psyir.BasisFunctionQrXyozDataSymbol)
+    lfric_types = LFRicTypes.get()
+    assert isinstance(basis_symbol,
+                      lfric_types("BasisFunctionQrXyozDataSymbol"))
     assert isinstance(basis_symbol.interface, ArgumentInterface)
     assert (basis_symbol.interface.access ==
             kernel_interface._read_access.access)
@@ -633,7 +636,9 @@ def test_basis_face():
             kernel_interface._read_access.access)
     # basis declared and added to argument list
     basis_symbol = kernel_interface._symbol_table.lookup("basis_w1_qr_face")
-    assert isinstance(basis_symbol, lfric_psyir.BasisFunctionQrFaceDataSymbol)
+    lfric_types = LFRicTypes.get()
+    assert isinstance(basis_symbol,
+                      lfric_types("BasisFunctionQrFaceDataSymbol"))
     assert isinstance(basis_symbol.interface, ArgumentInterface)
     assert (basis_symbol.interface.access ==
             kernel_interface._read_access.access)
@@ -691,7 +696,9 @@ def test_basis_edge():
             kernel_interface._read_access.access)
     # basis declared and added to argument list
     basis_symbol = kernel_interface._symbol_table.lookup("basis_w1_qr_edge")
-    assert isinstance(basis_symbol, lfric_psyir.BasisFunctionQrEdgeDataSymbol)
+    lfric_types = LFRicTypes.get()
+    assert isinstance(basis_symbol,
+                      lfric_types("BasisFunctionQrEdgeDataSymbol"))
     assert isinstance(basis_symbol.interface, ArgumentInterface)
     assert (basis_symbol.interface.access ==
             kernel_interface._read_access.access)
@@ -753,8 +760,9 @@ def test_diff_basis():
     # diff basis declared and added to argument list
     diff_basis_symbol = kernel_interface._symbol_table.lookup(
         "diff_basis_w2_qr_xyoz")
+    lfric_types = LFRicTypes.get()
     assert isinstance(
-        diff_basis_symbol, lfric_psyir.DiffBasisFunctionQrXyozDataSymbol)
+        diff_basis_symbol, lfric_types("DiffBasisFunctionQrXyozDataSymbol"))
     assert isinstance(diff_basis_symbol.interface, ArgumentInterface)
     assert (diff_basis_symbol.interface.access ==
             kernel_interface._read_access.access)

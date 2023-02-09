@@ -199,32 +199,29 @@ def test_specific_scalar_symbols(symbol, generic_symbol, attribute_map):
 
 # Specific scalar datatypes
 @pytest.mark.parametrize(
-    "data_type, symbol, scalar_type, dims, attribute_map",
-    [(lfric_psyir.RealFieldDataDataType,
-      lfric_psyir.RealFieldDataDataSymbol,
+    "data_type_name, symbol_name, scalar_type, dims, attribute_map",
+    [("RealFieldDataDataType", "RealFieldDataDataSymbol",
       lfric_psyir.LfricRealScalarDataType,
       [Reference(
           lfric_psyir.NumberOfUniqueDofsDataSymbol(
               "ndofs", "w0",
               interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {"fs": "w0"}),
-     (lfric_psyir.IntegerFieldDataDataType,
-      lfric_psyir.IntegerFieldDataDataSymbol,
+     ("IntegerFieldDataDataType", "IntegerFieldDataDataSymbol",
       lfric_psyir.LfricIntegerScalarDataType,
       [Reference(
           lfric_psyir.NumberOfUniqueDofsDataSymbol(
               "ndofs", "w1",
               interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {"fs": "w1"}),
-     (lfric_psyir.LogicalFieldDataDataType,
-      lfric_psyir.LogicalFieldDataDataSymbol,
+     ("LogicalFieldDataDataType", "LogicalFieldDataDataSymbol",
       lfric_psyir.LfricLogicalScalarDataType,
       [Reference(
           lfric_psyir.NumberOfUniqueDofsDataSymbol(
               "ndofs", "w2",
               interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {"fs": "w2"}),
-     (lfric_psyir.OperatorDataType, lfric_psyir.OperatorDataSymbol,
+     ("OperatorDataType", "OperatorDataSymbol",
       lfric_psyir.LfricRealScalarDataType,
       [Reference(
           lfric_psyir.NumberOfDofsDataSymbol(
@@ -237,16 +234,15 @@ def test_specific_scalar_symbols(symbol, generic_symbol, attribute_map):
        Reference(lfric_psyir.NumberOfCellsDataSymbol(
            "ncells",
            interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
-      {"fs_from": "w3", "fs_to": "w3"}),
-     (lfric_psyir.DofMapDataType, lfric_psyir.DofMapDataSymbol,
+     {"fs_from": "w3", "fs_to": "w3"}),
+     ("DofMapDataType", "DofMapDataSymbol",
       lfric_psyir.LfricIntegerScalarDataType,
       [Reference(
           lfric_psyir.NumberOfDofsDataSymbol(
               "ndofs", "w3",
               interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {"fs": "w3"}),
-     (lfric_psyir.BasisFunctionQrXyozDataType,
-      lfric_psyir.BasisFunctionQrXyozDataSymbol,
+     ("BasisFunctionQrXyozDataType", "BasisFunctionQrXyozDataSymbol",
       lfric_psyir.LfricRealScalarDataType,
       [1, Reference(
           lfric_psyir.NumberOfDofsDataSymbol(
@@ -261,8 +257,7 @@ def test_specific_scalar_symbols(symbol, generic_symbol, attribute_map):
                "qr_z",
                interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {"fs": "w0"}),
-     (lfric_psyir.BasisFunctionQrFaceDataType,
-      lfric_psyir.BasisFunctionQrFaceDataSymbol,
+     ("BasisFunctionQrFaceDataType", "BasisFunctionQrFaceDataSymbol",
       lfric_psyir.LfricRealScalarDataType,
       [3, Reference(
           lfric_psyir.NumberOfDofsDataSymbol(
@@ -277,8 +272,7 @@ def test_specific_scalar_symbols(symbol, generic_symbol, attribute_map):
                "nfaces",
                interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {"fs": "w1"}),
-     (lfric_psyir.BasisFunctionQrEdgeDataType,
-      lfric_psyir.BasisFunctionQrEdgeDataSymbol,
+     ("BasisFunctionQrEdgeDataType", "BasisFunctionQrEdgeDataSymbol",
       lfric_psyir.LfricRealScalarDataType,
       [1, Reference(
           lfric_psyir.NumberOfDofsDataSymbol(
@@ -292,8 +286,7 @@ def test_specific_scalar_symbols(symbol, generic_symbol, attribute_map):
                "nedges",
                interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {"fs": "w2"}),
-     (lfric_psyir.DiffBasisFunctionQrXyozDataType,
-      lfric_psyir.DiffBasisFunctionQrXyozDataSymbol,
+     ("DiffBasisFunctionQrXyozDataType", "DiffBasisFunctionQrXyozDataSymbol",
       lfric_psyir.LfricRealScalarDataType,
       [3, Reference(
           lfric_psyir.NumberOfDofsDataSymbol(
@@ -308,8 +301,7 @@ def test_specific_scalar_symbols(symbol, generic_symbol, attribute_map):
                "qr_z",
                interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {"fs": "wtheta"}),
-     (lfric_psyir.DiffBasisFunctionQrFaceDataType,
-      lfric_psyir.DiffBasisFunctionQrFaceDataSymbol,
+     ("DiffBasisFunctionQrFaceDataType", "DiffBasisFunctionQrFaceDataSymbol",
       lfric_psyir.LfricRealScalarDataType,
       [3, Reference(
           lfric_psyir.NumberOfDofsDataSymbol(
@@ -323,8 +315,7 @@ def test_specific_scalar_symbols(symbol, generic_symbol, attribute_map):
                "nfaces",
                interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {"fs": "w1"}),
-     (lfric_psyir.DiffBasisFunctionQrEdgeDataType,
-      lfric_psyir.DiffBasisFunctionQrEdgeDataSymbol,
+     ("DiffBasisFunctionQrEdgeDataType", "DiffBasisFunctionQrEdgeDataSymbol",
       lfric_psyir.LfricRealScalarDataType,
       [1, Reference(
           lfric_psyir.NumberOfDofsDataSymbol(
@@ -339,30 +330,28 @@ def test_specific_scalar_symbols(symbol, generic_symbol, attribute_map):
                "nedges",
                interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {"fs": "w2v"}),
-     (lfric_psyir.QrWeightsInXyDataType, lfric_psyir.QrWeightsInXyDataSymbol,
+     ("QrWeightsInXyDataType", "QrWeightsInXyDataSymbol",
       lfric_psyir.LfricRealScalarDataType,
       [Reference(
           lfric_psyir.NumberOfQrPointsInXyDataSymbol(
               "qr_xy",
               interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {}),
-     (lfric_psyir.QrWeightsInZDataType, lfric_psyir.QrWeightsInZDataSymbol,
+     ("QrWeightsInZDataType", "QrWeightsInZDataSymbol",
       lfric_psyir.LfricRealScalarDataType,
       [Reference(
           lfric_psyir.NumberOfQrPointsInZDataSymbol(
               "qr_z",
               interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {}),
-     (lfric_psyir.QrWeightsInFacesDataType,
-      lfric_psyir.QrWeightsInFacesDataSymbol,
+     ("QrWeightsInFacesDataType", "QrWeightsInFacesDataSymbol",
       lfric_psyir.LfricRealScalarDataType,
       [Reference(
           lfric_psyir.NumberOfQrPointsInFacesDataSymbol(
               "qr",
               interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {}),
-     (lfric_psyir.QrWeightsInEdgesDataType,
-      lfric_psyir.QrWeightsInEdgesDataSymbol,
+     ("QrWeightsInEdgesDataType", "QrWeightsInEdgesDataSymbol",
       lfric_psyir.LfricRealScalarDataType,
       [Reference(
           lfric_psyir.NumberOfQrPointsInEdgesDataSymbol(
@@ -370,13 +359,15 @@ def test_specific_scalar_symbols(symbol, generic_symbol, attribute_map):
               visibility=Symbol.Visibility.PRIVATE,
               interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {})])
-def test_arrays(data_type, symbol, scalar_type, dims, attribute_map):
+def test_arrays(data_type_name, symbol_name, scalar_type, dims, attribute_map):
     '''Test the generated array datatypes and datasymbols are created
     correctly. This includes field datatypes and symbols which are
     kept as a separate list in psyir.py
 
     '''
     # Datatype creation
+    lfric_types = LFRicTypes.get()
+    data_type = lfric_types(data_type_name)
     lfric_datatype = data_type(dims)
     assert isinstance(lfric_datatype, ArrayType)
     assert isinstance(lfric_datatype._datatype, scalar_type)
@@ -391,10 +382,13 @@ def test_arrays(data_type, symbol, scalar_type, dims, attribute_map):
     # Wrong number of dims
     with pytest.raises(TypeError) as info:
         _ = data_type([])
-    assert (f"{type(lfric_datatype).__name__} expected the number of supplied "
-            f"dimensions to be {len(dims)} but found 0." in str(info.value))
+    assert (f"'{type(lfric_datatype).__name__}' expected the number of "
+            f"supplied dimensions to be {len(dims)} but found 0." in
+            str(info.value))
     # Datasymbol creation
     args = list(attribute_map.values())
+    print("CREATING symbol", symbol_name)
+    symbol = lfric_types(symbol_name)
     lfric_symbol = symbol("symbol", dims, *args)
     assert isinstance(lfric_symbol, DataSymbol)
     assert lfric_symbol.name == "symbol"
