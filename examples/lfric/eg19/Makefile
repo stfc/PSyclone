@@ -32,10 +32,15 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 include ../../common.mk
 
 GENERATED_FILES = mixed_precision_psy.f90 alg.f90 ${EXEC} ${OBJ} *.mod
+
+F90 ?= gfortran
+F90FLAGS ?= -Wall -g -fcheck=bound
+
 
 OBJ = alg.o mixed_precision_psy.o mixed_kernel_mod.o
 
@@ -49,27 +54,30 @@ include $(LFRIC_PATH)/lfric_include_flags.inc
 
 .PHONY: transform compile run
 
+$(EXEC): $(LFRIC_LIB) $(OBJ)
+	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
+
+compile: transform $(EXEC)
+
 transform:
 	${PSYCLONE} algorithm.x90 -opsy mixed_precision_psy.f90 -oalg alg.f90
 
 alg.f90 mixed_precision_psy.f90: transform
-
-compile: transform ${EXEC}
+alg.o: mixed_precision_psy.o
+mixed_precision_psy.o: mixed_kernel_mod.o
 
 run: compile
 	@echo "No run targets for lfric/eg19"
 
-$(EXEC): $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
-
 $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_PATH)
 
-alg.o: mixed_precision_psy.o
-mixed_precision_psy.o: mixed_kernel_mod.o
 
 %.o: %.F90
 	$(F90) $(F90FLAGS) -c $<
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
+
+allclean: clean
+	make -C $(LFRIC_PATH) allclean
