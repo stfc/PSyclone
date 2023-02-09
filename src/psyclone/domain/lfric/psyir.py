@@ -40,14 +40,15 @@ definitions.
 '''
 # pylint: disable=unused-import
 # pylint: disable=exec-used
-from __future__ import absolute_import
+
 from collections import namedtuple
+
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import InternalError
+from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol, DeferredType,
                                     ImportInterface, ScalarType, ArrayType,
                                     INTEGER_TYPE)
-from psyclone.psyir.nodes import Literal
 
 # Define LFRic module symbols.
 
@@ -168,82 +169,6 @@ for info in SPECIFIC_SCALAR_DATATYPES:
         f"    def __init__({', '.join(ARGS)}, **kwargs):\n"
         f"{''.join(VARS)}\n"
         f"        super().__init__(name, **kwargs)\n")
-
-# Define LFRic field datatypes and symbols
-
-# Note, field_datatypes are no different to array_datatypes and are
-# treated in the same way. They are only separated into a different
-# list because they are used to create vector field datatypes and
-# symbols.
-
-# The Array namedtuple has 4 properties: the first determines the
-# names of the resultant datatype and datasymbol classes, the second
-# references the generic scalar type classes declared above, the third
-# specifies the dimensions of the array by specifying a list of scalar
-# type classes declared above, and the fourth specifies any additional
-# class properties that should be declared in the generated datasymbol
-# class.
-
-Array = namedtuple('Array', ["name", "scalar_type", "dims", "properties"])
-FIELD_DATATYPES = [
-    Array("real field data", "lfric real scalar", ["number of unique dofs"],
-          ["fs"]),
-    Array("integer field data", "lfric integer scalar",
-          ["number of unique dofs"], ["fs"]),
-    Array("logical field data", "lfric logical scalar",
-          ["number of unique dofs"], ["fs"])]
-
-# Define all other LFRic array datatypes and symbols
-
-# TBD: #918 the dimension datatypes and their ordering is captured in
-# field_datatypes and array_datatypes but is not stored in the
-# generated classes.
-
-# TBD: #926 attributes will be constrained to certain datatypes and
-# values. For example, a function space attribute should be a string
-# containing the name of a supported function space. These are not
-# currently checked.
-
-# TBD: #927 in some cases the values of attributes can be inferred, or
-# at least must be consistent. For example, a field datatype has an
-# associated function space attribute, its dimension symbol (if there
-# is one) must be a NumberOfUniqueDofsDataSymbol which also has a
-# function space attribute and the two function spaces must be
-# the same. This is not curently checked.
-
-ARRAY_DATATYPES = [
-    Array("operator", "lfric real scalar",
-          ["number of dofs", "number of dofs", "number of cells"],
-          ["fs_from", "fs_to"]),
-    Array("dof map", "lfric integer scalar", ["number of dofs"], ["fs"]),
-    Array("basis function qr xyoz", "lfric real scalar",
-          [LfricDimension, "number of dofs",
-           "number of qr points in xy",
-           "number of qr points in z"], ["fs"]),
-    Array("basis function qr face", "lfric real scalar",
-          [LfricDimension, "number of dofs", "number of qr points in faces",
-           "number of faces"], ["fs"]),
-    Array("basis function qr edge", "lfric real scalar",
-          [LfricDimension, "number of dofs", "number of qr points in edges",
-           "number of edges"], ["fs"]),
-    Array("diff basis function qr xyoz", "lfric real scalar",
-          [LfricDimension, "number of dofs",
-           "number of qr points in xy",
-           "number of qr points in z"], ["fs"]),
-    Array("diff basis function qr face", "lfric real scalar",
-          [LfricDimension, "number of dofs", "number of qr points in faces",
-           "number of faces"], ["fs"]),
-    Array("diff basis function qr edge", "lfric real scalar",
-          [LfricDimension, "number of dofs", "number of qr points in edges",
-           "number of edges"], ["fs"]),
-    Array("qr weights in xy", "lfric real scalar",
-          ["number of qr points in xy"], []),
-    Array("qr weights in z", "lfric real scalar",
-          ["number of qr points in z"], []),
-    Array("qr weights in faces", "lfric real scalar",
-          ["number of qr points in faces"], []),
-    Array("qr weights in edges", "lfric real scalar",
-          ["number of qr points in edges"], [])]
 
 
 __all__ = []

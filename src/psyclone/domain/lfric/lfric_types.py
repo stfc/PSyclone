@@ -126,6 +126,21 @@ class LFRicTypes:
             Array("LogicalFieldData", psyir.LfricLogicalScalarDataType,
                   ["number of unique dofs"], ["fs"])]
 
+        # TBD: #918 the dimension datatypes and their ordering is captured in
+        # field_datatypes and array_datatypes but is not stored in the
+        # generated classes.
+
+        # TBD: #926 attributes will be constrained to certain datatypes and
+        # values. For example, a function space attribute should be a string
+        # containing the name of a supported function space. These are not
+        # currently checked.
+
+        # TBD: #927 in some cases the values of attributes can be inferred, or
+        # at least must be consistent. For example, a field datatype has an
+        # associated function space attribute, its dimension symbol (if there
+        # is one) must be a NumberOfUniqueDofsDataSymbol which also has a
+        # function space attribute and the two function spaces must be
+        # the same. This is not currently checked.
         array_datatypes = [
             Array("Operator", psyir.LfricRealScalarDataType,
                   ["number of dofs", "number of dofs", "number of cells"],
