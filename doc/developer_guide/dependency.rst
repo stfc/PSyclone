@@ -275,7 +275,7 @@ The only exception to this is if a kernel is called, in which case the
 metadata for the kernel declaration will be used to determine the variable
 accesses for the call statement. The information about all variable usage
 of a PSyIR node or a list of nodes can be gathered by creating an object of
-type `psyclone.core.variables_access_info.VariablesAccessInfo`.
+type `psyclone.core.VariablesAccessInfo`.
 This class uses a `Signature` object to keep track of the variables used.
 
 Signature
@@ -359,7 +359,7 @@ accesses to a single variable. A new instance of `AccessInfo`
 is appended to the list whenever `add_access_with_location()`
 is called.
 
-.. autoclass:: psyclone.core.single_variable_access_info.AccessInfo
+.. autoclass:: psyclone.core.AccessInfo
     :members:
 
 Indices

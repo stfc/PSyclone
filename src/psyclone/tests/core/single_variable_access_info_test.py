@@ -34,7 +34,9 @@
 # Author: Joerg Henrichs, Bureau of Meteorology
 # Modified: A. R. Porter, R. W. Ford and S. Siso, STFC Daresbury Laboratory
 
-'''This module tests the various classes in core.access_info.'''
+'''This module tests the various classes in the single_variable_access_info
+module.'''
+
 
 import pytest
 
