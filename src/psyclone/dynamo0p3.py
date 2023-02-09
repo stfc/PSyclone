@@ -897,7 +897,7 @@ class DynKernMetadata(KernelType):
         const = LFRicConstants()
         # A kernel which operates on the 'domain' is currently restricted
         # to only accepting scalar and field arguments.
-        valid_arg_types = (const.VALID_SCALAR_NAMES + const.VALID_FIELD_NAMES)
+        valid_arg_types = const.VALID_SCALAR_NAMES + const.VALID_FIELD_NAMES
         for arg in self._arg_descriptors:
             if arg.argument_type not in valid_arg_types:
                 raise ParseError(
@@ -3420,6 +3420,11 @@ class LFRicLoopBounds(DynCollection):
         api_config = config.api_conf("dynamo0.3")
 
         for idx, loop in enumerate(loops):
+
+            if loop.loop_type == "null":
+                # 'null' loops don't need any bounds.
+                continue
+
             root_name = f"loop{idx}_start"
             lbound = sym_table.find_or_create_integer_symbol(root_name,
                                                              tag=root_name)
@@ -9100,6 +9105,7 @@ class DynKernelArguments(Arguments):
                 if function_space:
                     if func_space.mangled_name == function_space.mangled_name:
                         return arg
+
         raise FieldNotFoundError(f"DynKernelArguments:get_arg_on_space: there "
                                  f"is no field or operator with function space"
                                  f" {func_space.orig_name} (mangled name = "
@@ -9821,7 +9827,7 @@ class DynKernelArgument(KernelArgument):
                     datatype=self.infer_datatype())
             return Reference(scalar_sym)
 
-        if self.is_field:
+        if self.is_field or self.is_operator:
             # Although the argument to a Kernel is a field, the data itself
             # is accessed through a field_proxy.
             try:
