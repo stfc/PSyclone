@@ -105,22 +105,23 @@ def test_generic_scalars(data_type, symbol, intrinsic, precision):
 def test_scalar_literals():
     '''Test the scalar literals are defined correctly.'''
     # LfricDimension class
-    assert isinstance(lfric_psyir.LfricDimension("1"),
-                      lfric_psyir.LfricDimension)
-    assert isinstance(lfric_psyir.LfricDimension("3"),
-                      lfric_psyir.LfricDimension)
+    lfric_types = LFRicTypes()
+    lfric_dim_class = lfric_types("LfricDimension")
+    assert isinstance(lfric_types("LfricDimension")("1"),
+                      lfric_dim_class)
+    assert isinstance(lfric_types("LfricDimension")("3"),
+                      lfric_dim_class)
     with pytest.raises(ValueError) as info:
-        lfric_psyir.LfricDimension("2")
+        lfric_types("LfricDimension")("2")
     assert ("An LFRic dimension object must be '1' or '3', but found '2'."
             in str(info.value))
     # LFRIC_SCALAR_DIMENSION instance
-    assert isinstance(lfric_psyir.LFRIC_SCALAR_DIMENSION,
-                      lfric_psyir.LfricDimension)
-    assert lfric_psyir.LFRIC_SCALAR_DIMENSION.value == "1"
+    assert isinstance(lfric_types("LFRIC_SCALAR_DIMENSION"), lfric_dim_class)
+    assert lfric_types("LFRIC_SCALAR_DIMENSION").value == "1"
     # LFRIC_VECTOR_DIMENSION instance
-    assert isinstance(lfric_psyir.LFRIC_VECTOR_DIMENSION,
-                      lfric_psyir.LfricDimension)
-    assert lfric_psyir.LFRIC_VECTOR_DIMENSION.value == "3"
+    assert isinstance(lfric_types("LFRIC_VECTOR_DIMENSION"),
+                      lfric_dim_class)
+    assert lfric_types("LFRIC_VECTOR_DIMENSION").value == "3"
 
 
 lfric_types = LFRicTypes()

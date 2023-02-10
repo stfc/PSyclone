@@ -39,6 +39,7 @@
 from collections import namedtuple
 
 from psyclone.domain.lfric import psyir
+from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import ArrayType, DataSymbol
 
 
@@ -84,6 +85,7 @@ class LFRicTypes:
 
         self._name_to_class = {}
 
+        self._create_lfric_dimension()
         self._create_scalars()
         self._create_fields()
         # Generate LFRic vector-field-data symbols as subclasses of
@@ -101,6 +103,31 @@ class LFRicTypes:
 
         '''
         return self._name_to_class[name]
+
+    # ------------------------------------------------------------------------
+    def _create_lfric_dimension(self):
+
+        class LfricDimension(Literal):
+            '''An Lfric-specific scalar integer that captures a literal array
+            dimension which can either have the value 1 or 3. This is used for
+            one of the dimensions in basis and differential basis
+            functions.
+
+            :param str value: the value of the scalar integer.
+
+            :raises nodes import Literal
+            :raises ValueError: if the supplied value is not '1 or '3'.
+
+            '''
+            # pylint: disable=undefined-variable
+            def __init__(self, value):
+                super().__init__(value, psyir.LfricIntegerScalarDataType())
+                if value not in ['1', '3']:
+                    raise ValueError(f"An LFRic dimension object must be '1' "
+                                     f"or '3', but found '{value}'.")
+        self._name_to_class["LfricDimension"] = LfricDimension
+        self._name_to_class["LFRIC_SCALAR_DIMENSION"] = LfricDimension("1")
+        self._name_to_class["LFRIC_VECTOR_DIMENSION"] = LfricDimension("3")
 
     # ------------------------------------------------------------------------
     def _create_scalars(self):
@@ -229,23 +256,23 @@ class LFRicTypes:
             Array("DofMap", psyir.LfricIntegerScalarDataType,
                   ["number of dofs"], ["fs"]),
             Array("BasisFunctionQrXyoz", psyir.LfricRealScalarDataType,
-                  [psyir.LfricDimension, "number of dofs",
+                  [self("LfricDimension"), "number of dofs",
                    "number of qr points in xy",
                    "number of qr points in z"], ["fs"]),
             Array("BasisFunctionQrFace", psyir.LfricRealScalarDataType,
-                  [psyir.LfricDimension, "number of dofs",
+                  [self("LfricDimension"), "number of dofs",
                    "number of qr points in faces",
                    "number of faces"], ["fs"]),
             Array("BasisFunctionQrEdge", psyir.LfricRealScalarDataType,
-                  [psyir.LfricDimension, "number of dofs",
+                  [self("LfricDimension"), "number of dofs",
                    "number of qr points in edges",
                    "number of edges"], ["fs"]),
             Array("DiffBasisFunctionQrXyoz", psyir.LfricRealScalarDataType,
-                  [psyir.LfricDimension, "number of dofs",
+                  [self("LfricDimension"), "number of dofs",
                    "number of qr points in xy",
                    "number of qr points in z"], ["fs"]),
             Array("DiffBasisFunctionQrFace", psyir.LfricRealScalarDataType,
-                  [psyir.LfricDimension, "number of dofs",
+                  [self("LfricDimension"), "number of dofs",
                    "number of qr points in faces",
                    "number of faces"], ["fs"]),
             Array("DiffBasisFunctionQrEdge", psyir.LfricRealScalarDataType,

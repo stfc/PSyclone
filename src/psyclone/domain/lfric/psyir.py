@@ -107,28 +107,4 @@ for info in GENERIC_SCALAR_DATATYPES:
         f"            name, {NAME}DataType(precision=precision),\n"
         f"            **kwargs)\n")
 
-
-# Define any LFRic-specific scalar literals
-class LfricDimension(Literal):
-    '''An Lfric-specific scalar integer that captures a literal array
-    dimension which can either have the value 1 or 3. This is used for
-    one of the dimensions in basis and differential basis
-    functions.
-
-    :param str value: the value of the scalar integer.
-
-    :raises ValueError: if the supplied value is not '1 or '3'.
-
-    '''
-    # pylint: disable=undefined-variable
-    def __init__(self, value):
-        super().__init__(value, LfricIntegerScalarDataType())
-        if value not in ['1', '3']:
-            raise ValueError(f"An LFRic dimension object must be '1' or '3', "
-                             f"but found '{value}'.")
-
-
-LFRIC_SCALAR_DIMENSION = LfricDimension("1")
-LFRIC_VECTOR_DIMENSION = LfricDimension("3")
-
 __all__ = []
