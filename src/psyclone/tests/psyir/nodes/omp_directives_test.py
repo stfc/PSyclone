@@ -79,6 +79,7 @@ from psyclone.psyir.nodes import (
     DynamicOMPTaskDirective,
     ArrayReference,
     StructureReference,
+    IfBlock
 )
 from psyclone.psyir.symbols import (
     DataSymbol,
@@ -92,6 +93,7 @@ from psyclone.psyir.symbols import (
     Symbol,
     REAL_TYPE,
 )
+from psyclone.psyir.transformations import ChunkLoopTrans, OMPTaskTrans
 from psyclone.errors import InternalError, GenerationError
 from psyclone.transformations import (
     Dynamo0p3OMPLoopTrans,
@@ -1271,16 +1273,12 @@ def test_omp_serial_compare_literals():
     sing = OMPSingleDirective()
     lit1 = Literal("0", INTEGER_SINGLE_TYPE)
     lit2 = Literal("1", INTEGER_SINGLE_TYPE)
-    sing._compare_literals(lit1, lit2)
+    assert sing._compare_literals(lit1, lit2) == True
     tmp = DataSymbol("tmp", REAL_SINGLE_TYPE)
     ref = Reference(tmp)
-    with pytest.raises(GenerationError) as excinfo:
-        sing._compare_literals(lit1, ref)
-    assert (
-        "Literal index to dependency has calculated "
-        "dependency to a non-Literal index, which is"
-        " not currently supported in PSyclone." in str(excinfo.value)
-    )
+    assert sing._compare_literals(lit1, ref) == False
+
+
 
 
 def test_omp_serial_compare_ranges():
@@ -1314,24 +1312,11 @@ def test_omp_serial_compare_ranges():
     ref = Reference(tmp2)
 
     # Valid run
-    sing._compare_ranges(range1, range2)
+    assert sing._compare_ranges(range1, range2) == True
 
-    with pytest.raises(GenerationError) as excinfo:
-        sing._compare_ranges(range1, ref)
-    assert (
-        "Range index to a dependency has calculated "
-        "dependency to a non-Range index, which is "
-        "not currently supported in PSyclone." in str(excinfo.value)
-    )
+    assert sing._compare_ranges(range1, ref) == False
 
-    with pytest.raises(GenerationError) as excinfo:
-        sing._compare_ranges(range1, range3)
-    assert (
-        "Found a range index between dependencies "
-        "which does not cover the full array range, "
-        "which is not currently supported in "
-        "PSyclone (due to OpenMP limitations)." in str(excinfo.value)
-    )
+    assert sing._compare_ranges(range1, range3) == False
 
 
 def test_omp_serial_compute_accesses_bad_binop():
@@ -1960,21 +1945,9 @@ def test_omp_serial_compare_ref_binop_fails():
         [task],
     )
 
-    with pytest.raises(GenerationError) as excinfo:
-        sing._compare_ref_binop(ref, binop, task, task2)
-    assert (
-        "Found a pair of dependencies on the same array which are not "
-        "valid under OpenMP, as one contains a Reference while the other "
-        "does not." in str(excinfo.value)
-    )
+    assert sing._compare_ref_binop(ref, binop, task, task2) == False
 
-    with pytest.raises(GenerationError) as excinfo:
-        sing._compare_ref_binop(binop, ref, task2, task)
-    assert (
-        "Found a pair of dependencies on the same array which are not "
-        "valid under OpenMP, as one contains a Reference while the other "
-        "does not." in str(excinfo.value)
-    )
+    assert sing._compare_ref_binop(binop, ref, task2, task) == False
 
     ref2 = Reference(tmp2)
     task3 = OMPTaskDirective()
@@ -1995,14 +1968,7 @@ def test_omp_serial_compare_ref_binop_fails():
         Literal("32", INTEGER_SINGLE_TYPE),
         [task],
     )
-    with pytest.raises(GenerationError) as excinfo:
-        sing._compare_ref_binop(ref, ref2, task, task3)
-
-    assert (
-        "Found a pair of dependencies on the same array which are not "
-        "supported in PSyclone, as they are both References but to "
-        "different variables." in str(excinfo.value)
-    )
+    assert sing._compare_ref_binop(ref, ref2, task, task3) == False
 
     task2 = OMPTaskDirective()
     task = OMPTaskDirective()
@@ -2026,12 +1992,7 @@ def test_omp_serial_compare_ref_binop_fails():
         [task2],
     )
 
-    with pytest.raises(GenerationError) as excinfo:
-        sing._compare_ref_binop(ref, binop, task, task2)
-    assert (
-        "Found incompatible dependency between two array accesses, ref1 "
-        "is in range 1 to 97, but doesn't contain 2." in str(excinfo.value)
-    )
+    assert sing._compare_ref_binop(ref, binop, task, task2) == False
 
     task = OMPTaskDirective()
     task2 = OMPTaskDirective()
@@ -2050,12 +2011,7 @@ def test_omp_serial_compare_ref_binop_fails():
         [task2],
     )
 
-    with pytest.raises(GenerationError) as excinfo:
-        sing._compare_ref_binop(ref, binop, task, task2)
-    assert (
-        "Found incompatible dependency between two array accesses, ref1 "
-        "is in range 0 to 32, but doesn't contain 1." in str(excinfo.value)
-    )
+    assert sing._compare_ref_binop(ref, binop, task, task2) == False
 
 
 def test_omp_serial_compare_ref_binops():
@@ -3816,3 +3772,167 @@ def test_omp_serial_check_task_dependencies_outin():
     task2.lower_to_language_level()
 
     sing._check_task_dependencies()
+
+
+def test_omp_serial_check_task_dependencies_add_taskwait(fortran_reader, fortran_writer):
+    
+    code = '''subroutine my_subroutine(grid_max, grid_min)
+        integer, dimension(100, 100) :: A, B, C, D
+        integer :: i, j
+        integer, intent(in) :: grid_max, grid_min
+
+        do i = grid_min, grid_max
+            do j = grid_min, grid_max
+                a(i, j) = i*grid_max + j
+            end do
+        end do
+        do i = grid_min, grid_max
+            do j = grid_min, grid_max
+                b(i, j) = j*grid_max + i
+            end do
+        end do
+        do i = grid_min+1, grid_max-1
+            do j = grid_min, grid_max
+                c(i, j) = a(i,j) * 3
+            end do
+        end do
+        do i = grid_min+1, grid_max-1
+            do j = grid_min, grid_max
+                d(i, j) = b(i,j) + a(i,j)
+            end do
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+
+    loop_trans = ChunkLoopTrans()
+    task_trans = OMPTaskTrans()
+
+    schedule = tree.walk(Schedule)[0]
+    for child in schedule.children[:]:
+        if isinstance(child, Loop):
+            loop_trans.apply(child)
+            assert isinstance(child.children[3].children[0], Loop)
+            task_trans.apply(child, {"force": True})
+
+    single_trans = OMPSingleTrans()
+    parallel_trans = OMPParallelTrans()
+    single_trans.apply(schedule.children)
+    parallel_trans.apply(schedule.children)
+    tree.lower_to_language_level()
+
+    taskwaits = tree.walk(OMPTaskwaitDirective)
+    assert len(taskwaits) == 1
+    assert taskwaits[0].position == 2
+
+
+    code = '''subroutine my_subroutine(grid_max, grid_min, runtime_parameter)
+        integer, dimension(100, 100) :: A, B, C, D
+        integer :: i, j
+        integer, intent(in) :: grid_max, grid_min
+        logical, intent(in) :: runtime_parameter
+
+        do i = grid_min, grid_max
+            do j = grid_min, grid_max
+                a(i, j) = i*grid_max + j
+            end do
+        end do
+        do i = grid_min, grid_max
+            do j = grid_min, grid_max
+                b(i, j) = j*grid_max + i
+            end do
+        end do
+        if(runtime_parameter) then
+            do i = grid_min+1, grid_max-1
+                do j = grid_min, grid_max
+                    c(i, j) = a(i,j) * 3
+                end do
+            end do
+        end if
+        do i = grid_min+1, grid_max-1
+            do j = grid_min, grid_max
+                d(i, j) = b(i,j) + a(i,j)
+            end do
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+
+    schedule = tree.walk(Schedule)[0]
+    for child in schedule.children[:]:
+        if isinstance(child, Loop):
+            loop_trans.apply(child)
+            assert isinstance(child.children[3].children[0], Loop)
+            task_trans.apply(child, {"force": True})
+        if isinstance(child, IfBlock):
+            loop = child.if_body.children[0]
+            loop_trans.apply(loop)
+            task_trans.apply(loop, {"force": True})
+
+    single_trans = OMPSingleTrans()
+    parallel_trans = OMPParallelTrans()
+    single_trans.apply(schedule.children)
+    parallel_trans.apply(schedule.children)
+    tree.lower_to_language_level()
+
+    taskwaits = tree.walk(OMPTaskwaitDirective)
+    assert len(taskwaits) == 1
+    assert taskwaits[0].position == 2
+
+
+    code = '''subroutine my_subroutine(grid_max, grid_min, runtime_parameter)
+        integer, dimension(100, 100) :: A, B, C, D
+        integer :: i, j
+        integer, intent(in) :: grid_max, grid_min
+        logical, intent(in) :: runtime_parameter
+
+        do i = grid_min, grid_max
+            do j = grid_min, grid_max
+                b(i, j) = j*grid_max + i
+            end do
+        end do
+        if(runtime_parameter) then
+            do i = grid_min, grid_max
+                do j = grid_min, grid_max
+                    a(i, j) = i*grid_max + j
+                end do
+            end do
+        else
+            do i = grid_min+1, grid_max-1
+                do j = grid_min, grid_max
+                    c(i, j) = a(i,j) * 3
+                end do
+            end do
+        end if
+        do i = grid_min+1, grid_max-1
+            do j = grid_min, grid_max
+                d(i, j) = b(i,j) + a(i,j)
+            end do
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+
+    schedule = tree.walk(Schedule)[0]
+    for child in schedule.children[:]:
+        if isinstance(child, Loop):
+            loop_trans.apply(child)
+            assert isinstance(child.children[3].children[0], Loop)
+            task_trans.apply(child, {"force": True})
+        if isinstance(child, IfBlock):
+            loop = child.if_body.children[0]
+            loop_trans.apply(loop)
+            task_trans.apply(loop, {"force": True})
+            loop = child.else_body.children[0]
+            loop_trans.apply(loop)
+            task_trans.apply(loop, {"force": True})
+
+    single_trans = OMPSingleTrans()
+    parallel_trans = OMPParallelTrans()
+    single_trans.apply(schedule.children)
+    parallel_trans.apply(schedule.children)
+    tree.lower_to_language_level()
+
+    taskwaits = tree.walk(OMPTaskwaitDirective)
+    assert len(taskwaits) == 1
+    assert taskwaits[0].position == 2

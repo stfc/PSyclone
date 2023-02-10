@@ -249,14 +249,20 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         :type lit2: :py:class:`psyclone.psyir.nodes.Node`
 
         :raises GenerationError: If either node is not a Literal.
+
+        :returns: If these two nodes can be used as a valid dependency pair \
+                  in OpenMP
+        :rtype: bool
+
         '''
         # Check both are Literals
         if not isinstance(lit1, Literal) or not isinstance(lit2, Literal):
-            raise GenerationError("Literal index to dependency has calculated "
-                                  "dependency to a non-Literal index, which is"
-                                  " not currently supported in PSyclone.")
+            # Literal index to dependency has calculated dependency to a
+            # non-Literal index, which is not currently supported in PSyclone.
+            return False
         # If literals are not the same its fine, since a(1) is not a dependency
         # to a(2), so as long as both are Literals this is ok.
+        return True
 
     def _compare_ranges(self, range1, range2):
         '''
@@ -271,12 +277,16 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
 
         :raises GenerationError: If either node is not a Range.
         :raises GenerationError: If either node is not a full range.
+
+        :returns: If these two nodes can be used as a valid dependency pair \
+                  in OpenMP
+        :rtype: bool
         '''
         # Check both are Ranges
         if not isinstance(range1, Range) or not isinstance(range2, Range):
-            raise GenerationError("Range index to a dependency has calculated "
-                                  "dependency to a non-Range index, which is "
-                                  "not currently supported in PSyclone.")
+            # Range index to a dependency has calculated dependency to a
+            # non-Range index, which is not currently supported in PSyclone
+            return False
 
         # Both ranges need to be full ranges, i.e. start is BinaryOperation
         # with operator LBOUND, stop is BinaryOperation with operator UBOUND
@@ -296,10 +306,11 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                       range2.step.value == "1")
 
         if not (fullrange1 and fullrange2):
-            raise GenerationError("Found a range index between dependencies "
-                                  "which does not cover the full array range, "
-                                  "which is not currently supported in "
-                                  "PSyclone (due to OpenMP limitations).")
+            # Found a range index between dependencies which does not cover
+            # the full array range, which is not currently supported in
+            # PSyclone (due to OpenMP limitations).
+            return False
+        return True
 
     def _compute_accesses(self, ref, preceding_nodes, task):
         '''
@@ -586,7 +597,11 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                                  variables.
         :raises GenerationError: If ref1 and ref2 are dependencies on the \
                                  same array, but the computed index values \
-                                 are not dependent accordign to OpenMP.
+                                 are not dependent according to OpenMP.
+
+        :returns: If these two nodes can be used as a valid dependency pair \
+                  in OpenMP
+        :rtype: bool
         '''
         # In this case we have two Reference/BinaryOperation as indices.
         # We need to attempt to find their value set and check the value
@@ -595,31 +610,36 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         preceding_t1 = task1.preceding(reverse=True)
         preceding_t2 = task2.preceding(reverse=True)
         # Get access list for each ref
-        ref1_accesses = self._compute_accesses(ref1, preceding_t1, task1)
-        ref2_accesses = self._compute_accesses(ref2, preceding_t2, task2)
+        try:
+            ref1_accesses = self._compute_accesses(ref1, preceding_t1, task1)
+            ref2_accesses = self._compute_accesses(ref2, preceding_t2, task2)
+        except GenerationError:
+            # If we get a Generation error from compute_accesses, then we found
+            # an access that isn't able to be handled by PSyclone, so
+            # dependencies based on it need to be handled by a taskwait
+            return False
 
         # If the first access in each accesses contains a Reference
         # we should check that both are to the same symbol
         ref1_ref = ref1_accesses[0].walk(Reference)
         ref2_ref = ref2_accesses[0].walk(Reference)
         if len(ref1_ref) > 0 and len(ref2_ref) == 0:
-            raise GenerationError("Found a pair of dependencies on the same "
-                                  "array which are not valid under OpenMP, "
-                                  "as one contains a Reference while the "
-                                  "other does not.")
+            # Found a pair of dependencies on the same array which are not
+            # valid under OpenMP, as one contains a Reference while the
+            # other does not.
+            return False
         if len(ref1_ref) == 0 and len(ref2_ref) > 0:
-            # Raise error
-            raise GenerationError("Found a pair of dependencies on the same "
-                                  "array which are not valid under OpenMP, "
-                                  "as one contains a Reference while the "
-                                  "other does not.")
+            # Found a pair of dependencies on the same array which are not
+            # valid under OpenMP, as one contains a Reference while the
+            # other does not.
+            return False
         # If we have elements in the accesses lists, check the first element is
         # the same in both.
         if len(ref1_ref) > 0 and ref1_ref[0] != ref2_ref[0]:
-            raise GenerationError("Found a pair of dependencies on the same "
-                                  "array which are not supported in PSyclone, "
-                                  "as they are both References but to "
-                                  "different variables.")
+            # Found a pair of dependencies on the same array which are not
+            # supported in PSyclone, as they are both References but to
+            # different variables.
+            return False
 
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.backend.sympy_writer import SymPyWriter
@@ -667,10 +687,10 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 val = int(member)
                 if val >= r1_min and val <= r1_max:
                     if val not in values:
-                        raise GenerationError(
-                                "Found incompatible dependency between two "
-                                f"array accesses, ref1 is in range {r1_min} "
-                                f"to {r1_max}, but doesn't contain {val}.")
+                        # Found incompatible dependency between two
+                        # array accesses, ref1 is in range {r1_min}
+                        # to {r1_max}, but doesn't contain {val}.
+                        return False
         else:
             # Handle no Reference case
             # Find the min and max values of the first reference accesses
@@ -698,10 +718,12 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 val = int(member)
                 if val >= r1_min and val <= r1_max:
                     if val not in values:
-                        raise GenerationError(
-                                "Found incompatible dependency between two "
-                                f"array accesses, ref1 is in range {r1_min} "
-                                f"to {r1_max}, but doesn't contain {val}.")
+                        # Found incompatible dependency between two
+                        # array accesses, ref1 is in range {r1_min}
+                        # to {r1_max}, but doesn't contain {val}.
+                        return False
+
+        return True
 
     def _check_task_dependencies(self):
         '''
@@ -732,10 +754,16 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                                   "same parent serial region.")
 
         pairs = itertools.combinations(tasks, 2)
+        # List of tuples of dependent nodes that aren't handled by OpenMP
+        dependent_nodes = []
+        lowest_position_nodes = []
+        highest_position_nodes = []
         for pair in pairs:
             task1 = pair[0]
             task2 = pair[1]
 
+            # Keep track of if the dependencies are satisfiable
+            satisfiable = True
             # Find all References in each tasks' depend clauses
             # Should we cache these instead?
             task1_in = task1.children[4].walk(Reference)
@@ -792,14 +820,16 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     array2 = mem[1].walk(ArrayMixin)[0]
                 for i, index in enumerate(array1.indices):
                     if isinstance(index, Literal):
-                        self._compare_literals(index, array2.indices[i])
+                        satisfiable = satisfiable and self._compare_literals(
+                                index, array2.indices[i])
                     elif isinstance(index, Range):
-                        self._compare_ranges(index, array2.indices[i])
+                        satisfiable = satisfiable and self._compare_ranges(
+                                index, array2.indices[i])
                     else:
                         # The only remaining option is that the indices are
                         # References or BinaryOperations
-                        self._compare_ref_binop(index, array2.indices[i],
-                                                task1, task2)
+                        satisfiable = satisfiable and self._compare_ref_binop(
+                                index, array2.indices[i], task1, task2)
 
             for mem in outin:
                 # Checking the symbol is the same works for non-structure
@@ -846,14 +876,16 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
 
                 for i, index in enumerate(array1.indices):
                     if isinstance(index, Literal):
-                        self._compare_literals(index, array2.indices[i])
+                        satisfiable = satisfiable and self._compare_literals(
+                                index, array2.indices[i])
                     elif isinstance(index, Range):
-                        self._compare_ranges(index, array2.indices[i])
+                        satisfiable = satisfiable and self._compare_ranges(
+                                index, array2.indices[i])
                     else:
                         # The only remaining option is that the indices are
                         # References or BinaryOperations
-                        self._compare_ref_binop(index, array2.indices[i],
-                                                task1, task2)
+                        satisfiable = satisfiable and self._compare_ref_binop(
+                                index, array2.indices[i], task1, task2)
 
             for mem in outout:
                 # Checking the symbol is the same works for non-structure
@@ -900,15 +932,108 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 for i, index in enumerate(array1.indices):
                     if (isinstance(index, Literal) or
                             isinstance(array2.indices[i], Literal)):
-                        self._compare_literals(index, array2.indices[i])
+                        satisfiable = satisfiable and self._compare_literals(
+                                index, array2.indices[i])
                     elif (isinstance(index, Range) or
                           isinstance(array2.indices[i], Range)):
-                        self._compare_ranges(index, array2.indices[i])
+                        satisfiable = satisfiable and self._compare_ranges(
+                                index, array2.indices[i])
                     else:
                         # The only remaining option is that the indices are
                         # References or BinaryOperations
-                        self._compare_ref_binop(index, array2.indices[i],
-                                                task1, task2)
+                        satisfiable = satisfiable and self._compare_ref_binop(
+                                index, array2.indices[i], task1, task2)
+
+            # If we have an unsatisfiable dependency between two tasks, then we
+            # need to have a taskwait between them always. We need to loop up
+            # to find these tasks' parents that is closest to the schedule
+            # which contains both tasks, and use that as the nodes which are
+            # dependent.
+            if not satisfiable:
+                # Find the lowest schedule containing both nodes.
+                schedule1 = task1.ancestor(Schedule)
+                schedule2 = task2.ancestor(Schedule)
+                # While they're not distinct
+                while schedule1 is not schedule2:
+                    if schedule1.depth > schedule2.depth:
+                        schedule1 = schedule1.ancestor(Schedule)
+                    else:
+                        schedule2 = schedule2.ancestor(Schedule)
+                task1_proxy = task1
+                while task1_proxy.parent is not schedule1:
+                    task1_proxy = task1_proxy.parent
+                task2_proxy = task2
+                while task2_proxy.parent is not schedule1:
+                    task2_proxy = task2_proxy.parent
+
+                # Now we have the closest nodes to the closest ancestor
+                # schedule, so add them to the dependent_nodes list.
+                if task1_proxy is not task2_proxy:
+                    # If they end up with the same proxy, they have the same
+                    # ancestor tree but are in different schedules. This means
+                    # that they are in something like an if/else block with
+                    # one node in an if block and the other in the else block.
+                    # These dependencies we can ignore as they are not ever
+                    # both executed
+                    dependent_nodes.append((task1_proxy, task2_proxy))
+                    lowest_position_nodes.append(min(task1_proxy.abs_position,
+                                                     task2_proxy.abs_position))
+                    highest_position_nodes.append(
+                            max(task1_proxy.abs_position,
+                                task2_proxy.abs_position))
+
+        # Need to sort lists by highest_position_nodes value, and then
+        # by lowest value if tied.
+        # Based upon
+        # https://stackoverflow.com/questions/9764298/how-to-sort-two-
+        # lists-which-reference-each-other-in-the-exact-same-way
+        if len(dependent_nodes) > 0:
+            sorted_highest_positions, sorted_lowest_positions, \
+                    sorted_dependency_pairs = (list(t) for t in zip(*sorted(zip(
+                        highest_position_nodes, lowest_position_nodes,
+                        dependent_nodes))))
+        else:
+            # We have no invalid dependencies so we can return early
+            return
+
+
+        taskwait_location_nodes = []
+        taskwait_location_abs_pos = []
+        # Add the first node to have a taskwait placed in front of it into the
+        # list
+        taskwait_location_nodes.append(sorted_dependency_pairs[0][1])
+        taskwait_location_abs_pos.append(sorted_highest_positions[0])
+        for index, pairs in enumerate(sorted_dependency_pairs[1:]):
+            lo_abs_pos = sorted_lowest_positions[index]
+            hi_abs_pos = sorted_highest_positions[index]
+            satisfied = False
+            for ind, taskwait_loc in enumerate(taskwait_location_nodes):
+                if (taskwait_location_abs_pos[ind] <= hi_abs_pos and
+                        taskwait_location_abs_pos[ind] >= lo_abs_pos):
+                    # We have a taskwait meant to be placed here that is
+                    # potentially already satisfied. To check we need to
+                    # ensure that the ancestor schedules of the nodes
+                    # are identical
+                    if (pairs[0].ancestor(Schedule) is 
+                            taskwait_loc.ancestor(Schedule)):
+                        satisfied = True
+                        break
+            # If we didn't find a taskwait we plan to add that satisfies this
+            # dependency, add it to the list
+            if not satisfied:
+                taskwait_location_nodes.append(pairs[1])
+                taskwait_location_abs_pos.append(hi_abs_pos)
+
+        # Now loop through the list in reverse and add taskwaits
+        taskwait_location_nodes.reverse()
+        for taskwait_loc in taskwait_location_nodes:
+            node_parent = taskwait_loc.parent
+            loc = taskwait_loc.position
+            node_parent.addchild(OMPTaskwaitDirective(), loc)
+            # As the node_parent tree has already been lowered and we're adding
+            # a new node, we need to lower it again.
+            node_parent.lower_to_language_level()
+
 
     def lower_to_language_level(self):
         '''
@@ -919,6 +1044,8 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
 
         # Check task dependencies are satisfiable.
         self._check_task_dependencies()
+
+        # FIXME Is it ok if this is a master or nowait and we have tasks?
 
     def validate_global_constraints(self):
         '''
