@@ -1914,6 +1914,28 @@ def test_omp_serial_compare_ref_binop_fails():
     Tests the _compare_ref_binop failure cases of OMPSerialDirective
     '''
 
+    # Case when ref_accesses raises an error
+    sing = OMPSingleDirective()
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+
+    binop_fail1 = BinaryOperation.create(
+        BinaryOperation.Operator.MUL,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Reference(tmp),
+    )
+    task = OMPTaskDirective()
+    task2 = OMPTaskDirective()
+    # pylint: disable=unused-variable
+    loop = Loop.create(
+        tmp,
+        Reference(tmp2),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2],
+    )
+    assert sing._compare_ref_binop(binop_fail1, None, task2, task) == False
+
     # Test the first failure. One has accesses to references
     # and the other doesn't.
 

@@ -1116,8 +1116,12 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 while isinstance(sref_children.children[0], Member):
                     sref_children = sref_children.children[0]
                 sref_children.parent.children[0] = final_member
-            else:
-                sref_copy.addchild(final_member)
+            # I think that sref_copy.children length is always 0, so I've
+            # commented this out for now, as even for A%AA(i,j) the structure
+            # reference copy still has the children. I will remove this
+            # commented code unless I can think of something during review.
+#            else:
+#                sref_copy.addchild(final_member)
             # Add dclause into the out_list if required
             if sref_copy not in out_list:
                 out_list.append(sref_copy)
