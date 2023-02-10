@@ -72,19 +72,5 @@ for module in MODULES:
         exec(f"{module_var.upper()} = DataSymbol('{module_var}', INTEGER_TYPE,"
              f" interface=ImportInterface({MODULE_NAME.upper()}))")
 
-# Define generic LFRic scalar datatypes and symbols
-
-# The GenericScalar namedtuple has 3 properties: the first determines
-# the names of the resultant datatype and datasymbol classes, the
-# second specifies the intrinsic PSyIR type and the third specifies
-# the precision required by referencing symbols already declared
-# above.
-
-GenericScalar = namedtuple('GenericScalar', ["name", "intrinsic", "precision"])
-GENERIC_SCALAR_DATATYPES = [
-    GenericScalar("lfric integer scalar", "integer", "i_def"),
-    GenericScalar("lfric real scalar", "real", "r_def"),
-    GenericScalar("lfric logical scalar", "boolean", "l_def")]
-
 
 __all__ = []
