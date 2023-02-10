@@ -261,10 +261,14 @@ def test_arrays(data_type_name, symbol_name, scalar_type_name,
     '''
     lfric_types = LFRicTypes()
     dims = []
+    # Each dimension arg is either an integer number, or a tuple consisting of
+    # an LFRic data type, followed by additional constructor arguments. Use
+    # this to create the required list of dimensions:
     for i in dims_args:
         if isinstance(i, int):
             dims.append(i)
         else:
+            # Tage the additional constructor arguments
             args = i[1:]
             interface = ArgumentInterface(ArgumentInterface.Access.READ)
             ref = Reference(lfric_types(i[0])(*args,
