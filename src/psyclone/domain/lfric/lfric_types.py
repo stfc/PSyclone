@@ -84,6 +84,7 @@ class LFRicTypes:
 
         self._name_to_class = {}
 
+        self._create_scalars()
         self._create_fields()
         # Generate LFRic vector-field-data symbols as subclasses of
         # field-data symbols
@@ -100,6 +101,86 @@ class LFRicTypes:
 
         '''
         return self._name_to_class[name]
+
+    # ------------------------------------------------------------------------
+    def _create_scalars(self):
+        # The Scalar namedtuple has 3 properties: the first
+        # determines the names of the resultant datatype and datasymbol
+        # classes, the second references the generic scalar type
+        # classes declared above and the third specifies any
+        # additional class properties that should be declared in the generated
+        # datasymbol class.
+
+        Scalar = namedtuple('Scalar', ["name", "generic_type", "properties"])
+        specific_scalar_datatypes = [
+            Scalar("CellPosition", psyir.LfricIntegerScalarDataSymbol, []),
+            Scalar("MeshHeight", psyir.LfricIntegerScalarDataSymbol, []),
+            Scalar("NumberOfCells", psyir.LfricIntegerScalarDataSymbol, []),
+            Scalar("NumberOfDofs", psyir.LfricIntegerScalarDataSymbol, ["fs"]),
+            Scalar("NumberOfUniqueDofs",
+                   psyir.LfricIntegerScalarDataSymbol, ["fs"]),
+            Scalar("NumberOfFaces", psyir.LfricIntegerScalarDataSymbol, []),
+            Scalar("NumberOfEdges", psyir.LfricIntegerScalarDataSymbol, []),
+            Scalar("NumberOfQrPointsInXy",
+                   psyir.LfricIntegerScalarDataSymbol, []),
+            Scalar("NumberOfQrPointsInZ",
+                   psyir.LfricIntegerScalarDataSymbol, []),
+            Scalar("NumberOfQrPointsInFaces",
+                   psyir.LfricIntegerScalarDataSymbol, []),
+            Scalar("NumberOfQrPointsInEdges",
+                   psyir.LfricIntegerScalarDataSymbol, [])]
+
+        for info in specific_scalar_datatypes:
+            type_name = f"{info.name}DataType"
+            print("Now creating", type_name)
+            self._name_to_class[type_name] = \
+                type(type_name, (psyir.LfricIntegerScalarDataType, ), {})
+
+            symbol_name = f"{info.name}DataSymbol"
+            base_class = info.generic_type
+            self._create_scalar_data_type(symbol_name, base_class,
+                                          info.properties)
+
+    # ------------------------------------------------------------------------
+    def _create_scalar_data_type(self, class_name, base_class, properties):
+
+        # ---------------------------------------------------------------------
+        # This is the __init__ function for the newly declared scalar data
+        # types, which will be added as an attribute for the newly created
+        # class. It parses the additional positional and keyword arguments
+        # and sets them as attributes.
+
+        def __my_scalar_init__(self, name, *args, **kwargs):
+            # Set all the positional arguments as attributes:
+            for i, arg in enumerate(args):
+                setattr(self, self.parameters[i], arg)
+            # Now handle the keyword arguments: any keyword arguments
+            # that are declared as parameter will be set as attribute,
+            # anything else will be passed to the constructor of the
+            # base class.
+            remaining_kwargs = {}
+            for key, value in kwargs.items():
+                # It is one of the additional parameters, set it as
+                # attribute:
+                if key in self.parameters:
+                    setattr(self, key, value)
+                else:
+                    # Otherwise add it as keyword parameter for the
+                    # base class constructor
+                    remaining_kwargs[key] = value
+            self.base_class.__init__(self, name, **remaining_kwargs)
+
+        # ----------------------------------------------------------------
+
+        # Now create the actual class. We need to keep a copy of the parameters
+        # of this class as attributes, otherwise they would be shared among the
+        # several instances of the __myinit__function: this affects the
+        # required arguments (array_type.properties) and scalar class:
+        self._name_to_class[class_name] = \
+            type(class_name, (base_class, ),
+                 {"__init__": __my_scalar_init__,
+                  "base_class": base_class,
+                  "parameters": properties})
 
     # ------------------------------------------------------------------------
     def _create_fields(self):
@@ -182,13 +263,11 @@ class LFRicTypes:
 
         for array_type in array_datatypes + field_datatypes:
             name = f"{array_type.name}DataType"
-            print(f"Creating {name}(ArrayType)")
             self._create_array_data_type_class(name, len(array_type.dims),
                                                array_type.scalar_type)
 
             my__class = self(name)
             name = f"{array_type.name}DataSymbol"
-            print(f"Creating {name}(DataSymbol)")
             self._create_array_data_symbol_class(name, my__class,
                                                  array_type.properties)
 

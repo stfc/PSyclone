@@ -131,44 +131,4 @@ class LfricDimension(Literal):
 LFRIC_SCALAR_DIMENSION = LfricDimension("1")
 LFRIC_VECTOR_DIMENSION = LfricDimension("3")
 
-# Define specific LFRic scalar datatypes and symbols
-
-# The Scalar namedtuple has 3 properties: the first
-# determines the names of the resultant datatype and datasymbol
-# classes, the second references the generic scalar type
-# classes declared above and the third specifies any
-# additional class properties that should be declared in the generated
-# datasymbol class.
-
-Scalar = namedtuple('Scalar', ["name", "generic_type", "properties"])
-SPECIFIC_SCALAR_DATATYPES = [
-    Scalar("cell position", "lfric integer scalar", []),
-    Scalar("mesh height", "lfric integer scalar", []),
-    Scalar("number of cells", "lfric integer scalar", []),
-    Scalar("number of dofs", "lfric integer scalar", ["fs"]),
-    Scalar("number of unique dofs", "lfric integer scalar", ["fs"]),
-    Scalar("number of faces", "lfric integer scalar", []),
-    Scalar("number of edges", "lfric integer scalar", []),
-    Scalar("number of qr points in xy", "lfric integer scalar", []),
-    Scalar("number of qr points in z", "lfric integer scalar", []),
-    Scalar("number of qr points in faces", "lfric integer scalar", []),
-    Scalar("number of qr points in edges", "lfric integer scalar", [])]
-
-# Generate specific LFRic scalar datatypes and symbols from definitions
-for info in SPECIFIC_SCALAR_DATATYPES:
-    NAME = "".join(info.name.title().split())
-    TYPE = "".join(info.generic_type.title().split())
-    ARGS = ["self", "name"] + info.properties
-    VARS = [f"        self.{var} = {var}\n" for var in info.properties]
-    # Create the specific datatype
-    exec(f"class {NAME}DataType({TYPE}DataType):\n"
-         f"    pass\n")
-    # Create the specific symbol
-    exec(
-        f"class {NAME}DataSymbol({TYPE}DataSymbol):\n"
-        f"    def __init__({', '.join(ARGS)}, **kwargs):\n"
-        f"{''.join(VARS)}\n"
-        f"        super().__init__(name, **kwargs)\n")
-
-
 __all__ = []

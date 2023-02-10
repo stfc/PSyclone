@@ -123,67 +123,74 @@ def test_scalar_literals():
     assert lfric_psyir.LFRIC_VECTOR_DIMENSION.value == "3"
 
 
+lfric_types = LFRicTypes()
+
+
 # Specific scalar datatypes
-@pytest.mark.parametrize("data_type, generic_type", [
-    (lfric_psyir.CellPositionDataType,
+@pytest.mark.parametrize("data_type_name, generic_type", [
+    ("CellPositionDataType",
      lfric_psyir.LfricIntegerScalarDataType),
-    (lfric_psyir.MeshHeightDataType,
+    ("MeshHeightDataType",
      lfric_psyir.LfricIntegerScalarDataType),
-    (lfric_psyir.NumberOfCellsDataType,
+    ("NumberOfCellsDataType",
      lfric_psyir.LfricIntegerScalarDataType),
-    (lfric_psyir.NumberOfDofsDataType,
+    ("NumberOfDofsDataType",
      lfric_psyir.LfricIntegerScalarDataType),
-    (lfric_psyir.NumberOfUniqueDofsDataType,
+    ("NumberOfUniqueDofsDataType",
      lfric_psyir.LfricIntegerScalarDataType),
-    (lfric_psyir.NumberOfFacesDataType,
+    ("NumberOfFacesDataType",
      lfric_psyir.LfricIntegerScalarDataType),
-    (lfric_psyir.NumberOfEdgesDataType,
+    ("NumberOfEdgesDataType",
      lfric_psyir.LfricIntegerScalarDataType),
-    (lfric_psyir.NumberOfQrPointsInXyDataType,
+    ("NumberOfQrPointsInXyDataType",
      lfric_psyir.LfricIntegerScalarDataType),
-    (lfric_psyir.NumberOfQrPointsInZDataType,
+    ("NumberOfQrPointsInZDataType",
      lfric_psyir.LfricIntegerScalarDataType),
-    (lfric_psyir.NumberOfQrPointsInFacesDataType,
+    ("NumberOfQrPointsInFacesDataType",
      lfric_psyir.LfricIntegerScalarDataType),
-    (lfric_psyir.NumberOfQrPointsInEdgesDataType,
+    ("NumberOfQrPointsInEdgesDataType",
      lfric_psyir.LfricIntegerScalarDataType)])
-def test_specific_scalar_types(data_type, generic_type):
+def test_specific_scalar_types(data_type_name, generic_type):
     '''Test the generated specific scalar datatypes are created correctly.
 
     '''
+    lfric_types = LFRicTypes()
+    data_type = lfric_types(data_type_name)
     lfric_datatype = data_type()
     assert isinstance(lfric_datatype, generic_type)
 
 
 # Specific scalar symbols
-@pytest.mark.parametrize("symbol, generic_symbol, attribute_map", [
-    (lfric_psyir.CellPositionDataSymbol,
+@pytest.mark.parametrize("symbol_name, generic_symbol, attribute_map", [
+    ("CellPositionDataSymbol",
      lfric_psyir.LfricIntegerScalarDataSymbol, {}),
-    (lfric_psyir.MeshHeightDataSymbol,
+    ("MeshHeightDataSymbol",
      lfric_psyir.LfricIntegerScalarDataSymbol, {}),
-    (lfric_psyir.NumberOfCellsDataSymbol,
+    ("NumberOfCellsDataSymbol",
      lfric_psyir.LfricIntegerScalarDataSymbol, {}),
-    (lfric_psyir.NumberOfDofsDataSymbol,
+    ("NumberOfDofsDataSymbol",
      lfric_psyir.LfricIntegerScalarDataSymbol, {"fs": "w3"}),
-    (lfric_psyir.NumberOfUniqueDofsDataSymbol,
+    ("NumberOfUniqueDofsDataSymbol",
      lfric_psyir.LfricIntegerScalarDataSymbol, {"fs": "w2"}),
-    (lfric_psyir.NumberOfFacesDataSymbol,
+    ("NumberOfFacesDataSymbol",
      lfric_psyir.LfricIntegerScalarDataSymbol, {}),
-    (lfric_psyir.NumberOfEdgesDataSymbol,
+    ("NumberOfEdgesDataSymbol",
      lfric_psyir.LfricIntegerScalarDataSymbol, {}),
-    (lfric_psyir.NumberOfQrPointsInXyDataSymbol,
+    ("NumberOfQrPointsInXyDataSymbol",
      lfric_psyir.LfricIntegerScalarDataSymbol, {}),
-    (lfric_psyir.NumberOfQrPointsInZDataSymbol,
+    ("NumberOfQrPointsInZDataSymbol",
      lfric_psyir.LfricIntegerScalarDataSymbol, {}),
-    (lfric_psyir.NumberOfQrPointsInFacesDataSymbol,
+    ("NumberOfQrPointsInFacesDataSymbol",
      lfric_psyir.LfricIntegerScalarDataSymbol, {}),
-    (lfric_psyir.NumberOfQrPointsInEdgesDataSymbol,
+    ("NumberOfQrPointsInEdgesDataSymbol",
      lfric_psyir.LfricIntegerScalarDataSymbol, {})])
-def test_specific_scalar_symbols(symbol, generic_symbol, attribute_map):
+def test_specific_scalar_symbols(symbol_name, generic_symbol, attribute_map):
     '''Test the generated specific scalar symbols are
     created correctly.
 
     '''
+    lfric_types = LFRicTypes()
+    symbol = lfric_types(symbol_name)
     args = ["symbol"] + list(attribute_map.values())
     lfric_symbol = symbol(*args)
     assert isinstance(lfric_symbol, generic_symbol)
@@ -203,158 +210,158 @@ def test_specific_scalar_symbols(symbol, generic_symbol, attribute_map):
     [("RealFieldDataDataType", "RealFieldDataDataSymbol",
       lfric_psyir.LfricRealScalarDataType,
       [Reference(
-          lfric_psyir.NumberOfUniqueDofsDataSymbol(
+          lfric_types("NumberOfUniqueDofsDataSymbol")(
               "ndofs", "w0",
               interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {"fs": "w0"}),
      ("IntegerFieldDataDataType", "IntegerFieldDataDataSymbol",
       lfric_psyir.LfricIntegerScalarDataType,
       [Reference(
-          lfric_psyir.NumberOfUniqueDofsDataSymbol(
+          lfric_types("NumberOfUniqueDofsDataSymbol")(
               "ndofs", "w1",
               interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {"fs": "w1"}),
      ("LogicalFieldDataDataType", "LogicalFieldDataDataSymbol",
       lfric_psyir.LfricLogicalScalarDataType,
       [Reference(
-          lfric_psyir.NumberOfUniqueDofsDataSymbol(
+          lfric_types("NumberOfUniqueDofsDataSymbol")(
               "ndofs", "w2",
               interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {"fs": "w2"}),
      ("OperatorDataType", "OperatorDataSymbol",
       lfric_psyir.LfricRealScalarDataType,
       [Reference(
-          lfric_psyir.NumberOfDofsDataSymbol(
+          lfric_types("NumberOfDofsDataSymbol")(
               "ndofs", "w3",
               interface=ArgumentInterface(ArgumentInterface.Access.READ))),
        Reference(
-           lfric_psyir.NumberOfDofsDataSymbol(
+           lfric_types("NumberOfDofsDataSymbol")(
                "ndofs", "w3",
                interface=ArgumentInterface(ArgumentInterface.Access.READ))),
-       Reference(lfric_psyir.NumberOfCellsDataSymbol(
+       Reference(lfric_types("NumberOfCellsDataSymbol")(
            "ncells",
            interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
      {"fs_from": "w3", "fs_to": "w3"}),
      ("DofMapDataType", "DofMapDataSymbol",
       lfric_psyir.LfricIntegerScalarDataType,
       [Reference(
-          lfric_psyir.NumberOfDofsDataSymbol(
+          lfric_types("NumberOfDofsDataSymbol")(
               "ndofs", "w3",
               interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {"fs": "w3"}),
      ("BasisFunctionQrXyozDataType", "BasisFunctionQrXyozDataSymbol",
       lfric_psyir.LfricRealScalarDataType,
       [1, Reference(
-          lfric_psyir.NumberOfDofsDataSymbol(
+          lfric_types("NumberOfDofsDataSymbol")(
               "ndofs", "w0",
               interface=ArgumentInterface(ArgumentInterface.Access.READ))),
        Reference(
-           lfric_psyir.NumberOfQrPointsInXyDataSymbol(
+           lfric_types("NumberOfQrPointsInXyDataSymbol")(
                "qr_xy",
                interface=ArgumentInterface(ArgumentInterface.Access.READ))),
        Reference(
-           lfric_psyir.NumberOfQrPointsInZDataSymbol(
+           lfric_types("NumberOfQrPointsInZDataSymbol")(
                "qr_z",
                interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {"fs": "w0"}),
      ("BasisFunctionQrFaceDataType", "BasisFunctionQrFaceDataSymbol",
       lfric_psyir.LfricRealScalarDataType,
       [3, Reference(
-          lfric_psyir.NumberOfDofsDataSymbol(
+          lfric_types("NumberOfDofsDataSymbol")(
               "ndofs", "w1",
               interface=ArgumentInterface(ArgumentInterface.Access.READ))),
        Reference(
-           lfric_psyir.NumberOfQrPointsInFacesDataSymbol(
+           lfric_types("NumberOfQrPointsInFacesDataSymbol")(
                "qr",
                interface=ArgumentInterface(ArgumentInterface.Access.READ))),
        Reference(
-           lfric_psyir.NumberOfFacesDataSymbol(
+           lfric_types("NumberOfFacesDataSymbol")(
                "nfaces",
                interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {"fs": "w1"}),
      ("BasisFunctionQrEdgeDataType", "BasisFunctionQrEdgeDataSymbol",
       lfric_psyir.LfricRealScalarDataType,
       [1, Reference(
-          lfric_psyir.NumberOfDofsDataSymbol(
+          lfric_types("NumberOfDofsDataSymbol")(
               "ndofs", "w2",
               interface=ArgumentInterface(ArgumentInterface.Access.READ))),
-       Reference(lfric_psyir.NumberOfQrPointsInEdgesDataSymbol(
+       Reference(lfric_types("NumberOfQrPointsInEdgesDataSymbol")(
            "qr",
            interface=ArgumentInterface(ArgumentInterface.Access.READ))),
        Reference(
-           lfric_psyir.NumberOfEdgesDataSymbol(
+           lfric_types("NumberOfEdgesDataSymbol")(
                "nedges",
                interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {"fs": "w2"}),
      ("DiffBasisFunctionQrXyozDataType", "DiffBasisFunctionQrXyozDataSymbol",
       lfric_psyir.LfricRealScalarDataType,
       [3, Reference(
-          lfric_psyir.NumberOfDofsDataSymbol(
+          lfric_types("NumberOfDofsDataSymbol")(
               "ndofs", "wtheta",
               interface=ArgumentInterface(ArgumentInterface.Access.READ))),
        Reference(
-           lfric_psyir.NumberOfQrPointsInXyDataSymbol(
+           lfric_types("NumberOfQrPointsInXyDataSymbol")(
                "qr_xy",
                interface=ArgumentInterface(ArgumentInterface.Access.READ))),
        Reference(
-           lfric_psyir.NumberOfQrPointsInZDataSymbol(
+           lfric_types("NumberOfQrPointsInZDataSymbol")(
                "qr_z",
                interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {"fs": "wtheta"}),
      ("DiffBasisFunctionQrFaceDataType", "DiffBasisFunctionQrFaceDataSymbol",
       lfric_psyir.LfricRealScalarDataType,
       [3, Reference(
-          lfric_psyir.NumberOfDofsDataSymbol(
+          lfric_types("NumberOfDofsDataSymbol")(
               "ndofs", "w1",
               interface=ArgumentInterface(ArgumentInterface.Access.READ))),
-       Reference(lfric_psyir.NumberOfQrPointsInFacesDataSymbol(
+       Reference(lfric_types("NumberOfQrPointsInFacesDataSymbol")(
            "qr",
            interface=ArgumentInterface(ArgumentInterface.Access.READ))),
        Reference(
-           lfric_psyir.NumberOfFacesDataSymbol(
+           lfric_types("NumberOfFacesDataSymbol")(
                "nfaces",
                interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {"fs": "w1"}),
      ("DiffBasisFunctionQrEdgeDataType", "DiffBasisFunctionQrEdgeDataSymbol",
       lfric_psyir.LfricRealScalarDataType,
       [1, Reference(
-          lfric_psyir.NumberOfDofsDataSymbol(
+          lfric_types("NumberOfDofsDataSymbol")(
               "ndofs", "w2v",
               interface=ArgumentInterface(ArgumentInterface.Access.READ))),
        Reference(
-           lfric_psyir.NumberOfQrPointsInEdgesDataSymbol(
+           lfric_types("NumberOfQrPointsInEdgesDataSymbol")(
                "qr",
                interface=ArgumentInterface(ArgumentInterface.Access.READ))),
        Reference(
-           lfric_psyir.NumberOfEdgesDataSymbol(
+           lfric_types("NumberOfEdgesDataSymbol")(
                "nedges",
                interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {"fs": "w2v"}),
      ("QrWeightsInXyDataType", "QrWeightsInXyDataSymbol",
       lfric_psyir.LfricRealScalarDataType,
       [Reference(
-          lfric_psyir.NumberOfQrPointsInXyDataSymbol(
+          lfric_types("NumberOfQrPointsInXyDataSymbol")(
               "qr_xy",
               interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {}),
      ("QrWeightsInZDataType", "QrWeightsInZDataSymbol",
       lfric_psyir.LfricRealScalarDataType,
       [Reference(
-          lfric_psyir.NumberOfQrPointsInZDataSymbol(
+          lfric_types("NumberOfQrPointsInZDataSymbol")(
               "qr_z",
               interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {}),
      ("QrWeightsInFacesDataType", "QrWeightsInFacesDataSymbol",
       lfric_psyir.LfricRealScalarDataType,
       [Reference(
-          lfric_psyir.NumberOfQrPointsInFacesDataSymbol(
+          lfric_types("NumberOfQrPointsInFacesDataSymbol")(
               "qr",
               interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {}),
      ("QrWeightsInEdgesDataType", "QrWeightsInEdgesDataSymbol",
       lfric_psyir.LfricRealScalarDataType,
       [Reference(
-          lfric_psyir.NumberOfQrPointsInEdgesDataSymbol(
+          lfric_types("NumberOfQrPointsInEdgesDataSymbol")(
               "qr",
               visibility=Symbol.Visibility.PRIVATE,
               interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
@@ -403,31 +410,14 @@ def test_arrays(data_type_name, symbol_name, scalar_type, dims, attribute_map):
 
 # Vector field-data data-symbols
 @pytest.mark.parametrize(
-    "symbol, parent_symbol, dims, attribute_map",
-    [("RealVectorFieldDataDataSymbol",
-      "RealFieldDataDataSymbol",
-      [Reference(
-          lfric_psyir.NumberOfUniqueDofsDataSymbol(
-              "ndofs", "w0",
-              interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
-      {"fs": "w0"}),
-     ("IntegerVectorFieldDataDataSymbol",
-      "IntegerFieldDataDataSymbol",
-      [Reference(
-          lfric_psyir.NumberOfUniqueDofsDataSymbol(
-              "ndofs", "w1",
-              visibility=Symbol.Visibility.PUBLIC,
-              interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
-      {"fs": "w1"}),
-     ("LogicalVectorFieldDataDataSymbol",
-      "LogicalFieldDataDataSymbol",
-      [Reference(
-          lfric_psyir.NumberOfUniqueDofsDataSymbol(
-              "ndofs", "w2",
-              visibility=Symbol.Visibility.PRIVATE,
-              interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
-      {"fs": "w2"})])
-def test_vector_fields(symbol, parent_symbol, dims, attribute_map):
+    "symbol, parent_symbol, space, visibility",
+    [("RealVectorFieldDataDataSymbol", "RealFieldDataDataSymbol",
+      "w0", None),
+     ("IntegerVectorFieldDataDataSymbol", "IntegerFieldDataDataSymbol",
+      "w1", Symbol.Visibility.PUBLIC),
+     ("LogicalVectorFieldDataDataSymbol", "LogicalFieldDataDataSymbol",
+      "w2", Symbol.Visibility.PRIVATE)])
+def test_vector_fields(symbol, parent_symbol, space, visibility):
     '''Test the generated vector field datasymbols are created
     correctly. These are straight subclasses of the equivalent field
     datasymbols.
@@ -435,7 +425,17 @@ def test_vector_fields(symbol, parent_symbol, dims, attribute_map):
     '''
     lfric_types = LFRicTypes()
 
-    args = list(attribute_map.values())
-    lfric_symbol = lfric_types(symbol)("symbol", dims, *args)
+    kwargs = {"interface": ArgumentInterface(ArgumentInterface.Access.READ)}
+    if visibility is not None:
+        kwargs["visibility"] = visibility
+    ref = Reference(lfric_types("NumberOfUniqueDofsDataSymbol")(
+                    "ndofs", space, **kwargs))
+    args = [space]
+    lfric_symbol = lfric_types(symbol)("symbol", [ref], *args)
     assert isinstance(lfric_symbol, lfric_types(parent_symbol))
     assert lfric_symbol.name == "symbol"
+    assert lfric_symbol.fs == space
+    if visibility is None:
+        assert ref.symbol.visibility == lfric_symbol.DEFAULT_VISIBILITY
+    else:
+        assert ref.symbol.visibility == visibility

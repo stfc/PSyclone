@@ -149,8 +149,9 @@ class KernelInterface(ArgOrdering):
             py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
+        lfric_types = LFRicTypes()
         symbol = self._symbol_table.find_or_create_tag(
-            "cell", symbol_type=lfric_psyir.CellPositionDataSymbol,
+            "cell", symbol_type=lfric_types("CellPositionDataSymbol"),
             interface=self._read_access)
         self._arglist.append(symbol)
 
@@ -165,7 +166,7 @@ class KernelInterface(ArgOrdering):
 
         '''
         symbol = self._symbol_table.find_or_create_tag(
-            "nlayers", symbol_type=lfric_psyir.MeshHeightDataSymbol,
+            "nlayers", symbol_type=LFRicTypes()("MeshHeightDataSymbol"),
             interface=self._read_access)
         self._arglist.append(symbol)
 
@@ -227,9 +228,10 @@ class KernelInterface(ArgOrdering):
 
         '''
         fs_name = argvect.function_space.orig_name
+        lfric_types = LFRicTypes()
         undf_symbol = self._symbol_table.find_or_create_tag(
             f"undf_{fs_name}", fs=fs_name,
-            symbol_type=lfric_psyir.NumberOfUniqueDofsDataSymbol,
+            symbol_type=lfric_types("NumberOfUniqueDofsDataSymbol"),
             interface=self._read_access)
 
         interface = ArgumentInterface(INTENT_MAPPING[argvect.intent])
@@ -268,9 +270,11 @@ class KernelInterface(ArgOrdering):
 
         '''
         fs_name = arg.function_space.orig_name
+        lfric_types = LFRicTypes()
+
         undf_symbol = self._symbol_table.find_or_create_tag(
             f"undf_{fs_name}",
-            symbol_type=lfric_psyir.NumberOfUniqueDofsDataSymbol,
+            symbol_type=lfric_types("NumberOfUniqueDofsDataSymbol"),
             fs=fs_name, interface=self._read_access)
 
         try:
@@ -353,17 +357,19 @@ class KernelInterface(ArgOrdering):
 
         '''
         fs_from_name = arg.function_space_from.orig_name
+        lfric_types = LFRicTypes()
+
         ndf_symbol_from = self._symbol_table.find_or_create_tag(
             f"ndf_{fs_from_name}", fs=fs_from_name,
-            symbol_type=lfric_psyir.NumberOfDofsDataSymbol,
+            symbol_type=lfric_types("NumberOfDofsDataSymbol"),
             interface=self._read_access)
         fs_to_name = arg.function_space_to.orig_name
         ndf_symbol_to = self._symbol_table.find_or_create_tag(
             f"ndf_{fs_to_name}", fs=fs_to_name,
-            symbol_type=lfric_psyir.NumberOfDofsDataSymbol,
+            symbol_type=lfric_types("NumberOfDofsDataSymbol"),
             interface=self._read_access)
 
-        ncells = lfric_psyir.NumberOfCellsDataSymbol(
+        ncells = lfric_types("NumberOfCellsDataSymbol")(
             "ncell_3d", interface=self._read_access)
         self._symbol_table.add(ncells)
         self._arglist.append(ncells)
@@ -445,7 +451,7 @@ class KernelInterface(ArgOrdering):
         fs_name = function_space.orig_name
         ndf_symbol = self._symbol_table.find_or_create_tag(
             f"ndf_{fs_name}", fs=fs_name,
-            symbol_type=lfric_psyir.NumberOfDofsDataSymbol,
+            symbol_type=LFRicTypes()("NumberOfDofsDataSymbol"),
             interface=self._read_access)
         self._arglist.append(ndf_symbol)
 
@@ -485,14 +491,14 @@ class KernelInterface(ArgOrdering):
         fs_name = function_space.orig_name
         undf_symbol = self._symbol_table.find_or_create_tag(
             f"undf_{fs_name}", fs=fs_name,
-            symbol_type=lfric_psyir.NumberOfUniqueDofsDataSymbol,
+            symbol_type=lfric_types("NumberOfUniqueDofsDataSymbol"),
             interface=self._read_access)
         self._arglist.append(undf_symbol)
 
         fs_name = function_space.orig_name
         ndf_symbol = self._symbol_table.find_or_create_tag(
             f"ndf_{fs_name}", fs=fs_name,
-            symbol_type=lfric_psyir.NumberOfDofsDataSymbol,
+            symbol_type=lfric_types("NumberOfDofsDataSymbol"),
             interface=self._read_access)
 
         dofmap_symbol = self._symbol_table.find_or_create_tag(
@@ -651,11 +657,11 @@ class KernelInterface(ArgOrdering):
             if shape == "gh_quadrature_xyoz":
                 nqp_xy = self._symbol_table.find_or_create_tag(
                     "nqp_xy",
-                    symbol_type=lfric_psyir.NumberOfQrPointsInXyDataSymbol,
+                    symbol_type=lfric_types("NumberOfQrPointsInXyDataSymbol"),
                     interface=self._read_access)
                 nqp_z = self._symbol_table.find_or_create_tag(
                     "nqp_z",
-                    symbol_type=lfric_psyir.NumberOfQrPointsInZDataSymbol,
+                    symbol_type=lfric_types("NumberOfQrPointsInZDataSymbol"),
                     interface=self._read_access)
                 weights_xy = self._symbol_table.find_or_create_tag(
                     "weights_xy",
@@ -669,11 +675,12 @@ class KernelInterface(ArgOrdering):
             elif shape == "gh_quadrature_face":
                 nfaces = self._symbol_table.find_or_create_tag(
                     "nfaces",
-                    symbol_type=lfric_psyir.NumberOfFacesDataSymbol,
+                    symbol_type=lfric_types("NumberOfFacesDataSymbol"),
                     interface=self._read_access)
                 nqp = self._symbol_table.find_or_create_tag(
                     "nqp_faces",
-                    symbol_type=lfric_psyir.NumberOfQrPointsInFacesDataSymbol,
+                    symbol_type=lfric_types(
+                        "NumberOfQrPointsInFacesDataSymbol"),
                     interface=self._read_access)
                 weights = self._symbol_table.find_or_create_tag(
                     "weights_faces",
@@ -683,11 +690,12 @@ class KernelInterface(ArgOrdering):
             elif shape == "gh_quadrature_edge":
                 nedges = self._symbol_table.find_or_create_tag(
                     "nedges",
-                    symbol_type=lfric_psyir.NumberOfEdgesDataSymbol,
+                    symbol_type=lfric_types("NumberOfEdgesDataSymbol"),
                     interface=self._read_access)
                 nqp = self._symbol_table.find_or_create_tag(
                     "nqp_edges",
-                    symbol_type=lfric_psyir.NumberOfQrPointsInEdgesDataSymbol,
+                    symbol_type=lfric_types(
+                        "NumberOfQrPointsInEdgesDataSymbol"),
                     interface=self._read_access)
                 weights = self._symbol_table.find_or_create_tag(
                     "weights_edges",
@@ -734,11 +742,12 @@ class KernelInterface(ArgOrdering):
         '''
         # pylint: disable=too-many-locals
         const = LFRicConstants()
+        lfric_types = LFRicTypes()
         for shape in self._kern.eval_shapes:
             fs_name = function_space.orig_name
             ndf_symbol = self._symbol_table.find_or_create_tag(
                 f"ndf_{fs_name}",
-                symbol_type=lfric_psyir.NumberOfDofsDataSymbol,
+                symbol_type=lfric_types("NumberOfDofsDataSymbol"),
                 fs=fs_name, interface=self._read_access)
 
             # Create the qr tag by appending the last part of the shape
@@ -748,11 +757,11 @@ class KernelInterface(ArgOrdering):
             if shape == "gh_quadrature_xyoz":
                 nqp_xy = self._symbol_table.find_or_create_tag(
                     "nqp_xy",
-                    symbol_type=lfric_psyir.NumberOfQrPointsInXyDataSymbol,
+                    symbol_type=lfric_types("NumberOfQrPointsInXyDataSymbol"),
                     interface=self._read_access)
                 nqp_z = self._symbol_table.find_or_create_tag(
                     "nqp_z",
-                    symbol_type=lfric_psyir.NumberOfQrPointsInZDataSymbol,
+                    symbol_type=lfric_types("NumberOfQrPointsInZDataSymbol"),
                     interface=self._read_access)
                 arg = mapping["gh_quadrature_xyoz"](
                     basis_tag, [int(first_dim_value_func(function_space)),
@@ -762,11 +771,12 @@ class KernelInterface(ArgOrdering):
             elif shape == "gh_quadrature_face":
                 nfaces = self._symbol_table.find_or_create_tag(
                     "nfaces",
-                    symbol_type=lfric_psyir.NumberOfFacesDataSymbol,
+                    symbol_type=lfric_types("NumberOfFacesDataSymbol"),
                     interface=self._read_access)
                 nqp = self._symbol_table.find_or_create_tag(
                     "nqp_faces",
-                    symbol_type=lfric_psyir.NumberOfQrPointsInFacesDataSymbol,
+                    symbol_type=lfric_types(
+                        "NumberOfQrPointsInFacesDataSymbol"),
                     interface=self._read_access)
                 arg = mapping["gh_quadrature_face"](
                     basis_tag, [int(first_dim_value_func(function_space)),
@@ -776,11 +786,12 @@ class KernelInterface(ArgOrdering):
             elif shape == "gh_quadrature_edge":
                 nedges = self._symbol_table.find_or_create_tag(
                     "nedges",
-                    symbol_type=lfric_psyir.NumberOfEdgesDataSymbol,
+                    symbol_type=lfric_types("NumberOfEdgesDataSymbol"),
                     interface=self._read_access)
                 nqp = self._symbol_table.find_or_create_tag(
                     "nqp_edges",
-                    symbol_type=lfric_psyir.NumberOfQrPointsInEdgesDataSymbol,
+                    symbol_type=lfric_types(
+                        "NumberOfQrPointsInEdgesDataSymbol"),
                     interface=self._read_access)
                 arg = mapping["gh_quadrature_edge"](
                     basis_tag, [int(first_dim_value_func(function_space)),

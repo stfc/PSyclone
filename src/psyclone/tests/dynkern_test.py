@@ -51,7 +51,7 @@ import psyclone
 from psyclone.core import AccessType
 from psyclone.domain.lfric import LFRicConstants, LFRicTypes
 from psyclone.domain.lfric.psyir import LfricRealScalarDataSymbol, \
-    LfricIntegerScalarDataSymbol, NumberOfUniqueDofsDataSymbol
+    LfricIntegerScalarDataSymbol
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynLoop
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
@@ -312,7 +312,8 @@ def test_validate_kernel_code_arg(monkeypatch):
     assert ("Argument 'scalar' to kernel 'dummy' should be an array "
             "according to the LFRic API, but it is not." in str(info.value))
 
-    undf = NumberOfUniqueDofsDataSymbol("undf", fs="w0", interface=read_access)
+    undf = lfric_types("NumberOfUniqueDofsDataSymbol")("undf", fs="w0",
+                                                       interface=read_access)
     lfric_real_field_symbol2 = lfric_types("RealFieldDataDataSymbol")(
         "field", dims=[Reference(undf)], fs="w0", interface=read_access)
     # if one of the dimensions is not a datasymbol then the arguments
