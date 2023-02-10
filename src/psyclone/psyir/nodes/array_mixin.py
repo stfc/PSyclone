@@ -49,9 +49,9 @@ from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.operation import Operation, BinaryOperation
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import SymbolError, DataSymbol
-from psyclone.psyir.symbols.datatypes import (ScalarType, ArrayType,
-                                              INTEGER_TYPE)
+from psyclone.psyir.symbols import SymbolError, DataSymbol, DataTypeSymbol
+from psyclone.psyir.symbols.datatypes import (
+    ScalarType, ArrayType, DeferredType, UnknownType, INTEGER_TYPE)
 
 
 class ArrayMixin(metaclass=abc.ABCMeta):
@@ -190,32 +190,72 @@ class ArrayMixin(metaclass=abc.ABCMeta):
 
     def lbound(self, pos):
         '''
-        Lookup the lower bound of the specified dimension of this ArrayMixin.
-        If we don't have the necessary type information then a call to the
-        LBOUND intrinsic is constructed and returned.
+        Lookup the lower bound of this ArrayMixin. If we don't have the
+        necessary type information then a call to the LBOUND intrinsic is
+        constructed and returned.
 
         :param int pos: the dimension of the array for which to lookup the \
-                        bounds.
+                        lower bound.
 
         :returns: the declared lower bound for the specified dimension of \
-            this ArrayMixin or a call to the LBOUND intrinsic if it is not \
-            known.
+            this Member or a call to the LBOUND intrinsic if it is unknown.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        if not hasattr(self, "symbol"):
-            # If we are a Member of some sort then we need to carry on up the
-            # Method Resolution Order list to call the appropriate version
-            # of this method.
-            return super().lbound(pos)
+        # First, walk up to the parent reference and get its type.
+        root_ref = self.ancestor(Reference, include_self=True)
+        cursor_type = root_ref.symbol.datatype
 
-        if (isinstance(self.symbol.datatype, ArrayType) and
-                isinstance(self.symbol.datatype.shape[pos],
-                           ArrayType.ArrayBounds)):
-            return self.symbol.datatype.shape[pos].lower
-        return BinaryOperation.create(
-            BinaryOperation.Operator.LBOUND, Reference(self.symbol),
-            Literal(str(pos+1), INTEGER_TYPE))
+        # Walk back down the structure, looking up the type information as we
+        # go. We also collect the necessary information for creating a new
+        # Reference as argument to the LBOUND intrinsic in case the type
+        # information is not available.
+        cnames = []
+        cursor = root_ref
+        while cursor is not self:
+            cursor = cursor.member
+            # Collect member information.
+            if isinstance(cursor, ArrayMixin):
+                new_indices = [idx.copy() for idx in cursor.indices]
+                cnames.append((cursor.name, new_indices))
+            else:
+                cnames.append(cursor.name)
+            # Continue to resolve datatype unless we hit an
+            # UnknownType or DeferredType.
+            if isinstance(cursor_type, ArrayType):
+                cursor_type = cursor_type.intrinsic
+            if isinstance(cursor_type, DataTypeSymbol):
+                cursor_type = cursor_type.datatype
+            if isinstance(cursor_type, (UnknownType, DeferredType)):
+                continue
+            cursor_type = cursor_type.components[cursor.name].datatype
+
+        if isinstance(cursor_type, ArrayType):
+            return cursor_type.shape[pos].lower
+
+        # We've failed to resolve the type so we construct a call to
+        # the LBOUND intrinsic instead.
+        if cnames:
+            # We have some sort of structure access - remove any indexing
+            # information from the ultimate member of the structure access.
+            if len(cnames[-1]) == 2:
+                cnames[-1] = cnames[-1][0]
+            # Have to import here to avoid circular dependencies.
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.nodes import (ArrayOfStructuresReference,
+                                              StructureReference)
+            if isinstance(root_ref, ArrayMixin):
+                new_indices = [idx.copy() for idx in root_ref.indices]
+                ref = ArrayOfStructuresReference.create(
+                    root_ref.symbol, new_indices, cnames)
+            else:
+                ref = StructureReference.create(root_ref.symbol, cnames)
+        else:
+            # A simple Reference.
+            ref = Reference(root_ref.symbol)
+
+        return BinaryOperation.create(BinaryOperation.Operator.LBOUND, ref,
+                                      Literal(str(pos+1), INTEGER_TYPE))
 
     def is_upper_bound(self, index):
         '''Returns True if the specified array index contains a Range node
