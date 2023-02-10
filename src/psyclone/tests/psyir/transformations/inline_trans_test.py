@@ -332,6 +332,59 @@ def test_apply_struct_arg(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(output)
 
 
+def test_apply_unresolved_struct_arg(fortran_reader, fortran_writer):
+    '''
+    Check that we handle acceptable cases of the type of an argument being
+    unresolved but that we reject the case where we can't be sure of
+    the array indexing.
+
+    '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "    use some_mod, only: mystery_type, mystery\n"
+        "    integer :: i\n"
+        "    type(mystery_type) :: var3, varr(5)\n"
+        # Unknown structure type but array dims are known.
+        "    call sub3(varr)\n"
+        # Unknown actual argument but dummy arg just uses the same
+        # (unspecified) array bounds.
+        "    call sub3(mystery)\n"
+        # Dummy arg specifies array bounds and we don't have them for
+        # the actual argument.
+        "    call sub4(mystery)\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub3(x)\n"
+        "    use some_mod, only: mystery_type\n"
+        "    type(mystery_type), dimension(:), intent(inout) :: x\n"
+        "    x(:)%region%local%nx = 0\n"
+        "  end subroutine sub3\n"
+        "  subroutine sub4(x)\n"
+        "    use some_mod, only: mystery_type\n"
+        "    type(mystery_type), dimension(3:5), intent(inout) :: x\n"
+        "    x(:)%region%local%nx = 0\n"
+        "  end subroutine sub4\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    inline_trans = InlineTrans()
+    calls = psyir.walk(Call)
+    # First one should be fine.
+    inline_trans.apply(calls[0])
+    # Second one should also be fine.
+    inline_trans.apply(calls[1])
+    # We can't do the third one.
+    with pytest.raises(TransformationError) as err:
+        inline_trans.apply(calls[2])
+    assert ("Routine 'sub4' cannot be inlined because the type of the actual "
+            "argument 'mystery' corresponding to an array dummy argument "
+            "('x') is unknown." in str(err.value))
+    output = fortran_writer(psyir)
+    assert ("    varr(:)%region%local%nx = 0\n"
+            "    mystery(:)%region%local%nx = 0\n"
+            "    call sub4(mystery)\n" in output)
+
+
 def test_apply_struct_slice_arg(fortran_reader, fortran_writer, tmpdir):
     '''
     Check that the apply() method works correctly when there are slices in
@@ -620,7 +673,7 @@ def test_apply_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
             "    enddo\n"
             "    a(1,1,:) = 3.0 * a(1,1,:)\n"
             "    a(:,1,:) = 2.0 * a(:,1,:)\n"
-            "    b = 2.0 * b\n"
+            "    b(:,:) = 2.0 * b(:,:)\n"
             "    do i_4 = 1, 10, 1\n"
             "      b(i_4,:5) = 2.0 * b(i_4,:5)\n" in output)
     assert Compile(tmpdir).string_compiles(output)
@@ -754,7 +807,8 @@ def test_apply_struct_array(fortran_reader, fortran_writer, tmpdir,
                             type_decln):
     '''Test that apply works correctly when the dummy argument is an
     array of structures. We test both when the type of the structure is
-    resolved and when it isn't.
+    resolved and when it isn't. In the latter case we cannot perform
+    inlining because we don't know the array bounds at the call site.
 
     '''
     code = (
@@ -778,16 +832,15 @@ def test_apply_struct_array(fortran_reader, fortran_writer, tmpdir,
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
-    for call in psyir.walk(Call):
-        inline_trans.apply(call)
-    output = fortran_writer(psyir)
     if "use some_mod" in type_decln:
-        assert ("    ji = 2\n"
-                "    micah%grids(2 - 2 + LBOUND(micah%grids, 1):"
-                "4 - 2 + LBOUND(micah%grids, 1))%region%idx = 3.0\n"
-                "    micah%grids(ji - 2 + "
-                "LBOUND(micah%grids, 1))%region%idx = 2.0\n" in output)
+        with pytest.raises(TransformationError) as err:
+            inline_trans.apply(psyir.walk(Call)[0])
+        assert ("Routine 'sub' cannot be inlined because the type of the "
+                "actual argument 'micah' corresponding to an array dummy "
+                "argument ('x') is unknown." in str(err.value))
     else:
+        inline_trans.apply(psyir.walk(Call)[0])
+        output = fortran_writer(psyir)
         assert ("    ji = 2\n"
                 "    micah%grids(2 - 2 + 1:4 - 2 + 1)%region%idx = 3.0\n"
                 "    micah%grids(ji - 2 + 1)%region%idx = 2.0\n" in output)
@@ -834,35 +887,6 @@ def test_apply_repeated_module_use(fortran_reader, fortran_writer):
             "      a(:,i) = 4 * radius\n"
             "    enddo\n"
             "    b(:,2) = radius\n" in output)
-
-
-def test_apply_ptr_arg(fortran_reader, fortran_writer, tmpdir):
-    '''Check that apply works correctly when the routine has a pointer
-    argument (which is captured as an UnknownFortranType). '''
-    code = (
-        "module test_mod\n"
-        "contains\n"
-        "subroutine main\n"
-        "  real, target :: var = 0.0\n"
-        "  real, pointer :: ptr => null()\n"
-        "  ptr => var\n"
-        "  call sub(ptr)\n"
-        "end subroutine main\n"
-        "subroutine sub(x)\n"
-        "  real, pointer, intent(inout) :: x\n"
-        "  x = x + 1.0\n"
-        "end subroutine sub\n"
-        "end module test_mod\n"
-    )
-    psyir = fortran_reader.psyir_from_source(code)
-    call = psyir.walk(Call)[0]
-    inline_trans = InlineTrans()
-    inline_trans.apply(call)
-    output = fortran_writer(psyir)
-    assert ("    ptr => var\n"
-            "    ptr = ptr + 1.0\n\n"
-            "  end subroutine main\n" in output)
-    assert Compile(tmpdir).string_compiles(output)
 
 
 def test_apply_name_clash(fortran_reader, fortran_writer, tmpdir):
@@ -1739,6 +1763,34 @@ def test_validate_unresolved_import(fortran_reader):
     assert ("Routine 'sub' cannot be inlined because it accesses variable "
             "'trouble' and this cannot be found in any of the containers "
             "directly imported into its symbol table." in str(err.value))
+
+
+def test_validate_unknown_arg_type(fortran_reader):
+    '''Check that validate rejects a dummy argument of UnknownType (since
+    we can't then correctly map any array index expressions into the call
+    site).'''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "subroutine main\n"
+        "  real, target :: var = 0.0\n"
+        "  real, pointer :: ptr => null()\n"
+        "  ptr => var\n"
+        "  call sub(ptr)\n"
+        "end subroutine main\n"
+        "subroutine sub(x)\n"
+        "  real, pointer, intent(inout) :: x\n"
+        "  x = x + 1.0\n"
+        "end subroutine sub\n"
+        "end module test_mod\n"
+    )
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.apply(call)
+    assert ("Routine 'sub' cannot be inlined because dummy argument 'x' is "
+            "of UnknownType" in str(err.value))
 
 
 def test_validate_assumed_shape(fortran_reader):

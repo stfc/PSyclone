@@ -133,6 +133,8 @@ class InlineTrans(Transformation):
         '''
         self.validate(node, options)
 
+        ref2arraytrans = Reference2ArrayRangeTrans()
+
         # We copy symbols into the table associated with the calling routine.
         table = node.ancestor(Routine).symbol_table
         # Find the routine to be inlined.
@@ -172,6 +174,18 @@ class InlineTrans(Transformation):
         # with the call site, excluding those that represent dummy arguments
         # or containers.
         self._inline_symbols(table, routine_table, precision_map)
+
+        # When constructing new references to replace references to dummy args
+        # we need to know whether any of the actual arguments are array
+        # accesses. If they use 'array notation' (i.e. represent a whole array)
+        # then they won't have index expressions and will have been captured
+        # as a Reference.
+        for child in node.children:
+            try:
+                # TODO #1858, this won't yet work for arrays inside structures.
+                ref2arraytrans.apply(child)
+            except (TransformationError, ValueError):
+                pass
 
         # Replace any references to dummy arguments with copies of the
         # actual arguments.
@@ -823,7 +837,6 @@ class InlineTrans(Transformation):
 
         # Check that the shape of any dummy array arguments are the same as
         # those at the call site.
-        ref2arraytrans = Reference2ArrayRangeTrans()
         visitor = FortranWriter()
         for dummy_arg, actual_arg in zip(routine_table.argument_list,
                                          node.children):
@@ -835,25 +848,34 @@ class InlineTrans(Transformation):
                 # anything that's not a Reference.
                 continue
 
-            # A Reference could in fact be to a whole array. For now we refuse
-            # to inline a call if we don't know the type of any of the
-            # arguments.
-            if isinstance(actual_arg.datatype, (DeferredType, UnknownType)):
+            # If the dummy argument is an array with non-default bounds then
+            # we also need to know the bounds of that array at the call site.
+            # For this reason, we cannot support dummy arguments of UnknownType
+            # because they might be arrays with non-default bounds.
+            if isinstance(dummy_arg.datatype, UnknownType):
                 raise TransformationError(
-                    f"Routine '{routine.name}' cannot be inlined because the "
-                    f"type of the actual argument '{actual_arg.symbol.name}' "
-                    f"is unknown.")
+                    f"Routine '{routine.name}' cannot be inlined because "
+                    f"dummy argument '{dummy_arg.name}' is of UnknownType")
+            if isinstance(dummy_arg.datatype, ArrayType):
+                same_lbs = all(dim in [ArrayType.Extent.ATTRIBUTE,
+                                       ArrayType.Extent.DEFERRED] for dim
+                               in dummy_arg.datatype.shape)
+                # To generate correct index expressions for the inlined
+                # code we will need to know the lower bounds of the declaration
+                # of the array at both the call site and within the routine.
+                if not same_lbs and isinstance(actual_arg.datatype,
+                                               (DeferredType, UnknownType)):
+                    raise TransformationError(
+                        f"Routine '{routine.name}' cannot be inlined because "
+                        f"the type of the actual argument "
+                        f"'{actual_arg.symbol.name}' corresponding to an array"
+                        f" dummy argument ('{dummy_arg.name}') is unknown.")
 
-            try:
-                # TODO #1858, this won't yet work for arrays inside structures.
-                ref2arraytrans.apply(actual_arg)
-            except TransformationError:
-                pass
-
-            if isinstance(dummy_arg.datatype, DeferredType):
-                # If we haven't resolved the type of the
-                # dummy argument (e.g. because its type is imported from a
-                # module) then we can't perform type checking.
+            if isinstance(actual_arg.datatype, DeferredType):
+                # We haven't resolved the datatype of the actual argument and
+                # we know that we don't need to (because the dummy argument is
+                # not an array or doesn't specify the array bounds). However,
+                # we can't perform further type checking.
                 continue
 
             if hasattr(dummy_arg.datatype, "shape"):
