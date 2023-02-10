@@ -2536,18 +2536,6 @@ class ACCKernelsTrans(RegionTrans):
                 "nemo and dynamo0.3 front-ends")
         super().validate(node_list, options)
 
-        # Check that we have at least one loop or array range within
-        # the proposed region
-        for node in node_list:
-            if (any(assign for assign in node.walk(Assignment)
-                    if assign.is_array_range) or node.walk(Loop)):
-                break
-        else:
-            # Branch executed if loop does not exit with a break
-            raise TransformationError(
-                "A kernels transformation must enclose at least one loop or "
-                "array range but none were found.")
-
 
 class ACCDataTrans(RegionTrans):
     '''
