@@ -109,7 +109,7 @@ class InlineTrans(Transformation):
 
         * the routine is not in the same file as the call;
         * the routine contains an early Return statement;
-        * the routine has local state (a var. with the SAVE attr. in Fortran)
+        * the routine contains a variable with UnknownType;
         * the routine has a named argument;
         * the shape of any array arguments as declared inside the routine does
           not match the shape of the arrays being passed as arguments;
@@ -135,8 +135,8 @@ class InlineTrans(Transformation):
 
         ref2arraytrans = Reference2ArrayRangeTrans()
 
-        # We copy symbols into the table associated with the calling routine.
-        table = node.ancestor(Routine).symbol_table
+        # The table associated with the scoping region holding the Call.
+        table = node.scope.symbol_table
         # Find the routine to be inlined.
         orig_routine = self._find_routine(node)
 

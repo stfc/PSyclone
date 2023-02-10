@@ -39,11 +39,13 @@
 
 import pytest
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import (BinaryOperation, Range, Literal, Routine,
-                                  Assignment, Reference)
+from psyclone.psyir.nodes import (
+    ArrayOfStructuresReference, ArrayReference, BinaryOperation, Range,
+    Literal, Routine, StructureReference, Assignment, Reference)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
-from psyclone.psyir.symbols import DataSymbol, DeferredType, ArrayType, \
-    INTEGER_TYPE
+from psyclone.psyir.symbols import (
+    ArrayType, DataSymbol, DataTypeSymbol, DeferredType, INTEGER_TYPE,
+    REAL_TYPE, StructureType, Symbol)
 
 
 _ONE = Literal("1", INTEGER_TYPE)
@@ -156,7 +158,11 @@ def test_is_upper_lower_bound(fortran_reader):
 
 
 def test_lbound():
-    ''' Tests for the lbound method. '''
+    '''
+    Tests for the lbound method on a ConcreteArray defined by an
+    ArrayType.
+
+    '''
     # Symbol is of ArrayType.
     symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE,
                                                [10, (2, 10), 10]))
@@ -176,6 +182,71 @@ def test_lbound():
     assert lbnd.operator == BinaryOperation.Operator.LBOUND
     assert lbnd.children[0].symbol is dtsym
     assert lbnd.children[1] == Literal("2", INTEGER_TYPE)
+
+
+def test_aref_to_AoS_lbound():
+    '''
+    Test the lbound() method for an ArrayReference to an array of structures.
+
+    '''
+    sgrid_type = StructureType.create(
+        [("id", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
+    sgrid_type_sym = DataTypeSymbol("subgrid_type", sgrid_type)
+    sym = DataSymbol("subgrids", ArrayType(sgrid_type_sym, [(3, 10)]))
+    one = Literal("1", INTEGER_TYPE)
+    lbound = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
+                                    Reference(sym), one)
+    ubound = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
+                                    Reference(sym), one.copy())
+    array = ArrayReference.create(sym, [Range.create(lbound, ubound)])
+    lbnd = array.lbound(0)
+    assert lbnd.value == "3"
+
+
+def test_member_lbound(fortran_writer):
+    ''' Tests for the lbound() method when used with a sub-class of Member. '''
+    one = Literal("1", INTEGER_TYPE)
+    two = Literal("2", INTEGER_TYPE)
+    # First, test when we don't have type information.
+    grid_type = DataTypeSymbol("grid_type", DeferredType())
+    sym = DataSymbol("grid_var", grid_type)
+    ref = StructureReference.create(sym, [("data", [one.copy()])])
+    lbnd = ref.member.lbound(0)
+    assert isinstance(lbnd, BinaryOperation)
+    out = fortran_writer(lbnd).lower()
+    assert out == "lbound(grid_var%data, 1)"
+    usym = DataSymbol("uvar", DeferredType())
+    ref = ArrayOfStructuresReference.create(
+        usym, [one.copy()],
+        [("map", [one.copy(), two.copy()]),
+         ("data", [one.copy()])])
+    lbnd = ref.member.member.lbound(0)
+    assert isinstance(lbnd, BinaryOperation)
+    out = fortran_writer(lbnd).lower()
+    assert out == "lbound(uvar(1)%map(1,2)%data, 1)"
+    # Second, test when we do have type information.
+    a2d = ArrayType(REAL_TYPE, [2, (2, 8)])
+    # Structure that contains "map" which is a 2D array.
+    stypedef = StructureType.create(
+        [("map", a2d, Symbol.Visibility.PUBLIC)])
+    stypedefsym = DataTypeSymbol("map_type", stypedef)
+    # Structure containing a structure of stypedef and an array of such
+    # structures.
+    stypedef2 = StructureType.create(
+        [("grid", stypedef, Symbol.Visibility.PUBLIC),
+         ("subgrids", ArrayType(stypedefsym, [3, (2, 6)]),
+          Symbol.Visibility.PUBLIC)])
+    ssym = DataSymbol("var", stypedef2)
+    sref = StructureReference.create(ssym,
+                                     ["grid",
+                                      ("map", [two.copy(), two.copy()])])
+    assert sref.member.member.lbound(0) == one
+    assert sref.member.member.lbound(1) == two
+    sref2 = StructureReference.create(
+        ssym, [("subgrids", [two.copy(), two.copy()]),
+               ("map", [two.copy(), two.copy()])])
+    assert sref2.member.lbound(1) == two
+    assert sref2.member.member.lbound(1) == two
 
 
 def test_get_effective_shape(fortran_reader, fortran_writer):
