@@ -171,11 +171,11 @@ class InlineTrans(Transformation):
         self._inline_container_symbols(table, routine_table)
 
         # Copy each Symbol from the Routine into the symbol table associated
-        # with the call site, excluding those that represent dummy arguments
+        # with the call site, excluding those that represent formal arguments
         # or containers.
         self._inline_symbols(table, routine_table, precision_map)
 
-        # When constructing new references to replace references to dummy args
+        # When constructing new references to replace references to formal args
         # we need to know whether any of the actual arguments are array
         # accesses. If they use 'array notation' (i.e. represent a whole array)
         # then they won't have index expressions and will have been captured
@@ -187,11 +187,11 @@ class InlineTrans(Transformation):
             except (TransformationError, ValueError):
                 pass
 
-        # Replace any references to dummy arguments with copies of the
+        # Replace any references to formal arguments with copies of the
         # actual arguments.
-        dummy_args = routine_table.argument_list
+        formal_args = routine_table.argument_list
         for ref in refs[:]:
-            self._replace_dummy_arg(ref, node, dummy_args)
+            self._replace_dummy_arg(ref, node, formal_args)
 
         # Copy the nodes from the Routine into the call site.
         if isinstance(new_stmts[-1], Return):
