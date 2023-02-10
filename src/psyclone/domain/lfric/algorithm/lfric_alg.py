@@ -40,7 +40,7 @@
 '''
 
 from psyclone.domain.lfric import (KernCallInvokeArgList, LFRicConstants,
-                                   psyir, LFRicSymbolTable)
+                                   LFRicSymbolTable, LFRicTypes)
 from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctorFactory, LFRicKernelFunctor)
 from psyclone.dynamo0p3 import DynKern
@@ -135,7 +135,7 @@ class LFRicAlg:
         for sym in kern_args.scalars:
             sub.addchild(Assignment.create(
                 Reference(sym),
-                Literal("1", psyir.LfricIntegerScalarDataType())))
+                Literal("1", LFRicTypes()("LfricIntegerScalarDataType")())))
 
         # We use the setval_c builtin to initialise all fields to unity.
         # As with the scalar initialisation, we don't worry about precision
@@ -151,7 +151,8 @@ class LFRicAlg:
                 factory.create(
                     "setval_c", table,
                     [Reference(sym),
-                     Literal("1.0", psyir.LfricRealScalarDataType())]))
+                     Literal("1.0",
+                             LFRicTypes()("LfricRealScalarDataType")())]))
 
         # Finally, add the kernel itself to the list for the invoke().
         arg_nodes = []
@@ -258,12 +259,13 @@ class LFRicAlg:
 
         # The order of the finite-element scheme.
         table.add_lfric_precision_symbol("i_def")
+        data_type_class = LFRicTypes()("LfricIntegerScalarDataType")
         order = table.new_symbol("element_order", tag="element_order",
                                  symbol_type=DataSymbol,
-                                 datatype=psyir.LfricIntegerScalarDataType(),
+                                 datatype=data_type_class(),
                                  constant_value=Literal(
                                      self._ELEMENT_ORDER,
-                                     psyir.LfricIntegerScalarDataType()))
+                                     data_type_class()))
 
         fs_cont_mod = table.new_symbol("fs_continuity_mod",
                                        symbol_type=ContainerSymbol)

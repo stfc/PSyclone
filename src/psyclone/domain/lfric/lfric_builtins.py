@@ -46,7 +46,7 @@
 import abc
 
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
-from psyclone.domain.lfric import LFRicConstants, psyir
+from psyclone.domain.lfric import LFRicConstants, LFRicTypes
 from psyclone.errors import InternalError
 from psyclone.f2pygen import AssignGen, PSyIRGen
 from psyclone.parse.utils import ParseError
@@ -161,6 +161,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         self.qr_rules = {}
         # Builtins cannot request mesh properties
         self.mesh = None
+        self._idx_name = None
         super().__init__()
 
     @abc.abstractmethod
@@ -420,7 +421,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         '''
         idx_sym = self.get_dof_loop_index_symbol()
 
-        array_1d = ArrayType(psyir.LfricRealScalarDataType(),
+        array_1d = ArrayType(LFRicTypes()("LfricRealScalarDataType")(),
                              [ArrayType.Extent.DEFERRED])
         return [StructureReference.create(
             arg.psyir_expression().symbol, [("data", [Reference(idx_sym)])],

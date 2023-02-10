@@ -49,7 +49,7 @@ import pytest
 
 from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
-from psyclone.domain.lfric import lfric_builtins, LFRicConstants, psyir
+from psyclone.domain.lfric import lfric_builtins, LFRicConstants, LFRicTypes
 from psyclone.domain.lfric.lfric_builtins import (LFRicBuiltInCallFactory,
                                                   LFRicBuiltIn)
 from psyclone.dynamo0p3 import DynKernelArgument
@@ -501,8 +501,7 @@ def test_get_indexed_field_argument_refs():
     refs = kern.get_indexed_field_argument_references()
     # Kernel has two field arguments
     assert len(refs) == 2
-    # pylint:disable=no-member
-    array_1d = ArrayType(psyir.LfricRealScalarDataType(),
+    array_1d = ArrayType(LFRicTypes()("LfricRealScalarDataType")(),
                          [ArrayType.Extent.DEFERRED])
     for ref in refs:
         assert isinstance(ref, StructureReference)

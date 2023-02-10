@@ -46,7 +46,6 @@ import pytest
 
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.domain.lfric import FunctionSpace, KernelInterface, LFRicTypes
-from psyclone.domain.lfric import psyir as lfric_psyir
 from psyclone.errors import InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -435,7 +434,7 @@ def test_scalar(monkeypatch):
     kernel_interface = KernelInterface(None)
     kernel_interface.scalar(scalar_arg)
     symbol = kernel_interface._symbol_table.lookup(scalar_arg.name)
-    assert isinstance(symbol, lfric_psyir.LfricIntegerScalarDataSymbol)
+    assert isinstance(symbol, LFRicTypes()("LfricIntegerScalarDataSymbol"))
     assert isinstance(symbol.interface, ArgumentInterface)
     assert (symbol.interface.access ==
             INTENT_MAPPING[scalar_arg.intent])

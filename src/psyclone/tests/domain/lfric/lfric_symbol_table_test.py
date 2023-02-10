@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@
 
 import pytest
 
-from psyclone.domain.lfric import psyir, LFRicSymbolTable
+from psyclone.domain.lfric import LFRicSymbolTable, LFRicTypes
 from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
                                     ImportInterface, INTEGER_TYPE,
                                     REAL_DOUBLE_TYPE, RoutineSymbol,
@@ -50,8 +50,7 @@ def test_find_or_create_integer():
     sym_i = symbol_table.find_or_create_integer_symbol("i")
     assert isinstance(sym_i, DataSymbol)
     assert sym_i.name == "i"
-    # pylint: disable=no-member
-    assert sym_i.datatype == psyir.LfricIntegerScalarDataType()
+    assert sym_i.datatype == LFRicTypes()("LfricIntegerScalarDataType")()
 
     # Make sure the symbol exists without a tag:
     sym_i2 = symbol_table.lookup("i")
@@ -107,13 +106,15 @@ def test_find_or_create_array_intrinsic_types(intrinsic):
     assert arr.name == "arr"
     assert isinstance(arr, DataSymbol)
     assert isinstance(arr.datatype, ArrayType)
-    # pylint: disable=no-member
     if intrinsic == "real":
-        assert arr.datatype._datatype == psyir.LfricRealScalarDataType()
+        assert (arr.datatype._datatype ==
+                LFRicTypes()("LfricRealScalarDataType")())
     elif intrinsic == "integer":
-        assert arr.datatype._datatype == psyir.LfricIntegerScalarDataType()
+        assert (arr.datatype._datatype ==
+                LFRicTypes()("LfricIntegerScalarDataType")())
     elif intrinsic == "logical":
-        assert arr.datatype._datatype == psyir.LfricLogicalScalarDataType()
+        assert (arr.datatype._datatype ==
+                LFRicTypes()("LfricLogicalScalarDataType")())
 
     arr_queried = symbol_table.find_or_create_array("arr", 2, intrinsic)
     assert arr_queried is arr
@@ -167,7 +168,7 @@ def test_find_or_create_array_errors():
                                           ScalarType.Intrinsic.REAL)
     assert ("Symbol 'int_2d' already exists, but is not of type "
             "'Intrinsic.REAL', but '<class "
-            "'psyclone.domain.lfric.psyir.LfricIntegerScalarDataType'>'"
+            "'abc.LfricIntegerScalarDataType'>'"
             in str(err.value))
 
     symbol_table.find_or_create_array("a_3d", 3, ScalarType.Intrinsic.REAL)

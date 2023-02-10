@@ -40,7 +40,7 @@ from collections import namedtuple
 
 from psyclone.domain.lfric import psyir
 from psyclone.psyir.nodes import Literal
-from psyclone.psyir.symbols import ArrayType, DataSymbol
+from psyclone.psyir.symbols import ArrayType, DataSymbol, ScalarType
 
 
 class LFRicTypes:
@@ -85,14 +85,14 @@ class LFRicTypes:
 
         self._name_to_class = {}
 
+        self._create_generic_scalars()
         self._create_lfric_dimension()
-        self._create_scalars()
+        self._create_specific_scalars()
         self._create_fields()
         # Generate LFRic vector-field-data symbols as subclasses of
         # field-data symbols
         for intrinsic in ["Real", "Integer", "Logical"]:
             name = f"{intrinsic}VectorFieldDataDataSymbol"
-            print("Creating now", name)
             baseclass = self(f"{intrinsic}FieldDataDataSymbol")
             self._name_to_class[name] = type(name, (baseclass, ), {})
 
@@ -105,10 +105,62 @@ class LFRicTypes:
         return self._name_to_class[name]
 
     # ------------------------------------------------------------------------
+    def _create_generic_scalars(self):
+        GenericScalar = namedtuple('GenericScalar', ["name", "intrinsic",
+                                                     "precision"])
+        generic_scalar_datatypes = [
+            GenericScalar("LfricIntegerScalar", ScalarType.Intrinsic.INTEGER,
+                          psyir.I_DEF),
+            GenericScalar("LfricRealScalar", ScalarType.Intrinsic.REAL,
+                          psyir.R_DEF),
+            GenericScalar("LfricLogicalScalar", ScalarType.Intrinsic.BOOLEAN,
+                          psyir.L_DEF)]
+        # Generate generic LFRic scalar datatypes and symbols from definitions
+
+        for info in generic_scalar_datatypes:
+
+            # Create the generic data
+            type_name = f"{info.name}DataType"
+            self._create_generic_scalar_data_type(type_name,
+                                                  info.intrinsic,
+                                                  info.precision)
+            type_class = self(type_name)
+            # Create the generic data symbol
+            symbol_name = f"{info.name}DataSymbol"
+            self._create_generic_scalar_data_symbol(symbol_name, type_class)
+
+    # ------------------------------------------------------------------------
+    def _create_generic_scalar_data_type(self, name, intrinsic, precision):
+
+        def __my_generic_scalar_type_init__(self, precision=None):
+            if not precision:
+                precision = self.default_precision
+            ScalarType.__init__(self, self.intrinsic, precision)
+
+        self._name_to_class[name] = \
+            type(name, (ScalarType, ),
+                 {"__init__": __my_generic_scalar_type_init__,
+                  "intrinsic": intrinsic,
+                  "default_precision": precision})
+
+    # ------------------------------------------------------------------------
+    def _create_generic_scalar_data_symbol(self, name, type_class):
+
+        def __my_generic_scalar_symbol_init__(self, name, precision=None,
+                                              **kwargs):
+            DataSymbol.__init__(self, name,
+                                self.type_class(precision=precision),
+                                **kwargs)
+        self._name_to_class[name] = \
+            type(name, (DataSymbol, ),
+                 {"__init__": __my_generic_scalar_symbol_init__,
+                  "type_class": type_class})
+
+    # ------------------------------------------------------------------------
     def _create_lfric_dimension(self):
 
         class LfricDimension(Literal):
-            '''An Lfric-specific scalar integer that captures a literal array
+            '''An LFRic-specific scalar integer that captures a literal array
             dimension which can either have the value 1 or 3. This is used for
             one of the dimensions in basis and differential basis
             functions.
@@ -121,16 +173,20 @@ class LFRicTypes:
             '''
             # pylint: disable=undefined-variable
             def __init__(self, value):
-                super().__init__(value, psyir.LfricIntegerScalarDataType())
+                super().__init__(value,
+                                 LFRicTypes()("LfricIntegerScalarDataType")())
                 if value not in ['1', '3']:
                     raise ValueError(f"An LFRic dimension object must be '1' "
                                      f"or '3', but found '{value}'.")
+        # --------------------------------------------------------------------
+
+        # Create the required entries in the dictionary
         self._name_to_class["LfricDimension"] = LfricDimension
         self._name_to_class["LFRIC_SCALAR_DIMENSION"] = LfricDimension("1")
         self._name_to_class["LFRIC_VECTOR_DIMENSION"] = LfricDimension("3")
 
     # ------------------------------------------------------------------------
-    def _create_scalars(self):
+    def _create_specific_scalars(self):
         # The Scalar namedtuple has 3 properties: the first
         # determines the names of the resultant datatype and datasymbol
         # classes, the second references the generic scalar type
@@ -138,33 +194,28 @@ class LFRicTypes:
         # additional class properties that should be declared in the generated
         # datasymbol class.
 
-        Scalar = namedtuple('Scalar', ["name", "generic_type", "properties"])
+        Scalar = namedtuple('Scalar', ["name", "generic_type_name",
+                                       "properties"])
         specific_scalar_datatypes = [
-            Scalar("CellPosition", psyir.LfricIntegerScalarDataSymbol, []),
-            Scalar("MeshHeight", psyir.LfricIntegerScalarDataSymbol, []),
-            Scalar("NumberOfCells", psyir.LfricIntegerScalarDataSymbol, []),
-            Scalar("NumberOfDofs", psyir.LfricIntegerScalarDataSymbol, ["fs"]),
-            Scalar("NumberOfUniqueDofs",
-                   psyir.LfricIntegerScalarDataSymbol, ["fs"]),
-            Scalar("NumberOfFaces", psyir.LfricIntegerScalarDataSymbol, []),
-            Scalar("NumberOfEdges", psyir.LfricIntegerScalarDataSymbol, []),
-            Scalar("NumberOfQrPointsInXy",
-                   psyir.LfricIntegerScalarDataSymbol, []),
-            Scalar("NumberOfQrPointsInZ",
-                   psyir.LfricIntegerScalarDataSymbol, []),
-            Scalar("NumberOfQrPointsInFaces",
-                   psyir.LfricIntegerScalarDataSymbol, []),
-            Scalar("NumberOfQrPointsInEdges",
-                   psyir.LfricIntegerScalarDataSymbol, [])]
+            Scalar("CellPosition", "LfricIntegerScalarData", []),
+            Scalar("MeshHeight", "LfricIntegerScalarData", []),
+            Scalar("NumberOfCells", "LfricIntegerScalarData", []),
+            Scalar("NumberOfDofs", "LfricIntegerScalarData", ["fs"]),
+            Scalar("NumberOfUniqueDofs", "LfricIntegerScalarData", ["fs"]),
+            Scalar("NumberOfFaces", "LfricIntegerScalarData", []),
+            Scalar("NumberOfEdges", "LfricIntegerScalarData", []),
+            Scalar("NumberOfQrPointsInXy", "LfricIntegerScalarData", []),
+            Scalar("NumberOfQrPointsInZ", "LfricIntegerScalarData", []),
+            Scalar("NumberOfQrPointsInFaces", "LfricIntegerScalarData", []),
+            Scalar("NumberOfQrPointsInEdges", "LfricIntegerScalarData", [])]
 
         for info in specific_scalar_datatypes:
             type_name = f"{info.name}DataType"
-            print("Now creating", type_name)
             self._name_to_class[type_name] = \
-                type(type_name, (psyir.LfricIntegerScalarDataType, ), {})
+                type(type_name, (self(f"{info.generic_type_name}Type"), ), {})
 
             symbol_name = f"{info.name}DataSymbol"
-            base_class = info.generic_type
+            base_class = self(f"{info.generic_type_name}Symbol")
             self._create_scalar_data_type(symbol_name, base_class,
                                           info.properties)
 
@@ -227,11 +278,11 @@ class LFRicTypes:
         Array = namedtuple('Array',
                            ["name", "scalar_type", "dims", "properties"])
         field_datatypes = [
-            Array("RealFieldData", psyir.LfricRealScalarDataType,
+            Array("RealFieldData", "LfricRealScalarDataType",
                   ["number of unique dofs"], ["fs"]),
-            Array("IntegerFieldData", psyir.LfricIntegerScalarDataType,
+            Array("IntegerFieldData", "LfricIntegerScalarDataType",
                   ["number of unique dofs"], ["fs"]),
-            Array("LogicalFieldData", psyir.LfricLogicalScalarDataType,
+            Array("LogicalFieldData", "LfricLogicalScalarDataType",
                   ["number of unique dofs"], ["fs"])]
 
         # TBD: #918 the dimension datatypes and their ordering is captured in
@@ -250,48 +301,48 @@ class LFRicTypes:
         # function space attribute and the two function spaces must be
         # the same. This is not currently checked.
         array_datatypes = [
-            Array("Operator", psyir.LfricRealScalarDataType,
+            Array("Operator", "LfricRealScalarDataType",
                   ["number of dofs", "number of dofs", "number of cells"],
                   ["fs_from", "fs_to"]),
-            Array("DofMap", psyir.LfricIntegerScalarDataType,
+            Array("DofMap", "LfricIntegerScalarDataType",
                   ["number of dofs"], ["fs"]),
-            Array("BasisFunctionQrXyoz", psyir.LfricRealScalarDataType,
+            Array("BasisFunctionQrXyoz", "LfricRealScalarDataType",
                   [self("LfricDimension"), "number of dofs",
                    "number of qr points in xy",
                    "number of qr points in z"], ["fs"]),
-            Array("BasisFunctionQrFace", psyir.LfricRealScalarDataType,
+            Array("BasisFunctionQrFace", "LfricRealScalarDataType",
                   [self("LfricDimension"), "number of dofs",
                    "number of qr points in faces",
                    "number of faces"], ["fs"]),
-            Array("BasisFunctionQrEdge", psyir.LfricRealScalarDataType,
+            Array("BasisFunctionQrEdge", "LfricRealScalarDataType",
                   [self("LfricDimension"), "number of dofs",
                    "number of qr points in edges",
                    "number of edges"], ["fs"]),
-            Array("DiffBasisFunctionQrXyoz", psyir.LfricRealScalarDataType,
+            Array("DiffBasisFunctionQrXyoz", "LfricRealScalarDataType",
                   [self("LfricDimension"), "number of dofs",
                    "number of qr points in xy",
                    "number of qr points in z"], ["fs"]),
-            Array("DiffBasisFunctionQrFace", psyir.LfricRealScalarDataType,
+            Array("DiffBasisFunctionQrFace", "LfricRealScalarDataType",
                   [self("LfricDimension"), "number of dofs",
                    "number of qr points in faces",
                    "number of faces"], ["fs"]),
-            Array("DiffBasisFunctionQrEdge", psyir.LfricRealScalarDataType,
-                  [psyir.LfricDimension, "number of dofs",
+            Array("DiffBasisFunctionQrEdge", "LfricRealScalarDataType",
+                  [self("LfricDimension"), "number of dofs",
                    "number of qr points in edges", "number of edges"], ["fs"]),
-            Array("QrWeightsInXy", psyir.LfricRealScalarDataType,
+            Array("QrWeightsInXy", "LfricRealScalarDataType",
                   ["number of qr points in xy"], []),
-            Array("QrWeightsInZ", psyir.LfricRealScalarDataType,
+            Array("QrWeightsInZ", "LfricRealScalarDataType",
                   ["number of qr points in z"], []),
-            Array("QrWeightsInFaces", psyir.LfricRealScalarDataType,
+            Array("QrWeightsInFaces", "LfricRealScalarDataType",
                   ["number of qr points in faces"], []),
-            Array("QrWeightsInEdges", psyir.LfricRealScalarDataType,
+            Array("QrWeightsInEdges", "LfricRealScalarDataType",
                   ["number of qr points in edges"], [])
             ]
 
         for array_type in array_datatypes + field_datatypes:
             name = f"{array_type.name}DataType"
             self._create_array_data_type_class(name, len(array_type.dims),
-                                               array_type.scalar_type)
+                                               self(array_type.scalar_type))
 
             my__class = self(name)
             name = f"{array_type.name}DataSymbol"
@@ -307,7 +358,7 @@ class LFRicTypes:
         # the additional positional and keyword arguments and sets them as
         # attributes.
 
-        def __myinit__(self, dims):
+        def __my_type_init__(self, dims):
             if len(dims) != self.num_dims:
                 raise TypeError(f"'{type(self).__name__}' expected the number "
                                 f"of supplied dimensions to be {self.num_dims}"
@@ -317,7 +368,7 @@ class LFRicTypes:
         # ---------------------------------------------------------------------
         self._name_to_class[name] = \
             type(name, (ArrayType, ),
-                 {"__init__": __myinit__,
+                 {"__init__": __my_type_init__,
                   "scalar_class": scalar_type,
                   "num_dims": num_dims})
 
@@ -341,7 +392,7 @@ class LFRicTypes:
         # the additional positional and keyword arguments and sets them as
         # attributes.
 
-        def __myinit__(self, name, dims, *args, **kwargs):
+        def __my_symbol_init__(self, name, dims, *args, **kwargs):
             # Set all the positional arguments as attributes:
             for i, arg in enumerate(args):
                 setattr(self, self.parameters[i], arg)
@@ -369,6 +420,6 @@ class LFRicTypes:
         # required arguments (array_type.properties) and scalar class:
         self._name_to_class[name] = \
             type(name, (DataSymbol, ),
-                 {"__init__": __myinit__,
+                 {"__init__": __my_symbol_init__,
                   "scalar_class": scalar_type,
                   "parameters": array_properties})

@@ -86,25 +86,5 @@ GENERIC_SCALAR_DATATYPES = [
     GenericScalar("lfric real scalar", "real", "r_def"),
     GenericScalar("lfric logical scalar", "boolean", "l_def")]
 
-# Generate generic LFRic scalar datatypes and symbols from definitions
-for info in GENERIC_SCALAR_DATATYPES:
-    NAME = "".join(info.name.title().split())
-    INTRINSIC = info.intrinsic.upper()
-    PRECISION = info.precision
-    # Create the specific datatype
-    exec(
-        f"class {NAME}DataType(ScalarType):\n"
-        f"    def __init__(self, precision=None):\n"
-        f"        if not precision:\n"
-        f"            precision = {PRECISION.upper()}\n"
-        f"        super({NAME}DataType, self).__init__(\n"
-        f"            ScalarType.Intrinsic.{INTRINSIC}, precision)\n")
-    # Create the specific symbol
-    exec(
-        f"class {NAME}DataSymbol(DataSymbol):\n"
-        f"    def __init__(self, name, precision=None, **kwargs):\n"
-        f"        super().__init__(\n"
-        f"            name, {NAME}DataType(precision=precision),\n"
-        f"            **kwargs)\n")
 
 __all__ = []

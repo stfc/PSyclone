@@ -40,8 +40,6 @@
 pytest. At the moment the tests here do not fully cover DynKern as
 tests for other classes end up covering the rest.'''
 
-# pylint: disable=no-name-in-module
-
 import os
 import pytest
 
@@ -50,8 +48,6 @@ from fparser import api as fpapi
 import psyclone
 from psyclone.core import AccessType
 from psyclone.domain.lfric import LFRicConstants, LFRicTypes
-from psyclone.domain.lfric.psyir import LfricRealScalarDataSymbol, \
-    LfricIntegerScalarDataSymbol
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynLoop
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
@@ -268,9 +264,10 @@ def test_validate_kernel_code_arg(monkeypatch):
     real_scalar_rw_symbol = DataSymbol(
         "generic_scalar_rw", REAL_TYPE,
         interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
-    lfric_real_scalar_symbol = LfricRealScalarDataSymbol(
+    lfric_types = LFRicTypes()
+    lfric_real_scalar_symbol = lfric_types("LfricRealScalarDataSymbol")(
         "scalar", interface=read_access)
-    lfric_int_scalar_symbol = LfricIntegerScalarDataSymbol(
+    lfric_int_scalar_symbol = lfric_types("LfricIntegerScalarDataSymbol")(
         "scalar", interface=read_access)
     lfric_types = LFRicTypes()
     lfric_real_field_symbol = lfric_types("RealFieldDataDataSymbol")(

@@ -43,7 +43,6 @@ kernel based on the kernel metadata.
 from psyclone.core import AccessType
 from psyclone.domain.lfric import ArgOrdering, LFRicConstants
 from psyclone.domain.lfric.lfric_types import LFRicTypes
-from psyclone.domain.lfric import psyir as lfric_psyir
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 from psyclone.psyir.nodes import Reference
@@ -416,10 +415,11 @@ class KernelInterface(ArgOrdering):
             not supported.
 
         '''
+        lfric_types = LFRicTypes()
         mapping = {
-            "integer": lfric_psyir.LfricIntegerScalarDataSymbol,
-            "real": lfric_psyir.LfricRealScalarDataSymbol,
-            "logical": lfric_psyir.LfricLogicalScalarDataSymbol}
+            "integer": lfric_types("LfricIntegerScalarDataSymbol"),
+            "real": lfric_types("LfricRealScalarDataSymbol"),
+            "logical": lfric_types("LfricLogicalScalarDataSymbol")}
         try:
             symbol = self._symbol_table.find_or_create_tag(
                 scalar_arg.name,

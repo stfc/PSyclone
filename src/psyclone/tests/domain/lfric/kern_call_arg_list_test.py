@@ -42,7 +42,7 @@ import os
 import pytest
 
 from psyclone.core import Signature, VariablesAccessInfo
-from psyclone.domain.lfric import KernCallArgList, LFRicSymbolTable, psyir
+from psyclone.domain.lfric import KernCallArgList, LFRicSymbolTable, LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKern
 from psyclone.parse.algorithm import parse
@@ -53,9 +53,6 @@ from psyclone.tests.utilities import get_base_path, get_invoke
 from psyclone.transformations import Dynamo0p3ColourTrans
 
 TEST_API = "dynamo0.3"
-
-# The PSyIR module contains classes generated at runtime
-# pylint: disable=no-member
 
 
 def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):
@@ -77,7 +74,7 @@ def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):
     '''
 
     if not valid_classes:
-        valid_classes = (Reference)
+        valid_classes = Reference
 
     # Check the PSyIR representation
     result = []
@@ -115,7 +112,7 @@ def test_cellmap_intergrid(dist_mem, fortran_writer):
         'map_w2(:,cell)']
 
     check_psyir_results(create_arg_list, fortran_writer)
-    array_1d = ArrayType(psyir.LfricRealScalarDataType(),
+    array_1d = ArrayType(LFRicTypes()("LfricRealScalarDataType")(),
                          [ArrayType.Extent.DEFERRED])
     assert create_arg_list.psyir_arglist[5].datatype == array_1d
 
@@ -146,10 +143,10 @@ def test_kerncallarglist_face_xyoz(dist_mem, fortran_writer):
     check_psyir_results(create_arg_list, fortran_writer)
 
     # Check that the right datatype is set:
-    array_1d = ArrayType(psyir.LfricRealScalarDataType(),
+    array_1d = ArrayType(LFRicTypes()("LfricRealScalarDataType")(),
                          [ArrayType.Extent.DEFERRED])
     assert create_arg_list.psyir_arglist[2].datatype == array_1d
-    array_4d = ArrayType(psyir.LfricRealScalarDataType(),
+    array_4d = ArrayType(LFRicTypes()("LfricRealScalarDataType")(),
                          [ArrayType.Extent.DEFERRED]*4)
     assert create_arg_list.psyir_arglist[15].datatype == array_4d
     assert create_arg_list.psyir_arglist[16].datatype == array_4d
@@ -366,8 +363,8 @@ def test_kerncallarglist_bcs_operator(fortran_writer):
 
     check_psyir_results(create_arg_list, fortran_writer)
     assert (create_arg_list.psyir_arglist[2].datatype ==
-            psyir.LfricIntegerScalarDataType())
-    array_type_3d = ArrayType(psyir.LfricRealScalarDataType(),
+            LFRicTypes()("LfricIntegerScalarDataType")())
+    array_type_3d = ArrayType(LFRicTypes()("LfricRealScalarDataType")(),
                               [ArrayType.Extent.DEFERRED]*3)
     assert create_arg_list.psyir_arglist[3].datatype == array_type_3d
 
@@ -512,7 +509,7 @@ def test_indirect_dofmap(fortran_writer):
 
     for i in [0, 1, 5, 6, 7, 8, 9, 10, 11, 12, 13, 16, 17]:
         assert (psyir_args[i].symbol.datatype ==
-                psyir.LfricIntegerScalarDataType())
+                LFRicTypes()("LfricIntegerScalarDataType")())
 
     # Create a dummy LFRic symbol table to simplify creating
     # standard LFRic types:
@@ -573,7 +570,7 @@ def test_ref_element_handling(fortran_writer):
 
     for i in [0, 2, 3, 5, 6]:
         assert (psyir_args[i].symbol.datatype ==
-                psyir.LfricIntegerScalarDataType())
+                LFRicTypes()("LfricIntegerScalarDataType")())
 
     # Test the 1d real array, which is of type r_solver
     # The datatype of a field  reference is the type of the member
