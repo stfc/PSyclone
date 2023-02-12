@@ -75,29 +75,28 @@ class KernelInterface(ArgOrdering):
     '''
     #: Mapping from a generic PSyIR datatype to the equivalent
     #: LFRic-specific field datasymbol.
-    lfric_types = LFRicTypes()
     field_mapping = {
-        "integer": lfric_types("IntegerFieldDataDataSymbol"),
-        "real": lfric_types("RealFieldDataDataSymbol"),
-        "logical": lfric_types("LogicalFieldDataDataSymbol")}
+        "integer": "IntegerFieldDataDataSymbol",
+        "real": "RealFieldDataDataSymbol",
+        "logical": "LogicalFieldDataDataSymbol"}
     #: Mapping from a generic PSyIR datatype to the equivalent
     #: LFRic-specific vector field datasymbol.
     vector_field_mapping = {
-        "integer": lfric_types("IntegerVectorFieldDataDataSymbol"),
-        "real": lfric_types("RealVectorFieldDataDataSymbol"),
-        "logical": lfric_types("LogicalVectorFieldDataDataSymbol")}
+        "integer": "IntegerVectorFieldDataDataSymbol",
+        "real": "RealVectorFieldDataDataSymbol",
+        "logical": "LogicalVectorFieldDataDataSymbol"}
     #: Mapping from the LFRic metadata description of quadrature to the
     #: associated LFRic-specific basis function datasymbol.
     basis_mapping = {
-        "gh_quadrature_xyoz": lfric_types("BasisFunctionQrXyozDataSymbol"),
-        "gh_quadrature_face": lfric_types("BasisFunctionQrFaceDataSymbol"),
-        "gh_quadrature_edge": lfric_types("BasisFunctionQrEdgeDataSymbol")}
+        "gh_quadrature_xyoz": "BasisFunctionQrXyozDataSymbol",
+        "gh_quadrature_face": "BasisFunctionQrFaceDataSymbol",
+        "gh_quadrature_edge": "BasisFunctionQrEdgeDataSymbol"}
     #: Mapping from the LFRic metadata description of quadrature to the
     #: associated LFRic-specific differential basis function datasymbol.
     diff_basis_mapping = {
-        "gh_quadrature_xyoz": lfric_types("DiffBasisFunctionQrXyozDataSymbol"),
-        "gh_quadrature_face": lfric_types("DiffBasisFunctionQrFaceDataSymbol"),
-        "gh_quadrature_edge": lfric_types("DiffBasisFunctionQrEdgeDataSymbol")}
+        "gh_quadrature_xyoz": "DiffBasisFunctionQrXyozDataSymbol",
+        "gh_quadrature_face": "DiffBasisFunctionQrFaceDataSymbol",
+        "gh_quadrature_edge": "DiffBasisFunctionQrEdgeDataSymbol"}
     _read_access = ArgumentInterface(ArgumentInterface.Access.READ)
 
     def __init__(self, kern):
@@ -235,8 +234,8 @@ class KernelInterface(ArgOrdering):
 
         interface = ArgumentInterface(INTENT_MAPPING[argvect.intent])
         try:
-            field_class = self.vector_field_mapping[
-                argvect.intrinsic_type]
+            type_name = self.vector_field_mapping[argvect.intrinsic_type]
+            field_class = lfric_types(type_name)
         except KeyError as info:
             message = (f"kernel interface does not support a vector field of "
                        f"type '{argvect.intrinsic_type}'.")
@@ -277,7 +276,8 @@ class KernelInterface(ArgOrdering):
             fs=fs_name, interface=self._read_access)
 
         try:
-            field_class = self.field_mapping[arg.intrinsic_type]
+            type_name = self.field_mapping[arg.intrinsic_type]
+            field_class = lfric_types(type_name)
         except KeyError as info:
             message = (f"kernel interface does not support a field of type "
                        f"'{arg.intrinsic_type}'.")
@@ -763,7 +763,8 @@ class KernelInterface(ArgOrdering):
                     "nqp_z",
                     symbol_type=lfric_types("NumberOfQrPointsInZDataSymbol"),
                     interface=self._read_access)
-                arg = mapping["gh_quadrature_xyoz"](
+                type_name = mapping["gh_quadrature_xyoz"]
+                arg = lfric_types(type_name)(
                     basis_tag, [int(first_dim_value_func(function_space)),
                                 Reference(ndf_symbol), Reference(nqp_xy),
                                 Reference(nqp_z)],
@@ -778,7 +779,8 @@ class KernelInterface(ArgOrdering):
                     symbol_type=lfric_types(
                         "NumberOfQrPointsInFacesDataSymbol"),
                     interface=self._read_access)
-                arg = mapping["gh_quadrature_face"](
+                type_name = mapping["gh_quadrature_face"]
+                arg = lfric_types(type_name)(
                     basis_tag, [int(first_dim_value_func(function_space)),
                                 Reference(ndf_symbol), Reference(nqp),
                                 Reference(nfaces)],
@@ -793,7 +795,8 @@ class KernelInterface(ArgOrdering):
                     symbol_type=lfric_types(
                         "NumberOfQrPointsInEdgesDataSymbol"),
                     interface=self._read_access)
-                arg = mapping["gh_quadrature_edge"](
+                type_name = mapping["gh_quadrature_edge"]
+                arg = lfric_types(type_name)(
                     basis_tag, [int(first_dim_value_func(function_space)),
                                 Reference(ndf_symbol), Reference(nqp),
                                 Reference(nedges)],
