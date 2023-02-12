@@ -40,7 +40,7 @@ correctly'''
 
 import pytest
 
-from psyclone.domain.lfric import psyir as lfric_psyir, LFRicTypes
+from psyclone.domain.lfric import LFRicTypes
 from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, \
     ImportInterface, ScalarType, LocalInterface, ArgumentInterface, \
     ArrayType, Symbol
@@ -48,38 +48,42 @@ from psyclone.psyir.nodes import Reference, Literal
 
 
 # Modules and their arguments
-@pytest.mark.parametrize("module, symbol_list",
-                         [(lfric_psyir.CONSTANTS_MOD,
-                           [lfric_psyir.I_DEF, lfric_psyir.R_DEF,
-                            lfric_psyir.L_DEF])])
-def test_constants_mod(module, symbol_list):
+@pytest.mark.parametrize("module_name, symbol_list",
+                         [("CONSTANTS_MOD",
+                           ["I_DEF", "R_DEF", "L_DEF"])])
+def test_constants_mod(module_name, symbol_list):
     '''Test the generated module symbol and its argument symbols are
     created correctly.
 
     '''
+    lfric_types = LFRicTypes()
+    module = lfric_types(module_name)
     assert isinstance(module, ContainerSymbol)
-    for symbol in symbol_list:
+    for symbol_name in symbol_list:
+        symbol = lfric_types(symbol_name)
         assert isinstance(symbol, DataSymbol)
         assert isinstance(symbol.interface, ImportInterface)
         assert symbol.interface.container_symbol is module
 
 
 # Generic scalars
-@pytest.mark.parametrize("data_type_name, symbol_name, intrinsic, precision", [
+@pytest.mark.parametrize("type_name, symbol_name, intrinsic, precision_name", [
     ("LfricIntegerScalarDataType", "LfricIntegerScalarDataSymbol",
-     ScalarType.Intrinsic.INTEGER, lfric_psyir.I_DEF),
+     ScalarType.Intrinsic.INTEGER, "I_DEF"),
     ("LfricRealScalarDataType", "LfricRealScalarDataSymbol",
-     ScalarType.Intrinsic.REAL, lfric_psyir.R_DEF),
+     ScalarType.Intrinsic.REAL, "R_DEF"),
     ("LfricLogicalScalarDataType", "LfricLogicalScalarDataSymbol",
-     ScalarType.Intrinsic.BOOLEAN, lfric_psyir.L_DEF)])
-def test_generic_scalars(data_type_name, symbol_name, intrinsic, precision):
+     ScalarType.Intrinsic.BOOLEAN, "L_DEF")])
+def test_generic_scalars(type_name, symbol_name, intrinsic,
+                         precision_name):
     '''Test the generated generic scalar datatypes and symbols are created
     correctly.
 
     '''
     lfric_types = LFRicTypes()
-    data_type = lfric_types(data_type_name)
+    data_type = lfric_types(type_name)
     symbol = lfric_types(symbol_name)
+    precision = lfric_types(precision_name)
     # datatype
     lfric_datatype = data_type()
     assert lfric_datatype.intrinsic == intrinsic
@@ -259,6 +263,7 @@ def test_arrays(data_type_name, symbol_name, scalar_type_name,
     kept as a separate list in psyir.py
 
     '''
+    # pylint: disable=too-many-locals
     lfric_types = LFRicTypes()
     dims = []
     # Each dimension arg is either an integer number, or a tuple consisting of

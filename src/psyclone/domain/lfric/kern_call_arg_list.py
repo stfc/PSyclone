@@ -46,7 +46,7 @@ from collections import namedtuple
 
 from psyclone import psyGen
 from psyclone.core import AccessType, Signature
-from psyclone.domain.lfric import ArgOrdering, LFRicConstants, psyir
+from psyclone.domain.lfric import ArgOrdering, LFRicConstants
 # Avoid circular import:
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
@@ -90,16 +90,17 @@ class KernCallArgList(ArgOrdering):
 
         :param str field_type: the name of the field type.
 
-        :returns: the precision as defined in domain.lfric.psyir (one of \
-            R_SOLVER, R_TRAN, R_DEF).
+        :returns: the precision as defined in domain.lfric.lfric_types \
+            (one of R_SOLVER, R_TRAN, R_DEF).
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
+        lfric_types = LFRicTypes()
         if field_type in ["r_solver_field_type", "r_solver_operator_type"]:
-            return psyir.R_SOLVER
+            return lfric_types("R_SOLVER")
         if field_type == "r_tran_field_type":
-            return psyir.R_TRAN
-        return psyir.R_DEF
+            return lfric_types("R_TRAN")
+        return lfric_types("R_DEF")
 
     def get_user_type(self, module_name, user_type, name, tag=None,
                       shape=None):

@@ -38,9 +38,10 @@
 
 from collections import namedtuple
 
-from psyclone.domain.lfric import psyir
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.psyir.nodes import Literal
-from psyclone.psyir.symbols import ArrayType, DataSymbol, ScalarType
+from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
+                                    ImportInterface, INTEGER_TYPE, ScalarType)
 
 
 class LFRicTypes:
@@ -85,6 +86,7 @@ class LFRicTypes:
 
         self._name_to_class = {}
 
+        self._create_modules()
         self._create_generic_scalars()
         self._create_lfric_dimension()
         self._create_specific_scalars()
@@ -105,18 +107,42 @@ class LFRicTypes:
         return self._name_to_class[name]
 
     # ------------------------------------------------------------------------
+    def _create_modules(self):
+        # The first Module namedtuple argument specifies the name of the
+        # module and the second argument declares the name(s) of any symbols
+        # declared by the module.
+        Module = namedtuple('Module', ["name", "vars"])
+        modules = [
+            Module(LFRicConstants().UTILITIES_MOD_MAP["constants"]["module"],
+                   ["i_def", "r_def", "r_solver", "r_tran", "l_def"])]
+
+        # Generate LFRic module symbols from definitions
+        for module_info in modules:
+            module_name = module_info.name.upper()
+            # Create the module (using a PSyIR ContainerSymbol)
+            self._name_to_class[module_name] = \
+                ContainerSymbol(module_info.name)
+            # Create the variables specified by the module (using
+            # PSyIR DataSymbols)
+            for module_var in module_info.vars:
+                var_name = module_var.upper()
+                self._name_to_class[var_name] = \
+                    DataSymbol(module_var, INTEGER_TYPE,
+                               interface=ImportInterface(self(module_name)))
+
+    # ------------------------------------------------------------------------
     def _create_generic_scalars(self):
         GenericScalar = namedtuple('GenericScalar', ["name", "intrinsic",
                                                      "precision"])
         generic_scalar_datatypes = [
             GenericScalar("LfricIntegerScalar", ScalarType.Intrinsic.INTEGER,
-                          psyir.I_DEF),
+                          self("I_DEF")),
             GenericScalar("LfricRealScalar", ScalarType.Intrinsic.REAL,
-                          psyir.R_DEF),
+                          self("R_DEF")),
             GenericScalar("LfricLogicalScalar", ScalarType.Intrinsic.BOOLEAN,
-                          psyir.L_DEF)]
-        # Generate generic LFRic scalar datatypes and symbols from definitions
+                          self("L_DEF"))]
 
+        # Generate generic LFRic scalar datatypes and symbols from definitions
         for info in generic_scalar_datatypes:
 
             # Create the generic data
