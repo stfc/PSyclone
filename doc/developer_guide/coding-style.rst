@@ -15,7 +15,7 @@ Documentation Style
 When writing documentation, each reference to a PSyclone class or function
 should be set in italics (i.e. enclosed by single backticks) except in headings.
 The first time a class or function is mentioned, use the full Python path, e.g.:
-`psyclone.core.access_info.SingleVariableAccessInfo`. After that just use the
+`psyclone.core.signature.Signature`. After that just use the
 class name (again in italics).
 File names and shell commands should be set in double back-ticks (\`\`).
 

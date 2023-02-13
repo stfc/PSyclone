@@ -304,6 +304,10 @@
 	103) PR #2038 for #1998. Adds support for r_tran_operator_type to
 	LFRic (dynamo0.3).
 
+	104) PR #2036 for #2033. Splits core/access_info into its constiutent
+	classes and moves utility functions out of the DependencyTools
+	module.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.

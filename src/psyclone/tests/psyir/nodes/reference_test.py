@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@
 
 import pytest
 
-from psyclone.core.access_info import VariablesAccessInfo
+from psyclone.core import VariablesAccessInfo
 from psyclone.psyGen import GenerationError
 from psyclone.psyir.nodes import (colored, Reference, Assignment, Literal,
                                   KernelSchedule)
