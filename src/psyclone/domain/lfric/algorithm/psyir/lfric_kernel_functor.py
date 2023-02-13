@@ -118,7 +118,11 @@ class LFRicBuiltinFunctor(LFRicFunctor):
 
     def lower_to_language_level(self):
         ''' Removes the symbol representing this BuiltIn as it only
-        exists in the DSL. '''
+        exists in the DSL.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+        '''
         table = self.scope.symbol_table
         try:
             sym = table.lookup(self._builtin_name)
@@ -131,6 +135,7 @@ class LFRicBuiltinFunctor(LFRicFunctor):
             # The symbol has already been removed by a previous lowering
             # of the same builtin.
             pass
+        return self
 
 
 class LFRicBuiltinFunctorFactory():

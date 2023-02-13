@@ -94,6 +94,7 @@ def test_setval_random_lowering():
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     parent = kern.parent
-    kern.lower_to_language_level()
+    lowered = kern.lower_to_language_level()
+    assert parent.children[0] is lowered
     assert isinstance(parent.children[0], Call)
     assert parent.children[0].routine.name == "random_number"

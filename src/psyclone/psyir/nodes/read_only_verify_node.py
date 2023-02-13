@@ -107,6 +107,8 @@ class ReadOnlyVerifyNode(PSyDataNode):
         Lowers this node (and all children) to language-level PSyIR. The
         PSyIR tree is modified in-place.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
         '''
         # Avoid circular dependency
         # pylint: disable=import-outside-toplevel
@@ -118,7 +120,7 @@ class ReadOnlyVerifyNode(PSyDataNode):
         options = {'pre_var_list': input_list,
                    'post_var_list': input_list}
 
-        super().lower_to_language_level(options)
+        return super().lower_to_language_level(options)
 
 
 # ============================================================================

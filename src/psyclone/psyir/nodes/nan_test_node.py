@@ -106,6 +106,9 @@ class NanTestNode(PSyDataNode):
         '''
         Lowers this node (and all children) to language-level PSyIR. The
         PSyIR tree is modified in-place.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
         '''
 
         # This cannot be moved to the top, it would cause a circular import

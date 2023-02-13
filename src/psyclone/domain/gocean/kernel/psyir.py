@@ -109,7 +109,11 @@ class GOceanContainer(Container):
         return self._metadata
 
     def lower_to_language_level(self):
-        '''Lower this GOcean-specific container to language level psyir.'''
+        '''Lower this GOcean-specific container to language level psyir.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+        '''
 
         # Create metadata symbol and add it to the container symbol
         # table.
@@ -121,6 +125,7 @@ class GOceanContainer(Container):
         generic_container = Container.create(
             self.name, self.symbol_table.detach(), children)
         self.replace_with(generic_container)
+        return generic_container
 
 
 class GOceanKernelMetadata():

@@ -1458,6 +1458,8 @@ class CodedKern(Kern):
         PSyIR constructs. The CodedKern is implemented as a Call to a
         routine with the appropriate arguments.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
         '''
         symtab = self.ancestor(InvokeSchedule).symbol_table
 
@@ -1486,6 +1488,7 @@ class CodedKern(Kern):
 
         # Swap itself with the appropriate Call node
         self.replace_with(call_node)
+        return call_node
 
     def gen_code(self, parent):
         '''

@@ -1038,7 +1038,10 @@ def test_lower_to_language_level(monkeypatch):
     testnode.children = [node1, node2]
 
     # Execute method
-    testnode.lower_to_language_level()
+    lowered = testnode.lower_to_language_level()
+
+    # The generic version returns itself
+    assert testnode is lowered
 
     # Check all children have been visited
     for child in testnode.children:

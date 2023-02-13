@@ -94,7 +94,11 @@ class LFRicKernelContainer(Container):
         return self._metadata
 
     def lower_to_language_level(self):
-        '''Lower this LFRic-specific container to language level psyir.'''
+        '''Lower this LFRic-specific container to language level psyir.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+        '''
 
         # Create metadata symbol and add it to the container symbol
         # table.
@@ -106,6 +110,7 @@ class LFRicKernelContainer(Container):
         generic_container = Container.create(
             self.name, self.symbol_table.detach(), children)
         self.replace_with(generic_container)
+        return generic_container
 
 
 __all__ = ["LFRicKernelContainer"]

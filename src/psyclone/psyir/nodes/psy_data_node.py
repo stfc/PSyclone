@@ -626,9 +626,13 @@ class PSyDataNode(Statement):
         :param str options["post_var_postfix"]: an optional postfix that will \
             be added to each variable name in the post_var_list.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         :raises GenerationError: if the node is not inside a Routine.
 
         '''
+
         def gen_type_bound_call(typename, methodname, argument_list=None,
                                 annotations=None):
             ''' Helper utility to generate type-bound calls. Since this is
@@ -773,6 +777,7 @@ class PSyDataNode(Statement):
 
         # Finally we can remove the original PSyDataNode from here
         self.detach()
+        return self.parent
 
 
 # For AutoAPI documentation generation

@@ -193,7 +193,9 @@ def test_psyirvisitor_lower_dsl_concepts():
             # a scope. This is intentional to cause an error during the
             # lowering step.
             self.scope.symbol_table.add(DataSymbol("val", REAL_TYPE))
-            self.replace_with(Return())
+            new_node = Return()
+            self.replace_with(new_node)
+            return new_node
 
     class MyVisitor(PSyIRVisitor):
         ''' Simple Visitor for Schedules and Return statements '''
