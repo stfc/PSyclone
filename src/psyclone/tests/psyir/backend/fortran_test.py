@@ -752,62 +752,71 @@ def test_fw_gen_vardecl_visibility(fortran_writer):
                       "end type var\n")
 
 
-def test_gen_access_stmt(fortran_writer):
+def test_gen_default_access_stmt(fortran_writer):
     '''
-    Tests for the gen_access_stmt method of FortranWriter.
+    Tests for the gen_default_access_stmt method of FortranWriter.
     '''
     symbol_table = SymbolTable()
     # If no default visibility is specified then the Fortran default
     # is 'public'
     symbol_table._default_visibility = None
-    assert fortran_writer.gen_access_stmt(symbol_table) == "public\n"
+    assert fortran_writer.gen_default_access_stmt(symbol_table) == "public\n"
     symbol_table.default_visibility = Symbol.Visibility.PUBLIC
     # Test indentation works as expected
     fortran_writer._depth += 1
-    assert fortran_writer.gen_access_stmt(symbol_table) == "  public\n"
+    assert fortran_writer.gen_default_access_stmt(symbol_table) == "  public\n"
     symbol_table.default_visibility = Symbol.Visibility.PRIVATE
-    assert fortran_writer.gen_access_stmt(symbol_table) == "  private\n"
+    assert (fortran_writer.gen_default_access_stmt(symbol_table) ==
+            "  private\n")
     fortran_writer._depth -= 1
-    assert fortran_writer.gen_access_stmt(symbol_table) == "private\n"
+    assert fortran_writer.gen_default_access_stmt(symbol_table) == "private\n"
     # Invalid type (str instead of Symbol.Visibility)
     symbol_table._default_visibility = "public"
     with pytest.raises(InternalError) as err:
-        fortran_writer.gen_access_stmt(symbol_table)
+        fortran_writer.gen_default_access_stmt(symbol_table)
     assert ("Unrecognised visibility ('public') found when attempting to "
             "generate access statement. Should be either 'Symbol.Visibility."
             "PUBLIC' or 'Symbol.Visibility.PRIVATE'" in str(err.value))
 
 
-def test_gen_routine_access_stmts(fortran_writer):
+def test_gen_access_stmts(fortran_writer):
     '''
-    Tests for the gen_routine_access_stmts method of FortranWriter.
+    Tests for the gen_access_stmts method of FortranWriter.
     '''
     symbol_table = SymbolTable()
     symbol_table.add(RoutineSymbol("my_sub1",
                                    visibility=Symbol.Visibility.PUBLIC))
-    code = fortran_writer.gen_routine_access_stmts(symbol_table)
-    assert "public :: my_sub1" in code
+    code = fortran_writer.gen_access_stmts(symbol_table)
+    # Default visibility of the table is public so no explicit access
+    # statement required
+    assert code == ""
     sub2 = RoutineSymbol("my_sub2", visibility=Symbol.Visibility.PRIVATE)
     symbol_table.add(sub2)
-    code = fortran_writer.gen_routine_access_stmts(symbol_table)
-    assert "public :: my_sub1\nprivate :: my_sub2\n" in code
+    code = fortran_writer.gen_access_stmts(symbol_table)
+    assert "private :: my_sub2\n" in code
     # Check that the interface of the symbol does not matter
     symbol_table.add(
         RoutineSymbol("used_sub", visibility=Symbol.Visibility.PRIVATE,
                       interface=ImportInterface(ContainerSymbol("some_mod"))))
-    code = fortran_writer.gen_routine_access_stmts(symbol_table)
-    assert "public :: my_sub1\nprivate :: my_sub2, used_sub\n" in code
-    # Break the visibility of the second symbol
-    sub2._visibility = "broken"
-    with pytest.raises(InternalError) as err:
-        fortran_writer.gen_routine_access_stmts(symbol_table)
-    assert ("Unrecognised visibility ('broken') found for symbol 'my_sub2'"
-            in str(err.value))
-    symbol_table.remove(sub2)
+    code = fortran_writer.gen_access_stmts(symbol_table)
+    assert "private :: my_sub2, used_sub\n" in code
+    # Since the default visibility of the table is PUBLIC, we should not
+    # generate anything for PUBLIC symbols.
+    symbol_table.add(
+        Symbol("some_var", visibility=Symbol.Visibility.PUBLIC,
+               interface=UnresolvedInterface()))
+    code = fortran_writer.gen_access_stmts(symbol_table)
+    assert code.strip() == "private :: my_sub2, used_sub"
+    # Change the default visibility of the table to be private.
+    symbol_table.default_visibility = Symbol.Visibility.PRIVATE
+    code = fortran_writer.gen_access_stmts(symbol_table)
+    assert code.strip() == "public :: my_sub1, some_var"
     # Check that we don't generate an accessibility statement for a
     # RoutineSymbol tagged with 'own_routine_symbol'
-    symbol_table.add(RoutineSymbol("my_routine"), tag='own_routine_symbol')
-    code = fortran_writer.gen_routine_access_stmts(symbol_table)
+    symbol_table.add(RoutineSymbol("my_routine",
+                                   visibility=Symbol.Visibility.PUBLIC),
+                     tag='own_routine_symbol')
+    code = fortran_writer.gen_access_stmts(symbol_table)
     assert "my_routine" not in code
 
 
@@ -942,7 +951,6 @@ def test_fw_container_2(fortran_reader, fortran_writer, tmpdir):
         "  real, public :: c\n"
         "  real, public :: d\n"
         "  public\n\n"
-        "  public :: tmp\n\n"
         "  contains\n"
         "  subroutine tmp()\n\n\n"
         "  end subroutine tmp\n\n"

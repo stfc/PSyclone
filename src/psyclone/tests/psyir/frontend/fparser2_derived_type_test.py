@@ -38,6 +38,11 @@
     derived types. '''
 
 import pytest
+
+from fparser.two import Fortran2003
+from fparser.two.utils import walk
+from fparser.common.readfortran import FortranStringReader
+
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import KernelSchedule, CodeBlock, Assignment, \
     ArrayOfStructuresReference, StructureReference, Member, StructureMember, \
@@ -45,12 +50,10 @@ from psyclone.psyir.nodes import KernelSchedule, CodeBlock, Assignment, \
     BinaryOperation
 from psyclone.psyir.symbols import SymbolError, DeferredType, StructureType, \
     DataTypeSymbol, ScalarType, RoutineSymbol, Symbol, ArrayType, \
-    UnknownFortranType, DataSymbol, INTEGER_TYPE
+    UnknownFortranType, DataSymbol, INTEGER_TYPE, ContainerSymbol, \
+    ImportInterface
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _create_struct_reference
-from fparser.two import Fortran2003
-from fparser.two.utils import walk
-from fparser.common.readfortran import FortranStringReader
 
 
 def test_create_struct_reference():
@@ -202,6 +205,32 @@ def test_name_clash_derived_type_def(f2008_parser):
             "symbol table already contains a DataTypeSymbol with this name but"
             " it is of type 'UnknownFortranType' when it should be of "
             "'DeferredType'" in str(err.value))
+
+
+def test_existing_symbol_derived_type_def(f2008_parser):
+    ''' Check that a new DataTypeSymbol is created in place of an existing
+    Symbol if it is used in a type declaration. '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    symtab = fake_parent.symbol_table
+    csym = symtab.new_symbol("some_mod", symbol_type=ContainerSymbol)
+    # Add a generic Symbol to the symbol table for what will be the type
+    # definition.
+    symtab.add(Symbol("my_type", visibility=Symbol.Visibility.PRIVATE,
+                      interface=ImportInterface(csym)))
+
+    processor = Fparser2Reader()
+    fparser2spec = f2008_parser(
+        FortranStringReader("subroutine my_sub()\n"
+                            "  type(my_type) :: var\n"
+                            "end subroutine my_sub\n"))
+    type_specs = walk(fparser2spec, types=Fortran2003.Declaration_Type_Spec)
+    typ, prec = processor._process_type_spec(fake_parent, type_specs[0])
+    assert prec is None
+    assert isinstance(typ, DataTypeSymbol)
+    # Check that the visibility has been preserved from the original Symbol.
+    assert typ.visibility == Symbol.Visibility.PRIVATE
+    assert typ.name == "my_type"
+    assert isinstance(typ.interface, ImportInterface)
 
 
 @pytest.mark.usefixtures("f2008_parser")

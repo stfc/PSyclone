@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,7 +48,7 @@ from psyclone.psyir.frontend.fparser2 import (Fparser2Reader,
 from psyclone.psyir.nodes import KernelSchedule
 from psyclone.psyir.symbols import (DataSymbol, ScalarType, UnknownFortranType,
                                     RoutineSymbol, SymbolTable, Symbol,
-                                    DeferredType)
+                                    DeferredType, ContainerSymbol)
 
 
 def process_declarations(code):
@@ -63,6 +63,9 @@ def process_declarations(code):
              :py:class:`fparser.two.Fortran2003.Specification_Part`)
     '''
     sched = KernelSchedule("dummy_schedule")
+    # Add a wildcard import to allow us to get away with undeclared symbols
+    # in the tests.
+    sched.symbol_table.add(ContainerSymbol("some_mod", wildcard_import=True))
     processor = Fparser2Reader()
     reader = FortranStringReader(code)
     fparser2spec = Fortran2003.Specification_Part(reader).content

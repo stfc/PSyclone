@@ -279,6 +279,35 @@
 	95) PR #1993 towards #1953. Extends the LFRicKernelMetadata
 	class to support stencil specifications.
 
+	96) PR #2020 for #2019. Fix inconsistencies in handling of precision
+	symbols
+
+	97) PR #2023 for #1975. Extends DynReferenceElement to ensure that
+	it adds related kernel arguments to KernCallArgList as PSyIR.
+
+	98) PR #2030 for #1529. Update eg19 Makefile so that compilation
+	works.
+
+	99) PR #2029 for #1567. Fix visibility issues with imported symbols.
+
+	100) PR #2024 for #1984. Fixes the dependence analysis for the case
+	where a single element of an array of fields is passed as an
+	argument to an LFRic built-in.
+
+	101) PR #1980 for #1978. Updated LFRic Infrastructure files in
+	PSyclone repository and PSyData libraries to support 32- and
+	64-bit mixed precision.
+
+	102) PR #2034 for #1864: Add support for adjoint test-harness
+	generation for kernels with operator arguments.
+
+	103) PR #2038 for #1998. Adds support for r_tran_operator_type to
+	LFRic (dynamo0.3).
+
+	104) PR #2036 for #2033. Splits core/access_info into its constiutent
+	classes and moves utility functions out of the DependencyTools
+	module.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.

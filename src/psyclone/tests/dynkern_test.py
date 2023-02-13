@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -353,8 +353,8 @@ def test_validate_kernel_code_arg(monkeypatch):
         "For dimension 1 in array argument 'field' to kernel 'dummy' the "
         "following error was found: An argument to an LFRic kernel must have a"
         " precision defined by either a recognised LFRic type parameter (one "
-        "of ['i_def', 'r_def', 'r_double', 'r_ncdf', 'r_quad', 'r_single', "
-        "'r_solver', 'r_tran', 'r_um']) or an integer number of "
+        "of ['i_def', 'l_def', 'r_def', 'r_double', 'r_ncdf', 'r_quad', "
+        "'r_single', 'r_solver', 'r_tran', 'r_um']) or an integer number of "
         "bytes but argument 'generic_int_scalar' to kernel 'dummy' has "
         "precision Precision.UNDEFINED" in str(info.value))
 

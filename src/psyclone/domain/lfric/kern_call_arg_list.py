@@ -48,13 +48,12 @@ from psyclone import psyGen
 from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric import ArgOrdering, LFRicConstants, psyir
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (ArrayOfStructuresReference, Literal,
                                   Reference, StructureReference)
 from psyclone.psyir.symbols import (ArrayType, DataSymbol, DataTypeSymbol,
                                     DeferredType, ContainerSymbol,
                                     ImportInterface, INTEGER_SINGLE_TYPE,
-                                    ScalarType, SymbolError, SymbolTable)
+                                    ScalarType)
 
 # psyir has classes created at runtime
 # pylint: disable=no-member
@@ -96,7 +95,7 @@ class KernCallArgList(ArgOrdering):
         '''
         if field_type in ["r_solver_field_type", "r_solver_operator_type"]:
             return psyir.R_SOLVER
-        if field_type == "r_tran_field_type":
+        if field_type in ["r_tran_field_type", "r_tran_operator_type"]:
             return psyir.R_TRAN
         return psyir.R_DEF
 
@@ -203,7 +202,7 @@ class KernCallArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         cell_ref_name, ref = self.cell_ref_name(var_accesses)
@@ -218,7 +217,7 @@ class KernCallArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         cargs = psyGen.args_filter(self._kern.args, arg_meshes=["gh_coarse"])
@@ -254,7 +253,7 @@ class KernCallArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         if self._kern.iterates_over not in ["cell_column", "domain"]:
@@ -273,27 +272,12 @@ class KernCallArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance that \
             stores information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
-
-        :raises NotImplementedError: if a scalar of type other than real, \
-            logical, or integer is found.
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         super().scalar(scalar_arg, var_accesses)
         if scalar_arg.is_literal:
-            literal_string = scalar_arg.name
-            try:
-                # Since we know it must be a literal, we need to provide an
-                # empty SymbolTable (to make sure an invalid strings is not
-                # recognised as an existing symbol)
-                literal = FortranReader().psyir_from_expression(literal_string,
-                                                                SymbolTable())
-            except SymbolError as err:
-                raise InternalError(f"Unexpected literal expression "
-                                    f"'{literal_string}' in scalar() when "
-                                    f"processing kernel "
-                                    f"'{self._kern.name}'.") from err
-            self.psyir_append(literal)
+            self.psyir_append(scalar_arg.psyir_expression())
         else:
             sym = self._symtab.lookup(scalar_arg.name)
             self.psyir_append(Reference(sym))
@@ -314,7 +298,7 @@ class KernCallArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         sym = self.append_integer_reference("ncell_2d")
@@ -328,7 +312,7 @@ class KernCallArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         ncell_symbol = self.append_integer_reference("ncell_2d_no_halos")
@@ -344,7 +328,7 @@ class KernCallArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         components = ["matrix"]
@@ -389,7 +373,7 @@ class KernCallArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # First declare the proxy as a 1d-array:
@@ -426,7 +410,7 @@ class KernCallArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         text = arg.proxy_name + "%data"
@@ -454,7 +438,7 @@ class KernCallArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # The extent is not specified in the metadata so pass the value in
@@ -479,7 +463,7 @@ class KernCallArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # The extent is not specified in the metadata so pass the value in
@@ -504,7 +488,7 @@ class KernCallArgList(ArgOrdering):
         :param var_accesses: optional SingleVariableAccessInfo instance \
             to store the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.SingleVariableAccessInfo`
+            :py:class:`psyclone.core.SingleVariableAccessInfo`
 
         '''
         # The maximum branch extent is not specified in the metadata so pass
@@ -531,7 +515,7 @@ class KernCallArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # the direction of the stencil is not known so pass the value in
@@ -550,7 +534,7 @@ class KernCallArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # add in stencil dofmap
@@ -576,7 +560,7 @@ class KernCallArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # The stencil_2D differs from the stencil in that the direction
@@ -607,7 +591,7 @@ class KernCallArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # TODO we should only be including ncell_3d once in the argument
@@ -615,6 +599,8 @@ class KernCallArgList(ArgOrdering):
         # This argument is always read only:
         if arg.data_type == "r_solver_operator_type":
             op_name = "r_solver_operator"
+        elif arg.data_type == "r_tran_operator_type":
+            op_name = "r_tran_operator"
         else:
             op_name = "operator"
         operator = LFRicConstants().DATA_TYPE_MAP[op_name]
@@ -645,7 +631,7 @@ class KernCallArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         if self._kern.iterates_over not in ["cell_column", "domain"]:
@@ -665,7 +651,7 @@ class KernCallArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         sym = self.append_integer_reference(function_space.undf_name)
@@ -695,7 +681,7 @@ class KernCallArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # Is this FS associated with the coarse or fine mesh? (All fields
@@ -727,7 +713,7 @@ class KernCallArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         for rule in self._kern.qr_rules.values():
@@ -760,7 +746,7 @@ class KernCallArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         for rule in self._kern.qr_rules.values():
@@ -796,7 +782,7 @@ class KernCallArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises GenerationError: if the bcs kernel does not contain \
             a field as argument (but e.g. an operator).
@@ -831,7 +817,7 @@ class KernCallArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # This kernel has only a single LMA operator as argument.
@@ -850,7 +836,7 @@ class KernCallArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         if self._kern.mesh.properties:
@@ -869,7 +855,7 @@ class KernCallArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # The QR shapes that this routine supports
@@ -986,7 +972,7 @@ class KernCallArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         :returns: the Fortran code needed to access the current cell index.
         :rtype: Tuple[str, py:class:`psyclone.psyir.nodes.Reference`]
