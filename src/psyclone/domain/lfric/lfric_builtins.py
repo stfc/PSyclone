@@ -1629,21 +1629,23 @@ class LFRicSumXKern(LFRicBuiltIn):
     def __str__(self):
         return "Built-in: Sum a real-valued field"
 
-    def gen_code(self, parent):
+    def lower_to_language_level(self):
         '''
-        Generates LFRic API specific PSy code for a call to the
-        sum_X Built-in.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
         '''
-        # Sum all the elements of a real-valued field. The real scalar
-        # variable holding the sum is initialised to zero in the PSy layer.
-        field_name = self.array_ref(self._arguments.args[1].proxy_name)
-        sum_name = self._reduction_ref(self._arguments.args[0].name)
-        rhs_expr = sum_name + " + " + field_name
-        parent.add(AssignGen(parent, lhs=sum_name, rhs=rhs_expr))
+        # Get indexed references for the field (proxy) argument.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar reduction argument.
+        scalar_args = self.get_scalar_argument_references()
+        # Create the PSyIR for the kernel:
+        #      asum = asum + proxy0%data(df)
+        lhs = scalar_args[0]
+        rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                     lhs.copy(), arg_refs[0])
+        assign = Assignment.create(lhs, rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
 
 
 # ------------------------------------------------------------------- #
