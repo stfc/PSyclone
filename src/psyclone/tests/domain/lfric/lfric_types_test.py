@@ -47,6 +47,30 @@ from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, \
 from psyclone.psyir.nodes import Reference, Literal
 
 
+def test_singleton(monkeypatch):
+    '''Tests that the singleton implementation works as expected.
+
+    '''
+    # First check that on first time creation the class is properly
+    # initialised:
+    monkeypatch.setattr(LFRicTypes, "_instance", None)
+    LFRicTypes()
+    assert LFRicTypes._instance is not None
+
+    # Now replace the internal dictionary
+    monkeypatch.setattr(LFRicTypes._instance, "_name_to_class",
+                        {"new": "really_new"})
+    # Make sure we get the new dictionary:
+    assert LFRicTypes()("new") == "really_new"
+
+    # But if we delete the instance, the singleton will create a
+    # new instance, which does not have 'new' as key anynmore:
+    monkeypatch.setattr(LFRicTypes, "_instance", None)
+    with pytest.raises(KeyError) as err:
+        LFRicTypes()("new")
+    assert "new" in str(err.value)
+
+
 # Modules and their arguments
 @pytest.mark.parametrize("module_name, symbol_list",
                          [("CONSTANTS_MOD",
@@ -148,6 +172,19 @@ def test_specific_scalar_types(data_type_name, generic_type_name):
     lfric_types = LFRicTypes()
     lfric_datatype = lfric_types(data_type_name)()
     assert isinstance(lfric_datatype, lfric_types(generic_type_name))
+
+
+def test_specific_scalar_types_init_args():
+    '''Test the generated specific scalar data types are created correctly
+    and work with positional and keyword arguments.
+
+    '''
+    lfric_types = LFRicTypes()
+    type_class = lfric_types("NumberOfDofsDataSymbol")
+    positional_init = type_class("name", "fs")
+    assert positional_init.fs == "fs"
+    keyword_init = type_class("name", fs="fs")
+    assert keyword_init.fs == "fs"
 
 
 # Specific scalar symbols
@@ -313,6 +350,19 @@ def test_arrays(data_type_name, symbol_name, scalar_type_name,
         interface=ArgumentInterface(ArgumentInterface.Access.READ))
     assert isinstance(lfric_symbol.interface, ArgumentInterface)
     assert lfric_symbol.interface.access == ArgumentInterface.Access.READ
+
+
+def test_arrays_data_symbol_init_args():
+    '''Test the generated array datasymbols are created correctly.
+    and accept positional and keyword arguments in the constructor.
+
+    '''
+    lfric_types = LFRicTypes()
+    symbol_class = lfric_types("DiffBasisFunctionQrEdgeDataSymbol")
+    lfric_symbol = symbol_class("symbol", [1, 2, 3, 4], "fs1")
+    assert lfric_symbol.fs == "fs1"
+    lfric_symbol = symbol_class("symbol", dims=[1, 2, 3, 4], fs="fs2")
+    assert lfric_symbol.fs == "fs2"
 
 
 # Vector field-data data-symbols
