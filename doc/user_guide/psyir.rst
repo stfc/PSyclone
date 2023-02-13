@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2022, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -85,7 +85,7 @@ PSy-layer. These tend to be relatively descriptive and do not specify
 how a particular PSyclone frontend would implement them. With the
 exception of ``Loop``, these classes are currently not compatible with
 the PSyIR backends. The generic (non-api-specific) PSy-layer PSyIR
-nodes are: ``InvokeSchedule``, ``Directive``, ``GlobalSum``,
+nodes are: ``InvokeSchedule``, ``Directive``, ``GlobalReduction``,
 ``HaloExchange``, ``Loop`` and ``Kern``. The ``Directive`` class is
 subclassed into many directives associated with OpenMP and
 OpenACC. The ``Kern`` class is subclassed into ``CodedKern``,

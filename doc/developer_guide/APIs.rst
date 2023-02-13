@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2022, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -1083,8 +1083,8 @@ methods implemented except for the following:
 * ``LFRicRealXKern``.
 
 The sum and inner product BuiltIns require extending PSyIR to handle
-reductions in the ``GlobalSum`` class in ``psyGen.py``. Conversions from
-``real`` to ``int`` and vice-versa require the target precisions be
+reductions in the ``GlobalReduction`` class in ``psyGen.py``. Conversions
+from ``real`` to ``int`` and vice-versa require the target precisions be
 available as symbols, which is being implemented as a part of the mixed
 precision support.
 

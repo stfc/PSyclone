@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2022, Science and Technology Facilities Council.
+.. Copyright (c) 2017-2023, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -127,7 +127,7 @@ was generated from the source code with pyreverse and edited with inkscape.
 The InvokeSchedule can currently contain nodes of type: **Loop**,
 **Kernel**, **Built-in** (see the :ref:`built-ins` section),
 **Directive** (of various types), **HaloExchange**, or
-**GlobalSum** (the latter two are only used if distributed memory is
+**GlobalReduction** (the latter two are only used if distributed memory is
 supported and is switched on; see the :ref:`distributed_memory`
 section). The order of the tree (depth first) indicates the order of
 the associated Fortran code.
@@ -164,14 +164,14 @@ we would see the following output:
                    Schedule[]
                        0: BuiltIn setval_X_code(p,z)
                        1: BuiltIn X_innerproduct_Y_code(rs_old,res,z)
-       1: GlobalSum[scalar='rs_old']
+       1: GlobalReduction[scalar='rs_old']
 
 The above output tells us that the invoke name for the InvokeSchedule we are
 looking at is `invoke_0` and that the distributed_memory option has
 been switched on. Within the InvokeSchedule is an OpenMP parallel directive
 containing a loop which itself contains two built-in calls. As the
 latter of the two built-in calls requires a reduction and distributed
-memory is switched on, PSyclone has added a GlobalSum call for the
+memory is switched on, PSyclone has added a GlobalReduction call for the
 appropriate scalar.
 
 Second, the `dag()` method (standing for directed acyclic graph),
@@ -203,7 +203,7 @@ Blue arrows indicate that there is a parent to child relationship (from
 a start node) or a child to parent relationship (to an end node).
 Green arrows indicate that a Node depends on another Node later in the
 schedule (which we call a forward dependence). Therefore the OMP parallel
-loop must complete before the globalsum is performed.
+loop must complete before the global reduction is performed.
 Red arrows indicate that a Node depends on
 another Node that is earlier in the schedule (which we call a backward
 dependence). However the direction of the red arrows are reversed to
