@@ -47,7 +47,7 @@ This should output a Fortran representation of the LFRic-PSyIR.
 '''
 # pylint: disable=no-member
 
-from psyclone.domain.lfric import psyir as lfric_psyir, LFRicTypes
+from psyclone.domain.lfric import LFRicTypes
 from psyclone.psyir.nodes import Call, Reference, Container, KernelSchedule
 from psyclone.psyir.symbols import (RoutineSymbol, SymbolTable,
                                     ArgumentInterface)
@@ -56,22 +56,23 @@ from psyclone.psyir.backend.fortran import FortranWriter
 
 READ_ARG = ArgumentInterface(ArgumentInterface.Access.READ)
 
+LFRIC_TYPES = LFRicTypes()
 # Add LFRic precision symbols and the module in which they are
 # contained to the symbol table
 SYMBOL_TABLE = SymbolTable()
-for symbol in [lfric_psyir.I_DEF, lfric_psyir.R_DEF,
-               lfric_psyir.CONSTANTS_MOD]:
+for symbol in [LFRIC_TYPES("I_DEF"), LFRIC_TYPES("R_DEF"),
+               LFRIC_TYPES("CONSTANTS_MOD")]:
     SYMBOL_TABLE.add(symbol)
 
 # Create LFRic ndf and undf symbols and add them to the symbol table
-NDF_W3 = lfric_psyir.NumberOfDofsDataSymbol("ndf_w3", "w3", interface=READ_ARG)
-UNDF_W3 = lfric_psyir.NumberOfUniqueDofsDataSymbol("undf_w3", "w3",
-                                                   interface=READ_ARG)
+NDF_W3 = LFRIC_TYPES("NumberOfDofsDataSymbol")("ndf_w3", "w3",
+                                               interface=READ_ARG)
+UNDF_W3 = LFRIC_TYPES("NumberOfUniqueDofsDataSymbol")("undf_w3", "w3",
+                                                      interface=READ_ARG)
 for symbol in [NDF_W3, UNDF_W3]:
     SYMBOL_TABLE.add(symbol)
 
 # Create LFRic field data symbols and add them to the symbol table
-LFRIC_TYPES = LFRicTypes()
 FIELD1 = LFRIC_TYPES("RealFieldDataDataSymbol")(
     "field1", [Reference(UNDF_W3)], "w3")
 FIELD2 = LFRIC_TYPES("RealFieldDataDataSymbol")(
@@ -81,7 +82,8 @@ for symbol in [FIELD1, FIELD2]:
     SYMBOL_TABLE.add(symbol)
 
 # Create an LFRic operator and it to the symbol table
-NCELL_3D = lfric_psyir.NumberOfCellsDataSymbol("ncell_3d", interface=READ_ARG)
+NCELL_3D = LFRIC_TYPES("NumberOfCellsDataSymbol")("ncell_3d",
+                                                  interface=READ_ARG)
 OPERATOR = LFRIC_TYPES("OperatorDataSymbol")(
     "oper1", [Reference(NDF_W3), Reference(NDF_W3), Reference(NCELL_3D)],
     fs_from="w3", fs_to="w3", interface=READ_ARG)
@@ -91,9 +93,9 @@ for symbol in [NCELL_3D, OPERATOR]:
 # Create LFRic basis and differential basis functions with gaussian
 # quadrature (xyoz) and add them to the symbol table. Also create the
 # quadrature weights
-NQP_XY = lfric_psyir.NumberOfQrPointsInXyDataSymbol(
+NQP_XY = LFRIC_TYPES("NumberOfQrPointsInXyDataSymbol")(
     "nqp_xy", interface=READ_ARG)
-NQP_Z = lfric_psyir.NumberOfQrPointsInZDataSymbol(
+NQP_Z = LFRIC_TYPES("NumberOfQrPointsInZDataSymbol")(
     "nqp_z", interface=READ_ARG)
 WEIGHTS_XY = LFRIC_TYPES("QrWeightsInXyDataSymbol")(
     "w_xy", [Reference(NQP_XY)], interface=READ_ARG)
