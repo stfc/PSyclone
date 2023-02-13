@@ -9669,6 +9669,8 @@ class DynKernelArgument(KernelArgument):
                 argtype = "operator"
             elif alg_datatype == "r_solver_operator_type":
                 argtype = "r_solver_operator"
+            elif alg_datatype == "r_tran_operator_type":
+                argtype = "r_tran_operator"
             else:
                 raise GenerationError(
                     f"The metadata for argument '{self.name}' in kernel "

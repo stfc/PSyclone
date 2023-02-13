@@ -39,7 +39,6 @@
 
 '''This module provides management of variable access information.'''
 
-from __future__ import print_function, absolute_import
 
 from psyclone.core.access_type import AccessType
 from psyclone.core.component_indices import ComponentIndices

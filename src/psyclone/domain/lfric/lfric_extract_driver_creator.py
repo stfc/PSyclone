@@ -67,7 +67,8 @@ class LFRicExtractDriverCreator:
     functionality.
 
     The driver is created as follows:
-    1. The corresponding Invoke statement that contains the kernel(s) is
+
+    1. The corresponding ``Invoke`` statement that contains the kernel(s) is
        copied. This way we avoid affecting the tree of the caller. We need
        the invoke since it contains the symbol table.
     2. We remove all halo exchange nodes. While atm the extract transformation
@@ -91,62 +92,67 @@ class LFRicExtractDriverCreator:
        looping over all references in the extracted region and declaring
        the symbols in the new symbol table. The existing references in the
        tree will be replaced with newly created references to the new symbols.
+
        a. We first handle all non user-defined type. We can be certain that
           these symbols are already unique (since it's the original kernel
           code).
        b. Then we handle user-defined types. Since we only use basic Fortran
           types, accesses to these types need to be 'flattened': an access
-          like `a%b%c` will be flattened to `a_b_c` to create a valid symbol
-          name without needing the user-defined type. We use the original
-          access string (`a%b%c`) as tag, since we know this tag is unique,
-          and create a new, unique symbol based on `a_b_c`. This takes care
-          if the user should be using this newly generated name (e.g. if the
-          user uses `a%b%c` and `a_b_c`, `a_b_c` as non user defined symbol
-          will be added to the symbol table first. When then `a%b%c` is
-          flattened, the symbol table will detect that the symbol `a_b_c`
-          already exists and create `a_b_c_1` for the tag `a%b%c`).
-          For known LFRic types, the actual name used in a reference will
-          be changed to the name the user expects. For example, if field
-          `f` is used, the access will be `f_proxy%data`. The kernel
-          extraction does the same and stores the values under the name `f`,
-          so the driver similarly simplifies the name back to the original
-          `f`.
+          like ``a%b%c`` will be flattened to ``a_b_c`` to create a valid
+          symbol name without needing the user-defined type. We use the
+          original access string (``a%b%c``) as tag, since we know this tag
+          is unique, and create a new, unique symbol based on ``a_b_c``. This
+          takes care if the user should be using this newly generated name
+          (e.g. if the user uses ``a%b%c`` and ``a_b_c``, ``a_b_c`` as non
+          user defined symbol will be added to the symbol table first. When
+          then ``a%b%c`` is flattened, the symbol table will detect that the
+          symbol ``a_b_c`` already exists and create ``a_b_c_1`` for the tag
+          ``a%b%c``). For known LFRic types, the actual name used in a
+          reference will be changed to the name the user expects. For example,
+          if field ``f`` is used, the access will be ``f_proxy%data``. The
+          kernel extraction does the same and stores the values under the name
+          ``f``, so the driver similarly simplifies the name back to the
+          original ``f``.
           The KernCallArgList class will have enforced the appropriate
           basic Fortran type declaration for each reference to a user defined
-          variable. For example, if a field `f` is used, the reference to
-          `f_proxy%data` will have a data type attribute of a 1D real array
+          variable. For example, if a field ``f`` is used, the reference to
+          ``f_proxy%data`` will have a data type attribute of a 1D real array
           (with the correct precision).
+
     6. We create the read-in code for all variables in the input- and output-
        lists. Mostly, no special handling of argument type is required (since
        the generic interface will make sure to call the appropriate function).
        But in case of user-defined types, we need to make sure to use the
        name with '%' (unless it is a standard LFRic type like field which
        as described above has already been simplified). Example are names like
-       `f_proxy%local_stencil` and `f_proxy%ncell_3d`. They will be using the
-       name with `%`, but a flattened variable name (`%` replaced with `_`).
+       ``f_proxy%local_stencil`` and ``f_proxy%ncell_3d``. They will be using
+       the name with ``%``, but a flattened variable name (``%`` replaced with
+       ``_``).
+
        a. Input parameter are read in from the PSyData ReadKernelData module.
           These function will allocate all array variables to the right size
           based on the data from the input file.
        b. For parameters that are read and written, two variables will be
           declared: the input will be stored in the unmodified variable name,
-          and the output values in a variable with `_post` appended. For
-          example, a field `f` as input will be read into `f` using the name
-          `f`, and output values will be read into `f_post` using the name
-          `f_post`. The symbol table will make sure that the `_post` name
-          is unique.
+          and the output values in a variable with ``_post`` appended. For
+          example, a field ``f`` as input will be read into ``f`` using the
+          name ``f``, and output values will be read into ``f_post`` using
+          the name ``f_post``. The symbol table will make sure that the
+          ``_post`` name is unique.
        c. Similar to b., output only parameters will be read into a variable
-          named with '_post' attached, e.g. output field `f` will be stored
-          in a variable `f_post`. Then the array `f` is allocated based on
-          the shape of `f_post` and initialised to 0 (since it's an
+          named with '_post' attached, e.g. output field ``f`` will be stored
+          in a variable ``f_post``. Then the array ``f`` is allocated based on
+          the shape of ``f_post`` and initialised to 0 (since it's an
           output-only parameter the value doesn't really matter).
+
     7. The extracted kernels are added to the program. Since in step 5 all
        references have been replaced, there created code will use the correct
        new variable names (which just have been read in). The output variables
-       with `_post` attached will not be used at all so far.
+       with ``_post`` attached will not be used at all so far.
     8. After the kernel calls are executed, each output variable is compared
-       with the value stored in the corresponding `_post` variable. For
-       example, a variable `f` which was modified in the kernel calls, will
-       then be compared with `f_post`.
+       with the value stored in the corresponding ``_post`` variable. For
+       example, a variable ``f`` which was modified in the kernel calls, will
+       then be compared with ``f_post``.
 
     '''
     def __init__(self):
@@ -173,10 +179,10 @@ class LFRicExtractDriverCreator:
         to the field map. This mapping is used to convert proxy names used
         in a lowered kernel call back to the original name, which is the name
         used in extraction. For example, a field 'f' will be provided as
-        `f_proxy%data` to the kernel, but the extraction will just write
+        ``f_proxy%data`` to the kernel, but the extraction will just write
         the name 'f', which is easier to understand for the user. The mapping
-        created here is used as a first step, to convert `f_proxy` back
-        to `f`.
+        created here is used as a first step, to convert ``f_proxy`` back
+        to ``f``.
 
         :param schedule: the schedule with all kernels.
         :type schedule: :py:class:`psyclone.psyir.nodes.Schedule`
@@ -209,7 +215,7 @@ class LFRicExtractDriverCreator:
     # -------------------------------------------------------------------------
     def flatten_reference(self, old_reference, symbol_table,
                           proxy_name_mapping):
-        '''Replaces `old_reference`, which is a structure type, with a new
+        '''Replaces ``old_reference``, which is a structure type, with a new
         simple Reference and a flattened name (replacing all % with _).
 
         :param old_reference: a reference to a structure member.
@@ -219,7 +225,7 @@ class LFRicExtractDriverCreator:
             defined flattened symbol.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param writer: a Fortran writer used when flattening a \
-            `StructureReference`.
+            ``StructureReference``.
         :type writer: :py:class:`psyclone.psyir.backend.fortran.FortranWriter`
 
         '''
@@ -296,9 +302,9 @@ class LFRicExtractDriverCreator:
 
     # -------------------------------------------------------------------------
     def add_all_kernel_symbols(self, sched, symbol_table, proxy_name_mapping):
-        '''This function adds all symbols used in `sched` to the symbol table.
-        It uses GOcean-specific knowledge to declare fields and flatten their
-        name.
+        '''This function adds all symbols used in ``sched`` to the symbol
+        table. It uses LFRic-specific knowledge to declare fields and flatten
+        their name.
 
         :param sched: the schedule that will be called by this driver program.
         :type sched: :py:class:`psyclone.psyir.nodes.Schedule`
@@ -306,14 +312,8 @@ class LFRicExtractDriverCreator:
             symbols.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param writer: a Fortran writer used when flattening a \
-            `StructureReference`.
+            ``StructureReference``.
         :type writer: :py:class:`psyclone.psyir.backend.fortan.FortranWriter`
-
-        :raises InternalError: if a non-derived type has an unknown \
-            intrinsic type.
-        :raises InternalError: if an unknown derived type is \
-            encountered. At this stage only the dl_esm_inf `field` type \
-            is supported.
 
         '''
         # pylint: disable=too-many-locals
@@ -448,12 +448,12 @@ class LFRicExtractDriverCreator:
                 # this parsing of a file can be replaced.
                 shape = post_sym.datatype.shape
                 dims = ",".join([":"]*len(shape))
-                code = (f'''
+                code = f'''
                     subroutine tmp()
                       integer, allocatable, dimension({dims}) :: {sym.name}
                       integer, allocatable, dimension({dims}) :: {post_name}
                       allocate({sym.name}, mold={post_name})
-                    end subroutine tmp''')
+                    end subroutine tmp'''
                 fortran_reader = FortranReader()
                 container = fortran_reader.psyir_from_source(code)\
                     .children[0]
@@ -695,7 +695,7 @@ class LFRicExtractDriverCreator:
         :param output_list: list of variables that are output parameters.
         :type output_list: list or :py:class:`psyclone.core.Signature`
         :param str prefix: the prefix to use for each PSyData symbol, \
-            e.g. 'extract' as prefix will create symbols `extract_psydata`.
+            e.g. 'extract' as prefix will create symbols ``extract_psydata``.
         :param str postfix: a postfix that is appended to an output variable \
             to create the corresponding variable that stores the output \
             value from the kernel data file. The caller must guarantee that \
@@ -923,7 +923,7 @@ class LFRicExtractDriverCreator:
     def write_driver(self, nodes, input_list, output_list,
                      prefix, postfix, region_name, writer=FortranWriter()):
         # pylint: disable=too-many-arguments
-        '''This function uses the `get_driver_as_string()` function to get a
+        '''This function uses the ``get_driver_as_string()`` function to get a
         a stand-alone driver, and then writes this source code to a file. The
         file name is derived from the region name:
         "driver-"+module_name+"_"+region_name+".f90"
