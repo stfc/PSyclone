@@ -58,6 +58,9 @@ BASE_PATH = os.path.join(
 API = "dynamo0.3"
 
 
+# ------------- Inner product of two real fields ---------------------------- #
+
+
 def test_X_innerproduct_Y(tmpdir, dist_mem):
     ''' Test that 1) the str method of LFRicXInnerproductYKern returns the
     expected string and 2) we generate correct code for the built-in
@@ -136,6 +139,29 @@ def test_X_innerproduct_Y(tmpdir, dist_mem):
         assert "      TYPE(scalar_type) global_sum\n" in code
 
 
+def test_X_innerproduct_Y_lowering(fortran_writer):
+    '''
+    Test that the lower_to_language_level() method of X_innerproduct_Y
+    built-in works as expected.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                           "15.9.1_X_innerproduct_Y_builtin.f90"), api=API)
+    psy = PSyFactory(API,
+                     distributed_memory=False).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
+    kern.lower_to_language_level()
+    loop = first_invoke.schedule.walk(Loop)[0]
+    code = fortran_writer(loop)
+    assert ("do df = loop0_start, loop0_stop, 1\n"
+            "  asum = asum + f1_proxy%data(df) * f2_proxy%data(df)\n"
+            "enddo") in code
+
+
+# ------------- Inner product of a real field with itself ------------------- #
+
+
 def test_X_innerproduct_X(tmpdir, dist_mem):
     ''' Test that 1) the str method of LFRicXInnerproductXKern returns the
     expected string and 2) we generate correct code for the built-in
@@ -211,26 +237,6 @@ def test_X_innerproduct_X(tmpdir, dist_mem):
         assert "      USE scalar_mod, ONLY: scalar_type" in code
         assert "      REAL(KIND=r_def), intent(out) :: asum\n" in code
         assert "      TYPE(scalar_type) global_sum\n" in code
-
-
-def test_X_innerproduct_Y_lowering(fortran_writer):
-    '''
-    Test that the lower_to_language_level() method of X_innerproduct_Y
-    built-in works as expected.
-
-    '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                           "15.9.1_X_innerproduct_Y_builtin.f90"), api=API)
-    psy = PSyFactory(API,
-                     distributed_memory=False).create(invoke_info)
-    first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].loop_body[0]
-    kern.lower_to_language_level()
-    loop = first_invoke.schedule.walk(Loop)[0]
-    code = fortran_writer(loop)
-    assert ("do df = loop0_start, loop0_stop, 1\n"
-            "  asum = asum + f1_proxy%data(df) * f2_proxy%data(df)\n"
-            "enddo") in code
 
 
 def test_X_innerproduct_X_lowering(fortran_writer):
