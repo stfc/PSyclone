@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -59,7 +59,6 @@ MODULE_OUT = (
     "module a\n"
     "  implicit none\n"
     "  public\n\n"
-    "  public :: sub1, sub2\n\n"
     "  contains\n"
     "  subroutine sub1(a)\n"
     "    real :: a\n\n\n"

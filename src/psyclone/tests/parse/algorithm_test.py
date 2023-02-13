@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Modified I. Kavcic, Met Office
 
 '''A module to perform pytest unit tests on the parse/algorithm.py
 file. Some tests for this file are in parse_test.py. This file adds
@@ -269,7 +270,7 @@ def test_parser_invokeinfo_datatypes_mixed():
     assert args1[2]._datatype == ("r_solver_operator_type", None)
     assert args2[0]._datatype == ("real", "r_tran")
     assert args2[1]._datatype == ("r_tran_field_type", None)
-    assert args2[2]._datatype == ("operator_type", None)
+    assert args2[2]._datatype == ("r_tran_operator_type", None)
 
 
 def test_parser_invokeinfo_datatypes_self():

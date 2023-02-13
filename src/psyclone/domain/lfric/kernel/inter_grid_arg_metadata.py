@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council
+# Copyright (c) 2022-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -56,25 +56,32 @@ class InterGridArgMetadata(FieldArgMetadata):
         InterGrid is on (W0, ...).
     :param str mesh_arg: the type of mesh that this InterGrid arg \
         is on (coarse or fine).
+    :param Optional[str] stencil: the type of stencil used by the \
+        kernel when accessing this InterGrid arg.
 
     '''
     # The relative position of LFRic mesh metadata. Metadata for an
     # inter-grid argument is provided in the following format
-    # 'arg_type(form, datatype, access, function_space,
-    # mesh)'. Therefore, the index of the mesh argument
-    # (mesh_arg_index) is 4. Index values not provided here are common
-    # to the parent classes and are inherited from them.
-    mesh_arg_index = 4
+    # 'arg_type(form, datatype, access, function_space, [stencil],
+    # mesh)'. The stencil argument is optional and its index
+    # (stencil_arg_index) is therefore 4 if it exists and the index of
+    # the mesh argument is 4 or 5 depending on whether there is a
+    # stencil argument. As the mesh argument index value is not known
+    # beforehand, it is not set. Fixed index values not provided here
+    # are common to the parent classes and are inherited from them.
+    stencil_arg_index = 4
     # The name to use for any exceptions.
     check_name = "inter-grid"
-    # The number of arguments in the language-level metadata.
-    nargs = 5
+    # The number of arguments in the language-level metadata (min and
+    # max values).
+    nargs = (5, 6)
 
     # The fparser2 class that captures this metadata.
     fparser2_class = Fortran2003.Structure_Constructor
 
-    def __init__(self, datatype, access, function_space, mesh_arg):
-        super().__init__(datatype, access, function_space)
+    def __init__(self, datatype, access, function_space, mesh_arg,
+                 stencil=None):
+        super().__init__(datatype, access, function_space, stencil=stencil)
         self.mesh_arg = mesh_arg
 
     @classmethod
@@ -90,16 +97,24 @@ class InterGridArgMetadata(FieldArgMetadata):
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`
 
         :returns: a tuple containing the datatype, access, function \
-            space and mesh metadata.
-        :rtype: Tuple[str, str, str, str]
+            space, mesh and stencil metadata.
+        :rtype: Tuple[str, str, str, str, Optional[str]]
 
         '''
-        datatype, access, function_space = super()._get_metadata(fparser2_tree)
-        mesh_arg = cls.get_mesh_arg(fparser2_tree)
-        return (datatype, access, function_space, mesh_arg)
+        datatype, access = cls._get_datatype_access_metadata(fparser2_tree)
+        function_space = cls.get_arg(
+            fparser2_tree, cls.function_space_arg_index)
+        try:
+            stencil = cls.get_stencil(fparser2_tree)
+            mesh_arg = cls.get_mesh_arg(fparser2_tree, 5)
+        except TypeError:
+            stencil = None
+            mesh_arg = cls.get_mesh_arg(fparser2_tree, 4)
+
+        return (datatype, access, function_space, mesh_arg, stencil)
 
     @staticmethod
-    def get_mesh_arg(fparser2_tree):
+    def get_mesh_arg(fparser2_tree, mesh_arg_index):
         '''Retrieves the mesh_arg metadata value from the supplied fparser2
         tree.
 
@@ -107,23 +122,33 @@ class InterGridArgMetadata(FieldArgMetadata):
             an InterGrid argument.
         :type fparser2_tree: \
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`
+        :param int mesh_arg_index: the index at which to find the metadata.
 
         :returns: the metadata mesh value extracted from the fparser2 tree.
         :rtype: str
 
-        raises ValueError: if the lhs of the assignment "mesh_arg = \
-            value" is not "mesh_arg".
+        raises ValueError: if the metadata is not in the form \
+            'mesh_arg = <value>'.
 
         '''
-        mesh_arg_lhs = fparser2_tree.children[1].\
-            children[InterGridArgMetadata.mesh_arg_index].children[0].tostr()
+        try:
+            mesh_arg_lhs = fparser2_tree.children[1].\
+                children[mesh_arg_index].children[0].tostr()
+        except IndexError as info:
+            raise ValueError(
+                f"At argument index {mesh_arg_index} for metadata "
+                f"'{fparser2_tree}' expected the metadata to be in the form "
+                f"'mesh_arg=value' but found "
+                f"'{fparser2_tree.children[1].children[mesh_arg_index]}'.") \
+                from info
+
         if not mesh_arg_lhs.lower() == "mesh_arg":
             raise ValueError(
-                f"At argument index {InterGridArgMetadata.mesh_arg_index} for "
-                f"metadata '{fparser2_tree}' expected the left hand side "
-                f"to be MESH_ARG but found '{mesh_arg_lhs}'.")
+                f"At argument index {mesh_arg_index} for metadata "
+                f"'{fparser2_tree}' expected the left hand side "
+                f"to be 'mesh_arg' but found '{mesh_arg_lhs}'.")
         mesh_arg = fparser2_tree.children[1].\
-            children[InterGridArgMetadata.mesh_arg_index].children[1].tostr()
+            children[mesh_arg_index].children[1].tostr()
         return mesh_arg
 
     def fortran_string(self):
@@ -131,6 +156,10 @@ class InterGridArgMetadata(FieldArgMetadata):
         :returns: the metadata represented by this class as Fortran.
         :rtype: str
         '''
+        if self.stencil:
+            return (f"arg_type({self.form}, {self.datatype}, {self.access}, "
+                    f"{self.function_space}, stencil({self.stencil}), "
+                    f"mesh_arg={self.mesh_arg})")
         return (f"arg_type({self.form}, {self.datatype}, {self.access}, "
                 f"{self.function_space}, mesh_arg={self.mesh_arg})")
 

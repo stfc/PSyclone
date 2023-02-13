@@ -397,7 +397,7 @@ layer with the required LFRic-supported precision. In the current
 implementation there are two supported precisions for ``REAL`` data and
 one each for ``INTEGER`` and ``LOGICAL`` data. The actual precision used in
 the code can be set in a configuration file. For example, ``INTEGER`` data
-could be set to be 32-bit precision. As REAL data has more than one
+could be set to be 32-bit precision. As ``REAL`` data has more than one
 supported precision, different parts of the code can be configured to
 have different precision.
 
@@ -406,38 +406,40 @@ associated kernel metadata description and their precision:
 
 .. tabularcolumns:: |l|l|l|
 
-+--------------------------+------------------------+-----------+
-| Data Type                | Kernel Metadata        | Precision |
-+==========================+========================+===========+
-| REAL(R_DEF)              | GH_SCALAR, GH_REAL     | R_DEF     |
-+--------------------------+------------------------+-----------+
-| REAL(R_SOLVER)           | GH_SCALAR, GH_REAL     | R_SOLVER  |
-+--------------------------+------------------------+-----------+
-| REAL(R_TRAN)             | GH_SCALAR, GH_REAL     | R_TRAN    |
-+--------------------------+------------------------+-----------+
-| INTEGER(I_DEF)           | GH_SCALAR, GH_INTEGER  | I_DEF     |
-+--------------------------+------------------------+-----------+
-| LOGICAL(L_DEF)           | GH_SCALAR, GH_LOGICAL  | L_DEF     |
-+--------------------------+------------------------+-----------+
-| FIELD_TYPE               | GH_FIELD, GH_REAL      | R_DEF     |
-+--------------------------+------------------------+-----------+
-| R_SOLVER_FIELD_TYPE      | GH_FIELD, GH_REAL      | R_SOLVER  |
-+--------------------------+------------------------+-----------+
-| R_TRAN_FIELD_TYPE        | GH_FIELD, GH_REAL      | R_TRAN    |
-+--------------------------+------------------------+-----------+
-| INTEGER_FIELD_TYPE       | GH_FIELD, GH_INTEGER   | I_DEF     |
-+--------------------------+------------------------+-----------+
-| OPERATOR_TYPE            | GH_OPERATOR            | R_DEF     |
-+--------------------------+------------------------+-----------+
-| R_SOLVER_OPERATOR_TYPE   | GH_OPERATOR            | R_SOLVER  |
-+--------------------------+------------------------+-----------+
-| COLUMNWISE_OPERATOR_TYPE | GH_COLUMNWISE_OPERATOR | R_SOLVER  |
-+--------------------------+------------------------+-----------+
++--------------------------+---------------------------------+-----------+
+| Data Type                | Kernel Metadata                 | Precision |
++==========================+=================================+===========+
+| REAL(R_DEF)              | GH_SCALAR, GH_REAL              | R_DEF     |
++--------------------------+---------------------------------+-----------+
+| REAL(R_SOLVER)           | GH_SCALAR, GH_REAL              | R_SOLVER  |
++--------------------------+---------------------------------+-----------+
+| REAL(R_TRAN)             | GH_SCALAR, GH_REAL              | R_TRAN    |
++--------------------------+---------------------------------+-----------+
+| INTEGER(I_DEF)           | GH_SCALAR, GH_INTEGER           | I_DEF     |
++--------------------------+---------------------------------+-----------+
+| LOGICAL(L_DEF)           | GH_SCALAR, GH_LOGICAL           | L_DEF     |
++--------------------------+---------------------------------+-----------+
+| FIELD_TYPE               | GH_FIELD, GH_REAL               | R_DEF     |
++--------------------------+---------------------------------+-----------+
+| R_SOLVER_FIELD_TYPE      | GH_FIELD, GH_REAL               | R_SOLVER  |
++--------------------------+---------------------------------+-----------+
+| R_TRAN_FIELD_TYPE        | GH_FIELD, GH_REAL               | R_TRAN    |
++--------------------------+---------------------------------+-----------+
+| INTEGER_FIELD_TYPE       | GH_FIELD, GH_INTEGER            | I_DEF     |
++--------------------------+---------------------------------+-----------+
+| OPERATOR_TYPE            | GH_OPERATOR, GH_REAL            | R_DEF     |
++--------------------------+---------------------------------+-----------+
+| R_SOLVER_OPERATOR_TYPE   | GH_OPERATOR, GH_REAL            | R_SOLVER  |
++--------------------------+---------------------------------+-----------+
+| R_TRAN_OPERATOR_TYPE     | GH_OPERATOR, GH_REAL            | R_TRAN    |
++--------------------------+---------------------------------+-----------+
+| COLUMNWISE_OPERATOR_TYPE | GH_COLUMNWISE_OPERATOR, GH_REAL | R_SOLVER  |
++--------------------------+---------------------------------+-----------+
 
 As can be seen from the above table, the kernel metadata does not
 capture all of the precision options. For example, from the metadata
 it is not possible to determine whether a ``REAL`` scalar, ``REAL`` field
-or ``REAL`` operator has precision ``R_DEF`` or ``R_SOLVER``.
+or ``REAL`` operator has precision ``R_DEF``, ``R_SOLVER`` or ``R_TRAN``.
 
 If a scalar, field, or operator is specified with a particular
 precision in the algorithm layer then any associated kernels that it
@@ -467,10 +469,10 @@ one configuration and 64-bits in another:
 
     type(field_type)          :: field_r_def
     type(r_solver_field_type) :: field_r_solver
-    real(r_def)               :: x_r_def
-    real(r_solver)            :: x_r_solver
+    real(kind=r_def)          :: x_r_def
+    real(kind=r_solver)       :: x_r_solver
 
-    call invoke( example_type(field_r_def, x_r_def),       &
+    call invoke( example_type(field_r_def, x_r_def), &
                  example_type(field_r_solver, x_r_solver))
 
   end program test
@@ -485,7 +487,7 @@ one configuration and 64-bits in another:
     type, extends(kernel_type) :: example_type
       type(arg_type), dimension(2) :: meta_args = (/       &
            arg_type(gh_field,  gh_real, gh_readwrite, w3), &
-	   arg_type(gh_scalar, gh_real, gh_read )          &
+           arg_type(gh_scalar, gh_real, gh_read )          &
            /)
        integer :: operates_on = cell_column
      contains
@@ -535,12 +537,12 @@ PSyclone must be able to determine the datatype of a field from the
 algorithm layer declarations. If it is not able to do this, PSyclone
 will abort with a message that indicates the problem.
 
-Supported field types are ``field_type`` (which contains ``real`` data
-with precision ``r_def``), ``r_solver_field_type`` (which contains
-``real`` data with precision ``r_solver``), ``r_tran_field_type``
-(which contains ``real`` data with precision ``r_tran``) and
-``integer_field_type`` (which contains ``integer`` data with precision
-``i_def``).
+Supported field types are ``field_type`` (which contains ``real``-valued
+data with precision ``r_def``), ``r_solver_field_type`` (which contains
+``real``-valued data with precision ``r_solver``), ``r_tran_field_type``
+(which contains ``real``-valued data with precision ``r_tran``) and
+``integer_field_type`` (which contains ``integer``-valued data with
+precision ``i_def``).
 
 Field Vectors
 +++++++++++++
@@ -600,13 +602,14 @@ this is used. If the scalar declaration is found and it contains no
 precision information then PSyclone will abort with a message that
 indicates the problem (since this violates LFRic coding standards). If
 no declaration information is found then default precision values are
-used, as specified in the PSyclone config file (``r_def`` for real,
-``i_def`` for integer and ``l_def`` for logical).
+used, as specified in the PSyclone config file (``r_def`` for ``real``,
+``i_def`` for ``integer`` and ``l_def`` for ``logical``).
 
 Supported precisions for scalars are ``r_def``, ``r_solver`` and
-``r_tran`` for real data, ``i_def`` for integer data and ``l_def`` for
-logical data. If an unsupported scalar precision is found then
-PSyclone will abort with a message that indicates the problem.
+``r_tran`` for ``real``-valued data, ``i_def`` for ``integer``-valued
+data and ``l_def`` for ``logical``-valued data. If an unsupported
+scalar precision is found then PSyclone will abort with a message that
+indicates the problem.
 
 LMA Operators
 +++++++++++++
@@ -615,21 +618,23 @@ PSyclone must be able to determine the datatype of an LMA operator.
 If it is not able to do this, PSyclone will abort with a message that
 indicates the problem.
 
-Supported LMA Operator types are ``operator_type`` (which contains real
-data with precision ``r_def``) and ``r_solver_operator_type`` (which
-contains real data with precision ``r_solver``).
+Supported LMA Operator types are ``operator_type`` (which contains
+``real``-valued data with precision ``r_def``), ``r_solver_operator_type``
+(which contains ``real``-valued data with precision ``r_solver``) and
+``r_tran_operator_type`` (which contains ``real``-valued data with
+precision ``r_tran``).
 
 Column-wise Operators
 +++++++++++++++++++++
 
 It is not mandatory for PSyclone to be able to determine the datatype
-of a column-wise operator. The reason for this is that only one
+of a column-wise (CMA) operator. The reason for this is that only one
 datatype is supported, a ``columnwise_operator_type`` which contains
-real data with precision ``r_solver``. PSyclone can therefore simply add
-this datatype in the PSy-layer. However, if the datatype information
-is found in the algorithm layer then and it is not of the expected
-type then PSyclone will abort with a message that indicates the
-problem.
+``real``-valued data with precision ``r_solver``. PSyclone can therefore
+simply add this datatype in the PSy-layer. However, if the datatype
+information is found in the algorithm layer and it is not of the
+expected type then PSyclone will abort with a message that indicates
+the problem.
 
 Consistency
 +++++++++++
@@ -1615,7 +1620,7 @@ following kernel metadata::
     end type testkern_operator_type
 
 The ``arg_type`` component of this metadata describes a kernel that
-takes three arguments (an operator, a field and an integer
+takes three arguments (an operator, a field and an ``integer``
 scalar). Following the ``meta_args`` array we now have a
 ``meta_funcs`` array. This allows the user to specify that the kernel
 requires basis functions (``gh_basis``) and/or the differential of the
@@ -2623,13 +2628,13 @@ For instance, field and scalar declarations for the ``aX_plus_Y``
 Built-in that operates on ``r_solver_field_type`` and uses ``r_solver``
 scalar will be::
 
-  real(r_solver), intent(in) :: ascalar
+  real(kind=r_solver), intent(in) :: ascalar
   type(r_solver_field_type), intent(in) :: zfield, xfield, yfield
 
 Mixing precisions is not explicitly forbidden, so we may have e.g.
 ``X_divideby_a`` Built-in where::
 
-  real(r_def), intent(in) :: ascalar
+  real(kind=r_def), intent(in) :: ascalar
   type(r_tran_field_type), intent(in) :: yfield, xfield
 
 Certain Built-ins are currently restricted in the precision of the
@@ -3224,7 +3229,7 @@ as described in the :ref:`Mixed Precision <lfric-mixed-precision>` section.
 For instance, field and scalar declarations for the ``X_minus_a``
 Built-in will be::
 
-  integer(i_def), intent(in) :: ascalar
+  integer(kind=i_def), intent(in) :: ascalar
   type(integer_field_type), intent(in) :: yfield, xfield
 
 Addition

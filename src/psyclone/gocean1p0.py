@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1083,7 +1083,7 @@ class GOKern(CodedKern):
         :param var_accesses: VariablesAccessInfo instance that stores the\
             information about the field accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # Query each possible stencil direction and add a corresponding
@@ -1105,7 +1105,7 @@ class GOKern(CodedKern):
         :param var_accesses: VariablesAccessInfo instance that stores the\
             information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # Grid properties are accessed using one of the fields. This stores

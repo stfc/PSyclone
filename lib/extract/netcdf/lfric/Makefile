@@ -84,6 +84,9 @@ $(INF_LIB):
 kernel_data_netcdf.o:	extract_netcdf_base.o
 extract_netcdf_base.o:	psy_data_base.o
 
+kernel_data_netcdf.f90: kernel_data_netcdf.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) $< > kernel_data_netcdf.f90
+
 psy_data_base.f90: $(PSYDATA_LIB_DIR)/psy_data_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
 

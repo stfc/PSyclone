@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council
+# Copyright (c) 2019-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,8 +37,9 @@
 variable access information.
 '''
 
-from psyclone.core.access_info import AccessInfo, SingleVariableAccessInfo, \
-    VariablesAccessInfo
+from psyclone.core.single_variable_access_info import (
+    AccessInfo, SingleVariableAccessInfo)
+from psyclone.core.variables_access_info import VariablesAccessInfo
 from psyclone.core.access_type import AccessType
 from psyclone.core.component_indices import ComponentIndices
 from psyclone.core.signature import Signature
