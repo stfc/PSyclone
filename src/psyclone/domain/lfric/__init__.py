@@ -53,6 +53,7 @@ from psyclone.domain.lfric.kern_call_invoke_arg_list import \
 from psyclone.domain.lfric.kernel_interface import KernelInterface
 from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.domain.lfric.kern_stub_arg_list import KernStubArgList
+from psyclone.domain.lfric.kernel_arg_order import KernelArgOrder
 
 __all__ = [
     'ArgOrdering',
@@ -63,4 +64,5 @@ __all__ = [
     'KernStubArgList',
     'LFRicArgDescriptor',
     'LFRicConstants',
-    'LFRicSymbolTable']
+    'LFRicSymbolTable',
+    'KernelArgOrder']
