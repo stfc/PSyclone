@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,8 +44,6 @@ from psyclone.dynamo0p3 import DynLoop
 from psyclone.psyir.nodes import ExtractNode
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations import ExtractTrans, TransformationError
-
-# TODO: #1392 we need to call driver creation here.
 
 
 class LFRicExtractTrans(ExtractTrans):

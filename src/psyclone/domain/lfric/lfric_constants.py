@@ -368,6 +368,13 @@ class LFRicConstants():
                 "proxy_type": "r_solver_operator_proxy_type",
                 "intrinsic": "real",
                 "kind": "r_solver"},
+            # 'real'-valued operator with data of kind 'r_tran'
+            "r_tran_operator": {
+                "module": "r_tran_operator_mod",
+                "type": "r_tran_operator_type",
+                "proxy_type": "r_tran_operator_proxy_type",
+                "intrinsic": "real",
+                "kind": "r_tran"},
             # 'real'-valued columnwise operator with data of kind 'r_solver'
             "columnwise_operator": {
                 "module": "columnwise_operator_mod",
