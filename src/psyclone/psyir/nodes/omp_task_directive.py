@@ -390,65 +390,67 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             # Create a Reference to the real variable
             real_ref = \
                 self._proxy_loop_vars[index_symbol]['parent_node'].copy()
-            # We have a Literal step value, and a Literal in
-            # the Binary Operation. These Literals must both be
-            # Integer types, so we will convert them to integers
-            # and do some divison.
-            step_val = int(parent_loop.step_expr.value)
-            literal_val = int(literal.value)
-            divisor = math.ceil(literal_val / step_val)
-            modulo = literal_val % step_val
-            # If the divisor is > 1, then we need to do
-            # divisor*step_val
-            # We also need to add divisor-1*step_val to cover the case
-            # where e.g. array(i+1) is inside a larger loop, as we
-            # need dependencies to array(i) and array(i+step), unless
-            # modulo == 0
-            step = None
-            step2 = None
-            if divisor > 1:
-                step = BinaryOperation.create(
-                        BinaryOperation.Operator.MUL,
-                        Literal(f"{divisor}", INTEGER_TYPE),
-                        Literal(f"{step_val}", INTEGER_TYPE))
-                if divisor > 2:
-                    step2 = BinaryOperation.create(
+            for temp_ref in self._proxy_loop_vars[index_symbol]['parent_node']:
+                real_ref = temp_ref.copy()
+                # We have a Literal step value, and a Literal in
+                # the Binary Operation. These Literals must both be
+                # Integer types, so we will convert them to integers
+                # and do some divison.
+                step_val = int(parent_loop.step_expr.value)
+                literal_val = int(literal.value)
+                divisor = math.ceil(literal_val / step_val)
+                modulo = literal_val % step_val
+                # If the divisor is > 1, then we need to do
+                # divisor*step_val
+                # We also need to add divisor-1*step_val to cover the case
+                # where e.g. array(i+1) is inside a larger loop, as we
+                # need dependencies to array(i) and array(i+step), unless
+                # modulo == 0
+                step = None
+                step2 = None
+                if divisor > 1:
+                    step = BinaryOperation.create(
                             BinaryOperation.Operator.MUL,
-                            Literal(f"{divisor-1}", INTEGER_TYPE),
+                            Literal(f"{divisor}", INTEGER_TYPE),
                             Literal(f"{step_val}", INTEGER_TYPE))
+                    if divisor > 2:
+                        step2 = BinaryOperation.create(
+                                BinaryOperation.Operator.MUL,
+                                Literal(f"{divisor-1}", INTEGER_TYPE),
+                                Literal(f"{step_val}", INTEGER_TYPE))
+                    else:
+                        step2 = Literal(f"{step_val}", INTEGER_TYPE)
                 else:
-                    step2 = Literal(f"{step_val}", INTEGER_TYPE)
-            else:
-                step = Literal(f"{step_val}", INTEGER_TYPE)
+                    step = Literal(f"{step_val}", INTEGER_TYPE)
 
-            # Create a Binary Operation of the correct format.
-            binop = None
-            binop2 = None
-            if ref_index == 0:
-                # We have Ref OP Literal
-                binop = BinaryOperation.create(
-                        node.operator, real_ref.copy(), step)
-                if modulo != 0:
-                    if step2 is not None:
-                        binop2 = BinaryOperation.create(
-                                 node.operator, real_ref.copy(), step2)
-                    else:
-                        binop2 = real_ref.copy()
-            else:
-                # We have Literal OP Ref
-                binop = BinaryOperation.create(
-                        node.operator, step, real_ref.copy())
-                if modulo != 0:
-                    if step2 is not None:
-                        binop2 = BinaryOperation.create(
-                                 node.operator, step2, real_ref.copy())
-                    else:
-                        binop2 = real_ref.copy()
-            # Add this to the list of indexes
-            if binop2 is not None:
-                index_list.append([binop, binop2])
-            else:
-                index_list.append(binop)
+                # Create a Binary Operation of the correct format.
+                binop = None
+                binop2 = None
+                if ref_index == 0:
+                    # We have Ref OP Literal
+                    binop = BinaryOperation.create(
+                            node.operator, real_ref.copy(), step)
+                    if modulo != 0:
+                        if step2 is not None:
+                            binop2 = BinaryOperation.create(
+                                     node.operator, real_ref.copy(), step2)
+                        else:
+                            binop2 = real_ref.copy()
+                else:
+                    # We have Literal OP Ref
+                    binop = BinaryOperation.create(
+                            node.operator, step, real_ref.copy())
+                    if modulo != 0:
+                        if step2 is not None:
+                            binop2 = BinaryOperation.create(
+                                     node.operator, step2, real_ref.copy())
+                        else:
+                            binop2 = real_ref.copy()
+                # Add this to the list of indexes
+                if binop2 is not None:
+                    index_list.append([binop, binop2])
+                else:
+                    index_list.append(binop)
 
         # Proxy use case handled.
         # If the variable is private:
@@ -669,11 +671,30 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     elif index.symbol in self._proxy_loop_vars:
                         # Special case 2. the index is a proxy for a parent
                         # loop's variable. In this case, we add a reference to
-                        # the parent loop's value.
-                        parent_ref = \
-                            self._proxy_loop_vars[index.symbol]['parent_node']\
-                            .copy()
-                        index_list.append(parent_ref)
+                        # the parent loop's value. We create a list of all
+                        # possible variants, as we might have multiple values
+                        # set for a value, e.g. for a boundary condition if
+                        # statement.
+                        temp_list = []
+                        for temp_ref in self._proxy_loop_vars[index.symbol]\
+                                ['parent_node']:
+                            parent_ref = temp_ref.copy()
+                            if isinstance(parent_ref, BinaryOperation):
+                                quick_list = []
+                                self._handle_index_binop(parent_ref, quick_list,
+                                                         firstprivate_list,
+                                                         private_list)
+                                appended = False
+                                for element in temp_list:
+                                    if isinstance(element, list):
+                                        appended = True
+                                        for el2 in quick_list:
+                                            element.extend(el2)
+                                if not appended:
+                                    temp_list.extend(quick_list)
+                            else:
+                                temp_list.append(parent_ref)
+                        index_list.extend(temp_list)
                     else:
                         # Final case is just a generic Reference, in which case
                         # just copy the Reference
@@ -836,11 +857,30 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     elif index.symbol in self._proxy_loop_vars:
                         # Special case 2. the index is a proxy for a parent
                         # loop's variable. In this case, we add a reference to
-                        # the parent loop's value.
-                        parent_ref = \
-                            self._proxy_loop_vars[index.symbol]['parent_node']\
-                            .copy()
-                        index_list.append(parent_ref)
+                        # the parent loop's value. We create a list of all
+                        # possible variants, as we might have multiple values
+                        # set for a value, e.g. for a boundary condition if
+                        # statement.
+                        temp_list = []
+                        for temp_ref in self._proxy_loop_vars[index.symbol]\
+                                ['parent_node']:
+                            parent_ref = temp_ref.copy()
+                            if isinstance(parent_ref, BinaryOperation):
+                                quick_list = []
+                                self._handle_index_binop(parent_ref, quick_list,
+                                                         firstprivate_list,
+                                                         private_list)
+                                appended = False
+                                for element in temp_list:
+                                    if isinstance(element, list):
+                                        appended = True
+                                        for el2 in quick_list:
+                                            element.extend(el2)
+                                if not appended:
+                                    temp_list.extend(quick_list)
+                            else:
+                                temp_list.append(parent_ref)
+                        index_list.extend(temp_list)
                     else:
                         # Final case is just a generic Reference, in which case
                         # just copy the Reference
@@ -1069,11 +1109,30 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     elif index.symbol in self._proxy_loop_vars:
                         # Special case 2. the index is a proxy for a parent
                         # loop's variable. In this case, we add a reference to
-                        # the parent loop's value.
-                        parent_ref = \
-                            self._proxy_loop_vars[index.symbol]['parent_node']\
-                            .copy()
-                        index_list.append(parent_ref)
+                        # the parent loop's value. We create a list of all
+                        # possible variants, as we might have multiple values
+                        # set for a value, e.g. for a boundary condition if
+                        # statement.
+                        temp_list = []
+                        for temp_ref in self._proxy_loop_vars[index.symbol]\
+                                ['parent_node']:
+                            parent_ref = temp_ref.copy()
+                            if isinstance(parent_ref, BinaryOperation):
+                                quick_list = []
+                                self._handle_index_binop(parent_ref, quick_list,
+                                                         firstprivate_list,
+                                                         private_list)
+                                appended = False
+                                for element in temp_list:
+                                    if isinstance(element, list):
+                                        appended = True
+                                        for el2 in quick_list:
+                                            element.extend(el2)
+                                if not appended:
+                                    temp_list.extend(quick_list)
+                            else:
+                                temp_list.append(parent_ref)
+                        index_list.extend(temp_list)
                     else:
                         # Final case is just a generic Reference, in which case
                         # just copy the Reference
@@ -1208,11 +1267,30 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     elif index.symbol in self._proxy_loop_vars:
                         # Special case 2. the index is a proxy for a parent
                         # loop's variable. In this case, we add a reference to
-                        # the parent loop's value.
-                        parent_ref = \
-                            self._proxy_loop_vars[index.symbol]['parent_node']\
-                            .copy()
-                        index_list.append(parent_ref)
+                        # the parent loop's value. We create a list of all
+                        # possible variants, as we might have multiple values
+                        # set for a value, e.g. for a boundary condition if
+                        # statement.
+                        temp_list = []
+                        for temp_ref in self._proxy_loop_vars[index.symbol]\
+                                ['parent_node']:
+                            parent_ref = temp_ref.copy()
+                            if isinstance(parent_ref, BinaryOperation):
+                                quick_list = []
+                                self._handle_index_binop(parent_ref, quick_list,
+                                                         firstprivate_list,
+                                                         private_list)
+                                appended = False
+                                for element in temp_list:
+                                    if isinstance(element, list):
+                                        appended = True
+                                        for el2 in quick_list:
+                                            element.extend(el2)
+                                if not appended:
+                                    temp_list.extend(quick_list)
+                            else:
+                                temp_list.append(parent_ref)
+                        index_list.extend(temp_list)
                     else:
                         # Final case is just a generic Reference, in which case
                         # just copy the Reference
@@ -1380,13 +1458,20 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         for ref in references:
             for index, parent_var in enumerate(self._parent_loop_vars):
                 if ref.symbol == parent_var:
-                    subdict = {}
-                    subdict['parent_var'] = parent_var
-                    subdict['parent_node'] = rhs.copy()
-                    subdict['loop'] = node
-                    subdict['parent_loop'] = self._parent_loops[index]
+                    if lhs.symbol in self._proxy_loop_vars:
+                        if (rhs not in 
+                                self._proxy_loop_vars[lhs.symbol]\
+                                        ['parent_node']):
+                            self._proxy_loop_vars[lhs.symbol]['parent_node'].\
+                                append(rhs.copy())
+                    else:
+                        subdict = {}
+                        subdict['parent_var'] = parent_var
+                        subdict['parent_node'] = [rhs.copy()]
+                        subdict['loop'] = node
+                        subdict['parent_loop'] = self._parent_loops[index]
 
-                    self._proxy_loop_vars[lhs.symbol] = subdict
+                        self._proxy_loop_vars[lhs.symbol] = subdict
                     added = True
             if added:
                 break
@@ -1454,7 +1539,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     # Store the loop and parent_var
                     subdict = {}
                     subdict['parent_var'] = parent_var
-                    subdict['parent_node'] = Reference(parent_var)
+                    subdict['parent_node'] = [Reference(parent_var)]
                     subdict['loop'] = node
                     subdict['parent_loop'] = self._parent_loops[index]
 

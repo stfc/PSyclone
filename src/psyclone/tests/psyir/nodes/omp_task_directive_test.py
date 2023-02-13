@@ -2916,10 +2916,10 @@ def test_omp_task_directive_39(fortran_reader, fortran_writer):
   integer :: j
   integer :: k
 
-  !$omp parallel default(shared), private(i,j)
+  !$omp parallel default(shared), private(i,iplusone,j)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j), firstprivate(i), shared(a,b), \
+    !$omp task private(j,iplusone), firstprivate(i), shared(a,b), \
 depend(in: k,b(i + 32,:),b(i,:)), depend(out: a(i,:))
     do j = 1, 32, 1
       iplusone = i + 1
@@ -2932,5 +2932,147 @@ depend(in: k,b(i + 32,:),b(i,:)), depend(out: a(i,:))
   !$omp end parallel
 
 end subroutine my_subroutine\n'''
-    print(fortran_writer(tree))
     assert fortran_writer(tree) == correct
+
+
+def test_omp_task_directive_40(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly generates the correct depend clause
+    when an input array is shifted by less than a full step of the outer loop,
+    but this is done using an extra variable for indirection. In this case
+    we have indirection from an if statement for +1 or -1
+    
+'''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(320, 10) :: A
+        integer, dimension(321, 10) :: B
+        integer, dimension(320, 10) :: boundary
+        integer :: i
+        integer :: iplusone
+        integer :: j
+        integer :: k
+        do i = 1, 320, 32
+            do j = 1, 32
+                if(boundary(i,j) > 1) then
+                    iplusone = i + 1
+                else
+                    iplusone = i - 1
+                endif
+                A(iplusone, j) = B(i, j) + k
+            end do
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = DynamicOMPTaskDirective()
+    loops = tree.walk(Loop, stop_type=Loop)
+    loop = loops[0].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(loops[0].parent.parent)
+    correct = '''subroutine my_subroutine()
+  integer, dimension(320,10) :: a
+  integer, dimension(321,10) :: b
+  integer, dimension(320,10) :: boundary
+  integer :: i
+  integer :: iplusone
+  integer :: j
+  integer :: k
+
+  !$omp parallel default(shared), private(i,iplusone,j)
+  !$omp single
+  do i = 1, 320, 32
+    !$omp task private(j,iplusone), firstprivate(i), shared(boundary,a,b), \
+depend(in: boundary(i,:),b(i,:),k), depend(out: a(i + 32,:),a(i,:),a(i - 32,:))
+    do j = 1, 32, 1
+      if (boundary(i,j) > 1) then
+        iplusone = i + 1
+      else
+        iplusone = i - 1
+      end if
+      a(iplusone,j) = b(i,j) + k
+    enddo
+    !$omp end task
+  enddo
+  !$omp end single
+  !$omp end parallel
+
+end subroutine my_subroutine\n'''
+    assert fortran_writer(tree) == correct
+
+
+def test_omp_task_directive_41(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly generates the correct depend clause
+    when an input array is shifted by less than a full step of the outer loop,
+    but this is done using an extra variable for indirection. In this case
+    we have indirection from an if statement for +1 or -1
+    
+'''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(320, 10) :: A
+        integer, dimension(321, 10) :: B
+        integer, dimension(320, 10) :: boundary
+        integer :: i
+        integer :: iplusone
+        integer :: j
+        integer :: k
+        do i = 1, 320, 32
+            do j = 1, 32
+                if(boundary(i,j) > 1) then
+                    iplusone = i + 1
+                else
+                    iplusone = i - 1
+                endif
+                A(i, j) = k
+                A(i, j) = B(iplusone, j) + k
+            end do
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = DynamicOMPTaskDirective()
+    loops = tree.walk(Loop, stop_type=Loop)
+    loop = loops[0].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(loops[0].parent.parent)
+    correct = '''subroutine my_subroutine()
+  integer, dimension(320,10) :: a
+  integer, dimension(321,10) :: b
+  integer, dimension(320,10) :: boundary
+  integer :: i
+  integer :: iplusone
+  integer :: j
+  integer :: k
+
+  !$omp parallel default(shared), private(i,iplusone,j)
+  !$omp single
+  do i = 1, 320, 32
+    !$omp task private(j,iplusone), firstprivate(i), shared(boundary,a,b), \
+depend(in: boundary(i,:),k,b(i + 32,:),b(i,:),b(i - 32,:)), depend(out: a(i,:))
+    do j = 1, 32, 1
+      if (boundary(i,j) > 1) then
+        iplusone = i + 1
+      else
+        iplusone = i - 1
+      end if
+      a(i,j) = k
+      a(i,j) = b(iplusone,j) + k
+    enddo
+    !$omp end task
+  enddo
+  !$omp end single
+  !$omp end parallel
+
+end subroutine my_subroutine\n'''
