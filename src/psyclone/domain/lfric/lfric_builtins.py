@@ -1572,23 +1572,25 @@ class LFRicXInnerproductYKern(LFRicBuiltIn):
     def __str__(self):
         return "Built-in: X_innerproduct_Y (real-valued fields)"
 
-    def gen_code(self, parent):
+    def lower_to_language_level(self):
         '''
-        Generates LFRic API specific PSy code for a call to the
-        X_innerproduct_Y Built-in.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
         '''
-        # We sum the DoF-wise product of the supplied real-valued fields.
-        # The real scalar variable holding the sum is initialised to zero
-        # in the PSy layer.
-        innprod_name = self._reduction_ref(self._arguments.args[0].name)
-        field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
-        field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
-        rhs_expr = innprod_name + " + " + field_name1 + "*" + field_name2
-        parent.add(AssignGen(parent, lhs=innprod_name, rhs=rhs_expr))
+        # Get indexed references for the field (proxy) argument.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar reduction argument.
+        scalar_args = self.get_scalar_argument_references()
+        # Create the PSyIR for the kernel:
+        #      asum = asum + proxy0%data(df) * proxy1%data(df)
+        lhs = scalar_args[0]
+        mult_op = BinaryOperation.create(BinaryOperation.Operator.MUL,
+                                         arg_refs[0], arg_refs[1])
+        rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                     lhs.copy(), mult_op)
+        assign = Assignment.create(lhs, rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
 
 
 class LFRicXInnerproductXKern(LFRicBuiltIn):
@@ -1599,22 +1601,25 @@ class LFRicXInnerproductXKern(LFRicBuiltIn):
     def __str__(self):
         return "Built-in: X_innerproduct_X (real-valued fields)"
 
-    def gen_code(self, parent):
+    def lower_to_language_level(self):
         '''
-        Generates LFRic API specific PSy code for a call to the
-        X_innerproduct_X Built-in.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
         '''
-        # We sum the DoF-wise product of the supplied real-valued fields.
-        # The real scalar variable holding the sum is initialised to zero
-        # in the PSy layer.
-        innprod_name = self._reduction_ref(self._arguments.args[0].name)
-        field_name = self.array_ref(self._arguments.args[1].proxy_name)
-        rhs_expr = innprod_name + " + " + field_name + "*" + field_name
-        parent.add(AssignGen(parent, lhs=innprod_name, rhs=rhs_expr))
+        # Get indexed references for the field (proxy) argument.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar reduction argument.
+        scalar_args = self.get_scalar_argument_references()
+        # Create the PSyIR for the kernel:
+        #      asum = asum + proxy0%data(df) * proxy0%data(df)
+        lhs = scalar_args[0]
+        mult_op = BinaryOperation.create(BinaryOperation.Operator.MUL,
+                                         arg_refs[0].copy(), arg_refs[0])
+        rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                     lhs.copy(), mult_op)
+        assign = Assignment.create(lhs, rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
 
 
 # ------------------------------------------------------------------- #
