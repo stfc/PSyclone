@@ -45,7 +45,7 @@ from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Loop, CodeBlock
 from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import OMPParallelTrans, \
-    OMPMasterTrans
+    OMPSingleTrans
 from psyclone.psyir.transformations import OMPTaskTrans
 
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -100,7 +100,7 @@ def test_omptask_apply():
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
                            api="gocean1.0")
     taskt = OMPTaskTrans()
-    master = OMPMasterTrans()
+    master = OMPSingleTrans()
     parallel = OMPParallelTrans()
     psy = PSyFactory("gocean1.0", distributed_memory=False).\
         create(invoke_info)
@@ -113,7 +113,7 @@ def test_omptask_apply():
     code = str(psy.gen)
     assert (
         "    !$omp parallel default(shared), private(i,j)\n" +
-        "      !$omp master\n" +
+        "      !$omp single\n" +
         "      !$omp task private(j,i), shared(cu_fld,p_fld,u_fld), depend(" +
         "in: cu_fld,p_fld%data(:,:),u_fld%data(:,:)), depend(" +
         "out: cu_fld%data(:,:))" +
@@ -121,5 +121,5 @@ def test_omptask_apply():
     assert (
         "      END DO\n" +
         "      !$omp end task\n" +
-        "      !$omp end master\n" +
+        "      !$omp end single\n" +
         "      !$omp end parallel" in code)

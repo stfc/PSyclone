@@ -1008,7 +1008,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 new_index_list.append(element)
             else:
                 new_index_list.append([element])
-        print(new_index_list)
         combinations = itertools.product(*new_index_list)
         for temp_list in combinations:
             # We need to make copies of the members as each
