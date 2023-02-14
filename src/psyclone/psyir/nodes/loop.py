@@ -46,7 +46,7 @@ from psyclone.psyir.nodes import Schedule, Literal
 from psyclone.psyir.symbols import ScalarType, DataSymbol
 from psyclone.core import AccessType, Signature
 from psyclone.errors import InternalError, GenerationError
-from psyclone.f2pygen import DoGen, DeclGen
+from psyclone.f2pygen import DoGen, DeclGen, PSyIRGen
 
 
 class Loop(Statement):
@@ -470,7 +470,10 @@ class Loop(Statement):
         # info outside of do loop
         parent.add(do_stmt)
         for child in self.loop_body:
-            child.gen_code(do_stmt)
+            do_stmt.add(PSyIRGen(do_stmt, child))
+
+        kind=self.variable.datatype.precision.name
         my_decl = DeclGen(parent, datatype="integer",
+                          kind=kind,
                           entity_decls=[self.variable.name])
         parent.add(my_decl)

@@ -552,7 +552,14 @@ class PSyIRGen(BaseGen):
         # supplied PSyIR tree and pass the resulting code to the fparser1
         # Fortran parser.
         fortran_writer = FortranWriter()
-        reader = FortranStringReader(fortran_writer(content),
+        content_parent = content.parent
+        position = content.position
+        content.lower_to_language_level()
+        if content_parent:
+            lowered_node = content_parent[position]
+        else:
+            lowered_node = content
+        reader = FortranStringReader(fortran_writer(lowered_node),
                                      ignore_comments=False)
         # Set reader as free form, strict
         reader.set_format(FortranFormat(True, True))

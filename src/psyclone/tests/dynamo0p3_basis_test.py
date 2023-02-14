@@ -287,7 +287,6 @@ def test_single_kern_eval(tmpdir):
         "      ! Call our kernels\n"
         "      !\n"
         "      DO cell=loop0_start,loop0_stop\n"
-        "        !\n"
         "        CALL testkern_eval_code(nlayers, f0_data, "
         "cmap_data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
