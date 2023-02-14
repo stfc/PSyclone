@@ -989,13 +989,14 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         # lists-which-reference-each-other-in-the-exact-same-way
         if len(dependent_nodes) > 0:
             sorted_highest_positions, sorted_lowest_positions, \
-                    sorted_dependency_pairs = (list(t) for t in zip(*sorted(zip(
-                        highest_position_nodes, lowest_position_nodes,
-                        dependent_nodes))))
+                    sorted_dependency_pairs = (list(t) for t in
+                                               zip(*sorted(zip(
+                                                   highest_position_nodes,
+                                                   lowest_position_nodes,
+                                                   dependent_nodes))))
         else:
             # We have no invalid dependencies so we can return early
             return
-
 
         taskwait_location_nodes = []
         taskwait_location_abs_pos = []
@@ -1014,7 +1015,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     # potentially already satisfied. To check we need to
                     # ensure that the ancestor schedules of the nodes
                     # are identical
-                    if (pairs[0].ancestor(Schedule) is 
+                    if (pairs[0].ancestor(Schedule) is
                             taskwait_loc.ancestor(Schedule)):
                         satisfied = True
                         break
@@ -1034,7 +1035,6 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             # a new node, we need to lower it again.
             node_parent.lower_to_language_level()
 
-
     def lower_to_language_level(self):
         '''
         Checks that any task dependencies inside this node are valid.
@@ -1044,8 +1044,6 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
 
         # Check task dependencies are satisfiable.
         self._check_task_dependencies()
-
-        # FIXME Is it ok if this is a master or nowait and we have tasks?
 
     def validate_global_constraints(self):
         '''

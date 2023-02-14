@@ -1273,12 +1273,10 @@ def test_omp_serial_compare_literals():
     sing = OMPSingleDirective()
     lit1 = Literal("0", INTEGER_SINGLE_TYPE)
     lit2 = Literal("1", INTEGER_SINGLE_TYPE)
-    assert sing._compare_literals(lit1, lit2) == True
+    assert sing._compare_literals(lit1, lit2) is True
     tmp = DataSymbol("tmp", REAL_SINGLE_TYPE)
     ref = Reference(tmp)
-    assert sing._compare_literals(lit1, ref) == False
-
-
+    assert sing._compare_literals(lit1, ref) is False
 
 
 def test_omp_serial_compare_ranges():
@@ -1312,11 +1310,11 @@ def test_omp_serial_compare_ranges():
     ref = Reference(tmp2)
 
     # Valid run
-    assert sing._compare_ranges(range1, range2) == True
+    assert sing._compare_ranges(range1, range2) is True
 
-    assert sing._compare_ranges(range1, ref) == False
+    assert sing._compare_ranges(range1, ref) is False
 
-    assert sing._compare_ranges(range1, range3) == False
+    assert sing._compare_ranges(range1, range3) is False
 
 
 def test_omp_serial_compute_accesses_bad_binop():
@@ -1604,7 +1602,7 @@ def test_omp_serial_compute_accesses_other_fails():
     )
 
 
-def test_omp_serial_compute_accesses_results(fortran_writer):
+def test_omp_serial_compute_accesses_results():
     '''
     Tests the _compute_accesses fucntion in OMPSerialDirective
     '''
@@ -1934,7 +1932,7 @@ def test_omp_serial_compare_ref_binop_fails():
         Literal("32", INTEGER_SINGLE_TYPE),
         [task2],
     )
-    assert sing._compare_ref_binop(binop_fail1, None, task2, task) == False
+    assert sing._compare_ref_binop(binop_fail1, None, task2, task) is False
 
     # Test the first failure. One has accesses to references
     # and the other doesn't.
@@ -1967,9 +1965,9 @@ def test_omp_serial_compare_ref_binop_fails():
         [task],
     )
 
-    assert sing._compare_ref_binop(ref, binop, task, task2) == False
+    assert sing._compare_ref_binop(ref, binop, task, task2) is False
 
-    assert sing._compare_ref_binop(binop, ref, task2, task) == False
+    assert sing._compare_ref_binop(binop, ref, task2, task) is False
 
     ref2 = Reference(tmp2)
     task3 = OMPTaskDirective()
@@ -1990,7 +1988,7 @@ def test_omp_serial_compare_ref_binop_fails():
         Literal("32", INTEGER_SINGLE_TYPE),
         [task],
     )
-    assert sing._compare_ref_binop(ref, ref2, task, task3) == False
+    assert sing._compare_ref_binop(ref, ref2, task, task3) is False
 
     task2 = OMPTaskDirective()
     task = OMPTaskDirective()
@@ -2014,7 +2012,7 @@ def test_omp_serial_compare_ref_binop_fails():
         [task2],
     )
 
-    assert sing._compare_ref_binop(ref, binop, task, task2) == False
+    assert sing._compare_ref_binop(ref, binop, task, task2) is False
 
     task = OMPTaskDirective()
     task2 = OMPTaskDirective()
@@ -2033,7 +2031,7 @@ def test_omp_serial_compare_ref_binop_fails():
         [task2],
     )
 
-    assert sing._compare_ref_binop(ref, binop, task, task2) == False
+    assert sing._compare_ref_binop(ref, binop, task, task2) is False
 
 
 def test_omp_serial_compare_ref_binops():
@@ -3796,8 +3794,10 @@ def test_omp_serial_check_task_dependencies_outin():
     sing._check_task_dependencies()
 
 
-def test_omp_serial_check_task_dependencies_add_taskwait(fortran_reader, fortran_writer):
-    
+def test_omp_serial_check_task_dependencies_add_taskwait(fortran_reader):
+    '''
+    Test the task dependency chcker adds taskwaits in expected locations.
+    '''
     code = '''subroutine my_subroutine(grid_max, grid_min)
         integer, dimension(100, 100) :: A, B, C, D
         integer :: i, j
@@ -3846,7 +3846,6 @@ def test_omp_serial_check_task_dependencies_add_taskwait(fortran_reader, fortran
     taskwaits = tree.walk(OMPTaskwaitDirective)
     assert len(taskwaits) == 1
     assert taskwaits[0].position == 2
-
 
     code = '''subroutine my_subroutine(grid_max, grid_min, runtime_parameter)
         integer, dimension(100, 100) :: A, B, C, D
@@ -3900,7 +3899,6 @@ def test_omp_serial_check_task_dependencies_add_taskwait(fortran_reader, fortran
     taskwaits = tree.walk(OMPTaskwaitDirective)
     assert len(taskwaits) == 1
     assert taskwaits[0].position == 2
-
 
     code = '''subroutine my_subroutine(grid_max, grid_min, runtime_parameter)
         integer, dimension(100, 100) :: A, B, C, D

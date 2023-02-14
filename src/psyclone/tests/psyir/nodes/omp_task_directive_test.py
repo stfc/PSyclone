@@ -42,7 +42,8 @@ import os
 import pytest
 from psyclone.psyir.nodes import Schedule, \
     Loop, OMPTaskDirective, OMPPrivateClause, OMPFirstprivateClause, \
-    OMPSharedClause, OMPDependClause, DynamicOMPTaskDirective
+    OMPSharedClause, OMPDependClause, DynamicOMPTaskDirective, \
+    OMPSingleDirective
 from psyclone.errors import GenerationError
 from psyclone.transformations import OMPSingleTrans, \
     OMPLoopTrans, OMPParallelTrans
@@ -60,8 +61,16 @@ def test_omp_task_directive_validate_global_constraints():
     node = OMPTaskDirective()
     with pytest.raises(GenerationError) as excinfo:
         node.validate_global_constraints()
-    assert ("OMPTaskDirective must be inside an OMP Serial region but could"
+    assert ("OMPTaskDirective must be inside an OMP Single region but could"
             " not find an ancestor node.") in str(excinfo.value)
+    parent = OMPSingleDirective(nowait=True)
+    parent.children[0].addchild(node)
+    with pytest.raises(GenerationError) as excinfo:
+        node.validate_global_constraints()
+    assert ("OMPTaskDirective found inside an OMP Single region with nowait "
+            "attached. This means we can't guarantee correctness with other "
+            "potential Single regions so is forbidden with PSyclone."
+            in str(excinfo.value))
 
 
 def test_omp_task_validate_child():
@@ -2940,8 +2949,7 @@ def test_omp_task_directive_40(fortran_reader, fortran_writer):
     when an input array is shifted by less than a full step of the outer loop,
     but this is done using an extra variable for indirection. In this case
     we have indirection from an if statement for +1 or -1
-    
-'''
+    '''
     code = '''
     subroutine my_subroutine()
         integer, dimension(320, 10) :: A
@@ -3011,8 +3019,7 @@ def test_omp_task_directive_41(fortran_reader, fortran_writer):
     when an input array is shifted by less than a full step of the outer loop,
     but this is done using an extra variable for indirection. In this case
     we have indirection from an if statement for +1 or -1
-    
-'''
+    '''
     code = '''
     subroutine my_subroutine()
         integer, dimension(320, 10) :: A
