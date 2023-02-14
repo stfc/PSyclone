@@ -3076,3 +3076,150 @@ depend(in: boundary(i,:),k,b(i + 32,:),b(i,:),b(i - 32,:)), depend(out: a(i,:))
   !$omp end parallel
 
 end subroutine my_subroutine\n'''
+    assert fortran_writer(tree) == correct
+
+
+def test_omp_task_directive_42(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly makes the depend clause when
+    accessing an array access child of a type through an indirection'''
+    code = '''
+    subroutine my_subroutine()
+        type :: x
+          integer, dimension(320, 10) :: A
+        end type
+        type(x) :: AA
+        integer, dimension(320, 10) :: B
+        integer, dimension(320, 10) :: boundary
+        integer :: iplusone
+        integer :: i
+        integer :: j
+        do i = 1, 320, 32
+            do j = 1, 10
+                if(boundary(i,j) > 1) then
+                    iplusone = i+32
+                else
+                    iplusone = i-1
+                end if
+                B(i, j) = AA%A(iplusone,j) + 1
+            end do
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = DynamicOMPTaskDirective()
+    loops = tree.walk(Loop, stop_type=Loop)
+    loop = loops[0].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(loops[0].parent.parent)
+    correct = '''subroutine my_subroutine()
+  type :: x
+    integer, dimension(320,10) :: a
+  end type x
+  type(x) :: aa
+  integer, dimension(320,10) :: b
+  integer, dimension(320,10) :: boundary
+  integer :: iplusone
+  integer :: i
+  integer :: j
+
+  !$omp parallel default(shared), private(i,iplusone,j)
+  !$omp single
+  do i = 1, 320, 32
+    !$omp task private(j,iplusone), firstprivate(i), shared(boundary,b,aa), \
+depend(in: boundary(i,:),aa%A(i + 32,:),aa%A(i - 32,:),aa%A(i,:)), \
+depend(out: b(i,:))
+    do j = 1, 10, 1
+      if (boundary(i,j) > 1) then
+        iplusone = i + 32
+      else
+        iplusone = i - 1
+      end if
+      b(i,j) = aa%A(iplusone,j) + 1
+    enddo
+    !$omp end task
+  enddo
+  !$omp end single
+  !$omp end parallel
+
+end subroutine my_subroutine
+'''
+    assert correct == fortran_writer(tree)
+
+
+def test_omp_task_directive_43(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly makes the depend clause when
+    accessing an array access child of a type through an indirection'''
+    code = '''
+    subroutine my_subroutine()
+        type :: x
+          integer, dimension(320, 10) :: A
+        end type
+        type(x) :: AA
+        integer, dimension(320, 10) :: B
+        integer, dimension(320, 10) :: boundary
+        integer :: iplusone
+        integer :: i
+        integer :: j
+        do i = 1, 320, 32
+            do j = 1, 10
+                if(boundary(i,j) > 1) then
+                    iplusone = i+32
+                else
+                    iplusone = i-1
+                end if
+                AA%A(iplusone, j) = B(i, j) + 1
+            end do
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = DynamicOMPTaskDirective()
+    loops = tree.walk(Loop, stop_type=Loop)
+    loop = loops[0].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(loops[0].parent.parent)
+    correct = '''subroutine my_subroutine()
+  type :: x
+    integer, dimension(320,10) :: a
+  end type x
+  type(x) :: aa
+  integer, dimension(320,10) :: b
+  integer, dimension(320,10) :: boundary
+  integer :: iplusone
+  integer :: i
+  integer :: j
+
+  !$omp parallel default(shared), private(i,iplusone,j)
+  !$omp single
+  do i = 1, 320, 32
+    !$omp task private(j,iplusone), firstprivate(i), shared(boundary,aa,b), \
+depend(in: boundary(i,:),b(i,:)), \
+depend(out: aa%A(i + 32,:),aa%A(i - 32,:),aa%A(i,:))
+    do j = 1, 10, 1
+      if (boundary(i,j) > 1) then
+        iplusone = i + 32
+      else
+        iplusone = i - 1
+      end if
+      aa%A(iplusone,j) = b(i,j) + 1
+    enddo
+    !$omp end task
+  enddo
+  !$omp end single
+  !$omp end parallel
+
+end subroutine my_subroutine
+'''
+    assert correct == fortran_writer(tree)

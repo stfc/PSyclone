@@ -675,7 +675,8 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         # possible variants, as we might have multiple values
                         # set for a value, e.g. for a boundary condition if
                         # statement.
-                        temp_list = []
+                        if len(index_list) <= dim:
+                            index_list.append([])
                         for temp_ref in self._proxy_loop_vars[index.symbol]\
                                 ['parent_node']:
                             parent_ref = temp_ref.copy()
@@ -684,17 +685,13 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                                 self._handle_index_binop(parent_ref, quick_list,
                                                          firstprivate_list,
                                                          private_list)
-                                appended = False
-                                for element in temp_list:
+                                for element in quick_list:
                                     if isinstance(element, list):
-                                        appended = True
-                                        for el2 in quick_list:
-                                            element.extend(el2)
-                                if not appended:
-                                    temp_list.extend(quick_list)
+                                        index_list[dim].extend(element)
+                                    else:
+                                        index_list[dim].append(element)
                             else:
-                                temp_list.append(parent_ref)
-                        index_list.extend(temp_list)
+                                index_list[dim].append(parent_ref)
                     else:
                         # Final case is just a generic Reference, in which case
                         # just copy the Reference
@@ -861,7 +858,8 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         # possible variants, as we might have multiple values
                         # set for a value, e.g. for a boundary condition if
                         # statement.
-                        temp_list = []
+                        if len(index_list) <= dim:
+                            index_list.append([])
                         for temp_ref in self._proxy_loop_vars[index.symbol]\
                                 ['parent_node']:
                             parent_ref = temp_ref.copy()
@@ -870,17 +868,13 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                                 self._handle_index_binop(parent_ref, quick_list,
                                                          firstprivate_list,
                                                          private_list)
-                                appended = False
-                                for element in temp_list:
+                                for element in quick_list:
                                     if isinstance(element, list):
-                                        appended = True
-                                        for el2 in quick_list:
-                                            element.extend(el2)
-                                if not appended:
-                                    temp_list.extend(quick_list)
+                                        index_list[dim].extend(element)
+                                    else:
+                                        index_list[dim].append(element)
                             else:
-                                temp_list.append(parent_ref)
-                        index_list.extend(temp_list)
+                                index_list[dim].append(parent_ref)
                     else:
                         # Final case is just a generic Reference, in which case
                         # just copy the Reference
@@ -920,8 +914,8 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 new_index_list.append(element)
             else:
                 new_index_list.append([element])
+        print(new_index_list)
         combinations = itertools.product(*new_index_list)
-
         for temp_list in combinations:
             # We need to make copies of the members as each
             # member can only be the child of one ArrayRef
@@ -1113,7 +1107,8 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         # possible variants, as we might have multiple values
                         # set for a value, e.g. for a boundary condition if
                         # statement.
-                        temp_list = []
+                        if len(index_list) <= dim:
+                            index_list.append([])
                         for temp_ref in self._proxy_loop_vars[index.symbol]\
                                 ['parent_node']:
                             parent_ref = temp_ref.copy()
@@ -1122,17 +1117,13 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                                 self._handle_index_binop(parent_ref, quick_list,
                                                          firstprivate_list,
                                                          private_list)
-                                appended = False
-                                for element in temp_list:
+                                for element in quick_list:
                                     if isinstance(element, list):
-                                        appended = True
-                                        for el2 in quick_list:
-                                            element.extend(el2)
-                                if not appended:
-                                    temp_list.extend(quick_list)
+                                        index_list[dim].extend(element)
+                                    else:
+                                        index_list[dim].append(element)
                             else:
-                                temp_list.append(parent_ref)
-                        index_list.extend(temp_list)
+                                index_list[dim].append(parent_ref)
                     else:
                         # Final case is just a generic Reference, in which case
                         # just copy the Reference
@@ -1271,7 +1262,8 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         # possible variants, as we might have multiple values
                         # set for a value, e.g. for a boundary condition if
                         # statement.
-                        temp_list = []
+                        if len(index_list) <= dim:
+                            index_list.append([])
                         for temp_ref in self._proxy_loop_vars[index.symbol]\
                                 ['parent_node']:
                             parent_ref = temp_ref.copy()
@@ -1280,17 +1272,13 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                                 self._handle_index_binop(parent_ref, quick_list,
                                                          firstprivate_list,
                                                          private_list)
-                                appended = False
-                                for element in temp_list:
+                                for element in quick_list:
                                     if isinstance(element, list):
-                                        appended = True
-                                        for el2 in quick_list:
-                                            element.extend(el2)
-                                if not appended:
-                                    temp_list.extend(quick_list)
+                                        index_list[dim].extend(element)
+                                    else:
+                                        index_list[dim].append(element)
                             else:
-                                temp_list.append(parent_ref)
-                        index_list.extend(temp_list)
+                                index_list[dim].append(parent_ref)
                     else:
                         # Final case is just a generic Reference, in which case
                         # just copy the Reference
