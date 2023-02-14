@@ -191,7 +191,7 @@ class InlineTrans(Transformation):
         # actual arguments.
         formal_args = routine_table.argument_list
         for ref in refs[:]:
-            self._replace_dummy_arg(ref, node, formal_args)
+            self._replace_formal_arg(ref, node, formal_args)
 
         # Copy the nodes from the Routine into the call site.
         if isinstance(new_stmts[-1], Return):
@@ -222,20 +222,20 @@ class InlineTrans(Transformation):
                 idx += 1
                 parent.addchild(child, idx)
 
-    def _replace_dummy_arg(self, ref, call_node, dummy_args):
+    def _replace_formal_arg(self, ref, call_node, formal_args):
         '''
-        Recursively combines any References to dummy arguments in the supplied
-        PSyIR expression with the corresponding Reference from the call site to
-        make a new Reference for use in the inlined code. If the supplied
-        node is not a Reference to a dummy argument then it is just returned
-        (after we have recursed to any children).
+        Recursively combines any References to formal arguments in the supplied
+        PSyIR expression with the corresponding Reference (actual argument)
+        from the call site to make a new Reference for use in the inlined code.
+        If the supplied node is not a Reference to a formal argument then it is
+        just returned (after we have recursed to any children).
 
         :param ref: the expression to update.
         :type ref: :py:class:`psyclone.psyir.nodes.Node`
         :param call_node: the call site.
         :type call_node: :py:class:`psyclone.psyir.nodes.Call`
-        :param dummy_args: the dummy arguments of the called routine.
-        :type dummy_args: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
+        :param formal_args: the formal arguments of the called routine.
+        :type formal_args: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
 
         :returns: the replacement reference.
         :rtype: :py:class:`psyclone.psyir.nodes.Reference`
@@ -244,15 +244,15 @@ class InlineTrans(Transformation):
         if not isinstance(ref, Reference):
             # Recurse down in case this is e.g. an Operation or Range.
             for child in ref.children[:]:
-                self._replace_dummy_arg(child, call_node, dummy_args)
+                self._replace_formal_arg(child, call_node, formal_args)
             return ref
 
-        if ref.symbol not in dummy_args:
-            # The supplied reference is not to a dummy argument.
+        if ref.symbol not in formal_args:
+            # The supplied reference is not to a formal argument.
             return ref
 
-        # Lookup the actual argument that corresponds to this dummy argument.
-        actual_arg = call_node.children[dummy_args.index(ref.symbol)]
+        # Lookup the actual argument that corresponds to this formal argument.
+        actual_arg = call_node.children[formal_args.index(ref.symbol)]
 
         # If the local reference is a simple Reference then we can just
         # replace it with a copy of the actual argument, e.g.
@@ -288,8 +288,8 @@ class InlineTrans(Transformation):
 
         # Neither the actual or local references are simple, i.e. they
         # include array accesses and/or structure accesses.
-        new_ref = self._replace_dummy_struc_arg(actual_arg, ref, call_node,
-                                                dummy_args)
+        new_ref = self._replace_formal_struc_arg(actual_arg, ref, call_node,
+                                                 formal_args)
         # If the local reference we are replacing has a parent then we must
         # ensure the parent's child list is updated. (It may not have a parent
         # if we are in the process of constructing a brand new reference.)
@@ -297,11 +297,11 @@ class InlineTrans(Transformation):
             ref.replace_with(new_ref)
         return new_ref
 
-    def _create_inlined_idx(self, call_node, dummy_args,
+    def _create_inlined_idx(self, call_node, formal_args,
                             local_idx, decln_start, actual_start):
         '''
         Utility that creates the PSyIR for an inlined array-index access
-        expression. This is not trivial since a dummy argument may be
+        expression. This is not trivial since a formal argument may be
         declared with bounds that are shifted relative to those of an
         actual argument.
 
@@ -318,8 +318,8 @@ class InlineTrans(Transformation):
 
         :param call_node: the Call that we are inlining.
         :type call_node: :py:class:`psyclone.psyir.nodes.Call`
-        :param dummy_args: the dummy arguments of the routine being called.
-        :type dummy_args: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
+        :param formal_args: the formal arguments of the routine being called.
+        :type formal_args: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
         :param local_idx: a local array-index expression (i.e. appearing \
             within the routine being inlined).
         :type local_idx: :py:class:`psyclone.psyir.nodes.Node`
@@ -335,31 +335,30 @@ class InlineTrans(Transformation):
 
         '''
         if isinstance(local_idx, Range):
-            lower = self._create_inlined_idx(call_node, dummy_args,
+            lower = self._create_inlined_idx(call_node, formal_args,
                                              local_idx.start, decln_start,
                                              actual_start)
-            upper = self._create_inlined_idx(call_node, dummy_args,
+            upper = self._create_inlined_idx(call_node, formal_args,
                                              local_idx.stop, decln_start,
                                              actual_start)
-            step = self._replace_dummy_arg(local_idx.step, call_node,
-                                           dummy_args)
+            step = self._replace_formal_arg(local_idx.step, call_node,
+                                            formal_args)
             return Range.create(lower.copy(), upper.copy(), step.copy())
 
-        uidx = self._replace_dummy_arg(local_idx, call_node, dummy_args)
+        uidx = self._replace_formal_arg(local_idx, call_node, formal_args)
         if decln_start == actual_start:
-            # If the starting indices in the actual and dummy arguments are
+            # If the starting indices in the actual and formal arguments are
             # the same then we don't need to shift the index.
             return uidx
 
-        ustart = self._replace_dummy_arg(decln_start,
-                                         call_node, dummy_args)
+        ustart = self._replace_formal_arg(decln_start, call_node, formal_args)
         start_sub = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                            uidx.copy(), ustart.copy())
         return BinaryOperation.create(BinaryOperation.Operator.ADD,
                                       start_sub, actual_start.copy())
 
     def _update_actual_indices(self, actual_arg, local_ref,
-                               call_node, dummy_args):
+                               call_node, formal_args):
         '''
         Create a new list of indices for the supplied actual argument
         (ArrayMixin) by replacing any Ranges with the appropriate expressions
@@ -371,8 +370,8 @@ class InlineTrans(Transformation):
         :param local_ref: the corresponding Reference in the called routine.
         :param call_node: the call site.
         :type call_node: :py:class:`psyclone.psyir.nodes.Call`
-        :param dummy_args: the dummy arguments of the called routine.
-        :type dummy_args: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
+        :param formal_args: the formal arguments of the called routine.
+        :type formal_args: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
 
         :returns: new indices for the actual argument.
         :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
@@ -380,7 +379,7 @@ class InlineTrans(Transformation):
         '''
         if isinstance(local_ref, ArrayMixin):
             local_indices = [idx.copy() for idx in local_ref.indices]
-        # Get the locally-declared shape of the dummy argument in case its
+        # Get the locally-declared shape of the formal argument in case its
         # bounds are shifted relative to the caller.
         if isinstance(local_ref.symbol.datatype, ArrayType):
             local_decln_shape = local_ref.symbol.datatype.shape
@@ -406,12 +405,12 @@ class InlineTrans(Transformation):
             if local_decln_shape:
                 if isinstance(local_decln_shape[local_idx_posn],
                               ArrayType.ArrayBounds):
-                    # The dummy argument declaration has a shape.
+                    # The formal argument declaration has a shape.
                     local_shape = local_decln_shape[local_idx_posn]
                     local_decln_start = local_shape.lower
                 elif (local_decln_shape[local_idx_posn] ==
                       ArrayType.Extent.DEFERRED):
-                    # The dummy argument is declared to be allocatable and
+                    # The formal argument is declared to be allocatable and
                     # therefore has the same bounds as the actual argument.
                     local_shape = None
                     local_decln_start = actual_start
@@ -420,9 +419,9 @@ class InlineTrans(Transformation):
                 local_decln_start = _ONE
 
             if local_ref.is_full_range(local_idx_posn):
-                # If the local Range is for the full extent of the dummy
+                # If the local Range is for the full extent of the formal
                 # argument then the actual Range is defined by that of the
-                # actual argument and no change is required unless the dummy
+                # actual argument and no change is required unless the formal
                 # argument is declared as having a Range with an extent that is
                 # less than that supplied. In general we're not going to know
                 # that so we have to be conservative.
@@ -430,21 +429,22 @@ class InlineTrans(Transformation):
                     new = Range.create(local_shape.lower.copy(),
                                        local_shape.upper.copy())
                     new_indices[pos] = self._create_inlined_idx(
-                        call_node, dummy_args,
+                        call_node, formal_args,
                         new, local_decln_start, actual_start)
             else:
                 # Otherwise, the local index expression replaces the Range.
                 new_indices[pos] = self._create_inlined_idx(
-                    call_node, dummy_args,
+                    call_node, formal_args,
                     local_indices[local_idx_posn],
                     local_decln_start, actual_start)
-            # Each Range corresponds to one dimension of the dummy argument.
+            # Each Range corresponds to one dimension of the formal argument.
             local_idx_posn += 1
         return new_indices
 
-    def _replace_dummy_struc_arg(self, actual_arg, ref, call_node, dummy_args):
+    def _replace_formal_struc_arg(self, actual_arg, ref, call_node,
+                                  formal_args):
         '''
-        Called by _replace_dummy_arg() whenever a dummy or actual argument
+        Called by _replace_formal_arg() whenever a formal or actual argument
         involves an array or structure access that can't be handled with a
         simple substitution, e.g.
 
@@ -466,19 +466,19 @@ class InlineTrans(Transformation):
 
             my_struc%grid(igrid,2,jgrid)%data(i,j) = 0.0
 
-        This routine therefore recursively combines any References to dummy
+        This routine therefore recursively combines any References to formal
         arguments in the supplied Reference (including any array-index
         expressions) with the corresponding Reference
         from the call site to make a new Reference for use in the inlined code.
 
         :param actual_arg: an actual argument to the routine being inlined.
         :type actual_arg: :py:class:`psyclone.psyir.nodes.Reference`
-        :param ref: the corresponding reference to a dummy argument.
+        :param ref: the corresponding reference to a formal argument.
         :type ref: :py:class:`psyclone.psyir.nodes.Reference`
         :param call_node: the call site.
         :type call_node: :py:class:`psyclone.psyir.nodes.Call`
-        :param dummy_args: the dummy arguments of the called routine.
-        :type dummy_args: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
+        :param formal_args: the formal arguments of the called routine.
+        :type formal_args: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
 
         :returns: the replacement reference.
         :rtype: :py:class:`psyclone.psyir.nodes.Reference`
@@ -492,7 +492,7 @@ class InlineTrans(Transformation):
 
         # Actual arg could be var, var(:)%index, var(i,j)%grid(:) or
         # var(j)%data(i) etc. Any Ranges must correspond to dimensions of the
-        # dummy argument. The validate() method has already ensured that we
+        # formal argument. The validate() method has already ensured that we
         # do not have any indirect accesses or non-unit strides.
 
         if isinstance(ref, ArrayMixin):
@@ -506,7 +506,7 @@ class InlineTrans(Transformation):
         while True:
             if hasattr(cursor, "indices"):
                 new_indices = self._update_actual_indices(
-                    cursor, ref, call_node, dummy_args)
+                    cursor, ref, call_node, formal_args)
                 members.append((cursor.name, new_indices))
             else:
                 members.append(cursor.name)
@@ -522,8 +522,8 @@ class InlineTrans(Transformation):
             new_indices = []
             for idx in local_indices:
                 new_indices.append(
-                    self._replace_dummy_arg(
-                        idx.copy(), call_node, dummy_args))
+                    self._replace_formal_arg(
+                        idx.copy(), call_node, formal_args))
             # Replace the last entry in the `members` list with a new array
             # access.
             members[-1] = (cursor.name, new_indices)
@@ -531,7 +531,7 @@ class InlineTrans(Transformation):
         # We now walk down the *local* access, skipping its head (as that is
         # replaced by the actual arg). We don't need to worry about updating
         # index expressions in the actual argument as they are independent of
-        # any array accesses within a structure passed as a dummy argument.
+        # any array accesses within a structure passed as a formal argument.
         cursor = ref
         while hasattr(cursor, "member"):
             cursor = cursor.member
@@ -539,10 +539,10 @@ class InlineTrans(Transformation):
                 new_indices = []
                 for idx in cursor.indices:
                     # Update each index expression in case it refers to
-                    # dummy arguments.
+                    # formal arguments.
                     new_indices.append(
-                        self._replace_dummy_arg(
-                            idx.copy(), call_node, dummy_args))
+                        self._replace_formal_arg(
+                            idx.copy(), call_node, formal_args))
                 members.append((cursor.name, new_indices))
             else:
                 members.append(cursor.name)
@@ -640,13 +640,13 @@ class InlineTrans(Transformation):
 
         '''
         routine_name = routine_table.node.name
-        dummy_args = routine_table.argument_list
+        formal_args = routine_table.argument_list
 
         for old_sym in routine_table.symbols:
 
-            if old_sym in dummy_args or isinstance(old_sym, ContainerSymbol):
+            if old_sym in formal_args or isinstance(old_sym, ContainerSymbol):
                 # We've dealt with Container symbols in
-                # _inline_container_symbols() and we deal with dummy arguments
+                # _inline_container_symbols() and we deal with formal arguments
                 # in apply().
                 continue
 
@@ -714,7 +714,7 @@ class InlineTrans(Transformation):
             symbol.
         :raises TransformationError: if a symbol declared in the parent \
             container is accessed in the target routine.
-        :raises TransformationError: if the shape of an array dummy argument \
+        :raises TransformationError: if the shape of an array formal argument \
             does not match that of the corresponding actual argument.
 
         '''
@@ -835,12 +835,12 @@ class InlineTrans(Transformation):
                         f"it accesses variable '{sym.name}' from its "
                         f"parent container.")
 
-        # Check that the shape of any dummy array arguments are the same as
+        # Check that the shape of any formal array arguments are the same as
         # those at the call site.
         visitor = FortranWriter()
-        for dummy_arg, actual_arg in zip(routine_table.argument_list,
-                                         node.children):
-            dummy_rank = 0
+        for formal_arg, actual_arg in zip(routine_table.argument_list,
+                                          node.children):
+            formal_rank = 0
             actual_rank = 0
             if not isinstance(actual_arg, Reference):
                 # TODO #1799 this really needs the `datatype` method to be
@@ -848,18 +848,18 @@ class InlineTrans(Transformation):
                 # anything that's not a Reference.
                 continue
 
-            # If the dummy argument is an array with non-default bounds then
+            # If the formal argument is an array with non-default bounds then
             # we also need to know the bounds of that array at the call site.
-            # For this reason, we cannot support dummy arguments of UnknownType
-            # because they might be arrays with non-default bounds.
-            if isinstance(dummy_arg.datatype, UnknownType):
+            # For this reason, we cannot support formal arguments of
+            # UnknownType because they might be arrays with non-default bounds.
+            if isinstance(formal_arg.datatype, UnknownType):
                 raise TransformationError(
                     f"Routine '{routine.name}' cannot be inlined because "
-                    f"dummy argument '{dummy_arg.name}' is of UnknownType")
-            if isinstance(dummy_arg.datatype, ArrayType):
+                    f"formal argument '{formal_arg.name}' is of UnknownType")
+            if isinstance(formal_arg.datatype, ArrayType):
                 same_lbs = all(dim in [ArrayType.Extent.ATTRIBUTE,
                                        ArrayType.Extent.DEFERRED] for dim
-                               in dummy_arg.datatype.shape)
+                               in formal_arg.datatype.shape)
                 # To generate correct index expressions for the inlined
                 # code we will need to know the lower bounds of the declaration
                 # of the array at both the call site and within the routine.
@@ -869,20 +869,20 @@ class InlineTrans(Transformation):
                         f"Routine '{routine.name}' cannot be inlined because "
                         f"the type of the actual argument "
                         f"'{actual_arg.symbol.name}' corresponding to an array"
-                        f" dummy argument ('{dummy_arg.name}') is unknown.")
+                        f" formal argument ('{formal_arg.name}') is unknown.")
 
             if isinstance(actual_arg.datatype, DeferredType):
                 # We haven't resolved the datatype of the actual argument and
-                # we know that we don't need to (because the dummy argument is
+                # we know that we don't need to (because the formal argument is
                 # not an array or doesn't specify the array bounds). However,
                 # we can't perform further type checking.
                 continue
 
-            if hasattr(dummy_arg.datatype, "shape"):
-                dummy_rank = len(dummy_arg.datatype.shape)
+            if hasattr(formal_arg.datatype, "shape"):
+                formal_rank = len(formal_arg.datatype.shape)
             if hasattr(actual_arg.datatype, "shape"):
                 actual_rank = len(actual_arg.datatype.shape)
-            if dummy_rank != actual_rank:
+            if formal_rank != actual_rank:
                 # It's OK to use the loop variable in the lambda definition
                 # because if we get to this point then we're going to quit
                 # the loop.
@@ -891,8 +891,8 @@ class InlineTrans(Transformation):
                         lambda: f"Cannot inline routine '{routine.name}' "
                         f"because it reshapes an argument: actual argument "
                         f"'{visitor(actual_arg)}' has rank {actual_rank} but "
-                        f"the corresponding dummy argument, '{dummy_arg.name}'"
-                        f", has rank {dummy_rank}"))
+                        f"the corresponding formal argument, "
+                        f"'{formal_arg.name}', has rank {formal_rank}"))
             if actual_rank:
                 ranges = actual_arg.walk(Range)
                 for rge in ranges:

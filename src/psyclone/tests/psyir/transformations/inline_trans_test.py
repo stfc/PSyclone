@@ -348,10 +348,10 @@ def test_apply_unresolved_struct_arg(fortran_reader, fortran_writer):
         "    type(mystery_type) :: var3, varr(5)\n"
         # Unknown structure type but array dims are known.
         "    call sub3(varr)\n"
-        # Unknown actual argument but dummy arg just uses the same
+        # Unknown actual argument but formal arg just uses the same
         # (unspecified) array bounds.
         "    call sub3(mystery)\n"
-        # Dummy arg specifies array bounds and we don't have them for
+        # Formal arg specifies array bounds and we don't have them for
         # the actual argument.
         "    call sub4(mystery)\n"
         "  end subroutine run_it\n"
@@ -377,7 +377,7 @@ def test_apply_unresolved_struct_arg(fortran_reader, fortran_writer):
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(calls[2])
     assert ("Routine 'sub4' cannot be inlined because the type of the actual "
-            "argument 'mystery' corresponding to an array dummy argument "
+            "argument 'mystery' corresponding to an array formal argument "
             "('x') is unknown." in str(err.value))
     output = fortran_writer(psyir)
     assert ("    varr(:)%region%local%nx = 0\n"
@@ -388,7 +388,7 @@ def test_apply_unresolved_struct_arg(fortran_reader, fortran_writer):
 def test_apply_struct_slice_arg(fortran_reader, fortran_writer, tmpdir):
     '''
     Check that the apply() method works correctly when there are slices in
-    structure accesses in both the actual and dummy arguments.
+    structure accesses in both the actual and formal arguments.
 
     '''
     code = (
@@ -553,13 +553,13 @@ def test_apply_struct_local_limits_routine(fortran_reader, fortran_writer,
     for routine in psyir.walk(Call):
         inline_trans.apply(routine)
     output = fortran_writer(psyir)
-    # Access within routine is to full range but dummy arg. is declared with
+    # Access within routine is to full range but formal arg. is declared with
     # explicit bounds so these have to be taken into account.
     assert "var_list(4 - 4 + 1:6 - 4 + 1)%data(2) = 2.0" in output
     assert "var_list(4 - 4 + 1:5 - 4 + 1)%local%nx = 4" in output
     # Element 4 in routine corresponds to element 1 in caller
     assert "var_list(5 - 4 + 1:6 + 1 - 4 + 1)%local%nx = -3" in output
-    # Custom limits  in declarations for both dummy and actual.
+    # Custom limits  in declarations for both formal and actual.
     # Element 4 in routine corresponds to element 2 in caller.
     assert "varat2(4 - 4 + 2:6 - 4 + 2)%data(2) = 2.0\n" in output
     assert "varat2(4 - 4 + 2:5 - 4 + 2)%local%nx = 4\n" in output
@@ -576,8 +576,8 @@ def test_apply_struct_local_limits_routine(fortran_reader, fortran_writer,
 
 def test_apply_allocatable_array_arg(fortran_reader, fortran_writer, tmpdir):
     '''
-    Check that apply() works correctly when a dummy argument is given the
-    ALLOCATABLE attribute (meaning that the bounds of the dummy argument
+    Check that apply() works correctly when a formal argument is given the
+    ALLOCATABLE attribute (meaning that the bounds of the formal argument
     are those of the actual argument).
 
     '''
@@ -805,7 +805,7 @@ def test_apply_struct_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
 @pytest.mark.parametrize("type_decln", [MY_TYPE, "  use some_mod\n"])
 def test_apply_struct_array(fortran_reader, fortran_writer, tmpdir,
                             type_decln):
-    '''Test that apply works correctly when the dummy argument is an
+    '''Test that apply works correctly when the formal argument is an
     array of structures. We test both when the type of the structure is
     resolved and when it isn't. In the latter case we cannot perform
     inlining because we don't know the array bounds at the call site.
@@ -836,7 +836,7 @@ def test_apply_struct_array(fortran_reader, fortran_writer, tmpdir,
         with pytest.raises(TransformationError) as err:
             inline_trans.apply(psyir.walk(Call)[0])
         assert ("Routine 'sub' cannot be inlined because the type of the "
-                "actual argument 'micah' corresponding to an array dummy "
+                "actual argument 'micah' corresponding to an array formal "
                 "argument ('x') is unknown." in str(err.value))
     else:
         inline_trans.apply(psyir.walk(Call)[0])
@@ -1395,7 +1395,8 @@ def test_apply_multi_function(fortran_reader, fortran_writer, tmpdir):
 @pytest.mark.parametrize("start, end, indent", [
     ("", "", ""),
     ("module test_mod\ncontains\n", "end module test_mod\n", "  "),
-    ("module test_mod\nuse dummy\ncontains\n", "end module test_mod\n", "  ")])
+    ("module test_mod\nuse formal\ncontains\n", "end module test_mod\n",
+     "  ")])
 def test_apply_raw_subroutine(
         fortran_reader, fortran_writer, tmpdir, start, end, indent):
     '''Test the apply method works correctly when the routine to be
@@ -1427,8 +1428,8 @@ def test_apply_raw_subroutine(
         f"{indent}  a = 2.0 * a\n\n"
         f"{indent}end subroutine run_it\n")
     assert expected in output
-    if "use dummy" not in output:
-        # Compilation will not work with "use dummy" as there is no
+    if "use formal" not in output:
+        # Compilation will not work with "use formal" as there is no
         # mod file.
         assert Compile(tmpdir).string_compiles(output)
 
@@ -1768,7 +1769,7 @@ def test_validate_unresolved_import(fortran_reader):
 
 
 def test_validate_unknown_arg_type(fortran_reader):
-    '''Check that validate rejects a dummy argument of UnknownType (since
+    '''Check that validate rejects a formal argument of UnknownType (since
     we can't then correctly map any array index expressions into the call
     site).'''
     code = (
@@ -1791,13 +1792,13 @@ def test_validate_unknown_arg_type(fortran_reader):
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(call)
-    assert ("Routine 'sub' cannot be inlined because dummy argument 'x' is "
+    assert ("Routine 'sub' cannot be inlined because formal argument 'x' is "
             "of UnknownType" in str(err.value))
 
 
 def test_validate_assumed_shape(fortran_reader):
     '''Test that the validate method rejects an attempt to inline a routine
-    if any of its dummy arguments are declared to be a different shape from
+    if any of its formal arguments are declared to be a different shape from
     those at the call site.'''
     code = (
         "module test_mod\n"
@@ -1821,7 +1822,7 @@ def test_validate_assumed_shape(fortran_reader):
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(call)
     assert ("Cannot inline routine 's' because it reshapes an argument: actual"
-            " argument 'a(:,:)' has rank 2 but the corresponding dummy "
+            " argument 'a(:,:)' has rank 2 but the corresponding formal "
             "argument, 'x', has rank 1" in str(err.value))
 
 
