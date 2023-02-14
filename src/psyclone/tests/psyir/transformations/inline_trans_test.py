@@ -1608,33 +1608,40 @@ def test_validate_saved_var(fortran_reader):
             in str(err.value))
 
 
-def test_validate_unresolved_precision_sym(fortran_reader):
+@pytest.mark.parametrize("code_body", ["idx = idx + 5_i_def",
+                                       "real, parameter :: pi = 3_wp\n"
+                                       "idx = idx + 1\n"])
+def test_validate_unresolved_precision_sym(fortran_reader, code_body):
     '''Test that a routine that uses an unresolved precision symbol is
-    rejected.'''
+    rejected. We test when the precision symbol appears in an executable
+    statement and when it appears in a constant initialisation.'''
     code = (
-        "module test_mod\n"
-        "  use kinds_mod\n"
-        "contains\n"
-        "  subroutine run_it()\n"
-        "    use a_mod\n"
-        "    integer :: i\n"
-        "    a_var = a_clash\n"
-        "    i = 10_i_def\n"
-        "    call sub(i)\n"
-        "  end subroutine run_it\n"
-        "  subroutine sub(idx)\n"
-        "    integer, intent(inout) :: idx\n"
-        "    idx = idx + 5_i_def\n"
-        "  end subroutine sub\n"
-        "end module test_mod\n")
+        f"module test_mod\n"
+        f"  use kinds_mod\n"
+        f"contains\n"
+        f"  subroutine run_it()\n"
+        f"    use a_mod\n"
+        f"    integer :: i\n"
+        f"    i = 10_i_def\n"
+        f"    call sub(i)\n"
+        f"  end subroutine run_it\n"
+        f"  subroutine sub(idx)\n"
+        f"    integer, intent(inout) :: idx\n"
+        f"    {code_body}\n"
+        f"  end subroutine sub\n"
+        f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
     call = psyir.walk(Call)[0]
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
-    assert ("Routine 'sub' cannot be inlined because it accesses variable "
-            "'i_def' and this cannot be found in any of the containers "
-            "directly imported into its symbol table" in str(err.value))
+    if "_wp" in code_body:
+        var_name = "wp"
+    else:
+        var_name = "i_def"
+    assert (f"Routine 'sub' cannot be inlined because it accesses variable "
+            f"'{var_name}' and this cannot be found in any of the containers "
+            f"directly imported into its symbol table" in str(err.value))
 
 
 def test_validate_resolved_precision_sym(fortran_reader, monkeypatch,
@@ -1766,6 +1773,37 @@ def test_validate_unresolved_import(fortran_reader):
     assert ("Routine 'sub' cannot be inlined because it accesses variable "
             "'trouble' and this cannot be found in any of the containers "
             "directly imported into its symbol table." in str(err.value))
+
+
+def test_validate_unresolved_array_dim(fortran_reader):
+    '''
+    Check that validate rejects a routine if it uses an unresolved Symbol
+    when defining an array dimension.
+
+    '''
+    code = (
+        "module test_mod\n"
+        "  use some_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "    integer :: i\n"
+        "    i = 10\n"
+        "    call sub(i)\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(idx)\n"
+        "    integer :: idx\n"
+        "    integer, dimension(some_size) :: var\n"
+        "    idx = idx + 2\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(call)
+    assert ("Routine 'sub' cannot be inlined because it accesses variable "
+            "'some_size' and this cannot be found in any of the containers "
+            "directly imported into its symbol table" in str(err.value))
 
 
 def test_validate_unknown_arg_type(fortran_reader):

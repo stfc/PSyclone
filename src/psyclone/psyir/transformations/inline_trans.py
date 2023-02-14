@@ -43,7 +43,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
     ArrayReference, ArrayOfStructuresReference, BinaryOperation, Call,
     CodeBlock, Container, IntrinsicCall, Range, Routine, Reference, Return,
-    Literal, Assignment, StructureReference)
+    Literal, Assignment, StructureMember, StructureReference)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol, ScalarType,
                                     RoutineSymbol, ImportInterface, Symbol,
@@ -504,14 +504,14 @@ class InlineTrans(Transformation):
         # reference inside the routine.
         cursor = actual_arg
         while True:
-            if hasattr(cursor, "indices"):
+            if isinstance(cursor, ArrayMixin):
                 new_indices = self._update_actual_indices(
                     cursor, ref, call_node, formal_args)
                 members.append((cursor.name, new_indices))
             else:
                 members.append(cursor.name)
 
-            if not hasattr(cursor, "member"):
+            if not isinstance(cursor, (StructureMember, StructureReference)):
                 break
             cursor = cursor.member
 
@@ -533,9 +533,9 @@ class InlineTrans(Transformation):
         # index expressions in the actual argument as they are independent of
         # any array accesses within a structure passed as a formal argument.
         cursor = ref
-        while hasattr(cursor, "member"):
+        while isinstance(cursor, (StructureReference, StructureMember)):
             cursor = cursor.member
-            if hasattr(cursor, "indices"):
+            if isinstance(cursor, ArrayMixin):
                 new_indices = []
                 for idx in cursor.indices:
                     # Update each index expression in case it refers to
@@ -553,17 +553,13 @@ class InlineTrans(Transformation):
             # We have some form of Structure reference.
             if isinstance(members[0], tuple):
                 # Root of access is an array access.
-                new_ref = ArrayOfStructuresReference.create(actual_arg.symbol,
-                                                            members[0][1],
-                                                            members[1:])
-            else:
-                new_ref = StructureReference.create(actual_arg.symbol,
-                                                    members[1:])
-        else:
-            # Just an array reference.
-            new_ref = ArrayReference.create(actual_arg.symbol,
-                                            members[0][1])
-        return new_ref
+                return ArrayOfStructuresReference.create(actual_arg.symbol,
+                                                         members[0][1],
+                                                         members[1:])
+            return StructureReference.create(actual_arg.symbol, members[1:])
+
+        # Just an array reference.
+        return ArrayReference.create(actual_arg.symbol, members[0][1])
 
     @staticmethod
     def _inline_container_symbols(table, routine_table):
@@ -802,6 +798,16 @@ class InlineTrans(Transformation):
         # table. If a precision symbol is only used within Statements then we
         # don't currently capture the fact that it is a precision symbol.
         ref_or_lits = routine.walk((Reference, Literal))
+        # Check for symbols in any constant-value expressions
+        # (Fortran parameters) or array dimensions.
+        for sym in routine_table.local_datasymbols:
+            if sym.is_constant:
+                ref_or_lits.extend(
+                    sym.constant_value.walk((Reference, Literal)))
+            if isinstance(sym.datatype, ArrayType):
+                for dim in sym.shape:
+                    ref_or_lits.extend(dim.lower.walk(Reference, Literal))
+                    ref_or_lits.extend(dim.upper.walk(Reference, Literal))
         # Keep a reference to each Symbol that we check so that we can avoid
         # repeatedly checking the same Symbol.
         _symbol_cache = set()
@@ -823,6 +829,7 @@ class InlineTrans(Transformation):
                 except KeyError:
                     # The symbol is not (directly) imported into the symbol
                     # table local to the routine.
+                    # pylint: disable=raise-missing-from
                     raise TransformationError(
                         f"Routine '{routine.name}' cannot be inlined "
                         f"because it accesses variable '{sym.name}' and this "
@@ -878,9 +885,9 @@ class InlineTrans(Transformation):
                 # we can't perform further type checking.
                 continue
 
-            if hasattr(formal_arg.datatype, "shape"):
+            if isinstance(formal_arg.datatype, ArrayType):
                 formal_rank = len(formal_arg.datatype.shape)
-            if hasattr(actual_arg.datatype, "shape"):
+            if isinstance(actual_arg.datatype, ArrayType):
                 actual_rank = len(actual_arg.datatype.shape)
             if formal_rank != actual_rank:
                 # It's OK to use the loop variable in the lambda definition
