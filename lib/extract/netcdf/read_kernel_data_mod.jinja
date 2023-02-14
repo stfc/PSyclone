@@ -1,8 +1,8 @@
-{# Added this as jinja code so that it is understood that the
+{# Added this as Jinja code so that it is understood that the
    comment does not apply to THIS file. #}
 {{ "! ================================================== !" }}
-{{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE  !" }}
-{{ "! DO NOT MODIFY DIRECTLY                             !" }}
+{{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE. !" }}
+{{ "! DO NOT MODIFY DIRECTLY!                            !" }}
 {{ "! ================================================== !" }}
 
 {# This jinja template file creates a class that allows reading
@@ -118,7 +118,7 @@ module read_kernel_data_mod
 contains
 
     ! -------------------------------------------------------------------------
-    !> Checks if the return value from a NetCDF call indicates an error.
+    !> @brief Checks if the return value from a NetCDF call indicates an error.
     !! If so, print the corresponding error message and aborts the program.
     !! It is typically used as a wrapper around NetCDF calls:
     !! retval = CheckError(nf90_close(ncid))
@@ -143,7 +143,7 @@ contains
     end function CheckError
 
     ! -------------------------------------------------------------------------
-    !> This subroutine is called to open a NetCDF file for reading. The
+    !> @brief This subroutine is called to open a NetCDF file for reading. The
     !! filename is based on the module and kernel name. This is used by a
     !! driver program that will read a NetCDF file previously created by the
     !! PSyData API.
@@ -159,7 +159,7 @@ contains
 
         class(ReadKernelDataType), intent(inout), target :: this
         character(*), intent(in)                         :: module_name, &
-                                                         region_name
+                                                            region_name
         integer :: retval
 
         retval = CheckError(nf90_open(module_name//"-"//region_name//".nc", &
@@ -177,7 +177,7 @@ contains
     {% set NETCDF_TYPE = NCDF_TYPE_MAPPING[name] %}
 
     ! -------------------------------------------------------------------------
-    !> This subroutine reads the value of a scalar {{type}}
+    !> @brief This subroutine reads the value of a scalar {{type}}
     !! variable from the NetCDF file and returns it to the user. Note that
     !! this function is not part of the PSyData API, but it is convenient to
     !! have these functions together here. The driver can then be linked with
@@ -225,7 +225,7 @@ contains
     {% set SIZES = "size(value,"~range(1,dim+1)|join("), size(value,")~")" %}
 
     ! -------------------------------------------------------------------------
-    !> This subroutine reads the values of a {{dim}}d-array of {{type}}
+    !> @brief This subroutine reads the values of a {{dim}}D array of {{type}}
     !! It allocates memory for the allocatable parameter 'value' to store the
     !! read values which is then returned to the caller. If the memory for the
     !! array cannot be allocated, the application will be stopped.

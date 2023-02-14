@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -155,6 +155,7 @@ class Loop(Statement):
 
     @classmethod
     def create(cls, variable, start, stop, step, children):
+        # pylint: disable=too-many-arguments
         '''Create a Loop instance given valid instances of a variable,
         start, stop and step nodes, and a list of child nodes for the
         loop body.
@@ -348,23 +349,27 @@ class Loop(Statement):
         :param var_accesses: VariablesAccessInfo instance that stores the \
             information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
         '''
 
-        # It is important to first add the WRITE access, since this way
-        # the dependency analysis for declaring openmp private variables
-        # will automatically declare the loop variables to be private
-        # (write access before read)
-        var_accesses.add_access(Signature(self.variable.name),
-                                AccessType.WRITE, self)
-        var_accesses.add_access(Signature(self.variable.name),
-                                AccessType.READ, self)
+        # Only add the loop variable and start/stop/step values if this is
+        # not an LFRic domain loop. We need to access the variable directly
+        # to avoid a crash in the getter if the loop variable is not defined.
+        if self._variable:
+            # It is important to first add the WRITE access, since this way
+            # the dependency analysis for declaring openmp private variables
+            # will automatically declare the loop variables to be private
+            # (write access before read)
+            var_accesses.add_access(Signature(self.variable.name),
+                                    AccessType.WRITE, self)
+            var_accesses.add_access(Signature(self.variable.name),
+                                    AccessType.READ, self)
 
-        # Accesses of the start/stop/step expressions
-        self.start_expr.reference_accesses(var_accesses)
-        self.stop_expr.reference_accesses(var_accesses)
-        self.step_expr.reference_accesses(var_accesses)
-        var_accesses.next_location()
+            # Accesses of the start/stop/step expressions
+            self.start_expr.reference_accesses(var_accesses)
+            self.stop_expr.reference_accesses(var_accesses)
+            self.step_expr.reference_accesses(var_accesses)
+            var_accesses.next_location()
 
         for child in self.loop_body.children:
             child.reference_accesses(var_accesses)

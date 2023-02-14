@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -692,13 +692,14 @@ def test_process_declarations():
 
     '''
     fake_parent = KernelSchedule("dummy_schedule")
+    symtab = fake_parent.symbol_table
     processor = Fparser2Reader()
 
     # Test simple declarations
     reader = FortranStringReader("integer :: l1")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    l1_var = fake_parent.symbol_table.lookup("l1")
+    l1_var = symtab.lookup("l1")
     assert l1_var.name == 'l1'
     assert isinstance(l1_var.datatype, ScalarType)
     assert l1_var.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
@@ -708,7 +709,7 @@ def test_process_declarations():
     reader = FortranStringReader("Real      ::      l2")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    l2_var = fake_parent.symbol_table.lookup("l2")
+    l2_var = symtab.lookup("l2")
     assert l2_var.name == "l2"
     assert isinstance(l2_var.datatype, ScalarType)
     assert l2_var.datatype.intrinsic == ScalarType.Intrinsic.REAL
@@ -718,7 +719,7 @@ def test_process_declarations():
     reader = FortranStringReader("LOGICAL      ::      b")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    b_var = fake_parent.symbol_table.lookup("b")
+    b_var = symtab.lookup("b")
     assert b_var.name == "b"
     # Symbol should be public by default
     assert b_var.visibility == Symbol.Visibility.PUBLIC
@@ -731,21 +732,18 @@ def test_process_declarations():
     reader = FortranStringReader("real, public :: p2")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert (fake_parent.symbol_table.lookup("p2").visibility ==
-            Symbol.Visibility.PUBLIC)
+    assert symtab.lookup("p2").visibility == Symbol.Visibility.PUBLIC
     reader = FortranStringReader("real, private :: p3, p4")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert (fake_parent.symbol_table.lookup("p3").visibility ==
-            Symbol.Visibility.PRIVATE)
-    assert (fake_parent.symbol_table.lookup("p4").visibility ==
-            Symbol.Visibility.PRIVATE)
+    assert symtab.lookup("p3").visibility == Symbol.Visibility.PRIVATE
+    assert symtab.lookup("p4").visibility == Symbol.Visibility.PRIVATE
 
     # Initialisations of static constant values (parameters)
     reader = FortranStringReader("integer, parameter :: i1 = 1")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    newsymbol = fake_parent.symbol_table.lookup("i1")
+    newsymbol = symtab.lookup("i1")
     assert newsymbol.is_constant
     assert isinstance(newsymbol.constant_value, Literal)
     assert newsymbol.constant_value.value == "1"
@@ -753,16 +751,15 @@ def test_process_declarations():
     reader = FortranStringReader("real, parameter :: i2 = 2.2, i3 = 3.3")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("i2").constant_value.value == "2.2"
-    assert fake_parent.symbol_table.lookup("i3").constant_value.value == "3.3"
+    assert symtab.lookup("i2").constant_value.value == "2.2"
+    assert symtab.lookup("i3").constant_value.value == "3.3"
 
     # Initialisation with constant expressions
     reader = FortranStringReader("real, parameter :: i4 = 1.1, i5 = i4 * 2")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("i4").constant_value.value == "1.1"
-    assert isinstance(fake_parent.symbol_table.lookup("i5").constant_value,
-                      BinaryOperation)
+    assert symtab.lookup("i4").constant_value.value == "1.1"
+    assert isinstance(symtab.lookup("i5").constant_value, BinaryOperation)
 
     # Initialisation with a constant expression (1) and with a symbol (val1)
     reader = FortranStringReader("integer, parameter :: val1 = 1, val2 = val1")
@@ -775,6 +772,7 @@ def test_process_declarations():
         fake_parent.symbol_table.lookup("val1")
 
     # Initialisation with a complex constant expression
+    symtab.add(DataSymbol("precisionkind", INTEGER_TYPE, constant_value=4))
     reader = FortranStringReader(
         "integer, parameter :: val3 = 2 * (val1 + val2) + 2_precisionkind")
     fparser2spec = Specification_Part(reader).content[0]
@@ -821,6 +819,24 @@ def test_process_declarations_accessibility():
         visibility_map={"z": Symbol.Visibility.PRIVATE})
     zsym = sched.symbol_table.lookup("z")
     assert zsym.visibility == Symbol.Visibility.PRIVATE
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_process_multiple_access_statements():
+    ''' Check that process_access_statements handles code containing multiple
+    access statements. '''
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "PUBLIC  fjb_typ\n"
+        "private y\n"
+        "PUBLIC  fbge_ctl_typ,  fbge_typ\n"
+        "private :: x\n")
+    fparser2spec = Specification_Part(reader).content
+    _, vis_map = processor.process_access_statements(fparser2spec)
+    assert vis_map["y"] == Symbol.Visibility.PRIVATE
+    assert vis_map["x"] == Symbol.Visibility.PRIVATE
+    assert vis_map["fjb_typ"] == Symbol.Visibility.PUBLIC
+    assert vis_map["fbge_typ"] == Symbol.Visibility.PUBLIC
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -1996,15 +2012,28 @@ def test_nary_op_handler_error():
             " parse tree to be an Actual_Arg_Spec_List" in str(err.value))
 
 
-@pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
+@pytest.mark.usefixtures("f2008_parser")
 def test_handling_nested_intrinsic():
     ''' Check that we correctly handle nested intrinsic functions.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
     '''
     processor = Fparser2Reader()
     fake_parent = Schedule()
+    # Declare all the symbols needed by the test code.
+    symtab = fake_parent.symbol_table
+    symtab.add(DataSymbol("jk", INTEGER_TYPE))
+    symtab.add(DataSymbol("wp", INTEGER_TYPE))
+    symtab.add(DataSymbol("rcpi", REAL_TYPE))
+    symtab.add(DataSymbol("rLfus", REAL_TYPE))
+    symtab.add(DataSymbol("ze_z", REAL_TYPE))
+    symtab.add(DataSymbol("zbbb", REAL_TYPE))
+    symtab.add(DataSymbol("zccc", REAL_TYPE))
+    symtab.add(DataSymbol("ztmelts", REAL_TYPE))
+    symtab.add(DataSymbol("e1t", UnknownFortranType("blah :: e1t")))
+    symtab.add(DataSymbol("e2t", UnknownFortranType("blah :: e2t")))
+    symtab.add(DataSymbol("zav_tide", UnknownFortranType("blah :: zav_tide")))
+    symtab.add(DataSymbol("tmask_i", UnknownFortranType("blah :: tmask_i")))
+    symtab.add(DataSymbol("wmask", UnknownFortranType("blah :: wmask")))
     reader = FortranStringReader(
         "ze_z = SUM( e1t(:,:) * e2t(:,:) * zav_tide(:,:,jk) * "
         "tmask_i(:,:) ) &\n"

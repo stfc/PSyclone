@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -99,7 +99,7 @@ class KernelInterface(ArgOrdering):
     _read_access = ArgumentInterface(ArgumentInterface.Access.READ)
 
     def __init__(self, kern):
-        super(KernelInterface, self).__init__(kern)
+        super().__init__(kern)
         self._symbol_table = SymbolTable()
         self._arglist = []
 
@@ -110,10 +110,10 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        super(KernelInterface, self).generate(var_accesses=var_accesses)
+        super().generate(var_accesses=var_accesses)
         # Set the argument list for the symbol table. This is done at
         # the end after incrementally adding symbols to the _args
         # list, as it is not possible to incrementally add symbols to
@@ -143,7 +143,7 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         symbol = self._symbol_table.find_or_create_tag(
@@ -158,7 +158,7 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         symbol = self._symbol_table.find_or_create_tag(
@@ -172,7 +172,7 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: as this method is not implemented.
 
@@ -185,7 +185,7 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: as this method is not implemented.
 
@@ -199,7 +199,7 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: as this method is not implemented.
 
@@ -217,7 +217,7 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: if the datatype of the vector \
             field is not supported.
@@ -258,7 +258,7 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: if the datatype of the field is \
             not supported.
@@ -292,7 +292,7 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: as this method is not implemented.
 
@@ -308,7 +308,7 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: as this method is not implemented.
 
@@ -324,7 +324,7 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: as this method is not implemented.
 
@@ -343,7 +343,7 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: if the datatype of the field is \
             not supported.
@@ -384,7 +384,7 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: as this method is not implemented.
 
@@ -400,7 +400,7 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: if the datatype of the scalar is \
             not supported.
@@ -435,7 +435,7 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         fs_name = function_space.orig_name
@@ -453,7 +453,7 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: as this method is not implemented.
 
@@ -474,7 +474,7 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         fs_name = function_space.orig_name
@@ -504,7 +504,7 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: as this method is not implemented.
 
@@ -522,7 +522,7 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: as this method is not implemented.
 
@@ -539,7 +539,7 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         basis_name_func = function_space.get_basis_name
@@ -560,7 +560,7 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         basis_name_func = function_space.get_diff_basis_name
@@ -579,7 +579,7 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: as this method is not implemented.
 
@@ -595,7 +595,7 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: as this method is not implemented.
 
@@ -609,7 +609,7 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # This callback does not contribute any kernel arguments
@@ -620,7 +620,7 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # This callback does not contribute any kernel arguments
@@ -634,7 +634,7 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises InternalError: if an unsupported quadrature shape is \
             found.

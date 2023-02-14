@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council
+# Copyright (c) 2022-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,12 +34,12 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified: J. Henrichs, Bureau of Meteorology
 
-''' Module containing pytest tests for the xxx class. '''
+''' Module containing pytest tests for the KernCallInvokeArgList class. '''
 
 import pytest
 
 from psyclone.domain.lfric import (KernCallInvokeArgList, LFRicSymbolTable)
-from psyclone.psyir.symbols import DataTypeSymbol, DeferredType
+from psyclone.psyir.symbols import DataTypeSymbol, DeferredType, DataSymbol
 
 
 def test_kcial_construct(dynkern):
@@ -76,6 +76,26 @@ def test_kcial_generate(dynkern):
     assert "Scalar of type 'boolean' not supported" in str(err.value)
 
 
+def test_kcial_generate_operator(dynkern_op):
+    '''Test the generate() method correctly populates the list of operator
+    arguments required by the kernel.'''
+    # generate() assumes a suitably initialised symbol table so create
+    # that here.
+    table = LFRicSymbolTable()
+    table.new_symbol("operator_type", symbol_type=DataTypeSymbol,
+                     datatype=DeferredType())
+    table.new_symbol("field_type", symbol_type=DataTypeSymbol,
+                     datatype=DeferredType())
+    kcial = KernCallInvokeArgList(dynkern_op, table)
+    kcial.generate()
+    opers = kcial.operators
+    assert len(opers) == 1
+    assert len(opers[0]) == 3
+    assert isinstance(opers[0][0], DataSymbol)
+    assert opers[0][1] == "w3"
+    assert opers[0][2] == "w2"
+
+
 def test_kcial_not_implemented(dynkern):
     ''' Check all the methods that handle unsupported types of kernel
     argument. '''
@@ -92,6 +112,3 @@ def test_kcial_not_implemented(dynkern):
     with pytest.raises(NotImplementedError) as err:
         kcial.stencil_2d_unknown_extent(None)
     assert "stencil_2d_unknown_extent not yet implemented" in str(err.value)
-    with pytest.raises(NotImplementedError) as err:
-        kcial.operator(None)
-    assert "Operators are not yet supported" in str(err.value)

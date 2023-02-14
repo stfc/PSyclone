@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council
+# Copyright (c) 2022-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -56,9 +56,24 @@ def test_create(datatype, access, function_space):
     assert field_arg._datatype == "gh_real"
     assert field_arg._access == "gh_read"
     assert field_arg._function_space == "w0"
+    assert field_arg._stencil is None
 
 
-def test_init_invalid():
+def test_create_stencil():
+    '''Test that an instance of FieldArgMetadata can be created
+    successfully with optional stencil metadata.
+
+    '''
+    field_arg = FieldArgMetadata("gh_real", "gh_read", "w0", stencil="cross")
+    assert isinstance(field_arg, FieldArgMetadata)
+    assert field_arg.form == "gh_field"
+    assert field_arg._datatype == "gh_real"
+    assert field_arg._access == "gh_read"
+    assert field_arg._function_space == "w0"
+    assert field_arg._stencil == "cross"
+
+
+def test_init_invalid_fs():
     '''Test that an invalid function space supplied to the constructor
     raises the expected exception.
 
@@ -69,25 +84,77 @@ def test_init_invalid():
             "'NoneType'." in str(info.value))
 
 
-def test_get_metadata():
-    '''Test that the _get_metadata class method works as expected. Test
-    that all relevant check and get methods are called by raising
-    exceptions within them, as well as checking for valid input.
+def test_init_invalid_stencil():
+    '''Test that an invalid stencil supplied to the constructor
+    raises the expected exception.
+
+    '''
+    with pytest.raises(TypeError) as info:
+        _ = FieldArgMetadata("GH_REAL", "GH_READ", "W0", stencil=1)
+    assert ("The 'stencil' value should be of type str, but found "
+            "'int'." in str(info.value))
+
+
+@pytest.mark.parametrize(
+    "metadata,expected_stencil",
+    [("arg_type(GH_FIELD, GH_REAL, GH_READ, W0)", None),
+     ("arg_type(GH_FIELD, GH_REAL, GH_READ, W0, stencil(region))", "region")])
+def test_get_metadata(metadata, expected_stencil):
+    '''Test that the _get_metadata class method works as expected, with
+    and without optional stencil metadata.
 
     '''
     fparser2_tree = FieldArgMetadata.create_fparser2(
-        "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)", Fortran2003.Part_Ref)
-    datatype, access, function_space = FieldArgMetadata._get_metadata(
+        metadata, Fortran2003.Part_Ref)
+    datatype, access, function_space, stencil = FieldArgMetadata._get_metadata(
         fparser2_tree)
     assert datatype == "GH_REAL"
     assert access == "GH_READ"
     assert function_space == "W0"
+    assert stencil == expected_stencil
 
 
-def test_fortran_string():
-    '''Test that the fortran_string method works as expected.'''
+def test_get_stencil():
+    '''Check that the get_stencil method behaves as expected.'''
 
-    fortran_string = "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)"
+    # No stencil metadata
+    fparser2_tree = FieldArgMetadata.create_fparser2(
+        "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)", Fortran2003.Part_Ref)
+    assert FieldArgMetadata.get_stencil(fparser2_tree) is None
+
+    # Invalid stencil metadata ( not 'stencil(...' ).
+    fparser2_tree = FieldArgMetadata.create_fparser2(
+        "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, REGION)",
+        Fortran2003.Part_Ref)
+    with pytest.raises(TypeError) as info:
+        FieldArgMetadata.get_stencil(fparser2_tree)
+    assert ("The stencil metadata should be in the form 'stencil(type)' but "
+            "found 'region'." in str(info.value))
+
+    # Invalid stencil metadata ( not 'stencil(...)' ).
+    fparser2_tree = FieldArgMetadata.create_fparser2(
+        "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, STENCIL())",
+        Fortran2003.Part_Ref)
+    with pytest.raises(TypeError) as info:
+        FieldArgMetadata.get_stencil(fparser2_tree)
+    assert ("The stencil metadata should be in the form 'stencil(type)' but "
+            "found 'stencil()'." in str(info.value))
+
+    # valid stencil metadata
+    fparser2_tree = FieldArgMetadata.create_fparser2(
+        "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, STENCIL(REGION))",
+        Fortran2003.Part_Ref)
+    assert FieldArgMetadata.get_stencil(fparser2_tree) == "region"
+
+
+@pytest.mark.parametrize("fortran_string", [
+    "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)",
+    "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, STENCIL(REGION))"])
+def test_fortran_string(fortran_string):
+    '''Test that the fortran_string method works as expected. Test with
+    and without a stencil.
+
+    '''
     field_arg = FieldArgMetadata.create_from_fortran_string(fortran_string)
     result = field_arg.fortran_string()
     assert result == fortran_string.lower()
@@ -137,3 +204,21 @@ def test_function_space_setter_getter():
     assert field_arg.function_space == "w3"
     field_arg.function_space = "W3"
     assert field_arg.function_space == "w3"
+
+
+def test_stencil_getter_setter():
+    '''Test that the stencil setter and getter work as expected, including
+    raising an exception if the value is invalid and checking for
+    lower and upper case input.
+
+    '''
+    field_arg = FieldArgMetadata("GH_REAL", "GH_READ", "W0")
+    with pytest.raises(ValueError) as info:
+        field_arg.stencil = "invalid"
+    assert ("The 'stencil' metadata should be a recognised value (one of "
+            "['x1d', 'y1d', 'xory1d', 'cross', 'region', 'cross2d']) but "
+            "found 'invalid'." in str(info.value))
+    field_arg.stencil = "x1d"
+    assert field_arg.stencil == "x1d"
+    field_arg.stencil = "X1D"
+    assert field_arg.stencil == "x1d"

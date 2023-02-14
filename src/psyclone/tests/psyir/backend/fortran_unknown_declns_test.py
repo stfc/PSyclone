@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,6 @@
 '''Performs pytest tests on the support for declarations of unknown type in
    the psyclone.psyir.backend.fortran module'''
 
-from __future__ import absolute_import
 import pytest
 
 from psyclone.errors import InternalError
@@ -90,7 +89,9 @@ def test_fw_unknown_interface_decln(tmpdir, fortran_writer):
         RoutineSymbol("my_sub", visibility=Symbol.Visibility.PUBLIC))
     code = fortran_writer(container)
     assert "private :: eos\n" in code
-    assert "public :: my_sub\n" in code
+    # Default visibility is public so there should be no explicit 'public ::'
+    # statements.
+    assert "public ::" not in code
     # Add remaining structures so that we can generate compilable code
     container.symbol_table.add(RoutineSymbol("eos1d"))
     container.symbol_table.add(RoutineSymbol("eos2d"))

@@ -80,6 +80,9 @@ $(INF_LIB):
 kernel_data_standalone.o:	extract_standalone_base.o
 extract_standalone_base.o:	psy_data_base.o
 
+kernel_data_standalone.f90: kernel_data_standalone.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) $< > kernel_data_standalone.f90
+
 psy_data_base.f90: $(PSYDATA_LIB_DIR)/psy_data_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
 
