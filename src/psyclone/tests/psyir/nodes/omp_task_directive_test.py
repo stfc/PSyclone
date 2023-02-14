@@ -3230,3 +3230,75 @@ depend(out: aa%A(i + 32,:),aa%A(i - 32,:),aa%A(i,:))
 end subroutine my_subroutine
 '''
     assert correct == fortran_writer(tree)
+
+
+# TODO #2052 This test is expected to fail as we can't yet handle
+# multiple indirections on either side of a statement and will over
+# generate code for this dependency.
+@pytest.mark.xfail
+def test_omp_task_directive_xfail_indirection_test(fortran_reader,
+                                                   fortran_writer):
+    ''' Test the code generation correctly generates the correct depend clause
+    when an input array is shifted by less than a full step of the outer loop,
+    but this is done using an extra variable for indirection. In this case,
+    the indirection value is set before and after the access, and produces
+    code based on both accesses, instead of only the one before.
+    '''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(320, 10) :: A
+        integer, dimension(321, 10) :: B
+        integer, dimension(320, 10) :: boundary
+        integer :: i
+        integer :: iplusone
+        integer :: j
+        integer :: k
+        do i = 1, 320, 32
+            do j = 1, 32
+                iplusone = i + 1
+                A(i, j) = k
+                A(i, j) = B(iplusone, j) + k
+                iplusone = i - 1
+            end do
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = DynamicOMPTaskDirective()
+    loops = tree.walk(Loop, stop_type=Loop)
+    loop = loops[0].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(loops[0].parent.parent)
+    correct = '''subroutine my_subroutine()
+  integer, dimension(320,10) :: a
+  integer, dimension(321,10) :: b
+  integer, dimension(320,10) :: boundary
+  integer :: i
+  integer :: iplusone
+  integer :: j
+  integer :: k
+
+  !$omp parallel default(shared), private(i,iplusone,j)
+  !$omp single
+  do i = 1, 320, 32
+    !$omp task private(j,iplusone), firstprivate(i), shared(boundary,a,b), \
+depend(in: boundary(i,:),k,b(i + 32,:),b(i,:)), depend(out: a(i,:))
+    do j = 1, 32, 1
+      iplusone = i + 1
+      a(i,j) = k
+      a(i,j) = b(iplusone,j) + k
+      iplusone = i - 1
+    enddo
+    !$omp end task
+  enddo
+  !$omp end single
+  !$omp end parallel
+
+end subroutine my_subroutine\n'''
+    assert fortran_writer(tree) == correct

@@ -3957,7 +3957,6 @@ def test_omp_serial_check_task_dependencies_add_taskwait(fortran_reader):
     assert len(taskwaits) == 1
     assert taskwaits[0].position == 2
 
-def test_omp_serial_check_task_dependencies_add_taskwait2(fortran_reader):
     code = '''subroutine my_subroutine(grid_max, grid_min)
         integer, dimension(100, 100) :: A, B, C, D
         integer :: i, j
