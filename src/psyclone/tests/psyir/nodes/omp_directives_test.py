@@ -3956,3 +3956,54 @@ def test_omp_serial_check_task_dependencies_add_taskwait(fortran_reader):
     taskwaits = tree.walk(OMPTaskwaitDirective)
     assert len(taskwaits) == 1
     assert taskwaits[0].position == 2
+
+def test_omp_serial_check_task_dependencies_add_taskwait2(fortran_reader):
+    code = '''subroutine my_subroutine(grid_max, grid_min)
+        integer, dimension(100, 100) :: A, B, C, D
+        integer :: i, j
+        integer, intent(in) :: grid_max, grid_min
+
+        do i = grid_min, grid_max
+            do j = grid_min, grid_max
+                a(i, j) = i*grid_max + j
+            end do
+        end do
+        do i = grid_min+1, grid_max-1
+            do j = grid_min, grid_max
+                c(i, j) = a(i,j) * 3
+            end do
+        end do
+        do i = grid_min, grid_max
+            do j = grid_min, grid_max
+                b(i, j) = j*grid_max + i
+            end do
+        end do
+        do i = grid_min+1, grid_max-1
+            do j = grid_min, grid_max
+                d(i, j) = b(i,j) + a(i,j)
+            end do
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+
+    loop_trans = ChunkLoopTrans()
+    task_trans = OMPTaskTrans()
+
+    schedule = tree.walk(Schedule)[0]
+    for child in schedule.children[:]:
+        if isinstance(child, Loop):
+            loop_trans.apply(child)
+            assert isinstance(child.children[3].children[0], Loop)
+            task_trans.apply(child, {"force": True})
+
+    single_trans = OMPSingleTrans()
+    parallel_trans = OMPParallelTrans()
+    single_trans.apply(schedule.children)
+    parallel_trans.apply(schedule.children)
+    tree.lower_to_language_level()
+
+    taskwaits = tree.walk(OMPTaskwaitDirective)
+    assert len(taskwaits) == 2
+    assert taskwaits[0].position == 1
+    assert taskwaits[1].position == 4

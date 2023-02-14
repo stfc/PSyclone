@@ -987,6 +987,9 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         # Based upon
         # https://stackoverflow.com/questions/9764298/how-to-sort-two-
         # lists-which-reference-each-other-in-the-exact-same-way
+        print(len(dependent_nodes))
+        print(highest_position_nodes)
+        print(lowest_position_nodes)
         if len(dependent_nodes) > 0:
             sorted_highest_positions, sorted_lowest_positions, \
                     sorted_dependency_pairs = (list(t) for t in
@@ -1005,8 +1008,9 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         taskwait_location_nodes.append(sorted_dependency_pairs[0][1])
         taskwait_location_abs_pos.append(sorted_highest_positions[0])
         for index, pairs in enumerate(sorted_dependency_pairs[1:]):
-            lo_abs_pos = sorted_lowest_positions[index]
-            hi_abs_pos = sorted_highest_positions[index]
+            # Add 1 to index here because we're looking from [1:]
+            lo_abs_pos = sorted_lowest_positions[index+1]
+            hi_abs_pos = sorted_highest_positions[index+1]
             satisfied = False
             for ind, taskwait_loc in enumerate(taskwait_location_nodes):
                 if (taskwait_location_abs_pos[ind] <= hi_abs_pos and
@@ -1024,7 +1028,6 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             if not satisfied:
                 taskwait_location_nodes.append(pairs[1])
                 taskwait_location_abs_pos.append(hi_abs_pos)
-
         # Now loop through the list in reverse and add taskwaits
         taskwait_location_nodes.reverse()
         for taskwait_loc in taskwait_location_nodes:
