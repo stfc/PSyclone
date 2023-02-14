@@ -119,7 +119,7 @@ class LFRicTypes:
 
         # Generate LFRic module symbols from definitions
         for module_info in modules:
-            module_name = module_info.name.upper()
+            module_name = module_info.name.lower()
             # Create the module (using a PSyIR ContainerSymbol)
             self._name_to_class[module_name] = \
                 ContainerSymbol(module_info.name)

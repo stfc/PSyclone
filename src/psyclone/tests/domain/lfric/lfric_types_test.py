@@ -64,7 +64,7 @@ def test_singleton(monkeypatch):
     assert LFRicTypes()("new") == "really_new"
 
     # But if we delete the instance, the singleton will create a
-    # new instance, which does not have 'new' as key anynmore:
+    # new instance, which does not have 'new' as key anymore:
     monkeypatch.setattr(LFRicTypes, "_instance", None)
     with pytest.raises(KeyError) as err:
         LFRicTypes()("new")
@@ -73,7 +73,7 @@ def test_singleton(monkeypatch):
 
 # Modules and their arguments
 @pytest.mark.parametrize("module_name, symbol_list",
-                         [("CONSTANTS_MOD",
+                         [("constants_mod",
                            ["I_DEF", "R_DEF", "L_DEF"])])
 def test_constants_mod(module_name, symbol_list):
     '''Test the generated module symbol and its argument symbols are

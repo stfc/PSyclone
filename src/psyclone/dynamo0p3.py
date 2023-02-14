@@ -53,8 +53,9 @@ import fparser
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature
-from psyclone.domain.lfric.lfric_builtins import (
-    LFRicBuiltInCallFactory, LFRicBuiltIn, BUILTIN_MAP)
+from psyclone.domain.lfric.lfric_builtins import (LFRicTypes,
+                                                  LFRicBuiltInCallFactory,
+                                                  LFRicBuiltIn, BUILTIN_MAP)
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, KernStubArgList,
@@ -10097,11 +10098,8 @@ class DynKernelArgument(KernelArgument):
                 except KeyError:
                     # TODO Once #696 is done, we should *always* have a
                     # symbol for this container at this point so should
-                    # raise an exception if we haven't. Also, the name
-                    # of the Fortran module should be read from the config
-                    # file.
-                    constants_container = ContainerSymbol(const_mod)
-                    root_table.add(constants_container)
+                    # raise an exception if we haven't.
+                    root_table.add(LFRicTypes()(const_mod))
                 kind_symbol = DataSymbol(
                     kind_name, INTEGER_TYPE,
                     interface=ImportInterface(constants_container))
