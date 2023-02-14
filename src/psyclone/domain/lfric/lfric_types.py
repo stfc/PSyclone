@@ -111,10 +111,11 @@ class LFRicTypes:
         # The first Module namedtuple argument specifies the name of the
         # module and the second argument declares the name(s) of any symbols
         # declared by the module.
+        lfric_const = LFRicConstants()
+        lfric_kinds = list(lfric_const.PRECISION_MAP.keys())
+        constants_mod = lfric_const.UTILITIES_MOD_MAP["constants"]["module"]
         Module = namedtuple('Module', ["name", "vars"])
-        modules = [
-            Module(LFRicConstants().UTILITIES_MOD_MAP["constants"]["module"],
-                   ["i_def", "r_def", "r_solver", "r_tran", "l_def"])]
+        modules = [Module(constants_mod, lfric_kinds)]
 
         # Generate LFRic module symbols from definitions
         for module_info in modules:
