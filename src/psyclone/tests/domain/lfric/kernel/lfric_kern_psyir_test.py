@@ -141,7 +141,8 @@ def test_lfrickernelcontainer_lower(fortran_reader):
 
     # Now use lower_to_language_level and perform checks
     container = kernel_psyir.children[0]
-    container.lower_to_language_level()
+    lowered = container.lower_to_language_level()
+    assert lowered is kernel_psyir.children[0]
     assert isinstance(kernel_psyir.children[0], Container)
     assert not isinstance(kernel_psyir.children[0], LFRicKernelContainer)
     assert kernel_psyir.children[0].symbol_table.lookup(
