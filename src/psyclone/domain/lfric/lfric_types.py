@@ -48,8 +48,13 @@ class LFRicTypes:
     '''This class implements a singleton that manages LFRic types.
     Using the 'call' interface, you can query the data type for
     LFRic types, e.g.:
-    lfric_types = LFRicTypes()
-    rvfdds = lfric_types("RealVectorFieldDataDataSymbol")
+
+    >>> from psyclone.domain.lfric import LFRicTypes
+    >>> lfric_types = LFRicTypes()
+    >>> num_dofs_class = lfric_types("NumberOfUniqueDofsDataSymbol")
+    >>> my_var = num_dofs_class("my_num_dofs")
+    >>> print(my_var.name)
+    my_num_dofs
 
     '''
 
@@ -95,6 +100,7 @@ class LFRicTypes:
         # Generate LFRic vector-field-data symbols as subclasses of
         # field-data symbols
         for intrinsic in ["Real", "Integer", "Logical"]:
+            # TODO #2050: we end up with DataData
             name = f"{intrinsic}VectorFieldDataDataSymbol"
             baseclass = self(f"{intrinsic}FieldDataDataSymbol")
             self._name_to_class[name] = type(name, (baseclass, ), {})
@@ -187,7 +193,15 @@ class LFRicTypes:
             ScalarType.__init__(self, self.intrinsic, precision)
 
         # ---------------------------------------------------------------------
-        # Create the class, and set the above function as constructor:
+        # Create the class, and set the above function as constructor. Note
+        # that the values of 'intrinsic' and 'default_precision' must be stored
+        # in the class: the `__my_generic_scalar_type_init__` function is
+        # defined over and over again, each time with different values for
+        # intrinsic/default_precision. So when these arguments would be
+        # directly used in the constructor, they would remain at the values
+        # used the last time this function was defined, but obviously each
+        # class need the constructor using the right values. So these values
+        # are stored in the class and then used in the constructor.
         self._name_to_class[name] = \
             type(name, (ScalarType, ),
                  {"__init__": __my_generic_scalar_type_init__,
@@ -234,7 +248,6 @@ class LFRicTypes:
 
             :param str value: the value of the scalar integer.
 
-            :raises nodes import Literal
             :raises ValueError: if the supplied value is not '1 or '3'.
 
             '''
@@ -281,10 +294,12 @@ class LFRicTypes:
             Scalar("NumberOfQrPointsInEdges", "LfricIntegerScalarData", [])]
 
         for info in specific_scalar_datatypes:
+            # TODO #2050: we end up with DataDataType
             type_name = f"{info.name}DataType"
             self._name_to_class[type_name] = \
                 type(type_name, (self(f"{info.generic_type_name}Type"), ), {})
 
+            # TODO #2050: we end up with DataDataSymbol
             symbol_name = f"{info.name}DataSymbol"
             base_class = self(f"{info.generic_type_name}Symbol")
             self._create_scalar_data_type(symbol_name, base_class,
@@ -332,9 +347,13 @@ class LFRicTypes:
         # ----------------------------------------------------------------
 
         # Now create the actual class. We need to keep a copy of the parameters
-        # of this class as attributes, otherwise they would be shared among the
-        # several instances of the __my_scalar_init__function: this affects the
-        # required arguments (array_type.properties) and scalar class:
+        # of this class as attributes, otherwise the __my_scalar_init__
+        # function (there is only one, which gets re-defined over and over)
+        # will all be using the values for base_class and parameters that were
+        # active the last time the function was defined. E.g. the
+        # __my_scalar_init__ function set for CellPosition is the same as the
+        # function set in NumberOfQrPointsInEdges (i.e. based on the same
+        # values for base_class and parameters).
         self._name_to_class[class_name] = \
             type(class_name, (base_class, ),
                  {"__init__": __my_scalar_init__,
@@ -354,10 +373,9 @@ class LFRicTypes:
         # The Array namedtuple has 4 properties: the first determines the
         # names of the resultant datatype and datasymbol classes, the second
         # references the generic scalar type classes declared above, the third
-        # specifies the dimensions of the array by specifying a list of scalar
-        # type classes declared above, and the fourth specifies any additional
-        # class properties that should be declared in the generated datasymbol
-        # class.
+        # property is a textual description of each of the dimensions.
+        # The fourth specifies any additional class properties that should be
+        # declared in the generated datasymbol class.
         Array = namedtuple('Array',
                            ["name", "scalar_type", "dims", "properties"])
         field_datatypes = [
@@ -427,9 +445,9 @@ class LFRicTypes:
             self._create_array_data_type_class(name, len(array_type.dims),
                                                self(array_type.scalar_type))
 
-            my__class = self(name)
+            my_datatype_class = self(name)
             name = f"{array_type.name}DataSymbol"
-            self._create_array_data_symbol_class(name, my__class,
+            self._create_array_data_symbol_class(name, my_datatype_class,
                                                  array_type.properties)
 
     # ------------------------------------------------------------------------
@@ -470,12 +488,15 @@ class LFRicTypes:
                   "num_dims": num_dims})
 
     # ------------------------------------------------------------------------
-    def _create_array_data_symbol_class(self, name, scalar_class, parameters):
+    def _create_array_data_symbol_class(self, name, datatype_class,
+                                        parameters):
         '''This function creates an array-data-symbol-class and adds it to
         the internal type dictionary.
 
         :param str name: the name of the class to be created.
-        :param scalar_class: ??
+        :param datatype_class: the corresponding data type class.
+        :type datatype_class: :py:class:`psyclone.psyir.datatypes.DataType`
+
         :param parameters: the list of additional required properties \
             to be passed to the constructor.
         :type parameters: List[str]
@@ -509,7 +530,7 @@ class LFRicTypes:
                     # Otherwise add it as keyword parameter for the
                     # base class constructor
                     remaining_kwargs[key] = value
-            DataSymbol.__init__(self, name, self.scalar_class(dims),
+            DataSymbol.__init__(self, name, self.datatype_class(dims),
                                 **remaining_kwargs)
         # ----------------------------------------------------------------
 
@@ -520,5 +541,5 @@ class LFRicTypes:
         self._name_to_class[name] = \
             type(name, (DataSymbol, ),
                  {"__init__": __my_symbol_init__,
-                  "scalar_class": scalar_class,
+                  "datatype_class": datatype_class,
                   "parameters": parameters})

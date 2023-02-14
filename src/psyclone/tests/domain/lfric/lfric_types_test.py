@@ -40,7 +40,7 @@ correctly'''
 
 import pytest
 
-from psyclone.domain.lfric import LFRicTypes
+from psyclone.domain.lfric import LFRicConstants, LFRicTypes
 from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, \
     ImportInterface, ScalarType, LocalInterface, ArgumentInterface, \
     ArrayType, Symbol
@@ -71,20 +71,17 @@ def test_singleton(monkeypatch):
     assert "new" in str(err.value)
 
 
-# Modules and their arguments
-@pytest.mark.parametrize("module_name, symbol_list",
-                         [("constants_mod",
-                           ["I_DEF", "R_DEF", "L_DEF"])])
-def test_constants_mod(module_name, symbol_list):
+def test_constants_mod():
     '''Test the generated module symbol and its argument symbols are
     created correctly.
 
     '''
     lfric_types = LFRicTypes()
-    module = lfric_types(module_name)
+    module = lfric_types("constants_mod")
     assert isinstance(module, ContainerSymbol)
+    symbol_list = list(LFRicConstants().PRECISION_MAP.keys())
     for symbol_name in symbol_list:
-        symbol = lfric_types(symbol_name)
+        symbol = lfric_types(symbol_name.upper())
         assert isinstance(symbol, DataSymbol)
         assert isinstance(symbol.interface, ImportInterface)
         assert symbol.interface.container_symbol is module
