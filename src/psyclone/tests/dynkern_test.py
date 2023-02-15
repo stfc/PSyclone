@@ -104,7 +104,7 @@ def test_scalar_kernel_load_meta_err():
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
     metadata = DynKernMetadata(ast, name=name)
-    kernel = DynKern()
+    kernel = DynKern(parent=Schedule())
     # Get a scalar argument descriptor and set an invalid data type
     scalar_arg = metadata.arg_descriptors[5]
     scalar_arg._data_type = "gh_triple"
@@ -257,7 +257,7 @@ def test_validate_kernel_code_arg(monkeypatch):
     exceptions are raised.
 
     '''
-    kernel = DynKern()
+    kernel = DynKern(parent=Schedule())
     # Kernel name needs to be set when testing exceptions.
     kernel._name = "dummy"
     read_access = ArgumentInterface(ArgumentInterface.Access.READ)

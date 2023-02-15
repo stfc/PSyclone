@@ -53,6 +53,8 @@ from psyclone.errors import InternalError
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import KernelCall, parse
 from psyclone.psyGen import CodedKern, PSyFactory
+from psyclone.psyGen import PSyFactory
+from psyclone.psyir.nodes import Schedule
 from psyclone.tests.lfric_build import LFRicBuild
 
 # constants
@@ -774,7 +776,7 @@ def test_qr_basis_stub():
     '''
     ast = fpapi.parse(BASIS, ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = DynKern(parent=Schedule())
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
     output = (
@@ -888,7 +890,7 @@ def test_stub_basis_wrong_shape(monkeypatch):
     broken '''
     ast = fpapi.parse(BASIS, ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = DynKern(parent=Schedule())
     kernel.load_meta(metadata)
     monkeypatch.setattr(kernel, "_eval_shapes",
                         value=["gh_quadrature_wrong"])
@@ -918,7 +920,7 @@ def test_stub_dbasis_wrong_shape(monkeypatch):
 
     ast = fpapi.parse(diff_basis, ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = DynKern(parent=Schedule())
     kernel.load_meta(metadata)
     monkeypatch.setattr(kernel, "_eval_shapes",
                         value=["gh_quadrature_wrong"])

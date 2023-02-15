@@ -1038,7 +1038,7 @@ class GOKern(CodedKern):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
-    def __init__(self, call, parent=None):
+    def __init__(self, call, parent):
         super().__init__(GOKernelArguments, call, parent, check=False)
         # Store the name of this kernel type (i.e. the name of the
         # Fortran derived type containing its metadata).

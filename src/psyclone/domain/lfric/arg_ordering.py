@@ -71,18 +71,6 @@ class ArgOrdering:
     def __init__(self, kern):
         self._kern = kern
         self._generate_called = False
-        # If available, get an existing symbol table to create unique names
-        # and symbols required for PSyIR. Otherwise just create a new
-        # symbol table (required for stub generation atm).
-        invoke_sched = None
-        if kern:
-            invoke_sched = kern.ancestor(psyGen.InvokeSchedule)
-        # This pylint does not work when I put it in the else branch :(
-        # pylint: disable=import-outside-toplevel
-        if invoke_sched:
-            self._symtab = invoke_sched.symbol_table
-        else:
-            self._symtab = LFRicSymbolTable()
 
         # TODO #1934 Completely remove the usage of strings, instead
         # use the PSyIR representation.

@@ -48,7 +48,7 @@ from psyclone.errors import InternalError
 from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import (Assignment, Container, Literal,
+from psyclone.psyir.nodes import (Assignment, Container, Literal, Schedule,
                                   Reference, Routine, ScopingNode)
 from psyclone.psyir.symbols import (
     DeferredType, UnknownFortranType, DataTypeSymbol, DataSymbol, ArrayType,
@@ -125,7 +125,7 @@ class LFRicAlg:
         # Declare and initialise the data structures required by the kernel
         # arguments. Appropriate symbols are added to the symbol table
         # associated with the routine we are constructing.
-        kern_args = self.construct_kernel_args(sub, kern)
+        kern_args = self.construct_kernel_args(kern)
 
         # Initialise argument values to unity. Since we are using this somewhat
         # arbitrary value, we use an *integer* literal for this, irrespective
@@ -431,17 +431,15 @@ class LFRicAlg:
                 f"code: '{parse_tree}'. Is it a valid LFRic kernel? Original "
                 f"error was '{err}'.") from err
         # Construct a DynKern using the metadata.
-        kern = DynKern()
+        kern = DynKern(parent=Schedule())
         kern.load_meta(ktype)
         return kern
 
-    def construct_kernel_args(self, prog, kern):
+    def construct_kernel_args(self, kern):
         '''
         Extends the supplied routine with all the declarations and
         initialisation required for the arguments of the supplied kernel.
 
-        :param prog: the routine to which to add the declarations etc.
-        :type prog: :py:class:`psyclone.psyir.nodes.Routine`
         :param kern: the kernel for which we are to create arguments.
         :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
 
@@ -450,6 +448,7 @@ class LFRicAlg:
 
         '''
         const = LFRicConstants()
+        routine = kern.ancestor(Routine)
         # Construct a list of the names of the function spaces that the field
         # argument(s) are on and any operators map between. We use
         # LFRicConstants.specific_function_space()
@@ -459,23 +458,23 @@ class LFRicAlg:
         for fspace in kern.arguments.unique_fss:
             name = fspace.orig_name.lower()
             function_spaces.append(const.specific_function_space(name))
-        self._create_function_spaces(prog, set(function_spaces))
+        self._create_function_spaces(routine, set(function_spaces))
 
         # Construct the argument list and add suitable symbols to the table.
-        kern_args = KernCallInvokeArgList(kern, prog.symbol_table)
+        kern_args = KernCallInvokeArgList(kern)
         kern_args.generate()
 
         # Initialise field datastructures using the symbols added to the table
         # when setting up the kernel arguments and the information on their
         # respective function spaces extracted from the kernel metadata.
         for sym, space in kern_args.fields:
-            self.initialise_field(prog, sym, space)
+            self.initialise_field(routine, sym, space)
 
         for sym, from_space, to_space in kern_args.operators:
-            self.initialise_operator(prog, sym, from_space, to_space)
+            self.initialise_operator(routine, sym, from_space, to_space)
 
         for qr_sym, shape in kern_args.quadrature_objects:
-            self.initialise_quadrature(prog, qr_sym, shape)
+            self.initialise_quadrature(routine, qr_sym, shape)
 
         return kern_args
 

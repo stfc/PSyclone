@@ -6115,9 +6115,12 @@ class DynHaloExchange(HaloExchange):
         # get our halo information
         halo_info_list = self._compute_halo_read_info(ignore_hex_dep)
         # use the halo information to generate depth information
-        depth_info_list = _create_depth_list(halo_info_list,
-                                             self._symbol_table)
-        return depth_info_list
+        invoke = self.ancestor(InvokeSchedule)
+        if invoke:
+            symtab = invoke.symbol_table
+            depth_info_list = _create_depth_list(halo_info_list, symtab)
+            return depth_info_list
+        return []
 
     def _compute_halo_read_info(self, ignore_hex_dep=False):
         '''Dynamically computes all halo read dependencies and returns the
@@ -6184,8 +6187,13 @@ class DynHaloExchange(HaloExchange):
             raise InternalError(
                 "Internal logic error. There should be at least one read "
                 "dependence for a halo exchange.")
-        return [HaloReadAccess(read_dependency, self._symbol_table) for
-                read_dependency in read_dependencies]
+        invoke = self.ancestor(InvokeSchedule)
+        if invoke:
+            symtab = invoke.symbol_table
+
+            return [HaloReadAccess(read_dependency, symtab) for
+                    read_dependency in read_dependencies]
+        return []
 
     def _compute_halo_write_info(self):
         '''Determines how much of the halo has been cleaned from any previous
@@ -6207,7 +6215,7 @@ class DynHaloExchange(HaloExchange):
                 f"Internal logic error. There should be at most one write "
                 f"dependence for a halo exchange. Found "
                 f"'{len(write_dependencies)}'")
-        return HaloWriteAccess(write_dependencies[0], self._symbol_table)
+        return HaloWriteAccess(write_dependencies[0], self.scope.symbol_table)
 
     def required(self, ignore_hex_dep=False):
         '''Determines whether this halo exchange is definitely required
@@ -7944,13 +7952,13 @@ class DynKern(CodedKern):
     QRRule = namedtuple("QRRule",
                         ["alg_name", "psy_name", "kernel_args"])
 
-    def __init__(self):
+    def __init__(self, parent):
         # The super-init is called from the _setup() method which in turn
         # is called from load().
         # pylint: disable=super-init-not-called
         if False:  # pylint: disable=using-constant-test
             self._arguments = DynKernelArguments(None, None)  # for pyreverse
-        self._parent = None
+        self._parent = parent
         self._base_name = ""
         self._func_descriptors = None
         self._fs_descriptors = None
@@ -8000,7 +8008,7 @@ class DynKern(CodedKern):
         # this kernel a new statement starts.
         var_accesses.next_location()
 
-    def load(self, call, parent=None):
+    def load(self, call, parent):
         '''
         Sets up kernel information with the call object which is
         created by the parser. This object includes information about
@@ -8080,7 +8088,7 @@ class DynKern(CodedKern):
                     # Add a quadrature argument for each required quadrature
                     # rule.
                     args.append(Arg("variable", "qr_"+shape))
-        self._setup(ktype, "dummy_name", args, None, check=False)
+        self._setup(ktype, "dummy_name", args, self._parent, check=False)
 
     def _setup_basis(self, kmetadata):
         '''
@@ -10132,7 +10140,7 @@ class DynKernCallFactory():
     '''
     # pylint: disable=too-few-public-methods
     @staticmethod
-    def create(call, parent=None):
+    def create(call, parent):
         '''
         Create the objects needed for a call to the kernel
         described in the call object.
@@ -10144,6 +10152,8 @@ class DynKernCallFactory():
         :type parent: :py:class:`psyclone.psyir.nodes.Schedule`
 
         '''
+        if parent is None:
+            raise NotImplementedError
         if call.ktype.iterates_over == "domain":
             # Kernel operates on whole domain so there is no loop.
             # We still need a loop object though as that is where the logic
@@ -10155,7 +10165,7 @@ class DynKernCallFactory():
         cloop = DynLoop(parent=parent, loop_type=loop_type)
 
         # The kernel itself
-        kern = DynKern()
+        kern = DynKern(parent)
         kern.load(call, cloop.loop_body)
 
         # Add the kernel as a child of the loop

@@ -55,6 +55,7 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
+from psyclone.psyir.nodes import Schedule
 from psyclone.tests.lfric_build import LFRicBuild
 
 # constants
@@ -440,7 +441,7 @@ def test_operator_arg_lfricconst_properties(monkeypatch):
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
     metadata = DynKernMetadata(ast, name=name)
-    kernel = DynKern()
+    kernel = DynKern(parent=Schedule())
     kernel.load_meta(metadata)
 
     op_arg = kernel.arguments.args[3]
@@ -881,7 +882,7 @@ def test_operators():
     '''
     ast = fpapi.parse(OPERATORS, ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = DynKern(parent=Schedule())
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
     output = (
@@ -973,7 +974,7 @@ def test_stub_operator_different_spaces():
     # Check the original code (to- and from- spaces both continuous)
     ast = fpapi.parse(OPERATOR_DIFFERENT_SPACES, ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = DynKern(parent=Schedule())
     kernel.load_meta(metadata)
     result = str(kernel.gen_stub)
     assert "(cell, nlayers, op_1_ncell_3d, op_1, ndf_w0, ndf_w1)" in result
@@ -984,7 +985,7 @@ def test_stub_operator_different_spaces():
         "(gh_operator, gh_real, gh_write, w3, any_discontinuous_space_2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = DynKern(parent=Schedule())
     kernel.load_meta(metadata)
     result = str(kernel.gen_stub)
     assert ("(cell, nlayers, op_1_ncell_3d, op_1, ndf_w3, ndf_adspc2_op_1)"

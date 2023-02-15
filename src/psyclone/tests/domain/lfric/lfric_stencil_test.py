@@ -166,7 +166,7 @@ def test_stencil_field_arg_lfricconst_properties(monkeypatch):
     # Test 'real'-valued field of 'field_type' with stencil access
     ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name=name)
-    kernel = DynKern()
+    kernel = DynKern(parent=Schedule())
     kernel.load_meta(metadata)
     stencil_arg = kernel.arguments.args[1]
     assert stencil_arg.module_name == "field_mod"
@@ -181,7 +181,7 @@ def test_stencil_field_arg_lfricconst_properties(monkeypatch):
                                 "gh_field, gh_integer")
     ast = fpapi.parse(code, ignore_comments=False)
     metadata = DynKernMetadata(ast, name=name)
-    kernel = DynKern()
+    kernel = DynKern(parent=Schedule())
     kernel.load_meta(metadata)
     stencil_arg = kernel.arguments.args[1]
     assert stencil_arg.module_name == "integer_field_mod"

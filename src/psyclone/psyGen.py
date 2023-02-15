@@ -709,14 +709,6 @@ class InvokeSchedule(Routine):
                 self.addchild(KernFactory.create(call, parent=self))
 
     @property
-    def symbol_table(self):
-        '''
-        :returns: Table containing symbol information for the schedule.
-        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        '''
-        return self._symbol_table
-
-    @property
     def invoke(self):
         return self._invoke
 
@@ -845,8 +837,8 @@ class HaloExchange(Statement):
                          which index of a vector field this halo exchange is \
                          responsible for.
     :type vector_index: int
-    :param parent: optional parent (default None) of this object
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
+    :param kwargs: additional keyword arguments provided to the super class.
+    :type kwargs: unwrapped dict.
 
     '''
     # Textual description of the node.
@@ -855,8 +847,8 @@ class HaloExchange(Statement):
     _colour = "blue"
 
     def __init__(self, field, check_dirty=True,
-                 vector_index=None, parent=None):
-        Node.__init__(self, children=[], parent=parent)
+                 vector_index=None, **kwargs):
+        super().__init__(self, **kwargs)
         import copy
         self._field = copy.copy(field)
         if field:
@@ -869,12 +861,6 @@ class HaloExchange(Statement):
         self._halo_depth = None
         self._check_dirty = check_dirty
         self._vector_index = vector_index
-        # Keep a reference to the SymbolTable associated with the
-        # InvokeSchedule.
-        self._symbol_table = None
-        isched = self.ancestor(InvokeSchedule)
-        if isched:
-            self._symbol_table = isched.symbol_table
 
     @property
     def vector_index(self):
@@ -988,13 +974,11 @@ class HaloExchange(Statement):
                 f"check_dirty={self._check_dirty}]")
 
 
-class Kern(Statement):
+class Kern():
     '''Base class representing a call to a sub-program unit from within the
     PSy layer. It is possible for this unit to be in-lined within the
     PSy layer.
 
-    :param parent: parent of this node in the PSyIR.
-    :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
     :param call: information on the call itself, as obtained by parsing \
                  the Algorithm layer code.
     :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
@@ -1010,12 +994,9 @@ class Kern(Statement):
                              duplicated.
 
     '''
-    # Textual representation of the valid children for this node.
-    _children_valid_format = "<LeafNode>"
 
-    def __init__(self, parent, call, name, ArgumentsClass, check=True):
+    def __init__(self, call, name, ArgumentsClass, check=True):
         # pylint: disable=too-many-arguments
-        super().__init__(parent=parent)
         self._name = name
         self._iterates_over = call.ktype.iterates_over
         self._arguments = ArgumentsClass(call, self, check=check)
@@ -1285,11 +1266,8 @@ class Kern(Statement):
     def local_vars(self):
         raise NotImplementedError("Kern.local_vars should be implemented")
 
-    def gen_code(self, parent):
-        raise NotImplementedError("Kern.gen_code should be implemented")
 
-
-class CodedKern(Kern):
+class CodedKern(Kern, Call):
     '''
     Class representing a call to a PSyclone Kernel with a user-provided
     implementation. The kernel may or may not be in-lined.
@@ -1309,14 +1287,32 @@ class CodedKern(Kern):
     _text_name = "CodedKern"
     _colour = "magenta"
 
-    def __init__(self, KernelArguments, call, parent=None, check=True):
+    def __init__(self, KernelArguments, call, parent, check=True):
         # Set module_name first in case there is an error when
         # processing arguments, as we can then return the module_name
         # from where it happened.
         self._module_name = call.module_name
-        super(CodedKern, self).__init__(parent, call,
-                                        call.ktype.procedure.name,
-                                        KernelArguments, check)
+        name = call.ktype.procedure.name
+
+        # Then find or create the imported RoutineSymbol
+        if parent.ancestor(InvokeSchedule):
+            symtab = parent.ancestor(InvokeSchedule).symbol_table
+            try:
+                rsymbol = symtab.lookup(name)
+            except KeyError:
+                csymbol = symtab.find_or_create(
+                        self._module_name,
+                        symbol_type=ContainerSymbol)
+                rsymbol = symtab.new_symbol(
+                        name,
+                        symbol_type=RoutineSymbol,
+                        interface=ImportInterface(csymbol))
+        else:
+            rsymbol = RoutineSymbol(name)
+
+        # Make the call to both inherited super classes explicit
+        Call.__init__(self, rsymbol, parent=parent)
+        Kern.__init__(self, call, name, KernelArguments, check)
         self._module_code = call.ktype._ast
         self._kernel_code = call.ktype.procedure
         self._fp2_ast = None  # The fparser2 AST for the kernel
@@ -1757,7 +1753,7 @@ class CodedKern(Kern):
         self._modified = value
 
 
-class InlinedKern(Kern):
+class InlinedKern(Kern, Schedule):
     '''A class representing a kernel that is inlined. This is used by
     the NEMO API, since the NEMO API has no function to call or parameters.
     It has one child which stores the Schedule for the child nodes.
@@ -1775,23 +1771,9 @@ class InlinedKern(Kern):
 
     def __init__(self, psyir_nodes, parent=None):
         # pylint: disable=non-parent-init-called, super-init-not-called
-        Node.__init__(self, parent=parent)
-        schedule = Schedule(children=psyir_nodes, parent=self)
-        self.children = [schedule]
+        Schedule.__init__(self, children=psyir_nodes, parent=parent)
         self._arguments = None
 
-    @staticmethod
-    def _validate_child(position, child):
-        '''
-        :param int position: the position to be validated.
-        :param child: a child to be validated.
-        :type child: :py:class:`psyclone.psyir.nodes.Node`
-
-        :return: whether the given child and position are valid for this node.
-        :rtype: bool
-
-        '''
-        return position == 0 and isinstance(child, Schedule)
 
     @abc.abstractmethod
     def local_vars(self):
@@ -1802,7 +1784,7 @@ class InlinedKern(Kern):
         '''
 
 
-class BuiltIn(Kern):
+class BuiltIn(Kern, Call):
     '''
     Parent class for all built-ins (field operations for which the user
     does not have to provide an implementation).
@@ -1832,7 +1814,8 @@ class BuiltIn(Kern):
     def load(self, call, arguments, parent=None):
         ''' Set-up the state of this BuiltIn call '''
         name = call.ktype.name
-        super(BuiltIn, self).__init__(parent, call, name, arguments)
+        Call.__init__(self, RoutineSymbol(name), parent=parent)
+        Kern.__init__(self, call, name, arguments)
 
     def local_vars(self):
         '''Variables that are local to this built-in and therefore need to be

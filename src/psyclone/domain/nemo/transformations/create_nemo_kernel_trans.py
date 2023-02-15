@@ -170,8 +170,8 @@ class CreateNemoKernelTrans(Transformation):
         '''
         self.validate(sched, options=options)
 
-        nemokern = NemoKern(sched.pop_all_children(), parent=sched)
-        sched.addchild(nemokern)
+        # What about the symbol_table?
+        sched.replace_with(NemoKern(sched.pop_all_children()))
 
 
 # For AutoAPI documentation generation

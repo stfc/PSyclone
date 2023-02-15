@@ -215,7 +215,7 @@ def test_kernel_stub_invalid_scalar_argument():
     ast = get_ast(TEST_API, "testkern_one_int_scalar_mod.f90")
 
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = DynKern(parent=Schedule())
     kernel.load_meta(metadata)
     # Sabotage the scalar argument to make it have an invalid type.
     arg = kernel.arguments.args[1]
@@ -310,7 +310,7 @@ def test_kernel_stub_ind_dofmap_errors():
     are supplied to KernelStubArgList.indirection_dofmap() '''
     ast = get_ast(TEST_API, "testkern_one_int_scalar_mod.f90")
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = DynKern(parent=Schedule())
     kernel.load_meta(metadata)
     # Now call KernStubArgList to raise an exception
     create_arg_list = KernStubArgList(kernel)
@@ -431,7 +431,7 @@ def test_kernstubarglist_arglist_error():
     ast = get_ast(TEST_API, "testkern_one_int_scalar_mod.f90")
 
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = DynKern(parent=Schedule())
     kernel.load_meta(metadata)
     # Now call KernStubArgList to raise an exception
     create_arg_list = KernStubArgList(kernel)
@@ -449,7 +449,7 @@ def test_kernstubarglist_eval_shape_error():
     invalid. '''
     ast = get_ast(TEST_API, "testkern_qr_faces_mod.F90")
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = DynKern(parent=Schedule())
     kernel.load_meta(metadata)
     create_arg_list = KernStubArgList(kernel)
     # Break the list of qr rules
@@ -470,7 +470,7 @@ def test_refelem_stub_arglist_err():
     # Create the Kernel object
     ast = get_ast(TEST_API, "testkern_ref_elem_all_faces_mod.F90")
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = DynKern(parent=Schedule())
     kernel.load_meta(metadata)
     # Break the list of ref-element properties required by the Kernel
     kernel.reference_element.properties.append("Wrong property")

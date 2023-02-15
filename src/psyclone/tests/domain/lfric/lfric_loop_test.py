@@ -990,7 +990,7 @@ contains
 end module testkern_mod
 ''', ignore_comments=False)
     dkm = DynKernMetadata(ast, name="testkern_type")
-    kern = DynKern()
+    kern = DynKern(parent=Schedule())
     kern.load_meta(dkm)
     with pytest.raises(GenerationError) as err:
         loop.load(kern)

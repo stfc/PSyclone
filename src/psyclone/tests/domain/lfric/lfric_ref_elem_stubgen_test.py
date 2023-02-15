@@ -81,7 +81,7 @@ def test_refelem_stub_gen():
                                    "testkern_ref_elem_mod.F90"),
                       ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = DynKern(parent=Schedule())
     kernel.load_meta(metadata)
     gen = str(kernel.gen_stub)
 
@@ -130,7 +130,7 @@ def test_refelem_quad_stub_gen():
     properties should be placed at the end of subroutine argument list). '''
     ast = fpapi.parse(REF_ELEM_QUAD_MDATA, ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = DynKern(parent=Schedule())
     kernel.load_meta(metadata)
     gen = str(kernel.gen_stub)
 

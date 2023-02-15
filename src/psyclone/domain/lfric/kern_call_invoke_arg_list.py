@@ -42,8 +42,9 @@ of a Kernel as required by an `invoke` of that kernel.
 
 from psyclone.domain.lfric import ArgOrdering, LFRicConstants, psyir
 from psyclone.psyir.symbols import (ArrayType, DataSymbol,
-                                    DataTypeSymbol, DeferredType, SymbolTable,
+                                    DataTypeSymbol, DeferredType,
                                     ContainerSymbol, ImportInterface)
+from psyclone.psyGen import InvokeSchedule
 
 
 class KernCallInvokeArgList(ArgOrdering):
@@ -52,20 +53,12 @@ class KernCallInvokeArgList(ArgOrdering):
 
     :param kern: the kernel object for which to determine arguments.
     :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
-    :param symbol_table: the symbol table associated with the routine that \
-        contains the `invoke` of this kernel.
-    :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
     :raises TypeError: if supplied symbol table is of incorrect type.
 
     '''
-    def __init__(self, kern, symbol_table):
+    def __init__(self, kern):
         super().__init__(kern)
-        if not isinstance(symbol_table, SymbolTable):
-            raise TypeError(
-                f"Argument 'symbol_table' must be a SymbolTable "
-                f"instance but got '{type(symbol_table).__name__}'")
-        self._symtab = symbol_table
         # Once generate() is called, this list will contain 2-tuples, each
         # containing a Symbol and a function space (string).
         self._fields = []
@@ -74,6 +67,16 @@ class KernCallInvokeArgList(ArgOrdering):
         # Once generate() is called, this list will contain 3-tuples, each
         # containing a Symbol and from- and to-function spaces (strings).
         self._operators = []
+
+    @property
+    def _symtab(self):
+        '''
+        :returns: the associated InvokeSchedule symbol table.
+        :rtype: 
+        '''
+        if self._kern.ancestor(InvokeSchedule):
+            return self._kern.ancestor(InvokeSchedule).symbol_table
+        return self._kern.scope.symbol_table
 
     @property
     def fields(self):

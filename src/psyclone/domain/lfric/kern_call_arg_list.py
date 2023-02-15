@@ -53,7 +53,7 @@ from psyclone.psyir.nodes import (ArrayOfStructuresReference, Literal,
 from psyclone.psyir.symbols import (ArrayType, DataSymbol, DataTypeSymbol,
                                     DeferredType, ContainerSymbol,
                                     ImportInterface, INTEGER_SINGLE_TYPE,
-                                    ScalarType)
+                                    ScalarType, Symbol)
 
 # psyir has classes created at runtime
 # pylint: disable=no-member
@@ -279,7 +279,10 @@ class KernCallArgList(ArgOrdering):
         if scalar_arg.is_literal:
             self.psyir_append(scalar_arg.psyir_expression())
         else:
-            sym = self._symtab.lookup(scalar_arg.name)
+            try:
+                sym = self._symtab.lookup(scalar_arg.name)
+            except:
+                sym = Symbol(scalar_arg.name)
             self.psyir_append(Reference(sym))
 
     # TODO uncomment this method when ensuring we only pass ncell3d once

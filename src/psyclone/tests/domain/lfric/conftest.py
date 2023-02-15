@@ -39,6 +39,8 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.dynamo0p3 import DynKern
 from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
+from psyclone.psyir.nodes import Schedule
+from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -88,7 +90,10 @@ end module testkern_field_mod
     kernel_metadata = get_kernel_parse_tree(mdata_code)
     ktype = KernelTypeFactory(api="dynamo0.3").create(
         kernel_metadata, name="testkern_field_type")
-    kern = DynKern()
+    dummy = Schedule()
+    dummy.symbol_table.detach()
+    LFRicSymbolTable().attach(dummy)
+    kern = DynKern(parent=dummy)
     kern.load_meta(ktype)
     return kern
 
@@ -131,6 +136,9 @@ end module testkern_field_mod
     kernel_metadata = get_kernel_parse_tree(mdata_code)
     ktype = KernelTypeFactory(api="dynamo0.3").create(
         kernel_metadata, name="testkern_field_type")
-    kern = DynKern()
+    dummy = Schedule()
+    dummy.symbol_table.detach()
+    LFRicSymbolTable().attach(dummy)
+    kern = DynKern(parent=dummy)
     kern.load_meta(ktype)
     return kern

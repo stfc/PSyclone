@@ -466,7 +466,7 @@ def test_codedkern_node_str():
     '''
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    my_kern = DynKern()
+    my_kern = DynKern(parent=Schedule())
     my_kern.load_meta(metadata)
     out = my_kern.node_str()
     expected_output = (
@@ -680,7 +680,7 @@ def test_kern_children_validation():
     # We use a subclass (CodedKern->DynKern) to test this functionality.
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    kern = DynKern()
+    kern = DynKern(parent=Schedule())
     kern.load_meta(metadata)
 
     with pytest.raises(GenerationError) as excinfo:
@@ -773,7 +773,7 @@ def test_incremented_arg():
     for descriptor in metadata.arg_descriptors:
         if descriptor.access == AccessType.INC:
             descriptor._access = AccessType.READ
-    my_kern = DynKern()
+    my_kern = DynKern(parent=Schedule())
     my_kern.load_meta(metadata)
     with pytest.raises(FieldNotFoundError) as excinfo:
         CodedKern.incremented_arg(my_kern)
@@ -807,7 +807,7 @@ def test_kern_is_coloured2():
         table.new_symbol(f"cell{idx}", symbol_type=DataSymbol,
                          datatype=INTEGER_TYPE)
     # Create a loop nest of depth 3 containing the kernel, innermost first
-    my_kern = DynKern()
+    my_kern = DynKern(parent=Schedule())
     loops = [PSyLoop.create(table.lookup("cell0"),
                             Literal("1", INTEGER_TYPE),
                             Literal("10", INTEGER_TYPE),

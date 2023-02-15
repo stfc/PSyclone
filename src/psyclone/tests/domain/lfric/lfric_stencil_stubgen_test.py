@@ -58,7 +58,7 @@ def test_stub_stencil_extent():
     ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_stencil_mod.f90"),
                       ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = DynKern(parent=Schedule())
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
     result1 = (
@@ -85,7 +85,7 @@ def test_stub_cross2d_stencil():
                       ignore_comments=False)
 
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = DynKern(parent=Schedule())
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
     print(generated_code)
@@ -114,7 +114,7 @@ def test_stub_stencil_direction():
                                    "testkern_stencil_xory1d_mod.f90"),
                       ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = DynKern(parent=Schedule())
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
     result1 = (
@@ -140,7 +140,7 @@ def test_stub_stencil_vector():
                                    "testkern_stencil_vector_mod.f90"),
                       ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = DynKern(parent=Schedule())
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
     result1 = (
@@ -166,7 +166,7 @@ def test_stub_stencil_multi():
                                    "testkern_stencil_multi_mod.f90"),
                       ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = DynKern(parent=Schedule())
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
     result1 = (

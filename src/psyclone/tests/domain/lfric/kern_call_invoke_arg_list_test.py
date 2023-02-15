@@ -44,11 +44,7 @@ from psyclone.psyir.symbols import DataTypeSymbol, DeferredType, DataSymbol
 
 def test_kcial_construct(dynkern):
     ''' Tests for the KernCallInvokeArgList constructor. '''
-    with pytest.raises(TypeError) as err:
-        KernCallInvokeArgList(dynkern, None)
-    assert ("Argument 'symbol_table' must be a SymbolTable instance but got "
-            "'NoneType'" in str(err.value))
-    obj = KernCallInvokeArgList(dynkern, LFRicSymbolTable())
+    obj = KernCallInvokeArgList(dynkern)
     assert obj.fields == []
     assert obj.scalars == []
     assert obj.quadrature_objects == []
@@ -58,10 +54,9 @@ def test_kcial_generate(dynkern):
     ''' Tests for the KernCallInvokeArgList.generate() method. '''
     # generate() assumes a suitably initialised symbol table so create
     # that here.
-    table = LFRicSymbolTable()
-    table.new_symbol("field_type", symbol_type=DataTypeSymbol,
-                     datatype=DeferredType())
-    kcial = KernCallInvokeArgList(dynkern, table)
+    dynkern.scope.symbol_table.new_symbol(
+            "field_type", symbol_type=DataTypeSymbol, datatype=DeferredType())
+    kcial = KernCallInvokeArgList(dynkern)
     kcial.generate()
     assert len(kcial.fields) == 5
     assert len(kcial.scalars) == 2
@@ -70,7 +65,7 @@ def test_kcial_generate(dynkern):
     assert len(kcial.fields) == 5
     # Check that an unsupported scalar type gives the expected error.
     dynkern.arguments.args[0]._intrinsic_type = 'boolean'
-    kcial = KernCallInvokeArgList(dynkern, table)
+    kcial = KernCallInvokeArgList(dynkern)
     with pytest.raises(NotImplementedError) as err:
         kcial.generate()
     assert "Scalar of type 'boolean' not supported" in str(err.value)
@@ -81,12 +76,11 @@ def test_kcial_generate_operator(dynkern_op):
     arguments required by the kernel.'''
     # generate() assumes a suitably initialised symbol table so create
     # that here.
-    table = LFRicSymbolTable()
-    table.new_symbol("operator_type", symbol_type=DataTypeSymbol,
-                     datatype=DeferredType())
-    table.new_symbol("field_type", symbol_type=DataTypeSymbol,
-                     datatype=DeferredType())
-    kcial = KernCallInvokeArgList(dynkern_op, table)
+    dynkern_op.scope.symbol_table.new_symbol(
+        "operator_type", symbol_type=DataTypeSymbol, datatype=DeferredType())
+    dynkern_op.scope.symbol_table.new_symbol(
+        "field_type", symbol_type=DataTypeSymbol, datatype=DeferredType())
+    kcial = KernCallInvokeArgList(dynkern_op)
     kcial.generate()
     opers = kcial.operators
     assert len(opers) == 1
@@ -99,7 +93,7 @@ def test_kcial_generate_operator(dynkern_op):
 def test_kcial_not_implemented(dynkern):
     ''' Check all the methods that handle unsupported types of kernel
     argument. '''
-    kcial = KernCallInvokeArgList(dynkern, LFRicSymbolTable())
+    kcial = KernCallInvokeArgList(dynkern)
     with pytest.raises(NotImplementedError) as err:
         kcial.stencil(None)
     assert "Stencils are not yet supported" in str(err.value)

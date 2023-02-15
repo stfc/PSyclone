@@ -45,10 +45,11 @@ from __future__ import print_function
 import os
 
 import fparser
+from psyclone.configuration import Config
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata
 from psyclone.errors import GenerationError
 from psyclone.parse.utils import ParseError
-from psyclone.configuration import Config
+from psyclone.psyir.nodes import Schedule
 
 
 def generate(filename, api=""):
@@ -94,7 +95,7 @@ def generate(filename, api=""):
                          f"Fortran: {error}.")
 
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = DynKern(parent=Schedule())
     kernel.load_meta(metadata)
 
     return kernel.gen_stub

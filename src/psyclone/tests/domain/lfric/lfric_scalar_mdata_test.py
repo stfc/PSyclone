@@ -468,7 +468,7 @@ def test_scalar_arg_lfricconst_properties(monkeypatch):
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
     metadata = DynKernMetadata(ast, name=name)
-    kernel = DynKern()
+    kernel = DynKern(parent=Schedule())
     kernel.load_meta(metadata)
 
     # Test 'real' scalars
