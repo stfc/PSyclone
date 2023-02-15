@@ -174,6 +174,9 @@ class ExtractNode(PSyDataNode):
         '''
         Lowers this node (and all children) to language-level PSyIR. The
         PSyIR tree is modified in-place.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
         '''
         # Avoid circular dependency
         # pylint: disable=import-outside-toplevel
@@ -187,7 +190,7 @@ class ExtractNode(PSyDataNode):
                    'post_var_list': output_list,
                    'post_var_postfix': self._post_name}
 
-        super().lower_to_language_level(options)
+        return super().lower_to_language_level(options)
 
 
 # For AutoAPI documentation generation

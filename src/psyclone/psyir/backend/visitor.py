@@ -175,16 +175,12 @@ class PSyIRVisitor():
         # Lower the DSL concepts starting from the selected node.
         # pylint: disable=broad-except
         try:
-            node_copy.lower_to_language_level()
+            lowered_node = node_copy.lower_to_language_level()
         except Exception as err:
             raise VisitorError(
                 f"Failed to lower '{node}'. Note that some nodes need to be "
                 f"lowered from an ancestor in order to properly apply their "
                 f"in-tree modifications. Original error was '{err}'.") from err
-
-        # Find again the equivalent node in the lowered tree in case that it
-        # has been replaced
-        lowered_node = tree_copy.walk(Node)[node.abs_position]
 
         return self._visit(lowered_node)
 

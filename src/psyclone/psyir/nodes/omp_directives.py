@@ -578,12 +578,15 @@ class OMPParallelDirective(OMPRegionDirective):
         lowering step to find out which References are private, and place them
         explicitly in the lower-level tree to be processed by the backend
         visitor.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
         '''
         private_clause = self._get_private_clause()
         if private_clause != self.private_clause:
             self._children[2] = private_clause
 
-        super().lower_to_language_level()
+        return super().lower_to_language_level()
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
@@ -1311,6 +1314,9 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         In-place construction of clauses as PSyIR constructs.
         The clauses here may need to be updated if code has changed, or be
         added if not yet present.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
         '''
         private_clause = self._get_private_clause()
         if len(self._children) >= 3 and private_clause != self._children[2]:
@@ -1323,7 +1329,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         elif len(self._children) < 4:
             self.addchild(sched_clause, index=3)
 
-        super().lower_to_language_level()
+        return super().lower_to_language_level()
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.

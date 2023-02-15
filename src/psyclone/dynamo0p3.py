@@ -7119,6 +7119,8 @@ class DynLoop(PSyLoop):
         the loop in the schedule, i.e. can change when transformations are
         applied), this function can likely be removed.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
         '''
         super().lower_to_language_level()
         if self._loop_type != "null":
@@ -7131,17 +7133,19 @@ class DynLoop(PSyLoop):
                                       self.step_expr.copy(),
                                       self.loop_body.pop_all_children())
             self.replace_with(psy_loop)
-        else:
-            # Domain loop, i.e. no need for a loop at all. Remove the loop
-            # node (self), and insert its children directly
-            pos = self.position
-            parent = self.parent
-            self.detach()
-            all_children_reverse = reversed(self.loop_body.pop_all_children())
-            # Attach the children starting with the last, which
-            # preserves the original order of the children.
-            for child in all_children_reverse:
-                parent.children.insert(pos, child)
+            return psy_loop
+
+        # Domain loop, i.e. no need for a loop at all. Remove the loop
+        # node (self), and insert its children directly
+        pos = self.position
+        parent = self.parent
+        self.detach()
+        all_children_reverse = reversed(self.loop_body.pop_all_children())
+        # Attach the children starting with the last, which
+        # preserves the original order of the children.
+        for child in all_children_reverse:
+            parent.children.insert(pos, child)
+        return parent
 
     def node_str(self, colour=True):
         ''' Creates a text summary of this loop node. We override this
