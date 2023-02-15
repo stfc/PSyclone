@@ -414,6 +414,27 @@ def test_mesh_properties_ref_el_invalid(monkeypatch):
             "'adjacent_face'." in str(info.value))
 
 
+def test_function_space_name():
+    '''Test the KernelArgOrder class _function_space_name method behaves
+    as expected.
+
+    '''
+    meta_args = [
+        FieldArgMetadata("GH_REAL", "GH_INC", "W0")]
+    meta_funcs = [
+        MetaFuncsArgMetadata("W0", basis_function=True,
+                             diff_basis_function=True)]
+    metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args,
+        meta_funcs=meta_funcs)
+    metadata.validate()
+    kernel_arg_order = KernelArgOrder(metadata)
+    assert kernel_arg_order._function_space_name("w0") == "w0"
+    assert kernel_arg_order._function_space_name("any_space_6") == "as_6"
+    assert kernel_arg_order._function_space_name(
+        "any_discontinuous_space_10") == "ads_10"
+
+
 # The kernel_arg_order class fs_common and fs_compulsory_field methods
 # have already been tested by test_general_kernel().
 # The kernel_arg_order class fs_intergrid method has already been
@@ -655,8 +676,8 @@ def test_field_bcs_kernel():
     assert len(kernel_arg_order.meta_arg_index_from_actual_index) == 1
     assert kernel_arg_order.meta_arg_index_from_actual_index[1] == 0
     assert kernel_arg_order.arg_info == [
-        'nlayers', 'rfield_1', 'ndf_any_space_1', 'undf_any_space_1',
-        'map_any_space_1', 'boundary_dofs_rfield_1']
+        'nlayers', 'rfield_1', 'ndf_as_1', 'undf_as_1',
+        'map_as_1', 'boundary_dofs_rfield_1']
 
 
 def test_field_bcs_kernel_error1():
@@ -925,6 +946,3 @@ def test_generate_error(monkeypatch):
     with pytest.raises(InternalError) as info:
         kernel_arg_order._generate(metadata)
     assert "Unexpected meta_arg type 'NoneType' found." in str(info.value)
-
-
-# TODO Check names needing FUNCTION SPACE MANGLED NAMES i.e. any_space_x

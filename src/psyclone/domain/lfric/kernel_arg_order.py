@@ -389,6 +389,22 @@ class KernelArgOrder():
                     f"Unexpected mesh property '{mesh_property.mesh}' found. "
                     f"Expected 'adjacent_face'.")
 
+    def _function_space_name(self, function_space):
+        '''Shortens the function space name if it is any_space_* or
+        any_discontinuous_space_*.
+
+        :param str function_space: the function space name.
+
+        :returns: a shortened function space name.
+        :rtype: str
+
+        '''
+        if "any_space_" in function_space:
+            return f"as_{function_space[10:]}"
+        if "any_discontinuous_space_" in function_space:
+            return f"ads_{function_space[24:]}"
+        return function_space
+
     def fs_common(self, function_space):
         '''Arguments associated with a function space that are common to
         fields and operators. Add the number of degrees of freedom for
@@ -398,7 +414,8 @@ class KernelArgOrder():
         :param str function_space: the current function space.
 
         '''
-        self.arg_info.append(f"ndf_{function_space}")
+        function_space_name = self._function_space_name(function_space)
+        self.arg_info.append(f"ndf_{function_space_name}")
         self._arg_index += 1
 
     def fs_compulsory_field(self, function_space):
@@ -414,8 +431,9 @@ class KernelArgOrder():
         :param str function_space: the current function space.
 
         '''
-        self.arg_info.append(f"undf_{function_space}")
-        self.arg_info.append(f"map_{function_space}")
+        function_space_name = self._function_space_name(function_space)
+        self.arg_info.append(f"undf_{function_space_name}")
+        self.arg_info.append(f"map_{function_space_name}")
         self._arg_index += 2
 
     def fs_intergrid(self, meta_arg):
@@ -451,14 +469,15 @@ class KernelArgOrder():
 
         '''
         function_space = meta_arg.function_space
+        function_space_name = self._function_space_name(function_space)
         if meta_arg.mesh_arg == "gh_fine":
             # ndf
             self.fs_common(function_space)
             # undf
-            self.arg_info.append(f"undf_{function_space}")
+            self.arg_info.append(f"undf_{function_space_name}")
             self._arg_index += 1
             # full dofmap
-            self.arg_info.append(f"full_map_{function_space}")
+            self.arg_info.append(f"full_map_{function_space_name}")
             self._arg_index += 1
         else:  # "gh_coarse"
             # undf + dofmap
@@ -519,13 +538,14 @@ class KernelArgOrder():
         raises InternalError: if unexpected shape metadata is found.
 
         '''
+        function_space_name = self._function_space_name(function_space)
         const = LFRicConstants()
         if not self._metadata.shapes:
             return
         for shape in self._metadata.shapes:
             if shape in const.VALID_QUADRATURE_SHAPES:
                 self.arg_info.append(
-                    f"{name}_{function_space}_qr_{shape.split('_')[-1]}")
+                    f"{name}_{function_space_name}_qr_{shape.split('_')[-1]}")
                 self._arg_index += 1
             elif shape in const.VALID_EVALUATOR_SHAPES:
                 if self._metadata.evaluator_targets:
@@ -544,7 +564,8 @@ class KernelArgOrder():
                             target_function_spaces.append(field.function_space)
                 for target_function_space in target_function_spaces:
                     self.arg_info.append(
-                        f"{name}_{function_space}_to_{target_function_space}")
+                        f"{name}_{function_space_name}_to_"
+                        f"{target_function_space}")
                     self._arg_index += 1
             else:
                 raise InternalError(
@@ -810,8 +831,9 @@ class KernelArgOrder():
             ColumnwiseOperatorArgMetadata`
 
         '''
+        function_space_name = self._function_space_name(function_space)
         name = self._cma_operator_name(cma_operator)
-        self.arg_info.append(f"cbanded_map_{function_space}_{name}")
+        self.arg_info.append(f"cbanded_map_{function_space_name}_{name}")
         self._arg_index += 1
 
     def indirection_dofmap(self, function_space, cma_operator):
@@ -842,8 +864,10 @@ class KernelArgOrder():
             ColumnwiseOperatorArgMetadata`
 
         '''
+        function_space_name = self._function_space_name(function_space)
         name = self._cma_operator_name(cma_operator)
-        self.arg_info.append(f"cma_indirection_map_{function_space}_{name}")
+        self.arg_info.append(
+            f"cma_indirection_map_{function_space_name}_{name}")
         self._arg_index += 1
 
     def _generate(self, metadata):
