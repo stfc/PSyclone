@@ -84,9 +84,9 @@ class KernCallArgList(ArgOrdering):
         self._ndf_positions = []
 
     @staticmethod
-    def _map_fields_to_precision(field_type):
+    def _map_type_to_precision(field_type):
         '''This function return the precision required for the various
-        field types.
+        LFRic types.
 
         :param str field_type: the name of the field type.
 
@@ -423,7 +423,7 @@ class KernCallArgList(ArgOrdering):
                     mode=arg.access, metadata_posn=arg.metadata_index)
 
         # Add an access to field_proxy%data:
-        precision = KernCallArgList._map_fields_to_precision(arg.data_type)
+        precision = KernCallArgList._map_type_to_precision(arg.data_type)
         array_1d = \
             ArrayType(LFRicTypes("LfricRealScalarDataType")(precision),
                       [ArrayType.Extent.DEFERRED])
@@ -612,7 +612,7 @@ class KernCallArgList(ArgOrdering):
         self.append(arg.proxy_name_indexed + "%ncell_3d", var_accesses,
                     mode=AccessType.READ)
 
-        precision = KernCallArgList._map_fields_to_precision(operator["type"])
+        precision = KernCallArgList._map_type_to_precision(operator["type"])
         array_type = \
             ArrayType(LFRicTypes("LfricRealScalarDataType")(precision),
                       [ArrayType.Extent.DEFERRED]*3)
