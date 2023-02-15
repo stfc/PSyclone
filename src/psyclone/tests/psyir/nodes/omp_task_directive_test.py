@@ -3232,6 +3232,134 @@ end subroutine my_subroutine
     assert correct == fortran_writer(tree)
 
 
+def test_omp_task_directive_test_44(fortran_reader, fortran_writer):
+    '''Test the code generation generates the correct depend clause for a case
+    like the boundary condition for NemoLite2D. here we have a normal structure
+    for task + chunk loop code, and jiv = j + 1 needs to be correctly resolved
+    as related to j_out_var (and thus a proxy loop variable).'''
+    code = '''
+    subroutine my_subroutine()
+    integer :: j_out_var, j, i, j_el_inner, ystart, ystop, xstart, xstop
+    integer :: jiv
+    integer, dimension(100, 100) :: boundary
+    real, dimension(100, 100) :: va, hv, sshn_v
+    real :: g
+
+      DO j_out_var = ystart, ystop, 32
+        j_el_inner = MIN(j_out_var + (32 - 1), ystop)
+        DO j = j_out_var, j_el_inner, 1
+          DO i = xstart, xstop, 1
+            IF (.NOT.boundary(i,j) + boundary(i,j + 1) <= (-1)) THEN
+              IF (boundary(i,j) < 0) THEN
+                jiv = j + 1
+                va(i,j) = va(i,jiv) + SQRT(g / hv(i,j)) * (sshn_v(i,j) - \
+sshn_v(i,jiv))
+              ELSE
+                IF (boundary(i,j + 1) < 0) THEN
+                  jiv = j - 1
+                  va(i,j) = va(i,jiv) + SQRT(g / hv(i,j)) * (sshn_v(i,j) - \
+sshn_v(i,jiv))
+                END IF
+              END IF
+            END IF
+          END DO
+        END DO
+      END DO
+
+      DO j_out_var = ystart, ystop, 32
+        j_el_inner = MIN(j_out_var + (32-1), ystop)
+        Do j = j_out_var, j_el_inner, 1
+          Do i = xstart, xstop, 1
+            va(i, j) = sshn_v(i,j)
+          end do
+        end do
+    end do
+    end subroutine
+      '''
+    tree = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = DynamicOMPTaskDirective()
+    loops = tree.walk(Loop)
+    loop = loops[1]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir)
+    tdir = DynamicOMPTaskDirective()
+    loop = loops[4]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir)
+
+    strans.apply(loops[0].parent.children[:])
+    ptrans.apply(loops[0].parent.parent)
+
+    correct = '''subroutine my_subroutine()
+  integer :: j_out_var
+  integer :: j
+  integer :: i
+  integer :: j_el_inner
+  integer :: ystart
+  integer :: ystop
+  integer :: xstart
+  integer :: xstop
+  integer :: jiv
+  integer, dimension(100,100) :: boundary
+  real, dimension(100,100) :: va
+  real, dimension(100,100) :: hv
+  real, dimension(100,100) :: sshn_v
+  real :: g
+
+  !$omp parallel default(shared), private(i,j,j_el_inner,j_out_var,jiv)
+  !$omp single
+  do j_out_var = ystart, ystop, 32
+    j_el_inner = MIN(j_out_var + (32 - 1), ystop)
+    !$omp task private(j,i,jiv), firstprivate(j_out_var,j_el_inner,xstart,\
+xstop), shared(boundary,va,hv,sshn_v), depend(in: boundary(:,j_out_var),\
+boundary(:,j_out_var + 32),va(:,j_out_var + 32),va(:,j_out_var),g,\
+hv(:,j_out_var),sshn_v(:,j_out_var),sshn_v(:,j_out_var + 32),\
+va(:,j_out_var - 32),sshn_v(:,j_out_var - 32)), depend(out: va(:,j_out_var))
+    do j = j_out_var, j_el_inner, 1
+      do i = xstart, xstop, 1
+        if (.NOT.boundary(i,j) + boundary(i,j + 1) <= (-1)) then
+          if (boundary(i,j) < 0) then
+            jiv = j + 1
+            va(i,j) = va(i,jiv) + SQRT(g / hv(i,j)) * (sshn_v(i,j) - \
+sshn_v(i,jiv))
+          else
+            if (boundary(i,j + 1) < 0) then
+              jiv = j - 1
+              va(i,j) = va(i,jiv) + SQRT(g / hv(i,j)) * (sshn_v(i,j) - \
+sshn_v(i,jiv))
+            end if
+          end if
+        end if
+      enddo
+    enddo
+    !$omp end task
+  enddo
+  do j_out_var = ystart, ystop, 32
+    j_el_inner = MIN(j_out_var + (32 - 1), ystop)
+    !$omp task private(j,i), firstprivate(j_out_var,j_el_inner,xstart,xstop), \
+shared(va,sshn_v), depend(in: sshn_v(:,j_out_var)), depend(out: \
+va(:,j_out_var))
+    do j = j_out_var, j_el_inner, 1
+      do i = xstart, xstop, 1
+        va(i,j) = sshn_v(i,j)
+      enddo
+    enddo
+    !$omp end task
+  enddo
+  !$omp end single
+  !$omp end parallel
+
+end subroutine my_subroutine
+'''
+    assert correct in fortran_writer(tree)
+
+
 # TODO #2052 This test is expected to fail as we can't yet handle
 # multiple indirections on either side of a statement and will over
 # generate code for this dependency.
