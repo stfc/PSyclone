@@ -1865,7 +1865,7 @@ def test_dynkernelargument_idtp_r_solver_operator(tmpdir):
     class for an r_solver_operator.
 
     '''
-    # Use one of the examples to create an instance of
+    # Use one of the test algorithms to create an instance of
     # DynKernelArgument that describes an r_solver_operator.
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "26.2_mixed_precision_self.f90"), api=TEST_API)
@@ -1897,12 +1897,50 @@ def test_dynkernelargument_idtp_r_solver_operator(tmpdir):
             "algorithm code." in str(info.value))
 
 
+def test_dynkernelargument_idtp_r_tran_operator(tmpdir):
+    '''
+    Test the _init_data_type_properties method in the DynKernelArgument
+    class for an r_tran_operator.
+
+    '''
+    # Use one of the test algorithms to create an instance of
+    # DynKernelArgument that describes an r_tran_operator.
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "26.8_mixed_precision_args.f90"), api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    operator_argument = psy.invokes.invoke_list[0].schedule.args[8]
+    assert operator_argument.is_operator
+    assert operator_argument._precision == "r_tran"
+    assert operator_argument._data_type == "r_tran_operator_type"
+    assert operator_argument._proxy_data_type == "r_tran_operator_proxy_type"
+    assert operator_argument._module_name == "r_tran_operator_mod"
+
+    # Test compilation
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    # No algorithm information - raise exception
+    with pytest.raises(GenerationError) as info:
+        operator_argument._init_data_type_properties(None)
+    assert ("It was not possible to determine the operator type from the "
+            "algorithm layer for argument 'operator_r_tran' in kernel "
+            "'mixed_code'." in str(info.value))
+
+    # Inconsistent datatype
+    arg = Arg("variable", None, None, ("columnwise_operator_type", None))
+    with pytest.raises(GenerationError) as info:
+        operator_argument._init_data_type_properties(arg)
+    assert ("The metadata for argument 'operator_r_tran' in kernel "
+            "'mixed_code' specifies that this is an operator, "
+            "however it is declared as a 'columnwise_operator_type' in the "
+            "algorithm code." in str(info.value))
+
+
 def test_dynkernelargument_idtp_operator():
     '''Test the _init_data_type_properties method in the DynKernelArgument
     class for an operator of type operator_type.
 
     '''
-    # Use one of the examples to create an instance of
+    # Use one of the test algorithms to create an instance of
     # DynKernelArgument that describes an operator.
     _, invoke_info = parse(os.path.join(BASE_PATH, "10_operator.f90"),
                            api=TEST_API)
@@ -1952,7 +1990,7 @@ def test_dynkernelargument_idtp_columnwise_operator():
     class for a columnwise operator.
 
     '''
-    # Use one of the examples to create an instance of
+    # Use one of the test algorithms to create an instance of
     # DynKernelArgument that describes a columnwise operator.
     _, invoke_info = parse(os.path.join(BASE_PATH, "20.1_cma_apply.f90"),
                            api=TEST_API)
@@ -4306,11 +4344,13 @@ def test_mixed_precision_args(tmpdir):
         "    USE operator_mod, ONLY: operator_type, operator_proxy_type\n"
         "    USE r_solver_operator_mod, ONLY: r_solver_operator_type, "
         "r_solver_operator_proxy_type\n"
+        "    USE r_tran_operator_mod, ONLY: r_tran_operator_type, "
+        "r_tran_operator_proxy_type\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0(scalar_r_def, field_r_def, operator_r_def, "
         "scalar_r_solver, field_r_solver, operator_r_solver, scalar_r_tran, "
-        "field_r_tran)\n"
+        "field_r_tran, operator_r_tran)\n"
         "      USE mixed_mod, ONLY: mixed_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      REAL(KIND=r_def), intent(in) :: scalar_r_def\n"
@@ -4321,11 +4361,13 @@ def test_mixed_precision_args(tmpdir):
         "      TYPE(r_tran_field_type), intent(in) :: field_r_tran\n"
         "      TYPE(operator_type), intent(in) :: operator_r_def\n"
         "      TYPE(r_solver_operator_type), intent(in) :: operator_r_solver\n"
+        "      TYPE(r_tran_operator_type), intent(in) :: operator_r_tran\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) loop2_start, loop2_stop\n"
         "      INTEGER(KIND=i_def) loop1_start, loop1_stop\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      INTEGER(KIND=i_def) nlayers\n"
+        "      TYPE(r_tran_operator_proxy_type) operator_r_tran_proxy\n"
         "      TYPE(r_solver_operator_proxy_type) operator_r_solver_proxy\n"
         "      TYPE(operator_proxy_type) operator_r_def_proxy\n"
         "      TYPE(r_tran_field_proxy_type) field_r_tran_proxy\n"

@@ -896,7 +896,7 @@ class DynKernMetadata(KernelType):
         const = LFRicConstants()
         # A kernel which operates on the 'domain' is currently restricted
         # to only accepting scalar and field arguments.
-        valid_arg_types = (const.VALID_SCALAR_NAMES + const.VALID_FIELD_NAMES)
+        valid_arg_types = const.VALID_SCALAR_NAMES + const.VALID_FIELD_NAMES
         for arg in self._arg_descriptors:
             if arg.argument_type not in valid_arg_types:
                 raise ParseError(
@@ -1886,7 +1886,7 @@ class LFRicMeshProperties(DynCollection):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
         :param kern_call_arg_list: an optional KernCallArgList instance \
             used to store PSyIR representation of the arguments.
         :type kern_call_arg_list: \
@@ -3419,6 +3419,11 @@ class LFRicLoopBounds(DynCollection):
         api_config = config.api_conf("dynamo0.3")
 
         for idx, loop in enumerate(loops):
+
+            if loop.loop_type == "null":
+                # 'null' loops don't need any bounds.
+                continue
+
             root_name = f"loop{idx}_start"
             lbound = sym_table.find_or_create_integer_symbol(root_name,
                                                              tag=root_name)
@@ -7982,7 +7987,7 @@ class DynKern(CodedKern):
         :param var_accesses: VariablesAccessInfo instance that stores the \
             information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
         '''
 
         # Use the KernelCallArgList class, which can also provide variable
@@ -9098,6 +9103,7 @@ class DynKernelArguments(Arguments):
                 if function_space:
                     if func_space.mangled_name == function_space.mangled_name:
                         return arg
+
         raise FieldNotFoundError(f"DynKernelArguments:get_arg_on_space: there "
                                  f"is no field or operator with function space"
                                  f" {func_space.orig_name} (mangled name = "
@@ -9661,6 +9667,8 @@ class DynKernelArgument(KernelArgument):
                 argtype = "operator"
             elif alg_datatype == "r_solver_operator_type":
                 argtype = "r_solver_operator"
+            elif alg_datatype == "r_tran_operator_type":
+                argtype = "r_tran_operator"
             else:
                 raise GenerationError(
                     f"The metadata for argument '{self.name}' in kernel "
@@ -9819,7 +9827,7 @@ class DynKernelArgument(KernelArgument):
                     datatype=self.infer_datatype())
             return Reference(scalar_sym)
 
-        if self.is_field:
+        if self.is_field or self.is_operator:
             # Although the argument to a Kernel is a field, the data itself
             # is accessed through a field_proxy.
             try:

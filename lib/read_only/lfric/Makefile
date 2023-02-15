@@ -96,6 +96,9 @@ read_only_base.o: psy_data_base.o
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
+read_only.f90: read_only.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) $< > read_only.f90
+
 # The LFRic ReadOnly library is built on the psy-data base library
 # and the read-only base library. This library uses the `declareXXX`
 # functions implemented in `psy_data_base`, hence the parameter

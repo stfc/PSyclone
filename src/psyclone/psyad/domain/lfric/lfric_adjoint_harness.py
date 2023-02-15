@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,11 +36,12 @@
 ''' Provides LFRic-specific PSyclone adjoint test-harness functionality. '''
 
 from fparser import api as fpapi
+from psyclone.core import AccessType
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctorFactory, LFRicKernelFunctor)
 from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
-from psyclone.errors import InternalError
+from psyclone.errors import InternalError, GenerationError
 from psyclone.psyad.domain.common.adjoint_utils import (create_adjoint_name,
                                                         create_real_comparison,
                                                         find_container)
@@ -306,6 +307,37 @@ def _init_fields_random(fields, input_symbols, table):
     return kernel_list
 
 
+def _init_operators_random(operators, table):
+    '''
+    Creates a suitable kernel functor for each operator that requires
+    initialising with pseudo-random data.
+
+    :param fields: those operators requiring initialisation.
+    :type fields: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
+    :param table: the symbol table to which to add new symbols.
+    :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+    :returns: the required kernel calls.
+    :rtype: List[:py:class:`psyclone.domain.common.algorithm.Functor`]
+
+    '''
+    # We use the 'setop_random' kernel to do the initialisation. This
+    # is a general-purpose kernel (not a built-in) that is part of the
+    # PSyclone distribution.
+    kname = "setop_random_kernel"
+    kernel_mod = table.new_symbol(kname+"_mod",
+                                  symbol_type=ContainerSymbol)
+    kernel_sym = table.new_symbol(kname+"_type", symbol_type=DataTypeSymbol,
+                                  datatype=DeferredType(),
+                                  interface=ImportInterface(kernel_mod))
+    # Create a functor to initialise each operator
+    kernel_list = [LFRicKernelFunctor.create(kernel_sym, [Reference(sym)])
+                   for sym in operators]
+
+    # Return the list of kernel functors.
+    return kernel_list
+
+
 def _validate_geom_arg(kern, arg_idx, name, valid_spaces, vec_len):
     '''
     Check that the argument at the supplied index is consistent with the
@@ -383,7 +415,7 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
         PSyIR does not follow the LFRic naming convention of ending in '_mod'.
 
     '''
-    # pylint: disable=too-many-statements, too-many-locals
+    # pylint: disable=too-many-statements, too-many-locals, too-many-branches
     tl_container = find_container(tl_psyir)
     if not tl_container:
         raise ValueError(
@@ -396,7 +428,7 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
     routine = container.walk(Routine)[0]
     table = routine.symbol_table
 
-    # Parse the kernel metadata . This still uses fparser1 as that's what
+    # Parse the kernel metadata. This still uses fparser1 as that's what
     # the meta-data handling is currently based upon. We therefore have to
     # convert back from PSyIR to Fortran for the moment.
     # TODO #1806 - replace this with the new PSyIR-based metadata handling.
@@ -460,11 +492,17 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
         geometry_arg_indices.append(panel_id_arg_idx)
 
     # Create symbols that will store copies of the inputs to the TL kernel.
-    # Currently we only support scalar and field arguments.
+    # We don't need to do this for operators since they are never 'active'.
     field_args = [fsym for fsym, _ in kern_args.fields]
     scalar_and_field_args = kern_args.scalars + field_args
+    # Double check that there aren't any operator arguments that are written to
+    for op_sym, _, _ in kern_args.operators:
+        idx = kern_args.arglist.index(op_sym.name)
+        if kern.arguments.args[idx].access != AccessType.READ:
+            raise GenerationError(
+                f"Operator argument '{op_sym.name}' to TL kernel "
+                f"'{kernel_name}' is written to. This is not supported.")
 
-    # TODO #1864 - add support for operators.
     input_symbols = {}
     for sym in scalar_and_field_args:
         idx = kern_args.arglist.index(sym.name)
@@ -491,8 +529,8 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
         lfalg.initialise_field(routine, input_symbols[sym.name], space)
         kernel_input_arg_list.append(sym)
 
-    # Initialise argument values and keep copies. For scalars we use the
-    # Fortran 'random_number' intrinsic directly.
+    # Initialise argument values and keep copies.
+    # Scalars - we use the Fortran 'random_number' intrinsic directly.
     # TODO #1345 - this is Fortran specific.
     random_num = RoutineSymbol("random_number")
     for sym in kern_args.scalars:
@@ -506,16 +544,12 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
         input_sym = table.lookup(sym.name+"_input")
         routine.addchild(Assignment.create(Reference(input_sym),
                                            Reference(sym)))
-
+    # Fields.
     kernel_list = _init_fields_random(kernel_input_arg_list, input_symbols,
                                       table)
-
-    # Initialise all operator arguments.
-    if kern_args.operators:
-        raise NotImplementedError(
-            f"Kernel {kernel_name} has one or more operator arguments. Test "
-            f"harness creation for such a kernel is not yet supported "
-            f"(Issue #1864).")
+    # Operators.
+    kernel_list.extend(_init_operators_random(
+        [sym for sym, _, _ in kern_args.operators], table))
 
     # Finally, add the kernel itself to the list for the invoke().
     arg_nodes = []
@@ -540,7 +574,8 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
     kernel_list.append(kern)
 
     # Compute the inner products of the results of the TL kernel. We exclude
-    # any fields passed through (unmodified) from the Algorithm layer.
+    # any fields passed through (unmodified) from the Algorithm layer as well
+    # as any operators.
     fld_pairs = []
     for sym, _ in kern_args.fields:
         if sym in kernel_input_arg_list:

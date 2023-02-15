@@ -174,14 +174,14 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         :param var_accesses: VariablesAccessInfo instance that stores the \
             information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # Collect all write access in a separate object, so they can be added
         # after all read access (which must happen before something is written)
         written = VariablesAccessInfo()
         for arg in self.args:
-            if arg.form == "variable":
+            if arg.form in ["variable", "indexed_variable"]:
                 if arg.access == AccessType.WRITE:
                     written.add_access(Signature(arg.declaration_name),
                                        arg.access, self)
