@@ -2157,20 +2157,6 @@ def test_omp_serial_check_task_dependencies_fails():
         "same parent serial region." in str(excinfo.value)
     )
 
-    # Second fail, task + taskwait
-    sing = OMPSingleDirective()
-    task = OMPTaskDirective()
-    taskwait = OMPTaskwaitDirective()
-    sing.children[0].addchild(task)
-    sing.children[0].addchild(taskwait)
-    with pytest.raises(GenerationError) as excinfo:
-        sing._check_task_dependencies()
-    assert (
-        "OMPTaskDirective and OMPTaskwaitDirectives"
-        " are not currently supported inside the "
-        "same parent serial region." in str(excinfo.value)
-    )
-
 
 def test_omp_serial_check_task_dependencies_outout():
     '''

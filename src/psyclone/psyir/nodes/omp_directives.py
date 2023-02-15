@@ -747,12 +747,6 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                                   " are not currently supported inside the "
                                   "same parent serial region.")
 
-        # Also this doesn't work if there are Taskwaits for now
-        if len(tasks) > 0 and len(self.walk(OMPTaskwaitDirective)) > 0:
-            raise GenerationError("OMPTaskDirective and OMPTaskwaitDirectives"
-                                  " are not currently supported inside the "
-                                  "same parent serial region.")
-
         pairs = itertools.combinations(tasks, 2)
         # List of tuples of dependent nodes that aren't handled by OpenMP
         dependent_nodes = []
@@ -1003,6 +997,9 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
 
         taskwait_location_nodes = []
         taskwait_location_abs_pos = []
+        for taskwait in self.walk(OMPTaskwaitDirective):
+            taskwait_location_nodes.append(taskwait)
+            taskwait_location_abs_pos.append(taskwait.abs_position)
         # Add the first node to have a taskwait placed in front of it into the
         # list
         taskwait_location_nodes.append(sorted_dependency_pairs[0][1])
