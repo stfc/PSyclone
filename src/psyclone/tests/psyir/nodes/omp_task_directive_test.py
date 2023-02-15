@@ -3360,6 +3360,65 @@ end subroutine my_subroutine
     assert correct in fortran_writer(tree)
 
 
+def test_omp_task_directive_45(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly generates the correct depend clause
+    when an input array is shifted by less than a full step of the outer loop.
+    This is expected to be similar to a real use-case.'''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(321, 10) :: A
+        integer, dimension(32, 10) :: B
+        integer :: i, ii
+        integer :: j
+        integer, parameter :: k = 1
+        do i = 1, 320, 32
+            do ii=i, i+32
+                do j = 1, 32
+                    A(ii, j) = B(ii+1, j) + k
+                end do
+            end do
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = DynamicOMPTaskDirective()
+    loops = tree.walk(Loop, stop_type=Loop)
+    loop = loops[0].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(loops[0].parent.parent)
+    correct = '''subroutine my_subroutine()
+  integer, parameter :: k = 1
+  integer, dimension(321,10) :: a
+  integer, dimension(32,10) :: b
+  integer :: i
+  integer :: ii
+  integer :: j
+
+  !$omp parallel default(shared), private(i,ii,j)
+  !$omp single
+  do i = 1, 320, 32
+    !$omp task private(ii,j), firstprivate(i), shared(a,b), \
+depend(in: b(i + 32,:),b(i,:)), depend(out: a(i,:))
+    do ii = i, i + 32, 1
+      do j = 1, 32, 1
+        a(ii,j) = b(ii + 1,j) + k
+      enddo
+    enddo
+    !$omp end task
+  enddo
+  !$omp end single
+  !$omp end parallel
+
+end subroutine my_subroutine\n'''
+    assert fortran_writer(tree) == correct
+
+
 # TODO #2052 This test is expected to fail as we can't yet handle
 # multiple indirections on either side of a statement and will over
 # generate code for this dependency.

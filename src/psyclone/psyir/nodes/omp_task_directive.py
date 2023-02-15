@@ -2036,27 +2036,25 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             firstprivate_clause.addchild(ref)
         shared_clause = OMPSharedClause()
         for ref in shared_list:
-            if not (
-                isinstance(ref.symbol, DataSymbol) and ref.symbol.is_constant
-            ):
-                shared_clause.addchild(ref)
+            shared_clause.addchild(ref)
 
         in_clause = OMPDependClause(
             depend_type=OMPDependClause.DependClauseTypes.IN
         )
+        # For input references we need to ignore references to constant
+        # symbols. This means we need to try to get external symbols as well
         for ref in in_list:
-            if not (
-                isinstance(ref.symbol, DataSymbol) and ref.symbol.is_constant
-            ):
-                in_clause.addchild(ref)
+            if isinstance(ref.symbol, DataSymbol) and ref.symbol.is_constant:
+                continue
+            if (ref.symbol.is_import and
+                    ref.symbol.get_external_symbol().is_constant):
+                continue
+            in_clause.addchild(ref)
         out_clause = OMPDependClause(
             depend_type=OMPDependClause.DependClauseTypes.OUT
         )
         for ref in out_list:
-            if not (
-                isinstance(ref.symbol, DataSymbol) and ref.symbol.is_constant
-            ):
-                out_clause.addchild(ref)
+            out_clause.addchild(ref)
 
         return (
             private_clause,
