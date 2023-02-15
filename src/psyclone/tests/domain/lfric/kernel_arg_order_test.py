@@ -179,11 +179,24 @@ def test_scalar():
         'ndf_w0', 'undf_w0', 'map_w0']
 
 
+def test_field_name():
+    '''Test that the kernel_arg_order class _field_name utility method
+    works as expected.
+
+    '''
+    meta_args = [FieldArgMetadata("GH_REAL", "GH_INC", "W0")]
+    metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    metadata.validate()
+    kernel_arg_order = KernelArgOrder(metadata)
+    assert kernel_arg_order._field_name(meta_args[0]) == "rfield_1"
+
+
 def test_field():
-    '''Test the kernel_arg_order class field with the different supported
-    datatypes as they have different default names. Previous tests
-    have already tested that this method is called (for field with
-    real data).
+    '''Test the kernel_arg_order class field method with the different
+    supported datatypes as they have different default names. Previous
+    tests have already tested that this method is called (for field
+    with real data).
 
     '''
     meta_args = [
@@ -224,8 +237,35 @@ def test_field_vector():
         'ifield_2_v2', 'ndf_w0', 'undf_w0', 'map_w0']
 
 
+def test_operator_name():
+    '''Test that the kernel_arg_order class _operator_name utility method
+    works as expected.
+
+    '''
+    meta_args = [OperatorArgMetadata("GH_REAL", "GH_READWRITE", "W0", "W1")]
+    metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    metadata.validate()
+    kernel_arg_order = KernelArgOrder(metadata)
+    assert kernel_arg_order._operator_name(meta_args[0]) == "op_1"
+
+
 # The kernel_arg_order class operator method has already been tested
 # by test_cell_position().
+
+
+def test_cma_operator_name():
+    '''Test that the kernel_arg_order class _cma_operator_name utility method
+    works as expected.
+
+    '''
+    meta_args = [ColumnwiseOperatorArgMetadata(
+        "GH_REAL", "GH_READWRITE", "W0", "W1")]
+    metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    metadata.validate()
+    kernel_arg_order = KernelArgOrder(metadata)
+    assert kernel_arg_order._cma_operator_name(meta_args[0]) == "cma_op_1"
 
 
 def test_cma_operator():
@@ -887,5 +927,4 @@ def test_generate_error(monkeypatch):
     assert "Unexpected meta_arg type 'NoneType' found." in str(info.value)
 
 
-# TODO tests for meta_arg name functions.
 # TODO Check names needing FUNCTION SPACE MANGLED NAMES i.e. any_space_x
