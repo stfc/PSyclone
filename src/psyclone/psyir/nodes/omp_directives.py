@@ -766,11 +766,14 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             satisfiable = True
             # Find all References in each tasks' depend clauses
             # Should we cache these instead?
-            task1_in = task1.children[4].walk(Reference)
-            task1_out = task1.children[5].walk(Reference)
-
-            task2_in = task2.children[4].walk(Reference)
-            task2_out = task2.children[5].walk(Reference)
+            task1_in = [x for x in task1.children[4].children
+                        if isinstance(x, Reference)]
+            task1_out = [x for x in task1.children[5].children
+                         if isinstance(x, Reference)]
+            task2_in = [x for x in task2.children[4].children
+                        if isinstance(x, Reference)]
+            task2_out = [x for x in task2.children[5].children
+                         if isinstance(x, Reference)]
 
             inout = itertools.product(task1_in, task2_out)
             outin = itertools.product(task1_out, task2_in)
@@ -987,9 +990,6 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         # Based upon
         # https://stackoverflow.com/questions/9764298/how-to-sort-two-
         # lists-which-reference-each-other-in-the-exact-same-way
-        print(len(dependent_nodes))
-        print(highest_position_nodes)
-        print(lowest_position_nodes)
         if len(dependent_nodes) > 0:
             sorted_highest_positions, sorted_lowest_positions, \
                     sorted_dependency_pairs = (list(t) for t in

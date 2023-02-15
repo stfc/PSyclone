@@ -51,6 +51,7 @@ from psyclone.psyir.nodes import (
     Call,
     ArrayMember,
 )
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_of_structures_member import (
     ArrayOfStructuresMember,
 )
@@ -1590,6 +1591,8 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # loop variable
         added = False
         for ref in references:
+            if isinstance(ref.parent, ArrayMixin):
+                continue
             for index, parent_var in enumerate(self._parent_loop_vars):
                 if ref.symbol == parent_var:
                     if lhs.symbol in self._proxy_loop_vars:
@@ -1609,6 +1612,38 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         subdict["loop"] = node
                         subdict["parent_loop"] = self._parent_loops[index]
 
+                        self._proxy_loop_vars[lhs.symbol] = subdict
+                    added = True
+            if added:
+                break
+
+        # If RHS involves a proxy loop variable, then our lhs node is also a
+        # proxy to that same variable
+        added = False
+        key_list = list(self._proxy_loop_vars.keys())
+        for ref in references:
+            if isinstance(ref.parent, ArrayMixin):
+                continue
+            for index, proxy_var in enumerate(key_list):
+                if ref.symbol == proxy_var:
+                    if lhs.symbol in self._proxy_loop_vars:
+                        if (
+                            rhs
+                            not in self._proxy_loop_vars[lhs.symbol][
+                                "parent_node"
+                            ]
+                        ):
+                            self._proxy_loop_vars[lhs.symbol][
+                                "parent_node"
+                            ].append(rhs.copy())
+                    else:
+                        subdict = {}
+                        subdict["parent_var"] = \
+                            self._proxy_loop_vars[proxy_var]["parent_var"]
+                        subdict["parent_node"] = [rhs.copy()]
+                        subdict["loop"] = node
+                        subdict["parent_loop"] = self._parent_loops[index]
+                        self._parent_loops.append(self._parent_loops[index])
                         self._proxy_loop_vars[lhs.symbol] = subdict
                     added = True
             if added:
