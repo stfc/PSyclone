@@ -1886,7 +1886,7 @@ class LFRicMeshProperties(DynCollection):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
         :param kern_call_arg_list: an optional KernCallArgList instance \
             used to store PSyIR representation of the arguments.
         :type kern_call_arg_list: \
@@ -7987,7 +7987,7 @@ class DynKern(CodedKern):
         :param var_accesses: VariablesAccessInfo instance that stores the \
             information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
         '''
 
         # Use the KernelCallArgList class, which can also provide variable
@@ -9667,6 +9667,8 @@ class DynKernelArgument(KernelArgument):
                 argtype = "operator"
             elif alg_datatype == "r_solver_operator_type":
                 argtype = "r_solver_operator"
+            elif alg_datatype == "r_tran_operator_type":
+                argtype = "r_tran_operator"
             else:
                 raise GenerationError(
                     f"The metadata for argument '{self.name}' in kernel "
