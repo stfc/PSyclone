@@ -222,11 +222,17 @@ def test_apply_array_access(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(output)
 
 
-def test_apply_gocean_kern(fortran_reader, fortran_writer):
-    '''Test the apply method with a typical GOcean kernel.'''
+def test_apply_gocean_kern(fortran_reader, fortran_writer, monkeypatch):
+    '''
+    Test the apply method with a typical GOcean kernel.
+
+    TODO #1904 - currently this xfails because we don't resolve the type of
+    the actual argument.
+
+    '''
     code = (
         "module psy_single_invoke_test\n"
-        "  use field_mod\n"
+        "  use field_mod, only: r2d_field\n"
         "  use kind_params_mod\n"
         "  implicit none\n"
         "  contains\n"
@@ -249,11 +255,20 @@ def test_apply_gocean_kern(fortran_reader, fortran_writer):
         "  end subroutine compute_cu_code\n"
         "end module psy_single_invoke_test\n"
     )
+    # Set up include_path to import the proper module
+    src_dir = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "../../../external/dl_esm_inf/finite_difference/src")
+    monkeypatch.setattr(Config.get(), '_include_paths', [str(src_dir)])
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
-    for routine in psyir.walk(Call):
-        inline_trans.apply(routine)
-
+    with pytest.raises(TransformationError) as err:
+        inline_trans.apply(psyir.walk(Call)[0])
+    if ("actual argument 'cu_fld' corresponding to an array formal "
+            "argument ('cu') is unknown" in str(err.value)):
+        pytest.xfail(
+            "TODO #1904 - extend validation to attempt to resolve type of "
+            "actual argument.")
     output = fortran_writer(psyir)
     assert ("    do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
             "      do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1\n"
@@ -348,9 +363,12 @@ def test_apply_unresolved_struct_arg(fortran_reader, fortran_writer):
         "    type(mystery_type) :: var3, varr(5)\n"
         # Unknown structure type but array dims are known.
         "    call sub3(varr)\n"
-        # Unknown actual argument but formal arg just uses the same
-        # (unspecified) array bounds.
+        # Unknown actual argument corresponding to a formal array argument
+        # so we can't be sure that it isn't being reshaped.
         "    call sub3(mystery)\n"
+        # Unknown actual argument corresponding to a formal scalar argument
+        # so lack of type information isn't a problem.
+        "    call sub3a(mystery)\n"
         # Formal arg specifies array bounds and we don't have them for
         # the actual argument.
         "    call sub4(mystery)\n"
@@ -360,6 +378,11 @@ def test_apply_unresolved_struct_arg(fortran_reader, fortran_writer):
         "    type(mystery_type), dimension(:), intent(inout) :: x\n"
         "    x(:)%region%local%nx = 0\n"
         "  end subroutine sub3\n"
+        "  subroutine sub3a(x)\n"
+        "    use some_mod, only: mystery_type\n"
+        "    type(mystery_type) :: x\n"
+        "    x%flag = 1\n"
+        "  end subroutine sub3a\n"
         "  subroutine sub4(x)\n"
         "    use some_mod, only: mystery_type\n"
         "    type(mystery_type), dimension(3:5), intent(inout) :: x\n"
@@ -371,17 +394,24 @@ def test_apply_unresolved_struct_arg(fortran_reader, fortran_writer):
     calls = psyir.walk(Call)
     # First one should be fine.
     inline_trans.apply(calls[0])
-    # Second one should also be fine.
-    inline_trans.apply(calls[1])
-    # We can't do the third one.
+    # Second one should fail.
     with pytest.raises(TransformationError) as err:
-        inline_trans.apply(calls[2])
+        inline_trans.apply(calls[1])
+    assert ("Routine 'sub3' cannot be inlined because the type of the actual "
+            "argument 'mystery' corresponding to an array formal argument "
+            "('x') is unknown" in str(err.value))
+    # Third one should be fine because it is a scalar argument.
+    inline_trans.apply(calls[2])
+    # We can't do the fourth one.
+    with pytest.raises(TransformationError) as err:
+        inline_trans.apply(calls[3])
     assert ("Routine 'sub4' cannot be inlined because the type of the actual "
             "argument 'mystery' corresponding to an array formal argument "
             "('x') is unknown." in str(err.value))
     output = fortran_writer(psyir)
     assert ("    varr(:)%region%local%nx = 0\n"
-            "    mystery(:)%region%local%nx = 0\n"
+            "    call sub3(mystery)\n"
+            "    mystery%flag = 1\n"
             "    call sub4(mystery)\n" in output)
 
 
@@ -584,7 +614,13 @@ def test_apply_allocatable_array_arg(fortran_reader, fortran_writer, tmpdir):
     code = (
         "module test_mod\n"
         "  type my_type\n"
-        "    real, allocatable, dimension(:,:) :: data\n"
+        # TODO #2053 - if the 'data' attribute is correctly given the
+        # 'allocatable' attribute then the whole type ends up as an
+        # UnknownFortranType. For now we therefore omit the 'allocatable'
+        # attribute. This means that the Fortran is not strictly correct
+        # and we can't compile the code.
+        # "    real, allocatable, dimension(:,:) :: data\n"
+        "    real, dimension(:,:) :: data\n"
         "  end type my_type\n"
         "contains\n"
         "  subroutine run_it()\n"
@@ -592,7 +628,10 @@ def test_apply_allocatable_array_arg(fortran_reader, fortran_writer, tmpdir):
         "    integer :: jim1, jjp1, jim2, jjp2\n"
         "    real, allocatable, dimension(:,:) :: avar\n"
         "    allocate(grid%data(2:6,-1:8))\n"
-        "    call sub1(grid%data, jim1, jjp1)\n"
+        # TODO #1858 - ideally 'grid%data' would work below (instead of
+        # 'grid%data(:,:)') but Reference2ArrayRangeTrans doesn't yet work for
+        # members of structures.
+        "    call sub1(grid%data(:,:), jim1, jjp1)\n"
         "    call sub1(grid%data(2:6,-1:8), jim2, jjp2)\n"
         "  end subroutine run_it\n"
         "  subroutine sub1(x, ji, jj)\n"
@@ -614,7 +653,9 @@ def test_apply_allocatable_array_arg(fortran_reader, fortran_writer, tmpdir):
     assert "grid%data(2,-1) = 0.0\n" in output
     assert "grid%data(jim1 + 2,jjp1 + 1) = -1.0\n" in output
     assert "grid%data(jim2 + 2,jjp2 + 1) = -1.0\n" in output
-    assert Compile(tmpdir).string_compiles(output)
+    # TODO #2053 - we can't compile this code because the *input* isn't
+    # valid Fortran (see earlier).
+    # assert Compile(tmpdir).string_compiles(output)
 
 
 def test_apply_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
@@ -1834,7 +1875,7 @@ def test_validate_unknown_arg_type(fortran_reader):
             "of UnknownType" in str(err.value))
 
 
-def test_validate_assumed_shape(fortran_reader):
+def test_validate_assumed_shape(fortran_reader, tmpdir):
     '''Test that the validate method rejects an attempt to inline a routine
     if any of its formal arguments are declared to be a different shape from
     those at the call site.'''
@@ -1862,6 +1903,7 @@ def test_validate_assumed_shape(fortran_reader):
     assert ("Cannot inline routine 's' because it reshapes an argument: actual"
             " argument 'a(:,:)' has rank 2 but the corresponding formal "
             "argument, 'x', has rank 1" in str(err.value))
+    assert Compile(tmpdir).string_compiles(code)
 
 
 def test_validate_indirect_range(fortran_reader):

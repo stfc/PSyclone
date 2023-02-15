@@ -847,14 +847,6 @@ class InlineTrans(Transformation):
         visitor = FortranWriter()
         for formal_arg, actual_arg in zip(routine_table.argument_list,
                                           node.children):
-            formal_rank = 0
-            actual_rank = 0
-            if not isinstance(actual_arg, Reference):
-                # TODO #1799 this really needs the `datatype` method to be
-                # extended to support all nodes. For now we have to skip
-                # anything that's not a Reference.
-                continue
-
             # If the formal argument is an array with non-default bounds then
             # we also need to know the bounds of that array at the call site.
             # For this reason, we cannot support formal arguments of
@@ -863,28 +855,40 @@ class InlineTrans(Transformation):
                 raise TransformationError(
                     f"Routine '{routine.name}' cannot be inlined because "
                     f"formal argument '{formal_arg.name}' is of UnknownType")
-            if isinstance(formal_arg.datatype, ArrayType):
-                same_lbs = all(dim in [ArrayType.Extent.ATTRIBUTE,
-                                       ArrayType.Extent.DEFERRED] for dim
-                               in formal_arg.datatype.shape)
-                # To generate correct index expressions for the inlined
-                # code we will need to know the lower bounds of the declaration
-                # of the array at both the call site and within the routine.
-                if not same_lbs and isinstance(actual_arg.datatype,
-                                               (DeferredType, UnknownType)):
-                    raise TransformationError(
-                        f"Routine '{routine.name}' cannot be inlined because "
-                        f"the type of the actual argument "
-                        f"'{actual_arg.symbol.name}' corresponding to an array"
-                        f" formal argument ('{formal_arg.name}') is unknown.")
 
-            if isinstance(actual_arg.datatype, DeferredType):
-                # We haven't resolved the datatype of the actual argument and
-                # we know that we don't need to (because the formal argument is
-                # not an array or doesn't specify the array bounds). However,
-                # we can't perform further type checking.
+            if not isinstance(formal_arg.datatype, ArrayType):
+                # Formal argument is not an array so we don't need to do any
+                # further checks.
                 continue
 
+            if not isinstance(actual_arg, (Reference, Literal)):
+                # TODO #1799 this really needs the `datatype` method to be
+                # extended to support all nodes. For now we have to abort
+                # if we encounter an argument that is not a scalar (according
+                # to the corresponding formal argument) but is not a
+                # Reference or a Literal as we don't know whether the result
+                # of any given expression is or is not an array.
+                raise TransformationError(LazyString(
+                    lambda: f"The call '{visitor(node)}' cannot be inlined "
+                    f"because actual argument '{visitor(actual_arg)}' "
+                    f"corresponds to a formal argument with array type but is "
+                    f"not a Reference or a Literal."))
+
+            # We have an array argument. We are only able to check that the
+            # argument is not re-shaped in the called routine if we have full
+            # type information on the actual argument.
+            # TODO #1904. It would be useful if the `datatype` property was
+            # a method that took an optional 'resolve' argument to indicate that
+            # it should attempt to resolve any DeferredTypes.
+            if isinstance(actual_arg.datatype, (DeferredType, UnknownType)):
+                raise TransformationError(
+                    f"Routine '{routine.name}' cannot be inlined because "
+                    f"the type of the actual argument "
+                    f"'{actual_arg.symbol.name}' corresponding to an array"
+                    f" formal argument ('{formal_arg.name}') is unknown.")
+
+            formal_rank = 0
+            actual_rank = 0
             if isinstance(formal_arg.datatype, ArrayType):
                 formal_rank = len(formal_arg.datatype.shape)
             if isinstance(actual_arg.datatype, ArrayType):
