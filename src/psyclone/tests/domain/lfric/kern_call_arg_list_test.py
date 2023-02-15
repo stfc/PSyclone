@@ -112,7 +112,7 @@ def test_cellmap_intergrid(dist_mem, fortran_writer):
         'map_w2(:,cell)']
 
     check_psyir_results(create_arg_list, fortran_writer)
-    array_1d = ArrayType(LFRicTypes()("LfricRealScalarDataType")(),
+    array_1d = ArrayType(LFRicTypes("LfricRealScalarDataType")(),
                          [ArrayType.Extent.DEFERRED])
     assert create_arg_list.psyir_arglist[5].datatype == array_1d
 
@@ -143,10 +143,10 @@ def test_kerncallarglist_face_xyoz(dist_mem, fortran_writer):
     check_psyir_results(create_arg_list, fortran_writer)
 
     # Check that the right datatype is set:
-    array_1d = ArrayType(LFRicTypes()("LfricRealScalarDataType")(),
+    array_1d = ArrayType(LFRicTypes("LfricRealScalarDataType")(),
                          [ArrayType.Extent.DEFERRED])
     assert create_arg_list.psyir_arglist[2].datatype == array_1d
-    array_4d = ArrayType(LFRicTypes()("LfricRealScalarDataType")(),
+    array_4d = ArrayType(LFRicTypes("LfricRealScalarDataType")(),
                          [ArrayType.Extent.DEFERRED]*4)
     assert create_arg_list.psyir_arglist[15].datatype == array_4d
     assert create_arg_list.psyir_arglist[16].datatype == array_4d
@@ -363,8 +363,8 @@ def test_kerncallarglist_bcs_operator(fortran_writer):
 
     check_psyir_results(create_arg_list, fortran_writer)
     assert (create_arg_list.psyir_arglist[2].datatype ==
-            LFRicTypes()("LfricIntegerScalarDataType")())
-    array_type_3d = ArrayType(LFRicTypes()("LfricRealScalarDataType")(),
+            LFRicTypes("LfricIntegerScalarDataType")())
+    array_type_3d = ArrayType(LFRicTypes("LfricRealScalarDataType")(),
                               [ArrayType.Extent.DEFERRED]*3)
     assert create_arg_list.psyir_arglist[3].datatype == array_type_3d
 
@@ -509,7 +509,7 @@ def test_indirect_dofmap(fortran_writer):
 
     for i in [0, 1, 5, 6, 7, 8, 9, 10, 11, 12, 13, 16, 17]:
         assert (psyir_args[i].symbol.datatype ==
-                LFRicTypes()("LfricIntegerScalarDataType")())
+                LFRicTypes("LfricIntegerScalarDataType")())
 
     # Create a dummy LFRic symbol table to simplify creating
     # standard LFRic types:
@@ -570,7 +570,7 @@ def test_ref_element_handling(fortran_writer):
 
     for i in [0, 2, 3, 5, 6]:
         assert (psyir_args[i].symbol.datatype ==
-                LFRicTypes()("LfricIntegerScalarDataType")())
+                LFRicTypes("LfricIntegerScalarDataType")())
 
     # Test the 1d real array, which is of type r_solver
     # The datatype of a field  reference is the type of the member

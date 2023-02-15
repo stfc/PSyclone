@@ -50,7 +50,7 @@ def test_find_or_create_integer():
     sym_i = symbol_table.find_or_create_integer_symbol("i")
     assert isinstance(sym_i, DataSymbol)
     assert sym_i.name == "i"
-    assert sym_i.datatype == LFRicTypes()("LfricIntegerScalarDataType")()
+    assert sym_i.datatype == LFRicTypes("LfricIntegerScalarDataType")()
 
     # Make sure the symbol exists without a tag:
     sym_i2 = symbol_table.lookup("i")
@@ -108,13 +108,13 @@ def test_find_or_create_array_intrinsic_types(intrinsic):
     assert isinstance(arr.datatype, ArrayType)
     if intrinsic == "real":
         assert (arr.datatype._datatype ==
-                LFRicTypes()("LfricRealScalarDataType")())
+                LFRicTypes("LfricRealScalarDataType")())
     elif intrinsic == "integer":
         assert (arr.datatype._datatype ==
-                LFRicTypes()("LfricIntegerScalarDataType")())
+                LFRicTypes("LfricIntegerScalarDataType")())
     elif intrinsic == "logical":
         assert (arr.datatype._datatype ==
-                LFRicTypes()("LfricLogicalScalarDataType")())
+                LFRicTypes("LfricLogicalScalarDataType")())
 
     arr_queried = symbol_table.find_or_create_array("arr", 2, intrinsic)
     assert arr_queried is arr

@@ -38,7 +38,7 @@
 
 from collections import namedtuple
 
-from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
                                     ImportInterface, INTEGER_TYPE, ScalarType)
@@ -50,8 +50,7 @@ class LFRicTypes:
     LFRic types, e.g.:
 
     >>> from psyclone.domain.lfric import LFRicTypes
-    >>> lfric_types = LFRicTypes()
-    >>> num_dofs_class = lfric_types("NumberOfUniqueDofsDataSymbol")
+    >>> num_dofs_class = LFRicTypes("NumberOfUniqueDofsDataSymbol")
     >>> my_var = num_dofs_class("my_num_dofs")
     >>> print(my_var.name)
     my_num_dofs
@@ -61,60 +60,60 @@ class LFRicTypes:
     # Class variable to store the singleton instance
     _instance = None
 
+    # Class variable to store the mapping of names to the various objects
+    # (classes and various instances) managed by this class.
+    _name_to_class = {}
+
     # ------------------------------------------------------------------------
-    def __new__(cls):
+    def __new__(cls, name):
         '''Implement a singleton - only one instance will ever be created.
 
-        :returns: the singleton instance of LFRicTypes.
-        :rtype: :py:class:`psyclone.domain.lfric.LFRicTypes`
+        :param str name: the name to query for.
+
+        :returns: the corresponding object, which can be a class or an \
+            instance.
+        :rtype: object (various types)
 
         '''
-        if LFRicTypes._instance is None:
-            # Return a new instance. The constructor will set _instance
-            # in this case
-            return super().__new__(cls)
+        if not LFRicTypes._name_to_class:
+            LFRicTypes.init()
 
-        # Return the existing instance, in which case the constructor will
-        # not re-initialise the internal data structures
-        return LFRicTypes._instance
+        return LFRicTypes._name_to_class[name]
 
     # ------------------------------------------------------------------------
-    def __init__(self):
+    def __call__(self):
+        '''This function is only here to trick pylint into thinking that
+        the object returned from __new__ is callable, meaning that code like:
+        ``LFRicTypes("LfricIntegerScalarDataType")()`` does not trigger
+        a pyling warning about not being callable.
+        '''
 
-        # Test if this is returning the existing instance, if so, skip
-        # initialisation
-        if self == LFRicTypes._instance:
-            return
-
-        # First time __init__ is called, initialise all data structures.
-        LFRicTypes._instance = self
+    # ------------------------------------------------------------------------
+    @staticmethod
+    def init():
+        '''This method constructs the required classes and instances, and
+        puts them into the dictionary.
+        '''
 
         # The global mapping of names to the corresponding classes or instances
-        self._name_to_class = {}
+        LFRicTypes._name_to_class = {}
 
-        self._create_precision_from_const_module()
-        self._create_generic_scalars()
-        self._create_lfric_dimension()
-        self._create_specific_scalars()
-        self._create_fields()
+        LFRicTypes._create_precision_from_const_module()
+        LFRicTypes._create_generic_scalars()
+        LFRicTypes._create_lfric_dimension()
+        LFRicTypes._create_specific_scalars()
+        LFRicTypes._create_fields()
         # Generate LFRic vector-field-data symbols as subclasses of
         # field-data symbols
         for intrinsic in ["Real", "Integer", "Logical"]:
             # TODO #2050: we end up with DataData
             name = f"{intrinsic}VectorFieldDataDataSymbol"
-            baseclass = self(f"{intrinsic}FieldDataDataSymbol")
-            self._name_to_class[name] = type(name, (baseclass, ), {})
+            baseclass = LFRicTypes(f"{intrinsic}FieldDataDataSymbol")
+            LFRicTypes._name_to_class[name] = type(name, (baseclass, ), {})
 
     # ------------------------------------------------------------------------
-    def __call__(self, name):
-        ''':returns: the class of the required type.
-        :rtype:  Class instance
-
-        '''
-        return self._name_to_class[name]
-
-    # ------------------------------------------------------------------------
-    def _create_precision_from_const_module(self):
+    @staticmethod
+    def _create_precision_from_const_module():
         '''This function implements all precisions defined in
         ``LFRicConstants.PRECISION_MAP``. It adds "constants_mod" as
         ContainerSymbol. The names are added to the global mapping.
@@ -133,18 +132,19 @@ class LFRicTypes:
         for module_info in modules:
             module_name = module_info.name.lower()
             # Create the module (using a PSyIR ContainerSymbol)
-            self._name_to_class[module_name] = \
+            LFRicTypes._name_to_class[module_name] = \
                 ContainerSymbol(module_info.name)
             # Create the variables specified by the module (using
             # PSyIR DataSymbols)
             for module_var in module_info.vars:
                 var_name = module_var.upper()
-                self._name_to_class[var_name] = \
-                    DataSymbol(module_var, INTEGER_TYPE,
-                               interface=ImportInterface(self(module_name)))
+                interface = ImportInterface(LFRicTypes(module_name))
+                LFRicTypes._name_to_class[var_name] = \
+                    DataSymbol(module_var, INTEGER_TYPE, interface=interface)
 
     # ------------------------------------------------------------------------
-    def _create_generic_scalars(self):
+    @staticmethod
+    def _create_generic_scalars():
         '''This function adds the generic data types and symbols for
         integer, real, and booleans to the global mapping.
 
@@ -153,28 +153,29 @@ class LFRicTypes:
                                                      "precision"])
         generic_scalar_datatypes = [
             GenericScalar("LfricIntegerScalar", ScalarType.Intrinsic.INTEGER,
-                          self("I_DEF")),
+                          LFRicTypes("I_DEF")),
             GenericScalar("LfricRealScalar", ScalarType.Intrinsic.REAL,
-                          self("R_DEF")),
+                          LFRicTypes("R_DEF")),
             GenericScalar("LfricLogicalScalar", ScalarType.Intrinsic.BOOLEAN,
-                          self("L_DEF"))]
+                          LFRicTypes("L_DEF"))]
 
         # Generate generic LFRic scalar datatypes and symbols from definitions
         for info in generic_scalar_datatypes:
 
             # Create the generic data
             type_name = f"{info.name}DataType"
-            self._create_generic_scalar_data_type(type_name,
-                                                  info.intrinsic,
-                                                  info.precision)
-            type_class = self(type_name)
+            LFRicTypes._create_generic_scalar_data_type(type_name,
+                                                        info.intrinsic,
+                                                        info.precision)
+            type_class = LFRicTypes(type_name)
             # Create the generic data symbol
             symbol_name = f"{info.name}DataSymbol"
-            self._create_generic_scalar_data_symbol(symbol_name, type_class)
+            LFRicTypes._create_generic_scalar_data_symbol(symbol_name,
+                                                          type_class)
 
     # ------------------------------------------------------------------------
-    def _create_generic_scalar_data_type(self, name, intrinsic,
-                                         default_precision):
+    @staticmethod
+    def _create_generic_scalar_data_type(name, intrinsic, default_precision):
         '''This function creates a generic scalar data type class and adds
         it to the global mapping.
 
@@ -202,14 +203,15 @@ class LFRicTypes:
         # used the last time this function was defined, but obviously each
         # class need the constructor using the right values. So these values
         # are stored in the class and then used in the constructor.
-        self._name_to_class[name] = \
+        LFRicTypes._name_to_class[name] = \
             type(name, (ScalarType, ),
                  {"__init__": __my_generic_scalar_type_init__,
                   "intrinsic": intrinsic,
                   "default_precision": default_precision})
 
     # ------------------------------------------------------------------------
-    def _create_generic_scalar_data_symbol(self, name, type_class):
+    @staticmethod
+    def _create_generic_scalar_data_symbol(name, type_class):
         '''This function creates a data symbol class with the specified name
         and data type, and adds it to the global mapping.
 
@@ -228,13 +230,14 @@ class LFRicTypes:
         # ---------------------------------------------------------------------
         # Create the class, set the constructor and store the ScalarType as
         # an attribute, so it can be accessed in the constructor.
-        self._name_to_class[name] = \
+        LFRicTypes._name_to_class[name] = \
             type(name, (DataSymbol, ),
                  {"__init__": __my_generic_scalar_symbol_init__,
                   "type_class": type_class})
 
     # ------------------------------------------------------------------------
-    def _create_lfric_dimension(self):
+    @staticmethod
+    def _create_lfric_dimension():
         '''This function adds the LfricDimension class to the global mapping,
         and creates the two instances for scalar and vector dimension.
 
@@ -254,19 +257,22 @@ class LFRicTypes:
             # pylint: disable=undefined-variable
             def __init__(self, value):
                 super().__init__(value,
-                                 LFRicTypes()("LfricIntegerScalarDataType")())
+                                 LFRicTypes("LfricIntegerScalarDataType")())
                 if value not in ['1', '3']:
                     raise ValueError(f"An LFRic dimension object must be '1' "
                                      f"or '3', but found '{value}'.")
         # --------------------------------------------------------------------
 
         # Create the required entries in the dictionary
-        self._name_to_class["LfricDimension"] = LfricDimension
-        self._name_to_class["LFRIC_SCALAR_DIMENSION"] = LfricDimension("1")
-        self._name_to_class["LFRIC_VECTOR_DIMENSION"] = LfricDimension("3")
+        LFRicTypes._name_to_class["LfricDimension"] = LfricDimension
+        LFRicTypes._name_to_class["LFRIC_SCALAR_DIMENSION"] = \
+            LfricDimension("1")
+        LFRicTypes._name_to_class["LFRIC_VECTOR_DIMENSION"] = \
+            LfricDimension("3")
 
     # ------------------------------------------------------------------------
-    def _create_specific_scalars(self):
+    @staticmethod
+    def _create_specific_scalars():
         '''This function creates all required specific scalar, which are
         derived from the corresponding generic classes (e.g.
         LfricIntegerScalarData)
@@ -296,17 +302,20 @@ class LFRicTypes:
         for info in specific_scalar_datatypes:
             # TODO #2050: we end up with DataDataType
             type_name = f"{info.name}DataType"
-            self._name_to_class[type_name] = \
-                type(type_name, (self(f"{info.generic_type_name}Type"), ), {})
+            LFRicTypes._name_to_class[type_name] = \
+                type(type_name,
+                     (LFRicTypes(f"{info.generic_type_name}Type"), ),
+                     {})
 
             # TODO #2050: we end up with DataDataSymbol
             symbol_name = f"{info.name}DataSymbol"
-            base_class = self(f"{info.generic_type_name}Symbol")
-            self._create_scalar_data_type(symbol_name, base_class,
-                                          info.properties)
+            base_class = LFRicTypes(f"{info.generic_type_name}Symbol")
+            LFRicTypes._create_scalar_data_type(symbol_name, base_class,
+                                                info.properties)
 
     # ------------------------------------------------------------------------
-    def _create_scalar_data_type(self, class_name, base_class, parameters):
+    @staticmethod
+    def _create_scalar_data_type(class_name, base_class, parameters):
         '''This function creates a specific scalar data type with the given
         name, derived from the specified base class.
 
@@ -354,14 +363,15 @@ class LFRicTypes:
         # __my_scalar_init__ function set for CellPosition is the same as the
         # function set in NumberOfQrPointsInEdges (i.e. based on the same
         # values for base_class and parameters).
-        self._name_to_class[class_name] = \
+        LFRicTypes._name_to_class[class_name] = \
             type(class_name, (base_class, ),
                  {"__init__": __my_scalar_init__,
                   "base_class": base_class,
                   "parameters": parameters})
 
     # ------------------------------------------------------------------------
-    def _create_fields(self):
+    @staticmethod
+    def _create_fields():
         '''This function creates the data symbol and types for LFRic fields.
 
         '''
@@ -408,27 +418,27 @@ class LFRicTypes:
             Array("DofMap", "LfricIntegerScalarDataType",
                   ["number of dofs"], ["fs"]),
             Array("BasisFunctionQrXyoz", "LfricRealScalarDataType",
-                  [self("LfricDimension"), "number of dofs",
+                  [LFRicTypes("LfricDimension"), "number of dofs",
                    "number of qr points in xy",
                    "number of qr points in z"], ["fs"]),
             Array("BasisFunctionQrFace", "LfricRealScalarDataType",
-                  [self("LfricDimension"), "number of dofs",
+                  [LFRicTypes("LfricDimension"), "number of dofs",
                    "number of qr points in faces",
                    "number of faces"], ["fs"]),
             Array("BasisFunctionQrEdge", "LfricRealScalarDataType",
-                  [self("LfricDimension"), "number of dofs",
+                  [LFRicTypes("LfricDimension"), "number of dofs",
                    "number of qr points in edges",
                    "number of edges"], ["fs"]),
             Array("DiffBasisFunctionQrXyoz", "LfricRealScalarDataType",
-                  [self("LfricDimension"), "number of dofs",
+                  [LFRicTypes("LfricDimension"), "number of dofs",
                    "number of qr points in xy",
                    "number of qr points in z"], ["fs"]),
             Array("DiffBasisFunctionQrFace", "LfricRealScalarDataType",
-                  [self("LfricDimension"), "number of dofs",
+                  [LFRicTypes("LfricDimension"), "number of dofs",
                    "number of qr points in faces",
                    "number of faces"], ["fs"]),
             Array("DiffBasisFunctionQrEdge", "LfricRealScalarDataType",
-                  [self("LfricDimension"), "number of dofs",
+                  [LFRicTypes("LfricDimension"), "number of dofs",
                    "number of qr points in edges", "number of edges"], ["fs"]),
             Array("QrWeightsInXy", "LfricRealScalarDataType",
                   ["number of qr points in xy"], []),
@@ -442,16 +452,17 @@ class LFRicTypes:
 
         for array_type in array_datatypes + field_datatypes:
             name = f"{array_type.name}DataType"
-            self._create_array_data_type_class(name, len(array_type.dims),
-                                               self(array_type.scalar_type))
+            LFRicTypes._create_array_data_type_class(
+                name, len(array_type.dims), LFRicTypes(array_type.scalar_type))
 
-            my_datatype_class = self(name)
+            my_datatype_class = LFRicTypes(name)
             name = f"{array_type.name}DataSymbol"
-            self._create_array_data_symbol_class(name, my_datatype_class,
-                                                 array_type.properties)
+            LFRicTypes._create_array_data_symbol_class(name, my_datatype_class,
+                                                       array_type.properties)
 
     # ------------------------------------------------------------------------
-    def _create_array_data_type_class(self, name, num_dims, scalar_type):
+    @staticmethod
+    def _create_array_data_type_class(name, num_dims, scalar_type):
         '''This function create a data type class for the specified field.
 
         :param str name: name of the class to create.
@@ -481,15 +492,15 @@ class LFRicTypes:
         # Create the class, and set the constructor. Store the scalar_type
         # and num_dims as attributes, so they are indeed different for all
         # the various classes created here.
-        self._name_to_class[name] = \
+        LFRicTypes._name_to_class[name] = \
             type(name, (ArrayType, ),
                  {"__init__": __my_type_init__,
                   "scalar_class": scalar_type,
                   "num_dims": num_dims})
 
     # ------------------------------------------------------------------------
-    def _create_array_data_symbol_class(self, name, datatype_class,
-                                        parameters):
+    @staticmethod
+    def _create_array_data_symbol_class(name, datatype_class, parameters):
         '''This function creates an array-data-symbol-class and adds it to
         the internal type dictionary.
 
@@ -538,7 +549,7 @@ class LFRicTypes:
         # of this class as attributes, otherwise they would be shared among the
         # several instances of the __my_symbol_init__function: this affects the
         # required arguments (array_type.properties) and scalar class:
-        self._name_to_class[name] = \
+        LFRicTypes._name_to_class[name] = \
             type(name, (DataSymbol, ),
                  {"__init__": __my_symbol_init__,
                   "datatype_class": datatype_class,

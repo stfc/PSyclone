@@ -47,27 +47,33 @@ from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, \
 from psyclone.psyir.nodes import Reference, Literal
 
 
+# pylint complains about all isinstance tests involving LFRicTypes,
+# since it doesn't know what the actual return type is. So disable
+# it here globally for this file:
+# pylint: disable=isinstance-second-argument-not-valid-type
+
+
 def test_singleton(monkeypatch):
     '''Tests that the singleton implementation works as expected.
 
     '''
     # First check that on first time creation the class is properly
     # initialised:
-    monkeypatch.setattr(LFRicTypes, "_instance", None)
-    LFRicTypes()
-    assert LFRicTypes._instance is not None
+    monkeypatch.setattr(LFRicTypes, "_name_to_class", None)
+    LFRicTypes("I_DEF")
+    assert LFRicTypes._name_to_class is not None
 
     # Now replace the internal dictionary
-    monkeypatch.setattr(LFRicTypes._instance, "_name_to_class",
+    monkeypatch.setattr(LFRicTypes, "_name_to_class",
                         {"new": "really_new"})
     # Make sure we get the new dictionary:
-    assert LFRicTypes()("new") == "really_new"
+    assert LFRicTypes("new") == "really_new"
 
     # But if we delete the instance, the singleton will create a
     # new instance, which does not have 'new' as key anymore:
-    monkeypatch.setattr(LFRicTypes, "_instance", None)
+    monkeypatch.setattr(LFRicTypes, "_name_to_class", None)
     with pytest.raises(KeyError) as err:
-        LFRicTypes()("new")
+        LFRicTypes("new")
     assert "new" in str(err.value)
 
 
@@ -76,12 +82,12 @@ def test_constants_mod():
     created correctly.
 
     '''
-    lfric_types = LFRicTypes()
-    module = lfric_types("constants_mod")
+    module = LFRicTypes("constants_mod")
     assert isinstance(module, ContainerSymbol)
     symbol_list = list(LFRicConstants().PRECISION_MAP.keys())
     for symbol_name in symbol_list:
-        symbol = lfric_types(symbol_name.upper())
+        symbol = LFRicTypes(symbol_name.upper())
+        # pylint: disable=no-member
         assert isinstance(symbol, DataSymbol)
         assert isinstance(symbol.interface, ImportInterface)
         assert symbol.interface.container_symbol is module
@@ -101,10 +107,9 @@ def test_generic_scalars(type_name, symbol_name, intrinsic,
     correctly.
 
     '''
-    lfric_types = LFRicTypes()
-    data_type = lfric_types(type_name)
-    symbol = lfric_types(symbol_name)
-    precision = lfric_types(precision_name)
+    data_type = LFRicTypes(type_name)
+    symbol = LFRicTypes(symbol_name)
+    precision = LFRicTypes(precision_name)
     # datatype
     lfric_datatype = data_type()
     assert lfric_datatype.intrinsic == intrinsic
@@ -130,23 +135,23 @@ def test_generic_scalars(type_name, symbol_name, intrinsic,
 def test_scalar_literals():
     '''Test the scalar literals are defined correctly.'''
     # LfricDimension class
-    lfric_types = LFRicTypes()
-    lfric_dim_class = lfric_types("LfricDimension")
-    assert isinstance(lfric_types("LfricDimension")("1"),
+    lfric_dim_class = LFRicTypes("LfricDimension")
+    assert isinstance(LFRicTypes("LfricDimension")("1"),
                       lfric_dim_class)
-    assert isinstance(lfric_types("LfricDimension")("3"),
+    assert isinstance(LFRicTypes("LfricDimension")("3"),
                       lfric_dim_class)
     with pytest.raises(ValueError) as info:
-        lfric_types("LfricDimension")("2")
+        LFRicTypes("LfricDimension")("2")
     assert ("An LFRic dimension object must be '1' or '3', but found '2'."
             in str(info.value))
     # LFRIC_SCALAR_DIMENSION instance
-    assert isinstance(lfric_types("LFRIC_SCALAR_DIMENSION"), lfric_dim_class)
-    assert lfric_types("LFRIC_SCALAR_DIMENSION").value == "1"
+    assert isinstance(LFRicTypes("LFRIC_SCALAR_DIMENSION"), lfric_dim_class)
+    # pylint: disable=no-member
+    assert LFRicTypes("LFRIC_SCALAR_DIMENSION").value == "1"
     # LFRIC_VECTOR_DIMENSION instance
-    assert isinstance(lfric_types("LFRIC_VECTOR_DIMENSION"),
+    assert isinstance(LFRicTypes("LFRIC_VECTOR_DIMENSION"),
                       lfric_dim_class)
-    assert lfric_types("LFRIC_VECTOR_DIMENSION").value == "3"
+    assert LFRicTypes("LFRIC_VECTOR_DIMENSION").value == "3"
 
 
 # Specific scalar datatypes
@@ -166,9 +171,8 @@ def test_specific_scalar_types(data_type_name, generic_type_name):
     '''Test the generated specific scalar datatypes are created correctly.
 
     '''
-    lfric_types = LFRicTypes()
-    lfric_datatype = lfric_types(data_type_name)()
-    assert isinstance(lfric_datatype, lfric_types(generic_type_name))
+    lfric_datatype = LFRicTypes(data_type_name)()
+    assert isinstance(lfric_datatype, LFRicTypes(generic_type_name))
 
 
 def test_specific_scalar_types_init_args():
@@ -176,8 +180,7 @@ def test_specific_scalar_types_init_args():
     and work with positional and keyword arguments.
 
     '''
-    lfric_types = LFRicTypes()
-    type_class = lfric_types("NumberOfDofsDataSymbol")
+    type_class = LFRicTypes("NumberOfDofsDataSymbol")
     positional_init = type_class("name", "fs")
     assert positional_init.fs == "fs"
     keyword_init = type_class("name", fs="fs")
@@ -204,9 +207,8 @@ def test_specific_scalar_symbols(symbol_name, generic_symbol_name,
     created correctly.
 
     '''
-    lfric_types = LFRicTypes()
-    symbol = lfric_types(symbol_name)
-    generic_symbol = lfric_types(generic_symbol_name)
+    symbol = LFRicTypes(symbol_name)
+    generic_symbol = LFRicTypes(generic_symbol_name)
     args = ["symbol"] + list(attribute_map.values())
     lfric_symbol = symbol(*args)
     assert isinstance(lfric_symbol, generic_symbol)
@@ -298,7 +300,6 @@ def test_arrays(data_type_name, symbol_name, scalar_type_name,
 
     '''
     # pylint: disable=too-many-locals
-    lfric_types = LFRicTypes()
     dims = []
     # Each dimension arg is either an integer number, or a tuple consisting of
     # an LFRic data type, followed by additional constructor arguments. Use
@@ -310,13 +311,13 @@ def test_arrays(data_type_name, symbol_name, scalar_type_name,
             # Tage the additional constructor arguments
             args = i[1:]
             interface = ArgumentInterface(ArgumentInterface.Access.READ)
-            ref = Reference(lfric_types(i[0])(*args,
-                                              interface=interface))
+            ref = Reference(LFRicTypes(i[0])(*args,
+                                             interface=interface))
             dims.append(ref)
 
     # Datatype creation
-    data_type = lfric_types(data_type_name)
-    scalar_type = lfric_types(scalar_type_name)
+    data_type = LFRicTypes(data_type_name)
+    scalar_type = LFRicTypes(scalar_type_name)
     lfric_datatype = data_type(dims)
     assert isinstance(lfric_datatype, ArrayType)
     assert isinstance(lfric_datatype._datatype, scalar_type)
@@ -336,7 +337,7 @@ def test_arrays(data_type_name, symbol_name, scalar_type_name,
             str(info.value))
     # Datasymbol creation
     args = list(attribute_map.values())
-    symbol = lfric_types(symbol_name)
+    symbol = LFRicTypes(symbol_name)
     lfric_symbol = symbol("symbol", dims, *args)
     assert isinstance(lfric_symbol, DataSymbol)
     assert lfric_symbol.name == "symbol"
@@ -354,8 +355,7 @@ def test_arrays_data_symbol_init_args():
     and accept positional and keyword arguments in the constructor.
 
     '''
-    lfric_types = LFRicTypes()
-    symbol_class = lfric_types("DiffBasisFunctionQrEdgeDataSymbol")
+    symbol_class = LFRicTypes("DiffBasisFunctionQrEdgeDataSymbol")
     lfric_symbol = symbol_class("symbol", [1, 2, 3, 4], "fs1")
     assert lfric_symbol.fs == "fs1"
     lfric_symbol = symbol_class("symbol", dims=[1, 2, 3, 4], fs="fs2")
@@ -377,16 +377,15 @@ def test_vector_fields(symbol, parent_symbol, space, visibility):
     datasymbols.
 
     '''
-    lfric_types = LFRicTypes()
 
     kwargs = {"interface": ArgumentInterface(ArgumentInterface.Access.READ)}
     if visibility is not None:
         kwargs["visibility"] = visibility
-    ref = Reference(lfric_types("NumberOfUniqueDofsDataSymbol")(
+    ref = Reference(LFRicTypes("NumberOfUniqueDofsDataSymbol")(
                     "ndofs", space, **kwargs))
     args = [space]
-    lfric_symbol = lfric_types(symbol)("symbol", [ref], *args)
-    assert isinstance(lfric_symbol, lfric_types(parent_symbol))
+    lfric_symbol = LFRicTypes(symbol)("symbol", [ref], *args)
+    assert isinstance(lfric_symbol, LFRicTypes(parent_symbol))
     assert lfric_symbol.name == "symbol"
     assert lfric_symbol.fs == space
     if visibility is None:

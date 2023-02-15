@@ -115,7 +115,7 @@ class LFRicSymbolTable(SymbolTable):
             except KeyError:
                 sym = None
 
-        datatype = LFRicTypes()("LfricIntegerScalarDataType")()
+        datatype = LFRicTypes("LfricIntegerScalarDataType")()
         if sym is None:
             # Create a DataSymbol for this kernel argument.
             sym = self.new_symbol(name, tag=tag,
@@ -155,11 +155,11 @@ class LFRicSymbolTable(SymbolTable):
 
         '''
         if intrinsic_type == ScalarType.Intrinsic.REAL:
-            datatype = LFRicTypes()("LfricRealScalarDataType")()
+            datatype = LFRicTypes("LfricRealScalarDataType")()
         elif intrinsic_type == ScalarType.Intrinsic.INTEGER:
-            datatype = LFRicTypes()("LfricIntegerScalarDataType")()
+            datatype = LFRicTypes("LfricIntegerScalarDataType")()
         elif intrinsic_type == ScalarType.Intrinsic.BOOLEAN:
-            datatype = LFRicTypes()("LfricLogicalScalarDataType")()
+            datatype = LFRicTypes("LfricLogicalScalarDataType")()
         else:
             raise TypeError(f"Unsupported data type "
                             f"'{intrinsic_type}' in "

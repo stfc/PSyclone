@@ -264,13 +264,11 @@ def test_validate_kernel_code_arg(monkeypatch):
     real_scalar_rw_symbol = DataSymbol(
         "generic_scalar_rw", REAL_TYPE,
         interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
-    lfric_types = LFRicTypes()
-    lfric_real_scalar_symbol = lfric_types("LfricRealScalarDataSymbol")(
+    lfric_real_scalar_symbol = LFRicTypes("LfricRealScalarDataSymbol")(
         "scalar", interface=read_access)
-    lfric_int_scalar_symbol = lfric_types("LfricIntegerScalarDataSymbol")(
+    lfric_int_scalar_symbol = LFRicTypes("LfricIntegerScalarDataSymbol")(
         "scalar", interface=read_access)
-    lfric_types = LFRicTypes()
-    lfric_real_field_symbol = lfric_types("RealFieldDataDataSymbol")(
+    lfric_real_field_symbol = LFRicTypes("RealFieldDataDataSymbol")(
         "field", dims=[1], fs="w0", interface=read_access)
 
     kernel._validate_kernel_code_arg(
@@ -309,9 +307,9 @@ def test_validate_kernel_code_arg(monkeypatch):
     assert ("Argument 'scalar' to kernel 'dummy' should be an array "
             "according to the LFRic API, but it is not." in str(info.value))
 
-    undf = lfric_types("NumberOfUniqueDofsDataSymbol")("undf", fs="w0",
-                                                       interface=read_access)
-    lfric_real_field_symbol2 = lfric_types("RealFieldDataDataSymbol")(
+    undf = LFRicTypes("NumberOfUniqueDofsDataSymbol")("undf", fs="w0",
+                                                      interface=read_access)
+    lfric_real_field_symbol2 = LFRicTypes("RealFieldDataDataSymbol")(
         "field", dims=[Reference(undf)], fs="w0", interface=read_access)
     # if one of the dimensions is not a datasymbol then the arguments
     # are not checked.
@@ -320,7 +318,7 @@ def test_validate_kernel_code_arg(monkeypatch):
     kernel._validate_kernel_code_arg(lfric_real_field_symbol2,
                                      lfric_real_field_symbol)
 
-    lfric_real_field_symbol3 = lfric_types("RealFieldDataDataSymbol")(
+    lfric_real_field_symbol3 = LFRicTypes("RealFieldDataDataSymbol")(
         "field", dims=[Reference(undf)], fs="w0", interface=read_access)
     monkeypatch.setattr(lfric_real_field_symbol3.datatype, "_shape",
                         [Reference(undf), Reference(undf)])
@@ -341,7 +339,7 @@ def test_validate_kernel_code_arg(monkeypatch):
             "for all dimensions. However, array 'field' has a lower bound of "
             "'2' for dimension 0" in str(info.value))
 
-    lfric_real_field_symbol4 = lfric_types("RealFieldDataDataSymbol")(
+    lfric_real_field_symbol4 = LFRicTypes("RealFieldDataDataSymbol")(
         "field", dims=[Reference(int_scalar_symbol)], fs="w0",
         interface=read_access)
     with pytest.raises(GenerationError) as info:

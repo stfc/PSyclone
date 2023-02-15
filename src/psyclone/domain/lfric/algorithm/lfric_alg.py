@@ -135,7 +135,7 @@ class LFRicAlg:
         for sym in kern_args.scalars:
             sub.addchild(Assignment.create(
                 Reference(sym),
-                Literal("1", LFRicTypes()("LfricIntegerScalarDataType")())))
+                Literal("1", LFRicTypes("LfricIntegerScalarDataType")())))
 
         # We use the setval_c builtin to initialise all fields to unity.
         # As with the scalar initialisation, we don't worry about precision
@@ -152,7 +152,7 @@ class LFRicAlg:
                     "setval_c", table,
                     [Reference(sym),
                      Literal("1.0",
-                             LFRicTypes()("LfricRealScalarDataType")())]))
+                             LFRicTypes("LfricRealScalarDataType")())]))
 
         # Finally, add the kernel itself to the list for the invoke().
         arg_nodes = []
@@ -259,7 +259,7 @@ class LFRicAlg:
 
         # The order of the finite-element scheme.
         table.add_lfric_precision_symbol("i_def")
-        data_type_class = LFRicTypes()("LfricIntegerScalarDataType")
+        data_type_class = LFRicTypes("LfricIntegerScalarDataType")
         order = table.new_symbol("element_order", tag="element_order",
                                  symbol_type=DataSymbol,
                                  datatype=data_type_class(),

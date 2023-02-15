@@ -10099,7 +10099,8 @@ class DynKernelArgument(KernelArgument):
                     # TODO Once #696 is done, we should *always* have a
                     # symbol for this container at this point so should
                     # raise an exception if we haven't.
-                    root_table.add(LFRicTypes()(const_mod))
+                    constants_container = LFRicTypes(const_mod)
+                    root_table.add(constants_container)
                 kind_symbol = DataSymbol(
                     kind_name, INTEGER_TYPE,
                     interface=ImportInterface(constants_container))
