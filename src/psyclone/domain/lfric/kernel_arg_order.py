@@ -37,8 +37,9 @@
 kernel calls. It makes use of the new style metadata classes,
 demonstrating how they can be used. It is not meant to be a final
 implementation as it is not yet clear what the sub-classes will
-require and whether it should integrate with any existing sub-classes
-that use the old style metadata parsing.
+require, where type information should be stored and whether this class
+should integrate with any existing sub-classes that use the old style
+metadata parsing.
 
 '''
 from psyclone.domain.lfric import LFRicConstants
@@ -61,18 +62,19 @@ class KernelArgOrder():
     sub-classes that use the old style metadata parsing.
 
     :param metadata: the LFRic kernel metadata.
-    :type metadata: xxx
+    :type metadata: \
+        :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
     :param str kernel_name: optional kernel name.
 
     '''
-    def __init__(self, metadata, kernel_name=None):
+    def __init__(self, metadata):
         self._metadata = metadata
         self._arg_index = 0
         self.meta_arg_index_from_actual_index = {}
         # arg_info could be replaced with LFRic-specific PSyIR
         # datatype information as well as default names.
         self.arg_info = []
-        self._generate(metadata, kernel_name=kernel_name)
+        self._generate(metadata)
 
     def cell_position(self):
         '''A cell position argument. This is an integer of type i_def and has
@@ -128,7 +130,8 @@ class KernelArgOrder():
         index to the metadata index as this can be useful.
 
         :param meta_arg: the metadata associated with this scalar argument.
-        :type meta_arg: xxx
+        :type meta_arg: \
+            :py:class:`psyclone.domain.lfric.kernel.ScalarArgMetadata`
 
         '''
         datatype = meta_arg.datatype[3:4]
@@ -141,8 +144,9 @@ class KernelArgOrder():
         '''Utility function providing the default field name from its meta_arg
         metadata.
 
-        :param meta_arg: xxx
-        :type meta_arg: xxx
+        :param meta_arg: metadata describing a field argument.
+        :type meta_arg: \
+            :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
 
         :returns: the default name for this meta_arg field.
         :rtype: str
@@ -150,7 +154,7 @@ class KernelArgOrder():
         '''
         datatype = meta_arg.datatype[3:4]
         meta_arg_index = self._metadata.meta_args.index(meta_arg)
-        return (f"{datatype}field_{meta_arg_index+1}")
+        return f"{datatype}field_{meta_arg_index+1}"
 
     def field(self, meta_arg):
         '''Argument providing an LFRic field. As this is described in
@@ -158,7 +162,8 @@ class KernelArgOrder():
         index to the metadata index as this can be useful.
 
         :param meta_arg: the metadata associated with this field argument.
-        :type meta_arg: xxx
+        :type meta_arg: \
+            :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
 
         '''
         name = self._field_name(meta_arg)
@@ -176,7 +181,8 @@ class KernelArgOrder():
 
         :param meta_arg: the metadata associated with this field \
             vector argument.
-        :type meta_arg: xxx
+        :type meta_arg: \
+            :py:class:`psyclone.domain.lfric.kernel.FieldVectorArgMetadata`
 
         '''
         datatype = meta_arg.datatype[3:4]
@@ -192,15 +198,16 @@ class KernelArgOrder():
         '''Utility function providing the default field name from its meta_arg
         metadata.
 
-        :param meta_arg: xxx
-        :type meta_arg: xxx
+        :param meta_arg: metadata describing an lma operator argument.
+        :type meta_arg: \
+            :py:class:`psyclone.domain.lfric.kernel.OperatorArgMetadata`
 
         :returns: the default name for this meta_arg field.
         :rtype: str
 
         '''
         meta_arg_index = self._metadata.meta_args.index(meta_arg)
-        return (f"op_{meta_arg_index+1}")
+        return f"op_{meta_arg_index+1}"
 
     def operator(self, meta_arg):
         '''Arguments providing an LMA operator. First include an integer
@@ -216,7 +223,8 @@ class KernelArgOrder():
 
         :param meta_arg: the metadata associated with the operator \
             arguments.
-        :type meta_arg: xxx
+        :type meta_arg: \
+            :py:class:`psyclone.domain.lfric.kernel.OperatorArgMetadata`
 
         '''
         meta_arg_index = self._metadata.meta_args.index(meta_arg)
@@ -227,6 +235,21 @@ class KernelArgOrder():
         self.meta_arg_index_from_actual_index[self._arg_index] = \
             self._metadata.meta_args.index(meta_arg)
         self._arg_index += 1
+
+    def _cma_operator_name(self, meta_arg):
+        '''Utility function providing the default cma operator name from its
+        meta_arg metadata.
+
+        :param meta_arg: metadata describing a cma operator argument.
+        :type meta_arg: :py:class:`psyclone.domain.lfric.kernel.\
+            ColumnwiseOperatorArgMetadata`
+
+        :returns: the default name for this meta_arg cma operator.
+        :rtype: str
+
+        '''
+        meta_arg_index = self._metadata.meta_args.index(meta_arg)
+        return f"cma_op_{meta_arg_index+1}"
 
     def cma_operator(self, meta_arg):
         '''Arguments providing a columnwise operator. First include a real,
@@ -257,11 +280,12 @@ class KernelArgOrder():
 
         :param meta_arg: the metadata associated with the CMA operator \
             arguments.
-        :type meta_arg: xxx
+        :type meta_arg: :py:class:`psyclone.domain.lfric.kernel.\
+            ColumnwiseOperatorArgMetadata`
 
         '''
         index = self._metadata.meta_args.index(meta_arg)
-        operator_name = f"cma_op_{index+1}"
+        operator_name = self._cma_operator_name(meta_arg)
         self.meta_arg_index_from_actual_index[self._arg_index] = index
         self.arg_info.extend([operator_name, f"nrow_{operator_name}"])
         self._arg_index += 2
@@ -302,7 +326,8 @@ class KernelArgOrder():
 
         :param meta_ref_element: the metadata capturing the reference \
             element properties required by the kernel.
-        :type meta_ref_element: List [xxx]
+        :type meta_ref_element: List[:py:class:`psyclone.domain.lfric.\
+            kernel.MetaRefElementArgMetadata`]
 
         '''
         if [entry for entry in meta_ref_element if entry.reference_element in
@@ -328,7 +353,16 @@ class KernelArgOrder():
         '''All arguments required for mesh properties specified in the kernel
         metadata.
 
-        xxx type, intent, name, ....
+        If the adjacent_face mesh property is required then, if the
+        number of horizontal cell faces obtained from the reference
+        element (nfaces_re_h) is not already being passed to the
+        kernel via the reference element then supply it here. This is
+        an integer of kind i_def with intent in and has default name
+        'nfaces_re_h'.
+
+        Also pass a rank-1, integer array with intent in of kind i_def
+        and extent nfaces_re_h, with default name being the name of
+        the property (adjacent_face in this case).
 
         :param meta_mesh: the metadata capturing the mesh properties \
             required by the kernel.
@@ -340,8 +374,8 @@ class KernelArgOrder():
         '''
         for mesh_property in meta_mesh:
             if mesh_property.mesh == "adjacent_face":
-                if not self._metadata.meta_ref_element or \
-                   not [entry for entry in self._metadata.meta_ref_element
+                if not self._metadata.meta_ref_element or not \
+                   [entry for entry in self._metadata.meta_ref_element
                     if entry.reference_element in [
                             "normals_to_horizontal_faces",
                             "outward_normals_to_horizontal_faces"]]:
@@ -354,7 +388,6 @@ class KernelArgOrder():
                 raise InternalError(
                     f"Unexpected mesh property '{mesh_property.mesh}' found. "
                     f"Expected 'adjacent_face'.")
-
 
     def fs_common(self, function_space):
         '''Arguments associated with a function space that are common to
@@ -388,21 +421,46 @@ class KernelArgOrder():
     def fs_intergrid(self, meta_arg):
         '''Function-space related arguments for an intergrid kernel.
 
-        xxx arg type information
+        For this field include the required dofmap information.
 
-        :param meta_arg: xxx
-        :type meta_arg: xxx
+        If the dofmap is associated with an argument on the fine mesh,
+        include the number of DoFs per cell for the FS of the field on
+        the fine mesh. This is an integer with intent in and precision
+        i_def. Its default name is 'ndf_'<function_space>. Next,
+        include the number of unique DoFs per cell for the FS of the
+        field on the fine mesh. This is an integer with intent in and
+        precision i_def. Its default name is
+        'undf_'<function_space>. Lastly include the whole dofmap for
+        the fine mesh. This is an integer array of rank two and kind
+        i_def with intent in. The extent of the first dimension is
+        ndf_<function_space> and that of the second is ncell_f. Its
+        default name is 'full_map_'<function_space>.
+
+        If the dofmap is associated with an argument on the coarse
+        mesh then include undf_coarse, the number of unique DoFs for
+        the coarse field. This is an integer of kind i_def with intent
+        in. Its default name is 'undf_'<function_space>. Lastly,
+        include the dofmap for the current cell (column) in the coarse
+        mesh. This is an integer array of rank one, kind i_def``and
+        has intent ``in. Its default name is 'map_'<function_space>.
+
+        :param meta_arg: the metadata capturing the InterGrid argument \
+            required by the kernel.
+        :type meta_arg: \
+        :py:class:`psyclone.domain.lfric.kernel.InterGridArgMetadata`]
 
         '''
         function_space = meta_arg.function_space
         if meta_arg.mesh_arg == "gh_fine":
-            # ndf + undf
+            # ndf
             self.fs_common(function_space)
-            self._arg_index += 2
+            # undf
+            self.arg_info.append(f"undf_{function_space}")
+            self._arg_index += 1
             # full dofmap
             self.arg_info.append(f"full_map_{function_space}")
             self._arg_index += 1
-        else: # "gh_coarse"
+        else:  # "gh_coarse"
             # undf + dofmap
             self.fs_compulsory_field(function_space)
 
@@ -538,8 +596,9 @@ class KernelArgOrder():
         [np_xyz_<quadrature_arg_name>,
         nfaces/nedges_<quadrature_arg_name>]).
 
-        :param shapes: xxx
-        :type shapes: xxx
+        :param shapes: the metadata capturing the quadrature shapes \
+            required by the kernel.
+        :type shapes: List[str]
 
         raises InternalError: if unexpected (quadrature) shape \
             metadata is found.
@@ -568,7 +627,7 @@ class KernelArgOrder():
                     f"Unexpected shape metadata. Found '{quad}' but expected "
                     f"one of {const.VALID_QUADRATURE_SHAPES}.")
 
-
+    # pylint: disable=unidiomatic-typecheck
     def field_bcs_kernel(self):
         '''Fix for the field boundary condition kernel. Adds a boundary dofs
         2D integer array with intent in and kind i_def. The size of
@@ -600,7 +659,7 @@ class KernelArgOrder():
         field_name = self._field_name(meta_arg)
         self.arg_info.append(f"boundary_dofs_{field_name}")
         self._arg_index += 1
-    
+
     def operator_bcs_kernel(self):
         '''Fix for the operator boundary condition kernel. Adds a boundary
         dofs 2D integer array with intent in and kind i_def. The size
@@ -628,13 +687,174 @@ class KernelArgOrder():
         self.arg_info.append(f"boundary_dofs_{lma_operator_name}")
         self._arg_index += 1
 
-    def _generate(self, metadata, kernel_name=None):
+    def stencil_2d_unknown_extent(self, meta_arg):
+        '''The field entry has a stencil access of type cross2d so add a 1D
+        integer array of extent 4 and kind i_def stencil-size argument
+        with intent in. The default name is
+        <field_name>"_stencil_size", where <field_name> is the default
+        name of the field with this stencil. This will supply the
+        number of cells in each branch of the stencil.
+
+        :param meta_arg: the metadata associated with a field argument \
+            with a cross2d stencil access.
+        :type meta_arg: \
+            :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
+
+        '''
+        field_name = self._field_name(meta_arg)
+        self.arg_info.append(f"{field_name}_stencil_size")
+        self._arg_index += 1
+
+    def stencil_2d_max_extent(self, meta_arg):
+        '''The field entry has a stencil access of type cross2d so add an
+        integer of kind i_def and intent in for the max branch
+        length. The default name is <field_name>"_max_branch_length",
+        where <field_name> is the default name of the field with this
+        stencil. This is used in defining the dimensions of the
+        stencil dofmap array and is required due to the varying length
+        of the branches of the stencil when used on planar meshes.
+
+        :param meta_arg: the metadata associated with a field argument \
+            with a cross2d stencil access.
+        :type meta_arg: \
+            :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
+
+        '''
+        field_name = self._field_name(meta_arg)
+        self.arg_info.append(f"{field_name}_max_branch_length")
+        self._arg_index += 1
+
+    def stencil_unknown_extent(self, meta_arg):
+        '''The field entry has a stencil access so add an integer stencil-size
+        argument with intent in and kind i_def. The default name is
+        <field_name>"_stencil_size", where <field_name> is the default
+        name of the field with this stencil. This argument will
+        contain the number of cells in the stencil.
+
+        :param meta_arg: the metadata associated with a field argument \
+            with a stencil access.
+        :type meta_arg: \
+            :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
+
+        '''
+        field_name = self._field_name(meta_arg)
+        self.arg_info.append(f"{field_name}_stencil_size")
+        self._arg_index += 1
+
+    def stencil_unknown_direction(self, meta_arg):
+        '''The field entry stencil access is of type XORY1D so add an
+        additional integer direction argument of kind i_def and with
+        intent in, with default name <field_name>"_direction", where
+        <field_name> is the default name of the field with this
+        stencil.
+
+        :param meta_arg: the metadata associated with a field argument \
+            with a xory1d stencil access.
+        :type meta_arg: \
+            :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
+
+        '''
+        field_name = self._field_name(meta_arg)
+        self.arg_info.append(f"{field_name}_direction")
+        self._arg_index += 1
+
+    def stencil_2d(self, meta_arg):
+        '''Add a 3D stencil dofmap array of type integer, kind i_def and
+        intent in. The dimensions are (number-of-dofs-in-cell,
+        max-branch-length, 4). The default name is
+        <field_name>"_stencil_dofmap", where <field_name> is the
+        default name of the field with this stencil.
+
+        :param meta_arg: the metadata associated with a field argument \
+            with a stencil access.
+        :type meta_arg: \
+            :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
+
+        '''
+        field_name = self._field_name(meta_arg)
+        self.arg_info.append(f"{field_name}_stencil_dofmap")
+        self._arg_index += 1
+
+    def stencil(self, meta_arg):
+        '''Add a 2D stencil dofmap array of type integer, kind i_def and
+        intent in. The dimensions are (number-of-dofs-in-cell,
+        stencil-size). The default name is
+        <field_name>"_stencil_dofmap, where <field_name> is the
+        default name of the field with this stencil.
+
+        :param meta_arg: the metadata associated with a field argument \
+            with a stencil access.
+        :type meta_arg: \
+            :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
+
+        '''
+        field_name = self._field_name(meta_arg)
+        self.arg_info.append(f"{field_name}_stencil_dofmap")
+        self._arg_index += 1
+
+    def banded_dofmap(self, function_space, cma_operator):
+        '''Adds a banded dofmap for the provided function space and cma
+        operator when there is an assembly cma kernel.
+
+        Include the column-banded dofmap, the list of offsets for the
+        to/from-space. This is an integer array of rank 2 and kind
+        i_def with intent in. The first dimension is
+        "ndf_"<arg_function_space> and the second is nlayers. Its
+        default name is 'cbanded_map_'<function_space>'_'<op_name>
+
+        :param str function_space: the function space for this banded \
+            dofmap.
+        :param cma_operator: the cma operator metadata associated with \
+            this banded dofmap.
+        :type cma_operator: :py:class:`psyclone.domain.lfric.kernel.\
+            ColumnwiseOperatorArgMetadata`
+
+        '''
+        name = self._cma_operator_name(cma_operator)
+        self.arg_info.append(f"cbanded_map_{function_space}_{name}")
+        self._arg_index += 1
+
+    def indirection_dofmap(self, function_space, cma_operator):
+        '''Adds an indirection dofmap for the provided function space and cma
+        operator when there is an apply cma kernel.
+
+        Include the indirection map for the 'to' function space of the
+        supplied CMA operator. This is a rank-1 integer array of kind
+        i_def and intent in with extent nrow. Its default name is
+        'cma_indirection_map_'<function_space>'_'<operator_name>.
+
+        If the from-space of the operator is not the same as the
+        to-space then include the indirection map for the 'from'
+        function space of the CMA operator. This is a rank-1 integer
+        array of kind i_def and intent in with extent ncol. Its
+        default name is
+        'cma_indirection_map_'<function_space>'_'<operator_name>.
+
+        Note, this method will not be called for the from space if the
+        to and from function spaces are the same so there is no need
+        to explicitly check.
+
+        :param str function_space: the function space for this \
+            indirection dofmap.
+        :param cma_operator: the cma operator metadata associated with \
+            this indirection dofmap.
+        :type cma_operator: :py:class:`psyclone.domain.lfric.kernel.\
+            ColumnwiseOperatorArgMetadata`
+
+        '''
+        name = self._cma_operator_name(cma_operator)
+        self.arg_info.append(f"cma_indirection_map_{function_space}_{name}")
+        self._arg_index += 1
+
+    def _generate(self, metadata):
 
         '''Specifies which arguments appear in an argument list and their
         ordering. Calls methods for each type of argument that can be
         specialised by a child class for its particular need.
 
-        xxx metadata, kernel_name
+        :param metadata: the LFRic kernel metadata.
+        :type metadata: \
+            py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
 
         :raises GenerationError: if the kernel arguments break the \
                                  rules for the LFRic API.
@@ -688,37 +908,32 @@ class KernelArgOrder():
                 if type(meta_arg) in [
                         FieldVectorArgMetadata, InterGridVectorArgMetadata]:
                     self.field_vector(meta_arg)
-                # TODO: Stencil support
-                #if arg.descriptor.stencil:
-                #    if not arg.descriptor.stencil['extent']:
-                #        if arg.descriptor.stencil['type'] == "cross2d":
-                #            # stencil extent is not provided in the
-                #            # metadata so must be passed from the Algorithm
-                #            # layer.
-                #            self.stencil_2d_unknown_extent(
-                #                arg, var_accesses=var_accesses)
-                #            # Due to the nature of the stencil extent array
-                #            # the max size of a stencil branch must be passed
-                #            # from the Algorithm layer.
-                #            self.stencil_2d_max_extent(
-                #                arg, var_accesses=var_accesses)
-                #        else:
-                #            # stencil extent is not provided in the
-                #            # metadata so must be passed from the Algorithm
-                #            # layer.
-                #            self.stencil_unknown_extent(
-                #                arg, var_accesses=var_accesses)
-                #    if arg.descriptor.stencil['type'] == "xory1d":
-                #        # if "xory1d is specified then the actual
-                #        # direction must be passed from the Algorithm layer.
-                #        self.stencil_unknown_direction(arg,
-                #                                       var_accesses)
-                #    # stencil information that is always passed from the
-                #    # Algorithm layer.
-                #    if arg.descriptor.stencil['type'] == "cross2d":
-                #        self.stencil_2d(arg, var_accesses=var_accesses)
-                #    else:
-                #        self.stencil(arg, var_accesses=var_accesses)
+                if meta_arg.stencil:
+                    # TODO: if not stencil.extent???
+                    if meta_arg.stencil == "cross2d":
+                        # stencil extent is not provided in the
+                        # metadata so must be passed from the Algorithm
+                        # layer.
+                        self.stencil_2d_unknown_extent(meta_arg)
+                        # Due to the nature of the stencil extent array
+                        # the max size of a stencil branch must be passed
+                        # from the Algorithm layer.
+                        self.stencil_2d_max_extent(meta_arg)
+                    else:
+                        # stencil extent is not provided in the
+                        # metadata so must be passed from the Algorithm
+                        # layer.
+                        self.stencil_unknown_extent(meta_arg)
+                    if meta_arg.stencil == "xory1d":
+                        # if "xory1d is specified then the actual
+                        # direction must be passed from the Algorithm layer.
+                        self.stencil_unknown_direction(meta_arg)
+                    # stencil information that is always passed from the
+                    # Algorithm layer.
+                    if meta_arg.stencil == "cross2d":
+                        self.stencil_2d(meta_arg)
+                    else:
+                        self.stencil(meta_arg)
             elif type(meta_arg) == OperatorArgMetadata:
                 self.operator(meta_arg)
             elif type(meta_arg) == ColumnwiseOperatorArgMetadata:
@@ -726,10 +941,9 @@ class KernelArgOrder():
             elif type(meta_arg) == ScalarArgMetadata:
                 self.scalar(meta_arg)
             else:
-                raise GenerationError(
-                    f"KernelArgOrderA.generate(): Unexpected argument type found. "
-                    f"Expected one of 'XXX' but "
-                    f"found '{meta_arg.check_name}'")
+                raise InternalError(
+                    f"Unexpected meta_arg type '{type(meta_arg).__name__}' "
+                    f"found.")
 
         # For each unique function space (in the order they appear in the
         # metadata arguments)
@@ -748,7 +962,7 @@ class KernelArgOrder():
             else:
                 if arg.function_space not in unique_function_spaces:
                     unique_function_spaces.append(arg.function_space)
-                    
+
         for function_space in unique_function_spaces:
             # Provide arguments common to LMA operators and fields on
             # a space *unless* this is an inter-grid or CMA
@@ -761,28 +975,28 @@ class KernelArgOrder():
             # field on this space
             if [arg for arg in metadata.meta_args_get(
                     [FieldArgMetadata, FieldVectorArgMetadata])
-                if arg.function_space == function_space]:
-                    self.fs_compulsory_field(function_space)
+                    if arg.function_space == function_space]:
+                self.fs_compulsory_field(function_space)
 
             # Provide additional arguments if there is a
             # intergrid field on this space
-            if [arg for arg in metadata.meta_args_get(
-                    [InterGridArgMetadata, InterGridVectorArgMetadata])
-                if arg.function_space == function_space]:
-                    self.fs_intergrid(arg)
+            intergrid_field = [arg for arg in metadata.meta_args_get(
+                [InterGridArgMetadata, InterGridVectorArgMetadata])
+                               if arg.function_space == function_space]
+            if intergrid_field:
+                self.fs_intergrid(intergrid_field[0])
 
             cma_ops = [arg for arg in metadata.meta_args_get(
-                ColumnwiseOperatorArgMetadata) if arg.function_space_to ==
-                       function_space or arg.function_space_from ==
-                       function_space]
+                ColumnwiseOperatorArgMetadata) if function_space in [
+                    arg.function_space_to, arg.function_space_from]]
             if cma_ops:
                 if metadata.kernel_type == "cma-assembly":
                     # CMA-assembly requires banded dofmaps
-                    self.banded_dofmap(function_space)
+                    self.banded_dofmap(function_space, cma_ops[0])
                 elif metadata.kernel_type == "cma-apply":
                     # Applying a CMA operator requires indirection dofmaps
                     self.indirection_dofmap(
-                        function_space, operator=cma_ops[0])
+                        function_space, cma_ops[0])
 
             # Provide any optional arguments. These arguments are
             # associated with the keyword arguments (basis function
@@ -798,12 +1012,14 @@ class KernelArgOrder():
 
         # The boundary condition kernel (enforce_bc_kernel) is a
         # special case.
-        if kernel_name and kernel_name.lower() == "enforce_bc_code":
+        if metadata.procedure_name and \
+                metadata.procedure_name.lower() == "enforce_bc_code":
             self.field_bcs_kernel()
 
         # The operator boundary condition kernel
         # (enforce_operator_bc_kernel) is a special case.
-        if kernel_name and kernel_name.lower() == "enforce_operator_bc_code":
+        if metadata.procedure_name and \
+                metadata.procedure_name.lower() == "enforce_operator_bc_code":
             self.operator_bcs_kernel()
 
         # Reference-element properties
@@ -818,6 +1034,6 @@ class KernelArgOrder():
         # differential basis functions are used by the kernel and a
         # quadrature shape is supplied.
         if metadata.meta_funcs and metadata.shapes and \
-               [shape for shape in metadata.shapes if shape in
+           [shape for shape in metadata.shapes if shape in
                 const.VALID_QUADRATURE_SHAPES]:
             self.quad_rule(metadata.shapes)

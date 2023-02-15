@@ -41,12 +41,10 @@ import pytest
 
 from psyclone.domain.lfric import KernelArgOrder
 from psyclone.domain.lfric.kernel import (
-    ColumnwiseOperatorArgMetadata, EvaluatorTargetsMetadata, FieldArgMetadata,
-    FieldVectorArgMetadata, InterGridArgMetadata, InterGridVectorArgMetadata,
-    LFRicKernelMetadata, MetaMeshArgMetadata, MetaFuncsArgMetadata,
-    OperatesOnMetadata, OperatorArgMetadata, MetaRefElementArgMetadata,
-    ScalarArgMetadata, ShapesMetadata, LFRicKernelMetadata,
-    MetaRefElementArgMetadata, MetaFuncsArgMetadata)
+    ColumnwiseOperatorArgMetadata, FieldArgMetadata, FieldVectorArgMetadata,
+    InterGridArgMetadata, LFRicKernelMetadata, MetaMeshArgMetadata,
+    MetaFuncsArgMetadata, OperatorArgMetadata, MetaRefElementArgMetadata,
+    ScalarArgMetadata)
 from psyclone.errors import InternalError
 
 
@@ -152,8 +150,8 @@ def test_cell_map():
     assert kernel_arg_order.meta_arg_index_from_actual_index[6] == 1
     assert kernel_arg_order.arg_info == [
         'nlayers', 'cell_map', 'ncell_f_per_c_x', 'ncell_f_per_c_y',
-        'ncell_f', 'rfield_1', 'rfield_2', 'undf_w1', 'map_w1', 'undf_w1',
-        'map_w1']
+        'ncell_f', 'rfield_1', 'rfield_2', 'ndf_w0', 'undf_w0', 'full_map_w0',
+        'undf_w1', 'map_w1']
 
 
 def test_scalar():
@@ -377,9 +375,37 @@ def test_mesh_properties_ref_el_invalid(monkeypatch):
 
 
 # The kernel_arg_order class fs_common and fs_compulsory_field methods
-# have already been tested by test_general_kernel(). The
-# kernel_arg_order class fs_intergrid method has already been tested
-# by test_cell_map().
+# have already been tested by test_general_kernel().
+# The kernel_arg_order class fs_intergrid method has already been
+# tested by test_cell_map().
+
+
+@pytest.mark.parametrize("name", ["basis", "diff_basis"])
+def test_basis_or_diff_basis_no_shape(monkeypatch, name):
+    '''Test the kernel_arg_order class _basis_or_diff_basis utility method
+    if a basis or differential basis function is specified in the
+    metadata but no shape information is specified in the
+    metadata.
+
+    '''
+    # First create a valid instance of KernelArgOrder
+    meta_args = [
+        FieldArgMetadata("GH_REAL", "GH_INC", "W0")]
+    meta_funcs = [
+        MetaFuncsArgMetadata("W0", basis_function=True,
+                             diff_basis_function=True)]
+    metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args,
+        meta_funcs=meta_funcs)
+    metadata.validate()
+    kernel_arg_order = KernelArgOrder(metadata)
+
+    # Now test the method
+    monkeypatch.setattr(kernel_arg_order, "_arg_index", 0)
+    monkeypatch.setattr(kernel_arg_order, "arg_info", [])
+    kernel_arg_order._basis_or_diff_basis(name, "w0")
+    assert kernel_arg_order._arg_index == 0
+    assert not kernel_arg_order.arg_info
 
 
 @pytest.mark.parametrize("name", ["basis", "diff_basis"])
@@ -505,7 +531,10 @@ def test_basis_or_diff_basis_evaluator_error(monkeypatch, name):
     # Now cause exception.
     monkeypatch.setattr(metadata._shapes, "_shapes", ["invalid"])
     with pytest.raises(InternalError) as info:
-        kernel_arg_order.basis("w1")
+        if name == "basis":
+            kernel_arg_order.basis("w1")
+        else:
+            kernel_arg_order.diff_basis("w1")
     assert ("Unexpected shape metadata. Found 'invalid' but expected one of "
             "['gh_quadrature_xyoz', 'gh_quadrature_face', "
             "'gh_quadrature_edge', 'gh_evaluator']." in str(info.value))
@@ -579,9 +608,10 @@ def test_field_bcs_kernel():
     meta_args = [
         FieldArgMetadata("GH_REAL", "GH_INC", "ANY_SPACE_1")]
     metadata = LFRicKernelMetadata(
-        operates_on="cell_column", meta_args=meta_args)
+        operates_on="cell_column", meta_args=meta_args,
+        procedure_name="enforce_bc_code")
     metadata.validate()
-    kernel_arg_order = KernelArgOrder(metadata, kernel_name="enforce_bc_code")
+    kernel_arg_order = KernelArgOrder(metadata)
     assert len(kernel_arg_order.meta_arg_index_from_actual_index) == 1
     assert kernel_arg_order.meta_arg_index_from_actual_index[1] == 0
     assert kernel_arg_order.arg_info == [
@@ -600,11 +630,11 @@ def test_field_bcs_kernel_error1():
         FieldArgMetadata("GH_REAL", "GH_INC", "ANY_SPACE_1"),
         FieldArgMetadata("GH_REAL", "GH_READ", "ANY_SPACE_1")]
     metadata = LFRicKernelMetadata(
-        operates_on="cell_column", meta_args=meta_args)
+        operates_on="cell_column", meta_args=meta_args,
+        procedure_name="enforce_bc_code")
     metadata.validate()
     with pytest.raises(InternalError) as info:
-        kernel_arg_order = KernelArgOrder(
-            metadata, kernel_name="enforce_bc_code")
+        _ = KernelArgOrder(metadata)
     assert ("An enforce_bc_code kernel should have a single argument but "
             "found '2'." in str(info.value))
 
@@ -618,11 +648,11 @@ def test_field_bcs_kernel_error2():
     meta_args = [
         FieldVectorArgMetadata("GH_REAL", "GH_INC", "ANY_SPACE_1", "2")]
     metadata = LFRicKernelMetadata(
-        operates_on="cell_column", meta_args=meta_args)
+        operates_on="cell_column", meta_args=meta_args,
+        procedure_name="enforce_bc_code")
     metadata.validate()
     with pytest.raises(InternalError) as info:
-        kernel_arg_order = KernelArgOrder(
-            metadata, kernel_name="enforce_bc_code")
+        _ = KernelArgOrder(metadata)
     assert ("An enforce_bc_code kernel should have a single field argument "
             "but found 'FieldVectorArgMetadata'." in str(info.value))
 
@@ -635,15 +665,16 @@ def test_field_bcs_kernel_error3():
 
     '''
     meta_args = [
-        FieldVectorArgMetadata("GH_REAL", "GH_INC", "W0", "2")]
+        FieldArgMetadata("GH_REAL", "GH_INC", "W0")]
     metadata = LFRicKernelMetadata(
-        operates_on="cell_column", meta_args=meta_args)
+        operates_on="cell_column", meta_args=meta_args,
+        procedure_name="enforce_bc_code")
     metadata.validate()
     with pytest.raises(InternalError) as info:
-        kernel_arg_order = KernelArgOrder(
-            metadata, kernel_name="enforce_bc_code")
+        _ = KernelArgOrder(metadata)
     assert ("An enforce_bc_code kernel should have a single field argument "
-            "but found 'FieldVectorArgMetadata'." in str(info.value))
+            "on the 'any_space_1' function space, but found 'w0'."
+            in str(info.value))
 
 
 def test_operator_bcs_kernel():
@@ -655,10 +686,10 @@ def test_operator_bcs_kernel():
     meta_args = [
         OperatorArgMetadata("GH_REAL", "GH_READWRITE", "W0", "W1")]
     metadata = LFRicKernelMetadata(
-        operates_on="cell_column", meta_args=meta_args)
+        operates_on="cell_column", meta_args=meta_args,
+        procedure_name="enforce_operator_bc_code")
     metadata.validate()
-    kernel_arg_order = KernelArgOrder(
-        metadata, kernel_name="enforce_operator_bc_code")
+    kernel_arg_order = KernelArgOrder(metadata)
     assert len(kernel_arg_order.meta_arg_index_from_actual_index) == 1
     assert kernel_arg_order.meta_arg_index_from_actual_index[3] == 0
     assert kernel_arg_order.arg_info == [
@@ -677,11 +708,11 @@ def test_operator_bcs_kernel_error1():
         OperatorArgMetadata("GH_REAL", "GH_READWRITE", "w0", "w1"),
         FieldArgMetadata("GH_REAL", "GH_READ", "w1")]
     metadata = LFRicKernelMetadata(
-        operates_on="cell_column", meta_args=meta_args)
+        operates_on="cell_column", meta_args=meta_args,
+        procedure_name="enforce_operator_bc_code")
     metadata.validate()
     with pytest.raises(InternalError) as info:
-        kernel_arg_order = KernelArgOrder(
-            metadata, kernel_name="enforce_operator_bc_code")
+        _ = KernelArgOrder(metadata)
     assert ("An enforce_operator_bc_code kernel should have a single "
             "argument but found '2'." in str(info.value))
 
@@ -695,18 +726,166 @@ def test_operator_bcs_kernel_error2():
     meta_args = [
         FieldVectorArgMetadata("GH_REAL", "GH_READWRITE", "ANY_SPACE_1", "2")]
     metadata = LFRicKernelMetadata(
-        operates_on="cell_column", meta_args=meta_args)
+        operates_on="cell_column", meta_args=meta_args,
+        procedure_name="enforce_operator_bc_code")
     metadata.validate()
     with pytest.raises(InternalError) as info:
-        kernel_arg_order = KernelArgOrder(
-            metadata, kernel_name="enforce_operator_bc_code")
+        _ = KernelArgOrder(metadata)
     assert ("An enforce_operator_bc_code kernel should have a single lma "
             "operator argument but found 'FieldVectorArgMetadata'."
             in str(info.value))
 
 
-# The kernel_arg_order class _generate method is covered by the previous tests.
-# TODO GENERATION EXCEPTION
+def test_stencil_2d_unknown_extent():
+    '''Test the kernel_arg_order class calls the stencil_2d_unknown_extent
+    method if the supplied field metadata contains a cross2d
+    stencil. Also tests stencil_2d_max_extent and stencil_2d methods.
 
-# TODO Stencils + missing _generate code
+    '''
+    meta_args = [
+        FieldArgMetadata("GH_REAL", "GH_INC", "W0", stencil="cross2d")]
+    metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    metadata.validate()
+    kernel_arg_order = KernelArgOrder(metadata)
+    assert len(kernel_arg_order.meta_arg_index_from_actual_index) == 1
+    assert kernel_arg_order.meta_arg_index_from_actual_index[1] == 0
+    assert kernel_arg_order.arg_info == [
+        'nlayers', 'rfield_1', 'rfield_1_stencil_size',
+        'rfield_1_max_branch_length', 'rfield_1_stencil_dofmap',
+        'ndf_w0', 'undf_w0', 'map_w0']
+
+
+# kernel_arg_order class stencil_2d_max_extent has already been tested
+# by test_stencil_2d_unknown_extent().
+
+
+def test_stencil_unknown_extent():
+    '''Test the kernel_arg_order class calls the stencil_unknown_extent
+    method if the supplied field metadata contains an xory1d
+    stencil. Also tests stencil_unknown_direction and stencil methods.
+
+    '''
+    meta_args = [
+        FieldArgMetadata("GH_REAL", "GH_INC", "W0", stencil="xory1d")]
+    metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    metadata.validate()
+    kernel_arg_order = KernelArgOrder(metadata)
+    assert len(kernel_arg_order.meta_arg_index_from_actual_index) == 1
+    assert kernel_arg_order.meta_arg_index_from_actual_index[1] == 0
+    assert kernel_arg_order.arg_info == [
+        'nlayers', 'rfield_1', 'rfield_1_stencil_size', 'rfield_1_direction',
+        'rfield_1_stencil_dofmap', 'ndf_w0', 'undf_w0', 'map_w0']
+
+
+# kernel_arg_order class stencil_unknown_direction has already been tested
+# by test_stencil_unknown_extent().
+# kernel_arg_order class stencil_2d has already been tested
+# by test_stencil_2d_unknown_extent().
+# kernel_arg_order class stencil has already been tested
+# by test_stencil_unknown_extent().
+
+
+def test_banded_dofmap():
+    '''Test that the KernelArgOrder class banded_dofmap is called if the
+    kernel type is cma-assmembly.
+
+    '''
+    meta_args = [
+        ColumnwiseOperatorArgMetadata("GH_REAL", "GH_READWRITE", "W0", "W1"),
+        OperatorArgMetadata("GH_REAL", "GH_READ", "W0", "W1")]
+    metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    metadata.validate()
+    assert metadata._get_kernel_type() == "cma-assembly"
+    kernel_arg_order = KernelArgOrder(metadata)
+    assert len(kernel_arg_order.meta_arg_index_from_actual_index) == 2
+    assert kernel_arg_order.meta_arg_index_from_actual_index[3] == 0
+    assert kernel_arg_order.meta_arg_index_from_actual_index[11] == 1
+    assert kernel_arg_order.arg_info == [
+        'cell', 'nlayers', 'ncell_2d', 'cma_op_1', 'nrow_cma_op_1',
+        'ncol_cma_op_1', 'alpha_cma_op_1', 'beta_cma_op_1',
+        'gamma_m_cma_op_1', 'gamma_p_cma_op_1', 'op_2_ncell_3d', 'op_2',
+        'ndf_w0', 'cbanded_map_w0_cma_op_1', 'ndf_w1',
+        'cbanded_map_w1_cma_op_1']
+
+
+def test_indirection_dofmap():
+    '''Test that the KernelArgOrder class indirection_dofmap is called if the
+    kernel type is cma-apply.
+
+    '''
+    meta_args = [
+        ColumnwiseOperatorArgMetadata("GH_REAL", "GH_READ", "W0", "W1"),
+        FieldArgMetadata("GH_REAL", "GH_READ", "W1"),
+        FieldArgMetadata("GH_REAL", "GH_INC", "W0")]
+    metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    metadata.validate()
+    assert metadata._get_kernel_type() == "cma-apply"
+    kernel_arg_order = KernelArgOrder(metadata)
+    assert len(kernel_arg_order.meta_arg_index_from_actual_index) == 3
+    assert kernel_arg_order.meta_arg_index_from_actual_index[2] == 0
+    assert kernel_arg_order.meta_arg_index_from_actual_index[9] == 1
+    assert kernel_arg_order.meta_arg_index_from_actual_index[10] == 2
+    assert kernel_arg_order.arg_info == [
+        'cell', 'ncell_2d', 'cma_op_1', 'nrow_cma_op_1', 'ncol_cma_op_1',
+        'alpha_cma_op_1', 'beta_cma_op_1', 'gamma_m_cma_op_1',
+        'gamma_p_cma_op_1', 'rfield_2', 'rfield_3', 'ndf_w0', 'undf_w0',
+        'map_w0', 'cma_indirection_map_w0_cma_op_1', 'ndf_w1', 'undf_w1',
+        'map_w1', 'cma_indirection_map_w1_cma_op_1']
+
+
+def test_indirection_dofmap_single():
+    '''Test that the KernelArgOrder class indirection_dofmap is called if
+    the kernel type is cma-apply. Tests the case where the CMA
+    function spaces are the same so only one indirection dofmap is
+    required.
+
+    '''
+    meta_args = [
+        ColumnwiseOperatorArgMetadata("GH_REAL", "GH_READ", "W0", "W0"),
+        FieldArgMetadata("GH_REAL", "GH_READ", "W0"),
+        FieldArgMetadata("GH_REAL", "GH_INC", "W0")]
+    metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    metadata.validate()
+    assert metadata._get_kernel_type() == "cma-apply"
+    kernel_arg_order = KernelArgOrder(metadata)
+    assert len(kernel_arg_order.meta_arg_index_from_actual_index) == 3
+    assert kernel_arg_order.meta_arg_index_from_actual_index[2] == 0
+    assert kernel_arg_order.meta_arg_index_from_actual_index[8] == 1
+    assert kernel_arg_order.meta_arg_index_from_actual_index[9] == 2
+    assert kernel_arg_order.arg_info == [
+        'cell', 'ncell_2d', 'cma_op_1', 'nrow_cma_op_1', 'alpha_cma_op_1',
+        'beta_cma_op_1', 'gamma_m_cma_op_1', 'gamma_p_cma_op_1', 'rfield_2',
+        'rfield_3', 'ndf_w0', 'undf_w0', 'map_w0',
+        'cma_indirection_map_w0_cma_op_1']
+
+
+def test_generate_error(monkeypatch):
+    '''Most of the _generate function has been tested by the earlier tests
+    in this file. This test covers the exception that _generate raises
+    if there is invalid input.
+
+    '''
+    # First create a valid instance of KernelArgOrder
+    meta_args = [
+        FieldArgMetadata("GH_REAL", "GH_INC", "W0", stencil="xory1d")]
+    metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    metadata.validate()
+    kernel_arg_order = KernelArgOrder(metadata)
+
+    # Now cause exception.
+    monkeypatch.setattr(metadata._meta_args, "_meta_args_args", [None])
+    monkeypatch.setattr(
+        metadata, "_get_kernel_type", lambda: "general-purpose")
+    with pytest.raises(InternalError) as info:
+        kernel_arg_order._generate(metadata)
+    assert "Unexpected meta_arg type 'NoneType' found." in str(info.value)
+
+
+# TODO tests for meta_arg name functions.
 # TODO Check names needing FUNCTION SPACE MANGLED NAMES i.e. any_space_x
