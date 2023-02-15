@@ -39,6 +39,7 @@
 from collections import namedtuple
 
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
+from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
                                     ImportInterface, INTEGER_TYPE, ScalarType)
@@ -55,6 +56,11 @@ class LFRicTypes:
     >>> print(my_var.name)
     my_num_dofs
 
+    It uses the __new__ function to implement the access to the internal
+    dictionary. This is done to minimise the required code for getting a
+    value, e. g. compared with ``LFRicTypes.get()("something")``, or
+    ``LFRicType.get("something")``.
+
     '''
 
     # Class variable to store the singleton instance
@@ -66,7 +72,12 @@ class LFRicTypes:
 
     # ------------------------------------------------------------------------
     def __new__(cls, name):
-        '''Implement a singleton - only one instance will ever be created.
+        '''The class creation function __new__ is used to actually provide
+        the object the user is querying. It is well documented that __new__
+        can return a different instance. This function will first make sure
+        that the static internal dictionary is initialised (so it acts like
+        a singleton in that regard). Then it will return the value the user
+        asked for.
 
         :param str name: the name to query for.
 
@@ -78,7 +89,13 @@ class LFRicTypes:
         if not LFRicTypes._name_to_class:
             LFRicTypes.init()
 
-        return LFRicTypes._name_to_class[name]
+        value = LFRicTypes._name_to_class.get(name, None)
+        if value:
+            return value
+
+        # Unknown keyword
+        raise InternalError(f"Unknown type '{name}'. Valid values are "
+                            f"{LFRicTypes._name_to_class.keys()}")
 
     # ------------------------------------------------------------------------
     def __call__(self):

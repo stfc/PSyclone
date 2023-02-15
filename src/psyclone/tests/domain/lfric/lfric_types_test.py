@@ -41,6 +41,7 @@ correctly'''
 import pytest
 
 from psyclone.domain.lfric import LFRicConstants, LFRicTypes
+from psyclone.errors import InternalError
 from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, \
     ImportInterface, ScalarType, LocalInterface, ArgumentInterface, \
     ArrayType, Symbol
@@ -60,6 +61,7 @@ def test_singleton(monkeypatch):
     # First check that on first time creation the class is properly
     # initialised:
     monkeypatch.setattr(LFRicTypes, "_name_to_class", None)
+    assert LFRicTypes._name_to_class is None
     LFRicTypes("I_DEF")
     assert LFRicTypes._name_to_class is not None
 
@@ -69,12 +71,11 @@ def test_singleton(monkeypatch):
     # Make sure we get the new dictionary:
     assert LFRicTypes("new") == "really_new"
 
-    # But if we delete the instance, the singleton will create a
-    # new instance, which does not have 'new' as key anymore:
+    # Check error handling:
     monkeypatch.setattr(LFRicTypes, "_name_to_class", None)
-    with pytest.raises(KeyError) as err:
-        LFRicTypes("new")
-    assert "new" in str(err.value)
+    with pytest.raises(InternalError) as err:
+        LFRicTypes("does_not_exist")
+    assert "Unknown type 'does_not_exist'. Valid values are " in str(err.value)
 
 
 def test_constants_mod():
