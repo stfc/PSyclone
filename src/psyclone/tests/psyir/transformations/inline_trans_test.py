@@ -1253,7 +1253,7 @@ def test_inline_symbols_check(fortran_reader):
             "refer to that container at the call site." in str(err.value))
 
 
-def test_validate_non_local_import(fortran_reader, fortran_writer):
+def test_validate_non_local_import(fortran_reader):
     '''Test that we reject the case where the routine to be
     inlined accesses a symbol from an import in its parent container.'''
     code = (
@@ -1870,12 +1870,12 @@ def test_validate_unknown_arg_type(fortran_reader):
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
-        inline_trans.apply(call)
+        inline_trans.validate(call)
     assert ("Routine 'sub' cannot be inlined because formal argument 'x' is "
             "of UnknownType" in str(err.value))
 
 
-def test_validate_assumed_shape(fortran_reader, tmpdir):
+def test_validate_array_reshape(fortran_reader):
     '''Test that the validate method rejects an attempt to inline a routine
     if any of its formal arguments are declared to be a different shape from
     those at the call site.'''
@@ -1899,11 +1899,42 @@ def test_validate_assumed_shape(fortran_reader, tmpdir):
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
-        inline_trans.apply(call)
+        inline_trans.validate(call)
     assert ("Cannot inline routine 's' because it reshapes an argument: actual"
             " argument 'a(:,:)' has rank 2 but the corresponding formal "
             "argument, 'x', has rank 1" in str(err.value))
-    assert Compile(tmpdir).string_compiles(code)
+
+
+def test_validate_array_arg_expression(fortran_reader):
+    '''
+    Check that validate rejects a call if an argument corresponding to
+    a formal array argument is not a simple Reference or Literal.
+
+    '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "subroutine main\n"
+        "  use some_mod, only: a, b\n"
+        "  CALL S(a+b,10)\n"
+        "end subroutine\n"
+        "subroutine s(x,m)\n"
+        "  integer, intent(in) :: m\n"
+        "  real :: x(m)\n"
+        "  integer :: i\n"
+        "  do i = 1, m\n"
+        "     x(i) = x(i) + m\n"
+        "  enddo\n"
+        "end subroutine\n"
+        "end module\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(call)
+    assert ("The call 'call s(a + b, 10)\n' cannot be inlined because actual "
+            "argument 'a + b' corresponds to a formal argument with array "
+            "type but is not a Reference or a Literal" in str(err.value))
 
 
 def test_validate_indirect_range(fortran_reader):
@@ -1926,7 +1957,7 @@ def test_validate_indirect_range(fortran_reader):
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
-        inline_trans.apply(call)
+        inline_trans.validate(call)
     assert ("Cannot inline routine 'sub' because argument 'var(indices(:))' "
             "has an array range in an indirect access" in str(err.value))
 
@@ -1950,7 +1981,7 @@ def test_validate_non_unit_stride_slice(fortran_reader):
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
-        inline_trans.apply(call)
+        inline_trans.validate(call)
     assert ("Cannot inline routine 'sub' because one of its arguments is an "
             "array slice with a non-unit stride: 'var(::2)' (TODO #1646)" in
             str(err.value))
@@ -1983,7 +2014,7 @@ def test_validate_named_arg(fortran_reader):
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
-        inline_trans.apply(call)
+        inline_trans.validate(call)
     assert ("Routine 'sub' cannot be inlined because it has a named argument "
             "'opt' (TODO #924)" in str(err.value))
 
