@@ -1,14 +1,13 @@
 module adj_rhs_sample_eos_kernel_mod
   use argument_mod, only : arg_type, cell_column, func_type, gh_basis, &
-       gh_evaluator, gh_field, gh_read, gh_readwrite, gh_real, gh_scalar, &
-       gh_write
+       gh_evaluator, gh_field, gh_read, gh_real, gh_scalar, gh_write, gh_readwrite
   use constants_mod, only : i_def, r_def
   use fs_continuity_mod, only : w3, wtheta
   use kernel_mod, only : kernel_type
   implicit none
   type, public, extends(kernel_type) :: adj_rhs_sample_eos_kernel_type
   PRIVATE
-  TYPE(arg_type) :: meta_args(12) = (/&
+  TYPE(arg_type) :: meta_args(12) = (/ &
        arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3), &
        arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3), &
        arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3), &
@@ -21,9 +20,8 @@ module adj_rhs_sample_eos_kernel_mod
        arg_type(GH_SCALAR, GH_REAL, GH_READ), &
        arg_type(GH_SCALAR, GH_REAL, GH_READ), &
        arg_type(GH_SCALAR, GH_REAL, GH_READ)/)
-  TYPE(func_type) :: meta_funcs(2) = (/ &
-       func_type(W3, GH_BASIS), &
-       func_type(Wtheta, GH_BASIS)/)
+  TYPE(func_type) :: meta_funcs(2) = (/func_type(W3, GH_BASIS), &
+                                       func_type(Wtheta, GH_BASIS)/)
   INTEGER :: operates_on = CELL_COLUMN
   INTEGER :: gh_shape = GH_EVALUATOR
   CONTAINS
@@ -34,12 +32,11 @@ END TYPE
   public :: adj_rhs_sample_eos_code
 
   contains
-    subroutine adj_rhs_sample_eos_code(nlayers, &
-         rhs_eos, exner, rho, theta, moist_dyn_gas, &
-         ls_exner, ls_rho, ls_theta, ls_moist_dyn_gas, &
-         kappa, rd, p_zero, &
+    subroutine adj_rhs_sample_eos_code( &
+         nlayers, rhs_eos, exner, rho, theta, moist_dyn_gas, ls_exner, &
+         ls_rho, ls_theta, ls_moist_dyn_gas, kappa, rd, p_zero, &
          ndf_w3, undf_w3, map_w3, w3_basis, basis_w3_on_wtheta, &
-         ndf_wt, undf_wt, map_wt, wt_basis, basis_wt_on_wt)
+         ndf_wt, undf_wt, map_wt, wt_basis, basis_wtheta_on_wtheta)
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: ndf_wt
     integer(kind=i_def), intent(in) :: ndf_w3
@@ -50,7 +47,7 @@ END TYPE
     real(kind=r_def), dimension(1,ndf_w3,ndf_w3), intent(in) :: w3_basis
     real(kind=r_def), dimension(1,ndf_wt,ndf_w3), intent(in) :: wt_basis
     REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,ndf_wt) :: basis_w3_on_wtheta
-    REAL(KIND=r_def), intent(in), dimension(1,ndf_wt,ndf_wt) :: basis_wt_on_wt
+    REAL(KIND=r_def), intent(in), dimension(1,ndf_wt,ndf_wt) :: basis_wtheta_on_wtheta
     real(kind=r_def), dimension(undf_w3), intent(inout) :: rhs_eos
     real(kind=r_def), dimension(undf_wt), intent(inout) :: theta
     real(kind=r_def), dimension(undf_wt), intent(inout) :: moist_dyn_gas

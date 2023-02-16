@@ -1,7 +1,9 @@
 module adj_pressure_gradient_bd_kernel_mod
-  use argument_mod, only : adjacent_face, arg_type, cell_column, cross, func_type, gh_basis, &
-       gh_diff_basis, gh_field, gh_inc, gh_quadrature_face, gh_read, gh_readwrite, gh_real, gh_scalar, &
-       mesh_data_type, outward_normals_to_horizontal_faces, reference_element_data_type, stencil
+  use argument_mod, only : adjacent_face, arg_type, cell_column, cross, &
+       func_type, gh_basis, gh_diff_basis, gh_field, gh_inc, &
+       gh_quadrature_face, gh_read, gh_real, gh_scalar, mesh_data_type, &
+       outward_normals_to_horizontal_faces, reference_element_data_type, &
+       stencil
   use constants_mod, only : i_def, r_def
   use cross_product_mod, only : cross_product
   use fs_continuity_mod, only : w2, w3, wtheta
@@ -33,11 +35,10 @@ module adj_pressure_gradient_bd_kernel_mod
        arg_type(GH_FIELD, GH_REAL, GH_READ, Wtheta, STENCIL(CROSS)),     & ! RF ls_theta
        arg_type(GH_FIELD * 3, GH_REAL, GH_READ, Wtheta, STENCIL(CROSS)), & ! RF (ls_moist_dyn_gas,ls_moist_dyn_tot,ls_moist_dyn_fac)
        arg_type(GH_SCALAR, GH_REAL, GH_READ)/)                             ! RF cp
-  TYPE(func_type) :: meta_funcs(3) = (/ &
-       func_type(W2, GH_BASIS), func_type(W3, GH_BASIS), func_type(Wtheta, GH_BASIS)/)
+  TYPE(func_type) :: meta_funcs(3) = (/func_type(W2, GH_BASIS), func_type(W3, GH_BASIS), func_type(Wtheta, GH_BASIS)/)
   TYPE(mesh_data_type) :: meta_mesh(1) = (/mesh_data_type(adjacent_face)/)
-  TYPE(reference_element_data_type) :: meta_reference_element(1) = (/ &
-       reference_element_data_type(outward_normals_to_horizontal_faces)/)
+  TYPE(reference_element_data_type) :: meta_reference_element(1) = &
+       (/reference_element_data_type(outward_normals_to_horizontal_faces)/)
   INTEGER :: operates_on = CELL_COLUMN
   INTEGER :: gh_shape = GH_QUADRATURE_face
   CONTAINS
@@ -53,13 +54,16 @@ END TYPE
   ! the wtheta stencil with the same stencil type is declared twice and is
   ! passed in twice. This is a "feature" of PSyclone. I added 'ignore'
   ! variables for the latter.
-    subroutine adj_pressure_gradient_bd_code(nlayers, r_u_bd, stencil_w2_size, stencil_w2_map, exner, &
-         theta, moist_dyn_gas, moist_dyn_tot, moist_dyn_fac, ls_exner, stencil_w3_size, stencil_w3_map, &
-         ls_theta, stencil_wtheta_size, stencil_wtheta_map, ls_moist_dyn_gas, ls_moist_dyn_tot, &
-         ls_moist_dyn_fac, stencil_ignore_size, stencil_ignore_map, cp, ndf_w2, undf_w2, map_w2, &
-         w2_basis_face, ndf_w3, undf_w3, map_w3, w3_basis_face, ndf_wtheta, undf_wtheta, map_wtheta, &
-         wtheta_basis_face, nfaces_re_h, outward_normals_to_horizontal_faces, opposite_face, &
-         nfaces_qr, nqp_f, wqp_f)
+    subroutine adj_pressure_gradient_bd_code( &
+         nlayers, r_u_bd, stencil_w2_size, stencil_w2_map, exner, theta, &
+         moist_dyn_gas, moist_dyn_tot, moist_dyn_fac, ls_exner, &
+         stencil_w3_size, stencil_w3_map, ls_theta, stencil_wtheta_size, &
+         stencil_wtheta_map, ls_moist_dyn_gas, ls_moist_dyn_tot, &
+         ls_moist_dyn_fac, stencil_ignore_size, stencil_ignore_map, cp, &
+         ndf_w2, undf_w2, map_w2, w2_basis_face, ndf_w3, undf_w3, map_w3, &
+         w3_basis_face, ndf_wtheta, undf_wtheta, map_wtheta, &
+         wtheta_basis_face, nfaces_re_h, outward_normals_to_horizontal_faces, &
+         opposite_face, nfaces_qr, nqp_f, wqp_f)
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: nfaces_qr
     integer(kind=i_def), intent(in) :: nqp_f
@@ -143,17 +147,17 @@ END TYPE
           ls_exner_next_e(df) = ls_exner(stencil_w3_map(df,face+1) + k)
         enddo
         do df = 1, ndf_wtheta, 1
-           ls_theta_v_e(df) = ls_theta(map_wtheta(df) + k) * ls_moist_dyn_gas(map_wtheta(df) + k) / &
-                ls_moist_dyn_tot(map_wtheta(df) + k)
-           ls_theta_v_e_remote(df) = ls_theta(stencil_wtheta_map(df,face+1) + k) * &
-                ls_moist_dyn_gas(stencil_wtheta_map(df,face+1) + k) / &
+           ls_theta_v_e(df) = ls_theta(map_wtheta(df) + k) * &
+                ls_moist_dyn_gas(map_wtheta(df) + k) / ls_moist_dyn_tot(map_wtheta(df) + k)
+           ls_theta_v_e_remote(df) = ls_theta(stencil_wtheta_map(df,face+1) + k)&
+                * ls_moist_dyn_gas(stencil_wtheta_map(df,face+1) + k) / &
                 ls_moist_dyn_tot(stencil_wtheta_map(df,face+1) + k)
         enddo
         do qp = nqp_f, 1, -1
           ls_exner_av = 0.0_r_def
           do df = 1, ndf_w3, 1
-             ls_exner_av = ls_exner_av + 0.5_r_def * (ls_exner_e(df) * w3_basis_face(1,df,qp,face) + &
-                  ls_exner_next_e(df) * w3_basis_face(1,df,qp,face_next))
+             ls_exner_av = ls_exner_av + 0.5_r_def * (ls_exner_e(df) * &
+                  w3_basis_face(1,df,qp,face) + ls_exner_next_e(df) * w3_basis_face(1,df,qp,face_next))
           enddo
           ls_theta_v_at_fquad = 0.0_r_def
           ls_theta_v_at_fquad_remote = 0.0_r_def
@@ -169,8 +173,7 @@ END TYPE
             res_dot_product_remote = 0.0
             do i = 1, 3, 1
               res_dot_product = res_dot_product + v(i) * outward_normals_to_horizontal_faces(i,face)
-              res_dot_product_remote = res_dot_product_remote + v_remote(i) * &
-                   outward_normals_to_horizontal_faces(i,face_next)
+              res_dot_product_remote = res_dot_product_remote + v_remote(i) * outward_normals_to_horizontal_faces(i,face_next)
             enddo
             res_dot_product_1 = 0.0
             do i_1 = 1, 3, 1
@@ -197,12 +200,11 @@ END TYPE
           exner_av_remote = 0.0
         enddo
         do df = ndf_wtheta, 1, -1
-           theta(k + map_wtheta(df)) = theta(k + map_wtheta(df)) + ls_theta_v_e(df) * theta_v_e(df) / &
-                ls_theta(k + map_wtheta(df))
-          moist_dyn_tot(k + map_wtheta(df)) = moist_dyn_tot(k + map_wtheta(df)) - ls_theta_v_e(df) * &
-               theta_v_e(df) / ls_moist_dyn_tot(k + map_wtheta(df))
-          moist_dyn_gas(k + map_wtheta(df)) = moist_dyn_gas(k + map_wtheta(df)) + ls_theta_v_e(df) * &
-               theta_v_e(df) / ls_moist_dyn_gas(k + map_wtheta(df))
+          theta(k + map_wtheta(df)) = theta(k + map_wtheta(df)) + ls_theta_v_e(df) * theta_v_e(df) / ls_theta(k + map_wtheta(df))
+          moist_dyn_tot(k + map_wtheta(df)) = &
+               moist_dyn_tot(k + map_wtheta(df)) - ls_theta_v_e(df) * theta_v_e(df) / ls_moist_dyn_tot(k + map_wtheta(df))
+          moist_dyn_gas(k + map_wtheta(df)) = &
+               moist_dyn_gas(k + map_wtheta(df)) + ls_theta_v_e(df) * theta_v_e(df) / ls_moist_dyn_gas(k + map_wtheta(df))
           theta_v_e(df) = 0.0
         enddo
         do df = ndf_w3, 1, -1

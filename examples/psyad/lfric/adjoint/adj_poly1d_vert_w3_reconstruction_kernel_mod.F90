@@ -55,8 +55,8 @@ END TYPE
     real(kind=r_def) :: ls_polynomial_tracer
     real(kind=r_def) :: tmp1
     real(kind=r_def) :: tmp2
-    real(kind=r_def) :: tmp3
-    integer(kind=i_def) :: i
+
+    integer(kind=i_def) :: i, tmp3
 
     polynomial_tracer = 0.0_r_def
     vertical_order = MIN(global_order, nlayers - 1)
@@ -69,7 +69,7 @@ END TYPE
         tmp3 = FLOOR(tmp2)
         stencil(p + 1) = k + p - tmp3
       enddo
-      upwind = INT(0.5 * SIGN(1.0, ls_wind(k + map_w2(5))) + 0.5, i_def)
+      upwind = INT(0.5_r_def * SIGN(1.0_r_def, ls_wind(k + map_w2(5))) + 0.5_r_def, i_def)
       upwind_offset = upwind * use_upwind
       if (k < nlayers) then
         stencil = stencil - upwind_offset
@@ -97,10 +97,14 @@ END TYPE
       reconstruction(map_w2(5) + k) = 0.0
       if (logspace) then
         ls_polynomial_tracer = 1.0_r_def
+        do p = 1, vertical_order + 1
+          ik = p + upwind_offset*(global_order+1) + k*ndata + map_c(1) - 1
+          ls_polynomial_tracer = ls_polynomial_tracer * abs(ls_tracer(ij + stencil(p)))**coeff(ik)
+        end do
         polynomial_tracer = ls_polynomial_tracer * polynomial_tracer
         do p = vertical_order + 1, 1, -1
           ik = global_order * upwind_offset + k * ndata + p + upwind_offset + map_c(1) - 1
-          ls_polynomial_tracer = ls_polynomial_tracer * ABS(ls_tracer(ij + stencil(p))) ** coeff(ik)
+          !ls_polynomial_tracer = ls_polynomial_tracer * ABS(ls_tracer(ij + stencil(p))) ** coeff(ik)
           tracer(ij + stencil(p)) = tracer(ij + stencil(p)) + coeff(ik) * polynomial_tracer / ls_tracer(ij + stencil(p))
         enddo
         polynomial_tracer = 0.0

@@ -6,10 +6,16 @@ module adj_sample_eos_pressure_kernel_mod
   implicit none
   type, public, extends(kernel_type) :: adj_sample_eos_pressure_kernel_type
   PRIVATE
-  TYPE(arg_type) :: meta_args(7) = (/arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3), arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3), &
-&arg_type(GH_FIELD, GH_REAL, GH_READWRITE, Wtheta), arg_type(GH_FIELD, GH_REAL, GH_READWRITE, Wtheta), arg_type(GH_FIELD, GH_REAL, GH_READ, &
-&W3), arg_type(GH_FIELD, GH_REAL, GH_READ, Wtheta), arg_type(GH_FIELD, GH_REAL, GH_READ, Wtheta)/)
-  TYPE(func_type) :: meta_funcs(2) = (/func_type(W3, GH_BASIS), func_type(Wtheta, GH_BASIS)/)
+  TYPE(arg_type) :: meta_args(7) = (/ &
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3), &
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3), &
+       &arg_type(GH_FIELD, GH_REAL, GH_READWRITE, Wtheta), &
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, Wtheta), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, W3), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, Wtheta), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, Wtheta)/)
+  TYPE(func_type) :: meta_funcs(2) = (/ &
+       func_type(W3, GH_BASIS), func_type(Wtheta, GH_BASIS)/)
   INTEGER :: operates_on = CELL_COLUMN
   INTEGER :: gh_shape = GH_EVALUATOR
   CONTAINS
@@ -20,8 +26,11 @@ END TYPE
   public :: adj_sample_eos_pressure_code
 
   contains
-  subroutine adj_sample_eos_pressure_code(nlayers, exner, rho, theta, moist_dyn_gas, ls_rho, ls_theta, ls_moist_dyn_gas, ndf_w3, &
-&undf_w3, map_w3, w3_basis, ndf_wt, undf_wt, map_wt, wt_basis)
+    subroutine adj_sample_eos_pressure_code(&
+         nlayers, exner, rho, theta, moist_dyn_gas, &
+         ls_rho, ls_theta, ls_moist_dyn_gas, &
+         ndf_w3, undf_w3, map_w3, w3_basis, basis_w3_on_wtheta, &
+         ndf_wt, undf_wt, map_wt, wt_basis, basis_wtheta_on_wtheta)
     use planet_config_mod, only : kappa, Rd, p_zero
     use coordinate_jacobian_mod, only : coordinate_jacobian
     integer(kind=i_def), intent(in) :: nlayers
@@ -33,6 +42,8 @@ END TYPE
     integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
     real(kind=r_def), dimension(1,ndf_w3,ndf_w3), intent(in) :: w3_basis
     real(kind=r_def), dimension(1,ndf_wt,ndf_w3), intent(in) :: wt_basis
+    REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,ndf_wt) :: basis_w3_on_wtheta
+    REAL(KIND=r_def), intent(in), dimension(1,ndf_wt,ndf_wt) :: basis_wtheta_on_wtheta
     real(kind=r_def), dimension(undf_w3), intent(inout) :: exner
     real(kind=r_def), dimension(undf_w3), intent(inout) :: rho
     real(kind=r_def), dimension(undf_wt), intent(inout) :: theta

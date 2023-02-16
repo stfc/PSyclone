@@ -1,6 +1,7 @@
 module adj_dg_inc_matrix_vector_kernel_mod
-  use argument_mod, only : any_discontinuous_space_1, any_space_1, arg_type, cell_column, gh_field, &
-       gh_operator, gh_read, gh_readwrite, gh_real, gh_inc
+  use argument_mod, only : any_discontinuous_space_1, any_space_1, arg_type, &
+       cell_column, gh_field, gh_operator, gh_read, gh_inc, &
+       gh_readwrite, gh_real
   use constants_mod, only : i_def, r_double, r_single
   use kernel_mod, only : kernel_type
   implicit none
@@ -9,10 +10,8 @@ module adj_dg_inc_matrix_vector_kernel_mod
 end interface
   type, public, extends(kernel_type) :: adj_dg_inc_matrix_vector_kernel_type
   PRIVATE
-  TYPE(arg_type) :: meta_args(3) = (/ &
-       arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1), &
-       arg_type(GH_FIELD, GH_REAL, GH_INC, ANY_SPACE_1), &
-       arg_type(GH_OPERATOR, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1, ANY_SPACE_1)/)
+  TYPE(arg_type) :: meta_args(3) = (/arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1), arg_type(GH_FIELD, &
+&GH_REAL, GH_INC, ANY_SPACE_1), arg_type(GH_OPERATOR, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1, ANY_SPACE_1)/)
   INTEGER :: operates_on = CELL_COLUMN
 END TYPE
   private

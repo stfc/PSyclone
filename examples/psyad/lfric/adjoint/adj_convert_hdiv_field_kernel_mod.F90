@@ -63,7 +63,6 @@ END TYPE
     integer :: idx_1
     integer :: i
     integer :: j
-    integer :: idx_1_1
 
     vector_out = 0.0_r_def
     vector_in = 0.0_r_def

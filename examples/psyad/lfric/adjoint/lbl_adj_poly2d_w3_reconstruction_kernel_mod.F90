@@ -1,7 +1,7 @@
 module adj_poly2d_w3_reconstruction_kernel_mod
   use argument_mod, only : any_discontinuous_space_1, arg_type, cell_column, func_type, gh_basis, gh_evaluator, gh_field, gh_inc, &
 &gh_integer, gh_read, gh_real, gh_scalar, outward_normals_to_horizontal_faces, reference_element_data_type, region, &
-&stencil, gh_readwrite
+&stencil
   use constants_mod, only : i_def, l_def, r_def
   use fs_continuity_mod, only : w2, w3
   use kernel_mod, only : kernel_type

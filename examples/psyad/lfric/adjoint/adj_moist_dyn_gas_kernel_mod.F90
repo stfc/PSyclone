@@ -1,5 +1,6 @@
 module adj_moist_dyn_gas_kernel_mod
-  use argument_mod, only : arg_type, cell_column, gh_field, gh_read, gh_real, gh_scalar, gh_write, gh_readwrite
+  use argument_mod, only : arg_type, cell_column, gh_field, gh_read, &
+       gh_real, gh_scalar, gh_write, gh_readwrite
   use constants_mod, only : i_def, r_def
   use fs_continuity_mod, only : wtheta
   use kernel_mod, only : kernel_type
@@ -7,7 +8,7 @@ module adj_moist_dyn_gas_kernel_mod
   implicit none
   type, public, extends(kernel_type) :: adj_moist_dyn_gas_kernel_type
   PRIVATE
-  TYPE(arg_type) :: meta_args(2) = (/&
+  TYPE(arg_type) :: meta_args(2) = (/ &
        arg_type(GH_FIELD, GH_REAL, GH_READWRITE, Wtheta), &
        arg_type(GH_FIELD, GH_REAL, GH_READWRITE, Wtheta)/)
   INTEGER :: operates_on = CELL_COLUMN
