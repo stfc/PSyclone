@@ -611,8 +611,8 @@ class SymbolTable():
         just show symbols up to a certain scope).
 
         :param str name: name of the symbol.
-        :param visibilty: the visibility or list of visibilities that the \
-                          symbol must have.
+        :param visibility: the visibility or list of visibilities that the \
+                           symbol must have.
         :type visibility: [list of] :py:class:`psyclone.symbols.Visibility`
         :param scope_limit: optional Node which limits the symbol \
             search space to the symbol tables of the nodes within the \

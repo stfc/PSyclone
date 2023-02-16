@@ -2152,7 +2152,7 @@ def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "      ! sum the partial results sequentially\n"
             "      !\n"
             "      DO th_idx=1,nthreads\n"
-            "        asum = asum + l_asum(1,th_idx)\n"
+            "        asum = asum+l_asum(1,th_idx)\n"
             "      END DO\n"
             "      DEALLOCATE (l_asum)\n")
     assert expected_output in result
@@ -2292,11 +2292,11 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
             "      ! sum the partial results sequentially\n"
             "      !\n"
             "      DO th_idx=1,nthreads\n"
-            "        asum = asum + l_asum(1,th_idx)\n"
+            "        asum = asum+l_asum(1,th_idx)\n"
             "      END DO\n"
             "      DEALLOCATE (l_asum)\n"
             "      DO th_idx=1,nthreads\n"
-            "        bsum = bsum + l_bsum(1,th_idx)\n"
+            "        bsum = bsum+l_bsum(1,th_idx)\n"
             "      END DO\n"
             "      DEALLOCATE (l_bsum)\n"
             "      global_sum%value = asum\n"
@@ -2334,11 +2334,11 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
             "      ! sum the partial results sequentially\n"
             "      !\n"
             "      DO th_idx=1,nthreads\n"
-            "        asum = asum + l_asum(1,th_idx)\n"
+            "        asum = asum+l_asum(1,th_idx)\n"
             "      END DO\n"
             "      DEALLOCATE (l_asum)\n"
             "      DO th_idx=1,nthreads\n"
-            "        bsum = bsum + l_bsum(1,th_idx)\n"
+            "        bsum = bsum+l_bsum(1,th_idx)\n"
             "      END DO\n"
             "      DEALLOCATE (l_bsum)")
     assert expected_output in result
@@ -3116,7 +3116,7 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
             "      ! sum the partial results sequentially\n"
             "      !\n"
             "      DO th_idx=1,nthreads\n"
-            "        asum = asum + l_asum(1,th_idx)\n"
+            "        asum = asum+l_asum(1,th_idx)\n"
             "      END DO\n"
             "      DEALLOCATE (l_asum)\n"
             "      global_sum%value = asum\n"
@@ -3141,7 +3141,7 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
             "      ! sum the partial results sequentially\n"
             "      !\n"
             "      DO th_idx=1,nthreads\n"
-            "        asum = asum + l_asum(1,th_idx)\n"
+            "        asum = asum+l_asum(1,th_idx)\n"
             "      END DO\n"
             "      DEALLOCATE (l_asum)\n") in code
 
@@ -3240,7 +3240,7 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
             "      ! sum the partial results sequentially\n"
             "      !\n"
             "      DO th_idx=1,nthreads\n"
-            "        asum = asum + l_asum(1,th_idx)\n"
+            "        asum = asum+l_asum(1,th_idx)\n"
             "      END DO\n"
             "      DEALLOCATE (l_asum)\n"
             "      !\n"
@@ -3280,7 +3280,7 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
             "      ! sum the partial results sequentially\n"
             "      !\n"
             "      DO th_idx=1,nthreads\n"
-            "        asum = asum + l_asum(1,th_idx)\n"
+            "        asum = asum+l_asum(1,th_idx)\n"
             "      END DO\n"
             "      DEALLOCATE (l_asum)\n") in result
 
@@ -3357,7 +3357,7 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
                 "      ! sum the partial results sequentially\n"
                 "      !\n"
                 "      DO th_idx=1,nthreads\n"
-                "        asum = asum + l_asum(1,th_idx)\n"
+                "        asum = asum+l_asum(1,th_idx)\n"
                 "      END DO\n"
                 "      DEALLOCATE (l_asum)\n"
                 "      !\n"
@@ -3391,7 +3391,7 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
                 "      ! sum the partial results sequentially\n"
                 "      !\n"
                 "      DO th_idx=1,nthreads\n"
-                "        asum = asum + l_asum(1,th_idx)\n"
+                "        asum = asum+l_asum(1,th_idx)\n"
                 "      END DO\n"
                 "      DEALLOCATE (l_asum)\n") in result
 
@@ -3451,7 +3451,7 @@ def test_repr_bltins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
                 "      ! sum the partial results sequentially\n"
                 "      !\n"
                 "      DO th_idx=1,nthreads\n"
-                "        asum = asum + l_asum(1,th_idx)\n"
+                "        asum = asum+l_asum(1,th_idx)\n"
                 "      END DO\n"
                 "      DEALLOCATE (l_asum)\n"
                 "      !\n"
@@ -3485,7 +3485,7 @@ def test_repr_bltins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
                 "      ! sum the partial results sequentially\n"
                 "      !\n"
                 "      DO th_idx=1,nthreads\n"
-                "        asum = asum + l_asum(1,th_idx)\n"
+                "        asum = asum+l_asum(1,th_idx)\n"
                 "      END DO\n"
                 "      DEALLOCATE (l_asum)\n") in result
 
@@ -3508,7 +3508,6 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
         if isinstance(child, OMPDoDirective):
             rtrans.apply(child)
     code = str(psy.gen)
-
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert "INTEGER th_idx\n" in code
@@ -3519,7 +3518,7 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
 
         for names in [
                 {"var": "asum", "lvar": "l_asum", "loop_idx": "0",
-                 "rhs": "f1_proxy%data(df)*f2_proxy%data(df)"},
+                 "rhs": "f1_proxy%data(df) * f2_proxy%data(df)"},
                 {"var": "bsum", "lvar": "l_bsum", "loop_idx": "2",
                  "rhs": "f2_proxy%data(df)"}]:
             assert (
@@ -3555,7 +3554,7 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
 
         for names in [
                 {"var": "asum", "lvar": "l_asum", "loop_idx": "0",
-                 "rhs": "f1_proxy%data(df)*f2_proxy%data(df)"},
+                 "rhs": "f1_proxy%data(df) * f2_proxy%data(df)"},
                 {"var": "bsum", "lvar": "l_bsum",
                  "loop_idx": "2", "rhs": "f2_proxy%data(df)"}]:
             assert (
@@ -4077,7 +4076,6 @@ def test_rc_discontinuous_depth(tmpdir, monkeypatch, annexed):
     loop = schedule.children[index]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
-    print(result)
     for field_name in ["f1", "f2", "m1"]:
         assert (f"      IF ({field_name}_proxy%is_dirty(depth=3)) THEN\n"
                 f"        CALL {field_name}_proxy%halo_exchange(depth=3)"
@@ -4139,7 +4137,6 @@ def test_rc_all_discontinuous_depth(tmpdir):
     loop = schedule.children[0]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
-    print(result)
     assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
     assert "CALL f2_proxy%halo_exchange(depth=3)" in result
     assert "loop0_stop = mesh%get_last_halo_cell(3)" in result
@@ -4186,7 +4183,6 @@ def test_rc_all_discontinuous_vector_depth(tmpdir):
     loop = schedule.children[0]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
-    print(result)
     for idx in range(1, 4):
         assert f"IF (f2_proxy({idx})%is_dirty(depth=3)) THEN" in result
         assert f"CALL f2_proxy({idx})%halo_exchange(depth=3)" in result

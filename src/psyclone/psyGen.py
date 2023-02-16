@@ -52,11 +52,13 @@ from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
 from psyclone.parse.algorithm import BuiltInCall
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import PSyIRVisitor
-from psyclone.psyir.nodes import (Node, Schedule, Loop, Statement, Container,
-                                  Routine, Call, OMPDoDirective)
-from psyclone.psyir.symbols import (DataSymbol, RoutineSymbol, Symbol,
-                                    ContainerSymbol, ImportInterface,
-                                    ArgumentInterface, DeferredType)
+from psyclone.psyir.nodes import (ArrayReference, Call, Container, Literal,
+                                  Loop, Node, OMPDoDirective, Reference,
+                                  Routine, Schedule, Statement)
+from psyclone.psyir.symbols import (ArgumentInterface, ArrayType,
+                                    ContainerSymbol, DataSymbol, DeferredType,
+                                    ImportInterface, INTEGER_TYPE,
+                                    RoutineSymbol, Symbol)
 from psyclone.psyir.symbols.datatypes import UnknownFortranType
 
 # The types of 'intent' that an argument to a Fortran subroutine
@@ -1093,7 +1095,7 @@ class Kern(Statement):
 
     @property
     def reduction_arg(self):
-        ''' if this kernel/builtin contains a reduction variable then return
+        ''' If this kernel/builtin contains a reduction variable then return
         the variable, otherwise return None'''
         return self._reduction_arg
 
@@ -1113,10 +1115,7 @@ class Kern(Statement):
         '''Generate a local variable name that is unique for the current
         reduction argument name. This is used for thread-local
         reductions with reproducible reductions '''
-        tag = self._reduction_arg.name
-        name = self.ancestor(InvokeSchedule).symbol_table.\
-            find_or_create_tag(tag, "l_" + tag).name
-        return name
+        return "l_" + self.reduction_arg.name
 
     def zero_reduction_variable(self, parent, position=None):
         '''
@@ -1198,7 +1197,10 @@ class Kern(Statement):
         '''
         var_name = self._reduction_arg.name
         local_var_name = self.local_reduction_name
-        local_var_ref = self._reduction_ref(var_name)
+        local_var_ref = self._reduction_reference().name
+        if self.reprod_reduction:
+            local_var_ref = FortranWriter().arrayreference_node(
+                self._reduction_reference())
         reduction_access = self._reduction_arg.access
         try:
             reduction_operator = REDUCTION_OPERATOR_MAPPING[reduction_access]
@@ -1219,7 +1221,7 @@ class Kern(Statement):
         parent.add(do_loop)
         parent.add(DeallocateGen(parent, local_var_name))
 
-    def _reduction_ref(self, name):
+    def _reduction_reference(self):
         '''Return the name unchanged if OpenMP is set to be unreproducible, as
         we will be using the OpenMP reduction clause. Otherwise we
         will be computing the reduction ourselves and therefore need
@@ -1230,11 +1232,21 @@ class Kern(Statement):
 
         '''
         symtab = self.scope.symbol_table
+        reduction_name = self.reduction_arg.name
         if self.reprod_reduction:
-            idx_name = symtab.lookup_with_tag("omp_thread_index").name
-            local_name = symtab.find_or_create_tag(name, "l_" + name).name
-            return local_name + "(1," + idx_name + ")"
-        return name
+            array_dim = [
+                Literal("1", INTEGER_TYPE),
+                Reference(symtab.lookup_with_tag("omp_thread_index"))]
+            reduction_array = ArrayType(
+                symtab.lookup(reduction_name).datatype, array_dim)
+            local_reduction = DataSymbol(
+                self.local_reduction_name, datatype=reduction_array)
+            symtab.find_or_create_tag(
+                tag=self.local_reduction_name,
+                symbol_type=DataSymbol, datatype=reduction_array)
+            return ArrayReference.create(
+                local_reduction, array_dim)
+        return Reference(symtab.lookup(reduction_name))
 
     @property
     def arg_descriptors(self):

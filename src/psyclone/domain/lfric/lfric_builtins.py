@@ -422,6 +422,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
 
         array_1d = ArrayType(psyir.LfricRealScalarDataType(),
                              [ArrayType.Extent.DEFERRED])
+
         return [StructureReference.create(
             arg.psyir_expression().symbol, [("data", [Reference(idx_sym)])],
             overwrite_datatype=array_1d)
@@ -1580,10 +1581,9 @@ class LFRicXInnerproductYKern(LFRicBuiltIn):
         # Get indexed references for the field (proxy) argument.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar reduction argument.
-        scalar_args = self.get_scalar_argument_references()
+        lhs = self._reduction_reference()
         # Create the PSyIR for the kernel:
         #      asum = asum + proxy0%data(df) * proxy1%data(df)
-        lhs = scalar_args[0]
         mult_op = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                          arg_refs[0], arg_refs[1])
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
@@ -1609,10 +1609,9 @@ class LFRicXInnerproductXKern(LFRicBuiltIn):
         # Get indexed references for the field (proxy) argument.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar reduction argument.
-        scalar_args = self.get_scalar_argument_references()
+        lhs = self._reduction_reference()
         # Create the PSyIR for the kernel:
         #      asum = asum + proxy0%data(df) * proxy0%data(df)
-        lhs = scalar_args[0]
         mult_op = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                          arg_refs[0].copy(), arg_refs[0])
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
@@ -1642,10 +1641,9 @@ class LFRicSumXKern(LFRicBuiltIn):
         # Get indexed references for the field (proxy) argument.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar reduction argument.
-        scalar_args = self.get_scalar_argument_references()
+        lhs = self._reduction_reference()
         # Create the PSyIR for the kernel:
         #      asum = asum + proxy0%data(df)
-        lhs = scalar_args[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                      lhs.copy(), arg_refs[0])
         assign = Assignment.create(lhs, rhs)
