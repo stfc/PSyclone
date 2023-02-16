@@ -42,7 +42,7 @@
 from collections import OrderedDict
 import os
 
-from fparser.two import Fortran2003, utils
+from fparser.two import C99Preprocessor, Fortran2003, utils
 from fparser.two.utils import walk, BlockBase, StmtBase
 
 from psyclone.configuration import Config
@@ -932,6 +932,7 @@ class Fparser2Reader():
             Fortran2003.If_Stmt: self._if_stmt_handler,
             utils.NumberBase: self._number_handler,
             Fortran2003.Include_Stmt: self._include_handler,
+            C99Preprocessor.Cpp_Include_Stmt: self._include_handler,
             Fortran2003.Int_Literal_Constant: self._number_handler,
             Fortran2003.Char_Literal_Constant: self._char_literal_handler,
             Fortran2003.Logical_Literal_Constant: self._bool_literal_handler,
@@ -2326,13 +2327,28 @@ class Fparser2Reader():
                                  the parser.
         '''
         config = Config.get()
-        raise GenerationError(
-            f"Fortran INCLUDE statements are not supported but found an "
-            f"include of file '{node.children[0].string}' while processing "
-            f"routine '{parent.name}'. This file must be made available to "
-            f"the Fortran parser by specifying its location via the -I flag. "
-            f"(The list of directories to search is currently set to: "
-            f"{config.include_paths}.)")
+        # An INCLUDE can appear anywhere so we have to allow for the case
+        # where we have no enclosing Routine.
+        routine = parent.ancestor(Routine, include_self=True)
+        if routine:
+            out_txt = f"routine '{routine.name}'. "
+        else:
+            out_txt = f"code:\n{str(node.get_root())}\n"
+        if isinstance(node, Fortran2003.Include_Stmt):
+            err_msg = (
+                f"Fortran INCLUDE statements are not supported but found an "
+                f"include of file '{node.children[0].string}' while processing "
+                f"{out_txt}This file must be made available to "
+                f"the Fortran parser by specifying its location via the -I flag. "
+                f"(The list of directories to search is currently set to: "
+                f"{config.include_paths}.)")
+        else:
+            err_msg = (f"CPP #include statements are not supported but found "
+                       f"'{str(node)}' while processing {out_txt}Such "
+                       f"statements must be handled using a standard pre-"
+                       f"processor before the code can be processed by "
+                       f"PSyclone.")
+        raise GenerationError(err_msg)
 
     def _allocate_handler(self, node, parent):
         '''

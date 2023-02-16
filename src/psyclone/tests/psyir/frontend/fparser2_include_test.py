@@ -39,7 +39,8 @@
 
 import pytest
 from fparser.common.readfortran import FortranStringReader
-from fparser.two import Fortran2003
+from fparser.common.sourceinfo import FortranFormat
+from fparser.two import Fortran2003, C99Preprocessor
 from fparser.two.utils import walk
 
 from psyclone.configuration import Config
@@ -122,3 +123,56 @@ def test_include_exec_part_abort(parser, monkeypatch):
             "specifying its location via the -I flag. (The list of directories"
             " to search is currently set to: ['/road/to', '/nowhere'].)"
             in str(err.value))
+
+
+def test_include_before_prog_abort(parser):
+    '''
+    Check that we abort with a suitable message when an INCLUDE is found
+    outside a program unit.
+
+    '''
+    processor = Fparser2Reader()
+    code = ("include 'trouble.h'\n"
+            "program my_prog\n"
+            "  integer :: i\n"
+            "  i = 2\n"
+            "end program my_prog\n")
+    reader = FortranStringReader(code)
+    prog = parser(reader)
+    # Double check that the parse tree is what we expect
+    incl_list = walk(prog, Fortran2003.Include_Stmt)
+    assert len(incl_list) == 1
+    with pytest.raises(GenerationError) as err:
+        processor.generate_psyir(prog)
+    assert ("Fortran INCLUDE statements are not supported but found an "
+            "include of file 'trouble.h' while processing code:\n"
+            "INCLUDE 'trouble.h'\n"
+            "PROGRAM my_prog\n" in str(err.value))
+
+
+def test_cpp_include_abort(parser):
+    '''
+    Check that we abort if a CPP #include is encountered anywhere in the
+    input code.
+
+    '''
+    processor = Fparser2Reader()
+    include = '#include "trouble.h"'
+    code_lines = ['program my_prog',
+                  '  integer :: i',
+                  '  i = 2',
+                  'end program my_prog']
+    for idx in range(len(code_lines)):
+        new_code = code_lines[:]
+        new_code.insert(idx, include)
+        full_txt = "\n".join(new_code)
+        reader = FortranStringReader(full_txt)
+        reader.set_format(FortranFormat(True, False))
+        prog = parser(reader)
+        # Double check that the parse tree is what we expect
+        incl_list = walk(prog, C99Preprocessor.Cpp_Include_Stmt)
+        assert len(incl_list) == 1
+        with pytest.raises(GenerationError) as err:
+            processor.generate_psyir(prog)
+        assert ("but found '#include \"trouble.h\"' while processing"
+                in str(err.value))
