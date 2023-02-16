@@ -84,22 +84,26 @@ class KernCallArgList(ArgOrdering):
         self._ndf_positions = []
 
     @staticmethod
-    def _map_type_to_precision(field_type):
+    def _map_type_to_precision(data_type):
         '''This function return the precision required for the various
         LFRic types.
 
-        :param str field_type: the name of the field type.
+        :param str data_type: the name of the field type.
 
         :returns: the precision as defined in domain.lfric.lfric_types \
             (one of R_SOLVER, R_TRAN, R_DEF).
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
-        if field_type in ["r_solver_field_type", "r_solver_operator_type"]:
-            return LFRicTypes("R_SOLVER")
-        if field_type == "r_tran_field_type":
-            return LFRicTypes("R_TRAN")
-        return LFRicTypes("R_DEF")
+        const = LFRicConstants()
+        for module_info in const.DATA_TYPE_MAP.values():
+            if module_info["type"] == data_type:
+                return LFRicTypes(module_info["kind"].upper())
+
+        valid = [module_info["type"]
+                 for module_info in const.DATA_TYPE_MAP.values()]
+        raise InternalError(f"Unknown data type '{data_type}', expected one "
+                            f"of {valid}.")
 
     def get_user_type(self, module_name, user_type, name, tag=None,
                       shape=None):

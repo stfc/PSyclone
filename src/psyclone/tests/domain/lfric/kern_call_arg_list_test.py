@@ -42,7 +42,8 @@ import os
 import pytest
 
 from psyclone.core import Signature, VariablesAccessInfo
-from psyclone.domain.lfric import KernCallArgList, LFRicSymbolTable, LFRicTypes
+from psyclone.domain.lfric import (KernCallArgList, LFRicConstants,
+                                   LFRicSymbolTable, LFRicTypes)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKern
 from psyclone.parse.algorithm import parse
@@ -83,6 +84,26 @@ def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):
         result.append(fortran_writer(node))
 
     assert result == create_arg_list._arglist
+
+
+def test_map_type_to_precision():
+    '''Test that all mappings defined in LFRic constants work as expected.
+    '''
+    const = LFRicConstants()
+
+    for module_info in const.DATA_TYPE_MAP.values():
+        assert (KernCallArgList._map_type_to_precision(module_info["type"])
+                == LFRicTypes(module_info["kind"].upper()))
+
+
+def test_map_type_to_precision_error():
+    '''Tests that exceptions are raised as expected from
+    map_type_to_precision.
+    '''
+
+    with pytest.raises(InternalError) as err:
+        KernCallArgList._map_type_to_precision("invalid")
+    assert "Unknown data type 'invalid', expected one of" in str(err.value)
 
 
 def test_cellmap_intergrid(dist_mem, fortran_writer):
