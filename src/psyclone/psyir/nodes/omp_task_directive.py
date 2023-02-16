@@ -135,6 +135,24 @@ class OMPTaskDirective(OMPRegionDirective):
             return isinstance(child, OMPDependClause)
         return False
 
+    @property
+    def input_depend_clause(self):
+        """
+        :returns: the OMPDependClause child of this node corresponding to \
+                  input dependencies.
+        :rtype: :py:class:`psyclones.psyir.nodes.OMPDependClause`
+        """
+        return self.children[4]
+
+    @property
+    def output_depend_clause(self):
+        """
+        :returns: the OMPDependClause child of this node corresponding to \
+                  output dependencies.
+        :rtype: :py:class:`psyclones.psyir.nodes.OMPDependClause`
+        """
+        return self.children[5]
+
     def begin_string(self):
         """Returns the beginning statement of this directive, i.e.
         "omp task ...". The visitor is responsible for adding the

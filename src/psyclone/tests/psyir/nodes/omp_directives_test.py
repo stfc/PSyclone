@@ -1266,55 +1266,46 @@ def test_omploop_equality():
     assert omploop1 != omploop2
 
 
-def test_omp_serial_compare_literals():
+def test_omp_serial_valid_dependence_literals():
     '''
-    Tests the _compare_literals function in OMPSerialDirective
+    Tests the _valid_dependence_literals function in OMPSerialDirective
     '''
     sing = OMPSingleDirective()
     lit1 = Literal("0", INTEGER_SINGLE_TYPE)
     lit2 = Literal("1", INTEGER_SINGLE_TYPE)
-    assert sing._compare_literals(lit1, lit2) is True
+    assert sing._valid_dependence_literals(lit1, lit2) is True
     tmp = DataSymbol("tmp", REAL_SINGLE_TYPE)
     ref = Reference(tmp)
-    assert sing._compare_literals(lit1, ref) is False
+    assert sing._valid_dependence_literals(lit1, ref) is False
 
 
-def test_omp_serial_compare_ranges():
+def test_omp_serial_valid_dependence_ranges():
     '''
-    Tests the _compare_ranges function in OMPSerialDirective
+    Tests the _valid_dependence_ranges function in OMPSerialDirective
     '''
     sing = OMPSingleDirective()
+    one = Literal("1", INTEGER_SINGLE_TYPE)
 
     # Create an ArrayType
-    array_type = ArrayType(INTEGER_SINGLE_TYPE, [100, 100])
+    array_type = ArrayType(INTEGER_SINGLE_TYPE, [100])
     tmp = DataSymbol("tmp", array_type)
+    reference = Reference(tmp)
 
-    # Create some ranges
-    lbound = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND,
-        Reference(tmp),
-        Literal("1", INTEGER_TYPE),
-    )
-    ubound = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND,
-        Reference(tmp),
-        Literal("1", INTEGER_TYPE),
-    )
-    range1 = Range.create(lbound, ubound)
-    range2 = Range.create(lbound.copy(), ubound.copy())
-    range3 = Range.create(
-        lbound.copy(), ubound.copy(), Literal("2", INTEGER_TYPE)
-    )
+    ref = ArrayReference.create(tmp, [one.copy()])
 
-    tmp2 = DataSymbol("tmp2", REAL_SINGLE_TYPE)
-    ref = Reference(tmp2)
+    lbound = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
+                                    reference, one)
+    ubound = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
+                                    reference.copy(), one.copy())
+    my_range = Range.create(lbound.copy(), ubound.copy(), one.copy())
+    array_reference = ArrayReference.create(tmp, [my_range])
+    array_reference_2 = ArrayReference.create(tmp, [my_range.copy()])
 
     # Valid run
-    assert sing._compare_ranges(range1, range2) is True
+    assert (sing._valid_dependence_ranges(array_reference, array_reference_2, 0)
+            is True)
 
-    assert sing._compare_ranges(range1, ref) is False
-
-    assert sing._compare_ranges(range1, range3) is False
+    assert sing._valid_dependence_ranges(array_reference, ref, 0) is False
 
 
 def test_omp_serial_compute_accesses_bad_binop():
@@ -1444,8 +1435,8 @@ def test_omp_serial_compute_accesses_bad_binop():
     with pytest.raises(GenerationError) as excinfo:
         sing._compute_accesses(binop_fail7, [], None)
     assert (
-        "Found a dependency index that is a BinaryOperation with a child "
-        "BinaryOperation with a non-Literal child which is not supported."
+        "Found a dependency index that is a BinaryOperation with an operand "
+        "BinaryOperation with a non-Literal operand which is not supported."
         in str(excinfo.value)
     )
 
@@ -1456,7 +1447,7 @@ def test_omp_serial_compute_accesses_bad_binop():
         sing._compute_accesses(binop_fail8, [], None)
     assert (
         "Found a dependency index that is a BinaryOperation with a child "
-        "BinaryOperation with a non-MUL operand which is not supported."
+        "BinaryOperation with a non-MUL operator which is not supported."
         in str(excinfo.value)
     )
 
@@ -1466,8 +1457,8 @@ def test_omp_serial_compute_accesses_bad_binop():
     with pytest.raises(GenerationError) as excinfo:
         sing._compute_accesses(binop_fail9, [], None)
     assert (
-        "Found a dependency index that is a BinaryOperation with a child "
-        "BinaryOperation with a non-Literal child which is not supported."
+        "Found a dependency index that is a BinaryOperation with an operand "
+        "BinaryOperation with a non-Literal operand which is not supported."
         in str(excinfo.value)
     )
 
@@ -1514,8 +1505,8 @@ def test_omp_serial_compute_accesses_bad_binop():
     with pytest.raises(GenerationError) as excinfo:
         sing._compute_accesses(binop_fail13, [], None)
     assert (
-        "Found a dependency index that is a BinaryOperation with a child "
-        "BinaryOperation with a non-Literal child which is not supported."
+        "Found a dependency index that is a BinaryOperation with an operand "
+        "BinaryOperation with a non-Literal operand which is not supported."
         in str(excinfo.value)
     )
 
@@ -1561,10 +1552,9 @@ def test_omp_serial_compute_accesses_other_fails():
     with pytest.raises(GenerationError) as excinfo:
         sing._compute_accesses(ref, [loop1], task)
     assert (
-        "Found an dependency index that "
-        "was updated as a Loop variable "
-        "that is not an ancestor Loop of "
-        "the task." in str(excinfo.value)
+        "Found a dependency index that was updated as a Loop variable "
+        "that is not an ancestor Loop of the task."
+        in str(excinfo.value)
     )
 
     task2 = task.copy()
@@ -1907,9 +1897,9 @@ def test_omp_serial_compute_accesses_results():
     assert res[4].children[1].value == "160"
 
 
-def test_omp_serial_compare_ref_binop_fails():
+def test_omp_serial_valid_dependence_ref_binop_fails():
     '''
-    Tests the _compare_ref_binop failure cases of OMPSerialDirective
+    Tests the _valid_dependence_ref_binop failure cases of OMPSerialDirective
     '''
 
     # Case when ref_accesses raises an error
@@ -1932,7 +1922,7 @@ def test_omp_serial_compare_ref_binop_fails():
         Literal("32", INTEGER_SINGLE_TYPE),
         [task2],
     )
-    assert sing._compare_ref_binop(binop_fail1, None, task2, task) is False
+    assert sing._valid_dependence_ref_binop(binop_fail1, None, task2, task) is False
 
     # Test the first failure. One has accesses to references
     # and the other doesn't.
@@ -1965,9 +1955,9 @@ def test_omp_serial_compare_ref_binop_fails():
         [task],
     )
 
-    assert sing._compare_ref_binop(ref, binop, task, task2) is False
+    assert sing._valid_dependence_ref_binop(ref, binop, task, task2) is False
 
-    assert sing._compare_ref_binop(binop, ref, task2, task) is False
+    assert sing._valid_dependence_ref_binop(binop, ref, task2, task) is False
 
     ref2 = Reference(tmp2)
     task3 = OMPTaskDirective()
@@ -1988,7 +1978,7 @@ def test_omp_serial_compare_ref_binop_fails():
         Literal("32", INTEGER_SINGLE_TYPE),
         [task],
     )
-    assert sing._compare_ref_binop(ref, ref2, task, task3) is False
+    assert sing._valid_dependence_ref_binop(ref, ref2, task, task3) is False
 
     task2 = OMPTaskDirective()
     task = OMPTaskDirective()
@@ -2012,7 +2002,7 @@ def test_omp_serial_compare_ref_binop_fails():
         [task2],
     )
 
-    assert sing._compare_ref_binop(ref, binop, task, task2) is False
+    assert sing._valid_dependence_ref_binop(ref, binop, task, task2) is False
 
     task = OMPTaskDirective()
     task2 = OMPTaskDirective()
@@ -2031,12 +2021,12 @@ def test_omp_serial_compare_ref_binop_fails():
         [task2],
     )
 
-    assert sing._compare_ref_binop(ref, binop, task, task2) is False
+    assert sing._valid_dependence_ref_binop(ref, binop, task, task2) is False
 
 
-def test_omp_serial_compare_ref_binops():
+def test_omp_serial_valid_dependence_ref_binops():
     '''
-    Test the _compare_ref_binops function of OMPSerialDirective.
+    Test the _valid_dependence_ref_binops function of OMPSerialDirective.
     '''
     sing = OMPSingleDirective()
     tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
@@ -2068,7 +2058,7 @@ def test_omp_serial_compare_ref_binops():
         [task2],
     )
 
-    sing._compare_ref_binop(ref, binop, task, task2)
+    sing._valid_dependence_ref_binop(ref, binop, task, task2)
 
     task = OMPTaskDirective()
     task2 = OMPTaskDirective()
@@ -2092,7 +2082,7 @@ def test_omp_serial_compare_ref_binops():
         [task2],
     )
 
-    sing._compare_ref_binop(ref, binop, task, task2)
+    sing._valid_dependence_ref_binop(ref, binop, task, task2)
 
     task = OMPTaskDirective()
     task2 = OMPTaskDirective()
@@ -2116,7 +2106,7 @@ def test_omp_serial_compare_ref_binops():
         [task2],
     )
 
-    sing._compare_ref_binop(ref, binop, task, task2)
+    sing._valid_dependence_ref_binop(ref, binop, task, task2)
 
     task = OMPTaskDirective()
     task2 = OMPTaskDirective()
@@ -2134,11 +2124,11 @@ def test_omp_serial_compare_ref_binops():
         Literal("32", INTEGER_SINGLE_TYPE),
         [task2],
     )
-    sing._compare_ref_binop(ref, ref.copy(), task, task2)
-    sing._compare_ref_binop(binop, binop.copy(), task, task2)
+    sing._valid_dependence_ref_binop(ref, ref.copy(), task, task2)
+    sing._valid_dependence_ref_binop(binop, binop.copy(), task, task2)
 
 
-def test_omp_serial_check_task_dependencies_fails():
+def test_omp_serial_validate_task_dependencies_fails():
     '''
     Test the fail cases of the check_task_dependencies function of
     OMPSerialDirective.
@@ -2149,8 +2139,8 @@ def test_omp_serial_check_task_dependencies_fails():
     taskloop = OMPTaskloopDirective()
     sing.children[0].addchild(task)
     sing.children[0].addchild(taskloop)
-    with pytest.raises(GenerationError) as excinfo:
-        sing._check_task_dependencies()
+    with pytest.raises(NotImplementedError) as excinfo:
+        sing._validate_task_dependencies()
     assert (
         "OMPTaskDirectives and OMPTaskloopDirectives"
         " are not currently supported inside the "
@@ -2158,7 +2148,7 @@ def test_omp_serial_check_task_dependencies_fails():
     )
 
 
-def test_omp_serial_check_task_dependencies_outout():
+def test_omp_serial_validate_task_dependencies_outout():
     '''
     Test check_task_dependencies member of OMPSerialDirective
     for outout dependency types
@@ -2226,7 +2216,7 @@ def test_omp_serial_check_task_dependencies_outout():
     task2.children[0].addchild(subloop2)
     task2.lower_to_language_level()
 
-    sing._check_task_dependencies()
+    sing._validate_task_dependencies()
 
     # Check outout Reference dependency
     subroutine = Routine("testsub")
@@ -2294,7 +2284,7 @@ def test_omp_serial_check_task_dependencies_outout():
     task2.children[0].addchild(subloop2)
     task2.lower_to_language_level()
 
-    sing._check_task_dependencies()
+    sing._validate_task_dependencies()
 
     # StructureType for Structure tests
     grid_type = StructureType.create(
@@ -2385,7 +2375,7 @@ def test_omp_serial_check_task_dependencies_outout():
     task2.children[0].addchild(subloop2)
     task2.lower_to_language_level()
 
-    sing._check_task_dependencies()
+    sing._validate_task_dependencies()
 
     # Check outout StructureReference with array access
     subroutine = Routine("testsub")
@@ -2452,7 +2442,7 @@ def test_omp_serial_check_task_dependencies_outout():
     task2.children[0].addchild(subloop2)
     task2.lower_to_language_level()
 
-    sing._check_task_dependencies()
+    sing._validate_task_dependencies()
 
     # Check outout accesses to different structure member lengths
     sub_grid_type = StructureType.create(
@@ -2535,7 +2525,7 @@ def test_omp_serial_check_task_dependencies_outout():
     task2.children[0].addchild(subloop2)
     task2.lower_to_language_level()
 
-    sing._check_task_dependencies()
+    sing._validate_task_dependencies()
 
     # Check outout accesses to different structure members
     grid_type = StructureType.create(
@@ -2618,7 +2608,7 @@ def test_omp_serial_check_task_dependencies_outout():
     task1.lower_to_language_level()
     task2.children[0].addchild(subloop2)
     task2.lower_to_language_level()
-    sing._check_task_dependencies()
+    sing._validate_task_dependencies()
 
     # Check outout accesses to range and literal indexes.
     subroutine = Routine("testsub")
@@ -2689,10 +2679,10 @@ def test_omp_serial_check_task_dependencies_outout():
     task2.children[0].addchild(subloop2)
     task2.lower_to_language_level()
 
-    sing._check_task_dependencies()
+    sing._validate_task_dependencies()
 
 
-def test_omp_serial_check_task_dependencies_inout():
+def test_omp_serial_validate_task_dependencies_inout():
     '''
     Test check_task_dependencies member of OMPSerialDirective
     for inout dependency types
@@ -2761,7 +2751,7 @@ def test_omp_serial_check_task_dependencies_inout():
     task2.children[0].addchild(subloop2)
     task2.lower_to_language_level()
 
-    sing._check_task_dependencies()
+    sing._validate_task_dependencies()
 
     # Check inout Reference dependency
     subroutine = Routine("testsub")
@@ -2831,7 +2821,7 @@ def test_omp_serial_check_task_dependencies_inout():
     task2.children[0].addchild(subloop2)
     task2.lower_to_language_level()
 
-    sing._check_task_dependencies()
+    sing._validate_task_dependencies()
 
     # StructureType for Structure tests
     grid_type = StructureType.create(
@@ -2924,7 +2914,7 @@ def test_omp_serial_check_task_dependencies_inout():
     task2.children[0].addchild(subloop2)
     task2.lower_to_language_level()
 
-    sing._check_task_dependencies()
+    sing._validate_task_dependencies()
 
     # Check inout StructureReference with array access
     subroutine = Routine("testsub")
@@ -2993,7 +2983,7 @@ def test_omp_serial_check_task_dependencies_inout():
     task2.children[0].addchild(subloop2)
     task2.lower_to_language_level()
 
-    sing._check_task_dependencies()
+    sing._validate_task_dependencies()
 
     # Check inout accesses to different structure member lengths
     sub_grid_type = StructureType.create(
@@ -3076,7 +3066,7 @@ def test_omp_serial_check_task_dependencies_inout():
     task2.children[0].addchild(subloop2)
     task2.lower_to_language_level()
 
-    sing._check_task_dependencies()
+    sing._validate_task_dependencies()
 
     # Check inout accesses to different structure members
     grid_type = StructureType.create(
@@ -3160,7 +3150,7 @@ def test_omp_serial_check_task_dependencies_inout():
     task2.children[0].addchild(subloop2)
     task2.lower_to_language_level()
 
-    sing._check_task_dependencies()
+    sing._validate_task_dependencies()
 
     # Check inout accesses to range and literal indexes.
     subroutine = Routine("testsub")
@@ -3233,10 +3223,10 @@ def test_omp_serial_check_task_dependencies_inout():
     task2.children[0].addchild(subloop2)
     task2.lower_to_language_level()
 
-    sing._check_task_dependencies()
+    sing._validate_task_dependencies()
 
 
-def test_omp_serial_check_task_dependencies_outin():
+def test_omp_serial_validate_task_dependencies_outin():
     '''
     Test check_task_dependencies member of OMPSerialDirective
     for outin dependency types
@@ -3305,7 +3295,7 @@ def test_omp_serial_check_task_dependencies_outin():
     task2.children[0].addchild(subloop2)
     task2.lower_to_language_level()
 
-    sing._check_task_dependencies()
+    sing._validate_task_dependencies()
 
     # Check outin Reference dependency
     subroutine = Routine("testsub")
@@ -3375,7 +3365,7 @@ def test_omp_serial_check_task_dependencies_outin():
     task2.children[0].addchild(subloop2)
     task2.lower_to_language_level()
 
-    sing._check_task_dependencies()
+    sing._validate_task_dependencies()
 
     # StructureType for Structure tests
     grid_type = StructureType.create(
@@ -3468,7 +3458,7 @@ def test_omp_serial_check_task_dependencies_outin():
     task2.children[0].addchild(subloop2)
     task2.lower_to_language_level()
 
-    sing._check_task_dependencies()
+    sing._validate_task_dependencies()
 
     # Check inout StructureReference with array access
     subroutine = Routine("testsub")
@@ -3537,7 +3527,7 @@ def test_omp_serial_check_task_dependencies_outin():
     task2.children[0].addchild(subloop2)
     task2.lower_to_language_level()
 
-    sing._check_task_dependencies()
+    sing._validate_task_dependencies()
 
     # Check outin accesses to different structure member lengths
     sub_grid_type = StructureType.create(
@@ -3620,7 +3610,7 @@ def test_omp_serial_check_task_dependencies_outin():
     task2.children[0].addchild(subloop2)
     task2.lower_to_language_level()
 
-    sing._check_task_dependencies()
+    sing._validate_task_dependencies()
 
     # Check outin accesses to different structure members
     grid_type = StructureType.create(
@@ -3704,7 +3694,7 @@ def test_omp_serial_check_task_dependencies_outin():
     task2.children[0].addchild(subloop2)
     task2.lower_to_language_level()
 
-    sing._check_task_dependencies()
+    sing._validate_task_dependencies()
 
     # Check outin accesses to range and literal indexes.
     subroutine = Routine("testsub")
@@ -3777,10 +3767,10 @@ def test_omp_serial_check_task_dependencies_outin():
     task2.children[0].addchild(subloop2)
     task2.lower_to_language_level()
 
-    sing._check_task_dependencies()
+    sing._validate_task_dependencies()
 
 
-def test_omp_serial_check_task_dependencies_add_taskwait(fortran_reader):
+def test_omp_serial_validate_task_dependencies_add_taskwait(fortran_reader):
     '''
     Test the task dependency chcker adds taskwaits in expected locations.
     '''
