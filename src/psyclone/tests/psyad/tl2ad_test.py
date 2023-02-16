@@ -433,7 +433,6 @@ def test_generate_adjoint_multi_kernel(fortran_reader, fortran_writer, tmpdir):
         "module adj_test_mod\n"
         "  implicit none\n"
         "  public\n\n"
-        "  public :: adj_kern1, adj_kern2\n\n"
         "  contains\n"
         "  subroutine adj_kern1()\n"
         "    real :: psyir_tmp\n"
