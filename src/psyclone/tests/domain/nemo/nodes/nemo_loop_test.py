@@ -40,7 +40,8 @@ from __future__ import absolute_import
 import pytest
 
 from psyclone.nemo import NemoLoop, NemoKern
-from psyclone.psyir.nodes import Assignment, Loop, Literal, Reference, Schedule
+from psyclone.psyir.nodes import Assignment, Loop, Literal, Reference, \
+    Schedule, IfBlock
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.errors import GenerationError
@@ -165,12 +166,17 @@ def test_kernel():
 
     schedule = nemo_loop.loop_body
     nemo_kern = NemoKern(schedule.pop_all_children())
-    schedule.children = [nemo_kern]
+    # Add the NemoKern inside a condition, so we can add a second NemoKern
+    # later to check for the next assert
+    ifblock = IfBlock()
+    ifblock.addchild(Reference(x_var))
+    ifblock.addchild(nemo_kern)
+    schedule.addchild(ifblock)
     assert nemo_loop.kernel
 
     children = [Assignment.create(Reference(x_var), Literal("3.0", REAL_TYPE))]
     nemo_kern = NemoKern(children)
-    schedule.children.append(nemo_kern)
+    ifblock.addchild(nemo_kern)
     with pytest.raises(NotImplementedError) as info:
         _ = nemo_loop.kernel
     assert ("Kernel getter method does not yet support a loop containing more "

@@ -44,7 +44,6 @@ from psyclone.domain.lfric import ArgOrdering, LFRicConstants, psyir
 from psyclone.psyir.symbols import (ArrayType, DataSymbol,
                                     DataTypeSymbol, DeferredType,
                                     ContainerSymbol, ImportInterface)
-from psyclone.psyGen import InvokeSchedule
 
 
 class KernCallInvokeArgList(ArgOrdering):
@@ -67,16 +66,6 @@ class KernCallInvokeArgList(ArgOrdering):
         # Once generate() is called, this list will contain 3-tuples, each
         # containing a Symbol and from- and to-function spaces (strings).
         self._operators = []
-
-    @property
-    def _symtab(self):
-        '''
-        :returns: the associated InvokeSchedule symbol table.
-        :rtype: 
-        '''
-        if self._kern.ancestor(InvokeSchedule):
-            return self._kern.ancestor(InvokeSchedule).symbol_table
-        return self._kern.scope.symbol_table
 
     @property
     def fields(self):

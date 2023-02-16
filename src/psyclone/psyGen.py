@@ -1457,34 +1457,20 @@ class CodedKern(Kern, Call):
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
         '''
-        symtab = self.ancestor(InvokeSchedule).symbol_table
 
         if not self.module_inline:
             # If it is not module inlined then make sure we generate the kernel
             # file (and rename it when necessary).
             self.rename_and_write()
-            # Then find or create the imported RoutineSymbol
-            try:
-                rsymbol = symtab.lookup(self._name)
-            except KeyError:
-                csymbol = symtab.find_or_create(
-                        self._module_name,
-                        symbol_type=ContainerSymbol)
-                rsymbol = symtab.new_symbol(
-                        self._name,
-                        symbol_type=RoutineSymbol,
-                        interface=ImportInterface(csymbol))
         else:
             # If its inlined, the symbol must exist
             rsymbol = self.scope.symbol_table.lookup(self._name)
 
         # Create Call to the rsymbol with the argument expressions as children
         # of the new node
-        call_node = Call.create(rsymbol, self.arguments.psyir_expressions())
+        self.children = self.arguments.psyir_expressions()
 
-        # Swap itself with the appropriate Call node
-        self.replace_with(call_node)
-        return call_node
+        return self
 
     def gen_code(self, parent):
         '''

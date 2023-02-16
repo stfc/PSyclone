@@ -50,6 +50,7 @@ from psyclone.dynamo0p3 import DynKern, DynKernMetadata
 from psyclone.errors import GenerationError
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.nodes import Schedule
+from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 
 
 def generate(filename, api=""):
@@ -95,7 +96,11 @@ def generate(filename, api=""):
                          f"Fortran: {error}.")
 
     metadata = DynKernMetadata(ast)
-    kernel = DynKern(parent=Schedule())
-    kernel.load_meta(metadata)
+    # Create a dummy kernel_call to parse the metadata
+    dummy = Schedule()
+    dummy._symbol_table.detach()
+    LFRicSymbolTable().attach(dummy)
+    kernel_call = DynKern(parent=dummy)
+    kernel_call.load_meta(metadata)
 
-    return kernel.gen_stub
+    return kernel_call.gen_stub

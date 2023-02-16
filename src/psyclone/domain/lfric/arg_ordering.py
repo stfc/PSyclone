@@ -48,7 +48,7 @@ from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.nodes import ArrayReference, Reference
+from psyclone.psyir.nodes import ArrayReference, Reference, Routine
 from psyclone.psyir.symbols import ScalarType
 
 
@@ -79,6 +79,12 @@ class ArgOrdering:
         # This stores the PSyIR representation of the arguments
         self._psyir_arglist = []
         self._arg_index_to_metadata_index = {}
+
+    @property
+    def _symtab(self):
+        if self._kern.ancestor(Routine):
+            return self._kern.ancestor(Routine).symbol_table
+        return self._kern.scope.symbol_table
 
     def psyir_append(self, node):
         '''Appends a PSyIR node to the PSyIR argument list.

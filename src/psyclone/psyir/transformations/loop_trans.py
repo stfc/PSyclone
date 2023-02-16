@@ -112,7 +112,7 @@ class LoopTrans(Transformation, metaclass=abc.ABCMeta):
                 if isinstance(item, self.excluded_node_types):
                     raise TransformationError(
                         f"Nodes of type '{type(item).__name__}' cannot be "
-                        f"enclosed by a {self.name} transformation")
+                        f"enclosed by a {self.name} transformation {self.excluded_node_types}")
 
         # Disable warning to avoid circular dependency
         # pylint: disable=import-outside-toplevel

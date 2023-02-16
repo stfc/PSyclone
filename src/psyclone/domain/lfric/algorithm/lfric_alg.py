@@ -120,12 +120,15 @@ class LFRicAlg:
             datatype=DeferredType(),
             interface=ImportInterface(kernel_mod))
 
-        kern = self.kernel_from_metadata(parse_tree, kernel_name)
+        # We only construct this first kernel call to get the kernel arguments,
+        # but we don't properly attach it to the subroutine yet
+        kern_call = self.kernel_from_metadata(parse_tree, kernel_name)
+        kern_call._parent = sub
 
         # Declare and initialise the data structures required by the kernel
         # arguments. Appropriate symbols are added to the symbol table
         # associated with the routine we are constructing.
-        kern_args = self.construct_kernel_args(kern)
+        kern_args = self.construct_kernel_args(kern_call)
 
         # Initialise argument values to unity. Since we are using this somewhat
         # arbitrary value, we use an *integer* literal for this, irrespective

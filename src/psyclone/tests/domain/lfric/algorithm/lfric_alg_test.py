@@ -299,7 +299,6 @@ def test_construct_kernel_args(lfric_alg, prog, dynkern, fortran_writer):
     dynkern._parent = None
     prog.addchild(dynkern)
     kargs = lfric_alg.construct_kernel_args(dynkern)
-    import pdb; pdb.set_trace()
 
     assert isinstance(kargs, KernCallInvokeArgList)
     gen = fortran_writer(prog)

@@ -57,7 +57,7 @@ from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynLoop
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Reference, KernelSchedule
+from psyclone.psyir.nodes import Reference, KernelSchedule, Schedule
 from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, REAL_TYPE, \
     INTEGER_TYPE, ArrayType
 from psyclone.tests.utilities import get_invoke
