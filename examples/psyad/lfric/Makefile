@@ -36,17 +36,17 @@
 include ../../top_level.mk
 
 transform:
-	cd tangent_linear; ${MAKE} -C transform
-	cd tangent_linear_tweaked; ${MAKE} -C transform
+	${MAKE} -C tangent_linear transform
+	${MAKE} -C tangent_linear_tweaked transform
 compile:
-	cd tangent_linear; ${MAKE} -C compile
-	cd tangent_linear_tweaked; ${MAKE} -C compile
+	${MAKE} -C tangent_linear compile
+	${MAKE} -C tangent_linear_tweaked compile
 run:
-	cd tangent_linear; ${MAKE} -C run
-	cd tangent_linear_tweaked; ${MAKE} -C run
+	${MAKE} -C tangent_linear run
+	${MAKE} -C tangent_linear_tweaked run
 clean:
-	cd tangent_linear; ${MAKE} -C clean
-	cd tangent_linear_tweaked; ${MAKE} -C clean
+	${MAKE} -C tangent_linear clean
+	${MAKE} -C tangent_linear_tweaked clean
 allclean:
-	cd tangent_linear; ${MAKE} -C allclean
-	cd tangent_linear_tweaked; ${MAKE} -C allclean
+	${MAKE} -C tangent_linear allclean
+	${MAKE} -C tangent_linear_tweaked allclean
