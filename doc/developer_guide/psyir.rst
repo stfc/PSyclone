@@ -163,19 +163,21 @@ node can be integrated and used in the PSyIR tree:
 
 ::
 
+    >>> from psyclone.psyir.nodes import Literal, Schedule
+    >>> from psyclone.psyir.symbols import INTEGER_TYPE
+    >>> from code_snippets.newnode import MyNode
     >>> mynode = MyNode(children=[Literal("1", INTEGER_TYPE)])
-
-    >>> mynode.children.append(Literal("2", INEGER_TYPE))
-    ...
-    psyclone.errors.GenerationError: Generation Error: Item 'Literal' can't be
-    child 1 of 'MyNodeName'. The valid format is: 'DataNode'.
-
+    >>> mynode.children.append(Literal("2", INTEGER_TYPE))
+    Traceback (most recent call last):
+       ...
+    psyclone.errors.GenerationError: Generation Error: Item 'Literal' can't be child 1 of 'MyNodeName'. The valid format is: 'DataNode'.
+    >>> schedule = Schedule()
     >>> schedule.addchild(mynode)
-
-    >>> print(schedule.view())
+    >>> print(schedule.view(colour=False))
     Schedule[]
-        MyNodeName[]
-                Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+        0: MyNodeName[]
+            Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+    <BLANKLINE>
 
 For a full list of methods available in any PSyIR node see the
 :ref_guide:`Node reference guide psyclone.psyir.nodes.html#psyclone.psyir.nodes.Node`.
@@ -965,8 +967,14 @@ of the appropriate class may be obtained using the factory's create method:
 Kernel-layer Classes
 --------------------
 
-The LFRic PSyIR for the Kernel layer is captured in
-``domain/lfric/psyir.py``. The relevant classes are generated to avoid
+The class ``LFRicTypes`` in ``domain/lfric/lfric_types.py`` manages
+the various LFRic data types. It provides a simple interface
+to get standard classes for LFRic data. For example::
+
+    >>> from psyclone.domain.lfric import LFRicTypes
+    >>> NumberOfUniqueDofsDataSymbol = LFRicTypes("NumberOfUniqueDofsDataSymbol")
+
+The relevant classes are dynamically generated to avoid
 boilerplate code and to make it simpler to change the LFRic
 infrastructure classes in the future.
 
@@ -979,13 +987,14 @@ properties are pre-defined, as is the fact that it is a scalar, so
 these do not need to be specified. All that is needed to create a
 ``undf`` symbol is a name and the function space it represents::
 
-  UNDF_W3 = NumberOfUniqueDofsDataSymbol("undf_w3", "w3")
+    >>> UNDF_W3 = NumberOfUniqueDofsDataSymbol("undf_w3", "w3")
 
 For arrays, (e.g. for ``FieldData``) the dimensions must also be
-provided::
+provided as a ``Reference``::
 
-  UNDF_W3 = NumberOfUniqueDofsDataSymbol("undf_w3", "w3")
-  FIELD1 = RealFieldDataDataSymbol("field1", [UNDF_W3], "w3")
+    >>> from psyclone.psyir.nodes import Reference
+    >>> RealFieldDataDataSymbol = LFRicTypes("RealFieldDataDataSymbol")
+    >>> FIELD1 = RealFieldDataDataSymbol("field1", [Reference(UNDF_W3)], "w3")
 
 At the moment, argument types and values are also not checked e.g. the
 function space argument - see issue #926. There is also no consistency
@@ -999,6 +1008,9 @@ Currently entities which can have different intrinsic types
 (``RealFieldDataDataSymbol``, ``IntegerFieldDataDataSymbol``
 etc). This could be modified if a single class turns out to be
 preferable.
+
+.. autoclass:: psyclone.domain.lfric.LFRicTypes
+
 
 Kernel arguments
 ----------------
