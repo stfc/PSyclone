@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+# Modified J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module contains the datatype definitions.'''
@@ -68,6 +69,7 @@ class DataType(metaclass=abc.ABCMeta):
 
 
 class DeferredType(DataType):
+    # pylint: disable=too-few-public-methods
     '''Indicates that the type is unknown at this point.'''
 
     def __str__(self):
@@ -80,6 +82,7 @@ class DeferredType(DataType):
 
 
 class NoType(DataType):
+    # pylint: disable=too-few-public-methods
     ''' Indicates that the associated symbol has an empty type (equivalent
     to `void` in C). '''
 
@@ -423,6 +426,15 @@ class ArrayType(DataType):
                 self._shape.append(dim)
 
         self._datatype = datatype
+
+    @property
+    def datatype(self):
+        '''
+        :returns: the datatype of each element in the array.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        '''
+        # TODO #1857: This property might be affected.
+        return self._datatype
 
     @property
     def intrinsic(self):

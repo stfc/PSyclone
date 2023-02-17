@@ -82,10 +82,11 @@ def test_run(capsys, tmpdir):
 
 def test_run_version(capsys):
     ''' Test that the flag requesting version information works correctly. '''
-    with pytest.raises(SystemExit):
-        kernel_tools.run(["-v", "not-a-file.f90"])
-    result, _ = capsys.readouterr()
-    assert f"psyclone-kern version: {__VERSION__}" in result
+    for arg in ["-v", "--version"]:
+        with pytest.raises(SystemExit):
+            kernel_tools.run([arg])
+        result, _ = capsys.readouterr()
+        assert f"psyclone-kern version: {__VERSION__}" in result
 
 
 def test_run_invalid_api(capsys):

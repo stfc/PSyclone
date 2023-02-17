@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -461,10 +461,10 @@ class DependencyTools():
         :param str var_name: the name of the loop variable of the loop to be \
             parallelised.
         :param write_access: access information a single write access.
-        :type write_access: :py:class:`psyclone.core.access_info.AccessInfo`
+        :type write_access: :py:class:`psyclone.core.AccessInfo`
         :param other_access: access information the other (read or write) \
             access.
-        :type other_access: :py:class:`psyclone.core.access_info.AccessInfo`
+        :type other_access: :py:class:`psyclone.core.AccessInfo`
         :param subscripts: the subscript indices (as a tuple, see \
             ComponentIndices class) which are all handled together because \
             of shared loop variables.
@@ -507,10 +507,10 @@ class DependencyTools():
             the loop variable is a constant within the loop to be parallelised.
         :type loop_variables: List[str]
         :param write_access: access information of a single array write access.
-        :type write_access: :py:class:`psyclone.core.access_info.AccessInfo`
+        :type write_access: :py:class:`psyclone.core.AccessInfo`
         :param other_access: access information of the second single array \
             access (for the same variable).
-        :type other_access: :py:class:`psyclone.core.access_info.AccessInfo`
+        :type other_access: :py:class:`psyclone.core.AccessInfo`
 
         :returns: whether there is a loop carried dependency between the \
             pair of accesses, which prevents parallelisation.
@@ -612,7 +612,7 @@ class DependencyTools():
         :type loop_variables: List[str]
         :param var_info: access information for this variable.
         :type var_info: \
-            :py:class:`psyclone.core.access_info.SingleVariableAccessInfo`
+            :py:class:`psyclone.core.SingleVariableAccessInfo`
 
         :return: whether the variable can be used in parallel.
         :rtype: bool
@@ -814,7 +814,6 @@ class DependencyTools():
     # -------------------------------------------------------------------------
     def get_input_parameters(self, node_list, variables_info=None,
                              options=None):
-        # pylint: disable=no-self-use
         '''Return all variables that are input parameters, i.e. are
         read (before potentially being written).
 
@@ -857,7 +856,6 @@ class DependencyTools():
     # -------------------------------------------------------------------------
     def get_output_parameters(self, node_list, variables_info=None,
                               options=None):
-        # pylint: disable=no-self-use
         '''Return all variables that are output parameters, i.e. are
         written.
 
@@ -908,7 +906,7 @@ class DependencyTools():
         :returns: a 2-tuple of two lists, the first one containing \
             the input parameters, the second the output parameters.
         :rtype: Tuple[List[:py:class:`psyclone.core.Signature`],
-                      List[:py:class:`psyclone.core.Signature`])
+                      List[:py:class:`psyclone.core.Signature`]]
 
         '''
         variables_info = VariablesAccessInfo(node_list, options=options)

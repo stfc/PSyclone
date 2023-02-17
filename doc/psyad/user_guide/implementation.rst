@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2021-2022, Science and Technology Facilities Council.
+.. Copyright (c) 2021-2023, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -560,12 +560,10 @@ All arguments to the TL kernel are initialised with pseudo-random numbers
 in the interval :math:`[0.0,1.0]` using the Fortran `random_number` intrinsic
 function. If the LFRic API is selected then only scalar and field arguments
 are initialised in this way since arguments such as dof-maps contain
-essential information derived from the model configuration.
-
-.. note:: Currently this means that fields containing geometric information
-	  such as coordinates or panel IDs are overwritten with pseudo-random
-	  data and consequently the test harness will not work for kernels
-	  with those arguments. Issue #1708 will address this.
+essential information derived from the model configuration. In addition,
+those arguments flagged by the user (see :ref:`geom_kernel_args`) as
+containing geometric information (i.e. mesh coordinates or panel IDs) are
+passed through to the kernel from the Algorithm layer without modification.
 
 Inner Products
 --------------
@@ -583,8 +581,9 @@ correctness test). It is likely that this will require refinement in future,
 e.g. for kernels that have non-numeric arguments.
 
 For the LFRic API, only scalar and field arguments are currently included in
-the inner-product calculation. Issue #1864 will extend this to operator
-arguments.
+the inner-product calculation since operators are never active. (The
+test-harness generator will return an error if supplied with a TL kernel that
+writes to an operator.)
 
 Comparing the Inner Products
 ----------------------------

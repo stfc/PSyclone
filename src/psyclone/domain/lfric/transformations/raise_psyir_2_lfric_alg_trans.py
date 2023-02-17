@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab.
+# Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 '''Specialise generic PSyIR to LFRic algorithm-layer PSyIR. Currently
 we transform PSyIR invoke calls to LFRic algorithm-layer-specific
@@ -59,7 +59,7 @@ class RaisePSyIR2LFRicAlgTrans(RaisePSyIR2AlgTrans):
         :param int index: the position of this invoke call relative to \
             other invokes in the algorithm layer.
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(call, options=options)

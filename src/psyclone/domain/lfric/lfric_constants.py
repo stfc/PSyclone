@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -96,11 +96,14 @@ class LFRicConstants():
         # Supported access types
         LFRicConstants.VALID_SCALAR_ACCESS_TYPES = ["gh_read"]
         LFRicConstants.VALID_FIELD_ACCESS_TYPES = [
-            "gh_read", "gh_write", "gh_inc", "gh_readinc"]
+            "gh_read", "gh_write", "gh_readwrite", "gh_inc", "gh_readinc"]
         LFRicConstants.VALID_OPERATOR_ACCESS_TYPES = [
             "gh_read", "gh_write", "gh_readwrite"]
         LFRicConstants.VALID_ACCESS_TYPES = [
             "gh_read", "gh_write", "gh_readwrite", "gh_inc", "gh_readinc"]
+
+        LFRicConstants.WRITE_ACCESSES = [
+            "gh_write", "gh_readwrite", "gh_inc", "gh_readinc", "gh_sum"]
 
         # Supported LFRic API stencil types and directions
         LFRicConstants.VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross",
@@ -279,10 +282,39 @@ class LFRicConstants():
         LFRicConstants.VALID_METAFUNC_NAMES = \
             LFRicConstants.VALID_EVALUATOR_NAMES
 
+        # Valid Reference Element names
+        LFRicConstants.VALID_REF_ELEMENT_NAMES = [
+            "normals_to_horizontal_faces", "normals_to_vertical_faces",
+            "normals_to_faces", "outward_normals_to_horizontal_faces",
+            "outward_normals_to_vertical_faces", "outward_normals_to_faces"]
+
+        # Valid mesh names
+        LFRicConstants.VALID_MESH_NAMES = ["adjacent_face"]
+
         # ---------- Map from scalar intrinsic type to its precision ----------
         LFRicConstants.SCALAR_PRECISION_MAP = \
             OrderedDict(zip(LFRicConstants.VALID_INTRINSIC_TYPES,
                             ["r_def", "i_def", "l_def"]))
+
+        # ----------- Map from symbolic to actual precision -------------------
+
+        # The value of the actual precision is in bytes.
+        # TODO #1941: this mapping should be in the config file or obtained
+        # from the constants_mod.f90 file in the LFRic infrastructure. The
+        # values for 'r_tran', 'r_solver' and 'r_def' are set according to
+        # CPP ifdefs. The values given below are the defaults.
+        # l_def is included in this dict so that it contains a complete record
+        # of the various precision symbols used in LFRic.
+        LFRicConstants.PRECISION_MAP = {"i_def": 4,
+                                        "l_def": 1,
+                                        "r_def": 8,
+                                        "r_double": 8,
+                                        "r_ncdf": 8,
+                                        "r_quad": 16,
+                                        "r_single": 4,
+                                        "r_solver": 4,
+                                        "r_tran": 8,
+                                        "r_um": 8}
 
         # ---------- Infrastructure module maps -------------------------------
 
@@ -335,6 +367,13 @@ class LFRicConstants():
                 "proxy_type": "r_solver_operator_proxy_type",
                 "intrinsic": "real",
                 "kind": "r_solver"},
+            # 'real'-valued operator with data of kind 'r_tran'
+            "r_tran_operator": {
+                "module": "r_tran_operator_mod",
+                "type": "r_tran_operator_type",
+                "proxy_type": "r_tran_operator_proxy_type",
+                "intrinsic": "real",
+                "kind": "r_tran"},
             # 'real'-valued columnwise operator with data of kind 'r_solver'
             "columnwise_operator": {
                 "module": "columnwise_operator_mod",

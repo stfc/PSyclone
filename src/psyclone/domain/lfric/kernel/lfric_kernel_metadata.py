@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council
+# Copyright (c) 2022-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,116 +37,637 @@
 kernel-layer-specific class that captures the LFRic kernel metadata.
 
 '''
-from fparser.common.readfortran import FortranStringReader
+import inspect
+
 from fparser.two import Fortran2003
-from fparser.two.parser import ParserFactory
 from fparser.two.utils import walk, get_child
 
-from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.lfric.kernel.columnwise_operator_arg import \
-    ColumnwiseOperatorArg
-from psyclone.domain.lfric.kernel.common_arg import CommonArg
-from psyclone.domain.lfric.kernel.field_arg import FieldArg
-from psyclone.domain.lfric.kernel.field_vector_arg import FieldVectorArg
-from psyclone.domain.lfric.kernel.inter_grid_arg import InterGridArg
-from psyclone.domain.lfric.kernel.inter_grid_vector_arg import \
-    InterGridVectorArg
-from psyclone.domain.lfric.kernel.operator_arg import OperatorArg
-from psyclone.domain.lfric.kernel.scalar_arg import ScalarArg
+from psyclone.domain.lfric.kernel.columnwise_operator_arg_metadata import \
+    ColumnwiseOperatorArgMetadata
+from psyclone.domain.lfric.kernel.field_arg_metadata import FieldArgMetadata
+from psyclone.domain.lfric.kernel.field_vector_arg_metadata import \
+    FieldVectorArgMetadata
+from psyclone.domain.lfric.kernel.inter_grid_arg_metadata import \
+    InterGridArgMetadata
+from psyclone.domain.lfric.kernel.inter_grid_vector_arg_metadata import \
+    InterGridVectorArgMetadata
+from psyclone.domain.lfric.kernel.operator_arg_metadata import \
+    OperatorArgMetadata
 
+
+from psyclone.configuration import Config
+from psyclone.domain.lfric.kernel.common_metadata import CommonMetadata
+from psyclone.domain.lfric.kernel.common_meta_arg_metadata import \
+    CommonMetaArgMetadata
+from psyclone.domain.lfric.kernel.evaluator_targets_metadata import \
+    EvaluatorTargetsMetadata
+from psyclone.domain.lfric.kernel.meta_args_metadata import \
+    MetaArgsMetadata
+from psyclone.domain.lfric.kernel.meta_funcs_metadata import \
+    MetaFuncsMetadata
+from psyclone.domain.lfric.kernel.meta_mesh_metadata import \
+    MetaMeshMetadata
+from psyclone.domain.lfric.kernel.meta_ref_element_metadata import \
+    MetaRefElementMetadata
+from psyclone.domain.lfric.kernel.operates_on_metadata import \
+    OperatesOnMetadata
+from psyclone.domain.lfric.kernel.scalar_arg_metadata import ScalarArgMetadata
+from psyclone.domain.lfric.kernel.shapes_metadata import ShapesMetadata
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.symbols import DataTypeSymbol, UnknownFortranType
 
 
-class LFRicKernelMetadata():
+class LFRicKernelMetadata(CommonMetadata):
     '''Contains LFRic kernel metadata. This class supports kernel
     metadata creation, modification, loading from a fortran string,
     writing to a fortran string, raising from existing language-level
     PSyIR and lowering to language-level PSyIR.
 
-    :param meta_args: a list of 'meta_arg' objects which capture the \
-        metadata values of the kernel arguments.
-    :type meta_args: Optional[List[
-        :py:class:`psyclone.domain.lfric.kernel.ScalarArg` | \
-        :py:class:`psyclone.domain.lfric.kernel.FieldArg` | \
-        :py:class:`pscylong.domain.lfric.kernel.OperatorArg`]]
-    :param meta_funcs: a list of 'meta_func' objects which capture whether \
-        quadrature or evaluator data is required for a given function space.
-    :type meta_funcs: Optional[List[:py:class:`TODO`]] # issue #1879
-    :param meta_reference_element: a kernel that requires properties \
-        of the reference element in LFRic specifies those properties \
-        through the meta_reference_element metadata entry.
-    :type meta_reference_element: :py:class:`TODO` # issue #1879
-    :param meta_mesh: a kernel that requires properties of the LFRic \
-        mesh object specifies those properties through the meta_mesh \
-        metadata entry.
-    :type meta_mesh: :py:class:`TODO` # issue #1879
-    :param shape: if a kernel requires basis or differential-basis \
+    :param operates_on: the name of the quantity that this kernel is \
+        intended to iterate over.
+    :type operates_on: Optional[str]
+    :param shapes: if a kernel requires basis or differential-basis \
         functions then the metadata must also specify the set of points on \
         which these functions are required. This information is provided \
         by the gh_shape component of the metadata.
-    :type shape: Optional[str]
-    :param operates_on: the name of the quantity that this kernel is
-        intended to iterate over.
-    :type operates_on: Optional[str]
+    :type shapes: Optional[List[str]]
+    :param evaluator_targets: the function spaces on which an \
+        evaluator is required.
+    :type evaluator_targets: Optional[List[str]]
+    :param meta_args: a list of 'meta_arg' objects which capture the \
+        metadata values of the kernel arguments.
+    :type meta_args: Optional[List[:py:class:`psyclone.domain.lfric.kernel.\
+        CommonArgMetadata`]]
+    :param meta_funcs: a list of 'meta_func' objects which capture whether \
+        quadrature or evaluator data is required for a given function space.
+    :type meta_funcs: Optional[List[:py:class:`psyclone.domain.lfric.kernel.\
+        MetaFuncsArgMetadata`]]
+    :param meta_ref_element: a kernel that requires properties \
+        of the reference element in LFRic specifies those properties \
+        through the meta_reference_element metadata entry.
+    :type meta_ref_element: Optional[:py:class:`psyclone.domain.lfric.kernel.\
+        RefElementArgMetadata`]
+    :param meta_mesh: a kernel that requires properties of the LFRic \
+        mesh object specifies those properties through the meta_mesh \
+        metadata entry.
+    :type meta_mesh: Optional[:py:class:`psyclone.domain.lfric.kernel.\
+        MetaMeshArgMetadata`]
     :param procedure_name: the name of the kernel procedure to call.
     :type procedure_name: Optional[str]
     :param name: the name of the symbol to use for the metadata in \
         language-level PSyIR.
     :type name: Optional[str]
 
-    raises TypeError: if meta_args is not a list of argument objects.
-
     '''
-    def __init__(self, operates_on=None, gh_shape=None, meta_args=None,
-                 meta_funcs=None, meta_reference_element=None,
-                 meta_mesh=None, procedure_name=None, name=None):
-        # Validate values using setters if they are not None
-        self._operates_on = None
-        if operates_on is not None:
-            self.operates_on = operates_on
-        self._gh_shape = None
-        if gh_shape is not None:
-            self.gh_shape = gh_shape
-            # TODO issue #1879. GH_SHAPE is not parsed correctly yet.
-        if meta_args is None:
-            self._meta_args = []
-        else:
-            if not isinstance(meta_args, list):
-                raise TypeError(f"meta_args should be a list but found "
-                                f"{type(meta_args).__name__}.")
-            for entry in meta_args:
-                if not isinstance(entry, CommonArg):
-                    raise TypeError(
-                        f"meta_args should be a list of argument objects "
-                        f"(of type CommonArg), but found "
-                        f"{type(entry).__name__}.")
-            self._meta_args = meta_args
-        if meta_funcs is None:
-            self._meta_funcs = []
-            # TODO issue #1879. META_FUNCS is not parsed correctly yet.
-        if meta_reference_element is None:
-            self._meta_reference_element = []
-            # TODO issue #1879. META_REFERENCE_ELEMENT is not parsed
-            # correctly yet.
-        if meta_mesh is None:
-            self._meta_mesh = []
-            # TODO issue #1879. META_MESH is not parsed correctly yet.
+    # The fparser2 class that captures this metadata.
+    fparser2_class = Fortran2003.Derived_Type_Def
 
-        if procedure_name:
+    def __init__(self, operates_on=None, shapes=None, evaluator_targets=None,
+                 meta_args=None, meta_funcs=None, meta_ref_element=None,
+                 meta_mesh=None, procedure_name=None, name=None):
+        super().__init__()
+        # Initialise internal variables
+        self._operates_on = None
+        self._shapes = None
+        self._evaluator_targets = None
+        self._meta_args = None
+        self._meta_funcs = None
+        self._meta_ref_element = None
+        self._meta_mesh = None
+        self._procedure_name = None
+        self._name = None
+
+        if operates_on is not None:
+            self._operates_on = OperatesOnMetadata(operates_on)
+        if shapes is not None:
+            self._shapes = ShapesMetadata(shapes)
+        if evaluator_targets is not None:
+            self._evaluator_targets = EvaluatorTargetsMetadata(
+                evaluator_targets)
+        if meta_args is not None:
+            self._meta_args = MetaArgsMetadata(meta_args)
+        if meta_funcs is not None:
+            self._meta_funcs = MetaFuncsMetadata(meta_funcs)
+        if meta_ref_element is not None:
+            self._meta_ref_element = MetaRefElementMetadata(
+                meta_ref_element)
+        if meta_mesh is not None:
+            self._meta_mesh = MetaMeshMetadata(meta_mesh)
+        if procedure_name is not None:
             # Validate procedure_name via setter
             self.procedure_name = procedure_name
-        else:
-            # Don't validate
-            self._procedure_name = None
-        if name:
+        if name is not None:
             # Validate name via setter
             self.name = name
+
+    def _validation_error_str(self, description):
+        '''Utility to extend a validation error message in a standard form,
+        with additional context information.
+
+        :param str description: the original error description.
+
+        :returns: an updated error description.
+        :rtype: str
+
+        '''
+        name = self.name if self.name else 'unset'
+        proc_name = self.procedure_name if self.procedure_name else 'unset'
+        return (
+            f"{description} in kernel metadata '{name}' for procedure "
+            f"'{proc_name}'.")
+
+    def validate(self):
+        '''Only certain metadata combinations are allowed in LFRic. This
+        routine checks that any such constraints are respected.
+
+        :raises ParseError: if any validation checks fail.
+
+        '''
+        # The _get_kernel_type method returns the type of kernel that
+        # this metadata specifies (e.g. inter-grid or domain). In the
+        # process it checks that the combined metadata conforms to the
+        # constraints of the supported kernel types.
+        _ = self._get_kernel_type()
+
+        # TODO issue #1953: Checks that are not associated with
+        # determining kernel type
+        # - A kernel must modify at least one of its arguments
+        # - Function spaces of basis functions exist in meta_args
+        # - No shape if no basis or diff basis. shape
+        #   if quadrature or evaluator
+        # - evaluator_targets only if required
+        # - evaluator_targets function spaces exist
+        # - Disallow duplicate metadata in meta_args,
+        #   meta_funcs etc. lists
+        # - Writing to read-only function spaces (Check within
+        #   meta_arg classes?)
+
+    def _get_kernel_type(self):
+        '''Returns the type of kernel, based on the metadata stored in this
+        instance. LFRic supports different types of kernel and the
+        type can be inferred from the kernel metadata as each kernel
+        type has different constraints on the allowed metadata values
+        and combinations. Also checks that the metadata conforms to
+        any rules associated with the particular kernel type.
+
+        :returns: the type of kernel that this metadata describes.
+        :rtype: str
+
+        '''
+        if self.meta_args_get(
+                [InterGridArgMetadata, InterGridVectorArgMetadata]):
+            # This has to be an inter-grid kernel.
+            self._validate_intergrid_kernel()
+            return "inter-grid"
+        if self.meta_args_get(ColumnwiseOperatorArgMetadata):
+            # This has to be a cma kernel.
+            cma_type = self._cma_kernel_type()
+            return f"cma-{cma_type}"
+        if self.operates_on == "domain":
+            # This has to be a domain kernel.
+            self._validate_domain_kernel()
+            return "domain"
+        # This has to be a general purpose kernel.
+        self._validate_general_purpose_kernel()
+        return "general-purpose"
+
+    def _validate_generic_kernel(self):
+        '''Validation checks common to multiple kernel types.
+
+        :raises ParseError: if any validation checks fail.
+
+        '''
+        # Kernel metadata with operates_on != domain must have at
+        # least one meta_args argument that is a field, field vector,
+        # intergrid field, intergrid vector field, LMA operator or CMA
+        # operator (in order to determine the appropriate iteration
+        # space).
+        if self.operates_on != "domain" and not self.meta_args_get(
+                [FieldArgMetadata, FieldVectorArgMetadata, OperatorArgMetadata,
+                 ColumnwiseOperatorArgMetadata, InterGridArgMetadata,
+                 InterGridVectorArgMetadata]):
+            raise ParseError(self._validation_error_str(
+                "Kernel metadata with 'operates_on != domain' must have at "
+                "least one meta_args argument that is a field, field vector, "
+                "intergrid field, intergrid vector field, LMA operator or "
+                "CMA operator (in order to determine the appropriate "
+                "iteration space), however this metadata has none"))
+
+        # A kernel that contains an operator argument must only
+        # accept real-valued fields.
+        operator_args = self.meta_args_get(
+            [OperatorArgMetadata, ColumnwiseOperatorArgMetadata])
+        if operator_args:
+            field_args = self.meta_args_get(
+                [FieldArgMetadata, FieldVectorArgMetadata,
+                 InterGridArgMetadata, InterGridVectorArgMetadata])
+            for field_arg in field_args:
+                if field_arg.datatype != "gh_real":
+                    raise ParseError(self._validation_error_str(
+                        f"Kernel metadata with a meta_args operator argument "
+                        f"must only contain meta_args real-valued field "
+                        f"arguments, however found a field of type "
+                        f"'{field_arg.datatype}'"))
+
+    def _validate_general_purpose_kernel(self):
+        '''Validation checks for a general purpose kernel.
+
+        :raises ParseError: if any validation checks fail.
+
+        '''
+        # Generic constraints.
+        self._validate_generic_kernel()
+
+        # General-purpose kernels do not operate over the domain.
+        if self.operates_on == "domain":
+            raise ParseError(self._validation_error_str(
+                "A general purpose kernel should not operate on a domain, "
+                "however this does"))
+
+        # General-purpose kernels with operates_on = CELL_COLUMN only
+        # accept meta_arg arguments of the following types: field,
+        # field vector, LMA operator, scalar. Scalar meta_arg
+        # arguments must be one of 'real', 'integer' or 'logical' (but
+        # this is all supported types so no need to check). Scalar
+        # meta_arg arguments must also be read only.
+        if self.operates_on == "cell_column":
+            for meta_arg in self.meta_args:
+                if type(meta_arg) not in [
+                        FieldArgMetadata, FieldVectorArgMetadata,
+                        OperatorArgMetadata, ScalarArgMetadata]:
+                    raise ParseError(self._validation_error_str(
+                        f"General purpose kernels with 'operates_on == "
+                        f"cell_column' should only have meta_arg arguments "
+                        f"of type field, field vector, LMA operator or scalar"
+                        f", but found '{meta_arg.check_name}'"))
+
+        # TODO issue #1953: constraints when operates_on == dofs
+        # 1: They must have one and only one modified (i.e. written
+        # to) argument.
+        # 2: There must be at least one field in the argument
+        # list. This is so that we know the number of DoFs to iterate
+        # over in the PSy layer.
+        # 3: Kernel arguments must be either fields or scalars (real-
+        # and/or integer-valued).
+        # 4: All field arguments to a given Built-in must be on the
+        # same function space. This is because all current Built-ins
+        # operate on DoFs and therefore all fields should have the
+        # same number. It also means that we can determine the number
+        # of DoFs uniquely when a scalar is written to;
+        # 5: Built-ins that update real-valued fields can, in general, only
+        # read from other real-valued fields, but they can take both real and
+        # integer scalar arguments (see rule 7 for exceptions);
+        # 6: Built-ins that update integer-valued fields can, in
+        # general, only read from other integer-valued fields and take
+        # integer scalar arguments (see rule 7 for exceptions);
+        # 7: The only two exceptions from the rules 5) and 6) above
+        # regarding the same data type of “write” and “read” field
+        # arguments are Built-ins that convert field data from real to
+        # integer, int_X, and from integer to real, real_X.
+
+    def _validate_domain_kernel(self):
+        '''Validation checks for a domain kernel.
+
+        :raises ParseError: if any validation checks fail.
+
+        '''
+        # Generic constraints.
+        self._validate_generic_kernel()
+
+        if self.operates_on != "domain":
+            raise ParseError(self._validation_error_str(
+                f"Domain kernels should have their operates_on metadata set "
+                f"to 'domain', but found '{self.operates_on}'"))
+
+        # Only scalar, field and field vector arguments are permitted.
+        for meta_arg in self.meta_args:
+            if type(meta_arg) not in [
+                    ScalarArgMetadata, FieldArgMetadata,
+                    FieldVectorArgMetadata]:
+                raise ParseError(self._validation_error_str(
+                    f"Domain kernels should only have meta_arg arguments "
+                    f"of type field, field vector, or scalar, but found "
+                    f"'{meta_arg.check_name}'"))
+
+        # All fields must be on discontinuous function spaces and
+        # stencil accesses are not permitted.
+        lfric_constants = LFRicConstants()
+        fields_metadata = self.meta_args_get(
+            [FieldArgMetadata, FieldVectorArgMetadata])
+        for meta_arg in fields_metadata:
+            if meta_arg.function_space not in \
+               lfric_constants.DISCONTINUOUS_FUNCTION_SPACES:
+                raise ParseError(self._validation_error_str(
+                    f"Domain kernels meta_arg arguments of type field, or "
+                    f"field vector should be on a discontinuous function "
+                    f"space, but found '{meta_arg.function_space}'"))
+            if meta_arg.stencil:
+                raise ParseError(self._validation_error_str(
+                    f"Domain kernels meta_arg arguments of type field, or "
+                    f"field vector should not have any stencil accesses, but "
+                    f"found a stencil of type '{meta_arg.stencil}'"))
+
+        # No basis/diff basis functions are allowed.
+        if self.meta_funcs:
+            raise ParseError(self._validation_error_str(
+                "Domain kernels should not specify basis or differential "
+                "basis functions metadata, but this does"))
+
+        # No mesh properties are allowed.
+        if self.meta_mesh:
+            raise ParseError(self._validation_error_str(
+                "Domain kernels should not specify mesh property metadata, "
+                "but this does"))
+
+    def _cma_kernel_type(self):
+        '''Determine the type of CMA (Column Matrix Assembly) kernel this is.
+
+        :returns: the type of cma kernel this metadata respresents.
+        :rtype: str
+
+        '''
+        if self.meta_args_get(OperatorArgMetadata):
+            # Only CMA assembly kernels have an LMA operator.
+            self._validate_cma_assembly_kernel()
+            return "assembly"
+        if self.meta_args_get(FieldArgMetadata):
+            # CMA matrix-matrix kernels do not have Field arguments.
+            self._validate_cma_apply_kernel()
+            return "apply"
+        self._validate_cma_matrix_matrix_kernel()
+        return "matrix-matrix"
+
+    def _validate_generic_cma_kernel(self):
+        '''Validation checks for a generic CMA kernel.
+
+        :raises ParseError: if any validation checks fail.
+
+        '''
+        # Generic constraints.
+        self._validate_generic_kernel()
+
+        # Must operate on a cell_column.
+        if self.operates_on != "cell_column":
+            raise ParseError(self._validation_error_str(
+                f"A CMA kernel should only operate on a 'cell_column', but "
+                f"found '{self.operates_on}'"))
+
+        # At least one CMA operator argument required.
+        cma_ops = self.meta_args_get(ColumnwiseOperatorArgMetadata)
+        if not cma_ops:
+            raise ParseError(self._validation_error_str(
+                "A CMA kernel should contain at least one cma operator "
+                "argument but none are specified in the meta_args metadata"))
+
+        # No intergrid arguments allowed.
+        if self.meta_args_get(
+                [InterGridArgMetadata, InterGridVectorArgMetadata]):
+            raise ParseError(self._validation_error_str(
+                "A CMA kernel should not contain any intergrid arguments, "
+                "but at least one was found"))
+
+        # No field vector arguments allowed.
+        if self.meta_args_get(FieldVectorArgMetadata):
+            raise ParseError(self._validation_error_str(
+                "A CMA kernel should not contain any field vector arguments, "
+                "but at least one was found"))
+
+        # No stencils in field arguments.
+        fields_metadata = self.meta_args_get(FieldArgMetadata)
+        for meta_arg in fields_metadata:
+            if meta_arg.stencil:
+                raise ParseError(self._validation_error_str(
+                    "A CMA kernel should not contain any fields with stencil "
+                    "accesses, but at least one was found"))
+
+    def _validate_cma_assembly_kernel(self):
+        '''Validation checks for a CMA assembly kernel.
+
+        :raises ParseError: if any validation checks fail.
+
+        '''
+        # Generic CMA constraints.
+        self._validate_generic_cma_kernel()
+
+        # One CMA operator argument.
+        cma_ops = self.meta_args_get(ColumnwiseOperatorArgMetadata)
+        if len(cma_ops) != 1:
+            raise ParseError(self._validation_error_str(
+                f"A CMA assembly kernel should contain one CMA operator "
+                f"argument, however {len(cma_ops)} were found"))
+
+        # CMA operator argument must have write access.
+        if cma_ops[0].access == "gh_read":
+            raise ParseError(self._validation_error_str(
+                f"A CMA assembly kernel should contain one CMA operator "
+                f"argument with write access, however it has access "
+                f"'{cma_ops[0].access}'"))
+
+        # One or more LMA operators required.
+        if not self.meta_args_get(OperatorArgMetadata):
+            raise ParseError(self._validation_error_str(
+                "A CMA assembly kernel should contain at least one LMA "
+                "operator but none were found"))
+        # All arguments except the CMA argument must be read-only.
+        # pylint: disable=unidiomatic-typecheck
+        for meta_arg in self.meta_args:
+            if type(meta_arg) != ColumnwiseOperatorArgMetadata:
+                if meta_arg.access != "gh_read":
+                    raise ParseError(self._validation_error_str(
+                        f"A CMA assembly kernel should have all arguments as "
+                        f"read-only apart from the CMA argument, but found "
+                        f"non-CMA argument with access '{meta_arg.access}'"))
+        # pylint: enable=unidiomatic-typecheck
+
+    def _validate_cma_apply_kernel(self):
+        '''Validation checks for a CMA apply kernel.
+
+        :raises ParseError: if any validation checks fail.
+
+        '''
+        lfric_constants = LFRicConstants()
+
+        # Generic CMA constraints.
+        self._validate_generic_cma_kernel()
+
+        # Only CMA and field arguments.
+        for meta_arg in self.meta_args:
+            if type(meta_arg) not in [
+                    ColumnwiseOperatorArgMetadata, FieldArgMetadata]:
+                raise ParseError(self._validation_error_str(
+                    f"A CMA apply kernel should only contain field or CMA "
+                    f"operator arguments, but found '{meta_arg.check_name}'"))
+
+        # One CMA operator argument.
+        cma_ops = self.meta_args_get(ColumnwiseOperatorArgMetadata)
+        if len(cma_ops) != 1:
+            raise ParseError(self._validation_error_str(
+                f"A CMA apply kernel should contain one CMA operator "
+                f"argument, however found {len(cma_ops)}"))
+        cma_op = cma_ops[0]
+
+        # CMA operator argument must be read only.
+        if cma_op.access != "gh_read":
+            raise ParseError(self._validation_error_str(
+                f"A CMA apply kernel should contain one CMA operator argument "
+                f"with read access, however the operator has access "
+                f"'{cma_op.access}'"))
+
+        # Two field arguments.
+        field_args = self.meta_args_get(FieldArgMetadata)
+        if not field_args:
+            raise ParseError(self._validation_error_str(
+                "A CMA apply kernel should contain two field arguments, but "
+                "none were found"))
+        if len(field_args) != 2:
+            word = "were"
+            if len(field_args) == 1:
+                word = "was"
+            raise ParseError(self._validation_error_str(
+                f"A CMA apply kernel should contain two field arguments, but "
+                f"{len(field_args)} {word} found"))
+
+        # One field that is read and one field that is written.
+        if not ((field_args[0].access == "gh_read" and
+                 field_args[1].access in lfric_constants.WRITE_ACCESSES) or
+                (field_args[0].access in lfric_constants.WRITE_ACCESSES and
+                 field_args[1].access == "gh_read")):
+            raise ParseError(self._validation_error_str(
+                f"A CMA apply kernel should contain two field arguments, one "
+                f"of which is read and the other written, but found "
+                f"'{field_args[0].access}' and '{field_args[1].access}'"))
+
+        # The function spaces of the read and written fields must
+        # match the from and to spaces, respectively, of the CMA
+        # operator.
+        if field_args[0].access in lfric_constants.WRITE_ACCESSES:
+            writer_field = field_args[0]
+            reader_field = field_args[1]
         else:
-            # Don't validate
-            self._name = None
+            reader_field = field_args[0]
+            writer_field = field_args[1]
+        if writer_field.function_space != cma_op.function_space_to:
+            raise ParseError(self._validation_error_str(
+                f"In a CMA apply kernel, the function space of the written "
+                f"field must match the function space of the CMA operator's "
+                f"'to' function space, but found "
+                f"'{writer_field.function_space}' and "
+                f"'{cma_op.function_space_to}' respectively"))
+        if reader_field.function_space != cma_op.function_space_from:
+            raise ParseError(self._validation_error_str(
+                f"In a CMA apply kernel, the function space of the read "
+                f"field must match the function space of the CMA operator's "
+                f"'from' function space, but found "
+                f"'{reader_field.function_space}' and "
+                f"'{cma_op.function_space_from}' respectively"))
+
+    def _validate_cma_matrix_matrix_kernel(self):
+        '''Validation checks for a CMA matrix-matrix kernel.
+
+        :raises ParseError: if any validation checks fail.
+
+        '''
+        lfric_constants = LFRicConstants()
+
+        # Generic CMA constraints.
+        self._validate_generic_cma_kernel()
+
+        # Arguments must be CMA operators and, optionally, one or more scalars.
+        for meta_arg in self.meta_args:
+            if type(meta_arg) not in [
+                    ColumnwiseOperatorArgMetadata, ScalarArgMetadata]:
+                raise ParseError(self._validation_error_str(
+                    f"A CMA matrix-matrix kernel must only contain CMA "
+                    f"operators or scalars, but found "
+                    f"'{meta_arg.check_name}'"))
+
+        # Exactly one of the CMA arguments must be written to.
+        # pylint: disable=unidiomatic-typecheck
+        cma_writers = [meta_arg for meta_arg in self.meta_args if
+                       type(meta_arg) == ColumnwiseOperatorArgMetadata
+                       and meta_arg.access in lfric_constants.WRITE_ACCESSES]
+        # pylint: enable=unidiomatic-typecheck
+        if len(cma_writers) != 1:
+            raise ParseError(self._validation_error_str(
+                f"A CMA matrix-matrix kernel must write to exactly one CMA "
+                f"operator argument, but found {len(cma_writers)} writers"))
+
+        # All arguments other than a single CMA argument should be read
+        # only. CMA arguments have been checked. Only scalars remain
+        # and these are constrained to be read-only anyway, so no more
+        # checks are required.
+
+    def _validate_intergrid_kernel(self):
+        '''Validation checks for an inter-grid kernel.
+
+        :raises ParseError: if any validation checks fail.
+
+        '''
+        # Generic constraints.
+        self._validate_generic_kernel()
+
+        # Must operate on a cell_column.
+        if self.operates_on != "cell_column":
+            raise ParseError(self._validation_error_str(
+                f"An intergrid kernel should only operate on a "
+                f"'cell_column', but found '{self.operates_on}'"))
+
+        # All args must be intergrid args.
+        for meta_arg in self.meta_args:
+            if not isinstance(meta_arg, InterGridArgMetadata):
+                raise ParseError(self._validation_error_str(
+                    f"An intergrid kernel should only have intergrid "
+                    f"arguments, but found '{meta_arg.check_name}'"))
+
+        coarse_args = [meta_arg for meta_arg in self.meta_args
+                       if meta_arg.mesh_arg == "gh_coarse"]
+        # There must be at least one intergrid arg on a coarse mesh.
+        if not coarse_args:
+            raise ParseError(self._validation_error_str(
+                "An intergrid kernel should have at least one intergrid "
+                "argument on the coarse mesh, but none were found"))
+
+        # All intergrid args on the coarse mesh are on the same
+        # function space.
+        coarse_function_space = coarse_args[0].function_space
+        for coarse_arg in coarse_args[1:]:
+            if coarse_arg.function_space != coarse_function_space:
+                raise ParseError(self._validation_error_str(
+                    f"An intergrid kernel should have all of its arguments, "
+                    f"that are on the coarse mesh, on the same function "
+                    f"space. However, '{coarse_arg.function_space}' and "
+                    f"'{coarse_function_space}' differ"))
+
+        fine_args = [meta_arg for meta_arg in self.meta_args
+                     if meta_arg.mesh_arg == "gh_fine"]
+        # There must be at least one intergrid arg on a fine mesh.
+        if not fine_args:
+            raise ParseError(self._validation_error_str(
+                "An intergrid kernel should have at least one intergrid "
+                "argument on the fine mesh, but none were found"))
+
+        fine_function_space = fine_args[0].function_space
+        # All intergrid args on the fine mesh are on the same
+        # function space.
+        for fine_arg in fine_args[1:]:
+            if fine_arg.function_space != fine_function_space:
+                raise ParseError(self._validation_error_str(
+                    f"An intergrid kernel should have all of its arguments, "
+                    f"that are on the fine mesh, on the same function "
+                    f"space. However, '{fine_arg.function_space}' and "
+                    f"'{fine_function_space}' differ"))
+
+        # The function space used by the args on the coarse mesh must
+        # differ from the function space used by the args on the fine
+        # mesh.
+        if coarse_function_space == fine_function_space:
+            raise ParseError(self._validation_error_str(
+                f"An intergrid kernel should have different function spaces "
+                f"for the arguments on the coarse mesh and the arguments on "
+                f"the fine mesh. However, both are on "
+                f"'{coarse_function_space}'"))
 
     @staticmethod
     def create_from_psyir(symbol):
@@ -186,137 +707,75 @@ class LFRicKernelMetadata():
             datatype.declaration)
 
     @staticmethod
-    def create_from_fortran_string(fortran_string):
-        '''Create a new instance of LFRicKernelMetadata populated with
-        metadata stored in a fortran string.
+    def create_from_fparser2(fparser2_tree):
+        '''Create an instance of this class from an fparser2 tree.
 
-        :param str fortran_string: the metadata stored as Fortran.
+        :param fparser2_tree: fparser2 tree containing the metadata \
+            for an LFRic Kernel.
+        :type fparser2_tree: \
+            :py:class:`fparser.two.Fortran2003.Derived_Type_Ref`
 
         :returns: an instance of LFRicKernelMetadata.
         :rtype: :py:class:`psyclone.domain.lfric.kernel.psyir.\
             LFRicKernelMetadata`
 
-        :raises ValueError: if the string does not contain a fortran \
-            derived type.
-        :raises ValueError: if kernel metadata is not a Fortran \
-            derived type.
-        :raises ParseError: if the meta_args extracted from the \
-            fortran_string is not a list.
-        :raises ParseError: if the metadata has an unexpected format.
+        :raises ParseError: if one of the meta_args entries is an \
+            unexpected type.
+        :raises ParseError: if the metadata type does not extend kernel_type.
 
         '''
+        LFRicKernelMetadata.check_fparser2(
+            fparser2_tree, Fortran2003.Derived_Type_Def)
+
         kernel_metadata = LFRicKernelMetadata()
 
-        # Ensure the Fortran2003 parser is initialised.
-        _ = ParserFactory().create(std="f2003")
-        reader = FortranStringReader(fortran_string)
-        try:
-            spec_part = Fortran2003.Derived_Type_Def(reader)
-        except Fortran2003.NoMatchError:
-            # pylint: disable=raise-missing-from
-            raise ValueError(
-                f"Expected kernel metadata to be a Fortran derived type, but "
-                f"found '{fortran_string}'.")
-
-        kernel_metadata.name = spec_part.children[0].children[1].tostr()
-
-        # the value of operates on (CELL_COLUMN, ...)
-        value = LFRicKernelMetadata._get_property(
-            spec_part, "operates_on").string
-        kernel_metadata.operates_on = value
-
-        # the value of gh_shape (gh_quadrature_XYoZ, ...)
-        # TODO issue #1879 gh_shape not parsed yet
-        # Commented code can be used as part of #1879
-        # try:
-        #     value = LFRicKernelMetadata._get_property(
-        #         spec_part, "gh_shape").string
-        #     kernel_metadata.gh_shape = value
-        # except ParseError:
-        #     kernel_metadata.gh_shape = None
-        kernel_metadata.gh_shape = None
-
-        # the name of the procedure that this metadata refers to.
-        kernel_metadata.procedure_name = LFRicKernelMetadata._get_property(
-            spec_part, "code").string
-
-        # meta_args contains arguments which have
-        # properties. Therefore create appropriate (ScalarArg,
-        # FieldArg, ...) instances to capture this information.
-        psyir_meta_args = LFRicKernelMetadata._get_property(
-            spec_part, "meta_args")
-        args = walk(psyir_meta_args, Fortran2003.Ac_Value_List)
-        if not args:
-            raise ParseError(
-                f"meta_args should be a list, but found "
-                f"'{str(psyir_meta_args)}' in '{spec_part}'.")
-
-        # pylint: disable=protected-access
-        kernel_metadata._meta_args = []
-        for meta_arg in args[0].children:
-            form = meta_arg.children[1].children[0].tostr()
-            form = form.lower()
-            if form == "gh_scalar":
-                arg = ScalarArg.create_from_fparser2(meta_arg)
-            elif form == "gh_operator":
-                arg = OperatorArg.create_from_fparser2(meta_arg)
-            elif form == "gh_columnwise_operator":
-                arg = ColumnwiseOperatorArg.create_from_fparser2(meta_arg)
-            elif "gh_field" in form:
-                vector_arg = "gh_field" in form and "*" in form
-                nargs = len(meta_arg.children[1].children)
-                intergrid_arg = False
-                if nargs == 5:
-                    fifth_arg = meta_arg.children[1].children[4]
-                    intergrid_arg = fifth_arg.children[0].string == "mesh_arg"
-
-                if intergrid_arg and vector_arg:
-                    arg = InterGridVectorArg.create_from_fparser2(meta_arg)
-                elif intergrid_arg and not vector_arg:
-                    arg = InterGridArg.create_from_fparser2(meta_arg)
-                elif vector_arg and not intergrid_arg:
-                    arg = FieldVectorArg.create_from_fparser2(meta_arg)
-                else:
-                    arg = FieldArg.create_from_fparser2(meta_arg)
+        for fparser2_node in walk(
+                fparser2_tree, Fortran2003.Data_Component_Def_Stmt):
+            fortran_string = str(fparser2_node).lower()
+            # pylint: disable=protected-access
+            if "operates_on" in fortran_string:
+                # the value of operates on (CELL_COLUMN, ...)
+                kernel_metadata._operates_on = OperatesOnMetadata.\
+                    create_from_fparser2(fparser2_node)
+            elif "meta_args" in fortran_string:
+                kernel_metadata._meta_args = MetaArgsMetadata.\
+                    create_from_fparser2(fparser2_node)
+            elif "meta_funcs" in fortran_string:
+                kernel_metadata._meta_funcs = MetaFuncsMetadata.\
+                    create_from_fparser2(fparser2_node)
+            elif "gh_shape" in fortran_string:
+                # the gh_shape values (gh_quadrature_XYoZ, ...)
+                kernel_metadata._shapes = ShapesMetadata.create_from_fparser2(
+                    fparser2_node)
+            elif "gh_evaluator_targets" in fortran_string:
+                # the gh_evaluator_targets values (w0, w1, ...)
+                kernel_metadata._evaluator_targets = EvaluatorTargetsMetadata.\
+                    create_from_fparser2(fparser2_node)
+            elif "meta_reference_element" in fortran_string:
+                kernel_metadata._meta_ref_element = MetaRefElementMetadata.\
+                    create_from_fparser2(fparser2_node)
+            elif "meta_mesh" in fortran_string:
+                kernel_metadata._meta_mesh = MetaMeshMetadata.\
+                    create_from_fparser2(fparser2_node)
             else:
                 raise ParseError(
-                    f"Expected a 'meta_arg' entry to be a "
-                    f"field, a scalar or an operator, but found "
-                    f"'{meta_arg}'.")
-            kernel_metadata._meta_args.append(arg)
+                    f"Found unexpected metadata declaration "
+                    f"'{str(fparser2_node)}' in '{str(fparser2_tree)}'.")
             # pylint: enable=protected-access
 
-        # TODO issue #1879. META_FUNCS is not parsed correctly yet.
-        # Commented code can be used as part of #1879
-        # try:
-        #     meta_funcs = LFRicKernelMetadata._get_property(
-        #         spec_part, "meta_funcs")
-        #     args = walk(meta_funcs, Fortran2003.Ac_Value_List)
-        # except ParseError:
-        #     meta_funcs = []
+        kernel_metadata.name = fparser2_tree.children[0].children[1].tostr()
 
-        LFRicKernelMetadata.meta_reference_element = []
-        try:
-            # TODO issue #1879. META_REFERENCE_ELEMENT is not parsed
-            # correctly yet.
-            LFRicKernelMetadata.meta_reference_element = \
-                LFRicKernelMetadata._get_property(
-                    spec_part, "meta_reference_element")
-        except ParseError:
-            pass
-        args = walk(LFRicKernelMetadata.meta_reference_element,
-                    Fortran2003.Ac_Value_List)
-        if not args:
-            LFRicKernelMetadata.meta_reference_element = []
+        attribute_list = fparser2_tree.children[0].children[0]
+        str_attribute_list = str(attribute_list).lower() \
+            if attribute_list else ""
+        if (attribute_list is None or
+                "extends(kernel_type)" not in str_attribute_list):
+            raise ParseError(
+                f"The metadata type declaration should extend kernel_type, "
+                f"but found '{fparser2_tree.children[0]}' in {fparser2_tree}.")
+        kernel_metadata.procedure_name = \
+            LFRicKernelMetadata._get_procedure_name(fparser2_tree)
 
-        # meta_mesh contains arguments which have properties.
-        try:
-            # TODO issue #1879. META_MESH is not parsed correctly yet.
-            LFRicKernelMetadata.meta_mesh = LFRicKernelMetadata._get_property(
-                spec_part, "meta_mesh")
-        except ParseError:
-            # meta_mesh is not specified in the metadata
-            LFRicKernelMetadata.meta_mesh = []
         return kernel_metadata
 
     def lower_to_psyir(self):
@@ -330,79 +789,51 @@ class LFRicKernelMetadata():
             str(self.name), UnknownFortranType(self.fortran_string()))
 
     @staticmethod
-    def _get_property(spec_part, property_name):
-        '''Internal utility that gets the property 'property_name' from an
-        fparser2 tree capturing LFRic metadata. It is assumed that
-        the code property is part of a type bound procedure and that
-        the other properties are part of the data declarations.
+    def _get_procedure_name(spec_part):
+        '''Internal utility that extracts the procedure name from an
+        fparser2 tree that captures LFRic metadata.
+
+        TODO Issue #1946: potentially update the metadata to capture
+        interface names as well as the interface itself. The procedure
+        name will then no longer be optional.
 
         :param spec_part: the fparser2 parse tree containing the metadata.
         :type spec_part: :py:class:`fparser.two.Fortran2003.Derived_Type_Def`
-        :param str property_name: the name of the property whose value \
-            is being extracted from the metadata.
 
         :returns: the value of the property.
-        :rtype: :py:class:`fparser.two.Fortran2003.Name | \
-            :py:class:`fparser.two.Fortran2003.Array_Constructor`
+        :rtype: Optional[str]
 
         :raises ParseError: if the metadata is invalid.
 
         '''
-        # TODO issue #1879. What to do if we have an interface.
-        if property_name.lower() == "code":
-            # The value of 'code' should be found in a type bound
-            # procedure (after the contains keyword)
-            type_bound_procedure = get_child(
-                spec_part, Fortran2003.Type_Bound_Procedure_Part)
-            if not type_bound_procedure:
-                raise ParseError(
-                    f"No type-bound procedure found within a 'contains' "
-                    f"section in '{spec_part}'.")
-            if len(type_bound_procedure.children) != 2:
-                raise ParseError(
-                    f"Expecting a type-bound procedure, but found "
-                    f"'{spec_part}'.")
-            specific_binding = type_bound_procedure.children[1]
-            if not isinstance(specific_binding, Fortran2003.Specific_Binding):
-                raise ParseError(
-                    f"Expecting a specific binding for the type-bound "
-                    f"procedure, but found '{specific_binding}' in "
-                    f"'{spec_part}'.")
-            binding_name = specific_binding.children[3]
-            procedure_name = specific_binding.children[4]
-            if binding_name.string.lower() != "code" and procedure_name:
-                raise ParseError(
-                    f"Expecting the type-bound procedure binding-name to be "
-                    f"'code' if there is a procedure name, but found "
-                    f"'{str(binding_name)}' in '{spec_part}'.")
-            if not procedure_name:
-                # Support the alternative metadata format that does
-                # not include 'code =>'
-                procedure_name = binding_name
-            return procedure_name
-
-        # The 'property_name' will be declared within Component_Part.
-        component_part = get_child(spec_part, Fortran2003.Component_Part)
-        if not component_part:
+        # The value of 'code' should be found in a type bound
+        # procedure (after the contains keyword)
+        type_bound_procedure = get_child(
+            spec_part, Fortran2003.Type_Bound_Procedure_Part)
+        if not type_bound_procedure:
+            return None
+        if len(type_bound_procedure.children) != 2:
             raise ParseError(
-                f"No declarations were found in the kernel metadata: "
+                f"Expecting a type-bound procedure, but found "
                 f"'{spec_part}'.")
-        # Each name/value pair will be contained within a Component_Decl
-        for component_decl in walk(component_part, Fortran2003.Component_Decl):
-            # Component_Decl(Name('name') ...)
-            name = component_decl.children[0].string
-            if name.lower() == property_name.lower():
-                # The value will be contained in a Component_Initialization
-                comp_init = get_child(
-                    component_decl, Fortran2003.Component_Initialization)
-                if not comp_init:
-                    raise ParseError(
-                        f"No value for property {property_name} was found "
-                        f"in '{spec_part}'.")
-                # Component_Initialization('=', Name('name'))
-                return comp_init.children[1]
-        raise ParseError(
-            f"'{property_name}' was not found in {str(spec_part)}.")
+        specific_binding = type_bound_procedure.children[1]
+        if not isinstance(specific_binding, Fortran2003.Specific_Binding):
+            raise ParseError(
+                f"Expecting a specific binding for the type-bound "
+                f"procedure, but found '{specific_binding}' in "
+                f"'{spec_part}'.")
+        binding_name = specific_binding.children[3]
+        procedure_name = specific_binding.children[4]
+        if binding_name.string.lower() != "code" and procedure_name:
+            raise ParseError(
+                f"Expecting the type-bound procedure binding-name to be "
+                f"'code' if there is a procedure name, but found "
+                f"'{str(binding_name)}' in '{spec_part}'.")
+        if not procedure_name:
+            # Support the alternative metadata format that does
+            # not include 'code =>'
+            procedure_name = binding_name
+        return procedure_name.string
 
     def fortran_string(self):
         '''
@@ -413,37 +844,65 @@ class LFRicKernelMetadata():
             operates_on and procedure_name have not been set.
 
         '''
-        if not (self.name and self.meta_args and self.operates_on and
-                self.procedure_name):
+        if not (self.operates_on and self._meta_args and self.name):
             raise ValueError(
-                f"Values for name, meta_args, operates_on and procedure_name "
+                f"Values for operates_on, meta_args and name "
                 f"must be provided before calling the fortran_string method, "
-                f"but found '{self.name}', '{self.meta_args}', "
-                f"'{self.operates_on}' and '{self.procedure_name}' "
-                f"respectively.")
+                f"but found '{self.operates_on}', '{self._meta_args}' "
+                f"and '{self.name}' respectively.")
 
-        lfric_args = [arg.fortran_string() for arg in self.meta_args]
-        lfric_args_str = ", &\n".join(lfric_args)
-        # TODO issue #1879. GH_SHAPE, META_FUNCS,
-        # META_REFERENCE_ELEMENT and META_MESH are not parsed
-        # correctly yet.
+        operates_on = f"  {self._operates_on.fortran_string()}"
+        meta_args = f"  {self._meta_args.fortran_string()}"
+
+        shapes = ""
+        if self._shapes:
+            shapes = f"  {self._shapes.fortran_string()}"
+
+        evaluator_targets = ""
+        if self._evaluator_targets:
+            evaluator_targets = f"  {self._evaluator_targets.fortran_string()}"
+
         meta_funcs = ""
-        meta_ref = ""
+        if self._meta_funcs:
+            meta_funcs = f"  {self._meta_funcs.fortran_string()}"
+
+        meta_ref_element = ""
+        if self._meta_ref_element:
+            meta_ref_element = f"  {self._meta_ref_element.fortran_string()}"
+
         meta_mesh = ""
-        shape = ""
+        if self._meta_mesh:
+            meta_mesh = f"  {self._meta_mesh.fortran_string()}"
+
+        # TODO Issue #1946: potentially update the metadata to capture
+        # interface names as well as the interface itself. The
+        # procedure name will then no longer be optional.
+        procedure = ""
+        if self.procedure_name:
+            procedure = (
+                f"  CONTAINS\n"
+                f"    PROCEDURE, NOPASS :: {self.procedure_name}\n")
+
         result = (
             f"TYPE, PUBLIC, EXTENDS(kernel_type) :: {self.name}\n"
-            f"  TYPE(arg_type) :: meta_args({len(self.meta_args)}) = "
-            f"(/ &\n{lfric_args_str}/)\n"
+            f"{meta_args}"
             f"{meta_funcs}"
-            f"{meta_ref}"
+            f"{meta_ref_element}"
             f"{meta_mesh}"
-            f"  INTEGER :: OPERATES_ON = {self.operates_on}\n"
-            f"{shape}"
-            f"  CONTAINS\n"
-            f"    PROCEDURE, NOPASS :: {self.procedure_name}\n"
+            f"{shapes}"
+            f"{evaluator_targets}"
+            f"{operates_on}"
+            f"{procedure}"
             f"END TYPE {self.name}\n")
         return result
+
+    @property
+    def kernel_type(self):
+        '''
+        :returns: the type of kernel that this is.
+        :rtype: str
+        '''
+        return self._get_kernel_type()
 
     @property
     def operates_on(self):
@@ -452,7 +911,9 @@ class LFRicKernelMetadata():
             metadata.
         :rtype: str
         '''
-        return self._operates_on
+        if self._operates_on is None:
+            return None
+        return self._operates_on.operates_on
 
     @operates_on.setter
     def operates_on(self, value):
@@ -460,16 +921,143 @@ class LFRicKernelMetadata():
         :param str value: set the kernel operates_on property \
             in the metadata to the specified value.
 
-        :raises ValueError: if the metadata has an invalid type.
+        '''
+        self._operates_on = OperatesOnMetadata(value)
+
+    @property
+    def shapes(self):
+        '''
+        :returns: a list of shape metadata values.
+        :rtype: Optional[List[str]]
 
         '''
-        const = LFRicConstants()
-        if not value or value.lower() not in const.VALID_ITERATION_SPACES:
-            raise ValueError(
-                f"The operates_on metadata should be a recognised "
-                f"iteration space (one of {const.VALID_ITERATION_SPACES}) "
-                f"but found '{value}'.")
-        self._operates_on = value.lower()
+        if self._shapes is None:
+            return None
+        return self._shapes.shapes
+
+    @shapes.setter
+    def shapes(self, values):
+        '''
+        :param values: set the shape metadata to the \
+            supplied list of values.
+        :type values: List[str]
+
+        '''
+        self._shapes = ShapesMetadata(values)
+
+    @property
+    def evaluator_targets(self):
+        '''
+        :returns: a list of evaluator_targets metadata values.
+        :rtype: Optional[List[str]]
+
+        '''
+        if self._evaluator_targets is None:
+            return None
+        return self._evaluator_targets.evaluator_targets
+
+    @evaluator_targets.setter
+    def evaluator_targets(self, values):
+        '''
+        :param values: set the evaluator_targets metadata to the \
+            supplied list of values.
+        :type values: List[str]
+
+        '''
+        self._evaluator_targets = EvaluatorTargetsMetadata(values)
+
+    @property
+    def meta_args(self):
+        '''
+        :returns: a list of 'meta_arg' objects which capture the \
+            metadata values of the kernel arguments.
+        :rtype: Optional[List[:py:class:`psyclone.domain.lfric.kernel.\
+            CommonArg`]]
+
+        '''
+        if self._meta_args is None:
+            return None
+        return self._meta_args.meta_args_args
+
+    @meta_args.setter
+    def meta_args(self, values):
+        '''
+        :param values: set the meta_args metadata to the \
+            supplied list of values.
+        :type values: List[:py:class:`psyclone.domain.lfric.kernel.\
+            CommonArg`]
+
+        '''
+        self._meta_args = MetaArgsMetadata(values)
+
+    @property
+    def meta_funcs(self):
+        '''
+        :returns: a list of meta_funcs metadata values.
+        :rtype: Optional[List[:py:class:`psyclone.domain.lfric.kernel.\
+            MetaFuncsArgMetadata`]]
+
+        '''
+        if self._meta_funcs is None:
+            return None
+        return self._meta_funcs.meta_funcs_args
+
+    @meta_funcs.setter
+    def meta_funcs(self, values):
+        '''
+        :param values: set the meta_funcs metadata to the \
+            supplied list of values.
+        :type values: List[:py:class:`psyclone.domain.lfric.kernel.\
+            MetaFuncsArgMetadata`]
+
+        '''
+        self._meta_funcs = MetaFuncsMetadata(values)
+
+    @property
+    def meta_ref_element(self):
+        '''
+        :returns: a list of meta_reference_element metadata values.
+        :rtype: Optional[List[:py:class:`psyclone.domain.lfric.kernel.\
+            MetaRefElementArgMetadata`]]
+
+        '''
+        if self._meta_ref_element is None:
+            return None
+        return self._meta_ref_element.meta_ref_element_args
+
+    @meta_ref_element.setter
+    def meta_ref_element(self, values):
+        '''
+        :param values: set the meta_funcs metadata to the \
+            supplied list of values.
+        :type values: List[:py:class:`psyclone.domain.lfric.kernel.\
+            MetaRefElementArgMetadata`]
+
+        '''
+        self._meta_ref_element = MetaRefElementMetadata(values)
+
+    @property
+    def meta_mesh(self):
+        '''
+        :returns: a list of meta_mesh metadata values.
+        :rtype: Optional[List[:py:class:`psyclone.domain.lfric.kernel.\
+            MetaMeshArgMetadata`]]
+
+        '''
+        if self._meta_mesh is None:
+            return None
+        return self._meta_mesh.meta_mesh_args
+
+    @meta_mesh.setter
+    def meta_mesh(self, values):
+        '''
+        :param values: set the meta_mesh metadata to the \
+            supplied list of values.
+        :type values: List[:py:class:`psyclone.domain.lfric.kernel.\
+            MetaMeshArgMetadata`]
+
+        '''
+        self._meta_mesh = MetaMeshMetadata(values)
 
     @property
     def procedure_name(self):
@@ -482,18 +1070,21 @@ class LFRicKernelMetadata():
     @procedure_name.setter
     def procedure_name(self, value):
         '''
-        :param str value: set the kernel procedure name in the \
+        :param Optional[str] value: set the kernel procedure name in the \
             metadata to the specified value.
 
         :raises ValueError: if the metadata has an invalid value.
 
         '''
-        config = Config.get()
-        if not value or not config.valid_name.match(value):
-            raise ValueError(
-                f"Expected procedure_name to be a valid Fortran name but "
-                f"found '{value}'.")
-        self._procedure_name = value
+        if value is None:
+            self._procedure_name = None
+        else:
+            config = Config.get()
+            if not value or not config.valid_name.match(value):
+                raise ValueError(
+                    f"Expected procedure_name to be a valid Fortran name but "
+                    f"found '{value}'.")
+            self._procedure_name = value
 
     @property
     def name(self):
@@ -521,13 +1112,43 @@ class LFRicKernelMetadata():
                 f"'{value}'.")
         self._name = value
 
-    @property
-    def meta_args(self):
-        '''
-        :returns: a list of 'meta_arg' objects which capture the \
-            metadata values of the kernel arguments.
-        :rtype: List[:py:class:`psyclone.psyir.common.kernel.\
-            KernelMetadataSymbol.KernelMetadataArg`]
+    def meta_args_get(self, types):
+        '''Return a list of meta_args entries with names that match the
+        'types' argument.
+
+        :param types: a meta_arg type or list of meta_arg types.
+        :type names: :py:class:`psyclone.domain.lfric.kernel.\
+            CommonMetaArgMetadata` or List[:py:class:`psyclone.domain.\
+            lfric.kernel.CommonMetaArgMetadata`]
+
+        :returns: a list of meta_args entries.
+        :rtype: List[
+            py:class:`psyclone.domain.lfric.kernel.CommonMetaArgMetadata`]
+
+        :raises TypeError: if the types argument is not of the correct type.
 
         '''
-        return self._meta_args
+        if not (isinstance(types, list) or
+                (inspect.isclass(types) and
+                 issubclass(types, CommonMetaArgMetadata))):
+            raise TypeError(
+                f"Expected a subclass of CommonMetaArgMetadata or a list for "
+                f"the 'types' argument, but found '{type(types).__name__}'.")
+        if isinstance(types, list):
+            my_types = types
+        else:
+            my_types = [types]
+        for my_type in my_types:
+            if not (inspect.isclass(my_type) and
+                    issubclass(my_type, CommonMetaArgMetadata)):
+                raise TypeError(
+                    f"Expected list entries in the 'types' argument to be "
+                    f"subclasses of CommonMetaArgMetadata, but found "
+                    f"'{type(my_type).__name__}'.")
+        if not self.meta_args:
+            return []
+        return [meta_arg for meta_arg in self.meta_args
+                if type(meta_arg) in my_types]
+
+
+__all__ = ["LFRicKernelMetadata"]

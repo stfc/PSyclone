@@ -43,9 +43,9 @@ import os
 
 import pytest
 from psyclone.configuration import Config
+from psyclone.domain.gocean import GOSymbolTable
 from psyclone.errors import InternalError, GenerationError
-from psyclone.gocean1p0 import (GOKernelArgument, GOKernelArguments,
-                                GOSymbolTable)
+from psyclone.gocean1p0 import GOKernelArgument, GOKernelArguments
 from psyclone.parse.algorithm import Arg, parse
 from psyclone.parse.kernel import Descriptor
 from psyclone.parse.utils import ParseError
@@ -290,7 +290,7 @@ def test_gokernelargument_type(monkeypatch):
     symbol_table._argument_list[0].datatype = DeferredType()
     with pytest.raises(GenerationError) as excinfo:
         symbol_table._check_gocean_conformity()
-    assert ("GOcean 1.0 API kernels first argument should be a scalar integer "
+    assert ("GOcean API kernels first argument should be a scalar integer "
             "but got 'DeferredType'." in str(excinfo.value))
 
 

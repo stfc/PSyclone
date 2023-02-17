@@ -69,6 +69,12 @@ def test_signature():
     assert Signature(["a", "b", "c"]).is_structure
     assert not Signature(("a")).is_structure
 
+    # Check that structure expressions (using '%') are automatically split
+    # into components:
+    sig = Signature("a%b")
+    assert sig[0] == "a"
+    assert sig[1] == "b"
+
 
 def test_signature_errors():
     '''Tests error handling of Signature class.

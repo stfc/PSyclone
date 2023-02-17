@@ -387,13 +387,11 @@ def main(args):
     parser.add_argument("--config", help="Config file with "
                         "PSyclone specific options.")
     parser.add_argument(
-        '-v', '--version', dest='version', action="store_true",
+        '--version', '-v', action='version',
+        version=f'PSyclone version: {__VERSION__}',
         help=f'Display version information ({__VERSION__})')
 
     args = parser.parse_args(args)
-
-    if args.version:
-        print(f"PSyclone version: {__VERSION__}")
 
     if args.profile:
         Profiler.set_options(args.profile)

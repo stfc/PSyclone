@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
@@ -80,7 +80,6 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         :rtype: bool
 
         '''
-        # pylint: disable=no-self-use
         return True
 
     def get_signature_and_indices(self):
@@ -166,8 +165,9 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                         and isinstance(array_bounds.lower, Literal)):
                     if lower.value == array_bounds.lower.value:
                         return True
-            except (KeyError, SymbolError):
-                # Can't find symbol declaration
+            except (KeyError, SymbolError, AttributeError):
+                # If any issue is found we can not guarantee that it is
+                # the lower bound
                 pass
             return False
 
@@ -234,8 +234,9 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                         isinstance(array_bounds.upper, Literal)):
                     if upper.value == array_bounds.upper.value:
                         return True
-            except (KeyError, SymbolError):
-                # Can't find symbol declaration
+            except (KeyError, SymbolError, AttributeError):
+                # If any issue is found we can not guarantee that it is
+                # the upper bound
                 pass
             return False
 

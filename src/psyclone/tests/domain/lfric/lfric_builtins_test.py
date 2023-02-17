@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified: I. Kavcic, Met Office
-# Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: R. W. Ford and N. Nobre, STFC Daresbury Lab
 # Modified: by J. Henrichs, Bureau of Meteorology
 
 ''' This module tests the support for built-in operations in the LFRic API
@@ -48,7 +48,8 @@ import os
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import lfric_builtins, LFRicConstants
+from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.domain.lfric import lfric_builtins, LFRicConstants, psyir
 from psyclone.domain.lfric.lfric_builtins import (LFRicBuiltInCallFactory,
                                                   LFRicBuiltIn)
 from psyclone.dynamo0p3 import DynKernelArgument
@@ -56,10 +57,12 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import BuiltInCall, parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Loop, Reference, UnaryOperation, Literal, \
-    StructureReference
-from psyclone.psyir.symbols import ScalarType, DataTypeSymbol
+from psyclone.psyir.nodes import (Loop, Reference, UnaryOperation, Literal,
+                                  StructureReference)
+from psyclone.psyir.symbols import (ArrayType, DataTypeSymbol, DeferredType,
+                                    ScalarType)
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import get_invoke
 
 # Constants
 BASE_PATH = os.path.join(
@@ -89,17 +92,20 @@ def test_lfric_builtin_abstract_methods():
     ''' Check that the LFRicBuiltIn class is abstract and that the __str__
     method is abstract. '''
     with pytest.raises(TypeError) as err:
+        # pylint: disable=abstract-class-instantiated
         lfric_builtins.LFRicBuiltIn()
     assert "abstract class LFRicBuiltIn" in str(err.value)
     assert "__str__" in str(err.value)
 
 
+# pylint: disable=invalid-name
 def test_lfricxkern_abstract():
     '''Test that the LFRicXKern class is abstract and that it sets its
     internal _field_type variable to None.
 
     '''
     with pytest.raises(TypeError) as error:
+        # pylint: disable=abstract-class-instantiated
         lfric_builtins.LFRicXKern()
     assert ("Can't instantiate abstract class LFRicXKern with abstract "
             "method" in str(error.value))
@@ -175,9 +181,9 @@ def test_builtin_multiple_writes():
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
-    assert ("A built-in kernel in the LFRic API must have one and only "
-            "one argument that is written to but found 2 for kernel '{0}'".
-            format(test_builtin_name.lower()) in str(excinfo.value))
+    assert (f"A built-in kernel in the LFRic API must have one and only "
+            f"one argument that is written to but found 2 for kernel "
+            f"'{test_builtin_name.lower()}'" in str(excinfo.value))
 
 
 def test_builtin_write_and_readwrite():
@@ -200,9 +206,9 @@ def test_builtin_write_and_readwrite():
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
-    assert ("A built-in kernel in the LFRic API must have one and only "
-            "one argument that is written to but found 2 for kernel '{0}'".
-            format(test_builtin_name.lower()) in str(excinfo.value))
+    assert (f"A built-in kernel in the LFRic API must have one and only "
+            f"one argument that is written to but found 2 for kernel "
+            f"'{test_builtin_name.lower()}'" in str(excinfo.value))
 
 
 def test_builtin_sum_and_readwrite():
@@ -225,9 +231,9 @@ def test_builtin_sum_and_readwrite():
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
-    assert ("A built-in kernel in the LFRic API must have one and only "
-            "one argument that is written to but found 2 for kernel '{0}'".
-            format(test_builtin_name.lower()) in str(excinfo.value))
+    assert (f"A built-in kernel in the LFRic API must have one and only "
+            f"one argument that is written to but found 2 for kernel "
+            f"'{test_builtin_name.lower()}'" in str(excinfo.value))
 
 
 def test_builtin_zero_writes(monkeypatch):
@@ -247,9 +253,9 @@ def test_builtin_zero_writes(monkeypatch):
         _, _ = parse(os.path.join(BASE_PATH,
                                   test_builtin_file),
                      api=API)
-    assert ("An LFRic kernel must have at least one argument that is "
-            "updated (written to) but found none for kernel '{0}'.".
-            format(test_builtin_name.lower()) in str(excinfo.value))
+    assert (f"An LFRic kernel must have at least one argument that is "
+            f"updated (written to) but found none for kernel "
+            f"'{test_builtin_name.lower()}'." in str(excinfo.value))
 
 
 def test_builtin_no_field_args(monkeypatch):
@@ -276,9 +282,9 @@ def test_builtin_no_field_args(monkeypatch):
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
-    assert ("A built-in kernel in the LFRic API must have at least "
-            "one field as an argument but kernel '{0}' has none".
-            format(test_builtin_name.lower()) in str(excinfo.value))
+    assert (f"A built-in kernel in the LFRic API must have at least "
+            f"one field as an argument but kernel "
+            f"'{test_builtin_name.lower()}' has none" in str(excinfo.value))
 
 
 def test_builtin_invalid_argument_type(monkeypatch):
@@ -304,10 +310,10 @@ def test_builtin_invalid_argument_type(monkeypatch):
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API, distributed_memory=False).create(invoke_info)
     const = LFRicConstants()
-    assert ("In the LFRic API an argument to a built-in kernel must be one "
-            "of {0} but kernel '{1}' has an argument of type 'gh_operator'.".
-            format(const.VALID_BUILTIN_ARG_TYPES, test_builtin_name.lower())
-            in str(excinfo.value))
+    assert (f"In the LFRic API an argument to a built-in kernel must be one "
+            f"of {const.VALID_BUILTIN_ARG_TYPES} but kernel "
+            f"'{test_builtin_name.lower()}' has an argument of type "
+            f"'gh_operator'." in str(excinfo.value))
 
 
 def test_builtin_invalid_data_type(monkeypatch):
@@ -336,11 +342,10 @@ def test_builtin_invalid_data_type(monkeypatch):
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API, distributed_memory=False).create(invoke_info)
     const = LFRicConstants()
-    assert ("In the LFRic API an argument to a built-in kernel must have "
-            "one of {0} as a data type but kernel '{1}' has an argument of "
-            "data type 'gh_logical'.".
-            format(const.VALID_BUILTIN_DATA_TYPES, test_builtin_name.lower())
-            in str(excinfo.value))
+    assert (f"In the LFRic API an argument to a built-in kernel must have "
+            f"one of {const.VALID_BUILTIN_DATA_TYPES} as a data type but "
+            f"kernel '{test_builtin_name.lower()}' has an argument of "
+            f"data type 'gh_logical'." in str(excinfo.value))
 
 
 def test_builtin_args_not_same_space():
@@ -363,10 +368,10 @@ def test_builtin_args_not_same_space():
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
-    assert ("All field arguments to a built-in in the LFRic API must "
-            "be on the same space. However, found spaces ['any_space_1', "
-            "'any_space_2'] for arguments to '{0}'".
-            format(test_builtin_name.lower()) in str(excinfo.value))
+    assert (f"All field arguments to a built-in in the LFRic API must "
+            f"be on the same space. However, found spaces ['any_space_1', "
+            f"'any_space_2'] for arguments to '{test_builtin_name.lower()}'"
+            in str(excinfo.value))
 
 
 def test_builtin_fld_args_different_data_type(monkeypatch):
@@ -398,12 +403,11 @@ def test_builtin_fld_args_different_data_type(monkeypatch):
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
-    assert ("In the LFRic API only the data type conversion built-ins "
-            "['int_X', 'real_X'] are allowed to have field "
-            "arguments of different data types. However, found "
-            "different data types ['gh_integer', 'gh_real'] for "
-            "field arguments to '{0}'.".
-            format(test_builtin_name.lower()) in str(excinfo.value))
+    assert (f"In the LFRic API only the data type conversion built-ins "
+            f"['int_X', 'real_X'] are allowed to have field arguments of "
+            f"different data types. However, found different data types "
+            f"['gh_integer', 'gh_real'] for field arguments to "
+            f"'{test_builtin_name.lower()}'." in str(excinfo.value))
 
 
 def test_lfricbuiltincallfactory_str():
@@ -497,14 +501,25 @@ def test_get_indexed_field_argument_refs():
     refs = kern.get_indexed_field_argument_references()
     # Kernel has two field arguments
     assert len(refs) == 2
+    # pylint:disable=no-member
+    array_1d = ArrayType(psyir.LfricRealScalarDataType(),
+                         [ArrayType.Extent.DEFERRED])
     for ref in refs:
         assert isinstance(ref, StructureReference)
         assert isinstance(ref.symbol.datatype, DataTypeSymbol)
         assert ref.symbol.datatype.name == "field_proxy_type"
+        # Nothing is known about the field proxy type, so the datatype
+        # must be deferred
+        assert ref.symbol.datatype.datatype == DeferredType()
+        # The reference in a builtin will have a data type hard coded:
+        assert ref.datatype == array_1d
         assert ref.member.name == "data"
         assert len(ref.member.indices) == 1
         assert isinstance(ref.member.indices[0], Reference)
         assert ref.member.indices[0].symbol.name == "df"
+        assert (ref.member.indices[0].symbol.datatype.intrinsic ==
+                ScalarType.Intrinsic.INTEGER)
+        assert ref.member.indices[0].symbol.datatype.precision.name == "i_def"
 
 
 def test_get_scalar_argument_references():
@@ -4678,3 +4693,21 @@ def mesh_code_present(field_str, code):
         "      max_halo_depth_mesh = mesh%get_halo_depth()\n"
         "      !\n")
     assert output_dm_1 in code
+
+
+def test_field_access_info_for_arrays_in_builtins():
+    '''Tests that array of fields in LFRic builtins properly report access
+    information. For example,
+    call invoke( a_plus_X(f2(i), a, f1) )
+    must report the access to f2.
+
+    '''
+    _, invoke = get_invoke("15.1.8_a_plus_X_builtin_array_of_fields.f90",
+                           api=API, idx=0, dist_mem=False)
+    schedule = invoke.schedule
+    vai = VariablesAccessInfo(schedule)
+
+    assert Signature("f2") in vai
+
+    assert ("a: READ, df: READ+WRITE, f1: READ, f2: WRITE, loop0_start: READ, "
+            "loop0_stop: READ" == str(vai))

@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''pytest tests for the the gocean kern_trans transformation. This
 transformation raises generic PSyIR representing a kernel-layer
@@ -45,7 +45,6 @@ from psyclone.domain.gocean.kernel import GOceanContainer
 from psyclone.domain.gocean.transformations import RaisePSyIR2GOceanKernTrans
 from psyclone.domain.gocean.transformations.raise_psyir_2_gocean_kern_trans \
     import find_symbol
-from psyclone.parse.utils import ParseError
 from psyclone.psyir.nodes import FileContainer, Container, Routine
 from psyclone.psyir.symbols import SymbolTable, DataTypeSymbol
 from psyclone.psyir.transformations import TransformationError
@@ -161,10 +160,12 @@ def test_validate_keyerror(fortran_reader):
     '''
     my_program = (f"module dummy\n"
                   f"contains\n"
-                  f"subroutine dummy1()\n"
-                  f"end subroutine\n"
+                  f"  subroutine dummy1()\n"
+                  f"  end subroutine\n"
                   f"  subroutine dummy2()\n"
                   f"{METADATA}"
+                  f"  end subroutine\n"
+                  f"  subroutine compute_cu_code()\n"
                   f"  end subroutine\n"
                   f"end module\n")
     kernel_psyir = fortran_reader.psyir_from_source(my_program)
@@ -181,10 +182,13 @@ def test_validate_iterates_over(fortran_reader):
         "  INTEGER :: ITERATES_OVER = GO_ALL_PTS\n", "")
     kernel_psyir = fortran_reader.psyir_from_source(modified_program)
     kern_trans = RaisePSyIR2GOceanKernTrans("compute_cu")
-    with pytest.raises(ParseError) as info:
+    with pytest.raises(TransformationError) as info:
         kern_trans.validate(kernel_psyir)
+    err_txt = str(info.value)
+    assert ("Failed to create metadata for kernel 'compute_cu' from PSyIR"
+            in err_txt)
     assert ("'iterates_over' was not found in TYPE, EXTENDS(kernel_type) :: "
-            "compute_cu" in str(info.value))
+            "compute_cu" in err_txt)
 
 
 def test_validate_container2(fortran_reader):
@@ -216,6 +220,28 @@ def test_validate_parent(fortran_reader):
     assert ("Error in RaisePSyIR2GOceanKernTrans transformation. The "
             "supplied node should be the root of a PSyIR tree but this node "
             "has a parent (FileContainer)." in str(info.value))
+
+
+def test_validate_missing_routine(fortran_reader):
+    '''
+    Test that validate() raises the expected error if the Container does not
+    have a subroutine that implements the kernel.
+
+    '''
+    code = (
+        f"module dummy\n"
+        f"{METADATA}"
+        f"contains\n"
+        f"  subroutine kern_code()\n"
+        f"  end subroutine kern_code\n"
+        f"end module dummy\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    kern_trans = RaisePSyIR2GOceanKernTrans("compute_cu")
+    with pytest.raises(TransformationError) as info:
+        kern_trans.validate(psyir)
+    assert ("The Container in which the metadata symbol resides does not "
+            "contain the routine that it names as implementing the kernel "
+            "('compute_cu_code')" in str(info.value))
 
 
 def test_validate_ok(fortran_reader):

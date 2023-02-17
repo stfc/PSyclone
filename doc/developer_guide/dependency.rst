@@ -31,8 +31,8 @@
    ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
    POSSIBILITY OF SUCH DAMAGE.
    -----------------------------------------------------------------------------
-   Written by: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-               J. Henrichs, Bureau of Meteorology
+   Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+            J. Henrichs, Bureau of Meteorology
 
 .. testsetup::
 
@@ -275,7 +275,7 @@ The only exception to this is if a kernel is called, in which case the
 metadata for the kernel declaration will be used to determine the variable
 accesses for the call statement. The information about all variable usage
 of a PSyIR node or a list of nodes can be gathered by creating an object of
-type `psyclone.core.access_info.VariablesAccessInfo`.
+type `psyclone.core.VariablesAccessInfo`.
 This class uses a `Signature` object to keep track of the variables used.
 
 Signature
@@ -289,7 +289,7 @@ three components `a`, `b`, and `c`.
 A simple variable such as `a` is stored as a one-element tuple `(a, )`, having
 a single component.
 
-.. autoclass:: psyclone.core.access_info.Signature
+.. autoclass:: psyclone.core.Signature
     :members:
     :special-members: __hash__, __eq__, __lt__
 
@@ -305,7 +305,7 @@ of `VariablesAccessInfo`.
 
 .. automethod:: psyclone.psyir.nodes.Node.reference_accesses
 
-.. autoclass:: psyclone.core.access_info.VariablesAccessInfo
+.. autoclass:: psyclone.core.VariablesAccessInfo
     :members:
     :special-members: __str__
 
@@ -342,24 +342,24 @@ PSyIR operators above will be reported as read access.
 SingleVariableAccessInfo
 ------------------------
 The class `VariablesAccessInfo` uses a dictionary of
-`psyclone.core.access_info.SingleVariableAccessInfo` instances to map
+`psyclone.core.SingleVariableAccessInfo` instances to map
 from each variable to the accesses of that variable. When a new variable
 is detected when adding access information to a `VariablesAccessInfo` instance
 via `add_access()`, a new instance of `SingleVariableAccessInfo` is added,
 which in turn stores all access to the specified variable.
 
-.. autoclass:: psyclone.core.access_info.SingleVariableAccessInfo
+.. autoclass:: psyclone.core.SingleVariableAccessInfo
     :members:
 
 AccessInfo
 ----------
 The class `SingleVariableAccessInfo` uses a list of
-`psyclone.core.access_info.AccessInfo` instances to store all
+`psyclone.core.AccessInfo` instances to store all
 accesses to a single variable. A new instance of `AccessInfo`
 is appended to the list whenever `add_access_with_location()`
 is called.
 
-.. autoclass:: psyclone.core.access_info.AccessInfo
+.. autoclass:: psyclone.core.AccessInfo
     :members:
 
 Indices
@@ -371,7 +371,7 @@ to analyse a PSyIR tree for details. The indices are stored in the
 ComponentIndices object that each access has, which can be accessed
 using the `component_indices` property of an `AccessInfo` object.
 
-.. autoclass:: psyclone.core.access_info.ComponentIndices
+.. autoclass:: psyclone.core.ComponentIndices
     :members:
     :special-members: __getitem__, __len__
 
@@ -405,8 +405,7 @@ valid 2-tuples of component index and dimension index. For example:
   for count, indx in enumerate(access_info.component_indices.iterate()):
       psyir_index = access_info.component_indices[indx]
       # fortran writer converts a PSyIR node to Fortran:
-      print("Index-id {0} of 'a(i,j)': {1}"
-            .format(count, fortran_writer(psyir_index)))
+      print(f"Index-id {count} of 'a(i,j)': {fortran_writer(psyir_index)}")
 
 .. testoutput::
 
@@ -446,10 +445,10 @@ wrapped in an outer loop over all accesses.
       if index_variable in accesses:
           # The index variable is used as an index
           # at the specified location.
-          print("Index '{0}' is used.".format(str(index_variable)))
+          print(f"Index '{index_variable}' is used.")
           break
   else:
-      print("Index '{0}' is not used.".format(str(index_variable)))
+      print(f"Index '{index_variable}' is not used.")
 
 
 .. testoutput::
@@ -589,8 +588,8 @@ until we find accesses that would prevent parallelisation:
            break
        list_of_parallelisable_statements.append(next_statement)
 
-   print("The first {0} statements can be parallelised."
-         .format(len(list_of_parallelisable_statements)))
+   print(f"The first {len(list_of_parallelisable_statements)} statements can "
+         f"be parallelised.")
 
 .. testoutput::
     :hide:

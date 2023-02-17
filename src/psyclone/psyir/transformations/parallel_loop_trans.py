@@ -87,9 +87,11 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         :param options: a dictionary with options for transformations.\
                         This transform supports "collapse", which is the\
                         number of nested loops to collapse.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
         :param int options["collapse"]: number of nested loops to collapse \
                                         or None.
+        :param bool options["force"]: whether to force parallelisation of the \
+                target loop (i.e. ignore any dependence analysis).
 
         :raises TransformationError: if the \
                 :py:class:`psyclone.psyir.nodes.Loop` loop iterates over \
@@ -97,7 +99,8 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         :raises TransformationError: if 'collapse' is supplied with an \
                 invalid number of loops.
         :raises TransformationError: if there is a data dependency that \
-                prevents the parallelisation of the loop.
+                prevents the parallelisation of the loop unless \
+                `options["force"]` is True.
 
         '''
         # Check that the supplied node is a Loop and does not contain any
@@ -114,6 +117,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         if not options:
             options = {}
         collapse = options.get("collapse", None)
+        ignore_dep_analysis = options.get("force", False)
 
         # If 'collapse' is specified, check that it is an int and that the
         # loop nest has at least that number of loops in it
@@ -139,6 +143,9 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                     f"containing only {loop_count} loops")
 
         # Check that there are no loop-carried dependencies
+        if ignore_dep_analysis:
+            return
+
         dep_tools = DependencyTools()
 
         try:
@@ -155,10 +162,13 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                     raise TransformationError(
                         f"Dependency analysis failed with the following "
                         f"messages:\n{messages}")
+
         except (KeyError, InternalError):
             # LFRic still has symbols that don't exist in the symbol_table
             # until the gen_code() step, so the dependency analysis raises
-            # KeyErrors in some cases. We ignore this for now.
+            # KeyErrors in some cases.
+            # Also, the dependence analysis doesn't yet use PSyIR consistently
+            # and that causes failures - TOD0 #845.
             pass
 
     def apply(self, node, options=None):
@@ -183,7 +193,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                      Loop transformation.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations. \
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
         :param int options["collapse"]: the number of loops to collapse into \
                 single iteration space or None.
 

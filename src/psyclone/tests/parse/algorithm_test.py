@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Modified I. Kavcic, Met Office
 
 '''A module to perform pytest unit tests on the parse/algorithm.py
 file. Some tests for this file are in parse_test.py. This file adds
@@ -269,7 +270,7 @@ def test_parser_invokeinfo_datatypes_mixed():
     assert args1[2]._datatype == ("r_solver_operator_type", None)
     assert args2[0]._datatype == ("real", "r_tran")
     assert args2[1]._datatype == ("r_tran_field_type", None)
-    assert args2[2]._datatype == ("operator_type", None)
+    assert args2[2]._datatype == ("r_tran_operator_type", None)
 
 
 def test_parser_invokeinfo_datatypes_self():
@@ -584,7 +585,7 @@ def test_getkernel_isliteral(content, datatype):
     literal argument and returns them correctly.
 
     '''
-    tree = Structure_Constructor("sub({0})".format(content))
+    tree = Structure_Constructor(f"sub({content})")
     kern_name, args = get_kernel(tree, "dummy.f90", {})
     assert kern_name == "sub"
     assert len(args) == 1
@@ -608,7 +609,7 @@ def test_getkernel_isliteral_expr(content, datatype):
     literal expression and returns them correctly.
 
     '''
-    tree = Structure_Constructor("sub({0})".format(content))
+    tree = Structure_Constructor(f"sub({content})")
     kern_name, args = get_kernel(tree, "dummy.f90", {})
     assert kern_name == "sub"
     assert len(args) == 1
@@ -647,7 +648,7 @@ def test_getkernel_isarg(content):
     separately in test_getkernel_proc_component.
 
     '''
-    tree = Part_Ref("sub({0})".format(content))
+    tree = Part_Ref(f"sub({content})")
     kern_name, args = get_kernel(tree, "dummy.f90", {})
     assert kern_name == "sub"
     assert len(args) == 1
@@ -677,7 +678,7 @@ def test_getkernel_proc_component(content):
     longer treats it as a structure constructor.
 
     '''
-    tree = Call_Stmt("call x(y({0}, 1.0))".format(content))
+    tree = Call_Stmt(f"call x(y({content}, 1.0))")
     kernel = tree.children[1].children[0]
     kern_name, args = get_kernel(kernel, "dummy.f90", {})
     assert kern_name == "y"
@@ -776,7 +777,7 @@ def test_getkernel_noexpr(content):
     currently supported).
 
     '''
-    tree = Part_Ref("sub({0})".format(content))
+    tree = Part_Ref(f"sub({content})")
     with pytest.raises(NotImplementedError) as excinfo:
         _, _ = get_kernel(tree, "dummy.f90", None)
     assert "Expressions containing variables are not yet supported" \
@@ -806,8 +807,8 @@ def test_createvarname_error1():
     name = "class"
     with pytest.raises(InternalError) as excinfo:
         _ = create_var_name("invalid")
-    assert ("algorithm.py:create_var_name unrecognised structure "
-            "'<{0} 'str'>'".format(name) in str(excinfo.value))
+    assert (f"algorithm.py:create_var_name unrecognised structure "
+            f"'<{name} 'str'>'" in str(excinfo.value))
 
 
 def test_createvarname_error2(monkeypatch):
@@ -821,9 +822,9 @@ def test_createvarname_error2(monkeypatch):
     monkeypatch.setattr(content, "items", ["invalid", "invalid"])
     with pytest.raises(InternalError) as excinfo:
         _ = create_var_name(content)
-    assert ("algorithm.py:create_var_name unrecognised structure "
-            "'<{0} 'str'>' in '<class 'fparser.two.Fortran2003."
-            "Data_Ref'>'".format(name) in str(excinfo.value))
+    assert (f"algorithm.py:create_var_name unrecognised structure "
+            f"'<{name} 'str'>' in '<class 'fparser.two.Fortran2003."
+            f"Data_Ref'>'" in str(excinfo.value))
 
 
 @pytest.mark.parametrize("expression,expected", [

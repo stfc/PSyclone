@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,12 +44,14 @@ from __future__ import print_function, absolute_import
 from fparser.two.utils import walk
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
+from psyclone.core import Signature
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.nemo import NemoConstants
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, InlinedKern
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import Schedule, Routine
+from psyclone.psyir.nodes import (ACCEnterDataDirective, ACCUpdateDirective,
+                                  Schedule, Routine)
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
@@ -230,7 +232,7 @@ class NemoKern(InlinedKern):
         :param var_accesses: VariablesAccessInfo that stores the information\
             about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
         '''
         self.children[0].reference_accesses(var_accesses)
 
@@ -327,3 +329,42 @@ class NemoLoop(PSyLoop):
                     f"{len(kernels)}")
             return kernels[0]
         return None
+
+
+# TODO #1872: Avoid the duplication below and move to src/psyclone/domain/nemo.
+# Alternatively, bring removal of loop variables to the transformation using
+# lifetime analysis and remove these sub-classes.
+class NemoACCEnterDataDirective(ACCEnterDataDirective):
+    '''
+    NEMO-specific support for the OpenACC enter data directive.
+
+    '''
+    def lower_to_language_level(self):
+        '''
+        In-place replacement of this directive concept into language-level
+        PSyIR constructs.
+
+        '''
+        super().lower_to_language_level()
+
+        # Remove known loop variables from the set of variables to transfer
+        loop_var = Config.get().api_conf("nemo").get_loop_type_mapping().keys()
+        self._sig_set.difference_update({Signature(var) for var in loop_var})
+
+
+class NemoACCUpdateDirective(ACCUpdateDirective):
+    '''
+    NEMO-specific support for the OpenACC update directive.
+
+    '''
+    def lower_to_language_level(self):
+        '''
+        In-place replacement of this directive concept into language-level
+        PSyIR constructs.
+
+        '''
+        super().lower_to_language_level()
+
+        # Remove known loop variables from the set of variables to transfer
+        loop_var = Config.get().api_conf("nemo").get_loop_type_mapping().keys()
+        self._sig_set.difference_update({Signature(var) for var in loop_var})

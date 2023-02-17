@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,10 +37,6 @@
 
 '''This module provides management of variable access information.'''
 
-from __future__ import print_function, absolute_import
-
-import six
-
 from psyclone.errors import InternalError
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 
@@ -72,9 +68,8 @@ class Signature:
         else:
             # null-tuple
             sub_tuple = ()
-        if isinstance(variable, (str, six.text_type)):
-            # str() required for python2 unicode support
-            self._signature = (str(variable),) + sub_tuple
+        if isinstance(variable, str):
+            self._signature = tuple(variable.split("%")) + sub_tuple
         elif isinstance(variable, tuple):
             self._signature = variable + sub_tuple
         elif isinstance(variable, list):

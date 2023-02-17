@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,10 +48,29 @@ from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynLoop
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
+from psyclone.psyir.nodes import ArrayReference, Literal, Reference
+from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_ast, get_base_path, get_invoke
 
 TEST_API = "dynamo0.3"
+
+
+def check_psyir_results(create_arg_list, fortran_writer):
+    '''Helper function to check if the PSyIR representation of the arguments
+     is identical to the old style textual representation. It checks that each
+     member of the psyir_arglist is a Reference, and that the textual
+     representation matches the textual presentation (which was already
+     verified).
+
+     '''
+    # Check the PSyIR representation
+    result = []
+    for node in create_arg_list.psyir_arglist:
+        assert isinstance(node, Reference)
+        result.append(fortran_writer(node))
+
+    assert result == create_arg_list._arglist
 
 
 def test_argordering_append():
@@ -81,6 +100,58 @@ def test_argordering_append():
     arg_list.append("john", var_access_name="john_walker",
                     var_accesses=vinfo, mode=AccessType.WRITE)
     assert vinfo.is_written(Signature("john_walker"))
+
+
+def test_argordering_get_array_reference():
+    '''
+    Tests for the get_array_reference() method of ArgOrdering.
+
+    '''
+
+    psy, _ = get_invoke("1.0.1_single_named_invoke.f90",
+                        TEST_API, 0)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kern = schedule.walk(DynKern)[0]
+    arg_list = ArgOrdering(kern)
+
+    # First test access using an index, e.g. `array(1)`
+    one = Literal("1", INTEGER_TYPE)
+    ref = arg_list.get_array_reference("array1", [one],
+                                       ScalarType.Intrinsic.REAL)
+    assert isinstance(ref, ArrayReference)
+    ref = arg_list.get_array_reference("array2", [":"],
+                                       ScalarType.Intrinsic.INTEGER)
+    assert not isinstance(ref, ArrayReference)
+
+    # Now test access using ":" only, e.g. `array(:)` -> this should
+    # be returned just a reference to `array`
+    ref = arg_list.get_array_reference("array3", [":", ":"],
+                                       ScalarType.Intrinsic.REAL)
+    assert isinstance(ref, Reference)
+    assert not isinstance(ref, ArrayReference)
+    ref = arg_list.get_array_reference("array4", [":", ":"],
+                                       ScalarType.Intrinsic.INTEGER)
+    assert isinstance(ref, Reference)
+    assert not isinstance(ref, ArrayReference)
+
+    # Now specify a symbol, but an incorrect array name:
+    with pytest.raises(InternalError) as err:
+        arg_list.get_array_reference("wrong-name", [":", ":"],
+                                     ScalarType.Intrinsic.INTEGER,
+                                     symbol=ref.symbol)
+    assert ("Specified symbol 'array4' has a different name than the "
+            "specified array name 'wrong-name'" in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        arg_list.get_array_reference("does-not-exist", [":"], "invalid")
+    assert ("Unsupported data type 'invalid' in find_or_create_array"
+            in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        arg_list.get_array_reference("array4", [":"],
+                                     ScalarType.Intrinsic.INTEGER)
+    assert ("Array 'array4' already exists, but has 2 dimensions, not 1."
+            in str(err.value))
 
 
 def test_argordering_extend():
@@ -133,10 +204,9 @@ def test_unexpected_type_error(dist_mem):
         create_arg_list.generate()
     const = LFRicConstants()
     assert (
-        "ArgOrdering.generate(): Unexpected argument "
-        "type found. Expected one of '{0}' but found 'invalid'".
-        format(const.VALID_ARG_TYPE_NAMES)
-        in str(excinfo.value))
+        f"ArgOrdering.generate(): Unexpected argument "
+        f"type found. Expected one of '{const.VALID_ARG_TYPE_NAMES}' "
+        f"but found 'invalid'" in str(excinfo.value))
 
 
 def test_kernel_stub_invalid_scalar_argument():
@@ -155,12 +225,11 @@ def test_kernel_stub_invalid_scalar_argument():
     with pytest.raises(InternalError) as excinfo:
         create_arg_list.scalar(arg)
     const = LFRicConstants()
-    assert ("Expected argument type to be one of {0} but got "
-            "'invalid'".format(const.VALID_SCALAR_NAMES)
-            in str(excinfo.value))
+    assert (f"Expected argument type to be one of {const.VALID_SCALAR_NAMES} "
+            f"but got 'invalid'" in str(excinfo.value))
 
 
-def test_arg_ordering_generate_domain_kernel(dist_mem):
+def test_arg_ordering_generate_domain_kernel(dist_mem, fortran_writer):
     '''
     Check that the LFRic ArgOrdering class generates the expected arguments
     for a kernel that iterates over the 'domain'.
@@ -177,13 +246,16 @@ def test_arg_ordering_generate_domain_kernel(dist_mem):
 
     create_arg_list = KernCallArgList(kernel)
     assert create_arg_list._arglist == []
+    assert create_arg_list._psyir_arglist == []
     create_arg_list.generate()
     assert create_arg_list._arglist == [
         'nlayers', 'ncell_2d_no_halos', 'b', 'f1_proxy%data', 'ndf_w3',
         'undf_w3', 'map_w3']
 
+    check_psyir_results(create_arg_list, fortran_writer)
 
-def test_arg_ordering_generate_cma_kernel(dist_mem):
+
+def test_arg_ordering_generate_cma_kernel(dist_mem, fortran_writer):
     '''
     Check that the LFRic ArgOrdering class generates the expected arguments
     for a CMA kernel.
@@ -208,6 +280,8 @@ def test_arg_ordering_generate_cma_kernel(dist_mem):
         'cma_op1_gamma_m', 'cma_op1_gamma_p', 'ndf_adspc1_lma_op1',
         'cbanded_map_adspc1_lma_op1', 'ndf_adspc2_lma_op1',
         'cbanded_map_adspc2_lma_op1']
+
+    check_psyir_results(create_arg_list, fortran_writer)
 
 
 def test_arg_ordering_mdata_index():
@@ -249,7 +323,7 @@ def test_kernel_stub_ind_dofmap_errors():
     with pytest.raises(InternalError) as excinfo:
         create_arg_list.indirection_dofmap("w3", kernel.arguments.args[1])
     assert ("A CMA operator (gh_columnwise_operator) must be supplied but "
-            "got") in str(excinfo.value)
+            "got 'gh_scalar'") in str(excinfo.value)
 
 
 def test_kerncallarglist_args_error(dist_mem):
@@ -293,6 +367,14 @@ def test_kerncallarglist_args_error(dist_mem):
         _ = create_arg_list.arglist
     assert (
         "The argument list in KernCallArgList "
+        "is empty. Has the generate() method been called?"
+        ) in str(excinfo.value)
+
+    # arglist method
+    with pytest.raises(InternalError) as excinfo:
+        _ = create_arg_list.psyir_arglist
+    assert (
+        "The PSyIR argument list in KernCallArgList "
         "is empty. Has the generate() method been called?"
         ) in str(excinfo.value)
 

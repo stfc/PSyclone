@@ -37,9 +37,8 @@
 # MOdified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk, STFC Daresbury Lab
 
-''' Tests of transformations with the Dynamo 0.3 API '''
+''' Tests of transformations with the LFRic (Dynamo 0.3) API '''
 
-from __future__ import absolute_import, print_function
 import inspect
 from importlib import import_module
 import pytest
@@ -53,7 +52,7 @@ from psyclone.dynamo0p3 import DynLoop, DynHaloExchangeStart, \
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import InvokeSchedule, GlobalSum, BuiltIn
 from psyclone.psyir.nodes import colored, Loop, Schedule, Literal, Directive, \
-    OMPDoDirective, ACCEnterDataDirective
+    OMPDoDirective, ACCEnterDataDirective, Reference
 from psyclone.psyir.symbols import LocalInterface, ScalarType, ArrayType, \
     REAL_TYPE, INTEGER_TYPE
 from psyclone.psyir.transformations import LoopFuseTrans, LoopTrans, \
@@ -232,9 +231,9 @@ def test_colour_trans(tmpdir, dist_mem):
     assert (
         "call testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data, "
         "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
-        "map_w1(:,cmap(colour, cell)), ndf_w2, undf_w2, "
-        "map_w2(:,cmap(colour, cell)), ndf_w3, undf_w3, "
-        "map_w3(:,cmap(colour, cell)))" in gen)
+        "map_w1(:,cmap(colour,cell)), ndf_w2, undf_w2, "
+        "map_w2(:,cmap(colour,cell)), ndf_w3, undf_w3, "
+        "map_w3(:,cmap(colour,cell)))" in gen)
 
     if dist_mem:
         # Check that we get the right number of set_dirty halo calls in
@@ -276,7 +275,7 @@ def test_colour_trans_operator(tmpdir, dist_mem):
     gen = str(psy.gen)
 
     # check the first argument is a colourmap lookup
-    assert "CALL testkern_operator_code(cmap(colour, cell), nlayers" in gen
+    assert "CALL testkern_operator_code(cmap(colour,cell), nlayers" in gen
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -313,16 +312,16 @@ def test_colour_trans_cma_operator(tmpdir, dist_mem):
         f"        DO cell=loop1_start,{lookup}\n"
         f"          !\n"
         f"          CALL columnwise_op_asm_field_kernel_code("
-        f"cmap(colour, ") in gen
+        f"cmap(colour,") in gen
 
     assert (
-        "          CALL columnwise_op_asm_field_kernel_code(cmap(colour, "
+        "          CALL columnwise_op_asm_field_kernel_code(cmap(colour,"
         "cell), nlayers, ncell_2d, afield_proxy%data, "
         "lma_op1_proxy%ncell_3d, lma_op1_proxy%local_stencil, "
         "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, "
         "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
         "ndf_aspc1_afield, undf_aspc1_afield, "
-        "map_aspc1_afield(:,cmap(colour, cell)), cbanded_map_aspc1_afield, "
+        "map_aspc1_afield(:,cmap(colour,cell)), cbanded_map_aspc1_afield, "
         "ndf_aspc2_lma_op1, cbanded_map_aspc2_lma_op1)\n"
         "        END DO\n"
         "      END DO\n") in gen
@@ -351,11 +350,11 @@ def test_colour_trans_stencil(dist_mem, tmpdir):
     # Check that we index the stencil dofmap appropriately
     assert (
         "          CALL testkern_stencil_code(nlayers, f1_proxy%data, "
-        "f2_proxy%data, f2_stencil_size(cmap(colour, cell)), "
-        "f2_stencil_dofmap(:,:,cmap(colour, cell)), f3_proxy%data, "
-        "f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cmap(colour, cell)), "
-        "ndf_w2, undf_w2, map_w2(:,cmap(colour, cell)), ndf_w3, "
-        "undf_w3, map_w3(:,cmap(colour, cell)))" in gen)
+        "f2_proxy%data, f2_stencil_size(cmap(colour,cell)), "
+        "f2_stencil_dofmap(:,:,cmap(colour,cell)), f3_proxy%data, "
+        "f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cmap(colour,cell)), "
+        "ndf_w2, undf_w2, map_w2(:,cmap(colour,cell)), ndf_w3, "
+        "undf_w3, map_w3(:,cmap(colour,cell)))" in gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -387,8 +386,8 @@ def test_colour_trans_adjacent_face(dist_mem, tmpdir):
     # Check that we index the adjacent face dofmap appropriately
     assert (
         "CALL testkern_mesh_prop_code(nlayers, a, f1_proxy%data, ndf_w1, "
-        "undf_w1, map_w1(:,cmap(colour, cell)), nfaces_re_h, "
-        "adjacent_face(:,cmap(colour, cell))" in gen)
+        "undf_w1, map_w1(:,cmap(colour,cell)), nfaces_re_h, "
+        "adjacent_face(:,cmap(colour,cell))" in gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -599,44 +598,6 @@ def test_omp_colouring_needed(monkeypatch, annexed, dist_mem):
     assert "Error in Dynamo0p3OMPLoopTrans transfo" in str(excinfo.value)
     assert "kernel has an argument with INC access" in str(excinfo.value)
     assert "Colouring is required" in str(excinfo.value)
-
-
-def test_check_seq_colours_omp_parallel_do(monkeypatch, annexed, dist_mem):
-    '''Test that we raise an error if the user attempts to apply an OpenMP
-    PARALLEL DO transformation to a loop over colours (since any such
-    loop must be sequential). We test when distributed memory is on or
-    off. We also test when annexed is False and True as it affects how
-    many halo exchanges are generated.
-
-    '''
-    config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
-    _, invoke = get_invoke("1.1.0_single_invoke_xyoz_qr.f90", TEST_API,
-                           name="invoke_0_testkern_qr_type",
-                           dist_mem=dist_mem)
-    schedule = invoke.schedule
-    if dist_mem:
-        if annexed:
-            index = 3
-        else:
-            index = 4
-    else:
-        index = 0
-
-    ctrans = Dynamo0p3ColourTrans()
-    otrans = DynamoOMPParallelLoopTrans()
-
-    # Colour the loop
-    ctrans.apply(schedule.children[index])
-
-    # Then erroneously attempt to apply OpenMP to the loop over
-    # colours
-    with pytest.raises(TransformationError) as excinfo:
-        otrans.apply(schedule.children[index])
-    assert "Error in DynamoOMPParallelLoopTrans" in str(excinfo.value)
-    assert "target loop is over colours" in str(excinfo.value)
-    assert "must be computed serially" in str(excinfo.value)
 
 
 def test_check_seq_colours_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
@@ -1311,10 +1272,10 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
         f"          !\n"
         f"          CALL ru_code(nlayers, a_proxy%data, b_proxy%data, "
         f"istp, rdt, d_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
-        f"e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour, "
+        f"e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour,"
         f"cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
-        f"map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
-        f"map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
+        f"map_w3(:,cmap(colour,cell)), basis_w3_qr, ndf_w0, undf_w0, "
+        f"map_w0(:,cmap(colour,cell)), basis_w0_qr, diff_basis_w0_qr, "
         f"np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
         f"        END DO\n"
         f"        !$omp end do\n"
@@ -1323,10 +1284,10 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
         f"          !\n"
         f"          CALL ru_code(nlayers, f_proxy%data, b_proxy%data, "
         f"istp, rdt, d_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
-        f"e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour, "
+        f"e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour,"
         f"cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
-        f"map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
-        f"map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
+        f"map_w3(:,cmap(colour,cell)), basis_w3_qr, ndf_w0, undf_w0, "
+        f"map_w0(:,cmap(colour,cell)), basis_w0_qr, diff_basis_w0_qr, "
         f"np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
         f"        END DO\n"
         f"        !$omp end do\n"
@@ -3642,8 +3603,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
     call = colored("BuiltIn", BuiltIn._colour)
     sched = colored("Schedule", Schedule._colour)
     lit = colored("Literal", Literal._colour)
-    lit_uninit = (lit + "[value:'NOT_INITIALISED', Scalar<INTEGER, "
-                  "UNDEFINED>]\n")
+    ref = colored("Reference", Reference._colour)
     lit_one = lit + "[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
     indent = "    "
 
@@ -3669,8 +3629,10 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
-            6*indent + lit_uninit +
-            6*indent + lit_uninit +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " x_innerproduct_y(asum,f1,f2)\n" +
@@ -3684,8 +3646,10 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
             "upper_bound='nannexed']\n" +
-            6*indent + lit_uninit +
-            6*indent + lit_uninit +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " inc_a_times_x(asum,f1)\n" +
@@ -3698,8 +3662,10 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
-            6*indent + lit_uninit +
-            6*indent + lit_uninit +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " sum_x(bsum,f2)\n" +
@@ -3718,8 +3684,10 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
-            6*indent + lit_uninit +
-            6*indent + lit_uninit +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " x_innerproduct_y(asum,f1,f2)\n" +
@@ -3732,8 +3700,10 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
-            6*indent + lit_uninit +
-            6*indent + lit_uninit +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " inc_a_times_x(asum,f1)\n" +
@@ -3746,8 +3716,10 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
-            6*indent + lit_uninit +
-            6*indent + lit_uninit +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " sum_x(bsum,f2)\n" +
@@ -3806,7 +3778,7 @@ def test_list_multiple_reductions(dist_mem):
     arg._argument_type = "gh_scalar"
     arg.descriptor._access = AccessType.SUM
     result = omp_loop_directive._reduction_string()
-    assert " reduction(+:asum), reduction(+:f2)" in result
+    assert "reduction(+:asum), reduction(+:f2)" in result
 
 
 def test_move_name():
@@ -5613,9 +5585,9 @@ def test_rc_then_colour(tmpdir):
         "          !\n"
         "          CALL testkern_code(nlayers, a, f1_proxy%data,"
         " f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
-        "map_w1(:,cmap(colour, cell)), ndf_w2, undf_w2, "
-        "map_w2(:,cmap(colour, cell)), ndf_w3, undf_w3, "
-        "map_w3(:,cmap(colour, cell)))\n" in result)
+        "map_w1(:,cmap(colour,cell)), ndf_w2, undf_w2, "
+        "map_w2(:,cmap(colour,cell)), ndf_w3, undf_w3, "
+        "map_w3(:,cmap(colour,cell)))\n" in result)
 
     assert (
         "      CALL f1_proxy%set_dirty()\n"
@@ -6213,10 +6185,10 @@ def test_intergrid_colour(dist_mem):
     assert expected in gen
     expected = (
         "          call prolong_test_kernel_code(nlayers, cell_map_fld_m"
-        "(:,:,cmap_fld_m(colour, cell)), ncpc_fld_f_fld_m_x, "
+        "(:,:,cmap_fld_m(colour,cell)), ncpc_fld_f_fld_m_x, "
         "ncpc_fld_f_fld_m_y, ncell_fld_f, fld_f_proxy%data, fld_m_proxy%data, "
         "ndf_w1, undf_w1, map_w1, undf_w2, "
-        "map_w2(:,cmap_fld_m(colour, cell)))\n")
+        "map_w2(:,cmap_fld_m(colour,cell)))\n")
     assert expected in gen
 
 
@@ -6333,10 +6305,10 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
             f"        DO cell=loop1_start,{upper_bound}\n"
             f"          !\n"
             f"          CALL prolong_test_kernel_code(nlayers, cell_map_fld_c"
-            f"(:,:,cmap_fld_c(colour, cell)), ncpc_fld_m_fld_c_x, "
+            f"(:,:,cmap_fld_c(colour,cell)), ncpc_fld_m_fld_c_x, "
             f"ncpc_fld_m_fld_c_y, ncell_fld_m, "
             f"fld_m_proxy%data, fld_c_proxy%data, ndf_w1, undf_w1, map_w1, "
-            f"undf_w2, map_w2(:,cmap_fld_c(colour, cell)))\n"
+            f"undf_w2, map_w2(:,cmap_fld_c(colour,cell)))\n"
             f"        END DO\n"
             f"        !$omp end do\n"
             f"        !$omp end parallel\n"

@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #          J. Henrichs, Bureau of Meteorology
 #          I. Kavcic, Met Office
 # -----------------------------------------------------------------------------
@@ -41,24 +41,25 @@
 
 from collections import OrderedDict
 import os
-import six
 
 from fparser.two import Fortran2003, utils
 from fparser.two.utils import walk, BlockBase, StmtBase
 from psyclone.errors import InternalError, GenerationError
-from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
-    NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
-    Container, Assignment, Return, ArrayReference, Node, Range, \
-    KernelSchedule, StructureReference, ArrayOfStructuresReference, \
-    Call, Routine, Member, FileContainer, Directive, ArrayMember
+from psyclone.psyir.nodes import (
+    UnaryOperation, BinaryOperation, NaryOperation, Schedule, CodeBlock,
+    IfBlock, Reference, Literal, Loop, Container, Assignment, Return, Node,
+    ArrayReference, Range, StructureReference, Routine, Call, Member,
+    ArrayOfStructuresReference, FileContainer, Directive, ArrayMember,
+    IntrinsicCall)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_of_structures_mixin import \
     ArrayOfStructuresMixin
-from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
-    Symbol, ImportInterface, ArgumentInterface, UnresolvedInterface, \
-    LocalInterface, ScalarType, ArrayType, DeferredType, UnknownType, \
-    UnknownFortranType, StructureType, DataTypeSymbol, RoutineSymbol, \
-    SymbolTable, NoType, INTEGER_TYPE
+from psyclone.psyir.symbols import (
+    SymbolError, DataSymbol, ContainerSymbol, Symbol, ImportInterface,
+    ArgumentInterface, UnresolvedInterface, LocalInterface, ScalarType,
+    ArrayType, DeferredType, UnknownType, UnknownFortranType, StructureType,
+    DataTypeSymbol, RoutineSymbol, SymbolTable, NoType, INTEGER_TYPE,
+    IntrinsicSymbol)
 
 # fparser dynamically generates classes which confuses pylint membership checks
 # pylint: disable=maybe-no-member
@@ -576,12 +577,12 @@ def _kind_find_or_create(name, symbol_table):
                 f"'{lower_name}'.")
     except KeyError:
         # The SymbolTable does not contain an entry for this kind parameter
-        # so create one. We specify an UnresolvedInterface as we don't
-        # currently know how this symbol is brought into scope.
-        kind_symbol = DataSymbol(lower_name, default_integer_type(),
-                                 visibility=symbol_table.default_visibility,
-                                 interface=UnresolvedInterface())
-        symbol_table.add(kind_symbol)
+        # so look to see if it is imported and if not create one.
+        kind_symbol = _find_or_create_imported_symbol(
+            symbol_table.node, lower_name,
+            symbol_type=DataSymbol,
+            datatype=default_integer_type(),
+            visibility=symbol_table.default_visibility)
     return kind_symbol
 
 
@@ -792,7 +793,7 @@ def _create_struct_reference(parent, base_ref, base_symbol, members,
     # members making up this structure access.
     new_members = []
     for member in members:
-        if isinstance(member, six.string_types):
+        if isinstance(member, str):
             new_members.append(member)
         elif isinstance(member, tuple):
             # Second member of the tuple is a list of index expressions
@@ -916,8 +917,11 @@ class Fparser2Reader():
     def __init__(self):
         # Map of fparser2 node types to handlers (which are class methods)
         self.handlers = {
+            Fortran2003.Allocate_Stmt: self._allocate_handler,
+            Fortran2003.Allocate_Shape_Spec: self._allocate_shape_spec_handler,
             Fortran2003.Assignment_Stmt: self._assignment_handler,
             Fortran2003.Data_Ref: self._data_ref_handler,
+            Fortran2003.Deallocate_Stmt: self._deallocate_handler,
             Fortran2003.Function_Subprogram: self._subroutine_handler,
             Fortran2003.Name: self._name_handler,
             Fortran2003.Parenthesis: self._parenthesis_handler,
@@ -987,19 +991,6 @@ class Fparser2Reader():
         parent.addchild(code_block)
         del fp2_nodes[:]
         return code_block
-
-    @staticmethod
-    def _create_schedule(name):
-        '''
-        Create an empty KernelSchedule.
-
-        :param str name: Name of the subroutine represented by the kernel.
-
-        :returns: New KernelSchedule empty object.
-        :rtype: py:class:`psyclone.psyir.nodes.KernelSchedule`
-
-        '''
-        return KernelSchedule(name)
 
     def generate_psyir(self, parse_tree):
         '''Translate the supplied fparser2 parse_tree into PSyIR.
@@ -1080,94 +1071,72 @@ class Fparser2Reader():
 
         return new_container
 
-    def generate_schedule(self, name, module_ast, container=None):
-        '''Create a Schedule from the supplied fparser2 AST.
-
-        TODO #737. Currently this routine is also used to create a
-        NemoInvokeSchedule from NEMO source code (hence the optional,
-        'container' argument).  This routine needs re-naming and
-        re-writing so that it *only* creates the PSyIR for a
-        subroutine.
+    def get_routine_schedules(self, name, module_ast):
+        '''Create one or more schedules for routines corresponding to the
+        supplied name in the supplied fparser2 AST. (There can be more than
+        one routine if the supplied name corresponds to an interface block
+        in the AST.)
 
         :param str name: name of the subroutine represented by the kernel.
         :param module_ast: fparser2 AST of the full module where the kernel \
                            code is located.
         :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
-        :param container: the parent Container node associated with this \
-                          Schedule (if any).
-        :type container: :py:class:`psyclone.psyir.nodes.Container`
 
-        :returns: PSyIR schedule representing the kernel.
-        :rtype: :py:class:`psyclone.psyir.nodes.KernelSchedule`
+        :returns: PSyIR schedules representing the matching subroutine(s).
+        :rtype: List[:py:class:`psyclone.psyir.nodes.KernelSchedule`]
 
+        :raises GenerationError: if supplied parse tree contains more than \
+                                 one module.
         :raises GenerationError: unable to generate a kernel schedule from \
                                  the provided fpaser2 parse tree.
 
         '''
-        new_schedule = self._create_schedule(name)
+        psyir = self.generate_psyir(module_ast)
+        lname = name.lower()
 
-        routines = walk(module_ast, (Fortran2003.Subroutine_Subprogram,
-                                     Fortran2003.Main_Program,
-                                     Fortran2003.Function_Subprogram))
-        for routine in routines:
-            if isinstance(routine, Fortran2003.Function_Subprogram):
-                # TODO fparser/#225 Function_Stmt does not have a get_name()
-                # method. Once it does we can remove this branch.
-                routine_name = str(routine.children[0].children[1])
-            else:
-                routine_name = str(routine.children[0].get_name())
-            if routine_name == name:
-                subroutine = routine
+        containers = [ctr for ctr in psyir.walk(Container) if
+                      not isinstance(ctr, FileContainer)]
+        if not containers:
+            raise GenerationError(
+                f"The parse tree supplied to get_routine_schedules() must "
+                f"contain a single module but found none when searching for "
+                f"kernel '{name}'.")
+        if len(containers) > 1:
+            raise GenerationError(
+                f"The parse tree supplied to get_routine_schedules() must "
+                f"contain a single module but found more than one "
+                f"({[ctr.name for ctr in containers]}) when searching for "
+                f"kernel '{name}'.")
+        container = containers[0]
+
+        # Check for an interface block
+        actual_names = []
+        interfaces = walk(module_ast, Fortran2003.Interface_Block)
+
+        for interface in interfaces:
+            if interface.children[0].children[0].string.lower() == lname:
+                # We have an interface block with the name of the routine
+                # we are searching for.
+                procs = walk(interface, Fortran2003.Procedure_Stmt)
+                for proc in procs:
+                    for child in proc.children[0].children:
+                        actual_names.append(child.string.lower())
                 break
-        else:
-            raise GenerationError(f"Unexpected kernel AST. Could not find "
-                                  f"subroutine: {name}")
+        if not actual_names:
+            # No interface block was found so we proceed to search for a
+            # routine with the original name that we were passed.
+            actual_names = [lname]
 
-        # Check whether or not we need to create a Container for this schedule
-        # TODO #737 this routine should just be creating a Subroutine, not
-        # attempting to create a Container too. Perhaps it should be passed
-        # a reference to the parent Container object.
-        if not container:
-            # Is the routine enclosed within a module?
-            current = subroutine.parent
-            while current:
-                if isinstance(current, Fortran2003.Module):
-                    # We have a parent module so create a Container
-                    container = self.generate_container(current)
-                    break
-                current = current.parent
-        if container:
-            container.children.append(new_schedule)
+        routines = container.walk(Routine)
+        selected_routines = [routine for routine in routines
+                             if routine.name.lower() in actual_names]
 
-        try:
-            sub_spec = _first_type_match(subroutine.content,
-                                         Fortran2003.Specification_Part)
-            decl_list = sub_spec.content
-            # TODO this if test can be removed once fparser/#211 is fixed
-            # such that routine arguments are always contained in a
-            # Dummy_Arg_List, even if there's only one of them.
-            if isinstance(subroutine, Fortran2003.Subroutine_Subprogram) and \
-               isinstance(subroutine.children[0].children[2],
-                          Fortran2003.Dummy_Arg_List):
-                arg_list = subroutine.children[0].children[2].children
-            else:
-                # Routine has no arguments
-                arg_list = []
-        except ValueError:
-            # Subroutine without declarations, continue with empty lists.
-            decl_list = []
-            arg_list = []
-        self.process_declarations(new_schedule, decl_list, arg_list)
+        if not selected_routines:
+            raise GenerationError(
+                f"Could not find subroutine or interface '{name}' in the "
+                f"module '{container.name}'.")
 
-        try:
-            sub_exec = _first_type_match(subroutine.content,
-                                         Fortran2003.Execution_Part)
-        except ValueError:
-            pass
-        else:
-            self.process_nodes(new_schedule, sub_exec.content)
-
-        return new_schedule
+        return selected_routines
 
     @staticmethod
     def _parse_dimensions(dimensions, symbol_table):
@@ -1579,7 +1548,8 @@ class Fparser2Reader():
                 # We do but we didn't know what kind of symbol it was. Create
                 # a DataTypeSymbol to replace it.
                 new_symbol = DataTypeSymbol(type_name, DeferredType(),
-                                            interface=type_symbol.interface)
+                                            interface=type_symbol.interface,
+                                            visibility=type_symbol.visibility)
                 table = type_symbol.find_symbol_table(parent)
                 table.swap(type_symbol, new_symbol)
                 type_symbol = new_symbol
@@ -2324,6 +2294,97 @@ class Fparser2Reader():
         '''
         return None
 
+    def _allocate_handler(self, node, parent):
+        '''
+        Transforms an fparser2 Allocate_Stmt into its PSyIR form.
+
+        :param node: node in fparser2 tree.
+        :type node: :py:class:`fparser.two.Fortran2003.Allocate_Stmt`
+        :param parent: parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyir.nodes.Schedule`
+
+        :returns: PSyIR representation of an allocate.
+        :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+
+        '''
+        call = IntrinsicCall(
+            IntrinsicSymbol(IntrinsicCall.Intrinsic.ALLOCATE.name),
+            parent=parent)
+
+        alloc_list = node.children[1].children
+        # Loop over each 'Allocation' in the 'Allocation_List'
+        for alloc in alloc_list:
+            # Currently fparser produces an incorrect parse tree if 'mold' is
+            # specified - there is no Allocate object, just the bare Name or
+            # Data_Ref. This is the subject of fparser/#383.
+            if isinstance(alloc, (Fortran2003.Name, Fortran2003.Data_Ref)):
+                # If the allocate() has a 'mold' argument then its positional
+                # argument(s) is/are just references without any shape
+                # information.
+                self.process_nodes(parent=call, nodes=[alloc])
+            else:
+                # We have an Allocation(name, Allocate_Shape_Spec_List)
+                self.process_nodes(parent=call,
+                                   nodes=[alloc.children[0]])
+                cursor = call.children[-1]
+                while hasattr(cursor, "member"):
+                    cursor = cursor.member
+                if isinstance(cursor, Member):
+                    # Convert Member to ArrayMember.
+                    aref = ArrayMember(cursor.name)
+                else:
+                    # Convert Reference to ArrayReference.
+                    aref = ArrayReference(cursor.symbol)
+                cursor.replace_with(aref)
+                # Handle the index expressions (each of which is represented
+                # by an Allocate_Shape_Spec).
+                for shape_spec in walk(alloc,
+                                       Fortran2003.Allocate_Shape_Spec):
+                    self.process_nodes(parent=aref, nodes=[shape_spec])
+
+        # Handle any options to the allocate()
+        opt_list = walk(node, Fortran2003.Alloc_Opt)
+        for opt in opt_list:
+            self.process_nodes(parent=call, nodes=opt.children[1:])
+            call.append_named_arg(opt.children[0], call.children[-1].detach())
+
+        # Point to the original statement in the parse tree.
+        call.ast = node
+
+        return call
+
+    def _allocate_shape_spec_handler(self, node, parent):
+        '''
+        Creates a Range node describing the supplied Allocate_Shape_Spec.
+        This is similar to the subscript_triplet handler except that the
+        default lower bound is unity and the step is also unity.
+
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.Fortran2003.Allocate_Shape_Spec`
+        :param parent: parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyir.nodes.Reference`
+
+        :returns: PSyIR of fparser2 node.
+        :rtype: :py:class:`psyclone.psyir.nodes.Range`
+
+        '''
+        my_range = Range(parent=parent)
+        my_range.children = []
+        integer_type = default_integer_type()
+
+        if node.children[0]:
+            self.process_nodes(parent=my_range, nodes=[node.children[0]])
+        else:
+            # Default lower bound in Fortran is 1
+            my_range.addchild(Literal("1", integer_type))
+
+        self.process_nodes(parent=my_range, nodes=[node.children[1]])
+
+        # Step is always 1.
+        my_range.addchild(Literal("1", integer_type))
+
+        return my_range
+
     def _create_loop(self, parent, variable):
         '''
         Create a Loop instance. This is done outside _do_construct_handler
@@ -2340,9 +2401,40 @@ class Fparser2Reader():
         '''
         return Loop(parent=parent, variable=variable)
 
+    def _deallocate_handler(self, node, parent):
+        '''
+        Transforms a deallocate() statement into its PSyIR form.
+
+        :param node: node in fparser2 tree.
+        :type node: :py:class:`fparser.two.Fortran2003.Deallocate_Stmt`
+        :param parent: parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyir.nodes.Schedule`
+
+        :returns: PSyIR for a deallocate.
+        :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+
+        '''
+        call = IntrinsicCall(
+            IntrinsicSymbol(IntrinsicCall.Intrinsic.DEALLOCATE.name),
+            parent=parent)
+        dealloc_list = node.children[0].children
+        for dealloc in dealloc_list:
+            self.process_nodes(parent=call, nodes=[dealloc])
+
+        # Handle any options to the deallocate()
+        opt_list = walk(node, Fortran2003.Dealloc_Opt)
+        for opt in opt_list:
+            self.process_nodes(parent=call, nodes=opt.children[1:])
+            call.append_named_arg(opt.children[0], call.children[-1].detach())
+
+        # Point to the original statement in the parse tree.
+        call.ast = node
+
+        return call
+
     def _do_construct_handler(self, node, parent):
         '''
-        Transforms a fparser2 Do Construct into its PSyIR representation.
+        Transforms a fparser2 Do Construct into its PSyIR form.
 
         :param node: node in fparser2 tree.
         :type node: \
@@ -3586,7 +3678,7 @@ class Fparser2Reader():
         :param parent: parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
-        :returns: PSyIR representation of node.
+        :returns: PSyIR of fparser2 node.
         :rtype: :py:class:`psyclone.psyir.nodes.Range`
 
         :raises InternalError: if the supplied parent node is not a sub-class \
@@ -3667,7 +3759,6 @@ class Fparser2Reader():
         :raises NotImplementedError: if the fparser2 node is not recognised.
 
         '''
-        # pylint: disable=no-self-use
         if isinstance(node, Fortran2003.Int_Literal_Constant):
             integer_type = ScalarType(ScalarType.Intrinsic.INTEGER,
                                       get_literal_precision(node, parent))
@@ -3705,7 +3796,6 @@ class Fparser2Reader():
         :rtype: :py:class:`psyclone.psyir.nodes.Literal`
 
         '''
-        # pylint: disable=no-self-use
         character_type = ScalarType(ScalarType.Intrinsic.CHARACTER,
                                     get_literal_precision(node, parent))
         # fparser issue #295 - the value of the character string currently
@@ -3740,7 +3830,6 @@ class Fparser2Reader():
         :rtype: :py:class:`psyclone.psyir.nodes.Literal`
 
         '''
-        # pylint: disable=no-self-use
         boolean_type = ScalarType(ScalarType.Intrinsic.BOOLEAN,
                                   get_literal_precision(node, parent))
         value = str(node.items[0]).lower()

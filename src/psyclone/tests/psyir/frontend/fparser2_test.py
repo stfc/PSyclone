@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -58,11 +58,11 @@ from psyclone.psyir.frontend.fparser2 import (
 from psyclone.psyir.nodes import (
     Schedule, CodeBlock, Assignment, Return,
     UnaryOperation, BinaryOperation, NaryOperation, IfBlock, Reference,
-    ArrayReference, Container, Literal, Range, KernelSchedule,
-    RegionDirective, StandaloneDirective, StructureReference,
+    ArrayReference, Literal, Range, KernelSchedule,
+    RegionDirective, Routine, StandaloneDirective, StructureReference,
     ArrayOfStructuresReference)
 from psyclone.psyir.symbols import (
-    DataSymbol, ContainerSymbol, SymbolTable, RoutineSymbol, ArgumentInterface,
+    DataSymbol, ContainerSymbol, SymbolTable, ArgumentInterface,
     SymbolError, ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE,
     UnknownFortranType, DeferredType, Symbol, UnresolvedInterface,
     ImportInterface, BOOLEAN_TYPE)
@@ -462,63 +462,63 @@ def test_array_notation_rank():
             "supported." in str(excinfo.value))
 
 
-def test_generate_schedule_empty_subroutine(parser):
-    ''' Tests the fp2Reader generate_schedule method with an empty
+def test_get_routine_schedules_wrong_module(parser):
+    '''Test that get_routine_schedules() raises the expected errors if there
+    are no or too many modules in the supplied parse tree.'''
+    reader = FortranStringReader("subroutine mine()\n"
+                                 "end subroutine mine\n")
+    ast = parser(reader)
+    processor = Fparser2Reader()
+    # Test without a module.
+    with pytest.raises(GenerationError) as err:
+        _ = processor.get_routine_schedules("dummy_code", ast)
+    assert ("The parse tree supplied to get_routine_schedules() must contain "
+            "a single module but found none when searching for kernel "
+            "'dummy_code'" in str(err.value))
+    reader = FortranStringReader("module my_mod1\n"
+                                 "contains\n"
+                                 "  subroutine mine()\n"
+                                 "  end subroutine mine\n"
+                                 "end module my_mod1\n"
+                                 "module my_mod2\n"
+                                 "end module my_mod2\n")
+    ast = parser(reader)
+    # Test with two modules.
+    with pytest.raises(GenerationError) as err:
+        _ = processor.get_routine_schedules("dummy_code", ast)
+    assert ("The parse tree supplied to get_routine_schedules() must contain "
+            "a single module but found more than one (['my_mod1', 'my_mod2']) "
+            "when searching for kernel 'dummy_code'" in str(err.value))
+
+
+def test_get_routine_schedules_empty_subroutine(parser):
+    ''' Tests the fp2Reader get_routine_schedules method with an empty
     subroutine.
     '''
     reader = FortranStringReader(FAKE_KERNEL_METADATA)
     ast = parser(reader)
     processor = Fparser2Reader()
     # Test properly formed but empty kernel schedule
-    schedule = processor.generate_schedule("dummy_code", ast)
-    assert isinstance(schedule, KernelSchedule)
-
-    # Test that the container is created correctly
-    assert isinstance(schedule.parent, Container)
-    container = schedule.parent
-    assert len(container.children) == 1
-    assert container.children[0] is schedule
-    assert container.name == "dummy_mod"
-    rsym = container.symbol_table.lookup("dummy_code")
-    assert isinstance(rsym, RoutineSymbol)
+    schedule = processor.get_routine_schedules("dummy_code", ast)[0]
+    assert isinstance(schedule, Routine)
+    assert schedule.name == "dummy_code"
 
     # Test that we get an error for a nonexistent subroutine name
     with pytest.raises(GenerationError) as error:
-        schedule = processor.generate_schedule("nonexistent_code", ast)
-    assert "Unexpected kernel AST. Could not find " \
-           "subroutine: nonexistent_code" in str(error.value)
+        _ = processor.get_routine_schedules("nonexistent_code", ast)
+    assert ("Could not find subroutine or interface 'nonexistent_code' in the "
+            "module 'dummy_mod'" in str(error.value))
 
     # Test corrupting ast by deleting subroutine
     del ast.content[0].content[2]
     with pytest.raises(GenerationError) as error:
-        schedule = processor.generate_schedule("dummy_code", ast)
-    assert "Unexpected kernel AST. Could not find " \
-           "subroutine: dummy_code" in str(error.value)
+        schedule = processor.get_routine_schedules("dummy_code", ast)
+    assert ("Could not find subroutine or interface 'dummy_code' in the "
+            "module 'dummy_mod'" in str(error.value))
 
 
-def test_generate_schedule_module_decls(parser):
-    '''Test that the generate_schedule method in the Fparser2Reader class
-    stores module variables in the generated container's symbol table.
-
-    '''
-    input_code = FAKE_KERNEL_METADATA.replace(
-        "  end type dummy_type\n",
-        "  end type dummy_type\n"
-        "  real :: scalar1\n"
-        "  real :: array1(10,10,10)\n")
-    reader = FortranStringReader(input_code)
-    ast = parser(reader)
-    processor = Fparser2Reader()
-    schedule = processor.generate_schedule("dummy_code", ast)
-    symbol_table = schedule.parent.symbol_table
-    assert isinstance(symbol_table, SymbolTable)
-    assert isinstance(symbol_table.lookup("scalar1"), DataSymbol)
-    assert isinstance(symbol_table.lookup("array1"), DataSymbol)
-    assert isinstance(symbol_table.lookup("dummy_code"), RoutineSymbol)
-
-
-def test_generate_schedule_dummy_subroutine(parser):
-    ''' Tests the fparser2Reader generate_schedule method with a simple
+def test_get_routine_schedules_dummy_subroutine(parser):
+    ''' Tests the fparser2Reader get_routine_schedules method with a simple
     subroutine.
     '''
     dummy_kernel_metadata = '''
@@ -547,19 +547,21 @@ def test_generate_schedule_dummy_subroutine(parser):
     ast = parser(reader)
     processor = Fparser2Reader()
     # Test properly formed kernel module
-    schedule = processor.generate_schedule("dummy_code", ast)
-    assert isinstance(schedule, KernelSchedule)
+    schedules = processor.get_routine_schedules("dummy_code", ast)
+    assert len(schedules) == 1
+    assert isinstance(schedules[0], Routine)
 
     # Test that a kernel subroutine without Execution_Part still creates a
     # valid KernelSchedule
     del ast.content[0].content[2].content[1].content[2]
-    schedule = processor.generate_schedule("dummy_code", ast)
-    assert isinstance(schedule, KernelSchedule)
-    assert not schedule.children
+    schedules = processor.get_routine_schedules("dummy_code", ast)
+    assert len(schedules) == 1
+    assert isinstance(schedules[0], Routine)
+    assert not schedules[0].children
 
 
-def test_generate_schedule_no_args_subroutine(parser):
-    ''' Tests the fparser2Reader generate_schedule method with a simple
+def test_get_routine_schedules_no_args_subroutine(parser):
+    ''' Tests the fparser2Reader get_routine_schedule method with a simple
     subroutine with no arguments.
     '''
     dummy_kernel_metadata = '''
@@ -586,13 +588,13 @@ def test_generate_schedule_no_args_subroutine(parser):
     ast = parser(reader)
     processor = Fparser2Reader()
     # Test kernel with no arguments, should still proceed
-    schedule = processor.generate_schedule("dummy_code", ast)
-    assert isinstance(schedule, KernelSchedule)
+    schedules = processor.get_routine_schedules("dummy_code", ast)
+    assert isinstance(schedules[0], Routine)
     # TODO: In the future we could validate that metadata matches
     # the kernel arguments, then this test would fail. Issue #288
 
 
-def test_generate_schedule_unmatching_arguments(parser):
+def test_get_routine_schedules_unmatching_arguments(parser):
     ''' Tests the fparser2Reader generate_schedule with unmatching kernel
     arguments and declarations raises the appropriate exception.
     '''
@@ -623,7 +625,7 @@ def test_generate_schedule_unmatching_arguments(parser):
     processor = Fparser2Reader()
     # Test exception for unmatching argument list
     with pytest.raises(InternalError) as error:
-        _ = processor.generate_schedule("dummy_code", ast)
+        _ = processor.get_routine_schedules("dummy_code", ast)
     assert ("PSyclone internal error: The kernel argument list:\n"
             "'['f1', 'f2', 'f3', 'f4']'\n"
             "does not match the variable declarations:\n"
@@ -634,6 +636,54 @@ def test_generate_schedule_unmatching_arguments(parser):
             "Symbol Table.\"." in str(error.value))
 
 
+@pytest.mark.parametrize("interface_code",
+                         ["        module procedure dummy_code_32\n"
+                          "        module procedure dummy_CODE_64\n",
+                          "        module procedure dummy_code_32, "
+                          "dummy_codE_64\n",
+                          "        procedure dummy_code_32\n"
+                          "        procedure Dummy_Code_64\n"])
+def test_get_routine_schedules_interface(interface_code, parser):
+    '''
+    Test that get_routine_schedules returns a schedule for each routine named
+    in an interface. We test various ways of specifying the procedures in
+    an interface.
+
+    '''
+    dummy_kernel_metadata = f'''
+    module dummy_mod
+      use kernel_mod
+      type, extends(kernel_type) :: dummy_type
+         type(arg_type) meta_args(3) =                              &
+              (/ arg_type(gh_field, gh_real, gh_write,     w3),     &
+                 arg_type(gh_field, gh_real, gh_readwrite, wtheta), &
+                 arg_type(gh_field, gh_real, gh_inc,       w1)      &
+               /)
+         integer :: operates_on = cell_column
+      end type dummy_type
+
+      interface dummy_code
+        {interface_code}
+      end interface dummy_code
+
+    contains
+     subroutine dummy_CODE_32(f1)
+        real*4, dimension(:,:), intent(in)  :: f1
+      end subroutine dummy_code_32
+     subroutine dummy_code_64(f1)
+        real*8, dimension(:,:), intent(in)  :: f1
+      end subroutine dummy_code_64
+    end module dummy_mod
+    '''
+    reader = FortranStringReader(dummy_kernel_metadata)
+    ast = parser(reader)
+    processor = Fparser2Reader()
+    scheds = processor.get_routine_schedules("dummy_code", ast)
+    assert len(scheds) == 2
+    assert scheds[0].name.lower() == "dummy_code_32"
+    assert scheds[1].name.lower() == "dummy_code_64"
+
+
 @pytest.mark.usefixtures("f2008_parser")
 def test_process_declarations():
     '''Test that process_declarations method of Fparser2Reader
@@ -642,13 +692,14 @@ def test_process_declarations():
 
     '''
     fake_parent = KernelSchedule("dummy_schedule")
+    symtab = fake_parent.symbol_table
     processor = Fparser2Reader()
 
     # Test simple declarations
     reader = FortranStringReader("integer :: l1")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    l1_var = fake_parent.symbol_table.lookup("l1")
+    l1_var = symtab.lookup("l1")
     assert l1_var.name == 'l1'
     assert isinstance(l1_var.datatype, ScalarType)
     assert l1_var.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
@@ -658,7 +709,7 @@ def test_process_declarations():
     reader = FortranStringReader("Real      ::      l2")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    l2_var = fake_parent.symbol_table.lookup("l2")
+    l2_var = symtab.lookup("l2")
     assert l2_var.name == "l2"
     assert isinstance(l2_var.datatype, ScalarType)
     assert l2_var.datatype.intrinsic == ScalarType.Intrinsic.REAL
@@ -668,7 +719,7 @@ def test_process_declarations():
     reader = FortranStringReader("LOGICAL      ::      b")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    b_var = fake_parent.symbol_table.lookup("b")
+    b_var = symtab.lookup("b")
     assert b_var.name == "b"
     # Symbol should be public by default
     assert b_var.visibility == Symbol.Visibility.PUBLIC
@@ -681,21 +732,18 @@ def test_process_declarations():
     reader = FortranStringReader("real, public :: p2")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert (fake_parent.symbol_table.lookup("p2").visibility ==
-            Symbol.Visibility.PUBLIC)
+    assert symtab.lookup("p2").visibility == Symbol.Visibility.PUBLIC
     reader = FortranStringReader("real, private :: p3, p4")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert (fake_parent.symbol_table.lookup("p3").visibility ==
-            Symbol.Visibility.PRIVATE)
-    assert (fake_parent.symbol_table.lookup("p4").visibility ==
-            Symbol.Visibility.PRIVATE)
+    assert symtab.lookup("p3").visibility == Symbol.Visibility.PRIVATE
+    assert symtab.lookup("p4").visibility == Symbol.Visibility.PRIVATE
 
     # Initialisations of static constant values (parameters)
     reader = FortranStringReader("integer, parameter :: i1 = 1")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    newsymbol = fake_parent.symbol_table.lookup("i1")
+    newsymbol = symtab.lookup("i1")
     assert newsymbol.is_constant
     assert isinstance(newsymbol.constant_value, Literal)
     assert newsymbol.constant_value.value == "1"
@@ -703,16 +751,15 @@ def test_process_declarations():
     reader = FortranStringReader("real, parameter :: i2 = 2.2, i3 = 3.3")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("i2").constant_value.value == "2.2"
-    assert fake_parent.symbol_table.lookup("i3").constant_value.value == "3.3"
+    assert symtab.lookup("i2").constant_value.value == "2.2"
+    assert symtab.lookup("i3").constant_value.value == "3.3"
 
     # Initialisation with constant expressions
     reader = FortranStringReader("real, parameter :: i4 = 1.1, i5 = i4 * 2")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("i4").constant_value.value == "1.1"
-    assert isinstance(fake_parent.symbol_table.lookup("i5").constant_value,
-                      BinaryOperation)
+    assert symtab.lookup("i4").constant_value.value == "1.1"
+    assert isinstance(symtab.lookup("i5").constant_value, BinaryOperation)
 
     # Initialisation with a constant expression (1) and with a symbol (val1)
     reader = FortranStringReader("integer, parameter :: val1 = 1, val2 = val1")
@@ -725,6 +772,7 @@ def test_process_declarations():
         fake_parent.symbol_table.lookup("val1")
 
     # Initialisation with a complex constant expression
+    symtab.add(DataSymbol("precisionkind", INTEGER_TYPE, constant_value=4))
     reader = FortranStringReader(
         "integer, parameter :: val3 = 2 * (val1 + val2) + 2_precisionkind")
     fparser2spec = Specification_Part(reader).content[0]
@@ -771,6 +819,24 @@ def test_process_declarations_accessibility():
         visibility_map={"z": Symbol.Visibility.PRIVATE})
     zsym = sched.symbol_table.lookup("z")
     assert zsym.visibility == Symbol.Visibility.PRIVATE
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_process_multiple_access_statements():
+    ''' Check that process_access_statements handles code containing multiple
+    access statements. '''
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "PUBLIC  fjb_typ\n"
+        "private y\n"
+        "PUBLIC  fbge_ctl_typ,  fbge_typ\n"
+        "private :: x\n")
+    fparser2spec = Specification_Part(reader).content
+    _, vis_map = processor.process_access_statements(fparser2spec)
+    assert vis_map["y"] == Symbol.Visibility.PRIVATE
+    assert vis_map["x"] == Symbol.Visibility.PRIVATE
+    assert vis_map["fjb_typ"] == Symbol.Visibility.PUBLIC
+    assert vis_map["fbge_typ"] == Symbol.Visibility.PUBLIC
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -1181,42 +1247,6 @@ def test_process_not_supported_declarations():
     processor.process_declarations(fake_parent, [fparser2spec], [])
     l11sym = fake_parent.symbol_table.lookup("l11")
     assert isinstance(l11sym.datatype, UnknownFortranType)
-
-
-def test_module_function_symbol(parser):
-    ''' Check that the frontend correctly creates a new, local symbol for
-    a Function's return value. '''
-    dummy_module = '''
-    module dummy_mod
-        use mod1
-    contains
-        subroutine dummy_code(f1, f2)
-            real(wp), dimension(:,:), intent(in)  :: f1
-            real(wp), dimension(:,:), intent(out)  :: f2
-            f2 = f1 + modvar1(1)
-        end subroutine dummy_code
-        function modvar1(arg)
-            integer :: arg
-            real :: modvar1
-            modvar1 = 0.0
-        end function modvar1
-    end module dummy_mod
-    '''
-    reader = FortranStringReader(dummy_module)
-    ast = parser(reader)
-    processor = Fparser2Reader()
-    container = processor.generate_container(ast)
-    # This will result in a symbol named "modvar1" being put into
-    # the Container
-    _ = processor.generate_schedule("dummy_code", ast, container)
-    sym = container.symbol_table.lookup("modvar1")
-    assert isinstance(sym, Symbol)
-    # This should result in a new, *local* symbol named "modvar1"
-    sched = processor.generate_schedule("modvar1", ast, container)
-    # Check that the resulting Schedule has a local symbol
-    sym = sched.scope.symbol_table.lookup("modvar1", scope_limit=sched)
-    assert isinstance(sym, DataSymbol)
-    assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
 
 
 def test_process_save_attribute_declarations(parser):
@@ -1982,15 +2012,28 @@ def test_nary_op_handler_error():
             " parse tree to be an Actual_Arg_Spec_List" in str(err.value))
 
 
-@pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
+@pytest.mark.usefixtures("f2008_parser")
 def test_handling_nested_intrinsic():
     ''' Check that we correctly handle nested intrinsic functions.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
     '''
     processor = Fparser2Reader()
     fake_parent = Schedule()
+    # Declare all the symbols needed by the test code.
+    symtab = fake_parent.symbol_table
+    symtab.add(DataSymbol("jk", INTEGER_TYPE))
+    symtab.add(DataSymbol("wp", INTEGER_TYPE))
+    symtab.add(DataSymbol("rcpi", REAL_TYPE))
+    symtab.add(DataSymbol("rLfus", REAL_TYPE))
+    symtab.add(DataSymbol("ze_z", REAL_TYPE))
+    symtab.add(DataSymbol("zbbb", REAL_TYPE))
+    symtab.add(DataSymbol("zccc", REAL_TYPE))
+    symtab.add(DataSymbol("ztmelts", REAL_TYPE))
+    symtab.add(DataSymbol("e1t", UnknownFortranType("blah :: e1t")))
+    symtab.add(DataSymbol("e2t", UnknownFortranType("blah :: e2t")))
+    symtab.add(DataSymbol("zav_tide", UnknownFortranType("blah :: zav_tide")))
+    symtab.add(DataSymbol("tmask_i", UnknownFortranType("blah :: tmask_i")))
+    symtab.add(DataSymbol("wmask", UnknownFortranType("blah :: wmask")))
     reader = FortranStringReader(
         "ze_z = SUM( e1t(:,:) * e2t(:,:) * zav_tide(:,:,jk) * "
         "tmask_i(:,:) ) &\n"
@@ -2959,29 +3002,6 @@ def test_nodes_to_code_block_3():
         _ = Fparser2Reader.nodes_to_code_block(RegionDirective(), "hello")
     assert ("A CodeBlock with a Directive as parent is not yet supported."
             in str(excinfo.value))
-
-
-def test_loop_var_exception(parser):
-    '''Checks that the expected exception is raised in class
-    Fparser2Reader method generate_schedule if a loop variable is not
-    declared and there is no unqualified use statement.
-
-    '''
-    code = ('''
-      subroutine test()
-        do i=1,10
-        end do
-      end subroutine test
-    ''')
-    reader = FortranStringReader(code)
-    fparser_tree = parser(reader)
-    fparser2psyir = Fparser2Reader()
-    with pytest.raises(InternalError) as excinfo:
-        _ = fparser2psyir.generate_schedule("test", fparser_tree)
-    assert (
-        "Loop-variable name 'i' is not declared and there are no unqualified "
-        "use statements. This is currently unsupported."
-        in str(excinfo.value))
 
 
 def test_named_and_wildcard_use_var(f2008_parser):

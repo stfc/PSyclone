@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,6 @@
 from __future__ import absolute_import
 
 import abc
-import six
 
 from psyclone.core import Signature
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
@@ -52,8 +51,7 @@ from psyclone.psyir.nodes.ranges import Range
 from psyclone.errors import InternalError
 
 
-@six.add_metaclass(abc.ABCMeta)
-class ArrayOfStructuresMixin(ArrayMixin):
+class ArrayOfStructuresMixin(ArrayMixin, metaclass=abc.ABCMeta):
     '''
     Abstract class used to extend the ArrayMixin class with functionality
     common to Nodes that represent accesses to arrays of structures. The
