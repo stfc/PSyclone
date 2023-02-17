@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2022, Science and Technology Facilities Council.
+# Copyright (c) 2018-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -368,6 +368,10 @@ class Config:
         # By default we ensure that each transformed kernel is given a
         # unique name (within the specified kernel-output directory).
         self._kernel_naming = Config._default_kernel_naming
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.lfric import LFRicConstants
+        LFRicConstants.HAS_CONFIG_BEEN_INITIALISED = True
 
     def api_conf(self, api=None):
         '''

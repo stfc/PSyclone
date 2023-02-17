@@ -54,7 +54,6 @@ import traceback
 
 from psyclone import gen_kernel_stub
 from psyclone.configuration import Config, ConfigurationError
-from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.algorithm import LFRicAlg
 from psyclone.errors import GenerationError, InternalError
 from psyclone.line_length import FortLineLength
@@ -129,7 +128,6 @@ def run(args):
     # If no config file name is specified, args.config is none
     # and config will load the default config file.
     Config.get().load(args.config)
-    LFRicConstants.HAS_CONFIG_BEEN_INITIALISED = True
 
     # Check API, if none is specified, take the setting from the config file
     if args.api is None:

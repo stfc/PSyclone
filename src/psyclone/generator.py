@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified A. J. Voysey, Met Office
-# Modified J. Henrichs, Bureau of Meteorology
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''
     This module provides the PSyclone 'main' routine which is intended
@@ -57,7 +57,6 @@ from psyclone.domain.common.algorithm.psyir import (
 from psyclone.domain.common.transformations import (
     AlgTrans, AlgInvoke2PSyCallTrans)
 from psyclone.domain.gocean.transformations import RaisePSyIR2GOceanKernTrans
-from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import GenerationError, InternalError
 from psyclone.line_length import FortLineLength
 from psyclone.parse.algorithm import parse
@@ -75,7 +74,6 @@ API_WITHOUT_ALGORITHM = ["nemo"]
 
 
 def handle_script(script_name, info, function_name, is_optional=False):
-    # pylint: disable=too-many-locals
     '''Loads and applies the specified script to the given algorithm or
     psy layer. The relevant script function (in 'function_name') is
     called with 'info' as the argument.
@@ -99,6 +97,7 @@ def handle_script(script_name, info, function_name, is_optional=False):
         script function is called.
 
     '''
+    # pylint: disable=too-many-locals
     sys_path_appended = False
     try:
         # a script has been provided
@@ -160,8 +159,8 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
              distributed_memory=None,
              kern_out_path="",
              kern_naming="multiple"):
-    # pylint: disable=too-many-arguments, too-many-locals
-    # pylint: disable=too-many-statements, too-many-branches
+    # pylint: disable=too-many-arguments, too-many-statements
+    # pylint: disable=too-many-branches, too-many-locals
     '''Takes a PSyclone algorithm specification as input and outputs the
     associated generated algorithm and psy codes suitable for
     compiling with the specified kernel(s) and support
@@ -418,9 +417,6 @@ def main(args):
     # If no config file name is specified, args.config is none
     # and config will load the default config file.
     Config.get().load(args.config)
-
-    # Set the flag that the config file has been loaded
-    LFRicConstants.HAS_CONFIG_BEEN_INITIALISED = True
 
     # Check API, if none is specified, take the setting from the config file
     if args.api is None:
