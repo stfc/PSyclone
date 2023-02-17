@@ -66,33 +66,36 @@ def trans(psy):
         if PROFILING_ENABLED:
             add_profiling(invoke.schedule.children)
 
-        # TODO #1841: These subroutines have a bug in the array-range-to-loop
-        # transformation.
-        if invoke.name in (
+        enhance_tree_information(invoke.schedule)
+
+        if invoke.name in ("eos_rprof"):
+            # TODO #1959: This subroutines make the ECMWF compilation fail
+            # because it moves a statement function outside of the
+            # specification part.
+            print("Skipping normalisation for ", invoke.name)
+
+        elif invoke.name in (
                 "blk_oce",  # NVFORTRAN-S-0083-Vector expression used where
                             # scalar expression
                 "trc_oce_rgb",  # Produces incorrect results
                 "removepoints"  # Compiler error: The shapes of the array
                                 # expressions do not conform
                 ):
-            print("Skipping", invoke.name)
+            # TODO #1841: These subroutines have a bug in the
+            # array-range-to-loop transformation.
+            print("Skipping normalisation for ", invoke.name)
+        elif invoke.name in ("ice_dyn_rhg_evp"):
+            # TODO #598: We are missing marking some vars as firstprivate
+            print("Skipping parallelisation for ", invoke.name)
             continue
-
-        # TODO #1959: This subroutines make the ECMWF compilation fail because
-        # it moves a statement function outside of the specification part.
-        if invoke.name in ("eos_rprof"):
-            print("Skipping", invoke.name)
-            continue
-
-        enhance_tree_information(invoke.schedule)
-
-        normalise_loops(
-                invoke.schedule,
-                hoist_local_arrays=True,
-                convert_array_notation=True,
-                convert_range_loops=True,
-                hoist_expressions=False
-        )
+        else:
+            normalise_loops(
+                    invoke.schedule,
+                    hoist_local_arrays=True,
+                    convert_array_notation=True,
+                    convert_range_loops=True,
+                    hoist_expressions=False
+            )
 
         insert_explicit_loop_parallelism(
                 invoke.schedule,
