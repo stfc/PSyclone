@@ -175,7 +175,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         :param var_accesses: VariablesAccessInfo instance that stores the \
             information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # Collect all write access in a separate object, so they can be added

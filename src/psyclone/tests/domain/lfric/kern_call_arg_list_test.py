@@ -434,8 +434,7 @@ def test_kerncallarglist_mixed_precision():
     assert create_arg_list.psyir_arglist[2].datatype.precision.name == "r_tran"
     assert create_arg_list.psyir_arglist[3].datatype.precision.name == "r_tran"
     assert create_arg_list.psyir_arglist[4].datatype.precision.name == "i_def"
-    # There is no r_tran operator, so its type is r_def:
-    assert create_arg_list.psyir_arglist[5].datatype.precision.name == "r_def"
+    assert create_arg_list.psyir_arglist[5].datatype.precision.name == "r_tran"
 
 
 def test_kerncallarglist_scalar_literal(fortran_writer):
