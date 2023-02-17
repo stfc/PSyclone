@@ -56,10 +56,19 @@ class LFRicConstants():
     '''
     HAS_BEEN_INITIALISED = False
 
+    # A consistency flag that is set to true the moment the proper config
+    # file is loaded. If an instance of this class should be created before
+    # the loading of the config file, a warning message will be printed.
+    HAS_CONFIG_BEEN_INITIALISED = False
+
     def __init__(self):
         # pylint: disable=too-many-statements
         if LFRicConstants.HAS_BEEN_INITIALISED:
             return
+
+        if not LFRicConstants.HAS_CONFIG_BEEN_INITIALISED:
+            raise InternalError("LFRicConstants being created before the "
+                                "config file is loaded")
 
         LFRicConstants.HAS_BEEN_INITIALISED = True
         api_config = Config.get().api_conf("dynamo0.3")
