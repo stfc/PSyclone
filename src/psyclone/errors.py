@@ -88,6 +88,17 @@ class PSycloneError(Exception):
         return str(self.value)
 
 
+class UnresolvedDependencyError(PSycloneError):
+    ''' Provides a PSyclone specific error class for errors detected when
+    resolving dependencies in the code.
+
+    :param str value: the message associated with the error.
+    '''
+    def __init__(self, value):
+        PSycloneError.__init__(self, value)
+        self.value = "UnresolvedDependencyError: "+str(value)
+
+
 class GenerationError(PSycloneError):
     ''' Provides a PSyclone specific error class for errors found during PSy
     code generation.

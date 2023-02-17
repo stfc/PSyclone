@@ -48,7 +48,8 @@ import sys
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType, VariablesAccessInfo
-from psyclone.errors import GenerationError, InternalError
+from psyclone.errors import (GenerationError, InternalError,
+                             UnresolvedDependencyError)
 from psyclone.f2pygen import (AssignGen, UseGen, DeclGen, DirectiveGen,
                               CommentGen)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
@@ -304,6 +305,12 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         The returned result is either a set of Literals, or Literals
         and BinaryOperations.
 
+        If ref is a BinaryOperation, it needs to be of the following formats:
+        1. Reference ADD/SUB Literal
+        2. Literal ADD Reference
+        3. Binop(Literal MUL Literal) ADD Reference
+        4. Reference ADD/SUB Binop(Literal MUL Literal)
+
 
         :param ref: the Reference or BinaryOperation node to compute \
                     accesses for.
@@ -315,21 +322,24 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         :param task: the OMPTaskDirective node containing ref as a child.
         :type task: :py:class:`psyclone.psyir.nodes.OMPTaskDirective`
 
-        :raises GenerationError: If the ref contains an unsupported \
-                                 BinaryOperation structure, such as a \
-                                 non-ADD/SUB/MUL operator. Check error \
-                                 message for more details.
-        :raises GenerationError: If preceding_nodes contains a Call node.
-        :raises GenerationError: If ref is a BinaryOperation and neither \
-                                 child of ref is a Literal or BinaryOperation.
-        :raises GenerationError: If there is a dependency between ref (a \
-                                 BinaryOperation) and a previously set \
-                                 constant.
-        :raises GenerationError: If there is a dependency between ref and a \
-                                 Loop variable that is not an ancestor of \
-                                 task.
-        :raises GenerationError: If preceding_nodes contains a dependent loop \
-                                 with a non-Literal step.
+        :raises UnresolvedDependencyError: If the ref contains an unsupported \
+                                           BinaryOperation structure, such as \
+                                           a non-ADD/SUB/MUL operator. Check \
+                                           error message for more details.
+        :raises UnresolvedDependencyError: If preceding_nodes contains a Call \
+                                           node.
+        :raises UnresolvedDependencyError: If ref is a BinaryOperation and \
+                                           neither child of ref is a Literal \
+                                           or BinaryOperation.
+        :raises UnresolvedDependencyError: If there is a dependency between \
+                                           ref (a BinaryOperation) and a \
+                                           previously set constant.
+        :raises UnresolvedDependencyError: If there is a dependency between \
+                                           ref and a Loop variable that is \
+                                           not an ancestor of task.
+        :raises UnresolvedDependencyError: If preceding_nodes contains a \
+                                           dependent loop with a non-Literal \
+                                           step.
 
         :returns: a list of the dependency values for the input ref.
         :rtype: List[Union[:py:class:`psyclone.psyir.nodes.Literal`, \
@@ -339,19 +349,32 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             symbol = ref.symbol
         else:
             # Get the symbol out of the Binop, and store some other
-            # important information
+            # important information. We store the step value of the
+            # ancestor loop (which will be the value of the Literal, or
+            # the one of the Literals if an operand is a BinaryOperation).
+            # In the case that one of the operands is a BinaryOperation,
+            # we also store a "num_entries" value, which is based upon the
+            # multiplier of the step value. This is how we can handle
+            # cases such as array(i+57) if the step value is 32, the
+            # dependencies stored would be array(i+32) and array(i+64).
             if isinstance(ref.children[0], Literal):
                 if ref.operator == BinaryOperation.Operator.ADD:
+                    # Have Literal + Reference. Store the symbol of the
+                    # Reference and the integer value of the Literal.
                     symbol = ref.children[1].symbol
                     binop_val = int(ref.children[0].value)
                     num_entries = 2
                 else:
-                    raise GenerationError("Found a dependency index that is "
-                                          "a BinaryOperation where the "
-                                          "format is Literal OP Reference "
-                                          "with a non-ADD operand "
-                                          "which is not supported.")
+                    raise UnresolvedDependencyError(
+                            "Found a dependency index that is "
+                            "a BinaryOperation where the "
+                            "format is Literal OP Reference "
+                            "with a non-ADD operand "
+                            "which is not supported.")
             elif isinstance(ref.children[1], Literal):
+                # Have Reference OP Literal. Store the symbol of the
+                # Reference, and the integer value of the Literal. If the
+                # operator is negative, then we store the value negated.
                 if ref.operator == BinaryOperation.Operator.ADD:
                     symbol = ref.children[0].symbol
                     binop_val = int(ref.children[1].value)
@@ -361,17 +384,22 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     binop_val = 0-(int(ref.children[1].value))
                     num_entries = 2
                 else:
-                    raise GenerationError("Found a dependency index that is "
-                                          "a BinaryOperation where the "
-                                          "Operator is neither ADD not SUB "
-                                          "which is not supported.")
+                    raise UnresolvedDependencyError(
+                            "Found a dependency index that is "
+                            "a BinaryOperation where the "
+                            "Operator is neither ADD not SUB "
+                            "which is not supported.")
 
             elif isinstance(ref.children[0], BinaryOperation):
                 if ref.operator == BinaryOperation.Operator.ADD:
+                    # Have Binop ADD Reference. Store the symbol of the
+                    # Reference, and store the binop. The binop is of
+                    # structure Literal MUL Literal, where the second
+                    # Literal is to the step of a parent loop.
                     symbol = ref.children[1].symbol
                     binop = ref.children[0]
                     if binop.operator != BinaryOperation.Operator.MUL:
-                        raise GenerationError(
+                        raise UnresolvedDependencyError(
                                 "Found a dependency index that is a "
                                 "BinaryOperation with a child "
                                 "BinaryOperation with a non-MUL operand "
@@ -381,25 +409,33 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     # is the first literal
                     if (not (isinstance(binop.children[0], Literal) and
                              isinstance(binop.children[1], Literal))):
-                        raise GenerationError(
+                        raise UnresolvedDependencyError(
                                 "Found a dependency index that is a "
                                 "BinaryOperation with a child "
                                 "BinaryOperation with a non-Literal child "
                                 "which is not supported.")
+                    # We store the step of the parent loop in binop_val, and
+                    # use the other operand to compute how many entries we
+                    # need to compute to validate this dependency list.
                     binop_val = int(binop.children[1].value)
                     num_entries = int(binop.children[0].value)+1
                 else:
-                    raise GenerationError("Found a dependency index that is "
-                                          "a BinaryOperation where the "
-                                          "format is BinaryOperator OP "
-                                          "Reference with a non-ADD operand "
-                                          "which is not supported.")
+                    raise UnresolvedDependencyError(
+                            "Found a dependency index that is "
+                            "a BinaryOperation where the "
+                            "format is BinaryOperator OP "
+                            "Reference with a non-ADD operand "
+                            "which is not supported.")
             elif isinstance(ref.children[1], BinaryOperation):
+                # Have Reference ADD/SUB Binop. Store the symbol of the
+                # Reference, and store the binop. The binop is of
+                # structure Literal MUL Literal, where the second
+                # Literal is to the step of a parent loop.
                 if ref.operator == BinaryOperation.Operator.ADD:
                     symbol = ref.children[0].symbol
                     binop = ref.children[1]
                     if binop.operator != BinaryOperation.Operator.MUL:
-                        raise GenerationError(
+                        raise UnresolvedDependencyError(
                                 "Found a dependency index that is a "
                                 "BinaryOperation with a child "
                                 "BinaryOperation with a non-MUL operand "
@@ -408,18 +444,21 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     # where step_val is the 2nd literal.
                     if (not (isinstance(binop.children[0], Literal) and
                              isinstance(binop.children[1], Literal))):
-                        raise GenerationError(
+                        raise UnresolvedDependencyError(
                                 "Found a dependency index that is a "
                                 "BinaryOperation with an operand "
                                 "BinaryOperation with a non-Literal operand "
                                 "which is not supported.")
+                    # We store the step of the parent loop in binop_val, and
+                    # use the other operand to compute how many entries we
+                    # need to compute to validate this dependency list.
                     binop_val = int(binop.children[1].value)
                     num_entries = int(binop.children[0].value)+1
                 elif ref.operator == BinaryOperation.Operator.SUB:
                     symbol = ref.children[0].symbol
                     binop = ref.children[1]
                     if binop.operator != BinaryOperation.Operator.MUL:
-                        raise GenerationError(
+                        raise UnresolvedDependencyError(
                                 "Found a dependency index that is a "
                                 "BinaryOperation with a child "
                                 "BinaryOperation with a non-MUL operator "
@@ -428,26 +467,32 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     # where step_val is the 2nd literal.
                     if (not (isinstance(binop.children[0], Literal) and
                              isinstance(binop.children[1], Literal))):
-                        raise GenerationError(
+                        raise UnresolvedDependencyError(
                                 "Found a dependency index that is a "
                                 "BinaryOperation with an operand "
                                 "BinaryOperation with a non-Literal operand "
                                 "which is not supported.")
+                    # We store the step of the parent loop in binop_val, but
+                    # negated as the operator is SUB, and
+                    # use the other operand to compute how many entries we
+                    # need to compute to validate this dependency list.
                     binop_val = -int(binop.children[1].value)
                     num_entries = int(binop.children[0].value)
                 else:
-                    raise GenerationError("Found a dependency index that is "
-                                          "a BinaryOperation where the "
-                                          "format is Reference OP "
-                                          "BinaryOperation with a non-ADD, "
-                                          "non-SUB operand "
-                                          "which is not supported.")
+                    raise UnresolvedDependencyError(
+                            "Found a dependency index that is "
+                            "a BinaryOperation where the "
+                            "format is Reference OP "
+                            "BinaryOperation with a non-ADD, "
+                            "non-SUB operand "
+                            "which is not supported.")
             else:
-                raise GenerationError("Found a dependency index that is a "
-                                      "BinaryOperation where neither child "
-                                      "is a Literal or BinaryOperation. "
-                                      "PSyclone can't validate "
-                                      "this dependency.")
+                raise UnresolvedDependencyError(
+                        "Found a dependency index that is a "
+                        "BinaryOperation where neither child "
+                        "is a Literal or BinaryOperation. "
+                        "PSyclone can't validate "
+                        "this dependency.")
         start = None
         stop = None
         step = None
@@ -460,8 +505,9 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 # Currently opting to fail on any Call.
                 # Potentially it might be possible to check if the Symbol is
                 # written to and only if so then raise an error
-                raise GenerationError("Found a Call in preceding_nodes, which "
-                                      "is not yet supported.")
+                raise UnresolvedDependencyError(
+                        "Found a Call in preceding_nodes, which "
+                        "is not yet supported.")
             if isinstance(node, Assignment) and node.lhs.symbol == symbol:
                 start = node.rhs.copy()
                 break
@@ -476,29 +522,37 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                         break
                     ancestor_loop = ancestor_loop.ancestor(Loop, limit=self)
                 if not is_ancestor:
-                    raise GenerationError("Found a dependency index that "
-                                          "was updated as a Loop variable "
-                                          "that is not an ancestor Loop of "
-                                          "the task.")
+                    raise UnresolvedDependencyError(
+                            "Found a dependency index that "
+                            "was updated as a Loop variable "
+                            "that is not an ancestor Loop of "
+                            "the task.")
                 # It has to be an ancestor loop, so we want to find the start,
                 # stop and step Nodes
-                start = node.start_expr
-                stop = node.stop_expr
-                step = node.step_expr
+                start, stop, step = node.start_expr, node.stop_expr, \
+                    node.step_expr
                 break
 
         if isinstance(ref, BinaryOperation):
             output_list = []
             if step is None:
-                raise GenerationError("Found a dependency between a "
-                                      "BinaryOperation and a previously "
-                                      "set constant value. "
-                                      "PSyclone cannot yet handle this "
-                                      "interaction.")
+                # Found no ancestor loop, PSyclone cannot handle
+                # this case, as BinaryOperations created by OMPTaskDirective
+                # in dependencies will always be based on ancestor loops.
+                raise UnresolvedDependencyError(
+                        "Found a dependency between a "
+                        "BinaryOperation and a previously "
+                        "set constant value. "
+                        "PSyclone cannot yet handle this "
+                        "interaction.")
+            # If the step isn't a Literal value, then we can't compute what
+            # the address accesses at compile time, so we can't validate the
+            # dependency.
             if not isinstance(step, Literal):
-                raise GenerationError("Found a dependency index that is a "
-                                      "Loop variable with a non-Literal step "
-                                      "which we can't resolve in PSyclone.")
+                raise UnresolvedDependencyError(
+                        "Found a dependency index that is a "
+                        "Loop variable with a non-Literal step "
+                        "which we can't resolve in PSyclone.")
             # If the start and stop are both Literals, we can compute a set
             # of accesses this BinaryOperation is related to precisely.
             if (isinstance(start, Literal) and isinstance(stop, Literal)):
@@ -545,9 +599,10 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         output_list = []
         # If step is not a Literal then we probably can't resolve this
         if not isinstance(step, Literal):
-            raise GenerationError("Found a dependency index that is a "
-                                  "Loop variable with a non-Literal step "
-                                  "which we can't resolve in PSyclone.")
+            raise UnresolvedDependencyError(
+                    "Found a dependency index that is a "
+                    "Loop variable with a non-Literal step "
+                    "which we can't resolve in PSyclone.")
         # Special case when all are Literals
         if (isinstance(start, Literal) and isinstance(stop, Literal)):
             # Fill the output list with all values from start to stop
@@ -584,15 +639,15 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         know the addresses/array sections covered by this index are identical.
 
         :param ref1: the first Node to compare.
-        :type ref1: Union[:py:class:`psyclone.psyir.nodes.Reference, \
-                    :py:class:`psyclone.psyir.nodes.BinaryOperation]
+        :type ref1: Union[:py:class:`psyclone.psyir.nodes.Reference`, \
+                    :py:class:`psyclone.psyir.nodes.BinaryOperation`]
         :param ref2: the second Node to compare.
-        :type ref2: Union[:py:class:`psyclone.psyir.nodes.Reference, \
-                    :py:class:`psyclone.psyir.nodes.BinaryOperation]
+        :type ref2: Union[:py:class:`psyclone.psyir.nodes.Reference`, \
+                    :py:class:`psyclone.psyir.nodes.BinaryOperation`]
         :param task1: the task containing ref1 as a child.
-        :type task1: :py:class:`psyclone.psyir.nodes.OMPTaskDirective
+        :type task1: :py:class:`psyclone.psyir.nodes.OMPTaskDirective`
         :param task2: the task containing ref2 as a child.
-        :type task2: :py:class:`psyclone.psyir.nodes.OMPTaskDirective
+        :type task2: :py:class:`psyclone.psyir.nodes.OMPTaskDirective`
 
         :raises GenerationError: If ref1 and ref2 are dependencies on the \
                                  same array, and one does not contain a \
@@ -619,9 +674,9 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         try:
             ref1_accesses = self._compute_accesses(ref1, preceding_t1, task1)
             ref2_accesses = self._compute_accesses(ref2, preceding_t2, task2)
-        except GenerationError:
-            # If we get a Generation error from compute_accesses, then we found
-            # an access that isn't able to be handled by PSyclone, so
+        except UnresolvedDependencyError:
+            # If we get a UnresolvedDependencyError from compute_accesses, then
+            # we found an access that isn't able to be handled by PSyclone, so
             # dependencies based on it need to be handled by a taskwait
             return False
 
@@ -707,6 +762,8 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                         # Found incompatible dependency between two
                         # array accesses, ref1 is in range {r1_min}
                         # to {r1_max}, but doesn't contain {val}.
+                        # This can happen if we have two loops with
+                        # different start values or steps.
                         return False
         else:
             # Handle no Reference case
@@ -743,9 +800,90 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                         # Found incompatible dependency between two
                         # array accesses, ref1 is in range {r1_min}
                         # to {r1_max}, but doesn't contain {val}.
+                        # This can happen if we have two loops with
+                        # different start values or steps.
                         return False
 
         return True
+
+    def _check_dependency_pairing_valid(self, node1, node2, task1, task2):
+        '''
+        Given a pair of nodes which are children of a OMPDependClause, this
+        function checks whether the described dependence is correctly
+        described by the OpenMP standard.
+        If the dependence is not going to be handled safely, this function
+        returns False, else it returns true.
+
+        :param node1: the first input node to check.
+        :type node1: :py:class:`psyclone.psyir.nodes.Node`
+        :param node2: the second input node to check.
+        :type node2: :py:class:`psyclone.psyir.nodes.Node`
+        :param task1: the OMPTaskDirective node containing node1 as a \
+                      dependency
+        :type task1: :py:class:`psyclone.psyir.nodes.OMPTaskDirective`
+        :param task2: the OMPTaskDirective node containing node2 as a \
+                      dependency
+        :type task2: :py:class:`psyclone.psyir.nodes.OMPTaskDirective`
+
+        :returns: whether the dependence is going to be handled safely \
+                  according to the OpenMP standard.
+        :rtype: bool
+        '''
+        # Checking the symbol is the same works. If the symbol is not the same
+        # then there's no dependence, so its valid.
+        if node1.symbol != node2.symbol:
+            return True
+        # For structure reference we need to check they access
+        # the same member. If they don't, no dependence so valid.
+        if isinstance(node1, StructureReference):
+            # If either is a StructureReference here they must both be,
+            # as they access the same symbol.
+            member = node1
+            member1 = node2
+
+            # We can't just do == on the Member child, as that
+            # will recurse and check the array indices for any
+            # ArrayMixin children
+
+            # Check the signature of both StructureReference
+            # to see if they are accessing the same data
+            ref0_sig = node1.get_signature_and_indices()[0]
+            ref1_sig = node2.get_signature_and_indices()[0]
+            if ref0_sig != ref1_sig:
+                return True
+
+        # If we have (exactly) Reference objects we filter out
+        # non-matching ones with the symbol check, and matching ones
+        # are always valid since they are simple accesses.
+        if type(node1) is Reference:
+            return True
+
+        # All remaining objects are some sort of Array access
+        array1 = None
+        array2 = None
+        if isinstance(node1, ArrayReference):
+            array1 = node1
+            array2 = node2
+        else:
+            array1 = node1.walk(ArrayMixin)[0]
+            array2 = node2.walk(ArrayMixin)[0]
+        valid = True
+        for i, index in enumerate(array1.indices):
+            if (isinstance(index, Literal) or
+                    isinstance(array2.indices[i], Literal)):
+                valid = valid and self._valid_dependence_literals(
+                            index, array2.indices[i])
+            elif (isinstance(index, Range) or
+                  isinstance(array2.indices[i], Range)):
+                valid = valid and self._valid_dependence_ranges(
+                            array1, array2, i)
+            else:
+                # The only remaining option is that the indices are
+                # References or BinaryOperations
+                valid = valid and self._valid_dependence_ref_binop(
+                            index, array2.indices[i], task1, task2)
+
+        return valid
 
     def _validate_task_dependencies(self):
         '''
@@ -799,190 +937,19 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             task2_out = [x for x in task2.output_depend_clause.children
                          if isinstance(x, Reference)]
 
-            inout = itertools.product(task1_in, task2_out)
-            outin = itertools.product(task1_out, task2_in)
-            outout = itertools.product(task1_out, task2_out)
-            for mem in inout:
-                # Checking the symbol is the same works for non-structure
-                # References
-                if mem[0].symbol != mem[1].symbol:
-                    continue
-                # For structure reference we need to check they access
-                # the same member
-                if isinstance(mem[0], StructureReference):
-                    member = mem[0]
-                    member1 = mem[1]
-
-                    # We can't just do == on the Member child, as that
-                    # will recurse and check the array indices for any
-                    # ArrayMixin children
-
-                    # Get Members of each
-                    ref0_members = mem[0].walk(Member)
-                    ref1_members = mem[1].walk(Member)
-
-                    if len(ref0_members) != len(ref1_members):
-                        continue
-                    same_access = True
-                    for index, mem0 in enumerate(ref0_members):
-                        if mem0.name != ref1_members[index].name:
-                            same_access = False
-                    if not same_access:
-                        continue
-
-                # If we have (exactly) Reference objects we filter out
-                # non-matching ones with the symbol check, and matching ones
-                # are always valid since they are simple accesses.
-                if type(mem[0]) is Reference:
-                    continue
-
-                # All remaining objects are some sort of Array access
-                array1 = None
-                array2 = None
-                if isinstance(mem[0], ArrayReference):
-                    array1 = mem[0]
-                    array2 = mem[1]
-                else:
-                    array1 = mem[0].walk(ArrayMixin)[0]
-                    array2 = mem[1].walk(ArrayMixin)[0]
-                for i, index in enumerate(array1.indices):
-                    if (isinstance(index, Literal) or
-                            isinstance(array2.indices[i], Literal)):
-                        satisfiable = satisfiable and \
-                                self._valid_dependence_literals(
-                                    index, array2.indices[i])
-                    elif (isinstance(index, Range) or
-                          isinstance(array2.indices[i], Range)):
-                        satisfiable = satisfiable and \
-                                self._valid_dependence_ranges(
-                                    array1, array2, i)
-                    else:
-                        # The only remaining option is that the indices are
-                        # References or BinaryOperations
-                        satisfiable = satisfiable and \
-                                self._valid_dependence_ref_binop(
-                                    index, array2.indices[i], task1, task2)
-
-            for mem in outin:
-                # Checking the symbol is the same works for non-structure
-                # References
-                if mem[0].symbol != mem[1].symbol:
-                    continue
-                # For structure reference we need to check they access
-                # the same member
-                if isinstance(mem[0], StructureReference):
-                    member = mem[0]
-                    member1 = mem[1]
-                    # We can't just do == on the Member child, as that
-                    # will recurse and check the array indices for any
-                    # ArrayMixin children
-
-                    # Get Members of each
-                    ref0_members = mem[0].walk(Member)
-                    ref1_members = mem[1].walk(Member)
-
-                    if len(ref0_members) != len(ref1_members):
-                        continue
-                    same_access = True
-                    for index, mem0 in enumerate(ref0_members):
-                        if mem0.name != ref1_members[index].name:
-                            same_access = False
-                    if not same_access:
-                        continue
-
-                # If we have (exactly) Reference objects we filter out
-                # non-matching ones with the symbol check, and matching ones
-                # are always valid since they are simple accesses.
-                if type(mem[0]) is Reference:
-                    continue
-
-                # All remaining objects are some sort of Array access
-                array1 = None
-                array2 = None
-                if isinstance(mem[0], ArrayReference):
-                    array1 = mem[0]
-                    array2 = mem[1]
-                else:
-                    array1 = mem[0].walk(ArrayMixin)[0]
-                    array2 = mem[1].walk(ArrayMixin)[0]
-
-                for i, index in enumerate(array1.indices):
-                    if (isinstance(index, Literal) or
-                            isinstance(array2.indices[i], Literal)):
-                        satisfiable = satisfiable and \
-                                self._valid_dependence_literals(
-                                    index, array2.indices[i])
-                    elif (isinstance(index, Range) or
-                          isinstance(array2.indices[i], Range)):
-                        satisfiable = satisfiable and \
-                                self._valid_dependence_ranges(
-                                    array1, array2, i)
-                    else:
-                        # The only remaining option is that the indices are
-                        # References or BinaryOperations
-                        satisfiable = satisfiable and \
-                                self._valid_dependence_ref_binop(
-                                    index, array2.indices[i], task1, task2)
-
-            for mem in outout:
-                # Checking the symbol is the same works for non-structure
-                # References
-                if mem[0].symbol != mem[1].symbol:
-                    continue
-                # For structure reference we need to check they access
-                # the same member
-                if isinstance(mem[0], StructureReference):
-                    member = mem[0]
-                    member1 = mem[1]
-                    # We can't just do == on the Member child, as that
-                    # will recurse and check the array indices for any
-                    # ArrayMixin children
-
-                    # Get Members of each
-                    ref0_members = mem[0].walk(Member)
-                    ref1_members = mem[1].walk(Member)
-
-                    if len(ref0_members) != len(ref1_members):
-                        continue
-                    same_access = True
-                    for index, mem0 in enumerate(ref0_members):
-                        if mem0.name != ref1_members[index].name:
-                            same_access = False
-                    if not same_access:
-                        continue
-
-                # If we have (exactly) Reference objects we filter out
-                # non-matching ones with the symbol check, and matching ones
-                # are always valid since they are simple accesses.
-                if type(mem[0]) is Reference:
-                    continue
-
-                # All remaining objects are some sort of Array access
-                array1 = None
-                array2 = None
-                if isinstance(mem[0], ArrayReference):
-                    array1 = mem[0]
-                    array2 = mem[1]
-                else:
-                    array1 = mem[0].walk(ArrayMixin)[0]
-                    array2 = mem[1].walk(ArrayMixin)[0]
-                for i, index in enumerate(array1.indices):
-                    if (isinstance(index, Literal) or
-                            isinstance(array2.indices[i], Literal)):
-                        satisfiable = satisfiable and \
-                                self._valid_dependence_literals(
-                                    index, array2.indices[i])
-                    elif (isinstance(index, Range) or
-                          isinstance(array2.indices[i], Range)):
-                        satisfiable = satisfiable and \
-                                self._valid_dependence_ranges(
-                                    array1, array2, i)
-                    else:
-                        # The only remaining option is that the indices are
-                        # References or BinaryOperations
-                        satisfiable = satisfiable and \
-                                self._valid_dependence_ref_binop(
-                                    index, array2.indices[i], task1, task2)
+            inout = list(itertools.product(task1_in, task2_out))
+            outin = list(itertools.product(task1_out, task2_in))
+            outout = list(itertools.product(task1_out, task2_out))
+            # Loop through each potential dependency pair and check they
+            # will be handled correctly.
+            for mem in inout + outin + outout:
+                # As soon as any is not satisfiable, then we don't need to
+                # continue checking.
+                if not satisfiable:
+                    break
+                satisfiable = satisfiable and \
+                    self._check_dependency_pairing_valid(mem[0], mem[1],
+                                                         task1, task2)
 
             # If we have an unsatisfiable dependency between two tasks, then we
             # need to have a taskwait between them always. We need to loop up

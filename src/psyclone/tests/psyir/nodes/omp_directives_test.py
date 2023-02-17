@@ -94,7 +94,8 @@ from psyclone.psyir.symbols import (
     REAL_TYPE,
 )
 from psyclone.psyir.transformations import ChunkLoopTrans, OMPTaskTrans
-from psyclone.errors import InternalError, GenerationError
+from psyclone.errors import (InternalError, GenerationError,
+                             UnresolvedDependencyError)
 from psyclone.transformations import (
     Dynamo0p3OMPLoopTrans,
     OMPParallelTrans,
@@ -1344,7 +1345,7 @@ def test_omp_serial_compute_accesses_bad_binop():
         Reference(tmp),
     )
 
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
         sing._compute_accesses(binop_fail1, [], None)
     assert (
         "Found a dependency index that is "
@@ -1359,7 +1360,7 @@ def test_omp_serial_compute_accesses_bad_binop():
         Reference(tmp),
         Literal("1", INTEGER_SINGLE_TYPE),
     )
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
         sing._compute_accesses(binop_fail2, [], None)
     assert (
         "Found a dependency index that is "
@@ -1376,7 +1377,7 @@ def test_omp_serial_compute_accesses_bad_binop():
     binop_fail3 = BinaryOperation.create(
         BinaryOperation.Operator.ADD, sub_binop1.copy(), Reference(tmp)
     )
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
         sing._compute_accesses(binop_fail3, [], None)
     assert (
         "Found a dependency index that is a "
@@ -1393,7 +1394,7 @@ def test_omp_serial_compute_accesses_bad_binop():
     binop_fail4 = BinaryOperation.create(
         BinaryOperation.Operator.ADD, sub_binop2, Reference(tmp)
     )
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
         sing._compute_accesses(binop_fail4, [], None)
     assert (
         "Found a dependency index that is a BinaryOperation with a child "
@@ -1409,7 +1410,7 @@ def test_omp_serial_compute_accesses_bad_binop():
     binop_fail5 = BinaryOperation.create(
         BinaryOperation.Operator.SUB, sub_binop3, Reference(tmp)
     )
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
         sing._compute_accesses(binop_fail5, [], None)
     assert (
         "Found a dependency index that is "
@@ -1421,7 +1422,7 @@ def test_omp_serial_compute_accesses_bad_binop():
     binop_fail6 = BinaryOperation.create(
         BinaryOperation.Operator.ADD, Reference(tmp), sub_binop1.copy()
     )
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
         sing._compute_accesses(binop_fail6, [], None)
     assert (
         "Found a dependency index that is a BinaryOperation with a child "
@@ -1432,7 +1433,7 @@ def test_omp_serial_compute_accesses_bad_binop():
     binop_fail7 = BinaryOperation.create(
         BinaryOperation.Operator.SUB, Reference(tmp), sub_binop2.copy()
     )
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
         sing._compute_accesses(binop_fail7, [], None)
     assert (
         "Found a dependency index that is a BinaryOperation with an operand "
@@ -1443,7 +1444,7 @@ def test_omp_serial_compute_accesses_bad_binop():
     binop_fail8 = BinaryOperation.create(
         BinaryOperation.Operator.SUB, Reference(tmp), sub_binop1.copy()
     )
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
         sing._compute_accesses(binop_fail8, [], None)
     assert (
         "Found a dependency index that is a BinaryOperation with a child "
@@ -1454,7 +1455,7 @@ def test_omp_serial_compute_accesses_bad_binop():
     binop_fail9 = BinaryOperation.create(
         BinaryOperation.Operator.SUB, Reference(tmp), sub_binop2.copy()
     )
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
         sing._compute_accesses(binop_fail9, [], None)
     assert (
         "Found a dependency index that is a BinaryOperation with an operand "
@@ -1465,7 +1466,7 @@ def test_omp_serial_compute_accesses_bad_binop():
     binop_fail10 = BinaryOperation.create(
         BinaryOperation.Operator.MUL, Reference(tmp), sub_binop3.copy()
     )
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
         sing._compute_accesses(binop_fail10, [], None)
     assert (
         "Found a dependency index that is a BinaryOperation where the "
@@ -1476,7 +1477,7 @@ def test_omp_serial_compute_accesses_bad_binop():
     binop_fail11 = BinaryOperation.create(
         BinaryOperation.Operator.ADD, Reference(tmp), Reference(tmp)
     )
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
         sing._compute_accesses(binop_fail11, [], None)
     assert (
         "Found a dependency index that is a BinaryOperation where neither "
@@ -1489,7 +1490,7 @@ def test_omp_serial_compute_accesses_bad_binop():
         Call(RoutineSymbol("mycall")),
         Reference(tmp),
     )
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
         sing._compute_accesses(binop_fail12, [], None)
     assert (
         "Found a dependency index that is a "
@@ -1502,7 +1503,7 @@ def test_omp_serial_compute_accesses_bad_binop():
     binop_fail13 = BinaryOperation.create(
         BinaryOperation.Operator.ADD, Reference(tmp), sub_binop2.copy()
     )
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
         sing._compute_accesses(binop_fail13, [], None)
     assert (
         "Found a dependency index that is a BinaryOperation with an operand "
@@ -1533,7 +1534,7 @@ def test_omp_serial_compute_accesses_other_fails():
     )
 
     call_fail = Call(RoutineSymbol("mycall"))
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
         sing._compute_accesses(correct_binop, [call_fail], None)
     assert (
         "Found a Call in preceding_nodes, which is not yet supported."
@@ -1549,7 +1550,7 @@ def test_omp_serial_compute_accesses_other_fails():
         Literal("3", INTEGER_SINGLE_TYPE),
         [],
     )
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
         sing._compute_accesses(ref, [loop1], task)
     assert (
         "Found a dependency index that was updated as a Loop variable "
@@ -1566,7 +1567,7 @@ def test_omp_serial_compute_accesses_other_fails():
         [task2],
     )
 
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
         sing._compute_accesses(correct_binop, [loop2], task2)
     assert (
         "Found a dependency index that is a Loop variable with a non-"
@@ -1575,7 +1576,7 @@ def test_omp_serial_compute_accesses_other_fails():
     )
 
     assign = Assignment.create(ref.copy(), Literal("1", INTEGER_SINGLE_TYPE))
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
         sing._compute_accesses(correct_binop, [assign], task2)
     assert (
         "Found a dependency between a BinaryOperation "
@@ -1583,7 +1584,7 @@ def test_omp_serial_compute_accesses_other_fails():
         "cannot yet handle this interaction." in str(excinfo.value)
     )
 
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
         sing._compute_accesses(ref, [loop2], task2)
     assert (
         "Found a dependency index that is a Loop variable with a non-"
