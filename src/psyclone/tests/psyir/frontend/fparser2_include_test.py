@@ -71,20 +71,18 @@ def test_include_declns_abort(incl_files, parser, monkeypatch):
     # Now check that the frontend raises the expected error
     with pytest.raises(GenerationError) as err:
         processor.generate_psyir(prog)
-    assert (f"Fortran INCLUDE statements are not supported but found "
-            f"include(s) for file(s): {incl_files}. These must be made "
-            f"available to the Fortran parser by specifying their location(s) "
-            f"via the -I flag. (The list of directories to search is currently"
+    assert (f"Fortran INCLUDE statements are not supported but found an "
+            f"include for file '{incl_files[0]}' while processing the "
+            f"declarations in routine 'my_prog'. This file must be made "
+            f"available to the Fortran parser by specifying its location "
+            f"with a -I flag. (The list of directories to search is currently"
             f" set to: [].)" in str(err.value))
     # Check that any include path is correctly reported in the error message
     monkeypatch.setattr(Config.get(), "_include_paths", ["/road/to/nowhere"])
     with pytest.raises(GenerationError) as err:
         processor.generate_psyir(prog)
-    assert (f"Fortran INCLUDE statements are not supported but found "
-            f"include(s) for file(s): {incl_files}. These must be made "
-            f"available to the Fortran parser by specifying their location(s) "
-            f"via the -I flag. (The list of directories to search is currently"
-            f" set to: ['/road/to/nowhere'].)" in str(err.value))
+    assert ("with a -I flag. (The list of directories to search is currently"
+            " set to: ['/road/to/nowhere'].)" in str(err.value))
 
 
 def test_include_exec_part_abort(parser, monkeypatch):
@@ -174,5 +172,12 @@ def test_cpp_include_abort(parser):
         assert len(incl_list) == 1
         with pytest.raises(GenerationError) as err:
             processor.generate_psyir(prog)
-        assert ("but found '#include \"trouble.h\"' while processing"
-                in str(err.value))
+        if idx in [1, 2]:
+            assert ("but found a #include of file 'trouble.h' while processing"
+                    " the declarations in routine 'my_prog'" in str(err.value))
+        elif idx == 3:
+            assert ("but found a #include of file 'trouble.h' while processing"
+                    " routine 'my_prog'" in str(err.value))
+        else:
+            assert ("but found a #include of file 'trouble.h' while processing"
+                    " code:" in str(err.value))

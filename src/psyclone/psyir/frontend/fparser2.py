@@ -1948,16 +1948,30 @@ class Fparser2Reader():
         # INCLUDE statements are *not* part of the Fortran language and
         # can appear anywhere. Therefore we have to do a walk to make sure we
         # find them if they are present.
-        incl_nodes = walk(nodes, Fortran2003.Include_Stmt)
+        incl_nodes = walk(nodes, (Fortran2003.Include_Stmt,
+                                  C99Preprocessor.Cpp_Include_Stmt))
         if incl_nodes:
             config = Config.get()
-            filenames = [inode.children[0].string for inode in incl_nodes]
-            raise GenerationError(
-                f"Fortran INCLUDE statements are not supported but found "
-                f"include(s) for file(s): {filenames}. These must be made "
-                f"available to the Fortran parser by specifying their "
-                f"location(s) via the -I flag. (The list of directories to "
-                f"search is currently set to: {config.include_paths}.)")
+            # Just generate an error message for the first include we've found
+            filename = incl_nodes[0].children[0].string
+            rtxt = (f"while processing the declarations in routine "
+                    f"'{parent.name}'")
+            if isinstance(incl_nodes[0], Fortran2003.Include_Stmt):
+                msg = (
+                    f"Fortran INCLUDE statements are not supported but found "
+                    f"an include for file '{filename}' {rtxt}. This file must "
+                    f"be made available to the Fortran parser by specifying "
+                    f"its "
+                    f"location with a -I flag. (The list of directories to "
+                    f"search is currently set to: {config.include_paths}.)")
+            else:
+                msg = (
+                    f"CPP #INCLUDE statements are not supported but found a "
+                    f"#include of file '{filename}' {rtxt}. The input source "
+                    f"must be"
+                    f" put through a suitable pre-processor before being "
+                    f"given to PSyclone.")
+            raise GenerationError(msg)
 
         # Now we've captured any derived-type definitions, proceed to look
         # at the variable declarations.
@@ -2315,8 +2329,8 @@ class Fparser2Reader():
 
     def _include_handler(self, node, parent):
         '''
-        Handler for Fortran INCLUDE statements. Since these are not supported
-        by the PSyIR it simply raises an error.
+        Handler for Fortran and CPP INCLUDE statements. Since these are not
+        supported by the PSyIR it simply raises an error.
 
         :param node: node in fparser2 tree.
         :type node: :py:class:`fparser.two.Fortran2003.Include_Stmt`
@@ -2324,7 +2338,7 @@ class Fparser2Reader():
         :type parent: :py:class:`psyclone.psyir.nodes.Schedule`
 
         :raises GenerationError: as INCLUDE statements must be handled by \
-                                 the parser.
+                                 the parser or pre-processor.
         '''
         config = Config.get()
         # An INCLUDE can appear anywhere so we have to allow for the case
@@ -2337,17 +2351,18 @@ class Fparser2Reader():
         if isinstance(node, Fortran2003.Include_Stmt):
             err_msg = (
                 f"Fortran INCLUDE statements are not supported but found an "
-                f"include of file '{node.children[0].string}' while processing "
-                f"{out_txt}This file must be made available to "
-                f"the Fortran parser by specifying its location via the -I flag. "
+                f"include of file '{node.children[0].string}' while processing"
+                f" {out_txt}This file must be made available to the Fortran "
+                f"parser by specifying its location via the -I flag. "
                 f"(The list of directories to search is currently set to: "
                 f"{config.include_paths}.)")
         else:
-            err_msg = (f"CPP #include statements are not supported but found "
-                       f"'{str(node)}' while processing {out_txt}Such "
-                       f"statements must be handled using a standard pre-"
-                       f"processor before the code can be processed by "
-                       f"PSyclone.")
+            # We have a CPP #include.
+            err_msg = (f"CPP #include statements are not supported but found a"
+                       f" #include of file '{node.children[0].string}' while "
+                       f"processing {out_txt}Such statements must be handled "
+                       f"using a standard pre-processor before the code can "
+                       f"be processed by PSyclone.")
         raise GenerationError(err_msg)
 
     def _allocate_handler(self, node, parent):

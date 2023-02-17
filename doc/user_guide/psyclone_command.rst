@@ -340,8 +340,8 @@ version of that kernel is already present then that will be
 used. Note, if the kernel file on disk does not match with what would
 be generated then PSyclone will raise an exception.
 
-Fortran INCLUDE Files
----------------------
+Fortran INCLUDE Files and Modules
+---------------------------------
 
 For the NEMO API, if the source code to be processed by PSyclone
 contains INCLUDE statements then the location of any INCLUDE'd files
@@ -368,6 +368,16 @@ unless the file(s) referenced in such statements are in the same directory
 as the kernel file. Once kernel parsing has been re-implemented to use
 fparser2 (issue #239) and the PSyclone Internal Representation then the
 behaviour will be the same as for the NEMO API.
+
+Since PSyclone does not attempt to be a full compiler, it does not require
+that the code be available for any Fortran modules referred to by ``use``
+statements. However, certain transformations *do* require that e.g. type
+information be determined for all variables in the code being transformed.
+In this case PSyclone *will* need to be able to find and process any
+referenced modules. To do this it searches in the directories specified
+by the ``-I``/``--include`` flags. (Currently this search assumes that a
+module named e.g. "my_mod" will be in a file named "my_mod.*90" - see issue
+#1895.)
 
 C Pre-processor #include Files
 ------------------------------
