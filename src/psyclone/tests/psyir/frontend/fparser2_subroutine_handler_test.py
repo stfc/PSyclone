@@ -43,11 +43,11 @@ import pytest
 
 from fparser.common.readfortran import FortranStringReader
 from psyclone.errors import InternalError
-from psyclone.psyir.symbols import (DataSymbol, ScalarType, UnknownFortranType,
-                                    RoutineSymbol)
-from psyclone.psyir.nodes import Container, Routine, CodeBlock, FileContainer
 from psyclone.psyir.frontend.fparser2 import (Fparser2Reader,
                                               TYPE_MAP_FROM_FORTRAN)
+from psyclone.psyir.nodes import Container, Routine, CodeBlock, FileContainer
+from psyclone.psyir.symbols import (DataSymbol, ScalarType, UnknownFortranType,
+                                    RoutineSymbol)
 
 IN_OUTS = []
 # subroutine no declarations
