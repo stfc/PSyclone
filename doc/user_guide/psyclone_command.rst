@@ -344,13 +344,12 @@ Fortran INCLUDE Files
 ---------------------
 
 For the NEMO API, if the source code to be processed by PSyclone
-contains INCLUDE statements (other than those for libraries such as
-MPI) then the location of any INCLUDE'd files *must* be supplied to
-PSyclone via the ``-I`` or ``--include`` option. (This is necessary
-because INCLUDE lines are a part of the Fortran language and must
-therefore be parsed - they are not handled by any pre-processing
-step.) Multiple locations may be specified by using multiple ``-I``
-flags, e.g.::
+contains INCLUDE statements then the location of any INCLUDE'd files
+*must* be supplied to PSyclone via the ``-I`` or ``--include``
+option. (This is necessary because INCLUDE lines are a part of the
+Fortran language and must therefore be parsed - they are not handled
+by any pre-processing step.) Multiple locations may be specified by
+using multiple ``-I`` flags, e.g.::
 
     > psyclone api "nemo" -I /some/path -I /some/other/path alg.f90
 
@@ -361,3 +360,21 @@ an appropriate error.
 
 Attempting to specify ``-I``/``--include`` for any API other than NEMO
 will be rejected by PSyclone.
+
+Currently, the PSyKAl-based APIs (LFRic and GOcean) will ignore (but
+preserve) INCLUDE statements in algorithm-layer code. However, INCLUDE
+statements in kernels will, in general, cause the kernel parsing to fail
+unless the file(s) referenced in such statements are in the same directory
+as the kernel file. Once kernel parsing has been re-implemented to use
+fparser2 (issue #239) and the PSyclone Internal Representation then the
+behaviour will be the same as for the NEMO API.
+
+C Pre-processor #include Files
+------------------------------
+
+PSyclone currently only supports Fortran input. As such, if a file to
+be processed contains CPP ``#include`` statements then it must first be
+processed by a suitable pre-processor before being passed to PSyclone.
+PSyclone will abort with an appropriate error if it encounters a
+``#include`` in any code being processed. This is true of all of the
+PSyclone APIs.
