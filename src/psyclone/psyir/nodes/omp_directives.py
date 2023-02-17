@@ -55,7 +55,8 @@ from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
     OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause, OMPPrivateClause,\
-    OMPDefaultClause, OMPReductionClause, OMPScheduleClause
+    OMPDefaultClause, OMPReductionClause, OMPScheduleClause, \
+    OMPFirstprivateClause
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
@@ -422,8 +423,8 @@ class OMPParallelDirective(OMPRegionDirective):
     ''' Class representing an OpenMP Parallel directive.
     '''
 
-    _children_valid_format = ("Schedule, OMPDefaultClause, OMPPrivateClause,"
-                              " [OMPReductionClause]*")
+    _children_valid_format = ("Schedule, OMPDefaultClause, OMPPrivateClause, "
+                              "OMPFirstprivate, [OMPReductionClause]*")
 
     @staticmethod
     def create(children=None):
@@ -446,6 +447,7 @@ class OMPParallelDirective(OMPRegionDirective):
         instance.addchild(OMPDefaultClause(clause_type=OMPDefaultClause.
                                            DefaultClauseTypes.SHARED))
         instance.addchild(OMPPrivateClause())
+        instance.addchild(OMPFirstprivateClause())
 
         return instance
 
@@ -466,7 +468,9 @@ class OMPParallelDirective(OMPRegionDirective):
             return True
         if position == 2 and isinstance(child, OMPPrivateClause):
             return True
-        if position >= 3 and isinstance(child, OMPReductionClause):
+        if position == 3 and isinstance(child, OMPFirstprivateClause):
+            return True
+        if position >= 4 and isinstance(child, OMPReductionClause):
             return True
         return False
 
@@ -582,6 +586,7 @@ class OMPParallelDirective(OMPRegionDirective):
         private_clause = self._get_private_clause()
         if private_clause != self.private_clause:
             self._children[2] = private_clause
+        self._children[3] = OMPFirstprivateClause()
 
         super().lower_to_language_level()
 
@@ -1214,7 +1219,8 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
     '''
 
     _children_valid_format = ("Schedule, OMPDefaultClause, OMPPrivateClause, "
-                              "OMPScheduleClause, [OMPReductionClause]*")
+                              "OMPFirstprivateClause, OMPScheduleClause, "
+                              "[OMPReductionClause]*")
     _directive_string = "parallel do"
 
     def __init__(self, **kwargs):
@@ -1239,9 +1245,11 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
             return True
         if position == 2 and isinstance(child, OMPPrivateClause):
             return True
-        if position == 3 and isinstance(child, OMPScheduleClause):
+        if position == 3 and isinstance(child, OMPFirstprivateClause):
             return True
-        if position >= 4 and isinstance(child, OMPReductionClause):
+        if position == 4 and isinstance(child, OMPScheduleClause):
+            return True
+        if position >= 5 and isinstance(child, OMPReductionClause):
             return True
         return False
 
@@ -1268,27 +1276,21 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
         calls = self.reductions()
         zero_reduction_variables(calls, parent)
-        private_clause = self._get_private_clause()
-        if len(self._children) >= 3 and private_clause != self._children[2]:
-            # Replace the current private clause.
-            self._children[2] = private_clause
-        elif len(self._children) < 3:
-            self.addchild(private_clause, index=2)
+
+        # Set default() private() and firstprivate() clauses
         default_str = self.children[1]._clause_string
         private_list = []
-        for child in self.children[2].children:
+        for child in self._get_private_clause().children:
             private_list.append(child.symbol.name)
         private_str = "private(" + ",".join(private_list) + ")"
 
-        sched_clause = OMPScheduleClause(self._omp_schedule)
-        if len(self._children) >= 4 and sched_clause != self._children[3]:
-            self._children[3] = sched_clause
-        elif len(self._children) < 4:
-            self.addchild(sched_clause, index=3)
-        if sched_clause.schedule != "none":
-            schedule_str = f"schedule({sched_clause.schedule})"
+        # Set schedule clause
+        if self._omp_schedule != "none":
+            schedule_str = f"schedule({self._omp_schedule})"
         else:
             schedule_str = ""
+
+        # Add directive to the f2pygen tree
         parent.add(
             DirectiveGen(
                 parent, "omp", "begin", "parallel do",
@@ -1312,16 +1314,12 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         The clauses here may need to be updated if code has changed, or be
         added if not yet present.
         '''
-        private_clause = self._get_private_clause()
-        if len(self._children) >= 3 and private_clause != self._children[2]:
-            self._children[2] = private_clause
-        elif len(self._children) < 3:
-            self.addchild(private_clause, index=2)
-        sched_clause = OMPScheduleClause(self._omp_schedule)
-        if len(self._children) >= 4 and sched_clause != self._children[3]:
-            self._children[3] = sched_clause
-        elif len(self._children) < 4:
-            self.addchild(sched_clause, index=3)
+        # Keep the first two children and compute the rest using the current
+        # state of the node/tree.
+        self.children = self.children[:2]
+        self.addchild(self._get_private_clause())
+        self.addchild(OMPFirstprivateClause())
+        self.addchild(OMPScheduleClause(self._omp_schedule))
 
         super().lower_to_language_level()
 
