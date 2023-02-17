@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''Top-level driver functions for PSyAD : the PSyclone Adjoint
 support. Transforms an LFRic tangent linear kernel to its adjoint.
@@ -41,6 +42,7 @@ import argparse
 import logging
 import sys
 
+from psyclone.configuration import Config
 from psyclone.line_length import FortLineLength
 from psyclone.psyad.tl2ad import generate_adjoint_str
 from psyclone.psyad.transformations import TangentLinearError
@@ -54,6 +56,7 @@ def main(args):
                       been invoked with.
 
     '''
+    # pylint: disable=too-many-statements, too-many-branches
     # TODO #1863 - expose line-length limiting as a command-line flag.
     line_length_limit = True
 
@@ -104,6 +107,10 @@ def main(args):
 
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
+
+    # Create a config file so we don't trigger the 'LFRicConstants' created
+    # before config file was read exception
+    Config.get()
 
     # Specifying an output file for the test harness is taken to mean that
     # the user wants us to generate it.
