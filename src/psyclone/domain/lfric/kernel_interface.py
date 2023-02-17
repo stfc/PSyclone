@@ -76,15 +76,15 @@ class KernelInterface(ArgOrdering):
     #: Mapping from a generic PSyIR datatype to the equivalent
     #: LFRic-specific field datasymbol.
     field_mapping = {
-        "integer": "IntegerFieldDataDataSymbol",
-        "real": "RealFieldDataDataSymbol",
-        "logical": "LogicalFieldDataDataSymbol"}
+        "integer": "IntegerFieldDataSymbol",
+        "real": "RealFieldDataSymbol",
+        "logical": "LogicalFieldDataSymbol"}
     #: Mapping from a generic PSyIR datatype to the equivalent
     #: LFRic-specific vector field datasymbol.
     vector_field_mapping = {
-        "integer": "IntegerVectorFieldDataDataSymbol",
-        "real": "RealVectorFieldDataDataSymbol",
-        "logical": "LogicalVectorFieldDataDataSymbol"}
+        "integer": "IntegerVectorFieldDataSymbol",
+        "real": "RealVectorFieldDataSymbol",
+        "logical": "LogicalVectorFieldDataSymbol"}
     #: Mapping from the LFRic metadata description of quadrature to the
     #: associated LFRic-specific basis function datasymbol.
     basis_mapping = {

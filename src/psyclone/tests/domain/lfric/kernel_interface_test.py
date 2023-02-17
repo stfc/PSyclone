@@ -101,9 +101,9 @@ def test_generate(var_accesses):
     assert isinstance(undf_w0_symbol,
                       LFRicTypes("NumberOfUniqueDofsDataSymbol"))
     f1_field_symbol = kernel_interface._symbol_table.lookup("f1")
-    assert isinstance(f1_field_symbol, LFRicTypes("RealFieldDataDataSymbol"))
+    assert isinstance(f1_field_symbol, LFRicTypes("RealFieldDataSymbol"))
     f2_field_symbol = kernel_interface._symbol_table.lookup("f2")
-    assert isinstance(f2_field_symbol, LFRicTypes("RealFieldDataDataSymbol"))
+    assert isinstance(f2_field_symbol, LFRicTypes("RealFieldDataSymbol"))
     ndf_w0_symbol = kernel_interface._symbol_table.lookup("ndf_w0")
     assert isinstance(ndf_w0_symbol, LFRicTypes("NumberOfDofsDataSymbol"))
     dofmap_w0_symbol = kernel_interface._symbol_table.lookup("dofmap_w0")
@@ -243,7 +243,7 @@ def test_field_vector(monkeypatch):
         tag = f"{vector_arg.name}_v{idx}"
         symbol = kernel_interface._symbol_table.lookup(tag)
         assert isinstance(symbol,
-                          LFRicTypes("RealVectorFieldDataDataSymbol"))
+                          LFRicTypes("RealVectorFieldDataSymbol"))
         assert isinstance(symbol.interface, ArgumentInterface)
         assert (symbol.interface.access ==
                 ArgumentInterface(INTENT_MAPPING[vector_arg.intent]).access)
@@ -290,7 +290,7 @@ def test_field(monkeypatch):
     # space specified and dimensioned correctly
     tag = field_arg.name
     symbol = kernel_interface._symbol_table.lookup(tag)
-    assert isinstance(symbol, LFRicTypes("RealFieldDataDataSymbol"))
+    assert isinstance(symbol, LFRicTypes("RealFieldDataSymbol"))
     assert isinstance(symbol.interface, ArgumentInterface)
     assert (symbol.interface.access ==
             ArgumentInterface(INTENT_MAPPING[field_arg.intent]).access)

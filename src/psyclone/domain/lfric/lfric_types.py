@@ -123,9 +123,8 @@ class LFRicTypes:
         # Generate LFRic vector-field-data symbols as subclasses of
         # field-data symbols
         for intrinsic in ["Real", "Integer", "Logical"]:
-            # TODO #2050: we end up with DataData
-            name = f"{intrinsic}VectorFieldDataDataSymbol"
-            baseclass = LFRicTypes(f"{intrinsic}FieldDataDataSymbol")
+            name = f"{intrinsic}VectorFieldDataSymbol"
+            baseclass = LFRicTypes(f"{intrinsic}FieldDataSymbol")
             LFRicTypes._name_to_class[name] = type(name, (baseclass, ), {})
 
     # ------------------------------------------------------------------------
@@ -317,14 +316,12 @@ class LFRicTypes:
             Scalar("NumberOfQrPointsInEdges", "LfricIntegerScalarData", [])]
 
         for info in specific_scalar_datatypes:
-            # TODO #2050: we end up with DataDataType
             type_name = f"{info.name}DataType"
             LFRicTypes._name_to_class[type_name] = \
                 type(type_name,
                      (LFRicTypes(f"{info.generic_type_name}Type"), ),
                      {})
 
-            # TODO #2050: we end up with DataDataSymbol
             symbol_name = f"{info.name}DataSymbol"
             base_class = LFRicTypes(f"{info.generic_type_name}Symbol")
             LFRicTypes._create_scalar_data_type(symbol_name, base_class,
@@ -406,11 +403,11 @@ class LFRicTypes:
         Array = namedtuple('Array',
                            ["name", "scalar_type", "dims", "properties"])
         field_datatypes = [
-            Array("RealFieldData", "LfricRealScalarDataType",
+            Array("RealField", "LfricRealScalarDataType",
                   ["number of unique dofs"], ["fs"]),
-            Array("IntegerFieldData", "LfricIntegerScalarDataType",
+            Array("IntegerField", "LfricIntegerScalarDataType",
                   ["number of unique dofs"], ["fs"]),
-            Array("LogicalFieldData", "LfricLogicalScalarDataType",
+            Array("LogicalField", "LfricLogicalScalarDataType",
                   ["number of unique dofs"], ["fs"])]
 
         # TBD: #918 the dimension datatypes and their ordering is captured in

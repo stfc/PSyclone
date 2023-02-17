@@ -227,13 +227,13 @@ def test_specific_scalar_symbols(symbol_name, generic_symbol_name,
 @pytest.mark.parametrize(
     "data_type_name, symbol_name, scalar_type_name, dims_args,"
     "attribute_map",
-    [("RealFieldDataDataType", "RealFieldDataDataSymbol",
+    [("RealFieldDataType", "RealFieldDataSymbol",
       "LfricRealScalarDataType",
       [("NumberOfUniqueDofsDataSymbol", "ndofs", "w0")], {"fs": "w0"}),
-     ("IntegerFieldDataDataType", "IntegerFieldDataDataSymbol",
+     ("IntegerFieldDataType", "IntegerFieldDataSymbol",
       "LfricIntegerScalarDataType",
       [("NumberOfUniqueDofsDataSymbol", "ndofs", "w1")], {"fs": "w1"}),
-     ("LogicalFieldDataDataType", "LogicalFieldDataDataSymbol",
+     ("LogicalFieldDataType", "LogicalFieldDataSymbol",
       "LfricLogicalScalarDataType",
       [("NumberOfUniqueDofsDataSymbol", "ndofs", "w2")], {"fs": "w2"}),
      ("OperatorDataType", "OperatorDataSymbol",
@@ -366,11 +366,11 @@ def test_arrays_data_symbol_init_args():
 # Vector field-data data-symbols
 @pytest.mark.parametrize(
     "symbol, parent_symbol, space, visibility",
-    [("RealVectorFieldDataDataSymbol", "RealFieldDataDataSymbol",
+    [("RealVectorFieldDataSymbol", "RealFieldDataSymbol",
       "w0", None),
-     ("IntegerVectorFieldDataDataSymbol", "IntegerFieldDataDataSymbol",
+     ("IntegerVectorFieldDataSymbol", "IntegerFieldDataSymbol",
       "w1", Symbol.Visibility.PUBLIC),
-     ("LogicalVectorFieldDataDataSymbol", "LogicalFieldDataDataSymbol",
+     ("LogicalVectorFieldDataSymbol", "LogicalFieldDataSymbol",
       "w2", Symbol.Visibility.PRIVATE)])
 def test_vector_fields(symbol, parent_symbol, space, visibility):
     '''Test the generated vector field datasymbols are created
