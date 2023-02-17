@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2021-2022, Science and Technology Facilities Council.
+.. Copyright (c) 2021-2023, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -581,8 +581,9 @@ correctness test). It is likely that this will require refinement in future,
 e.g. for kernels that have non-numeric arguments.
 
 For the LFRic API, only scalar and field arguments are currently included in
-the inner-product calculation. Issue #1864 will extend this to operator
-arguments.
+the inner-product calculation since operators are never active. (The
+test-harness generator will return an error if supplied with a TL kernel that
+writes to an operator.)
 
 Comparing the Inner Products
 ----------------------------

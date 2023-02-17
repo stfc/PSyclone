@@ -290,6 +290,24 @@
 
 	99) PR #2029 for #1567. Fix visibility issues with imported symbols.
 
+	100) PR #2024 for #1984. Fixes the dependence analysis for the case
+	where a single element of an array of fields is passed as an
+	argument to an LFRic built-in.
+
+	101) PR #1980 for #1978. Updated LFRic Infrastructure files in
+	PSyclone repository and PSyData libraries to support 32- and
+	64-bit mixed precision.
+
+	102) PR #2034 for #1864: Add support for adjoint test-harness
+	generation for kernels with operator arguments.
+
+	103) PR #2038 for #1998. Adds support for r_tran_operator_type to
+	LFRic (dynamo0.3).
+
+	104) PR #2036 for #2033. Splits core/access_info into its constiutent
+	classes and moves utility functions out of the DependencyTools
+	module.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
