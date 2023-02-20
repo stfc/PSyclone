@@ -1,7 +1,7 @@
 <!--
 BSD 3-Clause License
 
-Copyright (c) 2018-2021, Science and Technology Facilities Council.
+Copyright (c) 2018-2023, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,8 @@ POSSIBILITY OF SUCH DAMAGE.
 
 Author A. R. Porter, STFC Daresbury Lab
 Modified by R. W. Ford, STFC Daresbury Lab
+Modified by J. Henrichs, Bureau of Meteorology
+
 -->
 
 # PSyclone NEMO Examples
@@ -133,3 +135,8 @@ data regions.
 SIR generation and transformation to CUDA using Dawn with simple
 examples and a cut down version of the tracer advection (tra_adv)
 benchmark.
+
+## Example 5
+
+Extraction of kernel data. Using the tra_adv benchmark, this examples
+shows the extraction of kernel input- and output-data.
