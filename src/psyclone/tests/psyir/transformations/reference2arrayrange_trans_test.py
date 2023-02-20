@@ -328,7 +328,7 @@ def test_validate_deallocate(fortran_reader):
     with pytest.raises(TransformationError) as info:
         trans.validate(reference)
     assert ("References to arrays within DEALLOCATE intrinsics should not be "
-            "transformed." in str(info.value))
+            "transformed, but found:\n DEALLOCATE(a)" in str(info.value))
 
 
 def test_apply_validate():
