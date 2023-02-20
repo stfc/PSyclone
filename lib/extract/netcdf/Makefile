@@ -96,3 +96,4 @@ clean:
 allclean:
 	$(MAKE) -C dl_esm_inf allclean
 	$(MAKE) -C lfric allclean
+	$(MAKE) -C nemo allclean
