@@ -70,7 +70,7 @@ from psyclone.parse.kernel import KernelType, getkerneldescriptors
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
                              Arguments, KernelArgument, HaloExchange,
-                             GlobalSum, FORTRAN_INTENT_NAMES, DataAccess,
+                             GlobalReduction, FORTRAN_INTENT_NAMES, DataAccess,
                              CodedKern)
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
@@ -5852,7 +5852,7 @@ class DynInvokeSchedule(InvokeSchedule):
                 "', dm=" + str(Config.get().distributed_memory)+"]")
 
 
-class DynGlobalSum(GlobalSum):
+class DynGlobalSum(GlobalReduction): ## Repurpose to Reduction
     '''
     Dynamo specific global sum class which can be added to and
     manipulated in a schedule.

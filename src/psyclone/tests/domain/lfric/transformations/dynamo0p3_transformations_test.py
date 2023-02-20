@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,7 +50,7 @@ from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.dynamo0p3 import DynLoop, DynHaloExchangeStart, \
     DynHaloExchangeEnd, DynHaloExchange
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyGen import InvokeSchedule, GlobalSum, BuiltIn
+from psyclone.psyGen import InvokeSchedule, GlobalReduction, BuiltIn
 from psyclone.psyir.nodes import colored, Loop, Schedule, Literal, Directive, \
     OMPDoDirective, ACCEnterDataDirective, Reference
 from psyclone.psyir.symbols import LocalInterface, ScalarType, ArrayType, \
@@ -3584,7 +3584,8 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
 
 
 def test_reprod_view(monkeypatch, annexed, dist_mem):
-    '''test that we generate a correct view() for OpenMP do
+    '''
+    Test that we generate a correct view() for OpenMP do
     reductions. Also test with and without annexed dofs being computed
     as this affects the output.
 
@@ -3598,7 +3599,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
     ompdo = colored("OMPDoDirective", Directive._colour)
     ompdefault = colored("OMPDefaultClause", Directive._colour)
     ompprivate = colored("OMPPrivateClause", Directive._colour)
-    gsum = colored("GlobalSum", GlobalSum._colour)
+    gsum = colored("GlobalReduction", GlobalReduction._colour)
     loop = colored("Loop", Loop._colour)
     call = colored("BuiltIn", BuiltIn._colour)
     sched = colored("Schedule", Schedule._colour)

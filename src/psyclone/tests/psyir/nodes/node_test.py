@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -653,7 +653,7 @@ def test_dag_names():
     idx = aref.children[0].detach()
     assert idx.dag_name == "Literal_0"
 
-    # GlobalSum and BuiltIn also have specialised dag_names
+    # GlobalReduction and BuiltIn also have specialised dag_names
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         api="dynamo0.3")

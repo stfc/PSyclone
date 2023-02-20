@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -130,7 +130,7 @@ def test_distmem_error(monkeypatch):
     assert ("Nodes of type 'DynHaloExchange' cannot be enclosed by a "
             "LFRicExtractTrans transformation") in str(excinfo.value)
 
-    # Try applying Extract transformation to Node(s) containing GlobalSum
+    # Try applying Extract transformation to Node(s) containing GlobalReduction
     # This will set config.distributed_mem to True again.
     _, invoke = get_invoke("15.14.3_sum_setval_field_builtin.f90",
                            DYNAMO_API, idx=0, dist_mem=True)
