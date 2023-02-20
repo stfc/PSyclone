@@ -411,9 +411,9 @@ class KernelInterface(ArgOrdering):
 
         '''
         mapping = {
-            "integer": LFRicTypes("LfricIntegerScalarDataSymbol"),
-            "real": LFRicTypes("LfricRealScalarDataSymbol"),
-            "logical": LFRicTypes("LfricLogicalScalarDataSymbol")}
+            "integer": LFRicTypes("LFRicIntegerScalarDataSymbol"),
+            "real": LFRicTypes("LFRicRealScalarDataSymbol"),
+            "logical": LFRicTypes("LFRicLogicalScalarDataSymbol")}
         try:
             symbol = self._symbol_table.find_or_create_tag(
                 scalar_arg.name,

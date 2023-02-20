@@ -264,9 +264,9 @@ def test_validate_kernel_code_arg(monkeypatch):
     real_scalar_rw_symbol = DataSymbol(
         "generic_scalar_rw", REAL_TYPE,
         interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
-    lfric_real_scalar_symbol = LFRicTypes("LfricRealScalarDataSymbol")(
+    lfric_real_scalar_symbol = LFRicTypes("LFRicRealScalarDataSymbol")(
         "scalar", interface=read_access)
-    lfric_int_scalar_symbol = LFRicTypes("LfricIntegerScalarDataSymbol")(
+    lfric_int_scalar_symbol = LFRicTypes("LFRicIntegerScalarDataSymbol")(
         "scalar", interface=read_access)
     lfric_real_field_symbol = LFRicTypes("RealFieldDataSymbol")(
         "field", dims=[1], fs="w0", interface=read_access)

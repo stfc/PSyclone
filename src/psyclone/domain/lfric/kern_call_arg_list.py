@@ -391,7 +391,7 @@ class KernCallArgList(ArgOrdering):
         # the range function below returns values from
         # 1 to the vector size which is what we
         # require in our Fortran code
-        array_1d = ArrayType(LFRicTypes("LfricRealScalarDataType")(),
+        array_1d = ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
                              [ArrayType.Extent.DEFERRED])
         for idx in range(1, argvect.vector_size + 1):
             # Create the accesses to each element of the vector:
@@ -429,7 +429,7 @@ class KernCallArgList(ArgOrdering):
         # Add an access to field_proxy%data:
         precision = KernCallArgList._map_type_to_precision(arg.data_type)
         array_1d = \
-            ArrayType(LFRicTypes("LfricRealScalarDataType")(precision),
+            ArrayType(LFRicTypes("LFRicRealScalarDataType")(precision),
                       [ArrayType.Extent.DEFERRED])
         self.append_structure_reference(
             arg.module_name, arg.proxy_data_type, ["data"],
@@ -614,13 +614,13 @@ class KernCallArgList(ArgOrdering):
         self.append_structure_reference(
             operator["module"], operator["proxy_type"], ["ncell_3d"],
             arg.proxy_name_indexed,
-            overwrite_datatype=LFRicTypes("LfricIntegerScalarDataType")())
+            overwrite_datatype=LFRicTypes("LFRicIntegerScalarDataType")())
         self.append(arg.proxy_name_indexed + "%ncell_3d", var_accesses,
                     mode=AccessType.READ)
 
         precision = KernCallArgList._map_type_to_precision(operator["type"])
         array_type = \
-            ArrayType(LFRicTypes("LfricRealScalarDataType")(precision),
+            ArrayType(LFRicTypes("LFRicRealScalarDataType")(precision),
                       [ArrayType.Extent.DEFERRED]*3)
         self.append_structure_reference(
             operator["module"], operator["proxy_type"], ["local_stencil"],

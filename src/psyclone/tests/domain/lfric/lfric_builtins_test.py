@@ -501,7 +501,7 @@ def test_get_indexed_field_argument_refs():
     refs = kern.get_indexed_field_argument_references()
     # Kernel has two field arguments
     assert len(refs) == 2
-    array_1d = ArrayType(LFRicTypes("LfricRealScalarDataType")(),
+    array_1d = ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
                          [ArrayType.Extent.DEFERRED])
     for ref in refs:
         assert isinstance(ref, StructureReference)

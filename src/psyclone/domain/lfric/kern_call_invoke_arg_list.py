@@ -150,9 +150,9 @@ class KernCallInvokeArgList(ArgOrdering):
 
         # Create a DataSymbol for this kernel argument.
         if scalar_arg.intrinsic_type == "real":
-            datatype = LFRicTypes("LfricRealScalarDataType")()
+            datatype = LFRicTypes("LFRicRealScalarDataType")()
         elif scalar_arg.intrinsic_type == "integer":
-            datatype = LFRicTypes("LfricIntegerScalarDataType")()
+            datatype = LFRicTypes("LFRicIntegerScalarDataType")()
         else:
             raise NotImplementedError(
                 f"Scalar of type '{scalar_arg.intrinsic_type}' not supported.")

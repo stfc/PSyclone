@@ -421,7 +421,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         '''
         idx_sym = self.get_dof_loop_index_symbol()
 
-        array_1d = ArrayType(LFRicTypes("LfricRealScalarDataType")(),
+        array_1d = ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
                              [ArrayType.Extent.DEFERRED])
         return [StructureReference.create(
             arg.psyir_expression().symbol, [("data", [Reference(idx_sym)])],

@@ -96,11 +96,11 @@ def test_constants_mod():
 
 # Generic scalars
 @pytest.mark.parametrize("type_name, symbol_name, intrinsic, precision_name", [
-    ("LfricIntegerScalarDataType", "LfricIntegerScalarDataSymbol",
+    ("LFRicIntegerScalarDataType", "LFRicIntegerScalarDataSymbol",
      ScalarType.Intrinsic.INTEGER, "I_DEF"),
-    ("LfricRealScalarDataType", "LfricRealScalarDataSymbol",
+    ("LFRicRealScalarDataType", "LFRicRealScalarDataSymbol",
      ScalarType.Intrinsic.REAL, "R_DEF"),
-    ("LfricLogicalScalarDataType", "LfricLogicalScalarDataSymbol",
+    ("LFRicLogicalScalarDataType", "LFRicLogicalScalarDataSymbol",
      ScalarType.Intrinsic.BOOLEAN, "L_DEF")])
 def test_generic_scalars(type_name, symbol_name, intrinsic,
                          precision_name):
@@ -135,14 +135,14 @@ def test_generic_scalars(type_name, symbol_name, intrinsic,
 # Scalar literals
 def test_scalar_literals():
     '''Test the scalar literals are defined correctly.'''
-    # LfricDimension class
-    lfric_dim_class = LFRicTypes("LfricDimension")
-    assert isinstance(LFRicTypes("LfricDimension")("1"),
+    # LFRicDimension class
+    lfric_dim_class = LFRicTypes("LFRicDimension")
+    assert isinstance(LFRicTypes("LFRicDimension")("1"),
                       lfric_dim_class)
-    assert isinstance(LFRicTypes("LfricDimension")("3"),
+    assert isinstance(LFRicTypes("LFRicDimension")("3"),
                       lfric_dim_class)
     with pytest.raises(ValueError) as info:
-        LFRicTypes("LfricDimension")("2")
+        LFRicTypes("LFRicDimension")("2")
     assert ("An LFRic dimension object must be '1' or '3', but found '2'."
             in str(info.value))
     # LFRIC_SCALAR_DIMENSION instance
@@ -157,17 +157,17 @@ def test_scalar_literals():
 
 # Specific scalar datatypes
 @pytest.mark.parametrize("data_type_name, generic_type_name", [
-    ("CellPositionDataType", "LfricIntegerScalarDataType"),
-    ("MeshHeightDataType", "LfricIntegerScalarDataType"),
-    ("NumberOfCellsDataType", "LfricIntegerScalarDataType"),
-    ("NumberOfDofsDataType", "LfricIntegerScalarDataType"),
-    ("NumberOfUniqueDofsDataType", "LfricIntegerScalarDataType"),
-    ("NumberOfFacesDataType", "LfricIntegerScalarDataType"),
-    ("NumberOfEdgesDataType", "LfricIntegerScalarDataType"),
-    ("NumberOfQrPointsInXyDataType", "LfricIntegerScalarDataType"),
-    ("NumberOfQrPointsInZDataType", "LfricIntegerScalarDataType"),
-    ("NumberOfQrPointsInFacesDataType", "LfricIntegerScalarDataType"),
-    ("NumberOfQrPointsInEdgesDataType", "LfricIntegerScalarDataType")])
+    ("CellPositionDataType", "LFRicIntegerScalarDataType"),
+    ("MeshHeightDataType", "LFRicIntegerScalarDataType"),
+    ("NumberOfCellsDataType", "LFRicIntegerScalarDataType"),
+    ("NumberOfDofsDataType", "LFRicIntegerScalarDataType"),
+    ("NumberOfUniqueDofsDataType", "LFRicIntegerScalarDataType"),
+    ("NumberOfFacesDataType", "LFRicIntegerScalarDataType"),
+    ("NumberOfEdgesDataType", "LFRicIntegerScalarDataType"),
+    ("NumberOfQrPointsInXyDataType", "LFRicIntegerScalarDataType"),
+    ("NumberOfQrPointsInZDataType", "LFRicIntegerScalarDataType"),
+    ("NumberOfQrPointsInFacesDataType", "LFRicIntegerScalarDataType"),
+    ("NumberOfQrPointsInEdgesDataType", "LFRicIntegerScalarDataType")])
 def test_specific_scalar_types(data_type_name, generic_type_name):
     '''Test the generated specific scalar datatypes are created correctly.
 
@@ -190,18 +190,18 @@ def test_specific_scalar_types_init_args():
 
 # Specific scalar symbols
 @pytest.mark.parametrize("symbol_name, generic_symbol_name, attribute_map", [
-    ("CellPositionDataSymbol", "LfricIntegerScalarDataSymbol", {}),
-    ("MeshHeightDataSymbol", "LfricIntegerScalarDataSymbol", {}),
-    ("NumberOfCellsDataSymbol", "LfricIntegerScalarDataSymbol", {}),
-    ("NumberOfDofsDataSymbol", "LfricIntegerScalarDataSymbol", {"fs": "w3"}),
-    ("NumberOfUniqueDofsDataSymbol", "LfricIntegerScalarDataSymbol",
+    ("CellPositionDataSymbol", "LFRicIntegerScalarDataSymbol", {}),
+    ("MeshHeightDataSymbol", "LFRicIntegerScalarDataSymbol", {}),
+    ("NumberOfCellsDataSymbol", "LFRicIntegerScalarDataSymbol", {}),
+    ("NumberOfDofsDataSymbol", "LFRicIntegerScalarDataSymbol", {"fs": "w3"}),
+    ("NumberOfUniqueDofsDataSymbol", "LFRicIntegerScalarDataSymbol",
      {"fs": "w2"}),
-    ("NumberOfFacesDataSymbol", "LfricIntegerScalarDataSymbol", {}),
-    ("NumberOfEdgesDataSymbol", "LfricIntegerScalarDataSymbol", {}),
-    ("NumberOfQrPointsInXyDataSymbol", "LfricIntegerScalarDataSymbol", {}),
-    ("NumberOfQrPointsInZDataSymbol", "LfricIntegerScalarDataSymbol", {}),
-    ("NumberOfQrPointsInFacesDataSymbol", "LfricIntegerScalarDataSymbol", {}),
-    ("NumberOfQrPointsInEdgesDataSymbol", "LfricIntegerScalarDataSymbol", {})])
+    ("NumberOfFacesDataSymbol", "LFRicIntegerScalarDataSymbol", {}),
+    ("NumberOfEdgesDataSymbol", "LFRicIntegerScalarDataSymbol", {}),
+    ("NumberOfQrPointsInXyDataSymbol", "LFRicIntegerScalarDataSymbol", {}),
+    ("NumberOfQrPointsInZDataSymbol", "LFRicIntegerScalarDataSymbol", {}),
+    ("NumberOfQrPointsInFacesDataSymbol", "LFRicIntegerScalarDataSymbol", {}),
+    ("NumberOfQrPointsInEdgesDataSymbol", "LFRicIntegerScalarDataSymbol", {})])
 def test_specific_scalar_symbols(symbol_name, generic_symbol_name,
                                  attribute_map):
     '''Test the generated specific scalar symbols are
@@ -228,70 +228,70 @@ def test_specific_scalar_symbols(symbol_name, generic_symbol_name,
     "data_type_name, symbol_name, scalar_type_name, dims_args,"
     "attribute_map",
     [("RealFieldDataType", "RealFieldDataSymbol",
-      "LfricRealScalarDataType",
+      "LFRicRealScalarDataType",
       [("NumberOfUniqueDofsDataSymbol", "ndofs", "w0")], {"fs": "w0"}),
      ("IntegerFieldDataType", "IntegerFieldDataSymbol",
-      "LfricIntegerScalarDataType",
+      "LFRicIntegerScalarDataType",
       [("NumberOfUniqueDofsDataSymbol", "ndofs", "w1")], {"fs": "w1"}),
      ("LogicalFieldDataType", "LogicalFieldDataSymbol",
-      "LfricLogicalScalarDataType",
+      "LFRicLogicalScalarDataType",
       [("NumberOfUniqueDofsDataSymbol", "ndofs", "w2")], {"fs": "w2"}),
      ("OperatorDataType", "OperatorDataSymbol",
-      "LfricRealScalarDataType",
+      "LFRicRealScalarDataType",
       [("NumberOfDofsDataSymbol", "ndofs", "w3"),
        ("NumberOfDofsDataSymbol", "ndofs", "w3"),
        ("NumberOfCellsDataSymbol", "ncells")],
      {"fs_from": "w3", "fs_to": "w3"}),
      ("DofMapDataType", "DofMapDataSymbol",
-      "LfricIntegerScalarDataType",
+      "LFRicIntegerScalarDataType",
       [("NumberOfDofsDataSymbol", "ndofs", "w3")], {"fs": "w3"}),
      ("BasisFunctionQrXyozDataType", "BasisFunctionQrXyozDataSymbol",
-      "LfricRealScalarDataType",
+      "LFRicRealScalarDataType",
       [1,
        ("NumberOfDofsDataSymbol", "ndofs", "w0"),
        ("NumberOfQrPointsInXyDataSymbol", "qr_xy"),
        ("NumberOfQrPointsInZDataSymbol", "qr_z")], {"fs": "w0"}),
      ("BasisFunctionQrFaceDataType", "BasisFunctionQrFaceDataSymbol",
-      "LfricRealScalarDataType",
+      "LFRicRealScalarDataType",
       [3,
        ("NumberOfDofsDataSymbol", "ndofs", "w1"),
        ("NumberOfQrPointsInFacesDataSymbol", "qr"),
        ("NumberOfFacesDataSymbol", "nfaces")], {"fs": "w1"}),
      ("BasisFunctionQrEdgeDataType", "BasisFunctionQrEdgeDataSymbol",
-      "LfricRealScalarDataType",
+      "LFRicRealScalarDataType",
       [1,
        ("NumberOfDofsDataSymbol", "ndofs", "w2"),
        ("NumberOfQrPointsInEdgesDataSymbol", "qr"),
        ("NumberOfEdgesDataSymbol", "nedges")], {"fs": "w2"}),
      ("DiffBasisFunctionQrXyozDataType", "DiffBasisFunctionQrXyozDataSymbol",
-      "LfricRealScalarDataType",
+      "LFRicRealScalarDataType",
       [3,
        ("NumberOfDofsDataSymbol", "ndofs", "wtheta"),
        ("NumberOfQrPointsInXyDataSymbol", "qr_xy"),
        ("NumberOfQrPointsInZDataSymbol", "qr_z")], {"fs": "wtheta"}),
      ("DiffBasisFunctionQrFaceDataType", "DiffBasisFunctionQrFaceDataSymbol",
-      "LfricRealScalarDataType",
+      "LFRicRealScalarDataType",
       [3,
        ("NumberOfDofsDataSymbol", "ndofs", "w1"),
        ("NumberOfQrPointsInFacesDataSymbol", "qr"),
        ("NumberOfFacesDataSymbol", "nfaces")], {"fs": "w1"}),
      ("DiffBasisFunctionQrEdgeDataType", "DiffBasisFunctionQrEdgeDataSymbol",
-      "LfricRealScalarDataType",
+      "LFRicRealScalarDataType",
       [1,
        ("NumberOfDofsDataSymbol", "ndofs", "w2v"),
        ("NumberOfQrPointsInEdgesDataSymbol", "qr"),
        ("NumberOfEdgesDataSymbol", "nedges")], {"fs": "w2v"}),
      ("QrWeightsInXyDataType", "QrWeightsInXyDataSymbol",
-      "LfricRealScalarDataType",
+      "LFRicRealScalarDataType",
       [("NumberOfQrPointsInXyDataSymbol", "qr_xy")], {}),
      ("QrWeightsInZDataType", "QrWeightsInZDataSymbol",
-      "LfricRealScalarDataType",
+      "LFRicRealScalarDataType",
       [("NumberOfQrPointsInZDataSymbol", "qr_z")], {}),
      ("QrWeightsInFacesDataType", "QrWeightsInFacesDataSymbol",
-      "LfricRealScalarDataType",
+      "LFRicRealScalarDataType",
       [("NumberOfQrPointsInFacesDataSymbol", "qr")], {}),
      ("QrWeightsInEdgesDataType", "QrWeightsInEdgesDataSymbol",
-      "LfricRealScalarDataType",
+      "LFRicRealScalarDataType",
       [("NumberOfQrPointsInEdgesDataSymbol", "qr")], {})])
 def test_arrays(data_type_name, symbol_name, scalar_type_name,
                 dims_args, attribute_map):
