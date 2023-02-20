@@ -50,6 +50,8 @@ data files created. The size of domain and number of time-steps are also
 picked-up from environment variables. Some example settings are provided
 in the `domain_setup.sh` file.
 
+Note that driver creation is not yet supported in NEMO, see issue #2058.
+
 ## Licence
 
 -----------------------------------------------------------------------------
