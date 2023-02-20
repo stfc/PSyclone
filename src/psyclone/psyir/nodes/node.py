@@ -1103,12 +1103,14 @@ class Node():
                 f"The 'limit' argument to ancestor() must be an instance of "
                 f"Node but got '{type(limit).__name__}'")
 
-        while myparent not in [None, limit]:
+        while myparent is not None:
             if isinstance(myparent, my_type):
                 if not (excluding and isinstance(myparent, excludes)):
                     # This parent node is not an instance of an excluded
                     # sub-class so return it
                     return myparent
+            if myparent is limit:
+                break
             myparent = myparent.parent
         return None
 
