@@ -202,7 +202,7 @@ contains
     subroutine PreStart(this, module_name, region_name, num_pre_vars, &
                         num_post_vars)
 
-        use netcdf, only : nf90_create, NF90_CLOBBER
+        use netcdf, only : nf90_create, NF90_CLOBBER, NF90_NETCDF4
 
         implicit none
 
@@ -219,7 +219,8 @@ contains
 
         ! Open the NetCDF file
         retval = CheckError(nf90_create(module_name//"-"//region_name//".nc", &
-                                        NF90_CLOBBER, this%ncid))
+                                        IOR(NF90_NETCDF4,NF90_CLOBBER),       &
+                                        this%ncid))
         ! Allocate the array that will store the variable IDs of all
         ! variables that are going to be declared. Note that there might
         ! actually be more variables stored (in LFRic vector fields are
