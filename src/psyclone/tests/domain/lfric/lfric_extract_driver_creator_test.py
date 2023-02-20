@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -79,7 +79,8 @@ def test_lfric_driver_field_mapping():
     for field in ["columnwise_operator",
                   "field", "integer_field",
                   "operator", "r_solver_field",
-                  "r_solver_operator", "r_tran_field"]:
+                  "r_solver_operator", "r_tran_field",
+                  "r_tran_operator"]:
         correct[mapping[field]["proxy_type"]] = mapping[field]["kind"]
 
     driver_creator = LFRicExtractDriverCreator()
