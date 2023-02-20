@@ -94,6 +94,9 @@ class OMPTaskDirective(OMPRegionDirective):
     )
 
     def __init__(self, children=None, parent=None, lowering=False):
+        # If we're lowering this node from a DynamicOMPTaskDirective then
+        # we need remove the children from that node before adding
+        # the children from this node.
         if lowering:
             sched_childs = children[0].pop_all_children()
             super().__init__(
@@ -196,6 +199,10 @@ class OMPTaskDirective(OMPRegionDirective):
                 "but could not find an ancestor node."
             )
 
+        # If there is a nowait clause on the ancestor OMPSingleDirective,
+        # it is possible that we could make other tasks we expect to be
+        # dependent that wouldn't be, as dependencies are only counted
+        # in OpenMP if spawned by the same thread.
         if self.ancestor(OMPSingleDirective).nowait:
             raise GenerationError(
                 "OMPTaskDirective found inside an OMP Single region "
@@ -254,7 +261,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         """
         anc = self.ancestor((OMPParallelDirective, Loop))
         while isinstance(anc, Loop):
-            # Store the loop variable of the parent loop
+            # Store the loop variable of each parent loop
             var = anc.variable
             self._parent_loop_vars.append(var)
             self._parent_loops.append(anc)
@@ -377,7 +384,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                                  to a shared variable.
         """
 
-        # Binary Operation check
+        # Binary Operation operator check, must be ADD or SUB.
         if (
             node.operator is not BinaryOperation.Operator.ADD
             and node.operator is not BinaryOperation.Operator.SUB
@@ -410,11 +417,17 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             )
 
         # Have Reference +/- Literal, analyse
-        # and create clause appropriately
+        # and create clause appropriately.
+
+        # index_private stores whether the index is private.
         index_private = False
+        # is_proxy stores whether the index is a proxy loop variable.
         is_proxy = False
+        # ref stores the Reference child of the BinaryOperation.
         ref = None
+        # literal stores the Literal child of the BinaryOperation.
         literal = None
+        # ref_index stores which child the reference is from the BinOp
         ref_index = None
         if isinstance(node.children[0], Reference):
             index_symbol = node.children[0].symbol
@@ -440,7 +453,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # Loop variables, then we create a Range object for : for that
         # dimension. All other situations are treated as a constant.
 
-        # Find the child loops that are not proxies.
+        # Find the child loops that are not proxy loop variables.
         child_loop_vars = []
         for child_loop in self.walk(Loop):
             if child_loop.variable not in self._proxy_loop_vars:
@@ -498,6 +511,10 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     binop = BinaryOperation.create(
                         node.operator, real_ref.copy(), step
                     )
+                    # If modulo is non-zero then we need a second binop
+                    # dependency to handle the module, so we have two
+                    # dependency clauses, one which handles each of the
+                    # step-sized array chunks that overlaps with this access.
                     if modulo != 0:
                         if step2 is not None:
                             binop2 = BinaryOperation.create(
@@ -510,6 +527,10 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     binop = BinaryOperation.create(
                         node.operator, step, real_ref.copy()
                     )
+                    # If modulo is non-zero then we need a second binop
+                    # dependency to handle the module, so we have two
+                    # dependency clauses, one which handles each of the
+                    # step-sized array chunks that overlaps with this access.
                     if modulo != 0:
                         if step2 is not None:
                             binop2 = BinaryOperation.create(
@@ -535,6 +556,10 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     one = Literal(str(dim + 1), INTEGER_TYPE)
                     # Find the arrayref
                     array_access_member = ref.ancestor(ArrayMember)
+                    # If there is an ArrayMember ancestor of this index, then
+                    # this is a StructureReference. For that case we need
+                    # to find the StructureReference parent, and recreate
+                    # the full a%b%c(...) style structure.
                     if array_access_member is not None:
                         start = ref.ancestor(StructureReference)
                         sub_ref = StructureReference(start.symbol)
@@ -547,6 +572,8 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     else:
                         arrayref = ref.parent.parent
                         sub_ref = Reference(arrayref.symbol)
+                    # Create a full range object for this symbol and
+                    # children
                     lbound = BinaryOperation.create(
                         BinaryOperation.Operator.LBOUND,
                         sub_ref.copy(),
@@ -659,8 +686,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 else:
                     # It can't be a child loop variable (these have to be
                     # private). Just has to be a firstprivate constant, which
-                    # we can just use the reference to for now. Not 100% on
-                    # this as the value is modifiable.
+                    # we can just use the reference to for now.
                     index_list.append(node.copy())
         else:
             # Have a shared variable, which we're not currently supporting
@@ -710,6 +736,8 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         :raises GenerationError: If an array index is not a Reference, Literal
                                  or BinaryOperation.
         """
+        # Index list stores the set of indices to use with this ArrayMixin
+        # for the depend clause.
         index_list = []
 
         # Arrays are always shared variables in the parent parallel region.
@@ -747,7 +775,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     # can only do as well as guessing the entire range
                     # of the loop is used.
                     if index.symbol in child_loop_vars:
-                        # Return a :
+                        # Append a full Range (i.e., :)
                         one = Literal(str(dim + 1), INTEGER_TYPE)
                         lbound = BinaryOperation.create(
                             BinaryOperation.Operator.LBOUND,
@@ -823,7 +851,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # to an ArrayReference again.
         # To create all combinations, we use itertools.product
         # We have to create a new list which only contains lists.
-        # Add to in_list: name(index1, index2)
         new_index_list = []
         for element in index_list:
             if isinstance(element, list):
@@ -896,6 +923,8 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                                  or BinaryOperation.
         """
 
+        # Index list stores the set of indices to use with this ArrayMixin
+        # for the depend clause.
         index_list = []
 
         # Find the list of members we need to include in the final reference.
@@ -925,7 +954,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     # can only do as well as guessing the entire range
                     # of the loop is used.
                     if index.symbol in child_loop_vars:
-                        # Return a :
+                        # Append a full Range (i.e., :)
                         one = Literal(str(dim + 1), INTEGER_TYPE)
                         members = sref_base.walk(Member)
                         new_member = members[0].copy()
@@ -939,7 +968,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         new_member2 = new_member.copy()
 
                         # Similar to StructureReference._create but we already
-                        # have members.
+                        # have member objects.
                         lbound_sref = StructureReference(sref_base.symbol)
                         lbound_sref.addchild(new_member)
                         lbound = BinaryOperation.create(
@@ -948,7 +977,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                             one.copy(),
                         )
                         # Similar to StructureReference._create but we already
-                        # have members.
+                        # have member objects.
                         ubound_sref = StructureReference(sref_base.symbol)
                         ubound_sref.addchild(new_member2)
                         ubound = BinaryOperation.create(
@@ -1020,7 +1049,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # to an ArrayReference again.
         # To create all combinations, we use itertools.product
         # We have to create a new list which only contains lists.
-        # Add to in_list: name(index1, index2)
         new_index_list = []
         for element in index_list:
             if isinstance(element, list):
@@ -1076,7 +1104,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                                  children is found.
         """
         if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
-            # Resolve ArrayReference (AOSReference)
+            # Resolve ArrayReference or ArrayOfStructuresReference
             self._evaluate_readonly_arrayref(
                 ref, private_list, firstprivate_list, shared_list, in_list
             )
@@ -1171,6 +1199,8 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # Arrays are always shared at the moment, so we ignore the possibility
         # of it being private now.
 
+        # Index list stores the set of indices to use with this ArrayMixin
+        # for the depend clause.
         index_list = []
         # Work out the indices needed.
         for dim, index in enumerate(array_access_member.indices):
@@ -1196,7 +1226,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     # can only do as well as guessing the entire range
                     # of the loop is used.
                     if index.symbol in child_loop_vars:
-                        # Return a :
+                        # Append a full Range (i.e. :)
                         one = Literal(str(dim + 1), INTEGER_TYPE)
                         members = sref_base.walk(Member)
                         new_member = members[0].copy()
@@ -1278,7 +1308,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # to an ArrayReference again.
         # To create all combinations, we use itertools.product
         # We have to create a new list which only contains lists.
-        # Add to in_list: name(index1, index2)
         new_index_list = []
         for element in index_list:
             if isinstance(element, list):
@@ -1301,12 +1330,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 while isinstance(sref_children.children[0], Member):
                     sref_children = sref_children.children[0]
                 sref_children.parent.children[0] = final_member
-            # I think that sref_copy.children length is always 0, so I've
-            # commented this out for now, as even for A%AA(i,j) the structure
-            # reference copy still has the children. I will remove this
-            # commented code unless I can think of something during review.
-            # else:
-            #     sref_copy.addchild(final_member)
             # Add dclause into the out_list if required
             if sref_copy not in out_list:
                 out_list.append(sref_copy)
@@ -1358,6 +1381,8 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # Arrays are always shared at the moment, so we ignore the possibility
         # of it being private now.
 
+        # Index list stores the set of indices to use with this ArrayMixin
+        # for the depend clause.
         index_list = []
         # Work out the indices needed.
         for dim, index in enumerate(ref.indices):
@@ -1446,7 +1471,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # to an ArrayReference again.
         # To create all combinations, we use itertools.product
         # We have to create a new list which only contains lists.
-        # Add to in_list: name(index1, index2)
         new_index_list = []
         for element in index_list:
             if isinstance(element, list):
@@ -1495,7 +1519,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # If its private should add it to private list if not already present
         if is_private and ref not in private_list:
             private_list.append(ref.copy())
-        # Otherwise its shared
+        # Otherwise its a shared variable
         if not is_private:
             if ref not in shared_list:
                 shared_list.append(ref.copy())
@@ -1606,7 +1630,17 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         references = rhs.walk(Reference)
 
         # If RHS involves a parent loop variable, then our lhs node is a proxy
-        # loop variable
+        # loop variable.
+        # This handles the case where we have a parent loop, e.g.
+        # do i = x, y, 32
+        # and we have code inside the task region which does
+        # my_temp_var = i+1
+        # array(my_temp_var) = ...
+        # In this case, we need to have this variable as an extra copy of
+        # the proxy parent loop variable. Additionally, there can be multiple
+        # value set for this variable, so we need to store all possible ones
+        # (as they could occur inside an if/else statement and both values)
+        # be visible for each set.
         added = False
         for ref in references:
             if isinstance(ref.parent, ArrayMixin):
@@ -1637,6 +1671,17 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
         # If RHS involves a proxy loop variable, then our lhs node is also a
         # proxy to that same variable
+        # This handles the case where we have a parent loop, e.g.
+        # do i = x, y, 32
+        # and we have code inside the task region which does
+        # for j = i, i + 32, 1
+        # my_temp_var = j+1
+        # array(my_temp_var) = ...
+        # In this case, we need to have this variable as an extra copy of
+        # the proxy parent loop variable. Additionally, there can be multiple
+        # value set for this variable, so we need to store all possible ones
+        # (as they could occur inside an if/else statement and both values)
+        # be visible for each set.
         added = False
         key_list = list(self._proxy_loop_vars.keys())
         for ref in references:
@@ -2007,13 +2052,17 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         :rtype: List of [OMPPrivateClause, OMPFirstprivateClause,
                          OMPSharedClause, OMPDependClause, OMPDependClause]
         """
+
+        # These lists will store PSyclone nodes which are to be added to the
+        # clauses for this OMPTaskDirective.
         private_list = []
         firstprivate_list = []
         shared_list = []
         in_list = []
         out_list = []
 
-        # Reset this in case we already computed clauses before.
+        # Reset this in case we already computed clauses before but are
+        # recomputing them (usually due to a code change or multiple outputs).
         self._proxy_loop_vars = {}
 
         # Find all the parent loop variables

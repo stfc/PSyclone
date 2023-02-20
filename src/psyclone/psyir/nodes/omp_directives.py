@@ -375,14 +375,13 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 # Have Reference OP Literal. Store the symbol of the
                 # Reference, and the integer value of the Literal. If the
                 # operator is negative, then we store the value negated.
-                if ref.operator == BinaryOperation.Operator.ADD:
+                if ref.operator in [BinaryOperation.Operator.ADD,
+                                    BinaryOperation.Operator.SUB]:
                     symbol = ref.children[0].symbol
                     binop_val = int(ref.children[1].value)
                     num_entries = 2
-                elif ref.operator == BinaryOperation.Operator.SUB:
-                    symbol = ref.children[0].symbol
-                    binop_val = 0-(int(ref.children[1].value))
-                    num_entries = 2
+                    if ref.operator == BinaryOperation.Operator.SUB:
+                        binop_val = -binop_val
                 else:
                     raise UnresolvedDependencyError(
                             "Found a dependency index that is "
@@ -402,7 +401,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                         raise UnresolvedDependencyError(
                                 "Found a dependency index that is a "
                                 "BinaryOperation with a child "
-                                "BinaryOperation with a non-MUL operand "
+                                "BinaryOperation with a non-MUL operator "
                                 "which is not supported.")
                     # These binary operations are format of Literal MUL Literal
                     # where step_val is the 2nd literal and the multiplier
@@ -431,30 +430,8 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 # Reference, and store the binop. The binop is of
                 # structure Literal MUL Literal, where the second
                 # Literal is to the step of a parent loop.
-                if ref.operator == BinaryOperation.Operator.ADD:
-                    symbol = ref.children[0].symbol
-                    binop = ref.children[1]
-                    if binop.operator != BinaryOperation.Operator.MUL:
-                        raise UnresolvedDependencyError(
-                                "Found a dependency index that is a "
-                                "BinaryOperation with a child "
-                                "BinaryOperation with a non-MUL operand "
-                                "which is not supported.")
-                    # These binary operations are format of Literal MUL Literal
-                    # where step_val is the 2nd literal.
-                    if (not (isinstance(binop.children[0], Literal) and
-                             isinstance(binop.children[1], Literal))):
-                        raise UnresolvedDependencyError(
-                                "Found a dependency index that is a "
-                                "BinaryOperation with an operand "
-                                "BinaryOperation with a non-Literal operand "
-                                "which is not supported.")
-                    # We store the step of the parent loop in binop_val, and
-                    # use the other operand to compute how many entries we
-                    # need to compute to validate this dependency list.
-                    binop_val = int(binop.children[1].value)
-                    num_entries = int(binop.children[0].value)+1
-                elif ref.operator == BinaryOperation.Operator.SUB:
+                if ref.operator in [BinaryOperation.Operator.ADD,
+                                    BinaryOperation.Operator.SUB]:
                     symbol = ref.children[0].symbol
                     binop = ref.children[1]
                     if binop.operator != BinaryOperation.Operator.MUL:
@@ -472,12 +449,17 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                                 "BinaryOperation with an operand "
                                 "BinaryOperation with a non-Literal operand "
                                 "which is not supported.")
-                    # We store the step of the parent loop in binop_val, but
-                    # negated as the operator is SUB, and
+                    # We store the step of the parent loop in binop_val, and
                     # use the other operand to compute how many entries we
                     # need to compute to validate this dependency list.
-                    binop_val = -int(binop.children[1].value)
-                    num_entries = int(binop.children[0].value)
+                    binop_val = int(binop.children[1].value)
+                    num_entries = int(binop.children[0].value)+1
+                    if ref.operator == BinaryOperation.Operator.SUB:
+                        # If the operator is SUB then we use 1 less
+                        # entry in the list, as Fortran arrays start
+                        # from 1.
+                        binop_val = -binop_val
+                        num_entries = num_entries-1
                 else:
                     raise UnresolvedDependencyError(
                             "Found a dependency index that is "
@@ -630,6 +612,54 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         output_list.append(second_val)
         return output_list
 
+    def _check_valid_overlap(self, sympy_ref1s, sympy_ref2s):
+        '''
+        Takes two lists of SymPy expressions, and checks that any overlaps
+        between the expressions is valid for OpenMP depend clauses.
+        
+        :param sympy_ref1s: the list of SymPy expressions corresponding to
+                            the first dependency clause.
+        :type sympy_ref1s: list of SymPy expressions
+        :param sympy_ref2s: the list of SymPy expressions corresponding to
+                            the second dependency clause.
+        :type sympy_ref2s: list of SymPy expressions
+
+        :returns: whether this is a valid overlap according to the OpenMP \
+                  standard.
+        :rtype: bool
+        '''
+        # r1_min will contain the minimum computed value for (ref + value)
+        # from the list. r1_max will contain the maximum computed value.
+        r1_min = sys.maxsize
+        r1_max = 0
+        values = []
+        # Loop through the values in sympy_ref1s, and compute the maximum 
+        # and minumum values in that list. These correspond to the maximum and
+        # minimum values used for accessing the array relative to the
+        # symbol used as a base access.
+        for member in sympy_ref1s:
+            val = int(member)
+            values.append(val)
+            if val < r1_min:
+                r1_min = val
+            if val > r1_max:
+                r1_max = val
+        # Loop over the elements in sympy_ref2s and check that the dependency
+        # is valid in OpenMP.
+        for member in sympy_ref2s:
+            # If the value is between min and max of r1 then we check that
+            # the value is in the values list
+            val = int(member)
+            if val >= r1_min and val <= r1_max:
+                if val not in values:
+                    # Found incompatible dependency between two
+                    # array accesses, ref1 is in range r1_min
+                    # to r1_max, but doesn't contain val.
+                    # This can happen if we have two loops with
+                    # different start values or steps.
+                    return False
+        return True
+
     def _valid_dependence_ref_binop(self, ref1, ref2, task1, task2):
         '''
         Compares two Reference/BinaryOperation Nodes to check they are a set
@@ -705,10 +735,6 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         if len(ref1_ref) > 0:
             # Handle reference case
             values = []
-            # r1_min will contain the minimum computed value for (ref + value)
-            # from the list. r1_max will contain the maximum computed value.
-            r1_min = sys.maxsize
-            r1_max = 0
             for member in ref1_accesses:
                 # If its a reference (not a BinaryOperation) we need to treat
                 # it as a special case, as this means that we essentially have
@@ -716,7 +742,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 if isinstance(member, Reference):
                     # If we find the Reference then we need to set the min
                     # to 0 as we have Reference + 0
-                    r1_min = 0
+                    values.append(Literal("0", INTEGER_TYPE))
                     continue
                 # We know its a BinaryOperation of the Reference and something.
                 # Take the second child of the BinaryOperation to compute
@@ -726,18 +752,6 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             # integer values for these Literals
             sympy_ref1s = SymPyWriter.convert_to_sympy_expressions(values)
 
-            values = []
-            # Loop through the values, and compute the maximum and minumum
-            # values in that list. These correspond to the maximum and
-            # minimum values used for accessing the array relative to the
-            # symbol used as a base access.
-            for member in sympy_ref1s:
-                val = int(member)
-                values.append(val)
-                if val < r1_min:
-                    r1_min = val
-                if val > r1_max:
-                    r1_max = val
 
             # val2s stores all the values added to the base reference in
             # the BinaryOperations in ref2_accesses, so if ref2_accesses
@@ -753,56 +767,21 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 # Take the second child of the BinaryOperation to compute
                 val2s.append(member.children[1])
             sympy_ref2s = SymPyWriter.convert_to_sympy_expressions(val2s)
-            for member in sympy_ref2s:
-                # If the value is between min and max of r1 then we check that
-                # the value is in the values list
-                val = int(member)
-                if val >= r1_min and val <= r1_max:
-                    if val not in values:
-                        # Found incompatible dependency between two
-                        # array accesses, ref1 is in range {r1_min}
-                        # to {r1_max}, but doesn't contain {val}.
-                        # This can happen if we have two loops with
-                        # different start values or steps.
-                        return False
+            return self._check_valid_overlap(sympy_ref1s, sympy_ref2s)
         else:
             # Handle no Reference case
-            # Find the min and max values of the first reference accesses
-            r1_min = sys.maxsize
-            r1_max = 0
             # We have a set of Literal values, we use the SymPyWriter to
             # convert these objects to expressions we can use to obtain
             # integer values for these Literals
             sympy_ref1s = \
                 SymPyWriter.convert_to_sympy_expressions(ref1_accesses)
-            values = []
-            for member in sympy_ref1s:
-                # Since we were all literals, the SymPyWriter converts this
-                # to a single value.
-                val = int(member)
-                values.append(val)
-                if val < r1_min:
-                    r1_min = val
-                if val > r1_max:
-                    r1_max = val
 
             # We have a set of Literal values, we use the SymPyWriter to
             # convert these objects to expressions we can use to obtain
             # integer values for these Literals
             sympy_ref2s = \
                 SymPyWriter.convert_to_sympy_expressions(ref2_accesses)
-            for member in sympy_ref2s:
-                # If the value is between min and max of r1 then we check that
-                # the value is in the values list
-                val = int(member)
-                if val >= r1_min and val <= r1_max:
-                    if val not in values:
-                        # Found incompatible dependency between two
-                        # array accesses, ref1 is in range {r1_min}
-                        # to {r1_max}, but doesn't contain {val}.
-                        # This can happen if we have two loops with
-                        # different start values or steps.
-                        return False
+            return self._check_valid_overlap(sympy_ref1s, sympy_ref2s)
 
         return True
 

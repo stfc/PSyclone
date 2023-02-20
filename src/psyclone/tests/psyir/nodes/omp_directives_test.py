@@ -1382,7 +1382,7 @@ def test_omp_serial_compute_accesses_bad_binop():
     assert (
         "Found a dependency index that is a "
         "BinaryOperation with a child "
-        "BinaryOperation with a non-MUL operand "
+        "BinaryOperation with a non-MUL operator "
         "which is not supported." in str(excinfo.value)
     )
 
@@ -1426,7 +1426,7 @@ def test_omp_serial_compute_accesses_bad_binop():
         sing._compute_accesses(binop_fail6, [], None)
     assert (
         "Found a dependency index that is a BinaryOperation with a child "
-        "BinaryOperation with a non-MUL operand which is not supported."
+        "BinaryOperation with a non-MUL operator which is not supported."
         in str(excinfo.value)
     )
 
@@ -1446,6 +1446,7 @@ def test_omp_serial_compute_accesses_bad_binop():
     )
     with pytest.raises(UnresolvedDependencyError) as excinfo:
         sing._compute_accesses(binop_fail8, [], None)
+    print(str(excinfo.value))
     assert (
         "Found a dependency index that is a BinaryOperation with a child "
         "BinaryOperation with a non-MUL operator which is not supported."
