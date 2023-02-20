@@ -7113,6 +7113,7 @@ class DynLoop(PSyLoop):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         super().lower_to_language_level()
         if self._loop_type != "null":

@@ -1460,6 +1460,7 @@ class CodedKern(Kern):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         symtab = self.ancestor(InvokeSchedule).symbol_table
 

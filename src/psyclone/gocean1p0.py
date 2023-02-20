@@ -2176,6 +2176,7 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         self._acc_dirs = self.ancestor(InvokeSchedule).walk(
                 (ACCParallelDirective, ACCKernelsDirective))
@@ -2242,6 +2243,7 @@ class GOHaloExchange(HaloExchange):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # TODO 856: Wrap Halo call with an is_dirty flag when necessary.
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -632,7 +632,6 @@ class PSyDataNode(Statement):
         :raises GenerationError: if the node is not inside a Routine.
 
         '''
-
         def gen_type_bound_call(typename, methodname, argument_list=None,
                                 annotations=None):
             ''' Helper utility to generate type-bound calls. Since this is

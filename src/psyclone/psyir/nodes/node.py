@@ -1274,6 +1274,7 @@ class Node():
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # We recurse only over the original children (hence [:]), this is
         # because new nodes may be inserted during the lowering, but these

@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab.
 # Modified: J. Henrichs, Bureau of Meteorology
-#           A. R. Porter and N. Nobre, STFC Daresbury Lab
+#           A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 
 
 '''Generic PSyIR visitor code that can be specialised by different
