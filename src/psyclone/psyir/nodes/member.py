@@ -40,12 +40,7 @@
 
 
 from psyclone.core import Signature
-from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.nodes.operation import BinaryOperation
-from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import (DataTypeSymbol, ArrayType, DeferredType,
-                                    UnknownType, StructureType, INTEGER_TYPE)
 
 
 class Member(Node):
@@ -83,7 +78,7 @@ class Member(Node):
                 f"(ArrayOf)Structure(s)Reference or (ArrayOf)Structure(s)"
                 f"Member but found '{type(parent).__name__}'.")
 
-        super(Member, self).__init__(parent=parent)
+        super().__init__(parent=parent)
         # Store the name of the component that this member represents
         self._component_name = member_name
 

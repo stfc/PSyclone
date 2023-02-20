@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2022, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -366,7 +366,9 @@ simple and creates a copy of the Kernel routine within the same Container
 as the routine from which it is called. The latter is far more intrusive
 and replaces a call to a routine with the actual body of that routine.
 This can be complex due to the fact that Fortran allows the bounds of
-arrays within a routine to differ from those at the call site, e.g.::
+arrays within a routine to differ from those at the call site, e.g.:
+
+.. code-block:: fortran
 
   integer :: my_array(10)
   ...
@@ -380,7 +382,9 @@ As a consequence of this, ensuring that any array index expressions are
 correctly handled when inlining the routine body will often mean that
 full type information is required for every dummy argument. However, there are
 exceptions that arise when the dimensions of an array are not actually
-declared within the subroutine, e.g.::
+declared within the subroutine, e.g.:
+
+.. code-block:: fortran
 
    type(my_type) :: var
    ...
@@ -396,7 +400,9 @@ the subroutine. We therefore do not require full type information
 for the dummy argument `x` in order to safely inline the routine.
 However, as soon as the dummy argument is in the form of an array
 then we will require full type information for the corresponding
-argument at both the call site and within the routine, e.g.::
+argument at both the call site and within the routine, e.g.:
+
+.. code-block:: fortran
 
    type(my_type) :: var
    ...

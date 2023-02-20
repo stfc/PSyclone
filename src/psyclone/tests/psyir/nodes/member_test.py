@@ -38,7 +38,7 @@
 ''' This module contains pytest tests for the Member class. '''
 
 import pytest
-from psyclone.psyir import nodes, symbols
+from psyclone.psyir import nodes
 
 
 def test_member_constructor():

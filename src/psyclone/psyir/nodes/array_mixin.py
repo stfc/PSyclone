@@ -188,7 +188,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             return False
         return True
 
-    def lbound(self, pos):
+    def get_lbound_expression(self, pos):
         '''
         Lookup the lower bound of this ArrayMixin. If we don't have the
         necessary type information then a call to the LBOUND intrinsic is
@@ -198,11 +198,13 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                         lower bound.
 
         :returns: the declared lower bound for the specified dimension of \
-            this Member or a call to the LBOUND intrinsic if it is unknown.
+            the array accesed or a call to the LBOUND intrinsic if it is \
+            unknown.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        # First, walk up to the parent reference and get its type.
+        # First, walk up to the parent reference and get its type. For a simple
+        # ArrayReference this will just be self.
         root_ref = self.ancestor(Reference, include_self=True)
         cursor_type = root_ref.symbol.datatype
 
@@ -230,11 +232,14 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                 continue
             cursor_type = cursor_type.components[cursor.name].datatype
 
-        if isinstance(cursor_type, ArrayType):
-            return cursor_type.shape[pos].lower
+        if (isinstance(cursor_type, ArrayType) and
+                cursor_type.shape[pos] not in [ArrayType.Extent.DEFERRED,
+                                               ArrayType.Extent.ATTRIBUTE]):
+            # We have the full type information and the lower bound is known.
+            return cursor_type.shape[pos].lower.copy()
 
-        # We've failed to resolve the type so we construct a call to
-        # the LBOUND intrinsic instead.
+        # We've either failed to resolve the type or we don't know the extent
+        # of the array dimension so construct a call to the LBOUND intrinsic.
         if cnames:
             # We have some sort of structure access - remove any indexing
             # information from the ultimate member of the structure access.

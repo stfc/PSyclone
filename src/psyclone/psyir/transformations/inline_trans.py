@@ -133,8 +133,6 @@ class InlineTrans(Transformation):
         '''
         self.validate(node, options)
 
-        ref2arraytrans = Reference2ArrayRangeTrans()
-
         # The table associated with the scoping region holding the Call.
         table = node.scope.symbol_table
         # Find the routine to be inlined.
@@ -175,11 +173,13 @@ class InlineTrans(Transformation):
         # or containers.
         self._inline_symbols(table, routine_table, precision_map)
 
-        # When constructing new references to replace references to formal args
-        # we need to know whether any of the actual arguments are array
+        # When constructing new references to replace references to formal
+        # args, we need to know whether any of the actual arguments are array
         # accesses. If they use 'array notation' (i.e. represent a whole array)
         # then they won't have index expressions and will have been captured
         # as a Reference.
+        ref2arraytrans = Reference2ArrayRangeTrans()
+
         for child in node.children:
             try:
                 # TODO #1858, this won't yet work for arrays inside structures.
@@ -397,7 +397,7 @@ class InlineTrans(Transformation):
             if actual_arg.is_lower_bound(pos):
                 # Range starts at lower bound of argument so that's what
                 # we store.
-                actual_start = actual_arg.lbound(pos)
+                actual_start = actual_arg.get_lbound_expression(pos)
             else:
                 actual_start = idx.start
 
@@ -704,10 +704,14 @@ class InlineTrans(Transformation):
         :raises TransformationError: if the routine body contains a CodeBlock.
         :raises TransformationError: if the called routine has a named \
             argument.
+        :raises TransformationError: if any of the variables declared within \
+            the called routine are of UnknownType.
         :raises TransformationError: if a symbol of a given name is imported \
             from different containers at the call site and within the routine.
         :raises TransformationError: if the routine accesses an un-resolved \
             symbol.
+        :raises TransformationError: if the number of arguments in the call \
+            does not match the number of formal arguments of the routine.
         :raises TransformationError: if a symbol declared in the parent \
             container is accessed in the target routine.
         :raises TransformationError: if the shape of an array formal argument \
@@ -842,9 +846,18 @@ class InlineTrans(Transformation):
                         f"it accesses variable '{sym.name}' from its "
                         f"parent container.")
 
-        # Check that the shape of any formal array arguments are the same as
+        # Check that the shapes of any formal array arguments are the same as
         # those at the call site.
         visitor = FortranWriter()
+
+        if len(routine_table.argument_list) != len(node.children):
+            raise TransformationError(LazyString(
+                lambda: f"Cannot inline '{visitor(node).strip()}' because"
+                f" the number of arguments supplied to the call "
+                f"({len(node.children)}) does not match the number of "
+                f"arguments the routine is declared to have "
+                f"({len(routine_table.argument_list)})."))
+
         for formal_arg, actual_arg in zip(routine_table.argument_list,
                                           node.children):
             # If the formal argument is an array with non-default bounds then
@@ -878,8 +891,8 @@ class InlineTrans(Transformation):
             # argument is not re-shaped in the called routine if we have full
             # type information on the actual argument.
             # TODO #1904. It would be useful if the `datatype` property was
-            # a method that took an optional 'resolve' argument to indicate that
-            # it should attempt to resolve any DeferredTypes.
+            # a method that took an optional 'resolve' argument to indicate
+            # that it should attempt to resolve any DeferredTypes.
             if isinstance(actual_arg.datatype, (DeferredType, UnknownType)):
                 raise TransformationError(
                     f"Routine '{routine.name}' cannot be inlined because "

@@ -434,8 +434,9 @@ def test_apply_struct_slice_arg(fortran_reader, fortran_writer, tmpdir):
         f"    call sub2(var_list(:), i, i+2)\n"
         f"    call sub3(cvar)\n"
         f"  end subroutine run_it\n"
-        f"  subroutine sub(ix)\n"
+        f"  subroutine sub(ix, indx)\n"
         f"    integer, dimension(:) :: ix\n"
+        f"    integer, intent(in) :: indx\n"
         f"    ix(:) = ix(:) + 1\n"
         f"  end subroutine sub\n"
         f"  subroutine sub2(x, start, stop)\n"
@@ -1787,6 +1788,33 @@ def test_validate_non_local_symbol(fortran_reader):
         inline_trans.validate(call)
     assert ("Routine 'sub' cannot be inlined because it accesses variable "
             "'trouble' from its parent container" in str(err.value))
+
+
+def test_validate_wrong_number_args(fortran_reader):
+    '''
+    '''
+    code = (
+        "module test_mod\n"
+        "  integer :: trouble\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "    integer :: i\n"
+        "    i = 10\n"
+        "    call sub(i, trouble)\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(idx)\n"
+        "    integer :: idx\n"
+        "    idx = idx + 1\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(call)
+    assert ("Cannot inline 'call sub(i, trouble)' because the number of "
+            "arguments supplied to the call (2) does not match the number of "
+            "arguments the routine is declared to have (1)" in str(err.value))
 
 
 def test_validate_unresolved_import(fortran_reader):
