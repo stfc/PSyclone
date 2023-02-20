@@ -880,7 +880,8 @@ class InlineTrans(Transformation):
                 # if we encounter an argument that is not a scalar (according
                 # to the corresponding formal argument) but is not a
                 # Reference or a Literal as we don't know whether the result
-                # of any given expression is or is not an array.
+                # of any general expression is or is not an array.
+                # pylint: disable=cell-var-from-loop
                 raise TransformationError(LazyString(
                     lambda: f"The call '{visitor(node)}' cannot be inlined "
                     f"because actual argument '{visitor(actual_arg)}' "
@@ -890,7 +891,7 @@ class InlineTrans(Transformation):
             # We have an array argument. We are only able to check that the
             # argument is not re-shaped in the called routine if we have full
             # type information on the actual argument.
-            # TODO #1904. It would be useful if the `datatype` property was
+            # TODO #924. It would be useful if the `datatype` property was
             # a method that took an optional 'resolve' argument to indicate
             # that it should attempt to resolve any DeferredTypes.
             if isinstance(actual_arg.datatype, (DeferredType, UnknownType)):

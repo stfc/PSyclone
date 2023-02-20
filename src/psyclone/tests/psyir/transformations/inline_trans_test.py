@@ -226,7 +226,7 @@ def test_apply_gocean_kern(fortran_reader, fortran_writer, monkeypatch):
     '''
     Test the apply method with a typical GOcean kernel.
 
-    TODO #1904 - currently this xfails because we don't resolve the type of
+    TODO #924 - currently this xfails because we don't resolve the type of
     the actual argument.
 
     '''
@@ -267,7 +267,7 @@ def test_apply_gocean_kern(fortran_reader, fortran_writer, monkeypatch):
     if ("actual argument 'cu_fld' corresponding to an array formal "
             "argument ('cu') is unknown" in str(err.value)):
         pytest.xfail(
-            "TODO #1904 - extend validation to attempt to resolve type of "
+            "TODO #924 - extend validation to attempt to resolve type of "
             "actual argument.")
     output = fortran_writer(psyir)
     assert ("    do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
