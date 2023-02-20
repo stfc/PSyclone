@@ -37,6 +37,7 @@
 to the corresponding PSy-layer routine.
 
 '''
+import abc
 
 from psyclone.core import SymbolicMaths
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall
@@ -49,7 +50,7 @@ from psyclone.psyir.symbols import (ContainerSymbol,
 from psyclone.psyir.transformations import TransformationError
 
 
-class AlgInvoke2PSyCallTrans(Transformation):
+class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
     '''
     Transforms an AlgorithmInvokeCall into a standard Call to a generated
     PSy-layer routine.
@@ -83,6 +84,10 @@ class AlgInvoke2PSyCallTrans(Transformation):
                 "No 'invoke' symbol found despite there still being at least "
                 "one AlgorithmInvokeCall node present.")
 
+    @abc.abstractmethod
+    def get_arguments(self, node, options=None):
+        ''' xxx '''
+
     def apply(self, node, options=None):
         ''' Apply the transformation to the supplied AlgorithmInvokeCall.
         The supplied node will be replaced with a Call node with appropriate
@@ -100,24 +105,26 @@ class AlgInvoke2PSyCallTrans(Transformation):
 
         node.create_psylayer_symbol_root_names()
 
-        arguments = []
-        sym_maths = SymbolicMaths.get()
-        for kern in node.children:
-            for arg in kern.children:
-                if isinstance(arg, Literal):
-                    # Literals are not passed by argument.
-                    pass
-                elif isinstance(arg, (Reference, ArrayReference)):
-                    for existing_arg in arguments:
-                        if sym_maths.equal(arg, existing_arg):
-                            break
-                    else:
-                        arguments.append(arg.copy())
-                else:
-                    raise InternalError(
-                        f"Expected Algorithm-layer kernel arguments to be "
-                        f"a literal, reference or array reference, but "
-                        f"found '{type(arg).__name__}'.")
+        arguments = self.get_arguments(node, options=options)
+
+        #arguments = []
+        #sym_maths = SymbolicMaths.get()
+        #for kern in node.children:
+        #    for arg in kern.children:
+        #        if isinstance(arg, Literal):
+        #            # Literals are not passed by argument.
+        #            pass
+        #        elif isinstance(arg, (Reference, ArrayReference)):
+        #            for existing_arg in arguments:
+        #                if sym_maths.equal(arg, existing_arg):
+        #                    break
+        #            else:
+        #                arguments.append(arg.copy())
+        #        else:
+        #            raise InternalError(
+        #                f"Expected Algorithm-layer kernel arguments to be "
+        #                f"a literal, reference or array reference, but "
+        #                f"found '{type(arg).__name__}'.")
 
         symbol_table = node.ancestor(Routine).symbol_table
 

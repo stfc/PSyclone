@@ -57,6 +57,9 @@ from psyclone.domain.common.algorithm.psyir import (
 from psyclone.domain.common.transformations import (
     AlgTrans, AlgInvoke2PSyCallTrans)
 from psyclone.domain.gocean.transformations import RaisePSyIR2GOceanKernTrans
+from psyclone.domain.lfric.transformations import (
+    LFRicAlgTrans, RaisePSyIR2LFRicAlgTrans, RaisePSyIR2LFRicKernTrans,
+    LFRicAlgInvoke2PSyCallTrans)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.line_length import FortLineLength
 from psyclone.parse.algorithm import parse
@@ -66,7 +69,7 @@ from psyclone.profiler import Profiler
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import Loop, Call
 from psyclone.version import __VERSION__
 
 # Those APIs that do not have a separate Algorithm layer
@@ -240,22 +243,29 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
     ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
                              kernel_paths=kernel_paths,
                              line_length=line_length)
-    if api != "gocean1.0":
+
+    testing = True
+
+    if api in API_WITHOUT_ALGORITHM or (api == "dynamo0.3" and not testing):
         psy = PSyFactory(api, distributed_memory=distributed_memory)\
             .create(invoke_info)
         if script_name is not None:
             handle_script(script_name, psy, "trans")
+        alg_gen = None
 
-    alg_gen = None
-
-    if api == "gocean1.0":
+    elif api == "gocean1.0" or (api == "dynamo0.3" and testing):
         # Create language-level PSyIR from the Algorithm file
         reader = FortranReader()
         psyir = reader.psyir_from_file(filename)
 
-        # Raise to Algorithm PSyIR
-        alg_trans = AlgTrans()
-        alg_trans.apply(psyir)
+                # Raise to Algorithm PSyIR
+        if api == "gocean1.0":
+            alg_trans = AlgTrans()
+            alg_trans.apply(psyir)
+        else:  # api == "dynamo0.3"
+            alg_trans = LFRicAlgTrans()
+            alg_trans.apply(psyir)
+
 
         # For each kernel called from the algorithm layer
         kernels = {}
@@ -282,8 +292,12 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
                     sys.exit(1)
 
                 # Raise to Kernel PSyIR
-                kern_trans = RaisePSyIR2GOceanKernTrans(kern.symbol.name)
-                kern_trans.apply(kernel_psyir)
+                if api == "gocean1.0":
+                    kern_trans = RaisePSyIR2GOceanKernTrans(kern.symbol.name)
+                    kern_trans.apply(kernel_psyir)
+                else:  # api == "dynamo0.3"
+                    kern_trans = RaisePSyIR2LFRicKernTrans()
+                    kern_trans.apply(kernel_psyir, options={"metadata_name": kern.symbol.name})
 
                 kernels[id(invoke)][id(kern)] = kernel_psyir
 
@@ -292,9 +306,12 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             handle_script(script_name, psyir, "trans_alg", is_optional=True)
 
         # Transform 'invoke' calls into calls to PSy-layer subroutines
-        invoke_trans = AlgInvoke2PSyCallTrans()
+        if api == "gocean1.0":
+            invoke_trans = AlgInvoke2PSyCallTrans()
+        else:  # api == "dynamo0.3"
+            invoke_trans = LFRicAlgInvoke2PSyCallTrans()
         for invoke in psyir.walk(AlgorithmInvokeCall):
-            invoke_trans.apply(invoke)
+            invoke_trans.apply(invoke, options={"kernels": kernels[id(invoke)]})
 
         # Create Fortran from Algorithm PSyIR
         writer = FortranWriter()
@@ -309,8 +326,9 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             # Call the optimisation script for psy-layer optimisations
             handle_script(script_name, psy, "trans")
 
-    elif api not in API_WITHOUT_ALGORITHM:
-        alg_gen = Alg(ast, psy).gen
+    # TODO: remove Alg class and tests from PSyclone
+    if api == "dynamo0.3" and not testing:
+         alg_gen = Alg(ast, psy).gen
 
     # Add profiling nodes to schedule if automatic profiling has
     # been requested.

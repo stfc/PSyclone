@@ -38,10 +38,16 @@ to the corresponding PSy-layer routine.
 
 '''
 
+from psyclone.core import SymbolicMaths
 from psyclone.domain.common.transformations import AlgInvoke2PSyCallTrans
-from psyclone.domain.lfric.algorithm.psyir import (LFRicAlgorithmInvokeCall,
-                                                   LFRicBuiltinFunctor)
+from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric.algorithm.psyir import (
+    LFRicAlgorithmInvokeCall, LFRicBuiltinFunctor)
+from psyclone.domain.lfric.kernel import (
+    FieldArgMetadata, FieldVectorArgMetadata,
+    InterGridArgMetadata, InterGridVectorArgMetadata)
 from psyclone.psyir.transformations import TransformationError
+from psyclone.psyir.nodes import Literal, Reference, ArrayReference
 
 
 class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
@@ -68,6 +74,117 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
                 f"Error in {self.name} transformation. The supplied call "
                 f"argument should be an `LFRicAlgorithmInvokeCall` node but "
                 f"found '{type(node).__name__}'.")
+
+    @staticmethod
+    def add_arg(arg, arguments):
+        '''Utility method to add argument arg to the arguments list as long as
+        it conforms to the expected constraints.
+
+        :param arg: the argument that might be added to the arguments \
+            list.
+        :type arg: :py:class:`psyclone.psyir.nodes.Reference`
+        :param arguments: the arguments list that the argument might \
+            be added to.
+        :type arguments: List[:py:class:`psyclone.psyir.nodes.Reference`]
+
+        :raises InternalError: if the arg argument is an unexpected \
+            type.
+
+        '''
+        sym_maths = SymbolicMaths.get()
+
+        if isinstance(arg, Literal):
+            # Literals are not passed by argument.
+            pass
+        elif isinstance(arg, (Reference, ArrayReference)):
+            for existing_arg in arguments:
+                if sym_maths.equal(arg, existing_arg):
+                    break
+            else:
+                arguments.append(arg.copy())
+        else:
+            raise InternalError(
+                f"Expected Algorithm-layer kernel arguments to be "
+                f"a literal, reference or array reference, but "
+                f"found '{type(arg).__name__}'.")
+
+    def get_arguments(self, node, options=None):
+        '''Creates the LFRic processed (lowered) argument list from the
+        argument lists of the kernels within the invoke call and the
+        kernel metadata.
+
+        :param node: an LFRic algorithm invoke call.
+        :type node: :py:class:`psyclone.domain.lfric.algorithm.psyir.\
+            LFRicAlgorithmInvokeCall`
+        :param options: a dictionary with options for transformations.
+        :type options: Optional[Dict[str, Any]]
+        :param options["kernels"]: this option provides a list of \
+            LFRic kernels for this LFRic Algorithm Invoke call.
+        :type options["kernels"]: \
+            List[:py:class:`psyclone.psyir.nodes.Container`]
+
+        :raises GenerationError: if the number of arguments in the \
+            invoke does not match the expected number of arguments \
+            specified by the metadata.
+
+        '''
+        # TODO: Check that the number of arguments matches that expected by the metadata.
+
+        const = LFRicConstants()
+        kernels = options["kernels"]
+
+        arguments = []
+        quad_arguments = []
+        stencil_arguments = []
+        for add_arguments in [False, True]:
+            # First check that the number of arguments in the kernel
+            # functor matches the expected number of arguments
+            # according to the associated kernel metadata, then, if
+            # so, add the arguments in the appropriate order.
+            for kern_call in node.children:
+                kernel = kernels[id(kern_call)]
+                kernel_metadata = kernel.children[0].metadata
+                arg_idx = 0
+                for meta_arg in kernel_metadata.meta_args:
+                    arg = kern_call.children[arg_idx]
+                    if add_arguments:
+                        self.add_arg(arg, arguments)
+                    # If this is a stencil arg then skip any additional
+                    # arguments.
+                    if type(meta_arg) in [
+                            FieldArgMetadata, FieldVectorArgMetadata,
+                            InterGridArgMetadata, InterGridVectorArgMetadata]:
+                        if meta_arg.stencil:
+                            arg_idx += 1
+                            if add_arguments:
+                                stencil_arg = kern_call.children[arg_idx]
+                                self.add_arg(stencil_arg, stencil_arguments)
+                            if meta_arg.stencil == "xory1d":
+                                arg_idx += 1
+                                if add_arguments:
+                                    stencil_arg = kern_call.children[arg_idx]
+                                    self.add_arg(
+                                        stencil_arg, stencil_arguments)
+                    arg_idx += 1
+                if kernel_metadata.shapes and \
+                   [quad for quad in kernel_metadata.shapes
+                    if quad in const.VALID_QUADRATURE_SHAPES]:
+                    # There is an additional quadrature argument.
+                    arg_idx += 1
+                    if add_arguments:
+                        quad_arg = kern_call.children[arg_idx]
+                        self.add_arg(quad_arg, quad_arguments)
+            if not add_arguments:
+                if len(kern_call.children) != arg_idx:
+                    raise GenerationError(
+                        f"The invoke kernel functor '{kern_call.name}' has "
+                        f"{len(kern_call.children)} arguments, but the kernel "
+                        f"metadata expects there to be {arg_idx} arguments.")
+
+        arguments.extend(stencil_arguments)
+        arguments.extend(quad_arguments)
+
+        return arguments
 
     def apply(self, node, options=None):
         ''' Apply the transformation to the supplied LFRicAlgorithmInvokeCall
