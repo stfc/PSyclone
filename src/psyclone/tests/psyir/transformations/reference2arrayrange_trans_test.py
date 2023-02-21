@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the Reference2ArrayRangeLoopTrans
 transformation.'''
@@ -328,7 +329,7 @@ def test_validate_deallocate(fortran_reader):
     with pytest.raises(TransformationError) as info:
         trans.validate(reference)
     assert ("References to arrays within DEALLOCATE intrinsics should not be "
-            "transformed." in str(info.value))
+            "transformed, but found:\n DEALLOCATE(a)" in str(info.value))
 
 
 def test_apply_validate():
