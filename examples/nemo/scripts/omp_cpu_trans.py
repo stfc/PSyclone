@@ -84,10 +84,10 @@ def trans(psy):
             # TODO #1841: These subroutines have a bug in the
             # array-range-to-loop transformation.
             print("Skipping normalisation for ", invoke.name)
-        elif invoke.name in ("ice_dyn_rhg_evp"):
+        #elif invoke.name in ("ice_dyn_rhg_evp"):
             # TODO #598: We are missing marking some vars as firstprivate
-            print("Skipping parallelisation for ", invoke.name)
-            continue
+            #print("Skipping parallelisation for ", invoke.name)
+            #continue
         else:
             normalise_loops(
                     invoke.schedule,
