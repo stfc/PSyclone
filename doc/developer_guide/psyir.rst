@@ -811,7 +811,7 @@ an access like ``op_proxy%ncell_3d`` is an LFRic integer:
         self.append_structure_reference(
             operator["module"], operator["proxy_type"], ["ncell_3d"],
             arg.proxy_name_indexed,
-            overwrite_datatype=psyir.LFRicIntegerScalarDataType())
+            overwrite_datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
 While most of PSyclone works without having access to this detailed
 information, the driver creation for kernel extraction (see
