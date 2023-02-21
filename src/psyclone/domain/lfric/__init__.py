@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,7 @@
 # Modified: I. Kavcic, Met Office
 #           R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-'''Module for the LFRic domain.
+'''Modules for the LFRic domain.
 '''
 
 # The order here is not alphabetical, but important because
@@ -43,6 +43,7 @@
 # KernCallAccArgList imports KernCallArgList, ArgOrdering
 # imports LFRicArgDescriptor, ...).
 from psyclone.domain.lfric.function_space import FunctionSpace
+from psyclone.domain.lfric.global_reductions import LFRicGlobalSum
 from psyclone.domain.lfric.lfric_arg_descriptor import LFRicArgDescriptor
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
@@ -63,4 +64,5 @@ __all__ = [
     'KernStubArgList',
     'LFRicArgDescriptor',
     'LFRicConstants',
+    'LFRicGlobalSum',
     'LFRicSymbolTable']

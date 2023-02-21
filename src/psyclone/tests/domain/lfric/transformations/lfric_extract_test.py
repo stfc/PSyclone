@@ -143,7 +143,7 @@ def test_distmem_error(monkeypatch):
     with pytest.raises(TransformationError) as excinfo:
         etrans.apply(glob_sum)
 
-    assert ("Nodes of type 'DynGlobalSum' cannot be enclosed by a "
+    assert ("Nodes of type 'LFRicGlobalSum' cannot be enclosed by a "
             "LFRicExtractTrans transformation") in str(excinfo.value)
 
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,9 +53,10 @@ from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import lfric_builtins
+from psyclone.domain.lfric.global_reductions import LFRicGlobalReduction
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule, \
-    DynKernelArguments, DynGlobalSum
+from psyclone.dynamo0p3 import (DynKern, DynKernMetadata, DynInvokeSchedule,
+                                DynKernelArguments)
 from psyclone.errors import GenerationError, FieldNotFoundError, InternalError
 from psyclone.generator import generate
 from psyclone.gocean1p0 import GOKern
@@ -841,10 +842,10 @@ def test_haloexchange_unknown_halo_depth():
     assert halo_exchange._halo_depth is None
 
 
-def test_globalreduction_node_str():
+def test_global_reduction_node_str():
     '''
-    Test the node_str method in the GlobalReduction class. The simplest way
-    to do this is to use an LFRic built-in example which contains a
+    Test the 'node_str' method in the GlobalReduction class. The simplest
+    way to do this is to use an LFRic built-in example which contains a
     scalar and then call node_str() on that.
 
     '''
@@ -854,7 +855,7 @@ def test_globalreduction_node_str():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     gsum = None
     for child in psy.invokes.invoke_list[0].schedule.children:
-        if isinstance(child, DynGlobalSum):
+        if isinstance(child, LFRicGlobalReduction):
             gsum = child
             break
     assert gsum
@@ -864,7 +865,7 @@ def test_globalreduction_node_str():
     assert expected_output in output
 
 
-def test_globalreduction_children_validation():
+def test_global_reduction_children_validation():
     '''
     Test that children added to GlobalReduction are validated. A
     GlobalReduction node does not accept any children.
@@ -876,7 +877,7 @@ def test_globalreduction_children_validation():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     gsum = None
     for child in psy.invokes.invoke_list[0].schedule.children:
-        if isinstance(child, DynGlobalSum):
+        if isinstance(child, LFRicGlobalReduction):
             gsum = child
             break
     with pytest.raises(GenerationError) as excinfo:
@@ -1324,7 +1325,7 @@ def test_argument_find_read_arguments():
         assert result[idx] == loop.loop_body[0].arguments.args[3]
 
 
-def test_globalsum_arg():
+def test_global_reduction_arg():
     '''
     Check that the global reduction argument (global sum in this
     example) is defined with 'gh_readwrite' access and points to
