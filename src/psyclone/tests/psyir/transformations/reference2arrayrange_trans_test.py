@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the Reference2ArrayRangeLoopTrans
 transformation.'''
@@ -312,6 +313,23 @@ def test_validate_structure(fortran_reader):
         trans.validate(reference)
     assert ("The supplied node should be a Reference but found "
             "'StructureReference'." in str(info.value))
+
+
+def test_validate_deallocate(fortran_reader):
+    '''Test that a DEALLOCATE statement raises an exception. '''
+    code = (
+        "program test\n"
+        "  real, dimension(:), allocatable :: a\n\n"
+        "  allocate(a(10))\n"
+        "  deallocate(a)\n"
+        "end program test\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    reference = psyir.walk(Reference)[1]
+    trans = Reference2ArrayRangeTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(reference)
+    assert ("References to arrays within DEALLOCATE intrinsics should not be "
+            "transformed, but found:\n DEALLOCATE(a)" in str(info.value))
 
 
 def test_apply_validate():
