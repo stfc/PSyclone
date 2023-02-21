@@ -189,7 +189,7 @@ def test_lfric_driver_simple_test():
                            "region_name": ("field", "test")})
     out = str(invoke.gen())
 
-    filename = ("driver-field-test.F90")
+    filename = "driver-field-test.F90"
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
 
@@ -231,7 +231,7 @@ def test_lfric_driver_import_precision():
                   options={"create_driver": True,
                            "region_name": ("field", "test")})
 
-    filename = ("driver-field-test.F90")
+    filename = "driver-field-test.F90"
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
     assert ("use constants_mod, only : i_def, l_def, r_def, r_double, r_ncdf, "
@@ -259,7 +259,7 @@ def test_lfric_driver_field_arrays():
     out = str(invoke.gen())
     assert "ProvideVariable(\"chi\", chi)" in out
 
-    filename = ("driver-field-array.F90")
+    filename = "driver-field-array.F90"
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
 
@@ -295,7 +295,7 @@ def test_lfric_driver_operator():
     # three calls in the driver
     assert "ProvideVariable(\"coord_post\", coord)" in out
 
-    filename = ("driver-operator-test.F90")
+    filename = "driver-operator-test.F90"
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
 
@@ -406,7 +406,7 @@ def test_lfric_driver_extract_some_kernels_only():
     assert "PreDeclareVariable(\"loop2_start\", loop2_start)" in code
     assert "PreDeclareVariable(\"loop2_stop\", loop2_stop)" in code
 
-    filename = ("driver-field-test.F90")
+    filename = "driver-field-test.F90"
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
 
@@ -439,7 +439,7 @@ def test_lfric_driver_field_array_write():
     # The variable is not read, so it shouldn't be listed:
     assert "ProvideVariable(\"coord\", coord)" not in code
 
-    filename = ("driver-field-test.F90")
+    filename = "driver-field-test.F90"
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
 
@@ -467,7 +467,7 @@ def test_lfric_driver_field_array_inc():
     assert 'ProvideVariable("chi_post", chi)' in code
     assert 'ProvideVariable("f1_post", f1)' in code
 
-    filename = ("driver-field-test.F90")
+    filename = "driver-field-test.F90"
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
 
