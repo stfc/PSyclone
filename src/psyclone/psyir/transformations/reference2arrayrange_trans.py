@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''Module providing a transformation from a reference to an Array (a = ...)
    to an ArrayReference with one or more array ranges (a(:) = ...). This can
@@ -40,9 +41,11 @@
    as transforming to explicit loops.
 
 '''
+from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (Range, Reference, ArrayReference, Literal,
-                                  BinaryOperation)
+                                  BinaryOperation, IntrinsicCall)
 from psyclone.psyir.symbols import INTEGER_TYPE, ArrayType
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -135,7 +138,7 @@ class Reference2ArrayRangeTrans(Transformation):
             node or the Reference node not does not reference an array \
             symbol.
         :raises TransformationError: if the Reference node is \
-            within an LBOUND, UBOUND or SIZE binaryoperator.
+            within an LBOUND, UBOUND, SIZE or DEALLOCATE intrinsic.
 
         '''
         # TODO issue #1858. Add support for structures containing arrays.
@@ -156,6 +159,13 @@ class Reference2ArrayRangeTrans(Transformation):
             raise TransformationError(
                 "References to arrays within LBOUND, UBOUND or SIZE "
                 "operators should not be transformed.")
+        if (isinstance(node.parent, IntrinsicCall) and
+                node.parent.routine.name in ["DEALLOCATE"]):
+            fwriter = FortranWriter()
+            raise TransformationError(LazyString(
+                lambda: f"References to arrays within "
+                f"{node.parent.routine.name} intrinsics should not be "
+                f"transformed, but found:\n {fwriter(node.parent)}"))
 
     def apply(self, node, options=None):
         '''Apply the Reference2ArrayRangeTrans transformation to the specified
