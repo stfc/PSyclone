@@ -73,9 +73,6 @@ TL_CODE = (
 # generate_adjoint_str function
 
 
-# expected output
-@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
-                   "github actions.", strict=False)
 def test_generate_adjoint_str(caplog, tmpdir):
     '''Test that the generate_adjoint_str() function works as expected
     including logging.
@@ -106,21 +103,25 @@ def test_generate_adjoint_str(caplog, tmpdir):
     with caplog.at_level(logging.DEBUG):
         result, test_harness = generate_adjoint_str(tl_code, ["a", "b"])
 
-    assert tl_code in caplog.text
-    assert ("PSyIR\n"
-            "FileContainer[]\n"
-            "    Routine[name:'test']\n"
-            "        0: Assignment[]\n"
-            "            Reference[name:'a']\n"
-            "            Reference[name:'b']\n" in caplog.text)
-    assert "Preprocessing\n" in caplog.text
-    assert ("PSyIR after TL preprocessing\n"
-            "FileContainer[]\n"
-            "    Routine[name:'test']\n"
-            "        0: Assignment[]\n"
-            "            Reference[name:'a']\n"
-            "            Reference[name:'b']\n" in caplog.text)
-    assert "Translating from LFRic TL to AD." in caplog.text
+    if not caplog.text:
+        psytest.xfail("#1235: caplog returns an empty string in "
+                      "github actions.")
+    else:
+        assert tl_code in caplog.text
+        assert ("PSyIR\n"
+                "FileContainer[]\n"
+                "    Routine[name:'test']\n"
+                "        0: Assignment[]\n"
+                "            Reference[name:'a']\n"
+                "            Reference[name:'b']\n" in caplog.text)
+        assert "Preprocessing\n" in caplog.text
+        assert ("PSyIR after TL preprocessing\n"
+                "FileContainer[]\n"
+                "    Routine[name:'test']\n"
+                "        0: Assignment[]\n"
+                "            Reference[name:'a']\n"
+                "            Reference[name:'b']\n" in caplog.text)
+        assert "Translating from LFRic TL to AD." in caplog.text
     assert expected in result
     assert test_harness == ""
     assert Compile(tmpdir).string_compiles(result)
@@ -259,8 +260,6 @@ def test_generate_adjoint_str_generate_harness_lfric():
     assert "end module adjoint_test_mod\n" in harness
 
 
-@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
-                   "github actions.", strict=False)
 def test_generate_adjoint_str_generate_harness_logging(caplog):
     ''' Test the create_test option to generate_adjoint_str() produces the
     expected logging output. '''
@@ -280,14 +279,18 @@ def test_generate_adjoint_str_generate_harness_logging(caplog):
     with caplog.at_level(logging.DEBUG):
         _, harness = generate_adjoint_str(tl_code, ["field"],
                                           create_test=True)
-    assert ("Creating test harness for TL kernel 'kern' and AD kernel "
-            "'adj_kern'" in caplog.text)
-    assert ("Kernel 'kern' has the following dimensioning arguments: ['n']" in
-            caplog.text)
-    assert ("Generated symbols for new argument list: ['field', 'n']" in
-            caplog.text)
-    assert "Created test-harness program named 'adj_test'" in caplog.text
-    assert harness in caplog.text
+    if not caplog.text:
+        psytest.xfail("#1235: caplog returns an empty string in "
+                      "github actions.")
+    else:
+        assert ("Creating test harness for TL kernel 'kern' and AD kernel "
+                "'adj_kern'" in caplog.text)
+        assert ("Kernel 'kern' has the following dimensioning arguments: ['n']" in
+                caplog.text)
+        assert ("Generated symbols for new argument list: ['field', 'n']" in
+                caplog.text)
+        assert "Created test-harness program named 'adj_test'" in caplog.text
+        assert harness in caplog.text
 
 
 # _get_active_variables_datatype function
@@ -508,7 +511,6 @@ def test_generate_adjoint_multi_kernel_mixed(
         "module adj_test_mod\n"
         "  implicit none\n"
         "  public\n\n"
-        "  public :: adj_kern1\n\n"
         "  contains\n"
         "  subroutine adj_kern1()\n"
         "    real :: psyir_tmp\n"
@@ -560,8 +562,6 @@ def test_generate_adjoint_errors():
             str(err.value))
 
 
-@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
-                   "github actions.", strict=False)
 def test_generate_adjoint_logging(
         caplog, fortran_reader, fortran_writer, tmpdir):
     '''Test that logging works as expected in the generate_adjoint()
@@ -584,7 +584,6 @@ def test_generate_adjoint_logging(
         "module adj_test_mod\n"
         "  implicit none\n"
         "  public\n\n"
-        "  public :: adj_test1, adj_test2\n\n"
         "  contains\n"
         "  subroutine adj_test1(a)\n"
         "    real, intent(out) :: a\n\n"
@@ -606,9 +605,13 @@ def test_generate_adjoint_logging(
 
     with caplog.at_level(logging.DEBUG):
         ad_psyir = generate_adjoint(tl_psyir, ["a"])
-    assert "Translating from LFRic TL to AD." in caplog.text
-    assert "AD kernel will be named 'adj_test1'" in caplog.text
-    assert "AD kernel will be named 'adj_test2'" in caplog.text
+    if not caplog.text:
+        psytest.xfail("#1235: caplog returns an empty string in "
+                      "github actions.")
+    else:
+        assert "Translating from LFRic TL to AD." in caplog.text
+        assert "AD kernel will be named 'adj_test1'" in caplog.text
+        assert "AD kernel will be named 'adj_test2'" in caplog.text
 
     ad_fortran_str = fortran_writer(ad_psyir)
     assert expected_ad_fortran_str in ad_fortran_str

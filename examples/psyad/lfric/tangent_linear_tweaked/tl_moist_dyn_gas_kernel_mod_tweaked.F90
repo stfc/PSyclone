@@ -69,6 +69,11 @@ contains
 
         real(kind=r_def)                    :: mr_v_at_dof
 
+        ! recip_epsilon is passed via a use statement so PSyAD does
+        ! not know its type so raises an exception. Here we declare a
+        ! temporary with the correct type. This allows the kernel to
+        ! be processed by PSyAD and then the original use statement
+        ! can be re-instated and this temporary variable removed.
         real(kind=r_def)                    :: recip_epsilon_tmp
 
         ! compute the pointwise mr profile

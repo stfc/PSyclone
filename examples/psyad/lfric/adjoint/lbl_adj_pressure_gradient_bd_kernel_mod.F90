@@ -1,7 +1,8 @@
 module adj_pressure_gradient_bd_kernel_mod
-  use argument_mod, only : adjacent_face, arg_type, cell_column, cross, func_type, gh_basis, gh_diff_basis, gh_field, gh_inc, &
-&gh_quadrature_face, gh_read, gh_real, gh_scalar, mesh_data_type, outward_normals_to_horizontal_faces, &
-&reference_element_data_type, stencil
+  use argument_mod, only : adjacent_face, arg_type, cell_column, cross, func_type, &
+       gh_basis, gh_diff_basis, gh_field, gh_inc, gh_quadrature_face, gh_read, &
+       gh_readwrite, gh_real, gh_scalar, mesh_data_type, &
+       outward_normals_to_horizontal_faces, reference_element_data_type, stencil
   use constants_mod, only : i_def, r_def
   use cross_product_mod, only : cross_product
   use fs_continuity_mod, only : w2, w3, wtheta

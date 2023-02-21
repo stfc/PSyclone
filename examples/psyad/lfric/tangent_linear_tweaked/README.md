@@ -36,7 +36,7 @@ Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 This directory contains the tweaked tangent linear kernels that
 `psyad` aims to translate into their adjoint form. These kernels have
-been copied from the `../tangent_linear` directory hand hand modified
+been copied from the `../tangent_linear` directory and hand modified
 as `psyad` is not currently able to process them in their original
 form. The changes made to the tweaked versions can be easily seen
 using `diff`. For example, `diff
