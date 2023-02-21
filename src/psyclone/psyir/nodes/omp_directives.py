@@ -584,12 +584,16 @@ class OMPParallelDirective(OMPRegionDirective):
         explicitly in the lower-level tree to be processed by the backend
         visitor.
         '''
-        private_clause, fprivate_clause = self._get_private_clauses()
+        # Keep the first two children and compute the rest using the current
+        # state of the node/tree (lowering it first in case new symbols are
+        # created)
         self._children = self._children[:2]
+        for child in self.children:
+            child.lower_to_language_level()
+        private_clause, fprivate_clause = self._get_private_clauses()
+        private, fprivate = self._get_private_clauses()
         self.addchild(private_clause)
         self.addchild(fprivate_clause)
-
-        super().lower_to_language_level()
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
@@ -1357,7 +1361,8 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         added if not yet present.
         '''
         # Keep the first two children and compute the rest using the current
-        # state of the node/tree.
+        # state of the node/tree (lowering it first in case new symbols are
+        # created)
         self.children = self.children[:2]
         for child in self.children:
             child.lower_to_language_level()

@@ -445,6 +445,9 @@ def test_parallellooptrans_validate_dependencies(fortran_reader):
 
 
 def test_omplooptrans_apply_firstprivate(fortran_reader, fortran_writer):
+    ''' Test applying the OMPLoopTrans in cases where a firstprivate
+    clause it is needed to generate functionally equivalent code than
+    the starting serial version. '''
 
     # Example with a conditional write and a OMPParallelDoDirective
     psyir = fortran_reader.psyir_from_source(f'''
@@ -485,6 +488,16 @@ enddo
     gen = fortran_writer(psyir.children[0].children[0])
     assert expected == gen
 
+@pytest.mark.xfail(reason="Issue #598: Improve firstprivate")
+def test_omplooptrans_apply_firstprivate_fail(fortran_reader, fortran_writer):
+    ''' Test applying the OMPLoopTrans in cases where a firstprivate
+    clause it is needed to generate functionally equivalent code than
+    the starting serial version.
+
+    This examples are more complex than the previous test and the
+    transformation still fails to get them correctly.
+    '''
+
     # Example with a read before write and a OMPParallelDirective
     psyir = fortran_reader.psyir_from_source(f'''
         subroutine my_subroutine()
@@ -500,8 +513,7 @@ enddo
               enddo
             enddo
         end subroutine''')
-    ompparalleldirective = OMPParallelDirective()
-    ompdodirective = OMPParallelDirective()
+    omplooptrans = OMPParallelLoopTrans()
     loop = psyir.walk(Loop)[0]
     omplooptrans.apply(loop)
     expected = '''\

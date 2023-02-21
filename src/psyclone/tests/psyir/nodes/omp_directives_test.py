@@ -110,7 +110,7 @@ def test_ompparallel_changes_begin_string(fortran_reader):
     pdir.children[0].addchild(new_loop)
 
     pdir.lower_to_language_level()
-    assert pdir.children[2] != priv_clause
+    assert pdir.children[2] is not priv_clause
 
 
 def test_ompparallel_changes_gen_code():
@@ -536,22 +536,24 @@ def test_directive_get_private(monkeypatch):
     # pylint: disable=pointless-statement
     psy.gen
     # Now check that _get_private_clause returns what we expect
-    pvars = directive._get_private_clause()
+    pvars, fpvars = directive._get_private_clauses()
     assert isinstance(pvars, OMPPrivateClause)
+    assert isinstance(fpvars, OMPFirstprivateClause)
     assert len(pvars.children) == 1
+    assert len(fpvars.children) == 0
     assert pvars.children[0].name == 'cell'
     # Now use monkeypatch to break the Call within the loop
     call = directive.dir_body[0].dir_body[0].loop_body[0]
     monkeypatch.setattr(call, "local_vars", lambda: [""])
     with pytest.raises(InternalError) as err:
-        _ = directive._get_private_clause()
+        _ = directive._get_private_clauses()
     assert ("call 'testkern_w3_code' has a local variable but its name is "
             "not set" in str(err.value))
 
     directive.children[1] = OMPDefaultClause(
             clause_type=OMPDefaultClause.DefaultClauseTypes.NONE)
     with pytest.raises(GenerationError) as excinfo:
-        _ = directive._get_private_clause()
+        _ = directive._get_private_clauses()
     assert ("OMPParallelClause cannot correctly generate the private clause "
             "when its default data sharing attribute in its default clause is "
             "not shared." in str(excinfo.value))
