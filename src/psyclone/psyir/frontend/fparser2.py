@@ -42,8 +42,10 @@
 from collections import OrderedDict
 import os
 
-from fparser.two import Fortran2003, utils
+from fparser.two import C99Preprocessor, Fortran2003, utils
 from fparser.two.utils import walk, BlockBase, StmtBase
+
+from psyclone.configuration import Config
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes import (
     UnaryOperation, BinaryOperation, NaryOperation, Schedule, CodeBlock,
@@ -929,6 +931,8 @@ class Fparser2Reader():
             Fortran2003.Subscript_Triplet: self._subscript_triplet_handler,
             Fortran2003.If_Stmt: self._if_stmt_handler,
             utils.NumberBase: self._number_handler,
+            Fortran2003.Include_Stmt: self._include_handler,
+            C99Preprocessor.Cpp_Include_Stmt: self._include_handler,
             Fortran2003.Int_Literal_Constant: self._number_handler,
             Fortran2003.Char_Literal_Constant: self._char_literal_handler,
             Fortran2003.Logical_Literal_Constant: self._bool_literal_handler,
@@ -1918,6 +1922,7 @@ class Fparser2Reader():
         :type visibility_map: dict with str keys and values of type \
                         :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
 
+        :raises GenerationError: if an INCLUDE statement is encountered.
         :raises NotImplementedError: the provided declarations contain \
                                      attributes which are not supported yet.
         :raises GenerationError: if the parse tree for a USE statement does \
@@ -1939,6 +1944,34 @@ class Fparser2Reader():
         # the former.
         for decl in walk(nodes, Fortran2003.Derived_Type_Def):
             self._process_derived_type_decln(parent, decl, visibility_map)
+
+        # INCLUDE statements are *not* part of the Fortran language and
+        # can appear anywhere. Therefore we have to do a walk to make sure we
+        # find them if they are present.
+        incl_nodes = walk(nodes, (Fortran2003.Include_Stmt,
+                                  C99Preprocessor.Cpp_Include_Stmt))
+        if incl_nodes:
+            config = Config.get()
+            # Just generate an error message for the first include we've found
+            filename = incl_nodes[0].children[0].string
+            rtxt = (f"while processing the declarations in routine "
+                    f"'{parent.name}'")
+            if isinstance(incl_nodes[0], Fortran2003.Include_Stmt):
+                msg = (
+                    f"Fortran INCLUDE statements are not supported but found "
+                    f"an include for file '{filename}' {rtxt}. This file must "
+                    f"be made available to the Fortran parser by specifying "
+                    f"its "
+                    f"location with a -I flag. (The list of directories to "
+                    f"search is currently set to: {config.include_paths}.)")
+            else:
+                msg = (
+                    f"CPP #INCLUDE statements are not supported but found a "
+                    f"#include of file '{filename}' {rtxt}. The input source "
+                    f"must be"
+                    f" put through a suitable pre-processor before being "
+                    f"given to PSyclone.")
+            raise GenerationError(msg)
 
         # Now we've captured any derived-type definitions, proceed to look
         # at the variable declarations.
@@ -2293,6 +2326,44 @@ class Fparser2Reader():
         :rtype: NoneType
         '''
         return None
+
+    def _include_handler(self, node, parent):
+        '''
+        Handler for Fortran and CPP INCLUDE statements. Since these are not
+        supported by the PSyIR it simply raises an error.
+
+        :param node: node in fparser2 tree.
+        :type node: :py:class:`fparser.two.Fortran2003.Include_Stmt`
+        :param parent: parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyir.nodes.Schedule`
+
+        :raises GenerationError: as INCLUDE statements must be handled by \
+                                 the parser or pre-processor.
+        '''
+        config = Config.get()
+        # An INCLUDE can appear anywhere so we have to allow for the case
+        # where we have no enclosing Routine.
+        routine = parent.ancestor(Routine, include_self=True)
+        if routine:
+            out_txt = f"routine '{routine.name}'. "
+        else:
+            out_txt = f"code:\n{str(node.get_root())}\n"
+        if isinstance(node, Fortran2003.Include_Stmt):
+            err_msg = (
+                f"Fortran INCLUDE statements are not supported but found an "
+                f"include of file '{node.children[0].string}' while processing"
+                f" {out_txt}This file must be made available to the Fortran "
+                f"parser by specifying its location via the -I flag. "
+                f"(The list of directories to search is currently set to: "
+                f"{config.include_paths}.)")
+        else:
+            # We have a CPP #include.
+            err_msg = (f"CPP #include statements are not supported but found a"
+                       f" #include of file '{node.children[0].string}' while "
+                       f"processing {out_txt}Such statements must be handled "
+                       f"using a standard pre-processor before the code can "
+                       f"be processed by PSyclone.")
+        raise GenerationError(err_msg)
 
     def _allocate_handler(self, node, parent):
         '''
