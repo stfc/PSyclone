@@ -52,7 +52,8 @@ from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, \
     Reference, OMPDeclareTargetDirective, OMPNowaitClause, \
     OMPGrainsizeClause, OMPNumTasksClause, OMPNogroupClause, \
     OMPPrivateClause, OMPDefaultClause, OMPReductionClause, \
-    OMPScheduleClause, OMPTeamsDistributeParallelDoDirective
+    OMPScheduleClause, OMPTeamsDistributeParallelDoDirective, \
+    OMPFirstprivateClause
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, SymbolTable, \
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE
 from psyclone.errors import InternalError, GenerationError
@@ -95,8 +96,9 @@ def test_ompparallel_changes_begin_string(fortran_reader):
     pdir = tree.children[0].children[0]
     pdir.lower_to_language_level()
     assert pdir.begin_string() == "omp parallel"
-    assert len(pdir.children) == 3
+    assert len(pdir.children) == 4
     assert isinstance(pdir.children[2], OMPPrivateClause)
+    assert isinstance(pdir.children[3], OMPFirstprivateClause)
     priv_clause = pdir.children[2]
 
     # Make acopy of the loop
@@ -130,10 +132,9 @@ def test_ompparallel_changes_gen_code():
 
     assert isinstance(tree.children[0], OMPParallelDirective)
     pdir = tree.children[0]
-    _ = psy.gen
-    assert len(pdir.children) == 3
-    assert isinstance(pdir.children[2], OMPPrivateClause)
-    priv_clause = pdir.children[2]
+    code = str(psy.gen).lower()
+    assert len(pdir.children) == 4
+    assert "private(cell)" in code
 
     # Make acopy of the loop
     new_loop = pdir.children[0].children[0].children[0].children[0].copy()
@@ -147,8 +148,8 @@ def test_ompparallel_changes_gen_code():
     # Add loop
     pdir.children[0].addchild(tdir2)
 
-    _ = psy.gen
-    assert pdir.children[2] != priv_clause
+    code = str(psy.gen).lower()
+    assert "private(cell,k)" in code
 
 
 def test_omp_paralleldo_changes_gen_code():
@@ -166,10 +167,7 @@ def test_omp_paralleldo_changes_gen_code():
     assert isinstance(tree.children[0], OMPParallelDoDirective)
     pdir = tree.children[0]
     code = str(psy.gen).lower()
-    assert len(pdir.children) == 4
-    assert isinstance(pdir.children[2], OMPPrivateClause)
-    priv_clause = pdir.children[2]
-    sched_clause = pdir.children[3]
+    assert len(pdir.children) == 2
     assert "private(cell)" in code
     assert "schedule(auto)" in code
 
@@ -182,13 +180,8 @@ def test_omp_paralleldo_changes_gen_code():
     # Change the schedule to 'none'
     pdir.omp_schedule = "none"
 
-    code = str(psy.gen).lower()
-    assert pdir.children[2] != priv_clause
-    assert isinstance(pdir.children[2], OMPPrivateClause)
-    assert pdir.children[3] != sched_clause
-    assert isinstance(pdir.children[3], OMPScheduleClause)
-
     # No 'schedule' clause should now be present on the OMP directive.
+    code = str(psy.gen).lower()
     assert "schedule(" not in code
     assert "private(k)" in code
 
@@ -218,10 +211,12 @@ def test_omp_parallel_do_changes_begin_str(fortran_reader):
     assert isinstance(tree.children[0].children[0], OMPParallelDoDirective)
     pdir = tree.children[0].children[0]
     pdir.lower_to_language_level()
-    assert len(pdir.children) == 4
+    assert len(pdir.children) == 5
     assert isinstance(pdir.children[2], OMPPrivateClause)
+    assert isinstance(pdir.children[3], OMPFirstprivateClause)
     priv_clause = pdir.children[2]
-    sched_clause = pdir.children[3]
+    fpriv_clause = pdir.children[3]
+    sched_clause = pdir.children[4]
 
     # Make acopy of the loop
     routine = pdir.ancestor(Routine)
@@ -236,8 +231,9 @@ def test_omp_parallel_do_changes_begin_str(fortran_reader):
     pdir.lower_to_language_level()
     assert pdir.children[2] != priv_clause
     assert isinstance(pdir.children[2], OMPPrivateClause)
-    assert pdir.children[3] != sched_clause
-    assert isinstance(pdir.children[3], OMPScheduleClause)
+    assert isinstance(pdir.children[3], OMPFirstprivateClause)
+    assert pdir.children[4] != sched_clause
+    assert isinstance(pdir.children[4], OMPScheduleClause)
 
 
 def test_omp_teams_distribute_parallel_do_strings(
@@ -418,15 +414,17 @@ def test_omp_pdo_validate_child():
     sched = Schedule()
     declause = OMPDefaultClause()
     prclause = OMPPrivateClause()
+    fprclause = OMPFirstprivateClause()
     scclause = OMPScheduleClause()
     reclause = OMPReductionClause()
 
     assert OMPParallelDoDirective._validate_child(0, sched) is True
     assert OMPParallelDoDirective._validate_child(1, declause) is True
     assert OMPParallelDoDirective._validate_child(2, prclause) is True
-    assert OMPParallelDoDirective._validate_child(3, scclause) is True
-    assert OMPParallelDoDirective._validate_child(4, reclause) is True
+    assert OMPParallelDoDirective._validate_child(3, fprclause) is True
+    assert OMPParallelDoDirective._validate_child(4, scclause) is True
     assert OMPParallelDoDirective._validate_child(5, reclause) is True
+    assert OMPParallelDoDirective._validate_child(6, reclause) is True
 
     assert OMPParallelDoDirective._validate_child(0, "abc") is False
     assert OMPParallelDoDirective._validate_child(1, "abc") is False
@@ -434,6 +432,7 @@ def test_omp_pdo_validate_child():
     assert OMPParallelDoDirective._validate_child(3, "abc") is False
     assert OMPParallelDoDirective._validate_child(4, "abc") is False
     assert OMPParallelDoDirective._validate_child(5, "abc") is False
+    assert OMPParallelDoDirective._validate_child(6, "abc") is False
 
 
 def test_ompdo_equality():
@@ -563,12 +562,14 @@ def test_omp_parallel_validate_child():
     assert OMPParallelDirective._validate_child(0, Schedule()) is True
     assert OMPParallelDirective._validate_child(1, OMPDefaultClause()) is True
     assert OMPParallelDirective._validate_child(2, OMPPrivateClause()) is True
+    assert OMPParallelDirective._validate_child(3, OMPFirstprivateClause()) \
+        is True
     assert OMPParallelDirective._validate_child(2, OMPReductionClause())\
-           is False
-    assert OMPParallelDirective._validate_child(3, OMPReductionClause())\
-           is True
+        is False
     assert OMPParallelDirective._validate_child(4, OMPReductionClause())\
-           is True
+        is True
+    assert OMPParallelDirective._validate_child(5, OMPReductionClause())\
+        is True
     assert OMPParallelDirective._validate_child(0, OMPDefaultClause()) is False
     assert OMPParallelDirective._validate_child(6, "test") is False
 
