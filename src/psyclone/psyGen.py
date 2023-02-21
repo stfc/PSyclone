@@ -818,7 +818,8 @@ class GlobalReduction(Statement):
 
     @property
     def args(self):
-        ''' Return the list of arguments associated with this node. Override
+        '''
+        Return the list of arguments associated with this node. Override
         the base method and simply return our argument.
 
         :returns: ?????
@@ -2317,9 +2318,10 @@ class Argument():
         self._call = value
 
     def backward_dependence(self):
-        '''Returns the preceding argument that this argument has a direct
+        '''
+        Returns the preceding argument that this argument has a direct
         dependence with, or None if there is not one. The argument may
-        exist in a call, a haloexchange, or a globalsum.
+        exist in a call, a halo exchange, or a global reduction.
 
         :returns: the first preceding argument that has a dependence \
             on this argument.
@@ -2330,11 +2332,12 @@ class Argument():
         return self._find_argument(nodes)
 
     def forward_write_dependencies(self, ignore_halos=False):
-        '''Returns a list of following write arguments that this argument has
+        '''
+        Returns a list of following write arguments that this argument has
         dependencies with. The arguments may exist in a call, a
-        haloexchange (unless `ignore_halos` is `True`), or a globalsum. If
-        none are found then return an empty list. If self is not a
-        reader then return an empty list.
+        halo exchange (unless `ignore_halos` is `True`), or a global
+        reduction. If none are found then return an empty list. If self
+        is not a reader then return an empty list.
 
         :param bool ignore_halos: if `True` then any write dependencies \
             involving a halo exchange are ignored. Defaults to `False`.
@@ -2349,11 +2352,12 @@ class Argument():
         return results
 
     def backward_write_dependencies(self, ignore_halos=False):
-        '''Returns a list of previous write arguments that this argument has
-        dependencies with. The arguments may exist in a call, a
-        haloexchange (unless `ignore_halos` is `True`), or a globalsum. If
-        none are found then return an empty list. If self is not a
-        reader then return an empty list.
+        '''
+        Returns a list of previous write arguments that this argument has
+        has dependencies with. The arguments may exist in a call, a
+        halo exchange (unless `ignore_halos` is `True`), or a global
+        reduction. If none are found then return an empty list. If self
+        is not a reader then return an empty list.
 
         :param ignore_halos: if `True` then any write dependencies \
             involving a halo exchange are ignored. Defaults to `False`.
@@ -2369,9 +2373,10 @@ class Argument():
         return results
 
     def forward_dependence(self):
-        '''Returns the following argument that this argument has a direct
+        '''
+        Returns the following argument that this argument has a direct
         dependence on, or `None` if there is not one. The argument may
-        exist in a call, a haloexchange, or a globalsum.
+        exist in a call, a halo exchange, or a global reduction.
 
         :returns: the first following argument that has a dependence \
             on this argument.
@@ -2382,9 +2387,10 @@ class Argument():
         return self._find_argument(nodes)
 
     def forward_read_dependencies(self):
-        '''Returns a list of following read arguments that this argument has
+        '''
+        Returns a list of following read arguments that this argument has
         dependencies with. The arguments may exist in a call, a
-        haloexchange, or a globalsum. If none are found then
+        halo exchange, or a global reduction. If none are found then
         return an empty list. If self is not a writer then return an
         empty list.
 
@@ -2397,7 +2403,8 @@ class Argument():
         return self._find_read_arguments(nodes)
 
     def _find_argument(self, nodes):
-        '''Return the first argument in the list of nodes that has a
+        '''
+        Return the first argument in the list of nodes that has a
         dependency with self. If one is not found return None
 
         :param nodes: the list of nodes that this method examines.
@@ -2407,8 +2414,9 @@ class Argument():
         :rtype: :py:class:`psyclone.psyGen.Argument`
 
         '''
-        nodes_with_args = [x for x in nodes if
-                           isinstance(x, (Kern, HaloExchange, GlobalReduction))]
+        nodes_with_args = [
+            x for x in nodes if
+            isinstance(x, (Kern, HaloExchange, GlobalReduction))]
         for node in nodes_with_args:
             for argument in node.args:
                 if self._depends_on(argument):
@@ -2416,7 +2424,8 @@ class Argument():
         return None
 
     def _find_read_arguments(self, nodes):
-        '''Return a list of arguments from the list of nodes that have a read
+        '''
+        Return a list of arguments from the list of nodes that have a read
         dependency with self. If none are found then return an empty
         list. If self is not a writer then return an empty list.
 
@@ -2433,8 +2442,9 @@ class Argument():
             return []
 
         # We only need consider nodes that have arguments
-        nodes_with_args = [x for x in nodes if
-                           isinstance(x, (Kern, HaloExchange, GlobalReduction))]
+        nodes_with_args = [
+            x for x in nodes if
+            isinstance(x, (Kern, HaloExchange, GlobalReduction))]
         access = DataAccess(self)
         arguments = []
         for node in nodes_with_args:
@@ -2810,7 +2820,22 @@ class DummyTransformation(Transformation):
 
 
 # For Sphinx AutoAPI documentation generation
-__all__ = ['PSyFactory', 'PSy', 'Invokes', 'Invoke', 'InvokeSchedule',
-           'GlobalReduction', 'HaloExchange', 'Kern', 'CodedKern', 'InlinedKern',
-           'BuiltIn', 'Arguments', 'DataAccess', 'Argument', 'KernelArgument',
-           'TransInfo', 'Transformation', 'DummyTransformation']
+__all__ = [
+    'Argument',
+    'Arguments',
+    'BuiltIn',
+    'CodedKern',
+    'DataAccess',
+    'DummyTransformation',
+    'GlobalReduction',
+    'HaloExchange',
+    'InlinedKern',
+    'Invoke',
+    'Invokes',
+    'InvokeSchedule',
+    'Kern',
+    'KernelArgument',
+    'PSy',
+    'PSyFactory',
+    'Transformation',
+    'TransInfo']
