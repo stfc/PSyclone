@@ -98,18 +98,16 @@ def teardown_function():
 
 def test_script_file_not_found():
     '''Checks that handle_script() in generator.py raises the expected
-    exception when a script file is supplied that can't be found in
-    the Python path.  In this case the script path ('./') is
-    supplied. This test uses the generate() function to call
-    handle_script as this is a simple way to create its required
-    arguments.
+    exception when a script file is supplied that does not exist. This test
+    uses the generate() function to call handle_script as this is a simple way
+    to create its required arguments.
 
     '''
-    with pytest.raises(IOError) as error:
-        _, _ = generate(os.path.join(BASE_PATH, "dynamo0p3",
-                                     "1_single_invoke.f90"),
-                        api="dynamo0.3", script_name="./non_existent.py")
-    assert "script file './non_existent.py' not found" in str(error.value)
+    with pytest.raises(GenerationError) as error:
+        _, _ = generate(
+            os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
+                        api="dynamo0.3", script_name="non_existent.py")
+    assert "script file 'non_existent.py' not found" in str(error.value)
 
 
 def test_script_file_no_extension():
@@ -147,23 +145,6 @@ def test_script_file_wrong_extension():
             "extension" in str(error.value))
 
 
-def test_script_file_not_found_relative():
-    '''Checks that handle_script() in generator.py raises the expected
-    exception when a script file is supplied that can't be found in
-    the Python path. In this case the script path is not supplied so
-    must be found via the PYTHONPATH variable. This test uses the
-    generate() function to call handle_script as this is a simple way
-    to create its required arguments.
-
-    '''
-    with pytest.raises(GenerationError) as error:
-        _, _ = generate(os.path.join(BASE_PATH, "dynamo0p3",
-                                     "1_single_invoke.f90"),
-                        api="dynamo0.3", script_name="non_existent.py")
-    assert ("attempted to import 'non_existent' but script file "
-            "'non_existent.py' has not been found" in str(error.value))
-
-
 def test_script_invalid_content():
     '''Checks that handle_script() in generator.py raises the expected
     exception when a script file does not contain valid python. This
@@ -175,11 +156,9 @@ def test_script_invalid_content():
         _, _ = generate(
             os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
             api="dynamo0.3",
-            script_name=os.path.join(
-                BASE_PATH, "dynamo0p3", "error.py"))
-    assert "attempted to import 'error' but script file " in str(error.value)
-    assert ("src/psyclone/tests/test_files/dynamo0p3/error.py' is "
-            "not valid python" in str(error.value))
+            script_name=os.path.join(BASE_PATH, "dynamo0p3", "error.py"))
+    assert ("attempted to import 'error' but a "
+            "problem was found: " in str(error.value))
 
 
 def test_script_invalid_content_runtime():

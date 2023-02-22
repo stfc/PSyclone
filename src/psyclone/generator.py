@@ -99,15 +99,14 @@ def handle_script(script_name, info, function_name, is_optional=False):
     '''
     sys_path_appended = False
     try:
-        # a script has been provided
+        # a script file has been provided, check it exists
+        if not os.path.isfile(script_name) and not any(
+               os.path.isfile(os.path.join(p, script_name)) for p in sys.path):
+            raise GenerationError(
+                f"generator: script file '{script_name}' not found")
         filepath, filename = os.path.split(script_name)
         if filepath:
-            # a path to a file has been provided
-            # we need to check the file exists
-            if not os.path.isfile(script_name):
-                raise IOError(f"script file '{script_name}' not found")
-            # it exists so we need to add the path to the python
-            # search path
+            # a path has been provided, so add it to the python search path
             sys_path_appended = True
             sys.path.append(filepath)
         filename, fileext = os.path.splitext(filename)
@@ -117,14 +116,10 @@ def handle_script(script_name, info, function_name, is_optional=False):
                 f"the '.py' extension")
         try:
             transmod = __import__(filename)
-        except ImportError as error:
+        except Exception as error:
             raise GenerationError(
-                f"generator: attempted to import '{filename}' but script "
-                f"file '{script_name}' has not been found") from error
-        except SyntaxError as error:
-            raise GenerationError(
-                f"generator: attempted to import '{filename}' but script "
-                f"file '{script_name}' is not valid python") from error
+                f"generator: attempted to import '{filename}' but a problem "
+                f"was found: {error}") from error
         if callable(getattr(transmod, function_name, None)):
             try:
                 func_call = getattr(transmod, function_name)
@@ -145,12 +140,9 @@ def handle_script(script_name, info, function_name, is_optional=False):
                 f"generator: attempted to import '{filename}' but script file "
                 f"'{script_name}' does not contain a '{function_name}' "
                 f"function")
-    except Exception as msg:
+    finally:
         if sys_path_appended:
             os.sys.path.pop()
-        raise msg
-    if sys_path_appended:
-        os.sys.path.pop()
 
 
 def generate(filename, api="", kernel_paths=None, script_name=None,
