@@ -40,7 +40,6 @@ LFRic algorithm-layer-specific PSyIR which uses specialised classes.
 from psyclone.domain.common.transformations import AlgTrans
 from psyclone.domain.lfric.transformations.raise_psyir_2_lfric_alg_trans \
     import RaisePSyIR2LFRicAlgTrans
-from psyclone.psyir.nodes import Call
 
 
 class LFRicAlgTrans(AlgTrans):
