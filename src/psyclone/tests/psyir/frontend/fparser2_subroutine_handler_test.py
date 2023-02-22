@@ -106,9 +106,8 @@ end subroutine'''
     subroutine = parse_tree.children[0]
     with pytest.raises(InternalError) as err:
         _ = processor._subroutine_handler(subroutine, None)
-    assert ("Routine 'sub1' has arguments ['idx'] but contains no variable "
-            "declarations. Fortran implicit declarations are not supported in "
-            "PSyclone." in str(err.value))
+    assert ("The argument list ['idx'] for routine 'sub1' does not match "
+            "the variable declarations:" in str(err.value))
 
 
 def test_subroutine_some_implicit_args(parser):
@@ -128,7 +127,7 @@ end subroutine'''
     with pytest.raises(InternalError) as err:
         _ = processor._subroutine_handler(subroutine, None)
     err_msg = str(err.value)
-    assert "The kernel argument list" in err_msg
+    assert "The argument list ['var', 'idx'] for routine 'sub1'" in err_msg
     assert "Could not find 'idx' in the Symbol Table" in err_msg
 
 

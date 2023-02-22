@@ -2088,10 +2088,11 @@ class Fparser2Reader():
             decls_str_list = [str(node) for node in nodes]
             arg_str_list = [arg.string.lower() for arg in arg_list]
             raise InternalError(
-                f"The kernel argument list:\n'{arg_str_list}'\n"
-                f"does not match the variable declarations:\n"
+                f"The argument list {arg_str_list} for routine '{parent.name}'"
+                f" does not match the variable declarations:\n"
                 f"{os.linesep.join(decls_str_list)}\n"
-                f"Specific PSyIR error is {info}.") from info
+                f"(Note that PSyclone does not support implicit declarations.)"
+                f" Specific PSyIR error is {info}.") from info
 
         # fparser2 does not always handle Statement Functions correctly, this
         # loop checks for Stmt_Functions that should be an array statement
@@ -3944,17 +3945,6 @@ class Fparser2Reader():
         else:
             # Routine has no arguments
             arg_list = []
-
-        if arg_list and not decl_list:
-            # Raise an InternalError here because the rest of PSyclone relies
-            # on explicit variable declarations. Therefore, just putting the
-            # offending routine into a CodeBlock could result in the
-            # creation of invalid Fortran.
-            raise InternalError(
-                f"Routine '{name}' has arguments "
-                f"{[str(arg) for arg in arg_list]} but contains no "
-                f"variable declarations. Fortran implicit declarations are "
-                f"not supported in PSyclone.")
 
         self.process_declarations(routine, decl_list, arg_list)
 
