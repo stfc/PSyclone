@@ -51,10 +51,3 @@ class LFRicAlgTrans(AlgTrans):
     def __init__(self):
         super().__init__()
         self._invoke_trans = RaisePSyIR2LFRicAlgTrans()
-
-    def apply(self, psyir):
-        idx = 0
-        for call in psyir.walk(Call):
-            if call.routine.name.lower() == "invoke":
-                self._invoke_trans.apply(call, idx)
-                idx += 1
