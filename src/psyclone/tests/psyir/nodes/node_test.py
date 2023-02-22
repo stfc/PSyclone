@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1038,7 +1038,10 @@ def test_lower_to_language_level(monkeypatch):
     testnode.children = [node1, node2]
 
     # Execute method
-    testnode.lower_to_language_level()
+    lowered = testnode.lower_to_language_level()
+
+    # The generic version returns itself
+    assert testnode is lowered
 
     # Check all children have been visited
     for child in testnode.children:
