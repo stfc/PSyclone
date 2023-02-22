@@ -1006,8 +1006,8 @@ def test_main_include_path(capsys):
     with pytest.raises(SystemExit):
         main([alg_file, '-api', 'nemo'])
     _, err = capsys.readouterr()
-    assert ("Fortran INCLUDE statements are not supported but found an "
-            "include for file 'local_mpi.h' while" in err)
+    assert ("Found an unresolved Fortran INCLUDE file 'local_mpi.h' while"
+            in err)
     # Now specify two locations to search with only the second containing
     # the necessary header file
     inc_path1 = os.path.join(os.path.dirname(os.path.abspath(__file__)),

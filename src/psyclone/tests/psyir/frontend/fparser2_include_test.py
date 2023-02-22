@@ -35,7 +35,7 @@
 
 
 ''' Performs py.test tests on the handling of INCLUDE statements in the
-    fparser2 PSyIR front-end '''
+    fparser2 PSyIR front-end. '''
 
 import pytest
 from fparser.common.readfortran import FortranStringReader
