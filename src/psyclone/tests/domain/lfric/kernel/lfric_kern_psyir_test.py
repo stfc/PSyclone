@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council
+# Copyright (c) 2022-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the KernelMetadataSymbol
 kernel-layer-specific symbol. The tests include translation of
@@ -141,7 +142,8 @@ def test_lfrickernelcontainer_lower(fortran_reader):
 
     # Now use lower_to_language_level and perform checks
     container = kernel_psyir.children[0]
-    container.lower_to_language_level()
+    lowered = container.lower_to_language_level()
+    assert lowered is kernel_psyir.children[0]
     assert isinstance(kernel_psyir.children[0], Container)
     assert not isinstance(kernel_psyir.children[0], LFRicKernelContainer)
     assert kernel_psyir.children[0].symbol_table.lookup(
