@@ -1269,10 +1269,13 @@ class Node():
 
     def lower_to_language_level(self):
         '''
-        In-place replacement of DSL or high-level concepts into generic
-        PSyIR constructs. The generic implementation only recurses down
+        In-place replacement of high-level concepts into generic language
+        PSyIR constructs. This generic implementation only recurses down
         to its children, but this method must be re-implemented by Nodes
         that represent high-level concepts.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # We recurse only over the original children (hence [:]), this is
@@ -1280,6 +1283,7 @@ class Node():
         # must already be language-level.
         for child in self.children[:]:
             child.lower_to_language_level()
+        return self
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. The default implementation

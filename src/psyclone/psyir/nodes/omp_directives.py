@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -583,6 +583,10 @@ class OMPParallelDirective(OMPRegionDirective):
         lowering step to find out which References are private, and place them
         explicitly in the lower-level tree to be processed by the backend
         visitor.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Keep the first two children and compute the rest using the current
         # state of the node/tree (lowering it first in case new symbols are
@@ -594,6 +598,7 @@ class OMPParallelDirective(OMPRegionDirective):
         private, fprivate = self._get_private_clauses()
         self.addchild(private_clause)
         self.addchild(fprivate_clause)
+        return self
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
@@ -1359,6 +1364,10 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         In-place construction of clauses as PSyIR constructs.
         The clauses here may need to be updated if code has changed, or be
         added if not yet present.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Keep the first two children and compute the rest using the current
         # state of the node/tree (lowering it first in case new symbols are
@@ -1370,6 +1379,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         self.addchild(private)
         self.addchild(fprivate)
         self.addchild(OMPScheduleClause(self._omp_schedule))
+        return self
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
