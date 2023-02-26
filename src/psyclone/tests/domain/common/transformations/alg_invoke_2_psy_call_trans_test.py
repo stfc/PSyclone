@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,6 +43,7 @@ from psyclone.errors import InternalError
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, KernelFunctor
 from psyclone.domain.common.transformations import AlgTrans
 from psyclone.domain.common.transformations import AlgInvoke2PSyCallTrans
+from psyclone.domain.gocean.transformations import GOceanAlgInvoke2PSyCallTrans
 from psyclone.psyir.nodes import (Call, Loop, Literal, Container, Reference,
                                   ArrayReference, BinaryOperation)
 from psyclone.psyir.symbols import RoutineSymbol, DataSymbol, INTEGER_TYPE
@@ -86,10 +87,27 @@ def check_call(call, routine_name, container_name, args_info):
                     assert isinstance(indices[idx2], BinaryOperation)
 
 
+# pylint: disable=abstract-class-instantiated
+def test_abstract():
+    '''Test that AlgInvoke2PSyCallTrans is abstract.'''
+    with pytest.raises(TypeError) as info:
+        _ = AlgInvoke2PSyCallTrans()
+    # Split assert tests as earlier versions of Python output
+    # 'methods' even if there is only one whilst later versions of
+    # Python output 'method'.
+    assert ("Can't instantiate abstract class AlgInvoke2PSyCallTrans with "
+            "abstract method" in str(info.value))
+    assert "get_arguments" in str(info.value)
+
+
+# pylint: enable=abstract-class-instantiated
 def test_ai2psycall_validate_argtype():
-    ''' Test the validate() method of the AlgorithmInvoke2PSyCallTrans
-    class. '''
-    trans = AlgInvoke2PSyCallTrans()
+    '''Test the validate() method of the AlgorithmInvoke2PSyCallTrans
+    class. Use GOceanAlgInvoke2PSyCallTrans as AlgInvoke2PSyCallTrans
+    is abstract.
+
+    '''
+    trans = GOceanAlgInvoke2PSyCallTrans()
     with pytest.raises(TransformationError) as err:
         trans.validate(None)
     assert ("The supplied call argument should be an `AlgorithmInvokeCall` "
@@ -97,8 +115,10 @@ def test_ai2psycall_validate_argtype():
 
 
 def test_ai2psycall_validate_no_invoke_sym(fortran_reader):
-    '''Check that the validate() method raises the expected
-    exception when no invoke symbol is found in the PSyIR.
+    '''Check that the validate() method raises the expected exception when
+    no invoke symbol is found in the PSyIR. Use
+    GOceanAlgInvoke2PSyCallTrans as AlgInvoke2PSyCallTrans is
+    abstract.
 
     '''
     code = (
@@ -115,7 +135,7 @@ def test_ai2psycall_validate_no_invoke_sym(fortran_reader):
     symbol_table = invoke.scope.symbol_table
     invoke_symbol = symbol_table.lookup("invoke")
     symbol_table.remove(invoke_symbol)
-    trans = AlgInvoke2PSyCallTrans()
+    trans = GOceanAlgInvoke2PSyCallTrans()
 
     with pytest.raises(InternalError) as info:
         trans.validate(invoke)
@@ -124,8 +144,11 @@ def test_ai2psycall_validate_no_invoke_sym(fortran_reader):
 
 
 def test_ai2psycall_apply(fortran_reader):
-    ''' Test the apply() method of the AlgorithmInvoke2PSyCallTrans
-    class. '''
+    '''Test the apply() method of the AlgorithmInvoke2PSyCallTrans
+    class. Use GOceanAlgInvoke2PSyCallTrans as AlgInvoke2PSyCallTrans
+    is abstract.
+
+    '''
     code = (
         "subroutine alg1()\n"
         "  use kern_mod, only : kern\n"
@@ -137,7 +160,7 @@ def test_ai2psycall_apply(fortran_reader):
     alg_trans = AlgTrans()
     alg_trans.apply(psyir)
     aic = psyir.walk(AlgorithmInvokeCall)[0]
-    trans = AlgInvoke2PSyCallTrans()
+    trans = GOceanAlgInvoke2PSyCallTrans()
     trans.apply(aic)
     assert psyir.walk(AlgorithmInvokeCall) == []
     calls = psyir.walk(Call)
@@ -147,8 +170,9 @@ def test_ai2psycall_apply(fortran_reader):
 
 
 def test_ai2psycall_apply_error(fortran_reader):
-    '''Check that the apply() method raises the expected
-    exception when an unexpected argument is found.
+    '''Check that the apply() method raises the expected exception when an
+    unexpected argument is found. Use GOceanAlgInvoke2PSyCallTrans as
+    AlgInvoke2PSyCallTrans is abstract.
 
     '''
     code = (
@@ -161,7 +185,7 @@ def test_ai2psycall_apply_error(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     AlgTrans().apply(psyir)
     invoke = psyir.children[0].children[0]
-    trans = AlgInvoke2PSyCallTrans()
+    trans = GOceanAlgInvoke2PSyCallTrans()
     with pytest.raises(InternalError) as info:
         trans.apply(invoke)
     assert ("Expected Algorithm-layer kernel arguments to be a literal, "
@@ -170,8 +194,10 @@ def test_ai2psycall_apply_error(fortran_reader):
 
 
 def test_ai2psycall_apply_expr(fortran_reader):
-    '''Check that the apply() method deals correctly with
-    simple associative expresssions, i.e. i+1 is the same as 1+i.
+    '''Check that the apply() method deals correctly with simple
+    associative expresssions, i.e. i+1 is the same as 1+i.  Use
+    GOceanAlgInvoke2PSyCallTrans as AlgInvoke2PSyCallTrans is
+    abstract.
 
     '''
     code = (
@@ -186,19 +212,19 @@ def test_ai2psycall_apply_expr(fortran_reader):
     AlgTrans().apply(psyir)
     subroutine = psyir.children[0]
     invoke = subroutine.children[0]
-    trans = AlgInvoke2PSyCallTrans()
+    trans = GOceanAlgInvoke2PSyCallTrans()
     trans.apply(invoke)
     assert len(subroutine.children[0].children) == 1
 
 
 def test_ai2psycall_apply_single(fortran_reader):
-    '''Check that the apply() method works as expected
-    when the invoke has a single kernel with multiple fields of the same
-    name. Also check that the apply() method creates
-    the required routine and container symbols if they have not
-    already been created. Also check that the apply()
-    method removes the invoke symbol from the appropriate symbol
-    table.
+    '''Check that the apply() method works as expected when the invoke has
+    a single kernel with multiple fields of the same name. Also check
+    that the apply() method creates the required routine and container
+    symbols if they have not already been created. Also check that the
+    apply() method removes the invoke symbol from the appropriate
+    symbol table. Use GOceanAlgInvoke2PSyCallTrans as
+    AlgInvoke2PSyCallTrans is abstract.
 
     '''
     code = (
@@ -220,7 +246,7 @@ def test_ai2psycall_apply_single(fortran_reader):
 
     # Don't call create_psylayer_symbol_root_names() here. This is to
     # check that the transformation creates the names if needed.
-    trans = AlgInvoke2PSyCallTrans()
+    trans = GOceanAlgInvoke2PSyCallTrans()
     trans.apply(invoke)
 
     assert not psyir.walk(AlgorithmInvokeCall)
@@ -236,9 +262,10 @@ def test_ai2psycall_apply_single(fortran_reader):
 
 
 def test_aipsycall_apply_multi(fortran_reader):
-    '''Check that the apply() method works as expected when it has multiple
-    kernels with fields of the same name. Also check that an invoke name
-    is supported.
+    '''Check that the apply() method works as expected when it has
+    multiple kernels with fields of the same name. Also check that an
+    invoke name is supported. Use GOceanAlgInvoke2PSyCallTrans as
+    AlgInvoke2PSyCallTrans is abstract.
 
     '''
     code = (
@@ -264,7 +291,7 @@ def test_aipsycall_apply_multi(fortran_reader):
     # Explicitly create the language level root names before transforming
     # to make sure the transformation works if they have already been created.
     invoke.create_psylayer_symbol_root_names()
-    trans = AlgInvoke2PSyCallTrans()
+    trans = GOceanAlgInvoke2PSyCallTrans()
     trans.apply(invoke)
 
     assert not psyir.walk(AlgorithmInvokeCall)
@@ -279,11 +306,13 @@ def test_aipsycall_apply_multi(fortran_reader):
 
 
 def test_ai2psycall_apply_multi_invoke(fortran_reader):
-    '''Check that the apply() method works as expected when it has multiple
-    invoke's. Also purposely add existing algorithm names that clash with
-    root names to make sure generated names are correct. Also check that the
-    apply() method removes the invoke symbol from the appropriate symbol table
-    when the second invoke is lowered.
+    '''Check that the apply() method works as expected when it has
+    multiple invoke's. Also purposely add existing algorithm names
+    that clash with root names to make sure generated names are
+    correct. Also check that the apply() method removes the invoke
+    symbol from the appropriate symbol table when the second invoke is
+    lowered. Use GOceanAlgInvoke2PSyCallTrans as
+    AlgInvoke2PSyCallTrans is abstract.
 
     '''
     code = (
@@ -309,7 +338,7 @@ def test_ai2psycall_apply_multi_invoke(fortran_reader):
 
     # Don't call create_psylayer_symbol_root_names() here. This is to
     # check that the transformation creates the names if needed.
-    trans = AlgInvoke2PSyCallTrans()
+    trans = GOceanAlgInvoke2PSyCallTrans()
 
     # Just transform one of the invoke's. The 'invoke' symbol should still
     # exist.
@@ -339,10 +368,12 @@ def test_ai2psycall_apply_multi_invoke(fortran_reader):
 
 
 def test_ai2psycall_apply_invoke_symbols(fortran_reader):
-    '''Check that the apply() method removes the appropriate invoke symbols
-    when these symbols are within symbol tables that are connected to
-    different parts of the PSyIR tree, including where the nodes are ancestors
-    of each other.
+    '''Check that the apply() method removes the appropriate invoke
+    symbols when these symbols are within symbol tables that are
+    connected to different parts of the PSyIR tree, including where
+    the nodes are ancestors of each other. Use
+    GOceanAlgInvoke2PSyCallTrans as AlgInvoke2PSyCallTrans is
+    abstract.
 
     '''
     code = (
@@ -376,7 +407,7 @@ def test_ai2psycall_apply_invoke_symbols(fortran_reader):
     assert "invoke" in invoke1.scope.symbol_table._symbols
     assert "invoke" in invoke2.scope.symbol_table._symbols
 
-    trans = AlgInvoke2PSyCallTrans()
+    trans = GOceanAlgInvoke2PSyCallTrans()
     trans.apply(invoke1)
     trans.apply(invoke2)
 
@@ -391,7 +422,9 @@ def test_ai2psycall_apply_invoke_symbols(fortran_reader):
 
 def test_ai2psycall_apply_invoke_symbols_scope(fortran_reader):
     '''Check that the apply() method removes the appropriate invoke symbol
-    when it is in a different scope to the invoke call.
+    when it is in a different scope to the invoke call.  Use
+    GOceanAlgInvoke2PSyCallTrans as AlgInvoke2PSyCallTrans is
+    abstract.
 
     '''
     code = (
@@ -417,7 +450,7 @@ def test_ai2psycall_apply_invoke_symbols_scope(fortran_reader):
     assert "invoke" not in invoke.scope.symbol_table._symbols
     assert "invoke" in loop.scope.symbol_table._symbols
 
-    trans = AlgInvoke2PSyCallTrans()
+    trans = GOceanAlgInvoke2PSyCallTrans()
     trans.apply(invoke)
 
     assert not psyir.walk(AlgorithmInvokeCall)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,27 +33,27 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 
-''' Transform a PSyclone algorithm-layer-specific invoke call into a call
-to the corresponding PSy-layer routine.
+'''Abstract base class to Transform a PSyclone
+algorithm-layer-specific invoke call into a call to the corresponding
+PSy-layer routine.
 
 '''
 import abc
 
-from psyclone.core import SymbolicMaths
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall
 from psyclone.errors import InternalError
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import ArrayReference, Call, Literal, Reference, \
-    Routine
+from psyclone.psyir.nodes import Call, Routine
 from psyclone.psyir.symbols import (ContainerSymbol,
                                     ImportInterface, RoutineSymbol)
 from psyclone.psyir.transformations import TransformationError
 
 
 class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
-    '''
-    Transforms an AlgorithmInvokeCall into a standard Call to a generated
-    PSy-layer routine.
+    '''Base class to transform an AlgorithmInvokeCall into a standard Call
+    to a generated PSy-layer routine. Requires the abstract
+    get_arguments method to be implemented as the logic to create
+    arguments can differ between APIs.
 
     '''
     def validate(self, node, options=None):
@@ -86,7 +86,13 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
 
     @abc.abstractmethod
     def get_arguments(self, node, options=None):
-        ''' xxx '''
+        '''
+        :param node: a PSyIR algorithm invoke call node.
+        :type node: \
+            :py:class:`psyclone.domain.common.psyir.AlgorithmInvokeCall`
+        :param options: a dictionary with options for transformations.
+        :type options: Optional[Dict[str, Any]]
+        '''
 
     def apply(self, node, options=None):
         ''' Apply the transformation to the supplied AlgorithmInvokeCall.
@@ -102,32 +108,9 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
 
         '''
         self.validate(node, options=options)
-
         node.create_psylayer_symbol_root_names()
-
         arguments = self.get_arguments(node, options=options)
-
-        #arguments = []
-        #sym_maths = SymbolicMaths.get()
-        #for kern in node.children:
-        #    for arg in kern.children:
-        #        if isinstance(arg, Literal):
-        #            # Literals are not passed by argument.
-        #            pass
-        #        elif isinstance(arg, (Reference, ArrayReference)):
-        #            for existing_arg in arguments:
-        #                if sym_maths.equal(arg, existing_arg):
-        #                    break
-        #            else:
-        #                arguments.append(arg.copy())
-        #        else:
-        #            raise InternalError(
-        #                f"Expected Algorithm-layer kernel arguments to be "
-        #                f"a literal, reference or array reference, but "
-        #                f"found '{type(arg).__name__}'.")
-
         symbol_table = node.ancestor(Routine).symbol_table
-
         # TODO #753. At the moment the container and routine names
         # produced here will differ from the PSy-layer routine name if
         # there is a name clash in the algorithm layer.
