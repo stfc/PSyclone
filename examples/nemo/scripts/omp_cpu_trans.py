@@ -39,8 +39,7 @@ directives into Nemo code. Tested with ECMWF Nemo 4.0 code. '''
 
 from utils import insert_explicit_loop_parallelism, normalise_loops, \
     enhance_tree_information, add_profiling
-from psyclone.psyGen import TransInfo
-from psyclone.transformations import OMPParallelTrans
+from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
 
 PROFILING_ENABLED = False
 
@@ -57,7 +56,7 @@ def trans(psy):
 
     '''
     omp_parallel_trans = OMPParallelTrans()
-    omp_loop_trans = TransInfo().get_trans_name('OMPLoopTrans')
+    omp_loop_trans = OMPLoopTrans(omp_schedule="static")
 
     print(f"Invokes found in {psy.name}:")
     for invoke in psy.invokes.invoke_list:
