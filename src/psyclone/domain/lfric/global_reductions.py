@@ -93,16 +93,13 @@ class LFRicGlobalReduction(GlobalReduction):
 class LFRicGlobalSum(LFRicGlobalReduction):
     '''
     LFRic-specific GlobalSum class which can be added to and
-    manipulated in a schedule.
+    manipulated in a schedule. Note, validity checks are in the
+    parent class.
 
     :param scalar: the kernel argument for which to perform a global reduction.
     :type scalar: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
     :param parent: the parent node of this node in the PSyIR.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
-    :raises GenerationError: if distributed memory is not enabled.
-    :raises InternalError: if the supplied argument is not a scalar.
-    :raises GenerationError: if the scalar is not of "real" intrinsic type.
 
     '''
     def __init__(self, scalar, parent=None):
