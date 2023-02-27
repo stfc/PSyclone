@@ -52,11 +52,12 @@ from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
 from psyclone.parse.algorithm import BuiltInCall
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import PSyIRVisitor
-from psyclone.psyir.nodes import (Node, Schedule, Loop, Statement, Container,
-                                  Routine, Call, OMPDoDirective)
-from psyclone.psyir.symbols import (DataSymbol, RoutineSymbol, Symbol,
-                                    ContainerSymbol, ImportInterface,
-                                    ArgumentInterface, DeferredType)
+from psyclone.psyir.nodes import (
+    ArrayReference, Call, Container, Literal, Loop, Node, Reference, Routine,
+    OMPDoDirective, Schedule, Statement)
+from psyclone.psyir.symbols import (
+    ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DeferredType,
+    ImportInterface, INTEGER_TYPE, RoutineSymbol, Symbol)
 from psyclone.psyir.symbols.datatypes import UnknownFortranType
 
 # The types of 'intent' that an argument to a Fortran subroutine
@@ -776,9 +777,9 @@ class GlobalReduction(Statement):
     Generic Global Reduction class which can be added to and manipulated
     in, a schedule.
 
-    :param scalar: the scalar that the global reduction is stored into
-    :type scalar: :py:class:`psyclone.dynamo0p3.DynKernelArgument`????
-    :param parent: optional parent (default None) of this object
+    :param scalar: the scalar that the global reduction is stored into.
+    :type scalar: :py:class:`psyclone.psyGen.KernelArgument`
+    :param parent: optional parent (default None) of this object.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
@@ -822,8 +823,8 @@ class GlobalReduction(Statement):
         Return the list of arguments associated with this node. Override
         the base method and simply return our argument.
 
-        :returns: ?????
-        :rtype: list of ????
+        :returns: the list of scalar reduction arguments.
+        :rtype: list of :py:class:`psyclone.psyGen.KernelArgument`
 
         '''
         return [self._scalar]
@@ -1001,7 +1002,8 @@ class HaloExchange(Statement):
 
 
 class Kern(Statement):
-    '''Base class representing a call to a sub-program unit from within the
+    '''
+    Base class representing a call to a sub-program unit from within the
     PSy layer. It is possible for this unit to be in-lined within the
     PSy layer.
 
@@ -1066,18 +1068,24 @@ class Kern(Statement):
 
     @property
     def args(self):
-        '''Return the list of arguments associated with this node. Overide the
-        base method and simply return our arguments. '''
+        '''
+        :returns: the list of arguments associated with this node. \
+                  Overide the base method and simply return our arguments.
+        :rtype: list of :py:class:`psyclone.psyGen.KernelArgument`
+
+        '''
         return self.arguments.args
 
     def node_str(self, colour=True):
-        ''' Returns the name of this node with (optional) control codes
+        '''
+        Returns the name of this node with (optional) control codes
         to generate coloured output in a terminal that supports it.
 
         :param bool colour: whether or not to include colour control codes.
 
         :returns: description of this node, possibly coloured.
         :rtype: str
+
         '''
         if self.name:
             return (self.coloured_name(colour) + " " + self.name +
@@ -1085,36 +1093,53 @@ class Kern(Statement):
         return self.coloured_name(colour) + "[]"
 
     def reference_accesses(self, var_accesses):
-        '''Get all variable access information. The API specific classes
+        '''
+        Gets all variable access information. The API-specific classes
         add the accesses to the arguments. So the code here only calls
-        the baseclass, and increases the location.
+        the base class, and increases the location.
 
         :param var_accesses: VariablesAccessInfo instance that stores the \
             information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.VariablesAccessInfo`
+
         '''
         super().reference_accesses(var_accesses)
         var_accesses.next_location()
 
     @property
     def is_reduction(self):
-        '''if this kernel/builtin contains a reduction variable then return
-        True, otherwise return False'''
+        '''
+        :returns: True if this kernel/built-in contains a reduction \
+                  and False otherwise.
+        :rtype: bool
+
+        '''
         return self._reduction
 
     @property
     def reduction_arg(self):
-        ''' if this kernel/builtin contains a reduction variable then return
-        the variable, otherwise return None'''
+        '''
+        :returns: a reduction variable if this kernel/built-in contains \
+                  one and None otherwise.
+        :rtype: str or None
+
+        '''
         return self._reduction_arg
 
     @property
     def reprod_reduction(self):
-        '''Determine whether this kernel/builtin is enclosed within an OpenMP
-        do loop. If so report whether it has the reproducible flag
-        set. Note, this also catches OMPParallelDo Directives but they
-        have reprod set to False so it is OK.'''
+        '''
+        Determine whether this kernel/built-in is enclosed within an
+        OpenMP DO loop. If so, report whether it has the reproducible
+        flag set. Note, this also catches OMPParallelDo Directives but
+        they have reprod set to False so it is OK.
+
+        :returns: True if this kernel/built-in is enclosed within an \
+                  OpenMP DO loop and False otherwise.
+        :rtype: bool
+
+        '''
         ancestor = self.ancestor(OMPDoDirective)
         if ancestor:
             return ancestor.reprod
@@ -1122,13 +1147,17 @@ class Kern(Statement):
 
     @property
     def local_reduction_name(self):
-        '''Generate a local variable name that is unique for the current
+        '''
+        Generate a local variable name that is unique for the current
         reduction argument name. This is used for thread-local
-        reductions with reproducible reductions '''
-        tag = self._reduction_arg.name
-        name = self.ancestor(InvokeSchedule).symbol_table.\
-            find_or_create_tag(tag, "l_" + tag).name
-        return name
+        reductions with reproducible reductions.
+
+        :returns: variable name used for thread-local reductions.
+        :rtype: str
+
+        '''
+
+        return "l_" + self.reduction_arg.name
 
     def zero_reduction_variable(self, parent, position=None):
         '''
@@ -1210,7 +1239,7 @@ class Kern(Statement):
         '''
         var_name = self._reduction_arg.name
         local_var_name = self.local_reduction_name
-        local_var_ref = self._reduction_ref(var_name)
+        local_var_ref = self._reduction_reference()
         reduction_access = self._reduction_arg.access
         try:
             reduction_operator = REDUCTION_OPERATOR_MAPPING[reduction_access]
@@ -1231,33 +1260,71 @@ class Kern(Statement):
         parent.add(do_loop)
         parent.add(DeallocateGen(parent, local_var_name))
 
-    def _reduction_ref(self, name):
-        '''Return the name unchanged if OpenMP is set to be unreproducible, as
-        we will be using the OpenMP reduction clause. Otherwise we
-        will be computing the reduction ourselves and therefore need
-        to store values into a (padded) array separately for each
-        thread.
+    def _reduction_reference(self):
+        '''
+        Return the reference to the unchanged reduction variable if OpenMP
+        is set to be unreproducible, as we will be using the OpenMP
+        reduction clause. Otherwise, we will be computing the reduction
+        ourselves and therefore need to store values into a (padded)
+        array separately for each thread.
 
-        :param str name: original name of the variable to be reduced.
+        :returns: reference to the reduction variable.
+        :rtype: str
 
         '''
+        # TODO #1251: Return a PSyIR Reference instead of str to
+        # lower the reduction buit-ins
         symtab = self.scope.symbol_table
+        reduction_name = self._reduction_arg.name
         if self.reprod_reduction:
-            idx_name = symtab.lookup_with_tag("omp_thread_index").name
-            local_name = symtab.find_or_create_tag(name, "l_" + name).name
-            return local_name + "(1," + idx_name + ")"
-        return name
+            # Create a PSyIR representation for the reduction reference,
+            # an array of dimension (1, thdx)
+            reprod_array_dim = [
+                Literal("1", INTEGER_TYPE),
+                Reference(symtab.lookup_with_tag("omp_thread_index"))]
+            reduction_array = ArrayType(
+                symtab.lookup(reduction_name).datatype, reprod_array_dim)
+            # Create the Data Symbol and add it to the Symbol Table
+            symtab.find_or_create_tag(
+                tag=self.local_reduction_name,
+                symbol_type=DataSymbol, datatype=reduction_array)
+            local_reduction = DataSymbol(
+                self.local_reduction_name, datatype=reduction_array)
+            # Return the array reference for code generation
+            return FortranWriter().arrayreference_node(ArrayReference.create(
+                local_reduction, reprod_array_dim))
+        # Return the scalar reference for the original reduction symbol
+        # if OpenMP is set to be unreproducible
+        return Reference(symtab.lookup(reduction_name)).name
 
     @property
     def arg_descriptors(self):
+        '''
+        :returns: a list of kernel argument descriptors.
+        :rtype: list of API-specific specialisation of \
+                :py:class:`psyclone.kernel.Descriptor`
+
+        '''
         return self._arg_descriptors
 
     @arg_descriptors.setter
     def arg_descriptors(self, obj):
+        '''
+        Set the argument descriptors for this kernel.
+
+        :param obj: Argument descriptors populated from the kernel metadata.
+        :type obj: list of API-specific specialisation of \
+                   :py:class:`psyclone.kernel.Descriptor`
+        '''
         self._arg_descriptors = obj
 
     @property
     def arguments(self):
+        '''
+        :returns: object that holds all information on the kernel arguments.
+        :rtype: :py:class:`psyclone.psyGen.Arguments`
+
+        '''
         return self._arguments
 
     @property
@@ -1265,6 +1332,7 @@ class Kern(Statement):
         '''
         :returns: the name of the kernel.
         :rtype: str
+
         '''
         return self._name
 
@@ -1274,6 +1342,7 @@ class Kern(Statement):
         Set the name of the kernel.
 
         :param str value: The name of the kernel.
+
         '''
         self._name = value
 
@@ -1282,6 +1351,7 @@ class Kern(Statement):
         :returns: True if this kernel is being called from within a \
                   coloured loop.
         :rtype: bool
+
         '''
         parent_loop = self.ancestor(Loop)
         while parent_loop:
@@ -1292,6 +1362,11 @@ class Kern(Statement):
 
     @property
     def iterates_over(self):
+        '''
+        :returns: the name of the iteration space supported by this kernel.
+        :rtype: str
+
+        '''
         return self._iterates_over
 
     def local_vars(self):

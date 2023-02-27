@@ -1728,7 +1728,7 @@ class LFRicXInnerproductYKern(LFRicBuiltIn):
         # We sum the DoF-wise product of the supplied real-valued fields.
         # The real scalar variable holding the sum is initialised to zero
         # in the PSy layer.
-        innprod_name = self._reduction_ref(self._arguments.args[0].name)
+        innprod_name = self._reduction_reference()
         field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
         field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
         rhs_expr = innprod_name + " + " + field_name1 + "*" + field_name2
@@ -1755,7 +1755,7 @@ class LFRicXInnerproductXKern(LFRicBuiltIn):
         # We sum the DoF-wise product of the supplied real-valued fields.
         # The real scalar variable holding the sum is initialised to zero
         # in the PSy layer.
-        innprod_name = self._reduction_ref(self._arguments.args[0].name)
+        innprod_name = self._reduction_reference()
         field_name = self.array_ref(self._arguments.args[1].proxy_name)
         rhs_expr = innprod_name + " + " + field_name + "*" + field_name
         parent.add(AssignGen(parent, lhs=innprod_name, rhs=rhs_expr))
@@ -1785,7 +1785,7 @@ class LFRicSumXKern(LFRicBuiltIn):
         # Sum all the elements of a real-valued field. The real scalar
         # variable holding the sum is initialised to zero in the PSy layer.
         field_name = self.array_ref(self._arguments.args[1].proxy_name)
-        sum_name = self._reduction_ref(self._arguments.args[0].name)
+        sum_name = self._reduction_reference()
         rhs_expr = sum_name + " + " + field_name
         parent.add(AssignGen(parent, lhs=sum_name, rhs=rhs_expr))
 
