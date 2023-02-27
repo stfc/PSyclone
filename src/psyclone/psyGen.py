@@ -1273,7 +1273,7 @@ class Kern(Statement):
 
         '''
         # TODO #1251: Return a PSyIR Reference instead of str to
-        # lower the reduction buit-ins
+        # lower the reduction built-ins
         symtab = self.scope.symbol_table
         reduction_name = self._reduction_arg.name
         if self.reprod_reduction:
@@ -2900,21 +2900,21 @@ class DummyTransformation(Transformation):
 
 # For Sphinx AutoAPI documentation generation
 __all__ = [
-    'Argument',
-    'Arguments',
-    'BuiltIn',
-    'CodedKern',
-    'DataAccess',
-    'DummyTransformation',
+    'PSyFactory',
+    'PSy',
+    'Invokes',
+    'Invoke',
+    'InvokeSchedule',
     'GlobalReduction',
     'HaloExchange',
-    'InlinedKern',
-    'Invoke',
-    'Invokes',
-    'InvokeSchedule',
     'Kern',
+    'CodedKern',
+    'InlinedKern',
+    'BuiltIn',
+    'Arguments',
+    'DataAccess',
+    'Argument',
     'KernelArgument',
-    'PSy',
-    'PSyFactory',
+    'TransInfo',
     'Transformation',
-    'TransInfo']
+    'DummyTransformation']

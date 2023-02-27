@@ -50,10 +50,12 @@ from psyclone.psyGen import GlobalReduction, InvokeSchedule
 
 class LFRicGlobalReduction(GlobalReduction):
     '''
-    LFRic-specific GlobalReduction class which can be added to and
-    manipulated in a schedule.
+    LFRic-specific GlobalReduction class. Sub-classes such as
+    LFRicGlobalSum are added to a schedule, however the parent
+    class checks validity of reduction argument(s).
 
-    :param scalar: the kernel argument for which to perform a global reduction.
+    :param scalar: the kernel argument for which to perform a \
+                   global reduction.
     :type scalar: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
     :param parent: the parent node of this node in the PSyIR.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
@@ -92,11 +94,13 @@ class LFRicGlobalReduction(GlobalReduction):
 
 class LFRicGlobalSum(LFRicGlobalReduction):
     '''
-    LFRic-specific GlobalSum class which can be added to and
-    manipulated in a schedule. Note, validity checks are in the
-    parent class.
+    LFRic-specific implementation of a global sum over distributed memory
+    processes and shared memory threads for reproducible reductions.
+    This class can be added to and manipulated in a schedule. Note, the
+    validity of reduction argument is checked in the parent
+    `LFRicGlobalReduction` class.
 
-    :param scalar: the kernel argument for which to perform a global reduction.
+    :param scalar: the kernel argument for which to perform a global sum.
     :type scalar: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
     :param parent: the parent node of this node in the PSyIR.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
