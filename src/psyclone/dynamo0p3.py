@@ -5669,7 +5669,7 @@ class DynInvoke(Invoke):
                 if rule.psy_name not in self._psy_unique_qr_vars:
                     self._psy_unique_qr_vars.append(rule.psy_name)
 
-        # Lastly, add in halo exchange calls and global sums if
+        # Lastly, add in halo exchange calls and global reductions if
         # required. We only need to add halo exchange calls for fields
         # since operators are assembled in place and scalars don't
         # have halos. We only need to add global sum calls for scalars
@@ -5679,7 +5679,7 @@ class DynInvoke(Invoke):
             const = LFRicConstants()
             for loop in self.schedule.loops():
                 loop.create_halo_exchanges()
-            # Global sum calls
+            # Global sum calls for now (min and max to follow, issue #2021)
             for loop in self.schedule.loops():
                 for scalar in loop.args_filter(
                         arg_types=const.VALID_SCALAR_NAMES,
@@ -6749,7 +6749,7 @@ class HaloWriteAccess(HaloDepth):
         '''Returns True if the writer is continuous and accesses the halo and
         False otherwise. It indicates that the outer level of halo that has
         been written to is actually dirty (well to be precise it is a partial
-        sum).
+        reduction).
 
         :returns: True if the outer layer of halo that is written \
                   to remains dirty and False otherwise.

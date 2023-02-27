@@ -112,8 +112,21 @@ def get_api(api):
 
 
 def zero_reduction_variables(red_call_list, parent):
-    '''zero all reduction variables associated with the calls in the call
-    list'''
+    '''
+    Zero all reduction variables associated with the calls in the call
+    list.
+
+    :param red_call_list: list of kernel calls that contain \
+                          a reduction variable.
+    :type red_call_list: list of `psyGen.Kern`
+    :param parent: the node in the f2pygen AST to which to add content.
+    :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+    '''
+    # TODO #2021: It is not clear where this function belongs. For now
+    # it is used in 'Loop.gen_code' and 'OMPParallelDoDirective.gen_code
+    # methods. Also, it does not make sense to zero global min and max
+    # variables before calculating them so this function may be renamed.
     if red_call_list:
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " Zero summation variables"))
@@ -611,8 +624,8 @@ class Invoke():
             if first_arg.access in [AccessType.WRITE, AccessType.SUM]:
                 # If the first access is a write then the intent is
                 # out irrespective of any other accesses. Note,
-                # sum_args behave as if they are write_args from the
-                # PSy-layer's perspective.
+                # reduction args behave as if they are write args
+                # from the PSy-layer's perspective.
                 declns["out"].append(arg)
                 continue
             # if all accesses are read, then the intent is in,
@@ -1176,6 +1189,11 @@ class Kern(Statement):
                                  neither 'real' nor 'integer'.
 
         '''
+        # TODO #2021: It makes sense to zero the global sum variable,
+        # however not the global min and global max variables. Depending
+        # on the implementation of global min and max, this function may
+        # need to be renamed and separate initialisation methods for min
+        # and max added.
         if not position:
             position = ["auto"]
         var_name = self._reduction_arg.name
