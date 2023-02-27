@@ -632,10 +632,11 @@ def test_codedkern_lower_to_language_level(monkeypatch):
     assert len(kern.children) == 0
     number_of_arguments = len(kern.arguments.psyir_expressions())
 
-    kern.lower_to_language_level()
+    lowered = kern.lower_to_language_level()
 
     # In language-level it is a Call with arguments as children
     call = schedule.children[0].loop_body[0]
+    assert call is lowered
     assert not isinstance(call, CodedKern)
     assert isinstance(call, Call)
     assert call.routine.name == 'testkern_code'
