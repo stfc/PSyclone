@@ -93,7 +93,7 @@ def trans(psy):
         else:
             normalise_loops(
                     invoke.schedule,
-                    hoist_local_arrays=True,
+                    hoist_local_arrays=False,
                     convert_array_notation=True,
                     convert_range_loops=True,
                     hoist_expressions=False
