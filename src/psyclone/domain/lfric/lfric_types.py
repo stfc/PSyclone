@@ -85,24 +85,26 @@ class LFRicTypes:
             instance.
         :rtype: object (various types)
 
+        :raises InternalError: if there specified name is not a name for \
+            an object managed here.
+
         '''
         if not LFRicTypes._name_to_class:
             LFRicTypes.init()
 
-        value = LFRicTypes._name_to_class.get(name, None)
-        if value:
-            return value
-
-        # Unknown keyword
-        raise InternalError(f"Unknown type '{name}'. Valid values are "
-                            f"{LFRicTypes._name_to_class.keys()}")
+        try:
+            return LFRicTypes._name_to_class[name]
+        except KeyError as err:
+            raise InternalError(f"Unknown LFRic type '{name}'. Valid values "
+                                f"are {LFRicTypes._name_to_class.keys()}") \
+                  from err
 
     # ------------------------------------------------------------------------
     def __call__(self):
         '''This function is only here to trick pylint into thinking that
         the object returned from __new__ is callable, meaning that code like:
         ``LFRicTypes("LFRicIntegerScalarDataType")()`` does not trigger
-        a pyling warning about not being callable.
+        a pylint warning about not being callable.
         '''
 
     # ------------------------------------------------------------------------
@@ -122,9 +124,10 @@ class LFRicTypes:
         LFRicTypes._create_fields()
         # Generate LFRic vector-field-data symbols as subclasses of
         # field-data symbols
-        for intrinsic in ["Real", "Integer", "Logical"]:
-            name = f"{intrinsic}VectorFieldDataSymbol"
-            baseclass = LFRicTypes(f"{intrinsic}FieldDataSymbol")
+        const = LFRicConstants()
+        for intrinsic in const.VALID_FIELD_INTRINSIC_TYPES:
+            name = f"{intrinsic.title()}VectorFieldDataSymbol"
+            baseclass = LFRicTypes(f"{intrinsic.title()}FieldDataSymbol")
             LFRicTypes._name_to_class[name] = type(name, (baseclass, ), {})
 
     # ------------------------------------------------------------------------

@@ -85,14 +85,16 @@ class KernCallArgList(ArgOrdering):
 
     @staticmethod
     def _map_type_to_precision(data_type):
-        '''This function return the precision required for the various
+        '''This function returns the precision required for the various
         LFRic types.
 
-        :param str data_type: the name of the field type.
+        :param str data_type: the name of the data type.
 
         :returns: the precision as defined in domain.lfric.lfric_types \
             (one of R_SOLVER, R_TRAN, R_DEF).
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        :raises InternalError: if an unknown data_type is specified.
 
         '''
         const = LFRicConstants()

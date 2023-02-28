@@ -58,7 +58,7 @@ class LFRicConstants():
 
     # A consistency flag that is set to true the moment the proper config
     # file is loaded. If an instance of this class should be created before
-    # the loading of the config file, a warning message will be printed.
+    # the loading of the config file, an exception will be raised.
     HAS_CONFIG_BEEN_INITIALISED = False
 
     def __init__(self):
@@ -145,8 +145,9 @@ class LFRicConstants():
         LFRicConstants.VALID_INTRINSIC_TYPES = supported_fortran_datatypes
 
         # Valid intrinsic types for field kernel argument data
-        # ('real' and 'integer').
-        LFRicConstants.VALID_FIELD_INTRINSIC_TYPES = ["real", "integer"]
+        # ('real', 'integer', and 'logical').
+        LFRicConstants.VALID_FIELD_INTRINSIC_TYPES = ["real", "integer",
+                                                      "logical"]
 
         # ---------- Mapping from metadata data_type to Fortran intrinsic type
         LFRicConstants.MAPPING_DATA_TYPES = \

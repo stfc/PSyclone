@@ -75,7 +75,8 @@ def test_singleton(monkeypatch):
     monkeypatch.setattr(LFRicTypes, "_name_to_class", None)
     with pytest.raises(InternalError) as err:
         LFRicTypes("does_not_exist")
-    assert "Unknown type 'does_not_exist'. Valid values are " in str(err.value)
+    assert ("Unknown LFRic type 'does_not_exist'. Valid values are "
+            in str(err.value))
 
 
 def test_constants_mod():
