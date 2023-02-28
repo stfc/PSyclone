@@ -217,7 +217,12 @@ def insert_explicit_loop_parallelism(
                      # calls/codeblocks are not a problem (they are not)
 
         try:
-            loop_directive_trans.apply(loop)
+            opts={}
+            if any([name in loop.ancestor(Routine).invoke.name
+                    for name in ('tab_','pnd_')]): # pnd_lev requires manual
+                                                   # privatisation of ztmp
+                opts={"force": True}
+            loop_directive_trans.apply(loop, options=opts)
             # Only add the region directive if the loop was successfully
             # parallelised.
             region_directive_trans.apply(loop.parent.parent)
