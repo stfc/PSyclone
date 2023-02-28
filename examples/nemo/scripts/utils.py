@@ -203,8 +203,18 @@ def insert_explicit_loop_parallelism(
         if loop.ancestor(Directive):
             continue  # Skip if an outer loop is already parallelised
 
-        if exclude_calls and loop.walk((Call, CodeBlock)):
-            continue
+        if (any([ref.symbol.name in ('jpl', 'nlay_i', 'nlay_s')
+                  for ref in loop.stop_expr.walk(Reference)])
+            or exclude_calls
+            and loop.walk((Call, CodeBlock))
+            and not any([ref.symbol.name in ('npti')
+                         for ref in loop.stop_expr.walk(Reference)])):
+            continue # Skip if looping over ice categories, ice or snow layers
+                     # as these have only 5, 4, and 1 iterations, respectively
+                     # In addition, they often nest ice linearised loops (npti)
+                     # which we'd rather parallelise
+                     # If we see one such ice linearised loop, we assume
+                     # calls/codeblocks are not a problem (they are not)
 
         try:
             loop_directive_trans.apply(loop)
