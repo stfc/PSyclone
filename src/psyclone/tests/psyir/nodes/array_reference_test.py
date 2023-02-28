@@ -44,8 +44,9 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.nodes import Reference, ArrayReference, Assignment, \
     Literal, BinaryOperation, Range, KernelSchedule
-from psyclone.psyir.symbols import DataSymbol, ArrayType, ScalarType, \
-    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, INTEGER_TYPE
+from psyclone.psyir.symbols import (
+    ArrayType, DataSymbol, DataTypeSymbol, DeferredType, ScalarType,
+    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, INTEGER_TYPE)
 from psyclone.tests.utilities import check_links
 
 
@@ -512,6 +513,12 @@ def test_array_datatype(fortran_writer):
     # The easiest way to check the expression is to convert it to Fortran
     code = fortran_writer(upper)
     assert code == "(4 - 2) / 1 + 1"
+    # Reference to a single element of an array of structures.
+    stype = DataTypeSymbol("grid_type", DeferredType())
+    atype = ArrayType(stype, [10])
+    asym = DataSymbol("aos", atype)
+    aref = ArrayReference.create(asym, [two.copy()])
+    assert aref.datatype is stype
 
 
 def test_array_create_colon(fortran_writer):
