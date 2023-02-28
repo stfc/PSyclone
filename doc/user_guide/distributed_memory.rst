@@ -64,11 +64,11 @@ Performance
 
 PSyclone adds **HaloExchange** and **GlobalReduction** objects to the
 generated PSyIR **InvokeSchedule** at the required locations.
-The halo-exchange and global-sum objects
+The halo-exchange and global-reduction objects
 are exposed here for the purposes of optimisation. For example the
-halo-exchange and/or global-sum objects may be moved in the schedule
-(via appropriate transformations) to enable overlap of computation
-with communication.
+halo-exchange and/or global-reduction objects may be moved in the
+schedule (via appropriate transformations) to enable overlap of
+computation with communication.
 
 .. note:: When these optimisations are implemented, add a reference to
    the :ref:`transformations` Section.
@@ -79,11 +79,12 @@ date. One example is where a field is written to and then read using a
 stencil access. Halo exchanges have performance implications so should
 only be used where necessary.
 
-A global sum is required with distributed memory when a scalar is
-written to. Global sums can have performance implications so should
-only be used where necessary. Global sums currently only occur in
-certain Built-in kernels. The description of Built-ins indicates when
-this is the case.
+A global reduction is required with distributed memory when a scalar
+is written to. Global reductions can have performance implications so
+should only be used where necessary. Global reductions currently only
+occur in certain :ref:`LFRic Built-ins <lfric-built-ins>` kernels.
+The description of :ref:`LFRic Built-ins <lfric-built-ins>` indicates
+when this is the case.
 
 
 Implementation
@@ -127,7 +128,7 @@ from the ``generate`` function by setting the optional
 Status
 ------
 
-Distributed memory support is currently supported by the ``dynamo0.3`` and
-the ``gocean1p0`` APIs.  The remaining APIs ignore the distributed memory flag
-and continue to produce code without any distributed memory functionality,
-irrespective of its value.
+Distributed memory support is currently supported by the ``dynamo0.3``
+(LFRic) and the ``gocean1p0`` APIs.  The remaining APIs ignore the
+distributed memory flag and continue to produce code without any
+distributed memory functionality, irrespective of its value.

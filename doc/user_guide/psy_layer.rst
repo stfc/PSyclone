@@ -45,11 +45,15 @@ implementation of any Built-in operations used. Its
 functional responsibilities are to
 
 
-1. map the arguments supplied by an Algorithm ``invoke`` call to the arguments required by a Built-in or Kernel call (as these will not have a one-to-one correspondance).
-2. call any Kernel routines such that they cover the required iteration space and
-3. perform any Built-in operations (either by including the necessary code
-   directly in the PSy layer or by e.g. calling a maths library) and
-4. include any required distributed memory operations such as halo swaps and reductions.
+1. Map the arguments supplied by an Algorithm ``invoke`` call to the
+   arguments required by a Built-in or Kernel call (as these will not
+   have a one-to-one correspondance);
+2. Call any Kernel routines such that they cover the required iteration
+   space and
+3. Perform any Built-in operations (either by including the necessary code
+   directly in the PSy layer or by e.g. calling a Maths library) and
+4. Include any required distributed memory operations such as halo swaps
+   and reductions.
 
 Its other role is to allow the optimisation expert to optimise any
 required distributed memory operations, include and optimise any
@@ -117,7 +121,7 @@ more kernels and/or implements any required Built-in operations.
 
 All this classes can be specialised in each PSyclone API to support the
 specific features of the APIs. The class diagram for the above base classes
-is shown below using the dynamo0.3 API as an illustration. This class diagram
+is shown below using the LFRic API as an illustration. This class diagram
 was generated from the source code with pyreverse and edited with inkscape.
 
 .. image:: dynamo0p3_topclasses.png

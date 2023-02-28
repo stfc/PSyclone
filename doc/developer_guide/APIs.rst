@@ -189,7 +189,7 @@ TBD
 Existing APIs
 #############
 
-.. _dynamo0.3-developers:
+.. _lfric-developers:
 
 LFRic (Dynamo0.3)
 =================
@@ -225,7 +225,7 @@ indexed in the following way.
 .. image:: cells_global.png
 	   :width: 120
 
-When the distributed memory option is switched on in the Dynamo0.3 API
+When the distributed memory option is switched on in the LFRic API
 (see the :ref:`distributed_memory` Section) the cells in the model are
 partitioned amongst processors and halo cells are added at the
 boundaries to a depth determined by the LFRic infrastructure. In this
@@ -276,7 +276,7 @@ index 2 and the cell above that contains dof index 3 etc.
 	   :width: 120
 
 As discussed in the previous section, when the distributed memory
-option is switched on in the Dynamo0.3 API (see the
+option is switched on in the LFRic API (see the
 :ref:`distributed_memory` Section) the cells in the model are
 partitioned amongst processors and halo cells are added at the
 boundaries to a depth determined by the LFRic infrastructure. This
@@ -310,7 +310,7 @@ that contains dof index 3 etc.
 	   :width: 140
 
 As already explained, when the distributed memory option is switched
-on in the Dynamo0.3 API (see the :ref:`distributed_memory` Section)
+on in the LFRic API (see the :ref:`distributed_memory` Section)
 the cells in the model are partitioned amongst processors and halo
 cells are added at the boundaries.
 
@@ -322,8 +322,8 @@ replicated if fields on continuous dofs are going to be able to be
 computed locally on each partition. This concept is different to halos
 as there are no halo cells here, the fact that the cells are
 partitioned has meant that continuous dofs on the edge of the
-partition are replicated. The convention used in Dynamo0.3 is that the
-cell with the lowest global id determines which partition owns a
+partition are replicated. The convention used in LFRic is that the
+cell with the lowest global ID determines which partition owns a
 dof and which has the copy. Dofs which are copies are called
 ``annexed``. Annexed dofs are coloured blue in the example:
 
@@ -373,7 +373,7 @@ index of the last halo dof, to support PSyclone code generation.
 Multi-grid
 ----------
 
-The Dynamo 0.3 API supports kernels that map fields between meshes of
+The LFRic API supports kernels that map fields between meshes of
 different horizontal resolutions; these are termed "inter-grid"
 kernels. As indicated in :numref:`fig-multigrid` below, the change in
 resolution between each level is always a factor of two in both the
@@ -404,7 +404,7 @@ that of those on the coarse mesh.
 Loop iterators
 --------------
 
-In the current implementation of the Dynamo0.3 API it is possible to
+In the current implementation of the LFRic API it is possible to
 iterate (loop) either over cells or dofs. At the moment all coded
 kernels are written to iterate over cells and all Built-in kernels are
 written to iterate over dofs, but that does not have to be the case.
@@ -444,7 +444,7 @@ same, correct value written to them, independent of whether or not
 the current cell "owns" them, there is no need to perform redundant
 computation in this case.
 
-An alternative solution could have been adopted in Dynamo0.3 whereby
+An alternative solution could have been adopted in LFRic whereby
 no redundant computation is performed and partial-sum results are
 shared between processors in a communication pattern similar to halo
 exchanges. However, a decision was made to always perform redundant
@@ -1086,7 +1086,7 @@ The sum and inner product BuiltIns require extending PSyIR to handle
 reductions in the ``GlobalReduction`` class in ``psyGen.py``. Conversions
 from ``real`` to ``int`` and vice-versa require the target precisions be
 available as symbols, which is being implemented as a part of the mixed
-precision support.
+precision support (see issue https://github.com/stfc/PSyclone/issues/1525).
 
 Kernel Metadata
 ---------------

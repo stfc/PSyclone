@@ -325,12 +325,12 @@ can be found in the API-specific sections).
     :noindex:
 
 .. note:: PSyclone does not support (distributed-memory) halo swaps or
-          global sums within OpenMP master regions.  Attempting to
-          create a master region for a set of nodes that includes
-          halo swaps or global sums will produce an error. In such
-          cases it may be possible to re-order the nodes in the
-          Schedule such that the halo swaps or global sums are
-          performed outside the single region. The
+          global reductions within OpenMP master regions. Attempting
+          to create a master region for a set of nodes that includes
+          halo swaps or global reductions will produce an error. In
+          such cases it may be possible to re-order the nodes in
+          the Schedule such that the halo swaps or global reductions
+          are performed outside the single region. The
           :ref:`MoveTrans <sec_move_trans>` transformation may be used
           for this.
 
@@ -348,11 +348,11 @@ can be found in the API-specific sections).
     :noindex:
 
 .. note:: PSyclone does not support (distributed-memory) halo swaps or
-          global sums within OpenMP parallel regions.  Attempting to
-          create a parallel region for a set of nodes that includes
-          halo swaps or global sums will produce an error. In such
-          cases it may be possible to re-order the nodes in the
-          Schedule such that the halo swaps or global sums are
+          global reductionss within OpenMP parallel regions. Attempting
+          to create a parallel region for a set of nodes that includes
+          halo swaps or global reductions will produce an error. In
+          such cases it may be possible to re-order the nodes in the
+          Schedule such that the halo swaps or global reductions are
           performed outside the parallel region. The
           :ref:`MoveTrans <sec_move_trans>` transformation may be used
           for this.
@@ -365,11 +365,11 @@ can be found in the API-specific sections).
     :noindex:
 
 .. note:: PSyclone does not support (distributed-memory) halo swaps or
-          global sums within OpenMP single regions.  Attempting to
-          create a single region for a set of nodes that includes
-          halo swaps or global sums will produce an error. In such
-          cases it may be possible to re-order the nodes in the
-          Schedule such that the halo swaps or global sums are
+          global reductions within OpenMP single regions. Attempting
+          to create a single region for a set of nodes that includes
+          halo swaps or global reductions will produce an error. In
+          such cases it may be possible to re-order the nodes in the
+          Schedule such that the halo swaps or global reductions are
           performed outside the single region. The
           :ref:`MoveTrans <sec_move_trans>` transformation may be used
           for this.
@@ -822,13 +822,13 @@ this document.
 Reductions
 ++++++++++
 
-PSyclone supports parallel scalar reductions.  If a scalar reduction is
+PSyclone supports parallel scalar reductions. If a scalar reduction is
 specified in the Kernel metadata (see the API-specific sections for
 details) then PSyclone ensures the appropriate reduction is performed.
 
 In the case of distributed memory, PSyclone will add **GlobalReduction**s
-at the appropriate locations. As can be inferred by the name, only
-"summation" reductions are currently supported for distributed memory.
+at the appropriate locations. Only "summation" reductions are currently
+supported for distributed memory in :ref:`LFRic API <dynamo0.3-api>`.
 
 In the case of an OpenMP parallel loop the standard reduction support
 will be used by default. For example
@@ -861,9 +861,9 @@ exception. In this case the solution is to use a different variable
 for each reduction.
 
 PSyclone does not support (distributed-memory) halo swaps or global
-sums within OpenMP parallel regions.  Attempting to create a parallel
-region for a set of nodes that includes halo swaps or global sums will
-produce an error.  In such cases it may be possible to re-order the
+reductions within OpenMP parallel regions. Attempting to create a parallel
+region for a set of nodes that includes halo swaps or global reductions
+will produce an error.  In such cases it may be possible to re-order the
 nodes in the Schedule using the :ref:`MoveTrans <sec_move_trans>`
 transformation.
 

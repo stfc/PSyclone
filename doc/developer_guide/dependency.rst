@@ -601,7 +601,7 @@ until we find accesses that would prevent parallelisation:
 .. note:: There is a certain overlap in the dependency analysis code
           and the variable access API. More work on unifying those two
           approaches will be undertaken in the future. Also, when calling
-          `reference_accesses()` for a Dynamo or GOcean kernel, the
+          `reference_accesses()` for an LFRic or GOcean kernel, the
           variable access mode for parameters is taken
           from the kernel metadata, not from the actual kernel source 
           code.

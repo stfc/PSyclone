@@ -3060,8 +3060,8 @@ or of a ``real``-valued field with itself and return the result as a
 ``real`` scalar are denoted with the keyword **innerproduct**.
 
 .. note:: When used with distributed memory these Built-ins will
-          trigger the addition of a global sum which may affect the
-          performance and/or scalability of the code.
+          trigger the addition of a global reduction which may affect
+          the performance and/or scalability of the code.
           Also, whilst the fields in these Built-ins can be of any
           supported ``real`` :ref:`precision <lfric-mixed-precision>`,
           the only currently supported precision for the global
@@ -3098,7 +3098,7 @@ A Built-in which sums the elements of a ``real``-valued field and returns
 the result as a ``real`` scalar is denoted with the keyword **sum**.
 
 .. note:: When used with distributed memory this Built-in will trigger
-          the addition of a global sum which may affect the
+          the addition of a global reduction which may affect the
           performance and/or scalability of the code.
           Also, whilst the fields in these Built-ins can be of any
           supported ``real`` :ref:`precision <lfric-mixed-precision>`,
@@ -3607,8 +3607,8 @@ section of the configuration file (see the :ref:`configuration`
 section). PSyclone will then generate code to iterate over both owned
 and annexed DoFs, thereby reducing the number of halo exchanges
 required (at the expense of redundantly computing annexed DoFs). For
-more details please refer to the :ref:`dynamo0.3-developers`
-developers section.
+more details please refer to the :ref:`dev_guide:lfric-developers`
+section in the Developer's Guide.
 
 .. _lfric-run-time-checks:
 
