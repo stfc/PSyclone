@@ -47,11 +47,9 @@ from psyclone.psyir.symbols import (
     REAL_TYPE, StructureType, Symbol)
 
 
-# _validate_child, is_array, get_signature_and_indices and
-# _validate_index methods are all tested in the ArrayReference class.
-
 _ONE = Literal("1", INTEGER_TYPE)
 _TWO = Literal("2", INTEGER_TYPE)
+
 
 # _is_bound_op
 
@@ -59,6 +57,8 @@ def test_is_bound_op():
     '''Check the _is_bound_op utility function works as expected.  Create
     and use an ArrayReference node to test the abstract ArrayMixin
     class.
+
+    '''
     one = Literal("1", INTEGER_TYPE)
     array = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE, [10]))
     array2 = DataSymbol("my_symbol2", ArrayType(INTEGER_TYPE, [10]))
@@ -99,31 +99,6 @@ def test_is_bound_op():
         BinaryOperation.Operator.UBOUND, array_ref.copy(), one.copy())
     assert array_ref._is_bound_op(oper, BinaryOperation.Operator.UBOUND, 0)
 
-
-def test_get_outer_range_index():
-    '''Check that the get_outer_range_index method returns the outermost index
-    of the children list that is a range.
-
-    '''
-    symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE, [10, 10, 10]))
-    array = ArrayReference.create(symbol, [Range(), Range(), Range()])
-    assert array.get_outer_range_index() == 2
-
-    symbol = DataSymbol("my_symbol", DeferredType())
-    aos = ArrayReference.create(
-        symbol, [_ONE.copy(), Range(), Range(), Range()])
-    assert aos.get_outer_range_index() == 3  # +1 for the Literal child
-
-
-def test_get_outer_range_index_error():
-    '''Check that the get_outer_range_index method raises an IndexError if
-    no range exist as child of the given array.
-
-    '''
-    symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE, [10]))
-    array = ArrayReference.create(symbol, [_TWO.copy()])
-    with pytest.raises(IndexError):
-        _ = array.get_outer_range_index()
 
 # is_lower_bound and is_upper_bound
 
@@ -304,12 +279,9 @@ def test_is_bound_access(fortran_reader, bounds, access, lower, upper):
     assert array_ref._is_bound(0, "lower") is lower
     assert array_ref._is_bound(0, "upper") is upper
 
-
 # is_same_array, is_full_range, and indices methods are all tested in
 # the ArrayReference class.
 
-
-# _get_effective_shape
 
 def test_get_lbound_expression():
     '''
@@ -432,6 +404,8 @@ def test_member_get_lbound_expression(fortran_writer):
     assert sref2.member.get_lbound_expression(1) == two
     assert sref2.member.member.get_lbound_expression(1) == two
 
+
+# _get_effective_shape
 
 def test_get_effective_shape(fortran_reader, fortran_writer):
     '''Tests for the _get_effective_shape() method.'''

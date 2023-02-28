@@ -50,7 +50,7 @@ from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.operation import Operation, BinaryOperation
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import SymbolError, DataSymbol, DataTypeSymbol
+from psyclone.psyir.symbols import DataSymbol, DataTypeSymbol
 from psyclone.psyir.symbols.datatypes import (
     ScalarType, ArrayType, DeferredType, UnknownType, INTEGER_TYPE)
 

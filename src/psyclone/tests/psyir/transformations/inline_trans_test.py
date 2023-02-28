@@ -342,7 +342,7 @@ def test_apply_struct_arg(fortran_reader, fortran_writer, tmpdir):
             "      var2(i)%region%data(:) = -1.0\n"
             "      var2(i)%region%data = -5.0\n"
             "      var2(i)%region%data(1:2) = 0.0\n"
-            "      var2(:)%region%local%nx = 0\n"
+            "      var2(1:5)%region%local%nx = 0\n"
             "    enddo\n" in output)
     assert Compile(tmpdir).string_compiles(output)
 
@@ -409,7 +409,7 @@ def test_apply_unresolved_struct_arg(fortran_reader, fortran_writer):
             "argument 'mystery' corresponding to an array formal argument "
             "('x') is unknown." in str(err.value))
     output = fortran_writer(psyir)
-    assert ("    varr(:)%region%local%nx = 0\n"
+    assert ("    varr(1:5)%region%local%nx = 0\n"
             "    call sub3(mystery)\n"
             "    mystery%flag = 1\n"
             "    call sub4(mystery)\n" in output)
@@ -459,7 +459,7 @@ def test_apply_struct_slice_arg(fortran_reader, fortran_writer, tmpdir):
     assert "var_list(:)%local%nx = var_list(:)%local%nx + 1" in output
     assert "var_list(:)%data(2) = 0.0" in output
     assert "var_list(:)%local%nx = 4" in output
-    assert "var_list(:1 + 1)%local%nx = -2" in output
+    assert "var_list(1:1 + 1)%local%nx = -2" in output
     assert "cvar(2)%grids(2)%region%data(:) = 0.0" in output
     assert Compile(tmpdir).string_compiles(output)
 
