@@ -203,6 +203,8 @@ def create_psyir_tree():
 if __name__ == "__main__":
     psyir_tree = create_psyir_tree()
 
+    print(psyir_tree.debug_string())
+
     # Write out the code as Fortran
     writer = FortranWriter()
     result = writer(psyir_tree)

@@ -80,6 +80,7 @@ class PSyIRVisitor():
 
     '''
     _COMMENT_PREFIX = None
+    _DISABLE_LOWERING = False
 
     def __init__(self, skip_nodes=False, indent_string="  ",
                  initial_indent_depth=0, check_global_constraints=True):
@@ -161,6 +162,9 @@ class PSyIRVisitor():
                 f"The PSyIR visitor functor method only accepts a PSyIR Node "
                 f"as argument, but found '{type(node).__name__}'.")
 
+        if self._DISABLE_LOWERING:
+            return self._visit(node)
+
         # The visitor must not alter the provided node but if there are any
         # DSL concepts then these will need to be lowered in-place and this
         # operation often modifies the tree. Therefore, we first create a
@@ -168,8 +172,8 @@ class PSyIRVisitor():
         # provided node - e.g. adding a symbol in the scope)
         tree_copy = node.root.copy()
 
-        # Get the node in the new tree with equivalent position to the provided
-        # node
+        # Get the node in the new tree with equivalent position to the
+        # provided node
         node_copy = tree_copy.walk(Node)[node.abs_position]
 
         # Lower the DSL concepts starting from the selected node.
@@ -178,9 +182,10 @@ class PSyIRVisitor():
             lowered_node = node_copy.lower_to_language_level()
         except Exception as err:
             raise VisitorError(
-                f"Failed to lower '{node}'. Note that some nodes need to be "
-                f"lowered from an ancestor in order to properly apply their "
-                f"in-tree modifications. Original error was '{err}'.") from err
+                f"Failed to lower '{node}'. Note that some nodes need to "
+                f"be lowered from an ancestor in order to properly apply "
+                f"their in-tree modifications. Original error was '{err}'."
+                ) from err
 
         return self._visit(lowered_node)
 

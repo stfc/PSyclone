@@ -1435,6 +1435,10 @@ class Node():
 
         '''
 
+    def debug_string(self):
+        from psyclone.psyir.backend.debug_writer import DebugWriter
+        return DebugWriter()(self)
+
 
 # For automatic documentation generation
 # TODO #913 the 'colored' routine shouldn't be in this module.
