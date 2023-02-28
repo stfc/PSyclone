@@ -56,18 +56,13 @@ class LFRicConstants():
     '''
     HAS_BEEN_INITIALISED = False
 
-    # A consistency flag that is set to true the moment the proper config
-    # file is loaded. If an instance of this class should be created before
-    # the loading of the config file, an exception will be raised.
-    HAS_CONFIG_BEEN_INITIALISED = False
-
     def __init__(self):
         # pylint: disable=too-many-statements
         if LFRicConstants.HAS_BEEN_INITIALISED:
             return
 
-        if not LFRicConstants.HAS_CONFIG_BEEN_INITIALISED:
-            raise InternalError("LFRicConstants being created before the "
+        if not Config.has_config_been_initialised():
+            raise InternalError("LFRicConstants is being created before the "
                                 "config file is loaded")
 
         LFRicConstants.HAS_BEEN_INITIALISED = True

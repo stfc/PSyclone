@@ -41,7 +41,8 @@ import os
 import pytest
 
 from psyclone import gen_kernel_stub, kernel_tools
-from psyclone.domain.lfric import algorithm, LFRicConstants
+from psyclone.configuration import Config
+from psyclone.domain.lfric import algorithm
 from psyclone.psyir.nodes import Container, Routine
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, CHARACTER_TYPE
 from psyclone.version import __VERSION__
@@ -53,9 +54,9 @@ def test_config_loaded_before_constants_created():
 
     kern_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3", "testkern_w0_mod.f90")
-    LFRicConstants.HAS_CONFIG_BEEN_INITIALISED = False
+    Config._HAS_CONFIG_BEEN_INITIALISED = False
     kernel_tools.run([str(kern_file)])
-    assert LFRicConstants.HAS_CONFIG_BEEN_INITIALISED is True
+    assert Config.has_config_been_initialised() is True
 
 
 def test_run_default_mode(capsys):

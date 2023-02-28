@@ -93,6 +93,11 @@ class Config:
     # Class variable to store the singleton instance
     _instance = None
 
+    # A consistency flag that is set to true the moment the proper config
+    # file is loaded. If an instance of this class should be created before
+    # the loading of the config file, an exception will be raised.
+    _HAS_CONFIG_BEEN_INITIALISED = False
+
     # Static specification of a valid name for use in checking for
     # variable names etc.
     valid_name = re.compile(r'[a-zA-Z_][\w]*')
@@ -139,6 +144,15 @@ class Config:
             if not do_not_load_file:
                 Config._instance.load()
         return Config._instance
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def has_config_been_initialised():
+        ''':returns: if the config class has loaded a (potential custom) \
+            config file.
+
+        '''
+        return Config._HAS_CONFIG_BEEN_INITIALISED
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -368,10 +382,9 @@ class Config:
         # By default we ensure that each transformed kernel is given a
         # unique name (within the specified kernel-output directory).
         self._kernel_naming = Config._default_kernel_naming
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.domain.lfric import LFRicConstants
-        LFRicConstants.HAS_CONFIG_BEEN_INITIALISED = True
+
+        # Set the flag that the config file has been loaded now.
+        Config._HAS_CONFIG_BEEN_INITIALISED = True
 
     def api_conf(self, api=None):
         '''

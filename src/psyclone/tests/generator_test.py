@@ -705,12 +705,12 @@ def test_main_api():
 
     # Check that specifying a config file also sets the
     # HAS_CONFIG_BEEN_INITIALISED flag!
-    LFRicConstants.HAS_CONFIG_BEEN_INITIALISED = False
+    Config._HAS_CONFIG_BEEN_INITIALISED = False
     # This config file specifies the gocean1.0 api, but
     # command line should take precedence
     main([filename, "--config", config_name, "-api", "dynamo0.3"])
     assert Config.get().api == "dynamo0.3"
-    assert LFRicConstants.HAS_CONFIG_BEEN_INITIALISED is True
+    assert Config.has_config_been_initialised() is True
 
 
 def test_main_directory_arg(capsys):
