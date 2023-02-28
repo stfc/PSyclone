@@ -87,6 +87,9 @@ def trans(psy):
             # TODO #598: We are missing marking some vars as firstprivate
             #print("Skipping parallelisation for ", invoke.name)
             #continue
+        elif any([ice in invoke.name for ice in ('rdgrft', 'itd', 'thd')]):
+            # The parallelism we get from the array operations isn't profitable
+            print("Skipping normalisation for ", invoke.name)
         else:
             normalise_loops(
                     invoke.schedule,
