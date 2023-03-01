@@ -36,6 +36,7 @@
 '''A PSyIR backend to create Fortran-like strings without lowering the
 higher level nodes. This is useful for printing debug information. '''
 
+from psyclone.psyir.nodes import DataNode
 from psyclone.psyir.backend.fortran import FortranWriter
 
 
@@ -57,3 +58,17 @@ class DebugWriter(FortranWriter):
 
     def __init__(self, **kwargs):
         super().__init__(check_global_constraints=False, **kwargs)
+
+    def node_node(self, node):
+        ''' The DebugWriter must never fail, this generic visitor will capture
+        any Node that the super Fortran backend did not catch and output it as
+        "< Node string >".
+
+        :param node: the PSyIR node to translate.
+        :type node: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        # If its not part of an expression it needs indentation and \n
+        if not isinstance(node, DataNode):
+            return f"{self._nindent}< {str(node)} >\n"
+        return f"< {str(node)} >"
