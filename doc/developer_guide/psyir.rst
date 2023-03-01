@@ -34,10 +34,6 @@
 .. Written by R. W. Ford, A. R. Porter, S. Siso and A. B. G. Chalk STFC Daresbury Lab
 ..            J. Henrichs, Bureau of Meteorology
 
-.. testsetup::
-
-    from psyclone.domain.lfric import LFRicConstants
-    LFRicConstants.HAS_CONFIG_BEEN_INITIALISED = True
 
 The PSyclone Internal Representation (PSyIR)
 ############################################
