@@ -504,7 +504,7 @@ def test_lfricfields_call_err():
     test_str = str(err.value)
     assert ("Found unsupported intrinsic types for the field arguments "
             "['f1'] to Invoke 'invoke_0_testkern_fs_type'. Supported "
-            "types are ['real', 'integer']." in test_str)
+            "types are ['real', 'integer', 'logical']." in test_str)
 
 
 def test_dyninvoke_uniq_declns_intent_fields():
