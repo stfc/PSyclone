@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -635,10 +635,8 @@ def test_field_arg_discontinuous(monkeypatch, annexed):
     const = LFRicConstants()
     fs_dict = dict(zip(const.DISCONTINUOUS_FUNCTION_SPACES[0:3],
                        zip(idchld_list, idarg_list)))
-    for fspace in fs_dict.keys():
+    for fspace, (idchld, idarg) in fs_dict.items():
         filename = "1_single_invoke_" + fspace + ".f90"
-        idchld = fs_dict[fspace][0]
-        idarg = fs_dict[fspace][1]
         _, info = parse(os.path.join(BASE_PATH, filename),
                         api=TEST_API)
         psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
