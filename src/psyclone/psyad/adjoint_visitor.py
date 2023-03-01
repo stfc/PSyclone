@@ -59,28 +59,19 @@ class AdjointVisitor(PSyIRVisitor):
 
     :param active_variable_names: a list of the active variables.
     :type active_variable_names: list of str
-    :param writer: the writer to use when outputting PSyIR in error or \
-        logging messages. Defaults to FortranWriter.
-    :type writer: \
-        :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
 
     :raises ValueError: if no active variables are supplied.
 
     '''
-    def __init__(self, active_variable_names, writer=FortranWriter()):
+    def __init__(self, active_variable_names):
         super(AdjointVisitor, self).__init__()
         if not active_variable_names:
             raise ValueError(
                 "There should be at least one active variable supplied to "
                 "an AdjointVisitor.")
-        if not isinstance(writer, LanguageWriter):
-            raise TypeError(
-                f"The writer argument should be a subclass of LanguageWriter "
-                f"but found '{type(writer).__name__}'.")
         self._active_variable_names = active_variable_names
         self._active_variables = None
         self._logger = logging.getLogger(__name__)
-        self._writer = writer
 
     def container_node(self, node):
         '''This method is called if the visitor finds a Container node. A copy
@@ -307,7 +298,7 @@ class AdjointVisitor(PSyIRVisitor):
                         raise VisitorError(
                             f"The {description} of a loop should not contain "
                             f"active variables, but found '{ref.name}' in "
-                            f"'{self._writer(expr)}'.")
+                            f"'{expr.debug_string()}'.")
 
         if node_is_active(Reference(node.variable), self._active_variables):
             raise VisitorError(
@@ -397,7 +388,7 @@ class AdjointVisitor(PSyIRVisitor):
 
         if node_is_active(node.condition, self._active_variables):
             raise VisitorError(
-                f"The if condition '{self._writer(node.condition)}' of an "
+                f"The if condition '{node.condition.debug_string()}' of an "
                 f"ifblock node should not contain an active variable (one or "
                 f"more of {self._active_variable_names}).")
 

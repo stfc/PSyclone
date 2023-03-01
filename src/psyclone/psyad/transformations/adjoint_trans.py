@@ -61,16 +61,11 @@ class AdjointTransformation(Transformation):
     :param active_variables: a list of names of the active variables.
     :type active_variables: list of \
         :py:class:`psyclone.psyir.symbols.DataSymbol`
-    :param writer: the writer to use when outputting error \
-        information. Defaults to FortranWriter.
-    :type writer: subclass of \
-        :py:class:`psyclone.psyir.backend.visitor.PSyIRVisitor`
 
-    :raises TypeError: if the active_variables or writer arguments are \
-        of the wrong type.
+    :raises TypeError: if the active_variables are of the wrong type.
 
     '''
-    def __init__(self, active_variables, writer=FortranWriter()):
+    def __init__(self, active_variables):
         super(AdjointTransformation, self).__init__()
 
         if not isinstance(active_variables, list):
@@ -87,15 +82,8 @@ class AdjointTransformation(Transformation):
                     f"Active variables should be of type DataSymbol, but "
                     f"found '{type(active_variable).__name__}'.")
 
-        if not isinstance(writer, PSyIRVisitor):
-            raise TypeError(
-                f"The writer argument should be a PSyIRVisitor but found "
-                f"'{type(writer).__name__}'.")
-
         # A list of active variables.
         self._active_variables = active_variables
-        # The writer to use when outputting error information.
-        self._writer = writer
 
 
 # =============================================================================

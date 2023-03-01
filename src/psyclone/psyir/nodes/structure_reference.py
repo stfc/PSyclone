@@ -350,16 +350,11 @@ class StructureReference(Reference):
                     # This ultimate access is an array but we've already
                     # encountered one or more slices earlier in the access
                     # expression.
-                    # TODO #1887. Allow the writer to be used in error messages
-                    # to be set in the Config object?
-                    # pylint: disable=import-outside-toplevel
-                    from psyclone.psyir.backend.fortran import FortranWriter
-                    fwriter = FortranWriter()
                     raise NotImplementedError(
                         f"Array of arrays not supported: the ultimate member "
                         f"'{cursor.name}' of the StructureAccess represents "
                         f"an array but other array notation is present in the "
-                        f"full access expression: '{fwriter(self)}'")
+                        f"full access expression: '{self.debug_string()}'")
 
             return ArrayType(cursor_type, shape)
 

@@ -41,7 +41,6 @@ NEMO Kernel.
 
 from psyclone.errors import LazyString
 from psyclone.nemo import NemoKern
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Schedule, Loop, Call, CodeBlock, Assignment
 from psyclone.transformations import Transformation, TransformationError
 
@@ -146,14 +145,14 @@ class CreateNemoKernelTrans(Transformation):
         assigns = [assign for assign in nodes if
                    (isinstance(assign, Assignment) and assign.is_array_range)]
         if assigns:
-            fwriter = FortranWriter()
             # Using LazyString to improve performance when using
             # exceptions to skip invalid regions.
             # Since "Backslashes may not appear inside the expression
             # portions of f-strings" via PEP 498, use chr(10) for '\n'.
             raise TransformationError(LazyString(
                 lambda: "A NEMO Kernel cannot contain array assignments but "
-                f"found: {[fwriter(node).rstrip(chr(10)) for node in nodes]}"))
+                f"found: "
+                f"{[node.debug_string().rstrip(chr(10)) for node in nodes]}"))
 
     def apply(self, sched, options=None):
         '''

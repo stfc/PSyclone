@@ -83,14 +83,3 @@ def test_args():
         DummyTrans([None])
     assert ("Active variables should be of type DataSymbol, but found "
             "'NoneType'." in str(info.value))
-
-    active_vars = [DataSymbol("x", REAL_TYPE)]
-    with pytest.raises(TypeError) as info:
-        DummyTrans(active_vars, None)
-    assert ("The writer argument should be a PSyIRVisitor but found "
-            "'NoneType'." in str(info.value))
-
-    writer = SIRWriter()
-    dummy_trans = DummyTrans(active_vars, writer)
-    assert dummy_trans._active_variables is active_vars
-    assert dummy_trans._writer is writer

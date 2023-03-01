@@ -43,14 +43,14 @@ from __future__ import absolute_import
 from sympy import Function, Symbol
 from sympy.parsing.sympy_parser import parse_expr
 
-from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.backend.debug_writer import DebugWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (BinaryOperation, NaryOperation,
                                   Reference, UnaryOperation)
 from psyclone.psyir.symbols import ScalarType, SymbolTable
 
 
-class SymPyWriter(FortranWriter):
+class SymPyWriter(DebugWriter):
     '''Implements a PSyIR-to-sympy writer, which is used to create a
     representation of the PSyIR tree that can be understood by SymPy. Most
     Fortran expressions work as expected without modification. This class

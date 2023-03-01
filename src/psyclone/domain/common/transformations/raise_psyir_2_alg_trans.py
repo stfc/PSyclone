@@ -181,7 +181,7 @@ class RaisePSyIR2AlgTrans(Transformation):
             raise TransformationError(
                 f"Error in {self.name} transformation. There should be at "
                 f"most one named argument in an invoke, but there are "
-                f"{len(names)} in '{self._writer(node)}'.")
+                f"{len(names)} in '{node.debug_string()}'.")
         for idx, arg in enumerate(node.children):
             if ((node.argument_names[idx]) and
                     (not (node.argument_names[idx].lower() == "name")
@@ -192,7 +192,7 @@ class RaisePSyIR2AlgTrans(Transformation):
                 raise TransformationError(
                     f"Error in {self.name} transformation. If there is a "
                     f"named argument, it must take the form name='str', "
-                    f"but found '{self._writer(node)}'.")
+                    f"but found '{node.debug_string()}'.")
             if node.argument_names[idx]:
                 pass
             elif isinstance(arg, ArrayReference):
