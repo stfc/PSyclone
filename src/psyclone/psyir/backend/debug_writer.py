@@ -50,14 +50,11 @@ class DebugWriter(FortranWriter):
     generating debug information much faster (because it does not need to
     lower the nodes and therefore it does not need to deepcopy the tree).
 
-    :param kwargs: additional keyword arguments provided to the super class.
-    :type kwargs: unwrapped dict
-
     '''
     _DISABLE_LOWERING = True
 
-    def __init__(self, **kwargs):
-        super().__init__(check_global_constraints=False, **kwargs)
+    def __init__(self):
+        super().__init__(check_global_constraints=False)
 
     def node_node(self, node):
         ''' The DebugWriter must never fail, this generic visitor will capture
