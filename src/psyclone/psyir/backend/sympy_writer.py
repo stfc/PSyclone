@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council
+# Copyright (c) 2021-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified: S. Siso, STFC Daresbury Lab
 
 
 '''PSyIR backend to create expressions that are handled by sympy.
@@ -43,14 +44,14 @@ from __future__ import absolute_import
 from sympy import Function, Symbol
 from sympy.parsing.sympy_parser import parse_expr
 
-from psyclone.psyir.backend.debug_writer import DebugWriter
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (BinaryOperation, NaryOperation,
                                   Reference, UnaryOperation)
 from psyclone.psyir.symbols import ScalarType, SymbolTable
 
 
-class SymPyWriter(DebugWriter):
+class SymPyWriter(FortranWriter):
     '''Implements a PSyIR-to-sympy writer, which is used to create a
     representation of the PSyIR tree that can be understood by SymPy. Most
     Fortran expressions work as expected without modification. This class
@@ -67,6 +68,7 @@ class SymPyWriter(DebugWriter):
         :py:meth:`psyclone.core.sympy_writer.create_type_map`.
     :type type_map: dict of str:Sympy-data-type values
     '''
+    _DISABLE_LOWERING = True
 
     def __init__(self, type_map=None):
         super().__init__()
