@@ -188,7 +188,12 @@ def test_psyirvisitor_lower_dsl_concepts():
 
         def lower_to_language_level(self):
             ''' MyDSLNode lowers to a return statement and adds a symbol
-            if it is inside an scoping region. '''
+            if it is inside an scoping region.
+
+            :returns: the lowered return statement.
+            :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+            '''
             # This will break if this Node does not have a parent with
             # a scope. This is intentional to cause an error during the
             # lowering step.

@@ -346,6 +346,7 @@ class NemoACCEnterDataDirective(ACCEnterDataDirective):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         lowered = super().lower_to_language_level()
 
@@ -367,6 +368,7 @@ class NemoACCUpdateDirective(ACCUpdateDirective):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         lowered = super().lower_to_language_level()
 

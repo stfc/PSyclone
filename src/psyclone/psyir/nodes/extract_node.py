@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council
+# Copyright (c) 2019-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -177,6 +177,7 @@ class ExtractNode(PSyDataNode):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Avoid circular dependency
         # pylint: disable=import-outside-toplevel

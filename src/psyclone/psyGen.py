@@ -1456,6 +1456,7 @@ class CodedKern(Kern, Call):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
 
         if not self.module_inline:

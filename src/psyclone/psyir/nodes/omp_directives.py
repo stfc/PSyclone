@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -581,6 +581,7 @@ class OMPParallelDirective(OMPRegionDirective):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         private_clause = self._get_private_clause()
         if private_clause != self.private_clause:
@@ -1317,6 +1318,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         private_clause = self._get_private_clause()
         if len(self._children) >= 3 and private_clause != self._children[2]:

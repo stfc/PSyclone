@@ -34,7 +34,7 @@
 # Author A. R. Porter, STFC Daresbury Lab
 # Modified by I. Kavcic, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford and N. Nobre, STFC Daresbury Lab
+# Modified by R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
 
 ''' This module implements the support for 'built-in' operations in the
     PSyclone LFRic (Dynamo 0.3) API. Each supported built-in is implemented
@@ -514,6 +514,7 @@ class LFRicXPlusYKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -542,6 +543,7 @@ class LFRicIncXPlusYKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed refs for both of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -572,6 +574,7 @@ class LFRicAPlusXKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -603,6 +606,7 @@ class LFRicIncAPlusXKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -635,6 +639,7 @@ class LFRicAXPlusYKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -668,6 +673,7 @@ class LFRicIncAXPlusYKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -702,6 +708,7 @@ class LFRicIncXPlusBYKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -736,6 +743,7 @@ class LFRicAXPlusBYKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -772,6 +780,7 @@ class LFRicIncAXPlusBYKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -809,6 +818,7 @@ class LFRicAXPlusAYKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -847,6 +857,7 @@ class LFRicXMinusYKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -876,6 +887,7 @@ class LFRicIncXMinusYKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed refs for both of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -906,6 +918,7 @@ class LFRicAMinusXKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -937,6 +950,7 @@ class LFRicIncAMinusXKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -969,6 +983,7 @@ class LFRicXMinusAKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1000,6 +1015,7 @@ class LFRicIncXMinusAKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1032,6 +1048,7 @@ class LFRicAXMinusYKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1065,6 +1082,7 @@ class LFRicXMinusBYKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1098,6 +1116,7 @@ class LFRicIncXMinusBYKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1132,6 +1151,7 @@ class LFRicAXMinusBYKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1173,6 +1193,7 @@ class LFRicXTimesYKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1201,6 +1222,7 @@ class LFRicIncXTimesYKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed refs for both of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1231,6 +1253,7 @@ class LFRicIncAXTimesYKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1270,6 +1293,7 @@ class LFRicATimesXKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1300,6 +1324,7 @@ class LFRicIncATimesXKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1337,6 +1362,7 @@ class LFRicXDividebyYKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1365,6 +1391,7 @@ class LFRicIncXDividebyYKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed refs for both of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1396,6 +1423,7 @@ class LFRicXDividebyAKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1427,6 +1455,7 @@ class LFRicIncXDividebyAKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1465,6 +1494,7 @@ class LFRicADividebyXKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1497,6 +1527,7 @@ class LFRicIncADividebyXKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1533,6 +1564,7 @@ class LFRicIncXPowrealAKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get PSyIR for each of the arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1562,6 +1594,7 @@ class LFRicIncXPowintNKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get PSyIR for each of the arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1596,6 +1629,7 @@ class LFRicSetvalCKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1624,6 +1658,7 @@ class LFRicSetvalXKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed refs for both of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1650,6 +1685,7 @@ class LFRicSetvalRandomKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed refs for the field (proxy) argument.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1774,6 +1810,7 @@ class LFRicSignXKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1811,6 +1848,7 @@ class LFRicMaxAXKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1843,6 +1881,7 @@ class LFRicIncMaxAXKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1881,6 +1920,7 @@ class LFRicMinAXKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1913,6 +1953,7 @@ class LFRicIncMinAXKern(LFRicBuiltIn):
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
