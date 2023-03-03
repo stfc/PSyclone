@@ -275,29 +275,32 @@ def test_lfai2psycall_get_arguments():
     assert args[1].name == "arg2"
 
     # OK, stencil and qr
-    arguments = [Reference(Symbol("arg1")), Reference(Symbol("stencil1")),
-                 Reference(Symbol("stencil2")), Reference(Symbol("qr"))]
+    arguments = [Reference(Symbol("arg1")), Reference(Symbol("arg2")),
+                 Reference(Symbol("stencil1")), Reference(Symbol("stencil2")),
+                 Reference(Symbol("qr"))]
     kernel_functor = LFRicFunctor.create(data_type_symbol, arguments)
     call = LFRicAlgorithmInvokeCall.create(
         RoutineSymbol("mysub"), [kernel_functor], 0)
     metadata.meta_args = [
         FieldArgMetadata("gh_real", "gh_write", "w3"),
-        FieldArgMetadata("gh_real", "gh_read", "w3", stencil="region")]
+        FieldArgMetadata("gh_real", "gh_read", "w3", stencil="xory1d")]
     metadata.meta_funcs = [MetaFuncsArgMetadata("w3", basis_function=True)]
     metadata.shapes = ["gh_quadrature_xyoz"]
     psyir = LFRicKernelContainer.create(
         "kernel_mod", metadata, SymbolTable(), [])
     args = trans.get_arguments(
         call, options={"kernels": {id(kernel_functor): psyir}})
-    assert len(args) == 4
+    assert len(args) == 5
     assert isinstance(args[0], Reference)
     assert args[0].name == "arg1"
     assert isinstance(args[1], Reference)
-    assert args[1].name == "stencil1"
+    assert args[1].name == "arg2"
     assert isinstance(args[2], Reference)
-    assert args[2].name == "stencil2"
+    assert args[2].name == "stencil1"
     assert isinstance(args[3], Reference)
-    assert args[3].name == "qr"
+    assert args[3].name == "stencil2"
+    assert isinstance(args[4], Reference)
+    assert args[4].name == "qr"
 
 
 def test_lfai2psycall_apply(fortran_reader):
