@@ -58,13 +58,19 @@ def test_sym_writer_constructor(monkeypatch):
     assert sympy_writer._sympy_type_map == {}
     assert sympy_writer._DISABLE_LOWERING is True
 
-    def error(_1, _2):
+    def error(_):
         ''' Just produce and error '''
         raise NotImplementedError()
 
     monkeypatch.setattr(Literal, "lower_to_language_level", error)
     lit = Literal("true", BOOLEAN_TYPE)
     sympy_writer(lit)  # No error should be raised here
+
+    # Without disabling lowering it would fail with a VisitorError
+    sympy_writer._DISABLE_LOWERING = False
+    with pytest.raises(VisitorError) as err:
+        sympy_writer(lit)
+    assert "Failed to lower 'Literal" in str(err.value)
 
 
 def test_sym_writer_boolean():
