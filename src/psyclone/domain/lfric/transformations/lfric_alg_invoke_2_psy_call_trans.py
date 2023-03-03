@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,9 +45,12 @@ from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctor)
 from psyclone.domain.lfric.kernel import (
     FieldArgMetadata, FieldVectorArgMetadata,
-    InterGridArgMetadata, InterGridVectorArgMetadata)
+    InterGridArgMetadata, InterGridVectorArgMetadata,
+    LFRicKernelContainer)
+from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.nodes import Literal, Reference, ArrayReference
+from psyclone.psyir.nodes import (
+    Literal, Reference, ArrayReference, Container)
 
 
 class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
@@ -64,9 +67,14 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
           :py:class:`psyclone.domain.lfric.algorithm.LFRicAlgorithmInvokeCall`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
+        :param options["kernels"]: this option provides a list of \
+            LFRic kernels for this LFRic Algorithm Invoke call.
+        :type options["kernels"]: \
+            List[:py:class:`psyclone.psyir.nodes.Container`]
 
         :raises TransformationError: if the supplied call argument is \
             not a PSyIR AlgorithmInvokeCall node.
+        :raises TransformationError: if kernels options are not provided.
 
         '''
         if not isinstance(node, LFRicAlgorithmInvokeCall):
@@ -74,9 +82,54 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
                 f"Error in {self.name} transformation. The supplied call "
                 f"argument should be an `LFRicAlgorithmInvokeCall` node but "
                 f"found '{type(node).__name__}'.")
+        try:
+            kernels = options["kernels"]
+        except (KeyError, TypeError) as info:
+            raise TransformationError(
+                "Kernels metadata must be passed into the "
+                "LFRicAlgInvoke2PSyCallTrans transformation but this was not "
+                "found.") from info
+        if not isinstance(kernels, dict):
+            raise TransformationError(
+                f"The value of 'kernels' in the options argument must be a "
+                f"dictionary but found '{type(kernels).__name__}'.")
+        for kern_call in node.children:
+            try:
+                _ = kernels[id(kern_call)]
+            except KeyError as info:
+                raise TransformationError(
+                    f"Kernels metadata must be a dictionary indexed by the "
+                    f"id's of the associated kernel functors, but the id for "
+                    f"kernel functor '{kern_call.name}' was not "
+                    f"found.") from info
+
+        # Check the algorithm arguments and kernel metadata match.
+        self.get_arguments(node, options=options, check_args=True)
 
     @staticmethod
-    def add_arg(arg, arguments):
+    def _get_metadata(kernel):
+        '''Utility method to extract the kernel metadata from an LFRic
+        kernel.
+
+        '''
+        if not isinstance(kernel, Container):
+            raise TransformationError(
+                f"A PSyIR Container (an LFRic kernel module) was expected, "
+                f"but found '{type(kernel).__name__}'.")
+        if isinstance(kernel, LFRicKernelContainer):
+            kernel_metadata = kernel.metadata
+        elif kernel.children and isinstance(
+                kernel.children[0], LFRicKernelContainer):
+            kernel_metadata = kernel.children[0].metadata
+        else:
+            raise TransformationError(
+                "LFRic kernel PSyIR should contain an "
+                "LFRicKernelContainer as the root or first child of the "
+                "root but this was not found.")
+        return kernel_metadata
+
+    @staticmethod
+    def _add_arg(arg, arguments):
         '''Utility method to add argument arg to the arguments list as long as
         it conforms to the expected constraints.
 
@@ -108,7 +161,7 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
                 f"a literal, reference or array reference, but "
                 f"found '{type(arg).__name__}'.")
 
-    def get_arguments(self, node, options=None):
+    def get_arguments(self, node, options=None, check_args=False):
         '''Creates the LFRic processed (lowered) argument list from the
         argument lists of the kernels within the invoke call and the
         kernel metadata.
@@ -122,64 +175,61 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
             LFRic kernels for this LFRic Algorithm Invoke call.
         :type options["kernels"]: \
             List[:py:class:`psyclone.psyir.nodes.Container`]
+        :param bool check_args: if True, checks the number of kernel \
+            functor arguments matches the number expected by the kernel \
+            metadata. Defaults to False.
 
         :raises GenerationError: if the number of arguments in the \
             invoke does not match the expected number of arguments \
             specified by the metadata.
 
         '''
-        # TODO: Check that the number of arguments matches that expected by the metadata.
-
         const = LFRicConstants()
         kernels = options["kernels"]
 
         arguments = []
         quad_arguments = []
         stencil_arguments = []
-        for add_arguments in [False, True]:
-            # First check that the number of arguments in the kernel
-            # functor matches the expected number of arguments
-            # according to the associated kernel metadata, then, if
-            # so, add the arguments in the appropriate order.
-            for kern_call in node.children:
-                kernel = kernels[id(kern_call)]
-                kernel_metadata = kernel.children[0].metadata
-                arg_idx = 0
-                for meta_arg in kernel_metadata.meta_args:
+
+        for kern_call in node.children:
+            kernel = kernels[id(kern_call)]
+            kernel_metadata = self._get_metadata(kernel)
+            arg_idx = 0
+            for meta_arg in kernel_metadata.meta_args:
+                if not check_args:
                     arg = kern_call.children[arg_idx]
-                    if add_arguments:
-                        self.add_arg(arg, arguments)
-                    # If this is a stencil arg then skip any additional
-                    # arguments.
-                    if type(meta_arg) in [
-                            FieldArgMetadata, FieldVectorArgMetadata,
-                            InterGridArgMetadata, InterGridVectorArgMetadata]:
-                        if meta_arg.stencil:
+                    self._add_arg(arg, arguments)
+                # If this is a stencil arg then skip any additional
+                # arguments.
+                if type(meta_arg) in [
+                        FieldArgMetadata, FieldVectorArgMetadata,
+                        InterGridArgMetadata, InterGridVectorArgMetadata]:
+                    if meta_arg.stencil:
+                        arg_idx += 1
+                        if not check_args:
+                            stencil_arg = kern_call.children[arg_idx]
+                            self._add_arg(stencil_arg, stencil_arguments)
+                        if meta_arg.stencil == "xory1d":
                             arg_idx += 1
-                            if add_arguments:
+                            if not check_args:
                                 stencil_arg = kern_call.children[arg_idx]
-                                self.add_arg(stencil_arg, stencil_arguments)
-                            if meta_arg.stencil == "xory1d":
-                                arg_idx += 1
-                                if add_arguments:
-                                    stencil_arg = kern_call.children[arg_idx]
-                                    self.add_arg(
-                                        stencil_arg, stencil_arguments)
-                    arg_idx += 1
-                if kernel_metadata.shapes and \
-                   [quad for quad in kernel_metadata.shapes
+                                self._add_arg(stencil_arg, stencil_arguments)
+                arg_idx += 1
+            if kernel_metadata.shapes and \
+               [quad for quad in kernel_metadata.shapes
                     if quad in const.VALID_QUADRATURE_SHAPES]:
-                    # There is an additional quadrature argument.
-                    arg_idx += 1
-                    if add_arguments:
-                        quad_arg = kern_call.children[arg_idx]
-                        self.add_arg(quad_arg, quad_arguments)
-            if not add_arguments:
-                if len(kern_call.children) != arg_idx:
-                    raise GenerationError(
-                        f"The invoke kernel functor '{kern_call.name}' has "
-                        f"{len(kern_call.children)} arguments, but the kernel "
-                        f"metadata expects there to be {arg_idx} arguments.")
+                # There is an additional quadrature argument.
+                if not check_args:
+                    quad_arg = kern_call.children[arg_idx]
+                    self._add_arg(quad_arg, quad_arguments)
+                arg_idx += 1
+
+            # Too many kernel functor arguments
+            if check_args and len(kern_call.children) != arg_idx:
+                raise GenerationError(
+                    f"The invoke kernel functor '{kern_call.name}' has "
+                    f"{len(kern_call.children)} arguments, but the kernel "
+                    f"metadata expects there to be {arg_idx} arguments.")
 
         arguments.extend(stencil_arguments)
         arguments.extend(quad_arguments)
@@ -197,6 +247,10 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
         :py:class:`psyclone.domain.lfric.algorithm.LFRicAlgorithmInvokeCall`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
+        :param options["kernels"]: this option provides a list of \
+            LFRic kernels for this LFRic Algorithm Invoke call.
+        :type options["kernels"]: \
+            List[:py:class:`psyclone.psyir.nodes.Container`]
 
         '''
         self.validate(node, options=options)

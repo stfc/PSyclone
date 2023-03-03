@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -54,12 +54,11 @@ from psyclone.alg_gen import Alg, NoInvokesError
 from psyclone.configuration import Config, ConfigurationError
 from psyclone.domain.common.algorithm.psyir import (
     AlgorithmInvokeCall, KernelFunctor)
-from psyclone.domain.common.transformations import (
-    AlgTrans, AlgInvoke2PSyCallTrans)
-from psyclone.domain.gocean.transformations import RaisePSyIR2GOceanKernTrans
+from psyclone.domain.common.transformations import AlgTrans
+from psyclone.domain.gocean.transformations import (
+    RaisePSyIR2GOceanKernTrans, GOceanAlgInvoke2PSyCallTrans)
 from psyclone.domain.lfric.transformations import (
-    LFRicAlgTrans, RaisePSyIR2LFRicAlgTrans, RaisePSyIR2LFRicKernTrans,
-    LFRicAlgInvoke2PSyCallTrans)
+    LFRicAlgTrans, RaisePSyIR2LFRicKernTrans, LFRicAlgInvoke2PSyCallTrans)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.line_length import FortLineLength
 from psyclone.parse.algorithm import parse
@@ -69,7 +68,7 @@ from psyclone.profiler import Profiler
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Loop, Call
+from psyclone.psyir.nodes import Loop
 from psyclone.version import __VERSION__
 
 # Those APIs that do not have a separate Algorithm layer
@@ -244,28 +243,38 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
                              kernel_paths=kernel_paths,
                              line_length=line_length)
 
-    testing = True
+    # TODO issue #1618 remove temporary flag, associated logic and Alg class
+    # plus tests (and ast variable).
+    #
+    # Temporary flag to allow optional testing of new LFRic metadata
+    # implementation (mainly that the PSyIR works with algorithm-layer
+    # code) whilst keeping the original implementation as default
+    # until it is working.
+    lfric_testing = False
 
-    if api in API_WITHOUT_ALGORITHM or (api == "dynamo0.3" and not testing):
+    if api in API_WITHOUT_ALGORITHM or \
+       (api == "dynamo0.3" and not lfric_testing):
         psy = PSyFactory(api, distributed_memory=distributed_memory)\
             .create(invoke_info)
         if script_name is not None:
             handle_script(script_name, psy, "trans")
         alg_gen = None
 
-    elif api == "gocean1.0" or (api == "dynamo0.3" and testing):
+    elif api == "gocean1.0" or (api == "dynamo0.3" and lfric_testing):
         # Create language-level PSyIR from the Algorithm file
         reader = FortranReader()
         psyir = reader.psyir_from_file(filename)
 
-                # Raise to Algorithm PSyIR
+        # Raise to Algorithm PSyIR
         if api == "gocean1.0":
             alg_trans = AlgTrans()
-            alg_trans.apply(psyir)
         else:  # api == "dynamo0.3"
             alg_trans = LFRicAlgTrans()
-            alg_trans.apply(psyir)
+        alg_trans.apply(psyir)
 
+        if script_name is not None:
+            # Call the optimisation script for algorithm optimisations
+            handle_script(script_name, psyir, "trans_alg", is_optional=True)
 
         # For each kernel called from the algorithm layer
         kernels = {}
@@ -297,21 +306,20 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
                     kern_trans.apply(kernel_psyir)
                 else:  # api == "dynamo0.3"
                     kern_trans = RaisePSyIR2LFRicKernTrans()
-                    kern_trans.apply(kernel_psyir, options={"metadata_name": kern.symbol.name})
+                    kern_trans.apply(
+                        kernel_psyir,
+                        options={"metadata_name": kern.symbol.name})
 
                 kernels[id(invoke)][id(kern)] = kernel_psyir
 
-        if script_name is not None:
-            # Call the optimisation script for algorithm optimisations
-            handle_script(script_name, psyir, "trans_alg", is_optional=True)
-
         # Transform 'invoke' calls into calls to PSy-layer subroutines
         if api == "gocean1.0":
-            invoke_trans = AlgInvoke2PSyCallTrans()
+            invoke_trans = GOceanAlgInvoke2PSyCallTrans()
         else:  # api == "dynamo0.3"
             invoke_trans = LFRicAlgInvoke2PSyCallTrans()
         for invoke in psyir.walk(AlgorithmInvokeCall):
-            invoke_trans.apply(invoke, options={"kernels": kernels[id(invoke)]})
+            invoke_trans.apply(
+                invoke, options={"kernels": kernels[id(invoke)]})
 
         # Create Fortran from Algorithm PSyIR
         writer = FortranWriter()
@@ -326,9 +334,9 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             # Call the optimisation script for psy-layer optimisations
             handle_script(script_name, psy, "trans")
 
-    # TODO: remove Alg class and tests from PSyclone
-    if api == "dynamo0.3" and not testing:
-         alg_gen = Alg(ast, psy).gen
+    # TODO issue #1618 remove Alg class and tests from PSyclone
+    if api == "dynamo0.3" and not lfric_testing:
+        alg_gen = Alg(ast, psy).gen
 
     # Add profiling nodes to schedule if automatic profiling has
     # been requested.

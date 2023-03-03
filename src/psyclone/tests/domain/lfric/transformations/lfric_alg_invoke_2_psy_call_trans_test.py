@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,17 +39,29 @@ transformation.
 '''
 import pytest
 
-from psyclone.domain.common.algorithm import AlgorithmInvokeCall
-from psyclone.domain.lfric.transformations import LFRicAlgTrans
-from psyclone.domain.lfric.transformations import LFRicAlgInvoke2PSyCallTrans
-from psyclone.psyir.nodes import Call, Routine
-from psyclone.psyir.symbols import RoutineSymbol
+from psyclone.domain.lfric.algorithm import (
+    LFRicAlgorithmInvokeCall, LFRicFunctor)
+from psyclone.domain.lfric.kernel import (
+    LFRicKernelMetadata, FieldArgMetadata, LFRicKernelContainer,
+    MetaFuncsArgMetadata, ScalarArgMetadata)
+from psyclone.domain.lfric.transformations import (
+    LFRicAlgTrans, LFRicAlgInvoke2PSyCallTrans)
+from psyclone.errors import GenerationError, InternalError
+from psyclone.psyir.nodes import (
+    Call, Routine, Reference, Container, FileContainer, Literal,
+    ArrayReference)
+from psyclone.psyir.symbols import (
+    RoutineSymbol, DataTypeSymbol, REAL_TYPE, Symbol, SymbolTable, DataSymbol,
+    ArrayType, INTEGER_TYPE)
 from psyclone.psyir.transformations import TransformationError
 
 
 def test_lfai2psycall_validate():
-    ''' Test the validate() method of the LFRicAlgInvoke2PSyCallTrans
-    class. '''
+    '''Test the validate() method of the LFRicAlgInvoke2PSyCallTrans
+    class.
+
+    '''
+    # Wrong arg type
     trans = LFRicAlgInvoke2PSyCallTrans()
     with pytest.raises(TransformationError) as err:
         trans.validate(None)
@@ -57,28 +69,265 @@ def test_lfai2psycall_validate():
             "`LFRicAlgorithmInvokeCall` node but found 'NoneType'"
             in str(err.value))
 
+    # No metadata internal TypeError
+    call = LFRicAlgorithmInvokeCall.create(
+        RoutineSymbol("mysub"), [], 0)
+    with pytest.raises(TransformationError) as err:
+        trans.validate(call)
+    assert ("Kernels metadata must be passed into the "
+            "LFRicAlgInvoke2PSyCallTrans transformation but this was not "
+            "found." in str(err.value))
+
+    # No metadata internal KeyError
+    with pytest.raises(TransformationError) as err:
+        trans.validate(call, options={"dummy": "dummy"})
+    assert ("Kernels metadata must be passed into the "
+            "LFRicAlgInvoke2PSyCallTrans transformation but this was not "
+            "found." in str(err.value))
+
+    # kernels not a dictionary
+    with pytest.raises(TransformationError) as err:
+        trans.validate(call, options={"kernels": None})
+    assert ("The value of 'kernels' in the options argument must be a "
+            "dictionary but found 'NoneType'." in str(err.value))
+
+    # kernels entry index not found
+    data_type_symbol = DataTypeSymbol("kern_type", REAL_TYPE)
+    arguments = [Reference(Symbol("arg1"))]
+    kernel_functor = LFRicFunctor.create(data_type_symbol, arguments)
+    call = LFRicAlgorithmInvokeCall.create(
+        RoutineSymbol("mysub"), [kernel_functor], 0)
+    with pytest.raises(TransformationError) as err:
+        trans.validate(call, options={"kernels": {None: None}})
+    assert ("Kernels metadata must be a dictionary indexed by the id's of "
+            "the associated kernel functors, but the id for kernel functor "
+            "'kern_type' was not found." in str(err.value))
+
+    # kernels entry value invalid
+    with pytest.raises(TransformationError) as err:
+        trans.validate(call, options={"kernels": {id(kernel_functor): None}})
+    assert ("A PSyIR Container (an LFRic kernel module) was expected, but "
+            "found 'NoneType'." in str(err.value))
+
+    # no LFRicKernelContainer in PSyIR
+    psyir = Container.create("mymod", SymbolTable(), [])
+    with pytest.raises(TransformationError) as err:
+        trans.validate(call, options={"kernels": {id(kernel_functor): psyir}})
+    assert ("LFRic kernel PSyIR should contain an LFRicKernelContainer as "
+            "the root or first child of the root but this was not found."
+            in str(err.value))
+
+    # Invalid number of arguments (metadata expects 2 but kernel functor has 1)
+    metadata = LFRicKernelMetadata(
+        operates_on="cell_column",
+        meta_args=[FieldArgMetadata("gh_real", "gh_write", "w3"),
+                   FieldArgMetadata("gh_real", "gh_read", "w3")],
+        procedure_name="kernel_code",
+        name="kernel_type")
+    psyir = LFRicKernelContainer.create(
+        "kernel_mod", metadata, SymbolTable(), [])
+    with pytest.raises(GenerationError) as err:
+        trans.validate(call, options={"kernels": {id(kernel_functor): psyir}})
+    assert ("The invoke kernel functor 'kern_type' has 1 arguments, but the "
+            "kernel metadata expects there to be 2 arguments."
+            in str(err.value))
+
+    # OK
+    metadata = LFRicKernelMetadata(
+        operates_on="cell_column",
+        meta_args=[FieldArgMetadata("gh_real", "gh_write", "w3")],
+        procedure_name="kernel_code",
+        name="kernel_type")
+    psyir = LFRicKernelContainer.create(
+        "kernel_mod", metadata, SymbolTable(), [])
+    trans.validate(call, options={"kernels": {id(kernel_functor): psyir}})
+
+
+def test_lfai2psycall_get_metadata():
+    '''Test the _get_metadata() utility method.'''
+
+    # Not PSyIR Container
+    trans = LFRicAlgInvoke2PSyCallTrans()
+    with pytest.raises(TransformationError) as info:
+        trans._get_metadata(None)
+    assert ("A PSyIR Container (an LFRic kernel module) was expected, but "
+            "found 'NoneType'." in str(info.value))
+
+    # Not LFRic Kernel
+    with pytest.raises(TransformationError) as info:
+        trans._get_metadata(Container.create("mymod", SymbolTable(), []))
+    assert ("LFRic kernel PSyIR should contain an LFRicKernelContainer as "
+            "the root or first child of the root but this was not found."
+            in str(info.value))
+
+    # OK root is an LFRicKernelContainer
+    metadata = LFRicKernelMetadata(
+        operates_on="cell_column",
+        meta_args=[FieldArgMetadata("gh_real", "gh_write", "w3")],
+        procedure_name="kernel_code",
+        name="kernel_type")
+    psyir = LFRicKernelContainer.create(
+        "kernel_mod", metadata, SymbolTable(), [])
+    trans._get_metadata(psyir)
+
+    # OK root.children[0] is an  LFRicKernelContainer
+    psyir = FileContainer.create("file", SymbolTable(), [psyir])
+    trans._get_metadata(psyir)
+
+
+def test_lfai2psycall_add_arg():
+    '''Test the _add_arg() utility method.'''
+
+    # Invalid argument exception
+    trans = LFRicAlgInvoke2PSyCallTrans()
+    with pytest.raises(InternalError) as info:
+        trans._add_arg(None, [])
+    assert("Expected Algorithm-layer kernel arguments to be a literal, "
+           "reference or array reference, but found 'NoneType'."
+           in str(info.value))
+
+    # literal (nothing added)
+    args = []
+    trans._add_arg(Literal("1.0", REAL_TYPE), args)
+    # pylint: disable="use-implicit-booleaness-not-comparison"
+    assert args == []
+    # pylint: enable="use-implicit-booleaness-not-comparison"
+    # reference (arg added)
+    name = "hello1"
+    trans._add_arg(Reference(DataSymbol(name, REAL_TYPE)), args)
+    assert len(args) == 1
+    assert isinstance(args[0], Reference)
+    assert args[0].name == name
+
+    # array reference (arg added)
+    name = "hello2"
+    trans._add_arg(ArrayReference.create(DataSymbol(
+        name, ArrayType(REAL_TYPE, [10])), [Literal("1", INTEGER_TYPE)]), args)
+    assert len(args) == 2
+    assert isinstance(args[1], ArrayReference)
+    assert args[1].name == name
+
+    # arg, same name, not added
+    name = "hello1"
+    trans._add_arg(Reference(DataSymbol(name, REAL_TYPE)), args)
+    assert len(args) == 2
+
+
+def test_lfai2psycall_get_arguments():
+    '''Test the get_arguments() method.'''
+
+    # check_arg=True: Invalid number of arguments (metadata expects 2
+    # but kernel functor has 1)
+    trans = LFRicAlgInvoke2PSyCallTrans()
+    data_type_symbol = DataTypeSymbol("kern_type", REAL_TYPE)
+    arguments = [Reference(Symbol("arg1"))]
+    kernel_functor = LFRicFunctor.create(data_type_symbol, arguments)
+    call = LFRicAlgorithmInvokeCall.create(
+        RoutineSymbol("mysub"), [kernel_functor], 0)
+    metadata = LFRicKernelMetadata(
+        operates_on="cell_column",
+        meta_args=[FieldArgMetadata("gh_real", "gh_write", "w3"),
+                   FieldArgMetadata("gh_real", "gh_read", "w3")],
+        procedure_name="kernel_code",
+        name="kernel_type")
+    psyir = LFRicKernelContainer.create(
+        "kernel_mod", metadata, SymbolTable(), [])
+    with pytest.raises(GenerationError) as err:
+        trans.get_arguments(
+            call, options={"kernels": {id(kernel_functor): psyir}},
+            check_args=True)
+    assert ("The invoke kernel functor 'kern_type' has 1 arguments, but the "
+            "kernel metadata expects there to be 2 arguments."
+            in str(err.value))
+
+    # OK
+    metadata.meta_args = [FieldArgMetadata("gh_real", "gh_write", "w3")]
+    psyir = LFRicKernelContainer.create(
+        "kernel_mod", metadata, SymbolTable(), [])
+    args = trans.get_arguments(
+        call, options={"kernels": {id(kernel_functor): psyir}})
+    assert len(args) == 1
+    assert isinstance(args[0], Reference)
+    assert args[0].name == "arg1"
+
+    # OK, multi-kern
+    data_type_symbol = DataTypeSymbol("kern2_type", REAL_TYPE)
+    arguments = [Reference(Symbol("arg1")), Reference(Symbol("arg2"))]
+    kernel_functor2 = LFRicFunctor.create(data_type_symbol, arguments)
+    kernel_functor1 = kernel_functor.copy()
+    call = LFRicAlgorithmInvokeCall.create(
+        RoutineSymbol("mysub"), [kernel_functor1, kernel_functor2], 0)
+    metadata2 = LFRicKernelMetadata(
+        operates_on="cell_column",
+        meta_args=[FieldArgMetadata("gh_real", "gh_write", "w3"),
+                   FieldArgMetadata("gh_real", "gh_read", "w3")],
+        procedure_name="kernel2_code",
+        name="kernel2_type")
+    psyir2 = LFRicKernelContainer.create(
+        "kernel2_mod", metadata2, SymbolTable(), [])
+    args = trans.get_arguments(
+        call, options={"kernels": {
+            id(kernel_functor1): psyir, id(kernel_functor2): psyir2}})
+    assert len(args) == 2
+    assert isinstance(args[0], Reference)
+    assert args[0].name == "arg1"
+    assert isinstance(args[1], Reference)
+    assert args[1].name == "arg2"
+
+    # OK, stencil and qr
+    arguments = [Reference(Symbol("arg1")), Reference(Symbol("stencil1")),
+                 Reference(Symbol("stencil2")), Reference(Symbol("qr"))]
+    kernel_functor = LFRicFunctor.create(data_type_symbol, arguments)
+    call = LFRicAlgorithmInvokeCall.create(
+        RoutineSymbol("mysub"), [kernel_functor], 0)
+    metadata.meta_args = [
+        FieldArgMetadata("gh_real", "gh_write", "w3"),
+        FieldArgMetadata("gh_real", "gh_read", "w3", stencil="region")]
+    metadata.meta_funcs = [MetaFuncsArgMetadata("w3", basis_function=True)]
+    metadata.shapes = ["gh_quadrature_xyoz"]
+    psyir = LFRicKernelContainer.create(
+        "kernel_mod", metadata, SymbolTable(), [])
+    args = trans.get_arguments(
+        call, options={"kernels": {id(kernel_functor): psyir}})
+    assert len(args) == 4
+    assert isinstance(args[0], Reference)
+    assert args[0].name == "arg1"
+    assert isinstance(args[1], Reference)
+    assert args[1].name == "stencil1"
+    assert isinstance(args[2], Reference)
+    assert args[2].name == "stencil2"
+    assert isinstance(args[3], Reference)
+    assert args[3].name == "qr"
+
 
 def test_lfai2psycall_apply(fortran_reader):
     ''' Test the apply() method of the LFRicAlgInvoke2PSyCallTrans
     class. '''
     code = (
         "subroutine alg1()\n"
-        "  use kern_mod, only : kern\n"
+        "  use kern_mod, only : kernel_type\n"
         "  use field_mod, only : field_type\n"
         "  type(field_type) :: field1\n"
-        "  call invoke(kern(field1))\n"
+        "  call invoke(kernel_type(field1))\n"
         "end subroutine alg1\n")
     psyir = fortran_reader.psyir_from_source(code)
     alg_trans = LFRicAlgTrans()
     alg_trans.apply(psyir)
-    aic = psyir.walk(AlgorithmInvokeCall)[0]
+    aic = psyir.walk(LFRicAlgorithmInvokeCall)[0]
     trans = LFRicAlgInvoke2PSyCallTrans()
-    trans.apply(aic)
-    assert psyir.walk(AlgorithmInvokeCall) == []
+    metadata = LFRicKernelMetadata(
+        operates_on="cell_column",
+        meta_args=[FieldArgMetadata("gh_real", "gh_write", "w3")],
+        procedure_name="kernel_code",
+        name="kernel_type")
+    kernel_psyir = LFRicKernelContainer.create(
+        "kernel_mod", metadata, SymbolTable(), [])
+    trans.apply(aic, options={"kernels": {id(aic.children[0]): kernel_psyir}})
+    assert psyir.walk(LFRicAlgorithmInvokeCall) == []
     calls = psyir.walk(Call)
     assert len(calls) == 1
     assert isinstance(calls[0].routine, RoutineSymbol)
-    assert calls[0].routine.name == "invoke_0_kern"
+    assert calls[0].routine.name == "invoke_0_kernel_type"
     routine = psyir.walk(Routine)[0]
     assert "invoke" not in routine.symbol_table._symbols
 
@@ -97,11 +346,30 @@ def test_lfai2psycall_builtin_apply(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     alg_trans = LFRicAlgTrans()
     alg_trans.apply(psyir)
-    psyir.view()
-    aic = psyir.walk(AlgorithmInvokeCall)[0]
+    aic = psyir.walk(LFRicAlgorithmInvokeCall)[0]
     trans = LFRicAlgInvoke2PSyCallTrans()
-    trans.apply(aic)
-    assert psyir.walk(AlgorithmInvokeCall) == []
+
+    # TODO issue #1618 builtin metadata should be picked up within PSyclone
+    metadata1 = LFRicKernelMetadata(
+        operates_on="dof",
+        meta_args=[FieldArgMetadata("gh_real", "gh_write", "any_space_1"),
+                   ScalarArgMetadata("gh_real", "gh_read")],
+        procedure_name="setval_c_code",
+        name="setval_c")
+    kernel_psyir1 = LFRicKernelContainer.create(
+        "setval_c_mod", metadata1, SymbolTable(), [])
+    metadata2 = LFRicKernelMetadata(
+        operates_on="cell_column",
+        meta_args=[FieldArgMetadata("gh_real", "gh_write", "w3")],
+        procedure_name="kern_code",
+        name="kern")
+    kernel_psyir2 = LFRicKernelContainer.create(
+        "kern_mod", metadata2, SymbolTable(), [])
+
+    trans.apply(aic, options={"kernels": {
+        id(aic.children[0]): kernel_psyir1,
+        id(aic.children[1]): kernel_psyir2}})
+    assert psyir.walk(LFRicAlgorithmInvokeCall) == []
     calls = psyir.walk(Call)
     assert len(calls) == 1
     assert isinstance(calls[0].routine, RoutineSymbol)
@@ -134,17 +402,55 @@ def test_lfai2psycall_multi_invokes(fortran_reader):
     routine = psyir.walk(Routine)[0]
     alg_trans = LFRicAlgTrans()
     alg_trans.apply(psyir)
-    psyir.view()
-    invokes = psyir.walk(AlgorithmInvokeCall)
+    invokes = psyir.walk(LFRicAlgorithmInvokeCall)
     # Apply the transformation to the second invoke.
     trans = LFRicAlgInvoke2PSyCallTrans()
-    trans.apply(invokes[1])
-    invokes = psyir.walk(AlgorithmInvokeCall)
+
+    # TODO issue #1618 builtin metadata should be picked up within PSyclone
+    metadata1 = LFRicKernelMetadata(
+        operates_on="dof",
+        meta_args=[FieldArgMetadata("gh_real", "gh_write", "any_space_1"),
+                   ScalarArgMetadata("gh_real", "gh_read")],
+        procedure_name="setval_c_code",
+        name="setval_c")
+    kernel_psyir1 = LFRicKernelContainer.create(
+        "setval_c_mod", metadata1, SymbolTable(), [])
+    metadata2 = LFRicKernelMetadata(
+        operates_on="cell_column",
+        meta_args=[FieldArgMetadata("gh_real", "gh_write", "w3")],
+        procedure_name="kern_code",
+        name="kern")
+    kernel_psyir2 = LFRicKernelContainer.create(
+        "kern_mod", metadata2, SymbolTable(), [])
+    # TODO issue #1618 builtin metadata should be picked up within PSyclone
+    metadata3 = LFRicKernelMetadata(
+        operates_on="dof",
+        meta_args=[FieldArgMetadata("gh_real", "gh_write", "any_space_1"),
+                   FieldArgMetadata("gh_real", "gh_read", "any_space_1")],
+        procedure_name="setval_x_code",
+        name="setval_x")
+    kernel_psyir3 = LFRicKernelContainer.create(
+        "setval_x_mod", metadata3, SymbolTable(), [])
+
+    trans.apply(invokes[1], options={"kernels": {
+        id(invokes[1].children[0]): kernel_psyir1,
+        id(invokes[1].children[1]): kernel_psyir2,
+        id(invokes[1].children[2]): kernel_psyir3}})
+
+    invokes = psyir.walk(LFRicAlgorithmInvokeCall)
     assert len(invokes) == 1
     assert "invoke" in routine.symbol_table._symbols
     assert "setval_c" in routine.symbol_table._symbols
     assert "setval_x" not in routine.symbol_table._symbols
+
     # Apply the transformation to the one remaining invoke.
-    trans.apply(invokes[0])
+    # TODO issue #1618 builtin metadata should be picked up within PSyclone
+    kernel_psyir1.detach()
+    kernel_psyir2.detach()
+
+    trans.apply(invokes[0], options={"kernels": {
+        id(invokes[0].children[0]): kernel_psyir1,
+        id(invokes[0].children[1]): kernel_psyir2}})
+
     assert "invoke" not in routine.symbol_table._symbols
     assert "setval_c" not in routine.symbol_table._symbols
