@@ -488,7 +488,8 @@ enddo
     gen = fortran_writer(psyir.children[0].children[0])
     assert expected == gen
 
-@pytest.mark.xfail(reason="Issue #598: Improve firstprivate")
+
+@pytest.mark.xfail(reason="Issue #598: Firstprivate still misses some cases")
 def test_omplooptrans_apply_firstprivate_fail(fortran_reader, fortran_writer):
     ''' Test applying the OMPLoopTrans in cases where a firstprivate
     clause it is needed to generate functionally equivalent code than
@@ -499,7 +500,7 @@ def test_omplooptrans_apply_firstprivate_fail(fortran_reader, fortran_writer):
     '''
 
     # Example with a read before write and a OMPParallelDirective
-    psyir = fortran_reader.psyir_from_source(f'''
+    psyir = fortran_reader.psyir_from_source('''
         subroutine my_subroutine()
             integer :: ji, jj, jk, jpkm1, jpjm1, jpim1, scalar1, scalar2
             real, dimension(10, 10, 10) :: zwt, zwd, zwi, zws

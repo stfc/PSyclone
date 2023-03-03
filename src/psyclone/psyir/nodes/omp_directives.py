@@ -765,9 +765,9 @@ class OMPParallelDirective(OMPRegionDirective):
             # TODO raise a warning here so that the user can decide
             # whether or not this is OK.
             pass
-            raise GenerationError("OpenMP parallel region does not enclose "
-                                  "any OpenMP directives. This is probably "
-                                  "not what you want.")
+            # raise GenerationError("OpenMP parallel region does not enclose "
+            #                      "any OpenMP directives. This is probably "
+            #                      "not what you want.")
 
 
 class OMPTaskloopDirective(OMPRegionDirective):
