@@ -37,6 +37,7 @@
 '''Performs pytest tests on the psyclone.psyir.backend.debug_writer module'''
 
 
+import pytest
 from psyclone.psyir.backend.debug_writer import DebugWriter
 from psyclone.psyir.nodes import OMPParallelDirective, Routine, Statement, \
     BinaryOperation, DataNode
@@ -92,6 +93,18 @@ def test_debug_writer_higher_abstraction_nodes(fortran_reader):
         def validate_global_constraints(self):
             raise NotImplementedError("This should not be called")
 
+    # We need to call them at least once otherwise Codecov thinks this is
+    # uncovered lines, but we purposely do not want them executed after
+    # this
+    with pytest.raises(NotImplementedError):
+        MyDSLStatement().lower_to_language_level()
+    with pytest.raises(NotImplementedError):
+        MyDSLStatement().validate_global_constraints()
+    with pytest.raises(NotImplementedError):
+        MyDSLDataNode().validate_global_constraints()
+    with pytest.raises(NotImplementedError):
+        MyDSLDataNode().lower_to_language_level()
+
     # Introduce instances of the created DSL nodes into the example code
     psyir = fortran_reader.psyir_from_source(EXAMPLE_CODE)
     subroutine = psyir.walk(Routine)[0]
@@ -123,3 +136,4 @@ module example_mod
   end subroutine example_code
 
 end module example_mod\n'''
+
