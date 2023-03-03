@@ -113,7 +113,7 @@ def test_ompparallel_changes_begin_string(fortran_reader):
     assert pdir.children[2] is not priv_clause
 
 
-def test_ompparallel_changes_gen_code():
+def test_ompparallel_changes_gen_code(monkeypatch):
     ''' Check that when the code inside an OMP Parallel region changes, the
     private clause changes appropriately. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
@@ -150,6 +150,16 @@ def test_ompparallel_changes_gen_code():
 
     code = str(psy.gen).lower()
     assert "private(cell,k)" in code
+
+    # Monkeypath a case with private and firstprivate clauses
+    pclause = OMPPrivateClause(children=[Reference(Symbol("a"))])
+    fpclause = OMPFirstprivateClause(children=[Reference(Symbol("b"))])
+    monkeypatch.setattr(pdir, "_get_private_clauses",
+                        lambda: (pclause, fpclause))
+
+    code = str(psy.gen).lower()
+    assert "private(a)" in code
+    assert "firstprivate(b)" in code
 
 
 def test_omp_paralleldo_changes_gen_code(monkeypatch):
