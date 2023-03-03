@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,8 @@ from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import (DataSymbol, DeferredType, UnknownType,
-                                    ScalarType, ArrayType, INTEGER_TYPE)
+                                    DataTypeSymbol, ScalarType, ArrayType,
+                                    INTEGER_TYPE)
 
 
 class ArrayReference(ArrayMixin, Reference):
@@ -128,6 +129,8 @@ class ArrayReference(ArrayMixin, Reference):
         shape = self._get_effective_shape()
         if shape:
             return ArrayType(self.symbol.datatype, shape)
+        if isinstance(self.symbol.datatype.intrinsic, DataTypeSymbol):
+            return self.symbol.datatype.intrinsic
         # TODO #1857: Really we should just be able to return
         # self.symbol.datatype here but currently arrays of scalars are
         # handled in a different way to all other types of array.

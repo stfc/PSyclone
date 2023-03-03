@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -980,12 +980,13 @@ def test_main_include_path(capsys):
     # "some_fake_mpi_handle"
     alg_file = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "nemo", "test_files", "include_stmt.f90"))
-    # First try without specifying where to find the include file. Currently
-    # fparser2 just removes any include statement that it cannot resolve
-    # (https://github.com/stfc/fparser/issues/138).
-    main([alg_file, '-api', 'nemo'])
-    stdout, _ = capsys.readouterr()
-    assert "some_fake_mpi_handle" not in stdout
+    # First try without specifying where to find the include file. This
+    # is not supported and should raise an error.
+    with pytest.raises(SystemExit):
+        main([alg_file, '-api', 'nemo'])
+    _, err = capsys.readouterr()
+    assert ("Found an unresolved Fortran INCLUDE file 'local_mpi.h' while"
+            in err)
     # Now specify two locations to search with only the second containing
     # the necessary header file
     inc_path1 = os.path.join(os.path.dirname(os.path.abspath(__file__)),
