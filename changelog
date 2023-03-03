@@ -321,6 +321,10 @@
 	108) PR #1973 for #1904. Fix inlining issues with complex access
 	expressions (e.g. array offsets and partial derived types accesses).
 
+	109) PR #2044 for #1295. Changes LFRic psyir to avoid use of exec
+	and ensures that LFRicConstants is not created *before* the config.
+	file has been read.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
