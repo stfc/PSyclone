@@ -542,13 +542,6 @@ def test_directive_get_private(monkeypatch):
     assert len(pvars.children) == 1
     assert len(fpvars.children) == 0
     assert pvars.children[0].name == 'cell'
-    # Now use monkeypatch to break the Call within the loop
-    call = directive.dir_body[0].dir_body[0].loop_body[0]
-    monkeypatch.setattr(call, "local_vars", lambda: [""])
-    with pytest.raises(InternalError) as err:
-        _ = directive._get_private_clauses()
-    assert ("call 'testkern_w3_code' has a local variable but its name is "
-            "not set" in str(err.value))
 
     directive.children[1] = OMPDefaultClause(
             clause_type=OMPDefaultClause.DefaultClauseTypes.NONE)

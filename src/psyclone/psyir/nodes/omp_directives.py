@@ -655,14 +655,6 @@ class OMPParallelDirective(OMPRegionDirective):
 
         private = set()
         fprivate = set()
-        # get variable names from all calls that are a child of this node
-        for call in self.kernels():
-            for variable_name in call.local_vars():
-                if variable_name == "":
-                    raise InternalError(
-                        f"call '{call.name}' has a local variable but its "
-                        f"name is not set.")
-                private.add(variable_name.lower())
 
         # Now determine scalar variables that must be private:
         var_accesses = VariablesAccessInfo()
@@ -759,6 +751,7 @@ class OMPParallelDirective(OMPRegionDirective):
         '''
         if self.ancestor(OMPParallelDirective) is not None:
             raise GenerationError("Cannot nest OpenMP parallel regions.")
+        self._encloses_omp_directive()
 
     def _encloses_omp_directive(self):
         ''' Check that this Parallel region contains other OpenMP
@@ -772,9 +765,9 @@ class OMPParallelDirective(OMPRegionDirective):
             # TODO raise a warning here so that the user can decide
             # whether or not this is OK.
             pass
-            # raise GenerationError("OpenMP parallel region does not enclose "
-            #                       "any OpenMP directives. This is probably "
-            #                       "not what you want.")
+            raise GenerationError("OpenMP parallel region does not enclose "
+                                  "any OpenMP directives. This is probably "
+                                  "not what you want.")
 
 
 class OMPTaskloopDirective(OMPRegionDirective):
