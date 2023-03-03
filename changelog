@@ -315,6 +315,12 @@
 	106) PR #2047 for #2046. Adds a 'return' statement to the
 	lower_to_language_level() methods.
 
+	107) PR #2032 for #92. Forbid include statements (which should have been
+	processed by the preprocessor or fparser before PSyclone).
+
+	108) PR #1973 for #1904. Fix inlining issues with complex access
+	expressions (e.g. array offsets and partial derived types accesses).
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
