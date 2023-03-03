@@ -47,7 +47,7 @@ class DebugWriter(FortranWriter):
     will just print the name of the higher level Node.
     The resulting code will not be compilable but it will be usable for
     generating debug information much faster than the FortranWriter because
-    it does not need to lower the nodes and therefore it does not need to 
+    it does not need to lower the nodes and therefore it does not need to
     deepcopy the tree.
 
     '''
