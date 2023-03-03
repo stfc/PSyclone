@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
 # Modified by N. Nobre, STFC Daresbury Lab
+# Modified by S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''This module provides management of variable access information.'''

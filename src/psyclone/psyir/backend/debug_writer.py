@@ -43,12 +43,12 @@ from psyclone.psyir.backend.fortran import FortranWriter
 class DebugWriter(FortranWriter):
     '''Implements a PSyIR backend to generate Fortran-like strings but without
     lowering the higher level concepts to language constructs. This special
-    backend can do that because instead of failing for an unknown construct it
+    backend can do it because instead of failing for an unknown construct it
     will just print the name of the higher level Node.
-
     The resulting code will not be compilable but it will be usable for
-    generating debug information much faster (because it does not need to
-    lower the nodes and therefore it does not need to deepcopy the tree).
+    generating debug information much faster than the FortranWriter because
+    it does not need to lower the nodes and therefore it does not need to 
+    deepcopy the tree.
 
     '''
     _DISABLE_LOWERING = True
@@ -57,9 +57,9 @@ class DebugWriter(FortranWriter):
         super().__init__(check_global_constraints=False)
 
     def node_node(self, node):
-        ''' The DebugWriter must never fail, this generic visitor will capture
-        any Node that the super Fortran backend did not catch and output it as
-        "< Node string >".
+        ''' The DebugWriter must never fail with unrecognized nodes, this
+        generic visitor will capture any Node that the super Fortran backend
+        did not catch and output it as "< Node string >".
 
         :param node: the PSyIR node to translate.
         :type node: :py:class:`psyclone.psyir.node.Node`

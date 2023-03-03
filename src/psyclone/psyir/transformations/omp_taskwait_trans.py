@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. B. G. Chalk, STFC Daresbury Lab
-# Modified: R. W. Ford and N. Nobre, STFC Daresbury Lab
+# Modified: R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
 
 ''' This module provides the OMPTaskwaitTrans transformation that can be
 applied to an OMPParallelDirective to satisfy any task-based dependencies

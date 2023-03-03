@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: J. Henrichs, Bureau of Meteorology
 #          N. Nobre, STFC Daresbury Lab
+#          S. Siso, STFC Daresbury Lab
 
 '''This module contains the NEMO-specific loop fusion transformation.
 '''
