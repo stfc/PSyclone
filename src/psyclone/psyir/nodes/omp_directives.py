@@ -508,8 +508,6 @@ class OMPParallelDirective(OMPRegionDirective):
 
         # Update/generate the private clause if the code has changed.
         private_clause, fprivate_clause = self._get_private_clauses()
-        if private_clause != self.private_clause:
-            self._children[2] = private_clause
 
         reprod_red_call_list = self.reductions(reprod=True)
         if reprod_red_call_list:
@@ -539,13 +537,19 @@ class OMPParallelDirective(OMPRegionDirective):
 
         zero_reduction_variables(calls, parent)
 
-        default_str = self.default_clause._clause_string
+        clauses_str = self.default_clause._clause_string
         private_list = []
-        for child in self.private_clause.children:
+        for child in private_clause.children:
             private_list.append(child.symbol.name)
-        private_str = "private(" + ",".join(private_list) + ")"
+        if private_list:
+            clauses_str += ", private(" + ",".join(private_list) + ")"
+        fprivate_list = []
+        for child in fprivate_clause.children:
+            fprivate_list.append(child.symbol.name)
+        if fprivate_list:
+            clauses_str += ", firstprivate(" + ",".join(fprivate_list) + ")"
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel",
-                                f"{default_str}, {private_str}"))
+                                f"{clauses_str}"))
 
         if reprod_red_call_list:
             # add in a local thread index
@@ -766,8 +770,8 @@ class OMPParallelDirective(OMPRegionDirective):
             # whether or not this is OK.
             pass
             # raise GenerationError("OpenMP parallel region does not enclose "
-            #                      "any OpenMP directives. This is probably "
-            #                      "not what you want.")
+            #                       "any OpenMP directives. This is probably "
+            #                       "not what you want.")
 
 
 class OMPTaskloopDirective(OMPRegionDirective):
