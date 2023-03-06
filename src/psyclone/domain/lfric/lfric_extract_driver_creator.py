@@ -41,7 +41,6 @@ the output data contained in the input file.
 
 from psyclone.core import Signature
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.errors import InternalError
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import InvokeSchedule, Kern
@@ -720,6 +719,9 @@ class LFRicExtractDriverCreator:
         # We need to provide the prefix to the validation function:
         extract_trans.validate(nodes, options={"prefix": prefix})
 
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
         for node in nodes:
             for builtin in node.walk(LFRicBuiltIn):
                 # If the lower_to_language function is not overwritten from

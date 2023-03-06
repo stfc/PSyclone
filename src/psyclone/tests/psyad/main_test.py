@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,13 +32,17 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''A module to perform pytest tests on the code in the main.py file
 within the psyad directory.
 
 '''
 import logging
+import os
+
 import pytest
+
 from psyclone.psyad import main
 
 
@@ -58,7 +62,7 @@ TEST_MOD = (
     "end module my_mod\n"
 )
 
-EXPECTED_HARNESS_CODE = ('''program adj_test
+EXPECTED_HARNESS_CODE = '''program adj_test
   use my_mod, only : kern
   use adj_my_mod, only : adj_kern
   integer, parameter :: array_extent = 20
@@ -96,7 +100,7 @@ relative_diff
 relative_diff
   end if
 
-end program adj_test''')
+end program adj_test'''
 
 # main function
 
@@ -105,6 +109,9 @@ end program adj_test''')
 def test_main_h_option(capsys):
     '''Test that the -h script option works as expected'''
 
+    # This line avoids test failures caused by different wrapping of help
+    # messages depending on terminal width.
+    os.environ["COLUMNS"] = "79"
     with pytest.raises(SystemExit) as info:
         main(["-h", "filename"])
     assert str(info.value) == "0"
