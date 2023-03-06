@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,41 +32,47 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab
-# Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests of the ArrayMixin PSyIR nodes trait. '''
 
 import pytest
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import ArrayReference, ArrayOfStructuresReference, \
-    BinaryOperation, Range, Literal, Routine, Assignment
-from psyclone.psyir.symbols import DataSymbol, DeferredType, ArrayType, \
-    INTEGER_TYPE
+from psyclone.psyir.nodes import (
+    ArrayOfStructuresReference, ArrayReference, BinaryOperation, Range,
+    Literal, Routine, StructureReference, Assignment, Reference)
+from psyclone.psyir.symbols import (
+    ArrayType, DataSymbol, DataTypeSymbol, DeferredType, INTEGER_TYPE,
+    REAL_TYPE, StructureType, Symbol)
+
+
+_ONE = Literal("1", INTEGER_TYPE)
+_TWO = Literal("2", INTEGER_TYPE)
 
 
 def test_get_outer_range_index():
     '''Check that the get_outer_range_index method returns the outermost index
-    of the children list that is a range. Use ArrayReference and
-    ArrayOfStructuresReference as concrete implementations of ArrayMixins.
+    of the children list that is a range.
+
     '''
     symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE, [10, 10, 10]))
     array = ArrayReference.create(symbol, [Range(), Range(), Range()])
     assert array.get_outer_range_index() == 2
 
     symbol = DataSymbol("my_symbol", DeferredType())
-    aos = ArrayOfStructuresReference.create(
-        symbol, [Range(), Range(), Range()], ["nx"])
-    assert aos.get_outer_range_index() == 3  # +1 for the member child
+    aos = ArrayReference.create(
+        symbol, [_ONE.copy(), Range(), Range(), Range()])
+    assert aos.get_outer_range_index() == 3  # +1 for the Literal child
 
 
 def test_get_outer_range_index_error():
     '''Check that the get_outer_range_index method raises an IndexError if
-    no range exist as child of the given array. Use ArrayReference as concrete
-    implementation of ArrayMixin.
+    no range exist as child of the given array.
+
     '''
     symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE, [10]))
-    array = ArrayReference.create(symbol, [Literal("2", INTEGER_TYPE)])
+    array = ArrayReference.create(symbol, [_TWO.copy()])
     with pytest.raises(IndexError):
         _ = array.get_outer_range_index()
 
@@ -122,6 +128,128 @@ def test_is_upper_lower_bound(fortran_reader):
     assert not isinstance(array_ref.symbol, DataSymbol)
     assert not array_ref.is_lower_bound(0)
     assert not array_ref.is_upper_bound(0)
+
+
+def test_get_lbound_expression():
+    '''
+    Tests for the get_lbound_expression method on an ArrayReference defined
+    by an ArrayType.
+
+    '''
+    # Symbol is of ArrayType.
+    lbound = DataSymbol("jmin", INTEGER_TYPE,
+                        constant_value=Literal("3", INTEGER_TYPE))
+    lbnd_ref = Reference(lbound)
+    symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE,
+                                               [10, (2, 10), (lbnd_ref, 10)]))
+    aref = ArrayReference.create(symbol,
+                                 [_ONE.copy(), _ONE.copy(), _ONE.copy()])
+    assert aref.get_lbound_expression(0) == _ONE
+    assert aref.get_lbound_expression(1) == _TWO
+    lb2 = aref.get_lbound_expression(2)
+    assert isinstance(lb2, Reference)
+    # Returned lower bound should be a *copy* of the original.
+    assert lb2 is not lbnd_ref
+    assert lb2.symbol is lbound
+    with pytest.raises(IndexError):
+        aref.get_lbound_expression(3)
+    # Symbol is of DeferredType so the result should be an instance of the
+    # LBOUND intrinsic.
+    dtsym = DataSymbol("oops", DeferredType())
+    dtref = ArrayReference.create(dtsym,
+                                  [_ONE.copy(), _ONE.copy(), _ONE.copy()])
+    lbnd = dtref.get_lbound_expression(1)
+    assert isinstance(lbnd, BinaryOperation)
+    assert lbnd.operator == BinaryOperation.Operator.LBOUND
+    assert lbnd.children[0].symbol is dtsym
+    assert lbnd.children[1] == Literal("2", INTEGER_TYPE)
+
+
+@pytest.mark.parametrize("extent", [ArrayType.Extent.DEFERRED,
+                                    ArrayType.Extent.ATTRIBUTE])
+def test_get_lbound_expression_unknown_size(extent):
+    '''
+    Test the get_lbound_expression method when we have the definition of the
+    array type but its dimensions are unknown.
+
+    '''
+    symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE,
+                                               [extent, extent]))
+    aref = ArrayReference.create(symbol, [_ONE.copy(), _ONE.copy()])
+    lbnd = aref.get_lbound_expression(1)
+    assert isinstance(lbnd, BinaryOperation)
+    assert lbnd.operator == BinaryOperation.Operator.LBOUND
+    assert lbnd.children[0].symbol is symbol
+
+
+def test_aref_to_aos_lbound_expression():
+    '''
+    Test the get_lbound_expression() method for an ArrayReference to an array
+    of structures.
+
+    '''
+    sgrid_type = StructureType.create(
+        [("id", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
+    sgrid_type_sym = DataTypeSymbol("subgrid_type", sgrid_type)
+    sym = DataSymbol("subgrids", ArrayType(sgrid_type_sym, [(3, 10)]))
+    one = Literal("1", INTEGER_TYPE)
+    lbound = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
+                                    Reference(sym), one)
+    ubound = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
+                                    Reference(sym), one.copy())
+    array = ArrayReference.create(sym, [Range.create(lbound, ubound)])
+    lbnd = array.get_lbound_expression(0)
+    assert lbnd.value == "3"
+
+
+def test_member_get_lbound_expression(fortran_writer):
+    '''
+    Tests for the get_lbound_expression() method when used with a
+    sub-class of Member.
+
+    '''
+    one = Literal("1", INTEGER_TYPE)
+    two = Literal("2", INTEGER_TYPE)
+    # First, test when we don't have type information.
+    grid_type = DataTypeSymbol("grid_type", DeferredType())
+    sym = DataSymbol("grid_var", grid_type)
+    ref = StructureReference.create(sym, [("data", [one.copy()])])
+    lbnd = ref.member.get_lbound_expression(0)
+    assert isinstance(lbnd, BinaryOperation)
+    out = fortran_writer(lbnd).lower()
+    assert out == "lbound(grid_var%data, 1)"
+    usym = DataSymbol("uvar", DeferredType())
+    ref = ArrayOfStructuresReference.create(
+        usym, [one.copy()],
+        [("map", [one.copy(), two.copy()]),
+         ("data", [one.copy()])])
+    lbnd = ref.member.member.get_lbound_expression(0)
+    assert isinstance(lbnd, BinaryOperation)
+    out = fortran_writer(lbnd).lower()
+    assert out == "lbound(uvar(1)%map(1,2)%data, 1)"
+    # Second, test when we do have type information.
+    a2d = ArrayType(REAL_TYPE, [2, (2, 8)])
+    # Structure that contains "map" which is a 2D array.
+    stypedef = StructureType.create(
+        [("map", a2d, Symbol.Visibility.PUBLIC)])
+    stypedefsym = DataTypeSymbol("map_type", stypedef)
+    # Structure containing a structure of stypedef and an array of such
+    # structures.
+    stypedef2 = StructureType.create(
+        [("grid", stypedef, Symbol.Visibility.PUBLIC),
+         ("subgrids", ArrayType(stypedefsym, [3, (2, 6)]),
+          Symbol.Visibility.PUBLIC)])
+    ssym = DataSymbol("var", stypedef2)
+    sref = StructureReference.create(ssym,
+                                     ["grid",
+                                      ("map", [two.copy(), two.copy()])])
+    assert sref.member.member.get_lbound_expression(0) == one
+    assert sref.member.member.get_lbound_expression(1) == two
+    sref2 = StructureReference.create(
+        ssym, [("subgrids", [two.copy(), two.copy()]),
+               ("map", [two.copy(), two.copy()])])
+    assert sref2.member.get_lbound_expression(1) == two
+    assert sref2.member.member.get_lbound_expression(1) == two
 
 
 def test_get_effective_shape(fortran_reader, fortran_writer):

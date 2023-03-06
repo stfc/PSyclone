@@ -34,7 +34,7 @@
 # Author A. R. Porter, STFC Daresbury Lab
 # Modified by I. Kavcic, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford and N. Nobre, STFC Daresbury Lab
+# Modified by R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
 
 ''' This module implements the support for 'built-in' operations in the
     PSyclone LFRic (Dynamo 0.3) API. Each supported built-in is implemented
@@ -46,7 +46,7 @@
 import abc
 
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
-from psyclone.domain.lfric import LFRicConstants, psyir
+from psyclone.domain.lfric import LFRicConstants, LFRicTypes
 from psyclone.errors import InternalError
 from psyclone.f2pygen import AssignGen, PSyIRGen
 from psyclone.parse.utils import ParseError
@@ -161,6 +161,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         self.qr_rules = {}
         # Builtins cannot request mesh properties
         self.mesh = None
+        self._idx_name = None
         super().__init__()
 
     @abc.abstractmethod
@@ -420,7 +421,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         '''
         idx_sym = self.get_dof_loop_index_symbol()
 
-        array_1d = ArrayType(psyir.LfricRealScalarDataType(),
+        array_1d = ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
                              [ArrayType.Extent.DEFERRED])
         return [StructureReference.create(
             arg.psyir_expression().symbol, [("data", [Reference(idx_sym)])],
@@ -512,6 +513,9 @@ class LFRicXPlusYKern(LFRicBuiltIn):
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -523,6 +527,7 @@ class LFRicXPlusYKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicIncXPlusYKern(LFRicBuiltIn):
@@ -537,6 +542,9 @@ class LFRicIncXPlusYKern(LFRicBuiltIn):
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed refs for both of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -549,6 +557,7 @@ class LFRicIncXPlusYKern(LFRicBuiltIn):
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicAPlusXKern(LFRicBuiltIn):
@@ -564,6 +573,9 @@ class LFRicAPlusXKern(LFRicBuiltIn):
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -577,6 +589,7 @@ class LFRicAPlusXKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicIncAPlusXKern(LFRicBuiltIn):
@@ -592,6 +605,9 @@ class LFRicIncAPlusXKern(LFRicBuiltIn):
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -606,6 +622,7 @@ class LFRicIncAPlusXKern(LFRicBuiltIn):
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicAXPlusYKern(LFRicBuiltIn):
@@ -620,6 +637,9 @@ class LFRicAXPlusYKern(LFRicBuiltIn):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -636,6 +656,7 @@ class LFRicAXPlusYKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicIncAXPlusYKern(LFRicBuiltIn):
@@ -650,6 +671,9 @@ class LFRicIncAXPlusYKern(LFRicBuiltIn):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -667,6 +691,7 @@ class LFRicIncAXPlusYKern(LFRicBuiltIn):
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicIncXPlusBYKern(LFRicBuiltIn):
@@ -681,6 +706,9 @@ class LFRicIncXPlusBYKern(LFRicBuiltIn):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -698,6 +726,7 @@ class LFRicIncXPlusBYKern(LFRicBuiltIn):
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicAXPlusBYKern(LFRicBuiltIn):
@@ -712,6 +741,9 @@ class LFRicAXPlusBYKern(LFRicBuiltIn):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -731,6 +763,7 @@ class LFRicAXPlusBYKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicIncAXPlusBYKern(LFRicBuiltIn):
@@ -745,6 +778,9 @@ class LFRicIncAXPlusBYKern(LFRicBuiltIn):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -765,6 +801,7 @@ class LFRicIncAXPlusBYKern(LFRicBuiltIn):
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicAXPlusAYKern(LFRicBuiltIn):
@@ -779,6 +816,9 @@ class LFRicAXPlusAYKern(LFRicBuiltIn):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -795,6 +835,7 @@ class LFRicAXPlusAYKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 # ------------------------------------------------------------------- #
@@ -815,6 +856,9 @@ class LFRicXMinusYKern(LFRicBuiltIn):
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -826,6 +870,7 @@ class LFRicXMinusYKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicIncXMinusYKern(LFRicBuiltIn):
@@ -841,6 +886,9 @@ class LFRicIncXMinusYKern(LFRicBuiltIn):
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed refs for both of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -853,6 +901,7 @@ class LFRicIncXMinusYKern(LFRicBuiltIn):
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicAMinusXKern(LFRicBuiltIn):
@@ -868,6 +917,9 @@ class LFRicAMinusXKern(LFRicBuiltIn):
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -881,6 +933,7 @@ class LFRicAMinusXKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicIncAMinusXKern(LFRicBuiltIn):
@@ -896,6 +949,9 @@ class LFRicIncAMinusXKern(LFRicBuiltIn):
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -910,6 +966,7 @@ class LFRicIncAMinusXKern(LFRicBuiltIn):
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicXMinusAKern(LFRicBuiltIn):
@@ -925,6 +982,9 @@ class LFRicXMinusAKern(LFRicBuiltIn):
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -938,6 +998,7 @@ class LFRicXMinusAKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicIncXMinusAKern(LFRicBuiltIn):
@@ -953,6 +1014,9 @@ class LFRicIncXMinusAKern(LFRicBuiltIn):
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -967,6 +1031,7 @@ class LFRicIncXMinusAKern(LFRicBuiltIn):
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicAXMinusYKern(LFRicBuiltIn):
@@ -981,6 +1046,9 @@ class LFRicAXMinusYKern(LFRicBuiltIn):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -997,6 +1065,7 @@ class LFRicAXMinusYKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicXMinusBYKern(LFRicBuiltIn):
@@ -1011,6 +1080,9 @@ class LFRicXMinusBYKern(LFRicBuiltIn):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -1027,6 +1099,7 @@ class LFRicXMinusBYKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicIncXMinusBYKern(LFRicBuiltIn):
@@ -1041,6 +1114,9 @@ class LFRicIncXMinusBYKern(LFRicBuiltIn):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -1058,6 +1134,7 @@ class LFRicIncXMinusBYKern(LFRicBuiltIn):
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicAXMinusBYKern(LFRicBuiltIn):
@@ -1072,6 +1149,9 @@ class LFRicAXMinusBYKern(LFRicBuiltIn):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -1091,6 +1171,7 @@ class LFRicAXMinusBYKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 # ------------------------------------------------------------------- #
@@ -1111,6 +1192,9 @@ class LFRicXTimesYKern(LFRicBuiltIn):
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1122,6 +1206,7 @@ class LFRicXTimesYKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicIncXTimesYKern(LFRicBuiltIn):
@@ -1136,6 +1221,9 @@ class LFRicIncXTimesYKern(LFRicBuiltIn):
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed refs for both of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1148,6 +1236,7 @@ class LFRicIncXTimesYKern(LFRicBuiltIn):
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicIncAXTimesYKern(LFRicBuiltIn):
@@ -1162,6 +1251,9 @@ class LFRicIncAXTimesYKern(LFRicBuiltIn):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -1179,6 +1271,7 @@ class LFRicIncAXTimesYKern(LFRicBuiltIn):
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 # ------------------------------------------------------------------- #
@@ -1199,6 +1292,9 @@ class LFRicATimesXKern(LFRicBuiltIn):
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1212,6 +1308,7 @@ class LFRicATimesXKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicIncATimesXKern(LFRicBuiltIn):
@@ -1225,6 +1322,9 @@ class LFRicIncATimesXKern(LFRicBuiltIn):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -1240,6 +1340,7 @@ class LFRicIncATimesXKern(LFRicBuiltIn):
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 # ------------------------------------------------------------------- #
@@ -1260,6 +1361,9 @@ class LFRicXDividebyYKern(LFRicBuiltIn):
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1271,6 +1375,7 @@ class LFRicXDividebyYKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicIncXDividebyYKern(LFRicBuiltIn):
@@ -1285,6 +1390,9 @@ class LFRicIncXDividebyYKern(LFRicBuiltIn):
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed refs for both of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1297,6 +1405,7 @@ class LFRicIncXDividebyYKern(LFRicBuiltIn):
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicXDividebyAKern(LFRicBuiltIn):
@@ -1313,6 +1422,9 @@ class LFRicXDividebyAKern(LFRicBuiltIn):
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1326,6 +1438,7 @@ class LFRicXDividebyAKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicIncXDividebyAKern(LFRicBuiltIn):
@@ -1341,6 +1454,9 @@ class LFRicIncXDividebyAKern(LFRicBuiltIn):
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1355,6 +1471,7 @@ class LFRicIncXDividebyAKern(LFRicBuiltIn):
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 # ------------------------------------------------------------------- #
@@ -1376,6 +1493,9 @@ class LFRicADividebyXKern(LFRicBuiltIn):
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1389,6 +1509,7 @@ class LFRicADividebyXKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicIncADividebyXKern(LFRicBuiltIn):
@@ -1405,6 +1526,9 @@ class LFRicIncADividebyXKern(LFRicBuiltIn):
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1419,6 +1543,7 @@ class LFRicIncADividebyXKern(LFRicBuiltIn):
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 # ------------------------------------------------------------------- #
@@ -1438,6 +1563,9 @@ class LFRicIncXPowrealAKern(LFRicBuiltIn):
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get PSyIR for each of the arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1450,6 +1578,7 @@ class LFRicIncXPowrealAKern(LFRicBuiltIn):
                                      lhs.copy(), scalar_args[0])
         assign = Assignment.create(lhs, rhs)
         self.replace_with(assign)
+        return assign
 
 
 class LFRicIncXPowintNKern(LFRicBuiltIn):
@@ -1464,6 +1593,9 @@ class LFRicIncXPowintNKern(LFRicBuiltIn):
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get PSyIR for each of the arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1476,6 +1608,7 @@ class LFRicIncXPowintNKern(LFRicBuiltIn):
                                      lhs.copy(), scalar_args[0])
         assign = Assignment.create(lhs, rhs)
         self.replace_with(assign)
+        return assign
 
 
 # ------------------------------------------------------------------- #
@@ -1495,6 +1628,9 @@ class LFRicSetvalCKern(LFRicBuiltIn):
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1506,6 +1642,7 @@ class LFRicSetvalCKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], scalar_args[0])
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicSetvalXKern(LFRicBuiltIn):
@@ -1520,6 +1657,9 @@ class LFRicSetvalXKern(LFRicBuiltIn):
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed refs for both of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1529,6 +1669,7 @@ class LFRicSetvalXKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], arg_refs[1])
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicSetvalRandomKern(LFRicBuiltIn):
@@ -1542,6 +1683,9 @@ class LFRicSetvalRandomKern(LFRicBuiltIn):
         '''
         Lowers this LFRic built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by a Call node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed refs for the field (proxy) argument.
@@ -1558,6 +1702,7 @@ class LFRicSetvalRandomKern(LFRicBuiltIn):
         call = Call.create(routine, arg_refs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(call)
+        return call
 
 # ------------------------------------------------------------------- #
 # ============== Inner product of real fields ======================= #
@@ -1664,6 +1809,9 @@ class LFRicSignXKern(LFRicBuiltIn):
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1677,6 +1825,7 @@ class LFRicSignXKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 # ------------------------------------------------------------------- #
@@ -1698,6 +1847,9 @@ class LFRicMaxAXKern(LFRicBuiltIn):
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1711,6 +1863,7 @@ class LFRicMaxAXKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicIncMaxAXKern(LFRicBuiltIn):
@@ -1727,6 +1880,9 @@ class LFRicIncMaxAXKern(LFRicBuiltIn):
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1741,6 +1897,7 @@ class LFRicIncMaxAXKern(LFRicBuiltIn):
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 # ------------------------------------------------------------------- #
@@ -1762,6 +1919,9 @@ class LFRicMinAXKern(LFRicBuiltIn):
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1775,6 +1935,7 @@ class LFRicMinAXKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicIncMinAXKern(LFRicBuiltIn):
@@ -1791,6 +1952,9 @@ class LFRicIncMinAXKern(LFRicBuiltIn):
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
@@ -1805,6 +1969,7 @@ class LFRicIncMinAXKern(LFRicBuiltIn):
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 # ------------------------------------------------------------------- #

@@ -99,6 +99,7 @@ def handle_script(script_name, info, function_name, is_optional=False):
         script function is called.
 
     '''
+    # pylint: disable=too-many-locals
     sys_path_appended = False
     try:
         # a script has been provided

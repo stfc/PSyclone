@@ -42,8 +42,8 @@ from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.array_member import ArrayMember
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
-from psyclone.psyir.nodes.array_of_structures_member import \
-    ArrayOfStructuresMember
+from psyclone.psyir.nodes.array_of_structures_member import (
+    ArrayOfStructuresMember)
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.symbols import (ArrayType, DataSymbol, DataType,
                                     DataTypeSymbol, DeferredType, ScalarType,
@@ -319,8 +319,12 @@ class StructureReference(Reference):
 
         # Walk down the structure, collecting information on any array slices
         # as we go.
-        while hasattr(cursor, "member"):
+        while isinstance(cursor, (StructureMember, StructureReference)):
             cursor = cursor.member
+            if isinstance(cursor_type, ArrayType):
+                cursor_type = cursor_type.intrinsic
+            if isinstance(cursor_type, DataTypeSymbol):
+                cursor_type = cursor_type.datatype
             cursor_type = cursor_type.components[cursor.name].datatype
             if isinstance(cursor_type, (UnknownType, DeferredType)):
                 return DeferredType()
@@ -356,7 +360,6 @@ class StructureReference(Reference):
                         f"'{cursor.name}' of the StructureAccess represents "
                         f"an array but other array notation is present in the "
                         f"full access expression: '{fwriter(self)}'")
-                return ArrayType(cursor_type.intrinsic, shape)
 
             return ArrayType(cursor_type, shape)
 
