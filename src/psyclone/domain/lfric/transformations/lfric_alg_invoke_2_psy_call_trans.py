@@ -50,7 +50,7 @@ from psyclone.domain.lfric.kernel import (
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.nodes import (
-    Literal, Reference, ArrayReference, Container)
+    Literal, Reference, ArrayReference, Container, CodeBlock)
 
 
 class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
@@ -155,6 +155,8 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
                     break
             else:
                 arguments.append(arg.copy())
+        elif isinstance(arg, CodeBlock):
+            arguments.append(arg.copy())
         else:
             raise InternalError(
                 f"Expected Algorithm-layer kernel arguments to be "
@@ -189,7 +191,8 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
 
         arguments = []
         quad_arguments = []
-        stencil_arguments = []
+        stencil_arguments1 = []
+        stencil_arguments2 = []
 
         for kern_call in node.children:
             kernel = kernels[id(kern_call)]
@@ -208,12 +211,21 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
                         arg_idx += 1
                         if not check_args:
                             stencil_arg = kern_call.children[arg_idx]
-                            self._add_arg(stencil_arg, stencil_arguments)
+                            self._add_arg(stencil_arg, stencil_arguments1)
                         if meta_arg.stencil == "xory1d":
                             arg_idx += 1
                             if not check_args:
                                 stencil_arg = kern_call.children[arg_idx]
-                                self._add_arg(stencil_arg, stencil_arguments)
+                                if isinstance(stencil_arg, Literal):
+                                    raise GenerationError(
+                                        f"a literal is not a valid value for "
+                                        f"a stencil direction, but found "
+                                        f"{stencil_arg.value} for field "
+                                        f"{arg.name}.")
+                                if stencil_arg.name.lower() not in [
+                                        "x_direction", "y_direction"]:
+                                    self._add_arg(
+                                        stencil_arg, stencil_arguments2)
                 arg_idx += 1
             if kernel_metadata.shapes and \
                [quad for quad in kernel_metadata.shapes
@@ -231,7 +243,8 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
                     f"{len(kern_call.children)} arguments, but the kernel "
                     f"metadata expects there to be {arg_idx} arguments.")
 
-        arguments.extend(stencil_arguments)
+        arguments.extend(stencil_arguments1)
+        arguments.extend(stencil_arguments2)
         arguments.extend(quad_arguments)
 
         return arguments

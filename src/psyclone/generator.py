@@ -252,7 +252,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
     # implementation (mainly that the PSyIR works with algorithm-layer
     # code) whilst keeping the original implementation as default
     # until it is working.
-    lfric_testing = False
+    lfric_testing = True
 
     if api in API_WITHOUT_ALGORITHM or \
        (api == "dynamo0.3" and not lfric_testing):
@@ -273,6 +273,11 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         else:  # api == "dynamo0.3"
             alg_trans = LFRicAlgTrans()
         alg_trans.apply(psyir)
+
+        if not psyir.walk(AlgorithmInvokeCall):
+            raise NoInvokesError(
+                "Algorithm file contains no invoke() calls: refusing to "
+                "generate empty PSy code")
 
         if script_name is not None:
             # Call the optimisation script for algorithm optimisations

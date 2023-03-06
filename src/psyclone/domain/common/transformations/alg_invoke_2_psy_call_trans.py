@@ -110,7 +110,46 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
         self.validate(node, options=options)
         node.create_psylayer_symbol_root_names()
         arguments = self.get_arguments(node, options=options)
-        symbol_table = node.ancestor(Routine).symbol_table
+        scope_node = node.ancestor(Routine)
+        symbol_table = scope_node.symbol_table
+
+        # Get a unique set of kernel functor symbols for this invoke
+        # if they are explicitly imported.
+        kernel_functor_symbols = set()
+        for kernel_functor in node.children:
+            if kernel_functor.symbol.is_import:
+                kernel_functor_symbols.add(kernel_functor.symbol)
+        # Remove imported symbols as appropriate
+        for kernel_functor_symbol in kernel_functor_symbols:
+            # Is this kernel_functor used in a different invoke?
+            used_elsewhere = False
+            for invoke in scope_node.walk(AlgorithmInvokeCall):
+                if id(invoke) != id(node):
+                    for kernel_functor in invoke.children:
+                        if kernel_functor.symbol == kernel_functor_symbol:
+                            used_elsewhere = True
+                            break
+                if used_elsewhere:
+                    break
+
+            if not used_elsewhere:
+                # remove the symbol from the symbol table and
+                # potentially its container symbol
+                container_symbol = \
+                    kernel_functor_symbol.interface.container_symbol
+                c_symbol_table = container_symbol.find_symbol_table(node)
+                # issue #898 not currently possible to remove a
+                # DataTypeSymbol using the remove method.
+                norm_name = c_symbol_table._normalize(
+                    kernel_functor_symbol.name)
+                c_symbol_table._symbols.pop(norm_name)
+                try:
+                    c_symbol_table.remove(container_symbol)
+                except ValueError:
+                    # container symbol still imports one or more symbols
+                    # so can not be removed.
+                    pass
+
         # TODO #753. At the moment the container and routine names
         # produced here will differ from the PSy-layer routine name if
         # there is a name clash in the algorithm layer.
