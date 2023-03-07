@@ -1441,6 +1441,9 @@ class Node():
         doesn't deepcopy the tree like the Language backends and its
         output, although not compilable, is readable for error messages.
 
+        :returns: a Fortran-like output representation of the tree.
+        :rtype: str
+
         '''
         # Import outside top-level to avoid circular dependencies.
         # pylint: disable=import-outside-toplevel

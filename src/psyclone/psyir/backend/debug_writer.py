@@ -51,6 +51,11 @@ class DebugWriter(FortranWriter):
     deepcopy the tree.
 
     '''
+    # This option will disable the lowering of abstract nodes into language
+    # level nodes, and as a consequence the backend does not need to deep-copy
+    # the tree and is much faster to execute.
+    # Be careful not to modify anything from the input tree when this option
+    # is set to True as the modifications will persist after the Writer!
     _DISABLE_LOWERING = True
 
     def __init__(self):
@@ -63,6 +68,10 @@ class DebugWriter(FortranWriter):
 
         :param node: the PSyIR node to translate.
         :type node: :py:class:`psyclone.psyir.node.Node`
+
+        :returns: A string representing a node unrecognized by the other \
+            visitor methods of this Writer.
+        :rtype: str
 
         '''
         # If its not part of an expression it needs indentation and \n

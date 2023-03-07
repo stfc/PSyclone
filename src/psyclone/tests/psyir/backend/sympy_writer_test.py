@@ -48,7 +48,7 @@ from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import BOOLEAN_TYPE, CHARACTER_TYPE
 
 
-def test_sym_writer_constructor(monkeypatch):
+def test_sym_writer_constructor():
     '''Test that the constructor accepts an optional dictionary.
     '''
     sympy_writer = SymPyWriter({'some': 'symbol'})
@@ -58,12 +58,19 @@ def test_sym_writer_constructor(monkeypatch):
     assert sympy_writer._sympy_type_map == {}
     assert sympy_writer._DISABLE_LOWERING is True
 
+
+def test_sym_writer_lowering_disabled(monkeypatch):
+    '''Test that by default this Writer does not attempt to lower higher
+    abstraction nodes into language level nodes. We also test that with
+    _DISABLE_LOWERING set to False the same situation would produce an error.
+    '''
     def error(_):
-        ''' Just produce and error '''
+        ''' Produce an error '''
         raise NotImplementedError()
 
     monkeypatch.setattr(Literal, "lower_to_language_level", error)
     lit = Literal("true", BOOLEAN_TYPE)
+    sympy_writer = SymPyWriter()
     sympy_writer(lit)  # No error should be raised here
 
     # Without disabling lowering it would fail with a VisitorError

@@ -68,6 +68,11 @@ class SymPyWriter(FortranWriter):
         :py:meth:`psyclone.core.sympy_writer.create_type_map`.
     :type type_map: dict of str:Sympy-data-type values
     '''
+    # This option will disable the lowering of abstract nodes into language
+    # level nodes, and as a consequence the backend does not need to deep-copy
+    # the tree and is much faster to execute.
+    # Be careful not to modify anything from the input tree when this option
+    # is set to True as the modifications will persist after the Writer!
     _DISABLE_LOWERING = True
 
     def __init__(self, type_map=None):
@@ -179,11 +184,7 @@ class SymPyWriter(FortranWriter):
             # that clash with a symbol (e.g. a%b --> it will try to
             # create a SymPy symbol `a_b`, but if `a_b` clashes with an
             # existing symbol, `a_b_1`, ... will be used instead).
-            # We use the `_visit()` call which avoids creating a copy
-            # of the whole tree, which causes huge slowdown of this call.
-            # TODO #1587 - disable deep copy of tree
-            # pylint: disable=protected-access
-            expression_str_list.append(writer._visit(expr))
+            expression_str_list.append(writer(expr))
 
         try:
             return ([parse_expr(expr, type_map)

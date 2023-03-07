@@ -59,7 +59,7 @@ end module example_mod
 '''
 
 
-def test_debug_writer_fotran(fortran_reader, fortran_writer):
+def test_debug_writer_fortran(fortran_reader, fortran_writer):
     ''' For language level constructs it generated the same as Fortran, but it
     has the lowering and the validate_global_constraints check disabled. '''
     dwriter = DebugWriter()
@@ -136,4 +136,3 @@ module example_mod
   end subroutine example_code
 
 end module example_mod\n'''
-

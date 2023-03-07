@@ -37,7 +37,6 @@
 from __future__ import absolute_import
 import pytest
 
-from psyclone.psyir.backend.sir import SIRWriter
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyad.transformations.adjoint_trans import AdjointTransformation
 
@@ -83,3 +82,7 @@ def test_args():
         DummyTrans([None])
     assert ("Active variables should be of type DataSymbol, but found "
             "'NoneType'." in str(info.value))
+
+    active_vars = [DataSymbol("x", REAL_TYPE)]
+    dummy_trans = DummyTrans(active_vars)
+    assert dummy_trans._active_variables is active_vars

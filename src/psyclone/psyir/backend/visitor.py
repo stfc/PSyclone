@@ -79,7 +79,14 @@ class PSyIRVisitor():
     :raises TypeError: if any of the supplied parameters are of the wrong type.
 
     '''
+    # Character(s) to use as a prefix for comments in this backend
     _COMMENT_PREFIX = None
+
+    # This option will disable the lowering of abstract nodes into language
+    # level nodes, and as a consequence the backend does not need to deep-copy
+    # the tree and is much faster to execute.
+    # Be careful not to modify anything from the input tree when this option
+    # is set to True as the modifications will persist after the Writer!
     _DISABLE_LOWERING = False
 
     def __init__(self, skip_nodes=False, indent_string="  ",
@@ -162,6 +169,8 @@ class PSyIRVisitor():
                 f"The PSyIR visitor functor method only accepts a PSyIR Node "
                 f"as argument, but found '{type(node).__name__}'.")
 
+        # If we are not lowering, we can proceed visiting the PSyIR without the
+        # need to make a deep-copy of it.
         if self._DISABLE_LOWERING:
             return self._visit(node)
 
