@@ -145,13 +145,20 @@ omp_levels_trans.py>`_ is rendered as:
 .. image:: schedule_with_indices.png
 
 Note that in this view, only those nodes which are children of
-Schdules have their indices shown. This means that nodes representing
+Schedules have their indices shown. This means that nodes representing
 e.g. loop bounds or the conditional part of ``if`` statements are not
 indexed. For the example shown, the PSyIR node representing the
 ``if(l_hst)`` code would be reached by
 ``schedule.children[6].if_body.children[1]`` or, using the shorthand
 notation (see below), ``schedule[6].if_body[1]`` where ``schedule`` is
 the overall parent Schedule node (omitted from the above image).
+
+One problem with the ``view`` method is that the output can become very
+large for big ASTs and is not readable for users unfamiliar with the PSyIR.
+An alternative to it is the ``debug_string`` method that generates a
+text representation with Fortran-like syntax but on which the high abstraction
+constructs have not yet been lowered to Fortran level and instead they will be
+embedded as `< node >` expressions.
 
 Tree Navigation
 ===============

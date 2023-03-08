@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and N. Nobre, STFC Daresbury Lab
+# Authors: R. W. Ford, N. Nobre and S. Siso STFC Daresbury Lab
 
 '''Module providing a transformation that transforms a constant index
 access to an array (i.e. one that does not contain a loop iterator) to
@@ -224,8 +224,8 @@ class NemoArrayAccess2LoopTrans(Transformation):
                 f"Error in NemoArrayAccess2LoopTrans transformation. The "
                 f"supplied node argument should be within an ArrayReference "
                 f"node that is within the left-hand-side of an Assignment "
-                f"node, but '{self._writer(array_ref)}' is on the "
-                f"right-hand-side of '{self._writer(assignment)}'.")
+                f"node, but '{array_ref.debug_string()}' is on the "
+                f"right-hand-side of '{assignment.debug_string()}'.")
 
         # Contains a range node
         if node.walk(Range):
@@ -233,7 +233,7 @@ class NemoArrayAccess2LoopTrans(Transformation):
                 f"Error in NemoArrayAccess2LoopTrans transformation. The "
                 f"supplied node should not be or contain a Range node "
                 f"(array notation) as it should be single valued, but found "
-                f"'{self._writer(node)}'.")
+                f"'{node.debug_string()}'.")
 
         # Capture loop iterator symbols in order
         iterator_symbols = []
@@ -259,7 +259,7 @@ class NemoArrayAccess2LoopTrans(Transformation):
                     f"NEMO API expects index {node.position} to use the "
                     f"'{loop_variable_name.lower()}' iterator variable, but "
                     f"it is already being used in another index "
-                    f"'{self._writer(assignment.lhs)}'.")
+                    f"'{assignment.lhs.debug_string()}'.")
         except IndexError:
             # There is no defined iterator name for this index
             pass
@@ -286,7 +286,7 @@ class NemoArrayAccess2LoopTrans(Transformation):
                     f"Expected index '{index_pos}' for rhs array "
                     f"'{array_reference.symbol.name}' to be the same "
                     f"as that for the lhs array '{node.parent.name}', but "
-                    f"they differ in '{self._writer(assignment)}'.")
+                    f"they differ in '{assignment.debug_string()}'.")
 
     def __str__(self):
         return (
