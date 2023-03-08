@@ -65,6 +65,7 @@ from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import IfBlock, CodeBlock, Schedule, \
     ArrayReference, Assignment, BinaryOperation, Loop, \
     Literal, Return, Call, ACCLoopDirective
+from psyclone.psyir.symbols import ScalarType
 from psyclone.psyir.transformations import TransformationError, ProfileTrans, \
                                            ACCUpdateTrans
 from psyclone.transformations import ACCEnterDataTrans
@@ -124,10 +125,13 @@ class ExcludeSettings():
     :param Optional[dict] settings: map of settings to override.
 
     '''
-    def __init__(self, settings={}):
+    def __init__(self, settings=None):
         # Whether we exclude IFs where the logical expression is not a
         # comparison operation.
-        self.ifs_scalars = settings.get("ifs_scalars", False)
+        if settings:
+            self.ifs_scalars = settings.get("ifs_scalars", False)
+        else:
+            self.ifs_scalars = False
 
 
 # Routines which are exceptions to the OpenACC Kernels regions exclusion rules.
@@ -200,7 +204,25 @@ def valid_acc_kernel(node):
                "was_single_stmt" in enode.annotations and enode.walk(Loop):
                 continue
 
-            arrays = enode.condition.walk(ArrayReference)
+            # Again, we walk just once and look for arrays and literals in
+            # the condition of the IF.
+            refs_lits = enode.condition.walk((ArrayReference, Literal))
+            arrays = []
+            for ref in refs_lits:
+                if isinstance(ref, ArrayReference):
+                    arrays.append(ref)
+                    continue
+                # We exclude if statements where the condition refers to a
+                # character literal. This is a proxy for a situation where
+                # an assumed-size character variable results in an internal
+                # compiler error (https://forums.developer.nvidia.com/t/
+                # ice-size-of-attempt-to-get-size-of-assumed-size-character/
+                # 135706). This remains a problem in 23.1 of the NV HPC SDK.
+                if ref.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+                    log_msg(routine_name, "IF references character literal",
+                            enode)
+                    return False
+
             # We exclude if statements where the condition expression does
             # not refer to arrays at all as this may cause compiler issues
             # (get "Missing branch target block") or produce faster code.
@@ -208,6 +230,7 @@ def valid_acc_kernel(node):
                not isinstance(enode.condition, BinaryOperation):
                 log_msg(routine_name, "IF references scalars", enode)
                 return False
+
             # When using CUDA Unified Memory, only allocated arrays reside in
             # shared memory (including those that are created by compiler-
             # -generated allocs, e.g. for automatic arrays). We assume that all
