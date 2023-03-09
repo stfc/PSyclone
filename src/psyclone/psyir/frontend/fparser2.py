@@ -3971,9 +3971,6 @@ class Fparser2Reader():
         :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyir.nodes.Routine`
 
-        :raises InternalError: if the subroutine has one or more arguments \
-            but no explicit variable declarations.
-
         '''
         name = node.children[0].children[1].string
         routine = Routine(name, parent=parent)
