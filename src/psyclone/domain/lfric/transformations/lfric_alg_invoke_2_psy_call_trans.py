@@ -46,7 +46,7 @@ from psyclone.domain.lfric.algorithm.psyir import (
 from psyclone.domain.lfric.kernel import (
     FieldArgMetadata, FieldVectorArgMetadata,
     InterGridArgMetadata, InterGridVectorArgMetadata,
-    LFRicKernelContainer)
+    LFRicKernelContainer, LFRicKernelMetadata, ScalarArgMetadata)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.nodes import (
@@ -94,6 +94,9 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
                 f"The value of 'kernels' in the options argument must be a "
                 f"dictionary but found '{type(kernels).__name__}'.")
         for kern_call in node.children:
+            if isinstance(kern_call, LFRicBuiltinFunctor):
+                # Skip builtins as their metadata is stored internally
+                continue
             try:
                 _ = kernels[id(kern_call)]
             except KeyError as info:
@@ -165,8 +168,8 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
 
     def get_arguments(self, node, options=None, check_args=False):
         '''Creates the LFRic processed (lowered) argument list from the
-        argument lists of the kernels within the invoke call and the
-        kernel metadata.
+        argument lists of the kernel functors within the invoke call
+        and the kernel metadata.
 
         :param node: an LFRic algorithm invoke call.
         :type node: :py:class:`psyclone.domain.lfric.algorithm.psyir.\
@@ -186,6 +189,9 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
             specified by the metadata.
 
         '''
+        # TODO #1618. This routine could/should make use of the new
+        # LFRicArgOrder class if and when it makes its way onto trunk.
+
         const = LFRicConstants()
         kernels = options["kernels"]
 
@@ -194,9 +200,139 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
         stencil_arguments1 = []
         stencil_arguments2 = []
 
+        # TODO #1618 builtin metadata should be properly stored within
+        # PSyclone. For the moment add the required ones to run
+        # PSyclone tests and examples.
+        builtin_metadata = {}
+        # setval_c metadata
+        metadata = LFRicKernelMetadata(
+            operates_on="dof",
+            meta_args=[FieldArgMetadata("gh_real", "gh_write", "any_space_1"),
+                       ScalarArgMetadata("gh_real", "gh_read")],
+            procedure_name="setval_c_code",
+            name="setval_c")
+        builtin_metadata["setval_c"] = metadata
+        # x_innerproduct_x metadata
+        # TODO #1618 Incorrect metadata due to bug: should be
+        # ScalarArgMetadata("gh_real", "gh_sum"),
+        metadata = LFRicKernelMetadata(
+            operates_on="dof",
+            meta_args=[ScalarArgMetadata("gh_real", "gh_read"),
+                       FieldArgMetadata("gh_real", "gh_read", "any_space_1")],
+            procedure_name="x_innerproduct_x_code",
+            name="x_innerproduct_x")
+        builtin_metadata["x_innerproduct_x"] = metadata
+        # x_minus_y metadata
+        metadata = LFRicKernelMetadata(
+            operates_on="dof",
+            meta_args=[FieldArgMetadata("gh_real", "gh_write", "any_space_1"),
+                       FieldArgMetadata("gh_real", "gh_read", "any_space_1"),
+                       FieldArgMetadata("gh_real", "gh_read", "any_space_1")],
+            procedure_name="x_minus_y_code",
+            name="x_minus_y")
+        builtin_metadata["x_minus_y"] = metadata
+        # setval_x
+        metadata = LFRicKernelMetadata(
+            operates_on="dof",
+            meta_args=[FieldArgMetadata("gh_real", "gh_write", "any_space_1"),
+                       FieldArgMetadata("gh_real", "gh_read", "any_space_1")],
+            procedure_name="setval_x_code",
+            name="setval_x")
+        builtin_metadata["setval_x"] = metadata
+        # x_innerproduct_y metadata
+        # TODO #1618 Incorrect metadata due to bug: should be
+        # ScalarArgMetadata("gh_real", "gh_sum"),
+        metadata = LFRicKernelMetadata(
+            operates_on="dof",
+            meta_args=[ScalarArgMetadata("gh_real", "gh_read"),
+                       FieldArgMetadata("gh_real", "gh_read", "any_space_1"),
+                       FieldArgMetadata("gh_real", "gh_read", "any_space_1")],
+            procedure_name="x_innerproduct_y_code",
+            name="x_innerproduct_y")
+        builtin_metadata["x_innerproduct_y"] = metadata
+        # x_minus_by metadata
+        metadata = LFRicKernelMetadata(
+            operates_on="dof",
+            meta_args=[FieldArgMetadata("gh_real", "gh_write", "any_space_1"),
+                       FieldArgMetadata("gh_real", "gh_read", "any_space_1"),
+                       ScalarArgMetadata("gh_real", "gh_read"),
+                       FieldArgMetadata("gh_real", "gh_read", "any_space_1")],
+            procedure_name="x_minus_by_code",
+            name="x_minus_by")
+        builtin_metadata["x_minus_by"] = metadata
+        # inc_ax_plus_y metadata
+        metadata = LFRicKernelMetadata(
+            operates_on="dof",
+            meta_args=[ScalarArgMetadata("gh_real", "gh_read"),
+                       FieldArgMetadata(
+                           "gh_real", "gh_readwrite", "any_space_1"),
+                       FieldArgMetadata("gh_real", "gh_read", "any_space_1")],
+            procedure_name="inc_ax_plus_y_code",
+            name="inc_ax_plus_y")
+        builtin_metadata["inc_ax_plus_y"] = metadata
+        # inc_x_plus_by metadata
+        metadata = LFRicKernelMetadata(
+            operates_on="dof",
+            meta_args=[FieldArgMetadata(
+                "gh_real", "gh_readwrite", "any_space_1"),
+                       ScalarArgMetadata("gh_real", "gh_read"),
+                       FieldArgMetadata("gh_real", "gh_read", "any_space_1")],
+            procedure_name="inc_x_plus_by_code",
+            name="inc_x_plus_by")
+        builtin_metadata["inc_x_plus_by"] = metadata
+        # inc_x_minus_by metadata
+        metadata = LFRicKernelMetadata(
+            operates_on="dof",
+            meta_args=[FieldArgMetadata(
+                "gh_real", "gh_readwrite", "any_space_1"),
+                       ScalarArgMetadata("gh_real", "gh_read"),
+                       FieldArgMetadata("gh_real", "gh_read", "any_space_1")],
+            procedure_name="inc_x_minus_by_code",
+            name="inc_x_minus_by")
+        builtin_metadata["inc_x_minus_by"] = metadata
+        # x_divideby_y metadata
+        metadata = LFRicKernelMetadata(
+            operates_on="dof",
+            meta_args=[FieldArgMetadata("gh_real", "gh_write", "any_space_1"),
+                       FieldArgMetadata("gh_real", "gh_read", "any_space_1"),
+                       FieldArgMetadata("gh_real", "gh_read", "any_space_1")],
+            procedure_name="x_divideby_y_code",
+            name="x_divideby_y")
+        builtin_metadata["x_divideby_y"] = metadata
+        # inc_x_divideby_y metadata
+        metadata = LFRicKernelMetadata(
+            operates_on="dof",
+            meta_args=[FieldArgMetadata(
+                "gh_real", "gh_readwrite", "any_space_1"),
+                       FieldArgMetadata("gh_real", "gh_read", "any_space_1")],
+            procedure_name="inc_x_divideby_y_code",
+            name="inc_x_divideby_y")
+        builtin_metadata["inc_x_divideby_y"] = metadata
+        # a_times_x metadata
+        metadata = LFRicKernelMetadata(
+            operates_on="dof",
+            meta_args=[FieldArgMetadata("gh_real", "gh_write", "any_space_1"),
+                       ScalarArgMetadata("gh_real", "gh_read"),
+                       FieldArgMetadata("gh_real", "gh_read", "any_space_1")],
+            procedure_name="a_times_x_code",
+            name="a_times_x")
+        builtin_metadata["a_times_x"] = metadata
+        # inc_a_times_x metadata
+        metadata = LFRicKernelMetadata(
+            operates_on="dof",
+            meta_args=[ScalarArgMetadata("gh_real", "gh_read"),
+                       FieldArgMetadata(
+                           "gh_real", "gh_readwrite", "any_space_1")],
+            procedure_name="inc_a_times_x_code",
+            name="inc_a_times_x")
+        builtin_metadata["inc_a_times_x"] = metadata
+
         for kern_call in node.children:
-            kernel = kernels[id(kern_call)]
-            kernel_metadata = self._get_metadata(kernel)
+            if isinstance(kern_call, LFRicBuiltinFunctor):
+                kernel_metadata = builtin_metadata[kern_call.name.lower()]
+            else:
+                kernel = kernels[id(kern_call)]
+                kernel_metadata = self._get_metadata(kernel)
             arg_idx = 0
             for meta_arg in kernel_metadata.meta_args:
                 if not check_args:
@@ -218,10 +354,10 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
                                 stencil_arg = kern_call.children[arg_idx]
                                 if isinstance(stencil_arg, Literal):
                                     raise GenerationError(
-                                        f"a literal is not a valid value for "
+                                        f"A literal is not a valid value for "
                                         f"a stencil direction, but found "
-                                        f"{stencil_arg.value} for field "
-                                        f"{arg.name}.")
+                                        f"'{stencil_arg.value}' for field "
+                                        f"'{arg.name}'.")
                                 if stencil_arg.name.lower() not in [
                                         "x_direction", "y_direction"]:
                                     self._add_arg(
@@ -236,7 +372,7 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
                     self._add_arg(quad_arg, quad_arguments)
                 arg_idx += 1
 
-            # Too many kernel functor arguments
+            # Incorrect number of kernel functor arguments
             if check_args and len(kern_call.children) != arg_idx:
                 raise GenerationError(
                     f"The invoke kernel functor '{kern_call.name}' has "

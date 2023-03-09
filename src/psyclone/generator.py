@@ -49,6 +49,9 @@ import os
 import sys
 import traceback
 
+from fparser.api import get_reader
+from fparser.two import Fortran2003
+
 from psyclone import configuration
 from psyclone.alg_gen import Alg, NoInvokesError
 from psyclone.configuration import Config, ConfigurationError
@@ -63,7 +66,7 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.line_length import FortLineLength
 from psyclone.parse.algorithm import parse
 from psyclone.parse.kernel import get_kernel_filepath
-from psyclone.parse.utils import ParseError
+from psyclone.parse.utils import ParseError, parse_fp2
 from psyclone.profiler import Profiler
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -265,7 +268,15 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
     elif api == "gocean1.0" or (api == "dynamo0.3" and lfric_testing):
         # Create language-level PSyIR from the Algorithm file
         reader = FortranReader()
-        psyir = reader.psyir_from_file(filename)
+        if api == "dynamo0.3":
+            # avoid undeclared builtin errors in PSyIR by adding "use
+            # builtins"
+            fp2_tree = parse_fp2(filename)
+            check_fp2_tree(fp2_tree, filename)
+            add_builtins_use(fp2_tree)
+            psyir = reader.psyir_from_source(str(fp2_tree))
+        else:
+            psyir = reader.psyir_from_file(filename)
 
         # Raise to Algorithm PSyIR
         if api == "gocean1.0":
@@ -288,11 +299,9 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         for invoke in psyir.walk(AlgorithmInvokeCall):
             kernels[id(invoke)] = {}
             for kern in invoke.walk(KernelFunctor):
-
-                # Find the container that includes this kernel
-                # symbol. Note that the gocean1.0 API does not make
-                # use of builtins and therefore all kernels are
-                # imported from an existing container.
+                if not kern.symbol.is_import:
+                    # Indirect way to skip builtins
+                    continue
                 container_symbol = kern.symbol.interface.container_symbol
 
                 # Find the kernel file containing the container
@@ -529,3 +538,49 @@ def main(args):
             psy_file.write(psy_str)
     else:
         print(f"Generated psy layer code:\n{psy_str}")
+
+
+def check_fp2_tree(fp2_tree, filename):
+    '''Check the supplied fparser2 tree to make sure that it contains a
+    single program or module.
+
+    :param fp2_tree: the fparser2 tree to check.
+    :type fp2_tree: py:class:`fparser.two.Program`
+
+    :raises GenerationError: if the algorithm file contains \
+        multiple modules or programs.
+    :raises GenerationError: if the algorithm file is not a \
+        module or a program.
+
+    '''
+    if len(fp2_tree.children) != 1:
+        raise GenerationError(
+            f"Expecting LFRic algorithm-layer code within file "
+            f"'{filename}' to be a single program or module, but "
+            f"found '{len(fp2_tree.children)}' of type "
+            f"{[type(node).__name__ for node in fp2_tree.children]}.")
+    if not isinstance(fp2_tree.children[0],
+                      (Fortran2003.Module, Fortran2003.Main_Program)):
+        raise GenerationError(
+            f"Expecting LFRic algorithm-layer code within file "
+            f"'{filename}' to be a single program or module, but "
+            f"found '{type(fp2_tree.children[0]).__name__}'.")
+
+
+def add_builtins_use(fp2_tree):
+    '''Modify the fparser2 tree adding a 'use builtins' so that kernel
+    functors and the invoke symbol do not appear to be
+    undeclared.
+
+    :param fp2_tree: the fparser2 tree to modify.
+    :type fp2_tree: py:class:`fparser.two.Program`
+
+    '''
+    module = fp2_tree.children[0]
+    # add "use builtins" to the module or program
+    if not isinstance(module.children[1], Fortran2003.Specification_Part):
+        fp2_reader = get_reader("use builtins")
+        module.children.insert(1, Fortran2003.Specification_Part(fp2_reader))
+    else:
+        spec_part = module.children[1]
+        spec_part.children.insert(0, Fortran2003.Use_Stmt("use builtins"))

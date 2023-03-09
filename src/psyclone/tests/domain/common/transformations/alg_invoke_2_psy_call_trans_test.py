@@ -459,3 +459,47 @@ def test_ai2psycall_apply_invoke_symbols_scope(fortran_reader):
     invoke = loop.loop_body[0]
     assert "invoke" not in invoke.scope.symbol_table._symbols
     assert "invoke" not in loop.scope.symbol_table._symbols
+
+
+def test_ai2psycall_apply_multiple_functors(fortran_reader):
+    '''Check that the apply() method removes the kernel functor symbol at
+    the appropriate time when it is in a different scope to the invoke
+    call and the kernel is used in multiple locations. Use
+    GOceanAlgInvoke2PSyCallTrans as AlgInvoke2PSyCallTrans is
+    abstract.
+
+    '''
+    code = (
+        "module alg_mod\n"
+        "use kern_mod, only : kern\n"
+        "contains\n"
+        "subroutine alg1()\n"
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: field\n"
+        "  call invoke(kern(field))\n"
+        "end subroutine alg1\n"
+        "subroutine alg2()\n"
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: field\n"
+        "  call invoke(kern(field))\n"
+        "end subroutine alg2\n"
+        "end module\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    AlgTrans().apply(psyir)
+    module = psyir.children[0]
+    assert module.name == "alg_mod"
+
+    assert "kern" in module.symbol_table._symbols
+    assert "kern_mod" in module.symbol_table._symbols
+
+    invokes = psyir.walk(AlgorithmInvokeCall)
+    assert len(invokes) == 2
+    trans = GOceanAlgInvoke2PSyCallTrans()
+
+    trans.apply(invokes[0])
+    assert "kern" in module.symbol_table._symbols
+    assert "kern_mod" in module.symbol_table._symbols
+
+    trans.apply(invokes[1])
+    assert "kern" not in module.symbol_table._symbols
+    assert "kern_mod" not in module.symbol_table._symbols

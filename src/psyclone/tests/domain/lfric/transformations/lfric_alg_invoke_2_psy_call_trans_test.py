@@ -40,7 +40,7 @@ transformation.
 import pytest
 
 from psyclone.domain.lfric.algorithm import (
-    LFRicAlgorithmInvokeCall, LFRicFunctor)
+    LFRicAlgorithmInvokeCall, LFRicFunctor, LFRicBuiltinFunctorFactory)
 from psyclone.domain.lfric.kernel import (
     LFRicKernelMetadata, FieldArgMetadata, LFRicKernelContainer,
     MetaFuncsArgMetadata, ScalarArgMetadata)
@@ -49,7 +49,7 @@ from psyclone.domain.lfric.transformations import (
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import (
     Call, Routine, Reference, Container, FileContainer, Literal,
-    ArrayReference)
+    ArrayReference, CodeBlock)
 from psyclone.psyir.symbols import (
     RoutineSymbol, DataTypeSymbol, REAL_TYPE, Symbol, SymbolTable, DataSymbol,
     ArrayType, INTEGER_TYPE)
@@ -212,6 +212,11 @@ def test_lfai2psycall_add_arg():
     trans._add_arg(Reference(DataSymbol(name, REAL_TYPE)), args)
     assert len(args) == 2
 
+    # codeblock arg
+    trans._add_arg(CodeBlock([], None), args)
+    assert len(args) == 3
+    assert isinstance(args[2], CodeBlock)
+
 
 def test_lfai2psycall_get_arguments():
     '''Test the get_arguments() method.'''
@@ -301,6 +306,33 @@ def test_lfai2psycall_get_arguments():
     assert args[3].name == "stencil2"
     assert isinstance(args[4], Reference)
     assert args[4].name == "qr"
+
+    # error stencil
+    arguments = [Reference(Symbol("arg1")), Reference(Symbol("arg2")),
+                 Reference(Symbol("stencil1")), Literal("1", INTEGER_TYPE),
+                 Reference(Symbol("qr"))]
+    kernel_functor = LFRicFunctor.create(data_type_symbol, arguments)
+    call = LFRicAlgorithmInvokeCall.create(
+        RoutineSymbol("mysub"), [kernel_functor], 0)
+    with pytest.raises(GenerationError) as info:
+        _ = trans.get_arguments(
+            call, options={"kernels": {id(kernel_functor): psyir}})
+    assert ("A literal is not a valid value for a stencil direction, but "
+            "found '1' for field 'arg2'." in str(info.value))
+
+    # OK builtin
+    builtin_factory = LFRicBuiltinFunctorFactory.get()
+    builtin_functor = builtin_factory.create(
+        "setval_x", SymbolTable(),
+        [Reference(Symbol("arg1")), Reference(Symbol("arg2"))])
+    call = LFRicAlgorithmInvokeCall.create(
+        RoutineSymbol("mysub"), [builtin_functor], 0)
+    args = trans.get_arguments(call, options={"kernels": {}})
+    assert len(args) == 2
+    assert isinstance(args[0], Reference)
+    assert args[0].name == "arg1"
+    assert isinstance(args[1], Reference)
+    assert args[1].name == "arg2"
 
 
 def test_lfai2psycall_apply(fortran_reader):

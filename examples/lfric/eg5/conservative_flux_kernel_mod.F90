@@ -195,7 +195,7 @@ subroutine conservative_flux_code( nlayers,              &
   integer(kind=i_def) :: ii
   integer(kind=i_def) :: edge_option
   integer(kind=i_def) :: n_cells_to_sum
-
+  integer(kind=i_def) :: direction
 
   call calc_stencil_ordering(rho_stencil_length,stencil_ordering)
 

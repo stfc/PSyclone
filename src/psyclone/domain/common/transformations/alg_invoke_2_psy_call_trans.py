@@ -110,8 +110,7 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
         self.validate(node, options=options)
         node.create_psylayer_symbol_root_names()
         arguments = self.get_arguments(node, options=options)
-        scope_node = node.ancestor(Routine)
-        symbol_table = scope_node.symbol_table
+        symbol_table = node.ancestor(Routine).symbol_table
 
         # Get a unique set of kernel functor symbols for this invoke
         # if they are explicitly imported.
@@ -123,6 +122,9 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
         for kernel_functor_symbol in kernel_functor_symbols:
             # Is this kernel_functor used in a different invoke?
             used_elsewhere = False
+            # Search from where the symbol is declared
+            kf_symbol_table = kernel_functor_symbol.find_symbol_table(node)
+            scope_node = kf_symbol_table.node
             for invoke in scope_node.walk(AlgorithmInvokeCall):
                 if id(invoke) != id(node):
                     for kernel_functor in invoke.children:

@@ -49,10 +49,14 @@ import stat
 from sys import modules
 import pytest
 
+from fparser.common.readfortran import FortranStringReader
+from fparser.two.parser import ParserFactory
+
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import GenerationError
-from psyclone.generator import generate, main
+from psyclone.generator import (
+    generate, main, check_fp2_tree, add_builtins_use)
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.profiler import Profiler
@@ -1047,3 +1051,64 @@ def test_utf_char(tmpdir):
     tmp_file = os.path.join(str(tmpdir), "test_psy.f90")
     main(["-api", "nemo", "-opsy", tmp_file, test_file])
     assert os.path.isfile(tmp_file)
+
+
+def test_check_fp2_tree():
+    '''Tests for the check_fp2_tree utility method.'''
+
+    # multiple program, module etc.
+    code = (
+        "program test_prog\n"
+        "end program\n"
+        "subroutine test_sub\n"
+        "end subroutine\n")
+    parser = ParserFactory().create(std="f2008")
+    reader = FortranStringReader(code)
+    fp2_tree = parser(reader)
+    filename = "dummy"
+    with pytest.raises(GenerationError) as info:
+        check_fp2_tree(fp2_tree, filename)
+    assert ("Expecting LFRic algorithm-layer code within file 'dummy' to be "
+            "a single program or module, but found '2' of type "
+            "['Main_Program', 'Subroutine_Subprogram']." in str(info.value))
+    # not a program or module
+    code = (
+        "subroutine test_sub\n"
+        "end subroutine\n")
+    reader = FortranStringReader(code)
+    fp2_tree = parser(reader)
+    with pytest.raises(GenerationError) as info:
+        check_fp2_tree(fp2_tree, filename)
+    assert ("Expecting LFRic algorithm-layer code within file 'dummy' to be "
+            "a single program or module, but found 'Subroutine_Subprogram'."
+            in str(info.value))
+    # OK
+    code = (
+        "program test_sub\n"
+        "end\n")
+    reader = FortranStringReader(code)
+    fp2_tree = parser(reader)
+    check_fp2_tree(fp2_tree, filename)
+
+
+def test_add_builtins_use():
+    '''Tests for the add_builtins_use utility method.'''
+
+    # no spec_part
+    code = (
+        "program test_prog\n"
+        "end program\n")
+    parser = ParserFactory().create(std="f2008")
+    reader = FortranStringReader(code)
+    fp2_tree = parser(reader)
+    add_builtins_use(fp2_tree)
+    assert "USE builtins" in str(fp2_tree)
+    # spec_part
+    code = (
+        "program test_prog\n"
+        "  integer :: i\n"
+        "end program\n")
+    reader = FortranStringReader(code)
+    fp2_tree = parser(reader)
+    add_builtins_use(fp2_tree)
+    assert "USE builtins" in str(fp2_tree)
