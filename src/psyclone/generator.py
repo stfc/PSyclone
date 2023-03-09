@@ -255,7 +255,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
     # implementation (mainly that the PSyIR works with algorithm-layer
     # code) whilst keeping the original implementation as default
     # until it is working.
-    lfric_testing = True
+    lfric_testing = False
 
     if api in API_WITHOUT_ALGORITHM or \
        (api == "dynamo0.3" and not lfric_testing):

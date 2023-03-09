@@ -41,7 +41,6 @@ program restrict_prolong
   use restrict_kernel_mod, only: restrict_kernel_type
   use prolong_kernel_mod, only: prolong_kernel_type
   implicit none
-
   type(field_type) :: fld_f, fld_m, fld_c
 
   call invoke(                                     &

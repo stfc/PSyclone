@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2023, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,7 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 !------------------------------------------------------------------------------
 ! Modified by I. Kavcic, Met Office
+! Modified R. W. Ford, STFC Daresbury Lab
 
 !> @brief Calculates the coefficients, a0,a1,a2, for 1D subgrid
 !>        representation of rho, rho(x) = a0 + a1*x+a2*x**2 with 0<x<1,
