@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
 # Modified by N. Nobre, STFC Daresbury Lab
+# Modified by S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''This module provides management of variable access information.'''
@@ -146,11 +147,11 @@ class Signature:
                                 f"{len(component_indices)}.")
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.backend.fortran import FortranWriter
+        from psyclone.psyir.backend.debug_writer import DebugWriter
         from psyclone.psyir.nodes import Literal, Node, Reference
 
         if language_writer is None:
-            writer = FortranWriter()
+            writer = DebugWriter()
         else:
             writer = language_writer
 

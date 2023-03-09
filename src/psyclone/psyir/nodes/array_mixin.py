@@ -373,23 +373,10 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         if self_sig[:depth+1] != node_sig[:]:
             return False
 
-        # We use the FortranWriter to simplify the job of comparing array-index
-        # expressions but have to import it here to avoid circular dependencies
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.backend.fortran import FortranWriter
-        fwriter = FortranWriter()
-
         # Examine the indices, ignoring any on the innermost accesses (hence
         # the slice to `depth` rather than `depth + 1` below).
-        for indices in zip(self_indices[:depth], node_indices[:depth]):
-            # TODO #1424. We need to be able to compare PSyIR fragments
-            # natively rather than using a visitor. We use the `_visit` method
-            # directly here so as to avoid the deep-copying of the complete
-            # tree which is performed when using fwriter(). (This operation
-            # can become very, very costly for large trees.)
-            # pylint: disable=protected-access
-            if ("".join(fwriter._visit(idx) for idx in indices[0]) !=
-                    "".join(fwriter._visit(idx) for idx in indices[1])):
+        for idx1, idx2 in zip(self_indices[:depth], node_indices[:depth]):
+            if idx1 != idx2:
                 return False
         return True
 
@@ -506,13 +493,9 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             elif isinstance(idx_expr, (Call, Operation, CodeBlock)):
                 # We can't yet straightforwardly query the type of a function
                 # call or Operation - TODO #1799.
-                # pylint: disable=import-outside-toplevel
-                from psyclone.psyir.backend.fortran import FortranWriter
-                # TODO #1887 - get type of writer to use from Config object?
-                fvisitor = FortranWriter()
                 raise NotImplementedError(
                     f"The array index expressions for access "
-                    f"'{fvisitor(self)}' include a function call or "
+                    f"'{self.debug_string()}' include a function call or "
                     f"expression. Querying the return type of "
                     f"such things is yet to be implemented.")
 
