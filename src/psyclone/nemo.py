@@ -344,12 +344,16 @@ class NemoACCEnterDataDirective(ACCEnterDataDirective):
         In-place replacement of this directive concept into language-level
         PSyIR constructs.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
-        super().lower_to_language_level()
+        lowered = super().lower_to_language_level()
 
         # Remove known loop variables from the set of variables to transfer
         loop_var = Config.get().api_conf("nemo").get_loop_type_mapping().keys()
         self._sig_set.difference_update({Signature(var) for var in loop_var})
+        return lowered
 
 
 class NemoACCUpdateDirective(ACCUpdateDirective):
@@ -362,9 +366,13 @@ class NemoACCUpdateDirective(ACCUpdateDirective):
         In-place replacement of this directive concept into language-level
         PSyIR constructs.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
-        super().lower_to_language_level()
+        lowered = super().lower_to_language_level()
 
         # Remove known loop variables from the set of variables to transfer
         loop_var = Config.get().api_conf("nemo").get_loop_type_mapping().keys()
         self._sig_set.difference_update({Signature(var) for var in loop_var})
+        return lowered

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab.
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab.
 
 ''' Module containing the implementation of the LFRic-specific kernel-functor
     classes.
@@ -118,7 +118,12 @@ class LFRicBuiltinFunctor(LFRicFunctor):
 
     def lower_to_language_level(self):
         ''' Removes the symbol representing this BuiltIn as it only
-        exists in the DSL. '''
+        exists in the DSL.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
         table = self.scope.symbol_table
         try:
             sym = table.lookup(self._builtin_name)
@@ -131,6 +136,7 @@ class LFRicBuiltinFunctor(LFRicFunctor):
             # The symbol has already been removed by a previous lowering
             # of the same builtin.
             pass
+        return self
 
 
 class LFRicBuiltinFunctorFactory():

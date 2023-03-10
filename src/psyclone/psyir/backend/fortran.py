@@ -1106,35 +1106,41 @@ class FortranWriter(LanguageWriter):
 
         self._depth += 1
 
-        # The PSyIR has nested scopes but Fortran only supports declaring
-        # variables at the routine level scope. For this reason, at this
-        # point we have to unify all declarations and resolve possible name
-        # clashes that appear when merging the scopes. Make sure we use
-        # the same SymbolTable class used in the base class to get an
-        # API-specific table here:
-        whole_routine_scope = type(node.symbol_table)()
+        if self._DISABLE_LOWERING:
+            # If we are not lowering we don't have a deep_copied tree so it
+            # should NOT make any modifications to the provided node or
+            # symbol table.
+            whole_routine_scope = node.symbol_table
+        else:
+            # The PSyIR has nested scopes but Fortran only supports declaring
+            # variables at the routine level scope. For this reason, at this
+            # point we have to unify all declarations and resolve possible name
+            # clashes that appear when merging the scopes. Make sure we use
+            # the same SymbolTable class used in the base class to get an
+            # API-specific table here:
+            whole_routine_scope = type(node.symbol_table)()
 
-        own_symbol = node.symbol_table.lookup_with_tag("own_routine_symbol")
-        for schedule in node.walk(Schedule):
-            for symbol in schedule.symbol_table.symbols[:]:
+            itself = node.symbol_table.lookup_with_tag("own_routine_symbol")
+            for schedule in node.walk(Schedule):
+                for symbol in schedule.symbol_table.symbols[:]:
 
-                # We don't need to add the Symbol representing this Routine to
-                # the top level symbol table because in Fortran it is already
-                # implicitly declared by the subroutine statement.
-                if symbol is own_symbol and isinstance(symbol, RoutineSymbol):
-                    continue
+                    # We don't need to add the Symbol representing this Routine
+                    # to the top level symbol table because in Fortran it is
+                    # already implicitly declared by the subroutine statement.
+                    if symbol is itself and isinstance(symbol, RoutineSymbol):
+                        continue
 
-                try:
-                    whole_routine_scope.add(symbol)
-                except KeyError:
-                    new_name = whole_routine_scope.next_available_name(
-                        symbol.name, other_table=schedule.symbol_table)
-                    schedule.symbol_table.rename_symbol(symbol, new_name)
-                    whole_routine_scope.add(symbol)
+                    try:
+                        whole_routine_scope.add(symbol)
+                    except KeyError:
+                        new_name = whole_routine_scope.next_available_name(
+                            symbol.name, other_table=schedule.symbol_table)
+                        schedule.symbol_table.rename_symbol(symbol, new_name)
+                        whole_routine_scope.add(symbol)
 
-        # Replace the symbol table
-        node.symbol_table.detach()
-        whole_routine_scope.attach(node)
+            # Replace the symbol table
+            node.symbol_table.detach()
+            whole_routine_scope.attach(node)
 
         # Generate module imports
         imports = ""

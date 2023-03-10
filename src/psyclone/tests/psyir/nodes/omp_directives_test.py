@@ -55,7 +55,7 @@ from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, \
     OMPScheduleClause, OMPTeamsDistributeParallelDoDirective, \
     OMPFirstprivateClause
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, SymbolTable, \
-    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE
+    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, Symbol
 from psyclone.errors import InternalError, GenerationError
 from psyclone.transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans, \
     OMPParallelLoopTrans, DynamoOMPParallelLoopTrans, OMPSingleTrans, \
@@ -110,10 +110,10 @@ def test_ompparallel_changes_begin_string(fortran_reader):
     pdir.children[0].addchild(new_loop)
 
     pdir.lower_to_language_level()
-    assert pdir.children[2] != priv_clause
+    assert pdir.children[2] is not priv_clause
 
 
-def test_ompparallel_changes_gen_code():
+def test_ompparallel_changes_gen_code(monkeypatch):
     ''' Check that when the code inside an OMP Parallel region changes, the
     private clause changes appropriately. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
@@ -151,8 +151,18 @@ def test_ompparallel_changes_gen_code():
     code = str(psy.gen).lower()
     assert "private(cell,k)" in code
 
+    # Monkeypatch a case with private and firstprivate clauses
+    pclause = OMPPrivateClause(children=[Reference(Symbol("a"))])
+    fpclause = OMPFirstprivateClause(children=[Reference(Symbol("b"))])
+    monkeypatch.setattr(pdir, "_get_private_clauses",
+                        lambda: (pclause, fpclause))
 
-def test_omp_paralleldo_changes_gen_code():
+    code = str(psy.gen).lower()
+    assert "private(a)" in code
+    assert "firstprivate(b)" in code
+
+
+def test_omp_paralleldo_changes_gen_code(monkeypatch):
     ''' Check that when the code inside an OMP Parallel Do region changes, the
     private clause changes appropriately. Also check that changing the schedule
     is correctly picked up.'''
@@ -170,6 +180,7 @@ def test_omp_paralleldo_changes_gen_code():
     assert len(pdir.children) == 2
     assert "private(cell)" in code
     assert "schedule(auto)" in code
+    assert "firstprivate" not in code
 
     # Modify the loop
     routine = pdir.ancestor(Routine)
@@ -184,6 +195,17 @@ def test_omp_paralleldo_changes_gen_code():
     code = str(psy.gen).lower()
     assert "schedule(" not in code
     assert "private(k)" in code
+    assert "firstprivate" not in code
+
+    # Monkeypatch a case with firstprivate clauses
+    pclause = OMPPrivateClause(children=[Reference(Symbol("a"))])
+    fpclause = OMPFirstprivateClause(children=[Reference(Symbol("b"))])
+    monkeypatch.setattr(pdir, "_get_private_clauses",
+                        lambda: (pclause, fpclause))
+
+    code = str(psy.gen).lower()
+    assert "private(a)" in code
+    assert "firstprivate(b)" in code
 
 
 def test_omp_parallel_do_changes_begin_str(fortran_reader):
@@ -229,10 +251,11 @@ def test_omp_parallel_do_changes_begin_str(fortran_reader):
     pdir._omp_schedule = "dynamic"
 
     pdir.lower_to_language_level()
-    assert pdir.children[2] != priv_clause
+    assert pdir.children[2] is not priv_clause
     assert isinstance(pdir.children[2], OMPPrivateClause)
     assert isinstance(pdir.children[3], OMPFirstprivateClause)
-    assert pdir.children[4] != sched_clause
+    assert pdir.children[3] is not fpriv_clause
+    assert pdir.children[4] is not sched_clause
     assert isinstance(pdir.children[4], OMPScheduleClause)
 
 
@@ -508,8 +531,8 @@ def test_omp_do_children_err():
             "this Node has a child of type 'Return'" in str(err.value))
 
 
-def test_directive_get_private(monkeypatch):
-    ''' Tests for the _get_private_clause() method of OMPParallelDirective.
+def test_directive_get_private_lfric(monkeypatch):
+    ''' Tests for the _get_private_clauses() method of OMPParallelDirective.
     Note: this test does not apply colouring so the loops must be over
     discontinuous function spaces.
 
@@ -536,25 +559,50 @@ def test_directive_get_private(monkeypatch):
     # pylint: disable=pointless-statement
     psy.gen
     # Now check that _get_private_clause returns what we expect
-    pvars = directive._get_private_clause()
+    pvars, fpvars = directive._get_private_clauses()
     assert isinstance(pvars, OMPPrivateClause)
+    assert isinstance(fpvars, OMPFirstprivateClause)
     assert len(pvars.children) == 1
+    assert len(fpvars.children) == 0
     assert pvars.children[0].name == 'cell'
-    # Now use monkeypatch to break the Call within the loop
-    call = directive.dir_body[0].dir_body[0].loop_body[0]
-    monkeypatch.setattr(call, "local_vars", lambda: [""])
-    with pytest.raises(InternalError) as err:
-        _ = directive._get_private_clause()
-    assert ("call 'testkern_w3_code' has a local variable but its name is "
-            "not set" in str(err.value))
 
     directive.children[1] = OMPDefaultClause(
             clause_type=OMPDefaultClause.DefaultClauseTypes.NONE)
     with pytest.raises(GenerationError) as excinfo:
-        _ = directive._get_private_clause()
+        _ = directive._get_private_clauses()
     assert ("OMPParallelClause cannot correctly generate the private clause "
             "when its default data sharing attribute in its default clause is "
             "not shared." in str(excinfo.value))
+
+
+def test_directive_get_private(fortran_reader):
+    ''' Tests for the _get_private_clauses() method of OMPParallelDirective.
+    '''
+
+    # Example with private and firstprivate variables
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_subroutine()
+            integer :: i, scalar1, scalar2
+            real, dimension(10) :: array
+            scalar1 = 3
+            do i = 1, 10
+               if (i .eq. 4) then
+                  scalar1 = array(i)
+               endif
+               scalar2 = scalar1 + array(i)
+               array(i) = scalar2
+            enddo
+        end subroutine''')
+    omplooptrans = OMPParallelLoopTrans()
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop)
+    directive = psyir.walk(OMPParallelDoDirective)[0]
+    pvars, fpvars = directive._get_private_clauses()
+    assert len(pvars.children) == 2
+    assert len(fpvars.children) == 1
+    assert pvars.children[0].name == 'i'
+    assert pvars.children[1].name == 'scalar2'
+    assert fpvars.children[0].name == 'scalar1'
 
 
 def test_omp_parallel_validate_child():

@@ -115,7 +115,7 @@ def test_omp_private_declaration():
     # assignment statement is not allowed by default, so we need to disable
     # the node type check in order to apply the omp parallel transform.
     omp_parallel.apply(schedule.children[0:2], {'node-type-check': False})
-    expected = "!$omp parallel default(shared), private(ji,jj,jk)"
+    expected = "!$omp parallel default(shared)\n"
 
     gen_code = str(psy.gen).lower()
     assert expected in gen_code
@@ -129,7 +129,7 @@ def test_omp_parallel():
     schedule = invoke_info.schedule
     otrans.apply([schedule[0]])
     gen_code = str(psy.gen).lower()
-    assert ("  !$omp parallel default(shared), private(ji,jj,jk)\n"
+    assert ("  !$omp parallel default(shared)\n"
             "  do jk = 1, jpk, 1\n"
             "    do jj = 1, jpj, 1\n"
             "      do ji = 1, jpi, 1\n"
@@ -152,8 +152,7 @@ def test_omp_parallel_multi():
     # gives elements 2-3).
     otrans.apply(schedule[0].loop_body[2:4])
     gen_code = str(psy.gen).lower()
-    assert ("    !$omp parallel default(shared), private(ji,jj,zabe1,zcof1,"
-            "zmsku)\n"
+    assert ("    !$omp parallel default(shared)\n"
             "    do jj = 1, jpjm1, 1\n"
             "      do ji = 1, jpim1, 1\n"
             "        zabe1 = pahu(ji,jj,jk) * e2_e1u(ji,jj) * "

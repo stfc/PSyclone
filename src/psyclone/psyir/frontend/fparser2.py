@@ -1951,27 +1951,9 @@ class Fparser2Reader():
         incl_nodes = walk(nodes, (Fortran2003.Include_Stmt,
                                   C99Preprocessor.Cpp_Include_Stmt))
         if incl_nodes:
-            config = Config.get()
-            # Just generate an error message for the first include we've found
-            filename = incl_nodes[0].children[0].string
-            rtxt = (f"while processing the declarations in routine "
-                    f"'{parent.name}'")
-            if isinstance(incl_nodes[0], Fortran2003.Include_Stmt):
-                msg = (
-                    f"Fortran INCLUDE statements are not supported but found "
-                    f"an include for file '{filename}' {rtxt}. This file must "
-                    f"be made available to the Fortran parser by specifying "
-                    f"its "
-                    f"location with a -I flag. (The list of directories to "
-                    f"search is currently set to: {config.include_paths}.)")
-            else:
-                msg = (
-                    f"CPP #INCLUDE statements are not supported but found a "
-                    f"#include of file '{filename}' {rtxt}. The input source "
-                    f"must be"
-                    f" put through a suitable pre-processor before being "
-                    f"given to PSyclone.")
-            raise GenerationError(msg)
+            # The include_handler just raises an error so we use that to
+            # reduce code duplication.
+            self._include_handler(incl_nodes[0], parent)
 
         # Now we've captured any derived-type definitions, proceed to look
         # at the variable declarations.
@@ -2343,17 +2325,22 @@ class Fparser2Reader():
         config = Config.get()
         # An INCLUDE can appear anywhere so we have to allow for the case
         # where we have no enclosing Routine.
-        routine = parent.ancestor(Routine, include_self=True)
-        if routine:
-            out_txt = f"routine '{routine.name}'. "
+        unit = parent.ancestor((Routine, Container), include_self=True)
+        if isinstance(unit, Routine):
+            if unit.is_program:
+                out_txt = f"program '{unit.name}'. "
+            else:
+                out_txt = f"routine '{unit.name}'. "
+        elif type(unit) is Container:
+            out_txt = f"module '{unit.name}'. "
         else:
             out_txt = f"code:\n{str(node.get_root())}\n"
+        filename = node.children[0].string
         if isinstance(node, Fortran2003.Include_Stmt):
             err_msg = (
-                f"Fortran INCLUDE statements are not supported but found an "
-                f"include of file '{node.children[0].string}' while processing"
-                f" {out_txt}This file must be made available to the Fortran "
-                f"parser by specifying its location via the -I flag. "
+                f"Found an unresolved Fortran INCLUDE file '{filename}' while "
+                f"processing {out_txt}This file must be made available by "
+                f"specifying its location with a -I flag. "
                 f"(The list of directories to search is currently set to: "
                 f"{config.include_paths}.)")
         else:
@@ -2973,15 +2960,11 @@ class Fparser2Reader():
                     if array:
                         # Cannot have two or more part references that contain
                         # ranges - this is not valid Fortran.
-                        # pylint: disable=import-outside-toplevel
-                        from psyclone.psyir.backend.fortran import (
-                            FortranWriter)
-                        lang_writer = FortranWriter()
                         raise InternalError(
                             f"Found a structure reference containing two or "
                             f"more part references that have ranges: "
-                            f"'{lang_writer(node)}'. This is not valid within "
-                            f"a WHERE in Fortran.")
+                            f"'{node.debug_string()}'. This is not valid "
+                            f"within a WHERE in Fortran.")
                     array = part_ref
             if not array:
                 raise InternalError(

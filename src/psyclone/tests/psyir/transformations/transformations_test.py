@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2022, Science and Technology Facilities Council.
+# Copyright (c) 2018-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,6 @@ API-agnostic tests for various transformation classes.
 
 import os
 import pytest
-
 from fparser.common.readfortran import FortranStringReader
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import CodeBlock, IfBlock, Literal, Loop, Node, \
@@ -53,7 +52,7 @@ from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE, \
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
     TransformationError
-from psyclone.tests.utilities import get_invoke
+from psyclone.tests.utilities import get_invoke, Compile
 from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
     ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans, OMPParallelTrans, \
     OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans, OMPDeclareTargetTrans
@@ -444,49 +443,110 @@ def test_parallellooptrans_validate_dependencies(fortran_reader):
     omplooptrans.validate(loops[0])
 
 
-def test_omplooptrans_apply_firstprivate(fortran_reader, fortran_writer):
+def test_omplooptrans_apply_firstprivate(fortran_reader, fortran_writer,
+                                         tmpdir):
+    ''' Test applying the OMPLoopTrans in cases where a firstprivate
+    clause is needed to generate code that is functionally equivalent to the
+    original, serial version.'''
 
     # Example with a conditional write and a OMPParallelDoDirective
-    psyir = fortran_reader.psyir_from_source(f'''
-        subroutine my_subroutine()
-            integer :: ji, jj, jk, jpkm1, jpjm1, jpim1, scalar1, scalar2
-            real, dimension(10, 10, 10) :: zwt, zwd, zwi, zws
-            do jk = 2, jpkm1, 1
-              do jj = 2, jpjm1, 1
-                do ji = 2, jpim1, 1
-                   if (.true.) then
-                      scalar1 = zwt(ji,jj,jk)
-                   endif
-                   scalar2 = scalar1 + zwt(ji,jj,jk)
-                   zws(ji,jj,jk) = scalar2
+    psyir = fortran_reader.psyir_from_source('''
+        module my_mod
+            contains
+            subroutine my_subroutine()
+                integer :: ji, jj, jk, jpkm1, jpjm1, jpim1, scalar1, scalar2
+                real, dimension(10, 10, 10) :: zwt, zwd, zwi, zws
+                scalar1 = 1
+                do jk = 2, jpkm1, 1
+                  do jj = 2, jpjm1, 1
+                    do ji = 2, jpim1, 1
+                       if (.true.) then
+                          scalar1 = zwt(ji,jj,jk)
+                       endif
+                       scalar2 = scalar1 + zwt(ji,jj,jk)
+                       zws(ji,jj,jk) = scalar2
+                    enddo
+                  enddo
                 enddo
-              enddo
-            enddo
-        end subroutine''')
+            end subroutine
+        end module my_mod''')
     omplooptrans = OMPParallelLoopTrans()
     loop = psyir.walk(Loop)[0]
     omplooptrans.apply(loop)
     expected = '''\
-!$omp parallel do default(shared), private(ji,jj,jk,scalar2), \
+    !$omp parallel do default(shared), private(ji,jj,jk,scalar2), \
 firstprivate(scalar1), schedule(auto)
-do jk = 2, jpkm1, 1
-  do jj = 2, jpjm1, 1
-    do ji = 2, jpim1, 1
-      if (.true.) then
-        scalar1 = zwt(ji,jj,jk)
-      end if
-      scalar2 = scalar1 + zwt(ji,jj,jk)
-      zws(ji,jj,jk) = scalar2
+    do jk = 2, jpkm1, 1
+      do jj = 2, jpjm1, 1
+        do ji = 2, jpim1, 1
+          if (.true.) then
+            scalar1 = zwt(ji,jj,jk)
+          end if
+          scalar2 = scalar1 + zwt(ji,jj,jk)
+          zws(ji,jj,jk) = scalar2
+        enddo
+      enddo
     enddo
-  enddo
-enddo
-!$omp end parallel do\n'''
+    !$omp end parallel do\n'''
 
-    gen = fortran_writer(psyir.children[0].children[0])
-    assert expected == gen
+    gen = fortran_writer(psyir)
+    assert expected in gen
+    assert Compile(tmpdir).string_compiles(gen)
+
+    # Example with a read before write
+    psyir = fortran_reader.psyir_from_source('''
+        module my_mod
+            contains
+            subroutine my_subroutine()
+                integer :: ji, jj, jk, jpkm1, jpjm1, jpim1, scalar1, scalar2
+                real, dimension(10, 10, 10) :: zwt, zwd, zwi, zws
+                do jk = 2, jpkm1, 1
+                  do jj = 2, jpjm1, 1
+                    do ji = 2, jpim1, 1
+                       scalar2 = scalar1 + zwt(ji,jj,jk)
+                       scalar1 = 3
+                       zws(ji,jj,jk) = scalar2 + scalar1
+                    enddo
+                  enddo
+                enddo
+            end subroutine
+        end module my_mod''')
+    omplooptrans = OMPParallelLoopTrans()
+    loop = psyir.walk(Loop)[0]
+    # This need to be forced since the DependencyAnalysis wrongly considers
+    # it a reduction
+    omplooptrans.apply(loop, options={"force": True})
+    expected = '''\
+    !$omp parallel do default(shared), private(ji,jj,jk,scalar2), \
+firstprivate(scalar1), schedule(auto)
+    do jk = 2, jpkm1, 1
+      do jj = 2, jpjm1, 1
+        do ji = 2, jpim1, 1
+          scalar2 = scalar1 + zwt(ji,jj,jk)
+          scalar1 = 3
+          zws(ji,jj,jk) = scalar2 + scalar1
+        enddo
+      enddo
+    enddo
+    !$omp end parallel do'''
+
+    gen = fortran_writer(psyir)
+    assert expected in gen
+    assert Compile(tmpdir).string_compiles(gen)
+
+
+def test_omplooptrans_apply_firstprivate_fail(fortran_reader, fortran_writer):
+    ''' Test applying the OMPLoopTrans in cases where a firstprivate
+    clause it is needed to generate functionally equivalent code than
+    the starting serial version.
+    
+    In some cases the transformation validate dependency analysis reports
+    the firstprivate use as a reduction, which is wrong.
+
+    '''
 
     # Example with a read before write and a OMPParallelDirective
-    psyir = fortran_reader.psyir_from_source(f'''
+    psyir = fortran_reader.psyir_from_source('''
         subroutine my_subroutine()
             integer :: ji, jj, jk, jpkm1, jpjm1, jpim1, scalar1, scalar2
             real, dimension(10, 10, 10) :: zwt, zwd, zwi, zws
@@ -500,28 +560,16 @@ enddo
               enddo
             enddo
         end subroutine''')
-    ompparalleldirective = OMPParallelDirective()
-    ompdodirective = OMPParallelDirective()
+    omplooptrans = OMPParallelLoopTrans()
     loop = psyir.walk(Loop)[0]
-    omplooptrans.apply(loop)
-    expected = '''\
-!$omp parallel do default(shared), private(ji,jj,jk,scalar2), \
-firstprivate(scalar1), schedule(auto)
-do jk = 2, jpkm1, 1
-  do jj = 2, jpjm1, 1
-    do ji = 2, jpim1, 1
-      if (.true.) then
-        scalar1 = zwt(ji,jj,jk)
-      end if
-      scalar2 = scalar1 + zwt(ji,jj,jk)
-      zws(ji,jj,jk) = scalar2
-    enddo
-  enddo
-enddo
-!$omp end parallel do\n'''
-
-    gen = fortran_writer(psyir.children[0].children[0])
-    assert expected == gen
+    try:
+        omplooptrans.apply(loop)
+    except TransformationError:
+        # TODO #598: When this is solved, this test can be removed and the
+        # "force":True in the previous test can also be removed
+        pytest.xfail(reason="Issue #598: This example should be a firstprivate"
+                            " but the dependency analysis believes it is a "
+                            "reduction.")
 
 
 def test_omplooptrans_apply(sample_psyir, fortran_writer):
