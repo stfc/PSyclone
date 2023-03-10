@@ -703,10 +703,14 @@ def test_main_api():
     filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3", "1_single_invoke.f90"))
 
+    # Check that specifying a config file also sets the
+    # HAS_CONFIG_BEEN_INITIALISED flag!
+    Config._HAS_CONFIG_BEEN_INITIALISED = False
     # This config file specifies the gocean1.0 api, but
     # command line should take precedence
     main([filename, "--config", config_name, "-api", "dynamo0.3"])
     assert Config.get().api == "dynamo0.3"
+    assert Config.has_config_been_initialised() is True
 
 
 def test_main_directory_arg(capsys):

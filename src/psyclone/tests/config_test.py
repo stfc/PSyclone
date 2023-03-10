@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2022, Science and Technology Facilities Council.
+# Copyright (c) 2018-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -716,3 +716,13 @@ def test_get_constants():
     assert isinstance(config.get_constants(), GOceanConstants)
     config.api = "nemo"
     assert isinstance(config.get_constants(), NemoConstants)
+
+
+def test_config_class_initialised(monkeypatch):
+    '''Tests that the flag indicating that the Config class is
+    initialised works as expected.'''
+
+    monkeypatch.setattr(Config, "_HAS_CONFIG_BEEN_INITIALISED", False)
+
+    _ = Config().get()
+    assert Config.has_config_been_initialised() is True

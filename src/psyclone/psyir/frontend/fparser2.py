@@ -2960,15 +2960,11 @@ class Fparser2Reader():
                     if array:
                         # Cannot have two or more part references that contain
                         # ranges - this is not valid Fortran.
-                        # pylint: disable=import-outside-toplevel
-                        from psyclone.psyir.backend.fortran import (
-                            FortranWriter)
-                        lang_writer = FortranWriter()
                         raise InternalError(
                             f"Found a structure reference containing two or "
                             f"more part references that have ranges: "
-                            f"'{lang_writer(node)}'. This is not valid within "
-                            f"a WHERE in Fortran.")
+                            f"'{node.debug_string()}'. This is not valid "
+                            f"within a WHERE in Fortran.")
                     array = part_ref
             if not array:
                 raise InternalError(

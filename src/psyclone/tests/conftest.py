@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
 # Modified by R. W. Ford, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 
 ''' Module which performs pytest set-up so that we can specify
@@ -105,6 +106,19 @@ def setup_psyclone_config():
     # if the repository config file is actually found:
     if os.path.isfile(config_file):
         os.environ["PSYCLONE_CONFIG"] = config_file
+
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_config_before_constants():
+    '''PSyclone will raise an exception if an instance of LFRicConstants
+    is created before the config file was read: since some of the values
+    of LFRicConstants depend on the config file, we have to make sure that
+    a user-specified config file is read before creating an instance of
+    LFRicConstants. This flag is set when `Config.load()` is called. But the
+    tests will not set this flag. This fixture will make sure that
+    the tests will not trigger this exception.
+    '''
+    Config._HAS_CONFIG_BEEN_INITIALISED = True
 
 
 @pytest.fixture(name="config_instance", scope="function", autouse=True)

@@ -1437,6 +1437,21 @@ class Node():
 
         '''
 
+    def debug_string(self):
+        ''' Generates a Fortran-like output representation but without
+        lowering high-level nodes. This is fast to generate because it
+        doesn't deepcopy the tree like the Language backends and its
+        output, although not compilable, is readable for error messages.
+
+        :returns: a Fortran-like output representation of the tree.
+        :rtype: str
+
+        '''
+        # Import outside top-level to avoid circular dependencies.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.backend.debug_writer import DebugWriter
+        return DebugWriter()(self)
+
 
 # For automatic documentation generation
 # TODO #913 the 'colored' routine shouldn't be in this module.
