@@ -129,10 +129,9 @@ def test_script_file_no_extension():
 
 def test_script_file_wrong_extension():
     '''Checks that handle_script() in generator.py raises the excepted
-    exception when a script file does not have the '.py'
-    extension. This test uses the generate() function to call
-    handle_script as this is a simple way to create its required
-    arguments.
+    exception when a script file does not have the '.py' extension. This test
+    uses the generate() function to call handle_script as this is a simple way
+    to create its required arguments.
 
     '''
     with pytest.raises(GenerationError) as error:
@@ -141,7 +140,7 @@ def test_script_file_wrong_extension():
             api="dynamo0.3",
             script_name=os.path.join(
                 BASE_PATH, "dynamo0p3", "1_single_invoke.f90"))
-    assert ("expected the script file '1_single_invoke' to have the '.py' "
+    assert ("expected the script file '1_single_invoke.f90' to have the '.py' "
             "extension" in str(error.value))
 
 
