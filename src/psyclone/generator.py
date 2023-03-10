@@ -97,29 +97,34 @@ def handle_script(script_name, info, function_name, is_optional=False):
         script function is called.
 
     '''
-    sys_path_appended = False
+    sys_path_preprended = False
     try:
-        # a script file has been provided, check it exists
-        if not os.path.isfile(script_name) and not any(
-               os.path.isfile(os.path.join(p, script_name)) for p in sys.path):
-            raise GenerationError(
-                f"generator: script file '{script_name}' not found")
         filepath, filename = os.path.split(script_name)
-        if filepath:
-            # a path has been provided, so add it to the python search path
-            sys_path_appended = True
-            sys.path.append(filepath)
-        filename, fileext = os.path.splitext(filename)
+        module_name, fileext = os.path.splitext(filename)
+        # the file must either be:
+        # a) at the given path or, given no path, in the current directory; or
+        # b) given no path, in the system path
+        if not (os.path.isfile(script_name) or
+                not filepath and any (os.path.isfile(os.path.join(p, filename))
+                                      for p in sys.path)):
+                raise GenerationError(
+                    f"generator: script file '{script_name}' not found")
+        # the file must have the .py extension
         if fileext != '.py':
             raise GenerationError(
                 f"generator: expected the script file '{filename}' to have "
                 f"the '.py' extension")
+        # prepend file path to the system path to guarantee we find the user
+        # provided module instead of a similarly named module that might
+        # already exist elsewhere in the system path
+        sys_path_preprended = True
+        sys.path.insert(0, filepath)
         try:
-            transmod = __import__(filename)
+            transmod = __import__(module_name)
         except Exception as error:
             raise GenerationError(
-                f"generator: attempted to import '{filename}' but a problem "
-                f"was found: {error}") from error
+                f"generator: attempted to import '{module_name}' but a "
+                f"problem was found: {error}") from error
         if callable(getattr(transmod, function_name, None)):
             try:
                 func_call = getattr(transmod, function_name)
@@ -137,12 +142,12 @@ def handle_script(script_name, info, function_name, is_optional=False):
                     f"...\n{e_str}\nPlease check your script")
         elif not is_optional:
             raise GenerationError(
-                f"generator: attempted to import '{filename}' but script file "
-                f"'{script_name}' does not contain a '{function_name}' "
+                f"generator: attempted to import '{module_name}' but script "
+                f"file '{script_name}' does not contain a '{function_name}' "
                 f"function")
     finally:
-        if sys_path_appended:
-            os.sys.path.pop()
+        if sys_path_preprended:
+            sys.path.pop(0)
 
 
 def generate(filename, api="", kernel_paths=None, script_name=None,
