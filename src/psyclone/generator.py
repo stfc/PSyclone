@@ -97,7 +97,7 @@ def handle_script(script_name, info, function_name, is_optional=False):
         script function is called.
 
     '''
-    sys_path_preprended = False
+    sys_path_prepended = False
     try:
         filepath, filename = os.path.split(script_name)
         module_name, fileext = os.path.splitext(filename)
@@ -118,7 +118,7 @@ def handle_script(script_name, info, function_name, is_optional=False):
         # working directory - to the system path to guarantee we find the user
         # provided module instead of a similarly named module that might
         # already exist elsewhere in the system path
-        sys_path_preprended = True
+        sys_path_prepended = True
         sys.path.insert(0, filepath)
         try:
             transmod = __import__(module_name)
@@ -147,7 +147,7 @@ def handle_script(script_name, info, function_name, is_optional=False):
                 f"file '{script_name}' does not contain a '{function_name}' "
                 f"function")
     finally:
-        if sys_path_preprended:
+        if sys_path_prepended:
             sys.path.pop(0)
 
 
