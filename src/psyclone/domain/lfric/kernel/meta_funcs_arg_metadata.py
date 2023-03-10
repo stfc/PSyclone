@@ -149,7 +149,7 @@ class MetaFuncsArgMetadata(CommonArgMetadata):
         '''
         const = LFRicConstants()
         self.validate_scalar_value(
-            value, const.VALID_FUNCTION_SPACES, "function_space")
+            value, const.VALID_FUNCTION_SPACE_NAMES, "function_space")
         self._function_space = value.lower()
 
     @property

@@ -183,12 +183,24 @@ def test_function_space_setter_getter():
     funcs_arg = MetaFuncsArgMetadata("w0", basis_function=True)
     with pytest.raises(ValueError) as info:
         funcs_arg.function_space = "invalid"
+    print(str(info.value))
     assert ("The 'function_space' metadata should be a recognised value (one "
             "of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', "
-            "'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi']) but "
-            "found 'invalid'." in str(info.value))
+            "'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi', "
+            "'any_space_1', 'any_space_2', 'any_space_3', 'any_space_4', "
+            "'any_space_5', 'any_space_6', 'any_space_7', 'any_space_8', "
+            "'any_space_9', 'any_space_10', 'any_discontinuous_space_1', "
+            "'any_discontinuous_space_2', 'any_discontinuous_space_3', "
+            "'any_discontinuous_space_4', 'any_discontinuous_space_5', "
+            "'any_discontinuous_space_6', 'any_discontinuous_space_7', "
+            "'any_discontinuous_space_8', 'any_discontinuous_space_9', "
+            "'any_discontinuous_space_10']) but found 'invalid'."
+            in str(info.value))
     funcs_arg.function_space = "W1"
     assert funcs_arg.function_space == "w1"
+    # any_space function spaces are also allowed
+    funcs_arg.function_space = "any_space_1"
+    assert funcs_arg.function_space == "any_space_1"
 
 
 def test_basis_function_setter_getter():
