@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -350,15 +350,16 @@ def test_kernel_parsing_internalerror(capsys):
     assert out == ""
     assert "In kernel file " in str(err)
     assert (
-        "PSyclone internal error: The kernel argument list:\n"
-        "'['i', 'j', 'cu', 'p', 'u']'\n"
-        "does not match the variable declarations:\n"
+        "PSyclone internal error: The argument list ['i', 'j', 'cu', 'p', "
+        "'u'] for routine 'compute_code' does not match the variable "
+        "declarations:\n"
         "IMPLICIT NONE\n"
         "INTEGER, INTENT(IN) :: I, J\n"
         "REAL(KIND = go_wp), INTENT(OUT), DIMENSION(:, :) :: cu\n"
         "REAL(KIND = go_wp), INTENT(IN), DIMENSION(:, :) :: p\n"
-        "Specific PSyIR error is \"Could not find 'u' in the Symbol "
-        "Table.\".\n" in str(err))
+        "(Note that PSyclone does not support implicit declarations.) Specific"
+        " PSyIR error is \"Could not find 'u' in the Symbol Table.\".\n"
+        in str(err))
 
 
 def test_script_file_too_short():
@@ -703,10 +704,14 @@ def test_main_api():
     filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3", "1_single_invoke.f90"))
 
+    # Check that specifying a config file also sets the
+    # HAS_CONFIG_BEEN_INITIALISED flag!
+    Config._HAS_CONFIG_BEEN_INITIALISED = False
     # This config file specifies the gocean1.0 api, but
     # command line should take precedence
     main([filename, "--config", config_name, "-api", "dynamo0.3"])
     assert Config.get().api == "dynamo0.3"
+    assert Config.has_config_been_initialised() is True
 
 
 def test_main_directory_arg(capsys):
@@ -1001,12 +1006,13 @@ def test_main_include_path(capsys):
     # "some_fake_mpi_handle"
     alg_file = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "nemo", "test_files", "include_stmt.f90"))
-    # First try without specifying where to find the include file. Currently
-    # fparser2 just removes any include statement that it cannot resolve
-    # (https://github.com/stfc/fparser/issues/138).
-    main([alg_file, '-api', 'nemo'])
-    stdout, _ = capsys.readouterr()
-    assert "some_fake_mpi_handle" not in stdout
+    # First try without specifying where to find the include file. This
+    # is not supported and should raise an error.
+    with pytest.raises(SystemExit):
+        main([alg_file, '-api', 'nemo'])
+    _, err = capsys.readouterr()
+    assert ("Found an unresolved Fortran INCLUDE file 'local_mpi.h' while"
+            in err)
     # Now specify two locations to search with only the second containing
     # the necessary header file
     inc_path1 = os.path.join(os.path.dirname(os.path.abspath(__file__)),

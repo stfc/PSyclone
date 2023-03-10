@@ -42,8 +42,10 @@
 from collections import OrderedDict
 import os
 
-from fparser.two import Fortran2003, utils
+from fparser.two import C99Preprocessor, Fortran2003, utils
 from fparser.two.utils import walk, BlockBase, StmtBase
+
+from psyclone.configuration import Config
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes import (
     UnaryOperation, BinaryOperation, NaryOperation, Schedule, CodeBlock,
@@ -929,6 +931,8 @@ class Fparser2Reader():
             Fortran2003.Subscript_Triplet: self._subscript_triplet_handler,
             Fortran2003.If_Stmt: self._if_stmt_handler,
             utils.NumberBase: self._number_handler,
+            Fortran2003.Include_Stmt: self._include_handler,
+            C99Preprocessor.Cpp_Include_Stmt: self._include_handler,
             Fortran2003.Int_Literal_Constant: self._number_handler,
             Fortran2003.Char_Literal_Constant: self._char_literal_handler,
             Fortran2003.Logical_Literal_Constant: self._bool_literal_handler,
@@ -1918,6 +1922,7 @@ class Fparser2Reader():
         :type visibility_map: dict with str keys and values of type \
                         :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
 
+        :raises GenerationError: if an INCLUDE statement is encountered.
         :raises NotImplementedError: the provided declarations contain \
                                      attributes which are not supported yet.
         :raises GenerationError: if the parse tree for a USE statement does \
@@ -1939,6 +1944,16 @@ class Fparser2Reader():
         # the former.
         for decl in walk(nodes, Fortran2003.Derived_Type_Def):
             self._process_derived_type_decln(parent, decl, visibility_map)
+
+        # INCLUDE statements are *not* part of the Fortran language and
+        # can appear anywhere. Therefore we have to do a walk to make sure we
+        # find them if they are present.
+        incl_nodes = walk(nodes, (Fortran2003.Include_Stmt,
+                                  C99Preprocessor.Cpp_Include_Stmt))
+        if incl_nodes:
+            # The include_handler just raises an error so we use that to
+            # reduce code duplication.
+            self._include_handler(incl_nodes[0], parent)
 
         # Now we've captured any derived-type definitions, proceed to look
         # at the variable declarations.
@@ -2088,10 +2103,11 @@ class Fparser2Reader():
             decls_str_list = [str(node) for node in nodes]
             arg_str_list = [arg.string.lower() for arg in arg_list]
             raise InternalError(
-                f"The kernel argument list:\n'{arg_str_list}'\n"
-                f"does not match the variable declarations:\n"
+                f"The argument list {arg_str_list} for routine '{parent.name}'"
+                f" does not match the variable declarations:\n"
                 f"{os.linesep.join(decls_str_list)}\n"
-                f"Specific PSyIR error is {str(info)}.") from info
+                f"(Note that PSyclone does not support implicit declarations.)"
+                f" Specific PSyIR error is {info}.") from info
 
         # fparser2 does not always handle Statement Functions correctly, this
         # loop checks for Stmt_Functions that should be an array statement
@@ -2293,6 +2309,49 @@ class Fparser2Reader():
         :rtype: NoneType
         '''
         return None
+
+    def _include_handler(self, node, parent):
+        '''
+        Handler for Fortran and CPP INCLUDE statements. Since these are not
+        supported by the PSyIR it simply raises an error.
+
+        :param node: node in fparser2 tree.
+        :type node: :py:class:`fparser.two.Fortran2003.Include_Stmt`
+        :param parent: parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyir.nodes.Schedule`
+
+        :raises GenerationError: as INCLUDE statements must be handled by \
+                                 the parser or pre-processor.
+        '''
+        config = Config.get()
+        # An INCLUDE can appear anywhere so we have to allow for the case
+        # where we have no enclosing Routine.
+        unit = parent.ancestor((Routine, Container), include_self=True)
+        if isinstance(unit, Routine):
+            if unit.is_program:
+                out_txt = f"program '{unit.name}'. "
+            else:
+                out_txt = f"routine '{unit.name}'. "
+        elif type(unit) is Container:
+            out_txt = f"module '{unit.name}'. "
+        else:
+            out_txt = f"code:\n{str(node.get_root())}\n"
+        filename = node.children[0].string
+        if isinstance(node, Fortran2003.Include_Stmt):
+            err_msg = (
+                f"Found an unresolved Fortran INCLUDE file '{filename}' while "
+                f"processing {out_txt}This file must be made available by "
+                f"specifying its location with a -I flag. "
+                f"(The list of directories to search is currently set to: "
+                f"{config.include_paths}.)")
+        else:
+            # We have a CPP #include.
+            err_msg = (f"CPP #include statements are not supported but found a"
+                       f" #include of file '{node.children[0].string}' while "
+                       f"processing {out_txt}Such statements must be handled "
+                       f"using a standard pre-processor before the code can "
+                       f"be processed by PSyclone.")
+        raise GenerationError(err_msg)
 
     def _allocate_handler(self, node, parent):
         '''
@@ -2902,15 +2961,11 @@ class Fparser2Reader():
                     if array:
                         # Cannot have two or more part references that contain
                         # ranges - this is not valid Fortran.
-                        # pylint: disable=import-outside-toplevel
-                        from psyclone.psyir.backend.fortran import (
-                            FortranWriter)
-                        lang_writer = FortranWriter()
                         raise InternalError(
                             f"Found a structure reference containing two or "
                             f"more part references that have ranges: "
-                            f"'{lang_writer(node)}'. This is not valid within "
-                            f"a WHERE in Fortran.")
+                            f"'{node.debug_string()}'. This is not valid "
+                            f"within a WHERE in Fortran.")
                     array = part_ref
             if not array:
                 raise InternalError(
@@ -3925,22 +3980,23 @@ class Fparser2Reader():
             sub_spec = _first_type_match(node.content,
                                          Fortran2003.Specification_Part)
             decl_list = sub_spec.content
-            # TODO this if test can be removed once fparser/#211 is fixed
-            # such that routine arguments are always contained in a
-            # Dummy_Arg_List, even if there's only one of them.
-            if isinstance(node, (Fortran2003.Subroutine_Subprogram,
-                                 Fortran2003.Function_Subprogram)) and \
-               isinstance(node.children[0].children[2],
-                          Fortran2003.Dummy_Arg_List):
-                arg_list = node.children[0].children[2].children
-            else:
-                # Routine has no arguments
-                arg_list = []
         except ValueError:
             # Subroutine has no Specification_Part so has no
-            # declarations. Continue with empty lists.
+            # declarations. Continue with empty list.
             decl_list = []
+
+        # TODO this if test can be removed once fparser/#211 is fixed
+        # such that routine arguments are always contained in a
+        # Dummy_Arg_List, even if there's only one of them.
+        if isinstance(node, (Fortran2003.Subroutine_Subprogram,
+                             Fortran2003.Function_Subprogram)) and \
+           isinstance(node.children[0].children[2],
+                      Fortran2003.Dummy_Arg_List):
+            arg_list = node.children[0].children[2].children
+        else:
+            # Routine has no arguments
             arg_list = []
+
         self.process_declarations(routine, decl_list, arg_list)
 
         # If this is a function then work out the return type

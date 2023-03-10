@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,14 +32,37 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory.
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''
 Module containing tests for the LFRic (Dynamo0.3) constants class.
 '''
 
 import pytest
+
+from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import InternalError
+from psyclone import generator
+
+
+def test_config_loaded_before_constants_created(monkeypatch):
+    '''This tests that we get an error message if the config object
+    is not loaded when creating an LFRicConst instance. '''
+    monkeypatch.setattr(Config, "_HAS_CONFIG_BEEN_INITIALISED", False)
+    monkeypatch.setattr(LFRicConstants, "HAS_BEEN_INITIALISED", False)
+
+    with pytest.raises(InternalError) as err:
+        LFRicConstants()
+    assert ("LFRicConstants is being created before the config file is loaded"
+            in str(err.value))
+
+    # If the psyclone command is executed, the flag should be set. The
+    # parameters specified here will immediately abort, but still the
+    # flag must be set at the end, since the command has to set this flag:
+    with pytest.raises(SystemExit) as err:
+        generator.main(["some_file.f90"])
+    assert Config.has_config_been_initialised() is True
 
 
 def test_specific_function_space():
