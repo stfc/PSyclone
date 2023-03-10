@@ -2103,10 +2103,11 @@ class Fparser2Reader():
             decls_str_list = [str(node) for node in nodes]
             arg_str_list = [arg.string.lower() for arg in arg_list]
             raise InternalError(
-                f"The kernel argument list:\n'{arg_str_list}'\n"
-                f"does not match the variable declarations:\n"
+                f"The argument list {arg_str_list} for routine '{parent.name}'"
+                f" does not match the variable declarations:\n"
                 f"{os.linesep.join(decls_str_list)}\n"
-                f"Specific PSyIR error is {str(info)}.") from info
+                f"(Note that PSyclone does not support implicit declarations.)"
+                f" Specific PSyIR error is {info}.") from info
 
         # fparser2 does not always handle Statement Functions correctly, this
         # loop checks for Stmt_Functions that should be an array statement
@@ -3979,22 +3980,23 @@ class Fparser2Reader():
             sub_spec = _first_type_match(node.content,
                                          Fortran2003.Specification_Part)
             decl_list = sub_spec.content
-            # TODO this if test can be removed once fparser/#211 is fixed
-            # such that routine arguments are always contained in a
-            # Dummy_Arg_List, even if there's only one of them.
-            if isinstance(node, (Fortran2003.Subroutine_Subprogram,
-                                 Fortran2003.Function_Subprogram)) and \
-               isinstance(node.children[0].children[2],
-                          Fortran2003.Dummy_Arg_List):
-                arg_list = node.children[0].children[2].children
-            else:
-                # Routine has no arguments
-                arg_list = []
         except ValueError:
             # Subroutine has no Specification_Part so has no
-            # declarations. Continue with empty lists.
+            # declarations. Continue with empty list.
             decl_list = []
+
+        # TODO this if test can be removed once fparser/#211 is fixed
+        # such that routine arguments are always contained in a
+        # Dummy_Arg_List, even if there's only one of them.
+        if isinstance(node, (Fortran2003.Subroutine_Subprogram,
+                             Fortran2003.Function_Subprogram)) and \
+           isinstance(node.children[0].children[2],
+                      Fortran2003.Dummy_Arg_List):
+            arg_list = node.children[0].children[2].children
+        else:
+            # Routine has no arguments
             arg_list = []
+
         self.process_declarations(routine, decl_list, arg_list)
 
         # If this is a function then work out the return type
