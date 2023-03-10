@@ -441,10 +441,10 @@ class OMPParallelDirective(OMPRegionDirective):
 
         instance = OMPParallelDirective(children=children)
 
-        # An OMPParallelDirective must have 3 children.
-        # Child 0 is a Schedule, create in the constructor.
-        # The create function adds the other two children, and OMPDefaultClause
-        # and an OMPPrivateClause.
+        # An OMPParallelDirective must have 4 children.
+        # Child 0 is a Schedule, created in the constructor.
+        # The create function adds the other three mandatory children: 
+        # OMPDefaultClause, OMPPrivateClause and OMPFirstprivateClause
         instance.addchild(OMPDefaultClause(clause_type=OMPDefaultClause.
                                            DefaultClauseTypes.SHARED))
         instance.addchild(OMPPrivateClause())
@@ -538,16 +538,12 @@ class OMPParallelDirective(OMPRegionDirective):
         zero_reduction_variables(calls, parent)
 
         clauses_str = self.default_clause._clause_string
-        private_list = []
-        for child in private_clause.children:
-            private_list.append(child.symbol.name)
+        private_list = [child.symbol.name for child in private_clause.children]
         if private_list:
             clauses_str += ", private(" + ",".join(private_list) + ")"
-        fprivate_list = []
-        for child in fprivate_clause.children:
-            fprivate_list.append(child.symbol.name)
-        if fprivate_list:
-            clauses_str += ", firstprivate(" + ",".join(fprivate_list) + ")"
+        fp_list = [child.symbol.name for child in fprivate_clause.children]
+        if fp_list:
+            clauses_str += ", firstprivate(" + ",".join(fp_list) + ")"
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel",
                                 f"{clauses_str}"))
 
@@ -599,7 +595,6 @@ class OMPParallelDirective(OMPRegionDirective):
         for child in self.children:
             child.lower_to_language_level()
         private_clause, fprivate_clause = self._get_private_clauses()
-        private, fprivate = self._get_private_clauses()
         self.addchild(private_clause)
         self.addchild(fprivate_clause)
         return self
@@ -711,17 +706,18 @@ class OMPParallelDirective(OMPRegionDirective):
                         name = str(signature).lower()
                         symbol = access.node.scope.symbol_table.lookup(name)
 
-                        # It is written conditionally (so we defensively use
-                        # firstprivate in case this write never happens)
-                        conditional = access.node.ancestor(
+                        # Is the write conditional?
+                        conditional_write = access.node.ancestor(
                             IfBlock,
                             limit=worksharing_directive,
                             include_self=True)
 
-                        if has_been_read or conditional:
-                            fprivate.add((name, symbol))
+                        # If a previous value might be needed we mark it as
+                        # firstprivate
+                        if has_been_read or conditional_write:
+                            fprivate.add(symbol)
                         else:
-                            private.add((name, symbol))
+                            private.add(symbol)
 
                     # Already found the first write and decided if it is
                     # shared, private or firstprivate. We can stop looking.
@@ -730,19 +726,13 @@ class OMPParallelDirective(OMPRegionDirective):
         # Convert the sets into a list and sort them, so that we get
         # reproducible results
         list_private = list(private)
-        list_private.sort(key=lambda x: x[0])
+        list_private.sort(key=lambda x: x.name)
         list_fprivate = list(fprivate)
-        list_fprivate.sort(key=lambda x: x[0])
+        list_fprivate.sort(key=lambda x: x.name)
 
         # Create the OMPPrivateClause and OMPFirstpirvateClause
-        priv_clause = OMPPrivateClause()
-        for _, symbol in list_private:
-            ref = Reference(symbol)
-            priv_clause.addchild(ref)
-        fpriv_clause = OMPFirstprivateClause()
-        for _, symbol in list_fprivate:
-            ref = Reference(symbol)
-            fpriv_clause.addchild(ref)
+        priv_clause = OMPPrivateClause.create(list_private)
+        fpriv_clause = OMPFirstprivateClause.create(list_fprivate)
         return priv_clause, fpriv_clause
 
     def validate_global_constraints(self):
@@ -1320,15 +1310,12 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # Set default() private() and firstprivate() clauses
         default_str = self.children[1]._clause_string
         private, fprivate = self._get_private_clauses()
-        private_list = []
-        for child in private.children:
-            private_list.append(child.symbol.name)
+
+        private_list = [child.symbol.name for child in private.children]
         private_str = "private(" + ",".join(private_list) + ")"
-        fprivate_list = []
-        for child in fprivate.children:
-            fprivate_list.append(child.symbol.name)
-        if fprivate_list:
-            fprivate_str = "firstprivate(" + ",".join(fprivate_list) + ")"
+        fp_list = [child.symbol.name for child in fprivate.children]
+        if fp_list:
+            fprivate_str = "firstprivate(" + ",".join(fp_list) + ")"
         else:
             fprivate_str = ""
 
@@ -1366,15 +1353,9 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
-        # Keep the first two children and compute the rest using the current
-        # state of the node/tree (lowering it first in case new symbols are
-        # created)
-        self.children = self.children[:2]
-        for child in self.children:
-            child.lower_to_language_level()
-        private, fprivate = self._get_private_clauses()
-        self.addchild(private)
-        self.addchild(fprivate)
+        # Calling the super() explicitly to avoid confusion
+        # with the multiple-inheritance
+        OMPParallelDirective.lower_to_language_level(self)
         self.addchild(OMPScheduleClause(self._omp_schedule))
         return self
 

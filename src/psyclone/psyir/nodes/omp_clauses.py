@@ -41,6 +41,7 @@ from enum import Enum
 from psyclone.psyir.nodes.clause import Clause, OperandClause
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.reference import Reference
+from psyclone.psyir.symbols import Symbol
 
 
 class OMPNowaitClause(Clause):
@@ -158,6 +159,35 @@ class OMPPrivateClause(Clause):
     '''
     _children_valid_format = "Reference*"
 
+    @staticmethod
+    def create(symbols):
+        ''' Create a OMPPrivateClause containing a Reference to each of the
+        provided symbols as children.
+
+        :param symbols: List of symbols to reference in the private clause.
+        :type symbols: List[:py:class:`psyclone.psyir.symbols.Symbol`]
+
+        :returns: A OMPPrivateClause referencing the provided symbols.
+        :rtype: py:class:`psyclone.psyir.nodes.OMPPrivateClause`
+
+        :raises TypeError: If the symbols argument is not a List that \
+            contains only PSyIR Symbols.
+
+        '''
+        if not isinstance(symbols, list):
+            raise TypeError(
+                f"OMPPrivateClause expected the 'symbols' argument to be a "
+                f"list, but found '{type(symbols).__name__}' instead.")
+        for symbol in symbols:
+            if not isinstance(symbol, Symbol):
+                raise TypeError(
+                    f"OMPPrivateClause expected all the items in the 'symbols'"
+                    f" list to to be PSyIR Symbols, but found a "
+                    f"'{type(symbol).__name__}'.")
+
+        references = [Reference(symbol) for symbol in symbols]
+        return OMPPrivateClause(children=references)
+
     @property
     def _clause_string(self):
         '''
@@ -193,6 +223,36 @@ class OMPFirstprivateClause(Clause):
     firstprivate to an OpenMP region.
     '''
     _children_valid_format = "Reference*"
+
+    @staticmethod
+    def create(symbols):
+        ''' Create an OMPFirstprivateClause containing a Reference to each of
+        the provided symbols as children.
+
+        :param symbols: List of symbols to reference in the firstprivate \
+            clause.
+        :type symbols: List[:py:class:`psyclone.psyir.symbols.Symbol`]
+
+        :returns: A OMPFirstprivateClause referencing the provided symbols.
+        :rtype: py:class:`psyclone.psyir.nodes.OMPFirstprivateClause`
+
+        :raises TypeError: If the symbols argument is not a List that \
+            contains only PSyIR Symbols.
+
+        '''
+        if not isinstance(symbols, list):
+            raise TypeError(
+                f"OMPPrivateClause expected the 'symbols' argument to be a "
+                f"list, but found '{type(symbols).__name__}' instead.")
+        for symbol in symbols:
+            if not isinstance(symbol, Symbol):
+                raise TypeError(
+                    f"OMPPrivateClause expected all the items in the 'symbols'"
+                    f" list to to be PSyIR Symbols, but found a "
+                    f"'{type(symbol).__name__}'.")
+
+        references = [Reference(symbol) for symbol in symbols]
+        return OMPFirstprivateClause(children=references)
 
     @property
     def _clause_string(self):

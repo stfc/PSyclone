@@ -151,7 +151,7 @@ def test_ompparallel_changes_gen_code(monkeypatch):
     code = str(psy.gen).lower()
     assert "private(cell,k)" in code
 
-    # Monkeypath a case with private and firstprivate clauses
+    # Monkeypatch a case with private and firstprivate clauses
     pclause = OMPPrivateClause(children=[Reference(Symbol("a"))])
     fpclause = OMPFirstprivateClause(children=[Reference(Symbol("b"))])
     monkeypatch.setattr(pdir, "_get_private_clauses",
@@ -197,7 +197,7 @@ def test_omp_paralleldo_changes_gen_code(monkeypatch):
     assert "private(k)" in code
     assert "firstprivate" not in code
 
-    # Monkeypath a case with firstprivate clauses
+    # Monkeypatch a case with firstprivate clauses
     pclause = OMPPrivateClause(children=[Reference(Symbol("a"))])
     fpclause = OMPFirstprivateClause(children=[Reference(Symbol("b"))])
     monkeypatch.setattr(pdir, "_get_private_clauses",
@@ -531,7 +531,7 @@ def test_omp_do_children_err():
             "this Node has a child of type 'Return'" in str(err.value))
 
 
-def test_directive_get_private_fric(monkeypatch):
+def test_directive_get_private_lfric(monkeypatch):
     ''' Tests for the _get_private_clauses() method of OMPParallelDirective.
     Note: this test does not apply colouring so the loops must be over
     discontinuous function spaces.
@@ -584,6 +584,7 @@ def test_directive_get_private(fortran_reader):
         subroutine my_subroutine()
             integer :: i, scalar1, scalar2
             real, dimension(10) :: array
+            scalar1 = 3
             do i = 1, 10
                if (i .eq. 4) then
                   scalar1 = array(i)
@@ -599,8 +600,8 @@ def test_directive_get_private(fortran_reader):
     pvars, fpvars = directive._get_private_clauses()
     assert len(pvars.children) == 2
     assert len(fpvars.children) == 1
-    assert pvars.children[0].name in ('i', 'scalar2')
-    assert pvars.children[1].name in ('i', 'scalar2')
+    assert pvars.children[0].name == 'i'
+    assert pvars.children[1].name == 'scalar2'
     assert fpvars.children[0].name == 'scalar1'
 
 
