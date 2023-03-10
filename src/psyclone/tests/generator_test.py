@@ -152,13 +152,21 @@ def test_script_invalid_content():
     a simple way to create its required arguments.
 
     '''
-    with pytest.raises(GenerationError) as error:
+    with pytest.raises(GenerationError) as error_syntax:
         _, _ = generate(
             os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
-            api="dynamo0.3",
-            script_name=os.path.join(BASE_PATH, "dynamo0p3", "error.py"))
-    assert ("attempted to import 'error' but a "
-            "problem was found: " in str(error.value))
+            api="dynamo0.3", script_name=
+            os.path.join(BASE_PATH, "dynamo0p3", "error_syntax.py"))
+    assert ("attempted to import 'error_syntax' but a "
+            "problem was found: " in str(error_syntax.value))
+
+    with pytest.raises(GenerationError) as error_import:
+        _, _ = generate(
+            os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
+            api="dynamo0.3", script_name=
+            os.path.join(BASE_PATH, "dynamo0p3", "error_import.py"))
+    assert ("attempted to import 'error_import' but a "
+            "problem was found: " in str(error_import.value))
 
 
 def test_script_invalid_content_runtime():
