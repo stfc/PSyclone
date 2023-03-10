@@ -114,7 +114,8 @@ def handle_script(script_name, info, function_name, is_optional=False):
             raise GenerationError(
                 f"generator: expected the script file '{filename}' to have "
                 f"the '.py' extension")
-        # prepend file path to the system path to guarantee we find the user
+        # prepend file path - if none, the empty string equates to the current
+        # working directory - to the system path to guarantee we find the user
         # provided module instead of a similarly named module that might
         # already exist elsewhere in the system path
         sys_path_preprended = True
