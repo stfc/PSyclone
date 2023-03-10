@@ -75,7 +75,15 @@ def trans(psy):
             continue
 
         # TODO 1837: Has a TRIM intrinsic that can not be offloaded
-        if invoke.name in ("cpl_oasis3_cpl_freq"):
+        if invoke.name in ("cpl_oasis3_cpl_freq", ):
+            print("Skipping", invoke.name)
+            continue
+
+        if invoke.name in ("DDPDD", ):
+            print("Skipping", invoke.name)
+            continue
+
+        if invoke.name in ("q_sat", "sbc_dcy", "gamma_moist", "cd_neutral_10m", "psi_h", "psi_m"):
             print("Skipping", invoke.name)
             continue
 
@@ -83,7 +91,7 @@ def trans(psy):
         # transformation. One leads to the following compiler error
         # NVFORTRAN-S-0083-Vector expression used where scalar expression
         # required, the other to an incorrect result.
-        if invoke.name in ("blk_oce", "trc_oce_rgb"):
+        if invoke.name in ("trc_oce_rgb", ):
             print("Skipping", invoke.name)
             continue
 

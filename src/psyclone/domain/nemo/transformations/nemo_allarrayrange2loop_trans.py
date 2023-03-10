@@ -111,8 +111,13 @@ class NemoAllArrayRange2LoopTrans(Transformation):
         try:
             while True:
                 trans.apply(node)
-        except TransformationError:
-            pass
+        except TransformationError as err:
+            errmsg = str(err)
+            if "assignment node should be an expression with an array " \
+               "that has a Range node" not in errmsg and \
+               "be a Reference that contains an array access somewhere" \
+               not in errmsg:
+                print(errmsg)
 
     def __str__(self):
         return ("Convert all array ranges in a PSyIR assignment into "

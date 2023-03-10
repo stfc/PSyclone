@@ -38,7 +38,7 @@
 from psyclone.psyir.nodes import Loop, Assignment, Directive, Container, \
     Reference, CodeBlock, Call, Return, IfBlock, Routine
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
-    ArrayType
+    ArrayType, ScalarType, RoutineSymbol, ImportInterface
 from psyclone.psyir.transformations import HoistLoopBoundExprTrans, \
     HoistTrans, ProfileTrans, HoistLocalArraysTrans, Reference2ArrayRangeTrans
 from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
@@ -56,6 +56,21 @@ PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
                     "sum", "sign_", "ddpdd"]
 
 VERBOSE = False
+
+def _it_should_be(symbol, of_type, instance):
+    ''' Make sure that symbol has the datatype as provided.
+
+    :param symbol: the symbol to check.
+    :type symbol: :py:class:`psyclone.psyir.symbol.Symbol`
+    :param type of_type: the datatype type that it must be.
+    :param instance: the instance of Datatype to assign as the symbol datatype.
+    :type instance: :py:class:`psyclone.psyir.symbol.DataType`
+
+    '''
+    if not isinstance(symbol, DataSymbol):
+        symbol.specialise(DataSymbol, datatype=instance)
+    elif not isinstance(symbol.datatype, of_type):
+        symbol.datatype = instance
 
 
 def enhance_tree_information(schedule):
@@ -88,24 +103,37 @@ def enhance_tree_information(schedule):
         ice_symbol = mod_sym_tab.lookup("ice")
         mod_sym_tab.resolve_imports(container_symbols=[ice_symbol])
 
+    are_integers = ('jpi', 'jpim1', 'jpj', 'jpjm1', 'jp_tem', 'jp_sal',
+                    'jpkm1', 'jpiglo', 'jpni', 'jpk', 'jpiglo_crs',
+                    'jpmxl_atf', 'jpmxl_ldf', 'jpmxl_zdf', 'jpnij',
+                    'jpts', 'jpvor_bev', 'nleapy', 'nn_ctls', 'jpmxl_npc',
+                    'jpmxl_zdfp')
+
     # Manually set the datatype of some integer and real variables that are
     # important for performance
     for reference in schedule.walk(Reference):
-        if reference.symbol.name in ('jpi', 'jpim1', 'jpj', 'jpjm1', 'jp_tem'
-                                     'jp_sal', 'jpkm1'):
-            if not isinstance(reference.symbol, DataSymbol):
-                reference.symbol.specialise(DataSymbol, datatype=INTEGER_TYPE)
-        elif reference.symbol.name in ('rn_avt_rnf', 'rau0'):
-            if not isinstance(reference.symbol, DataSymbol):
-                reference.symbol.specialise(DataSymbol, datatype=REAL_TYPE)
-        elif reference.symbol.name in ('tmask'):
-            if not isinstance(reference.symbol, DataSymbol):
-                reference.symbol.specialise(
-                    DataSymbol,
-                    datatype=ArrayType(REAL_TYPE, [
+        if reference.symbol.name in are_integers:
+            _it_should_be(reference.symbol, ScalarType, INTEGER_TYPE)
+        elif reference.symbol.name in ('rn_avt_rnf', ): # 'rn_ucf'
+            _it_should_be(reference.symbol, ScalarType, REAL_TYPE)
+        elif isinstance(reference.symbol.interface, ImportInterface) and \
+                reference.symbol.interface.container_symbol.name == "phycst":
+            # Everything imported from phycst is a REAL
+            _it_should_be(reference.symbol, ScalarType, REAL_TYPE)
+        elif reference.symbol.name == 'tmask':
+            if reference.ancestor(Container).name == "dom_oce":
+                continue  # Do not update the original declaration
+            _it_should_be(reference.symbol, ArrayType, ArrayType(REAL_TYPE, [
                         ArrayType.Extent.ATTRIBUTE,
                         ArrayType.Extent.ATTRIBUTE,
                         ArrayType.Extent.ATTRIBUTE]))
+        elif reference.symbol.name == "sbc_dcy":
+            # The parser gets this wrong, it is a Call not an Array access
+            reference.symbol.specialise(RoutineSymbol)
+            call = Call(reference.symbol)
+            for child in reference.children:
+                call.addchild(child.detach())
+            reference.replace_with(call)
 
 
 def normalise_loops(
