@@ -336,15 +336,16 @@ def test_kernel_parsing_internalerror(capsys):
     assert out == ""
     assert "In kernel file " in str(err)
     assert (
-        "PSyclone internal error: The kernel argument list:\n"
-        "'['i', 'j', 'cu', 'p', 'u']'\n"
-        "does not match the variable declarations:\n"
+        "PSyclone internal error: The argument list ['i', 'j', 'cu', 'p', "
+        "'u'] for routine 'compute_code' does not match the variable "
+        "declarations:\n"
         "IMPLICIT NONE\n"
         "INTEGER, INTENT(IN) :: I, J\n"
         "REAL(KIND = go_wp), INTENT(OUT), DIMENSION(:, :) :: cu\n"
         "REAL(KIND = go_wp), INTENT(IN), DIMENSION(:, :) :: p\n"
-        "Specific PSyIR error is \"Could not find 'u' in the Symbol "
-        "Table.\".\n" in str(err))
+        "(Note that PSyclone does not support implicit declarations.) Specific"
+        " PSyIR error is \"Could not find 'u' in the Symbol Table.\".\n"
+        in str(err))
 
 
 def test_script_file_too_short():
@@ -689,10 +690,14 @@ def test_main_api():
     filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3", "1_single_invoke.f90"))
 
+    # Check that specifying a config file also sets the
+    # HAS_CONFIG_BEEN_INITIALISED flag!
+    Config._HAS_CONFIG_BEEN_INITIALISED = False
     # This config file specifies the gocean1.0 api, but
     # command line should take precedence
     main([filename, "--config", config_name, "-api", "dynamo0.3"])
     assert Config.get().api == "dynamo0.3"
+    assert Config.has_config_been_initialised() is True
 
 
 def test_main_directory_arg(capsys):

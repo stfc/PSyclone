@@ -40,7 +40,9 @@ This module implements a class that captures all the arguments
 of a Kernel as required by an `invoke` of that kernel.
 '''
 
-from psyclone.domain.lfric import ArgOrdering, LFRicConstants, psyir
+from psyclone.domain.lfric import ArgOrdering, LFRicConstants
+# Avoid circular dependency:
+from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.psyir.symbols import (ArrayType, DataSymbol,
                                     DataTypeSymbol, DeferredType, SymbolTable,
                                     ContainerSymbol, ImportInterface)
@@ -148,9 +150,9 @@ class KernCallInvokeArgList(ArgOrdering):
 
         # Create a DataSymbol for this kernel argument.
         if scalar_arg.intrinsic_type == "real":
-            datatype = psyir.LfricRealScalarDataType()
+            datatype = LFRicTypes("LFRicRealScalarDataType")()
         elif scalar_arg.intrinsic_type == "integer":
-            datatype = psyir.LfricIntegerScalarDataType()
+            datatype = LFRicTypes("LFRicIntegerScalarDataType")()
         else:
             raise NotImplementedError(
                 f"Scalar of type '{scalar_arg.intrinsic_type}' not supported.")
