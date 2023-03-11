@@ -59,6 +59,7 @@ from psyclone.psyir.nodes.ifblock import IfBlock
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.loop import Loop
+from psyclone.psyir.nodes.whileloop import WhileLoop
 from psyclone.psyir.nodes.extract_node import ExtractNode
 from psyclone.psyir.nodes.kernel_schedule import KernelSchedule
 from psyclone.psyir.nodes.member import Member
@@ -128,6 +129,7 @@ __all__ = [
         'StructureReference',
         'UnaryOperation',
         'ScopingNode',
+        'WhileLoop',
         # PSyclone-specific nodes
         'KernelSchedule',
         # PSyData Nodes
