@@ -1397,6 +1397,31 @@ class FortranWriter(LanguageWriter):
                 f"{self._nindent}end if\n")
         return result
 
+    def whileloop_node(self, node):
+        '''This method is called when a WhileLoop instance is found in the
+        PSyIR tree.
+
+        :param node: a WhileLoop PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.WhileLoop`
+
+        :returns: the Fortran code as a string.
+        :rtype: str
+
+        '''
+        condition = self._visit(node.condition)
+
+        self._depth += 1
+        body = ""
+        for child in node.loop_body:
+            body += self._visit(child)
+        self._depth -= 1
+
+        result = (
+            f"{self._nindent}do while ({condition})\n"
+            f"{body}"
+            f"{self._nindent}end do\n")
+        return result
+
     def loop_node(self, node):
         '''This method is called when a Loop instance is found in the
         PSyIR tree.
