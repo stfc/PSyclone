@@ -52,7 +52,7 @@ from psyclone.psyir.nodes import (
     IfBlock, Reference, Literal, Loop, Container, Assignment, Return, Node,
     ArrayReference, Range, StructureReference, Routine, Call, Member,
     ArrayOfStructuresReference, FileContainer, Directive, ArrayMember,
-    IntrinsicCall)
+    IntrinsicCall, WhileLoop)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_of_structures_mixin import \
     ArrayOfStructuresMixin
@@ -2502,11 +2502,11 @@ class Fparser2Reader():
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyir.nodes.Loop`
+        :rtype: Union[:py:class:`psyclone.psyir.nodes.Loop`, \
+                      :py:class:`psyclone.psyir.nodes.WhileLoop`]
 
-        :raises NotImplementedError: if the fparser2 tree has an unsupported \
-            structure (e.g. DO WHILE or a DO with no loop control or a named \
-            DO containing a reference to that name).
+        :raises NotImplementedError: if the fparser2 tree has a named DO \
+            containing a reference to that name.
         '''
         nonlabel_do = walk(node.content, Fortran2003.Nonlabel_Do_Stmt)[0]
         if nonlabel_do.item is not None:
@@ -2521,15 +2521,18 @@ class Fparser2Reader():
                     raise NotImplementedError()
 
         ctrl = walk(node.content, Fortran2003.Loop_Control)
-        if not ctrl:
-            # TODO #359 a DO with no loop control is put into a CodeBlock
-            raise NotImplementedError()
-        if ctrl[0].items[0]:
-            # If this is a DO WHILE then the first element of items will not
-            # be None. (See `fparser.two.Fortran2003.Loop_Control`.)
-            # TODO #359 DO WHILE's are currently just put into CodeBlocks
-            # rather than being properly described in the PSyIR.
-            raise NotImplementedError()
+        # general, unconditioned do loops and do while loops
+        if not ctrl or ctrl[0].items[0]:
+            annotation = ['was_unbounded'] if not ctrl else None
+            loop = WhileLoop(parent=parent, annotations=annotation)
+            loop.ast = node
+            condition = [Fortran2003.Logical_Literal_Constant(".TRUE.")] \
+                        if not ctrl else [ctrl[0].items[0]]
+            self.process_nodes(parent=loop, nodes=condition)
+            loop_body = Schedule(parent=loop)
+            loop.addchild(loop_body)
+            self.process_nodes(parent=loop_body, nodes=node.content[1:-1])
+            return loop
 
         # Second element of items member of Loop Control is itself a tuple
         # containing:
