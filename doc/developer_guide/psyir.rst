@@ -358,20 +358,20 @@ with `return_type` set to `None` and `is_program` set to `False`.
 Control-Flow Nodes
 ------------------
 
-The PSyIR has three control flow nodes: `IfBlock`, `Loop` and
+The PSyIR has four control flow nodes: `IfBlock`, `Loop`, `WhileLoop` and
 `Call`. These nodes represent the canonical structure with which
-conditional branching constructs, iteration constructs and accessing
+conditional branching constructs, iteration constructs and accesses to
 other blocks of code are built. Additional language-specific syntax
 for branching and iteration will be normalised to use these same
 constructs.  For example, Fortran has the additional branching
 constructs `ELSE IF` and `CASE`: when a Fortran code is translated
 into the PSyIR, PSyclone will build a semantically equivalent
-implementation using `IfBlocks`.  Similarly, Fortran also has the
+implementation using `IfBlock` nodes.  Similarly, Fortran also has the
 `WHERE` construct and statement which are represented in the PSyIR
 with a combination of `Loop` and `IfBlock` nodes. Such nodes in the
 new tree structure are annotated with information to enable the
 original language-specific syntax to be recreated if required (see
-below).  See the full IfBlock API in the :ref_guide:`IfBlock reference
+below).  See the full `IfBlock` API in the :ref_guide:`IfBlock reference
 guide psyclone.psyir.nodes.html#psyclone.psyir.nodes.IfBlock`. The
 PSyIR also supports the concept of named arguments for `Call` nodes,
 see the :ref:`named_arguments-label` section for more details.
@@ -399,8 +399,9 @@ Annotation         Node types         Origin
 `was_elseif`       `IfBlock`          `else if`
 `was_single_stmt`  `IfBlock`, `Loop`  `if(logical-expr)expr` or Fortran
                                       `where(array-mask)array-expr`
-`was_case`         `IfBlock`          Fortran `select case`
+`was_case`         `IfBlock`          Fortran `select case` construct
 `was_where`        `Loop`, `IfBlock`  Fortran `where` construct
+`was unbounded`    `WhileLoop`        Fortran general `do` loop
 =================  =================  =================================
 
 .. note:: A `Loop` may currently only be given the `was_single_stmt`
@@ -414,7 +415,7 @@ Annotation         Node types         Origin
 Loop Node
 ^^^^^^^^^
 
-The `Loop` node is the cannonical representation of a bounded loop, it
+The `Loop` node is the cannonical representation of a counted loop, it
 has the start, stop, step and loop_body of the loop as its children. The
 node has the same semantics than the Fortran do construct: the boundary
 values are inclusive (both are part of the iteration space) and the start,
@@ -424,6 +425,15 @@ loop.
 For more details on the `Loop` node, see the full API in the
 :ref_guide:`reference guide psyclone.psyir.nodes.html#psyclone.psyir.nodes.Loop`.
 
+WhileLoop Node
+--------------
+
+The `WhileLoop` node is the cannonical representation of a while loop.
+The PSyIR representation of the Fortran general (unconditioned) `do` loop is
+that of a `do while` loop whose condition is the logical constant `.TRUE.`.
+
+For more details on the `WhileLoop` node, see the full API in the
+:ref_guide:`reference guide psyclone.psyir.nodes.html#psyclone.psyir.nodes.WhileLoop`.
 
 Ranges
 ------
