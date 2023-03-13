@@ -61,7 +61,7 @@ def test_whileloop_invalid_annotation():
 def test_whileloop_node_str():
     ''' Check the node_str method of the WhileLoop class.'''
 
-    coloured_loop = colored("WhileLoop", WhileLoop._colour)
+    coloured_loop = colored("WhileLoop", "red")
 
     loop = WhileLoop()
     output = loop.node_str()

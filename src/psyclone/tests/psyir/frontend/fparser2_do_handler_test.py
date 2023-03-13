@@ -178,12 +178,12 @@ def test_undeclared_loop_var(fortran_reader):
     loop variable is encountered.
 
     '''
-    code = ('''
+    code = '''
       subroutine test()
         do i=1,10
         end do
       end subroutine test
-    ''')
+    '''
     with pytest.raises(InternalError) as err:
         _ = fortran_reader.psyir_from_source(code)
     assert ("Loop-variable name 'i' is not declared and there are no "
