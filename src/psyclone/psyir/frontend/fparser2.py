@@ -2527,7 +2527,7 @@ class Fparser2Reader():
             loop = WhileLoop(parent=parent, annotations=annotation)
             loop.ast = node
             condition = [Fortran2003.Logical_Literal_Constant(".TRUE.")] \
-                        if not ctrl else [ctrl[0].items[0]]
+                if not ctrl else [ctrl[0].items[0]]
             self.process_nodes(parent=loop, nodes=condition)
             loop_body = Schedule(parent=loop)
             loop.addchild(loop_body)

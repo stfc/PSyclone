@@ -31,9 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-#         I. Kavcic, Met Office
-#         J. Henrichs, Bureau of Meteorology
+# Authors: N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the WhileLoop PSyIR node. '''
@@ -118,7 +116,7 @@ def test_whileloop_create_invalid():
 
     # Loop body not a Node.
     loop_body_err = [Assignment.create(
-                                Reference(DataSymbol("tmp",REAL_SINGLE_TYPE)),
+                                Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
                                 Literal("0.0", REAL_SINGLE_TYPE)), "invalid"]
     with pytest.raises(GenerationError) as excinfo:
         _ = WhileLoop.create(loop_condition, loop_body_err)

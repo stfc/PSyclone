@@ -32,7 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by A. R. Porter, STFC Daresbury Lab
-.. Modified by R. W. Ford, STFC Daresbury Lab
+.. Modified by R. W. Ford and N. Nobre, STFC Daresbury Lab
 
 .. The following section imports those Python modules that are needed in
    subsequent doctest snippets.
