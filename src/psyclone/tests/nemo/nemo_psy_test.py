@@ -44,7 +44,7 @@ from psyclone.psyGen import PSyFactory, InlinedKern
 from psyclone.errors import InternalError
 from psyclone.tests.utilities import get_invoke
 from psyclone import nemo
-from psyclone.psyir.nodes import Assignment, CodeBlock, IfBlock, Loop, \
+from psyclone.psyir.nodes import Assignment, IfBlock, Loop, WhileLoop, \
     Schedule, Literal, Reference
 from psyclone.psyir.nodes.node import colored
 
@@ -116,17 +116,13 @@ def test_array_valued_function():
 
 
 def test_do_while():
-    ''' Check that do-while loops are put into CodeBlocks. Eventually we
-    will need to recognise them as Nodes in the Schedule in their
-    own right. '''
+    ''' Check that do-while loops are handled correctly. '''
 
     _, invoke_info = get_invoke("do_while.f90", api=API, idx=0)
     sched = invoke_info.schedule
-    # Do while loops are not currently handled and thus are put into
-    # CodeBlocks.
-    assert isinstance(sched[1], CodeBlock)
+    assert isinstance(sched[1], WhileLoop)
     assert isinstance(sched[2], Assignment)
-    assert isinstance(sched[4], CodeBlock)
+    assert isinstance(sched[4], WhileLoop)
 
 
 def test_multi_kern():

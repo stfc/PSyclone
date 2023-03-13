@@ -33,7 +33,7 @@
 
 program do_while_test
   implicit none
-  integer :: jk
+  integer :: ji, jj, jk
   integer, parameter :: jpi=10, jpj=10, jpk=12
   real, dimension(jpi,jpj,jpk) :: gdepw_0
   real, dimension(jpi,jpj) :: rzisf_tbl

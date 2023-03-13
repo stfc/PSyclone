@@ -2952,9 +2952,11 @@ def test_nodes_to_code_block_1(f2008_parser):
     '''
     reader = FortranStringReader('''
         program test
-        do while(a .gt. b)
-            c = c + 1
-        end do
+        loop: do i = 0, 9
+            do j = i, 9
+                if (j == 5) exit loop
+            end do
+        end do loop
         end program test
         ''')
     prog = f2008_parser(reader)
@@ -2974,9 +2976,11 @@ def test_nodes_to_code_block_2(f2008_parser):
     reader = FortranStringReader('''
         program test
         if (.true.) then
-            do while(a .gt. b)
-                c = c + 1
-            end do
+            loop: do i = 0, 9
+                do j = i, 9
+                    if (j == 5) exit loop
+                end do
+            end do loop
         end if
         end program test
         ''')

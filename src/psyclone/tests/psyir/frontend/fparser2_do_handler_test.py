@@ -43,7 +43,8 @@ from fparser.two import Fortran2003
 
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import Schedule, CodeBlock, Loop, Assignment, Routine
+from psyclone.psyir.nodes import Assignment, BinaryOperation, CodeBlock, \
+                                 Literal, Loop, Routine, Schedule, WhileLoop
 
 
 def test_handling_end_do_stmt(parser):
@@ -89,44 +90,34 @@ def test_do_construct(parser):
     assert isinstance(new_loop.loop_body[0], Assignment)
 
 
-@pytest.mark.usefixtures("f2008_parser")
-def test_do_construct_while():
-    ''' Check that do while constructs are placed in Codeblocks. '''
+def test_do_construct_while(parser):
+    ''' Check that do while and general, uncoditioned loop constructs are
+    converted to WhileLoop PSyIR nodes. '''
     reader = FortranStringReader('''
-        do while(a .gt. b)\n
-            c = c + 1\n
-        end do\n
-        ''')
-    fparser2while = Fortran2003.Execution_Part.match(reader)[0][0]
+      subroutine test()
+        integer :: a, b, c
+        do while (a .gt. b)
+          c = c + 1
+        end do
+        do
+          c = c + 1
+        end do
+      end subroutine test
+      ''')
+    fparser2_tree = parser(reader)
     processor = Fparser2Reader()
-    fake_parent = Schedule()
-    processor.process_nodes(fake_parent, [fparser2while])
-    assert isinstance(fake_parent[0], CodeBlock)
-    assert isinstance(fake_parent[0].ast,
-                      Fortran2003.Block_Nonlabel_Do_Construct)
-
-
-def test_unhandled_do(f2008_parser):
-    ''' Test that a DO without any control logic results in a CodeBlock. '''
-    lines = ["SUBROUTINE a_loop()",
-             "  integer :: niter_atgen, jp_maxniter_atgen",
-             "  real :: zh, zh_prev",
-             "  DO",
-             "    IF (niter_atgen >= jp_maxniter_atgen) THEN",
-             "      zh = - 1._wp",
-             "      EXIT",
-             "    END IF",
-             "    zh_prev = zh",
-             "    niter_atgen = niter_atgen + 1",
-             "  END DO",
-             "END SUBROUTINE a_loop"]
-    reader = FortranStringReader("\n".join(lines))
-    fp2spec = f2008_parser(reader)
-    processor = Fparser2Reader()
-    psyir = processor.generate_psyir(fp2spec)
-    sched = psyir.walk(Routine)[0]
-    assert isinstance(sched[0], CodeBlock)
-    assert isinstance(sched[0].ast, Fortran2003.Block_Nonlabel_Do_Construct)
+    psyir = processor.generate_psyir(fparser2_tree)
+    result = psyir.walk(Routine)[0]
+    while_loop = result.children[0]
+    assert isinstance(while_loop, WhileLoop)
+    assert isinstance(while_loop.condition, BinaryOperation)
+    assert len(while_loop.loop_body.children) == 1
+    assert isinstance(while_loop.loop_body[0], Assignment)
+    unconditioned_loop = result.children[1]
+    assert isinstance(unconditioned_loop, WhileLoop)
+    assert isinstance(unconditioned_loop.condition, Literal)
+    assert len(unconditioned_loop.loop_body.children) == 1
+    assert isinstance(unconditioned_loop.loop_body[0], Assignment)
 
 
 def test_handled_named_do_without_exit(fortran_reader):
