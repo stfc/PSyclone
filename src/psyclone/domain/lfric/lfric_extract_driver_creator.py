@@ -64,30 +64,33 @@ class LFRicExtractDriverCreator:
 
     The driver is created as follows:
 
-    1. The corresponding ``Invoke`` statement that contains the kernel(s) is
-       copied. This way we avoid affecting the tree of the caller. We need
-       the invoke since it contains the symbol table.
-    2. We remove all halo exchange nodes. While atm the extract transformation
+    1. The corresponding :py:class:`psyclone.psyGen.Invoke` statement that
+       contains the kernel(s) is copied. This way we avoid affecting the tree
+       of the caller. We need the invoke since it contains the symbol table.
+    2. We remove all halo exchange nodes. For now, the extract transformation
        will not work when distributed memory is enabled, but since this
        restriction is expected to be lifted, the code to handle this is
        already added.
-    3. We either lower each kernel (child of the invoke) that was requested to
+    3. We lower each kernel (child of the invoke) that was requested to
        be extracted, all others are removed. This is required since the kernel
        extraction will not contain the required data for the other kernels to
-       be called. The lowering is important to fix the loop boundaries for
-       the DynLoop: the loop start/stop expressions (`loop0_start` etc.)
-       depend on the position of the loop in the tree. For example, if there
-       are two kernels, they will be using `loop0_start` and `loop1_start`. If
-       only the second is extracted, the former second (now only) loop would
-       be using `loop0_start` without lowering, but the kernel extraction
-       would have written the values for `loop1_start`.
+       be called. The lowering is important to fix the variable names for the
+       loop boundaries of the :py:class:`psyclone.dynamo0p3.DynLoop`: the loop
+       start/stop expressions (`loop0_start` etc.) depend on the position of
+       the loop in the tree. For example, if there are two kernels, they will
+       be using `loop0_start` and `loop1_start`. If only the second is
+       extracted, the former second (and now only) loop would be using
+       `loop0_start` without lowering, but the kernel extraction would have
+       written the values for `loop1_start`.
     4. We create a program for the driver with a new symbol table and start
        adding symbols for the program unit, precision symbols, PSyData read
        module etc to it.
-    5. We add all required symbols to the new symbol table. This is done by
-       looping over all references in the extracted region and declaring
-       the symbols in the new symbol table. The existing references in the
-       tree will be replaced with newly created references to the new symbols.
+    5. We add all required symbols to the new symbol table. The copied tree
+       will still rely on the symbol table in the original PSyIR, so the
+       symbols must be declared in the symbol table of the driver program.
+       This is done by replacing all references in the extracted region with
+       new references, which use new symbols which are declared in the driver
+       symbol table.
 
        a. We first handle all non user-defined type. We can be certain that
           these symbols are already unique (since it's the original kernel
@@ -109,25 +112,30 @@ class LFRicExtractDriverCreator:
           kernel extraction does the same and stores the values under the name
           ``f``, so the driver similarly simplifies the name back to the
           original ``f``.
-          The KernCallArgList class will have enforced the appropriate
-          basic Fortran type declaration for each reference to a user defined
-          variable. For example, if a field ``f`` is used, the reference to
-          ``f_proxy%data`` will have a data type attribute of a 1D real array
-          (with the correct precision).
+          The :py:class:`psyclone.domain.lfric.KernCallArgList` class will
+          have enforced the appropriate basic Fortran type declaration for
+          each reference to a user defined variable. For example, if a field
+          ``f`` is used, the reference to ``f_proxy%data`` will have a data
+          type attribute of a 1D real array (with the correct precision).
 
-    6. We create the read-in code for all variables in the input- and output-
-       lists. Mostly, no special handling of argument type is required (since
-       the generic interface will make sure to call the appropriate function).
-       But in case of user-defined types, we need to make sure to use the
-       name with '%' (unless it is a standard LFRic type like field which
-       as described above has already been simplified). Example are names like
-       ``f_proxy%local_stencil`` and ``f_proxy%ncell_3d``. They will be using
-       the name with ``%``, but a flattened variable name (``%`` replaced with
-       ``_``).
+    6. We create the code for reading in all of the variables in the input-
+       and output-lists. Mostly, no special handling of argument type is
+       required (since the generic interface will make sure to call the
+       appropriate function). But in case of user-defined types, we need to
+       use the original names with '%' when calling the functions for reading
+       in data, since this is the name that was used when creating the data
+       file. For example, the name of a parameter like
+       ``f_proxy%local_stencil`` will be stored in the data file with the
+       '%' notation (which is also the tag used for the symbol). So when
+       reading the values in the driver, we need to use the original name
+       (or tag) with '%', but the values will be stored in a flattened
+       variable. For example, the code created might be:
+       `call extract_psy_data%ReadVariable('f_proxy%local_stencil',
+       fproxy_local_stencil)`
 
-       a. Input parameter are read in from the PSyData ReadKernelData module.
-          These function will allocate all array variables to the right size
-          based on the data from the input file.
+       a. Input variables are read in using functions from the PSyData
+          ``ReadKernelData`` module. These function will allocate all array
+          variables to the right size based on the data from the input file.
        b. For parameters that are read and written, two variables will be
           declared: the input will be stored in the unmodified variable name,
           and the output values in a variable with ``_post`` appended. For
@@ -142,16 +150,24 @@ class LFRicExtractDriverCreator:
           output-only parameter the value doesn't really matter).
 
     7. The extracted kernels are added to the program. Since in step 5 all
-       references have been replaced, there created code will use the correct
+       references have been replaced, the created code will use the correct
        new variable names (which just have been read in). The output variables
        with ``_post`` attached will not be used at all so far.
     8. After the kernel calls are executed, each output variable is compared
        with the value stored in the corresponding ``_post`` variable. For
-       example, a variable ``f`` which was modified in the kernel calls, will
-       then be compared with ``f_post``.
+       example, a variable ``f`` which was modified in the kernel call(s),
+       will then be compared with ``f_post``.
+
+    :param precision: a mapping of the various precisions used in LFRic to \
+        the actual Fortran data type to be used in a stand-alone driver.
+    :type precision: Optional[Dict[str, str]]
+
+    :raises InternalError: if the precision argument is specified but \
+        is not a dictionary.
 
     '''
     def __init__(self, precision=None):
+        # TODO #2069: check if this list can be taken from LFRicConstants
         self._all_field_types = ["field_type", "integer_field_type",
                                  "r_solver_field_type", "r_tran_field_type"]
         # Set the size of the various precision types used in LFRic.
@@ -268,7 +284,7 @@ class LFRicExtractDriverCreator:
 
         # We use this string as a unique tag - it must be unique since no
         # other tag uses a '%' in the name. So even if the flattened name
-        # (e.g. f1_data) is not unique, the tatg `f1%data` is unique, and
+        # (e.g. f1_data) is not unique, the tag `f1%data` is unique, and
         # the symbol table will then create a unique name for this symbol.
 
         if isinstance(old_reference.symbol.datatype, ArrayType):
