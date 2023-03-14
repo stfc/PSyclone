@@ -229,7 +229,7 @@ def insert_explicit_loop_parallelism(
                   for ref in loop.stop_expr.walk(Reference)])
             or exclude_calls
             and loop.walk((Call, CodeBlock))
-            and not any([ref.symbol.name in ('npti')
+            and not any([ref.symbol.name in ('npti',)
                          for ref in loop.stop_expr.walk(Reference)])):
             continue # Skip if it is an array operation loop on an ice routine
                      # if along the third dim. or higher or if the loop and the
