@@ -2056,7 +2056,16 @@ class Fparser2Reader():
                     if isinstance(stmt, Fortran2003.Parameter_Stmt):
                         for parameter_def in stmt.children[1].items:
                             name, expr = parameter_def.items
-                            symbol = parent.symbol_table.lookup(str(name))
+                            try:
+                                symbol = parent.symbol_table.lookup(str(name))
+                            except Exception as err:
+                                # If there is any problem put the whole think
+                                # in a codeblock (as we presume the original
+                                # code is correct)
+                                raise NotImplementedError(
+                                    f"Could not parse '{stmt}' because: "
+                                    f"{err}.") from err
+
                             if not isinstance(symbol, DataSymbol):
                                 raise NotImplementedError(
                                     f"Could not parse '{stmt}' because "

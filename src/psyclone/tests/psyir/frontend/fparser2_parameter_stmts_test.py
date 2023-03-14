@@ -41,7 +41,7 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two.Fortran2003 import Specification_Part
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Routine, Literal, BinaryOperation, \
-    Container, CodeBlock
+    Container, CodeBlock, Reference
 from psyclone.psyir.symbols import Symbol
 
 
@@ -105,6 +105,39 @@ def test_parameter_statements_work():
 
 
 @pytest.mark.usefixtures("f2008_parser")
+def test_parameter_statements_complex_case_work():
+    '''Tests that parameter statements are correctly captured in the
+    constant_value symbol attribute when there are multiple statements and
+    references between them. '''
+
+    # Create a dummy test routine
+    routine = Routine("test_routine")
+    symtab = routine.symbol_table
+    processor = Fparser2Reader()
+
+    # Test with a single parameter
+    reader = FortranStringReader('''
+        integer :: var1, var2, var3
+        parameter (var1=3)
+        parameter (var2=var1, var3=var1+var2)
+        ''')
+    fparser2spec = Specification_Part(reader)
+    processor.process_declarations(routine, fparser2spec.content, [])
+    newsymbol1 = symtab.lookup("var1")
+    newsymbol2 = symtab.lookup("var2")
+    newsymbol3 = symtab.lookup("var3")
+    assert newsymbol1.is_constant
+    assert newsymbol2.is_constant
+    assert newsymbol3.is_constant
+    assert isinstance(newsymbol1.constant_value, Literal)
+    assert isinstance(newsymbol2.constant_value, Reference)
+    assert newsymbol2.constant_value.name == "var1"
+    assert isinstance(newsymbol3.constant_value, BinaryOperation)
+    assert newsymbol3.constant_value.children[0].name == "var1"
+    assert newsymbol3.constant_value.children[1].name == "var2"
+
+
+@pytest.mark.usefixtures("f2008_parser")
 def test_parameter_statements_with_unsupported_symbols():
     '''Tests that when parameter statements fail, a NotImplementedError
     with an appropriate error message is produced.'''
@@ -112,7 +145,6 @@ def test_parameter_statements_with_unsupported_symbols():
     # Create a dummy test routine
     routine = Routine("test_routine")
     symtab = routine.symbol_table
-    symtab.add(Symbol("var2"))
     processor = Fparser2Reader()
 
     # Test with a UnknownType declaration
@@ -127,6 +159,7 @@ def test_parameter_statements_with_unsupported_symbols():
             "an UnknownType." in str(error.value))
 
     # Test with a symbol which is not a DataSymbol
+    symtab.add(Symbol("var2"))
     reader = FortranStringReader('''
         parameter (var2='hello')''')
     fparser2spec = Specification_Part(reader)
@@ -135,6 +168,16 @@ def test_parameter_statements_with_unsupported_symbols():
         processor.process_declarations(routine, fparser2spec.content, [])
     assert ("Could not parse 'PARAMETER(var2 = 'hello')' because 'var2' is not"
             " a DataSymbol." in str(error.value))
+
+    # Test with a symbol which is not a DataSymbol
+    reader = FortranStringReader('''
+        parameter (var3=3)''')
+    fparser2spec = Specification_Part(reader)
+
+    with pytest.raises(NotImplementedError) as error:
+        processor.process_declarations(routine, fparser2spec.content, [])
+    assert ("Could not parse 'PARAMETER(var3 = 3)' because: \"Could not "
+            "find 'var3' in the Symbol Table.\"" in str(error.value))
 
 
 def test_unsupported_parameter_statements_produce_codeblocks(fortran_reader,
@@ -169,7 +212,7 @@ def test_unsupported_parameter_statements_produce_codeblocks(fortran_reader,
         ''')
     assert isinstance(psyir.children[0], CodeBlock)
 
-    # An therefore, the backend is able to reproduce it without losing any
+    # And therefore, the backend is able to reproduce it without losing any
     # statements
     code = fortran_writer(psyir)
     assert code == '''\
