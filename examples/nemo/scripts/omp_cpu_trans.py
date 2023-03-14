@@ -81,9 +81,6 @@ def trans(psy):
             # TODO #1841: These subroutines have a bug in the
             # array-range-to-loop transformation.
             print("Skipping normalisation for ", invoke.name)
-        elif any([ice in invoke.name for ice in ('rdgrft', 'itd', 'thd')]):
-            # The parallelism we get from the array operations isn't profitable
-            print("Skipping normalisation for ", invoke.name)
         else:
             normalise_loops(
                     invoke.schedule,

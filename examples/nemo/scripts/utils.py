@@ -36,7 +36,7 @@
 ''' Utilities file to parallelise Nemo code. '''
 
 from psyclone.psyir.nodes import Loop, Assignment, Directive, Container, \
-    Reference, CodeBlock, Call, Return, IfBlock, Routine
+    Reference, CodeBlock, Call, Return, IfBlock, Routine, BinaryOperation
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
     ArrayType, ScalarType, RoutineSymbol, ImportInterface
 from psyclone.psyir.transformations import HoistLoopBoundExprTrans, \
@@ -219,13 +219,22 @@ def insert_explicit_loop_parallelism(
         if loop.ancestor(Directive):
             continue  # Skip if an outer loop is already parallelised
 
-        if (any([ref.symbol.name in ('jpl', 'nlay_i', 'nlay_s')
+        if ('ice' in loop.ancestor(Routine).invoke.name
+            and isinstance(loop.stop_expr, BinaryOperation)
+            and (loop.stop_expr.operator == BinaryOperation.Operator.UBOUND or
+                 loop.stop_expr.operator == BinaryOperation.Operator.SIZE)
+            and (len(loop.walk(Loop)) > 2 or
+                 str(len(loop.walk(Loop))) != loop.stop_expr.children[1].value)
+            or any([ref.symbol.name in ('jpl', 'nlay_i', 'nlay_s')
                   for ref in loop.stop_expr.walk(Reference)])
             or exclude_calls
             and loop.walk((Call, CodeBlock))
             and not any([ref.symbol.name in ('npti')
                          for ref in loop.stop_expr.walk(Reference)])):
-            continue # Skip if looping over ice categories, ice or snow layers
+            continue # Skip if it is an array operation loop on an ice routine
+                     # if along the third dim. or higher or if the loop and the
+                     # array dim. do not match
+                     # Skip if looping over ice categories, ice or snow layers
                      # as these have only 5, 4, and 1 iterations, respectively
                      # In addition, they often nest ice linearised loops (npti)
                      # which we'd rather parallelise
