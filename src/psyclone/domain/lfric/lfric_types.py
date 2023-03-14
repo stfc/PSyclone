@@ -50,7 +50,9 @@ class LFRicTypes:
     Using the 'call' interface, you can query the data type for
     LFRic types, e.g.:
 
+    >>> from psyclone.configuration import Config
     >>> from psyclone.domain.lfric import LFRicTypes
+    >>> config = Config.get()
     >>> num_dofs_class = LFRicTypes("NumberOfUniqueDofsDataSymbol")
     >>> my_var = num_dofs_class("my_num_dofs")
     >>> print(my_var.name)
