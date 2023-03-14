@@ -224,6 +224,9 @@ def insert_explicit_loop_parallelism(
             and (loop.stop_expr.operator == BinaryOperation.Operator.UBOUND or
                  loop.stop_expr.operator == BinaryOperation.Operator.SIZE)
             and (len(loop.walk(Loop)) > 2 or
+                 any([ref.symbol.name in ('npti',)
+                      for lp in loop.loop_body.walk(Loop)
+                      for ref in lp.stop_expr.walk(Reference)]) or
                  str(len(loop.walk(Loop))) != loop.stop_expr.children[1].value)
             or any([ref.symbol.name in ('jpl', 'nlay_i', 'nlay_s')
                   for ref in loop.stop_expr.walk(Reference)])
@@ -232,8 +235,9 @@ def insert_explicit_loop_parallelism(
             and not any([ref.symbol.name in ('npti',)
                          for ref in loop.stop_expr.walk(Reference)])):
             continue # Skip if it is an array operation loop on an ice routine
-                     # if along the third dim. or higher or if the loop and the
-                     # array dim. do not match
+                     # if along the third dim. or higher or if the loop nests
+                     # a loop over ice points (npti) or if the array dim. do
+                     # not match
                      # Skip if looping over ice categories, ice or snow layers
                      # as these have only 5, 4, and 1 iterations, respectively
                      # In addition, they often nest ice linearised loops (npti)
