@@ -74,8 +74,6 @@ def trans(psy):
             print("Skipping normalisation for ", invoke.name)
 
         elif invoke.name in (
-                "blk_oce",  # NVFORTRAN-S-0083-Vector expression used where
-                            # scalar expression
                 "trc_oce_rgb",  # Produces incorrect results
                 "removepoints"  # Compiler error: The shapes of the array
                                 # expressions do not conform
@@ -83,10 +81,6 @@ def trans(psy):
             # TODO #1841: These subroutines have a bug in the
             # array-range-to-loop transformation.
             print("Skipping normalisation for ", invoke.name)
-        #elif invoke.name in ("ice_dyn_rhg_evp"):
-            # TODO #598: We are missing marking some vars as firstprivate
-            #print("Skipping parallelisation for ", invoke.name)
-            #continue
         elif any([ice in invoke.name for ice in ('rdgrft', 'itd', 'thd')]):
             # The parallelism we get from the array operations isn't profitable
             print("Skipping normalisation for ", invoke.name)

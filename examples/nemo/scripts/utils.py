@@ -83,31 +83,19 @@ def enhance_tree_information(schedule):
 
     mod_sym_tab = schedule.ancestor(Container).symbol_table
 
-    if "oce" in mod_sym_tab:
-        oce_symbol = mod_sym_tab.lookup("oce")
-        mod_sym_tab.resolve_imports(container_symbols=[oce_symbol])
+    modules_to_import = ("oce", "par_oce", "dom_oce", "phycst", "ice",
+                         "obs_fbm", "flo_oce", "sbc_ice", "wet_dry")
 
-    if "par_oce" in mod_sym_tab:
-        par_oce_symbol = mod_sym_tab.lookup("par_oce")
-        mod_sym_tab.resolve_imports(container_symbols=[par_oce_symbol])
-
-    if "dom_oce" in mod_sym_tab:
-        dom_oce_symbol = mod_sym_tab.lookup("dom_oce")
-        mod_sym_tab.resolve_imports(container_symbols=[dom_oce_symbol])
-
-    if "phycst" in mod_sym_tab:
-        phycst_symbol = mod_sym_tab.lookup("phycst")
-        mod_sym_tab.resolve_imports(container_symbols=[phycst_symbol])
-
-    if "ice" in mod_sym_tab:
-        ice_symbol = mod_sym_tab.lookup("ice")
-        mod_sym_tab.resolve_imports(container_symbols=[ice_symbol])
+    for module_name in modules_to_import:
+        if module_name in mod_sym_tab:
+            mod_symbol = mod_sym_tab.lookup(module_name)
+            mod_sym_tab.resolve_imports(container_symbols=[mod_symbol])
 
     are_integers = ('jpi', 'jpim1', 'jpj', 'jpjm1', 'jp_tem', 'jp_sal',
                     'jpkm1', 'jpiglo', 'jpni', 'jpk', 'jpiglo_crs',
                     'jpmxl_atf', 'jpmxl_ldf', 'jpmxl_zdf', 'jpnij',
                     'jpts', 'jpvor_bev', 'nleapy', 'nn_ctls', 'jpmxl_npc',
-                    'jpmxl_zdfp')
+                    'jpmxl_zdfp', 'npti')
 
     # Manually set the datatype of some integer and real variables that are
     # important for performance
