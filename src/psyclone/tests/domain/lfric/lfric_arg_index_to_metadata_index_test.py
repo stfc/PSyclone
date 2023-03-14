@@ -1,9 +1,10 @@
-from psyclone.domain.lfric.lfric_arg_index_to_metadata_index import LFRicArgIndexToMetadataIndex
+from psyclone.domain.lfric import ArgIndexToMetadataIndex
 from psyclone.domain.lfric.kernel import ScalarArgMetadata, FieldArgMetadata, LFRicKernelMetadata
 
 def test_scalar():
     '''Test that the index calculation works for scalars with all
-    supported datatypes. Note, we need one field
+    supported datatypes. Note, we need one field for the metadata to
+    be valid.
 
     '''
     meta_args = [
@@ -15,7 +16,7 @@ def test_scalar():
         operates_on="cell_column", meta_args=meta_args)
     metadata.validate()
     
-    lookup = LFRicArgIndexToMetadataIndex.mapping(metadata)
+    lookup = ArgIndexToMetadataIndex.mapping(metadata)
 
     assert len(lookup) == 4
     assert lookup[1] == 0

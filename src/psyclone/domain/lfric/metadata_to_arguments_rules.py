@@ -33,8 +33,8 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
 
-'''This module implements a class that maps LFRic kernel metadata to
-   kernel arguments.
+'''This module implements a class that encapsulates rules that map
+   LFRic kernel metadata to kernel arguments.
 
 '''
 from psyclone.domain.lfric import LFRicConstants
@@ -45,13 +45,14 @@ from psyclone.domain.lfric.kernel import (
 from psyclone.errors import InternalError
 
 
-class KernelArgOrder():
-    '''This class that maps LFRic kernel metadata to kernel arguments. It
-    does this by calling class methods each of which which represent a
-    particular kernel argument or set of arguments. It calls these in
-    the order that the arguments should be found in the kernel
-    metadata. The particular methods called and order that these
-    methods are called are determined by the supplied kernel metadata.
+class MetadataToArgumentsRules():
+    '''This class encapsulates rules to map LFRic kernel metadata to
+    kernel arguments. It does this by calling class methods each of
+    which which represent a particular kernel argument or set of
+    arguments. It calls these in the order that the arguments should
+    be found in the kernel metadata. The particular methods called and
+    order that these methods are called are determined by the supplied
+    kernel metadata.
 
     Kernel argument information from kernel metadata can be used for
     more than one thing, e.g. to create or check arguments within a
@@ -60,15 +61,8 @@ class KernelArgOrder():
     which at some point will (mostly) need to be dereferenced from
     existing datatypes, such as fields, or to create appropriate
     algorithm PSyIR for a) the calling routine or b) the subroutine
-    body in the PSy-layer. Therefore subclasses are used for these
-    different requirements.
-
-    This implementation makes use of the new style metadata classes,
-    demonstrating how they can be used. It is not meant to be a final
-    implementation as it is not yet clear what the sub-classes will
-    require, where type information should be stored and whether this
-    class should integrate with any existing sub-classes that use the
-    old style metadata parsing.
+    body in the PSy-layer. Subclasses of this class can be implemented
+    for these different requirements.
 
     '''
     _metadata = None
@@ -76,7 +70,20 @@ class KernelArgOrder():
     
     @classmethod
     def mapping(cls, metadata, info=None):
-        ''' xxx '''
+        '''Takes kernel metadata as input and returns whatever is added to the
+        _info variable. This class adds nothing to the _info variable,
+        it is up to the subclass to do this. The variable is treated
+        as a container. The optional info argument allows the subclass
+        to add to an existing object if required.
+
+        :param metadata: the kernel metadata.
+        :type metadata: \
+            py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+        :param info: optional object to initialise the _info \
+            variable. Defaults to None.
+        :type info: :py:class:`Object`
+
+        '''
         cls._initialise(info)
         cls._metadata = metadata
         cls._generate(metadata)
@@ -84,7 +91,14 @@ class KernelArgOrder():
 
     @classmethod
     def _initialise(cls, info):
-        ''' xxx '''
+        '''Initialise the _info variable. This is implemented as its own
+        method to allow for simple subclassing (i.e. the mapping
+        method should not need to be subclassed.
+
+        :param info: object to initialise the _info variable.
+        :type info: :py:class:`Object`
+
+        '''
         cls._info = info
 
     @classmethod
