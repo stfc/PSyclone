@@ -350,15 +350,16 @@ def test_kernel_parsing_internalerror(capsys):
     assert out == ""
     assert "In kernel file " in str(err)
     assert (
-        "PSyclone internal error: The kernel argument list:\n"
-        "'['i', 'j', 'cu', 'p', 'u']'\n"
-        "does not match the variable declarations:\n"
+        "PSyclone internal error: The argument list ['i', 'j', 'cu', 'p', "
+        "'u'] for routine 'compute_code' does not match the variable "
+        "declarations:\n"
         "IMPLICIT NONE\n"
         "INTEGER, INTENT(IN) :: I, J\n"
         "REAL(KIND = go_wp), INTENT(OUT), DIMENSION(:, :) :: cu\n"
         "REAL(KIND = go_wp), INTENT(IN), DIMENSION(:, :) :: p\n"
-        "Specific PSyIR error is \"Could not find 'u' in the Symbol "
-        "Table.\".\n" in str(err))
+        "(Note that PSyclone does not support implicit declarations.) Specific"
+        " PSyIR error is \"Could not find 'u' in the Symbol Table.\".\n"
+        in str(err))
 
 
 def test_script_file_too_short():

@@ -328,6 +328,14 @@
 	110) PR #2066 for #1587. Introduces new DebugWriter visitor for
 	fast generation of Fortran-like content in error messages.
 
+	111) PR #1914 for #1891. Improves error handling when there are
+	undeclared arguments.
+
+	112) PR #2067 towards #1618. Fixes bugs relating to gh_sum for
+        scalars and use of any_space_* spaces in the new metadata
+	handling. Also corrects a (tested) docstring so that it sets
+	up a Config object first.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
