@@ -182,7 +182,7 @@ class OMPPrivateClause(Clause):
             if not isinstance(symbol, Symbol):
                 raise TypeError(
                     f"OMPPrivateClause expected all the items in the 'symbols'"
-                    f" list to to be PSyIR Symbols, but found a "
+                    f" list to be PSyIR Symbols, but found a "
                     f"'{type(symbol).__name__}'.")
 
         references = [Reference(symbol) for symbol in symbols]
@@ -242,13 +242,13 @@ class OMPFirstprivateClause(Clause):
         '''
         if not isinstance(symbols, list):
             raise TypeError(
-                f"OMPPrivateClause expected the 'symbols' argument to be a "
-                f"list, but found '{type(symbols).__name__}' instead.")
+                f"OMPFirstprivateClause expected the 'symbols' argument to be "
+                f"a list, but found '{type(symbols).__name__}' instead.")
         for symbol in symbols:
             if not isinstance(symbol, Symbol):
                 raise TypeError(
-                    f"OMPPrivateClause expected all the items in the 'symbols'"
-                    f" list to to be PSyIR Symbols, but found a "
+                    f"OMPFirstprivateClause expected all the items in the "
+                    f"'symbols' list to be PSyIR Symbols, but found a "
                     f"'{type(symbol).__name__}'.")
 
         references = [Reference(symbol) for symbol in symbols]
