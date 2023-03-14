@@ -195,20 +195,21 @@ class LFRicExtractDriverCreator:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def make_valid_unit_name(name):
-        '''Unit names are restricted to 63 characters, and no special
-        characters like ':'.
+    def _make_valid_unit_name(name):
+        '''Valid program or routine names are restricted to 63 characters,
+        and no special characters like ':'.
 
-        :param str name: a unit name.
+        :param str name: a proposed unit name.
 
-        :returns: a valid unit name according to Fortran standard.
+        :returns: a valid program or routine  name with special characters \
+            removed and restricted to a length of 63 characters.
         :rtype: str
 
         '''
         return name.replace(":", "")[:63]
 
     # -------------------------------------------------------------------------
-    def get_proxy_name_mapping(self, schedule):
+    def _get_proxy_name_mapping(self, schedule):
         '''This function creates a mapping of each proxy name of an argument
         to the field map. This mapping is used to convert proxy names used
         in a lowered kernel call back to the original name, which is the name
@@ -234,21 +235,24 @@ class LFRicExtractDriverCreator:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def flatten_string(fortran_string):
-        '''Replaces all `%` with `_` in the string, creating a 'flattened'
-        name.
+    def _flatten_signature(signature):
+        '''Creates a 'flattened' string for a signature by using ``_`` to
+        separate the parts of a signature. For example, in Fortran
+        a Reference to ``a%b`` would be flattened to be ``a_b``.
 
-        :param str fortran_string: the Fortran string containing '%'.
+        :param signature: the signature to be flattened.
+        :type signature: :py:class:`psyclone.core.Signature`
 
         :returns: a flattened string (all '%' replaced with '_'.)
         :rtype: str
 
         '''
-        return fortran_string.replace("%", "_")
+        return str(signature).replace("%", "_")
 
     # -------------------------------------------------------------------------
-    def flatten_reference(self, old_reference, symbol_table,
-                          proxy_name_mapping):
+    def _flatten_reference(self, old_reference, symbol_table,
+                           proxy_name_mapping):
+        # pylint: disable=too-many-locals
         '''Replaces ``old_reference``, which is a structure type, with a new
         simple Reference and a flattened name (replacing all % with _).
 
@@ -267,7 +271,7 @@ class LFRicExtractDriverCreator:
         if not isinstance(old_reference, StructureReference):
             raise InternalError(f"Unexpected type "
                                 f"'{type(old_reference).__name__}'"
-                                f" in flatten_reference.")
+                                f" in _flatten_reference.")
         # A field access (`fld%data`) will get the `%data` removed, since then
         # this avoids a potential name clash (`fld` is guaranteed to
         # be unique, since it's a variable already, but `fld_data` could clash
@@ -310,7 +314,7 @@ class LFRicExtractDriverCreator:
         try:
             symbol = symbol_table.lookup_with_tag(signature_str)
         except KeyError:
-            flattened_name = self.flatten_string(signature_str)
+            flattened_name = self._flatten_signature(signature)
             symbol = DataSymbol(flattened_name, old_reference.datatype)
             symbol_table.add(symbol, tag=signature_str)
 
@@ -335,7 +339,7 @@ class LFRicExtractDriverCreator:
         old_reference.replace_with(new_ref)
 
     # -------------------------------------------------------------------------
-    def add_all_kernel_symbols(self, sched, symbol_table, proxy_name_mapping):
+    def _add_all_kernel_symbols(self, sched, symbol_table, proxy_name_mapping):
         '''This function adds all symbols used in ``sched`` to the symbol
         table. It uses LFRic-specific knowledge to declare fields and flatten
         their name.
@@ -384,12 +388,12 @@ class LFRicExtractDriverCreator:
         for reference in all_references:
             if not isinstance(reference, StructureReference):
                 continue
-            self.flatten_reference(reference, symbol_table,
-                                   proxy_name_mapping)
+            self._flatten_reference(reference, symbol_table,
+                                    proxy_name_mapping)
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def add_call(program, name, args):
+    def _add_call(program, name, args):
         '''This function creates a call to the subroutine of the given name,
         providing the arguments. The call will be added to the program and
         to the symbol table.
@@ -418,9 +422,10 @@ class LFRicExtractDriverCreator:
         program.addchild(call)
 
     # -------------------------------------------------------------------------
-    def create_output_var_code(self, signature_str, program,
-                               is_input, read_var, postfix,
-                               output_symbols, index=None):
+    @staticmethod
+    def _create_output_var_code(signature_str, program,
+                                is_input, read_var, postfix,
+                                output_symbols, index=None):
         # pylint: disable=too-many-arguments, too-many-locals
         '''
         This function creates all code required for an output variable.
@@ -470,9 +475,9 @@ class LFRicExtractDriverCreator:
         else:
             post_tag = f"{signature_str}{postfix}"
         name_lit = Literal(post_tag, CHARACTER_TYPE)
-        LFRicExtractDriverCreator.add_call(program, read_var,
-                                           [name_lit,
-                                            Reference(post_sym)])
+        LFRicExtractDriverCreator._add_call(program, read_var,
+                                            [name_lit,
+                                             Reference(post_sym)])
 
         # Now if a variable is written to, but not read, the variable
         # is not allocated. So we need to allocate it and set it to 0.
@@ -499,8 +504,8 @@ class LFRicExtractDriverCreator:
         output_symbols.append((sym, post_sym))
 
     # -------------------------------------------------------------------------
-    def create_read_in_code(self, program, psy_data, original_symbol_table,
-                            input_list, output_list, postfix):
+    def _create_read_in_code(self, program, psy_data, original_symbol_table,
+                             input_list, output_list, postfix):
         # pylint: disable=too-many-arguments
         '''This function creates the code that reads in the NetCDF file
         produced during extraction. For each:
@@ -556,8 +561,8 @@ class LFRicExtractDriverCreator:
             # in the input and output list have been detected as being used
             # when the variable accesses were analysed. Therefore, these
             # variables have References, and will already have been declared
-            # in the symbol table (in add_all_kernel_symbols).
-            sig_str = LFRicExtractDriverCreator.flatten_string(str(signature))
+            # in the symbol table (in _add_all_kernel_symbols).
+            sig_str = LFRicExtractDriverCreator._flatten_signature(signature)
             orig_sym = original_symbol_table.lookup(signature[0])
             if orig_sym.is_array and orig_sym.datatype.intrinsic.name in \
                     self._all_field_types:
@@ -565,15 +570,15 @@ class LFRicExtractDriverCreator:
                 for i in range(1, upper+1):
                     sym = symbol_table.lookup_with_tag(f"{sig_str}%{i}")
                     name_lit = Literal(f"{sig_str}%{i}", CHARACTER_TYPE)
-                    LFRicExtractDriverCreator.add_call(program, read_var,
-                                                       [name_lit,
-                                                        Reference(sym)])
+                    LFRicExtractDriverCreator._add_call(program, read_var,
+                                                        [name_lit,
+                                                         Reference(sym)])
                 continue
 
             sym = symbol_table.lookup_with_tag(str(signature))
             name_lit = Literal(str(signature), CHARACTER_TYPE)
-            LFRicExtractDriverCreator.add_call(program, read_var,
-                                               [name_lit, Reference(sym)])
+            LFRicExtractDriverCreator._add_call(program, read_var,
+                                                [name_lit, Reference(sym)])
 
         # Then handle all variables that are written (note that some
         # variables might be read and written)
@@ -590,28 +595,28 @@ class LFRicExtractDriverCreator:
             # in the input and output list have been detected as being used
             # when the variable accesses were analysed. Therefore, these
             # variables have References, and will already have been declared
-            # in the symbol table (in add_all_kernel_symbols).
+            # in the symbol table (in _add_all_kernel_symbols).
             orig_sym = original_symbol_table.lookup(signature[0])
             is_input = signature in input_list
             if orig_sym.is_array and orig_sym.datatype.intrinsic.name in \
                     self._all_field_types:
                 flattened = LFRicExtractDriverCreator.\
-                    flatten_string(str(signature))
+                    _flatten_signature(signature)
                 upper = int(orig_sym.datatype.shape[0].upper.value)
                 for i in range(1, upper+1):
-                    self.create_output_var_code(flattened, program, is_input,
-                                                read_var, postfix,
-                                                output_symbols, index=i)
+                    self._create_output_var_code(flattened, program, is_input,
+                                                 read_var, postfix,
+                                                 output_symbols, index=i)
             else:
                 sig_str = str(signature)
-                self.create_output_var_code(sig_str, program, is_input,
-                                            read_var, postfix,
-                                            output_symbols)
+                self._create_output_var_code(sig_str, program, is_input,
+                                             read_var, postfix,
+                                             output_symbols)
         return output_symbols
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def import_modules(program, sched):
+    def _import_modules(program, sched):
         '''This function adds all the import statements required for the
         actual kernel calls. It finds all calls in the PSyIR tree and
         checks for calls with a ImportInterface. Any such call will
@@ -645,7 +650,7 @@ class LFRicExtractDriverCreator:
             symbol_table.add(new_routine_sym)
 
     # -------------------------------------------------------------------------
-    def add_precision_symbols(self, symbol_table):
+    def _add_precision_symbols(self, symbol_table):
         '''This function adds an import of the iso_fortran_env standard
         module to the given symbol table. It uses the various precision
         symbols defined there to define the LFRic specific precision
@@ -702,7 +707,7 @@ class LFRicExtractDriverCreator:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def add_result_tests(program, output_symbols):
+    def _add_result_tests(program, output_symbols):
         '''Adds tests to check that all output variables have the expected
         value.
 
@@ -802,7 +807,7 @@ class LFRicExtractDriverCreator:
 
         module_name, local_name = region_name
         unit_name = LFRicExtractDriverCreator.\
-            make_valid_unit_name(f"{module_name}_{local_name}")
+            _make_valid_unit_name(f"{module_name}_{local_name}")
 
         # First create the file container, which will only store the program:
         file_container = FileContainer(unit_name)
@@ -844,7 +849,7 @@ class LFRicExtractDriverCreator:
         #     halo_node.parent.children.remove(halo_node)
 
         original_symbol_table = invoke_sched.symbol_table
-        proxy_name_mapping = self.get_proxy_name_mapping(schedule_copy)
+        proxy_name_mapping = self._get_proxy_name_mapping(schedule_copy)
 
         # Now clean up the try: remove nodes in the copy that are not
         # supposed to be extracted. Any node that should be extract
@@ -865,10 +870,10 @@ class LFRicExtractDriverCreator:
             else:
                 child.lower_to_language_level()
 
-        self.import_modules(program, schedule_copy)
-        self.add_precision_symbols(program.scope.symbol_table)
-        self.add_all_kernel_symbols(schedule_copy, program_symbol_table,
-                                    proxy_name_mapping)
+        self._import_modules(program, schedule_copy)
+        self._add_precision_symbols(program.scope.symbol_table)
+        self._add_all_kernel_symbols(schedule_copy, program_symbol_table,
+                                     proxy_name_mapping)
 
         root_name = prefix + "psy_data"
         psy_data = program_symbol_table.new_symbol(root_name=root_name,
@@ -877,20 +882,20 @@ class LFRicExtractDriverCreator:
 
         module_str = Literal(module_name, CHARACTER_TYPE)
         region_str = Literal(local_name, CHARACTER_TYPE)
-        self.add_call(program, f"{psy_data.name}%OpenRead",
-                      [module_str, region_str])
+        self._add_call(program, f"{psy_data.name}%OpenRead",
+                       [module_str, region_str])
 
-        output_symbols = self.create_read_in_code(program, psy_data,
-                                                  original_symbol_table,
-                                                  input_list, output_list,
-                                                  postfix)
+        output_symbols = self._create_read_in_code(program, psy_data,
+                                                   original_symbol_table,
+                                                   input_list, output_list,
+                                                   postfix)
         # Copy over all of the executable part of the extracted region
         # program.addchild(schedule_copy)
         all_children = schedule_copy.pop_all_children()
         for child in all_children:
             program.addchild(child)
 
-        self.add_result_tests(program, output_symbols)
+        self._add_result_tests(program, output_symbols)
 
         return file_container
 
