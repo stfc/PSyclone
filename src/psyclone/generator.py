@@ -106,10 +106,10 @@ def handle_script(script_name, info, function_name, is_optional=False):
         # a) at the given path or, given no path, in the current directory; or
         # b) given no path, in the system path
         if not (os.path.isfile(script_name) or
-                not filepath and any (os.path.isfile(os.path.join(p, filename))
-                                      for p in sys.path)):
-                raise GenerationError(
-                    f"generator: script file '{script_name}' not found")
+                not filepath and any(os.path.isfile(os.path.join(p, filename))
+                                     for p in sys.path)):
+            raise GenerationError(
+                f"generator: script file '{script_name}' not found")
         # the file must have the .py extension
         if fileext != '.py':
             raise GenerationError(
@@ -125,8 +125,9 @@ def handle_script(script_name, info, function_name, is_optional=False):
             transmod = __import__(module_name)
         except Exception as error:
             raise GenerationError(
-                f"generator: attempted to import '{module_name}' but a "
-                f"problem was found: {error}") from error
+                f"generator: attempted to import specified PSyclone "
+                f"transformation module '{module_name}' but a problem was "
+                f"found: {error}") from error
         if callable(getattr(transmod, function_name, None)):
             try:
                 func_call = getattr(transmod, function_name)
@@ -135,18 +136,17 @@ def handle_script(script_name, info, function_name, is_optional=False):
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 lines = traceback.format_exception(exc_type, exc_value,
                                                    exc_traceback)
-                e_str = '{\n' +\
-                    ''.join('    ' + line for line in lines[2:]) + '}'
+                e_str = '{\n' + ''.join('    ' + ln for ln in lines[2:]) + '}'
                 # pylint: disable=raise-missing-from
                 raise GenerationError(
-                    f"Generator: script file '{script_name}'\nraised the "
-                    f"following exception during execution "
-                    f"...\n{e_str}\nPlease check your script")
+                    f"generator: specified PSyclone transformation module "
+                    f"'{module_name}'\nraised the following exception during "
+                    f"execution...\n{e_str}\nplease check your script")
         elif not is_optional:
             raise GenerationError(
-                f"generator: attempted to import '{module_name}' but script "
-                f"file '{script_name}' does not contain a '{function_name}' "
-                f"function")
+                f"generator: attempted to use specified PSyclone "
+                f"transformation module '{module_name}' but it does not "
+                f"contain a '{function_name}' function")
     finally:
         if sys_path_prepended:
             sys.path.pop(0)
