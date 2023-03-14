@@ -183,7 +183,6 @@ def test_function_space_setter_getter():
     funcs_arg = MetaFuncsArgMetadata("w0", basis_function=True)
     with pytest.raises(ValueError) as info:
         funcs_arg.function_space = "invalid"
-    print(str(info.value))
     assert ("The 'function_space' metadata should be a recognised value (one "
             "of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', "
             "'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi', "
