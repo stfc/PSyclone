@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -89,6 +89,7 @@ class WhileLoop(Statement):
 
         :returns: WhileLoop conditional expression.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
         :raises InternalError: If the WhileLoop node does not have the \
             correct number of children.
         '''
@@ -104,6 +105,7 @@ class WhileLoop(Statement):
 
         :returns: Schedule to be executed when WhileLoop condition is True.
         :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
+
         :raises InternalError: If the WhileLoop node does not have the \
             correct number of children.
         '''
