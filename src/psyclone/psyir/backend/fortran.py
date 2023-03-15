@@ -48,11 +48,11 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.nodes import BinaryOperation, Call, CodeBlock, DataNode, \
-    Literal, Operation, Range, Routine, Schedule, UnaryOperation, IntrinsicCall
+    IntrinsicCall, Literal, Operation, Range, Routine, Schedule, UnaryOperation
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
-    DeferredType, RoutineSymbol, ScalarType, Symbol, SymbolTable,
-    UnknownFortranType, UnknownType, UnresolvedInterface, ImportInterface)
+    DeferredType, ImportInterface, RoutineSymbol, ScalarType, Symbol,
+    SymbolTable, UnknownFortranType, UnknownType, UnresolvedInterface)
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -1395,6 +1395,31 @@ class FortranWriter(LanguageWriter):
                 f"{self._nindent}if ({condition}) then\n"
                 f"{if_body}"
                 f"{self._nindent}end if\n")
+        return result
+
+    def whileloop_node(self, node):
+        '''This method is called when a WhileLoop instance is found in the
+        PSyIR tree.
+
+        :param node: a WhileLoop PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.WhileLoop`
+
+        :returns: the Fortran code.
+        :rtype: str
+
+        '''
+        condition = self._visit(node.condition)
+
+        self._depth += 1
+        body = ""
+        for child in node.loop_body:
+            body += self._visit(child)
+        self._depth -= 1
+
+        result = (
+            f"{self._nindent}do while ({condition})\n"
+            f"{body}"
+            f"{self._nindent}end do\n")
         return result
 
     def loop_node(self, node):
