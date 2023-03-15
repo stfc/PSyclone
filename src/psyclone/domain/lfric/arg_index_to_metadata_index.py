@@ -41,6 +41,8 @@ kernel metadata.
 from psyclone.domain.lfric.metadata_to_arguments_rules import \
     MetadataToArgumentsRules
 
+# pylint: disable=too-few-public-methods
+
 
 class ArgIndexToMetadataIndex(MetadataToArgumentsRules):
     '''Provides a mapping from the index of a kernel argument to the index
@@ -62,104 +64,184 @@ class ArgIndexToMetadataIndex(MetadataToArgumentsRules):
         super()._initialise({})
         cls._index = 0
 
-    def __getattr__(cls, name):
-        def func(*args):
-            print(name)
-            exit(1)
-        return func
-    #        if name in ["_scalar", "_field", ...]:
-    #            cls._add_arg(*args)
-    #        elif name in ["_cell_position", "_mesh_height", ...]:
-    #            cls._index += 1
-    #        else:
-    #            getattr(cls, name)(*args)
-    #    return func
+    @classmethod
+    def _scalar(cls, meta_arg):
+        '''Argument providing an LFRic scalar value.
 
-    #@classmethod
-    #def _scalar(cls, meta_arg):
-    #    ''' xxx '''
-    #    cls._add_arg(meta_arg)
-        
+        :param meta_arg: the metadata associated with this scalar argument.
+        :type meta_arg: \
+            :py:class:`psyclone.domain.lfric.kernel.ScalarArgMetadata`
+
+        '''
+        cls._add_arg(meta_arg)
+
     @classmethod
     def _field(cls, meta_arg):
-        ''' xxx '''
+        '''Argument providing an LFRic field.
+
+        :param meta_arg: the metadata associated with this field argument.
+        :type meta_arg: \
+            :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
+
+        '''
         cls._add_arg(meta_arg)
 
     @classmethod
     def _field_vector(cls, meta_arg):
-        ''' xxx '''
-        meta_arg_index = cls._metadata.meta_args.index(meta_arg)
-        for idx in range(int(meta_arg.vector_length)):
+        '''Arguments providing an LFRic field vector.
+
+        :param meta_arg: the metadata associated with this field \
+            vector argument.
+        :type meta_arg: \
+            :py:class:`psyclone.domain.lfric.kernel.FieldVectorArgMetadata`
+
+        '''
+        for _ in range(int(meta_arg.vector_length)):
             cls._add_arg(meta_arg)
 
     @classmethod
     def _operator(cls, meta_arg):
-        ''' xxx '''
+        '''Arguments providing an LMA operator.
+
+        :param meta_arg: the metadata associated with the operator \
+            arguments.
+        :type meta_arg: \
+            :py:class:`psyclone.domain.lfric.kernel.OperatorArgMetadata`
+
+        '''
         cls._add_arg(meta_arg)
 
     @classmethod
     def _cma_operator(cls, meta_arg):
-        ''' xxx '''
+        '''Arguments providing a columnwise operator.
+
+        :param meta_arg: the metadata associated with the CMA operator \
+            arguments.
+        :type meta_arg: :py:class:`psyclone.domain.lfric.kernel.\
+            ColumnwiseOperatorArgMetadata`
+
+        '''
         cls._add_arg(meta_arg)
 
     @classmethod
     def _add_arg(cls, meta_arg):
-        ''' xxx '''
+        '''Utility method to provide a map from the current argument index
+        (_index) to the index of its associated kernel meta_arg
+        metadata.
+
+        :param meta_arg: the current meta_arg metadata.
+        :type meta_arg: :py:class:`XXX`
+
+        '''
         meta_arg_index = cls._metadata.meta_args.index(meta_arg)
+        # pylint: disable=unsupported-assignment-operation
         cls._info[cls._index] = meta_arg_index
         cls._index += 1
 
     @classmethod
     def _cell_position(cls):
-        ''' xxx '''
+        '''A cell position argument.'''
         cls._index += 1
 
     @classmethod
     def _mesh_height(cls):
-        ''' xxx '''
+        '''A mesh height argument.'''
         cls._index += 1
 
     @classmethod
     def _mesh_ncell2d_no_halos(cls):
-        ''' xxx '''
+        '''Argument providing the number of columns in the mesh ignoring
+        halos.
+
+        '''
         cls._index += 1
 
     @classmethod
     def _mesh_ncell2d(cls):
-        ''' xxx '''
+        '''Argument providing the number of columns in the mesh including
+        halos.
+
+        '''
         cls._index += 1
 
     @classmethod
     def _cell_map(cls):
-        ''' xxx '''
+        '''Arguments providing a mapping from coarse to fine mesh for the
+        current column.
+
+        '''
         cls._index += 4
 
     @classmethod
     def _stencil_2d_unknown_extent(cls, meta_arg):
-        ''' xxx '''
+        '''The field entry has a stencil access of type cross2d.
+
+        :param meta_arg: the metadata associated with a field argument \
+            with a cross2d stencil access.
+        :type meta_arg: \
+            :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
+
+        '''
         cls._index += 1
 
     @classmethod
     def _stencil_2d_max_extent(cls, meta_arg):
-        ''' xxx '''
+        '''The field entry has a stencil access of type cross2d.
+
+        :param meta_arg: the metadata associated with a field argument \
+            with a cross2d stencil access.
+        :type meta_arg: \
+            :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
+
+        '''
         cls._index += 1
 
     @classmethod
     def _stencil_unknown_extent(cls, meta_arg):
-        ''' xxx '''
+        '''The field entry has a stencil access.
+
+        :param meta_arg: the metadata associated with a field argument \
+            with a stencil access.
+        :type meta_arg: \
+            :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
+
+        '''
         cls._index += 1
 
     @classmethod
     def _stencil_unknown_direction(cls, meta_arg):
-        ''' xxx '''
+        '''The field entry stencil access is of type XORY1D.
+
+        :param meta_arg: the metadata associated with a field argument \
+            with a xory1d stencil access.
+        :type meta_arg: \
+            :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
+
+        '''
         cls._index += 1
 
     @classmethod
     def _stencil_2d(cls, meta_arg):
-        ''' xxx '''
+        '''Stencil information that is passed from the Algorithm layer if the
+        stencil is 'cross2d'.
+
+        :param meta_arg: the metadata associated with a field argument \
+            with a stencil access.
+        :type meta_arg: \
+            :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
+
+        '''
         cls._index += 1
 
     @classmethod
     def _stencil(cls, meta_arg):
-        ''' xxx '''
+        '''Stencil information that is passed from the Algorithm layer if the
+        stencil is not 'cross2d'.
+
+        :param meta_arg: the metadata associated with a field argument \
+            with a stencil access.
+        :type meta_arg: \
+            :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
+
+        '''
         cls._index += 1
