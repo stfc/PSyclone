@@ -47,6 +47,7 @@ from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, Kern
+from psyclone.psyir.backend.debug_writer import DebugWriter
 from psyclone.psyir.nodes import Schedule, Reference, Container, Routine, \
     Assignment, Return, Loop, Literal, Statement, node, KernelSchedule, \
     BinaryOperation, ArrayReference, Call, Range
@@ -1390,3 +1391,11 @@ def test_equality():
                               Literal("2", INTEGER_TYPE))
     parent1.addchild(three)
     assert parent1 != parent2
+
+
+def test_debug_string(monkeypatch):
+    ''' Test that the debug_string() method calls the DebugWriter '''
+
+    monkeypatch.setattr(DebugWriter, "__call__", lambda x, y: "CORRECT STRING")
+    tnode = Node()
+    assert tnode.debug_string() == "CORRECT STRING"

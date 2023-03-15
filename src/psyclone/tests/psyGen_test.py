@@ -167,10 +167,7 @@ def test_base_class_not_callable():
 
 
 def test_transformation_init_name():
-    '''Make sure a FortranWriter is created by default, is stored by the
-    base class, can be changed if required and an exception is raised
-    if the wrong argument type is supplied. Also test that the name()
-    method behaves in the expected way.
+    '''Test that the name() method behaves in the expected way.
 
     '''
     class TestTrans(Transformation):
@@ -179,19 +176,12 @@ def test_transformation_init_name():
         transformation methods.
 
         '''
-        def apply(self, _1, _2=None):
+        def apply(self, _1):
             '''Dummy apply method to ensure this transformation is not
             abstract.'''
 
     trans = TestTrans()
     assert trans.name == "TestTrans"
-    assert isinstance(trans._writer, FortranWriter)
-    with pytest.raises(TypeError) as info:
-        _ = TestTrans(writer="wrong")
-    assert ("The writer argument to a transformation should be a "
-            "PSyIRVisitor, but found 'str'." in str(info.value))
-    trans = TestTrans(writer=CWriter())
-    assert isinstance(trans._writer, CWriter)
 
 
 # TransInfo class unit tests

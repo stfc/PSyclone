@@ -40,7 +40,10 @@
 It provides convenience functions to create often used symbols.
 '''
 
-from psyclone.domain.lfric import LFRicConstants, psyir
+from psyclone.domain.lfric import LFRicConstants
+# Avoid circular import:
+from psyclone.domain.lfric.lfric_types import LFRicTypes
+
 from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
                                     ImportInterface, INTEGER_TYPE, ScalarType,
                                     Symbol, SymbolTable)
@@ -112,7 +115,7 @@ class LFRicSymbolTable(SymbolTable):
             except KeyError:
                 sym = None
 
-        datatype = psyir.LfricIntegerScalarDataType()
+        datatype = LFRicTypes("LFRicIntegerScalarDataType")()
         if sym is None:
             # Create a DataSymbol for this kernel argument.
             sym = self.new_symbol(name, tag=tag,
@@ -152,11 +155,11 @@ class LFRicSymbolTable(SymbolTable):
 
         '''
         if intrinsic_type == ScalarType.Intrinsic.REAL:
-            datatype = psyir.LfricRealScalarDataType()
+            datatype = LFRicTypes("LFRicRealScalarDataType")()
         elif intrinsic_type == ScalarType.Intrinsic.INTEGER:
-            datatype = psyir.LfricIntegerScalarDataType()
+            datatype = LFRicTypes("LFRicIntegerScalarDataType")()
         elif intrinsic_type == ScalarType.Intrinsic.BOOLEAN:
-            datatype = psyir.LfricLogicalScalarDataType()
+            datatype = LFRicTypes("LFRicLogicalScalarDataType")()
         else:
             raise TypeError(f"Unsupported data type "
                             f"'{intrinsic_type}' in "
