@@ -2059,9 +2059,9 @@ class Fparser2Reader():
                             try:
                                 symbol = parent.symbol_table.lookup(str(name))
                             except Exception as err:
-                                # If there is any problem put the whole think
+                                # If there is any problem put the whole thing
                                 # in a codeblock (as we presume the original
-                                # code is correct)
+                                # code is correct).
                                 raise NotImplementedError(
                                     f"Could not parse '{stmt}' because: "
                                     f"{err}.") from err
