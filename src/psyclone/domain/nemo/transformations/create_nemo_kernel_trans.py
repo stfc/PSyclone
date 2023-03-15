@@ -155,12 +155,12 @@ class CreateNemoKernelTrans(Transformation):
                 lambda: "A NEMO Kernel cannot contain array assignments but "
                 f"found: {[fwriter(node).rstrip(chr(10)) for node in nodes]}"))
 
-    def apply(self, sched, options=None):
+    def apply(self, node, options=None):
         '''
         Takes a generic PSyIR Schedule and replaces it with a NEMO Kernel.
 
-        :param sched: the Schedule node to be transformed.
-        :type sched: :py:class:`psyclone.psyir.nodes.Schedule`
+        :param node: the Schedule node to be transformed.
+        :type node: :py:class:`psyclone.psyir.nodes.Schedule`
         :param options: a dictionary with options for \
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
@@ -168,10 +168,8 @@ class CreateNemoKernelTrans(Transformation):
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(sched, options=options)
-
-        # What about the symbol_table?
-        sched.replace_with(NemoKern(sched.pop_all_children()))
+        self.validate(node, options=options)
+        node.replace_with(NemoKern(node.pop_all_children()))
 
 
 # For AutoAPI documentation generation

@@ -154,6 +154,7 @@ class PSyIRVisitor():
         :rtype: str
 
         :raises TypeError: if the provided argument is not a PSyIR Node.
+        :raises VisitorError: if the node fails to be lowered.
 
         '''
         if not isinstance(node, Node):
@@ -173,7 +174,11 @@ class PSyIRVisitor():
         node_copy = tree_copy.walk(Node)[node.abs_position]
 
         # Lower the DSL concepts starting from the selected node.
-        lowered_node = node_copy.lower_to_language_level()
+        try:
+            lowered_node = node_copy.lower_to_language_level()
+        except Exception as err:
+            raise VisitorError(
+                f"Failed to lower '{node}' due to '{err}'.") from err
 
         return self._visit(lowered_node)
 

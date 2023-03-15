@@ -176,9 +176,8 @@ def test_nemo_acc_kernels(default_present, expected, parser, fortran_writer):
     assert correct in result
 
     cvisitor = CWriter()
-    with pytest.raises(VisitorError) as err:
-        _ = cvisitor(nemo_sched[0])
-    assert "Unsupported node 'NemoKern' found" in str(err.value)
+    code = cvisitor(nemo_sched[0])
+    assert f"#pragma acc kernels{expected}" in str(code)
 
 
 # ----------------------------------------------------------------------------
@@ -212,9 +211,8 @@ def test_nemo_acc_parallel(parser):
     assert correct in result
 
     cvisitor = CWriter(check_global_constraints=False)
-    with pytest.raises(VisitorError) as err:
-        _ = cvisitor(nemo_sched[0])
-    assert "Unsupported node 'NemoKern' found" in str(err.value)
+    code = cvisitor(nemo_sched[0])
+    assert f"#pragma acc parallel default(present)" in str(code)
 
 
 # ----------------------------------------------------------------------------

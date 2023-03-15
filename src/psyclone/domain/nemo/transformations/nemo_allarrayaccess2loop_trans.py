@@ -109,10 +109,15 @@ class NemoAllArrayAccess2LoopTrans(Transformation):
         self.validate(node)
 
         trans = NemoArrayAccess2LoopTrans()
+        parent = node.parent
+        pos = node.position
 
-        for index in node.lhs.children:
+        for index, _ in enumerate(node.lhs.children):
+            # Get the assingment location dynamically because it is being
+            # replaced at each iteration of this loop
+            new_location = parent.children[pos].walk(Assignment)[0]
             try:
-                trans.apply(index)
+                trans.apply(new_location.lhs.children[index])
             except TransformationError:
                 pass
 

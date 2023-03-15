@@ -154,33 +154,22 @@ class NemoArrayAccess2LoopTrans(Transformation):
                 # This is not a nested access e.g. a(b(n)).
                 array.indices[array_index] = Reference(loop_variable_symbol)
 
-        # Determine the loop body and where to add the loop.
-        nemo_kern = assignment.ancestor(NemoKern)
-        if nemo_kern:
-            # This assignment is inside a NemoKern
-            loop_body = nemo_kern
-        else:
-            # There is no parent NemoKern
-            loop_body = assignment
-        loc_parent = loop_body.parent
-        loc_index = loop_body.position
-
         # Create the new single-trip loop and add its children.
         step = Literal("1", INTEGER_TYPE)
         loop = NemoLoop.create(loop_variable_symbol, node_copy,
-                               node_copy.copy(), step, [loop_body.detach()])
+                               node_copy.copy(), step, assignment.copy())
 
         # Replace the original assignment with a loop containing the
         # modified assignment.
-        loc_parent.children.insert(loc_index, loop)
+        assignment.replace_with(loop)
 
         # Add a NemoKern if required.
-        if not nemo_kern and not assignment.walk(Range):
+        if not loop.ancestor(NemoKern) and not loop.walk(Range):
             # This was not previously a NemoKern (as it contained no
             # loops). However, we have now created a loop so, provided
             # there are no range nodes, we must create an inlined
             # kernel.
-            CreateNemoKernelTrans().apply(assignment.parent)
+            CreateNemoKernelTrans().apply(loop.loop_body)
 
     def validate(self, node, options=None):
         '''Perform various checks to ensure that it is valid to apply the

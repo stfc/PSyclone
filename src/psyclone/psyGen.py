@@ -1295,8 +1295,9 @@ class CodedKern(Kern, Call):
         name = call.ktype.procedure.name
 
         # Then find or create the imported RoutineSymbol
-        if parent.ancestor(InvokeSchedule):
-            symtab = parent.ancestor(InvokeSchedule).symbol_table
+        invoke_schedule = parent.ancestor(InvokeSchedule, include_self=True)
+        if invoke_schedule:
+            symtab = invoke_schedule.symbol_table
             try:
                 rsymbol = symtab.lookup(name)
             except KeyError:

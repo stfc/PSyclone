@@ -360,7 +360,7 @@ def test_inlined_kern(tmpdir):
     trans.apply(index_node)
     # InlinedKern has been added
     assert len(psyir.walk(InlinedKern)) == 1
-    assert isinstance(psyir.children[0][0].loop_body[0], InlinedKern)
+    assert isinstance(psyir.children[0][0].loop_body, InlinedKern)
     # Turn another array access to a loop
     index_node = psyir.walk(Assignment)[0].lhs.children[0]
     trans_write_check(psyir, index_node, expected_result, tmpdir)

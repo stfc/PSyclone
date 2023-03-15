@@ -107,7 +107,7 @@ class LoopTrans(Transformation, metaclass=abc.ABCMeta):
             # Stop at any instance of Kern to avoid going into the
             # actual kernels, e.g. in Nemo inlined kernels
             flat_list = [item for item in node.walk(object, stop_type=Kern)
-                         if not isinstance(item, Schedule)]
+                         if not isinstance(item, (Schedule, Kern))]
             for item in flat_list:
                 if isinstance(item, self.excluded_node_types):
                     raise TransformationError(

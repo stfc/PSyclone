@@ -100,7 +100,7 @@ end subroutine basic_loop
     assert isinstance(sched, NemoInvokeSchedule)
     assert isinstance(sched[0], NemoLoop)
     assert isinstance(sched[0].loop_body[0], NemoLoop)
-    assert isinstance(sched[0].loop_body[0].loop_body[0], NemoKern)
+    assert isinstance(sched[0].loop_body[0].loop_body, NemoKern)
 
 
 def test_module_psy(psy_trans, fortran_reader):

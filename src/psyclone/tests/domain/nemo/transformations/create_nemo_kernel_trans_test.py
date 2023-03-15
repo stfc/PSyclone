@@ -154,9 +154,9 @@ def test_basic_kern(fortran_reader):
     loop = psyir.walk(Loop)[0]
     assign = loop.loop_body[0]
     trans.apply(loop.loop_body)
-    assert isinstance(loop.loop_body[0], InlinedKern)
+    assert isinstance(loop.loop_body, InlinedKern)
     # Check that the body of the kernel is still the original assignment
-    assert loop.loop_body[0].children[0][0] is assign
+    assert loop.loop_body[0] is assign
 
 
 def test_no_kernel_in_kernel(fortran_reader):

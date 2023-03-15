@@ -2024,7 +2024,7 @@ def test_fw_nemokern(fortran_writer, parser):
         "end program test")
     schedule = get_nemo_schedule(parser, code)
 
-    kernel = schedule[0].loop_body[0].loop_body[0].loop_body[0]
+    kernel = schedule[0].loop_body[0].loop_body[0].loop_body
     assert isinstance(kernel, NemoKern)
 
     result = fortran_writer(schedule)

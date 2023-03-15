@@ -108,7 +108,7 @@ def get_kernel(parser, code):
     loop1 = schedule.children[0]
     loop2 = loop1.loop_body.children[0]
     loop3 = loop2.loop_body.children[0]
-    kernel = loop3.loop_body.children[0]
+    kernel = loop3.loop_body
     assert isinstance(kernel, NemoKern)
     return kernel
 

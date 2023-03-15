@@ -191,9 +191,8 @@ class SIRWriter(PSyIRVisitor):
                 "Child of child of loop should be a single loop.")
 
         # Check third loop has a single NemoKern as a child.
-        loop_content = loop_content[0].loop_body.children
-        if not (len(loop_content) == 1 and
-                isinstance(loop_content[0], NemoKern)):
+        loop_content = loop_content[0].loop_body
+        if not isinstance(loop_content, NemoKern):
             raise VisitorError(
                 "Child of child of child of loop should be a NemoKern.")
 
@@ -202,7 +201,7 @@ class SIRWriter(PSyIRVisitor):
                  f"make_interval(Interval.Start, Interval.End, 0, 0)\n"
         result += f"{self._nindent}body_ast = make_ast([\n"
         self._depth += 1
-        result += self.nemokern_node(loop_content[0])
+        result += self.nemokern_node(loop_content)
         self._depth -= 1
         # Remove the trailing comma if there is one as this is the
         # last entry in make_ast.

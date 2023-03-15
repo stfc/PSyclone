@@ -52,11 +52,11 @@ def test_instance():
     NemoLoop and that it has the expected properties.
 
     '''
-    nemo_loop = NemoLoop()
+    nemo_loop = NemoLoop(DataSymbol("var", INTEGER_TYPE))
     assert isinstance(nemo_loop, NemoLoop)
     assert isinstance(nemo_loop, Loop)
     assert nemo_loop.parent is None
-    assert nemo_loop._variable is None
+    assert nemo_loop._variable.name is "var"
     assert (nemo_loop._valid_loop_types ==
             ['lat', 'levels', 'lon', 'tracers', 'unknown'])
 

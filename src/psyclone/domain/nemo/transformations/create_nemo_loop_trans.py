@@ -134,16 +134,8 @@ class CreateNemoLoopTrans(Transformation):
 
         # Convert a generic loop into a NEMO Loop by creating a new
         # NemoLoop object and inserting it into the PSyIR.
-        table = loop.loop_body.symbol_table.detach()
-        nodes = loop.pop_all_children()
-        new_loop = NemoLoop.create(loop.variable,
-                                   nodes[0], nodes[1], nodes[2],
-                                   nodes[3].pop_all_children())
-        # TODO #1377 the NemoLoop.create() interface needs extending to accept
-        # a SymbolTable.
-        new_loop.loop_body.symbol_table.detach()
-        table.attach(new_loop.loop_body)
-
+        new_loop = NemoLoop(variable=loop.variable,
+                            children=loop.pop_all_children())
         loop.replace_with(new_loop)
 
 

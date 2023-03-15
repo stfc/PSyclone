@@ -51,7 +51,7 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, InlinedKern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (ACCEnterDataDirective, ACCUpdateDirective,
-                                  Schedule, Routine)
+                                  Schedule, Routine, Node)
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
@@ -215,7 +215,7 @@ class NemoKern(InlinedKern):
         :returns: the kernel schedule representing the inlined kernel code.
         :rtype: :py:class:`psyclone.psyir.nodes.KernelSchedule`
         '''
-        return self.children[0]
+        return self
 
     def local_vars(self):
         '''
@@ -254,13 +254,23 @@ class NemoLoop(PSyLoop):
     '''
     Class representing a PSyLoop in NEMO.
 
+    :param variable: the PSyIR node containing the variable \
+        of the loop iterator.
+    :type variable: :py:class:`psyclone.psyir.symbols.DataSymbol`
     :param kwargs: additional keyword arguments provided to the PSyIR node.
     :type kwargs: unwrapped dict.
 
     '''
-    def __init__(self, **kwargs):
+    def __init__(self, variable, **kwargs):
+        NemoLoop._check_variable(variable)
         const = NemoConstants()
-        super().__init__(valid_loop_types=const.VALID_LOOP_TYPES, **kwargs)
+        super().__init__(variable=variable,
+                         valid_loop_types=const.VALID_LOOP_TYPES,
+                         **kwargs)
+        # Indicate the type of loop
+        loop_type_mapping = Config.get().api_conf("nemo") \
+                                        .get_loop_type_mapping()
+        self.loop_type = loop_type_mapping.get(variable.name, "unknown")
 
     @staticmethod
     def create(variable, start, stop, step, children):
@@ -293,14 +303,23 @@ class NemoLoop(PSyLoop):
         '''
         NemoLoop._check_variable(variable)
 
-        if not isinstance(children, list):
+        if not isinstance(children, (list, Node)):
             raise GenerationError(
                 f"children argument in create method of NemoLoop class "
                 f"should be a list but found '{type(children).__name__}'.")
 
         # Create the loop
         loop = NemoLoop(variable=variable)
-        schedule = Schedule(children=children)
+        if isinstance(children, list):
+            schedule = Schedule(children=children)
+        elif isinstance(children, Schedule):
+            schedule = children
+        else:
+            # Its a node but not a schedule, we must create the intermidiate
+            # schedule
+            schedule = Schedule()
+            schedule.addchild(children)
+
         loop.children = [start, stop, step, schedule]
 
         # Indicate the type of loop
