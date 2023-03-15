@@ -91,7 +91,7 @@ from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
     OMPNogroupClause, OMPNowaitClause, OMPNumTasksClause, OMPPrivateClause, \
     OMPDefaultClause, OMPReductionClause, OMPScheduleClause, \
     OMPFirstprivateClause, OMPSharedClause, OMPDependClause
-from psyclone.psyir.nodes.whileloop import WhileLoop
+from psyclone.psyir.nodes.while_loop import WhileLoop
 
 
 # The entities in the __all__ list are made available to import directly from

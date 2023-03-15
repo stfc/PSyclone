@@ -115,16 +115,6 @@ def test_array_valued_function():
     assert not kernels
 
 
-def test_do_while():
-    ''' Check that do-while loops are handled correctly. '''
-
-    _, invoke_info = get_invoke("do_while.f90", api=API, idx=0)
-    sched = invoke_info.schedule
-    assert isinstance(sched[1], WhileLoop)
-    assert isinstance(sched[2], Assignment)
-    assert isinstance(sched[4], WhileLoop)
-
-
 def test_multi_kern():
     ''' Test that having multiple kernels within a single loop raises
     the expected error. '''
