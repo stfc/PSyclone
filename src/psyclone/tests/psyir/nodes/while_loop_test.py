@@ -123,7 +123,7 @@ def test_whileloop_create_invalid():
     with pytest.raises(GenerationError) as excinfo:
         _ = WhileLoop.create(loop_condition, "invalid")
     assert ("loop_body argument in create method of WhileLoop class should be "
-            "a list but got 'str'.") in str(excinfo.value)
+            "a list but found 'str'.") in str(excinfo.value)
 
 
 def test_whileloop_properties():

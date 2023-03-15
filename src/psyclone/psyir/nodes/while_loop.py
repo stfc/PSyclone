@@ -126,7 +126,7 @@ class WhileLoop(Statement):
         if not isinstance(loop_body, list):
             raise GenerationError(
                 f"loop_body argument in create method of WhileLoop class "
-                f"should be a list but got '{type(loop_body).__name__}'.")
+                f"should be a list but found '{type(loop_body).__name__}'.")
 
         loop_stmt = WhileLoop()
         loop_schedule = Schedule(parent=loop_stmt, children=loop_body)
