@@ -133,21 +133,6 @@ class WhileLoop(Statement):
         loop_stmt.children = [loop_condition, loop_schedule]
         return loop_stmt
 
-    def node_str(self, colour=True):
-        ''' Returns the name of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        text = self.coloured_name(colour) + "["
-        if self.annotations:
-            text += "annotations='" + ','.join(self.annotations) + "'"
-        text += "]"
-        return text
-
     def __str__(self):
         name = self.__class__.__name__
         result = name + "[]\n"
