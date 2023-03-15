@@ -48,20 +48,19 @@ from fparser.two.utils import walk, BlockBase, StmtBase
 from psyclone.configuration import Config
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes import (
-    ArrayMember, ArrayOfStructuresReference, ArrayReference, Assignment, \
-    BinaryOperation, Call, CodeBlock, Container, Directive, FileContainer, \
-    IfBlock, IntrinsicCall, Literal, Loop, Member, NaryOperation, Node, \
-    Range, Reference, Return, Routine, Schedule, StructureReference, \
-    UnaryOperation, WhileLoop)
+    ArrayMember, ArrayOfStructuresReference, ArrayReference, Assignment,
+    BinaryOperation, Call, CodeBlock, Container, Directive, FileContainer,
+    IfBlock, IntrinsicCall, Literal, Loop, Member, NaryOperation, Node, Range,
+    Reference, Return, Routine, Schedule, StructureReference, UnaryOperation,
+    WhileLoop)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_of_structures_mixin import \
     ArrayOfStructuresMixin
 from psyclone.psyir.symbols import (
-    ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, \
-    DataTypeSymbol, DeferredType, ImportInterface, IntrinsicSymbol, \
-    LocalInterface, NoType, RoutineSymbol, ScalarType, StructureType, Symbol, \
-    SymbolError, SymbolTable, UnknownFortranType, UnknownType, \
-    UnresolvedInterface, INTEGER_TYPE)
+    ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
+    DeferredType, ImportInterface, IntrinsicSymbol, LocalInterface, NoType,
+    RoutineSymbol, ScalarType, StructureType, Symbol, SymbolError, SymbolTable,
+    UnknownFortranType, UnknownType, UnresolvedInterface, INTEGER_TYPE)
 
 # fparser dynamically generates classes which confuses pylint membership checks
 # pylint: disable=maybe-no-member
