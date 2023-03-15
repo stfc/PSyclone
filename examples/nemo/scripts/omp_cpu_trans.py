@@ -55,8 +55,9 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-    omp_parallel_trans = OMPParallelTrans()
+    omp_parallel_trans = None
     omp_loop_trans = OMPLoopTrans(omp_schedule="static")
+    omp_loop_trans.omp_directive = "paralleldo"
 
     print(f"Invokes found in {psy.name}:")
     for invoke in psy.invokes.invoke_list:

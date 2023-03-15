@@ -257,7 +257,8 @@ def insert_explicit_loop_parallelism(
             loop_directive_trans.apply(loop, options=opts)
             # Only add the region directive if the loop was successfully
             # parallelised.
-            region_directive_trans.apply(loop.parent.parent)
+            if region_directive_trans:
+                region_directive_trans.apply(loop.parent.parent)
         except TransformationError as err:
             # This loop can not be transformed, proceed to next loop
             print("Loop not parallelised because:", str(err))
