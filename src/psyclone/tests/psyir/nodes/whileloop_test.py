@@ -166,4 +166,4 @@ def test_whileloop_can_be_printed():
 
     assert "WhileLoop[]\n" in str(loop)
     assert "condition1" in str(loop)  # Test condition is printed
-    assert "Return[]" in str(loop)  # Test if_body is printed
+    assert "Return[]" in str(loop)  # Test loop body is printed
