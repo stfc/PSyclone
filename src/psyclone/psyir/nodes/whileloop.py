@@ -118,7 +118,7 @@ class WhileLoop(Statement):
 
     @staticmethod
     def create(loop_condition, loop_body):
-        '''Create a WhileLoop instance given valid instances of an
+        '''Create a WhileLoop instance given valid instances of a
         loop_condition and a loop_body.
 
         :param loop_condition: the PSyIR node containing the loop \
@@ -126,7 +126,7 @@ class WhileLoop(Statement):
         :type loop_condition: :py:class:`psyclone.psyir.nodes.Node`
         :param loop_body: the PSyIR nodes representing the loop body of \
             the loop statement.
-        :type loop_body: list of :py:class:`psyclone.psyir.nodes.Node`
+        :type loop_body: List[:py:class:`psyclone.psyir.nodes.Node`]
 
         :returns: a WhileLoop instance.
         :rtype: :py:class:`psyclone.psyir.nodes.WhileLoop`
@@ -137,12 +137,11 @@ class WhileLoop(Statement):
         '''
         if not isinstance(loop_body, list):
             raise GenerationError(
-                "loop_body argument in create method of WhileLoop class "
-                "should be a list.")
+                f"loop_body argument in create method of WhileLoop class "
+                f"should be a list but got '{type(loop_body).__name__}'.")
 
         loop_stmt = WhileLoop()
-        loop_schedule = Schedule(parent=loop_stmt)
-        loop_schedule.children = loop_body
+        loop_schedule = Schedule(parent=loop_stmt, children=loop_body)
         loop_stmt.children = [loop_condition, loop_schedule]
         return loop_stmt
 

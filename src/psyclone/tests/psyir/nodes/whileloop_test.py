@@ -36,7 +36,6 @@
 
 ''' Performs py.test tests on the WhileLoop PSyIR node. '''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.core import VariablesAccessInfo
 from psyclone.errors import InternalError, GenerationError
@@ -103,10 +102,7 @@ def test_whileloop_create_invalid():
     loop_condition = Literal('true', BOOLEAN_TYPE)
     loop_body = [Assignment.create(
         Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
-        Literal("0.0", REAL_SINGLE_TYPE)),
-               Assignment.create(
-                   Reference(DataSymbol("pmt", REAL_SINGLE_TYPE)),
-                   Literal("1.0", REAL_SINGLE_TYPE))]
+        Literal("0.0", REAL_SINGLE_TYPE))]
 
     # Loop condition not a Node.
     with pytest.raises(GenerationError) as excinfo:
@@ -127,7 +123,7 @@ def test_whileloop_create_invalid():
     with pytest.raises(GenerationError) as excinfo:
         _ = WhileLoop.create(loop_condition, "invalid")
     assert ("loop_body argument in create method of WhileLoop class should be "
-            "a list.") in str(excinfo.value)
+            "a list but got 'str'.") in str(excinfo.value)
 
 
 def test_whileloop_properties():
