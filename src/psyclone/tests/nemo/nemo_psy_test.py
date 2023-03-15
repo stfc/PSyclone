@@ -44,8 +44,8 @@ from psyclone.psyGen import PSyFactory, InlinedKern
 from psyclone.errors import InternalError
 from psyclone.tests.utilities import get_invoke
 from psyclone import nemo
-from psyclone.psyir.nodes import Assignment, IfBlock, Loop, WhileLoop, \
-    Schedule, Literal, Reference
+from psyclone.psyir.nodes import Assignment, IfBlock, Literal, Loop, \
+    Reference, Schedule
 from psyclone.psyir.nodes.node import colored
 
 
