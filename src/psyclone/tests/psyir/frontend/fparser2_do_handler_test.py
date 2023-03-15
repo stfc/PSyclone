@@ -38,46 +38,40 @@ construct in the PSyIR fparser2 frontend. '''
 
 
 import pytest
-from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 
 from psyclone.errors import InternalError
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Assignment, BinaryOperation, CodeBlock, \
                                  Literal, Loop, Routine, Schedule, WhileLoop
 
 
-def test_handling_end_do_stmt(parser):
+def test_handling_end_do_stmt(fortran_reader):
     ''' Test that the fparser2 End_Do_Stmt is ignored.'''
-    reader = FortranStringReader('''
+    code = '''
       subroutine test()
         integer :: i, a
         do i=1,10
             a=a+1
         end do
       end subroutine test
-        ''')
-    fparser2_tree = parser(reader)
-    processor = Fparser2Reader()
-    result = processor.generate_psyir(fparser2_tree)
-    sched = result.walk(Schedule)[0]
+        '''
+    psyir = fortran_reader.psyir_from_source(code)
+    sched = psyir.walk(Schedule)[0]
     assert len(sched.children) == 1  # Just the loop (no end statement)
 
 
-def test_do_construct(parser):
+def test_do_construct(fortran_reader):
     ''' Check that do loop constructs are converted to the expected
     PSyIR node. '''
-    reader = FortranStringReader('''
+    code = '''
       subroutine test()
         integer :: i, sum
         do i = 1, 10 , 2
             sum = sum + i
         end do
       end subroutine test
-      ''')
-    fparser2_tree = parser(reader)
-    processor = Fparser2Reader()
-    psyir = processor.generate_psyir(fparser2_tree)
+      '''
+    psyir = fortran_reader.psyir_from_source(code)
     result = psyir.walk(Routine)[0]
     assert result.children[0]
     new_loop = result.children[0]
@@ -90,10 +84,10 @@ def test_do_construct(parser):
     assert isinstance(new_loop.loop_body[0], Assignment)
 
 
-def test_do_construct_while(parser):
+def test_do_construct_while(fortran_reader):
     ''' Check that do while and general, uncoditioned loop constructs are
     converted to WhileLoop PSyIR nodes. '''
-    reader = FortranStringReader('''
+    code = '''
       subroutine test()
         integer :: a, b, c
         do while (a .gt. b)
@@ -103,10 +97,8 @@ def test_do_construct_while(parser):
           c = c + 1
         end do
       end subroutine test
-      ''')
-    fparser2_tree = parser(reader)
-    processor = Fparser2Reader()
-    psyir = processor.generate_psyir(fparser2_tree)
+      '''
+    psyir = fortran_reader.psyir_from_source(code)
     result = psyir.walk(Routine)[0]
     while_loop = result.children[0]
     assert isinstance(while_loop, WhileLoop)
@@ -118,6 +110,7 @@ def test_do_construct_while(parser):
     assert isinstance(no_condition_loop.condition, Literal)
     assert len(no_condition_loop.loop_body.children) == 1
     assert isinstance(no_condition_loop.loop_body[0], Assignment)
+    assert no_condition_loop.annotations == ['was_unconditional']
 
 
 def test_handled_named_do_without_exit(fortran_reader):
