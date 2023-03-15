@@ -339,6 +339,9 @@
 	113) PR #2063. Improve search for optimisation script and handling
 	of any errors when it is imported.
 
+	114) PR #2071 for #2042. Adds support for the Fortran 'parameter'
+	statement to the fparser2 frontend.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
