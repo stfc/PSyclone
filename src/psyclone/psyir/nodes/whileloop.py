@@ -36,10 +36,10 @@
 
 ''' This module contains the WhileLoop node implementation.'''
 
-from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.nodes.statement import Statement
-from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.errors import InternalError, GenerationError
+from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.schedule import Schedule
+from psyclone.psyir.nodes.statement import Statement
 
 
 class WhileLoop(Statement):

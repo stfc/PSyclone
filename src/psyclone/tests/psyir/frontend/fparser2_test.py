@@ -43,9 +43,9 @@ import fparser
 from fparser.common.readfortran import FortranStringReader
 from fparser.common.sourceinfo import FortranFormat
 from fparser.two import Fortran2003
-from fparser.two.Fortran2003 import Specification_Part, \
-    Type_Declaration_Stmt, Execution_Part, Name, Stmt_Function_Stmt, \
-    Dimension_Attr_Spec, Assignment_Stmt, Return_Stmt, Subroutine_Subprogram
+from fparser.two.Fortran2003 import Assignment_Stmt, Dimension_Attr_Spec, \
+    Execution_Part, Name, Return_Stmt, Specification_Part, \
+    Stmt_Function_Stmt, Subroutine_Subprogram, Type_Declaration_Stmt
 from fparser.two.utils import walk
 
 from psyclone.errors import InternalError, GenerationError

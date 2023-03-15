@@ -48,11 +48,11 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.nodes import BinaryOperation, Call, CodeBlock, DataNode, \
-    Literal, Operation, Range, Routine, Schedule, UnaryOperation, IntrinsicCall
+    IntrinsicCall, Literal, Operation, Range, Routine, Schedule, UnaryOperation
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
-    DeferredType, RoutineSymbol, ScalarType, Symbol, SymbolTable,
-    UnknownFortranType, UnknownType, UnresolvedInterface, ImportInterface)
+    DeferredType, ImportInterface, RoutineSymbol, ScalarType, Symbol,
+    SymbolTable, UnknownFortranType, UnknownType, UnresolvedInterface)
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from

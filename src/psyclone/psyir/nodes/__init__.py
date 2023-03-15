@@ -59,7 +59,6 @@ from psyclone.psyir.nodes.ifblock import IfBlock
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.loop import Loop
-from psyclone.psyir.nodes.whileloop import WhileLoop
 from psyclone.psyir.nodes.extract_node import ExtractNode
 from psyclone.psyir.nodes.kernel_schedule import KernelSchedule
 from psyclone.psyir.nodes.member import Member
@@ -92,6 +91,7 @@ from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
     OMPNogroupClause, OMPNowaitClause, OMPNumTasksClause, OMPPrivateClause, \
     OMPDefaultClause, OMPReductionClause, OMPScheduleClause, \
     OMPFirstprivateClause, OMPSharedClause, OMPDependClause
+from psyclone.psyir.nodes.whileloop import WhileLoop
 
 
 # The entities in the __all__ list are made available to import directly from
