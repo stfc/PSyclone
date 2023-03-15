@@ -53,7 +53,7 @@ def test_whileloop_invalid_annotation():
 
     with pytest.raises(InternalError) as err:
         _ = WhileLoop(annotations=["invalid"])
-    assert ("WhileLoop with unknown annotation 'invalid', valid "
+    assert ("WhileLoop with unrecognised annotation 'invalid', valid "
             "annotations are:") in str(err.value)
 
 

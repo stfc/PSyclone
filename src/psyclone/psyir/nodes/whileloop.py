@@ -56,18 +56,6 @@ class WhileLoop(Statement):
     _children_valid_format = "DataNode, Schedule"
     _colour = "red"
 
-    def __init__(self, parent=None, annotations=None):
-        super().__init__(parent=parent)
-        if annotations:
-            for annotation in annotations:
-                if annotation in WhileLoop.valid_annotations:
-                    self._annotations.append(annotation)
-                else:
-                    raise InternalError(
-                        f"WhileLoop with unknown annotation '{annotation}', "
-                        f"valid annotations are: "
-                        f"{WhileLoop.valid_annotations}.")
-
     @staticmethod
     def _validate_child(position, child):
         '''
