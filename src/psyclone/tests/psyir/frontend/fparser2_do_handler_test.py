@@ -113,11 +113,11 @@ def test_do_construct_while(parser):
     assert isinstance(while_loop.condition, BinaryOperation)
     assert len(while_loop.loop_body.children) == 1
     assert isinstance(while_loop.loop_body[0], Assignment)
-    unconditioned_loop = result.children[1]
-    assert isinstance(unconditioned_loop, WhileLoop)
-    assert isinstance(unconditioned_loop.condition, Literal)
-    assert len(unconditioned_loop.loop_body.children) == 1
-    assert isinstance(unconditioned_loop.loop_body[0], Assignment)
+    no_condition_loop = result.children[1]
+    assert isinstance(no_condition_loop, WhileLoop)
+    assert isinstance(no_condition_loop.condition, Literal)
+    assert len(no_condition_loop.loop_body.children) == 1
+    assert isinstance(no_condition_loop.loop_body[0], Assignment)
 
 
 def test_handled_named_do_without_exit(fortran_reader):

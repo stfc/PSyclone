@@ -394,16 +394,16 @@ structure if desired) Nodes may have `annotations` associated with
 them. The annotations, the Node types to which they may be applied and
 their meanings are summarised in the table below:
 
-=================  =================  =================================
-Annotation         Node types         Origin
-=================  =================  =================================
-`was_elseif`       `IfBlock`          `else if`
-`was_single_stmt`  `IfBlock`, `Loop`  `if(logical-expr)expr` or Fortran
-                                      `where(array-mask)array-expr`
-`was_case`         `IfBlock`          Fortran `select case` construct
-`was_where`        `Loop`, `IfBlock`  Fortran `where` construct
-`was unbounded`    `WhileLoop`        Fortran general `do` loop
-=================  =================  =================================
+===================  =================  ===================================
+Annotation           Node types         Origin
+===================  =================  ===================================
+`was_elseif`         `IfBlock`          `else if`
+`was_single_stmt`    `IfBlock`, `Loop`  `if(logical-expr)expr` or Fortran
+                                        `where(array-mask)array-expr`
+`was_case`           `IfBlock`          Fortran `select case` construct
+`was_where`          `Loop`, `IfBlock`  Fortran `where` construct
+`was_unconditional`  `WhileLoop`        Fortran `do` loop with no condition
+===================  =================  ===================================
 
 .. note:: A `Loop` may currently only be given the `was_single_stmt`
 	  annotation if it also has the `was_where` annotation. (Thus
@@ -416,7 +416,7 @@ Annotation         Node types         Origin
 Loop Node
 ^^^^^^^^^
 
-The `Loop` node is the cannonical representation of a counted loop, it
+The `Loop` node is the canonical representation of a counted loop, it
 has the start, stop, step and loop_body of the loop as its children. The
 node has the same semantics than the Fortran do construct: the boundary
 values are inclusive (both are part of the iteration space) and the start,
@@ -429,9 +429,10 @@ For more details on the `Loop` node, see the full API in the
 WhileLoop Node
 --------------
 
-The `WhileLoop` node is the cannonical representation of a while loop.
-The PSyIR representation of the Fortran general (unconditioned) `do` loop is
-that of a `do while` loop whose condition is the logical constant `.TRUE.`.
+The `WhileLoop` node is the canonical representation of a while loop.
+The PSyIR representation of the Fortran `do` loop with no condition will have
+the annotation `was_unconditional`, but is otherwise no different from that of
+a `do while` loop whose condition is the logical constant `.TRUE.`.
 
 For more details on the `WhileLoop` node, see the full API in the
 :ref_guide:`reference guide psyclone.psyir.nodes.html#psyclone.psyir.nodes.WhileLoop`.

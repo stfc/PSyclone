@@ -2521,9 +2521,9 @@ class Fparser2Reader():
                     raise NotImplementedError()
 
         ctrl = walk(node.content, Fortran2003.Loop_Control)
-        # general, unconditioned do loops and do while loops
+        # do loops with no condition and do while loops
         if not ctrl or ctrl[0].items[0]:
-            annotation = ['was_unbounded'] if not ctrl else None
+            annotation = ['was_unconditional'] if not ctrl else None
             loop = WhileLoop(parent=parent, annotations=annotation)
             loop.ast = node
             condition = [Fortran2003.Logical_Literal_Constant(".TRUE.")] \

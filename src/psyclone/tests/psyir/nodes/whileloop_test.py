@@ -67,9 +67,9 @@ def test_whileloop_node_str():
     output = loop.node_str()
     assert coloured_loop+"[]" in output
 
-    loop = WhileLoop(annotations=['was_unbounded'])
+    loop = WhileLoop(annotations=['was_unconditional'])
     output = loop.node_str()
-    assert coloured_loop+"[annotations='was_unbounded']" in output
+    assert coloured_loop+"[annotations='was_unconditional']" in output
 
 
 def test_whileloop_create_and_refence_accesses():

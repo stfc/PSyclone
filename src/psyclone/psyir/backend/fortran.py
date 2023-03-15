@@ -1404,7 +1404,7 @@ class FortranWriter(LanguageWriter):
         :param node: a WhileLoop PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.WhileLoop`
 
-        :returns: the Fortran code as a string.
+        :returns: the Fortran code.
         :rtype: str
 
         '''

@@ -50,8 +50,8 @@ class WhileLoop(Statement):
 
     '''
     # The valid annotations for this node:
-    # 'was_unbounded' to tag unbounded do loops in Fortran.
-    valid_annotations = ('was_unbounded',)
+    # 'was_unconditional' to tag do loops with no condition in Fortran.
+    valid_annotations = ('was_unconditional',)
     # Textual description of the node.
     _children_valid_format = "DataNode, Schedule"
     _colour = "red"
