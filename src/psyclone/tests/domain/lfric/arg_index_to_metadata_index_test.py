@@ -46,7 +46,21 @@ from psyclone.domain.lfric.kernel import (
 
 
 def call_method(method_name, meta_arg, metadata):
-    ''' xxx '''
+    '''Utility method to initialise the required class variables and then
+    call the method specified in the method_name argument.
+
+    :param str method_name: the name of the method to call.
+    :param meta_arg: the meta_arg metadata to pass to the call.
+    :type meta_arg: subclass of \
+        :py:class:`psyclone.domain.lfric.kernel.CommonArgMetadata`
+    :param metadata: the full metadata description.
+    :type metadata: \
+        :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+    :returns: an ArgIndexToMetadataIndex class
+    :rtype: :py:class:`psyclone.domain.lfric.ArgIndexToMetadataIndex`
+
+    '''
     metadata.validate()
     cls = ArgIndexToMetadataIndex
     cls._initialise(None)
@@ -137,7 +151,7 @@ def test_add_arg():
 
 def test_remaining_methods():
     '''Test the remaining methods. Each of these increments the _index
-    variable.
+    variable by one, apart from _cell_map which increments it by four.
 
     '''
     cls = ArgIndexToMetadataIndex

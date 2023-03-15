@@ -130,7 +130,8 @@ class ArgIndexToMetadataIndex(MetadataToArgumentsRules):
         metadata.
 
         :param meta_arg: the current meta_arg metadata.
-        :type meta_arg: :py:class:`XXX`
+        :type meta_arg: subclass of \
+            :py:class:`psyclone.domain.lfric.kernel.CommonMetaArgMetadata`
 
         '''
         meta_arg_index = cls._metadata.meta_args.index(meta_arg)
