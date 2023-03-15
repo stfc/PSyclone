@@ -2048,13 +2048,47 @@ class Fparser2Reader():
             elif isinstance(node, (Fortran2003.Access_Stmt,
                                    Fortran2003.Derived_Type_Def,
                                    Fortran2003.Stmt_Function_Stmt,
-                                   Fortran2003.Use_Stmt,
-                                   Fortran2003.Implicit_Part)):
-                # These node types are handled separately with the exception
-                # of Implicit_Part which we currently silently ignore
-                # (TODO #1254).
+                                   Fortran2003.Use_Stmt)):
+                # These node types are handled separately
                 pass
+            elif isinstance(node, Fortran2003.Implicit_Part):
+                for stmt in node.children:
+                    if isinstance(stmt, Fortran2003.Parameter_Stmt):
+                        for parameter_def in stmt.children[1].items:
+                            name, expr = parameter_def.items
+                            try:
+                                symbol = parent.symbol_table.lookup(str(name))
+                            except Exception as err:
+                                # If there is any problem put the whole thing
+                                # in a codeblock (as we presume the original
+                                # code is correct).
+                                raise NotImplementedError(
+                                    f"Could not parse '{stmt}' because: "
+                                    f"{err}.") from err
 
+                            if not isinstance(symbol, DataSymbol):
+                                raise NotImplementedError(
+                                    f"Could not parse '{stmt}' because "
+                                    f"'{symbol.name}' is not a DataSymbol.")
+                            if isinstance(symbol.datatype, UnknownType):
+                                raise NotImplementedError(
+                                    f"Could not parse '{stmt}' because "
+                                    f"'{symbol.name}' has an UnknownType.")
+
+                            # Parse its initialization into a dummy Assignment
+                            # (but connected to the parent scope since symbols
+                            # must be resolved)
+                            dummynode = Assignment(parent=parent)
+                            self.process_nodes(parent=dummynode, nodes=[expr])
+
+                            # Add the initialization expression in the symbol
+                            # constant_value attribute
+                            ct_expr = dummynode.children[0].detach()
+                            symbol.constant_value = ct_expr
+                    else:
+                        # TODO #1254: We currently silently ignore the rest of
+                        # the Implicit_Part statements
+                        pass
             else:
                 raise NotImplementedError(
                     f"Error processing declarations: fparser2 node of type "
