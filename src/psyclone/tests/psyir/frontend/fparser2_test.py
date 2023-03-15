@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 # -----------------------------------------------------------------------------
 
@@ -43,9 +43,9 @@ import fparser
 from fparser.common.readfortran import FortranStringReader
 from fparser.common.sourceinfo import FortranFormat
 from fparser.two import Fortran2003
-from fparser.two.Fortran2003 import Specification_Part, \
-    Type_Declaration_Stmt, Execution_Part, Name, Stmt_Function_Stmt, \
-    Dimension_Attr_Spec, Assignment_Stmt, Return_Stmt, Subroutine_Subprogram
+from fparser.two.Fortran2003 import Assignment_Stmt, Dimension_Attr_Spec, \
+    Execution_Part, Name, Return_Stmt, Specification_Part, \
+    Stmt_Function_Stmt, Subroutine_Subprogram, Type_Declaration_Stmt
 from fparser.two.utils import walk
 
 from psyclone.errors import InternalError, GenerationError
@@ -2952,9 +2952,11 @@ def test_nodes_to_code_block_1(f2008_parser):
     '''
     reader = FortranStringReader('''
         program test
-        do while(a .gt. b)
-            c = c + 1
-        end do
+        loop: do i = 0, 9
+            do j = i, 9
+                if (j == 5) exit loop
+            end do
+        end do loop
         end program test
         ''')
     prog = f2008_parser(reader)
@@ -2974,9 +2976,11 @@ def test_nodes_to_code_block_2(f2008_parser):
     reader = FortranStringReader('''
         program test
         if (.true.) then
-            do while(a .gt. b)
-                c = c + 1
-            end do
+            loop: do i = 0, 9
+                do j = i, 9
+                    if (j == 5) exit loop
+                end do
+            end do loop
         end if
         end program test
         ''')
