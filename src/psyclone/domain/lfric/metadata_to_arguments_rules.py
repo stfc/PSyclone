@@ -44,6 +44,10 @@ from psyclone.domain.lfric.kernel import (
     ScalarArgMetadata)
 from psyclone.errors import InternalError
 
+# pylint: disable=too-many-branches
+# pylint: disable=too-many-statements
+# pylint: disable=too-few-public-methods
+
 
 class MetadataToArgumentsRules():
     '''This class encapsulates rules to map LFRic kernel metadata to
@@ -67,7 +71,7 @@ class MetadataToArgumentsRules():
     '''
     _metadata = None
     _info = None
-    
+
     @classmethod
     def mapping(cls, metadata, info=None):
         '''Takes kernel metadata as input and returns whatever is added to the
@@ -364,6 +368,7 @@ class MetadataToArgumentsRules():
 
         '''
 
+    # pylint: disable=unidiomatic-typecheck
     @classmethod
     def _generate(cls, metadata):
         '''Specifies which arguments appear in an argument list and their
@@ -374,8 +379,7 @@ class MetadataToArgumentsRules():
         :type metadata: \
             py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
 
-        :raises GenerationError: if the kernel arguments break the \
-                                 rules for the LFRic API.
+        :raises InternalError: if an unexpected mesh property is found.
 
         '''
         # All operator types require the cell index to be provided
@@ -427,7 +431,6 @@ class MetadataToArgumentsRules():
                         FieldVectorArgMetadata, InterGridVectorArgMetadata]:
                     cls._field_vector(meta_arg)
                 if meta_arg.stencil:
-                    # TODO: if not stencil.extent???
                     if meta_arg.stencil == "cross2d":
                         # stencil extent is not provided in the
                         # metadata so must be passed from the Algorithm
