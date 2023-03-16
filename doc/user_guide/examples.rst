@@ -498,7 +498,7 @@ The generated code has two problems:
     is not yet implemented.
  2. Although the user-supplied kernel is transformed so as to have the
     necessary ``!$acc routine`` directive, the associated (but unnecessary)
-    ``use`` statement in the transformed Algorithym layer still uses the
+    ``use`` statement in the transformed Algorithm layer still uses the
     name of the original, untransformed kernel (issue #1724).
 
 Since no colouring is required in this case, the generated Alg layer

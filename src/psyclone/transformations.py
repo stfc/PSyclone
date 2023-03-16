@@ -2284,7 +2284,7 @@ class ACCEnterDataTrans(Transformation):
             posn = sched.children.index(current)
 
         # Add the directive at the position determined above, i.e. just before
-        # the first statemement containing an OpenACC compute construct.
+        # the first statement containing an OpenACC compute construct.
         data_dir = AccEnterDataDir(parent=sched, children=[])
         sched.addchild(data_dir, index=posn)
 

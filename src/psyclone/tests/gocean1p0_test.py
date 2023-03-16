@@ -222,7 +222,7 @@ def test_two_kernels_with_dependencies(tmpdir, dist_mem):
     if dist_mem:
         # In this case the second kernel just has a RaW dependency on the
         # cu_fld of the first kernel, so a halo exchange should be inserted
-        # bewteen the kernels in addition to the initial p_fld halo exchange.
+        # between the kernels in addition to the initial p_fld halo exchange.
         halos_first_kernel = "      CALL p_fld%halo_exchange(1)\n"
         halos_second_kernel = "      CALL cu_fld%halo_exchange(1)\n"
         expected_output = before_kernels + halos_first_kernel + first_kernel \

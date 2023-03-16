@@ -104,14 +104,14 @@ def test_find_or_create_imported_symbol():
     assert (_find_or_create_imported_symbol(
         alpha, alpha.name, scope_limit=container).name == alpha.name)
 
-    # Test _find_or_create_impored_symbol with invalid location
+    # Test _find_or_create_imported_symbol with invalid location
     with pytest.raises(TypeError) as excinfo:
         _ = _find_or_create_imported_symbol("hello", alpha.name)
     assert ("The location argument 'hello' provided to "
             "_find_or_create_imported_symbol() is not of type `Node`."
             in str(excinfo.value))
 
-    # Test _find_or_create_impored_symbol with invalid scope type
+    # Test _find_or_create_imported_symbol with invalid scope type
     with pytest.raises(TypeError) as excinfo:
         _ = _find_or_create_imported_symbol(alpha, alpha.name,
                                             scope_limit="hello")

@@ -34,7 +34,7 @@
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified I. Kavcic and A. Coughtrie, Met Office
 #          C.M. Maynard, Met Office / University of Reading
-# MOdified J. Henrichs, Bureau of Meteorology
+# Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk, STFC Daresbury Lab
 
 ''' Tests of transformations with the LFRic (Dynamo 0.3) API '''
@@ -5318,7 +5318,7 @@ def test_rc_parent_loop_colour(monkeypatch):
 
     # Make the outermost loop iterate over cells (it should be
     # colours). We can ignore the previous monkeypatch as this
-    # exception is ecountered before the previous one.
+    # exception is encountered before the previous one.
     monkeypatch.setattr(schedule.children[4], "_loop_type", "cells")
 
     rc_trans = Dynamo0p3RedundantComputationTrans()

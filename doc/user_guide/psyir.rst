@@ -73,7 +73,7 @@ to create code.
 .. note:: This separation will be removed in the future and eventually
 	  all PSyIR classes will make use of backends with the
 	  expectation that ``gen_code()`` and ``update()`` methods
-	  will be removed. Further this separation will be superceded
+	  will be removed. Further this separation will be superseded
 	  by a separation between ``language-level PSyIR`` and
 	  ``domain-specific PSyIR``.
 
@@ -378,7 +378,7 @@ Symbols (`psyclone.psyir.symbols.Symbol`) specified and used within them.
 
 Symbol Tables can be nested (i.e. a node with an attached symbol table
 can be an ancestor or descendent of a node with an attached symbol
-table). If the same symbol name is used in a hierachy of symbol tables
+table). If the same symbol name is used in a hierarchy of symbol tables
 then the symbol within the symbol table attached to the closest
 ancestor node is in scope. By default, symbol tables are aware of
 other symbol tables and will return information about relevant symbols

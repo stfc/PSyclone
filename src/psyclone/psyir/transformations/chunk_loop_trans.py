@@ -241,7 +241,7 @@ class ChunkLoopTrans(LoopTrans):
         # so our ancestors cannot use these variables.
 
         # Store the node's parent for replacing later and the start and end
-        # indicies
+        # indices
         start = node.start_expr
         stop = node.stop_expr
 

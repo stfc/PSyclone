@@ -1775,7 +1775,7 @@ release 1.8.0 8th November 2019
 	fparser master (contains bug fix for Python 2 installation).
 
 	39) #329 and PR #371. Removes the global psyGen.MAPPINGS_ACCESSES by
-	moving the functionality into the api-specifc config section of
+	moving the functionality into the api-specific config section of
 	the configuration file.
 
 	40) #361 and PR #365. Identify NemoKernel nodes via the PSyIR
