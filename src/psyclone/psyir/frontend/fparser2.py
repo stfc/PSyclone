@@ -48,20 +48,19 @@ from fparser.two.utils import walk, BlockBase, StmtBase
 from psyclone.configuration import Config
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes import (
-    UnaryOperation, BinaryOperation, NaryOperation, Schedule, CodeBlock,
-    IfBlock, Reference, Literal, Loop, Container, Assignment, Return, Node,
-    ArrayReference, Range, StructureReference, Routine, Call, Member,
-    ArrayOfStructuresReference, FileContainer, Directive, ArrayMember,
-    IntrinsicCall)
+    ArrayMember, ArrayOfStructuresReference, ArrayReference, Assignment,
+    BinaryOperation, Call, CodeBlock, Container, Directive, FileContainer,
+    IfBlock, IntrinsicCall, Literal, Loop, Member, NaryOperation, Node, Range,
+    Reference, Return, Routine, Schedule, StructureReference, UnaryOperation,
+    WhileLoop)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_of_structures_mixin import \
     ArrayOfStructuresMixin
 from psyclone.psyir.symbols import (
-    SymbolError, DataSymbol, ContainerSymbol, Symbol, ImportInterface,
-    ArgumentInterface, UnresolvedInterface, LocalInterface, ScalarType,
-    ArrayType, DeferredType, UnknownType, UnknownFortranType, StructureType,
-    DataTypeSymbol, RoutineSymbol, SymbolTable, NoType, INTEGER_TYPE,
-    IntrinsicSymbol)
+    ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
+    DeferredType, ImportInterface, IntrinsicSymbol, LocalInterface, NoType,
+    RoutineSymbol, ScalarType, StructureType, Symbol, SymbolError, SymbolTable,
+    UnknownFortranType, UnknownType, UnresolvedInterface, INTEGER_TYPE)
 
 # fparser dynamically generates classes which confuses pylint membership checks
 # pylint: disable=maybe-no-member
@@ -2048,13 +2047,47 @@ class Fparser2Reader():
             elif isinstance(node, (Fortran2003.Access_Stmt,
                                    Fortran2003.Derived_Type_Def,
                                    Fortran2003.Stmt_Function_Stmt,
-                                   Fortran2003.Use_Stmt,
-                                   Fortran2003.Implicit_Part)):
-                # These node types are handled separately with the exception
-                # of Implicit_Part which we currently silently ignore
-                # (TODO #1254).
+                                   Fortran2003.Use_Stmt)):
+                # These node types are handled separately
                 pass
+            elif isinstance(node, Fortran2003.Implicit_Part):
+                for stmt in node.children:
+                    if isinstance(stmt, Fortran2003.Parameter_Stmt):
+                        for parameter_def in stmt.children[1].items:
+                            name, expr = parameter_def.items
+                            try:
+                                symbol = parent.symbol_table.lookup(str(name))
+                            except Exception as err:
+                                # If there is any problem put the whole thing
+                                # in a codeblock (as we presume the original
+                                # code is correct).
+                                raise NotImplementedError(
+                                    f"Could not parse '{stmt}' because: "
+                                    f"{err}.") from err
 
+                            if not isinstance(symbol, DataSymbol):
+                                raise NotImplementedError(
+                                    f"Could not parse '{stmt}' because "
+                                    f"'{symbol.name}' is not a DataSymbol.")
+                            if isinstance(symbol.datatype, UnknownType):
+                                raise NotImplementedError(
+                                    f"Could not parse '{stmt}' because "
+                                    f"'{symbol.name}' has an UnknownType.")
+
+                            # Parse its initialization into a dummy Assignment
+                            # (but connected to the parent scope since symbols
+                            # must be resolved)
+                            dummynode = Assignment(parent=parent)
+                            self.process_nodes(parent=dummynode, nodes=[expr])
+
+                            # Add the initialization expression in the symbol
+                            # constant_value attribute
+                            ct_expr = dummynode.children[0].detach()
+                            symbol.constant_value = ct_expr
+                    else:
+                        # TODO #1254: We currently silently ignore the rest of
+                        # the Implicit_Part statements
+                        pass
             else:
                 raise NotImplementedError(
                     f"Error processing declarations: fparser2 node of type "
@@ -2502,11 +2535,11 @@ class Fparser2Reader():
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyir.nodes.Loop`
+        :rtype: Union[:py:class:`psyclone.psyir.nodes.Loop`, \
+                      :py:class:`psyclone.psyir.nodes.WhileLoop`]
 
-        :raises NotImplementedError: if the fparser2 tree has an unsupported \
-            structure (e.g. DO WHILE or a DO with no loop control or a named \
-            DO containing a reference to that name).
+        :raises NotImplementedError: if the fparser2 tree has a named DO \
+            containing a reference to that name.
         '''
         nonlabel_do = walk(node.content, Fortran2003.Nonlabel_Do_Stmt)[0]
         if nonlabel_do.item is not None:
@@ -2521,15 +2554,18 @@ class Fparser2Reader():
                     raise NotImplementedError()
 
         ctrl = walk(node.content, Fortran2003.Loop_Control)
-        if not ctrl:
-            # TODO #359 a DO with no loop control is put into a CodeBlock
-            raise NotImplementedError()
-        if ctrl[0].items[0]:
-            # If this is a DO WHILE then the first element of items will not
-            # be None. (See `fparser.two.Fortran2003.Loop_Control`.)
-            # TODO #359 DO WHILE's are currently just put into CodeBlocks
-            # rather than being properly described in the PSyIR.
-            raise NotImplementedError()
+        # do loops with no condition and do while loops
+        if not ctrl or ctrl[0].items[0]:
+            annotation = ['was_unconditional'] if not ctrl else None
+            loop = WhileLoop(parent=parent, annotations=annotation)
+            loop.ast = node
+            condition = [Fortran2003.Logical_Literal_Constant(".TRUE.")] \
+                if not ctrl else [ctrl[0].items[0]]
+            self.process_nodes(parent=loop, nodes=condition)
+            loop_body = Schedule(parent=loop)
+            loop.addchild(loop_body)
+            self.process_nodes(parent=loop_body, nodes=node.content[1:-1])
+            return loop
 
         # Second element of items member of Loop Control is itself a tuple
         # containing:

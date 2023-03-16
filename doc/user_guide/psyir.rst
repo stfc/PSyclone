@@ -32,7 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by A. R. Porter, STFC Daresbury Lab
-.. Modified by R. W. Ford, STFC Daresbury Lab
+.. Modified by R. W. Ford and N. Nobre, STFC Daresbury Lab
 
 .. The following section imports those Python modules that are needed in
    subsequent doctest snippets.
@@ -103,8 +103,8 @@ PSy-layer classes (``Loop`` and ``Schedule``) can also be used as
 Kernel-layer classes. Additionally, the ``Schedule`` class is further
 subclassed into a ``Routine`` and then a kernel-layer
 ``KernelSchedule``.  In addition to ``KernelSchedule``, Kernel-layer
-PSyIR nodes are: ``Loop``, ``IfBlock``, ``CodeBlock``, ``Assignment``,
-``Range``, ``Reference``, ``Operation``, ``Literal``, ``Call``,
+PSyIR nodes are: ``Loop``, ``WhileLoop``, ``IfBlock``, ``CodeBlock``,
+``Assignment``, ``Range``, ``Reference``, ``Operation``, ``Literal``, ``Call``,
 ``Return`` and ``Container``. The ``Reference`` class is further
 subclassed into ``ArrayReference``, ``StructureReference`` and
 ``ArrayOfStructuresReference``, the ``Operation`` class is further
@@ -183,10 +183,13 @@ To solve this issue some Nodes also provide methods for semantic navigation:
    .. automethod:: psyclone.psyir.nodes.Assignment.rhs()
 - ``IfBlock``:
    .. automethod:: psyclone.psyir.nodes.IfBlock.condition()
-		
    .. automethod:: psyclone.psyir.nodes.IfBlock.if_body()
-
    .. automethod:: psyclone.psyir.nodes.IfBlock.else_body()
+- ``Loop``:
+   .. automethod:: psyclone.psyir.nodes.Loop.loop_body()
+- ``WhileLoop``:
+   .. automethod:: psyclone.psyir.nodes.WhileLoop.condition()
+   .. automethod:: psyclone.psyir.nodes.WhileLoop.loop_body()
 - ``Array`` nodes (e.g. ``ArrayReference``, ``ArrayOfStructuresReference``):
    .. automethod:: psyclone.psyir.nodes.ArrayReference.indices()
 - ``RegionDirective``:
@@ -533,7 +536,7 @@ together. For example:
 However, as connections get more complicated, creating the correct
 connections can become difficult to manage and error prone. Further,
 in some cases children must be collected together within a
-``Schedule`` (e.g. for ``IfBlock`` and for ``Loop``).
+``Schedule`` (e.g. for ``IfBlock``, ``Loop`` and ``WhileLoop``).
 
 To simplify this complexity, each of the Kernel-layer nodes which
 contain other nodes have a static ``create`` method which helps

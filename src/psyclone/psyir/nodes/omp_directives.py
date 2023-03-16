@@ -1361,7 +1361,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
-        "omp do ...". The visitor is responsible for adding the
+        "omp parallel do ...". The visitor is responsible for adding the
         correct directive beginning (e.g. "!$").
 
         :returns: the beginning statement for this directive.
@@ -1376,7 +1376,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
     def end_string(self):
         '''Returns the end (or closing) statement of this directive, i.e.
-        "omp end do". The visitor is responsible for adding the
+        "omp end parallel do". The visitor is responsible for adding the
         correct directive beginning (e.g. "!$").
 
         :returns: the end statement for this directive.
