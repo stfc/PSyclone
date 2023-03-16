@@ -779,7 +779,8 @@ def test_validate_cma_matrix_kernel():
     with pytest.raises(ValueError) as info:
         ScalarArgMetadata("gh_real", "gh_write")
     assert ("The 'access descriptor' metadata should be a recognised value "
-            "(one of ['gh_read']) but found 'gh_write'." in str(info.value))
+            "(one of ['gh_read', 'gh_sum']) but found 'gh_write'."
+            in str(info.value))
 
     # OK.
     meta_args = [

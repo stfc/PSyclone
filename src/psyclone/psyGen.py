@@ -1458,6 +1458,9 @@ class CodedKern(Kern):
         PSyIR constructs. The CodedKern is implemented as a Call to a
         routine with the appropriate arguments.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         symtab = self.ancestor(InvokeSchedule).symbol_table
 
@@ -1486,6 +1489,7 @@ class CodedKern(Kern):
 
         # Swap itself with the appropriate Call node
         self.replace_with(call_node)
+        return call_node
 
     def gen_code(self, parent):
         '''
@@ -2704,23 +2708,7 @@ class Transformation(metaclass=abc.ABCMeta):
     '''Abstract baseclass for a transformation. Uses the abc module so it
     can not be instantiated.
 
-    :param writer: optional argument to set the type of writer to \
-        provide to a transformation for use when constructing error \
-        messages. Defaults to FortranWriter().
-    :type writer: :py:class:`psyclone.psyir.backend.visitor.PSyIRVisitor`
-
     '''
-    def __init__(self, writer=None):
-
-        if writer:
-            if not isinstance(writer, PSyIRVisitor):
-                raise TypeError(
-                    f"The writer argument to a transformation should be a "
-                    f"PSyIRVisitor, but found '{type(writer).__name__}'.")
-            self._writer = writer
-        else:
-            self._writer = FortranWriter()
-
     @property
     def name(self):
         '''

@@ -53,8 +53,9 @@ import fparser
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature
-from psyclone.domain.lfric.lfric_builtins import (
-    LFRicBuiltInCallFactory, LFRicBuiltIn, BUILTIN_MAP)
+from psyclone.domain.lfric.lfric_builtins import (LFRicTypes,
+                                                  LFRicBuiltInCallFactory,
+                                                  LFRicBuiltIn, BUILTIN_MAP)
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, KernStubArgList,
@@ -7111,6 +7112,9 @@ class DynLoop(PSyLoop):
         the loop in the schedule, i.e. can change when transformations are
         applied), this function can likely be removed.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         super().lower_to_language_level()
         if self._loop_type != "null":
@@ -7123,17 +7127,19 @@ class DynLoop(PSyLoop):
                                       self.step_expr.copy(),
                                       self.loop_body.pop_all_children())
             self.replace_with(psy_loop)
-        else:
-            # Domain loop, i.e. no need for a loop at all. Remove the loop
-            # node (self), and insert its children directly
-            pos = self.position
-            parent = self.parent
-            self.detach()
-            all_children_reverse = reversed(self.loop_body.pop_all_children())
-            # Attach the children starting with the last, which
-            # preserves the original order of the children.
-            for child in all_children_reverse:
-                parent.children.insert(pos, child)
+            return psy_loop
+
+        # Domain loop, i.e. no need for a loop at all. Remove the loop
+        # node (self), and insert its children directly
+        pos = self.position
+        parent = self.parent
+        self.detach()
+        all_children_reverse = reversed(self.loop_body.pop_all_children())
+        # Attach the children starting with the last, which
+        # preserves the original order of the children.
+        for child in all_children_reverse:
+            parent.children.insert(pos, child)
+        return parent
 
     def node_str(self, colour=True):
         ''' Creates a text summary of this loop node. We override this
@@ -10099,10 +10105,8 @@ class DynKernelArgument(KernelArgument):
                 except KeyError:
                     # TODO Once #696 is done, we should *always* have a
                     # symbol for this container at this point so should
-                    # raise an exception if we haven't. Also, the name
-                    # of the Fortran module should be read from the config
-                    # file.
-                    constants_container = ContainerSymbol(const_mod)
+                    # raise an exception if we haven't.
+                    constants_container = LFRicTypes(const_mod)
                     root_table.add(constants_container)
                 kind_symbol = DataSymbol(
                     kind_name, INTEGER_TYPE,

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -626,6 +626,9 @@ class PSyDataNode(Statement):
         :param str options["post_var_postfix"]: an optional postfix that will \
             be added to each variable name in the post_var_list.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         :raises GenerationError: if the node is not inside a Routine.
 
         '''
@@ -773,6 +776,7 @@ class PSyDataNode(Statement):
 
         # Finally we can remove the original PSyDataNode from here
         self.detach()
+        return self.parent
 
 
 # For AutoAPI documentation generation

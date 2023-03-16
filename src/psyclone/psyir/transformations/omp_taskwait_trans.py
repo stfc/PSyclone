@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. B. G. Chalk, STFC Daresbury Lab
-# Modified: R. W. Ford and N. Nobre, STFC Daresbury Lab
+# Modified: R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
 
 ''' This module provides the OMPTaskwaitTrans transformation that can be
 applied to an OMPParallelDirective to satisfy any task-based dependencies
@@ -43,7 +43,6 @@ from psyclone.core import VariablesAccessInfo
 from psyclone.errors import LazyString, InternalError
 from psyclone.psyGen import Transformation
 from psyclone.psyir import nodes
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Loop, Schedule, \
     OMPDoDirective, OMPTaskloopDirective, OMPSerialDirective, \
     OMPTaskwaitDirective, OMPSingleDirective, OMPParallelDirective
@@ -163,18 +162,17 @@ class OMPTaskwaitTrans(Transformation):
                 # Single Directive with nowait. In this case we can't
                 # safely guarantee our forward dependency so throw an error
                 if not valid:
-                    fwr = FortranWriter()
                     # pylint: disable=cell-var-from-loop
                     # Since "Backslashes may not appear inside the expression
                     # portions of f-strings" via PEP 498, use chr(10) for '\n'
                     raise TransformationError(LazyString(
-                                lambda: f"Couldn't satisfy the dependencies "
-                                        f"due to taskloop dependencies across "
-                                        f"barrierless OMP serial regions. "
-                                        f"Dependency is from\n"
-                                        f"{fwr(taskloop).rstrip(chr(10))}"
-                                        f"\nto\n"
-                                        f"{fwr(forward_dep).rstrip(chr(10))}"))
+                        lambda: f"Couldn't satisfy the dependencies due to "
+                                f"taskloop dependencies across barrierless "
+                                f"OMP serial regions. Dependency is from\n"
+                                f"{taskloop.debug_string().rstrip(chr(10))}"
+                                f"\nto\n"
+                                f"{forward_dep.debug_string().rstrip(chr(10))}"
+                        ))
 
     @staticmethod
     def get_forward_dependence(taskloop, root):
@@ -249,13 +247,12 @@ class OMPTaskwaitTrans(Transformation):
         parent_parallel = taskloop.ancestor(OMPParallelDirective)
         # Raise an error if there is no parent_parallel region
         if parent_parallel is None:
-            fwriter = FortranWriter()
             # Since "Backslashes may not appear inside the expression
             # portions of f-strings" via PEP 498, use chr(10) for '\n'
-            raise InternalError(
-                    LazyString(lambda: f"No parent parallel directive was "
-                                       f"found for the taskloop region: "
-                                       f"{fwriter(taskloop).rstrip(chr(10))}"))
+            raise InternalError(LazyString(
+                lambda: f"No parent parallel directive was found for the "
+                        f"taskloop region: "
+                        f"{taskloop.debug_string().rstrip(chr(10))}"))
 
         for node in node_list:
             if node.abs_position <= taskloop.abs_position:

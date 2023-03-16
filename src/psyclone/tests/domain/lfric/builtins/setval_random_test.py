@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 ''' Module containing pytest tests of the LFRicSetvalRandomKern built-in.'''
 
@@ -94,6 +95,7 @@ def test_setval_random_lowering():
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     parent = kern.parent
-    kern.lower_to_language_level()
+    lowered = kern.lower_to_language_level()
+    assert parent.children[0] is lowered
     assert isinstance(parent.children[0], Call)
     assert parent.children[0].routine.name == "random_number"

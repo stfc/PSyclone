@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -210,6 +210,9 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         In-place replacement of this directive concept into language level
         PSyIR constructs.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # We must generate a list of all of the fields accessed within OpenACC
         # compute constructs (i.e. OpenACC parallel and kernels directives)
@@ -224,7 +227,7 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         for pdir in self._acc_dirs:
             self._sig_set.update(*pdir.signatures)
 
-        super().lower_to_language_level()
+        return super().lower_to_language_level()
 
     def begin_string(self):
         '''Returns the beginning statement of this directive. The visitor is

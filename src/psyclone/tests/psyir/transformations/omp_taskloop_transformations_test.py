@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
-# Authors: A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
+# Authors: A. B. G. Chalk, N. Nobre and S. Siso, STFC Daresbury Lab
 '''
 API-agnostic tests for OpenMP task transformation classes.
 '''
@@ -284,7 +284,7 @@ def test_omptaskwait_validate_barrierless_single_region():
 !$omp taskloop nogroup
 do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1
   do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1
-    call compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
+    < kern call: compute_cu_code >
   enddo
 enddo
 !$omp end taskloop
@@ -292,7 +292,7 @@ to
 !$omp taskloop nogroup
 do j = p_fld%internal%ystart, p_fld%internal%ystop, 1
   do i = p_fld%internal%xstart, p_fld%internal%xstop, 1
-    call compute_cu_code(i, j, p_fld%data, cu_fld%data, u_fld%data)
+    < kern call: compute_cu_code >
   enddo
 enddo
 !$omp end taskloop'''
@@ -339,7 +339,7 @@ def test_omptaskwait_validate_master_region():
 !$omp taskloop nogroup
 do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1
   do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1
-    call compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
+    < kern call: compute_cu_code >
   enddo
 enddo
 !$omp end taskloop
@@ -347,7 +347,7 @@ to
 !$omp taskloop nogroup
 do j = p_fld%internal%ystart, p_fld%internal%ystop, 1
   do i = p_fld%internal%xstart, p_fld%internal%xstop, 1
-    call compute_cu_code(i, j, p_fld%data, cu_fld%data, u_fld%data)
+    < kern call: compute_cu_code >
   enddo
 enddo
 !$omp end taskloop'''
