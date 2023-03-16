@@ -156,7 +156,7 @@ class MetadataToArgumentsRules():
 
     @classmethod
     def _field_vector(cls, meta_arg):
-        '''Arguments providing an LFRic field vector.
+        '''Arguments providing the components of an LFRic field vector.
 
         :param meta_arg: the metadata associated with this field \
             vector argument.
@@ -189,7 +189,7 @@ class MetadataToArgumentsRules():
 
     @classmethod
     def _ref_element_properties(cls, meta_ref_element):
-        '''Arguments required if there are reference element properties
+        '''Arguments required if there are reference-element properties
         specified in the metadata.
 
         '''
@@ -230,7 +230,7 @@ class MetadataToArgumentsRules():
         :param meta_arg: the metadata capturing the InterGrid argument \
             required by the kernel.
         :type meta_arg: \
-        :py:class:`psyclone.domain.lfric.kernel.InterGridArgMetadata`]
+        :py:class:`psyclone.domain.lfric.kernel.InterGridArgMetadata`
 
         '''
 
@@ -274,7 +274,7 @@ class MetadataToArgumentsRules():
 
     @classmethod
     def _stencil_2d_unknown_extent(cls, meta_arg):
-        '''The field entry has a stencil access of type cross2d.
+        '''The field entry has a stencil access of type 'cross2d'.
 
         :param meta_arg: the metadata associated with a field argument \
             with a cross2d stencil access.
@@ -285,7 +285,7 @@ class MetadataToArgumentsRules():
 
     @classmethod
     def _stencil_2d_max_extent(cls, meta_arg):
-        '''The field entry has a stencil access of type cross2d.
+        '''The field entry has a stencil access of type 'cross2d'.
 
         :param meta_arg: the metadata associated with a field argument \
             with a cross2d stencil access.
@@ -296,7 +296,8 @@ class MetadataToArgumentsRules():
 
     @classmethod
     def _stencil_unknown_extent(cls, meta_arg):
-        '''The field entry has a stencil access.
+        '''The field entry has a stencil access (that is not of type
+        'cross2d').
 
         :param meta_arg: the metadata associated with a field argument \
             with a stencil access.
@@ -307,7 +308,7 @@ class MetadataToArgumentsRules():
 
     @classmethod
     def _stencil_unknown_direction(cls, meta_arg):
-        '''The field entry stencil access is of type XORY1D.
+        '''The stencil on the field argument is of type 'xory1d'.
 
         :param meta_arg: the metadata associated with a field argument \
             with a xory1d stencil access.
@@ -343,7 +344,7 @@ class MetadataToArgumentsRules():
     @classmethod
     def _banded_dofmap(cls, function_space, cma_operator):
         '''Adds a banded dofmap for the provided function space and cma
-        operator when there is an assembly cma kernel.
+        operator when there is an cma assembly kernel.
 
         :param str function_space: the function space for this banded \
             dofmap.
@@ -393,9 +394,10 @@ class MetadataToArgumentsRules():
             cls._mesh_height()
 
         # Pass the number of cells in the mesh if this kernel has a
-        # LMA operator argument
-        # TODO this code should replace the code that currently includes
-        # this quantity for *every* operator it encounters.
+        # LMA operator argument.
+        # TODO issue #2074 this call should be used to replace the
+        # code that currently includes ncell3d for *every* operator it
+        # encounters (in _operator()).
         # if metadata.meta_args_get(OperatorArgMetadata):
         #     cls._mesh_ncell3d()
 
@@ -485,31 +487,30 @@ class MetadataToArgumentsRules():
                     unique_function_spaces.append(arg.function_space)
 
         for function_space in unique_function_spaces:
-            # Provide arguments common to LMA operators and fields on
-            # a space *unless* this is an inter-grid or CMA
-            # matrix-matrix kernel
+            # Provide function-space-specific arguments common to
+            # fields and LMA operators unless this is an inter-grid or
+            # CMA matrix-matrix kernel.
             if metadata.kernel_type not in [
                     "cma-matrix-matrix", "inter-grid"]:
                 cls._fs_common(function_space)
 
-            # Provide additional arguments if there is a
-            # field on this space
-            if [arg for arg in metadata.meta_args_get(
-                    [FieldArgMetadata, FieldVectorArgMetadata])
-                    if arg.function_space == function_space]:
+            # Provide additional arguments if there is a field or
+            # field vector on this space
+            if (cls._field_meta_args_on_fs(
+                    [FieldArgMetadata, FieldVectorArgMetadata],
+                    function_space, metadata)):
                 cls._fs_compulsory_field(function_space)
 
-            # Provide additional arguments if there is a
-            # intergrid field on this space
-            intergrid_field = [arg for arg in metadata.meta_args_get(
-                [InterGridArgMetadata, InterGridVectorArgMetadata])
-                               if arg.function_space == function_space]
+            # Provide additional arguments if there is a intergrid
+            # field or intergrid vector field on this space
+            intergrid_field = cls._field_meta_args_on_fs(
+                [InterGridArgMetadata, InterGridVectorArgMetadata],
+                function_space, metadata)
             if intergrid_field:
                 cls._fs_intergrid(intergrid_field[0])
 
-            cma_ops = [arg for arg in metadata.meta_args_get(
-                ColumnwiseOperatorArgMetadata) if function_space in [
-                    arg.function_space_to, arg.function_space_from]]
+            cma_ops = cls._operator_meta_args_on_fs(
+                ColumnwiseOperatorArgMetadata, function_space, metadata)
             if cma_ops:
                 if metadata.kernel_type == "cma-assembly":
                     # CMA-assembly requires banded dofmaps
@@ -558,3 +559,56 @@ class MetadataToArgumentsRules():
            [shape for shape in metadata.shapes if shape in
                 const.VALID_QUADRATURE_SHAPES]:
             cls._quad_rule(metadata.shapes)
+
+    @staticmethod
+    def _field_meta_args_on_fs(arg_types, function_space, metadata):
+        '''Utility function to return any field (plus field vector, intergrid
+        or intergrid vector) meta_args in metadata that have the same
+        type as those specified in arg_types and are on the function
+        space specified in function_space.
+
+        :param arg_types: meta_arg classes indicating which meta_arg \
+            arguments to check.
+        :type arg_types: subclass of \
+            :py:class:`psyclone.domain.lfric.kernel.CommonMetaArgMetadata` or \
+            List[subclass of \
+            :py:class:`psyclone.domain.lfric.kernel.CommonMetaArgMetadata`]
+        :param str function_space: the specified function space.
+        :param metadata: the kernel metadata.
+        :type metadata: \
+            :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        :returns: a list of meta_args.
+        :type arg_types: List[subclass of \
+            :py:class:`psyclone.domain.lfric.kernel.CommonMetaArgMetadata`]
+
+        '''
+        return [arg for arg in metadata.meta_args_get(arg_types)
+                if arg.function_space == function_space]
+
+    @staticmethod
+    def _operator_meta_args_on_fs(arg_types, function_space, metadata):
+        '''Utility function to return any operator meta_args in metadata that
+        have the same type as those specified in arg_types and their
+        from or to function spaces are the same as the function space
+        specified in function_space.
+
+        :param arg_types: meta_arg classes indicating which meta_arg \
+            arguments to check.
+        :type arg_types: subclass of \
+            :py:class:`psyclone.domain.lfric.kernel.CommonMetaArgMetadata` or \
+            List[subclass of \
+            :py:class:`psyclone.domain.lfric.kernel.CommonMetaArgMetadata`]
+        :param str function_space: the specified function space.
+        :param metadata: the kernel metadata.
+        :type metadata: \
+            :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        :returns: a list of meta_args.
+        :type arg_types: List[subclass of \
+            :py:class:`psyclone.domain.lfric.kernel.CommonMetaArgMetadata`]
+
+        '''
+        return [arg for arg in metadata.meta_args_get(arg_types)
+                if function_space in [arg.function_space_to,
+                                      arg.function_space_from]]

@@ -88,7 +88,7 @@ class ArgIndexToMetadataIndex(MetadataToArgumentsRules):
 
     @classmethod
     def _field_vector(cls, meta_arg):
-        '''Arguments providing an LFRic field vector.
+        '''Arguments providing the components of an LFRic field vector.
 
         :param meta_arg: the metadata associated with this field \
             vector argument.
@@ -175,7 +175,7 @@ class ArgIndexToMetadataIndex(MetadataToArgumentsRules):
 
     @classmethod
     def _stencil_2d_unknown_extent(cls, meta_arg):
-        '''The field entry has a stencil access of type cross2d.
+        '''The field entry has a stencil access of type 'cross2d'.
 
         :param meta_arg: the metadata associated with a field argument \
             with a cross2d stencil access.
@@ -187,7 +187,7 @@ class ArgIndexToMetadataIndex(MetadataToArgumentsRules):
 
     @classmethod
     def _stencil_2d_max_extent(cls, meta_arg):
-        '''The field entry has a stencil access of type cross2d.
+        '''The field entry has a stencil access of type 'cross2d'.
 
         :param meta_arg: the metadata associated with a field argument \
             with a cross2d stencil access.
@@ -199,7 +199,8 @@ class ArgIndexToMetadataIndex(MetadataToArgumentsRules):
 
     @classmethod
     def _stencil_unknown_extent(cls, meta_arg):
-        '''The field entry has a stencil access.
+        '''The field entry has a stencil access (that is not of type
+        'cross2d').
 
         :param meta_arg: the metadata associated with a field argument \
             with a stencil access.
@@ -211,7 +212,7 @@ class ArgIndexToMetadataIndex(MetadataToArgumentsRules):
 
     @classmethod
     def _stencil_unknown_direction(cls, meta_arg):
-        '''The field entry stencil access is of type XORY1D.
+        '''The stencil on the field argument is of type 'xory1d'.
 
         :param meta_arg: the metadata associated with a field argument \
             with a xory1d stencil access.
