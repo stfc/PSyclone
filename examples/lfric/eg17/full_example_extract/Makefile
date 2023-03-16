@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,8 +42,7 @@
 PSYROOT=../../../..
 
 # Set it to 'netcdf' to use the NetCDF writer
-#TYPE?=standalone
-TYPE=netcdf
+TYPE?=standalone
 
 include $(PSYROOT)/examples/common.mk
 
@@ -54,8 +53,7 @@ else
 endif
 
 F90 ?= gfortran
-F90FLAGS ?= -Wall -g
-F90FLAGS += -ffree-line-length-none
+F90FLAGS ?= -Wall -g -ffree-line-length-none
 
 OBJ = main_psy.o main_alg.o testkern_w0_kernel_mod.o
 
@@ -70,6 +68,7 @@ EXEC = extract.$(TYPE)
 GENERATED_FILES = *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90
 EXTRACT_NAME ?= _extract
 EXTRACT_LIB = $(EXTRACT_DIR)/lib$(EXTRACT_NAME).a
+READ_KERNEL_DATA_OBJ = $(EXTRACT_DIR)/../read_kernel_data_mod.o
 LFRIC_PATH ?= $(PSYROOT)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME=lfric
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
@@ -102,21 +101,22 @@ main_alg.o:	main_psy.o
 testkern_w0_kernel_mod.o: $(LFRIC_LIB)
 
 driver-main-update:	F90FLAGS += -I $(EXTRACT_DIR)/..
-driver-main-update:	driver-main-update.o
+driver-main-update:	driver-main-update.o $(READ_KERNEL_DATA_OBJ)
 	$(F90) $(F90FLAGS)  driver-main-update.o       \
 		testkern_w0_kernel_mod.o                   \
-		$(EXTRACT_DIR)/../read_kernel_data_mod.o   \
+		$(READ_KERNEL_DATA_OBJ)                    \
 		-L$(LFRIC_PATH) -l$(LFRIC_NAME) $(LDFLAGS) \
 		-o driver-main-update
 
 driver-main-init:	F90FLAGS += -I $(EXTRACT_DIR)/..
-driver-main-init:	driver-main-init.o
+driver-main-init:	driver-main-init.o $(READ_KERNEL_DATA_OBJ)
 	$(F90) $(F90FLAGS)  driver-main-init.o         \
 		testkern_w0_kernel_mod.o                   \
-		$(EXTRACT_DIR)/../read_kernel_data_mod.o   \
+		$(READ_KERNEL_DATA_OBJ)                    \
 		-L$(LFRIC_PATH) -l$(LFRIC_NAME) $(LDFLAGS) \
 		-o driver-main-init
 
+driver-main-update.o driver-main-init.o:  $(READ_KERNEL_DATA_OBJ)
 
 %.o: %.F90
 	$(F90) $(F90FLAGS) -c $<
@@ -129,6 +129,9 @@ driver-main-init:	driver-main-init.o
 
 main_alg.f90: main_psy.f90
 
+$(READ_KERNEL_DATA_OBJ):
+	$(MAKE) -C $(EXTRACT_DIR)/..
+
 %_psy.f90:	%.x90
 	${PSYCLONE} -s ./extract_transform.py \
 	-nodm -opsy $*_psy.f90 -oalg $*_alg.f90 $<
@@ -136,3 +139,5 @@ main_alg.f90: main_psy.f90
 allclean: clean
 	$(MAKE) -C $(LFRIC_PATH) allclean
 	$(MAKE) -C $(EXTRACT_DIR) allclean
+	# Remove the read-kernel-data object files:
+	$(MAKE) -C $(EXTRACT_DIR)/.. allclean

@@ -147,7 +147,8 @@ def test_lfric_driver_flatten_reference_error():
     with pytest.raises(InternalError) as err:
         driver_creator._flatten_reference("NoUserType", symbol_table=None,
                                           proxy_name_mapping={})
-    assert "PSyclone internal error: " in str(err.value)
+    assert ("Unexpected type 'str' in _flatten_reference, it must be a "
+            "'StructureReference'" in str(err.value))
 
 
 # ----------------------------------------------------------------------------
