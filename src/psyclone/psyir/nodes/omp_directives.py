@@ -691,7 +691,10 @@ class OMPParallelDirective(OMPRegionDirective):
                     # !omp do
                     # do ji = 1, jpk
 
-                    # TODO #598: improve the handling of scalar variables.
+                    # TODO #598: Improve the handling of scalar variables,
+                    # there are remaining issues with references after the
+                    # parallel region of variables that we currently declare
+                    # as private.
 
                     # Check if it is inside a loop
                     loop_ancestor = access.node.ancestor(
