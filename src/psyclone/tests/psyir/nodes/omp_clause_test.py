@@ -141,79 +141,45 @@ def test_shared_clause():
     assert shared.clause_string == "shared"
 
 
-def test_private_clause():
-    ''' Test the OMPPrivateClause functionality. '''
-    private = OMPPrivateClause()
+@pytest.mark.parametrize("testclass, string",
+                         [(OMPPrivateClause, "private"),
+                          (OMPFirstprivateClause, "firstprivate")])
+def test_private_and_firstprivate_clause(testclass, string):
+    ''' Test the OMPPrivateClause and OMPFirstprivateClause functionality. '''
+    private = testclass()
     assert private.clause_string == ""
     tmp = DataSymbol("tmp", INTEGER_TYPE)
     ref1 = Reference(tmp)
     private.addchild(ref1)
-    assert private.clause_string == "private"
+    assert private.clause_string == string
 
 
-def test_private_clause_create():
-    ''' Test the OMPPrivateClause create method accepts a list of symbols
-    and adds children with references to those symbols. '''
-    
+@pytest.mark.parametrize("testclass, string",
+                         [(OMPPrivateClause, "OMPPrivateClause"),
+                          (OMPFirstprivateClause, "OMPFirstprivateClause")])
+def test_private_clause_create(testclass, string):
+    ''' Test that OMPPrivateClause and OMPFirstprivateClause create methods
+    accept a list of symbols and add children with references containing
+    those symbols. '''
+
     symbol1 = DataSymbol("a", INTEGER_TYPE)
     symbol2 = DataSymbol("b", INTEGER_TYPE)
     symbol3 = DataSymbol("c", INTEGER_TYPE)
 
     # Check that it just accepts a list of symbols
     with pytest.raises(TypeError) as err:
-        OMPPrivateClause.create(symbol1)
-    assert ("OMPPrivateClause expected the 'symbols' argument to be a list, "
-            "but found 'DataSymbol' instead." in str(err.value))
+        testclass.create(symbol1)
+    assert (f"{string} expected the 'symbols' argument to be a list, "
+            f"but found 'DataSymbol' instead." in str(err.value))
 
     with pytest.raises(TypeError) as err:
-        OMPPrivateClause.create([symbol1, 4, symbol2])
-    assert ("OMPPrivateClause expected all the items in the 'symbols' list to "
-            "be PSyIR Symbols, but found a 'int'." in str(err.value))
+        testclass.create([symbol1, 4, symbol2])
+    assert (f"{string} expected all the items in the 'symbols' list to "
+            f"be PSyIR Symbols, but found a 'int'." in str(err.value))
 
     # Check a working create method
-    new_clause = OMPPrivateClause.create([symbol1, symbol2, symbol3])
-    assert isinstance(new_clause, OMPPrivateClause)
-    assert len(new_clause.children) == 3
-    assert isinstance(new_clause.children[0], Reference)
-    assert isinstance(new_clause.children[1], Reference)
-    assert isinstance(new_clause.children[2], Reference)
-    assert new_clause.children[0].symbol.name == "a"
-    assert new_clause.children[1].symbol.name == "b"
-    assert new_clause.children[2].symbol.name == "c"
-
-
-def test_firstprivate_clause():
-    ''' Test the OMPFirstprivateClause functionality. '''
-    firp = OMPFirstprivateClause()
-    assert firp.clause_string == ""
-    tmp = DataSymbol("tmp", INTEGER_TYPE)
-    ref1 = Reference(tmp)
-    firp.addchild(ref1)
-    assert firp.clause_string == "firstprivate"
-
-
-def test_firstprivate_clause_create():
-    ''' Test the OMPFirstprivateClause create method accepts a list of symbols
-    and adds children with references to those symbols. '''
-    
-    symbol1 = DataSymbol("a", INTEGER_TYPE)
-    symbol2 = DataSymbol("b", INTEGER_TYPE)
-    symbol3 = DataSymbol("c", INTEGER_TYPE)
-
-    # Check that it just accepts a list of symbols
-    with pytest.raises(TypeError) as err:
-        OMPFirstprivateClause.create(symbol1)
-    assert ("OMPFirstprivateClause expected the 'symbols' argument to be a "
-            "list, but found 'DataSymbol' instead." in str(err.value))
-
-    with pytest.raises(TypeError) as err:
-        OMPFirstprivateClause.create([symbol1, 4, symbol2])
-    assert ("OMPFirstprivateClause expected all the items in the 'symbols' "
-            "list to be PSyIR Symbols, but found a 'int'." in str(err.value))
-
-    # Check a working create method
-    new_clause = OMPFirstprivateClause.create([symbol1, symbol2, symbol3])
-    assert isinstance(new_clause, OMPFirstprivateClause)
+    new_clause = testclass.create([symbol1, symbol2, symbol3])
+    assert isinstance(new_clause, testclass)
     assert len(new_clause.children) == 3
     assert isinstance(new_clause.children[0], Reference)
     assert isinstance(new_clause.children[1], Reference)

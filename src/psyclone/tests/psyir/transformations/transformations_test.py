@@ -535,11 +535,11 @@ firstprivate(scalar1), schedule(auto)
     assert Compile(tmpdir).string_compiles(gen)
 
 
-def test_omplooptrans_apply_firstprivate_fail(fortran_reader, fortran_writer):
+def test_omplooptrans_apply_firstprivate_fail(fortran_reader):
     ''' Test applying the OMPLoopTrans in cases where a firstprivate
     clause it is needed to generate functionally equivalent code than
     the starting serial version.
-    
+
     In some cases the transformation validate dependency analysis reports
     the firstprivate use as a reduction, which is wrong.
 
