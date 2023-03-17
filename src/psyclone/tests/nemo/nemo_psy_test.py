@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 ''' Module containing py.test tests for the construction of a PSy
     representation of NEMO code '''
@@ -44,8 +44,8 @@ from psyclone.psyGen import PSyFactory, InlinedKern
 from psyclone.errors import InternalError
 from psyclone.tests.utilities import get_invoke
 from psyclone import nemo
-from psyclone.psyir.nodes import Assignment, CodeBlock, IfBlock, Loop, \
-    Schedule, Literal, Reference
+from psyclone.psyir.nodes import Assignment, IfBlock, Literal, Loop, \
+    Reference, Schedule
 from psyclone.psyir.nodes.node import colored
 
 
@@ -113,20 +113,6 @@ def test_array_valued_function():
     # We should just have two assignments and no Kernels
     kernels = sched.walk(nemo.NemoKern)
     assert not kernels
-
-
-def test_do_while():
-    ''' Check that do-while loops are put into CodeBlocks. Eventually we
-    will need to recognise them as Nodes in the Schedule in their
-    own right. '''
-
-    _, invoke_info = get_invoke("do_while.f90", api=API, idx=0)
-    sched = invoke_info.schedule
-    # Do while loops are not currently handled and thus are put into
-    # CodeBlocks.
-    assert isinstance(sched[1], CodeBlock)
-    assert isinstance(sched[2], Assignment)
-    assert isinstance(sched[4], CodeBlock)
 
 
 def test_multi_kern():

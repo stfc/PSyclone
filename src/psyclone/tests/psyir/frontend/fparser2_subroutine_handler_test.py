@@ -42,45 +42,41 @@ to PSyIR.
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
-from psyclone.psyir.symbols import (DataSymbol, ScalarType, UnknownFortranType,
-                                    RoutineSymbol)
-from psyclone.psyir.nodes import Container, Routine, CodeBlock, FileContainer
+from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import (Fparser2Reader,
                                               TYPE_MAP_FROM_FORTRAN)
+from psyclone.psyir.nodes import Container, Routine, CodeBlock, FileContainer
+from psyclone.psyir.symbols import (DataSymbol, ScalarType, UnknownFortranType,
+                                    RoutineSymbol)
 
+IN_OUTS = []
 # subroutine no declarations
-SUB1_IN = (
-    "subroutine sub1()\n"
-    "end subroutine\n")
-SUB1_OUT = (
-    "subroutine sub1()\n\n\n"
-    "end subroutine sub1\n")
+IN_OUTS.append(
+    (("subroutine sub1()\n"
+      "end subroutine\n"),
+     ("subroutine sub1()\n\n\n"
+      "end subroutine sub1\n")))
 # subroutine with symbols/declarations
-SUB2_IN = (
-    "subroutine sub1(a)\n"
-    "real :: a\n"
-    "end subroutine\n")
-SUB2_OUT = (
-    "subroutine sub1(a)\n"
-    "  real :: a\n\n\n"
-    "end subroutine sub1\n")
+IN_OUTS.append(
+    (("subroutine sub1(a)\n"
+      "real :: a\n"
+      "end subroutine\n"),
+     ("subroutine sub1(a)\n"
+      "  real :: a\n\n\n"
+      "end subroutine sub1\n")))
 # subroutine with executable content
-SUB3_IN = (
-    "subroutine sub1()\n"
-    "real :: a\n"
-    "a=0.0\n"
-    "end subroutine\n")
-SUB3_OUT = (
-    "subroutine sub1()\n"
-    "  real :: a\n\n"
-    "  a = 0.0\n\n"
-    "end subroutine sub1\n")
+IN_OUTS.append(
+    (("subroutine sub1()\n"
+      "real :: a\n"
+      "a=0.0\n"
+      "end subroutine\n"),
+     ("subroutine sub1()\n"
+      "  real :: a\n\n"
+      "  a = 0.0\n\n"
+      "end subroutine sub1\n")))
 
 
-@pytest.mark.parametrize("code,expected",
-                         [(SUB1_IN, SUB1_OUT),
-                          (SUB2_IN, SUB2_OUT),
-                          (SUB3_IN, SUB3_OUT)])
+@pytest.mark.parametrize("code,expected", IN_OUTS)
 def test_subroutine_handler(parser, fortran_writer, code, expected):
     '''Test that subroutine_handler handles valid Fortran subroutines.'''
 
@@ -94,6 +90,45 @@ def test_subroutine_handler(parser, fortran_writer, code, expected):
     assert psyir.parent is None
     result = fortran_writer(psyir)
     assert expected == result
+
+
+def test_subroutine_implicit_args(parser):
+    """Check that we raise the expected error when we encounter a
+    subroutine argument without an explicit declaration.
+
+    """
+    code = '''
+subroutine sub1(idx)
+end subroutine'''
+    processor = Fparser2Reader()
+    reader = FortranStringReader(code)
+    parse_tree = parser(reader)
+    subroutine = parse_tree.children[0]
+    with pytest.raises(InternalError) as err:
+        _ = processor._subroutine_handler(subroutine, None)
+    assert ("The argument list ['idx'] for routine 'sub1' does not match "
+            "the variable declarations:" in str(err.value))
+
+
+def test_subroutine_some_implicit_args(parser):
+    """Check that we raise the expected error when we encounter a
+    subroutine which has declarations but has omitted to declare one
+    of its arguments.
+
+    """
+    code = '''
+subroutine sub1(var, idx)
+    real, intent(in) :: var
+end subroutine'''
+    processor = Fparser2Reader()
+    reader = FortranStringReader(code)
+    parse_tree = parser(reader)
+    subroutine = parse_tree.children[0]
+    with pytest.raises(InternalError) as err:
+        _ = processor._subroutine_handler(subroutine, None)
+    err_msg = str(err.value)
+    assert "The argument list ['var', 'idx'] for routine 'sub1'" in err_msg
+    assert "Could not find 'idx' in the Symbol Table" in err_msg
 
 
 def test_function_handler(fortran_reader, fortran_writer):
