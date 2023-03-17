@@ -48,8 +48,8 @@ from psyclone.psyGen import InvokeSchedule, Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (ArrayMember, ArrayReference, Assignment,
-                                  Call, FileContainer, Literal, Node,
-                                  Reference, Routine, StructureReference)
+                                  Call, FileContainer, IntrinsicCall, Literal,
+                                  Node, Reference, Routine, StructureReference)
 from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE,
                                     ContainerSymbol, DataSymbol,
                                     DataTypeSymbol, DeferredType,
@@ -494,20 +494,9 @@ class LFRicExtractDriverCreator:
         # is not allocated. So we need to allocate it and set it to 0.
         if not is_input:
             if isinstance(post_sym.datatype, ArrayType):
-                # TODO #1366 Once allocate is supported in PSyIR
-                # this parsing of a file can be replaced.
-                shape = post_sym.datatype.shape
-                dims = ",".join([":"]*len(shape))
-                code = f'''
-                    subroutine tmp()
-                      integer, allocatable, dimension({dims}) :: {sym.name}
-                      integer, allocatable, dimension({dims}) :: {post_name}
-                      allocate({sym.name}, mold={post_name})
-                    end subroutine tmp'''
-                fortran_reader = FortranReader()
-                container = fortran_reader.psyir_from_source(code)\
-                    .children[0]
-                alloc = container.children[0].detach()
+                alloc = IntrinsicCall.create(
+                    IntrinsicCall.Intrinsic.ALLOCATE,
+                    [Reference(sym), ("mold", Reference(post_sym))])
                 program.addchild(alloc)
             set_zero = Assignment.create(Reference(sym),
                                          Literal("0", INTEGER_TYPE))
