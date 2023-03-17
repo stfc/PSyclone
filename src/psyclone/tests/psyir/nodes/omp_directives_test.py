@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -52,9 +52,10 @@ from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, \
     Reference, OMPDeclareTargetDirective, OMPNowaitClause, \
     OMPGrainsizeClause, OMPNumTasksClause, OMPNogroupClause, \
     OMPPrivateClause, OMPDefaultClause, OMPReductionClause, \
-    OMPScheduleClause, OMPTeamsDistributeParallelDoDirective
+    OMPScheduleClause, OMPTeamsDistributeParallelDoDirective, \
+    OMPFirstprivateClause
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, SymbolTable, \
-    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE
+    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, Symbol
 from psyclone.errors import InternalError, GenerationError
 from psyclone.transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans, \
     OMPParallelLoopTrans, DynamoOMPParallelLoopTrans, OMPSingleTrans, \
@@ -95,8 +96,9 @@ def test_ompparallel_changes_begin_string(fortran_reader):
     pdir = tree.children[0].children[0]
     pdir.lower_to_language_level()
     assert pdir.begin_string() == "omp parallel"
-    assert len(pdir.children) == 3
+    assert len(pdir.children) == 4
     assert isinstance(pdir.children[2], OMPPrivateClause)
+    assert isinstance(pdir.children[3], OMPFirstprivateClause)
     priv_clause = pdir.children[2]
 
     # Make acopy of the loop
@@ -108,10 +110,10 @@ def test_ompparallel_changes_begin_string(fortran_reader):
     pdir.children[0].addchild(new_loop)
 
     pdir.lower_to_language_level()
-    assert pdir.children[2] != priv_clause
+    assert pdir.children[2] is not priv_clause
 
 
-def test_ompparallel_changes_gen_code():
+def test_ompparallel_changes_gen_code(monkeypatch):
     ''' Check that when the code inside an OMP Parallel region changes, the
     private clause changes appropriately. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
@@ -130,10 +132,9 @@ def test_ompparallel_changes_gen_code():
 
     assert isinstance(tree.children[0], OMPParallelDirective)
     pdir = tree.children[0]
-    _ = psy.gen
-    assert len(pdir.children) == 3
-    assert isinstance(pdir.children[2], OMPPrivateClause)
-    priv_clause = pdir.children[2]
+    code = str(psy.gen).lower()
+    assert len(pdir.children) == 4
+    assert "private(cell)" in code
 
     # Make acopy of the loop
     new_loop = pdir.children[0].children[0].children[0].children[0].copy()
@@ -147,11 +148,21 @@ def test_ompparallel_changes_gen_code():
     # Add loop
     pdir.children[0].addchild(tdir2)
 
-    _ = psy.gen
-    assert pdir.children[2] != priv_clause
+    code = str(psy.gen).lower()
+    assert "private(cell,k)" in code
+
+    # Monkeypatch a case with private and firstprivate clauses
+    pclause = OMPPrivateClause(children=[Reference(Symbol("a"))])
+    fpclause = OMPFirstprivateClause(children=[Reference(Symbol("b"))])
+    monkeypatch.setattr(pdir, "_get_private_clauses",
+                        lambda: (pclause, fpclause))
+
+    code = str(psy.gen).lower()
+    assert "private(a)" in code
+    assert "firstprivate(b)" in code
 
 
-def test_omp_paralleldo_changes_gen_code():
+def test_omp_paralleldo_changes_gen_code(monkeypatch):
     ''' Check that when the code inside an OMP Parallel Do region changes, the
     private clause changes appropriately. Also check that changing the schedule
     is correctly picked up.'''
@@ -166,12 +177,10 @@ def test_omp_paralleldo_changes_gen_code():
     assert isinstance(tree.children[0], OMPParallelDoDirective)
     pdir = tree.children[0]
     code = str(psy.gen).lower()
-    assert len(pdir.children) == 4
-    assert isinstance(pdir.children[2], OMPPrivateClause)
-    priv_clause = pdir.children[2]
-    sched_clause = pdir.children[3]
+    assert len(pdir.children) == 2
     assert "private(cell)" in code
     assert "schedule(auto)" in code
+    assert "firstprivate" not in code
 
     # Modify the loop
     routine = pdir.ancestor(Routine)
@@ -182,15 +191,21 @@ def test_omp_paralleldo_changes_gen_code():
     # Change the schedule to 'none'
     pdir.omp_schedule = "none"
 
-    code = str(psy.gen).lower()
-    assert pdir.children[2] != priv_clause
-    assert isinstance(pdir.children[2], OMPPrivateClause)
-    assert pdir.children[3] != sched_clause
-    assert isinstance(pdir.children[3], OMPScheduleClause)
-
     # No 'schedule' clause should now be present on the OMP directive.
+    code = str(psy.gen).lower()
     assert "schedule(" not in code
     assert "private(k)" in code
+    assert "firstprivate" not in code
+
+    # Monkeypatch a case with firstprivate clauses
+    pclause = OMPPrivateClause(children=[Reference(Symbol("a"))])
+    fpclause = OMPFirstprivateClause(children=[Reference(Symbol("b"))])
+    monkeypatch.setattr(pdir, "_get_private_clauses",
+                        lambda: (pclause, fpclause))
+
+    code = str(psy.gen).lower()
+    assert "private(a)" in code
+    assert "firstprivate(b)" in code
 
 
 def test_omp_parallel_do_changes_begin_str(fortran_reader):
@@ -218,10 +233,12 @@ def test_omp_parallel_do_changes_begin_str(fortran_reader):
     assert isinstance(tree.children[0].children[0], OMPParallelDoDirective)
     pdir = tree.children[0].children[0]
     pdir.lower_to_language_level()
-    assert len(pdir.children) == 4
+    assert len(pdir.children) == 5
     assert isinstance(pdir.children[2], OMPPrivateClause)
+    assert isinstance(pdir.children[3], OMPFirstprivateClause)
     priv_clause = pdir.children[2]
-    sched_clause = pdir.children[3]
+    fpriv_clause = pdir.children[3]
+    sched_clause = pdir.children[4]
 
     # Make acopy of the loop
     routine = pdir.ancestor(Routine)
@@ -234,10 +251,12 @@ def test_omp_parallel_do_changes_begin_str(fortran_reader):
     pdir._omp_schedule = "dynamic"
 
     pdir.lower_to_language_level()
-    assert pdir.children[2] != priv_clause
+    assert pdir.children[2] is not priv_clause
     assert isinstance(pdir.children[2], OMPPrivateClause)
-    assert pdir.children[3] != sched_clause
-    assert isinstance(pdir.children[3], OMPScheduleClause)
+    assert isinstance(pdir.children[3], OMPFirstprivateClause)
+    assert pdir.children[3] is not fpriv_clause
+    assert pdir.children[4] is not sched_clause
+    assert isinstance(pdir.children[4], OMPScheduleClause)
 
 
 def test_omp_teams_distribute_parallel_do_strings(
@@ -418,15 +437,17 @@ def test_omp_pdo_validate_child():
     sched = Schedule()
     declause = OMPDefaultClause()
     prclause = OMPPrivateClause()
+    fprclause = OMPFirstprivateClause()
     scclause = OMPScheduleClause()
     reclause = OMPReductionClause()
 
     assert OMPParallelDoDirective._validate_child(0, sched) is True
     assert OMPParallelDoDirective._validate_child(1, declause) is True
     assert OMPParallelDoDirective._validate_child(2, prclause) is True
-    assert OMPParallelDoDirective._validate_child(3, scclause) is True
-    assert OMPParallelDoDirective._validate_child(4, reclause) is True
+    assert OMPParallelDoDirective._validate_child(3, fprclause) is True
+    assert OMPParallelDoDirective._validate_child(4, scclause) is True
     assert OMPParallelDoDirective._validate_child(5, reclause) is True
+    assert OMPParallelDoDirective._validate_child(6, reclause) is True
 
     assert OMPParallelDoDirective._validate_child(0, "abc") is False
     assert OMPParallelDoDirective._validate_child(1, "abc") is False
@@ -434,6 +455,7 @@ def test_omp_pdo_validate_child():
     assert OMPParallelDoDirective._validate_child(3, "abc") is False
     assert OMPParallelDoDirective._validate_child(4, "abc") is False
     assert OMPParallelDoDirective._validate_child(5, "abc") is False
+    assert OMPParallelDoDirective._validate_child(6, "abc") is False
 
 
 def test_ompdo_equality():
@@ -509,8 +531,8 @@ def test_omp_do_children_err():
             "this Node has a child of type 'Return'" in str(err.value))
 
 
-def test_directive_get_private(monkeypatch):
-    ''' Tests for the _get_private_clause() method of OMPParallelDirective.
+def test_directive_get_private_lfric():
+    ''' Tests for the _get_private_clauses() method of OMPParallelDirective.
     Note: this test does not apply colouring so the loops must be over
     discontinuous function spaces.
 
@@ -537,25 +559,108 @@ def test_directive_get_private(monkeypatch):
     # pylint: disable=pointless-statement
     psy.gen
     # Now check that _get_private_clause returns what we expect
-    pvars = directive._get_private_clause()
+    pvars, fpvars = directive._get_private_clauses()
     assert isinstance(pvars, OMPPrivateClause)
+    assert isinstance(fpvars, OMPFirstprivateClause)
     assert len(pvars.children) == 1
+    assert len(fpvars.children) == 0
     assert pvars.children[0].name == 'cell'
-    # Now use monkeypatch to break the Call within the loop
-    call = directive.dir_body[0].dir_body[0].loop_body[0]
-    monkeypatch.setattr(call, "local_vars", lambda: [""])
-    with pytest.raises(InternalError) as err:
-        _ = directive._get_private_clause()
-    assert ("call 'testkern_w3_code' has a local variable but its name is "
-            "not set" in str(err.value))
 
     directive.children[1] = OMPDefaultClause(
             clause_type=OMPDefaultClause.DefaultClauseTypes.NONE)
     with pytest.raises(GenerationError) as excinfo:
-        _ = directive._get_private_clause()
+        _ = directive._get_private_clauses()
     assert ("OMPParallelClause cannot correctly generate the private clause "
             "when its default data sharing attribute in its default clause is "
             "not shared." in str(excinfo.value))
+
+
+def test_directive_get_private(fortran_reader):
+    ''' Tests for the _get_private_clauses() method of OpenMP directives.'''
+
+    # Example with private and firstprivate variables on OMPParallelDoDirective
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_subroutine()
+            integer :: i, scalar1, scalar2
+            real, dimension(10) :: array
+            scalar1 = 3
+            do i = 1, 10
+               if (i .eq. 4) then
+                  scalar1 = array(i)
+               endif
+               scalar2 = scalar1 + array(i)
+               array(i) = scalar2
+            enddo
+        end subroutine''')
+    omplooptrans = OMPParallelLoopTrans()
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop)
+    directive = psyir.walk(OMPParallelDoDirective)[0]
+    pvars, fpvars = directive._get_private_clauses()
+    assert len(pvars.children) == 2
+    assert len(fpvars.children) == 1
+    assert pvars.children[0].name == 'i'
+    assert pvars.children[1].name == 'scalar2'
+    assert fpvars.children[0].name == 'scalar1'
+
+    # Another example with OMPParallelDirective (not actual worksharing)
+    # and scalars set outside the loop (this should be shared by convention)
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_subroutine()
+            integer :: i, scalar1, scalar2, scalar3, scalar4
+            real, dimension(10) :: array
+            scalar3 = 10
+            scalar4 = 20
+            do i = 1, scalar3
+               scalar2 = scalar1 + scalar4 + array(i)
+               array(i) = scalar2
+            enddo
+        end subroutine''')
+    omplooptrans = OMPParallelTrans()
+    loop = psyir.walk(Routine)[0]
+    omplooptrans.apply(loop.children)
+    directive = psyir.walk(OMPParallelDirective)[0]
+    pvars, fpvars = directive._get_private_clauses()
+    assert len(pvars.children) == 2
+    assert len(fpvars.children) == 0
+    assert pvars.children[0].name == 'i'
+    assert pvars.children[1].name == 'scalar2'
+    # scalar 1 is shared because is read-only and scalar3 and scalar4 are
+    # shared because they are set outside a loop
+
+
+def test_directive_lastprivate(fortran_reader, fortran_writer):
+    ''' Test to demonstrate remaining issues with the OpenMP data sharing
+    clauses when we have dependencies after the OpenMP loop.
+
+    #TODO #598: A better use of dependency analysis could fix these issues.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_subroutine()
+            integer :: i, scalar1, scalar2
+            real, dimension(10) :: array
+            do i = 1, 10
+               scalar2 = scalar1 + array(i)
+               array(i) = scalar2
+            enddo
+            scalar1 = scalar2
+        end subroutine''')
+    omplooptrans = OMPParallelLoopTrans()
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop)
+    code = fortran_writer(psyir)
+    expected = '''\
+  !$omp parallel do default(shared), private(i,scalar2), lastprivate(scalar2)
+  do i = 1, 10, 1
+    scalar2 = scalar1 + array(i)
+    array(i) = scalar2
+  enddo
+  !$omp end parallel do
+  scalar1 = scalar2'''
+    if code not in expected:
+        pytest.xfail("#598 We do not check yet for possible dependencies of"
+                     "variables marked as private after the OpenMP region")
 
 
 def test_omp_parallel_validate_child():
@@ -563,12 +668,14 @@ def test_omp_parallel_validate_child():
     assert OMPParallelDirective._validate_child(0, Schedule()) is True
     assert OMPParallelDirective._validate_child(1, OMPDefaultClause()) is True
     assert OMPParallelDirective._validate_child(2, OMPPrivateClause()) is True
+    assert OMPParallelDirective._validate_child(3, OMPFirstprivateClause()) \
+        is True
     assert OMPParallelDirective._validate_child(2, OMPReductionClause())\
-           is False
-    assert OMPParallelDirective._validate_child(3, OMPReductionClause())\
-           is True
+        is False
     assert OMPParallelDirective._validate_child(4, OMPReductionClause())\
-           is True
+        is True
+    assert OMPParallelDirective._validate_child(5, OMPReductionClause())\
+        is True
     assert OMPParallelDirective._validate_child(0, OMPDefaultClause()) is False
     assert OMPParallelDirective._validate_child(6, "test") is False
 
