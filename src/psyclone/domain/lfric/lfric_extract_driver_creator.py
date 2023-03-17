@@ -326,10 +326,14 @@ class LFRicExtractDriverCreator:
             symbol_table.add(symbol, tag=signature_str)
 
         current = old_reference
+        # Get the indices from a structure array access, e.g.
+        # field%data(i) --> field(i)
         while current:
             if isinstance(current, ArrayMember):
                 # If there is an array access, we need to replace the
-                # structure reference with an ArrayReference
+                # structure reference with an ArrayReference. The children
+                # of an ArrayMember are the indices, so they need to be
+                # used in the flattened symbol:
                 ind = current.pop_all_children()
                 new_ref = ArrayReference.create(symbol, ind)
                 break
@@ -337,8 +341,6 @@ class LFRicExtractDriverCreator:
                 new_ref = Reference(symbol)
                 break
             current = current.children[0]
-        else:
-            new_ref = Reference(symbol)
 
         old_reference.replace_with(new_ref)
 
