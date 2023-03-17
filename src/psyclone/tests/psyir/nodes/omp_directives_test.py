@@ -531,7 +531,7 @@ def test_omp_do_children_err():
             "this Node has a child of type 'Return'" in str(err.value))
 
 
-def test_directive_get_private_lfric(monkeypatch):
+def test_directive_get_private_lfric():
     ''' Tests for the _get_private_clauses() method of OMPParallelDirective.
     Note: this test does not apply colouring so the loops must be over
     discontinuous function spaces.
@@ -649,8 +649,6 @@ def test_directive_lastprivate(fortran_reader, fortran_writer):
     omplooptrans = OMPParallelLoopTrans()
     loop = psyir.walk(Loop)[0]
     omplooptrans.apply(loop)
-    directive = psyir.walk(OMPParallelDoDirective)[0]
-    pvars, fpvars = directive._get_private_clauses()
     code = fortran_writer(psyir)
     expected = '''\
   !$omp parallel do default(shared), private(i,scalar2), lastprivate(scalar2)

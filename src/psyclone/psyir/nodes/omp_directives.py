@@ -1310,7 +1310,9 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         zero_reduction_variables(calls, parent)
 
         # Set default() private() and firstprivate() clauses
+        # pylint: disable=protected-access
         default_str = self.children[1]._clause_string
+        # pylint: enable=protected-access
         private, fprivate = self._get_private_clauses()
 
         private_list = [child.symbol.name for child in private.children]
