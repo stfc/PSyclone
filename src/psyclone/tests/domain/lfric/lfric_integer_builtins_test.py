@@ -82,7 +82,7 @@ def test_int_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == "Built-in: Add integer-valued fields"
+    assert str(kern) == "Built-in: X_plus_Y (Add integer-valued fields)"
     # Test code generation
     code = str(psy.gen)
 
