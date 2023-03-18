@@ -57,6 +57,7 @@ from psyclone.psyGen import BuiltIn
 from psyclone.psyir.nodes import (Assignment, BinaryOperation, Call, Reference,
                                   StructureReference)
 from psyclone.psyir.symbols import ArrayType, RoutineSymbol
+from psyclone.utils import a_or_an
 
 # The name of the file containing the meta-data describing the
 # built-in operations for this API
@@ -174,8 +175,8 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         self._idx_name = None
         super().__init__()
 
-    @abc.abstractmethod
     @staticmethod
+    @abc.abstractmethod
     def metadata():
         ''' Must be overridden by subclass. '''
 
@@ -618,10 +619,8 @@ class LFRicIncXPlusYKern(LFRicBuiltIn):
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def __str__(self):
-        print(self._case_name)
-        print(self._datatype)
-        return (f"Built-in: {self._case_name} (Increment a "
-                f"{self._datatype}-valued field)")
+        return (f"Built-in: {self._case_name} (Increment "
+                f"{a_or_an(self._datatype)} {self._datatype}-valued field)")
 
     def lower_to_language_level(self):
         '''
@@ -1117,8 +1116,8 @@ class LFRicIncXMinusYKern(LFRicBuiltIn):
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def __str__(self):
-        return (f"Built-in: {self._case_name} (Decrement a "
-                f"{self._datatype}-valued field)")
+        return (f"Built-in: {self._case_name} (Decrement "
+                f"{a_or_an(self._datatype)} {self._datatype}-valued field)")
 
     def lower_to_language_level(self):
         '''
@@ -1752,8 +1751,8 @@ class LFRicIncATimesXKern(LFRicBuiltIn):
             FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1")])
 
     def __str__(self):
-        return (f"Built-in: {self._case_name} (Scale a "
-                f"{self._datatype}-valued field)")
+        return (f"Built-in: {self._case_name} (Scale "
+                f"{a_or_an(self._datatype)} {self._datatype}-valued field)")
 
     def lower_to_language_level(self):
         '''
@@ -1904,7 +1903,8 @@ class LFRicXDividebyAKern(LFRicBuiltIn):
 
     def __str__(self):
         return (f"Built-in: {self._case_name} (Divide a real-valued field "
-                f"by a {self._datatype} scalar (Y = X/a))")
+                f"by {a_or_an(self._datatype)} {self._datatype} scalar "
+                "(Y = X/a))")
 
     def lower_to_language_level(self):
         '''
@@ -1952,7 +1952,8 @@ class LFRicIncXDividebyAKern(LFRicBuiltIn):
 
     def __str__(self):
         return (f"Built-in: {self._case_name} (Divide a real-valued field "
-                f"by a {self._datatype} scalar (X = X/a))")
+                f"by {a_or_an(self._datatype)} {self._datatype} scalar "
+                f"(X = X/a))")
 
     def lower_to_language_level(self):
         '''
@@ -2008,8 +2009,9 @@ class LFRicADividebyXKern(LFRicBuiltIn):
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def __str__(self):
-        return (f"Built-in: {self._case_name} (Inverse scaling of a "
-                f"{self._datatype}-valued field (Y = a/X))")
+        return (f"Built-in: {self._case_name} (Inverse scaling of "
+                f"{a_or_an(self._datatype)} {self._datatype}-valued "
+                f"field (Y = a/X))")
 
     def lower_to_language_level(self):
         '''
@@ -2058,8 +2060,9 @@ class LFRicIncADividebyXKern(LFRicBuiltIn):
             FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1")])
 
     def __str__(self):
-        return (f"Built-in: {self._case_name} (Inverse scaling of a "
-                f"{self._datatype}-valued field (X = a/X))")
+        return (f"Built-in: {self._case_name} (Inverse scaling of "
+                f"{a_or_an(self._datatype)} {self._datatype}-valued "
+                f"field (X = a/X))")
 
     def lower_to_language_level(self):
         '''
@@ -2112,8 +2115,9 @@ class LFRicIncXPowrealAKern(LFRicBuiltIn):
             ScalarArgMetadata(gh_datatype, "gh_read")])
 
     def __str__(self):
-        return (f"Built-in: {self._case_name} (Raise a "
-                f"{self._datatype}-valued field to a real power)")
+        return (f"Built-in: {self._case_name} (Raise "
+                f"{a_or_an(self._datatype)} {self._datatype}-valued field "
+                f"to a real power)")
 
     def lower_to_language_level(self):
         '''
@@ -2159,8 +2163,9 @@ class LFRicIncXPowintNKern(LFRicBuiltIn):
             ScalarArgMetadata("gh_integer", "gh_read")])
 
     def __str__(self):
-        return (f"Built-in: {self._case_name} (Raise a "
-                f"{self._datatype}-valued field to an integer power)")
+        return (f"Built-in: {self._case_name} (Raise "
+                f"{a_or_an(self._datatype)} {self._datatype}-valued field "
+                f"to an integer power)")
 
     def lower_to_language_level(self):
         '''
@@ -2211,8 +2216,9 @@ class LFRicSetvalCKern(LFRicBuiltIn):
             ScalarArgMetadata("gh_integer", "gh_read")])
 
     def __str__(self):
-        return (f"Built-in: {self._case_name} (Set a {self._datatype}-valued "
-                f"field to a {self._datatype} scalar value)")
+        return (f"Built-in: {self._case_name} (Set {a_or_an(self._datatype)} "
+                f"{self._datatype}-valued field to a {self._datatype} "
+                f"scalar value)")
 
     def lower_to_language_level(self):
         '''
@@ -2257,8 +2263,8 @@ class LFRicSetvalXKern(LFRicBuiltIn):
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def __str__(self):
-        return (f"Built-in: {self._case_name} (Set a {self._datatype}-valued "
-                f"field equal to another such field)")
+        return (f"Built-in: {self._case_name} (Set {a_or_an(self._datatype)} "
+                f"{self._datatype}-valued field equal to another such field)")
 
     def lower_to_language_level(self):
         '''
@@ -2300,8 +2306,8 @@ class LFRicSetvalRandomKern(LFRicBuiltIn):
             FieldArgMetadata(gh_datatype, "gh_write", "any_space_1")])
 
     def __str__(self):
-        return (f"Built-in: {self._case_name} (Fill a {self._datatype}-valued "
-                f"field with pseudo-random numbers)")
+        return (f"Built-in: {self._case_name} (Fill {a_or_an(self._datatype)} "
+                f"{self._datatype}-valued field with pseudo-random numbers)")
 
     def lower_to_language_level(self):
         '''
@@ -2439,7 +2445,7 @@ class LFRicSumXKern(LFRicBuiltIn):
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def __str__(self):
-        return (f"Built-in: {self._case_name} (Sum a "
+        return (f"Built-in: {self._case_name} (Sum {a_or_an(self._datatype)} "
                 f"{self._datatype}-valued field)")
 
     def gen_code(self, parent):
@@ -2487,8 +2493,8 @@ class LFRicSignXKern(LFRicBuiltIn):
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def __str__(self):
-        return (f"Built-in: {self._case_name} (Sign of a "
-                f"{self._datatype}-valued field)")
+        return (f"Built-in: {self._case_name} (Sign of "
+                f"{a_or_an(self._datatype)} {self._datatype}-valued field)")
 
     def lower_to_language_level(self):
         '''

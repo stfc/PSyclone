@@ -157,7 +157,7 @@ def test_int_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert (str(kern) == "Built-in: int_inc_X_plus_Y (Increment a "
+    assert (str(kern) == "Built-in: int_inc_X_plus_Y (Increment an "
             "integer-valued field)")
     # Test code generation
     code = str(psy.gen)
@@ -396,7 +396,7 @@ def test_int_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert (str(kern) == "Built-in: int_inc_X_minus_Y (Decrement a "
+    assert (str(kern) == "Built-in: int_inc_X_minus_Y (Decrement an "
             "integer-valued field)")
     # Test code generation
     code = str(psy.gen)
@@ -902,7 +902,7 @@ def test_int_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert (str(kern) == "Built-in: int_inc_a_times_X (Scale a "
+    assert (str(kern) == "Built-in: int_inc_a_times_X (Scale an "
             "integer-valued field)")
     # Test code generation
     code = str(psy.gen)
@@ -978,7 +978,7 @@ def test_int_setval_c(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == ("Built-in: int_setval_c (Set a integer-valued "
+    assert str(kern) == ("Built-in: int_setval_c (Set an integer-valued "
                          "field to a integer scalar value)")
     # Test code generation
     code = str(psy.gen)
@@ -1050,7 +1050,7 @@ def test_int_setval_X(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == ("Built-in: int_setval_X (Set a integer-valued "
+    assert str(kern) == ("Built-in: int_setval_X (Set an integer-valued "
                          "field equal to another such field)")
     # Test code generation
     code = str(psy.gen)
@@ -1126,7 +1126,7 @@ def test_int_sign_X(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert (str(kern) == "Built-in: int_sign_X (Sign of a "
+    assert (str(kern) == "Built-in: int_sign_X (Sign of an "
             "integer-valued field)")
     # Test code generation
     code = str(psy.gen)
