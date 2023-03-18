@@ -48,7 +48,8 @@ import abc
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.domain.lfric import LFRicConstants, LFRicTypes
 from psyclone.domain.lfric.kernel import (
-    LFRicKernelMetadata, FieldArgMetadata, ScalarArgMetadata)
+    LFRicKernelMetadata, FieldArgMetadata, ScalarArgMetadata,
+    FieldVectorArgMetadata)
 from psyclone.errors import InternalError
 from psyclone.f2pygen import AssignGen, PSyIRGen
 from psyclone.parse.utils import ParseError
@@ -158,6 +159,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
     Abstract base class for a node representing a call to an LFRic Built-in.
 
     '''
+    _case_name = None
     _datatype = None
     _datatype_lookup = {
         "real": "gh_real",
@@ -173,17 +175,24 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         super().__init__()
 
     @abc.abstractmethod
+    @staticmethod
     def metadata():
         ''' Must be overridden by subclass. '''
 
-
     @classmethod
     def _builtin_metadata(cls, meta_args):
-        '''Utility to take meta_args metadata and return LFRic kernel
-        metadata for a builtin.
+        '''Utility to take meta_args metadata and return LFRic kernel metadata
+        for a builtin. Assumes the metadata describes a builtin kernel
+        that operates on a dof and that the naming protocol uses the
+        name of the metadata type and adds _code to it for the name of
+        the subroutine.
 
-        :param meta_args: xxx
-        :type meta_args: xxx
+        :param meta_args: a list of meta args metadata.
+        :type meta_args: List[subclass of \
+            :py:class:`psyclone.domain.lifric.kernel.CommonArgMetadata`]
+
+        :returns: lfric kernel metadata for this builtin.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
 
         '''
         return LFRicKernelMetadata(
@@ -192,17 +201,22 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
             procedure_name=f"{cls._case_name}_code",
             name=cls._case_name)
 
-
     def __str__(self):
         if not self._datatype:
             raise NotImplementedError(
                 "An LFRicBuiltin should be overridden by a subclass that "
                 "sets the value of _datatype, but _datatype is not set.")
+        metadata = self.metadata()
+        plural = ""
+        # Builtins are currenty limited to fields and scalars but add
+        # in a check for field-vectors as well for future proofing.
+        if len(metadata.meta_args_get([
+                FieldArgMetadata, FieldVectorArgMetadata])) > 1:
+            plural = "s"
         return (f"Built-in: {self._case_name} ("
-                f"{self._datatype}-valued field(s))")
+                f"{self._datatype}-valued field{plural})")
 
     def reference_accesses(self, var_accesses):
-
         '''Get all variable access information from this node. The assigned-to
         variable will be set to 'WRITE'.
 
@@ -637,7 +651,7 @@ class LFRicAPlusXKern(LFRicBuiltIn):
     real-valued fields (DoF-wise addition of a scalar value).
 
     '''
-    _case_name="a_plus_X"
+    _case_name = "a_plus_X"
     _datatype = "real"
 
     @classmethod
@@ -828,7 +842,7 @@ class LFRicIncXPlusBYKern(LFRicBuiltIn):
     real-valued fields.
 
     '''
-    _case_name = "int_inc_X_plus_bY"
+    _case_name = "inc_X_plus_bY"
     _datatype = "real"
 
     @classmethod
@@ -1564,6 +1578,7 @@ class LFRicXTimesYKern(LFRicBuiltIn):
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
         return assign
+
 
 class LFRicIncXTimesYKern(LFRicBuiltIn):
     ''' Multiply the first, real-valued, field by the second and return it.
@@ -2720,7 +2735,6 @@ class LFRicIntXKern(LFRicXKern):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
 
         '''
-        gh_datatype = cls._datatype_lookup[cls._datatype]
         return cls._builtin_metadata([
             FieldArgMetadata("gh_integer", "gh_write", "any_space_1"),
             FieldArgMetadata("gh_real", "gh_read", "any_space_1")])
@@ -3040,7 +3054,6 @@ class LFRicRealXKern(LFRicXKern):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
 
         '''
-        gh_datatype = cls._datatype_lookup[cls._datatype]
         return cls._builtin_metadata([
             FieldArgMetadata("gh_real", "gh_write", "any_space_1"),
             FieldArgMetadata("gh_integer", "gh_read", "any_space_1")])
