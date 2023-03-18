@@ -558,8 +558,6 @@ class LFRicXPlusYKern(LFRicBuiltIn):
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def __str__(self):
-        ''' xxx '''
-        # TODO: PUT BACK TO ORIGINAL TEXT
         return (f"Built-in: {self._case_name} (Add "
                 f"{self._datatype}-valued fields)")
 
@@ -606,6 +604,8 @@ class LFRicIncXPlusYKern(LFRicBuiltIn):
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def __str__(self):
+        print(self._case_name)
+        print(self._datatype)
         return (f"Built-in: {self._case_name} (Increment a "
                 f"{self._datatype}-valued field)")
 
@@ -828,7 +828,7 @@ class LFRicIncXPlusBYKern(LFRicBuiltIn):
     real-valued fields.
 
     '''
-    _case_name = "inc_X_plus_bY"
+    _case_name = "int_inc_X_plus_bY"
     _datatype = "real"
 
     @classmethod
@@ -2756,6 +2756,7 @@ class LFRicIntIncXPlusYKern(LFRicIncXPlusYKern):
     built-in equivalent `LFRicIncXPlusYKern`.
 
     '''
+    _case_name = "int_inc_X_plus_Y"
     _datatype = "integer"
 
 
@@ -2767,8 +2768,8 @@ class LFRicIntAPlusXKern(LFRicAPlusXKern):
     built-in equivalent `LFRicAPlusXKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: int_a_plus_X (integer-valued fields)"
+    _case_name = "int_a_plus_X"
+    _datatype = "integer"
 
 
 class LFRicIntIncAPlusXKern(LFRicIncAPlusXKern):
@@ -2779,8 +2780,8 @@ class LFRicIntIncAPlusXKern(LFRicIncAPlusXKern):
     built-in equivalent `LFRicIncAPlusXKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: int_inc_a_plus_X (integer-valued field)"
+    _case_name = "int_inc_a_plus_X"
+    _datatype = "integer"
 
 
 # ------------------------------------------------------------------- #
@@ -2796,8 +2797,8 @@ class LFRicIntXMinusYKern(LFRicXMinusYKern):
     built-in equivalent `LFRicXMinusYKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: Subtract integer-valued fields"
+    _case_name = "int_X_minus_Y"
+    _datatype = "integer"
 
 
 class LFRicIntIncXMinusYKern(LFRicIncXMinusYKern):
@@ -2808,8 +2809,8 @@ class LFRicIntIncXMinusYKern(LFRicIncXMinusYKern):
     built-in equivalent `LFRicIncXMinusYKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: Decrement an integer-valued field"
+    _case_name = "int_inc_X_minus_Y"
+    _datatype = "integer"
 
 
 class LFRicIntAMinusXKern(LFRicAMinusXKern):
@@ -2820,8 +2821,8 @@ class LFRicIntAMinusXKern(LFRicAMinusXKern):
     built-in equivalent `LFRicAMinusXKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: int_a_minus_X (integer-valued fields)"
+    _case_name = "int_a_minus_X"
+    _datatype = "integer"
 
 
 class LFRicIntIncAMinusXKern(LFRicIncAMinusXKern):
@@ -2832,8 +2833,8 @@ class LFRicIntIncAMinusXKern(LFRicIncAMinusXKern):
     built-in equivalent `LFRicIncAMinusXKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: int_inc_a_minus_X (integer-valued field)"
+    _case_name = "int_inc_a_minus_X"
+    _datatype = "integer"
 
 
 class LFRicIntXMinusAKern(LFRicXMinusAKern):
@@ -2844,8 +2845,8 @@ class LFRicIntXMinusAKern(LFRicXMinusAKern):
     built-in equivalent `LFRicXMinusAKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: int_X_minus_a (integer-valued fields)"
+    _case_name = "int_X_minus_a"
+    _datatype = "integer"
 
 
 class LFRicIntIncXMinusAKern(LFRicIncXMinusAKern):
@@ -2855,8 +2856,8 @@ class LFRicIntIncXMinusAKern(LFRicIncXMinusAKern):
     built-in equivalent `LFRicIncXMinusAKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: int_inc_X_minus_a (integer-valued field)"
+    _case_name = "int_inc_X_minus_a"
+    _datatype = "integer"
 
 
 # ------------------------------------------------------------------- #
@@ -2872,8 +2873,8 @@ class LFRicIntXTimesYKern(LFRicXTimesYKern):
     built-in equivalent `LFRicXTimesYKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: Multiply integer-valued fields"
+    _case_name = "int_X_times_Y"
+    _datatype = "integer"
 
 
 class LFRicIntIncXTimesYKern(LFRicIncXTimesYKern):
@@ -2884,8 +2885,8 @@ class LFRicIntIncXTimesYKern(LFRicIncXTimesYKern):
     built-in equivalent `LFRicIncXTimesYKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: Multiply one integer-valued field by another"
+    _case_name = "int_inc_X_times_Y"
+    _datatype = "integer"
 
 
 # ------------------------------------------------------------------- #
@@ -2901,8 +2902,8 @@ class LFRicIntATimesXKern(LFRicATimesXKern):
     built-in equivalent `LFRicATimesXKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: Copy a scaled integer-valued field"
+    _case_name = "int_a_times_X"
+    _datatype = "integer"
 
 
 class LFRicIntIncATimesXKern(LFRicIncATimesXKern):
@@ -2912,8 +2913,8 @@ class LFRicIntIncATimesXKern(LFRicIncATimesXKern):
     built-in equivalent `LFRicIncATimesXKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: Scale an integer-valued field"
+    _case_name = "int_inc_a_times_X"
+    _datatype = "integer"
 
 
 # ------------------------------------------------------------------- #
@@ -2928,9 +2929,8 @@ class LFRicIntSetvalCKern(LFRicSetvalCKern):
     built-in equivalent `LFRicSetvalCKern`.
 
     '''
-    def __str__(self):
-        return ("Built-in: Set an integer-valued field to an integer "
-                "scalar value")
+    _case_name = "int_setval_c"
+    _datatype = "integer"
 
 
 class LFRicIntSetvalXKern(LFRicSetvalXKern):
@@ -2941,9 +2941,8 @@ class LFRicIntSetvalXKern(LFRicSetvalXKern):
     built-in equivalent `LFRicSetvalXKern`.
 
     '''
-    def __str__(self):
-        return ("Built-in: Set an integer-valued field equal to another "
-                "such field")
+    _case_name = "int_setval_X"
+    _datatype = "integer"
 
 
 # ------------------------------------------------------------------- #
@@ -2958,8 +2957,8 @@ class LFRicIntSignXKern(LFRicSignXKern):
     built-in equivalent `LFRicSignXKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: Sign of an integer-valued field"
+    _case_name = "int_sign_X"
+    _datatype = "integer"
 
 
 # ------------------------------------------------------------------- #
@@ -2974,8 +2973,8 @@ class LFRicIntMaxAXKern(LFRicMaxAXKern):
     Inherits the `lower_to_language_level` method from the real-valued
     built-in equivalent `LFRicMaxAXKern`.
     '''
-    def __str__(self):
-        return "Built-in: int_max_aX (integer-valued fields)"
+    _case_name = "int_max_aX"
+    _datatype = "integer"
 
 
 class LFRicIntIncMaxAXKern(LFRicIncMaxAXKern):
@@ -2985,8 +2984,8 @@ class LFRicIntIncMaxAXKern(LFRicIncMaxAXKern):
     Inherits the `lower_to_language_level` method from the real-valued
     built-in equivalent `LFRicIncMaxAXKern`.
     '''
-    def __str__(self):
-        return "Built-in: int_inc_max_aX (integer-valued field)"
+    _case_name = "int_inc_max_aX"
+    _datatype = "integer"
 
 
 # ------------------------------------------------------------------- #
@@ -3002,8 +3001,8 @@ class LFRicIntMinAXKern(LFRicMinAXKern):
     built-in equivalent `LFRicMinAXKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: int_min_aX (integer-valued fields)"
+    _case_name = "int_min_aX"
+    _datatype = "integer"
 
 
 class LFRicIntIncMinAXKern(LFRicIncMinAXKern):
@@ -3014,8 +3013,8 @@ class LFRicIntIncMinAXKern(LFRicIncMinAXKern):
     built-in equivalent `LFRicIncMinAXKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: int_inc_min_aX (integer-valued field)"
+    _case_name = "int_inc_min_aX"
+    _datatype = "integer"
 
 
 # ------------------------------------------------------------------- #
@@ -3031,9 +3030,24 @@ class LFRicRealXKern(LFRicXKern):
 
     '''
     _field_type = "real"
+    _case_name = "real_X"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this builtin.
+
+        :returns: kernel metadata describing this builtin.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = cls._datatype_lookup[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata("gh_real", "gh_write", "any_space_1"),
+            FieldArgMetadata("gh_integer", "gh_read", "any_space_1")])
 
     def __str__(self):
-        return "Built-in: Convert an integer-valued to a real-valued field"
+        return (f"Built-in: {self._case_name} (Convert an integer-valued "
+                f"to a real-valued field)")
 
 
 # The built-in operations that we support for this API. The meta-data

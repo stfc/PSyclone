@@ -157,7 +157,8 @@ def test_int_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == "Built-in: Increment an integer-valued field"
+    assert (str(kern) == "Built-in: int_inc_X_plus_Y (Increment a "
+            "integer-valued field)")
     # Test code generation
     code = str(psy.gen)
 
@@ -217,7 +218,7 @@ def test_int_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule[0].loop_body[0]
-    assert str(kern) == "Built-in: int_a_plus_X (integer-valued fields)"
+    assert str(kern) == "Built-in: int_a_plus_X (integer-valued field(s))"
     # Test code generation
     code = str(psy.gen)
 
@@ -271,7 +272,7 @@ def test_int_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == "Built-in: int_inc_a_plus_X (integer-valued field)"
+    assert str(kern) == "Built-in: int_inc_a_plus_X (integer-valued field(s))"
     # Test code generation
     code = str(psy.gen)
 
@@ -329,7 +330,8 @@ def test_int_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == "Built-in: Subtract integer-valued fields"
+    assert (str(kern) == "Built-in: int_X_minus_Y (Subtract "
+            "integer-valued fields)")
     # Test code generation
     code = str(psy.gen)
 
@@ -394,7 +396,8 @@ def test_int_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == "Built-in: Decrement an integer-valued field"
+    assert (str(kern) == "Built-in: int_inc_X_minus_Y (Decrement a "
+            "integer-valued field)")
     # Test code generation
     code = str(psy.gen)
 
@@ -459,7 +462,7 @@ def test_int_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule[0].loop_body[0]
-    assert str(kern) == "Built-in: int_a_minus_X (integer-valued fields)"
+    assert str(kern) == "Built-in: int_a_minus_X (integer-valued field(s))"
     # Test code generation
     code = str(psy.gen)
 
@@ -520,7 +523,7 @@ def test_int_inc_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == "Built-in: int_inc_a_minus_X (integer-valued field)"
+    assert str(kern) == "Built-in: int_inc_a_minus_X (integer-valued field(s))"
     # Test code generation
     code = str(psy.gen)
 
@@ -576,7 +579,7 @@ def test_int_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule[0].loop_body[0]
-    assert str(kern) == "Built-in: int_X_minus_a (integer-valued fields)"
+    assert str(kern) == "Built-in: int_X_minus_a (integer-valued field(s))"
     # Test code generation
     code = str(psy.gen)
 
@@ -630,7 +633,7 @@ def test_int_inc_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == "Built-in: int_inc_X_minus_a (integer-valued field)"
+    assert str(kern) == "Built-in: int_inc_X_minus_a (integer-valued field(s))"
     # Test code generation
     code = str(psy.gen)
 
@@ -688,7 +691,8 @@ def test_int_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == "Built-in: Multiply integer-valued fields"
+    assert (str(kern) == "Built-in: int_X_times_Y (Multiply "
+            "integer-valued fields)")
     # Test code generation
     code = str(psy.gen)
 
@@ -763,8 +767,8 @@ def test_int_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == ("Built-in: Multiply one integer-valued field "
-                         "by another")
+    assert str(kern) == ("Built-in: int_inc_X_times_Y (Multiply one "
+                         "integer-valued field by another)")
     # Test code generation
     code = str(psy.gen)
 
@@ -833,7 +837,8 @@ def test_int_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == "Built-in: Copy a scaled integer-valued field"
+    assert (str(kern) == "Built-in: int_a_times_X (Copy a scaled "
+            "integer-valued field)")
     # Test code generation
     code = str(psy.gen)
 
@@ -897,7 +902,8 @@ def test_int_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == "Built-in: Scale an integer-valued field"
+    assert (str(kern) == "Built-in: int_inc_a_times_X (Scale a "
+            "integer-valued field)")
     # Test code generation
     code = str(psy.gen)
 
@@ -972,8 +978,8 @@ def test_int_setval_c(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == ("Built-in: Set an integer-valued field to an "
-                         "integer scalar value")
+    assert str(kern) == ("Built-in: int_setval_c (Set a integer-valued "
+                         "field to a integer scalar value)")
     # Test code generation
     code = str(psy.gen)
 
@@ -1044,8 +1050,8 @@ def test_int_setval_X(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == ("Built-in: Set an integer-valued field equal to "
-                         "another such field")
+    assert str(kern) == ("Built-in: int_setval_X (Set a integer-valued "
+                         "field equal to another such field)")
     # Test code generation
     code = str(psy.gen)
 
@@ -1120,7 +1126,8 @@ def test_int_sign_X(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == "Built-in: Sign of an integer-valued field"
+    assert (str(kern) == "Built-in: int_sign_X (Sign of a "
+            "integer-valued field)")
     # Test code generation
     code = str(psy.gen)
 
@@ -1178,7 +1185,7 @@ def test_int_max_aX(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == "Built-in: int_max_aX (integer-valued fields)"
+    assert str(kern) == "Built-in: int_max_aX (integer-valued field(s))"
     # Test code generation
     code = str(psy.gen)
 
@@ -1244,7 +1251,7 @@ def test_int_inc_max_aX(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == "Built-in: int_inc_max_aX (integer-valued field)"
+    assert str(kern) == "Built-in: int_inc_max_aX (integer-valued field(s))"
     # Test code generation
     code = str(psy.gen)
 
@@ -1311,7 +1318,7 @@ def test_int_min_aX(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == "Built-in: int_min_aX (integer-valued fields)"
+    assert str(kern) == "Built-in: int_min_aX (integer-valued field(s))"
     # Test code generation
     code = str(psy.gen)
 
@@ -1366,7 +1373,7 @@ def test_int_inc_min_aX(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == "Built-in: int_inc_min_aX (integer-valued field)"
+    assert str(kern) == "Built-in: int_inc_min_aX (integer-valued field(s))"
     # Test code generation
     code = str(psy.gen)
 
@@ -1425,8 +1432,8 @@ def test_real_X(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == ("Built-in: Convert an integer-valued to a "
-                         "real-valued field")
+    assert str(kern) == ("Built-in: real_X (Convert an integer-valued to a "
+                         "real-valued field)")
     # Test code generation
     code = str(psy.gen)
 
