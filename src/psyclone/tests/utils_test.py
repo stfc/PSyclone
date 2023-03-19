@@ -38,7 +38,7 @@
 from psyclone.utils import a_or_an
 
 
-def a_or_an_test():
+def test_a_or_an():
     ''' Test the a_or_an() function. '''
     assert a_or_an("Aardvark") == "an"
     assert a_or_an("aardvark") == "an"
