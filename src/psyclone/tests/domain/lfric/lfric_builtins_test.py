@@ -50,18 +50,18 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.domain.lfric import lfric_builtins, LFRicConstants, LFRicTypes
-from psyclone.domain.lfric.kernel import LFRicKernelMetadata
+from psyclone.domain.lfric.kernel import LFRicKernelMetadata, FieldArgMetadata
 from psyclone.domain.lfric.lfric_builtins import (
-    LFRicBuiltInCallFactory, LFRicBuiltIn, LFRicXPlusYKern)
+    LFRicBuiltInCallFactory, LFRicBuiltIn)
 from psyclone.dynamo0p3 import DynKernelArgument
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import BuiltInCall, parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import (Loop, Reference, UnaryOperation, Literal,
-                                  StructureReference)
-from psyclone.psyir.symbols import (ArrayType, DataTypeSymbol, DeferredType,
-                                    ScalarType)
+from psyclone.psyir.nodes import (
+    Loop, Reference, UnaryOperation, Literal, StructureReference)
+from psyclone.psyir.symbols import (
+    ArrayType, DataTypeSymbol, DeferredType, ScalarType)
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 
@@ -575,10 +575,31 @@ def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     3) that we generate correct bounds when
        Config.api_conf(API)._compute_annexed_dofs is False and True;
     4) that the lower_to_language_level() method works as expected;
-    5) that the metadata method of LFRicXPlusYKern returns kernel metadata.
+    5) that the metadata method of LFRicXPlusYKern returns kernel
+       metadata.
 
     '''
-    assert isinstance(LFRicXPlusYKern.metadata(), LFRicKernelMetadata)
+    # pylint: disable=unidiomatic-typecheck
+    metadata = lfric_builtins.LFRicXPlusYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
+    # Test the metadata values in this test. Future tests will just
+    # check that an LFRicKernelMetadata instance is returned.
+    assert metadata.operates_on == "dof"
+    assert metadata.name == "X_plus_Y"
+    assert metadata.procedure_name == "X_plus_Y_code"
+    assert len(metadata.meta_args) == 3
+    assert type(metadata.meta_args[0]) == FieldArgMetadata
+    assert metadata.meta_args[0].datatype == "gh_real"
+    assert metadata.meta_args[0].access == "gh_write"
+    assert metadata.meta_args[0].function_space == "any_space_1"
+    assert type(metadata.meta_args[1]) == FieldArgMetadata
+    assert metadata.meta_args[1].datatype == "gh_real"
+    assert metadata.meta_args[1].access == "gh_read"
+    assert metadata.meta_args[1].function_space == "any_space_1"
+    assert type(metadata.meta_args[2]) == FieldArgMetadata
+    assert metadata.meta_args[2].datatype == "gh_real"
+    assert metadata.meta_args[2].access == "gh_read"
+    assert metadata.meta_args[2].function_space == "any_space_1"
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -659,13 +680,16 @@ def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicIncXPlusYKern returns the
-    expected string and 2) we generate correct code for the built-in
-    X = X + Y where X and Y are real-valued fields. Test with and without
-    annexed dofs being computed as this affects the generated code.
-    Also test the lower_to_language_level() method for this builtin.
+    '''Test that 1) the str method of LFRicIncXPlusYKern returns the
+    expected string and 2) we generate correct code for the built-in X
+    = X + Y where X and Y are real-valued fields. Test with and
+    without annexed dofs being computed as this affects the generated
+    code. 3) Also test the lower_to_language_level() and metadata
+    methods for this builtin.
 
     '''
+    metadata = lfric_builtins.LFRicIncXPlusYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
 
@@ -729,14 +753,16 @@ def test_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicAPlusXKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation Y = a + X where 'a' is a real scalar and X and Y
-    are real-valued fields. Test with and without annexed dofs being
-    computed as this affects the generated code.
-    Also test the lower_to_language_level() method.
+    '''Test that 1) the str method of LFRicAPlusXKern returns the expected
+    string and 2) we generate correct code for the built-in operation
+    Y = a + X where 'a' is a real scalar and X and Y are real-valued
+    fields. Test with and without annexed dofs being computed as this
+    affects the generated code. 3) Also test the
+    lower_to_language_level() and metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicAPlusXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -803,9 +829,11 @@ def test_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     operation X = a + X where 'a' is a real scalar and X is a
     real-valued field. Test with and without annexed dofs being
     computed as this affects the generated code.
-    Also test the lower_to_language_level() method.
+    3) Also test the lower_to_language_level() and metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncAPlusXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -862,13 +890,16 @@ def test_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicAXPlusYKern returns the
+    '''Test that 1) the str method of LFRicAXPlusYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Z = a*X + Y where 'a' is a real scalar and Z, X and Y
     are real-valued fields. Test with and without annexed dofs being
-    computed as this affects the generated code.
+    computed as this affects the generated code. 3) Also test the
+    lower_to_language_level() and metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicAXPlusYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -950,13 +981,16 @@ def test_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_inc_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicIncAXPlusYKern returns the
+    '''Test that 1) the str method of LFRicIncAXPlusYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = a*X + Y where 'a' is a real scalar and X and Y are
     real-valued fields. Test with and without annexed dofs being
-    computed as this affects the generated code.
+    computed as this affects the generated code. 3) Also test the
+    lower_to_language_level() and metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncAXPlusYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1036,13 +1070,16 @@ def test_inc_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_inc_X_plus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicIncXPlusBYKern returns the
+    '''Test that 1) the str method of LFRicIncXPlusBYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X + b*Y where 'b' is a real scalar and X and Y are
     real-valued fields. Test with and without annexed dofs being
-    computed as this affects the generated code.
+    computed as this affects the generated code. 3) Also test the
+    lower_to_language_level() and metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncXPlusBYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1122,13 +1159,16 @@ def test_inc_X_plus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicAXPlusBYKern returns the
+    '''Test that 1) the str method of LFRicAXPlusBYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation Z = a*X + b*Y where 'a' and 'b' are real scalars and Z, X
-    and Y are real-valued fields. Test with and without annexed dofs
-    being computed as this affects the generated code.
+    operation Z = a*X + b*Y where 'a' and 'b' are real scalars and Z,
+    X and Y are real-valued fields. Test with and without annexed dofs
+    being computed as this affects the generated code. 3) Also test the
+    lower_to_language_level() and metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicAXPlusBYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1210,13 +1250,16 @@ def test_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 def test_inc_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem,
                         fortran_writer):
-    ''' Test that 1) the str method of LFRicIncAXPlusBYKern returns the
+    '''Test that 1) the str method of LFRicIncAXPlusBYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = a*X + b*Y where 'a' and 'b' are real scalars and X
     and Y are real-valued fields. Test with and without annexed dofs
-    being computed as this affects the generated code.
+    being computed as this affects the generated code. 3) Also test
+    the lower_to_language_level() and metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncAXPlusBYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
@@ -1297,13 +1340,16 @@ def test_inc_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem,
 
 
 def test_aX_plus_aY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicAXPlusAYKern returns the
+    '''Test that 1) the str method of LFRicAXPlusAYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation Z = a*(X + Y) where 'a' is a real scalar and Z, X and
-    Y are real-valued fields. Test with and without annexed dofs
-    being computed as this affects the generated code.
+    operation Z = a*(X + Y) where 'a' is a real scalar and Z, X and Y
+    are real-valued fields. Test with and without annexed dofs being
+    computed as this affects the generated code. 3) Also test the
+    lower_to_language_level() and metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicAXPlusAYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1366,12 +1412,16 @@ def test_aX_plus_aY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicXMinusYKern returns the expected
-    string and 2) we generate correct code for the built-in operation
-    Z = X - Y where Z, X and Y are real-valued fields. Test with and without
-    annexed dofs being computed as this affects the generated code.
+    '''Test that 1) the str method of LFRicXMinusYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Z = X - Y where Z, X and Y are real-valued fields. Test
+    with and without annexed dofs being computed as this affects the
+    generated code. 3) Also test the lower_to_language_level() and
+    metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicXMinusYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1440,12 +1490,16 @@ def test_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicIncXMinusYKern returns the
+    '''Test that 1) the str method of LFRicIncXMinusYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation X = X - Y where X and Y are real-valued fields. Test with and
-    without annexed dofs being computed as this affects the generated code.
+    operation X = X - Y where X and Y are real-valued fields. Test
+    with and without annexed dofs being computed as this affects the
+    generated code. 3) Also test the lower_to_language_level() and
+    metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncXMinusYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
@@ -1513,14 +1567,16 @@ def test_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicAMinusXKern returns the
+    '''Test that 1) the str method of LFRicAMinusXKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation Y = a - X where 'a' is a real scalar and X and Y
-    are real-valued fields. Test with and without annexed dofs being
-    computed as this affects the generated code.
-    Also test the lower_to_language_level() method.
+    operation Y = a - X where 'a' is a real scalar and X and Y are
+    real-valued fields. Test with and without annexed dofs being
+    computed as this affects the generated code. 3) Also test the
+    lower_to_language_level() and metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicAMinusXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1585,14 +1641,16 @@ def test_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_inc_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicIncAMinusXKern returns the
+    '''Test that 1) the str method of LFRicIncAMinusXKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = a - X where 'a' is a real scalar and X is a
     real-valued field. Test with and without annexed dofs being
-    computed as this affects the generated code.
-    Also test the lower_to_language_level() method.
+    computed as this affects the generated code. 3) Also test the
+    lower_to_language_level() and metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncXMinusYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1649,14 +1707,16 @@ def test_inc_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicAMinusXKern returns the
+    '''Test that 1) the str method of LFRicAMinusXKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation Y = X - a where 'a' is a real scalar and X and Y
-    are real-valued fields. Test with and without annexed dofs being
-    computed as this affects the generated code.
-    Also test the lower_to_language_level() method.
+    operation Y = X - a where 'a' is a real scalar and X and Y are
+    real-valued fields. Test with and without annexed dofs being
+    computed as this affects the generated code. 3) Also test the
+    lower_to_language_level() and metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncAMinusXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1722,14 +1782,16 @@ def test_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_inc_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicIncXMinusAKern returns the
+    '''Test that 1) the str method of LFRicIncXMinusAKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X - a where 'a' is a real scalar and X is a
     real-valued field. Test with and without annexed dofs being
-    computed as this affects the generated code.
-    Also test the lower_to_language_level() method.
+    computed as this affects the generated code. 3) Also test the
+    lower_to_language_level() and metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncXMinusAKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1797,13 +1859,16 @@ def test_inc_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_aX_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicAXMinusYKern returns the
+    '''Test that 1) the str method of LFRicAXMinusYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Z = a*X - Y where 'a' is a real scalar and Z, X and Y
     are real-valued fields. Test with and without annexed dofs being
-    computed as this affects the generated code.
+    computed as this affects the generated code. 3) Also test the
+    lower_to_language_level() and metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicAXMinusYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1884,13 +1949,16 @@ def test_aX_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicXMinusBYKern returns the
+    '''Test that 1) the str method of LFRicXMinusBYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Z = X - b*Y where 'b' is a real scalar and Z, X and Y
     are real-valued fields. Test with and without annexed dofs being
-    computed as this affects the generated code.
+    computed as this affects the generated code. 3) Also test the
+    lower_to_language_level() and metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicXMinusBYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1972,13 +2040,16 @@ def test_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 def test_inc_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem,
                         fortran_writer):
-    ''' Test that 1) the str method of LFRicIncXMinusBYKern returns the
+    '''Test that 1) the str method of LFRicIncXMinusBYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X - b*Y where 'b' is a real scalar and X and Y are
-    real-valued  fields. Test with and without annexed dofs being
-    computed as this affects the generated code.
+    real-valued fields. Test with and without annexed dofs being
+    computed as this affects the generated code. 3) Also test the
+    lower_to_language() and metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncXMinusBYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2058,13 +2129,16 @@ def test_inc_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem,
 
 
 def test_aX_minus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicAXMinusBYKern returns the
+    '''Test that 1) the str method of LFRicAXMinusBYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation Z = a*X - b*Y where 'a' and 'b' are real scalars and Z, X
-    and Y are real-valued fields. Test with and without annexed dofs
-    being computed as this affects the generated code.
+    operation Z = a*X - b*Y where 'a' and 'b' are real scalars and Z,
+    X and Y are real-valued fields. Test with and without annexed dofs
+    being computed as this affects the generated code. 3) Also test
+    the lower_to_language_level() and metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicAXMinusBYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2148,12 +2222,16 @@ def test_aX_minus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicXTimesYKern returns the expected
-    string and 2) we generate correct code for the built-in operation
-    Z = X*Y where Z, X and Y are real-valued fields. Test with and without
-    annexed dofs being computed as this affects the generated code.
+    '''Test that 1) the str method of LFRicXTimesYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Z = X*Y where Z, X and Y are real-valued fields. Test
+    with and without annexed dofs being computed as this affects the
+    generated code. 3) Also test the lower_to_language_level() and
+    metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicXTimesYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
@@ -2223,12 +2301,16 @@ def test_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicIncXTimesYKern returns the
+    '''Test that 1) the str method of LFRicIncXTimesYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation X = X*Y where X and Y are real-valued fields. Test with and
-    without annexed dofs being computed as this affects the generated code.
+    operation X = X*Y where X and Y are real-valued fields. Test with
+    and without annexed dofs being computed as this affects the
+    generated code. 3) Also test the lower_to_language_level() and
+    metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncXTimesYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
@@ -2299,13 +2381,16 @@ def test_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 def test_inc_aX_times_Y(tmpdir, monkeypatch, annexed, dist_mem,
                         fortran_writer):
-    ''' Test that 1) the str method of LFRicIncAXTimesYKern returns the
+    '''Test that 1) the str method of LFRicIncAXTimesYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = a*X*Y where 'a' is a real scalar and X and Y are
     real-valued fields. Test with and without annexed dofs being
-    computed as this affects the generated code.
+    computed as this affects the generated code. 3) Also test the
+    lower_to_language_level() and metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncAXTimesYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2380,14 +2465,16 @@ def test_inc_aX_times_Y(tmpdir, monkeypatch, annexed, dist_mem,
 
 
 def test_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicATimesXKern returns the expected
-    string and 2) we generate correct code for the built-in operation
-    Y = a*X where 'a' is a real scalar and X and Y are real-valued fields.
-    Test with and without annexed dofs being computed as this affects the
-    generated code.
-    Also tests the lower_to_language_level() method.
+    '''Test that 1) the str method of LFRicATimesXKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Y = a*X where 'a' is a real scalar and X and Y are
+    real-valued fields.  Test with and without annexed dofs being
+    computed as this affects the generated code. 3) Also tests the
+    lower_to_language_level() and metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicATimesXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
@@ -2453,14 +2540,16 @@ def test_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicIncATimesXKern returns the
+    '''Test that 1) the str method of LFRicIncATimesXKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation X = a*X where 'a' is a real scalar and X is a real-valued
-    field. Test with and without annexed dofs being computed as this
-    affects the generated code.
-    Also tests the lower_to_language_level() method.
+    operation X = a*X where 'a' is a real scalar and X is a
+    real-valued field. Test with and without annexed dofs being
+    computed as this affects the generated code. 3) Also test the
+    lower_to_language_level() and metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncATimesXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
@@ -2538,12 +2627,16 @@ def test_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicXDividebyYKern returns the
+    '''Test that 1) the str method of LFRicXDividebyYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation Z = X/Y where Z, X and Y are fields real-valued. Test with and
-    without annexed dofs being computed as this affects the generated code.
+    operation Z = X/Y where Z, X and Y are fields real-valued. Test
+    with and without annexed dofs being computed as this affects the
+    generated code. 3) Also test the lower_to_language_level() and
+    metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicXDividebyYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2613,12 +2706,16 @@ def test_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 def test_inc_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem,
                           fortran_writer):
-    ''' Test that 1) the str method of LFRicIncXDividebyYKern returns the
+    '''Test that 1) the str method of LFRicIncXDividebyYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation X = X/Y where X and Y are real-valued fields. Test with and
-    without annexed dofs being computed as this affects the generated code.
+    operation X = X/Y where X and Y are real-valued fields. Test with
+    and without annexed dofs being computed as this affects the
+    generated code. 3) Also test the lower_to_language_level() and
+    metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncXDividebyYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2687,13 +2784,16 @@ def test_inc_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem,
 
 
 def test_X_divideby_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicXDividebyAKern returns the
+    '''Test that 1) the str method of LFRicXDividebyAKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Y = X/a where 'a' is a real scalar and X and Y are
-    real-valued fields. Test with and without annexed dofs being computed
-    as this affects the generated code.
+    real-valued fields. Test with and without annexed dofs being
+    computed as this affects the generated code. 3) Also test the
+    lower_to_language_level() and metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicXDividebyAKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2771,13 +2871,16 @@ def test_X_divideby_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 def test_inc_X_divideby_a(tmpdir, monkeypatch, annexed, dist_mem,
                           fortran_writer):
-    ''' Test that 1) the str method of LFRicIncXDividebyAKern returns the
+    '''Test that 1) the str method of LFRicIncXDividebyAKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation X = X/a where 'a' is a real scalar and X is a real-valued
-    field. Test with and without annexed dofs being computed as this
-    affects the generated code.
+    operation X = X/a where 'a' is a real scalar and X is a
+    real-valued field. Test with and without annexed dofs being
+    computed as this affects the generated code. Also test the
+    lower_to_language_level() and metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncXDividebyAKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2854,14 +2957,16 @@ def test_inc_X_divideby_a(tmpdir, monkeypatch, annexed, dist_mem,
 
 
 def test_a_divideby_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicADividebyXKern returns the
+    '''Test that 1) the str method of LFRicADividebyXKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Y = a/X where 'a' is a real scalar and X and Y are
-    real-valued fields. Test with and without annexed dofs being computed
-    as this affects the generated code.
-    Also tests the lower_to_language_level() method.
+    real-valued fields. Test with and without annexed dofs being
+    computed as this affects the generated code. 3) Also tests the
+    lower_to_language_level() and metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicADividebyXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
@@ -2929,14 +3034,16 @@ def test_a_divideby_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 def test_inc_a_divideby_X(tmpdir, monkeypatch, annexed, dist_mem,
                           fortran_writer):
-    ''' Test that 1) the str method of LFRicIncADividebyXKern returns the
+    '''Test that 1) the str method of LFRicIncADividebyXKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation X = a/X where 'a' is a real scalar and X is a real-valued
-    field. Test with and without annexed dofs being computed as this
-    affects the generated code.
-    Also tests the lower_to_language_level() method.
+    operation X = a/X where 'a' is a real scalar and X is a
+    real-valued field. Test with and without annexed dofs being
+    computed as this affects the generated code. 3) Also test the
+    lower_to_language_level() and metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncADividebyXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
@@ -2997,13 +3104,16 @@ def test_inc_a_divideby_X(tmpdir, monkeypatch, annexed, dist_mem,
 
 def test_inc_X_powreal_a(tmpdir, monkeypatch, annexed, dist_mem,
                          fortran_writer):
-    ''' Test that 1) the str method of LFRicIncXPowrealAKern returns the
+    '''Test that 1) the str method of LFRicIncXPowrealAKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X**a where 'a' is a real scalar and X is a
-    real-valued field. Test with and without annexed dofs being computed
-    as this affects the generated code.
+    real-valued field. Test with and without annexed dofs being
+    computed as this affects the generated code. Also test the
+    lower_to_language_level() and metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncXPowrealAKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
@@ -3076,13 +3186,16 @@ def test_inc_X_powreal_a(tmpdir, monkeypatch, annexed, dist_mem,
 
 def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem,
                         fortran_writer):
-    ''' Test that 1) the str method of LFRicIncXPowintNKern returns the
+    '''Test that 1) the str method of LFRicIncXPowintNKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X**n where 'n' is an integer scalar and X is a
     real-valued field. Also test with and without annexed dofs being
-    computed as this affects the generated code.
+    computed as this affects the generated code. 3) Also test the
+    lower_to_language_level() and metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncXPowintNKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
@@ -3164,13 +3277,16 @@ def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem,
 
 
 def test_setval_c(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicSetvalCKern returns the expected
-    string and 2) we generate correct code for the built-in operation
-    X = c where 'c' is a real constant scalar value and X is a real-valued
-    field. Test with and without annexed dofs being computed as this affects
-    the generated code.
+    '''Test that 1) the str method of LFRicSetvalCKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = c where 'c' is a real constant scalar value and X is
+    a real-valued field. Test with and without annexed dofs being
+    computed as this affects the generated code. 3) Also test the
+    lower_to_language_level() and metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicSetvalCKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -3249,12 +3365,16 @@ def test_setval_c(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_setval_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicSetvalXKern returns the expected
-    string and 2) we generate correct code for the built-in operation
-    Y = X where X and Y are real-valued fields. Also test with and without
-    annexed dofs being computed as this affects the generated code.
+    '''Test that 1) the str method of LFRicSetvalXKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Y = X where X and Y are real-valued fields. Also test
+    with and without annexed dofs being computed as this affects the
+    generated code. 3) Also test the lower_to_language_level() and
+    metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicSetvalXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -3326,9 +3446,11 @@ def test_X_innerproduct_Y(tmpdir, dist_mem):
     ''' Test that 1) the str method of LFRicXInnerproductYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation which calculates inner product of real-valued fields X and Y
-    as innprod = innprod + X(:)*Y(:).
+    as innprod = innprod + X(:)*Y(:). 3) Also test the metadata() method.
 
     '''
+    metadata = lfric_builtins.LFRicXInnerproductYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.9.1_X_innerproduct_Y_builtin.f90"),
@@ -3399,12 +3521,15 @@ def test_X_innerproduct_Y(tmpdir, dist_mem):
 
 
 def test_X_innerproduct_X(tmpdir, dist_mem):
-    ''' Test that 1) the str method of LFRicXInnerproductXKern returns the
+    '''Test that 1) the str method of LFRicXInnerproductXKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation which calculates inner product of a real-valued field X by
-    itself as innprod = innprod + X(:)*X(:).
+    operation which calculates inner product of a real-valued field X
+    by itself as innprod = innprod + X(:)*X(:). 3) Also test the
+    metadata() method.
 
     '''
+    metadata = lfric_builtins.LFRicXInnerproductXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.9.2_X_innerproduct_X_builtin.f90"),
@@ -3477,11 +3602,14 @@ def test_X_innerproduct_X(tmpdir, dist_mem):
 
 
 def test_sum_X(tmpdir, dist_mem):
-    ''' Test that 1) the str method of LFRicSumXKern returns the expected
-    string and 2) we generate correct code for the built-in operation which
-    sums elements of a real-valued field X as sumfld = sum(X(:)).
+    '''Test that 1) the str method of LFRicSumXKern returns the expected
+    string and 2) we generate correct code for the built-in operation
+    which sums elements of a real-valued field X as sumfld =
+    sum(X(:)). 3) Also test the metadata() method.
 
     '''
+    metadata = lfric_builtins.LFRicSumXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.8.1_sum_X_builtin.f90"), api=API)
@@ -3547,13 +3675,16 @@ def test_sum_X(tmpdir, dist_mem):
 
 
 def test_sign_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicSignXKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation Y = sign(a, X) where 'a' is a real scalar and Y and X
-    are real-valued fields. Test with and without annexed dofs
-    being computed as this affects the generated code.
+    '''Test that 1) the str method of LFRicSignXKern returns the expected
+    string and 2) we generate correct code for the built-in operation
+    Y = sign(a, X) where 'a' is a real scalar and Y and X are
+    real-valued fields. Test with and without annexed dofs being
+    computed as this affects the generated code. Also test the
+    lower_to_language_level() and metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicSignXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -3613,13 +3744,16 @@ def test_sign_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_max_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicMaxAXKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation Y = max(a, X) where 'a' is a real scalar and Y and X
-    are real-valued fields. Test with and without annexed dofs
-    being computed as this affects the generated code.
+    '''Test that 1) the str method of LFRicMaxAXKern returns the expected
+    string and 2) we generate correct code for the built-in operation
+    Y = max(a, X) where 'a' is a real scalar and Y and X are
+    real-valued fields. Test with and without annexed dofs being
+    computed as this affects the generated code. 3) Also test the
+    lower_to_language_level() and metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicMaxAXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -3687,13 +3821,16 @@ def test_max_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_inc_max_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicIncMaxAXKern returns the
+    '''Test that 1) the str method of LFRicIncMaxAXKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = max(a, X) where 'a' is a real scalar and X is a
-    real-valued field. Test with and without annexed dofs being computed
-    as this affects the generated code.
+    real-valued field. Test with and without annexed dofs being
+    computed as this affects the generated code. 3) Also test the
+    lower_to_language_level() and metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncMaxAXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -3762,13 +3899,16 @@ def test_inc_max_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_min_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicMinAXKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation Y = min(a, X) where 'a' is a real scalar and Y and X
-    are real-valued fields. Test with and without annexed dofs
-    being computed as this affects the generated code.
+    '''Test that 1) the str method of LFRicMinAXKern returns the expected
+    string and 2) we generate correct code for the built-in operation
+    Y = min(a, X) where 'a' is a real scalar and Y and X are
+    real-valued fields. Test with and without annexed dofs being
+    computed as this affects the generated code. 3) Also test the
+    lower_to_language_level() and metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicMinAXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -3825,13 +3965,16 @@ def test_min_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_inc_min_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicIncMinAXKern returns the
+    '''Test that 1) the str method of LFRicIncMinAXKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = min(a, X) where 'a' is a real scalar and X is a
-    real-valued field. Test with and without annexed dofs being computed
-    as this affects the generated code.
+    real-valued field. Test with and without annexed dofs being
+    computed as this affects the generated code. 3) Also test the
+    lower_to_language_level() and metadata() methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncMinAXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -3891,14 +4034,17 @@ def test_inc_min_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_int_X(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of LFRicIntXKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation Y = int(X, i_def) where Y is an integer-valued field, X is
-    the real-valued field being converted and the correct kind, 'i_def',
+    '''Test that 1) the str method of LFRicIntXKern returns the expected
+    string and 2) we generate correct code for the built-in operation
+    Y = int(X, i_def) where Y is an integer-valued field, X is the
+    real-valued field being converted and the correct kind, 'i_def',
     is picked up from the associated field. Test with and without
-    annexed dofs being computed as this affects the generated code.
+    annexed dofs being computed as this affects the generated code. 3)
+    Also test the metadata() method.
 
     '''
+    metadata = lfric_builtins.LFRicIntXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -3981,9 +4127,12 @@ def test_int_X_precision(monkeypatch):
     scalar with precision that is not the default i.e. not i_def. At
     the moment there is no other integer precision so we make one up
     and use monkeypatch to get round any error checks. However, this
-    does mean that we can't check whether it compiles.
+    does mean that we can't check whether it compiles. Also test the
+    metadata() method.
 
     '''
+    metadata = lfric_builtins.LFRicIncATimesXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.10.3_int_X_builtin.f90"),
                            api=API)
