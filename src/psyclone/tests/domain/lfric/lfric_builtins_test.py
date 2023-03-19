@@ -52,7 +52,7 @@ from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.domain.lfric import lfric_builtins, LFRicConstants, LFRicTypes
 from psyclone.domain.lfric.kernel import LFRicKernelMetadata, FieldArgMetadata
 from psyclone.domain.lfric.lfric_builtins import (
-    LFRicBuiltInCallFactory, LFRicBuiltIn)
+    LFRicBuiltInCallFactory, LFRicBuiltIn, LFRicXKern)
 from psyclone.dynamo0p3 import DynKernelArgument
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import BuiltInCall, parse
@@ -86,10 +86,42 @@ def dummy_func(self, _1, _2=True):
     self._proxy_data_type = "dummy3"
     self._module_name = "dummy4"
 
+
+class Dummy(LFRicBuiltIn):
+    ''' Utility subclass to allow abstract LFRicBuiltin class to be tested '''
+    @staticmethod
+    def metadata():
+        ''' Subclass abstract method.
+
+        :returns: None
+        :rtype: NoneType
+
+        '''
+        return None
+
+
+class Dummy2(Dummy):
+    '''Utility subclass to allow abstract LFRicBuiltin class
+    _builtin_metadata method to be tested'''
+    _case_name = "test"
+
+
+class XKernDummy(LFRicXKern):
+    '''Utility class to test that LFRicXKern raises the expected
+    exception
+
+    '''
+    @staticmethod
+    def metadata():
+        return None
+
+    def __str__(self):
+        return "dummy"
+
 # ------------- Tests for built-ins methods and arguments ------------------- #
 
 
-def test_lfric_builtin_abstract_methods():
+def test_lfric_builtin_abstract_method():
     ''' Check that the LFRicBuiltIn class is abstract and that the metadata
     method is abstract. '''
     with pytest.raises(TypeError) as err:
@@ -97,6 +129,50 @@ def test_lfric_builtin_abstract_methods():
         lfric_builtins.LFRicBuiltIn()
     assert "abstract class LFRicBuiltIn" in str(err.value)
     assert "metadata" in str(err.value)
+
+
+def test_lfric_builtin_init():
+    '''Check initiaisation of the abstract LFRicBuiltIn class.'''
+    instance = Dummy()
+    # Check __init__
+    assert instance.qr_rules == {}
+    assert instance.mesh is None
+    assert instance._idx_name is None
+    # Check super is called from __init__
+    assert instance._arg_descriptors is None
+    # Check Static values
+    assert instance._case_name is None
+    assert instance._datatype is None
+    assert isinstance(instance._datatype_lookup, dict)
+    assert instance._datatype_lookup["logical"] == "gh_logical"
+
+
+def test_lfric_builtin_builtin_metadata():
+    '''Check the _builtin_metadata method in the abstract LFRicBuiltIn
+    class.
+
+    '''
+    meta_args = [FieldArgMetadata("gh_real", "gh_write", "w0")]
+    kernel_metadata = Dummy2._builtin_metadata(meta_args)
+    assert isinstance(kernel_metadata, LFRicKernelMetadata)
+    assert kernel_metadata.meta_args == meta_args
+    assert kernel_metadata.operates_on == "dof"
+    assert kernel_metadata.procedure_name == "test_code"
+    assert kernel_metadata.name == "test"
+
+
+def test_lfric_builtin_str():
+    '''Check the __str__ method in the abstract LFRicBuiltIn class. Only
+    check for an exception here as all other parts of __str__ are
+    currently tested in subsequent subclass tests.
+
+    '''
+    instance = Dummy()
+    with pytest.raises(NotImplementedError) as info:
+        str(instance)
+    assert ("An LFRicBuiltin should be overridden by a subclass that sets "
+            "the value of _datatype, but _datatype is not set."
+            in str(info.value))
 
 
 # pylint: disable=invalid-name
@@ -118,20 +194,7 @@ def test_lfricxkern_exception():
     the subclass does not set the variable _field_type to a value.
 
     '''
-
-    class Dummy(lfric_builtins.LFRicXKern):
-        '''Utility class to test that LFRicXKern raises the expected
-        exception
-
-        '''
-        @staticmethod
-        def metadata():
-            return None
-
-        def __str__(self):
-            return "dummy"
-
-    dummy = Dummy()
+    dummy = XKernDummy()
     with pytest.raises(InternalError) as info:
         dummy.gen_code(None)
     assert ("Subclasses of LFRicXKern must set the _field_type variable "
@@ -3437,7 +3500,6 @@ def test_setval_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         if not annexed:
             output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
         assert output_dm_2 in code
-
 
 # ------------- Inner product of real fields -------------------------------- #
 

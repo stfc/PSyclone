@@ -47,6 +47,8 @@ import os
 import pytest
 
 from psyclone.configuration import Config
+from psyclone.domain.lfric.kernel import LFRicKernelMetadata
+from psyclone.domain.lfric.lfric_builtins import LFRicRealXKern
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 
@@ -60,7 +62,7 @@ BASE_PATH = os.path.join(
 # The PSyclone API under test
 API = "dynamo0.3"
 
-
+# pylint: disable=invalid-name
 # ------------- Adding integer fields --------------------------------------- #
 
 
@@ -1415,14 +1417,17 @@ def test_int_inc_min_aX(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_real_X(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of LFRicRealXKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation Y = real(X, r_def) where Y is a real-valued field, X is the
-    integer-valued field being converted and the correct kind, 'r_def',
-    is read from the PSyclone configuration file. Test with and without
-    annexed dofs being computed as this affects the generated code.
+    '''Test that 1) the str method of LFRicRealXKern returns the expected
+    string and 2) we generate correct code for the built-in operation
+    Y = real(X, r_def) where Y is a real-valued field, X is the
+    integer-valued field being converted and the correct kind,
+    'r_def', is read from the PSyclone configuration file. Test with
+    and without annexed dofs being computed as this affects the
+    generated code. 3: Also test the metadata() method.
 
     '''
+    metadata = LFRicRealXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
