@@ -175,6 +175,22 @@ def test_lfric_builtin_str():
             in str(info.value))
 
 
+def test_lfric_builtin_qr_required():
+    '''Check the qr_required method in the abstract LFRicBuiltIn class.
+
+    '''
+    instance = Dummy()
+    assert not instance.qr_required
+
+
+def test_lfric_builtin_fs_descriptors():
+    '''Check the fs_descriptors method in the abstract LFRicBuiltIn class.
+
+    '''
+    instance = Dummy()
+    assert not instance.fs_descriptors
+
+
 # pylint: disable=invalid-name
 def test_lfricxkern_abstract():
     '''Test that the LFRicXKern class is abstract and that it sets its
