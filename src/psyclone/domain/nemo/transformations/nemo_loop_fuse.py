@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,12 +33,12 @@
 # -----------------------------------------------------------------------------
 # Authors: J. Henrichs, Bureau of Meteorology
 #          N. Nobre, STFC Daresbury Lab
+#          S. Siso, STFC Daresbury Lab
 
 '''This module contains the NEMO-specific loop fusion transformation.
 '''
 
 from psyclone.core import AccessType, SymbolicMaths, VariablesAccessInfo
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations import LoopFuseTrans, TransformationError
 
@@ -205,9 +205,8 @@ class NemoLoopFuseTrans(LoopFuseTrans):
                 if len(index) <= 1:
                     continue
                 # Raise the appropriate error message:
-                writer = FortranWriter()
-                access1 = writer(all_accesses[0].node)
-                access2 = writer(other_access.node)
+                access1 = all_accesses[0].node.debug_string()
+                access2 = other_access.node.debug_string()
                 error = (f"Variable '{var_info1.signature[0]}' is written to "
                          f"and the loop variable '{loop_var_name}' is used "
                          f"in different index locations: {access1} and "

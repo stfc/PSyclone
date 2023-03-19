@@ -55,7 +55,7 @@ def test_ifblock_invalid_annotation():
 
     with pytest.raises(InternalError) as err:
         _ = IfBlock(annotations=["invalid"])
-    assert ("IfBlock with unknown annotation 'invalid', valid "
+    assert ("IfBlock with unrecognised annotation 'invalid', valid "
             "annotations are:") in str(err.value)
 
 
@@ -203,10 +203,7 @@ def test_ifblock_create_invalid():
     if_condition = Literal('true', BOOLEAN_TYPE)
     if_body = [Assignment.create(
         Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
-        Literal("0.0", REAL_SINGLE_TYPE)),
-               Assignment.create(
-                   Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE)),
-                   Literal("1.0", REAL_SINGLE_TYPE))]
+        Literal("0.0", REAL_SINGLE_TYPE))]
 
     # if_condition not a Node.
     with pytest.raises(GenerationError) as excinfo:
@@ -215,10 +212,9 @@ def test_ifblock_create_invalid():
             "'DataNode, Schedule [, Schedule]'.") in str(excinfo.value)
 
     # One or more if body not a Node.
-    if_body_err = [Assignment.create(Reference(DataSymbol("tmp",
-                                                          REAL_SINGLE_TYPE)),
-                                     Literal("0.0", REAL_SINGLE_TYPE)),
-                   "invalid"]
+    if_body_err = [Assignment.create(
+        Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
+        Literal("0.0", REAL_SINGLE_TYPE)), "invalid"]
     with pytest.raises(GenerationError) as excinfo:
         _ = IfBlock.create(if_condition, if_body_err)
     assert ("Item 'str' can't be child 1 of 'Schedule'. The valid format is: "
@@ -228,21 +224,17 @@ def test_ifblock_create_invalid():
     with pytest.raises(GenerationError) as excinfo:
         _ = IfBlock.create(if_condition, "invalid")
     assert ("if_body argument in create method of IfBlock class should be a "
-            "list.") in str(excinfo.value)
+            "list but found 'str'.") in str(excinfo.value)
 
     # One of more of else_body not a Node.
     if_condition = Literal('true', BOOLEAN_TYPE)
     if_body = [Assignment.create(
         Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
-        Literal("0.0", REAL_SINGLE_TYPE)),
-               Assignment.create(
-                   Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE)),
-                   Literal("1.0", REAL_SINGLE_TYPE))]
+        Literal("0.0", REAL_SINGLE_TYPE))]
 
-    else_body_err = [Assignment.create(Reference(DataSymbol("tmp",
-                                                            REAL_SINGLE_TYPE)),
-                                       Literal("1.0", REAL_SINGLE_TYPE)),
-                     "invalid"]
+    else_body_err = [Assignment.create(
+        Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
+        Literal("1.0", REAL_SINGLE_TYPE)), "invalid"]
     with pytest.raises(GenerationError) as excinfo:
         _ = IfBlock.create(if_condition, if_body, else_body_err)
     assert ("Item 'str' can't be child 1 of 'Schedule'. The valid format is: "
@@ -252,7 +244,7 @@ def test_ifblock_create_invalid():
     with pytest.raises(GenerationError) as excinfo:
         _ = IfBlock.create(if_condition, if_body, "invalid")
     assert ("else_body argument in create method of IfBlock class should be a "
-            "list.") in str(excinfo.value)
+            "list but found 'str'.") in str(excinfo.value)
 
 
 def test_ifblock_children_validation():

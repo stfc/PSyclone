@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: A. R. Porter, R. W. Ford and A. Chalk, STFC Daresbury Lab
+# Authors: A. R. Porter, R. W. Ford, A. Chalk and S. Siso, STFC Daresbury Lab
 
 '''
 This module contains the InlineTrans transformation.
@@ -39,7 +39,6 @@ This module contains the InlineTrans transformation.
 '''
 from psyclone.errors import InternalError, LazyString
 from psyclone.psyGen import Transformation
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
     ArrayReference, ArrayOfStructuresReference, BinaryOperation, Call,
     CodeBlock, Container, IntrinsicCall, Range, Routine, Reference, Return,
@@ -848,12 +847,10 @@ class InlineTrans(Transformation):
 
         # Check that the shapes of any formal array arguments are the same as
         # those at the call site.
-        visitor = FortranWriter()
-
         if len(routine_table.argument_list) != len(node.children):
             raise TransformationError(LazyString(
-                lambda: f"Cannot inline '{visitor(node).strip()}' because"
-                f" the number of arguments supplied to the call "
+                lambda: f"Cannot inline '{node.debug_string().strip()}' "
+                f"because the number of arguments supplied to the call "
                 f"({len(node.children)}) does not match the number of "
                 f"arguments the routine is declared to have "
                 f"({len(routine_table.argument_list)})."))
@@ -883,10 +880,11 @@ class InlineTrans(Transformation):
                 # of any general expression is or is not an array.
                 # pylint: disable=cell-var-from-loop
                 raise TransformationError(LazyString(
-                    lambda: f"The call '{visitor(node)}' cannot be inlined "
-                    f"because actual argument '{visitor(actual_arg)}' "
-                    f"corresponds to a formal argument with array type but is "
-                    f"not a Reference or a Literal."))
+                    lambda: f"The call '{node.debug_string()}' cannot be "
+                            f"inlined because actual argument "
+                            f"'{actual_arg.debug_string()}' corresponds to a "
+                            f"formal argument with array type but is not a "
+                            f"Reference or a Literal."))
 
             # We have an array argument. We are only able to check that the
             # argument is not re-shaped in the called routine if we have full
@@ -915,8 +913,8 @@ class InlineTrans(Transformation):
                 raise TransformationError(LazyString(
                         lambda: f"Cannot inline routine '{routine.name}' "
                         f"because it reshapes an argument: actual argument "
-                        f"'{visitor(actual_arg)}' has rank {actual_rank} but "
-                        f"the corresponding formal argument, "
+                        f"'{actual_arg.debug_string()}' has rank {actual_rank}"
+                        f" but the corresponding formal argument, "
                         f"'{formal_arg.name}', has rank {formal_rank}"))
             if actual_rank:
                 ranges = actual_arg.walk(Range)
@@ -927,8 +925,9 @@ class InlineTrans(Transformation):
                         # pylint: disable=cell-var-from-loop
                         raise TransformationError(LazyString(
                             lambda: f"Cannot inline routine '{routine.name}' "
-                            f"because argument '{visitor(actual_arg)}' has an "
-                            f"array range in an indirect access (TODO #924)."))
+                            f"because argument '{actual_arg.debug_string()}' "
+                            f"has an array range in an indirect access (TODO "
+                            f"#924)."))
                     if rge.step != _ONE:
                         # TODO #1646. We could resolve this problem by making
                         # a new array and copying the necessary values into it.
@@ -936,8 +935,8 @@ class InlineTrans(Transformation):
                         raise TransformationError(LazyString(
                             lambda: f"Cannot inline routine '{routine.name}' "
                             f"because one of its arguments is an array slice "
-                            f"with a non-unit stride: '{visitor(actual_arg)}' "
-                            f"(TODO #1646)"))
+                            f"with a non-unit stride: "
+                            f"'{actual_arg.debug_string()}' (TODO #1646)"))
 
     @staticmethod
     def _find_routine(call_node):

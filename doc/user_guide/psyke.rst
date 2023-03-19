@@ -499,7 +499,7 @@ optimisation of a stand-alone kernel.
     should use a variable from a module directly (as opposed to supplying
     this as parameter in the kernel call), this variable will not be
     written to the extract data file, and the driver will also not try to
-    read in this values. As a result, the kernel will not be able to
+    read in the value. As a result, the kernel will not be able to
     run stand-alone. As a work-around, these values can be added manually
     to the driver program. Issue #1990 tracks improvement of this situation.
 

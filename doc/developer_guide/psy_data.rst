@@ -1159,8 +1159,8 @@ When compiled and executed, this driver will read in the values of
 all input- and output-variables, execute the
 instrumented code region, and then compare the results of the output
 variables (see :ref:`user_guide:extraction_libraries`). ATM this
-driver will still depend on the infrastructure library (see issue #1991)
-and needs the PSyData ReadKernelData library (i.e.
+driver will still depend on the LFRic infrastructure library (see issue
+#1991) and needs the PSyData ReadKernelData library (i.e.
 ``lib/extract/netcdf/read_kernel_data_mod``), plus any libraries
 the wrapper depends on (e.g. NetCDF).
 
@@ -1213,4 +1213,4 @@ After calling the kernel, the results of the kernel call in ``field1`` are
 compared with the expected values in ``field1_post``.
 
 .. note:: For now the created driver still depends on the infrastructure
-    library, and any other modules used. Issue #1991 improves this.
+    library and any other modules used. Issue #1991 improves this.
