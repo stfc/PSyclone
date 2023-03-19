@@ -347,6 +347,10 @@
 
 	116) PR #2072 tidying of IfBlock following #2068.
 
+	117) PR #2061 towards #598. Improves the use of dependence analysis
+	in the OMP transformations to infer which variables are firstprivate
+	in some cases.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
