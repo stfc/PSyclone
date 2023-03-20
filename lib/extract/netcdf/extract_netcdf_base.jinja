@@ -217,7 +217,8 @@ contains
         call this%PSyDataBaseType%PreStart(module_name, region_name, &
                                            num_pre_vars, num_post_vars)
 
-        ! Open the NetCDF file
+        ! Open the NetCDF file. Explicitly request NetCDF 4 format, since
+        ! this is required in order to use NF90_INT64 (further down)
         retval = CheckError(nf90_create(module_name//"-"//region_name//".nc", &
                                         IOR(NF90_NETCDF4,NF90_CLOBBER),       &
                                         this%ncid))

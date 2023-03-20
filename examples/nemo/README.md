@@ -138,5 +138,5 @@ benchmark.
 
 ## Example 5
 
-Extraction of kernel data. Using the tra_adv benchmark, this examples
+Extraction of kernel data. Using the tra_adv benchmark, this example
 shows the extraction of kernel input- and output-data.

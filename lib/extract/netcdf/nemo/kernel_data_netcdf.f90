@@ -36,7 +36,7 @@
 !> This module implements a simple NetCDF writer using the PSyData
 !! interface. It is specific to the generic NEMO API, i.e. it does 
 !! actually not provide any API-specific types like fields, only standard
-!! Fortran data types. Therefore, it is just an empty wrapper to around
+!! Fortran data types. Therefore, it is just an empty wrapper around
 !! the ExtractNetcdfBaseType, which provides the standard module name
 !! and class name expected by the extraction scripts.
 !!
