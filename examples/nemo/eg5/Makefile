@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council.
+# Copyright (c) 2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 
 # Makefile for the 5th NEMO example. Uses PSyclone (which must
 # be installed) to generate Fortran for the tracer-advection benchmark.
-# The script provided here instrument the kernels
+# The script provided here instruments each of the kernels
 # with code to extract input- and output-data into a data file.
 
 # The compiler to use may be specified via the F90 environment variable,
@@ -47,13 +47,17 @@
 
 include ../../common.mk
 
+# There are two different extraction libraries that can be used:
+# 1) standalone, which uses Fortan binary data files to store the data
+# 2) netcdf, which uses NetCDF for writing the data files.
+# The library can be selected by setting TYPE to either 'standalone'
+# (which is the default) or 'netcdf'. Note that both libraries implement
+# the same API, so no change to any script is required for switching
+# between the two libraries, but recompilation is required (since the
+# .mod files will be different).
 TYPE ?= standalone
 
-GENERATED_FILES += psy.f90 psy.o traadv-$(TYPE).exe output.dat psyclone.log \
-  traldf_iso.F90
-
-F90FLAGS ?= -fopenmp
-LDFLAGS ?= -fopenmp
+GENERATED_FILES += psy.f90 psy.o traadv-$(TYPE).exe output.dat
 
 # Pick up the right extraction library:
 PSYROOT=../../..
@@ -78,7 +82,7 @@ LIB_NAME = lib_extract.a
 compile: traadv-$(TYPE).exe
 
 run: compile
-	IT=2 JPI=10 JPJ=10 JPK=5  ./traadv.exe
+	IT=2 JPI=10 JPJ=10 JPK=5  ./traadv-$(TYPE).exe
 
 traadv-$(TYPE).exe: psy.o $(EXTRACT_DIR)/$(LIB_NAME)
 	$(F90) psy.o -o traadv-$(TYPE).exe $(EXTRACT_DIR)/$(LIB_NAME) $(LDFLAGS)

@@ -31,38 +31,39 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+# Author: J. Henrichs, Bureau of Meteorology
 
-'''A transformation script that seeks to apply OpenACC DATA and KERNELS
-directives to NEMO style code.  In order to use
-it you must first install PSyclone. See README.md in the top-level
-psyclone directory.
+'''A transformation script that applies kernel data extraction to a
+stand-alone version of one of the tracer-advection routines from the
+NEMO ocean model. It was originally extracted by Silvia Mocavero
+of CMCC. The code can be found in the `../code` directory.
 
-Once you have psyclone installed, this may be used by doing:
+This script is called for `tra_adv.F90` and applies the generic
+:py:class:`psyclone.psyir.transformations.ExtractTrans` to each
+invoke, as automatically identified by PSyclone.
 
- $ psyclone -api nemo -s ./kernels_trans.py some_source_file.f90
+    $ psyclone -l output --config ../../../psyclone.cfg -l all -api "nemo" \
+        -s ./extract_kernels.py -opsy psy.f90 ../code/tra_adv.F90
 
-This should produce a lot of output, ending with generated
-Fortran. Note that the Fortran source files provided to PSyclone must
-have already been preprocessed (if required).
+You can inspect the output file `psy.f90` to see the instrumentation, e.g.:
 
-The transformation script attempts to insert Kernels directives at the
-highest possible location(s) in the schedule tree (i.e. to enclose as
-much code as possible in each Kernels region). However, due to
-limitations in the PGI compiler, we must take care to exclude certain
-nodes (such as If blocks) from within Kernel regions. If a proposed
-region is found to contain such a node (by the ``valid_kernel``
-routine) then the script moves a level down the tree and then repeats
-the process of attempting to create the largest possible Kernel
-region.
+    CALL extract_psy_data_2 % PreStart("tra_adv", "r2", 1, 2)
+    CALL extract_psy_data_2 % PreDeclareVariable("jpk", jpk)
+    CALL extract_psy_data_2 % PreDeclareVariable("jk_post", jk)
+    CALL extract_psy_data_2 % PreDeclareVariable("rnfmsk_z_post", rnfmsk_z)
+    CALL extract_psy_data_2 % PreEndDeclaration
+    CALL extract_psy_data_2 % ProvideVariable("jpk", jpk)
+    CALL extract_psy_data_2 % PreEnd
+    do jk = 1, jpk, 1
+      rnfmsk_z(jk) = jk / jpk
+    enddo
+    CALL extract_psy_data_2 % PostStart
+    CALL extract_psy_data_2 % ProvideVariable("jk_post", jk)
+    CALL extract_psy_data_2 % ProvideVariable("rnfmsk_z_post", rnfmsk_z)
+    CALL extract_psy_data_2 % PostEnd
 
-Once the Kernels regions have been created, the script then simply
-encloses each of them within an OpenACC Data region (since these have
-already been made as large as possible). In reality, the purpose of a
-data region is to keep data on the remote GPU device for as long as
-possible, ideally between Kernel regions. However, this requires more
-sophisticated dependency analysis than is yet implemented in
-PSyclone. Issue #309 will tackle this limitation.
+Note that the Fortran source files provided to PSyclone must have already
+been preprocessed (if required).
 
 '''
 
@@ -73,7 +74,7 @@ from psyclone.psyir.transformations import ExtractTrans
 
 def trans(psy):
     '''A PSyclone-script compliant transformation function. Applies
-    OpenACC 'kernels' and 'data' directives to NEMO code.
+    the kernel extraction to any invoke identified in the PSy layer object.
 
     :param psy: The PSy layer object to apply transformations to.
     :type psy: :py:class:`psyclone.psyGen.PSy`
@@ -91,9 +92,7 @@ def trans(psy):
             print(f"Invoke {invoke.name} has no Schedule! Skipping...")
             continue
 
-        count = 0
         for kern in sched.children:
-            count += 1
             if not isinstance(kern, NemoLoop):
                 continue
             try:

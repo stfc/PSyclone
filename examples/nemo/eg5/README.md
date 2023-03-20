@@ -10,15 +10,14 @@ Once you have installed PSyclone, either script may be supplied to
 PSyclone via the -s option, e.g.:
 
 ```sh
-psyclone -nodm -l all -api nemo -s ./extract_kernels.py ../code/tra_adv.F90
+psyclone -l all -api nemo -s ./extract_kernels.py ../code/tra_adv.F90
 ```
 
 Executing this will output the transformed Fortran code with the 
 kernel extraction code added. Note that some of the lines in this
 Fortran code will exceed the 132-character limit. This may be remedied
 by supplying the `-l all` flag to PSyclone (as is done in the Makefile).
-Kernel extraction does not support distributed memory (TODO #1992), so
-the `-nodm` command line parameter has to be provided as well.
+
 
 The stand-alone extraction library in
 ``../../../lib/extract/standalone/nemo`` is used as default, and
