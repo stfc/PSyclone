@@ -418,7 +418,7 @@ variable data is provided into the local context. The currently available
 Interfaces are:
 
 
-- .. autoclass:: psyclone.psyir.symbols.LocalInterface
+- .. autoclass:: psyclone.psyir.symbols.AutomaticInterface
 
 - .. autoclass:: psyclone.psyir.symbols.ImportInterface
 

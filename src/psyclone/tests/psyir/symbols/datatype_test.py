@@ -241,7 +241,7 @@ def test_scalartype_invalid_precision_datasymbol():
         _ = ScalarType(ScalarType.Intrinsic.REAL, precision_symbol)
     assert ("A DataSymbol representing the precision of another DataSymbol "
             "must be of either 'deferred' or scalar, integer type but got: "
-            "r_def: DataSymbol<Scalar<REAL, 4>, Local>"
+            "r_def: DataSymbol<Scalar<REAL, 4>, Automatic>"
             in str(excinfo.value))
 
 

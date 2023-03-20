@@ -53,7 +53,7 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import InvokeSchedule, GlobalSum, BuiltIn
 from psyclone.psyir.nodes import colored, Loop, Schedule, Literal, Directive, \
     OMPDoDirective, ACCEnterDataDirective, Reference
-from psyclone.psyir.symbols import LocalInterface, ScalarType, ArrayType, \
+from psyclone.psyir.symbols import AutomaticInterface, ScalarType, ArrayType, \
     REAL_TYPE, INTEGER_TYPE
 from psyclone.psyir.transformations import LoopFuseTrans, LoopTrans, \
     TransformationError
@@ -7425,10 +7425,11 @@ def test_kern_const_invalid_make_constant1():
     kernel_schedule = kernel.get_kernel_schedule()
     symbol_table = kernel_schedule.symbol_table
     # Make the symbol table's argument list empty. We have to make sure that
-    # the interface of any existing argument Symbols is set to LocalInterface
-    # first otherwise we fall foul of our internal-consistency checks.
+    # the interface of any existing argument Symbols is set to
+    # AutomaticInterface first otherwise we fall foul of our
+    # internal-consistency checks.
     for symbol in symbol_table.argument_list:
-        symbol.interface = LocalInterface()
+        symbol.interface = AutomaticInterface()
     symbol_table._argument_list = []
     kctrans = Dynamo0p3KernelConstTrans()
     with pytest.raises(TransformationError) as excinfo:

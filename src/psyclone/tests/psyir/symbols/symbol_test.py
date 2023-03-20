@@ -51,7 +51,7 @@ import pytest
 from psyclone.psyir.nodes import Container, Literal, KernelSchedule
 from psyclone.psyir.symbols import ArgumentInterface, ContainerSymbol, \
                                    DataSymbol, ImportInterface, \
-                                   INTEGER_SINGLE_TYPE, LocalInterface, \
+                                   INTEGER_SINGLE_TYPE, AutomaticInterface, \
                                    RoutineSymbol, Symbol, SymbolError, \
                                    SymbolTable, UnresolvedInterface
 
@@ -66,7 +66,7 @@ def test_symbol_initialisation():
     assert isinstance(sym, Symbol)
     assert sym.name == "sym1"
     assert sym.visibility == Symbol.DEFAULT_VISIBILITY
-    assert isinstance(sym.interface, LocalInterface)
+    assert isinstance(sym.interface, AutomaticInterface)
     # Check that the default visibility is public
     assert Symbol.DEFAULT_VISIBILITY == Symbol.Visibility.PUBLIC
 
@@ -133,7 +133,7 @@ def test_symbol_str():
     '''Test that a Symbol instance can be stringified'''
 
     sym = Symbol("my_symbol")
-    assert str(sym) == "my_symbol: Symbol<Local>"
+    assert str(sym) == "my_symbol: Symbol<Automatic>"
 
 
 def test_find_symbol_table():
@@ -205,7 +205,7 @@ def test_symbol_specialise():
     # pylint: disable = unidiomatic-typecheck
     asym = Symbol("a")
     assert type(asym) is Symbol
-    assert str(asym) == "a: Symbol<Local>"
+    assert str(asym) == "a: Symbol<Automatic>"
     asym.specialise(RoutineSymbol)
     assert type(asym) is RoutineSymbol
     assert str(asym) == "a: RoutineSymbol<NoType>"
@@ -249,7 +249,7 @@ def test_get_external_symbol(monkeypatch):
     with pytest.raises(NotImplementedError) as err:
         asym.get_external_symbol()
     assert ("trying to resolve symbol 'a' properties, the lazy evaluation "
-            "of 'Local' interfaces is not supported" in str(err.value))
+            "of 'Automatic' interfaces is not supported" in str(err.value))
     other_container = ContainerSymbol("some_mod")
     ctable = SymbolTable()
     ctable.add(other_container)

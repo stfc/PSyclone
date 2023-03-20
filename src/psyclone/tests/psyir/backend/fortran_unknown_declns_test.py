@@ -138,7 +138,7 @@ def test_fw_unknowntype_nonlocal_routine_symbols_error(fortran_writer):
     with pytest.raises(VisitorError) as err:
         fortran_writer.gen_decls(container.symbol_table)
     assert ("RoutineSymbol 'eos' is of UnknownFortranType but has interface "
-            "'Import(container='other_mod')' instead of LocalInterface" in
+            "'Import(container='other_mod')' instead of AutomaticInterface" in
             str(err.value))
 
 

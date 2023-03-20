@@ -45,10 +45,11 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, \
-    LocalInterface, ImportInterface, ArgumentInterface, UnresolvedInterface, \
+    AutomaticInterface, ImportInterface, ArgumentInterface, \
     ScalarType, ArrayType, REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, REAL4_TYPE, \
     REAL8_TYPE, INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE, \
-    BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType, Symbol, DataTypeSymbol
+    BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType, Symbol, DataTypeSymbol, \
+    UnresolvedInterface
 from psyclone.psyir.nodes import (Literal, Reference, BinaryOperation, Return,
                                   CodeBlock)
 
@@ -145,7 +146,7 @@ def test_datasymbol_can_be_printed():
     '''Test that a DataSymbol instance can always be printed. (i.e. is
     initialised fully.)'''
     symbol = DataSymbol("sname", REAL_SINGLE_TYPE)
-    assert "sname: DataSymbol<Scalar<REAL, SINGLE>, Local>" in str(symbol)
+    assert "sname: DataSymbol<Scalar<REAL, SINGLE>, Automatic>" in str(symbol)
 
     sym1 = DataSymbol("s1", INTEGER_SINGLE_TYPE,
                       interface=UnresolvedInterface())
@@ -155,7 +156,7 @@ def test_datasymbol_can_be_printed():
                            [ArrayType.Extent.ATTRIBUTE, 2, Reference(sym1)])
     sym2 = DataSymbol("s2", array_type)
     assert ("s2: DataSymbol<Array<Scalar<REAL, SINGLE>, shape=['ATTRIBUTE', "
-            "2, Reference[name:'s1']]>, Local>" in str(sym2))
+            "2, Reference[name:'s1']]>, Automatic>" in str(sym2))
 
     my_mod = ContainerSymbol("my_mod")
     sym3 = DataSymbol("s3", REAL_SINGLE_TYPE,
@@ -164,7 +165,7 @@ def test_datasymbol_can_be_printed():
             in str(sym3))
 
     sym3 = DataSymbol("s3", INTEGER_SINGLE_TYPE, constant_value=12)
-    assert ("s3: DataSymbol<Scalar<INTEGER, SINGLE>, Local, "
+    assert ("s3: DataSymbol<Scalar<INTEGER, SINGLE>, Automatic, "
             "constant_value=Literal"
             "[value:'12', Scalar<INTEGER, SINGLE>]>" in str(sym3))
 
@@ -327,7 +328,7 @@ def test_datasymbol_copy():
     new_symbol.datatype = ArrayType(ScalarType(ScalarType.Intrinsic.INTEGER,
                                                ScalarType.Precision.DOUBLE),
                                     [3, 4])
-    new_symbol._interface = LocalInterface()
+    new_symbol._interface = AutomaticInterface()
 
     assert symbol.name == "myname"
     assert symbol.datatype.intrinsic == ScalarType.Intrinsic.REAL
@@ -433,5 +434,5 @@ def test_datasymbol_str():
     '''Test that the DataSymbol __str__ method returns the expected string'''
     data_symbol = DataSymbol("a", INTEGER4_TYPE, constant_value=3)
     assert (data_symbol.__str__() ==
-            "a: DataSymbol<Scalar<INTEGER, 4>, Local, constant_value="
+            "a: DataSymbol<Scalar<INTEGER, 4>, Automatic, constant_value="
             "Literal[value:'3', Scalar<INTEGER, 4>]>")

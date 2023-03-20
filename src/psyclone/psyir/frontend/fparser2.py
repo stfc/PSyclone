@@ -58,7 +58,7 @@ from psyclone.psyir.nodes.array_of_structures_mixin import \
     ArrayOfStructuresMixin
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
-    DeferredType, ImportInterface, IntrinsicSymbol, LocalInterface, NoType,
+    DeferredType, ImportInterface, IntrinsicSymbol, AutomaticInterface, NoType,
     RoutineSymbol, ScalarType, StructureType, Symbol, SymbolError, SymbolTable,
     UnknownFortranType, UnknownType, UnresolvedInterface, INTEGER_TYPE)
 
@@ -738,7 +738,7 @@ def _process_routine_symbols(module_ast, symbol_table, visibility_map):
         # This routine is defined within this scoping unit and therefore has a
         # local interface.
         rsymbol = RoutineSymbol(name, type_map[type(routine)], visibility=vis,
-                                interface=LocalInterface())
+                                interface=AutomaticInterface())
         symbol_table.add(rsymbol)
 
 
@@ -1619,7 +1619,7 @@ class Fparser2Reader():
         # 2) If no intent attribute is provided, it is provisionally
         # marked as a local variable (when the argument list is parsed,
         # arguments with no explicit intent are updated appropriately).
-        interface = LocalInterface()
+        interface = AutomaticInterface()
         # 3) Record initialized constant values
         has_constant_value = False
         # 4) Whether the declaration has the allocatable attribute

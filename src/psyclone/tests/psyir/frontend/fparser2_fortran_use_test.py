@@ -45,7 +45,7 @@ from psyclone.psyGen import GenerationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import KernelSchedule, Container
 from psyclone.psyir.symbols import ContainerSymbol, SymbolError, Symbol, \
-    DataSymbol, LocalInterface, INTEGER_SINGLE_TYPE
+    DataSymbol, AutomaticInterface, INTEGER_SINGLE_TYPE
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -244,7 +244,7 @@ def test_use_local_symbol_error():
     # come before local declarations. Therefore we manually add a symbol
     # to the table first.
     fake_parent.symbol_table.add(DataSymbol("fred", INTEGER_SINGLE_TYPE,
-                                            interface=LocalInterface()))
+                                            interface=AutomaticInterface()))
     processor = Fparser2Reader()
     reader = FortranStringReader("use mod2, only: fred\n")
     fparser2spec = Fortran2003.Specification_Part(reader)

@@ -167,9 +167,10 @@ def test_validate_name_clashes():
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(coded_kern)
     assert ("Cannot module-inline subroutine 'ru_code' because symbol "
-            "'ru_code: DataSymbol<Scalar<REAL, UNDEFINED>, Local>' with the "
-            "same name already exists and changing the name of module-inlined "
-            "subroutines is not supported yet." in str(err.value))
+            "'ru_code: DataSymbol<Scalar<REAL, UNDEFINED>, Automatic>' with "
+            "the same name already exists and changing the name of "
+            "module-inlined subroutines is not supported yet."
+            in str(err.value))
 
     # TODO # 898. Manually force removal of previous imported symbol
     # symbol_table.remove() is not implemented yet.

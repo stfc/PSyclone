@@ -41,7 +41,7 @@ from psyclone.psyir.symbols.datasymbol import DataSymbol
 from psyclone.psyir.symbols.containersymbol import ContainerSymbol
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.interfaces import \
-    LocalInterface, ImportInterface, ArgumentInterface, UnresolvedInterface
+    AutomaticInterface, ImportInterface, ArgumentInterface, UnresolvedInterface
 from psyclone.psyir.symbols.intrinsic_symbol import IntrinsicSymbol
 from psyclone.psyir.symbols.routinesymbol import RoutineSymbol
 from psyclone.psyir.symbols.symbol import Symbol, SymbolError
@@ -71,7 +71,7 @@ __all__ = ['ArgumentInterface',
            'INTEGER_DOUBLE_TYPE',
            'INTEGER4_TYPE',
            'INTEGER8_TYPE',
-           'LocalInterface',
+           'AutomaticInterface',
            'NoType',
            'REAL_TYPE',
            'REAL_SINGLE_TYPE',

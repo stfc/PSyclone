@@ -36,7 +36,7 @@
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' Perform py.test tests on the psygen.psyir.symbols.symboltable file '''
+''' Perform py.test tests on the psyclone.psyir.symbols.symboltable file '''
 
 from __future__ import absolute_import
 import re
@@ -47,10 +47,10 @@ from psyclone.configuration import Config
 from psyclone.psyir.nodes import Schedule, Container, KernelSchedule, \
     Literal, Reference, Assignment, Routine
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
-    LocalInterface, ImportInterface, ArgumentInterface, UnresolvedInterface, \
+    AutomaticInterface, ImportInterface, ArgumentInterface, \
     ScalarType, ArrayType, DeferredType, REAL_TYPE, INTEGER_TYPE, Symbol, \
     SymbolError, RoutineSymbol, NoType, StructureType, DataTypeSymbol, \
-    UnknownFortranType
+    UnknownFortranType, UnresolvedInterface
 from psyclone.errors import InternalError
 
 
@@ -388,7 +388,7 @@ def test_symbols_imported_from():
     my_mod = ContainerSymbol("my_mod")
     sym_table.add(my_mod)
     assert sym_table.symbols_imported_from(my_mod) == []
-    var1 = DataSymbol("var1", REAL_TYPE, interface=LocalInterface())
+    var1 = DataSymbol("var1", REAL_TYPE, interface=AutomaticInterface())
     sym_table.add(var1)
     assert sym_table.symbols_imported_from(my_mod) == []
     var2 = DataSymbol("var2", INTEGER_TYPE,
@@ -477,7 +477,7 @@ def test_remove_containersymbols():
     assert ("Cannot remove ContainerSymbol 'my_mod' since symbols "
             "['var1'] are imported from it" in str(err.value))
     # Change the interface on var1
-    var1.interface = LocalInterface()
+    var1.interface = AutomaticInterface()
     # We should now be able to remove the ContainerSymbol
     sym_table.remove(my_mod)
     with pytest.raises(KeyError) as err:
@@ -1177,7 +1177,7 @@ def test_copy_external_import():
         symtab.copy_external_import(DataSymbol("var1", REAL_TYPE))
     assert "The imported_var argument of SymbolTable.copy_external_import " \
         "method should have an ImportInterface interface, but found " \
-        "'LocalInterface'." \
+        "'AutomaticInterface'." \
         in str(error.value)
 
     # Copy an imported_var
@@ -1490,8 +1490,8 @@ def test_new_symbol():
     # which will be initialised with default values
     assert sym1.visibility is Symbol.Visibility.PUBLIC
     assert sym2.visibility is Symbol.Visibility.PUBLIC
-    assert isinstance(sym1.interface, LocalInterface)
-    assert isinstance(sym2.interface, LocalInterface)
+    assert isinstance(sym1.interface, AutomaticInterface)
+    assert isinstance(sym2.interface, AutomaticInterface)
     assert isinstance(sym1.datatype, NoType)
     assert sym2.datatype is INTEGER_TYPE
     assert sym2.constant_value is None

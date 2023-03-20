@@ -41,7 +41,7 @@
 
 from enum import Enum
 from psyclone.errors import PSycloneError, InternalError
-from psyclone.psyir.symbols.interfaces import LocalInterface, \
+from psyclone.psyir.symbols.interfaces import AutomaticInterface, \
     SymbolInterface, ArgumentInterface, UnresolvedInterface, ImportInterface
 
 
@@ -70,8 +70,9 @@ class Symbol():
     :param interface: optional object describing the interface to this \
         symbol (i.e. whether it is passed as a routine argument or \
         accessed in some other way). Defaults to \
-        :py:class:`psyclone.psyir.symbols.LocalInterface`
-    :type interface: :py:class:`psyclone.psyir.symbols.symbol.SymbolInterface`
+        :py:class:`psyclone.psyir.symbols.AutomaticInterface`
+    :type interface: Optional[ \
+        :py:class:`psyclone.psyir.symbols.symbol.SymbolInterface`]
 
     :raises TypeError: if the name is not a str.
 
@@ -118,15 +119,15 @@ class Symbol():
         :param interface: optional object describing the interface to this \
             symbol (i.e. whether it is passed as a routine argument or \
             accessed in some other way). Defaults to \
-            :py:class:`psyclone.psyir.symbols.LocalInterface`
-        :type interface: \
-            :py:class:`psyclone.psyir.symbols.symbol.SymbolInterface`
+            :py:class:`psyclone.psyir.symbols.AutomaticInterface`
+        :type interface: Optional[ \
+            :py:class:`psyclone.psyir.symbols.symbol.SymbolInterface`]
 
         '''
         if interface:
             self.interface = interface
         elif not self.interface:
-            self.interface = LocalInterface()
+            self.interface = AutomaticInterface()
 
         if visibility:
             self.visibility = visibility
@@ -314,7 +315,7 @@ class Symbol():
         :rtype: bool
 
         '''
-        return isinstance(self._interface, LocalInterface)
+        return isinstance(self._interface, AutomaticInterface)
 
     @property
     def is_import(self):
@@ -342,6 +343,13 @@ class Symbol():
 
         '''
         return isinstance(self._interface, UnresolvedInterface)
+
+    # TODO: is_sinkable()
+    # locals and input arguments are sinkable, ...
+    # the rest are not
+    # def has_potential_hidden_access()
+    # locals and save do not,
+    # the rest can have it
 
     def find_symbol_table(self, node):
         '''

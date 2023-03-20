@@ -52,12 +52,14 @@ class SymbolInterface():   # pylint: disable=too-few-public-methods
         return self.__class__()
 
 
-class LocalInterface(SymbolInterface):
+class AutomaticInterface(SymbolInterface):
     # pylint: disable=too-few-public-methods
-    ''' The symbol just exists in the Local context '''
+    ''' The symbol is declared without specifiers. It's properties depend
+    on which context it is found.
+    '''
 
     def __str__(self):
-        return "Local"
+        return "Automatic"
 
 
 class UnresolvedInterface(SymbolInterface):

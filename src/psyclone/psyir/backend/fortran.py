@@ -567,8 +567,8 @@ class FortranWriter(LanguageWriter):
                     raise VisitorError(
                         f"{type(symbol).__name__} '{symbol.name}' is of "
                         f"UnknownFortranType but has interface "
-                        f"'{symbol.interface}' instead of LocalInterface. This"
-                        f" is not supported by the Fortran back-end.")
+                        f"'{symbol.interface}' instead of AutomaticInterface."
+                        f"This is not supported by the Fortran back-end.")
             elif not (symbol.is_local or symbol.is_argument):
                 raise VisitorError(
                     f"gen_vardecl requires the symbol '{symbol.name}' to have "
@@ -883,8 +883,8 @@ class FortranWriter(LanguageWriter):
         :returns: the Fortran declarations for the table.
         :rtype: str
 
-        :raises VisitorError: if one of the symbols is a RoutineSymbol \
-            which does not have an ImportInterface or LocalInterface (and is \
+        :raises VisitorError: if one of the symbols is a RoutineSymbol which \
+            does not have an ImportInterface or AutomaticInterface (and is \
             not a Fortran intrinsic) as this is not supported by this backend.
         :raises VisitorError: if args_allowed is False and one or more \
             argument declarations exist in symbol_table.

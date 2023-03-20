@@ -42,7 +42,7 @@
 import pytest
 
 from psyclone.psyir.symbols.interfaces import SymbolInterface, \
-    LocalInterface, ArgumentInterface, ImportInterface, UnresolvedInterface
+    AutomaticInterface, ArgumentInterface, ImportInterface, UnresolvedInterface
 from psyclone.psyir.symbols import ContainerSymbol
 
 
@@ -57,12 +57,12 @@ def test_symbolinterface():
 
 
 def test_localinterface():
-    '''Test we can create a LocalInterface instance and check its __str__
+    '''Test we can create a AutomaticInterface instance and check its __str__
     value
 
     '''
-    interface = LocalInterface()
-    assert str(interface) == "Local"
+    interface = AutomaticInterface()
+    assert str(interface) == "Automatic"
 
 
 def test_unresolvedinterface():
