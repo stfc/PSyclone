@@ -96,6 +96,13 @@ def trans(psy):
             if not isinstance(kern, NemoLoop):
                 continue
             try:
+                # The example contains array expressions, e.g.:
+                # zwx(:,:,jpk) = 0.e0
+                # PSyclone will convert them using the shape of zwx. But
+                # this results in several occurrences of zws on the left hand
+                # side, which will trigger an exception in the dependency
+                # analysis. Therefore, disable the collection of read accesses
+                # for the shape of an array.
                 extract.apply(kern,
                               options={"COLLECT-ARRAY-SHAPE-READS": False})
             except TransformationError as err:
