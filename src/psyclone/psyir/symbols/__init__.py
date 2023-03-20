@@ -37,13 +37,14 @@
 
 ''' Symbols package module '''
 
-from psyclone.psyir.symbols.symbol import Symbol, SymbolError, \
-    LocalInterface, ImportInterface, ArgumentInterface, UnresolvedInterface
 from psyclone.psyir.symbols.datasymbol import DataSymbol
 from psyclone.psyir.symbols.containersymbol import ContainerSymbol
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
+from psyclone.psyir.symbols.interfaces import \
+    LocalInterface, ImportInterface, ArgumentInterface, UnresolvedInterface
 from psyclone.psyir.symbols.intrinsic_symbol import IntrinsicSymbol
 from psyclone.psyir.symbols.routinesymbol import RoutineSymbol
+from psyclone.psyir.symbols.symbol import Symbol, SymbolError
 from psyclone.psyir.symbols.symbol_table import SymbolTable
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 from psyclone.psyir.symbols.datatypes import DataType, ScalarType, \
