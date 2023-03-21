@@ -610,7 +610,7 @@ class ExtractDriverCreator:
                              prefix, postfix, region_name,
                              writer=FortranWriter()):
         # pylint: disable=too-many-arguments
-        '''This function uses `create()` function to get a PSyIR of a
+        '''This function uses `create()` function to get the PSyIR of a
         stand-alone driver, and then uses the provided language writer
         to create a string representation in the selected language
         (defaults to Fortran).
