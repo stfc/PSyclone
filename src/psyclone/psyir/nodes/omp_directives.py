@@ -46,13 +46,14 @@ import abc
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType, VariablesAccessInfo
-from psyclone.errors import GenerationError, InternalError
+from psyclone.errors import GenerationError
 from psyclone.f2pygen import (AssignGen, UseGen, DeclGen, DirectiveGen,
                               CommentGen)
 from psyclone.psyir.nodes.directive import StandaloneDirective, \
     RegionDirective
 from psyclone.psyir.nodes.loop import Loop
-from psyclone.psyir.nodes.ifblock import IfBlock
+from psyclone.psyir.nodes.if_block import IfBlock
+from psyclone.psyir.nodes.while_loop import WhileLoop
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
     OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause, OMPPrivateClause,\
@@ -443,7 +444,7 @@ class OMPParallelDirective(OMPRegionDirective):
 
         # An OMPParallelDirective must have 4 children.
         # Child 0 is a Schedule, created in the constructor.
-        # The create function adds the other three mandatory children: 
+        # The create function adds the other three mandatory children:
         # OMPDefaultClause, OMPPrivateClause and OMPFirstprivateClause
         instance.addchild(OMPDefaultClause(clause_type=OMPDefaultClause.
                                            DefaultClauseTypes.SHARED))
@@ -537,7 +538,10 @@ class OMPParallelDirective(OMPRegionDirective):
 
         zero_reduction_variables(calls, parent)
 
+        # pylint: disable=protected-access
         clauses_str = self.default_clause._clause_string
+        # pylint: enable=protected-access
+
         private_list = [child.symbol.name for child in private_clause.children]
         if private_list:
             clauses_str += ", private(" + ",".join(private_list) + ")"
@@ -641,10 +645,8 @@ class OMPParallelDirective(OMPRegionDirective):
                                  this OMPParallelDirective is not shared.
         :raises InternalError: if a Kernel has local variable(s) but they \
                                aren't named.
-        '''
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyGen import InvokeSchedule
 
+        '''
         if (self.default_clause.clause_type !=
                 OMPDefaultClause.DefaultClauseTypes.SHARED):
             raise GenerationError("OMPParallelClause cannot correctly generate"
@@ -670,37 +672,37 @@ class OMPParallelDirective(OMPRegionDirective):
                 continue
 
             # We have at least two accesses. We consider private variables the
-            # ones that are written in every iteration of a worksharing loop.
-            # If one such scalar is read before it is written, it will be
-            # considered firstprivate.
+            # ones that are written in every iteration of a loop. If one such
+            # scalar is read before it is written, it will be considered
+            # firstprivate.
             has_been_read = False
             for access in accesses:
                 if access.access_type == AccessType.READ:
                     has_been_read = True
 
                 if access.access_type == AccessType.WRITE:
-                    # Check if the write access is inside the parallel loop. If
-                    # the write is outside of a loop, it is an assignment to
-                    # a shared variable. Example where jpk is likely used
-                    # outside of the parallel section later, so it must be
-                    # declared as shared in order to have its value in other
-                    # loops:
+                    # Check if the write access is inside a loop. If the write
+                    # is outside of a loop, it is an assignment to a shared
+                    # variable. Example where jpk is likely used outside of the
+                    # parallel section later, so it must be declared as shared
+                    # in order keep its value:
                     # !$omp parallel
                     # jpk = 100
                     # !omp do
                     # do ji = 1, jpk
 
-                    # TODO #598: improve the handling of scalar variables.
+                    # TODO #598: Improve the handling of scalar variables,
+                    # there are remaining issues with references after the
+                    # parallel region of variables that we currently declare
+                    # as private.
 
-                    # Check if it is inside a worksharing directive in this
-                    # parallel region
-                    worksharing_directive = access.node.ancestor(
-                        (OMPDoDirective, OMPLoopDirective,
-                            OMPTaskloopDirective),
+                    # Check if it is inside a loop
+                    loop_ancestor = access.node.ancestor(
+                        (Loop, WhileLoop),
                         limit=self,
                         include_self=True)
 
-                    if worksharing_directive:
+                    if loop_ancestor:
                         # The assignment to the variable is inside a loop, so
                         # declare it to be private
                         name = str(signature).lower()
@@ -709,7 +711,7 @@ class OMPParallelDirective(OMPRegionDirective):
                         # Is the write conditional?
                         conditional_write = access.node.ancestor(
                             IfBlock,
-                            limit=worksharing_directive,
+                            limit=loop_ancestor,
                             include_self=True)
 
                         # If a previous value might be needed we mark it as
@@ -1308,7 +1310,9 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         zero_reduction_variables(calls, parent)
 
         # Set default() private() and firstprivate() clauses
+        # pylint: disable=protected-access
         default_str = self.children[1]._clause_string
+        # pylint: enable=protected-access
         private, fprivate = self._get_private_clauses()
 
         private_list = [child.symbol.name for child in private.children]
@@ -1361,7 +1365,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
-        "omp do ...". The visitor is responsible for adding the
+        "omp parallel do ...". The visitor is responsible for adding the
         correct directive beginning (e.g. "!$").
 
         :returns: the beginning statement for this directive.
@@ -1376,7 +1380,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
     def end_string(self):
         '''Returns the end (or closing) statement of this directive, i.e.
-        "omp end do". The visitor is responsible for adding the
+        "omp end parallel do". The visitor is responsible for adding the
         correct directive beginning (e.g. "!$").
 
         :returns: the end statement for this directive.

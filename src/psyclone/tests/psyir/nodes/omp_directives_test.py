@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -531,7 +531,7 @@ def test_omp_do_children_err():
             "this Node has a child of type 'Return'" in str(err.value))
 
 
-def test_directive_get_private_lfric(monkeypatch):
+def test_directive_get_private_lfric():
     ''' Tests for the _get_private_clauses() method of OMPParallelDirective.
     Note: this test does not apply colouring so the loops must be over
     discontinuous function spaces.
@@ -576,10 +576,9 @@ def test_directive_get_private_lfric(monkeypatch):
 
 
 def test_directive_get_private(fortran_reader):
-    ''' Tests for the _get_private_clauses() method of OMPParallelDirective.
-    '''
+    ''' Tests for the _get_private_clauses() method of OpenMP directives.'''
 
-    # Example with private and firstprivate variables
+    # Example with private and firstprivate variables on OMPParallelDoDirective
     psyir = fortran_reader.psyir_from_source('''
         subroutine my_subroutine()
             integer :: i, scalar1, scalar2
@@ -603,6 +602,65 @@ def test_directive_get_private(fortran_reader):
     assert pvars.children[0].name == 'i'
     assert pvars.children[1].name == 'scalar2'
     assert fpvars.children[0].name == 'scalar1'
+
+    # Another example with OMPParallelDirective (not actual worksharing)
+    # and scalars set outside the loop (this should be shared by convention)
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_subroutine()
+            integer :: i, scalar1, scalar2, scalar3, scalar4
+            real, dimension(10) :: array
+            scalar3 = 10
+            scalar4 = 20
+            do i = 1, scalar3
+               scalar2 = scalar1 + scalar4 + array(i)
+               array(i) = scalar2
+            enddo
+        end subroutine''')
+    omplooptrans = OMPParallelTrans()
+    loop = psyir.walk(Routine)[0]
+    omplooptrans.apply(loop.children)
+    directive = psyir.walk(OMPParallelDirective)[0]
+    pvars, fpvars = directive._get_private_clauses()
+    assert len(pvars.children) == 2
+    assert len(fpvars.children) == 0
+    assert pvars.children[0].name == 'i'
+    assert pvars.children[1].name == 'scalar2'
+    # scalar 1 is shared because is read-only and scalar3 and scalar4 are
+    # shared because they are set outside a loop
+
+
+def test_directive_lastprivate(fortran_reader, fortran_writer):
+    ''' Test to demonstrate remaining issues with the OpenMP data sharing
+    clauses when we have dependencies after the OpenMP loop.
+
+    #TODO #598: A better use of dependency analysis could fix these issues.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_subroutine()
+            integer :: i, scalar1, scalar2
+            real, dimension(10) :: array
+            do i = 1, 10
+               scalar2 = scalar1 + array(i)
+               array(i) = scalar2
+            enddo
+            scalar1 = scalar2
+        end subroutine''')
+    omplooptrans = OMPParallelLoopTrans()
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop)
+    code = fortran_writer(psyir)
+    expected = '''\
+  !$omp parallel do default(shared), private(i,scalar2), lastprivate(scalar2)
+  do i = 1, 10, 1
+    scalar2 = scalar1 + array(i)
+    array(i) = scalar2
+  enddo
+  !$omp end parallel do
+  scalar1 = scalar2'''
+    if code not in expected:
+        pytest.xfail("#598 We do not check yet for possible dependencies of"
+                     "variables marked as private after the OpenMP region")
 
 
 def test_omp_parallel_validate_child():
