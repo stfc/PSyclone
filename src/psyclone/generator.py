@@ -77,6 +77,15 @@ from psyclone.version import __VERSION__
 # Those APIs that do not have a separate Algorithm layer
 API_WITHOUT_ALGORITHM = ["nemo"]
 
+# TODO issue #1618 remove temporary LFRIC_TESTING flag, associated
+# logic and Alg class plus tests (and ast variable).
+#
+# Temporary flag to allow optional testing of new LFRic metadata
+# implementation (mainly that the PSyIR works with algorithm-layer
+# code) whilst keeping the original implementation as default
+# until it is working.
+LFRIC_TESTING = False
+
 
 def handle_script(script_name, info, function_name, is_optional=False):
     '''Loads and applies the specified script to the given algorithm or
@@ -248,24 +257,15 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
                              kernel_paths=kernel_paths,
                              line_length=line_length)
 
-    # TODO issue #1618 remove temporary flag, associated logic and Alg class
-    # plus tests (and ast variable).
-    #
-    # Temporary flag to allow optional testing of new LFRic metadata
-    # implementation (mainly that the PSyIR works with algorithm-layer
-    # code) whilst keeping the original implementation as default
-    # until it is working.
-    lfric_testing = False
-
     if api in API_WITHOUT_ALGORITHM or \
-       (api == "dynamo0.3" and not lfric_testing):
+       (api == "dynamo0.3" and not LFRIC_TESTING):
         psy = PSyFactory(api, distributed_memory=distributed_memory)\
             .create(invoke_info)
         if script_name is not None:
             handle_script(script_name, psy, "trans")
         alg_gen = None
 
-    elif api == "gocean1.0" or (api == "dynamo0.3" and lfric_testing):
+    elif api == "gocean1.0" or (api == "dynamo0.3" and LFRIC_TESTING):
         # Create language-level PSyIR from the Algorithm file
         reader = FortranReader()
         if api == "dynamo0.3":
@@ -351,7 +351,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             handle_script(script_name, psy, "trans")
 
     # TODO issue #1618 remove Alg class and tests from PSyclone
-    if api == "dynamo0.3" and not lfric_testing:
+    if api == "dynamo0.3" and not LFRIC_TESTING:
         alg_gen = Alg(ast, psy).gen
 
     # Add profiling nodes to schedule if automatic profiling has

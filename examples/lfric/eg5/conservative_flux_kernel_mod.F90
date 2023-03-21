@@ -198,6 +198,8 @@ subroutine conservative_flux_code( nlayers,              &
   integer(kind=i_def) :: n_cells_to_sum
   integer(kind=i_def) :: direction
 
+  direction = rho_direction
+
   call calc_stencil_ordering(rho_stencil_length,stencil_ordering)
 
   if (direction == x_direction ) then

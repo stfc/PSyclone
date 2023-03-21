@@ -52,6 +52,7 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two.parser import ParserFactory
 
+from psyclone import generator
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import GenerationError
@@ -1112,3 +1113,83 @@ def test_add_builtins_use():
     fp2_tree = parser(reader)
     add_builtins_use(fp2_tree)
     assert "USE builtins" in str(fp2_tree)
+
+
+def test_no_script_lfric_new(monkeypatch):
+    '''Test that the generate function in generator.py returns
+    successfully if no script is specified for the dynamo0.3 (LFRic)
+    api. This test uses the new PSyIR approach to modify the algorithm
+    layer which is currently in development so is protected by a
+    switch. This switch is turned on in this test by monkeypatching.
+
+    '''
+    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
+    alg, _ = generate(
+        os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
+        api="dynamo0.3")
+    # new call replaces invoke
+    assert "use single_invoke_psy, only : invoke_0_testkern_type" in alg
+    assert "call invoke_0_testkern_type(a, f1, f2, m1, m2)" in alg
+    # functor symbol is removed
+    assert " testkern_type" not in alg
+    # module symbol is removed
+    assert "testkern_mod" not in alg
+    # TODO issue #1618. The builtins statement should be removed from
+    # the processed source code.
+    assert "use builtins" in alg
+
+
+def test_script_lfric_new(monkeypatch):
+    '''Test that the generate function in generator.py returns
+    successfully if a script (containing both trans_alg() and trans()
+    functions) is specified. This test uses the new PSyIR approach to
+    modify the algorithm layer which is currently in development so is
+    protected by a switch. This switch is turned on in this test by
+    monkeypatching.
+
+    '''
+    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
+    alg, _ = generate(
+        os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
+        api="dynamo0.3",
+        script_name=os.path.join(BASE_PATH, "dynamo0p3", "alg_script.py"))
+    # new call replaces invoke
+    assert "use single_invoke_psy, only : invoke_0_testkern_type" in alg
+    assert "call invoke_0_testkern_type(a, f1, f2, m1, m2)" in alg
+    # functor symbol is removed
+    assert " testkern_type" not in alg
+    # module symbol is removed
+    assert "testkern_mod" not in alg
+    # TODO issue #1618. The builtins statement should be removed from
+    # the processed source code.
+    assert "use builtins" in alg
+
+
+def test_builtins_lfric_new(monkeypatch):
+    '''Test that the generate function in generator.py returns
+    successfully when the algorithm layer contains a mixture of
+    kernels and builtins. This test uses the new PSyIR approach to
+    modify the algorithm layer which is currently in development so is
+    protected by a switch. This switch is turned on in this test by
+    monkeypatching.
+
+    '''
+    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
+    alg, _ = generate(
+        os.path.join(BASE_PATH, "dynamo0p3",
+                     "15.1.2_builtin_and_normal_kernel_invoke.f90"),
+        api="dynamo0.3")
+    # new call replaces invoke
+    assert "use single_invoke_builtin_then_kernel_psy, only : invoke_0" in alg
+    assert "call invoke_0(f5, f2, f3, f4, scalar, f1)" in alg
+    # functor symbols are removed
+    assert " testkern_type" not in alg
+    assert " testkern_wtheta_type" not in alg
+    assert " testkern_w2_only_type" not in alg
+    # module symbols are removed
+    assert " testkern_mod" not in alg
+    assert " testkern_wtheta_mod" not in alg
+    assert " testkern_w2_only_mod" not in alg
+    # TODO issue #1618. The builtins statement should be removed from
+    # the processed source code.
+    assert "use builtins" in alg

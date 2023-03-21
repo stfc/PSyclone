@@ -461,10 +461,11 @@ def test_ai2psycall_apply_invoke_symbols_scope(fortran_reader):
     assert "invoke" not in loop.scope.symbol_table._symbols
 
 
-def test_ai2psycall_apply_multiple_functors(fortran_reader):
-    '''Check that the apply() method removes the kernel functor symbol at
-    the appropriate time when it is in a different scope to the invoke
-    call and the kernel is used in multiple locations. Use
+def test_ai2psycall_remove_imported_symbols(fortran_reader):
+    '''Check that the remove_imported_symbols() method removes the kernel
+    functor symbol and the associated container at the appropriate
+    time when it is in a different scope to the invoke call and the
+    kernel is used in multiple locations. Use
     GOceanAlgInvoke2PSyCallTrans as AlgInvoke2PSyCallTrans is
     abstract.
 

@@ -50,10 +50,17 @@ from psyclone.psyir.transformations import TransformationError
 
 
 class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
-    '''Base class to transform an AlgorithmInvokeCall into a standard Call
-    to a generated PSy-layer routine. Requires the abstract
-    get_arguments method to be implemented as the logic to create
-    arguments can differ between APIs.
+    '''Base class to transform (lower) an AlgorithmInvokeCall into a
+    standard Call to a generated PSy-layer routine. Requires the
+    abstract get_arguments method to be implemented as the logic to
+    create arguments can differ between APIs.
+
+    This transformation would normally be written as a lowering method
+    on an AlgorithmInvokeCall. However, we don't always want to lower
+    the code as we want the flexibility to also be able to output
+    algorithm-layer code containing invoke's. We therefore need to
+    selectively apply the lowering, which is naturally written as a
+    transformation.
 
     '''
     def validate(self, node, options=None):
@@ -94,6 +101,58 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
         :type options: Optional[Dict[str, Any]]
         '''
 
+    @staticmethod
+    def remove_imported_symbols(node):
+        '''Removes any imported kernel functor symbols from the supplied
+        AlgorithmInvokeCall if they are not used in another
+        AlgorithmInvokeCall. Also removes the associated container
+        symbol if it no longer contains any symbols.
+
+        :param node: an AlgorithmInvokeCall node.
+        :type node: \
+            :py:class:`psyclone.domain.common.algorithm.AlgorithmInvokeCall`
+
+        '''
+        # Get a unique set of kernel functor symbols for this invoke
+        # if they are explicitly imported.
+        kernel_functor_symbols = set()
+        for kernel_functor in node.children:
+            if kernel_functor.symbol.is_import:
+                kernel_functor_symbols.add(kernel_functor.symbol)
+        # Remove imported symbols as appropriate
+        for kernel_functor_symbol in kernel_functor_symbols:
+            # Is this kernel_functor used in a different invoke?
+            used_elsewhere = False
+            # Search from where the symbol is declared
+            kf_symbol_table = kernel_functor_symbol.find_symbol_table(node)
+            scope_node = kf_symbol_table.node
+            for invoke in scope_node.walk(AlgorithmInvokeCall):
+                if invoke != node:
+                    for kernel_functor in invoke.children:
+                        if kernel_functor.symbol == kernel_functor_symbol:
+                            used_elsewhere = True
+                            break
+                if used_elsewhere:
+                    break
+
+            if not used_elsewhere:
+                # remove the symbol (and, potentially, the container
+                # from which it is imported) from the symbol table.
+                container_symbol = \
+                    kernel_functor_symbol.interface.container_symbol
+                c_symbol_table = container_symbol.find_symbol_table(node)
+                # issue #898 not currently possible to remove a
+                # DataTypeSymbol using the remove method.
+                norm_name = c_symbol_table._normalize(
+                    kernel_functor_symbol.name)
+                c_symbol_table._symbols.pop(norm_name)
+                try:
+                    c_symbol_table.remove(container_symbol)
+                except ValueError:
+                    # container symbol still imports one or more symbols
+                    # so can not be removed.
+                    pass
+
     def apply(self, node, options=None):
         ''' Apply the transformation to the supplied AlgorithmInvokeCall.
         The supplied node will be replaced with a Call node with appropriate
@@ -112,45 +171,8 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
         arguments = self.get_arguments(node, options=options)
         symbol_table = node.ancestor(Routine).symbol_table
 
-        # Get a unique set of kernel functor symbols for this invoke
-        # if they are explicitly imported.
-        kernel_functor_symbols = set()
-        for kernel_functor in node.children:
-            if kernel_functor.symbol.is_import:
-                kernel_functor_symbols.add(kernel_functor.symbol)
-        # Remove imported symbols as appropriate
-        for kernel_functor_symbol in kernel_functor_symbols:
-            # Is this kernel_functor used in a different invoke?
-            used_elsewhere = False
-            # Search from where the symbol is declared
-            kf_symbol_table = kernel_functor_symbol.find_symbol_table(node)
-            scope_node = kf_symbol_table.node
-            for invoke in scope_node.walk(AlgorithmInvokeCall):
-                if id(invoke) != id(node):
-                    for kernel_functor in invoke.children:
-                        if kernel_functor.symbol == kernel_functor_symbol:
-                            used_elsewhere = True
-                            break
-                if used_elsewhere:
-                    break
-
-            if not used_elsewhere:
-                # remove the symbol from the symbol table and
-                # potentially its container symbol
-                container_symbol = \
-                    kernel_functor_symbol.interface.container_symbol
-                c_symbol_table = container_symbol.find_symbol_table(node)
-                # issue #898 not currently possible to remove a
-                # DataTypeSymbol using the remove method.
-                norm_name = c_symbol_table._normalize(
-                    kernel_functor_symbol.name)
-                c_symbol_table._symbols.pop(norm_name)
-                try:
-                    c_symbol_table.remove(container_symbol)
-                except ValueError:
-                    # container symbol still imports one or more symbols
-                    # so can not be removed.
-                    pass
+        # Remove functor symbols that are no longer used.
+        self.remove_imported_symbols(node)
 
         # TODO #753. At the moment the container and routine names
         # produced here will differ from the PSy-layer routine name if
