@@ -53,6 +53,7 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two.parser import ParserFactory
 
 from psyclone import generator
+from psyclone.alg_gen import NoInvokesError
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import GenerationError
@@ -1181,3 +1182,21 @@ def test_builtins_lfric_new(monkeypatch):
     # TODO issue #1618. The builtins statement should be removed from
     # the processed source code.
     assert "use builtins" in alg
+
+
+def test_no_invokes_lfric_new(monkeypatch):
+    '''Test that the generate function in generator.py raises the expected
+    exception if the algorithm layer contains no invoke() calls. This
+    test uses the new PSyIR approach to modify the algorithm layer
+    which is currently in development so is protected by a
+    switch. This switch is turned on in this test by monkeypatching.
+
+    '''
+    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
+    # pass a kernel file as it has no invoke's in it.
+    with pytest.raises(NoInvokesError) as info:
+        alg, _ = generate(
+            os.path.join(BASE_PATH, "dynamo0p3", "testkern_mod.F90"),
+            api="dynamo0.3")
+    assert ("Algorithm file contains no invoke() calls: refusing to generate "
+            "empty PSy code" in str(info.value))
