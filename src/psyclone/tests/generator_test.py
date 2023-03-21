@@ -103,18 +103,16 @@ def teardown_function():
 
 def test_script_file_not_found():
     '''Checks that handle_script() in generator.py raises the expected
-    exception when a script file is supplied that can't be found in
-    the Python path.  In this case the script path ('./') is
-    supplied. This test uses the generate() function to call
-    handle_script as this is a simple way to create its required
-    arguments.
+    exception when a script file is supplied that does not exist. This test
+    uses the generate() function to call handle_script as this is a simple way
+    to create its required arguments.
 
     '''
-    with pytest.raises(IOError) as error:
-        _, _ = generate(os.path.join(BASE_PATH, "dynamo0p3",
-                                     "1_single_invoke.f90"),
-                        api="dynamo0.3", script_name="./non_existent.py")
-    assert "script file './non_existent.py' not found" in str(error.value)
+    with pytest.raises(GenerationError) as error:
+        _, _ = generate(
+            os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
+            api="dynamo0.3", script_name="non_existent.py")
+    assert "script file 'non_existent.py' not found" in str(error.value)
 
 
 def test_script_file_no_extension():
@@ -128,45 +126,27 @@ def test_script_file_no_extension():
         _, _ = generate(
             os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
             api="dynamo0.3",
-            script_name=os.path.join(
-                BASE_PATH, "dynamo0p3", "invalid_script_name"))
+            script_name=os.path.join(BASE_PATH, "dynamo0p3",
+                                     "invalid_script_name"))
     assert ("expected the script file 'invalid_script_name' to have the "
             "'.py' extension" in str(error.value))
 
 
 def test_script_file_wrong_extension():
-    '''Checks that handle_script() in generator.py raises the excepted
-    exception when a script file does not have the '.py'
-    extension. This test uses the generate() function to call
-    handle_script as this is a simple way to create its required
-    arguments.
+    '''Checks that handle_script() in generator.py raises the expected
+    exception when a script file does not have the '.py' extension. This test
+    uses the generate() function to call handle_script as this is a simple way
+    to create its required arguments.
 
     '''
     with pytest.raises(GenerationError) as error:
         _, _ = generate(
             os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
             api="dynamo0.3",
-            script_name=os.path.join(
-                BASE_PATH, "dynamo0p3", "1_single_invoke.f90"))
-    assert ("expected the script file '1_single_invoke' to have the '.py' "
+            script_name=os.path.join(BASE_PATH, "dynamo0p3",
+                                     "1_single_invoke.f90"))
+    assert ("expected the script file '1_single_invoke.f90' to have the '.py' "
             "extension" in str(error.value))
-
-
-def test_script_file_not_found_relative():
-    '''Checks that handle_script() in generator.py raises the expected
-    exception when a script file is supplied that can't be found in
-    the Python path. In this case the script path is not supplied so
-    must be found via the PYTHONPATH variable. This test uses the
-    generate() function to call handle_script as this is a simple way
-    to create its required arguments.
-
-    '''
-    with pytest.raises(GenerationError) as error:
-        _, _ = generate(os.path.join(BASE_PATH, "dynamo0p3",
-                                     "1_single_invoke.f90"),
-                        api="dynamo0.3", script_name="non_existent.py")
-    assert ("attempted to import 'non_existent' but script file "
-            "'non_existent.py' has not been found" in str(error.value))
 
 
 def test_script_invalid_content():
@@ -176,15 +156,23 @@ def test_script_invalid_content():
     a simple way to create its required arguments.
 
     '''
-    with pytest.raises(GenerationError) as error:
+    with pytest.raises(GenerationError) as error_syntax:
         _, _ = generate(
             os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
-            api="dynamo0.3",
-            script_name=os.path.join(
-                BASE_PATH, "dynamo0p3", "error.py"))
-    assert "attempted to import 'error' but script file " in str(error.value)
-    assert ("src/psyclone/tests/test_files/dynamo0p3/error.py' is "
-            "not valid python" in str(error.value))
+            api="dynamo0.3", script_name=os.path.join(BASE_PATH, "dynamo0p3",
+                                                      "error_syntax.py"))
+    assert ("attempted to import specified PSyclone transformation module "
+            "'error_syntax' but a problem was found: "
+            in str(error_syntax.value))
+
+    with pytest.raises(GenerationError) as error_import:
+        _, _ = generate(
+            os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
+            api="dynamo0.3", script_name=os.path.join(BASE_PATH, "dynamo0p3",
+                                                      "error_import.py"))
+    assert ("attempted to import specified PSyclone transformation module "
+            "'error_import' but a problem was found: "
+            in str(error_import.value))
 
 
 def test_script_invalid_content_runtime():
@@ -201,13 +189,13 @@ def test_script_invalid_content_runtime():
             api="dynamo0.3",
             script_name=os.path.join(
                 BASE_PATH, "dynamo0p3", "runtime_error.py"))
-    assert ("raised the following exception during execution ..."
+    assert ("raised the following exception during execution..."
             in str(error.value))
     assert ("line 3, in trans\n"
             "    psy = b\n" in str(error.value))
     assert ("    NameError: name 'b' is not defined\n"
             "}\n"
-            "Please check your script" in str(error.value))
+            "please check your script" in str(error.value))
 
 
 def test_script_no_trans():
@@ -224,10 +212,9 @@ def test_script_no_trans():
             api="dynamo0.3",
             script_name=os.path.join(
                 BASE_PATH, "dynamo0p3", "no_trans.py"))
-    assert ("attempted to import 'no_trans' but script file "
+    assert ("attempted to use specified PSyclone transformation module "
+            "'no_trans' but it does not contain a 'trans' function"
             in str(error.value))
-    assert ("src/psyclone/tests/test_files/dynamo0p3/no_trans.py' "
-            "does not contain a 'trans' function" in str(error.value))
 
 
 def test_script_no_trans_alg():
@@ -355,15 +342,16 @@ def test_kernel_parsing_internalerror(capsys):
     assert out == ""
     assert "In kernel file " in str(err)
     assert (
-        "PSyclone internal error: The kernel argument list:\n"
-        "'['i', 'j', 'cu', 'p', 'u']'\n"
-        "does not match the variable declarations:\n"
+        "PSyclone internal error: The argument list ['i', 'j', 'cu', 'p', "
+        "'u'] for routine 'compute_code' does not match the variable "
+        "declarations:\n"
         "IMPLICIT NONE\n"
         "INTEGER, INTENT(IN) :: I, J\n"
         "REAL(KIND = go_wp), INTENT(OUT), DIMENSION(:, :) :: cu\n"
         "REAL(KIND = go_wp), INTENT(IN), DIMENSION(:, :) :: p\n"
-        "Specific PSyIR error is \"Could not find 'u' in the Symbol "
-        "Table.\".\n" in str(err))
+        "(Note that PSyclone does not support implicit declarations.) Specific"
+        " PSyIR error is \"Could not find 'u' in the Symbol Table.\".\n"
+        in str(err))
 
 
 def test_script_file_too_short():
