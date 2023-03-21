@@ -44,9 +44,11 @@ from psyclone.domain.common.algorithm import AlgorithmInvokeCall, KernelFunctor
 from psyclone.domain.common.transformations import AlgTrans
 from psyclone.domain.common.transformations import AlgInvoke2PSyCallTrans
 from psyclone.domain.gocean.transformations import GOceanAlgInvoke2PSyCallTrans
-from psyclone.psyir.nodes import (Call, Loop, Literal, Container, Reference,
-                                  ArrayReference, BinaryOperation)
-from psyclone.psyir.symbols import RoutineSymbol, DataSymbol, INTEGER_TYPE
+from psyclone.psyir.nodes import (
+    Call, Loop, Literal, Container, Reference, ArrayReference, BinaryOperation,
+    CodeBlock)
+from psyclone.psyir.symbols import (
+    RoutineSymbol, DataSymbol, INTEGER_TYPE, REAL_TYPE, ArrayType)
 from psyclone.psyir.transformations import TransformationError
 
 
@@ -186,10 +188,10 @@ def test_ai2psycall_apply_error(fortran_reader):
     AlgTrans().apply(psyir)
     invoke = psyir.children[0].children[0]
     trans = GOceanAlgInvoke2PSyCallTrans()
-    with pytest.raises(InternalError) as info:
+    with pytest.raises(TypeError) as info:
         trans.apply(invoke)
     assert ("Expected Algorithm-layer kernel arguments to be a literal, "
-            "reference or array reference, but found 'BinaryOperation'."
+            "reference or code block, but found 'BinaryOperation'."
             in str(info.value))
 
 
@@ -459,6 +461,51 @@ def test_ai2psycall_apply_invoke_symbols_scope(fortran_reader):
     invoke = loop.loop_body[0]
     assert "invoke" not in invoke.scope.symbol_table._symbols
     assert "invoke" not in loop.scope.symbol_table._symbols
+
+
+def test_ai2psycall_add_arg():
+    '''Test the _add_arg() utility method.'''
+
+    # Invalid argument exception
+    with pytest.raises(TypeError) as info:
+        AlgInvoke2PSyCallTrans._add_arg(None, [])
+    assert("Expected Algorithm-layer kernel arguments to be a literal, "
+           "reference or code block, but found 'NoneType'."
+           in str(info.value))
+
+    # literal (nothing added)
+    args = []
+    AlgInvoke2PSyCallTrans._add_arg(Literal("1.0", REAL_TYPE), args)
+    # pylint: disable="use-implicit-booleaness-not-comparison"
+    assert args == []
+    # pylint: enable="use-implicit-booleaness-not-comparison"
+
+    # reference (arg added)
+    name = "hello1"
+    AlgInvoke2PSyCallTrans._add_arg(
+        Reference(DataSymbol(name, REAL_TYPE)), args)
+    assert len(args) == 1
+    assert isinstance(args[0], Reference)
+    assert args[0].name == name
+
+    # array reference (arg added)
+    name = "hello2"
+    AlgInvoke2PSyCallTrans._add_arg(ArrayReference.create(DataSymbol(
+        name, ArrayType(REAL_TYPE, [10])), [Literal("1", INTEGER_TYPE)]), args)
+    assert len(args) == 2
+    assert isinstance(args[1], ArrayReference)
+    assert args[1].name == name
+
+    # arg, same name, not added
+    name = "hello1"
+    AlgInvoke2PSyCallTrans._add_arg(
+        Reference(DataSymbol(name, REAL_TYPE)), args)
+    assert len(args) == 2
+
+    # codeblock arg
+    AlgInvoke2PSyCallTrans._add_arg(CodeBlock([], None), args)
+    assert len(args) == 3
+    assert isinstance(args[2], CodeBlock)
 
 
 def test_ai2psycall_remove_imported_symbols(fortran_reader):

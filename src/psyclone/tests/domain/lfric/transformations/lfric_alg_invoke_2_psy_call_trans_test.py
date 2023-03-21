@@ -46,13 +46,12 @@ from psyclone.domain.lfric.kernel import (
     MetaFuncsArgMetadata, ScalarArgMetadata)
 from psyclone.domain.lfric.transformations import (
     LFRicAlgTrans, LFRicAlgInvoke2PSyCallTrans)
-from psyclone.errors import GenerationError, InternalError
+from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import (
-    Call, Routine, Reference, Container, FileContainer, Literal,
-    ArrayReference, CodeBlock)
+    Call, Routine, Reference, Container, FileContainer, Literal)
 from psyclone.psyir.symbols import (
-    RoutineSymbol, DataTypeSymbol, REAL_TYPE, Symbol, SymbolTable, DataSymbol,
-    ArrayType, INTEGER_TYPE)
+    RoutineSymbol, DataTypeSymbol, REAL_TYPE, Symbol, SymbolTable,
+    INTEGER_TYPE)
 from psyclone.psyir.transformations import TransformationError
 
 
@@ -74,15 +73,15 @@ def test_lfai2psycall_validate():
         RoutineSymbol("mysub"), [], 0)
     with pytest.raises(TransformationError) as err:
         trans.validate(call)
-    assert ("Kernels metadata must be passed into the "
-            "LFRicAlgInvoke2PSyCallTrans transformation but this was not "
+    assert ("A dictionary containing LFRic kernel PSyIR must be passed into "
+            "the LFRicAlgInvoke2PSyCallTrans transformation but this was not "
             "found." in str(err.value))
 
     # No metadata internal KeyError
     with pytest.raises(TransformationError) as err:
         trans.validate(call, options={"dummy": "dummy"})
-    assert ("Kernels metadata must be passed into the "
-            "LFRicAlgInvoke2PSyCallTrans transformation but this was not "
+    assert ("A dictionary containing LFRic kernel PSyIR must be passed into "
+            "the LFRicAlgInvoke2PSyCallTrans transformation but this was not "
             "found." in str(err.value))
 
     # kernels not a dictionary
@@ -99,9 +98,10 @@ def test_lfai2psycall_validate():
         RoutineSymbol("mysub"), [kernel_functor], 0)
     with pytest.raises(TransformationError) as err:
         trans.validate(call, options={"kernels": {None: None}})
-    assert ("Kernels metadata must be a dictionary indexed by the id's of "
-            "the associated kernel functors, but the id for kernel functor "
-            "'kern_type' was not found." in str(err.value))
+    assert ("The 'kernels' option must be a dictionary containing LFRic "
+            "kernel PSyIR indexed by the id's of the associated kernel "
+            "functors, but the id for kernel functor 'kern_type' was not "
+            "found." in str(err.value))
 
     # kernels entry value invalid
     with pytest.raises(TransformationError) as err:
@@ -173,49 +173,6 @@ def test_lfai2psycall_get_metadata():
     # OK root.children[0] is an  LFRicKernelContainer
     psyir = FileContainer.create("file", SymbolTable(), [psyir])
     trans._get_metadata(psyir)
-
-
-def test_lfai2psycall_add_arg():
-    '''Test the _add_arg() utility method.'''
-
-    # Invalid argument exception
-    trans = LFRicAlgInvoke2PSyCallTrans()
-    with pytest.raises(InternalError) as info:
-        trans._add_arg(None, [])
-    assert("Expected Algorithm-layer kernel arguments to be a literal, "
-           "reference or array reference, but found 'NoneType'."
-           in str(info.value))
-
-    # literal (nothing added)
-    args = []
-    trans._add_arg(Literal("1.0", REAL_TYPE), args)
-    # pylint: disable="use-implicit-booleaness-not-comparison"
-    assert args == []
-    # pylint: enable="use-implicit-booleaness-not-comparison"
-    # reference (arg added)
-    name = "hello1"
-    trans._add_arg(Reference(DataSymbol(name, REAL_TYPE)), args)
-    assert len(args) == 1
-    assert isinstance(args[0], Reference)
-    assert args[0].name == name
-
-    # array reference (arg added)
-    name = "hello2"
-    trans._add_arg(ArrayReference.create(DataSymbol(
-        name, ArrayType(REAL_TYPE, [10])), [Literal("1", INTEGER_TYPE)]), args)
-    assert len(args) == 2
-    assert isinstance(args[1], ArrayReference)
-    assert args[1].name == name
-
-    # arg, same name, not added
-    name = "hello1"
-    trans._add_arg(Reference(DataSymbol(name, REAL_TYPE)), args)
-    assert len(args) == 2
-
-    # codeblock arg
-    trans._add_arg(CodeBlock([], None), args)
-    assert len(args) == 3
-    assert isinstance(args[2], CodeBlock)
 
 
 def test_lfai2psycall_get_arguments():

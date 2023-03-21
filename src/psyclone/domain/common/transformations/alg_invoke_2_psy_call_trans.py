@@ -113,8 +113,7 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
             be added to.
         :type arguments: List[:py:class:`psyclone.psyir.nodes.Reference`]
 
-        :raises InternalError: if the arg argument is an unexpected \
-            type.
+        :raises TypeError: if the arg argument is an unexpected type.
 
         '''
         sym_maths = SymbolicMaths.get()

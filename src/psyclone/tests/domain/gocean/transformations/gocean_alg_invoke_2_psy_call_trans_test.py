@@ -41,7 +41,6 @@ import pytest
 
 from psyclone.domain.common.algorithm import (
     AlgorithmInvokeCall, KernelFunctor)
-from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Reference, Literal, ArrayReference
 from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, \
     REAL_TYPE, Symbol, DataSymbol, ArrayType, INTEGER_TYPE
@@ -78,8 +77,8 @@ def test_get_arguments(monkeypatch):
 
     # Check for exception
     monkeypatch.setattr(invoke.children[1], "_children", [None])
-    with pytest.raises(InternalError) as info:
+    with pytest.raises(TypeError) as info:
         _ = trans.get_arguments(invoke)
-    assert ("PSyclone internal error: Expected Algorithm-layer kernel "
-            "arguments to be a literal, reference or array reference, "
-            "but found 'NoneType'." in str(info.value))
+    assert ("Expected Algorithm-layer kernel arguments to be a literal, "
+            "reference or code block, but found 'NoneType'."
+            in str(info.value))
