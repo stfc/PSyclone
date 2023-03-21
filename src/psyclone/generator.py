@@ -60,6 +60,7 @@ from psyclone.domain.common.algorithm.psyir import (
 from psyclone.domain.common.transformations import AlgTrans
 from psyclone.domain.gocean.transformations import (
     RaisePSyIR2GOceanKernTrans, GOceanAlgInvoke2PSyCallTrans)
+from psyclone.domain.lfric.algorithm import LFRicBuiltinFunctor
 from psyclone.domain.lfric.transformations import (
     LFRicAlgTrans, RaisePSyIR2LFRicKernTrans, LFRicAlgInvoke2PSyCallTrans)
 from psyclone.errors import GenerationError, InternalError
@@ -270,7 +271,8 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         reader = FortranReader()
         if api == "dynamo0.3":
             # avoid undeclared builtin errors in PSyIR by adding "use
-            # builtins"
+            # builtins". TODO issue #1618. This symbol needs to be
+            # removed when lowering.
             fp2_tree = parse_fp2(filename)
             check_fp2_tree(fp2_tree, filename)
             add_builtins_use(fp2_tree)
@@ -299,8 +301,8 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         for invoke in psyir.walk(AlgorithmInvokeCall):
             kernels[id(invoke)] = {}
             for kern in invoke.walk(KernelFunctor):
-                if not kern.symbol.is_import:
-                    # Indirect way to skip builtins
+                if isinstance(kern, LFRicBuiltinFunctor):
+                    # Skip builtins
                     continue
                 container_symbol = kern.symbol.interface.container_symbol
 
@@ -326,6 +328,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
                         kernel_psyir,
                         options={"metadata_name": kern.symbol.name})
 
+                # kernels[id(invoke)][id(kern)] = kernel_psyir
                 kernels[id(invoke)][id(kern)] = kernel_psyir
 
         # Transform 'invoke' calls into calls to PSy-layer subroutines

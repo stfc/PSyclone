@@ -40,10 +40,11 @@ PSy-layer routine.
 '''
 import abc
 
+from psyclone.core import SymbolicMaths
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall
 from psyclone.errors import InternalError
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import Call, Routine
+from psyclone.psyir.nodes import Call, Routine, Literal, Reference, CodeBlock
 from psyclone.psyir.symbols import (ContainerSymbol,
                                     ImportInterface, RoutineSymbol)
 from psyclone.psyir.transformations import TransformationError
@@ -102,6 +103,40 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
         '''
 
     @staticmethod
+    def _add_arg(arg, arguments):
+        '''Utility method to add argument arg to the arguments list as long as
+        it conforms to the expected constraints.
+
+        :param arg: the argument that might be added to the arguments list.
+        :type arg: :py:class:`psyclone.psyir.nodes.Reference`
+        :param arguments: the arguments list that the argument might \
+            be added to.
+        :type arguments: List[:py:class:`psyclone.psyir.nodes.Reference`]
+
+        :raises InternalError: if the arg argument is an unexpected \
+            type.
+
+        '''
+        sym_maths = SymbolicMaths.get()
+
+        if isinstance(arg, Literal):
+            # Literals are not passed by argument.
+            pass
+        elif isinstance(arg, Reference):
+            for existing_arg in arguments:
+                if sym_maths.equal(arg, existing_arg):
+                    break
+            else:
+                arguments.append(arg.copy())
+        elif isinstance(arg, CodeBlock):
+            arguments.append(arg.copy())
+        else:
+            raise TypeError(
+                f"Expected Algorithm-layer kernel arguments to be "
+                f"a literal, reference or code block, but "
+                f"found '{type(arg).__name__}'.")
+
+    @staticmethod
     def remove_imported_symbols(node):
         '''Removes any imported kernel functor symbols from the supplied
         AlgorithmInvokeCall if they are not used in another
@@ -143,9 +178,11 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
                 c_symbol_table = container_symbol.find_symbol_table(node)
                 # issue #898 not currently possible to remove a
                 # DataTypeSymbol using the remove method.
+                # pylint: disable=protected-access
                 norm_name = c_symbol_table._normalize(
                     kernel_functor_symbol.name)
                 c_symbol_table._symbols.pop(norm_name)
+                # pylint: enable=protected-access
                 try:
                     c_symbol_table.remove(container_symbol)
                 except ValueError:

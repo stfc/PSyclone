@@ -38,16 +38,19 @@ into a call to the corresponding PSy-layer routine.
 
 '''
 
-from psyclone.core import SymbolicMaths
 from psyclone.domain.common.transformations import AlgInvoke2PSyCallTrans
-from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Literal, Reference, ArrayReference
 
 
 class GOceanAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
-    '''
-    Transforms a GOceanAlgorithmInvokeCall into a standard Call to a generated
-    PSy-layer routine.
+    '''Transforms a GOceanAlgorithmInvokeCall into a standard Call to a
+    generated PSy-layer routine.
+
+    This transformation would normally be written as a lowering method
+    on a GOceanAlgorithmInvokeCall. However, we don't always want to
+    lower the code as we want the flexibility to also be able to
+    output algorithm-layer code containing invoke's. We therefore need
+    to selectively apply the lowering, which is naturally written as a
+    transformation.
 
     '''
     def get_arguments(self, node, options=None):
@@ -61,25 +64,12 @@ class GOceanAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
-        :raises InternalError: if an unexpected argument is found.
+        :returns: the processed (lowered) argument list.
+        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
 
         '''
         arguments = []
-        sym_maths = SymbolicMaths.get()
         for kern in node.children:
             for arg in kern.children:
-                if isinstance(arg, Literal):
-                    # Literals are not passed by argument.
-                    pass
-                elif isinstance(arg, (Reference, ArrayReference)):
-                    for existing_arg in arguments:
-                        if sym_maths.equal(arg, existing_arg):
-                            break
-                    else:
-                        arguments.append(arg.copy())
-                else:
-                    raise InternalError(
-                        f"Expected Algorithm-layer kernel arguments to be "
-                        f"a literal, reference or array reference, but "
-                        f"found '{type(arg).__name__}'.")
+                self._add_arg(arg, arguments)
         return arguments

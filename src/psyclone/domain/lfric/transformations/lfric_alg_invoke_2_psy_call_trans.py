@@ -38,7 +38,6 @@ to the corresponding PSy-layer routine.
 
 '''
 
-from psyclone.core import SymbolicMaths
 from psyclone.domain.common.transformations import AlgInvoke2PSyCallTrans
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.algorithm.psyir import (
@@ -47,16 +46,22 @@ from psyclone.domain.lfric.kernel import (
     FieldArgMetadata, FieldVectorArgMetadata,
     InterGridArgMetadata, InterGridVectorArgMetadata,
     LFRicKernelContainer, LFRicKernelMetadata, ScalarArgMetadata)
-from psyclone.errors import GenerationError, InternalError
+from psyclone.errors import GenerationError
 from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.nodes import (
-    Literal, Reference, ArrayReference, Container, CodeBlock)
+from psyclone.psyir.nodes import Literal, Container
 
 
 class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
     '''
     Transforms an LFRicAlgorithmInvokeCall into a standard Call to a generated
     PSy-layer routine.
+
+    This transformation would normally be written as a lowering method
+    on a LFRicAlgorithmInvokeCall. However, we don't always want to
+    lower the code as we want the flexibility to also be able to
+    output algorithm-layer code containing invoke's. We therefore need
+    to selectively apply the lowering, which is naturally written as a
+    transformation.
 
     '''
     def validate(self, node, options=None):
@@ -74,7 +79,7 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
 
         :raises TransformationError: if the supplied call argument is \
             not a PSyIR AlgorithmInvokeCall node.
-        :raises TransformationError: if kernels options are not provided.
+        :raises TransformationError: if the 'kernels' option is not provided.
 
         '''
         if not isinstance(node, LFRicAlgorithmInvokeCall):
@@ -86,9 +91,9 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
             kernels = options["kernels"]
         except (KeyError, TypeError) as info:
             raise TransformationError(
-                "Kernels metadata must be passed into the "
-                "LFRicAlgInvoke2PSyCallTrans transformation but this was not "
-                "found.") from info
+                "A dictionary containing LFRic kernel PSyIR must be passed "
+                "into the LFRicAlgInvoke2PSyCallTrans transformation but "
+                "this was not found.") from info
         if not isinstance(kernels, dict):
             raise TransformationError(
                 f"The value of 'kernels' in the options argument must be a "
@@ -101,8 +106,9 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
                 _ = kernels[id(kern_call)]
             except KeyError as info:
                 raise TransformationError(
-                    f"Kernels metadata must be a dictionary indexed by the "
-                    f"id's of the associated kernel functors, but the id for "
+                    f"The 'kernels' option must be a dictionary containing "
+                    f"LFRic kernel PSyIR indexed by the id's of the "
+                    f"associated kernel functors, but the id for "
                     f"kernel functor '{kern_call.name}' was not "
                     f"found.") from info
 
@@ -113,6 +119,18 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
     def _get_metadata(kernel):
         '''Utility method to extract the kernel metadata from an LFRic
         kernel.
+
+        :param kernel: LFRic kernel PSyIR.
+        :type kernel: :py:class:`psyclone.psyir.nodes.Container`
+
+        :returns: LFRic kernel metadata.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        :raises TransformationError: if the supplied kernel argument \
+            is not a PSyIR container.
+        :raises TransformationError: if the supplied kernel argument \
+            does not contain an LFRicKernelContainer as the root node \
+            or first child of the root node.
 
         '''
         if not isinstance(kernel, Container):
@@ -131,45 +149,19 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
                 "root but this was not found.")
         return kernel_metadata
 
-    @staticmethod
-    def _add_arg(arg, arguments):
-        '''Utility method to add argument arg to the arguments list as long as
-        it conforms to the expected constraints.
-
-        :param arg: the argument that might be added to the arguments \
-            list.
-        :type arg: :py:class:`psyclone.psyir.nodes.Reference`
-        :param arguments: the arguments list that the argument might \
-            be added to.
-        :type arguments: List[:py:class:`psyclone.psyir.nodes.Reference`]
-
-        :raises InternalError: if the arg argument is an unexpected \
-            type.
-
-        '''
-        sym_maths = SymbolicMaths.get()
-
-        if isinstance(arg, Literal):
-            # Literals are not passed by argument.
-            pass
-        elif isinstance(arg, (Reference, ArrayReference)):
-            for existing_arg in arguments:
-                if sym_maths.equal(arg, existing_arg):
-                    break
-            else:
-                arguments.append(arg.copy())
-        elif isinstance(arg, CodeBlock):
-            arguments.append(arg.copy())
-        else:
-            raise InternalError(
-                f"Expected Algorithm-layer kernel arguments to be "
-                f"a literal, reference or array reference, but "
-                f"found '{type(arg).__name__}'.")
-
     def get_arguments(self, node, options=None, check_args=False):
-        '''Creates the LFRic processed (lowered) argument list from the
-        argument lists of the kernel functors within the invoke call
-        and the kernel metadata.
+        '''By default this method creates the LFRic processed (lowered)
+        argument list from the argument lists of the kernel functors
+        within the invoke call and the kernel metadata.
+
+        If the check_args flag is set to True this method does not
+        create an argument list, but instead checks that the number of
+        arguments expected by the kernel metadata and the number of
+        arguments supplied in the algorithm layer match.
+
+        Check args does not create the argument list because a) it is
+        faster to not create the list and b) a mismatch in the number
+        of expected and actual arguments can cause an index error.
 
         :param node: an LFRic algorithm invoke call.
         :type node: :py:class:`psyclone.domain.lfric.algorithm.psyir.\
@@ -184,6 +176,9 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
             functor arguments matches the number expected by the kernel \
             metadata. Defaults to False.
 
+        :returns: the processed (lowered) argument list.
+        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
+
         :raises GenerationError: if the number of arguments in the \
             invoke does not match the expected number of arguments \
             specified by the metadata.
@@ -193,12 +188,28 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
         # LFRicArgOrder class if and when it makes its way onto trunk.
 
         const = LFRicConstants()
+        # No need to check the lookup of "kernels" in the options
+        # dictionary as it has already been validated by the validate()
+        # method.
         kernels = options["kernels"]
 
+        # 4 separate lists are used below because the processed
+        # (lowered) argument list expects all scalar, field and
+        # operator arguments first, then all stencil arguments
+        # (separated into size arguments first followed by direction
+        # arguments) and finally all qr arguments.
+
+        # The processed (lowered) argument list for scalar, field and
+        # operator arguments.
         arguments = []
+        # The processed (lowered) argument lists for any stencil
+        # arguments (separated into stencil size and direction
+        # arguments).
+        stencil_size_arguments = []
+        stencil_direction_arguments = []
+        # The processed (lowered) argument list for any quadrature
+        # arguments.
         quad_arguments = []
-        stencil_arguments1 = []
-        stencil_arguments2 = []
 
         # TODO #1618 builtin metadata should be properly stored within
         # PSyclone. For the moment add the required ones to run
@@ -338,8 +349,6 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
                 if not check_args:
                     arg = kern_call.children[arg_idx]
                     self._add_arg(arg, arguments)
-                # If this is a stencil arg then skip any additional
-                # arguments.
                 if type(meta_arg) in [
                         FieldArgMetadata, FieldVectorArgMetadata,
                         InterGridArgMetadata, InterGridVectorArgMetadata]:
@@ -347,8 +356,10 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
                         arg_idx += 1
                         if not check_args:
                             stencil_arg = kern_call.children[arg_idx]
-                            self._add_arg(stencil_arg, stencil_arguments1)
+                            self._add_arg(stencil_arg, stencil_size_arguments)
                         if meta_arg.stencil == "xory1d":
+                            # An additional direction stencil argument
+                            # is required in the algorithm layer.
                             arg_idx += 1
                             if not check_args:
                                 stencil_arg = kern_call.children[arg_idx]
@@ -361,7 +372,8 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
                                 if stencil_arg.name.lower() not in [
                                         "x_direction", "y_direction"]:
                                     self._add_arg(
-                                        stencil_arg, stencil_arguments2)
+                                        stencil_arg,
+                                        stencil_direction_arguments)
                 arg_idx += 1
             if kernel_metadata.shapes and \
                [quad for quad in kernel_metadata.shapes
@@ -379,8 +391,14 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
                     f"{len(kern_call.children)} arguments, but the kernel "
                     f"metadata expects there to be {arg_idx} arguments.")
 
-        arguments.extend(stencil_arguments1)
-        arguments.extend(stencil_arguments2)
+        # Add the stencil and quadrature arguments in the order
+        # expected in the processed (lowered) argument list. (We
+        # expect all scalar, field and operator arguments first, then
+        # all stencil arguments (separated into size arguments first
+        # followed by direction arguments) and finally all qr
+        # arguments).
+        arguments.extend(stencil_size_arguments)
+        arguments.extend(stencil_direction_arguments)
         arguments.extend(quad_arguments)
 
         return arguments

@@ -48,7 +48,7 @@ from psyclone.domain.lfric.algorithm.psyir.lfric_kernel_functor import \
 __all__ = [
     'LFRicAlg',
     'LFRicAlgorithmInvokeCall',
-    'LFRicKernelFunctor',
     'LFRicBuiltinFunctor',
+    'LFRicBuiltinFunctorFactory',
     'LFRicFunctor',
-    'LFRicBuiltinFunctorFactory']
+    'LFRicKernelFunctor']
