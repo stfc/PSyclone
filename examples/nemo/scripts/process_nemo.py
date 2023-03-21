@@ -50,7 +50,6 @@ Or, if you have Gnu 'parallel':
 Tested with the NVIDIA HPC SDK version 22.5.
 '''
 
-from __future__ import print_function
 import os
 import sys
 from time import perf_counter
@@ -67,10 +66,8 @@ PROFILE_ONLY = ["bdydta.f90", "bdyvol.f90",
 
 # Files that we won't touch at all
 EXCLUDED_FILES = [
-    # Re-defines idim intrinsic
+    # Attempt to put ACC Kernels around setting of char substring
     "obs_utils.f90",
-    # Unsupported module SAVE attribute
-    "obs_profiles.f90",
     # Array accessed inside WHERE does not use array notation
     "diurnal_bulk.f90",
     # mpif.h include is lost
@@ -82,9 +79,6 @@ EXCLUDED_FILES = [
     "mpp_io.f90",
     # TODO #1960: There is a bug on a WHERE fparser2 frontend processing
     "sbccpl.f90",
-    # TODO #1902: Excluded to avoid HoistLocalArraysTrans bug
-    "mpp_ini.f90",
-
     # TODO # 1142: The following issue only affects the ECMWF Nemo code.
     # Currently we have to manually uncomment the line below to process ECMWF
     # NEMO but this can be improved resolving the referenced issue.

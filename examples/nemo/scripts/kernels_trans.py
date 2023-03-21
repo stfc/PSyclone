@@ -66,8 +66,8 @@ from psyclone.psyir.nodes import IfBlock, CodeBlock, Schedule, \
     ArrayReference, Assignment, BinaryOperation, Loop, \
     Literal, Return, Call, ACCLoopDirective
 from psyclone.psyir.symbols import ScalarType
-from psyclone.psyir.transformations import TransformationError, ProfileTrans, \
-                                           ACCUpdateTrans
+from psyclone.psyir.transformations import (
+    TransformationError, ProfileTrans, HoistLocalArraysTrans, ACCUpdateTrans)
 from psyclone.transformations import ACCEnterDataTrans
 
 # Get the PSyclone transformations we will use
@@ -87,7 +87,7 @@ ACC_EXPLICIT_MEM_MANAGEMENT = False
 
 # If routine names contain these substrings then we do not profile them
 PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
-                    "macho", "mpp_", "nemo_gcm",
+                    "lbc", "macho", "mpp_", "nemo_gcm",
                     # These are small functions that the addition of profiling
                     # prevents from being in-lined (and then breaks any attempt
                     # to create OpenACC regions with calls to them)
@@ -140,7 +140,8 @@ EXCLUDING = {"default": ExcludeSettings(),
              "dyn_spg_ts": ExcludeSettings({"ifs_scalars": True}),
              "tra_zdf_imp": ExcludeSettings({"ifs_scalars": True}),
              # Exclude due to compiler bug preventing CPU multicore executions.
-             "dom_vvl_init": ExcludeSettings({"ifs_scalars": True})}
+             "dom_vvl_init": ExcludeSettings({"ifs_scalars": True}),
+             "dom_vvl_interpol": ExcludeSettings({"ifs_scalars": True})}
 
 
 def log_msg(name, msg, node):
@@ -218,7 +219,8 @@ def valid_acc_kernel(node):
                 # compiler error (https://forums.developer.nvidia.com/t/
                 # ice-size-of-attempt-to-get-size-of-assumed-size-character/
                 # 135706). This remains a problem in 23.1 of the NV HPC SDK.
-                if ref.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+                if (ref.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER
+                        and excluding.ifs_scalars):
                     log_msg(routine_name, "IF references character literal",
                             enode)
                     return False
@@ -274,11 +276,11 @@ def valid_acc_kernel(node):
     #    if(do_this)my_array(:,:) = 1.0
     # inside a kernels region. Once we generate Fortran instead of modifying
     # the fparser2 parse tree this will become possible.
-    if isinstance(node.parent, Schedule) and \
-       isinstance(node.parent.parent, IfBlock) and \
-       "was_single_stmt" in node.parent.parent.annotations:
-        log_msg(routine_name, "Would split single-line If statement", node)
-        return False
+    #if isinstance(node.parent, Schedule) and \
+    #   isinstance(node.parent.parent, IfBlock) and \
+    #   "was_single_stmt" in node.parent.parent.annotations:
+    #    log_msg(routine_name, "Would split single-line If statement", node)
+    #    return False
 
     # Finally, check that we haven't got any 'array accesses' that are in
     # fact function calls.
@@ -420,12 +422,16 @@ def trans(psy):
     invoke_list = "\n".join([str(name) for name in psy.invokes.names])
     print(f"Invokes found:\n{invoke_list}\n")
 
+    hoist_trans = HoistLocalArraysTrans()
+
     for invoke in psy.invokes.invoke_list:
 
         sched = invoke.schedule
         if not sched:
             print(f"Invoke {invoke.name} has no Schedule! Skipping...")
             continue
+
+        hoist_trans.apply(sched)
 
         # In the lib_fortran file we annotate each routine that does not
         # have a Loop or a Call with the OpenACC Routine Directive
@@ -452,7 +458,11 @@ def trans(psy):
 
         # Add profiling instrumentation
         if PROFILE_NONACC:
-            print(f"Adding profiling to non-OpenACC regions in {invoke.name}")
-            add_profiling(sched.children)
+            if any(text in invoke.name for text in PROFILING_IGNORE):
+                print(f"Addition of profiling to {invoke.name} is disabled")
+            else:
+                print(f"Adding profiling to non-OpenACC regions in "
+                      f"{invoke.name}")
+                add_profiling(sched.children)
 
     return psy
