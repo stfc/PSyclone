@@ -192,7 +192,6 @@ def insert_explicit_loop_parallelism(
         region_directive_trans=None,
         loop_directive_trans=None,
         collapse: bool = True,
-        exclude_calls: bool = True
         ):
     ''' For each loop in the schedule that doesn't already have a Directive
     as an ancestor, attempt to insert the given region and loop directives.
@@ -232,9 +231,7 @@ def insert_explicit_loop_parallelism(
                  str(len(loop.walk(Loop))) != loop.stop_expr.children[1].value)
             or any([ref.symbol.name in ('jpl', 'nlay_i', 'nlay_s')
                   for ref in loop.stop_expr.walk(Reference)])
-            or exclude_calls
-            and loop.walk((Call, CodeBlock))
-            and not 'wad_tmsk' in loop.ancestor(Routine).invoke.name
+            or loop.walk((Call, CodeBlock))
             and not any([ref.symbol.name in ('npti',)
                          for ref in loop.stop_expr.walk(Reference)])):
             continue # Skip if it is an array operation loop on an ice routine

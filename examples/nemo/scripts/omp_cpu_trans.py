@@ -97,11 +97,6 @@ def trans(psy):
                 loop_directive_trans=omp_loop_trans,
                 # Collapse may be useful in some architecture/compiler
                 collapse=False,
-                # Currently if there is a call we don't parallelise because we
-                # expect the subroutine to already be parallelised. lib_fortran
-                # is the only exception because we know it only has calls to
-                # functions without internal loops.
-                exclude_calls=psy.name != "psy_lib_fortran_psy",
         )
 
     return psy
