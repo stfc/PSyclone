@@ -45,10 +45,11 @@ from fparser.two.parser import ParserFactory
 from fparser.two.utils import walk
 
 from psyclone.errors import InternalError, PSycloneError
-from psyclone.psyir.nodes import Container, FileContainer, Reference
+from psyclone.psyir.nodes import (Call, Container, FileContainer, Reference,
+                                  Routine)
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.symbols import (ArgumentInterface, ImportInterface,
-                                    SymbolError)
+                                    RoutineSymbol, SymbolError)
 
 
 # ============================================================================
@@ -99,6 +100,16 @@ class ModuleInfo:
         # modules as key, and it stores the set of all symbols imported from
         # this module: Dict[str, Set(str)]
         self._used_symbols_from_module = None
+
+        # This is a dictionary that will cache non-local symbols used in
+        # each routine. The key is the lowercase routine name, and the
+        # value is a list of triplets:
+        # - the type ('subroutine', 'function', 'reference', 'unknown').
+        #   The latter is used for array references or function calls,
+        #   which we cannot distinguish till #1314 is done.
+        # - the name of the module (lowercase)
+        # - the name of the symbol (lowercase)
+        self._routine_non_locals = None
 
         self._processor = Fparser2Reader()
 
@@ -246,6 +257,148 @@ class ModuleInfo:
                 self._psyir = FileContainer(os.path.basename(self._filename))
 
         return self._psyir
+
+    # ------------------------------------------------------------------------
+    @staticmethod
+    def _compute_non_locals_references(access, sym):
+        '''This function analyses if the symbol is a local variable, or if
+        it was declared in the container, which is considered a non-local
+        access. The symbol's interface is LocalInterface in any case.
+        So we need to identify the symbol table in which the symbol is
+        actually declared, and check if it is declared in the routine, or
+        further up in the tree in the container (i.e. module).
+        # TODO #1089: this should simplify the implementation.
+
+        '''
+        node = access
+        while node:
+            # A routine has its own name as a symbol in its symbol table.
+            # That reference is not useful to decide what kind of symbol
+            # it is (i.e. does it belong to this routine's container, in
+            # which case it is a non-local access)
+            if hasattr(node, "_symbol_table") and \
+                    sym.name in node.symbol_table and node.name != sym.name:
+                existing_sym = node.symbol_table.lookup(sym.name)
+                if isinstance(node, Container):
+                    # It is a variable from the module in which the
+                    # current function is, so it is a non-local access
+                    if isinstance(existing_sym, RoutineSymbol):
+                        return ("function", node.name, sym.name)
+                    return ("reference", node.name, sym.name)
+
+            # Otherwise keep on looking
+            node = node.parent
+        return None
+
+    # ------------------------------------------------------------------------
+    def _compute_all_routine_non_locals(self):
+        # pylint: disable=too-many-branches
+        '''This function computes and caches all non-local access of each
+        routine declared in this module.
+
+        '''
+        # Circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyGen import BuiltIn, Kern
+
+        self._routine_non_locals = {}
+        # First set up the dictionary of lists for all routine names:
+        for routine in self.get_psyir().walk(Routine):
+            self._routine_non_locals[routine.name] = []
+
+        for routine in self.get_psyir().walk(Routine):
+            # Handy shortcut to the dictionary to shorten code
+            non_locals = self._routine_non_locals[routine.name]
+            # Find all references to non-local symbols in the current routine.
+            # They can occur as three node types in the routine tree:
+            # - a reference (which can include a function call, since
+            #   functions are not properly identified, see TODO #1314)
+            # - a Kernel (which will be converted to a call of a subroutine in
+            #   an external module when lowering), or
+            # - a call (if e.g. the tree has already been lowered, or it was
+            #   based on NEMO API)
+            for access in routine.walk((Kern, Call, Reference)):
+                # Builtins are certainly not externals, so ignore them.
+                if isinstance(access, BuiltIn):
+                    continue
+
+                if isinstance(access, Kern):
+                    # A kernel is a subroutine call from a module:
+                    non_locals.append(("subroutine", access.module_name,
+                                       access.name))
+                    continue
+
+                if isinstance(access, Call):
+                    sym = access.routine
+                    if isinstance(sym.interface, ImportInterface):
+                        non_locals.append(("subroutine",
+                                           sym.interface.container_symbol.name,
+                                           sym.name))
+                    else:
+                        # No import. This could either be a subroutine from
+                        # this module, or just a global function.
+                        if sym.name in self._routine_non_locals:
+                            # A local function call from this module:
+                            non_locals.append(("subroutine", self._name,
+                                               sym.name))
+                        else:
+                            # We don't know where the subroutine comes from
+                            non_locals.append(("subroutine", None, sym.name))
+                    continue
+
+                # Now it's either a variable, or a function call (TODO #1314):
+                sym = access.symbol
+                if isinstance(sym.interface, ArgumentInterface):
+                    # Arguments are not external symbols and can be ignored
+                    continue
+
+                if isinstance(sym.interface, ImportInterface):
+                    # It is imported, record the information. The type needs
+                    # to be identified when parsing the corresponding module:
+                    non_locals.append(("unknown",
+                                       sym.interface.container_symbol.name,
+                                       sym.name))
+                    continue
+
+                # Check for an assignment of a result in a function, which
+                # does not need to be reported:
+                if routine.return_symbol and \
+                        sym.name == routine.return_symbol.name:
+                    continue
+
+                info = self._compute_non_locals_references(access, sym)
+                if info:
+                    non_locals.append(info)
+
+    # ------------------------------------------------------------------------
+    def get_non_local_symbols_for_routine(self, routine_name):
+        '''This function returns a list of non-local accesses in the given
+        routine. It returns a list of triplets, each one containing:
+        - the type ('subroutine', 'function', 'reference', 'unknown').
+          The latter is used for array references or function calls,
+          which we cannot distinguish till #1314 is done.
+        - the name of the module (lowercase). This can be 'None' if no
+          module information is available.
+        - the name of the symbol (lowercase)
+
+        :param str routine_name: the name of the routine.
+
+        :returns: the non-local accesses in the given routine.
+        :rtype: List[Tuple[str, str, str]]
+
+        :raises ModuleInfoError: if the given routine name is not defined \
+            in this module.
+
+        '''
+        if self._routine_non_locals is None:
+            self._compute_all_routine_non_locals()
+
+        routine_name = routine_name.lower()
+
+        if routine_name not in self._routine_non_locals:
+            raise ModuleInfoError(f"Could not find '{routine_name}' in module "
+                                  f"'{self._name}'.")
+        return self._routine_non_locals[routine_name]
 
     # ------------------------------------------------------------------------
     def get_external_symbols(self):
