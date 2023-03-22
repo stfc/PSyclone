@@ -650,26 +650,26 @@ class DependencyTools():
                         self._add_message(LazyString(
                             lambda node=write_access.node:
                                 (f"The write access to '"
-                                 f"{self._language_writer(node)}' causes "
+                                 f"{node.debug_string()}' causes "
                                  f"a write-write race condition.")),
                             DTCode.ERROR_WRITE_WRITE_RACE,
                             [LazyString(lambda node=node:
-                                        f"{self._language_writer(node)}")])
+                                        f"{node.debug_string()}")])
                     else:
                         self._add_message(LazyString(
                             lambda wnode=write_access.node,
                             onode=other_access.node:
                                 (f"The write access to "
-                                 f"'{self._language_writer(wnode)}' "
-                                 f"and to '{self._language_writer(onode)}"
+                                 f"'{wnode.debug_string()}' "
+                                 f"and to '{onode.debug_string()}"
                                  f"' are dependent and cannot be "
                                  f"parallelised.")),
                             DTCode.ERROR_DEPENDENCY,
                             [LazyString(lambda wnode=write_access.node:
-                                        f"{self._language_writer(wnode)}"
+                                        f"{wnode.debug_string()}"
                                         ),
                              LazyString(lambda onode=other_access.node:
-                                        f"{self._language_writer(onode)}")])
+                                        f"{onode.debug_string()}")])
 
                     return False
         return True
