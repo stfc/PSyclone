@@ -61,7 +61,10 @@ class ArgIndexToMetadataIndex(MetadataToArgumentsRules):
         class.
 
         '''
+        # Passing {} to initialise initialise _info to an empty dict.
         super()._initialise({})
+        # Initialise the local _index variable. This is used to keep
+        # track of the current argument index.
         cls._index = 0
 
     @classmethod
@@ -125,12 +128,12 @@ class ArgIndexToMetadataIndex(MetadataToArgumentsRules):
 
     @classmethod
     def _add_arg(cls, meta_arg):
-        '''Utility method to provide a map from the current argument index
-        (_index) to the index of its associated kernel meta_arg
-        metadata.
+        '''Utility method to add a mapping (to the _info dictionary) from the
+        current argument index (_index) to the index of the supplied
+        meta_arg metadata argument.
 
         :param meta_arg: the current meta_arg metadata.
-        :type meta_arg: subclass of \
+        :type meta_arg: \
             :py:class:`psyclone.domain.lfric.kernel.CommonMetaArgMetadata`
 
         '''
@@ -174,8 +177,25 @@ class ArgIndexToMetadataIndex(MetadataToArgumentsRules):
         cls._index += 4
 
     @classmethod
-    def _stencil_2d_unknown_extent(cls, meta_arg):
-        '''The field entry has a stencil access of type 'cross2d'.
+    def _stencil_cross2d_extent(cls, meta_arg):
+        '''The field has a stencil access of type 'cross2d' of unknown extent
+        and therefore requires the extent to be passed from the
+        algorithm layer.
+
+        :param meta_arg: the metadata associated with a field argument \
+            with a cross2d stencil access.
+        :type meta_arg: \
+            :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
+
+        '''
+        cls._index += 1
+
+    # pylint: disable=unused-argument
+    @classmethod
+    def _stencil_cross2d2d_max_extent(cls, meta_arg):
+        '''The field has a stencil access of type 'cross2d' and requires the
+        maximum size of a stencil extent to be passed from the
+        algorithm layer.
 
         :param meta_arg: the metadata associated with a field argument \
             with a cross2d stencil access.
@@ -186,21 +206,10 @@ class ArgIndexToMetadataIndex(MetadataToArgumentsRules):
         cls._index += 1
 
     @classmethod
-    def _stencil_2d_max_extent(cls, meta_arg):
-        '''The field entry has a stencil access of type 'cross2d'.
-
-        :param meta_arg: the metadata associated with a field argument \
-            with a cross2d stencil access.
-        :type meta_arg: \
-            :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
-
-        '''
-        cls._index += 1
-
-    @classmethod
-    def _stencil_unknown_extent(cls, meta_arg):
-        '''The field entry has a stencil access (that is not of type
-        'cross2d').
+    def _stencil_extent(cls, meta_arg):
+        '''The field has a stencil access (that is not of type 'cross2d') of
+        unknown extent and therefore requires the extent to be passed
+        from the algorithm layer.
 
         :param meta_arg: the metadata associated with a field argument \
             with a stencil access.
@@ -211,8 +220,10 @@ class ArgIndexToMetadataIndex(MetadataToArgumentsRules):
         cls._index += 1
 
     @classmethod
-    def _stencil_unknown_direction(cls, meta_arg):
-        '''The stencil on the field argument is of type 'xory1d'.
+    def _stencil_xory1d_direction(cls, meta_arg):
+        '''The field has a stencil access of type 'xory1d' and therefore
+        requires the stencil direction to be passed from the algorithm
+        layer.
 
         :param meta_arg: the metadata associated with a field argument \
             with a xory1d stencil access.
@@ -223,9 +234,9 @@ class ArgIndexToMetadataIndex(MetadataToArgumentsRules):
         cls._index += 1
 
     @classmethod
-    def _stencil_2d(cls, meta_arg):
-        '''Stencil information that is passed from the Algorithm layer if the
-        stencil is 'cross2d'.
+    def _stencil_cross2d(cls, meta_arg):
+        '''Stencil information that is always passed from the algorithm layer
+        if a field has a stencil access of type 'cross2d'.
 
         :param meta_arg: the metadata associated with a field argument \
             with a stencil access.
@@ -237,8 +248,8 @@ class ArgIndexToMetadataIndex(MetadataToArgumentsRules):
 
     @classmethod
     def _stencil(cls, meta_arg):
-        '''Stencil information that is passed from the Algorithm layer if the
-        stencil is not 'cross2d'.
+        '''Stencil information that is always passed from the algorithm layer
+        if a field has a stencil access that is not of type 'cross2d'.
 
         :param meta_arg: the metadata associated with a field argument \
             with a stencil access.

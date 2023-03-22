@@ -64,8 +64,9 @@ def check_called(monkeypatch, function, method_name, metadata):
 
     '''
     monkeypatch.setattr(MetadataToArgumentsRules, method_name, function)
+    monkeypatch.setattr(MetadataToArgumentsRules, "_metadata", metadata)
     with pytest.raises(Exception) as info:
-        _ = MetadataToArgumentsRules._generate(metadata)
+        _ = MetadataToArgumentsRules._generate()
     assert method_name in str(info.value)
 
 
@@ -86,7 +87,7 @@ def test_mapping(monkeypatch):
     assert result == "hello"
     assert cls._metadata is metadata
     # Check that _generate is called.
-    monkeypatch.setattr(cls, "_generate", lambda metadata: 1/0)
+    monkeypatch.setattr(cls, "_generate", lambda: 1/0)
     with pytest.raises(ZeroDivisionError):
         _ = cls.mapping(metadata)
 
@@ -455,9 +456,9 @@ def test_generate_operator_bcs_kernel(monkeypatch):
                  "_operator_bcs_kernel", metadata)
 
 
-def test_generate_stencil_2d_unknown_extent(monkeypatch):
+def test_generate_stencil_cross2d_extent(monkeypatch):
     '''Test the MetadataToArgumentRules class _generate method calls the
-    _stencil_2d_unknown_extent method if the supplied field metadata
+    _stencil_cross2d_extent method if the supplied field metadata
     contains a cross2d stencil.
 
     '''
@@ -467,16 +468,16 @@ def test_generate_stencil_2d_unknown_extent(monkeypatch):
         operates_on="cell_column", meta_args=meta_args)
     metadata.validate()
 
-    def _stencil_2d_unknown_extent(_):
-        raise Exception("_stencil_2d_unknown_extent")
-    check_called(monkeypatch, _stencil_2d_unknown_extent,
-                 "_stencil_2d_unknown_extent", metadata)
+    def _stencil_cross2d_extent(_):
+        raise Exception("_stencil_cross2d_extent")
+    check_called(monkeypatch, _stencil_cross2d_extent,
+                 "_stencil_cross2d_extent", metadata)
 
 
-def test_generate_stencil_2d_max_extent(monkeypatch):
+def test_generate_stencil_cross2d_max_extent(monkeypatch):
     '''Test the MetadataToArgumentRules class _generate method calls the
-    _stencil_2d_max_extent method if the supplied field metadata
-    contains a cross2d stencil.
+    _stencil_stencil2d_max_extent method if the supplied field
+    metadata contains a cross2d stencil.
 
     '''
     meta_args = [
@@ -485,15 +486,15 @@ def test_generate_stencil_2d_max_extent(monkeypatch):
         operates_on="cell_column", meta_args=meta_args)
     metadata.validate()
 
-    def _stencil_2d_max_extent(_):
-        raise Exception("_stencil_2d_max_extent")
-    check_called(monkeypatch, _stencil_2d_max_extent,
-                 "_stencil_2d_max_extent", metadata)
+    def _stencil_cross2d_max_extent(_):
+        raise Exception("_stencil_cross2d_max_extent")
+    check_called(monkeypatch, _stencil_cross2d_max_extent,
+                 "_stencil_cross2d_max_extent", metadata)
 
 
-def test_generate_stencil_unknown_extent(monkeypatch):
+def test_generate_stencil_extent(monkeypatch):
     '''Test the MetadataToArgumentRules class _generate method calls the
-    _stencil_unknown_extent method if the supplied field metadata
+    _stencil_extent method if the supplied field metadata
     contains an xory1d stencil.
 
     '''
@@ -503,15 +504,14 @@ def test_generate_stencil_unknown_extent(monkeypatch):
         operates_on="cell_column", meta_args=meta_args)
     metadata.validate()
 
-    def _stencil_unknown_extent(_):
-        raise Exception("_stencil_unknown_extent")
-    check_called(monkeypatch, _stencil_unknown_extent,
-                 "_stencil_unknown_extent", metadata)
+    def _stencil_extent(_):
+        raise Exception("_stencil_extent")
+    check_called(monkeypatch, _stencil_extent, "_stencil_extent", metadata)
 
 
-def test_generate_stencil_unknown_direction(monkeypatch):
+def test_generate_stencil_xory1d_direction(monkeypatch):
     '''Test the MetadataToArgumentRules class _generate method calls the
-    _stencil_unknown_direction method if the supplied field metadata
+    _stencil_xory1d_direction method if the supplied field metadata
     contains an xory1d stencil.
 
     '''
@@ -521,15 +521,15 @@ def test_generate_stencil_unknown_direction(monkeypatch):
         operates_on="cell_column", meta_args=meta_args)
     metadata.validate()
 
-    def _stencil_unknown_direction(_):
-        raise Exception("_stencil_unknown_direction")
-    check_called(monkeypatch, _stencil_unknown_direction,
-                 "_stencil_unknown_direction", metadata)
+    def _stencil_xory1d_direction(_):
+        raise Exception("_stencil_xory1d_direction")
+    check_called(monkeypatch, _stencil_xory1d_direction,
+                 "_stencil_xory1d_direction", metadata)
 
 
-def test_generate_stencil_2d(monkeypatch):
+def test_generate_stencil_cross2d(monkeypatch):
     '''Test the MetadataToArgumentRules class _generate method calls the
-    _stencil_2d method if the supplied field metadata contains a
+    _stencil_cross2d method if the supplied field metadata contains a
     cross2d stencil.
 
     '''
@@ -539,9 +539,9 @@ def test_generate_stencil_2d(monkeypatch):
         operates_on="cell_column", meta_args=meta_args)
     metadata.validate()
 
-    def _stencil_2d(_):
-        raise Exception("_stencil_2d")
-    check_called(monkeypatch, _stencil_2d, "_stencil_2d", metadata)
+    def _stencil_cross2d(_):
+        raise Exception("_stencil_cross2d")
+    check_called(monkeypatch, _stencil_cross2d, "_stencil_cross2d", metadata)
 
 
 def test_generate_stencil(monkeypatch):
@@ -612,8 +612,9 @@ def test_generate_exception(monkeypatch):
     monkeypatch.setattr(metadata, "_validate_general_purpose_kernel",
                         lambda: None)
     monkeypatch.setattr(metadata._meta_args, "_meta_args_args", [None])
+    monkeypatch.setattr(MetadataToArgumentsRules, "_metadata", metadata)
     with pytest.raises(InternalError) as info:
-        MetadataToArgumentsRules._generate(metadata)
+        MetadataToArgumentsRules._generate()
     assert ("PSyclone internal error: Unexpected meta_arg type 'NoneType' "
             "found." in str(info.value))
 

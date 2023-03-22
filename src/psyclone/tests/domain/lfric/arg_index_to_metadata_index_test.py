@@ -42,8 +42,6 @@ from psyclone.domain.lfric.kernel import (
     ScalarArgMetadata, FieldArgMetadata, FieldVectorArgMetadata,
     OperatorArgMetadata, ColumnwiseOperatorArgMetadata, LFRicKernelMetadata)
 
-# pylint: disable=unsubscriptable-object
-
 
 def call_method(method_name, meta_arg, metadata):
     '''Utility method to initialise the required class variables and then
@@ -93,6 +91,7 @@ def test_scalar():
         operates_on="cell_column", meta_args=meta_args)
     cls = call_method("_scalar", meta_arg, metadata)
     assert len(cls._info) == 1
+    # pylint: disable=unsubscriptable-object
     assert cls._info[0] == 1
 
 
@@ -103,6 +102,7 @@ def test_field():
         operates_on="cell_column", meta_args=[meta_arg])
     cls = call_method("_field", meta_arg, metadata)
     assert len(cls._info) == 1
+    # pylint: disable=unsubscriptable-object
     assert cls._info[0] == 0
 
 
@@ -113,6 +113,7 @@ def test_field_vector():
         operates_on="cell_column", meta_args=[meta_arg])
     cls = call_method("_field_vector", meta_arg, metadata)
     assert len(cls._info) == 3
+    # pylint: disable=unsubscriptable-object
     assert cls._info[0] == 0
     assert cls._info[1] == 0
     assert cls._info[2] == 0
@@ -125,6 +126,7 @@ def test_operator():
         operates_on="cell_column", meta_args=[meta_arg])
     cls = call_method("_operator", meta_arg, metadata)
     assert len(cls._info) == 1
+    # pylint: disable=unsubscriptable-object
     assert cls._info[0] == 0
 
 
@@ -135,18 +137,31 @@ def test_cma_operator():
         operates_on="cell_column", meta_args=[meta_arg])
     cls = call_method("_cma_operator", meta_arg, metadata)
     assert len(cls._info) == 1
+    # pylint: disable=unsubscriptable-object
     assert cls._info[0] == 0
 
 
 def test_add_arg():
     '''Test the _add_arg utility method.'''
-    meta_arg = FieldArgMetadata("GH_REAL", "GH_WRITE", "W0")
+    field_meta_arg = FieldArgMetadata("GH_REAL", "GH_WRITE", "W0")
+    scalar_meta_arg = ScalarArgMetadata("GH_REAL", "GH_READ")
     metadata = LFRicKernelMetadata(
-        operates_on="cell_column", meta_args=[meta_arg])
-    cls = call_method("_add_arg", meta_arg, metadata)
+        operates_on="cell_column", meta_args=[field_meta_arg, scalar_meta_arg])
+    cls = ArgIndexToMetadataIndex
+    cls._initialise(None)
+    cls._metadata = metadata
+    # call add_arg
+    cls._add_arg(field_meta_arg)
     assert len(cls._info) == 1
+    # pylint: disable=unsubscriptable-object
     assert cls._info[0] == 0
     assert cls._index == 1
+    # call add_arg again
+    cls._add_arg(scalar_meta_arg)
+    assert len(cls._info) == 2
+    assert cls._info[0] == 0
+    assert cls._info[1] == 1
+    assert cls._index == 2
 
 
 def test_remaining_methods():
@@ -156,6 +171,7 @@ def test_remaining_methods():
     '''
     cls = ArgIndexToMetadataIndex
     cls._initialise(None)
+    # Check the methods that increase _index by 1 and have no arguments.
     count = 0
     for method_name in (
             ["_cell_position", "_mesh_height", "_mesh_ncell2d_no_halos",
@@ -163,13 +179,15 @@ def test_remaining_methods():
         getattr(cls, method_name)()
         count += 1
         assert cls._index == count
+    # Check the one method that increases _index by 4 and has no arguments.
     cls._cell_map()
     count += 4
     assert cls._index == count
+    # Check the methods that increase _index by 1 and have an argument.
     for method_name in (
-            ["_stencil_2d_unknown_extent", "_stencil_2d_max_extent",
-             "_stencil_unknown_extent", "_stencil_unknown_direction",
-             "_stencil_2d", "_stencil"]):
+            ["_stencil_cross2d_extent", "_stencil_cross2d2d_max_extent",
+             "_stencil_extent", "_stencil_xory1d_direction",
+             "_stencil_cross2d", "_stencil"]):
         getattr(cls, method_name)(None)
         count += 1
         assert cls._index == count
