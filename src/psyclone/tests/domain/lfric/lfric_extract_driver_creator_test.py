@@ -40,7 +40,7 @@ import pytest
 from psyclone.core import Signature
 from psyclone.domain.lfric import LFRicConstants, LFRicExtractDriverCreator
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
-from psyclone.errors import InternalError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import Literal, Routine, Schedule
 from psyclone.psyir.symbols import INTEGER_TYPE
 from psyclone.psyir.tools.dependency_tools import DependencyTools
@@ -139,7 +139,7 @@ def test_lfric_driver_get_proxy_mapping():
 
 
 # ----------------------------------------------------------------------------
-def test_lfric_driver_flatten_reference_error():
+def test_lfric_driver_flatten_reference_error(fortran_reader):
     '''Tests errors when flattening user defined symbols.'''
     driver_creator = LFRicExtractDriverCreator()
 
@@ -148,6 +148,25 @@ def test_lfric_driver_flatten_reference_error():
                                           proxy_name_mapping={})
     assert ("Unexpected type 'str' in _flatten_reference, it must be a "
             "'StructureReference'" in str(err.value))
+
+    # Check if an array of structures is used:
+    code = """subroutine test()
+              use somemod
+              type(a) :: b
+              integer :: c, i
+              c = b%d(i)%e(i)%f
+              end subroutine"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    driver_creator = LFRicExtractDriverCreator()
+    assignment = psyir.children[0].children[0]
+    symbol_table = psyir.scope.symbol_table
+    with pytest.raises(GenerationError) as err:
+        driver_creator._flatten_reference(assignment.rhs,
+                                          symbol_table=symbol_table,
+                                          proxy_name_mapping={})
+    assert ("Array of structures are not supported in the driver creation: "
+            "'b%d(i)%e(i)%f'" in str(err.value))
 
 
 # ----------------------------------------------------------------------------

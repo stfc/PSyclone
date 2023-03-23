@@ -43,12 +43,13 @@ the output data contained in the input file.
 
 from psyclone.core import Signature
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.errors import InternalError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import InvokeSchedule, Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import (ArrayMember, ArrayReference, Assignment,
-                                  Call, FileContainer, IntrinsicCall, Literal,
+from psyclone.psyir.nodes import (ArrayMember, ArrayOfStructuresMember,
+                                  ArrayReference, Assignment, Call,
+                                  FileContainer, IntrinsicCall, Literal,
                                   Node, Reference, Routine, StructureReference)
 from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE,
                                     ContainerSymbol, DataSymbol,
@@ -273,6 +274,7 @@ class LFRicExtractDriverCreator:
 
         :raises InternalError: if the old_reference is not a \
             :py:class:`psyclone.`StructureReference
+        raises GenerationError: if an array of structures is used
 
         '''
 
@@ -329,12 +331,17 @@ class LFRicExtractDriverCreator:
         # Get the indices from a structure array access, e.g.
         # field%data(i) --> field(i)
         while current:
+            if isinstance(current, ArrayOfStructuresMember):
+                raise GenerationError(f"Array of structures are not supported "
+                                      f"in the driver creation: "
+                                      f"'{old_reference.debug_string()}'.")
             if isinstance(current, ArrayMember):
                 # If there is an array access, we need to replace the
                 # structure reference with an ArrayReference. The children
                 # of an ArrayMember are the indices, so they need to be
                 # used in the flattened symbol:
                 ind = current.pop_all_children()
+                print("IND", ind, [type(i) for i in ind])
                 new_ref = ArrayReference.create(symbol, ind)
                 break
             if not current.children:
