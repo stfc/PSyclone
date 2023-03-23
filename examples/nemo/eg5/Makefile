@@ -90,9 +90,7 @@ traadv-$(TYPE).exe: psy.o $(EXTRACT_DIR)/$(LIB_NAME)
 transform: kernels
 
 # Need `-l all` to ensure line-lengths in generated code are less than the
-# standard-mandated 132 chars. Also kernel extraction does not support
-# distributed, so this has to be disabled (TODO #1992), even though the
-# flag is not required for NEMO itself.
+# standard-mandated 132 chars.
 kernels: extract_kernels.py
 	$(PSYCLONE) -l all -api "nemo" -s ./extract_kernels.py -opsy psy.f90 \
    ../code/tra_adv.F90
