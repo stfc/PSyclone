@@ -58,7 +58,7 @@ GENERATED_FILES += driver-main-init driver-main-init.F90       \
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g -ffree-line-length-none
 
-OBJ = main_psy.o main_alg.o testkern_w0_kernel_mod.o
+OBJ = main_psy.o main_alg.o testkern_w0_kernel_mod.o dummy_mod.o
 
 ifeq ($(TYPE), netcdf)
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/netcdf/lfric
@@ -101,7 +101,7 @@ $(EXTRACT_LIB): $(LFRIC_LIB)
 # Dependencies
 main_psy.o:	testkern_w0_kernel_mod.o $(EXTRACT_LIB) $(LFRIC_LIB)
 main_alg.o:	main_psy.o
-testkern_w0_kernel_mod.o: $(LFRIC_LIB)
+testkern_w0_kernel_mod.o: dummy_mod.o $(LFRIC_LIB)
 
 driver-main-update:	F90FLAGS += -I $(EXTRACT_DIR)/..
 driver-main-update:	driver-main-update.o $(READ_KERNEL_DATA_OBJ)
