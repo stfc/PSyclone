@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -424,17 +424,20 @@ def test_arraytype_invalid_shape_bounds():
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [(1, None)])
     assert ("A DataSymbol shape-list element specifying lower and upper bounds"
-            " must be a 2-tuple containing either int or DataNode entries but "
+            " must be a 2-tuple containing either int, DataNode or "
+            "ArrayType.Extent entries but "
             "'(1, None)' contains 'NoneType'" in str(excinfo.value))
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [(None, 1)])
     assert ("A DataSymbol shape-list element specifying lower and upper bounds"
-            " must be a 2-tuple containing either int or DataNode entries but "
+            " must be a 2-tuple containing either int, DataNode or "
+            "ArrayType.Extent entries but "
             "'(None, 1)' contains 'NoneType'" in str(excinfo.value))
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [10, (None, 1)])
     assert ("A DataSymbol shape-list element specifying lower and upper bounds"
-            " must be a 2-tuple containing either int or DataNode entries but "
+            " must be a 2-tuple containing either int, DataNode or "
+            "ArrayType.Extent entries but "
             "'(None, 1)' contains 'NoneType'" in str(excinfo.value))
     scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
     symbol = DataSymbol("fred", scalar_type, constant_value=3.0)
