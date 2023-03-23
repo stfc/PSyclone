@@ -1863,9 +1863,6 @@ def make_symbol_table():
      ('x = min(a, b, c)', NaryOperation, NaryOperation.Operator.MIN),
      ('x = sign(a, b)', BinaryOperation, BinaryOperation.Operator.SIGN),
      ('x = sqrt(a)', UnaryOperation, UnaryOperation.Operator.SQRT),
-     ('x = sum(a)', UnaryOperation, UnaryOperation.Operator.SUM),
-     ('x = sum(a, idx)', BinaryOperation, BinaryOperation.Operator.SUM),
-     ('x = suM(a, idx, mask)', NaryOperation, NaryOperation.Operator.SUM),
      # Check that we get a CodeBlock for an unsupported N-ary operation
      ('x = reshape(a, b, c)', CodeBlock, None)])
 @pytest.mark.usefixtures("f2008_parser")
@@ -1893,20 +1890,22 @@ def test_handling_intrinsics(code, expected_type, expected_op, symbol_table):
 
 @pytest.mark.parametrize(
     "code, expected_type, expected_op, expected_names",
-    [('x = sum(a)', UnaryOperation,
-      UnaryOperation.Operator.SUM, [None]),
-     ('x = sum(array=a)', UnaryOperation,
-      UnaryOperation.Operator.SUM, ["array"]),
-     ('x = sum(a, dim=1)', BinaryOperation,
-      BinaryOperation.Operator.SUM, [None, "dim"]),
-     ('x = sum(array=a, mask=.true.)', BinaryOperation,
-      BinaryOperation.Operator.SUM, ["array", "mask"]),
-     ('x = sum(a, dim=1, mask=.true.)', NaryOperation,
-      NaryOperation.Operator.SUM, [None, "dim", "mask"]),
-     ('x = sum(array=a, mask=.true., dim=1)', NaryOperation,
-      NaryOperation.Operator.SUM, ["array", "mask", "dim"]),
-     ('x = sum(a, 1, mask=.true.)', NaryOperation,
-      NaryOperation.Operator.SUM, [None, None, "mask"])])
+    [('x = sin(a)', UnaryOperation,
+      UnaryOperation.Operator.SIN, [None]),
+     ('x = sin(array=a)', UnaryOperation,
+      UnaryOperation.Operator.SIN, ["array"]),
+     ('x = dot_product(a, b)', BinaryOperation,
+      BinaryOperation.Operator.DOT_PRODUCT, [None, None]),
+     ('x = dot_product(a, vector_b=b)', BinaryOperation,
+      BinaryOperation.Operator.DOT_PRODUCT, [None, "vector_b"]),
+     ('x = dot_product(vector_a=a, vector_b=b)', BinaryOperation,
+      BinaryOperation.Operator.DOT_PRODUCT, ["vector_a", "vector_b"]),
+     ('x = max(a, b, c)', NaryOperation,
+      NaryOperation.Operator.MAX, [None, None, None]),
+     ('x = max(a1=a, a2=b, a3=c)', NaryOperation,
+      NaryOperation.Operator.MAX, ["a1", "a2", "a3"]),
+     ('x = max(a, b, a3=c)', NaryOperation,
+      NaryOperation.Operator.MAX, [None, None, "a3"])])
 @pytest.mark.usefixtures("f2008_parser")
 def test_handling_intrinsics_named_args(
         code, expected_type, expected_op, expected_names, symbol_table):
@@ -1938,13 +1937,13 @@ def test_intrinsic_no_args():
     NotImplementedError. '''
     processor = Fparser2Reader()
     fake_parent = Schedule()
-    reader = FortranStringReader("x = SUM(a, b)")
+    reader = FortranStringReader("x = MAX(a, b)")
     fp2node = Execution_Part.match(reader)[0][0].items[2]
     # Manually remove the arguments
     fp2node.items = (fp2node.items[0],)
     with pytest.raises(NotImplementedError) as err:
         processor._intrinsic_handler(fp2node, fake_parent)
-    assert "SUM" in str(err.value)
+    assert "MAX" in str(err.value)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -1975,19 +1974,19 @@ def test_binary_op_handler_error():
     parse tree has an unexpected structure. '''
     processor = Fparser2Reader()
     fake_parent = Schedule()
-    reader = FortranStringReader("x = SUM(a, b)")
+    reader = FortranStringReader("x = MAX(a, b)")
     fp2node = Execution_Part.match(reader)[0][0].items[2]
     # Break the number of arguments in the fparser node
     fp2node.items[1].items = (Name('a'),)
     with pytest.raises(InternalError) as err:
         processor._binary_op_handler(fp2node, fake_parent)
     assert ("Binary operator should have exactly two arguments but found 1 "
-            "for 'SUM(a)'." in str(err.value))
+            "for 'MAX(a)'." in str(err.value))
     # Now break the 'items' tuple of this fparser node
     fp2node.items = (fp2node.items[0], Name('dummy'))
     with pytest.raises(InternalError) as err:
         processor._binary_op_handler(fp2node, fake_parent)
-    assert ("binary intrinsic operation 'SUM(dummy)'. Expected second child "
+    assert ("binary intrinsic operation 'MAX(dummy)'. Expected second child "
             "to be Actual_Arg_Spec_List" in str(err.value))
 
 
@@ -1997,19 +1996,19 @@ def test_nary_op_handler_error():
     tree has an unexpected structure. '''
     processor = Fparser2Reader()
     fake_parent = Schedule()
-    reader = FortranStringReader("x = SUM(a, b, mask)")
+    reader = FortranStringReader("x = MAX(a, b, c)")
     fp2node = Execution_Part.match(reader)[0][0].items[2]
     # Give the node an incorrect number of arguments for the Nary handler
     fp2node.items[1].items = (Name('a'),)
     with pytest.raises(InternalError) as err:
         processor._nary_op_handler(fp2node, fake_parent)
     assert ("An N-ary operation must have more than two arguments but found 1 "
-            "for 'SUM(a)'" in str(err.value))
+            "for 'MAX(a)'" in str(err.value))
     # Break the 'items' tuple of this fparser node
     fp2node.items = (fp2node.items[0], Name('dummy'))
     with pytest.raises(InternalError) as err:
         processor._nary_op_handler(fp2node, fake_parent)
-    assert ("Expected second 'item' of N-ary intrinsic 'SUM(dummy)' in fparser"
+    assert ("Expected second 'item' of N-ary intrinsic 'MAX(dummy)' in fparser"
             " parse tree to be an Actual_Arg_Spec_List" in str(err.value))
 
 
