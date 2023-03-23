@@ -1232,7 +1232,27 @@ class Fparser2Reader():
                                      Fortran2003.Assumed_Size_Spec)):
 
             if isinstance(dim, Fortran2003.Assumed_Shape_Spec):
-                shape.append(None)
+                # Assumed_Shape_Spec has two children holding the lower and
+                # upper bounds. It is valid Fortran to specify only the lower
+                # bound:
+                # ":" -> Assumed_Shape_Spec(None, None)
+                # "4:" -> Assumed_Shape_Spec(Int_Literal_Constant('4', None),
+                #                            None)
+                lower = (_process_bound(dim.children[0]) if dim.children[0]
+                         else None)
+                if dim.children[1]:
+                    upper = _process_bound(dim.children[1])
+                else:
+                    upper = ArrayType.Extent.ATTRIBUTE if lower else None
+
+                if upper and not lower:
+                    raise NotImplementedError(
+                        "Found an assumed-shape declaration with only an upper"
+                        " bound ({dimensions}). This is not valid Fortran.")
+                if lower or upper:
+                    shape.append((lower, upper))
+                else:
+                    shape.append(None)
 
             elif isinstance(dim, Fortran2003.Explicit_Shape_Spec):
                 try:

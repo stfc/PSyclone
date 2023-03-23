@@ -550,12 +550,14 @@ class ArrayType(DataType):
                 for dim in dimension:
                     if isinstance(dim, DataNode):
                         _validate_data_node(dim)
-                    elif not isinstance(dim, int):
+                    elif not (isinstance(dim, int) or
+                              isinstance(dim, ArrayType.Extent)):
                         raise TypeError(
                             f"A DataSymbol shape-list element specifying lower"
                             f" and upper bounds must be a 2-tuple containing "
-                            f"either int or DataNode entries but '{dimension}'"
-                            f" contains '{type(dim).__name__}'")
+                            f"either int, DataNode or ArrayType.Extent entries"
+                            f" but '{dimension}' contains "
+                            f"'{type(dim).__name__}'")
             elif not isinstance(dimension, (self.Extent, int)):
                 raise TypeError(
                     f"DataSymbol shape list elements can only be 'int', "
