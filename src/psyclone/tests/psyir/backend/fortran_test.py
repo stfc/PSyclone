@@ -2251,6 +2251,15 @@ def test_fw_intrinsic_call_node(fortran_writer):
     gen = fortran_writer(rcall)
     assert gen == "call RANDOM_NUMBER(var)\n"
 
+    for intrinsic_function in [IntrinsicCall.Intrinsic.MINVAL,
+                               IntrinsicCall.Intrinsic.MAXVAL,
+                               IntrinsicCall.Intrinsic.SUM]:
+        intrinsic_call = IntrinsicCall.create(
+            intrinsic_function, [Reference(sym)])
+        assignment = Assignment.create(Reference(sym), intrinsic_call)
+        gen = fortran_writer(assignment)
+        assert gen == f"var = {intrinsic_function.name}(var)\n"
+
 
 def test_fw_comments(fortran_writer):
     ''' Test the generation of Fortran from PSyIR with comments. '''
