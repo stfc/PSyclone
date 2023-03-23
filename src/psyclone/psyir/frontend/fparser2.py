@@ -1233,8 +1233,8 @@ class Fparser2Reader():
 
             if isinstance(dim, Fortran2003.Assumed_Shape_Spec):
                 # Assumed_Shape_Spec has two children holding the lower and
-                # upper bounds. It is valid Fortran to specify only the lower
-                # bound:
+                # upper bounds. It is valid Fortran (R514) to specify only the
+                # lower bound:
                 # ":" -> Assumed_Shape_Spec(None, None)
                 # "4:" -> Assumed_Shape_Spec(Int_Literal_Constant('4', None),
                 #                            None)
@@ -1249,7 +1249,7 @@ class Fparser2Reader():
                     raise NotImplementedError(
                         "Found an assumed-shape declaration with only an upper"
                         " bound ({dimensions}). This is not valid Fortran.")
-                if lower or upper:
+                if upper:
                     shape.append((lower, upper))
                 else:
                     shape.append(None)
