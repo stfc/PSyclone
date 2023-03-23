@@ -952,6 +952,43 @@ class DependencyTools():
         container = node_list[0].root
         mod_manager = ModuleManager.get()
 
+        from psyclone.psyir.nodes import Call, Reference, Routine
+        from psyclone.psyir.symbols import ImportInterface
+
+        routine = node_list[0]
+        while not isinstance(routine, Routine):
+            routine = routine.parent
+
+        #mod_info = mod_manager.get_module_info("testkern_w0_kernel_mod")
+        #info = mod_info.get_non_local_symbols_for_function("testkern_w0_code")
+        mod_info = mod_manager.get_module_info("dummy_mod")
+        info = mod_info.get_non_local_symbols_for_routine("dummy_func")
+        print("info:", info)
+        return in_local, out_local
+
+        # Find all required modules for all kernel calls.
+        all_mods = set()
+        all_external_symbols = {}
+        for kern in container.walk(Kern):
+            print("KERN", kern)
+            if not isinstance(kern, BuiltIn):
+                all_mods.add(kern.module_name)
+                mod_info = mod_manager.get_module_info(kern.module_name)
+                ext_symbols = mod_info.get_external_symbols()
+                for (symbol, module_name) in ext_symbols:
+                    if module_name not in all_external_symbols:
+                        all_external_symbols[module_name] = set()
+                    all_external_symbols[module_name].add(symbol.name)
+
+
+
+
+        return in_local, out_local
+
+
+
+
+
         # Find all required modules for all kernel calls.
         all_mods = set()
         all_external_symbols = {}
