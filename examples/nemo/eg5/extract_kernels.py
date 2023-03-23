@@ -96,6 +96,7 @@ def trans(psy):
             if not isinstance(kern, NemoLoop):
                 continue
             try:
+                # TODO #2080: once this is fixed, the option can be removed
                 # The example contains array expressions, e.g.:
                 # zwx(:,:,jpk) = 0.e0
                 # PSyclone represents this internally using Range with LBOUND
