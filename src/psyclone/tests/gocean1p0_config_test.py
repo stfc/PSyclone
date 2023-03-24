@@ -295,7 +295,7 @@ def test_debug_mode(tmpdir):
         api_config = config.api_conf("gocean1.0")
         assert api_config.debug_mode is False
 
-    # Test that if DEBUG_MODE key desn't exist it defaults to False
+    # Test that if DEBUG_MODE key doesn't exist it defaults to False
     content = _CONFIG_CONTENT
     config_file = tmpdir.join("config4")
     with config_file.open(mode="w") as new_cfg:

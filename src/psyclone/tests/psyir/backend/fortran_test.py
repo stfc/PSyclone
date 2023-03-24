@@ -1089,7 +1089,7 @@ def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
                                           datatype=INTEGER_TYPE)
     sub_scopes[1].symbol_table.new_symbol("symbol1", symbol_type=DataSymbol,
                                           datatype=INTEGER_TYPE)
-    # Since the scopes are siblings they are alowed the same name
+    # Since the scopes are siblings they are allowed the same name
     assert "symbol1" in sub_scopes[0].symbol_table
     assert "symbol2" in sub_scopes[0].symbol_table
     assert "symbol1" in sub_scopes[1].symbol_table
