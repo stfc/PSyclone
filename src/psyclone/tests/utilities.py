@@ -471,7 +471,7 @@ class Compile():
             # Add a object-specific hash-code to the file name so that all
             # files created in the same test have different names and can
             # easily be inspected in case of errors.
-            filename = f"generated-{hash(self)}.f90"
+            filename = f"generated-{hash(self)}.F90"
             with open(filename, 'w', encoding="utf-8") as test_file:
                 test_file.write(code)
 
