@@ -322,7 +322,6 @@ class LFRicExtractDriverCreator:
                 # of an ArrayMember are the indices, so they need to be
                 # used in the flattened symbol:
                 ind = current.pop_all_children()
-                print("IND", ind, [type(i) for i in ind])
                 new_ref = ArrayReference.create(symbol, ind)
                 break
             if not current.children:
