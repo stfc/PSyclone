@@ -35,6 +35,7 @@
 
 ''' This module tests the driver creation for extracted kernels.'''
 
+import os
 import re
 
 import pytest
@@ -43,10 +44,11 @@ from psyclone.core import Signature
 from psyclone.domain.lfric import LFRicExtractDriverCreator
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError
+from psyclone.parse import ModuleManager
 from psyclone.psyir.nodes import Literal, Routine, Schedule
 from psyclone.psyir.symbols import INTEGER_TYPE
 from psyclone.psyir.tools.dependency_tools import DependencyTools
-from psyclone.tests.utilities import get_invoke
+from psyclone.tests.utilities import Compile, get_base_path, get_invoke
 
 
 API = "dynamo0.3"
@@ -456,6 +458,14 @@ def test_lfric_driver_field_array_inc():
     '''Test the handling of arrays of fields which are incremented (i.e.
     read and written).'''
 
+    infrastructure_path = get_base_path(API)
+    # Define the path to the read-kernel relative to the infrastructure path:
+    read_mod_path = os.path.join(infrastructure_path, "..", "..", "..", "..",
+                                 "..", "lib", "extract", "standalone")
+    module_manager = ModuleManager.get()
+    module_manager.add_search_path(infrastructure_path)
+    module_manager.add_search_path(read_mod_path)
+
     _, invoke = get_invoke("8_vector_field_2.f90", API,
                            dist_mem=False, idx=0)
 
@@ -481,3 +491,8 @@ def test_lfric_driver_field_array_inc():
     assert "ReadVariable('chi_post%2', chi_2_post)" in driver
     assert "ReadVariable('chi_post%3', chi_3_post)" in driver
     assert "ReadVariable('f1_post', f1_post)" in driver
+
+    # While the actual code is LFRic, the driver is stand-alone, and as such
+    # does not need any of the infrastructure files
+    build = Compile(".")
+    build.compile_file("driver-field-test.F90")
