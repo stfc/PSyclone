@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -158,8 +158,7 @@ class Compile():
     API-specific classes are derived from this class to manage handling
     of the corresponding infrastructure library.
 
-    :param tmpdir: temporary directory, defaults to \
-        os.getcwd()
+    :param tmpdir: temporary directory, defaults to os.getcwd()
     :type tmpdir: Optional[:py:class:`LocalPath`]
 
     '''
@@ -184,7 +183,8 @@ class Compile():
         compilation based on the command-line options.
 
         :param config: The config object from pytest.
-        :type config: Instance of :py:class:`pytest.config.
+        :type config: :py:class:`pytest.config`.
+
         '''
         # Whether or not we run tests requiring code compilation is picked-up
         # from a command-line flag. (This is set-up in conftest.py.)
@@ -210,8 +210,10 @@ class Compile():
         '''Returns the directory of all Fortran test files for the API,
         i.e. <PSYCLONEHOME>/src/psyclone/tests/test_files/<API>.
         Needs to be set by each API-specific compile class.
+
         :returns: A string with the base path of all API specific files.
         :rtype: str
+
         '''
         return self._base_path
 
@@ -226,11 +228,14 @@ class Compile():
         self._base_path = base_path
 
     def get_infrastructure_flags(self):
+        # pylint: disable=no-self-use
         '''Returns a list with the required flags to use the required
         infrastructure library. This is typically ["-I", some_path] so that
         the module files of the infrastructure can be found.
+
         :returns: A list of strings with the compiler flags required.
-        :rtype: list
+        :rtype: List[str]
+
         '''
         return []
 
@@ -257,10 +262,11 @@ class Compile():
         files with suffixes defined in FORTRAN_SUFFIXES.
 
         :param search_paths: List of locations to search for Fortran file.
-        :type search_paths: list of str
+        :type search_paths: List[str]
         :param str root_name: Base name of the Fortran file to look \
             for. If it ends with a recognised Fortran suffix then this \
             is stripped before performing the search.
+
         :return: Full path to a Fortran source file.
         :rtype: str
 
@@ -290,9 +296,10 @@ class Compile():
         :param str filename: Full path to the Fortran file to compile.
         :param bool link: If true will also try to link the file.
             Used in testing.
-        :raises CompileError: if the compilation fails.
-        '''
 
+        :raises CompileError: if the compilation fails.
+
+        '''
         if not Compile.TEST_COMPILE and not Compile.TEST_COMPILE_OPENCL:
             # Compilation testing is not enabled
             return
@@ -337,13 +344,13 @@ class Compile():
         otherwse). All files produced are deleted.
 
         :param psy_ast: The AST of the generated PSy layer.
-        :type psy_ast: Instance of :py:class:`psyclone.psyGen.PSy`
+        :type psy_ast: :py:class:`psyclone.psyGen.PSy`
         :param dependencies: optional module- or file-names on which \
                     one or more of the kernels/PSy-layer depend (and \
                     that are not part of e.g. the GOcean or LFRic \
                     infrastructure).  These dependencies will be built \
                     in the order they occur in this list.
-        :type dependencies: list of str
+        :type dependencies: List[str]
 
         :return: True if generated code compiles, False otherwise.
         :rtype: bool
@@ -429,13 +436,13 @@ class Compile():
         for the actual compilation. All files produced are deleted.
 
         :param psy_ast: The AST of the generated PSy layer.
-        :type psy_ast: Instance of :py:class:`psyclone.psyGen.PSy`
+        :type psy_ast: :py:class:`psyclone.psyGen.PSy`
         :param dependencies: optional module- or file-names on which \
                     one or more of the kernels/PSy-layer depend (and \
                     that are not part of e.g. the GOcean or LFRic \
                     infrastructure).  These dependencies will be built \
                     in the order they occur in this list.
-        :type dependencies: list of str
+        :type dependencies: List[str]
 
         :return: True if generated code compiles, False otherwise
         :rtype: bool
@@ -531,8 +538,9 @@ def get_invoke(algfile, api, idx=None, name=None, dist_mem=None):
                           without distributed memory support.
 
     :returns: (psy object, invoke object)
-    :rtype: 2-tuple containing :py:class:`psyclone.psyGen.PSy` and
-            :py:class:`psyclone.psyGen.Invoke` objects.
+    :rtype: Tuple[:py:class:`psyclone.psyGen.PSy`, \
+                  :py:class:`psyclone.psyGen.Invoke`]
+
     :raises RuntimeError: if neither idx or name are supplied or if
                           both are supplied
     :raises RuntimeError: if the supplied name does not match an invoke in
@@ -583,7 +591,7 @@ def check_links(parent, children):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param children: the child nodes that should have the parent \
         node as their parent.
-    :type parent: list of :py:class:`psyclone.psyir.nodes.Node`
+    :type parent: List[:py:class:`psyclone.psyir.nodes.Node`]
 
     '''
     assert len(parent.children) == len(children)
