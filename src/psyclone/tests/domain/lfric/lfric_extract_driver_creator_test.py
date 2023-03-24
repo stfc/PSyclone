@@ -36,14 +36,12 @@
 ''' This module tests the driver creation for extracted kernels.'''
 
 import os
-import re
-
 import pytest
 
 from psyclone.core import Signature
-from psyclone.domain.lfric import LFRicExtractDriverCreator
+from psyclone.domain.lfric import LFRicConstants, LFRicExtractDriverCreator
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
-from psyclone.errors import InternalError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.parse import ModuleManager
 from psyclone.psyir.nodes import Literal, Routine, Schedule
 from psyclone.psyir.symbols import INTEGER_TYPE
@@ -94,7 +92,7 @@ def test_lfric_driver_get_proxy_mapping():
 
 
 # ----------------------------------------------------------------------------
-def test_lfric_driver_flatten_reference_error():
+def test_lfric_driver_flatten_reference_error(fortran_reader):
     '''Tests errors when flattening user defined symbols.'''
     driver_creator = LFRicExtractDriverCreator()
 
@@ -103,6 +101,25 @@ def test_lfric_driver_flatten_reference_error():
                                           proxy_name_mapping={})
     assert ("Unexpected type 'str' in _flatten_reference, it must be a "
             "'StructureReference'" in str(err.value))
+
+    # Check if an array of structures is used:
+    code = """subroutine test()
+              use somemod
+              type(a) :: b
+              integer :: c, i
+              c = b%d(i)%e(i)%f
+              end subroutine"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    driver_creator = LFRicExtractDriverCreator()
+    assignment = psyir.children[0].children[0]
+    symbol_table = psyir.scope.symbol_table
+    with pytest.raises(GenerationError) as err:
+        driver_creator._flatten_reference(assignment.rhs,
+                                          symbol_table=symbol_table,
+                                          proxy_name_mapping={})
+    assert ("Array of structures are not supported in the driver creation: "
+            "'b%d(i)%e(i)%f'" in str(err.value))
 
 
 # ----------------------------------------------------------------------------
@@ -138,9 +155,11 @@ def test_lfric_driver_import_modules():
     sched.lower_to_language_level()
 
     driver_creator = LFRicExtractDriverCreator()
+
+    # Initially we should only have one symbol:
     assert ["routine"] == [sym.name for sym in program.symbol_table.symbols]
 
-    driver_creator._import_modules(program, sched)
+    driver_creator._import_modules(program.scope.symbol_table, sched)
     # We should now have two more symbols:
     all_symbols = ["routine", "testkern_coord_w0_2_mod",
                    "testkern_coord_w0_2_code"]
@@ -148,7 +167,7 @@ def test_lfric_driver_import_modules():
 
     # Import twice so we test the handling of symbols that
     # are already in the symbol table:
-    driver_creator._import_modules(program, sched)
+    driver_creator._import_modules(program.scope.symbol_table, sched)
 
     # The symbol table should be the same as it was before:
     assert (all_symbols == [sym.name for sym in program.symbol_table.symbols])
@@ -169,7 +188,7 @@ def test_lfric_driver_import_modules_no_import_interface(fortran_reader):
     sched.lower_to_language_level()
     driver_creator = LFRicExtractDriverCreator()
     program = Routine("routine", is_program=True)
-    driver_creator._import_modules(program, sched)
+    driver_creator._import_modules(program.scope.symbol_table, sched)
     # Only the program routine itself should be in the symbol table after
     # calling `import_modules`.
     assert (["routine"] == [sym.name for sym in program.symbol_table.symbols])
@@ -191,34 +210,35 @@ def test_lfric_driver_simple_test():
     extract.apply(invoke.schedule.children[0],
                   options={"create_driver": True,
                            "region_name": ("field", "test")})
-    out = str(invoke.gen())
 
     filename = "driver-field-test.F90"
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
 
-    # Now get all the variable names and variables listed in ProvideVariable
-    # in extracting code, and make sure the same appear in the driver:
-    # This re extracts the quoted variable name and the variable itself,
-    # e.g. '"a", a'. The ReadVariable function takes exactly the same
-    # parameters.
-    provide = re.compile(r"ProvideVariable\((.*)\)")
-    for line in out.split("\n"):
-        # The current `gen` created double quotes, while using PSyIR
-        # produces single quotes. So convert them first:
-        line = line.replace('"', "'")
-        grp = provide.search(line)
-        if grp:
-            # A special handling is required for output variables:
-            # The output value of 'a' is written as '"a_post", a'. But the
-            # driver needs to read this into a different variable called
-            # 'a_post', so we also need to test if appending 'post''
-            params = grp.groups(0)[0]
-            if "_post', " in params:
-                # It's an output variable, so the driver u
-                assert f"({grp.groups(0)[0]}_post)" in driver
-            else:
-                assert f"({grp.groups(0)[0]})" in driver
+    for line in ["call extract_psy_data%OpenRead('field', 'test')",
+                 "call extract_psy_data%ReadVariable('a', a)",
+                 "call extract_psy_data%ReadVariable('loop0_start', "
+                 "loop0_start)",
+                 "call extract_psy_data%ReadVariable('loop0_stop', "
+                 "loop0_stop)",
+                 "call extract_psy_data%ReadVariable('m1', m1)",
+                 "call extract_psy_data%ReadVariable('m2', m2)",
+                 "call extract_psy_data%ReadVariable('map_w1', map_w1)",
+                 "call extract_psy_data%ReadVariable('map_w2', map_w2)",
+                 "call extract_psy_data%ReadVariable('map_w3', map_w3)",
+                 "call extract_psy_data%ReadVariable('ndf_w1', ndf_w1)",
+                 "call extract_psy_data%ReadVariable('ndf_w2', ndf_w2)",
+                 "call extract_psy_data%ReadVariable('ndf_w3', ndf_w3)",
+                 "call extract_psy_data%ReadVariable('nlayers', nlayers)",
+                 "call extract_psy_data%ReadVariable('self_vec_type_vector', "
+                 "self_vec_type_vector)",
+                 "call extract_psy_data%ReadVariable('undf_w1', undf_w1)",
+                 "call extract_psy_data%ReadVariable('undf_w2', undf_w2)",
+                 "call extract_psy_data%ReadVariable('undf_w3', undf_w3)",
+                 "call extract_psy_data%ReadVariable('x_ptr_vector', "
+                 "x_ptr_vector)",
+                 "call extract_psy_data%ReadVariable('cell_post', cell_post)"]:
+        assert line in driver
 
 
 # ----------------------------------------------------------------------------
@@ -276,10 +296,8 @@ def test_lfric_driver_field_arrays():
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir")
 def test_lfric_driver_operator():
-    '''Test handling of array of fields: they are written in one call to
-    the extraction library, but the library will write each array member
-    as an individual field. The driver needs to read in each individual
-    array member into distinct variables.'''
+    '''Test handling of operators, including the structure members
+    that are implicitly added.'''
 
     _, invoke = get_invoke("10.7_operator_read.f90", API,
                            dist_mem=False, idx=0)
@@ -295,8 +313,6 @@ def test_lfric_driver_operator():
             "mm_w3_proxy%local_stencil)" in out)
     assert ("ProvideVariable(\"mm_w3_proxy%ncell_3d\", "
             "mm_w3_proxy%ncell_3d)" in out)
-    # Check handling of field arrays: one call, which will need
-    # three calls in the driver
     assert "ProvideVariable(\"coord_post\", coord)" in out
 
     filename = "driver-operator-test.F90"
@@ -361,9 +377,10 @@ def test_lfric_driver_unsupported_builtins(name, filename, capsys):
 
 
 # ----------------------------------------------------------------------------
-def test_lfric_driver_array_of_fields():
-    '''Check that array accesses are created correctly, which is required
-    for builtins. E.g. the following code needs to be created:
+def test_lfric_driver_removing_structure_data():
+    '''Check that array accesses correctly remove the `%data`(which would be
+    added for builtins using f1_proxy$data(df)). E.g. the following code needs
+    to be created:
         do df = loop0_start, loop0_stop, 1
             f2(df) = a + f1(df)
         enddo
@@ -382,7 +399,11 @@ def test_lfric_driver_array_of_fields():
                              "extract", "_post",
                              region_name=("region", "name"))
 
+    assert "call extract_psy_data%ReadVariable('f1', f1)" in driver
+    assert "call extract_psy_data%ReadVariable('f2_post', f2_post)" in driver
+    assert "ALLOCATE(f2, mold=f2_post)" in driver
     assert "f2(df) = a + f1(df)" in driver
+    assert "if (ALL(f2 - f2_post == 0.0)) then" in driver
 
 
 # ----------------------------------------------------------------------------
@@ -415,7 +436,7 @@ def test_lfric_driver_extract_some_kernels_only():
         driver = my_file.read()
 
     # Make sure the driver does not have any information about other
-    # kernels added, and that is uses index 2 for loop boundaries.
+    # kernels added, and that it uses index 2 for loop boundaries.
     assert "loop0_start" not in driver
     assert "loop1_start" not in driver
     assert "ReadVariable('loop2_start', loop2_start)" in driver

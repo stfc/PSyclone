@@ -77,7 +77,7 @@ class LFRicExtractTrans(ExtractTrans):
         the transformation.
 
         :param node_list: the list of Node(s) we are checking.
-        :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
+        :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
@@ -108,17 +108,16 @@ class LFRicExtractTrans(ExtractTrans):
         # pylint: disable=arguments-differ
         '''Apply this transformation to a subset of the nodes within a
         schedule - i.e. enclose the specified Nodes in the schedule within
-        a single PSyData region. Note that this implementation just calls
-        the base class, it is only added here to provide the documentation
-        for this function, since it accepts different options
-        to the base class (e.g. create_driver, which is passed to the
-        ExtractNode instance that will be inserted.).
+        a single PSyData region. It first uses the DependencyTool to determine
+        input- and output-parameters. If requested, it will then call
+        the LFRicExtractDriverCreator to write the stand-alone driver
+        program. Then it will call apply of the base class.
 
         :param nodes: can be a single node or a list of nodes.
-        :type nodes: :py:obj:`psyclone.psyir.nodes.Node` or list of \
-                     :py:obj:`psyclone.psyir.nodes.Node`
+        :type nodes: :py:obj:`psyclone.psyir.nodes.Node` or \
+                     List[:py:obj:`psyclone.psyir.nodes.Node`]
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
         :param str options["prefix"]: a prefix to use for the PSyData module \
             name (``prefix_psy_data_mod``) and the PSyDataType \
             (``prefix_PSyDataType``) - a "_" will be added automatically. \
@@ -129,7 +128,7 @@ class LFRicExtractTrans(ExtractTrans):
             be created in the current working directory with the name \
             "driver-MODULE-REGION.f90" where MODULE and REGION will be the \
             corresponding values for this region. Defaults to False.
-        :param (str,str) options["region_name"]: an optional name to \
+        :param Tuple[str,str] options["region_name"]: an optional name to \
             use for this PSyData area, provided as a 2-tuple containing a \
             location name followed by a local name. The pair of strings \
             should uniquely identify a region unless aggregate information \
