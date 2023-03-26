@@ -43,13 +43,14 @@ the output data contained in the input file.
 
 from psyclone.core import Signature
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.errors import InternalError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import InvokeSchedule, Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import (ArrayMember, ArrayReference, Assignment,
-                                  Call, FileContainer, IntrinsicCall, Literal,
+from psyclone.psyir.nodes import (ArrayMember, ArrayOfStructuresMember,
+                                  ArrayReference, Assignment, Call,
+                                  FileContainer, IntrinsicCall, Literal,
                                   Node, Reference, Routine, StructureReference)
 from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE,
                                     ContainerSymbol, DataSymbol,
@@ -254,6 +255,7 @@ class LFRicExtractDriverCreator:
 
         :raises InternalError: if the old_reference is not a \
             :py:class:`psyclone.`StructureReference
+        raises GenerationError: if an array of structures is used
 
         '''
 
@@ -310,6 +312,10 @@ class LFRicExtractDriverCreator:
         # Get the indices from a structure array access, e.g.
         # field%data(i) --> field(i)
         while current:
+            if isinstance(current, ArrayOfStructuresMember):
+                raise GenerationError(f"Array of structures are not supported "
+                                      f"in the driver creation: "
+                                      f"'{old_reference.debug_string()}'.")
             if isinstance(current, ArrayMember):
                 # If there is an array access, we need to replace the
                 # structure reference with an ArrayReference. The children
@@ -419,7 +425,7 @@ class LFRicExtractDriverCreator:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _create_output_var_code(signature_str, program, is_input, read_var,
+    def _create_output_var_code(name, program, is_input, read_var,
                                 postfix, index=None):
         # pylint: disable=too-many-arguments, too-many-locals
         '''
@@ -431,7 +437,7 @@ class LFRicExtractDriverCreator:
         This function also handles array of fields, which need to get
         an index number added.
 
-        :param str signature_str: the name of original variable (i.e. \
+        :param str name: the name of original variable (i.e. \
             without _post), which will be looked up as a tag in the symbol \
             table. If index is provided, it is added to the tag name using \
             %{index}.
@@ -446,17 +452,16 @@ class LFRicExtractDriverCreator:
             values, which are read from the file.
 
         :returns: a 2-tuple containing the output symbol after the kernel, \
-             and the expected output read from the file. For this symbol \
-             paur a check for correctness will be added.
+             and the expected output read from the file.
         :rtype: Tuple[:py:class:`psyclone.psyir.symbols.Symbol`,
                       :py:class:`psyclone.psyir.symbols.Symbol`]
 
         '''
         symbol_table = program.symbol_table
         if index:
-            sym = symbol_table.lookup_with_tag(f"{signature_str}%{index}")
+            sym = symbol_table.lookup_with_tag(f"{name}%{index}")
         else:
-            sym = symbol_table.lookup_with_tag(signature_str)
+            sym = symbol_table.lookup_with_tag(name)
 
         # Declare a 'post' variable of the same type and
         # read in its value.
@@ -465,9 +470,9 @@ class LFRicExtractDriverCreator:
                                            symbol_type=DataSymbol,
                                            datatype=sym.datatype)
         if index:
-            post_tag = f"{signature_str}{postfix}%{index}"
+            post_tag = f"{name}{postfix}%{index}"
         else:
-            post_tag = f"{signature_str}{postfix}"
+            post_tag = f"{name}{postfix}"
         name_lit = Literal(post_tag, CHARACTER_TYPE)
         LFRicExtractDriverCreator._add_call(program, read_var,
                                             [name_lit,
@@ -602,22 +607,19 @@ class LFRicExtractDriverCreator:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _import_modules(program, sched):
+    def _import_modules(symbol_table, sched):
         '''This function adds all the import statements required for the
-        actual kernel calls. It finds all calls in the PSyIR tree and
-        checks for calls with a ImportInterface. Any such call will
-        get a ContainerSymbol added for the module, and a RoutineSymbol
-        with an import interface pointing to this module.
+        actual kernel calls. It finds all calls in the schedule and
+        checks for calls with an ImportInterface. Any such call will
+        add a ContainerSymbol for the module and a RoutineSymbol (pointing
+        to the container) to the symbol table.
 
-        :param program: the PSyIR Routine to which any code must \
-            be added. It also contains the symbol table to be used.
-        :type program: :py:class:`psyclone.psyir.nodes.Routine`
-        :param sched: the schedule that will be called by the driver \
-            program created.
+        :param symbol_table: the symbol table to which the symbols are added.
+        :type program: :py:class:`psyclone.psyir.symbols.symbol_table`
+        :param sched: the schedule to analyse for module imports.
         :type sched: :py:class:`psyclone.psyir.nodes.Schedule`
 
         '''
-        symbol_table = program.scope.symbol_table
         for call in sched.walk(Call):
             routine = call.routine
             if not isinstance(routine.interface, ImportInterface):
@@ -679,6 +681,8 @@ class LFRicExtractDriverCreator:
                        :py:class:`psyclone.psyir.symbols.Symbol`]]
 
         '''
+        # TODO #2083: check if this can be combined with psyad result
+        # comparison.
         for (sym_computed, sym_read) in output_symbols:
             if isinstance(sym_computed.datatype, ArrayType):
                 cond = f"all({sym_computed.name} - {sym_read.name} == 0.0)"
@@ -712,8 +716,9 @@ class LFRicExtractDriverCreator:
         '''This function uses the PSyIR to create a stand-alone driver
         that reads in a previously created file with kernel input and
         output information, and calls the kernels specified in the 'nodes'
-        PSyIR tree with the parameters from the file. It returns the
-        file container which contains the driver.
+        PSyIR tree with the parameters from the file. The `nodes` are
+        consecutive nodes from the PSyIR tree.
+        It returns the file container which contains the driver.
 
         :param nodes: a list of nodes.
         :type nodes: List[:py:obj:`psyclone.psyir.nodes.Node`]
@@ -789,7 +794,7 @@ class LFRicExtractDriverCreator:
         # The invoke-schedule might have children that are not in the node
         # list. So get the indices of the nodes for which a driver is to
         # be created, and then remove all other nodes from the copy.This
-        # needs to be done before potential halo exchange notes are removed,
+        # needs to be done before potential halo exchange nodes are removed,
         # to make sure we use the same indices (for e.g. loop boundary
         # names, which are dependent on the index of the nodes in the tree).
         # TODO #1731: this might not be required anymore if the loop
@@ -813,7 +818,7 @@ class LFRicExtractDriverCreator:
         # (TODO: #1731 - that might not be required anymore with 1731).
         # Otherwise, if e.g. the second loop is only extracted, this
         # loop would switch from using loop1_start/stop to loop0_start/stop
-        # since is is then the first loop (hence we need to do this
+        # since it is then the first loop (hence we need to do this
         # backwards to maintain the loop indices). Note that the
         # input/output list will already contain the loop boundaries,
         # so we can't simply change them (also, the original indices
@@ -826,7 +831,10 @@ class LFRicExtractDriverCreator:
             else:
                 child.lower_to_language_level()
 
-        self._import_modules(program, schedule_copy)
+        # Find all imported routines and add them to the symbol table
+        # of the driver, so the driver will have the correct import
+        # statements.
+        self._import_modules(program.scope.symbol_table, schedule_copy)
         self._add_precision_symbols(program.scope.symbol_table)
         self._add_all_kernel_symbols(schedule_copy, program_symbol_table,
                                      proxy_name_mapping)
@@ -836,6 +844,8 @@ class LFRicExtractDriverCreator:
                                                    symbol_type=DataSymbol,
                                                    datatype=psy_data_type)
 
+        # Provide the module and region name to the OpenRead method, which
+        # will reconstruct the name of the data file to read.
         module_str = Literal(module_name, CHARACTER_TYPE)
         region_str = Literal(local_name, CHARACTER_TYPE)
         self._add_call(program, f"{psy_data.name}%OpenRead",
@@ -845,8 +855,8 @@ class LFRicExtractDriverCreator:
                                                    original_symbol_table,
                                                    input_list, output_list,
                                                    postfix)
-        # Copy over all of the executable part of the extracted region
-        # program.addchild(schedule_copy)
+        # Move the nodes making up the extracted region into the Schedule
+        # of the driver program
         all_children = schedule_copy.pop_all_children()
         for child in all_children:
             program.addchild(child)
@@ -958,7 +968,8 @@ class LFRicExtractDriverCreator:
         file name is derived from the region name:
         "driver-"+module_name+"_"+region_name+".f90"
 
-        :param nodes: a list of nodes.
+        :param nodes: a list of nodes containing the body of the driver
+            routine.
         :type nodes: List[:py:obj:`psyclone.psyir.nodes.Node`]
         :param input_list: variables that are input parameters.
         :type input_list: List[:py:class:`psyclone.core.Signature`]
