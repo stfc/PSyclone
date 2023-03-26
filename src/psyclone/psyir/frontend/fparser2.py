@@ -4082,8 +4082,9 @@ class Fparser2Reader():
         return self._process_args(node, call)
 
     def _process_args(self, node, call, canonicalise=None):
-        '''Processes call arguments contained in the node argument and adds
-        them to the PSyIR call node.
+        '''Processes fparser2 call or intrinsic arguments contained in the
+        node argument and adds them to the PSyIR Call or IntrinsicCall
+        node, respectively.
 
         The optional canonicalise function allows the order of the
         call's arguments and its named arguments to be re-ordered and
@@ -4110,7 +4111,8 @@ class Fparser2Reader():
 
         :returns: the PSyIR call argument with the PSyIR \
             representation of the fparser2 node arguments.
-        :rtype: :py:class:`psyclone.psyir.nodes.Call`
+        :rtype: :py:class:`psyclone.psyir.nodes.Call` or \
+                :py:class:`psyclone.psyir.nodes.IntrinsicCall
 
         :raises InternalError: if all named arguments do not follow \
             all positional arguments.

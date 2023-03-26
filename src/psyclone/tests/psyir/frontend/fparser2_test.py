@@ -59,7 +59,7 @@ from psyclone.psyir.nodes import (
     Schedule, CodeBlock, Assignment, Return, UnaryOperation, BinaryOperation,
     IfBlock, Reference, ArrayReference, Literal, Range, KernelSchedule,
     RegionDirective, Routine, StandaloneDirective, StructureReference,
-    ArrayOfStructuresReference)
+    ArrayOfStructuresReference, Call, IntrinsicCall)
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, SymbolTable, ArgumentInterface,
     SymbolError, ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE,
@@ -2812,25 +2812,13 @@ def test_named_and_wildcard_use_var(f2008_parser):
     assert avar2 is not avar1
 
 
-# TODO
-# _process_args ??? test somewhere else as used elsewhere?
-# returns Call or IntrinsicCall
-# canonicalise or None
-# no args
-# invalid arg order exception
-# point to original tree with .ast.
+# _process_args tests
 
-# _get_arg_names test somewhere else as used elsewhere?
-# no args
-# no arg names
-# only arg names
-# mixture named args and not
-
-# part of _process_args
 def test_intrinsic_names_error(fortran_reader):
-    '''Check that the expected exception is raised if the intrinsic
-    arguments do not follow the rule that all named arguments follow
-    all positional arguments. Use the sum intrinsic as an example.
+    '''In the _process_args method, check that the expected exception is
+    raised if the intrinsic arguments do not follow the rule that all
+    named arguments follow all positional arguments. Use the sum
+    intrinsic as an example.
 
     '''
     code = '''
@@ -2847,3 +2835,101 @@ end subroutine test_intrinsic
     assert ("In Fortran, all named arguments should follow all positional "
             "arguments, but found 'SUM(var1, dim = dim, mask)'."
             in str(info.value))
+
+
+@pytest.mark.parametrize("args,arg_names", [
+    ("1.0, a, (a+b)*2.0", [None, None, None]),
+    ("1.0, arg2=a, arg3=(a+b)*2.0", [None, "arg2", "arg3"])])
+def test_call_args(f2008_parser, args, arg_names):
+    '''Test that fparser2reader _process_args method transforms the
+    arguments of a Fortran subroutine call with into the equivalent
+    PSyIR arguments. Test with and without named arguments.
+
+    '''
+    test_code = (
+        f"subroutine test()\n"
+        f"use my_mod, only : kernel\n"
+        f"real :: a,b\n"
+        f"  call kernel({args})\n"
+        f"end subroutine")
+    reader = FortranStringReader(test_code)
+    ptree = f2008_parser(reader)
+    # The fparser2 call hierarchy to find Call_Stmt is the following:
+    # Program->Subroutine_SubProgram->Execution_Part->Call_Stmt
+    fparser2_call_node = ptree.children[0].children[2].children[0]
+    processor = Fparser2Reader()
+    psyir = processor.generate_psyir(ptree)
+
+    call_node = psyir.walk(Call)[0]
+    assert isinstance(call_node, Call)
+    assert call_node.ast == fparser2_call_node
+    assert len(call_node._argument_names) == len(call_node.children)
+    for idx, child in enumerate(call_node.children):
+        assert call_node._argument_names[idx] == (id(child), arg_names[idx])
+    assert call_node.argument_names == arg_names
+    assert len(call_node.children) == 3
+    assert isinstance(call_node.children[0], Literal)
+    assert call_node.children[0].value == "1.0"
+    assert isinstance(call_node.children[1], Reference)
+    assert call_node.children[1].name == "a"
+    assert isinstance(call_node.children[2], BinaryOperation)
+
+
+def test_intrinsiccall_args(f2008_parser):
+    '''Test that fparser2reader _process_args method transforms the
+    arguments of a Fortran subroutine call with into the equivalent
+    PSyIR arguments. Test with and without named arguments.
+
+    '''
+    test_code = (
+        "subroutine test(a, d, m, result)\n"
+        "  real, intent(in) :: a(:)\n"
+        "  integer, intent(in) :: d\n"
+        "  logical, intent(in) :: m\n"
+        "  real, intent(out) :: result\n"
+        "  result = minval(a, d, m)\n"
+        "end subroutine")
+    reader = FortranStringReader(test_code)
+    ptree = f2008_parser(reader)
+    processor = Fparser2Reader()
+    psyir = processor.generate_psyir(ptree)
+
+    intrinsic_node = psyir.walk(IntrinsicCall)[0]
+    assert isinstance(intrinsic_node, IntrinsicCall)
+    assert len(intrinsic_node._argument_names) == len(intrinsic_node.children)
+    arg_names = [None, "dim", "mask"]
+    for idx, child in enumerate(intrinsic_node.children):
+        assert intrinsic_node._argument_names[idx] == (
+            id(child), arg_names[idx])
+    assert intrinsic_node.argument_names == arg_names
+    assert len(intrinsic_node.children) == 3
+    assert isinstance(intrinsic_node.children[0], Reference)
+    assert intrinsic_node.children[0].name == "a"
+    assert isinstance(intrinsic_node.children[1], Reference)
+    assert intrinsic_node.children[1].name == "d"
+    assert isinstance(intrinsic_node.children[2], Reference)
+    assert intrinsic_node.children[2].name == "m"
+
+
+def test_call_codeblock_args(fortran_reader):
+    '''Test that we get one CodeBlock for each (unrecognised) argument
+    when _process_args() calls process_nodes(), rather than a single
+    CodeBlock containing all of them.
+
+    '''
+    test_code = (
+        "subroutine test()\n"
+        "  use my_mod, only : kernel\n"
+        "  real :: a, b\n"
+        "  call kernel(a, 'not'//'nice', 'at'//'all', b)\n"
+        "end subroutine")
+    psyir = fortran_reader.psyir_from_source(test_code)
+    call_node = psyir.walk(Call)[0]
+    assert isinstance(call_node, Call)
+    assert len(call_node.children) == 4
+    assert isinstance(call_node.children[0], Reference)
+    assert call_node.children[0].name == "a"
+    assert isinstance(call_node.children[1], CodeBlock)
+    assert isinstance(call_node.children[2], CodeBlock)
+    assert isinstance(call_node.children[3], Reference)
+    assert call_node.children[3].name == "b"

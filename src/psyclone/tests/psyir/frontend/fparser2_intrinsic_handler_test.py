@@ -53,7 +53,7 @@ from psyclone.psyir.nodes import (
     Reference, IntrinsicCall, CodeBlock)
 from psyclone.psyir.symbols import (
     REAL_TYPE, DataSymbol, UnknownFortranType, INTEGER_TYPE, SymbolTable,
-    ArrayType)
+    ArrayType, RoutineSymbol, LocalInterface)
 
 
 @pytest.fixture(scope="function", name="symbol_table")
@@ -196,6 +196,15 @@ end subroutine
     assert isinstance(intrinsic_call, IntrinsicCall)
     result = fortran_writer(intrinsic_call)
     assert result == f"{intrinsic_name}(a, dim=d, mask=m)"
+    routine_symbol = intrinsic_call.routine
+
+    assert isinstance(routine_symbol, RoutineSymbol)
+    assert intrinsic_call.routine.name == intrinsic_name
+    assert isinstance(routine_symbol.interface, LocalInterface)
+    # TODO: intrinsics are not currently added to the symbol table
+    # assert routine_symbol is \
+    #     intrinsic_call.scope.symbol_table.lookup(intrinsic_name)
+    assert (str(intrinsic_call)) == f"IntrinsicCall[name='{intrinsic_name}']"
 
 
 @pytest.mark.parametrize(
@@ -224,19 +233,28 @@ end subroutine
      ('x = min(a, b, c)', NaryOperation, NaryOperation.Operator.MIN),
      ('x = sign(a, b)', BinaryOperation, BinaryOperation.Operator.SIGN),
      ('x = sqrt(a)', UnaryOperation, UnaryOperation.Operator.SQRT),
+     # Check that we get a CodeBlock for an unsupported unary operation
+     ('x = aimag(a)', CodeBlock, None),
+     # Check that we get a CodeBlock for an unsupported binary operation
+     ('x = dprod(a, b)', CodeBlock, None),
      # Check that we get a CodeBlock for an unsupported N-ary operation
-     ('x = reshape(a, b, c)', CodeBlock, None)])
+     ('x = reshape(a, b, c)', CodeBlock, None),
+     # Check when the argument list is not an Actual_Arg_Spec_List for
+     # a unary operator
+     ('x = sin(-3.0)', UnaryOperation, UnaryOperation.Operator.SIN)])
 @pytest.mark.usefixtures("f2008_parser")
 def test_handling_intrinsics(code, expected_type, expected_op, symbol_table):
     '''Test that the fparser2 _intrinsic_handler method deals with
     Intrinsic_Function_Reference nodes that are translated to PSyIR
-    Operation nodes.
+    Operation nodes. Includes tests for unsupported intrinsics that
+    are returned as codeblocks.
 
     '''
     processor = Fparser2Reader()
     fake_parent = Schedule(symbol_table=symbol_table)
     reader = FortranStringReader(code)
     fp2node = Execution_Part.match(reader)[0][0]
+    print(type(fp2node.children[2]))
     processor.process_nodes(fake_parent, [fp2node])
     assign = fake_parent.children[0]
     assert isinstance(assign, Assignment)
