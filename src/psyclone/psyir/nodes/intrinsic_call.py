@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the IntrinsicCall node implementation.'''
@@ -76,18 +77,21 @@ class IntrinsicCall(Call):
     # The positional arguments to allocate must all be References (or
     # ArrayReferences but they are a subclass of Reference).
     _required_args[Intrinsic.ALLOCATE] = ArgDesc(1, None, Reference)
-    _optional_args[Intrinsic.ALLOCATE] = {"mold": Reference,
-                                          "stat": Reference}
+    _optional_args[Intrinsic.ALLOCATE] = {
+        "mold": Reference, "stat": Reference}
     _required_args[Intrinsic.DEALLOCATE] = ArgDesc(1, None, Reference)
     _optional_args[Intrinsic.DEALLOCATE] = {"stat": Reference}
     _required_args[Intrinsic.RANDOM_NUMBER] = ArgDesc(1, 1, Reference)
     _optional_args[Intrinsic.RANDOM_NUMBER] = {}
-    _required_args[Intrinsic.MINVAL] = ArgDesc(1, 3, Reference)
-    _optional_args[Intrinsic.MINVAL] = {}
-    _required_args[Intrinsic.MAXVAL] = ArgDesc(1, 3, Reference)
-    _optional_args[Intrinsic.MAXVAL] = {}
-    _required_args[Intrinsic.SUM] = ArgDesc(1, 3, Reference)
-    _optional_args[Intrinsic.SUM] = {}
+    _required_args[Intrinsic.MINVAL] = ArgDesc(1, 1, Reference)
+    _optional_args[Intrinsic.MINVAL] = {
+        "dim": Reference, "mask": Reference}
+    _required_args[Intrinsic.MAXVAL] = ArgDesc(1, 1, Reference)
+    _optional_args[Intrinsic.MAXVAL] = {
+        "dim": Reference, "mask": Reference}
+    _required_args[Intrinsic.SUM] = ArgDesc(1, 1, Reference)
+    _optional_args[Intrinsic.SUM] = {
+        "dim": Reference, "mask": Reference}
 
     @classmethod
     def create(cls, routine, arguments):

@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''This module contains pytest tests for the IntrinsicCall node.'''
@@ -40,8 +41,9 @@ import pytest
 
 from psyclone.psyir.nodes import (
     ArrayReference, Literal, IntrinsicCall, Reference, Schedule)
-from psyclone.psyir.symbols import (ArrayType, DataSymbol, INTEGER_TYPE,
-                                    IntrinsicSymbol, REAL_TYPE, RoutineSymbol)
+from psyclone.psyir.symbols import (
+    ArrayType, DataSymbol, INTEGER_TYPE, IntrinsicSymbol, REAL_TYPE,
+    RoutineSymbol, BOOLEAN_TYPE)
 
 
 def test_intrinsiccall_constructor():
@@ -95,7 +97,6 @@ def test_intrinsiccall_dealloc_create():
     dealloc = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.DEALLOCATE, [Reference(sym)])
     assert isinstance(dealloc, IntrinsicCall)
-    assert isinstance(dealloc, IntrinsicCall)
     assert isinstance(dealloc.routine, IntrinsicSymbol)
     assert dealloc.routine.name == "DEALLOCATE"
     assert dealloc.children[0].symbol is sym
@@ -120,6 +121,47 @@ def test_intrinsiccall_random_create():
     assert isinstance(rand.routine, IntrinsicSymbol)
     assert rand.routine.name == "RANDOM_NUMBER"
     assert rand.children[0].symbol is sym
+
+
+@pytest.mark.parametrize("intrinsic_call", [
+    IntrinsicCall.Intrinsic.MINVAL, IntrinsicCall.Intrinsic.MAXVAL,
+    IntrinsicCall.Intrinsic.SUM])
+def test_intrinsiccall_minmaxsum_create(intrinsic_call):
+    '''Tests for the creation of the different argument options for
+    'minval', 'maxval' and 'sum' IntrinsicCalls.
+
+    '''
+    array = DataSymbol(
+        "my_array", ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED]))
+    dim = DataSymbol("dim", INTEGER_TYPE)
+    mask = DataSymbol("mask", BOOLEAN_TYPE)
+
+    # array only
+    intrinsic = IntrinsicCall.create(
+        intrinsic_call, [Reference(array)])
+    assert isinstance(intrinsic, IntrinsicCall)
+    assert isinstance(intrinsic.routine, IntrinsicSymbol)
+    intrinsic_name = intrinsic_call.name
+    assert intrinsic.routine.name == intrinsic_name
+    assert intrinsic.children[0].symbol is array
+    # array and optional dim
+    intrinsic = IntrinsicCall.create(
+        intrinsic_call, [Reference(array), ("dim", Reference(dim))])
+    assert intrinsic.argument_names == [None, "dim"]
+    # array and optional mask
+    intrinsic = IntrinsicCall.create(
+        intrinsic_call, [Reference(array), ("mask", Reference(mask))])
+    assert intrinsic.argument_names == [None, "mask"]
+    # array and optional dim then optional mask
+    intrinsic = IntrinsicCall.create(
+        intrinsic_call, [Reference(array), ("dim", Reference(dim)),
+                         ("mask", Reference(mask))])
+    assert intrinsic.argument_names == [None, "dim", "mask"]
+    # array and optional mask then optional dim
+    intrinsic = IntrinsicCall.create(
+        intrinsic_call, [Reference(array), ("mask", Reference(mask)),
+                         ("dim", Reference(dim))])
+    assert intrinsic.argument_names == [None, "mask", "dim"]
 
 
 def test_intrinsiccall_create_errors():
