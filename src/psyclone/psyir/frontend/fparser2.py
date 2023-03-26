@@ -64,6 +64,10 @@ from psyclone.psyir.symbols import (
 
 # fparser dynamically generates classes which confuses pylint membership checks
 # pylint: disable=maybe-no-member
+# pylint: disable=too-many-branches
+# pylint: disable=too-many-locals
+# pylint: disable=too-many-statements
+# pylint: disable=too-many-lines
 
 #: The list of Fortran instrinsic functions that we know about (and can
 #: therefore distinguish from array accesses). These are taken from
@@ -94,7 +98,10 @@ INTENT_MAPPING = {"in": ArgumentInterface.Access.READ,
                   "inout": ArgumentInterface.Access.READWRITE}
 
 
-def canonicalise_minmaxsum(arg_nodes, arg_names, node):
+# TODO #1987. It may be that this method could be made more general so
+# that it works for more intrinsics, to help minimise the number of
+# canonicalise_* functions.
+def _canonicalise_minmaxsum(arg_nodes, arg_names, node):
     '''Canonicalise the arguments to any of the minval, maxval or sum
     intrinsics. These three intrinsics can use the same function as
     they have the same argument rules:
@@ -3740,8 +3747,7 @@ class Fparser2Reader():
         return nary_op
 
     def _intrinsic_handler(self, node, parent):
-        '''
-        Transforms an fparser2 Intrinsic_Function_Reference to the PSyIR
+        '''Transforms an fparser2 Intrinsic_Function_Reference to the PSyIR
         representation. Since Fortran Intrinsics can be unary, binary or
         nary this handler identifies the appropriate 'sub handler' by
         examining the number of arguments present.
@@ -3755,7 +3761,11 @@ class Fparser2Reader():
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyir.nodes.UnaryOperation` or \
                 :py:class:`psyclone.psyir.nodes.BinaryOperation` or \
-                :py:class:`psyclone.psyir.nodes.NaryOperation`
+                :py:class:`psyclone.psyir.nodes.NaryOperation` or \
+                :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+
+        :raises NotImplementedError: if the form of the Fortran is not \
+            supported.
 
         '''
         # First item is the name of the intrinsic
@@ -3765,13 +3775,13 @@ class Fparser2Reader():
         # have a variable number of arguments, so do not fit well with
         # the unary, binary, nary separation.
         if name.lower() in ["minval", "maxval", "sum"]:
-
             call = IntrinsicCall(
                 IntrinsicSymbol(name.lower()),
                 parent=parent)
-
             return self._process_args(
-                node, call, canonicalise=canonicalise_minmaxsum)
+                node, call, canonicalise=_canonicalise_minmaxsum)
+
+        # Treat all other intrinsics as Operations.
 
         # Now work out how many arguments it has
         num_args = 0
