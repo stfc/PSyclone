@@ -4127,15 +4127,20 @@ class Fparser2Reader():
         # Sanity check that all named arguments follow all positional
         # arguments. This should be the case but fparser does not
         # currently check and this ordering is assumed by the
-        # canonicalise function.
-        index = 0
-        while index < len(arg_names) and not arg_names[index]:
-            index += 1
-        for arg_name in arg_names[index:]:
-            if not arg_name:
-                raise InternalError(
-                    f"In Fortran, all named arguments should follow all "
-                    f"positional arguments, but found '{node}'.")
+        # canonicalise function. LFRic invokes can cause this
+        # exception (as they often use name=xxx before the end of the
+        # argument list), so to avoid this we only check when a
+        # canonicalise function is supplied (which we know is not the
+        # case for invokes as they are calls).
+        if canonicalise:
+            index = 0
+            while index < len(arg_names) and not arg_names[index]:
+                index += 1
+            for arg_name in arg_names[index:]:
+                if not arg_name:
+                    raise InternalError(
+                        f"In Fortran, all named arguments should follow all "
+                        f"positional arguments, but found '{node}'.")
 
         # Call the canonicalise function if it is supplied. This
         # re-orders arg_nodes and renames arg_names appropriately for
