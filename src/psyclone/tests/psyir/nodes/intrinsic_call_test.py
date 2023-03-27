@@ -162,6 +162,13 @@ def test_intrinsiccall_minmaxsum_create(intrinsic_call):
         intrinsic_call, [Reference(array), ("mask", Reference(mask)),
                          ("dim", Reference(dim))])
     assert intrinsic.argument_names == [None, "mask", "dim"]
+    # array and optional literal mask and optional literal dim
+    intrinsic = IntrinsicCall.create(
+        intrinsic_call, [
+            Reference(array),
+            ("mask", Literal("1", INTEGER_TYPE)),
+            ("dim", Literal("false", BOOLEAN_TYPE))])
+    assert intrinsic.argument_names == [None, "mask", "dim"]
 
 
 def test_intrinsiccall_create_errors():

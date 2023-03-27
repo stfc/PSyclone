@@ -41,6 +41,7 @@ from collections import namedtuple
 from enum import Enum
 
 from psyclone.psyir.nodes.call import Call
+from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import IntrinsicSymbol
 
@@ -87,13 +88,13 @@ class IntrinsicCall(Call):
     _optional_args[Intrinsic.RANDOM_NUMBER] = {}
     _required_args[Intrinsic.MINVAL] = ArgDesc(1, 1, Reference)
     _optional_args[Intrinsic.MINVAL] = {
-        "dim": Reference, "mask": Reference}
+        "dim": (Reference, Literal), "mask": (Reference, Literal)}
     _required_args[Intrinsic.MAXVAL] = ArgDesc(1, 1, Reference)
     _optional_args[Intrinsic.MAXVAL] = {
-        "dim": Reference, "mask": Reference}
+        "dim": (Reference, Literal), "mask": (Reference, Literal)}
     _required_args[Intrinsic.SUM] = ArgDesc(1, 1, Reference)
     _optional_args[Intrinsic.SUM] = {
-        "dim": Reference, "mask": Reference}
+        "dim": (Reference, Literal), "mask": (Reference, Literal)}
 
     @classmethod
     def create(cls, routine, arguments):

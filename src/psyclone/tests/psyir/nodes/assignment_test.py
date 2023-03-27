@@ -44,7 +44,7 @@ from psyclone.f2pygen import ModuleGen
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Assignment, Reference, Literal, \
     ArrayReference, Range, BinaryOperation, StructureReference, \
-    ArrayOfStructuresReference, UnaryOperation
+    ArrayOfStructuresReference, UnaryOperation, IntrinsicCall
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, Symbol, \
     INTEGER_SINGLE_TYPE, REAL_TYPE, ArrayType, INTEGER_TYPE, StructureType, \
@@ -215,7 +215,6 @@ def test_is_array_range():
     assert assignment.is_array_range is True
 
 
-@pytest.mark.xfail(reason="#658 needs typing of PSyIR expressions")
 def test_array_range_with_reduction():
     ''' Test that we correctly identify an array range when it is the result
         of a reduction from an array, e.g x(1, INT(SUM(map(:, :), 1))) = 1.0
@@ -242,17 +241,18 @@ def test_array_range_with_reduction():
         BinaryOperation.Operator.UBOUND,
         Reference(map_sym), int_two.copy())
     my_range2 = Range.create(lbound2, ubound2)
-    bsum_op = BinaryOperation.create(BinaryOperation.Operator.SUM,
-                                     ArrayReference.create(map_sym,
-                                                           [my_range1,
-                                                            my_range2]),
-                                     int_one.copy())
+    bsum_op = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.SUM,
+        [ArrayReference.create(map_sym, [my_range1, my_range2]),
+         ("dim", int_one.copy())])
     int_op2 = UnaryOperation.create(UnaryOperation.Operator.INT, bsum_op)
     assignment = Assignment.create(
         ArrayReference.create(symbol,
                               [int_one.copy(), int_op2]),
         one.copy())
-    assert assignment.is_array_range is True
+    if not assignment.is_array_range:
+        # is_array_range should return True
+        pytest.xfail(reason="#658 needs typing of PSyIR expressions")
 
 
 def test_is_not_array_range():
@@ -285,9 +285,9 @@ def test_is_not_array_range():
     stop = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
                                   Reference(map_sym), int_one.copy())
     my_range = Range.create(start, stop)
-    sum_op = BinaryOperation.create(BinaryOperation.Operator.SUM,
-                                    ArrayReference.create(map_sym, [my_range]),
-                                    int_one.copy())
+    sum_op = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.SUM,
+        [ArrayReference.create(map_sym, [my_range]), ("dim", int_one.copy())])
     assignment = Assignment.create(
         ArrayReference.create(symbol, [int_one.copy(), sum_op]),
         one.copy())
@@ -298,8 +298,8 @@ def test_is_not_array_range():
     abs_op = UnaryOperation.create(UnaryOperation.Operator.ABS,
                                    ArrayReference.create(map_sym,
                                                          [my_range.copy()]))
-    sum_op2 = BinaryOperation.create(BinaryOperation.Operator.SUM,
-                                     abs_op, int_one.copy())
+    sum_op2 = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.SUM, [abs_op, ("dim", int_one.copy())])
     assignment = Assignment.create(
         ArrayReference.create(symbol, [int_one.copy(), sum_op2]),
         one.copy())
