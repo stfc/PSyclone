@@ -34,7 +34,7 @@
 # Author: R. W. Ford, STFC Daresbury Lab
 # Modified: S. Siso, STFC Daresbury Lab
 
-'''Module providing a transformation from a PSyIR SUM operator to
+'''Module providing a transformation from a PSyIR SUM intrinsic to
 PSyIR code. This could be useful if the SUM operator is not supported
 by the back-end or if the performance in the inline code is better
 than the intrinsic.
@@ -42,12 +42,11 @@ than the intrinsic.
 '''
 
 from psyclone.psyir.nodes import (
-    UnaryOperation, BinaryOperation, NaryOperation, Assignment, Reference,
-    Literal, Loop, ArrayReference, IfBlock, Range)
+    BinaryOperation, Assignment, Reference,
+    Literal, Loop, ArrayReference, IfBlock, Range, IntrinsicCall)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, ScalarType, ArrayType)
-from psyclone.psyir.transformations.intrinsics.operator2code_trans import (
-    Operator2CodeTrans)
+from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
 
@@ -56,12 +55,8 @@ def get_args(node):
     '''Utility method that returns the sum arguments, (array reference,
     dimension and mask).
 
-    :param node: a Sum Operation. This could be a UnaryOperation, \
-        BinaryOperation or NaryOperation depending on how many arguments \
-        it has.
-    :type node: :py:class:`psyclone.psyir.nodes.operation.UnaryOperation` | \
-        :py:class:`psyclone.psyir.nodes.operation.BinaryOperation` | \
-        :py:class:`psyclone.psyir.nodes.operation.NaryOperation`
+    :param node: a Sum intrinsic.
+    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
     returns: a tuple containing the 3 sum arguments.
     rtype: Tuple[py:class:`psyclone.psyir.nodes.reference.Reference`, \
@@ -72,7 +67,7 @@ def get_args(node):
     '''
     # Determine the arguments to sum
     args = [None, None, None]
-    arg_names_map = {"array": 0, "dimension": 1, "mask": 2}
+    arg_names_map = {"array": 0, "dim": 1, "mask": 2}
     for idx, child in enumerate(node.children):
         if not node.argument_names[idx]:
             # positional arg
@@ -87,7 +82,7 @@ def get_args(node):
     return (array_ref, dimension_ref, mask_ref)
 
 
-class Sum2CodeTrans(Operator2CodeTrans):
+class Sum2CodeTrans(Transformation):
     '''Provides a transformation from a PSyIR SUM Operator node to
     equivalent code in a PSyIR tree. Validity checks are also
     performed.
@@ -181,24 +176,15 @@ class Sum2CodeTrans(Operator2CodeTrans):
     <BLANKLINE>
 
     '''
-    def __init__(self):
-        super().__init__()
-        self._operator_name = "SUM"
-        self._classes = (UnaryOperation, BinaryOperation, NaryOperation)
-        self._operators = (UnaryOperation.Operator.SUM,
-                           BinaryOperation.Operator.SUM,
-                           NaryOperation.Operator.SUM)
+    def __str__(self):
+        return "Convert the PSyIR SUM intrinsic to equivalent PSyIR code."
 
     def validate(self, node, options=None):
         '''Check that the input node is valid before applying the
         transformation.
 
-        :param node: a Sum Operation. This could be a UnaryOperation, \
-            BinaryOperation or NaryOperation depending on how many \
-            arguments it has.
-        :type node: :py:class:`psyclone.psyir.nodes.operation.UnaryOperation` \
-            | :py:class:`psyclone.psyir.nodes.operation.BinaryOperation` | \
-            :py:class:`psyclone.psyir.nodes.operation.NaryOperation`
+        :param node: a Sum intrinsic.
+        :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
         :param options: options for the transformation.
         :type options: Optional[Dict[str, Any]]
 
@@ -211,7 +197,18 @@ class Sum2CodeTrans(Operator2CodeTrans):
             supported.
 
         '''
-        super().validate(node, options)
+        # super().validate(node, options)
+        if not isinstance(node, IntrinsicCall):
+            raise TransformationError(
+                f"Error in {self.name} transformation. The supplied node "
+                f"argument is not an intrinsic, found "
+                f"'{type(node).__name__}'.")
+
+        if node.routine.name.lower() != "sum":
+            raise TransformationError(
+                f"Error in {self.name} transformation. The supplied node "
+                f"argument is not a sum intrinsic, found "
+                f"'{node.routine.name}'.")
 
         array_ref, dim_ref, _ = get_args(node)
         if dim_ref and not isinstance(dim_ref, (Literal, Reference)):
@@ -260,12 +257,8 @@ class Sum2CodeTrans(Operator2CodeTrans):
         node. This node must be a SUM Operation which is converted to
         equivalent inline code.
 
-        :param node: a Sum Operation. This could be a UnaryOperation, \
-            BinaryOperation or NaryOperation depending on how many \
-            arguments it has.
-        :type node: :py:class:`psyclone.psyir.nodes.operation.UnaryOperation` \
-            | :py:class:`psyclone.psyir.nodes.operation.BinaryOperation` | \
-            :py:class:`psyclone.psyir.nodes.operation.NaryOperation`
+        :param node: a Sum intrinsic.
+        :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
         :param options: options for the transformation.
         :type options: Optional[Dict[str, Any]]
 
