@@ -38,8 +38,7 @@
 
 from fparser import api as fpapi
 from psyclone.core import AccessType
-from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.lfric import psyir as lfric_psyir
+from psyclone.domain.lfric import LFRicConstants, LFRicTypes
 
 from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctorFactory, LFRicKernelFunctor)
@@ -544,7 +543,7 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
             # TODO just set the symbol to False for the moment.
             routine.addchild(Assignment.create(
                 Reference(sym),
-                Literal("false", lfric_psyir.LfricLogicalScalarDataType())))
+                Literal("false", LFRicTypes("LfricLogicalScalarDataType")())))
             continue
         idx = kern_args.arglist.index(sym.name)
         if (kern_args.metadata_index_from_actual_index(idx) in
@@ -558,7 +557,7 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
             # TODO just set the symbol to 1 for the moment.
             routine.addchild(Assignment.create(
                 Reference(sym),
-                Literal("1", lfric_psyir.LfricIntegerScalarDataType())))
+                Literal("1", LFRicTypes("LfricIntegerScalarDataType")())))
 
         input_sym = table.lookup(sym.name+"_input")
         routine.addchild(Assignment.create(Reference(input_sym),
