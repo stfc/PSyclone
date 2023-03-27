@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 '''
 This module provides the ACCUpdateTrans transformation that, on programs that
@@ -44,7 +45,8 @@ from psyclone.core import Signature
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (Call, CodeBlock, IfBlock, Loop, Routine,
                                   Schedule, ACCEnterDataDirective,
-                                  ACCKernelsDirective, ACCParallelDirective)
+                                  ACCKernelsDirective, ACCParallelDirective,
+                                  Node, IntrinsicCall)
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations import TransformationError
 
@@ -97,9 +99,6 @@ class ACCUpdateTrans(Transformation):
     # Assume Call nodes may (and CodeBlocks may not) call routines whose
     # (part of their) bodies execute on the device.
     _MAY_COMPUTE = (Call, )
-
-    def __init__(self):
-        super().__init__()
 
     def validate(self, node, options=None):
         '''
@@ -162,12 +161,23 @@ class ACCUpdateTrans(Transformation):
         for child in sched[:]:
             if isinstance(child, self._ACC_IGNORE):
                 continue
-            if not child.walk(self._ACC_COMPUTE + self._MAY_COMPUTE):
+            # Avoid matching IntrinsicCall unless it is allocate or deallocate.
+            found = False
+            for node in child.walk(Node):
+                if isinstance(node, self._ACC_COMPUTE) or \
+                       type(node) in self._MAY_COMPUTE or \
+                       (isinstance(node, IntrinsicCall) and
+                        node.routine.name in ["ALLOCATE", "DEALLOCATE"]):
+                    found = True
+                    break
+            if not found:
                 node_list.append(child)
             else:
                 self._add_update_directives(node_list)
                 node_list.clear()
-                if isinstance(child, self._MAY_COMPUTE):
+                if type(child) in self._MAY_COMPUTE or \
+                       (isinstance(child, IntrinsicCall) and
+                        child.routine.name in ["ALLOCATE", "DEALLOCATE"]):
                     # Conservatively add an update host statement just before
                     # the Call node since, first, any temporary operands need
                     # to be up to date and, second, since in pass-by-value
