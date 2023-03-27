@@ -80,7 +80,7 @@ def example_psyir_binary(create_expression):
     '''Utility function that creates a PSyIR tree containing a binary MIN
     intrinsic operator and returns the operator.
 
-    :param function create_expresssion: function used to create the \
+    :param function create_expression: function used to create the \
         content of the first argument of the MIN operator.
 
     :returns: PSyIR MIN operator instance.

@@ -53,8 +53,9 @@ import fparser
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature
-from psyclone.domain.lfric.lfric_builtins import (
-    LFRicBuiltInCallFactory, LFRicBuiltIn, BUILTIN_MAP)
+from psyclone.domain.lfric.lfric_builtins import (LFRicTypes,
+                                                  LFRicBuiltInCallFactory,
+                                                  LFRicBuiltIn, BUILTIN_MAP)
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, KernStubArgList,
@@ -3042,7 +3043,7 @@ class LFRicRunTimeChecks(DynCollection):
             parent, " Check field function space and kernel metadata "
             "function spaces are compatible"))
 
-        # When issue #753 is addressed (with isue #79 helping further)
+        # When issue #753 is addressed (with issue #79 helping further)
         # we may know some or all field function spaces statically. If
         # so, we should remove these from the fields to check at run
         # time (as they will have already been checked at code
@@ -3117,7 +3118,7 @@ class LFRicRunTimeChecks(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        # When issue #753 is addressed (with isue #79 helping further)
+        # When issue #753 is addressed (with issue #79 helping further)
         # we may know some or all field function spaces statically. If
         # so, we should remove these from the fields to check at run
         # time (as they will have already been checked at code
@@ -6055,7 +6056,7 @@ class DynHaloExchange(HaloExchange):
 
         '''
         # get information about stencil accesses from all read fields
-        # dependendent on this halo exchange
+        # dependent on this halo exchange
         halo_info_list = self._compute_halo_read_info()
 
         trial_stencil = halo_info_list[0].stencil_type
@@ -6077,7 +6078,7 @@ class DynHaloExchange(HaloExchange):
 
         '''
         # get information about reading from the halo from all read fields
-        # dependendent on this halo exchange
+        # dependent on this halo exchange
         depth_info_list = self._compute_halo_read_depth_info()
 
         # if there is only one entry in the list we can just return
@@ -6086,7 +6087,7 @@ class DynHaloExchange(HaloExchange):
             return str(depth_info_list[0])
         # the depth information can't be reduced to a single
         # expression, therefore we need to determine the maximum
-        # of all expresssions
+        # of all expressions
         depth_str_list = [str(depth_info) for depth_info in
                           depth_info_list]
         return "max("+",".join(depth_str_list)+")"
@@ -6354,7 +6355,7 @@ class DynHaloExchange(HaloExchange):
 
         # The only other case where we know that a halo exchange is
         # required (or not) is where we read the halo to a known
-        # literal depth. As the read inforation is aggregated, a known
+        # literal depth. As the read information is aggregated, a known
         # literal depth will mean that there is only one
         # required_clean_info entry
         if len(required_clean_info) == 1:
@@ -7111,6 +7112,9 @@ class DynLoop(PSyLoop):
         the loop in the schedule, i.e. can change when transformations are
         applied), this function can likely be removed.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         super().lower_to_language_level()
         if self._loop_type != "null":
@@ -7123,17 +7127,19 @@ class DynLoop(PSyLoop):
                                       self.step_expr.copy(),
                                       self.loop_body.pop_all_children())
             self.replace_with(psy_loop)
-        else:
-            # Domain loop, i.e. no need for a loop at all. Remove the loop
-            # node (self), and insert its children directly
-            pos = self.position
-            parent = self.parent
-            self.detach()
-            all_children_reverse = reversed(self.loop_body.pop_all_children())
-            # Attach the children starting with the last, which
-            # preserves the original order of the children.
-            for child in all_children_reverse:
-                parent.children.insert(pos, child)
+            return psy_loop
+
+        # Domain loop, i.e. no need for a loop at all. Remove the loop
+        # node (self), and insert its children directly
+        pos = self.position
+        parent = self.parent
+        self.detach()
+        all_children_reverse = reversed(self.loop_body.pop_all_children())
+        # Attach the children starting with the last, which
+        # preserves the original order of the children.
+        for child in all_children_reverse:
+            parent.children.insert(pos, child)
+        return parent
 
     def node_str(self, colour=True):
         ''' Creates a text summary of this loop node. We override this
@@ -9534,7 +9540,7 @@ class DynKernelArgument(KernelArgument):
             expected_precision = const.DATA_TYPE_MAP["reduction"]["kind"]
             # If the algorithm information is not being ignored
             # then check that the expected precision and the
-            # precision defined in the algorithn layer are
+            # precision defined in the algorithm layer are
             # the same.
             if check and alg_precision and \
                alg_precision != expected_precision:
@@ -9559,7 +9565,7 @@ class DynKernelArgument(KernelArgument):
                 self._precision = alg_precision
             else:
                 # Use default precision for this datatype if the
-                # algorithm precision is either not avaiable or is
+                # algorithm precision is either not available or is
                 # being ignored.
                 self._precision = const.SCALAR_PRECISION_MAP[
                     self.intrinsic_type]
@@ -10099,10 +10105,8 @@ class DynKernelArgument(KernelArgument):
                 except KeyError:
                     # TODO Once #696 is done, we should *always* have a
                     # symbol for this container at this point so should
-                    # raise an exception if we haven't. Also, the name
-                    # of the Fortran module should be read from the config
-                    # file.
-                    constants_container = ContainerSymbol(const_mod)
+                    # raise an exception if we haven't.
+                    constants_container = LFRicTypes(const_mod)
                     root_table.add(constants_container)
                 kind_symbol = DataSymbol(
                     kind_name, INTEGER_TYPE,

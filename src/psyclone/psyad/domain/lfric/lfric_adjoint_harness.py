@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 ''' Provides LFRic-specific PSyclone adjoint test-harness functionality. '''
 
@@ -52,21 +53,6 @@ from psyclone.psyir.nodes import (Call, Reference, ArrayReference, Assignment,
 from psyclone.psyir.symbols import (ImportInterface, ContainerSymbol,
                                     ScalarType, ArrayType, RoutineSymbol,
                                     DataTypeSymbol, DataSymbol, DeferredType)
-
-
-#: Properties of the various 'geometry' arguments that an LFRic kernel can
-#: accept. Used to validate that the arguments specified by the user have
-#: the expected properties.
-_GEOMETRY_ARG_MAPPING = {
-    "coordinate": {
-        "valid_spaces": ["wchi"],
-        "vector_len": 3
-    },
-    "panel-id": {
-        "valid_spaces": LFRicConstants().VALID_DISCONTINUOUS_NAMES,
-        "vector_len": 1
-    }
-}
 
 
 def _compute_lfric_inner_products(prog, scalars, field_sums, sum_sym):
@@ -480,18 +466,33 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
     # Validate the index values for the coordinate and face_id fields if
     # supplied.
     geometry_arg_indices = []
+
+    #: Properties of the various 'geometry' arguments that an LFRic kernel can
+    #: accept. Used to validate that the arguments specified by the user have
+    #: the expected properties.
+    _geometry_arg_mapping = {
+        "coordinate": {
+            "valid_spaces": ["wchi"],
+            "vector_len": 3
+        },
+        "panel-id": {
+            "valid_spaces": LFRicConstants().VALID_DISCONTINUOUS_NAMES,
+            "vector_len": 1
+        }
+    }
+
     if coord_arg_idx is not None:
         _validate_geom_arg(kern, coord_arg_idx, "coordinate",
-                           _GEOMETRY_ARG_MAPPING["coordinate"]["valid_spaces"],
-                           _GEOMETRY_ARG_MAPPING["coordinate"]["vector_len"])
+                           _geometry_arg_mapping["coordinate"]["valid_spaces"],
+                           _geometry_arg_mapping["coordinate"]["vector_len"])
         # Convert to 0-indexed
         coord_arg_idx -= 1
         geometry_arg_indices.append(coord_arg_idx)
     if panel_id_arg_idx is not None:
         # Check that the specified argument is of the correct type.
         _validate_geom_arg(kern, panel_id_arg_idx, "panel-id",
-                           _GEOMETRY_ARG_MAPPING["panel-id"]["valid_spaces"],
-                           _GEOMETRY_ARG_MAPPING["panel-id"]["vector_len"])
+                           _geometry_arg_mapping["panel-id"]["valid_spaces"],
+                           _geometry_arg_mapping["panel-id"]["vector_len"])
         # Convert to 0-indexed
         panel_id_arg_idx -= 1
         geometry_arg_indices.append(panel_id_arg_idx)

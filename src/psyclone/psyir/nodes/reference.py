@@ -43,6 +43,7 @@ from psyclone.core import AccessType, Signature
 # We cannot import from 'nodes' directly due to circular import
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols import Symbol
+from psyclone.psyir.symbols.datatypes import DeferredType
 
 
 class Reference(DataNode):
@@ -172,6 +173,9 @@ class Reference(DataNode):
         :returns: the datatype of this reference.
         :rtype: :py:class:`psyclone.psyir.symbols.DataType`
         '''
+        if type(self.symbol) is Symbol:
+            # We don't even have a DataSymbol
+            return DeferredType()
         return self.symbol.datatype
 
 

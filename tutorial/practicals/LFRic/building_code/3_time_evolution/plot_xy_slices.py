@@ -79,7 +79,7 @@ def plot_xy_slices(states, tstep):
 
 
 if __name__ == "__main__":
-    # Parse argumnent list for file name and plot levels
+    # Parse argument list for file name and plot levels
     # pylint: disable=unbalanced-tuple-unpacking
     try:
         ARGS = sys.argv[:]

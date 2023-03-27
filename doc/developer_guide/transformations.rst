@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2022, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -357,6 +357,65 @@ issues:
    subject of #685. For the moment the test just checks for MATMUL as
    that is currently the only non-elementwise operation in the PSyiR.
 
+Inlining
+========
+
+PSyclone supports two different inlining transformations:
+``KernelModuleInlineTrans`` and ``InlineTrans``. The former is relatively
+simple and creates a copy of the Kernel routine within the same Container
+as the routine from which it is called. The latter is far more intrusive
+and replaces a call to a routine with the actual body of that routine.
+This can be complex due to the fact that Fortran allows the bounds of
+arrays within a routine to differ from those at the call site, e.g.:
+
+.. code-block:: fortran
+
+  integer :: my_array(10)
+  ...
+  call my_sub(my_array)
+
+  subroutine my_sub(x)
+    integer, intent(inout), :: x(2:11)
+    ...
+
+As a consequence of this, ensuring that any array index expressions are
+correctly handled when inlining the routine body will often mean that
+full type information is required for every dummy argument. However, there are
+exceptions that arise when the dimensions of an array are not actually
+declared within the subroutine, e.g.:
+
+.. code-block:: fortran
+
+   type(my_type) :: var
+   ...
+   call my_sub(var)
+
+   subroutine my_sub(x)
+     type(my_var), intent(inout) :: x
+     x%data(3:5) = ...
+
+In this case, the definition of the array being accessed is contained
+within `my_var` and is therefore common to both the call site and
+the subroutine. We therefore do not require full type information
+for the dummy argument `x` in order to safely inline the routine.
+However, as soon as the dummy argument is in the form of an array
+then we will require full type information for the corresponding
+argument at both the call site and within the routine, e.g.:
+
+.. code-block:: fortran
+
+   type(my_type) :: var
+   ...
+   call my_sub(var%data)
+
+   subroutine my_sub(x)
+     real, dimension(2:5, 6) :: x
+     x(2, 4) = ...
+
+In this case, the correct index expressions for the inlined code will
+depend on the bounds with which the `data` member of `my_type` is
+declared and therefore this information must be available.
+
 OpenMP Tasking
 ==============
 OpenMP tasking is supported in PSyclone, currently by the combination
@@ -402,6 +461,6 @@ during the `OMPTaskwaitTransformation.apply` call, as any solvable dependencies
 will be satisfied by the implicit taskgroup.
 
 These structures are the only way to satisfy dependencies between taskloops,
-and any other structures of dependendent taskloops will be caught by the
+and any other structures of dependent taskloops will be caught by the
 `OMPTaskwaitTransformation.validate` call, which will raise an Error explaining
 why the dependencies cannot be resolved.

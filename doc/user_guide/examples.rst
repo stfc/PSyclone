@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2022, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2023, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -498,7 +498,7 @@ The generated code has two problems:
     is not yet implemented.
  2. Although the user-supplied kernel is transformed so as to have the
     necessary ``!$acc routine`` directive, the associated (but unnecessary)
-    ``use`` statement in the transformed Algorithym layer still uses the
+    ``use`` statement in the transformed Algorithm layer still uses the
     name of the original, untransformed kernel (issue #1724).
 
 Since no colouring is required in this case, the generated Alg layer
@@ -665,6 +665,17 @@ optimised cuda, or gridtools code. Thus various simple Fortran
 examples and the computational part of the tracer-advection benchmark
 can be transformed to optimised cuda and/or gridtools code by using
 PSyclone and then DAWN.
+
+Example 5: Kernel Data Extraction
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This example shows the use of kernel data extraction in PSyclone for
+the NEMO API. It instruments each kernel in the NEMO tracer-advection
+benchmark with the PSyData-based kernel extraction code. Detailed
+compilation instructions are in the ``README.md`` file, including how
+to switch from using the stand-alone extraction library to the NetCDF-based
+one (see :ref:`extraction_libraries` for details).
+
 
 Scripts
 ^^^^^^^

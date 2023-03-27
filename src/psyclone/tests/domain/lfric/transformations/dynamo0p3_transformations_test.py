@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,7 @@
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified I. Kavcic and A. Coughtrie, Met Office
 #          C.M. Maynard, Met Office / University of Reading
-# MOdified J. Henrichs, Bureau of Meteorology
+# Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk, STFC Daresbury Lab
 
 ''' Tests of transformations with the LFRic (Dynamo 0.3) API '''
@@ -3598,6 +3598,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
     ompdo = colored("OMPDoDirective", Directive._colour)
     ompdefault = colored("OMPDefaultClause", Directive._colour)
     ompprivate = colored("OMPPrivateClause", Directive._colour)
+    ompfprivate = colored("OMPFirstprivateClause", Directive._colour)
     gsum = colored("GlobalSum", GlobalSum._colour)
     loop = colored("Loop", Loop._colour)
     call = colored("BuiltIn", BuiltIn._colour)
@@ -3638,6 +3639,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             7*indent + "0: " + call + " x_innerproduct_y(asum,f1,f2)\n" +
             2*indent + ompdefault + "[default=DefaultClauseTypes.SHARED]\n" +
             2*indent + ompprivate + "[]\n" +
+            2*indent + ompfprivate + "[]\n" +
             indent + "1: " + gsum + "[scalar='asum']\n" +
             indent + "2: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
@@ -3655,6 +3657,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             7*indent + "0: " + call + " inc_a_times_x(asum,f1)\n" +
             2*indent + ompdefault + "[default=DefaultClauseTypes.SHARED]\n" +
             2*indent + ompprivate + "[]\n" +
+            2*indent + ompfprivate + "[]\n" +
             indent + "3: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
             3*indent + "0: " + ompdo + "[omp_schedule=static,reprod=True]\n" +
@@ -3671,6 +3674,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             7*indent + "0: " + call + " sum_x(bsum,f2)\n" +
             2*indent + ompdefault + "[default=DefaultClauseTypes.SHARED]\n" +
             2*indent + ompprivate + "[]\n" +
+            2*indent + ompfprivate + "[]\n" +
             indent + "4: " + gsum + "[scalar='bsum']\n")
         if not annexed:
             expected = expected.replace("nannexed", "ndofs")
@@ -3693,6 +3697,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             7*indent + "0: " + call + " x_innerproduct_y(asum,f1,f2)\n" +
             2*indent + ompdefault + "[default=DefaultClauseTypes.SHARED]\n" +
             2*indent + ompprivate + "[]\n" +
+            2*indent + ompfprivate + "[]\n" +
             indent + "1: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
             3*indent + "0: " + ompdo + "[omp_schedule=static]\n" +
@@ -3709,6 +3714,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             7*indent + "0: " + call + " inc_a_times_x(asum,f1)\n" +
             2*indent + ompdefault + "[default=DefaultClauseTypes.SHARED]\n" +
             2*indent + ompprivate + "[]\n" +
+            2*indent + ompfprivate + "[]\n" +
             indent + "2: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
             3*indent + "0: " + ompdo + "[omp_schedule=static,reprod=True]\n" +
@@ -3724,7 +3730,8 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " sum_x(bsum,f2)\n" +
             2*indent + ompdefault + "[default=DefaultClauseTypes.SHARED]\n" +
-            2*indent + ompprivate + "[]")
+            2*indent + ompprivate + "[]\n" +
+            2*indent + ompfprivate + "[]\n")
     if expected not in result:
         print("Expected ...")
         print(expected)
@@ -5318,7 +5325,7 @@ def test_rc_parent_loop_colour(monkeypatch):
 
     # Make the outermost loop iterate over cells (it should be
     # colours). We can ignore the previous monkeypatch as this
-    # exception is ecountered before the previous one.
+    # exception is encountered before the previous one.
     monkeypatch.setattr(schedule.children[4], "_loop_type", "cells")
 
     rc_trans = Dynamo0p3RedundantComputationTrans()

@@ -31,8 +31,10 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford, A. R. Porter, S. Siso and A. B. G. Chalk STFC Daresbury Lab
-..            J. Henrichs, Bureau of Meteorology
+.. Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+..          A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
+..          J. Henrichs, Bureau of Meteorology
+
 
 The PSyclone Internal Representation (PSyIR)
 ############################################
@@ -63,7 +65,7 @@ Python class inheritance system and each node has its particular (and
 semantically relevant) navigation and behaviour methods. For instance the
 ``Assignment`` node has ``lhs`` and ``rhs`` properties to navigate to the
 left-hand-side and right-hand-side operators of the Assignment. It also
-means we can indentify a node using its type with
+means we can identify a node using its type with
 ``isinstance(node, Assignment)``.
 Nevertheless, we maintain a **normalised** core of node relationships and
 functionality that allows us to build tree walkers, tree visitors and
@@ -163,19 +165,21 @@ node can be integrated and used in the PSyIR tree:
 
 ::
 
+    >>> from psyclone.psyir.nodes import Literal, Schedule
+    >>> from psyclone.psyir.symbols import INTEGER_TYPE
+    >>> from code_snippets.newnode import MyNode
     >>> mynode = MyNode(children=[Literal("1", INTEGER_TYPE)])
-
-    >>> mynode.children.append(Literal("2", INEGER_TYPE))
-    ...
-    psyclone.errors.GenerationError: Generation Error: Item 'Literal' can't be
-    child 1 of 'MyNodeName'. The valid format is: 'DataNode'.
-
+    >>> mynode.children.append(Literal("2", INTEGER_TYPE))
+    Traceback (most recent call last):
+       ...
+    psyclone.errors.GenerationError: Generation Error: Item 'Literal' can't be child 1 of 'MyNodeName'. The valid format is: 'DataNode'.
+    >>> schedule = Schedule()
     >>> schedule.addchild(mynode)
-
-    >>> print(schedule.view())
+    >>> print(schedule.view(colour=False))
     Schedule[]
-        MyNodeName[]
-                Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+        0: MyNodeName[]
+            Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+    <BLANKLINE>
 
 For a full list of methods available in any PSyIR node see the
 :ref_guide:`Node reference guide psyclone.psyir.nodes.html#psyclone.psyir.nodes.Node`.
@@ -355,20 +359,20 @@ with `return_type` set to `None` and `is_program` set to `False`.
 Control-Flow Nodes
 ------------------
 
-The PSyIR has three control flow nodes: `IfBlock`, `Loop` and
+The PSyIR has four control flow nodes: `IfBlock`, `Loop`, `WhileLoop` and
 `Call`. These nodes represent the canonical structure with which
-conditional branching constructs, iteration constructs and accessing
+conditional branching constructs, iteration constructs and accesses to
 other blocks of code are built. Additional language-specific syntax
 for branching and iteration will be normalised to use these same
 constructs.  For example, Fortran has the additional branching
 constructs `ELSE IF` and `CASE`: when a Fortran code is translated
 into the PSyIR, PSyclone will build a semantically equivalent
-implementation using `IfBlocks`.  Similarly, Fortran also has the
+implementation using `IfBlock` nodes.  Similarly, Fortran also has the
 `WHERE` construct and statement which are represented in the PSyIR
 with a combination of `Loop` and `IfBlock` nodes. Such nodes in the
 new tree structure are annotated with information to enable the
 original language-specific syntax to be recreated if required (see
-below).  See the full IfBlock API in the :ref_guide:`IfBlock reference
+below).  See the full `IfBlock` API in the :ref_guide:`IfBlock reference
 guide psyclone.psyir.nodes.html#psyclone.psyir.nodes.IfBlock`. The
 PSyIR also supports the concept of named arguments for `Call` nodes,
 see the :ref:`named_arguments-label` section for more details.
@@ -390,15 +394,16 @@ structure if desired) Nodes may have `annotations` associated with
 them. The annotations, the Node types to which they may be applied and
 their meanings are summarised in the table below:
 
-=================  =================  =================================
-Annotation         Node types         Origin
-=================  =================  =================================
-`was_elseif`       `IfBlock`          `else if`
-`was_single_stmt`  `IfBlock`, `Loop`  `if(logical-expr)expr` or Fortran
-                                      `where(array-mask)array-expr`
-`was_case`         `IfBlock`          Fortran `select case`
-`was_where`        `Loop`, `IfBlock`  Fortran `where` construct
-=================  =================  =================================
+===================  =================  ===================================
+Annotation           Node types         Origin
+===================  =================  ===================================
+`was_elseif`         `IfBlock`          `else if`
+`was_single_stmt`    `IfBlock`, `Loop`  `if(logical-expr)expr` or Fortran
+                                        `where(array-mask)array-expr`
+`was_case`           `IfBlock`          Fortran `select case` construct
+`was_where`          `Loop`, `IfBlock`  Fortran `where` construct
+`was_unconditional`  `WhileLoop`        Fortran `do` loop with no condition
+===================  =================  ===================================
 
 .. note:: A `Loop` may currently only be given the `was_single_stmt`
 	  annotation if it also has the `was_where` annotation. (Thus
@@ -411,7 +416,7 @@ Annotation         Node types         Origin
 Loop Node
 ^^^^^^^^^
 
-The `Loop` node is the cannonical representation of a bounded loop, it
+The `Loop` node is the canonical representation of a counted loop, it
 has the start, stop, step and loop_body of the loop as its children. The
 node has the same semantics than the Fortran do construct: the boundary
 values are inclusive (both are part of the iteration space) and the start,
@@ -421,6 +426,16 @@ loop.
 For more details on the `Loop` node, see the full API in the
 :ref_guide:`reference guide psyclone.psyir.nodes.html#psyclone.psyir.nodes.Loop`.
 
+WhileLoop Node
+--------------
+
+The `WhileLoop` node is the canonical representation of a while loop.
+The PSyIR representation of the Fortran `do` loop with no condition will have
+the annotation `was_unconditional`, but is otherwise no different from that of
+a `do while` loop whose condition is the logical constant `.TRUE.`.
+
+For more details on the `WhileLoop` node, see the full API in the
+:ref_guide:`reference guide psyclone.psyir.nodes.html#psyclone.psyir.nodes.WhileLoop`.
 
 Ranges
 ------
@@ -520,7 +535,7 @@ Node. This single class supports the different intrinsics listed in the
 |              |                              | mold | Reference to an array   |
 |              |                              |      | which is used to specify|
 |              |                              |      | the dimensions of the   |
-|              |                              |      | allocated obect.        |
+|              |                              |      | allocated object.       |
 +--------------+------------------------------+------+-------------------------+
 | DEALLOCATE   | One or more References.      | stat | Reference which will    |
 |              |                              |      | hold status.            |
@@ -804,7 +819,7 @@ an access like ``op_proxy%ncell_3d`` is an LFRic integer:
         self.append_structure_reference(
             operator["module"], operator["proxy_type"], ["ncell_3d"],
             arg.proxy_name_indexed,
-            overwrite_datatype=psyir.LfricIntegerScalarDataType())
+            overwrite_datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
 While most of PSyclone works without having access to this detailed
 information, the driver creation for kernel extraction (see
@@ -965,8 +980,14 @@ of the appropriate class may be obtained using the factory's create method:
 Kernel-layer Classes
 --------------------
 
-The LFRic PSyIR for the Kernel layer is captured in
-``domain/lfric/psyir.py``. The relevant classes are generated to avoid
+The class ``LFRicTypes`` in ``domain/lfric/lfric_types.py`` manages
+the various LFRic data types. It provides a simple interface
+to get standard classes for LFRic data. For example::
+
+    >>> from psyclone.domain.lfric import LFRicTypes
+    >>> NumberOfUniqueDofsDataSymbol = LFRicTypes("NumberOfUniqueDofsDataSymbol")
+
+The relevant classes are dynamically generated to avoid
 boilerplate code and to make it simpler to change the LFRic
 infrastructure classes in the future.
 
@@ -979,13 +1000,14 @@ properties are pre-defined, as is the fact that it is a scalar, so
 these do not need to be specified. All that is needed to create a
 ``undf`` symbol is a name and the function space it represents::
 
-  UNDF_W3 = NumberOfUniqueDofsDataSymbol("undf_w3", "w3")
+    >>> UNDF_W3 = NumberOfUniqueDofsDataSymbol("undf_w3", "w3")
 
 For arrays, (e.g. for ``FieldData``) the dimensions must also be
-provided::
+provided as a ``Reference``::
 
-  UNDF_W3 = NumberOfUniqueDofsDataSymbol("undf_w3", "w3")
-  FIELD1 = RealFieldDataDataSymbol("field1", [UNDF_W3], "w3")
+    >>> from psyclone.psyir.nodes import Reference
+    >>> RealFieldDataDataSymbol = LFRicTypes("RealFieldDataDataSymbol")
+    >>> FIELD1 = RealFieldDataDataSymbol("field1", [Reference(UNDF_W3)], "w3")
 
 At the moment, argument types and values are also not checked e.g. the
 function space argument - see issue #926. There is also no consistency
@@ -999,6 +1021,9 @@ Currently entities which can have different intrinsic types
 (``RealFieldDataDataSymbol``, ``IntegerFieldDataDataSymbol``
 etc). This could be modified if a single class turns out to be
 preferable.
+
+.. autoclass:: psyclone.domain.lfric.LFRicTypes
+
 
 Kernel arguments
 ----------------
