@@ -41,7 +41,7 @@ from collections import namedtuple
 from enum import Enum
 
 from psyclone.psyir.nodes.call import Call
-from psyclone.psyir.nodes.literal import Literal
+from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import IntrinsicSymbol
 
@@ -86,15 +86,15 @@ class IntrinsicCall(Call):
     _optional_args[Intrinsic.DEALLOCATE] = {"stat": Reference}
     _required_args[Intrinsic.RANDOM_NUMBER] = ArgDesc(1, 1, Reference)
     _optional_args[Intrinsic.RANDOM_NUMBER] = {}
-    _required_args[Intrinsic.MINVAL] = ArgDesc(1, 1, Reference)
+    _required_args[Intrinsic.MINVAL] = ArgDesc(1, 1, DataNode)
     _optional_args[Intrinsic.MINVAL] = {
-        "dim": (Reference, Literal), "mask": (Reference, Literal)}
-    _required_args[Intrinsic.MAXVAL] = ArgDesc(1, 1, Reference)
+        "dim": DataNode, "mask": DataNode}
+    _required_args[Intrinsic.MAXVAL] = ArgDesc(1, 1, DataNode)
     _optional_args[Intrinsic.MAXVAL] = {
-        "dim": (Reference, Literal), "mask": (Reference, Literal)}
-    _required_args[Intrinsic.SUM] = ArgDesc(1, 1, Reference)
+        "dim": DataNode, "mask": DataNode}
+    _required_args[Intrinsic.SUM] = ArgDesc(1, 1, DataNode)
     _optional_args[Intrinsic.SUM] = {
-        "dim": (Reference, Literal), "mask": (Reference, Literal)}
+        "dim": DataNode, "mask": DataNode}
 
     @classmethod
     def create(cls, routine, arguments):

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council
+# Copyright (c) 2022-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -344,7 +344,7 @@ def test_preprocess_associativity4(fortran_reader, fortran_writer):
         "  integer :: b\n"
         "  integer, dimension(10) :: c\n"
         "  integer, dimension(10) :: d\n\n"
-        "  a = b * SUM(c(:)) + b * SUM(d(:))\n\n"
+        "  a = b * sum(c(:)) + b * sum(d(:))\n\n"
         "end program test\n")
     psyir = fortran_reader.psyir_from_source(code)
     preprocess_trans(psyir, ["a", "c", "d"])
