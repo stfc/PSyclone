@@ -391,7 +391,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
         # Create "result(i) = 0.0"
         assign = Assignment.create(result_ref.copy(),
                                    Literal("0.0", REAL_TYPE))
-        # Create i loop and add assigment and j loop as children
+        # Create i loop and add assignment and j loop as children
         lower_bound, upper_bound, step = _get_array_bound(matrix, 0)
         iloop = Loop.create(i_loop_sym, lower_bound, upper_bound, step,
                             [assign, jloop])

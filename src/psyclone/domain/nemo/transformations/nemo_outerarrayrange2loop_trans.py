@@ -91,7 +91,7 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
         also placed around the modified assignment statement. If the
         array reference on the left-hand-side of the assignment only
         had one range node as an index (so now has none) then the
-        assigment is also placed within a NemoKern.
+        assignment is also placed within a NemoKern.
 
         The name of the loop index is taken from the PSyclone
         configuration file if a name exists for the particular array

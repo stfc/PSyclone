@@ -373,7 +373,7 @@ and will create NetCDF files to contain all input- and output-parameters.
 The second one is a stand-alone library which uses only standard Fortran
 IO to write and read kernel data. The binary files produced using this
 library may not be portable between machines and compilers. If you
-require such portabililty then please use the NetCDF extraction library.
+require such portability then please use the NetCDF extraction library.
 
 The two extraction :ref:`libraries <libraries>` are in
 `lib/extract/standalone
@@ -469,3 +469,22 @@ documentation on how to build and link this library.
 
   Driver creation in LFRic is not yet fully supported, and is
   tracked in issue #1392.
+
+Extraction for NEMO
+++++++++++++++++++++
+The libraries in
+`lib/extract/standalone/nemo
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone/nemo>`_
+and
+`lib/extract/netcdf/nemo
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/nemo>`_
+implement the full PSyData API for use with the
+:ref:`NEMO <nemo-api>` API. When running the
+code, it will create an output file for each instrumented code region.
+The same logic for naming variables used in :ref:`extraction_for_gocean`
+is used here.
+
+.. note::
+
+  Driver creation in NEMO is not yet supported, and is
+  tracked in issue #2058.

@@ -113,7 +113,7 @@ class FortranReader():
         # that we can process the expression and lookup any symbols that it
         # references. We provide the SymbolTable directly to the private
         # attribute to avoid the symbol table's node link to connect to the
-        # new Schedule and therfore stealing it from its original scope.
+        # new Schedule and therefore stealing it from its original scope.
         # pylint: disable=protected-access
         fake_parent = Schedule()
         fake_parent._symbol_table = symbol_table
