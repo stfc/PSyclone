@@ -45,6 +45,8 @@ from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import IntrinsicSymbol
 
 
+# TODO??? assert not intrinsic.is_elemental()
+
 class IntrinsicCall(Call):
     ''' Node representing a call to an intrinsic routine (function or
     subroutine). This can be found as a standalone statement
@@ -193,3 +195,12 @@ class IntrinsicCall(Call):
         call = super().create(IntrinsicSymbol(routine.name), arguments)
 
         return call
+
+
+# TODO #658 this can be removed once we have support for determining the
+# type of a PSyIR expression.
+#: Intrinsics that perform a reduction on an array.
+# minval and maxval too
+REDUCTION_INTRINSICS = [
+    IntrinsicCall.Intrinsic.SUM, IntrinsicCall.Intrinsic.MINVAL,
+    IntrinsicCall.Intrinsic.MAXVAL]

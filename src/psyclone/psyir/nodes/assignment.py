@@ -46,7 +46,8 @@ from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.structure_reference import StructureReference
-from psyclone.psyir.nodes.operation import Operation, REDUCTION_OPERATORS
+from psyclone.psyir.nodes.operation import Operation
+from psyclone.psyir.nodes.intrinsic_call import REDUCTION_INTRINSICS
 
 
 class Assignment(Statement):
@@ -185,7 +186,7 @@ class Assignment(Statement):
             for array_range in ranges:
                 opn = array_range.ancestor(Operation)
                 while opn:
-                    if opn.operator in REDUCTION_OPERATORS:
+                    if opn.operator in REDUCTION_INTRINSICS:
                         # The current array range is in an argument to a
                         # reduction operation so we assume that the result
                         # is a scalar.
