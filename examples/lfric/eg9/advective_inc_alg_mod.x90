@@ -102,7 +102,7 @@ contains
         ! polynomial interpolation of theta
         chi => get_coordinates()
 
-        ! Psyclone does not perform loop colouring over a discontinuous
+        ! PSyclone does not perform loop colouring over a discontinuous
         ! function space such as Wtheta
         chi_stencil_extent = advective_stencil_extent
         call invoke( sample_poly_adv_kernel_type(rtheta,                          &

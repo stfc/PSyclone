@@ -252,7 +252,7 @@ class AssignmentTrans(AdjointTransformation):
             var.name for var in assign.walk(Reference)
             if var.symbol in self._active_variables]
         if not assignment_active_var_names:
-            # No active variables in this assigment so the assignment
+            # No active variables in this assignment so the assignment
             # remains unchanged.
             return
 
@@ -297,14 +297,14 @@ class AssignmentTrans(AdjointTransformation):
             if not active_vars:
                 # This term must contain an active variable
                 raise TangentLinearError(
-                    f"Each non-zero term on the RHS of the assigment "
+                    f"Each non-zero term on the RHS of the assignment "
                     f"'{assign.debug_string()}' must have an active variable "
                     f"but '{rhs_term.debug_string()}' does not.")
 
             if len(active_vars) > 1:
                 # This term can only contain one active variable
                 raise TangentLinearError(
-                    f"Each term on the RHS of the assigment "
+                    f"Each term on the RHS of the assignment "
                     f"'{assign.debug_string()}' must not have more than one "
                     f"active variable but '{rhs_term.debug_string()}' has "
                     f"{len(active_vars)}.")

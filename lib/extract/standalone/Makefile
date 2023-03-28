@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -64,6 +64,7 @@ process: extract_standalone_base.f90
 all:
 	$(MAKE) -C dl_esm_inf
 	$(MAKE) -C lfric
+	$(MAKE) -C nemo
 
 # The dependencies
 # ----------------
@@ -93,3 +94,4 @@ clean:
 allclean:
 	$(MAKE) -C dl_esm_inf allclean
 	$(MAKE) -C lfric allclean
+	$(MAKE) -C nemo allclean

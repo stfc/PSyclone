@@ -241,7 +241,7 @@ class LFRicTypes:
         :type type_class: py:class:`pyclone.psyir.datatypes.ScalarType`
 
         '''
-        # THis is the constructor for the dynamically created class:
+        # This is the constructor for the dynamically created class:
         def __my_generic_scalar_symbol_init__(self, name, precision=None,
                                               **kwargs):
             DataSymbol.__init__(self, name,

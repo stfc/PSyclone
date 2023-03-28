@@ -254,8 +254,8 @@ class LFRicExtractDriverCreator:
         :type proxy_name_mapping: Dict[str,str]
 
         :raises InternalError: if the old_reference is not a \
-            :py:class:`psyclone.`StructureReference
-        raises GenerationError: if an array of structures is used
+            :py:class:`psyclone.psyir.nodes.StructureReference`
+        :raises GenerationError: if an array of structures is used
 
         '''
 
@@ -615,7 +615,7 @@ class LFRicExtractDriverCreator:
         to the container) to the symbol table.
 
         :param symbol_table: the symbol table to which the symbols are added.
-        :type program: :py:class:`psyclone.psyir.symbols.symbol_table`
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param sched: the schedule to analyse for module imports.
         :type sched: :py:class:`psyclone.psyir.nodes.Schedule`
 
