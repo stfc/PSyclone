@@ -328,6 +328,36 @@ def _init_operators_random(operators, table):
     return kernel_list
 
 
+def _init_scalar_value(scalar_arg, routine, input_symbols):
+    '''
+    :param kern_args: information on all kernel arguments.
+    :type kern_args: :py:class:`psyclone.domain.lfric.KernCallInvokeArgList`
+    :param routine: the routine to which to add assignments.
+    :type routine: :py:class:`psyclone.psyir.nodes.Routine`
+    :param input_symbols: 
+
+    '''
+    # Intrinsics are not stored in a SymbolTable.
+    random_num = RoutineSymbol("random_number")
+    if scalar_arg.datatype.intrinsic == ScalarType.Intrinsic.REAL:
+        routine.addchild(Call.create(random_num, [Reference(scalar_arg)]))
+    elif scalar_arg.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN:
+        # TODO #2087 - just set the variable to False for the moment.
+        routine.addchild(Assignment.create(
+            Reference(scalar_arg),
+            Literal("false", LFRicTypes("LFRicLogicalScalarDataType")())))
+    elif scalar_arg.datatype.intrinsic == ScalarType.Intrinsic.INTEGER:
+        # TODO #2087 - just set the variable to 1 for the moment.
+        routine.addchild(Assignment.create(
+            Reference(scalar_arg),
+            Literal("1", LFRicTypes("LFRicIntegerScalarDataType")())))
+
+    if scalar_arg.name in input_symbols:
+        input_sym = routine.symbol_table.lookup(scalar_arg.name + "_input")
+        routine.addchild(Assignment.create(Reference(input_sym),
+                                           Reference(scalar_arg)))
+
+
 def _validate_geom_arg(kern, arg_idx, name, valid_spaces, vec_len):
     '''
     Check that the argument at the supplied index is consistent with the
@@ -535,33 +565,17 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
         kernel_input_arg_list.append(sym)
 
     # Initialise argument values and keep copies.
-    # Scalars - we use the Fortran 'random_number' intrinsic directly.
-    # TODO #1345 - this is Fortran specific.
-    random_num = RoutineSymbol("random_number")
+
+    # Scalars.
     for sym in kern_args.scalars:
-        if sym.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN:
-            # TODO just set the symbol to False for the moment.
-            routine.addchild(Assignment.create(
-                Reference(sym),
-                Literal("false", LFRicTypes("LfricLogicalScalarDataType")())))
-            continue
         idx = kern_args.arglist.index(sym.name)
         if (kern_args.metadata_index_from_actual_index(idx) in
                 geometry_arg_indices):
             # This kernel argument is not modified by the test harness
             # because it contains geometry information.
             continue
-        if sym.datatype.intrinsic == ScalarType.Intrinsic.REAL:
-            routine.addchild(Call.create(random_num, [Reference(sym)]))
-        elif sym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER:
-            # TODO just set the symbol to 1 for the moment.
-            routine.addchild(Assignment.create(
-                Reference(sym),
-                Literal("1", LFRicTypes("LfricIntegerScalarDataType")())))
+        _init_scalar_value(sym, routine, input_symbols)
 
-        input_sym = table.lookup(sym.name+"_input")
-        routine.addchild(Assignment.create(Reference(input_sym),
-                                           Reference(sym)))
     # Fields.
     kernel_list = _init_fields_random(kernel_input_arg_list, input_symbols,
                                       table)

@@ -39,7 +39,7 @@
 import pytest
 from fparser import api as fpapi
 
-from psyclone.domain.lfric import LFRicSymbolTable, LFRicConstants
+from psyclone.domain.lfric import LFRicSymbolTable, LFRicConstants, LFRicTypes
 from psyclone.domain.lfric.algorithm import (
     LFRicBuiltinFunctor, LFRicAlg, LFRicBuiltinFunctorFactory,
     LFRicKernelFunctor)
@@ -50,9 +50,10 @@ from psyclone.psyad.domain.lfric.lfric_adjoint_harness import (
     _compute_field_inner_products,
     _init_fields_random,
     _init_operators_random,
+    _init_scalar_value,
     _validate_geom_arg,
     generate_lfric_adjoint_harness)
-from psyclone.psyir.nodes import Routine, Literal, Assignment
+from psyclone.psyir import nodes
 from psyclone.psyir.symbols import (DataSymbol, REAL_TYPE,
                                     ArrayType, DataTypeSymbol, DeferredType,
                                     INTEGER_TYPE, ContainerSymbol,
@@ -71,7 +72,7 @@ def test_compute_inner_products_scalars(fortran_writer):
     '''Test that _compute_lfric_inner_products generates the expected code
     for scalars.'''
     table = LFRicSymbolTable()
-    prog = Routine.create("test_prog", table, [], is_program=True)
+    prog = nodes.Routine.create("test_prog", table, [], is_program=True)
     sum_sym = table.new_symbol(root_name="my_sum",
                                symbol_type=DataSymbol, datatype=REAL_TYPE)
     sym1 = table.new_symbol(root_name="var1", symbol_type=DataSymbol,
@@ -90,7 +91,7 @@ def test_compute_inner_products_fields(fortran_writer):
     '''Test that _compute_lfric_inner_products generates the expected code
     when supplied with symbols representing the innerproducts of fields.'''
     table = LFRicSymbolTable()
-    prog = Routine.create("test_prog", table, [], is_program=True)
+    prog = nodes.Routine.create("test_prog", table, [], is_program=True)
     sum_sym = table.new_symbol(root_name="my_sum",
                                symbol_type=DataSymbol, datatype=REAL_TYPE)
     sym1 = table.new_symbol(root_name="ip1", symbol_type=DataSymbol,
@@ -118,7 +119,7 @@ def test_compute_field_inner_products(fortran_writer, type_map):
     assignments and functors for fields.'''
     bin_factory = LFRicBuiltinFunctorFactory.get()
     table = LFRicSymbolTable()
-    prog = Routine.create("test_prog", table, [], is_program=True)
+    prog = nodes.Routine.create("test_prog", table, [], is_program=True)
     csym = table.new_symbol(type_map["field"]["module"],
                             symbol_type=ContainerSymbol)
     fld_type = table.new_symbol(type_map["field"]["type"],
@@ -140,7 +141,7 @@ def test_compute_field_inner_products(fortran_writer, type_map):
                       bin_factory._get_builtin_class("x_innerproduct_x"))
     assert isinstance(functors[1],
                       bin_factory._get_builtin_class("x_innerproduct_y"))
-    assert isinstance(prog.children[0], Assignment)
+    assert isinstance(prog.children[0], nodes.Assignment)
     code = fortran_writer(prog)
     assert "field1_inner_prod = 0.0_r_def" in code
     assert "field1_field2_inner_prod = 0.0_r_def" in code
@@ -151,7 +152,7 @@ def test_compute_field_vector_inner_products(fortran_writer, type_map):
     assignments and functors for field vectors.'''
     bin_factory = LFRicBuiltinFunctorFactory.get()
     table = LFRicSymbolTable()
-    prog = Routine.create("test_prog", table, [], is_program=True)
+    prog = nodes.Routine.create("test_prog", table, [], is_program=True)
     csym = table.new_symbol(type_map["field"]["module"],
                             symbol_type=ContainerSymbol)
     fld_type = table.new_symbol(type_map["field"]["type"],
@@ -185,7 +186,7 @@ def test_compute_field_inner_products_errors(type_map):
     '''Check that _compute_field_inner_products raises the expected errors
     when passed incorrect arguments.'''
     table = LFRicSymbolTable()
-    prog = Routine.create("test_prog", table, [], is_program=True)
+    prog = nodes.Routine.create("test_prog", table, [], is_program=True)
     csym = table.new_symbol(type_map["field"]["module"],
                             symbol_type=ContainerSymbol)
     fld_type = table.new_symbol(type_map["field"]["type"],
@@ -263,7 +264,7 @@ def test_init_fields_random_vector(type_map):
     assert len(kernels) == 6
     for idx in range(3):
         kidx = 2*idx
-        lit = Literal(f"{idx+1}", idef_type)
+        lit = nodes.Literal(f"{idx+1}", idef_type)
         assert isinstance(kernels[kidx], LFRicBuiltinFunctor)
         assert kernels[kidx].symbol.name == "setval_random"
         assert kernels[kidx].children[0].symbol.name == "field1"
@@ -315,6 +316,34 @@ def test_init_operators_random(type_map):
     assert isinstance(csym, ContainerSymbol)
     assert (table.lookup("setop_random_kernel_type").interface.container_symbol
             is csym)
+
+
+# _init_scalar_values
+
+def test_init_scalar_value():
+    '''Check that _init_scalar_value() adds the expected nodes to the supplied
+    Routine.'''
+    table = LFRicSymbolTable()
+    routine = nodes.Routine("testkern_code", symbol_table=table)
+    sym1 = DataSymbol("my_real1", LFRicTypes("LFRicRealScalarDataType")())
+    sym2 = DataSymbol("my_int2", LFRicTypes("LFRicIntegerScalarDataType")())
+    sym2_input = DataSymbol("my_int2_input",
+                            LFRicTypes("LFRicIntegerScalarDataType")())
+    table.add(sym2_input)
+    _init_scalar_value(sym1, routine, {})
+    assert len(routine.children) == 1
+    # We should get a call to random_number for a real scalar.
+    assert isinstance(routine[0], nodes.Call)
+    _init_scalar_value(sym2, routine, {"my_int2": None})
+    assert len(routine.children) == 3
+    # An integer should just be assigned the value 1 (TODO #2087)
+    assert isinstance(routine[1], nodes.Assignment)
+    assert routine[1].rhs.value == "1"
+    # and we should store this value as it's listed as an 'input'.
+    assert isinstance(routine[2], nodes.Assignment)
+    sym3 = DataSymbol("my_bool", LFRicTypes("LFRicLogicalScalarDataType")())
+    _init_scalar_value(sym3, routine, {})
+    assert 0 # ARPDBG - add check for saved value
 
 
 # _validate_geom_arg
@@ -500,7 +529,7 @@ def test_generate_lfric_adj_test_quadrature(fortran_reader):
         "     integer :: gh_shape = gh_quadrature_xyoz\n")
     tl_psyir = fortran_reader.psyir_from_source(new_code)
     psyir = generate_lfric_adjoint_harness(tl_psyir)
-    routine = psyir.walk(Routine)[0]
+    routine = psyir.walk(nodes.Routine)[0]
     for sym in routine.symbol_table.datasymbols:
         # All input variables should be either scalars or fields (operators
         # are never active).
