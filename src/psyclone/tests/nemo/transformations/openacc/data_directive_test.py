@@ -304,7 +304,7 @@ def test_kind_parameter(parser):
 
 
 def test_no_copyin_intrinsics(fortran_reader, fortran_writer):
-    ''' Check that we don't generate a copyin/out for Fortran instrinsic
+    ''' Check that we don't generate a copyin/out for Fortran intrinsic
     functions (i.e. we don't mistake them for array accesses). '''
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     for intrinsic in ["cos(ji)", "sin(ji)", "tan(ji)", "atan(ji)",

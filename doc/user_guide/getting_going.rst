@@ -521,6 +521,6 @@ by the ``print_psyir_trans.py`` script in the second LFRic example::
 
 Take a look at the ``print_psyir_trans.py`` script for more information. *Hint*;
 you can insert a single line in that script in order to break into the Python
-interpreter during exection: ``import pdb; pdb.set_trace()``. This then enables
+interpreter during execution: ``import pdb; pdb.set_trace()``. This then enables
 interactive exploration of the PSyIR if you are interested. Alternatively,
 you can play with some interactive examples on `Binder <https://github.com/stfc/PSyclone#user-content-try-it-on-binder>`_.

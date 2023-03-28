@@ -736,7 +736,7 @@ def test_omptaskwait_apply_multiloops():
     sing = OMPSingleTrans()
     ttrans = OMPTaskwaitTrans()
     # Apply the Taskloop transformation to the first loop, apply the
-    # OMPLoop transformtion to second, third and fourth loops
+    # OMPLoop transformation to second, third and fourth loops
     # in the schedule, and then apply OMPSingleTrans, OMPParallelTrans and
     # OMPTaskwaitTrans to the schedule. Check the apply
     # routine adds one OMPTaskwait directive as child 3
@@ -843,7 +843,7 @@ def test_omptaskwait_ignore_nogroup_clause():
     tloop2 = OMPTaskloopTrans(nogroup=False)
     sing = OMPSingleTrans()
     ttrans = OMPTaskwaitTrans()
-    # Apply taskloop transformatioins to each loop in the schedule.
+    # Apply taskloop transformations to each loop in the schedule.
     # The first and fourth loops will have a nogroup clause.
     # Apply a single, parallel and taskwait transformation to the
     # schedule. The resulting schedule should contain one

@@ -248,7 +248,7 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
                         f"{node.debug_string()}.")
 
         # Both arguments should be real (as other intrinsic datatypes
-        # are not suported).
+        # are not supported).
         for arg in node.children:
             if arg.symbol.datatype.intrinsic != ScalarType.Intrinsic.REAL:
                 raise TransformationError(

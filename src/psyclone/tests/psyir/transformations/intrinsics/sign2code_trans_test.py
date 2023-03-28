@@ -65,7 +65,7 @@ def example_psyir(create_expression):
     '''Utility function that creates a PSyIR tree containing a SIGN
     intrinsic operator and returns the operator.
 
-    :param function create_expresssion: function used to create the \
+    :param function create_expression: function used to create the \
         content of the first argument of the SIGN operator.
 
     :returns: PSyIR SIGN operator instance.

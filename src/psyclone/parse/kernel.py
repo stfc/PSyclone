@@ -843,7 +843,7 @@ class KernelType():
             # validation code.
             self._iterates_over = None
         # Although validation of the value given to operates_on or
-        # iterates_over is API-specifc, we can check that the metadata doesn't
+        # iterates_over is API-specific, we can check that the metadata doesn't
         # specify both of them because that doesn't make sense.
         if operates_on and iterates_over:
             raise ParseError(f"The metadata for kernel '{name}' contains both "
