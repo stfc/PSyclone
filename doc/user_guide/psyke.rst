@@ -479,7 +479,7 @@ be set to true:
                   {"create_driver": True,
                    "region_name": ("main", "init")})
 
-This will create a Fortran file called ``driver-main-init.f90``, which
+This will create a Fortran file called ``driver-main-init.F90``, which
 can then be compiled and executed. This stand-alone program will read
 the output file created during an execution of the actual program, call
 the kernel with all required input parameter, and compare the output
@@ -503,10 +503,18 @@ optimisation of a stand-alone kernel.
     run stand-alone. As a work-around, these values can be added manually
     to the driver program. Issue #1990 tracks improvement of this situation.
 
-When linking the driver program, it needs to be provided with all
-dependencies required by the driver and the kernel used. If the kernel calls
-many other functions, this can result in a long parameter list for the
-linker. Issue #1991 aims at simplifying this.
+The LFRic kernel driver will inline all required external modules into the
+driver. It uses a ``ModuleManager`` to find the required modules, based on the
+assumption that a file ``my_special_mod.f90`` will define exactly one module
+called ``my_special_mod`` (the ``_mod`` is required to be part of the
+filename). The driver creator will sort the modules in the appropriate order
+and add the source code directly into the driver. As a result, the driver
+program is truly stand-alone and does not need any external dependency (the
+only exception being NetCDF if the NetCDF-based extraction library is used).
+The ``ModuleManager`` uses all kernel search paths specified on the
+command line (see ``-d`` option in :ref:`psyclone_command`), and it will
+recursively search for all files under each path specified on the command
+line.
 
 
 Extraction for NEMO
