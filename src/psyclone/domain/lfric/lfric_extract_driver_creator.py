@@ -966,7 +966,7 @@ class LFRicExtractDriverCreator:
         '''This function uses the ``get_driver_as_string()`` function to get a
         a stand-alone driver, and then writes this source code to a file. The
         file name is derived from the region name:
-        "driver-"+module_name+"_"+region_name+".f90"
+        "driver-"+module_name+"_"+region_name+".F90"
 
         :param nodes: a list of nodes containing the body of the driver
             routine.
