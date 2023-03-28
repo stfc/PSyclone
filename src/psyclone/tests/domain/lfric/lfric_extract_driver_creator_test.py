@@ -61,31 +61,10 @@ def init_module_manager():
     the default ModuleManager file.
     '''
 
-    print("TESTING CI PATHS")
-    import os
-    print("os.getcwd", os.getcwd())
-
-
     infrastructure_path = get_base_path(API)
-    print("infrastructure", infrastructure_path)
-    print("CONT infrastru", [i for i in os.scandir(infrastructure_path)])
-    read_mod_path = os.path.join(infrastructure_path, "..", "..", "..", "..",
-                                 "..")
-    print("CONT psy root ", [i for i in os.scandir(read_mod_path)])
-    read_mod_path = os.path.join(infrastructure_path, "..", "..", "..", "..",
-                                 "..", "lib")
-    print("CONT psy lib  ", [i for i in os.scandir(read_mod_path)])
-    read_mod_path = os.path.join(infrastructure_path, "..", "..", "..", "..",
-                                 "..", "lib", "extract")
-    print("CONT psy extr ", [i for i in os.scandir(read_mod_path)])
-    read_mod_path = os.path.join(infrastructure_path, "..", "..", "..", "..",
-                                 "..", "lib", "extract", "standalone")
-    print("CONT psy stand", [i for i in os.scandir(read_mod_path)])
-
     # Define the path to the read-kernel relative to the infrastructure path:
     read_mod_path = os.path.join(infrastructure_path, "..", "..", "..", "..",
                                  "..", "lib", "extract", "standalone")
-    print("read_mod_path", read_mod_path)
     # Enforce loading of the default ModuleManager
     ModuleManager._instance = None
 
