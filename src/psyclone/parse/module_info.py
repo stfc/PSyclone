@@ -49,7 +49,8 @@ from psyclone.psyir.nodes import (Call, Container, FileContainer, Reference,
                                   Routine)
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.symbols import (ArgumentInterface, ImportInterface,
-                                    RoutineSymbol, SymbolError)
+                                    RoutineSymbol, SymbolError,
+                                    UnknownFortranType)
 
 
 # ============================================================================
@@ -306,7 +307,35 @@ class ModuleInfo:
         for routine in self.get_psyir().walk(Routine):
             self._routine_non_locals[routine.name] = []
 
-        for routine in self.get_psyir().walk(Routine):
+        # Save information about generic interfaces. Generic interfaces are
+        # not yet fuolly supported in PSyclone. So we look for routine
+        # symbols with unknown Fortran types, then we check if any routine
+        # in this module is mentioned in the datatype declaration (which
+        # contains the texture representation of the interface statement).
+        # If a routine name is found in the declaration, we add the
+        # generic and specific name to the mapping of generic names. This
+        # mapping is used later to duplicate the non-local information from
+        # all specific subroutines to the generic one.
+        psyir = self.get_psyir()
+        # Mapping of specific names to generic name:
+        generic_names = {}
+        for container in psyir.walk(Container):
+            for symbol in container.symbol_table.symbols_dict.values():
+                if not isinstance(symbol, RoutineSymbol) or \
+                        not isinstance(symbol.datatype, UnknownFortranType):
+                    continue
+                generic_statement = symbol.datatype.declaration.lower()
+                generic_name = symbol.name
+                for routine_name in self._routine_non_locals:
+                    if routine_name in generic_statement:
+                        # The name of the current routine is mentioned in the
+                        # interface declaration, so assume it is a generic
+                        # interface:
+                        generic_names[routine_name] = generic_name
+        for generic_name in generic_names.values():
+            self._routine_non_locals[generic_name] = []
+
+        for routine in psyir.walk(Routine):
             # Handy shortcut to the dictionary to shorten code
             non_locals = self._routine_non_locals[routine.name]
             # Find all references to non-local symbols in the current routine.
@@ -369,6 +398,12 @@ class ModuleInfo:
                 info = self._compute_non_locals_references(access, sym)
                 if info:
                     non_locals.append(info)
+            # Check if the current routine is part of a generic interface. If
+            # so, we add the information for the current routine to the
+            # generic subroutine.
+            if routine.name in generic_names:
+                generic_name = generic_names[routine.name]
+                self._routine_non_locals[generic_name].extend(non_locals)
 
     # ------------------------------------------------------------------------
     def get_non_local_symbols_for_routine(self, routine_name):

@@ -38,7 +38,6 @@
 ''' This module provides tools that are based on the code
     dependency analysis.'''
 
-from __future__ import absolute_import, print_function
 from enum import IntEnum
 
 import sympy
@@ -47,8 +46,9 @@ from psyclone.configuration import Config
 from psyclone.core import (AccessType, SymbolicMaths,
                            VariablesAccessInfo)
 from psyclone.errors import InternalError, LazyString
-from psyclone.psyir.nodes import Loop
-from psyclone.parse import ModuleManager
+from psyclone.psyir.nodes import Container, Loop
+from psyclone.psyir.symbols import RoutineSymbol
+from psyclone.parse import ModuleInfoError, ModuleManager
 from psyclone.psyGen import BuiltIn, Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
@@ -942,6 +942,8 @@ class DependencyTools():
                       List[:py:class:`psyclone.core.Signature`]]
 
         '''
+        # pylint: disable=too-many-locals, too-many-branches
+        # pylint: disable=too-many-statements
         in_local, out_local = self.get_in_out_parameters(node_list,
                                                          options=options)
         # Find all kernels called from the currently processed PSyIR.
@@ -949,86 +951,80 @@ class DependencyTools():
         # kernel out of 10 is instrumented), but makes the implementation
         # much easier, and it is expected that typically everything
         # gets instrumented anyway.
-        container = node_list[0].root
         mod_manager = ModuleManager.get()
 
-        from psyclone.psyir.nodes import Call, Reference, Routine
-        from psyclone.psyir.symbols import ImportInterface
+        # First collect all non-local symbols from the kernels called.
+        todo = []
+        for node in node_list:
+            for kernel in node.walk(Kern):
+                if isinstance(kernel, BuiltIn):
+                    continue
+                print(kernel.base_name, kernel.module_name)
+                mod_info = mod_manager.get_module_info(kernel.module_name)
+                non_locals = \
+                    mod_info.get_non_local_symbols_for_routine(kernel.name)
+                todo.extend(non_locals)
 
-        routine = node_list[0]
-        while not isinstance(routine, Routine):
-            routine = routine.parent
-
-        #mod_info = mod_manager.get_module_info("testkern_w0_kernel_mod")
-        #info = mod_info.get_non_local_symbols_for_function("testkern_w0_code")
-        mod_info = mod_manager.get_module_info("dummy_mod")
-        info = mod_info.get_non_local_symbols_for_routine("dummy_func")
-        print("info:", info)
-        return in_local, out_local
-
-        # Find all required modules for all kernel calls.
-        all_mods = set()
-        all_external_symbols = {}
-        for kern in container.walk(Kern):
-            print("KERN", kern)
-            if not isinstance(kern, BuiltIn):
-                all_mods.add(kern.module_name)
-                mod_info = mod_manager.get_module_info(kern.module_name)
-                ext_symbols = mod_info.get_external_symbols()
-                for (symbol, module_name) in ext_symbols:
-                    if module_name not in all_external_symbols:
-                        all_external_symbols[module_name] = set()
-                    all_external_symbols[module_name].add(symbol.name)
-
-
-
-
-        return in_local, out_local
-
-
-
-
-
-        # Find all required modules for all kernel calls.
-        all_mods = set()
-        all_external_symbols = {}
-        for kern in container.walk(Kern):
-            if not isinstance(kern, BuiltIn):
-                all_mods.add(kern.module_name)
-                mod_info = mod_manager.get_module_info(kern.module_name)
-                ext_symbols = mod_info.get_external_symbols()
-                for (symbol, module_name) in ext_symbols:
-                    if module_name not in all_external_symbols:
-                        all_external_symbols[module_name] = set()
-                    all_external_symbols[module_name].add(symbol.name)
-
-        # The list of all modules would not contain any modules used in the
-        # psy-layer (e.g. constants_mod for i_def etc), but since we know
-        # that the psy-layer does not use any variables from these modules,
-        # they can be ignored (and they are likely to be included from
-        # other modules anyway).
-
-        # Now get the recursive list of all modules required:
-        all_deps = mod_manager.get_all_dependencies_recursively(all_mods)
-        # Sorting might not strictly be necessary, but this way we
-        # should get identical results, independent of the set ordering
-        sorted_modules = ModuleManager.sort_modules(all_deps)
-        print("Sorted modules", sorted_modules)
-        for mod in sorted_modules:
-            print("MODULE", mod)
-            mod_info = mod_manager.get_module_info(mod)
-            mod_psyir = mod_info.get_psyir()
-            if not mod_psyir:
-                # We can't parse the file, ignore:
+        done = set()
+        while todo:
+            info = todo.pop()
+            if info in done:
                 continue
-            ext_symbols = mod_info.get_external_symbols()
-            for (symbol, module_name) in ext_symbols:
-                if module_name not in all_external_symbols:
-                    all_external_symbols[module_name] = set()
-                all_external_symbols[module_name].add(symbol.name)
+            done.add(info)
+            external_type, module_name, symbol_name = info
+            if external_type == "subroutine":
+                if module_name is None:
+                    # We don't know where the subroutine comes from.
+                    # For now ignore this
+                    continue
+                try:
+                    mod_info = mod_manager.get_module_info(module_name)
+                except FileNotFoundError:
+                    print(f"Cannot find mnodule '{module_name}' - ignored.")
+                    continue
+                try:
+                    non_locals = \
+                        mod_info.get_non_local_symbols_for_routine(symbol_name)
+                except ModuleInfoError:
+                    print(f"Cannot find symbol '{symbol_name}' in module "
+                          f"'{module_name}' - ignored.")
+                    continue
+                print(f"MOD: Adding non-locals from subroutine '{symbol_name} "
+                      f"in module '{module_name}': '{non_locals}'")
+                todo.extend(non_locals)
+            elif external_type == "function":
+                print("function", module_name, symbol_name)
+            elif external_type == "reference":
+                print(f"MOD: Adding reference '{symbol_name}' from module "
+                      f"'{module_name}'.")
+                print("reference", module_name, symbol_name)
+            else:
+                print("unknown", module_name, symbol_name)
+                try:
+                    mod_info = mod_manager.get_module_info(module_name)
+                except FileNotFoundError:
+                    print(f"Cannot find mnodule '{module_name}' - ignoring "
+                          f"unknown symbol '{symbol_name}'.")
+                    continue
+                # Get the File object:
+                file_psyir = mod_info.get_psyir()
+                if not file_psyir.children:
+                    print(f"Empty module '{module_name} - ignored.")
+                    continue
+                # Get the module object:
+                mod_psyir = file_psyir.children[0]
+                if not isinstance(mod_psyir, Container):
+                    print(f"Unexpected type '{type(mod_psyir)}' when parsing "
+                          f"{module_name}- should be 'Container'. Ignored")
+                    continue
+                sym_tab = mod_psyir.symbol_table
+                if symbol_name in sym_tab:
+                    symbol = sym_tab.lookup(symbol_name)
+                    if isinstance(symbol, RoutineSymbol):
+                        info = ("subroutine", module_name, symbol_name)
+                        todo.append(info)
+                        continue
+                    print(f"Reference from unknown: {symbol_name} in module "
+                          f"{module_name}")
 
-        import pprint
-        pretty_print = pprint.PrettyPrinter(indent=4)
-        print("EXTERNAL:")
-        pretty_print.pprint(all_external_symbols)
         return in_local, out_local
