@@ -516,6 +516,19 @@ command line (see ``-d`` option in :ref:`psyclone_command`), and it will
 recursively search for all files under each path specified on the command
 line.
 
+Therefore, compilation for a created driver, e.g. the one created in
+``examples/lfric/eg17/full_example_extract``, is simple::
+
+   $ gfortran -g -O0 driver-main-update.F90 -o driver-main-update
+   $ ./driver-main-update
+   cell correct
+   field1 correct
+
+Note that the Makefile in the example will actually provide additional include
+paths (infrastructure files and extraction library) for the compiler, but
+these flags are actually only required for compiling the example program, not
+for the driver.
+
 
 Extraction for NEMO
 ++++++++++++++++++++
