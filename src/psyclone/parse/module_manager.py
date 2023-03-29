@@ -97,8 +97,8 @@ class ModuleManager:
             if not recursive:
                 break
             for root, dirs, _ in os.walk(directory):
-                for directory in dirs:
-                    new_dir = os.path.join(root, directory)
+                for current_dir in dirs:
+                    new_dir = os.path.join(root, current_dir)
                     if new_dir not in self._search_paths:
                         self._search_paths.append(new_dir)
 
@@ -163,6 +163,7 @@ class ModuleManager:
 
     # ------------------------------------------------------------------------
     def get_modules_in_file(self, filename):
+        # pylint: disable=no-self-use
         '''This function returns the list of modules defined in the specified
         file. The base implementation uses the coding style: the file
         `a_mod.f90` implements the module `a_mod`. This function can be
