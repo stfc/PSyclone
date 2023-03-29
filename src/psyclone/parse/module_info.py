@@ -35,7 +35,8 @@
 
 '''This module contains the ModuleInfo class, which is used to store
 and cache information about a module: the filename, source code (if requested)
-and the fparser tree (if requested). '''
+and the fparser tree (if requested).
+'''
 
 
 from fparser.common.readfortran import FortranStringReader
@@ -54,6 +55,7 @@ class ModuleInfoError(PSycloneError):
     found.
 
     :param str value: the message associated with the error.
+
     '''
     def __init__(self, value):
         PSycloneError.__init__(self, value)
@@ -94,8 +96,8 @@ class ModuleInfo:
     # ------------------------------------------------------------------------
     @property
     def filename(self):
-        ''':returns: the filename that contains the source code for this
-        module.
+        ''':returns: the filename that contains the source code for this \
+            module.
         :rtype: str
 
         '''
@@ -127,8 +129,9 @@ class ModuleInfo:
     def get_parse_tree(self):
         '''Returns the fparser AST for this module. The first time, the file
         will be parsed by fpaser, then the AST is cached for any future uses.
+
         :returns: the fparser AST for this module.
-        :rtype:
+        :rtype: :py:class:`fparser.two.Fortran2003.Program`
 
         '''
         if not self._parse_tree:
@@ -176,13 +179,11 @@ class ModuleInfo:
 
     # ------------------------------------------------------------------------
     def get_used_modules(self):
-        '''This function analyses a given module source file and returns
-        a list of 2-tuples containing the module name, and a list of
-        all imported symbols from that module. If all symbols are imported,
-        the list of symbols will be empty.
-
-        :param str module_name: the file name (including path if required) \
-            for which all modules should be found.
+        '''This function returns a set of all modules `used` in this
+        module. Fortran `intrinsic` modules will be ignored. The information
+        is based on the fparser parse tree of the module (since fparser can
+        handle more files than PSyir, like LFRic's `constants_mod` which has
+        pre-processor directives).
 
         :returns: a set with all imported module names.
         :rtype: Set[str]
@@ -195,15 +196,12 @@ class ModuleInfo:
 
     # ------------------------------------------------------------------------
     def get_used_symbols_from_modules(self):
-        '''This function analyses a given module source file and returns
-        a list of 2-tuples containing the module name, and a list of
-        all imported symbols from that module. If all symbols are imported,
-        the list of symbols will be empty.
+        '''This function returns a information about which module is used by
+        this module, and also which symbols are imported. The return value is
+        a dictionary with the used module name as key, and a set of all
+        imported symbol names as value.
 
-        :param str module_name: the file name (including path if required) \
-            for which all modules should be found.
-
-        :returns: a dictionary that gives for each module name the list \
+        :returns: a dictionary that gives for each module name the set \
             of symbols imported from it.
         :rtype: Dict[str, Set[str]]
 
