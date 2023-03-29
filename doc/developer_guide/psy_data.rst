@@ -39,6 +39,9 @@
 
 .. testsetup::
 
+    import os
+    from psyclone.parse import ModuleManager
+
     # Define SOURCE_FILE to point to an existing gocean 1.0 file.
     SOURCE_FILE = ("../../src/psyclone/tests/test_files/"
         "gocean1p0/test11_different_iterates_over_one_invoke.f90")
@@ -1257,23 +1260,28 @@ it depends on. It uses the fparser parse tree to detect this information (which
 means it can handle files that are not supported by PSyIR, e.g. files with
 preprocessor directives).
 
-An example usage of the ``ModuleManager`` and ``ModuleInfo`` objects:
+An example usage of the ``ModuleManager`` and ``ModuleInfo`` objects,
+which prints the filenames of all modules used in ``tl_testkern_mod``:
 
-.. code-block:: python
-
-    .. doctest::
-        all_mods = set()
-        # Collect all modules - they are Container in the symbol table:
-        for symbol in symbol_table.symbols:
-            if isinstance(symbol, ContainerSymbol) and \
-                    ",intrinsic" not in symbol.name:
-                all_mods.add(symbol.name)
+.. testcode ::
 
     mod_manager = ModuleManager.get()
-    all_deps = mod_manager.get_all_dependencies_recursively(all_mods)
-    sorted_modules = ModuleManager.sort_modules(all_deps)
+    # Add the path to the PSyclone LFRic example codes:
+    mod_manager.add_search_path("../../src/psyclone/tests/test_files/"
+                                "dynamo0p3")
 
-    for module in sorted_modules:
-        mod_info = mod_manager.get_module_info(module)
-        print(f"Source code for '{module}':")
-        print(mod_info.get_source_code())
+    testkern_info = mod_manager.get_module_info("tl_testkern_mod")
+
+    used_mods = testkern_info.get_used_modules()
+    # Sort the modules so we get a reproducible output ordering
+    used_mods_list = sorted(list(used_mods))
+    for module_name in used_mods_list:
+        mod_info = mod_manager.get_module_info(module_name)
+        print("Module:", module_name, os.path.basename(mod_info.filename))
+
+.. testoutput::
+
+    Module: argument_mod argument_mod.F90
+    Module: constants_mod constants_mod.F90
+    Module: fs_continuity_mod fs_continuity_mod.F90
+    Module: kernel_mod kernel_mod.F90
