@@ -186,14 +186,26 @@ class ModuleManager:
     # ------------------------------------------------------------------------
     def get_all_dependencies_recursively(self, all_mods):
         '''This function collects recursively all module dependencies
-        for any of the modules in the all_mods set.
+        for any of the modules in the ``all_mods`` set. I.e. it will
+        add all modules used by any module listed in ``all_mods``,
+        and any modules used by the just added modules etc. In the end,
+        it will return a dictionary that for each module lists which
+        module this module depends on. This dictionary will be complete,
+        i.e. all modules that are required for the original set of modules
+        (and that could be found) will be a key in the dictionary. It will
+        include the original set of modules as well.
+
+        If a module cannot be found (e.g. its path was not given to the
+        ModuleManager, or it might be a system module for which the sources
+        are not available, a message will be printed, and this module will
+        be ignored (i.e. not listed in any dependencies)
 
         :param Set[str] all_mods: the set of all modules to collect the \
             modules they use from.
 
-        :returns: a set with all modules that are required for the modules \
-            in all_mods.
-        :rtype: Set[str]
+        :returns: a dictionary with all modules that are required (directly \
+            or indirectly) for the modules in ``all_mods``.
+        :rtype: Dict[str, Set[str]]
 
         '''
         # This contains the mapping from each module name to the

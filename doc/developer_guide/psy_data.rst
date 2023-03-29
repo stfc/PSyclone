@@ -1214,3 +1214,66 @@ compared with the expected values in ``field1_post``.
 
 .. note:: For now the created driver still depends on the infrastructure
     library and any other modules used. Issue #1991 improves this.
+
+Module Manager
+++++++++++++++
+The LFRic driver creation utilises a ``ModuleManager`` to find
+and inline all modules required by the driver.
+
+
+.. autoclass:: psyclone.parse.ModuleManager
+    :members:
+
+Any PSyclone command line option ``-d`` (see :ref:`psyclone_command`)
+will be added to the ``ModuleManager`` as recursive search paths. The
+``ModuleManager`` is a singleton and it can be queried for information about
+any module. It internally uses caching to avoid repeatedly searching
+directories, and it will only access search paths as required. For example,
+if the first search path will be sufficient to find all modules during the
+lifetime of the module manager, no other search path will ever be accessed.
+The caching also implies that the ModuleManager will not detect if new files
+should be created during its lifetime.
+
+The ``ModuleManager`` also provides a static function that will sort
+a list of module dependencies, so that compiling the modules in this order
+(or adding them in this order to a file) will allow compilation, i.e. any
+module will only depend on previously defined modules.
+
+
+The ``ModuleManager`` will return a ``ModuleInfo`` object to make information
+about a module available:
+
+.. autoclass:: psyclone.parse.ModuleInfo
+    :members:
+
+Similar to the ``ModuleManager``, a ``ModuleInfo`` object will heavily rely on
+caching to avoid repeatedly reading a source file or parsing it. The side
+effect is that changes to a source file during the lifetime of the
+``ModuleManager`` will not be reflected in its information.
+
+At this stage, the ``ModuleInfo`` can be used to get the original source
+code of a module as string and to query a module about modules and symbols
+it depends on. It uses the fparser parse tree to detect this information (which
+means it can handle files that are not supported by PSyIR, e.g. files with
+preprocessor directives).
+
+An example usage of the ``ModuleManager`` and ``ModuleInfo`` objects:
+
+.. code-block:: python
+
+    .. doctest::
+        all_mods = set()
+        # Collect all modules - they are Container in the symbol table:
+        for symbol in symbol_table.symbols:
+            if isinstance(symbol, ContainerSymbol) and \
+                    ",intrinsic" not in symbol.name:
+                all_mods.add(symbol.name)
+
+    mod_manager = ModuleManager.get()
+    all_deps = mod_manager.get_all_dependencies_recursively(all_mods)
+    sorted_modules = ModuleManager.sort_modules(all_deps)
+
+    for module in sorted_modules:
+        mod_info = mod_manager.get_module_info(module)
+        print(f"Source code for '{module}':")
+        print(mod_info.get_source_code())
