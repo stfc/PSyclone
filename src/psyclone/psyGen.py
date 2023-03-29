@@ -204,7 +204,7 @@ class PSyFactory():
         :type invoke_info: :py:class:`psyclone.parse.algorithm.FileInfo` or \
                            :py:class:`fparser.two.Fortran2003.Program`
 
-        :returns: an instance of the API-specifc sub-class of PSy.
+        :returns: an instance of the API-specific sub-class of PSy.
         :rtype: subclass of :py:class:`psyclone.psyGen.PSy`
 
         :raises InternalError: if this factory is found to have an \
@@ -445,7 +445,7 @@ class Invoke():
             dofs = kern_call.arguments.dofs
             for dof in dofs:
                 if dof not in self._dofs:
-                    # Only keep the first occurence for the moment. We will
+                    # Only keep the first occurrence for the moment. We will
                     # need to change this logic at some point as we need to
                     # cope with writes determining the dofs that are used.
                     self._dofs[dof] = [kern_call, dofs[dof][0]]

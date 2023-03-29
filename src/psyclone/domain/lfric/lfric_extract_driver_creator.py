@@ -254,8 +254,8 @@ class LFRicExtractDriverCreator:
         :type proxy_name_mapping: Dict[str,str]
 
         :raises InternalError: if the old_reference is not a \
-            :py:class:`psyclone.`StructureReference
-        raises GenerationError: if an array of structures is used
+            :py:class:`psyclone.psyir.nodes.StructureReference`
+        :raises GenerationError: if an array of structures is used
 
         '''
 
@@ -615,7 +615,7 @@ class LFRicExtractDriverCreator:
         to the container) to the symbol table.
 
         :param symbol_table: the symbol table to which the symbols are added.
-        :type program: :py:class:`psyclone.psyir.symbols.symbol_table`
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param sched: the schedule to analyse for module imports.
         :type sched: :py:class:`psyclone.psyir.nodes.Schedule`
 
@@ -966,7 +966,7 @@ class LFRicExtractDriverCreator:
         '''This function uses the ``get_driver_as_string()`` function to get a
         a stand-alone driver, and then writes this source code to a file. The
         file name is derived from the region name:
-        "driver-"+module_name+"_"+region_name+".f90"
+        "driver-"+module_name+"_"+region_name+".F90"
 
         :param nodes: a list of nodes containing the body of the driver
             routine.

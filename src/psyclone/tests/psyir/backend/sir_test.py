@@ -114,7 +114,7 @@ def get_kernel(parser, code):
 
 
 def get_assignment(parser, code):
-    '''Utility function that returns the assigment (x=y) in code similar
+    '''Utility function that returns the assignment (x=y) in code similar
     to that specified in the CODE string.
 
     :param parser: the parser class.
@@ -133,7 +133,7 @@ def get_assignment(parser, code):
 
 
 def get_lhs(parser, code):
-    '''Utility function that returns the left hand side of an assigment
+    '''Utility function that returns the left hand side of an assignment
     (x=y) in code similar to that specified in the CODE string.
 
     :param parser: the parser class.
@@ -149,7 +149,7 @@ def get_lhs(parser, code):
 
 
 def get_rhs(parser, code):
-    '''Utility function that returns the left hand side of an assigment
+    '''Utility function that returns the left hand side of an assignment
     (x=y) in code similar to that specified in the CODE string.
 
     :param parser: the parser class.

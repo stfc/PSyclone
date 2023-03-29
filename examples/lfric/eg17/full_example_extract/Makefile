@@ -86,7 +86,7 @@ transform: main_psy.f90 main_alg.f90
 compile: transform $(EXEC)
 
 run: compile
-	./extract
+	./$(EXEC)
 
 $(EXEC): $(LFRIC_LIB) $(EXTRACT_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(EXTRACT_DIR) -l$(EXTRACT_NAME) \
@@ -106,14 +106,12 @@ testkern_w0_kernel_mod.o: dummy_mod.o $(LFRIC_LIB)
 driver-main-update:	F90FLAGS += -I $(EXTRACT_DIR)/..
 driver-main-update:	driver-main-update.o $(READ_KERNEL_DATA_OBJ)
 	$(F90) $(F90FLAGS)  driver-main-update.o       \
-         $(READ_KERNEL_DATA_OBJ)                   \
 		-L$(LFRIC_PATH) -l$(LFRIC_NAME) $(LDFLAGS) \
 		-o driver-main-update
 
 driver-main-init:	F90FLAGS += -I $(EXTRACT_DIR)/..
 driver-main-init:	driver-main-init.o $(READ_KERNEL_DATA_OBJ)
 	$(F90) $(F90FLAGS)  driver-main-init.o         \
-         $(READ_KERNEL_DATA_OBJ)                   \
 		-L$(LFRIC_PATH) -l$(LFRIC_NAME) $(LDFLAGS) \
 		-o driver-main-init
 
@@ -134,9 +132,9 @@ $(READ_KERNEL_DATA_OBJ):
 	$(MAKE) -C $(EXTRACT_DIR)/..
 
 %_psy.f90:	%.x90
-	${PSYCLONE} -s ./extract_transform.py     \
-	-d . -d $(EXTRACT_DIR)                    \
-	-d $(LFRIC_PATH)                          \
+	${PSYCLONE} -s ./extract_transform.py       \
+	-d . -d $(EXTRACT_DIR) -d $(EXTRACT_DIR)/.. \
+	-d $(LFRIC_PATH)                            \
 	-nodm -opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
 allclean: clean

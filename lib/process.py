@@ -79,7 +79,7 @@ parser.add_argument("-prefix", help="Prefix to add to the generated PSyData "
 # implement functions for the the GOCean-specific field type, and rely on
 # the base class to provide the implementations for all standard Fortran
 # types).
-# In order to support this, the `process.py` sript provides two options
+# In order to support this, the `process.py` script provides two options
 # to control the creation of the `DeclareXXX` and `ProvideXXX` generic
 # interfaces, which control if a base class specifies that the `declareXXX`
 # and `provideXXX` functions are part of the generic interface or not.

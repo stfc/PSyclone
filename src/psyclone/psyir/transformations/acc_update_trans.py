@@ -270,7 +270,7 @@ class ACCUpdateTrans(Transformation):
                 # It is also the position for the update directive used by
                 # those variables with textual dependencies.
                 # Perhaps, eventually, specially if we adopt the async clause,
-                # it may be benefecial to textually move update host directives
+                # it may be beneficial to textually move update host directives
                 # earlier within the schedule as much as legally possible to
                 # leverage overlapping communication and computation.
                 update_pos = sched.children.index(child) + node_offset

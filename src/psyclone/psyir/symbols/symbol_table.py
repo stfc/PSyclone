@@ -1180,7 +1180,7 @@ class SymbolTable():
             # pylint: disable=broad-except
             except Exception:
                 # Ignore this container if the associated module file has not
-                # been found in the given include_path or any issue has arised
+                # been found in the given include_path or any issue has arisen
                 # during parsing.
                 # TODO #11: It would be useful to log this.
                 continue

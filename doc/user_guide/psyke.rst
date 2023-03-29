@@ -373,7 +373,7 @@ and will create NetCDF files to contain all input- and output-parameters.
 The second one is a stand-alone library which uses only standard Fortran
 IO to write and read kernel data. The binary files produced using this
 library may not be portable between machines and compilers. If you
-require such portabililty then please use the NetCDF extraction library.
+require such portability then please use the NetCDF extraction library.
 
 The two extraction :ref:`libraries <libraries>` are in
 `lib/extract/standalone
@@ -479,7 +479,7 @@ be set to true:
                   {"create_driver": True,
                    "region_name": ("main", "init")})
 
-This will create a Fortran file called ``driver-main-init.f90``, which
+This will create a Fortran file called ``driver-main-init.F90``, which
 can then be compiled and executed. This stand-alone program will read
 the output file created during an execution of the actual program, call
 the kernel with all required input parameter, and compare the output
@@ -503,7 +503,48 @@ optimisation of a stand-alone kernel.
     run stand-alone. As a work-around, these values can be added manually
     to the driver program. Issue #1990 tracks improvement of this situation.
 
-When linking the driver program, it needs to be provided with all
-dependencies required by the driver and the kernel used. If the kernel calls
-many other functions, this can result in a long parameter list for the
-linker. Issue #1991 aims at simplifying this.
+The LFRic kernel driver will inline all required external modules into the
+driver. It uses a ``ModuleManager`` to find the required modules, based on the
+assumption that a file ``my_special_mod.f90`` will define exactly one module
+called ``my_special_mod`` (the ``_mod`` is required to be part of the
+filename). The driver creator will sort the modules in the appropriate order
+and add the source code directly into the driver. As a result, the driver
+program is truly stand-alone and does not need any external dependency (the
+only exception being NetCDF if the NetCDF-based extraction library is used).
+The ``ModuleManager`` uses all kernel search paths specified on the
+command line (see ``-d`` option in :ref:`psyclone_command`), and it will
+recursively search for all files under each path specified on the command
+line.
+
+Therefore, compilation for a created driver, e.g. the one created in
+``examples/lfric/eg17/full_example_extract``, is simple::
+
+   $ gfortran -g -O0 driver-main-update.F90 -o driver-main-update
+   $ ./driver-main-update
+   cell correct
+   field1 correct
+
+Note that the Makefile in the example will actually provide additional include
+paths (infrastructure files and extraction library) for the compiler, but
+these flags are actually only required for compiling the example program, not
+for the driver.
+
+
+Extraction for NEMO
+++++++++++++++++++++
+The libraries in
+`lib/extract/standalone/nemo
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone/nemo>`_
+and
+`lib/extract/netcdf/nemo
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/nemo>`_
+implement the full PSyData API for use with the
+:ref:`NEMO <nemo-api>` API. When running the
+code, it will create an output file for each instrumented code region.
+The same logic for naming variables used in :ref:`extraction_for_gocean`
+is used here.
+
+.. note::
+
+  Driver creation in NEMO is not yet supported, and is
+  tracked in issue #2058.
