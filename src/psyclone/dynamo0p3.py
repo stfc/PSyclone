@@ -78,7 +78,8 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
                                   ArrayReference, ACCEnterDataDirective,
                                   ACCRegionDirective, OMPRegionDirective,
-                                  ScopingNode, KernelSchedule)
+                                  Routine, ScopingNode, StructureReference,
+                                  KernelSchedule)
 from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, ScalarType,
                                     DeferredType, DataTypeSymbol,
                                     ContainerSymbol, ImportInterface,
@@ -7728,7 +7729,7 @@ class DynLoop(PSyLoop):
         :rtype: :py:class:`psyclone.psyir.Node`
 
         '''
-        inv_sched = self.ancestor(InvokeSchedule)
+        inv_sched = self.ancestor(Routine)
         sym_table = inv_sched.symbol_table
         loops = inv_sched.loops()
         posn = None
@@ -7749,7 +7750,7 @@ class DynLoop(PSyLoop):
         :rtype: :py:class:`psyclone.psyir.Node`
 
         '''
-        inv_sched = self.ancestor(InvokeSchedule)
+        inv_sched = self.ancestor(Routine)
         sym_table = inv_sched.symbol_table
 
         if self._loop_type == "colour":
@@ -8273,6 +8274,7 @@ class DynKern(CodedKern):
                 colourmap_symbol.name
         else:
             cmap = self.scope.symbol_table.lookup_with_tag("cmap").name
+
         return cmap
 
     @property
@@ -9844,7 +9846,7 @@ class DynKernelArgument(KernelArgument):
                 sym = symbol_table.new_symbol(
                     self.proxy_name, symbol_type=DataSymbol,
                     datatype=self.infer_datatype(proxy=True))
-            return Reference(sym)
+            return StructureReference.create(sym, ["data"])
 
         raise NotImplementedError(
             f"Unsupported kernel argument type: '{self.name}' is of type "
