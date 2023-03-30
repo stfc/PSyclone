@@ -45,9 +45,9 @@ import inspect
 import copy
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
-from psyclone.psyir.symbols import Symbol, DataSymbol, ImportInterface, \
-    ContainerSymbol, DataTypeSymbol, RoutineSymbol, SymbolError, \
-    UnresolvedInterface
+from psyclone.psyir.symbols import (
+    Symbol, DataSymbol, ImportInterface, ContainerSymbol, DataTypeSymbol,
+    RoutineSymbol, SymbolError, UnresolvedInterface)
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
 
@@ -545,6 +545,148 @@ class SymbolTable():
             self._tags[tag] = new_symbol
 
         self._symbols[key] = new_symbol
+
+    def _inline_container_symbols(self, other_table):
+        '''
+        Takes container symbols from the supplied symbol table and adds them to
+        this table. All references to each container symbol are also updated.
+
+        :param table: the symbol table at the call site.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param routine_table: the symbol table of the routine being inlined.
+        :type routine_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        for csym in other_table.containersymbols:
+            if csym.name in self:
+                # We have a clash with another symbol at the call site.
+                other_csym = self.lookup(csym.name)
+                if not isinstance(other_csym, ContainerSymbol):
+                    # The symbol at the call site is not a Container so we
+                    # can rename it.
+                    self.rename_symbol(
+                            other_csym,
+                            self.next_available_name(
+                                csym.name, other_table=other_table))
+                    # We can then add an import from the Container.
+                    self.add(csym)
+                else:
+                    # If there is a wildcard import from this container in the
+                    # routine then we'll need that at the call site.
+                    if csym.wildcard_import:
+                        other_csym.wildcard_import = True
+            else:
+                self.add(csym)
+            # We must update all references to this ContainerSymbol
+            # so that they point to the one in the call site instead.
+            imported_syms = other_table.symbols_imported_from(csym)
+            for isym in imported_syms:
+                if isym.name in self:
+                    # We have a potential clash with a symbol imported
+                    # into the routine.
+                    callsite_sym = self.lookup(isym.name)
+                    if not callsite_sym.is_import:
+                        # The validate() method has already checked that we
+                        # don't have a clash between symbols of the same name
+                        # imported from different containers.
+                        # We don't support renaming an imported symbol but the
+                        # symbol at the call site can be renamed so we do that.
+                        self.rename_symbol(
+                            callsite_sym,
+                            self.next_available_name(
+                                callsite_sym.name, other_table=other_table))
+                isym.interface = ImportInterface(self.lookup(csym.name))
+
+    def _inline_symbols(self, other_table, include_arguments=True):
+        '''
+        Takes symbols from the symbol table of the routine and adds
+        them to the table of the call site. Any literals that refer to
+        precision symbols are updated to refer to the appropriate symbol in
+        the table at the call site.
+
+        :param table: the symbol table at the call site.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param routine_table: the symbol table of the routine being inlined.
+        :type routine_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        :raises InternalError: if an imported symbol is found that has not \
+            been updated to refer to a Container at the call site.
+
+        '''
+        if include_arguments:
+            formal_args = []
+        else:
+            formal_args = other_table.argument_list
+
+        try:
+            itself = other_table.lookup_with_tag("own_routine_symbol")
+            if not isinstance(itself, RoutineSymbol):
+                # We only want to skip RoutineSymbols, not DataSymbols (which
+                # we may have if we have a Fortran function).
+                itself = None
+        except KeyError:
+            itself = None
+
+        for old_sym in other_table.symbols:
+
+            if isinstance(old_sym, ContainerSymbol) or old_sym in formal_args:
+                # We've dealt with Container symbols in
+                # _inline_container_symbols() and we deal with formal arguments
+                # in apply().
+                continue
+
+            if old_sym is itself:
+                # We don't want or need the symbol representing the routine
+                # that is being inlined.
+                continue
+
+            try:
+                self.add(old_sym)
+
+            except KeyError:
+                # We have a clash with a symbol at the call site.
+                if old_sym.is_import:
+                    # This symbol is imported from a Container so should
+                    # already have been updated so as to be imported from the
+                    # corresponding container in scope at the call site.
+                    callsite_csym = self.lookup(
+                        old_sym.interface.container_symbol.name)
+                    if old_sym.interface.container_symbol is not callsite_csym:
+                        # pylint: disable=raise-missing-from
+                        raise InternalError(
+                            f"Symbol '{old_sym.name}' imported from "
+                            f"'{callsite_csym.name}' has not been updated to "
+                            f"refer to that container at the call site.")
+                else:
+                    # A Symbol with the same name already exists so we rename
+                    # the one that we are adding.
+                    new_name = self.next_available_name(
+                        old_sym.name, other_table=other_table)
+                    other_table.rename_symbol(old_sym, new_name)
+                    self.add(old_sym)
+
+    def extend(self, other_table, include_arguments=True):
+        '''
+        Extends this symbol table by adding all of the symbols found in
+        `other_table`. The only exception is that if other_table belongs
+        to a Routine and contains a symbol with the same name as the
+        Routine (i.e. a function in Fortran) then that symbol is *not*
+        added to this symbol table.
+
+        :param other_table: the symbol table from which to add symbols.
+        :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        if not isinstance(other_table, SymbolTable):
+            raise TypeError("huh")
+
+        # Deal with any Container symbols first.
+        self._inline_container_symbols(other_table)
+
+        # Copy each Symbol from the Routine into the symbol table associated
+        # with the call site, excluding those that represent formal arguments
+        # or containers.
+        self._inline_symbols(other_table, include_arguments)
 
     def swap_symbol_properties(self, symbol1, symbol2):
         '''Swaps the properties of symbol1 and symbol2 apart from the symbol

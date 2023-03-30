@@ -268,11 +268,15 @@ def test_fw_routine_function_no_result(fortran_reader, fortran_writer, tmpdir):
 
 def test_fw_routine_flatten_tables(fortran_reader, fortran_writer, tmpdir):
     '''
+    Check that module use statements in nested symbol tables are handled
+    correctly in the presence of name clashes.
+
     '''
     code = ("module test\n"
             "implicit none\n"
             "contains\n"
             "subroutine sub(b)\n"
+            # TODO "  use some_mod, only: joe\n"
             "  real, intent(inout) :: b\n"
             "  real :: the_clash, strummer\n"
             "  integer :: ii\n"
@@ -293,8 +297,11 @@ def test_fw_routine_flatten_tables(fortran_reader, fortran_writer, tmpdir):
     table.add(csym)
     table.add(ssym)
     code = fortran_writer(container)
-    print(code)
     # Check the resulting code has the correct module use statement.
     assert ("  subroutine sub(b)\n"
             "    use the_clash, only : strummer\n" in code)
+    # While the clashing variables have been renamed.
+    assert "real :: the_clash_1" in code
+    assert "real :: strummer_1" in code
+
     Compile(tmpdir).string_compiles(code)

@@ -152,25 +152,13 @@ class InlineTrans(Transformation):
         # References that they contain.
         new_stmts = []
         refs = []
-        # Map from name of precision symbol to those Literals that use it.
-        precision_map = {}
         for child in routine.children:
             new_stmts.append(child.copy())
             refs.extend(new_stmts[-1].walk(Reference))
-            for lit in new_stmts[-1].walk(Literal):
-                if isinstance(lit.datatype.precision, DataSymbol):
-                    name = lit.datatype.precision.name
-                    if name not in precision_map:
-                        precision_map[name] = []
-                    precision_map[name].append(lit)
 
-        # Deal with any Container symbols first.
-        self._inline_container_symbols(table, routine_table)
-
-        # Copy each Symbol from the Routine into the symbol table associated
-        # with the call site, excluding those that represent formal arguments
-        # or containers.
-        self._inline_symbols(table, routine_table, precision_map)
+        # Shallow copy the symbols from the routine into the table at the
+        # call site.
+        table.extend(routine_table, include_arguments=False)
 
         # When constructing new references to replace references to formal
         # args, we need to know whether any of the actual arguments are array
