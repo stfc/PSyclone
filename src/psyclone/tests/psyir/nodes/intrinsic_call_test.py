@@ -43,29 +43,40 @@ from psyclone.psyir.nodes import (
     ArrayReference, Literal, IntrinsicCall, Reference, Schedule)
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, INTEGER_TYPE, IntrinsicSymbol, REAL_TYPE,
-    RoutineSymbol, BOOLEAN_TYPE)
+    BOOLEAN_TYPE)
 
 
 def test_intrinsiccall_constructor():
-    '''
-    Tests that the parent class' constructor is called correctly.
+    '''Tests that the class' constructor and its parent are called
+    correctly.
 
     '''
-    # Wrong type of Symbol.
+    # Wrong type of routine argument.
     with pytest.raises(TypeError) as err:
-        _ = IntrinsicCall(RoutineSymbol("jack"))
-    assert ("IntrinsicCall 'routine' argument should be a IntrinsicSymbol but "
-            "found 'RoutineSymbol'" in str(err.value))
-    # Check that supplied parent node is stored correctly.
+        _ = IntrinsicCall(None)
+    assert ("IntrinsicCall 'routine' argument should be an instance of "
+            "IntrinsicCall.Intrinsic, but found 'NoneType'." in str(err.value))
+    # Check that supplied intrinsic and optional parent node is stored
+    # correctly.
     sched = Schedule()
-    call = IntrinsicCall(IntrinsicSymbol("john"), parent=sched)
-    assert call.routine.name == "john"
+    call = IntrinsicCall(IntrinsicCall.Intrinsic.MINVAL, parent=sched)
+    assert call._intrinsic is IntrinsicCall.Intrinsic.MINVAL
+    assert isinstance(call.routine, IntrinsicSymbol)
+    assert call.routine.name == "MINVAL"
     assert call.parent is sched
 
 
-def test_intrinsiccall_alloc_create():
+def test_intrinsiccall_intrinsic():
+    '''Tests the intrinsic property returns the type of intrinsics from
+    the intrinsic property.
+
     '''
-    Tests the create() method supports various forms of 'allocate'.
+    call = IntrinsicCall(IntrinsicCall.Intrinsic.MAXVAL)
+    assert call.intrinsic is IntrinsicCall.Intrinsic.MAXVAL
+
+
+def test_intrinsiccall_alloc_create():
+    '''Tests the create() method supports various forms of 'allocate'.
 
     '''
     sym = DataSymbol("my_array", ArrayType(INTEGER_TYPE,
@@ -77,6 +88,7 @@ def test_intrinsiccall_alloc_create():
         IntrinsicCall.Intrinsic.ALLOCATE,
         [ArrayReference.create(sym, [Literal("20", INTEGER_TYPE)])])
     assert isinstance(alloc, IntrinsicCall)
+    assert alloc.intrinsic is IntrinsicCall.Intrinsic.ALLOCATE
     assert isinstance(alloc.routine, IntrinsicSymbol)
     assert alloc.routine.name == "ALLOCATE"
     alloc = IntrinsicCall.create(
@@ -87,8 +99,7 @@ def test_intrinsiccall_alloc_create():
 
 
 def test_intrinsiccall_dealloc_create():
-    '''
-    Tests for the creation of a 'deallocate' call.
+    '''Tests for the creation of a 'deallocate' call.
 
     '''
     sym = DataSymbol("my_array", ArrayType(INTEGER_TYPE,
@@ -97,6 +108,7 @@ def test_intrinsiccall_dealloc_create():
     dealloc = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.DEALLOCATE, [Reference(sym)])
     assert isinstance(dealloc, IntrinsicCall)
+    assert dealloc.intrinsic is IntrinsicCall.Intrinsic.DEALLOCATE
     assert isinstance(dealloc.routine, IntrinsicSymbol)
     assert dealloc.routine.name == "DEALLOCATE"
     assert dealloc.children[0].symbol is sym
@@ -108,8 +120,7 @@ def test_intrinsiccall_dealloc_create():
 
 
 def test_intrinsiccall_random_create():
-    '''
-    Tests for the creation of a 'random' call.
+    '''Tests for the creation of a 'random' call.
 
     '''
     sym = DataSymbol("my_array", ArrayType(REAL_TYPE,
@@ -117,7 +128,7 @@ def test_intrinsiccall_random_create():
     rand = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.RANDOM_NUMBER, [Reference(sym)])
     assert isinstance(rand, IntrinsicCall)
-    assert isinstance(rand, IntrinsicCall)
+    assert rand.intrinsic is IntrinsicCall.Intrinsic.RANDOM_NUMBER
     assert isinstance(rand.routine, IntrinsicSymbol)
     assert rand.routine.name == "RANDOM_NUMBER"
     assert rand.children[0].symbol is sym
@@ -140,6 +151,7 @@ def test_intrinsiccall_minmaxsum_create(intrinsic_call):
     intrinsic = IntrinsicCall.create(
         intrinsic_call, [Reference(array)])
     assert isinstance(intrinsic, IntrinsicCall)
+    assert intrinsic.intrinsic is intrinsic_call
     assert isinstance(intrinsic.routine, IntrinsicSymbol)
     intrinsic_name = intrinsic_call.name
     assert intrinsic.routine.name == intrinsic_name
@@ -172,8 +184,7 @@ def test_intrinsiccall_minmaxsum_create(intrinsic_call):
 
 
 def test_intrinsiccall_create_errors():
-    '''
-    Checks for the validation/type checking in the create() method.
+    '''Checks for the validation/type checking in the create() method.
 
     '''
     sym = DataSymbol("my_array", ArrayType(INTEGER_TYPE,

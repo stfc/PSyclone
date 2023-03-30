@@ -47,11 +47,19 @@ from psyclone.psyir.symbols import IntrinsicSymbol
 
 
 # TODO??? assert not intrinsic.is_elemental()
+# pylint: disable=too-many-branches
 
 class IntrinsicCall(Call):
     ''' Node representing a call to an intrinsic routine (function or
     subroutine). This can be found as a standalone statement
     or an expression.
+
+    :param routine: the type of Intrinsic being created.
+    :type routine: py:class:`psyclone.psyir.IntrinsicCall.Intrinsic`
+    :param kwargs: additional keyword arguments provided to the PSyIR node.
+    :type kwargs: unwrapped dict.
+
+    :raises TypeError: if the routine argument is not an Intrinsic type.
 
     '''
     # Textual description of the node.
@@ -95,6 +103,27 @@ class IntrinsicCall(Call):
     _required_args[Intrinsic.SUM] = ArgDesc(1, 1, DataNode)
     _optional_args[Intrinsic.SUM] = {
         "dim": DataNode, "mask": DataNode}
+
+    def __init__(self, routine, **kwargs):
+        if not isinstance(routine, Enum) or routine not in self.Intrinsic:
+            raise TypeError(
+                f"IntrinsicCall 'routine' argument should be an "
+                f"instance of IntrinsicCall.Intrinsic, but found "
+                f"'{type(routine).__name__}'.")
+
+        # A Call expects a symbol, so give it an intrinsic symbol.
+        super().__init__(IntrinsicSymbol(routine.name), **kwargs)
+        self._intrinsic = routine
+
+    @property
+    def intrinsic(self):
+        ''' Return the type of intrinsic.
+
+        :returns: enumerated type capturing the type of intrinsic.
+        :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic`
+
+        '''
+        return self._intrinsic
 
     @classmethod
     def create(cls, routine, arguments):
@@ -191,9 +220,14 @@ class IntrinsicCall(Call):
             msg += f"arguments but got {len(arguments)}."
             raise ValueError(msg)
 
-        # Create a call, supplying an IntrinsicSymbol in place of a
-        # RoutineSymbol.
-        call = super().create(IntrinsicSymbol(routine.name), arguments)
+        # Create an intrinsic call and add the arguments
+        # afterwards. We can't call the parent create method as it
+        # assumes the routine argument is a symbol and therefore tries
+        # to create an intrinsic call with this symbol, rather than
+        # the intrinsic enum.
+        call = IntrinsicCall(routine)
+        call._add_args(call, arguments)
+        call._intrinsic = routine
 
         return call
 
