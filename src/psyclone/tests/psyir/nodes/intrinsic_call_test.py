@@ -75,6 +75,16 @@ def test_intrinsiccall_intrinsic():
     assert call.intrinsic is IntrinsicCall.Intrinsic.MAXVAL
 
 
+def test_intrinsiccall_is_elemental():
+    '''Tests the is_elemental() method works as expected. There are
+    currently no elemental intrinsics so we can only test for
+    False.
+
+    '''
+    intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.SUM)
+    assert not intrinsic.is_elemental()
+
+
 def test_intrinsiccall_alloc_create():
     '''Tests the create() method supports various forms of 'allocate'.
 

@@ -46,7 +46,6 @@ from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import IntrinsicSymbol
 
 
-# TODO??? assert not intrinsic.is_elemental()
 # pylint: disable=too-many-branches
 
 class IntrinsicCall(Call):
@@ -124,6 +123,15 @@ class IntrinsicCall(Call):
 
         '''
         return self._intrinsic
+
+    def is_elemental(self):
+        '''
+        :returns: whether this intrinsic is elemental (provided with an input \
+            array it will apply the operation individually to each of the \
+            array elements and return an array with the results).
+        :rtype: bool
+        '''
+        return self.intrinsic in ELEMENTAL_INTRINSICS
 
     @classmethod
     def create(cls, routine, arguments):
@@ -234,8 +242,12 @@ class IntrinsicCall(Call):
 
 # TODO #658 this can be removed once we have support for determining the
 # type of a PSyIR expression.
-#: Intrinsics that perform a reduction on an array.
-# minval and maxval too
+# Intrinsics that perform a reduction on an array.
 REDUCTION_INTRINSICS = [
     IntrinsicCall.Intrinsic.SUM, IntrinsicCall.Intrinsic.MINVAL,
     IntrinsicCall.Intrinsic.MAXVAL]
+
+# Intrinsics that, provided with an input array, apply their operation
+# individually to each of the array elements and return an array with
+# the results.
+ELEMENTAL_INTRINSICS = []
