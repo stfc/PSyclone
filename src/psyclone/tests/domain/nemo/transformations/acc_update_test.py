@@ -204,7 +204,7 @@ end SUBROUTINE tra_ldf_iso
             "  !$acc update if_present device(zftv)\n"
             "  call dia_ptr_hst(jn, 'ldf', zftv(:,:,:))\n"
             "  !$acc update if_present host(checksum,zftv)\n"
-            "  checksum = sum(zftv)\n"
+            "  checksum = SUM(zftv)\n"
             "  !$acc update if_present device(checksum)\n" in code)
 
 
@@ -238,7 +238,7 @@ end SUBROUTINE tra_ldf_iso
             "  !$acc update if_present device(zftv)\n" in code)
     assert ("  end if\n"
             "  !$acc update if_present host(checksum,zftv)\n"
-            "  checksum = sum(zftv)\n"
+            "  checksum = SUM(zftv)\n"
             "  !$acc update if_present device(checksum)\n" in code)
 
 
