@@ -41,9 +41,7 @@
 import pytest
 
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir import nodes
-from psyclone.psyir.symbols import (DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE,
-                                    SymbolTable)
+from psyclone.psyir import nodes, symbols
 from psyclone.tests.utilities import Compile
 
 
@@ -92,10 +90,12 @@ def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
 
     # Add distinctly named symbols in the routine sub-scopes
     sub_scopes = schedule.walk(nodes.Schedule)[1:]
-    sub_scopes[0].symbol_table.new_symbol("symbol1", symbol_type=DataSymbol,
-                                          datatype=INTEGER_TYPE)
-    sub_scopes[1].symbol_table.new_symbol("symbol2", symbol_type=DataSymbol,
-                                          datatype=INTEGER_TYPE)
+    sub_scopes[0].symbol_table.new_symbol(
+        "symbol1", symbol_type=symbols.DataSymbol,
+        datatype=symbols.INTEGER_TYPE)
+    sub_scopes[1].symbol_table.new_symbol(
+        "symbol2", symbol_type=symbols.DataSymbol,
+        datatype=symbols.INTEGER_TYPE)
     # They should be promoted to the routine-scope level
     result = fortran_writer(schedule)
     assert (
@@ -106,10 +106,12 @@ def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
 
     # Add symbols that will result in name clashes to sibling scopes
     sub_scopes = schedule.walk(nodes.Schedule)[1:]
-    sub_scopes[0].symbol_table.new_symbol("symbol2", symbol_type=DataSymbol,
-                                          datatype=INTEGER_TYPE)
-    sub_scopes[1].symbol_table.new_symbol("symbol1", symbol_type=DataSymbol,
-                                          datatype=INTEGER_TYPE)
+    sub_scopes[0].symbol_table.new_symbol(
+        "symbol2", symbol_type=symbols.DataSymbol,
+        datatype=symbols.INTEGER_TYPE)
+    sub_scopes[1].symbol_table.new_symbol(
+        "symbol1", symbol_type=symbols.DataSymbol,
+        datatype=symbols.INTEGER_TYPE)
     # Since the scopes are siblings they are allowed the same name
     assert "symbol1" in sub_scopes[0].symbol_table
     assert "symbol2" in sub_scopes[0].symbol_table
@@ -135,20 +137,20 @@ def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
 
 def test_fw_routine_nameclash(fortran_writer):
     ''' Test that any name clashes are handled when merging symbol tables. '''
-    sym1 = DataSymbol("var1", INTEGER_TYPE)
-    sym2 = DataSymbol("var1", INTEGER_TYPE)
+    sym1 = symbols.DataSymbol("var1", symbols.INTEGER_TYPE)
+    sym2 = symbols.DataSymbol("var1", symbols.INTEGER_TYPE)
     assign1 = nodes.Assignment.create(nodes.Reference(sym1),
-                                      nodes.Literal("1", INTEGER_TYPE))
+                                      nodes.Literal("1", symbols.INTEGER_TYPE))
     assign2 = nodes.Assignment.create(nodes.Reference(sym2),
-                                      nodes.Literal("2", INTEGER_TYPE))
-    ifblock = nodes.IfBlock.create(nodes.Literal("true", BOOLEAN_TYPE),
+                                      nodes.Literal("2", symbols.INTEGER_TYPE))
+    ifblock = nodes.IfBlock.create(nodes.Literal("true", symbols.BOOLEAN_TYPE),
                                    [assign1], [assign2])
     # Place the symbols for the two variables in the tables associated with
     # the two branches of the IfBlock. These then represent *different*
     # variables, despite having the same name.
     ifblock.if_body.symbol_table.add(sym1)
     ifblock.else_body.symbol_table.add(sym2)
-    routine = nodes.Routine.create("my_sub", SymbolTable(), [ifblock])
+    routine = nodes.Routine.create("my_sub", symbols.SymbolTable(), [ifblock])
     result = fortran_writer(routine)
     assert ("  integer :: var1\n"
             "  integer :: var1_1\n"
@@ -160,7 +162,8 @@ def test_fw_routine_nameclash(fortran_writer):
             "  end if" in result)
     # Add a symbol to the local scope of the else that will clash with
     # the name generated with reference to the routine scope.
-    ifblock.else_body.symbol_table.add(DataSymbol("var1_1", INTEGER_TYPE))
+    ifblock.else_body.symbol_table.add(
+        symbols.DataSymbol("var1_1", symbols.INTEGER_TYPE))
     result = fortran_writer(routine)
     assert ("  integer :: var1\n"
             "  integer :: var1_2\n"
@@ -173,7 +176,8 @@ def test_fw_routine_nameclash(fortran_writer):
             "  end if" in result)
     # Add a symbol to the routine scope that will clash with the first name
     # generated with reference to the else scope.
-    routine.symbol_table.add(DataSymbol("var1_2", INTEGER_TYPE))
+    routine.symbol_table.add(symbols.DataSymbol("var1_2",
+                                                symbols.INTEGER_TYPE))
     result = fortran_writer(routine)
     assert ("  integer :: var1_2\n"
             "  integer :: var1\n"
@@ -260,3 +264,37 @@ def test_fw_routine_function_no_result(fortran_reader, fortran_writer, tmpdir):
     result = fortran_writer(container)
     assert "  function tmp(b)\n" in result
     assert Compile(tmpdir).string_compiles(result)
+
+
+def test_fw_routine_flatten_tables(fortran_reader, fortran_writer, tmpdir):
+    '''
+    '''
+    code = ("module test\n"
+            "implicit none\n"
+            "contains\n"
+            "subroutine sub(b)\n"
+            "  real, intent(inout) :: b\n"
+            "  real :: the_clash, strummer\n"
+            "  integer :: ii\n"
+            "  do ii = 1, 10\n"
+            "    b = ii + b\n"
+            "  end do\n"
+            "end subroutine sub\n"
+            "end module test")
+    container = fortran_reader.psyir_from_source(code)
+    # Find the loop as its body has a symbol table.
+    loop = container.walk(nodes.Loop)[0]
+    table = loop.loop_body.symbol_table
+    # Add an import to this symbol table that will clash with symbols already
+    # declared in the routine table.
+    csym = symbols.ContainerSymbol("the_clash")
+    ssym = symbols.DataSymbol("strummer", datatype=symbols.DeferredType(),
+                              interface=symbols.ImportInterface(csym))
+    table.add(csym)
+    table.add(ssym)
+    code = fortran_writer(container)
+    print(code)
+    # Check the resulting code has the correct module use statement.
+    assert ("  subroutine sub(b)\n"
+            "    use the_clash, only : strummer\n" in code)
+    Compile(tmpdir).string_compiles(code)
