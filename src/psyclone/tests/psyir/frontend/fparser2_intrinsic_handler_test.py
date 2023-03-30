@@ -170,7 +170,7 @@ def test_canonicalise_minmaxsum():
 
 
 @pytest.mark.parametrize("arguments", ["a, dim=d, mask=m", "a, d, m"])
-@pytest.mark.parametrize("intrinsic_name", ["minval", "maxval", "sum"])
+@pytest.mark.parametrize("intrinsic_name", ["MINVAL", "MAXVAL", "SUM"])
 def test_intrinsic_handler_intrinsiccall(
         fortran_reader, fortran_writer, intrinsic_name, arguments):
     '''Check that the FParser2Reader class _intrinsic_handler method in

@@ -58,7 +58,7 @@ from psyclone.psyir.nodes.array_of_structures_mixin import \
     ArrayOfStructuresMixin
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
-    DeferredType, ImportInterface, IntrinsicSymbol, LocalInterface, NoType,
+    DeferredType, ImportInterface, LocalInterface, NoType,
     RoutineSymbol, ScalarType, StructureType, Symbol, SymbolError, SymbolTable,
     UnknownFortranType, UnknownType, UnresolvedInterface, INTEGER_TYPE)
 
@@ -1005,6 +1005,14 @@ class Fparser2Reader():
     nary_operators = OrderedDict([
         ('max', NaryOperation.Operator.MAX),
         ('min', NaryOperation.Operator.MIN)])
+
+    intrinsics = OrderedDict([
+        ('allocate', IntrinsicCall.Intrinsic.ALLOCATE),
+        ('deallocate', IntrinsicCall.Intrinsic.DEALLOCATE),
+        ('random', IntrinsicCall.Intrinsic.RANDOM_NUMBER),
+        ('minval', IntrinsicCall.Intrinsic.MINVAL),
+        ('maxval', IntrinsicCall.Intrinsic.MAXVAL),
+        ('sum', IntrinsicCall.Intrinsic.SUM)])
 
     def __init__(self):
         # Map of fparser2 node types to handlers (which are class methods)
@@ -2491,9 +2499,7 @@ class Fparser2Reader():
         :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
         '''
-        call = IntrinsicCall(
-            IntrinsicSymbol(IntrinsicCall.Intrinsic.ALLOCATE.name),
-            parent=parent)
+        call = IntrinsicCall(IntrinsicCall.Intrinsic.ALLOCATE, parent=parent)
 
         alloc_list = node.children[1].children
         # Loop over each 'Allocation' in the 'Allocation_List'
@@ -2599,8 +2605,7 @@ class Fparser2Reader():
 
         '''
         call = IntrinsicCall(
-            IntrinsicSymbol(IntrinsicCall.Intrinsic.DEALLOCATE.name),
-            parent=parent)
+            IntrinsicCall.Intrinsic.DEALLOCATE, parent=parent)
         dealloc_list = node.children[0].children
         for dealloc in dealloc_list:
             self.process_nodes(parent=call, nodes=[dealloc])
@@ -3775,9 +3780,7 @@ class Fparser2Reader():
         # have a variable number of arguments, so do not fit well with
         # the unary, binary, nary separation.
         if name.lower() in ["minval", "maxval", "sum"]:
-            call = IntrinsicCall(
-                IntrinsicSymbol(name.lower()),
-                parent=parent)
+            call = IntrinsicCall(self.intrinsics[name.lower()], parent=parent)
             return self._process_args(
                 node, call, canonicalise=_canonicalise_minmaxsum)
 
