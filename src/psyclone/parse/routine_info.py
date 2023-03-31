@@ -59,6 +59,7 @@ class RoutineInfo:
         self._module_info = module_info
         self._ast = ast
         self._name = str(ast.content[0].items[1])
+        #TODO: do we need this?
         self._is_function = isinstance(ast, Function_Subprogram)
 
         self._non_locals = None
@@ -109,7 +110,7 @@ class RoutineInfo:
                     # It is a variable from the module in which the
                     # current function is, so it is a non-local access
                     if isinstance(existing_sym, RoutineSymbol):
-                        return ("function", node.name, sym.name)
+                        return ("routine", node.name, sym.name)
                     return ("reference", node.name, sym.name)
 
             # Otherwise keep on looking
@@ -131,7 +132,7 @@ class RoutineInfo:
 
         if not self._psyir:
             # Parsing the PSyIR in the parent will populate the PSyIR
-            # information for each subroutine
+            # information for each subroutine and function.
             self._module_info.get_psyir()
 
         for access in self._psyir.walk((Kern, Call, Reference)):
@@ -141,7 +142,7 @@ class RoutineInfo:
 
             if isinstance(access, Kern):
                 # A kernel is a subroutine call from a module:
-                self._non_locals.append(("subroutine", access.module_name,
+                self._non_locals.append(("routine", access.module_name,
                                          access.name))
                 continue
 
@@ -149,7 +150,7 @@ class RoutineInfo:
                 sym = access.routine
                 if isinstance(sym.interface, ImportInterface):
                     module_name = sym.interface.container_symbol.name
-                    self._non_locals.append(("subroutine", module_name,
+                    self._non_locals.append(("routine", module_name,
                                              sym.name))
                     continue
                 # No import. This could either be a subroutine from
@@ -157,11 +158,11 @@ class RoutineInfo:
                 try:
                     self._module_info.get_routine_info(sym.name)
                     # A local function that is in the same module:
-                    self._non_locals.append(("subroutine",
+                    self._non_locals.append(("routine",
                                              self._module_info.name, sym.name))
                 except KeyError:
                     # We don't know where the subroutine comes from
-                    self._non_locals.append(("subroutine", None, sym.name))
+                    self._non_locals.append(("routine", None, sym.name))
 
                 continue
 
@@ -192,7 +193,7 @@ class RoutineInfo:
     def get_non_local_symbols(self):
         '''This function returns a list of non-local accesses in the given
         routine. It returns a list of triplets, each one containing:
-        - the type ('subroutine', 'function', 'reference', 'unknown').
+        - the type ('routine', 'function', 'reference', 'unknown').
           The latter is used for array references or function calls,
           which we cannot distinguish till #1314 is done.
         - the name of the module (lowercase). This can be 'None' if no
