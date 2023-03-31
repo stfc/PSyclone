@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -67,11 +67,12 @@ API = "dynamo0.3"
 
 
 def test_int_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of LFRicIntXPlusYKern returns the
-    expected string and 2) we generate correct code for the built-in
-    Z = X + Y where X and Y are integer-valued fields. Also check that we
-    generate correct bounds when Config.api_conf(API)._compute_annexed_dofs
-    is False and True.
+    '''Test that 1) the '__str__' method of 'LFRicIntXPlusYKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in 'Z = X + Y' where 'X' and 'Y' are integer-valued
+    fields. Also check that we generate correct bounds when
+    'Config.api_conf(API)._compute_annexed_dofs' is 'False' and
+    'True'.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -84,7 +85,7 @@ def test_int_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == "Built-in: X_plus_Y (Add integer-valued fields)"
+    assert str(kern) == "Built-in: int_X_plus_Y (add integer-valued fields)"
     # Test code generation
     code = str(psy.gen)
 
@@ -144,10 +145,11 @@ def test_int_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_int_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of LFRicIntIncXPlusYKern returns the
-    expected string and 2) we generate correct code for the built-in
-    X = X + Y where X and Y are integer-valued fields. Test with and without
-    annexed dofs being computed as this affects the generated code.
+    '''Test that 1) the '__str__' method of 'LFRicIntIncXPlusYKern'
+    returns the expected string and 2) we generate correct code for
+    the built-in 'X = X + Y' where 'X' and 'Y' are integer-valued
+    fields. Test with and without annexed dofs being computed as this
+    affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -159,7 +161,7 @@ def test_int_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert (str(kern) == "Built-in: int_inc_X_plus_Y (Increment an "
+    assert (str(kern) == "Built-in: int_inc_X_plus_Y (increment an "
             "integer-valued field)")
     # Test code generation
     code = str(psy.gen)
@@ -203,11 +205,11 @@ def test_int_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_int_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of LFRicIntAPlusXKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation Y = a + X where 'a' is an integer scalar and X and Y
-    are integer-valued fields. Test with and without annexed dofs being
-    computed as this affects the generated code.
+    '''Test that 1) the '__str__' method of 'LFRicIntAPlusXKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'Y = a + X' where 'a' is an integer scalar and
+    'X' and 'Y' are integer-valued fields. Test with and without
+    annexed dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -259,11 +261,11 @@ def test_int_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_int_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of LFRicIntIncAPlusXKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation X = a + X where 'a' is an integer scalar and X is an
-    integer-valued field. Test with and without annexed dofs being
-    computed as this affects the generated code.
+    '''Test that 1) the '__str__' method of 'LFRicIntIncAPlusXKern'
+    returns the expected string and 2) we generate correct code for
+    the built-in operation 'X = a + X' where 'a' is an integer scalar
+    and 'X' is an integer-valued field. Test with and without annexed
+    dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -316,11 +318,11 @@ def test_int_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_int_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of LFRicIntXMinusYKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation Z = X - Y where Z, X and Y are integer-valued fields. Test
-    with and without annexed dofs being computed as this affects the
-    generated code.
+    '''Test that 1) the '__str__' method of 'LFRicIntXMinusYKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'Z = X - Y' where 'Z', 'X' and 'Y' are
+    integer-valued fields. Test with and without annexed dofs being
+    computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -332,7 +334,7 @@ def test_int_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert (str(kern) == "Built-in: int_X_minus_Y (Subtract "
+    assert (str(kern) == "Built-in: int_X_minus_Y (subtract "
             "integer-valued fields)")
     # Test code generation
     code = str(psy.gen)
@@ -383,10 +385,11 @@ def test_int_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_int_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of LFRicIntIncXMinusYKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation X = X - Y where X and Y are integer-valued fields. Test with and
-    without annexed dofs being computed as this affects the generated code.
+    '''Test that 1) the '__str__' method of 'LFRicIntIncXMinusYKern'
+    returns the expected string and 2) we generate correct code for
+    the built-in operation 'X = X - Y' where 'X' and 'Y' are
+    integer-valued fields. Test with and without annexed dofs being
+    computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -398,7 +401,7 @@ def test_int_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert (str(kern) == "Built-in: int_inc_X_minus_Y (Decrement an "
+    assert (str(kern) == "Built-in: int_inc_X_minus_Y (decrement an "
             "integer-valued field)")
     # Test code generation
     code = str(psy.gen)
@@ -447,11 +450,11 @@ def test_int_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_int_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of LFRicIntAMinusXKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation Y = a - X where 'a' is an integer scalar and X and Y
-    are integer-valued fields. Test with and without annexed dofs being
-    computed as this affects the generated code.
+    '''Test that 1) the '__str__' method of 'LFRicIntAMinusXKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'Y = a - X' where 'a' is an integer scalar and
+    'X' and 'Y' are integer-valued fields. Test with and without
+    annexed dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -510,11 +513,11 @@ def test_int_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_int_inc_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of LFRicIntIncAMinusXKern returns
-    the expected string and 2) we generate correct code for the
-    built-in operation X = a - X where 'a' is an integer scalar and
-    X is an integer-valued field. Test with and without annexed dofs
-    being computed as this affects the generated code.
+    '''Test that 1) the '__str__' method of 'LFRicIntIncAMinusXKern'
+    returns the expected string and 2) we generate correct code for
+    the built-in operation 'X = a - X' where 'a' is an integer scalar
+    and 'X' is an integer-valued field. Test with and without annexed
+    dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -564,11 +567,11 @@ def test_int_inc_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_int_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of LFRicIntXMinusAKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation Y = X - a where 'a' is an integer scalar and X and Y
-    are integer-valued fields. Test with and without annexed dofs being
-    computed as this affects the generated code.
+    '''Test that 1) the '__str__' method of LFRicIntXMinusAKern returns
+    the expected string and 2) we generate correct code for the
+    built-in operation Y = X - a where 'a' is an integer scalar and X
+    and Y are integer-valued fields. Test with and without annexed
+    dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -620,11 +623,11 @@ def test_int_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_int_inc_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of LFRicIntIncXMinusAKern returns
-    the expected string and 2) we generate correct code for the
-    built-in operation X = X - a where 'a' is an integer scalar and
-    X is an integer-valued field. Test with and without annexed dofs
-    being computed as this affects the generated code.
+    '''Test that 1) the '__str__' method of 'LFRicIntIncXMinusAKern'
+    returns the expected string and 2) we generate correct code for
+    the built-in operation 'X = X - a' where 'a' is an integer scalar
+    and 'X' is an integer-valued field. Test with and without annexed
+    dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -677,11 +680,11 @@ def test_int_inc_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_int_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of LFRicIntXTimesYKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation Z = X*Y where Z, X and Y are integer-valued fields. Test
-    with and without annexed dofs being computed as this affects the
-    generated code.
+    '''Test that 1) the '__str__' method of 'LFRicIntXTimesYKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'Z = X*Y' where 'Z', 'X' and 'Y' are
+    integer-valued fields. Test with and without annexed dofs being
+    computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -693,7 +696,7 @@ def test_int_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert (str(kern) == "Built-in: int_X_times_Y (Multiply "
+    assert (str(kern) == "Built-in: int_X_times_Y (multiply "
             "integer-valued fields)")
     # Test code generation
     code = str(psy.gen)
@@ -753,10 +756,11 @@ def test_int_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_int_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of LFRicIntIncXTimesYKern returns
-    the expected string and 2) we generate correct code for the built-in
-    operation X = X*Y where X and Y are integer-valued fields. Test with and
-    without annexed dofs being computed as this affects the generated code.
+    '''Test that 1) the '__str__' method of 'LFRicIntIncXTimesYKern'
+    returns the expected string and 2) we generate correct code for
+    the built-in operation 'X = X*Y' where 'X' and 'Y' are
+    integer-valued fields. Test with and without annexed dofs being
+    computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -769,7 +773,7 @@ def test_int_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == ("Built-in: int_inc_X_times_Y (Multiply one "
+    assert str(kern) == ("Built-in: int_inc_X_times_Y (multiply one "
                          "integer-valued field by another)")
     # Test code generation
     code = str(psy.gen)
@@ -822,11 +826,11 @@ def test_int_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_int_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of LFRicIntATimesXKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation Y = a*X where 'a' is an integer scalar and X and Y are
-    integer-valued fields. Test with and without annexed dofs being
-    computed as this affects the generated code.
+    '''Test that 1) the '__str__' method of 'LFRicIntATimesXKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'Y = a*X' where 'a' is an integer scalar and
+    'X' and 'Y' are integer-valued fields. Test with and without
+    annexed dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -839,7 +843,7 @@ def test_int_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert (str(kern) == "Built-in: int_a_times_X (Copy a scaled "
+    assert (str(kern) == "Built-in: int_a_times_X (copy a scaled "
             "integer-valued field)")
     # Test code generation
     code = str(psy.gen)
@@ -887,11 +891,11 @@ def test_int_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_int_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of LFRicIntIncATimesXKern returns
-    the expected string and 2) we generate correct code for the
-    built-in operation X = a*X where 'a' is an integer scalar and X is
-    an integer-valued field. Test with and without annexed dofs being
-    computed as this affects the generated code.
+    '''Test that 1) the '__str__' method of 'LFRicIntIncATimesXKern'
+    returns the expected string and 2) we generate correct code for
+    the built-in operation 'X = a*X' where 'a' is an integer scalar
+    and 'X' is an integer-valued field. Test with and without annexed
+    dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -904,7 +908,7 @@ def test_int_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert (str(kern) == "Built-in: int_inc_a_times_X (Scale an "
+    assert (str(kern) == "Built-in: int_inc_a_times_X (scale an "
             "integer-valued field)")
     # Test code generation
     code = str(psy.gen)
@@ -964,11 +968,11 @@ def test_int_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_int_setval_c(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of LFRicIntSetvalCKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation X = c where 'c' is an integer constant scalar value and X
-    is an integer-valued field. Test with and without annexed dofs being
-    computed as this affects the generated code.
+    '''Test that 1) the '__str__' method of 'LFRicIntSetvalCKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'X = c' where 'c' is an integer constant scalar
+    value and 'X' is an integer-valued field. Test with and without
+    annexed dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -980,7 +984,7 @@ def test_int_setval_c(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == ("Built-in: int_setval_c (Set an integer-valued "
+    assert str(kern) == ("Built-in: int_setval_c (set an integer-valued "
                          "field to a integer scalar value)")
     # Test code generation
     code = str(psy.gen)
@@ -1037,10 +1041,11 @@ def test_int_setval_c(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_int_setval_X(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of LFRicIntSetvalXKern returns the
-    expected string and 2) we generate correct code for the built-in operation
-    Y = X where X and Y are integer-valued fields. Also test with and
-    without annexed dofs being computed as this affects the generated code.
+    '''Test that 1) the '__str__' method of 'LFRicIntSetvalXKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'Y = X' where 'X' and 'Y' are integer-valued
+    fields. Also test with and without annexed dofs being computed as
+    this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1052,7 +1057,7 @@ def test_int_setval_X(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == ("Built-in: int_setval_X (Set an integer-valued "
+    assert str(kern) == ("Built-in: int_setval_X (set an integer-valued "
                          "field equal to another such field)")
     # Test code generation
     code = str(psy.gen)
@@ -1112,11 +1117,11 @@ def test_int_setval_X(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_int_sign_X(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of LFRicIntSignXKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation Y = sign(a, X) where 'a' is an integer scalar and Y and X
-    are integer-valued fields. Test with and without annexed dofs
-    being computed as this affects the generated code.
+    '''Test that 1) the '__str__' method of 'LFRicIntSignXKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'Y = sign(a, X)' where 'a' is an integer scalar
+    and 'Y' and 'X' are integer-valued fields. Test with and without
+    annexed dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1128,7 +1133,7 @@ def test_int_sign_X(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert (str(kern) == "Built-in: int_sign_X (Sign of an "
+    assert (str(kern) == "Built-in: int_sign_X (sign of an "
             "integer-valued field)")
     # Test code generation
     code = str(psy.gen)
@@ -1171,11 +1176,11 @@ def test_int_sign_X(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_int_max_aX(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of LFRicIntMaxAXKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation Y = max(a, X) where 'a' is an integer scalar and Y and X
-    are integer-valued fields. Test with and without annexed dofs
-    being computed as this affects the generated code.
+    '''Test that 1) the '__str__' method of 'LFRicIntMaxAXKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'Y = max(a, X)' where 'a' is an integer scalar
+    and 'Y' and 'X' are integer-valued fields. Test with and without
+    annexed dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1237,11 +1242,11 @@ def test_int_max_aX(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_int_inc_max_aX(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of LFRicIntIncMaxAXKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation X = max(a, X) where 'a' is an integer scalar and X is an
-    integer-valued field. Test with and without annexed dofs being
-    computed as this affects the generated code.
+    '''Test that 1) the '__str__' method of 'LFRicIntIncMaxAXKern'
+    returns the expected string and 2) we generate correct code for
+    the built-in operation 'X = max(a, X)' where 'a' is an integer
+    scalar and 'X' is an integer-valued field. Test with and without
+    annexed dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1304,11 +1309,11 @@ def test_int_inc_max_aX(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_int_min_aX(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of LFRicIntMinAXKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation Y = min(a, X) where 'a' is an integer scalar and Y and X
-    are integer-valued fields. Test with and without annexed dofs
-    being computed as this affects the generated code.
+    '''Test that 1) the '__str__' method of 'LFRicIntMinAXKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'Y = min(a, X)' where 'a' is an integer scalar
+    and 'Y' and 'X' are integer-valued fields. Test with and without
+    annexed dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1359,11 +1364,11 @@ def test_int_min_aX(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_int_inc_min_aX(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of LFRicIntIncMinAXKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation X = min(a, X) where 'a' is an integer scalar and X is an
-    integer-valued field. Test with and without annexed dofs being computed
-    as this affects the generated code.
+    '''Test that 1) the '__str__' method of 'LFRicIntIncMinAXKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'X = min(a, X)' where 'a' is an integer scalar
+    and 'X' is an integer-valued field. Test with and without annexed
+    dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1417,13 +1422,13 @@ def test_int_inc_min_aX(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_real_X(tmpdir, monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of LFRicRealXKern returns the expected
-    string and 2) we generate correct code for the built-in operation
-    Y = real(X, r_def) where Y is a real-valued field, X is the
-    integer-valued field being converted and the correct kind,
-    'r_def', is read from the PSyclone configuration file. Test with
-    and without annexed dofs being computed as this affects the
-    generated code. 3: Also test the metadata() method.
+    '''Test that 1) the '__str__' method of 'LFRicRealXKern' returns the
+    expected string and 2) we generate correct code for the built-in
+    operation 'Y = real(X, r_def)' where 'Y' is a real-valued field,
+    'X' is the integer-valued field being converted and the correct
+    kind, 'r_def', is read from the PSyclone configuration file. Test
+    with and without annexed dofs being computed as this affects the
+    generated code. 3): Also test the 'metadata()' method.
 
     '''
     metadata = LFRicRealXKern.metadata()
@@ -1437,7 +1442,7 @@ def test_real_X(tmpdir, monkeypatch, annexed, dist_mem):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == ("Built-in: real_X (Convert an integer-valued to a "
+    assert str(kern) == ("Built-in: real_X (convert an integer-valued to a "
                          "real-valued field)")
     # Test code generation
     code = str(psy.gen)

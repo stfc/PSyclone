@@ -32,9 +32,12 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified: S. Siso, STFC Daresbury Lab
+# Modified: S. Siso and R. W. Ford, STFC Daresbury Lab
 
-''' Module containing pytest tests of the LFRicSetvalRandomKern built-in.'''
+'''Module containing pytest tests of the LFRicSetvalRandomKern
+built-in.
+
+'''
 
 import os
 from psyclone.domain.lfric.kernel import LFRicKernelMetadata
@@ -56,8 +59,8 @@ API = "dynamo0.3"
 
 
 def test_setval_random(tmpdir):
-    '''Test the str() and metadata() methods and generated code for the
-    LFRicSetvalRandomKern built-in.
+    '''Test the 'str()' and 'metadata()' methods and generated code for
+    the 'LFRicSetvalRandomKern' built-in.
 
     '''
     metadata = LFRicSetvalRandomKern.metadata()
@@ -67,12 +70,12 @@ def test_setval_random(tmpdir):
                            api=API)
     psy = PSyFactory(API,
                      distributed_memory=True).create(invoke_info)
-    # Test string method
+    # Test 'str()' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert isinstance(kern, LFRicSetvalRandomKern)
     assert (str(kern) ==
-            "Built-in: setval_random (Fill a real-valued field with "
+            "Built-in: setval_random (fill a real-valued field with "
             "pseudo-random numbers)")
 
     # Test code generation
@@ -87,8 +90,8 @@ def test_setval_random(tmpdir):
 
 
 def test_setval_random_lowering():
-    '''
-    Test that the lower_to_language_level() method works as expected.
+    '''Test that the 'lower_to_language_level()' method works as
+    expected.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,

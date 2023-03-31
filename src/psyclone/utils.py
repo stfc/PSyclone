@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2018-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,9 +31,25 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Authors: A. R. Porter and R. W. Ford, STFC Daresbury Lab
 
-'''This module provides generic utility functions'''
+'''This module provides generic utility functions.'''
+
+import sys
+
+
+def within_virtual_env():
+    '''
+    Utility function that identifies whether we are running in a Python
+    virtual environment. Works for virtualenv and Python 3's venv.
+
+    :returns: True if we're running in a virtual environment.
+    :rtype: bool
+
+    '''
+    # pylint: disable=no-member
+    return (hasattr(sys, 'real_prefix') or
+            (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix))
 
 
 def a_or_an(string):

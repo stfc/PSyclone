@@ -31,18 +31,46 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Lab
 
 '''This module implements tests for the generic utility functions.'''
 
-from psyclone.utils import a_or_an
+import sys
+
+from psyclone.utils import within_virtual_env, a_or_an
+
+
+def test_within_virtual_env(monkeypatch):
+    '''Test the 'within_virtual_env' function. We need to monkeypatch as
+    there is no way to control what environment we are in.
+
+    '''
+    # There is a 'real_prefix' attribute.
+    monkeypatch.setattr(sys, 'real_prefix', "real_prefix", raising=False)
+    assert within_virtual_env()
+    # There is no 'real_prefix' attribute. There is a 'base_prefix'
+    # attribute with a different name to the 'prefix' attribute.
+    monkeypatch.delattr(sys, 'real_prefix')
+    monkeypatch.setattr(sys, 'base_prefix', "base_prefix", raising=False)
+    monkeypatch.setattr(sys, 'prefix', "prefix")
+    assert within_virtual_env()
+    # There is no 'real_prefix' attribute. There is a 'base_prefix'
+    # atribute with the same name to the 'prefix' attribute.
+    monkeypatch.setattr(sys, 'base_prefix', "prefix")
+    assert not within_virtual_env()
+    # There are no 'real_prefix' or 'base_prefix' attributes.
+    monkeypatch.delattr(sys, 'base_prefix')
+    assert not within_virtual_env()
 
 
 def test_a_or_an():
-    ''' Test the a_or_an() function. '''
+    '''Test the a_or_an() function.'''
     assert a_or_an("Aardvark") == "an"
     assert a_or_an("aardvark") == "an"
     assert a_or_an("honor") == "an"
     assert a_or_an("real") == "a"
     assert a_or_an("integer") == "an"
     assert a_or_an("logical") == "a"
+    # Test remaining vowels.
+    for vowel in ["e", "o", "u"]:
+        assert a_or_an(vowel) == "an"
