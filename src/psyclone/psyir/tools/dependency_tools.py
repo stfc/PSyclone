@@ -46,8 +46,7 @@ from psyclone.configuration import Config
 from psyclone.core import (AccessType, SymbolicMaths,
                            VariablesAccessInfo)
 from psyclone.errors import InternalError, LazyString
-from psyclone.psyir.nodes import Container, Loop
-from psyclone.psyir.symbols import RoutineSymbol
+from psyclone.psyir.nodes import Loop
 from psyclone.parse import ModuleInfoError, ModuleManager
 from psyclone.psyGen import BuiltIn, Kern
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -961,11 +960,12 @@ class DependencyTools():
                     continue
                 print(kernel.base_name, kernel.module_name)
                 mod_info = mod_manager.get_module_info(kernel.module_name)
-                non_locals = \
-                    mod_info.get_non_local_symbols_for_routine(kernel.name)
+                routine_info = mod_info.get_routine_info(kernel.name)
+                non_locals = routine_info.get_non_local_symbols()
                 todo.extend(non_locals)
 
         done = set()
+        result = set()
         while todo:
             info = todo.pop()
             if info in done:
@@ -980,51 +980,42 @@ class DependencyTools():
                 try:
                     mod_info = mod_manager.get_module_info(module_name)
                 except FileNotFoundError:
-                    print(f"Cannot find mnodule '{module_name}' - ignored.")
+                    print(f"Cannot find module '{module_name}' - ignored.")
                     continue
                 try:
-                    non_locals = \
-                        mod_info.get_non_local_symbols_for_routine(symbol_name)
-                except ModuleInfoError:
+                    routine_info = mod_info.get_routine_info(symbol_name)
+                except KeyError:
                     print(f"Cannot find symbol '{symbol_name}' in module "
                           f"'{module_name}' - ignored.")
                     continue
+                non_locals = routine_info.get_non_local_symbols()
                 print(f"MOD: Adding non-locals from subroutine '{symbol_name} "
                       f"in module '{module_name}': '{non_locals}'")
                 todo.extend(non_locals)
             elif external_type == "function":
                 print("function", module_name, symbol_name)
             elif external_type == "reference":
-                print(f"MOD: Adding reference '{symbol_name}' from module "
-                      f"'{module_name}'.")
-                print("reference", module_name, symbol_name)
+                result.add((module_name, symbol_name))
             else:
                 print("unknown", module_name, symbol_name)
                 try:
                     mod_info = mod_manager.get_module_info(module_name)
                 except FileNotFoundError:
-                    print(f"Cannot find mnodule '{module_name}' - ignoring "
+                    print(f"Cannot find module '{module_name}' - ignoring "
                           f"unknown symbol '{symbol_name}'.")
                     continue
-                # Get the File object:
-                file_psyir = mod_info.get_psyir()
-                if not file_psyir.children:
-                    print(f"Empty module '{module_name} - ignored.")
-                    continue
-                # Get the module object:
-                mod_psyir = file_psyir.children[0]
-                if not isinstance(mod_psyir, Container):
-                    print(f"Unexpected type '{type(mod_psyir)}' when parsing "
-                          f"{module_name}- should be 'Container'. Ignored")
-                    continue
-                sym_tab = mod_psyir.symbol_table
-                if symbol_name in sym_tab:
-                    symbol = sym_tab.lookup(symbol_name)
-                    if isinstance(symbol, RoutineSymbol):
-                        info = ("subroutine", module_name, symbol_name)
-                        todo.append(info)
-                        continue
-                    print(f"Reference from unknown: {symbol_name} in module "
-                          f"{module_name}")
 
+                try:
+                    # This will raise an exception if the symbol
+                    # is not a routine:
+                    mod_info.get_routine_info(symbol_name)
+                    info = ("subroutine", module_name, symbol_name)
+                    todo.append(info)
+                except KeyError:
+                    # If the symbol is not in the routine info, it must be
+                    # a reference, so add it to the result list:
+                    result.add((module_name, symbol_name))
+                continue
+
+        print("RESULT IS", result)
         return in_local, out_local
