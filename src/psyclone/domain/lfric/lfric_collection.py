@@ -45,45 +45,10 @@
 
 # Imports
 import abc
-import os
-from enum import Enum
-from collections import OrderedDict, namedtuple, Counter
-import fparser
 
-from psyclone import psyGen
-from psyclone.configuration import Config
-from psyclone.core import AccessType, Signature
-from psyclone.domain.lfric.lfric_builtins import (LFRicTypes,
-                                                  LFRicBuiltInCallFactory,
-                                                  LFRicBuiltIn, BUILTIN_MAP)
-from psyclone.domain.common.psylayer import PSyLoop
-from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
-                                   KernCallArgList, KernStubArgList,
-                                   LFRicArgDescriptor, KernelInterface,
-                                   LFRicConstants, LFRicSymbolTable)
-from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
-from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
-                              DeallocateGen, DeclGen, DoGen, IfThenGen,
-                              ModuleGen, SubroutineGen, TypeDeclGen, UseGen,
-                              PSyIRGen)
-from psyclone.parse.algorithm import Arg, KernelCall
-from psyclone.parse.kernel import KernelType, getkerneldescriptors
-from psyclone.parse.utils import ParseError
-from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
-                             Arguments, KernelArgument, HaloExchange,
-                             GlobalSum, FORTRAN_INTENT_NAMES, DataAccess,
-                             CodedKern)
-from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
-                                  ArrayReference, ACCEnterDataDirective,
-                                  ACCRegionDirective, OMPRegionDirective,
-                                  Routine, ScopingNode, StructureReference,
-                                  KernelSchedule)
-from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, ScalarType,
-                                    DeferredType, DataTypeSymbol,
-                                    ContainerSymbol, ImportInterface,
-                                    ArrayType, SymbolError)
+#from psyclone.dynamo0p3 import DynInvoke, DynKern
+from psyclone.domain.lfric import LFRicSymbolTable
+from psyclone.errors import InternalError
 
 
 class LFRicCollection():
@@ -100,6 +65,7 @@ class LFRicCollection():
                            DynKern.
     '''
     def __init__(self, node):
+        from psyclone.dynamo0p3 import DynInvoke, DynKern
         if isinstance(node, DynInvoke):
             # We are handling declarations/initialisations for an Invoke
             self._invoke = node

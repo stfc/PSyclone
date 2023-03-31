@@ -44,7 +44,6 @@
     Argument). '''
 
 # Imports
-import abc
 import os
 from enum import Enum
 from collections import OrderedDict, namedtuple, Counter
@@ -60,7 +59,8 @@ from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, KernStubArgList,
                                    LFRicArgDescriptor, KernelInterface,
-                                   LFRicConstants, LFRicSymbolTable,LFRicCollection)
+                                   LFRicCollection, LFRicConstants, 
+                                   LFRicSymbolTable)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeallocateGen, DeclGen, DoGen, IfThenGen,
