@@ -59,8 +59,6 @@ class RoutineInfo:
         self._module_info = module_info
         self._ast = ast
         self._name = str(ast.content[0].items[1])
-        #TODO: do we need this?
-        self._is_function = isinstance(ast, Function_Subprogram)
 
         self._non_locals = None
 
@@ -77,7 +75,8 @@ class RoutineInfo:
 
     # -------------------------------------------------------------------------
     def set_psyir(self, psyir):
-        '''Sets the PSyIR representation of this routine.
+        '''Sets the PSyIR representation of this routine. This is called from
+        the module info object that this object is managed by.
 
         :param psyir: the PSyIR of this routine.
         :type psyir: :py:class:`psyclone.psyir.nodes.Node`
